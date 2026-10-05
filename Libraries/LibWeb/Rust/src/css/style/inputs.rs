@@ -667,16 +667,20 @@ impl RetainedState {
         self.computed_group_sets.construction_facts(node)
     }
 
-    /// The record the element published, which its box is built from: the record the element
-    /// holds, or the one the engine assigned it before it holds one. `None` while the element has
+    /// The record the element published, which its box is built from: the one a clock frame shows in its place, the
+    /// record the element holds, or the one the engine assigned it before it holds one. `None` while the element has
     /// no record: a text node, a retired identity, or an element style has not reached yet.
     #[must_use]
     pub fn element_published_style_record(&self, node: StyleNodeID) -> Option<u64> {
-        self.held_style_records.get(&node).copied().or_else(|| {
-            self.computed_group_sets
-                .assigned_style_record(node)
-                .map(computed::FinalStyleRecordID::raw)
-        })
+        let shown = self.tick_shown.element(node);
+        shown
+            .map(computed::FinalStyleRecordID::raw)
+            .or_else(|| self.held_style_records.get(&node).copied())
+            .or_else(|| {
+                self.computed_group_sets
+                    .assigned_style_record(node)
+                    .map(computed::FinalStyleRecordID::raw)
+            })
     }
 
     /// The style the element published for one pseudo-element kind. `None` while the element
@@ -686,15 +690,14 @@ impl RetainedState {
         node: StyleNodeID,
         pseudo_kind: u8,
     ) -> Option<crate::css::computed_value_views::ComputedValuesView<'_>> {
-        self.published_style_record_view(self.computed_group_sets.pseudo_style_record(node, pseudo_kind))
+        self.published_style_record_view(self.published_pseudo_record(node, pseudo_kind))
     }
 
     /// The record the element published for one pseudo-element kind. `None` while the element
     /// styles no such pseudo-element.
     #[must_use]
     pub fn pseudo_published_style_record(&self, node: StyleNodeID, pseudo_kind: u8) -> Option<u64> {
-        self.computed_group_sets
-            .pseudo_style_record(node, pseudo_kind)
+        self.published_pseudo_record(node, pseudo_kind)
             .map(computed::FinalStyleRecordID::raw)
     }
 
@@ -702,21 +705,21 @@ impl RetainedState {
     /// record.
     #[must_use]
     pub fn element_published_box_facts(&self, node: StyleNodeID) -> Option<PublishedBoxFacts> {
-        self.published_box_facts(self.computed_group_sets.assigned_style_record(node))
+        self.published_box_facts(self.published_element_record(node))
     }
 
     /// The box facts the element's published record for one pseudo-element kind holds. `None`
     /// while the element styles no such pseudo-element.
     #[must_use]
     pub fn pseudo_published_box_facts(&self, node: StyleNodeID, pseudo_kind: u8) -> Option<PublishedBoxFacts> {
-        self.published_box_facts(self.computed_group_sets.pseudo_style_record(node, pseudo_kind))
+        self.published_box_facts(self.published_pseudo_record(node, pseudo_kind))
     }
 
     /// What the element's published record for one pseudo-element kind says about its generated
     /// content. `None` while the element styles no such pseudo-element.
     #[must_use]
     pub fn pseudo_published_content_facts(&self, node: StyleNodeID, pseudo_kind: u8) -> Option<PublishedContentFacts> {
-        let view = self.published_style_record_view(self.computed_group_sets.pseudo_style_record(node, pseudo_kind))?;
+        let view = self.published_style_record_view(self.published_pseudo_record(node, pseudo_kind))?;
         Some(PublishedContentFacts {
             counters_are_none: view.counter_properties_are_none(),
             content_is_keyword: view.content_is_keyword(),
@@ -728,7 +731,7 @@ impl RetainedState {
     /// which nothing short of a full rebuild can renumber.
     #[must_use]
     pub fn element_counter_reset_has_reversed_counter(&self, node: StyleNodeID) -> bool {
-        self.published_style_record_view(self.computed_group_sets.assigned_style_record(node))
+        self.published_style_record_view(self.published_element_record(node))
             .is_some_and(crate::css::computed_value_views::ComputedValuesView::counter_reset_has_reversed_counter)
     }
 
@@ -790,7 +793,7 @@ impl RetainedState {
         let Some(parent) = parent else {
             return TextStyleParentFacts::default();
         };
-        let style_record = self.computed_group_sets.assigned_style_record(parent);
+        let style_record = self.published_element_record(parent);
         let Some(view) = self.published_style_record_view(style_record) else {
             return TextStyleParentFacts::default();
         };
@@ -898,7 +901,7 @@ impl RetainedState {
     /// Whether the element's published style record replaces its contents with a single image.
     #[must_use]
     pub fn element_content_is_single_image(&self, node: StyleNodeID) -> bool {
-        self.published_style_record_view(self.computed_group_sets.assigned_style_record(node))
+        self.published_style_record_view(self.published_element_record(node))
             .is_some_and(crate::css::computed_value_views::ComputedValuesView::content_is_single_image)
     }
 
@@ -923,8 +926,8 @@ impl RetainedState {
         pseudo_kind: Option<u8>,
     ) -> Option<crate::css::computed_value_views::ComputedValuesView<'_>> {
         let style_record = match pseudo_kind {
-            Some(pseudo_kind) => self.computed_group_sets.pseudo_style_record(node, pseudo_kind),
-            None => self.computed_group_sets.assigned_style_record(node),
+            Some(pseudo_kind) => self.published_pseudo_record(node, pseudo_kind),
+            None => self.published_element_record(node),
         };
         self.published_style_record_view(style_record)
     }
@@ -1009,7 +1012,7 @@ impl RetainedState {
     /// record.
     #[must_use]
     pub fn element_published_style_payloads(&self, node: StyleNodeID) -> Option<&[*const std::ffi::c_void]> {
-        let record = self.computed_group_sets.assigned_style_record(node)?;
+        let record = self.published_element_record(node)?;
         let payloads = self.computed_group_sets.style_record_payloads(record.raw())?;
         Some(SharedPayload::as_pointer_slice(payloads))
     }
@@ -1870,6 +1873,7 @@ impl StyleEngineState {
                 size_container_queries: Default::default(),
                 counter_style_environment_identities: HashMap::default(),
                 held_style_records: HashMap::default(),
+                tick_shown: Default::default(),
                 backing_elements: HashMap::default(),
                 children_explicitly_inherit_marks: HashSet::default(),
                 css_defined_animations: Default::default(),
@@ -3236,6 +3240,8 @@ impl RetainedState {
             size_container_queries,
             counter_style_environment_identities: _,
             held_style_records,
+            // Empty but while a clock frame runs, which no retirement reaches.
+            tick_shown: _,
             backing_elements,
             children_explicitly_inherit_marks,
             css_defined_animations,

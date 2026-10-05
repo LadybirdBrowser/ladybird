@@ -869,6 +869,9 @@ pub struct RetainedState {
     /// The style record each element holds, for the elements that hold one, as the host reports
     /// every record it installs or clears.
     held_style_records: HashMap<StyleNodeID, u64>,
+    /// The records a clock frame shows in place of the ones the host installed, which it lends the published reads
+    /// for as long as it runs.
+    tick_shown: engine_sample::TickShownRecords,
     /// Per shadow host, the elements of its shadow tree that stood for one of its element-backed
     /// pseudo-elements when the host published them; [`RetainedState::backing_elements`] reads the
     /// ones that still do.

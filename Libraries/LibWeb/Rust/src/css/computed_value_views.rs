@@ -717,7 +717,6 @@ impl<'a> ComputedValuesView<'a> {
     }
 
     #[inline]
-    #[allow(dead_code)]
     pub(crate) fn border(self) -> &'a BorderValues {
         self.native_group(STYLE_GROUP_INDEX_BORDER)
     }
@@ -749,6 +748,35 @@ impl<'a> ComputedValuesView<'a> {
     /// principal block box rather than outside it.
     pub(crate) fn list_style_position_is_inside(self) -> bool {
         self.inherited_list().list_style_position == crate::css::css_enums::list_style_position::INSIDE
+    }
+
+    /// Whether the style names an image its box paints only once the host loads it: one in its background, mask, border
+    /// image or list marker, but a gradient, which paints from the style alone.
+    pub(crate) fn names_loaded_images(self) -> bool {
+        fn names_loaded_image(value: Option<&StyleValueData>) -> bool {
+            match value {
+                None
+                | Some(
+                    StyleValueData::Keyword { .. }
+                    | StyleValueData::LinearGradient { .. }
+                    | StyleValueData::ConicGradient { .. }
+                    | StyleValueData::RadialGradient { .. },
+                ) => false,
+                Some(StyleValueData::ValueList { values, .. }) => values
+                    .as_slice()
+                    .iter()
+                    .any(|value| names_loaded_image(value.optional_data())),
+                Some(_) => true,
+            }
+        }
+        [
+            &self.background().background_image,
+            &self.mask().mask_image,
+            &self.border().border_image_source,
+            &self.inherited_list().list_style_image,
+        ]
+        .into_iter()
+        .any(|image| names_loaded_image(image.data()))
     }
 
     /// Whether `list-style-image` names an image, which a list marker then shows instead of its
@@ -796,7 +824,6 @@ impl<'a> ComputedValuesView<'a> {
     }
 
     #[inline]
-    #[allow(dead_code)]
     pub(crate) fn mask(self) -> &'a MaskValues {
         self.native_group(STYLE_GROUP_INDEX_MASK)
     }
@@ -814,7 +841,6 @@ impl<'a> ComputedValuesView<'a> {
     }
 
     #[inline]
-    #[allow(dead_code)]
     pub(crate) fn background(self) -> &'a BackgroundValues {
         self.native_group(STYLE_GROUP_INDEX_BACKGROUND)
     }

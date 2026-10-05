@@ -2947,9 +2947,7 @@ impl RetainedState {
     /// descends into, which stops the search where a nested block styles its own first letter.
     #[must_use]
     pub(crate) fn has_published_first_letter_style(&self, node: StyleNodeID) -> bool {
-        self.computed_group_sets
-            .pseudo_style_record(node, pseudo_kind::FIRST_LETTER)
-            .is_some()
+        self.published_pseudo_record(node, pseudo_kind::FIRST_LETTER).is_some()
     }
 
     /// The value a winner's declaration was written with, and the declaration's index in its

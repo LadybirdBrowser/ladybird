@@ -568,16 +568,17 @@ impl super::StyleEngine {
         self.state.retained.size_container_query_dependents(container).0
     }
 
-    /// The record `node` computes to against the boxes as the last layout committed them, which the engine derives for
-    /// this read alone, as it does for a read of the element's style: the published rows and the record the host
-    /// installed stay as they were. None for an element without a box, `boxed` says, that stays without one. Where the
-    /// move from the host's record reaches beyond the element's box, a pseudo-element, a transition or an animation,
-    /// the host computes it.
+    /// What `node` computes to against the boxes as the last layout committed them, which the engine derives for this
+    /// read alone, as it does for a read of the element's style: what the element published and the record the host
+    /// installed stay as they were. None for an element without a box, `boxed` says, that stays without one. Records
+    /// that move the boxes of the element's pseudo-elements are shown to the clock frame's tree build in place of the
+    /// host's (see [`TickShownRecords`]). Where the move from the host's record reaches beyond the element's box, or a
+    /// pseudo-element's a build cannot build again by itself, a transition or an animation, the host computes it.
     pub(crate) fn restyle_size_query_dependent(
         &mut self,
         node: StyleNodeID,
         boxed: bool,
-    ) -> Result<Option<super::layout_style::DerivedStyleRecord>, NeedsHost> {
+    ) -> Result<DependentRestyle, NeedsHost> {
         let host_record = self.computed_group_sets.assigned_style_record(node).ok_or(NeedsHost)?;
         if self.record_holds_an_animation_overlay(host_record) {
             return Err(NeedsHost);
@@ -588,14 +589,11 @@ impl super::StyleEngine {
             return Err(NeedsHost);
         };
         let restyled = super::computed::FinalStyleRecordID::from_raw(record.style_record).ok_or(NeedsHost)?;
-        if record.pseudo_records_present != 0 {
-            return Err(NeedsHost);
-        }
         // The host computes no style for an element hidden without a box, so only whether it gains one says anything.
         if !boxed {
             return match self.record_generates_a_box(restyled) {
                 true => Err(NeedsHost),
-                false => Ok(None),
+                false => Ok(DependentRestyle::Unmoved),
             };
         }
         if restyled != host_record
@@ -604,7 +602,106 @@ impl super::StyleEngine {
         {
             return Err(NeedsHost);
         }
-        Ok(Some(super::layout_style::DerivedStyleRecord::pin(self, restyled.raw())))
+        let pseudo_elements = self.pseudo_records_to_show(node, &record)?;
+        let in_box = super::layout_style::DerivedStyleRecord::pin(self, restyled.raw());
+        let Some((pseudo_present, pseudo)) = pseudo_elements else {
+            // What an earlier clock frame showed for the pseudo-elements stands beside the element's record.
+            if let Some(&shown) = self.tick_shown.get(node)
+                && shown.element != restyled
+            {
+                let shown = ShownRecords {
+                    element: restyled,
+                    ..shown
+                };
+                self.state.retained.show_for_tick(node, shown);
+            }
+            return Ok(DependentRestyle::InBox(in_box));
+        };
+        let shown = ShownRecords {
+            element: restyled,
+            pseudo_present,
+            pseudo,
+        };
+        self.state.retained.show_for_tick(node, shown);
+        Ok(DependentRestyle::PseudoElementsMove(in_box))
+    }
+
+    /// The pseudo-element records `node` shows with `record`, the record a read derived for it, where they move what
+    /// its boxes show now: the ones the read settled, and the host's for those an earlier clock frame showed another
+    /// of. Only a `::before` and an `::after` are built again by themselves, and only the host starts their
+    /// transitions and numbers the counters and quotes after them.
+    fn pseudo_records_to_show(
+        &self,
+        node: StyleNodeID,
+        record: &super::publication::DemandedEngineRecord,
+    ) -> Result<Option<(u16, [u64; bridge::PSEUDO_RECORD_SLOTS])>, NeedsHost> {
+        use super::publication::pseudo_kind::{AFTER, BEFORE};
+        let shown = self.tick_shown.get(node);
+        let shown_present = shown.map_or(0, |shown| shown.pseudo_present);
+        let present = record.pseudo_records_present | shown_present;
+        let mut pseudo = [0; bridge::PSEUDO_RECORD_SLOTS];
+        let mut moved = false;
+        for kind in (0..bridge::PSEUDO_RECORD_SLOTS).filter(|&kind| present & (1 << kind) != 0) {
+            let host = self
+                .computed_group_sets
+                .pseudo_style_record(node, kind as u8)
+                .map_or(0, super::computed::FinalStyleRecordID::raw);
+            pseudo[kind] = match record.pseudo_records_present & (1 << kind) {
+                0 => host,
+                _ => record.pseudo_records[kind],
+            };
+            let showing = match (shown, shown_present & (1 << kind)) {
+                (Some(shown), bit) if bit != 0 => shown.pseudo[kind],
+                _ => host,
+            };
+            if pseudo[kind] == showing {
+                continue;
+            }
+            let regenerates = kind == usize::from(BEFORE) || kind == usize::from(AFTER);
+            let reaches_beyond = |record: u64| {
+                super::computed::FinalStyleRecordID::from_raw(record).is_some_and(|record| {
+                    self.record_declares_transitions(record) || self.record_affects_generated_content_state(record)
+                })
+            };
+            if !regenerates || reaches_beyond(pseudo[kind]) || reaches_beyond(showing) {
+                return Err(NeedsHost);
+            }
+            moved = true;
+        }
+        Ok(moved.then_some((present, pseudo)))
+    }
+
+    /// Lends the engine's published reads the records `shown`, which a clock frame shows in the boxes it builds.
+    pub(crate) fn lend_tick_shown(&mut self, shown: TickShownRecords) {
+        debug_assert!(
+            self.tick_shown.0.is_empty(),
+            "one clock frame at a time shows its records"
+        );
+        self.state.retained.tick_shown = shown;
+    }
+
+    /// Takes back the records [`Self::lend_tick_shown`] lent, with what the clock frame showed since.
+    pub(crate) fn take_tick_shown(&mut self) -> TickShownRecords {
+        std::mem::take(&mut self.state.retained.tick_shown)
+    }
+
+    /// Lets go of the records clock frames showed, whose boxes the host builds again from its own.
+    pub(crate) fn release_tick_shown(&mut self, shown: TickShownRecords) {
+        for (_, shown) in shown.0 {
+            shown.unpin(&mut self.state.retained.computed_group_sets);
+        }
+    }
+
+    /// Whether `record` moves a counter or a quote depth, which the boxes after its own read.
+    fn record_affects_generated_content_state(&self, record: super::computed::FinalStyleRecordID) -> bool {
+        self.computed_group_sets
+            .style_record_view(record.raw())
+            .is_none_or(|view| {
+                crate::css::computed_value_views::ComputedValuesView::new(SharedPayload::as_pointer_slice(
+                    view.payloads,
+                ))
+                .affects_generated_content_state()
+            })
     }
 
     /// Whether an element with `record` generates a box: it is neither under a `display: none` ancestor nor itself
@@ -653,6 +750,110 @@ impl super::StyleEngine {
             line_height_used,
             &resolved,
         ))
+    }
+}
+
+/// How a clock frame shows what the new size of a container decides for an element below it.
+pub(crate) enum DependentRestyle {
+    /// What the element's boxes show stands.
+    Unmoved,
+    /// A record that moves nothing beyond the element's box, which the frame shows in it.
+    InBox(super::layout_style::DerivedStyleRecord),
+    /// Records that move the boxes of the element's `::before` or `::after`, which the frame builds again from them,
+    /// beside a record that moves nothing beyond the element's box, which it shows in it.
+    PseudoElementsMove(super::layout_style::DerivedStyleRecord),
+}
+
+/// The records the render clock's frames show in place of the ones the host installed, for the elements whose boxes
+/// they built again: what the size a frame laid a container out at decides for them. A frame lends them to the
+/// engine's published reads, which a tree build builds boxes from, and takes them back as it ends, so the host never
+/// reads them. Each
+/// record is pinned until the host lets go of them as it builds those boxes again from its own.
+#[derive(Default)]
+pub(crate) struct TickShownRecords(Vec<(StyleNodeID, ShownRecords)>);
+
+impl TickShownRecords {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    fn get(&self, node: StyleNodeID) -> Option<&ShownRecords> {
+        self.0
+            .iter()
+            .find_map(|(shown_node, shown)| (*shown_node == node).then_some(shown))
+    }
+
+    /// The record shown for `node`'s element, where a clock frame shows one.
+    pub(super) fn element(&self, node: StyleNodeID) -> Option<super::computed::FinalStyleRecordID> {
+        self.get(node).map(|shown| shown.element)
+    }
+
+    /// The record shown for `node`'s pseudo-element `kind`, where a clock frame shows one, and none where it
+    /// shows the pseudo-element has none.
+    fn pseudo(&self, node: StyleNodeID, kind: u8) -> Option<Option<super::computed::FinalStyleRecordID>> {
+        let shown = self.get(node)?;
+        let slot = usize::from(kind);
+        (slot < bridge::PSEUDO_RECORD_SLOTS && shown.pseudo_present & (1 << slot) != 0)
+            .then(|| super::computed::FinalStyleRecordID::from_raw(shown.pseudo[slot]))
+    }
+}
+
+/// What a clock frame shows for one element.
+#[derive(Clone, Copy)]
+struct ShownRecords {
+    element: super::computed::FinalStyleRecordID,
+    /// The pseudo-element kinds whose records the frame shows, a bit per kind; a shown kind holding zero has none.
+    pseudo_present: u16,
+    pseudo: [u64; bridge::PSEUDO_RECORD_SLOTS],
+}
+
+impl ShownRecords {
+    fn records(&self) -> impl Iterator<Item = u64> + '_ {
+        let pseudo = (0..bridge::PSEUDO_RECORD_SLOTS)
+            .filter(|&kind| self.pseudo_present & (1 << kind) != 0)
+            .map(|kind| self.pseudo[kind]);
+        std::iter::once(self.element.raw())
+            .chain(pseudo)
+            .filter(|&record| record != 0)
+    }
+
+    fn unpin(&self, computed_group_sets: &mut super::computed::ComputedGroupSets) {
+        self.records()
+            .for_each(|record| computed_group_sets.unpin_style_record(record));
+    }
+}
+
+impl RetainedState {
+    /// Shows `shown` for `node` in place of what a clock frame showed for it before.
+    fn show_for_tick(&mut self, node: StyleNodeID, shown: ShownRecords) {
+        shown
+            .records()
+            .for_each(|record| self.computed_group_sets.pin_style_record(record));
+        let entries = &mut self.tick_shown.0;
+        match entries.iter_mut().find(|(shown_node, _)| *shown_node == node) {
+            Some((_, previous)) => std::mem::replace(previous, shown).unpin(&mut self.computed_group_sets),
+            None => entries.push((node, shown)),
+        }
+    }
+
+    /// The element record the boxes built from `node` take: the one a clock frame shows, or the one the engine
+    /// assigned.
+    pub(super) fn published_element_record(&self, node: StyleNodeID) -> Option<super::computed::FinalStyleRecordID> {
+        self.tick_shown
+            .element(node)
+            .or_else(|| self.computed_group_sets.assigned_style_record(node))
+    }
+
+    /// The record the boxes built for `node`'s pseudo-element `kind` take: the one a clock frame shows, or the
+    /// one the element holds.
+    pub(super) fn published_pseudo_record(
+        &self,
+        node: StyleNodeID,
+        kind: u8,
+    ) -> Option<super::computed::FinalStyleRecordID> {
+        self.tick_shown
+            .pseudo(node, kind)
+            .unwrap_or_else(|| self.computed_group_sets.pseudo_style_record(node, kind))
     }
 }
 

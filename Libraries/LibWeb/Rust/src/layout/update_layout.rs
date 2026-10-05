@@ -409,32 +409,46 @@ pub(crate) struct ClockRound {
 }
 
 impl ClockRound {
-    /// Lays out what the tick's samples moved, and answers what the round owes the host, or why it laid nothing out: a
-    /// tick builds no tree, and a length only the host resolves is the host's to lay out.
-    pub(crate) fn run(&self, state: &mut ArenaHandle) -> Result<Option<LayoutRoundAnswer>, ClockRoundDeclined> {
+    /// Builds again what the clock frame marked and lays out what it moved, and pushes what the round owes the host to
+    /// `owed`, answering it, or nothing where the round laid nothing out. A round declines a build that needs the host
+    /// and a length only the host resolves, after it owes the host what it ran.
+    pub(crate) fn run<'a>(
+        &self,
+        state: &mut ArenaHandle,
+        owed: &'a mut Vec<LayoutRoundAnswer>,
+    ) -> Result<Option<&'a LayoutRoundAnswer>, ClockRoundDeclined> {
         let arena = state.arena();
         if arena.layout_root().is_invalid() || arena.needs_full_layout_tree_update() {
             return Err(ClockRoundDeclined);
         }
-        if arena.layout_is_up_to_date(false) {
+        let build = arena
+            .document_style_node()
+            .filter(|&document| arena.layout_tree_update_marks().borrow().child_needs(document))
+            .map(|document| TreeBuildJob::new(document, None));
+        if build.is_none() && arena.layout_is_up_to_date(false) {
             return Ok(None);
         }
         let answer = LayoutRoundJob {
             facts: self.facts,
-            build: None,
+            build,
             layout: RoundLayout::PartialIfPlanned,
             container_query_evaluation_is_pending: false,
             container_length_bases: self.container_length_bases,
         }
         .run(state);
-        match state.arena().take_unresolved_container_lengths() {
+        // A box the build gave an image has none until the host attaches it.
+        let declined =
+            matches!(answer.end, LayoutRoundEnd::Built { .. }) || state.arena().owes_shown_image_resources_to_host();
+        owed.push(answer);
+        match state.arena().take_unresolved_container_lengths() || declined {
             true => Err(ClockRoundDeclined),
-            false => Ok(Some(answer)),
+            false => Ok(owed.last()),
         }
     }
 }
 
-/// A clock round that would build the tree or lay out a length only the host resolves.
+/// A clock round whose tree build or layout needs the host: a build that asks for another pass, reconciles list item
+/// counters or owes the host image resources, or a length only the host resolves.
 pub(crate) struct ClockRoundDeclined;
 
 /// Seals the round the ticks of a clock lease of `document_host`'s document run, where its layout is up to date in
