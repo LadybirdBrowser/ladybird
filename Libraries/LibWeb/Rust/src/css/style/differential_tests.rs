@@ -650,7 +650,10 @@ fn budget_histories_preserve_answers_winners_and_records_across_mutations() {
             workload.engine.end_cold_matching_batch();
         }
         assert_eq!(warm_answers, pressured_answers, "step {step}");
-        saw_pressure |= pressured.engine.memory.refusals(MemoryCategory::RetainedMatchAnswer) > 0;
+        saw_pressure |= !pressured
+            .engine
+            .memory
+            .is_tier3_admitting(MemoryCategory::RetainedMatchAnswer);
         saw_retention_difference |= warm.engine.memory.bytes_in_tier(Tier::Acceleration)
             != pressured.engine.memory.bytes_in_tier(Tier::Acceleration);
         assert_eq!(warm.mutate(&mut warm_rng), pressured.mutate(&mut pressured_rng));
