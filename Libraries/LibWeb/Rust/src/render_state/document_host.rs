@@ -729,9 +729,10 @@ impl DocumentHost {
     }
 
     /// Whether the document's style engine may keep a row's container effects for the host to take, where the host
-    /// knows it without asking: no frame flies, whose style may note some.
+    /// knows it without asking: neither a frame flies nor a clock lease runs, whose style may note some beside the host.
+    /// What a frame or a lease noted has reached the host once it is back.
     pub(crate) fn container_effects_may_be_held(&self) -> bool {
-        self.waits_for_frame.get() || self.shared.container_effects_held.load(Ordering::Relaxed)
+        self.away.borrow().is_some() || self.shared.container_effects_held.load(Ordering::Relaxed)
     }
 
     /// Whether some row may have enrolled an SVG paint resource, which only then has to be synced again.
