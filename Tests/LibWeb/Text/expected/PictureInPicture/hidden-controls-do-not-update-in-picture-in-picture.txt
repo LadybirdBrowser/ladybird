@@ -1,0 +1,1 @@
+animation frame callbacks while playing in Picture-in-Picture: false

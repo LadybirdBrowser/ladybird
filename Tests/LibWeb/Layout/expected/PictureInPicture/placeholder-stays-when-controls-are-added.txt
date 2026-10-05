@@ -17,6 +17,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               BlockContainer <div.timeline> at [8,445] flex-item [0+0+0 854 0+0+0] [-5+0+5 5 5+0+-5] [BFC] children: not-inline
                 BlockContainer <div.timeline-track> at [8,445] positioned [0+0+0 854 0+0+0] [0+0+0 5 0+0+0] children: not-inline
                   BlockContainer <div.timeline-fill> at [8,445] [0+0+0 0 0+0+854] [0+0+0 5 0+0+0] children: not-inline
+                  BlockContainer <div.timeline-buffered> at [8,445] positioned [0+0+0 854 0+0+0] [0+0+0 5 0+0+0] [BFC] children: not-inline
               Box <div.button-bar> at [16,454] flex-container(row) flex-item [0+0+8 838 8+0+0] [0+0+4 30 4+0+0] [FFC] children: not-inline
                 Box <button.control-button.play-pause-button> at [16,457] flex-container(row) flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [FFC] children: not-inline
                   SVGSVGBox <svg.icon.play-pause-icon> at [16,457] flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
@@ -42,3 +43,4 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x499.203125] (z-index: auto)
   SC for BlockContainer<DIV>.timeline [8,445 854x5] (z-index: 1)
+   SC for BlockContainer<DIV>.timeline-buffered [8,445 854x5] (z-index: auto)

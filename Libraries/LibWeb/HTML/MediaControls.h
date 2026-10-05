@@ -77,6 +77,7 @@ private:
     void update_timestamp();
     void set_timestamp(double time, double duration);
     void request_timeline_update();
+    bool timeline_is_shown() const;
     void update_volume_and_mute_indicator();
     void update_fullscreen_icon();
     void update_placeholder_visibility();
@@ -111,6 +112,7 @@ private:
     RefPtr<Core::Timer> m_scrub_seek_preemption_timer;
     bool m_scrubbing_volume { false };
     bool m_hovering_controls { false };
+    bool m_control_bar_is_shown { false };
 
     RefPtr<Core::Timer> m_hover_timer;
 

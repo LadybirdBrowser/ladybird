@@ -1281,6 +1281,11 @@ bool Internals::needs_repaint()
     return local_root && local_root->needs_repaint();
 }
 
+bool Internals::has_animation_frame_callbacks()
+{
+    return window().has_animation_frame_callbacks();
+}
+
 bool Internals::needs_display_list_record()
 {
     Layout::ForcedReadScope read { window().associated_document() };

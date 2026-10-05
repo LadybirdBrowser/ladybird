@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0 }
+    video { display: block; width: 320px; height: 180px }
+</style>
+<video controls muted loop src="../../../Assets/test-webm.webm"></video>
+<script>
+    function nextFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    asyncTest(async done => {
+        const video = document.querySelector("video");
+        await video.play();
+
+        // The middle of the video, away from its control bar, and a point below the video.
+        internals.mouseMove(160, 60);
+        internals.mouseMove(160, 400);
+        await nextFrame();
+        println(`animation frame callbacks while the control bar is hidden: ${internals.hasAnimationFrameCallbacks}`);
+
+        internals.mouseMove(160, 60);
+        println(`animation frame callbacks once the control bar shows: ${internals.hasAnimationFrameCallbacks}`);
+
+        video.pause();
+        done();
+    });
+</script>

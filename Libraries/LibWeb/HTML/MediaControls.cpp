@@ -60,6 +60,10 @@ void MediaControls::update_visibility()
     MUST(m_dom->container->class_list()->toggle("controls-hidden"_utf16, !host.should_expose_user_interface()));
     MUST(m_dom->container->class_list()->toggle("picture-in-picture"_utf16, host.is_picture_in_picture_element()));
     update_placeholder_visibility();
+
+    update_timeline();
+    update_timestamp();
+    request_timeline_update();
 }
 
 void MediaControls::create_shadow_tree()
@@ -633,6 +637,9 @@ void MediaControls::update_timeline()
     VERIFY(m_dom->timeline_track);
     VERIFY(m_dom->timeline_fill);
 
+    if (!timeline_is_shown())
+        return;
+
     auto range = timeline_range();
     if (m_scrubbing_timeline == Scrubbing::No) {
         double progress = 0.0;
@@ -691,11 +698,20 @@ void MediaControls::set_timeline_progress(double progress)
     m_last_timeline_progress = progress;
 }
 
+// A hidden video control bar is not kept up to date, so that a playing video does not need a rendering update every
+// frame. It catches up when it shows.
+bool MediaControls::timeline_is_shown() const
+{
+    if (!is<HTMLVideoElement>(*m_host))
+        return true;
+    return m_control_bar_is_shown && m_host->should_expose_user_interface();
+}
+
 void MediaControls::request_timeline_update()
 {
     if (m_request_animation_frame_id != 0)
         return;
-    if (!m_media_element->potentially_playing())
+    if (!m_media_element->potentially_playing() || !timeline_is_shown())
         return;
 
     auto& realm = HTML::relevant_realm(*m_host);
@@ -710,6 +726,9 @@ void MediaControls::request_timeline_update()
 void MediaControls::update_timestamp()
 {
     VERIFY(m_media_element);
+    if (!timeline_is_shown())
+        return;
+
     double time = static_cast<double>(m_last_timestamp_time);
     if (m_scrubbing_timeline == Scrubbing::No)
         time = m_media_element->current_time();
@@ -841,6 +860,12 @@ void MediaControls::show_controls()
 
     MUST(m_dom->control_bar->class_list()->add(visible_class()));
 
+    if (!exchange(m_control_bar_is_shown, true)) {
+        update_timeline();
+        update_timestamp();
+        request_timeline_update();
+    }
+
     if (!m_hover_timer) {
         constexpr int hover_timeout_ms = 1000;
         m_hover_timer = Core::Timer::create_single_shot(hover_timeout_ms, [&] {
@@ -864,6 +889,7 @@ void MediaControls::hide_controls()
 
     MUST(m_dom->control_bar->class_list()->remove(visible_class()));
     m_hover_timer.clear();
+    m_control_bar_is_shown = false;
 }
 
 }
