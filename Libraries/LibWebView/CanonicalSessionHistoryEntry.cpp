@@ -27,6 +27,23 @@ CanonicalDocumentState::CanonicalDocumentState(Web::HTML::CrossProcessId id)
 
 CanonicalDocumentState::~CanonicalDocumentState() = default;
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-populate-the-history-entry's-document
+void CanonicalDocumentState::save_the_origin_of_the_populated_document()
+{
+    // 7. If entry's document state's document is not null, then:
+    if (!populated_document.has_value())
+        return;
+    auto const& document = *populated_document->document;
+
+    // 2. If saveExtraDocumentState is true:
+    // NB: It is false for a document created for inline content in place of the response.
+    if (populated_document->inline_content_origin.has_value() && document.origin().is_same_origin(*populated_document->inline_content_origin))
+        return;
+
+    // 1. Set entry's document state's origin to document's origin.
+    origin = document.origin();
+}
+
 Web::HTML::SessionHistoryDocumentStateDescriptor CanonicalDocumentState::descriptor() const
 {
     Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor> nested_history_descriptors;
@@ -64,7 +81,7 @@ static NonnullRefPtr<CanonicalDocumentState> document_state_from_descriptor(Web:
     if (existing && update_document_state == CanonicalSessionHistoryEntry::UpdateDocumentState::No)
         return existing.release_nonnull();
 
-    auto document_state = existing ? existing.release_nonnull() : CanonicalDocumentState::create(descriptor.id);
+    auto document_state = existing ? NonnullRefPtr { *existing } : CanonicalDocumentState::create(descriptor.id);
     document_states.set(descriptor.id, document_state);
     document_state->history_policy_container = descriptor.history_policy_container;
     document_state->request_referrer = descriptor.request_referrer;
