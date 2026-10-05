@@ -24,7 +24,6 @@ pub(crate) struct UncapturedContentInputs {
     pub root_background_source: RootBackgroundSource,
     // Scroll commands use a scrollport at the origin. Its position is compositor state.
     pub device_viewport_size: IntSize,
-    pub is_recording_async_scrolling_metadata: bool,
     pub document_id: UniqueNodeId,
     pub has_blocking_wheel_event_region_covering_viewport: bool,
     pub chrome_metrics: FfiChromeMetrics,

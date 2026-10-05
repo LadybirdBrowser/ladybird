@@ -21,7 +21,6 @@ pub struct FfiRecordingInputs {
     pub force_dark_foreground_threshold: i32,
     pub force_dark_background_threshold: i32,
     pub should_paint_overlay: bool,
-    pub is_recording_async_scrolling_metadata: bool,
     pub document_id: i64,
     pub has_blocking_wheel_event_region_covering_viewport: bool,
     pub wheel_event_listener_state_generation: u64,
@@ -114,7 +113,6 @@ impl FfiRecordingInputs {
                     width: self.device_viewport_rect.width,
                     height: self.device_viewport_rect.height,
                 },
-                is_recording_async_scrolling_metadata: self.is_recording_async_scrolling_metadata,
                 document_id: UniqueNodeId(self.document_id),
                 has_blocking_wheel_event_region_covering_viewport: self
                     .has_blocking_wheel_event_region_covering_viewport,

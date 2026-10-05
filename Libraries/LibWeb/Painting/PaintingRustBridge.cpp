@@ -599,7 +599,6 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
     inputs.force_dark_foreground_threshold = config.force_dark_foreground_threshold;
     inputs.force_dark_background_threshold = config.force_dark_background_threshold;
     inputs.should_paint_overlay = config.paint_overlay;
-    inputs.is_recording_async_scrolling_metadata = true;
     inputs.document_id = document.unique_id().value();
     inputs.has_blocking_wheel_event_region_covering_viewport = wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport;
     inputs.wheel_event_listener_state_generation = document.page().wheel_event_listener_state_generation();

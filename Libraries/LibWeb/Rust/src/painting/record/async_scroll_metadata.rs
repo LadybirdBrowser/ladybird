@@ -201,10 +201,9 @@ impl<O: Observer> PaintRecorder<'_, O> {
         &mut self,
         paintable: NodeSlotId,
     ) -> Option<CompositorScrollNodeKind> {
-        if !self.inputs.uncaptured.is_recording_async_scrolling_metadata
-            || self
-                .source
-                .node_has_dom_paint_fact(paintable, DomPaintFact::NestedNavigableContainer)
+        if self
+            .source
+            .node_has_dom_paint_fact(paintable, DomPaintFact::NestedNavigableContainer)
             || self.data(paintable).own_scroll_node_index == VISUAL_VIEWPORT_NODE_INDEX
             || !self.could_be_scrolled_by_wheel_event(paintable)
         {
@@ -404,9 +403,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     pub(crate) fn record_async_scrolling_metadata(&mut self, paintable: NodeSlotId) {
-        if !self.inputs.uncaptured.is_recording_async_scrolling_metadata {
-            return;
-        }
         self.record_wheel_hit_test_target(paintable);
         self.record_blocking_wheel_event_region(paintable);
 
