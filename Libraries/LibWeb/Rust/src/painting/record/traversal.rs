@@ -269,8 +269,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
     pub(crate) fn context_for_phase(&self, paintable: NodeSlotId, phase: PaintPhase) -> ContextRef {
         // Text fragments are content of the block container (or of a self-painting inline box).
         // They need the descendants' visual context, not the element's own visual context.
-        let foreground_paints_descendant_content =
-            node_painting::has_lines(self.source, paintable) || node_painting::is_inline(self.source, paintable);
+        let foreground_paints_descendant_content = node_painting::has_lines(self.source, paintable)
+            || node_painting::is_fragmented_inline(self.source, paintable);
         if foreground_paints_descendant_content && phase == PaintPhase::Foreground {
             self.for_descendants_context(paintable)
         } else {

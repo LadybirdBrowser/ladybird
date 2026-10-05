@@ -83,7 +83,7 @@ pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable:
     let Some(kind) = recorder.source.node_kind_if_live(paintable) else {
         return;
     };
-    if node_painting::is_inline(recorder.source, paintable) {
+    if node_painting::is_fragmented_inline(recorder.source, paintable) {
         inline_box::paint(recorder, paintable, phase);
         return;
     }

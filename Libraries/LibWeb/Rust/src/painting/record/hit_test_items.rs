@@ -109,7 +109,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         if self.is_recording_svg_resource_content() {
             return;
         }
-        if node_painting::is_inline(self.source, paintable) {
+        if node_painting::is_fragmented_inline(self.source, paintable) {
             self.record_inline_hit_test_items(paintable, phase);
         } else if node_painting::has_lines(self.source, paintable) {
             self.record_base_hit_test_items(paintable, phase);

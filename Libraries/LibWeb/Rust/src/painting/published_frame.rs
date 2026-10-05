@@ -259,7 +259,7 @@ mod tests {
     use crate::layout::LayoutNodeArena;
     use crate::layout::fragment_tree;
     use crate::layout::node_data::{NodeFlag, NodeKind};
-    use crate::painting::paint_read::{GeometryRead, PaintRead, PaintSource};
+    use crate::painting::paint_read::{GeometryRead, PaintRead, PaintRow, PaintSource};
     use crate::painting::record::recorder_state::AbsoluteRectMemo;
     use std::cell::RefCell;
 
@@ -298,6 +298,18 @@ mod tests {
             Some(CssPixels::from_integer(20))
         );
         assert!(arena.committed_side_data(node).piece_indices().is_empty());
+    }
+
+    fn derived_facts<'a>(row: Option<impl PaintRow<'a>>) -> Option<[bool; 5]> {
+        row.map(|row| {
+            [
+                row.is_fragmented_inline(),
+                row.is_out_of_flow(),
+                row.is_atomic_inline(),
+                row.is_positioned(),
+                row.is_floating(),
+            ]
+        })
     }
 
     #[test]
@@ -349,17 +361,7 @@ mod tests {
             );
             assert_eq!(source.node_generated_for(node), arena.node_generated_for(node));
             assert_eq!(source.node_is_dom_backed(node), arena.node_is_dom_backed(node));
-            assert_eq!(
-                source.node_is_fragmented_inline(node),
-                arena.node_is_fragmented_inline(node)
-            );
-            assert_eq!(
-                source.node_is_out_of_flow_if_live(node),
-                arena.node_is_out_of_flow_if_live(node)
-            );
-            assert_eq!(source.node_is_atomic_inline(node), arena.node_is_atomic_inline(node));
-            assert_eq!(source.node_is_positioned(node), arena.node_is_positioned(node));
-            assert_eq!(source.node_is_floating(node), arena.node_is_floating(node));
+            assert_eq!(derived_facts(source.node(node)), derived_facts(arena.node(node)));
             assert_eq!(
                 source.node_style_if_live(node).is_some(),
                 arena.node_style_if_live(node).is_some()
