@@ -182,8 +182,8 @@ impl RetainedState {
     /// `payloads` and answers which ones it rebuilt, each of which the caller owns a reference to,
     /// or `None` where the engine holds no such record.
     ///
-    /// `font` is the platform font of the animated style, which only the host resolves, and which
-    /// a rebuilt font group needs: without it, such a build answers `Err` and rebuilds nothing. The
+    /// `font` is the platform font of the animated style, which a rebuilt font group needs: without
+    /// it, such a build answers `Err` and rebuilds nothing. The
     /// overlay is adjusted already, as the sample's animated box-type finalization leaves it.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn build_animation_overlay_payloads(
@@ -312,22 +312,30 @@ impl RetainedState {
     }
 }
 
-/// A sample of an element's animations that needs what only the host has: a container's size, the
-/// platform font of an animated font, a value substituted against the element, an adjustment of
-/// what the element's own style says, or a change beyond the element's box.
+/// A sample of an element's animations that needs what only the host has: a container's size, an
+/// adjustment of what the element's own style says, or a change beyond the element's box.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct NeedsHost;
 
-/// The longhands an animated value of moves an adjustment the host makes after it samples.
-const POST_COMPUTE_ADJUSTED_LONGHANDS: [u16; 7] = [
+/// The longhands an animated value of moves an adjustment the host makes after it samples, for any element.
+const POST_COMPUTE_ADJUSTED_LONGHANDS: [u16; 6] = [
     prop::DISPLAY,
     prop::POSITION,
     prop::FLOAT,
-    prop::LINE_HEIGHT,
     prop::OVERFLOW_X,
     prop::OVERFLOW_Y,
     prop::TEXT_ALIGN,
 ];
+
+/// Whether an animated value of `property` moves an adjustment the host makes after it samples, for an element with the
+/// adjustment `facts`: the line height only of an element that keeps one of its own.
+fn post_compute_adjusts(property: u16, facts: u32) -> bool {
+    use element_adjustment_fact::{CHECK_INPUT_LINE_HEIGHT, FORCE_LINE_HEIGHT_NORMAL};
+    match property {
+        prop::LINE_HEIGHT => facts & (FORCE_LINE_HEIGHT_NORMAL | CHECK_INPUT_LINE_HEIGHT) != 0,
+        _ => POST_COMPUTE_ADJUSTED_LONGHANDS.contains(&property),
+    }
+}
 
 /// The overlay a sample writes, which the host's working set would hold.
 extern "C" fn overlay_for_mutation(overlay: *mut std::ffi::c_void) -> *mut std::ffi::c_void {
@@ -385,9 +393,10 @@ impl super::StyleEngine {
         // What the host adjusts after it samples, an animated color scheme, and an inherited value the
         // element's children hold as of the host's sample, are the host's to compose.
         let has_children = self.tree.first_element_child(node).is_some();
+        let facts = self.computed_group_sets.adjustment_facts(node);
         if overlay.entries().iter().any(|entry| {
             entry.post_compute_adjustment
-                || POST_COMPUTE_ADJUSTED_LONGHANDS.contains(&entry.property)
+                || post_compute_adjusts(entry.property, facts)
                 || entry.property == prop::COLOR_SCHEME
                 || (has_children && crate::css::property_metadata::property_is_inherited(entry.property))
         }) {
@@ -397,20 +406,31 @@ impl super::StyleEngine {
         let table = unsafe { table.as_ref() }.ok_or(NeedsHost)?;
         let used_color_scheme = u8::try_from(table.effective_color_scheme()).map_err(|_| NeedsHost)?;
         let mut payloads = [std::ptr::null(); group_index::COUNT];
-        let rebuilt = self
-            .build_animation_overlay_payloads(
-                node,
-                crate::css::cascaded_properties::NO_PSEUDO_ELEMENT,
-                record,
-                table,
-                Some(&overlay),
-                used_color_scheme,
-                table.display_before_box_type_transformation(),
-                None,
-                &mut payloads,
-            )
-            .ok_or(NeedsHost)?
-            .map_err(|NeedsHostFont| NeedsHost)?;
+        let mut build = |engine: &Self, font: Option<&FfiFontGroupBuildInputs>| {
+            engine
+                .build_animation_overlay_payloads(
+                    node,
+                    crate::css::cascaded_properties::NO_PSEUDO_ELEMENT,
+                    record,
+                    table,
+                    Some(&overlay),
+                    used_color_scheme,
+                    table.display_before_box_type_transformation(),
+                    font,
+                    &mut payloads,
+                )
+                .ok_or(NeedsHost)
+        };
+        // A sample that moves the font asks the document's font resolver for it, as the host's sample does.
+        let rebuilt = match build(self, None)? {
+            Err(NeedsHostFont) => {
+                let font = self
+                    .animated_font_group_inputs(node, table, &overlay)
+                    .ok_or(NeedsHost)?;
+                build(self, Some(&font))?.map_err(|NeedsHostFont| NeedsHost)?
+            }
+            Ok(rebuilt) => rebuilt,
+        };
         // What the sample changes beyond its box is the host's to show: the visual contexts above all, which the
         // compositor has from the host's frames.
         if !self.animation_sample_stays_in_its_box(node, record, &overlay, SharedPayload::from_pointer_slice(&payloads))
@@ -522,6 +542,40 @@ impl super::StyleEngine {
         unsafe {
             crate::css::style_compute::sample_without_host(&input, self, fresh, composed, transform_reference_box)
         }
+    }
+
+    /// What the font group of `node`'s record is built from over `overlay`, with the font the document's font resolver
+    /// resolves for it, which the engine asks the resolver for where it has not yet. None where the document published
+    /// no resolver.
+    fn animated_font_group_inputs(
+        &mut self,
+        node: StyleNodeID,
+        table: &ComputedLonghandTable,
+        overlay: &AnimatedOverlay,
+    ) -> Option<FfiFontGroupBuildInputs> {
+        let request = font_resolution_request(table, Some(overlay), &self.document_style_computation_inputs, || {
+            self.font_feature_values_scope(node)
+        });
+        let lookup = |engine: &Self| engine.font_resolution.as_ref()?.lookup(request);
+        let resolved = match lookup(self) {
+            Some(resolved) => resolved,
+            None => {
+                if self.host.font_resolver.is_none() || self.font_resolution.is_none() {
+                    return None;
+                }
+                let Self { counters, state } = self;
+                state.refill_font_request(node, super::font_resolution::FontRequest::new(request), counters);
+                lookup(self)?
+            }
+        };
+        let line_height_used = used_line_height(table, Some(overlay), &request, &resolved);
+        Some(font_group_build_inputs(
+            table,
+            Some(overlay),
+            &request,
+            line_height_used,
+            &resolved,
+        ))
     }
 }
 

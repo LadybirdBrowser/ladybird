@@ -343,7 +343,7 @@ impl RetainedState {
     /// The tree scope whose `@font-feature-values` an element's `font-variant-alternates` names
     /// features through: the nearest around it, through the trees its hosts are in, that declares
     /// some, or the document's. Those of the trees between add nothing.
-    fn font_feature_values_scope(&self, node: StyleNodeID) -> TreeScopeID {
+    pub(in crate::css::style) fn font_feature_values_scope(&self, node: StyleNodeID) -> TreeScopeID {
         let declaring = self
             .font_resolution
             .as_ref()
