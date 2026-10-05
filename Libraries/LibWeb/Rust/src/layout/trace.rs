@@ -196,17 +196,16 @@ pub(crate) fn name_layout_trace_owners(main_thread: &MainThread, read: &crate::r
     let Some(host) = main_thread.host() else {
         return;
     };
+    // Only a trace that began registered the callback, so the host knows a document never traced has nothing to name.
+    let Some(describe) = host.host_tables().layout_trace_describe_node.get() else {
+        return;
+    };
     // SAFETY: The host is live for the token's entry.
     let owners =
         unsafe { super::shell_reads::read_arena(host, read, (), |arena, ()| arena.layout_trace.unnamed_owners(arena)) };
     if owners.is_empty() {
         return;
     }
-    let describe = host
-        .host_tables()
-        .layout_trace_describe_node
-        .get()
-        .expect("a layout trace names its boxes through the callback it began with");
     let names = owners
         .into_iter()
         .map(|owner| {
