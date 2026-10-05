@@ -28,18 +28,6 @@
     },
     {
       "hidden": true,
-      "name": "RustRuntime_base",
-      "displayName": "Rust Runtime Config",
-      "description": "Release build with LibJS's users on the Rust LibJS runtime",
-      "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/rust",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "LADYBIRD_VCPKG_TYPE": "release",
-        "LIBJS_RUNTIME": "Rust"
-      }
-    },
-    {
-      "hidden": true,
       "name": "Debug_base",
       "displayName": "Debug Config",
       "description": "Debug build",

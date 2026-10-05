@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Pretty printing of values for js-rust, mirroring Libraries/LibJS/Print.cpp.
+//! Pretty printing of values for js, mirroring Libraries/LibJS/Print.cpp.
 
 use std::collections::HashSet;
 use std::io::{self, Write};

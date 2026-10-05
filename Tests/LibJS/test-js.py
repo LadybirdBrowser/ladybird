@@ -73,7 +73,7 @@ def run_snapshot(file, directory, executable, suite, rebaseline):
     return relative.as_posix(), "FAILED", f"{relative}: {suite} does not match\n{difference}\n"
 
 
-def run_snapshots(source, executable, suite, args):
+def run_snapshots(source, binaries, suite, args):
     directory = source / "Tests/LibJS" / ("AST" if suite == "ast" else "Bytecode")
     input_directory = directory / "input"
     if not input_directory.is_dir():
@@ -85,6 +85,7 @@ def run_snapshots(source, executable, suite, args):
         and file.suffix in (".js", ".mjs")
         and matches_filter(file.relative_to(directory / "input"), args.filter)
     ]
+    executable = binaries / ("js.exe" if os.name == "nt" else "js")
     results = {}
     with ThreadPoolExecutor(max_workers=args.jobs) as executor:
         futures = [executor.submit(run_snapshot, file, directory, executable, suite, args.rebaseline) for file in files]
@@ -119,10 +120,6 @@ def main(argv=None):
     parser.add_argument("--per-file", action="store_true", help="Include individual runtime test results in JSON")
     parser.add_argument("--help-runtime", action="store_true", help="Show the runtime runner's options")
     parser.add_argument("--test262-parser-tests", action="store_true", help="Run test262 parser tests (runtime only)")
-    parser.add_argument(
-        "--js", type=Path, help="The js binary the AST and bytecode suites run (default: next to this script)"
-    )
-    parser.add_argument("--runtime", type=Path, help="The runtime suite's runner (default: next to this script)")
     args, runtime_arguments = parser.parse_known_args(argv)
     if args.jobs is not None and args.jobs < 1:
         parser.error("--jobs must be positive")
@@ -137,8 +134,7 @@ def main(argv=None):
     if runtime_arguments and "runtime" not in suites:
         parser.error(f"Runtime arguments require --suite runtime: {' '.join(runtime_arguments)}")
     binaries = Path(__file__).resolve().parent
-    runtime = args.runtime or binaries / ("test-js-runtime.exe" if os.name == "nt" else "test-js-runtime")
-    js = args.js or binaries / ("js.exe" if os.name == "nt" else "js")
+    runtime = binaries / ("test-js-runtime.exe" if os.name == "nt" else "test-js-runtime")
     if args.help_runtime:
         return subprocess.run([str(runtime), "--help"], check=False).returncode
     source_directory = os.getenv("LADYBIRD_SOURCE_DIR")
@@ -176,7 +172,7 @@ def main(argv=None):
             failed = process.returncode != 0
         else:
             assert source_directory is not None
-            result = run_snapshots(Path(source_directory), js, suite, args)
+            result = run_snapshots(Path(source_directory), binaries, suite, args)
             failed = any(status in ("FAILED", "PROCESS_ERROR") for status in result["results"].values())
             if not print_json:
                 counts = Counter(result["results"].values())

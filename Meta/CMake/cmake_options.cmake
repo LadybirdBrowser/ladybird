@@ -8,18 +8,6 @@ option(ENABLE_ALL_THE_DEBUG_MACROS "Enable all debug macros to validate they sti
 
 option(INCLUDE_WASM_SPEC_TESTS "Download and include the WebAssembly spec testsuite" OFF)
 option(ENABLE_CRANELIFT_JIT "Enable Cranelift-based AOT compilation for WebAssembly" ON)
-option(ENABLE_LIBJS_RUST_RUNTIME "Build the Rust LibJS runtime and the tools that run on it" OFF)
-
-set(LIBJS_RUNTIME "Rust" CACHE STRING "The LibJS runtime that LibJS's users run on: Rust through the LibJS facade, or Cpp")
-set_property(CACHE LIBJS_RUNTIME PROPERTY STRINGS Rust Cpp)
-if (NOT LIBJS_RUNTIME MATCHES "^(Cpp|Rust)$")
-    message(FATAL_ERROR "LIBJS_RUNTIME must be Rust or Cpp, not '${LIBJS_RUNTIME}'")
-endif()
-if (LIBJS_RUNTIME STREQUAL "Rust")
-    if (NOT ENABLE_LIBJS_RUST_RUNTIME)
-        set(ENABLE_LIBJS_RUST_RUNTIME ON CACHE BOOL "Build the Rust LibJS runtime and the tools that run on it" FORCE)
-    endif()
-endif()
 
 set(LADYBIRD_CACHE_DIR "${PROJECT_BINARY_DIR}/../caches" CACHE PATH "Location of shared cache of downloaded files")
 option(ENABLE_NETWORK_DOWNLOADS "Allow downloads of required files. If OFF, required files must already be present in LADYBIRD_CACHE_DIR" ON)
