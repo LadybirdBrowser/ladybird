@@ -701,16 +701,12 @@ fn count_columns_in_subtree<T: TableTree>(tree: &T, root: Node) -> usize {
     let mut stack = vec![root];
     while let Some(node) = stack.pop() {
         let mut child = tree.first_child(node);
-        let mut children = Vec::new();
         while !child.is_invalid() {
-            children.push(child);
-            child = tree.next_sibling(child);
-        }
-        for child in children.into_iter().rev() {
             if node_facts::kind_is_box(tree.node_data(child).kind.get()) && tree.display(child).is_table_column() {
                 count = count.saturating_add(tree.table_column_span(child));
             }
             stack.push(child);
+            child = tree.next_sibling(child);
         }
     }
     count
@@ -1110,16 +1106,13 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn matching_children(&mut self, parent: Node, predicate: impl Fn(NodeFacts<'_>) -> bool) -> Vec<Node> {
-        let mut children = Vec::new();
-        let mut child = self.first_child(parent);
-        while !child.is_invalid() {
-            let facts = self.node_facts(child);
-            if facts.is_box() && predicate(facts) {
-                children.push(child);
-            }
-            child = self.next_sibling(child);
-        }
-        children
+        self.callbacks
+            .children(parent)
+            .filter(|&child| {
+                let facts = self.node_facts(child);
+                facts.is_box() && predicate(facts)
+            })
+            .collect()
     }
 
     /// The table-column boxes of the table in grid order. A table-column box is a child of a table-column-group, or
