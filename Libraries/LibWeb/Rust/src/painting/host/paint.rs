@@ -203,6 +203,7 @@ impl FfiRecordingInputs {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiCaretPaintKind {
     None,
     /// `block` paints the caret, in the fragment run owned by the self-painting inline `owner`
@@ -303,6 +304,7 @@ pub struct FfiFlexOverlayInput {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiImageContentKind {
     #[default]
     None,
@@ -350,6 +352,7 @@ pub struct FfiLayerImagePaintFactsEntry {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiVideoRepresentation {
     #[default]
     VideoFrame,
@@ -378,6 +381,7 @@ pub struct FfiVideoPaintFacts {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiSvgGradientSpreadMethod {
     #[default]
     Pad,
@@ -387,6 +391,7 @@ pub enum FfiSvgGradientSpreadMethod {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiSvgGradientKind {
     #[default]
     Linear,
@@ -463,8 +468,6 @@ pub struct FfiVectorImageRenderRequest {
     pub css_height: crate::css::css_pixels::CssPixels,
     pub raster_scale: f32,
 }
-
-pub use crate::painting::display_list::storage::FfiRecordedDisplayList;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]

@@ -796,6 +796,7 @@ impl ElementBoxKind {
 /// `inputs::ReplacedContentInput`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiReplacedContentInputKind {
     None = 0,
     /// A `<textarea>`: `first` is its `cols`, and `second` its `rows`.
@@ -826,6 +827,7 @@ pub enum FfiReplacedContentInputPresent {
 /// Which local fact a feature delta describes.
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiFeatureKind {
     TagName = 0,
     Id = 1,
@@ -844,6 +846,7 @@ pub enum FfiFeatureKind {
 /// How a feature value is represented on one side of a change.
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiFeatureValueKind {
     Absent = 0,
     /// Present, but the payload is not internable; an exact test reads the live DOM.
@@ -886,6 +889,7 @@ pub struct FfiStateDelta {
 /// placement; a presentational hint is not inline style wearing a different name.
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiElementDeclarationKind {
     InlineStyle = 0,
     PresentationalHint = 1,
@@ -1322,6 +1326,7 @@ pub struct FfiPublishedAnimationEffect {
 /// The easing function a published keyframe spells out.
 #[repr(u8)]
 #[derive(Clone, Copy)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiPublishedEasingKind {
     Linear,
     CubicBezier,
@@ -2575,6 +2580,7 @@ pub unsafe extern "C" fn style_engine_move_custom_property_environment(
 /// style update's would be.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiRecordDemand {
     /// A targeted style update of the element: its record, driven in full against the parent as it
     /// is now.
@@ -2593,6 +2599,7 @@ pub enum FfiRecordDemand {
 /// asks of the engine, as `FfiRecordDemand` does of an element.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
+#[cfg_attr(not(test), expect(dead_code, reason = "C++ constructs the variants"))]
 pub enum FfiPseudoElementRecordDemand {
     /// A CSSOM read of the pseudo-element, settled against its element's installed record.
     CssomRead,
@@ -2605,6 +2612,7 @@ pub enum FfiPseudoElementRecordDemand {
 /// transition one, which it computes from the element's rules for it. Each is numbered as its kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiDemandedPseudoElement {
     After = 0,
     Backdrop = 1,

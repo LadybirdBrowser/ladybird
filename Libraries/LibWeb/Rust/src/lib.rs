@@ -16,17 +16,19 @@ pub(crate) mod cow_column;
 mod encoding_detection;
 #[cfg(test)]
 mod gfx_test_stubs;
-pub use libcompositing_rust::fast_hash;
+pub(crate) use libcompositing_rust::fast_hash;
 
-pub mod css;
-pub mod layout;
-pub mod painting;
-pub mod render_state;
+pub(crate) mod css;
+pub(crate) mod layout;
+pub(crate) mod painting;
+pub(crate) mod render_state;
 pub(crate) mod stage;
-pub mod stage_thread;
-pub mod svg;
+pub(crate) mod stage_thread;
+pub(crate) mod svg;
 
-pub use libweb_html_tokenizer as html_tokenizer;
+// NB: Only C++ calls into the HTML tokenizer and parser, so nothing in this crate names them. Linking the crate keeps
+//     their extern "C" functions in the static library.
+extern crate libweb_html_tokenizer;
 
 use crate::rust_panic::abort_on_panic;
 

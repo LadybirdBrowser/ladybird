@@ -785,6 +785,7 @@ impl AnimationKeyframePlan {
 
 #[repr(u8)]
 #[derive(Clone, Copy)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiCompositeOperation {
     Replace,
     Add,
