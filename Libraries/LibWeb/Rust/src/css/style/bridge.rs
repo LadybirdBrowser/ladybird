@@ -2020,27 +2020,6 @@ pub enum FfiNodeRecordReads {
     CustomFunction = 1 << 4,
 }
 
-/// Computes the property-dependent damage between two final style records of no element in
-/// particular: their font cascades count as equal, and no SVG container or viewport reads them.
-/// What moving an element's record damages is `style_engine_element_record_damage`'s.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread, and both style records must
-/// remain pinned or assigned.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_compare_style_records(
-    host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
-    old_style_record: u64,
-    new_style_record: u64,
-) -> u32 {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
-    with_engine(read, host, |engine| {
-        engine.compare_style_records(old_style_record, new_style_record, true, false, false)
-    })
-}
-
 /// Computes what moving an element from one final style record to another damages, from the
 /// records and the facts the engine holds of the element. The counter styles its box was built
 /// with are the host's to compare.

@@ -165,11 +165,6 @@ u64 StyleEngine::style_record_custom_property_environment(Layout::BegunRead cons
     return StyleEngineFFI::style_engine_style_record_custom_property_environment(m_render_document->host(), &read, style_record.value());
 }
 
-u32 StyleEngine::compare_style_records(Layout::BegunRead const& read, StyleRecordID old_style_record, StyleRecordID new_style_record) const
-{
-    return StyleEngineFFI::style_engine_compare_style_records(host(), &read, old_style_record.value(), new_style_record.value());
-}
-
 u32 StyleEngine::element_record_damage(Layout::BegunRead const& read, StyleNodeID node, StyleRecordID old_style_record, StyleRecordID new_style_record) const
 {
     return StyleEngineFFI::style_engine_element_record_damage(host(), &read, node.value(), old_style_record.value(), new_style_record.value());
