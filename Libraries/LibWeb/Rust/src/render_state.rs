@@ -9,9 +9,8 @@
 //! A document's [`RenderState`] is what its style, layout and paint preparation compute over: its layout arena and
 //! what lives beside it. It lives on the StyleLayout thread, the render owner, which makes it the first time a job of
 //! the document reaches it and drops it there (see [`owner`]). The [`DocumentHost`] names it, and reaches it only with
-//! a job it hands the owner: a [`RenderMessage`] it [`send`]s and waits for, a question it asks and waits for, the
-//! writes it queued, which go first or are posted ahead, or a frame that flies beside the host until the host takes
-//! it in. Nothing on the host's thread can name the state, so nothing there reaches it.
+//! a job it hands the owner: a job it runs there and waits for, the writes it queued, which go first or are posted
+//! ahead, or a frame that flies beside the host until the host takes it in. Nothing on the host's thread can name the state, so nothing there reaches it.
 
 use crate::css::style::StyleEngineHandle;
 use crate::layout::ArenaHandle;
@@ -35,8 +34,8 @@ pub(crate) use questions::{
 pub use wait::BegunRead;
 pub(crate) use wait::held_node_entries;
 pub(crate) use wait::{
-    ForcedRead, FrameJobPermit, LockstepProof, NodeRead, ReadRight, RenderJob, RenderWait, ReplyTo, ScriptForcedRead,
-    SpentWait, StyleJobPermit, TaskBoundary, force_read, render_state_died, run_job, wait_for_render_state,
+    ForcedRead, FrameJobPermit, LockstepProof, NodeRead, ReadRight, RenderJob, RenderWait, ScriptForcedRead,
+    StyleJobPermit, TaskBoundary, force_read, run_job,
 };
 
 /// One document's render state, on the render owner.
@@ -157,9 +156,19 @@ impl RenderState {
     }
 
     /// The style engine, borrowed for as long as the state is.
-    fn engine_mut(&mut self) -> &mut crate::css::style::StyleEngine {
+    pub(crate) fn engine_mut(&mut self) -> &mut crate::css::style::StyleEngine {
         // SAFETY: As for a change.
         unsafe { self.engine.get_mut() }
+    }
+
+    /// The layout arena.
+    pub(crate) fn arena_mut(&mut self) -> &mut crate::layout::LayoutNodeArena {
+        self.arena.arena_mut()
+    }
+
+    /// The handle of the layout arena, which a layout round runs over.
+    pub(crate) fn arena_handle_mut(&mut self) -> &mut ArenaHandle {
+        &mut self.arena
     }
 
     /// Runs `round` after `style`, the frame's style transaction, where the frame applies the transaction's rows to the
@@ -186,17 +195,6 @@ impl RenderState {
             .run(&mut self.arena, work)
             .map(|round| (round, self.arena.arena_mut().publish_row_snapshot(false)));
         (applied, round)
-    }
-
-    /// Handles `message`.
-    fn handle(&mut self, message: RenderMessage<'_>) {
-        match message {
-            RenderMessage::Style { job, reply, .. } => reply.answer(|| job.run(self.engine_mut())),
-            // The host keeps what the job's inputs name until it has the answer.
-            RenderMessage::LayoutRound { job, reply, .. } => reply.answer(|| job.run(&mut self.arena)),
-            RenderMessage::Paint { pass, reply } => reply.answer(|| pass.run(self.arena.arena_mut())),
-            RenderMessage::PanicForTesting { reply } => reply.answer(|| panic!("the render state panicked for a test")),
-        }
     }
 }
 
@@ -516,35 +514,6 @@ impl ChangeQueue {
     }
 }
 
-/// A message the host sends its document's render state, and waits for.
-#[expect(
-    clippy::large_enum_variant,
-    reason = "a message is made once, in the frame of the host that waits for it"
-)]
-pub(crate) enum RenderMessage<'a> {
-    /// A style transaction of the document.
-    Style {
-        job: crate::css::style::style_job::StyleJob,
-        reply: ReplyTo<'a, crate::css::style::style_job::StyleJobAnswer>,
-        /// What shows that a forced read or a job's permit sent the transaction.
-        _spent: SpentWait,
-    },
-    /// A layout round of the document: its tree build and layout stages.
-    LayoutRound {
-        job: crate::layout::LayoutRoundJob,
-        reply: ReplyTo<'a, crate::layout::LayoutRoundAnswer>,
-        /// What shows that a forced read or a job's permit sent the round.
-        _spent: SpentWait,
-    },
-    /// A step of paint preparation.
-    Paint {
-        pass: crate::painting::paint_passes::PaintPass,
-        reply: ReplyTo<'a, crate::painting::paint_passes::PaintPassAnswer>,
-    },
-    /// Panics answering, for a test that the host waiting for the answer crashes.
-    PanicForTesting { reply: ReplyTo<'a, ()> },
-}
-
 /// Runs `job` on the render owner, the StyleLayout thread, and waits for it, so it may borrow from the calling frame. A
 /// job handed from that thread itself, as a host callback's while the owner runs another job, runs right there, and a
 /// unit test's jobs run on the test's own thread.
@@ -562,19 +531,6 @@ fn post_to_render_side(job: impl FnOnce() + Send + 'static) {
         return job();
     }
     crate::stage_thread::style_layout_thread().post(job);
-}
-
-/// Sends `message` to the render state of `host`'s document, after the writes the host queued, and waits until it is
-/// handled, taking a frame in flight in first with `read`. A message writes the render state, unless it is a paint pass
-/// that leaves the paint and hit testing properties current.
-pub(crate) fn send(host: &DocumentHost, read: ReadRight, message: RenderMessage<'_>) {
-    if !matches!(&message, RenderMessage::Paint { pass, .. } if pass.leaves_paint_preparation_current()) {
-        host.note_render_state_write();
-    }
-    if matches!(message, RenderMessage::LayoutRound { .. }) {
-        host.forget_layout_up_to_date();
-    }
-    host.reach(read, move |state| state.handle(message));
 }
 
 /// Submits `job`, a style transaction of `host`'s document, to the render owner, with the writes the host queued and
@@ -627,12 +583,11 @@ pub(crate) fn fly(
 
 // A render state lives on the render owner, where nothing of the host may follow it: the shells and the callbacks into
 // the host's DOM are main-thread objects because of what they hold and do, and stay with the host. The state, what a
-// frame brings back, and every message and write the host sends it may cross, which the compiler checks here.
+// frame brings back, and every write the host sends it may cross, which the compiler checks here.
 const _: () = {
     const fn assert_send<T: Send + ?Sized>() {}
     assert_send::<RenderState>();
     assert_send::<Landing>();
-    assert_send::<RenderMessage>();
     assert_send::<ArenaChange>();
 };
 

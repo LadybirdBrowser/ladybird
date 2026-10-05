@@ -12,11 +12,10 @@
 //! is taken in without a wait only at a [`TaskBoundary`], which the entries the event loop calls between two tasks
 //! mint.
 //!
-//! A style or layout job is sent only by [`force_read`], the first job of a read the host waits for, or by
-//! [`run_job`] with a permit that says why the job is another one, as only this module makes the [`SpentWait`] the
-//! job's message carries.
+//! A style or layout job runs only through [`force_read`], the first job of a read the host waits for, or through
+//! [`run_job`] with a permit that says why the job is another one.
 
-use super::{DocumentHost, RenderMessage, send};
+use super::{DocumentHost, RenderState};
 use std::marker::PhantomData;
 
 /// The one wait of a script API call that needs a current answer: getComputedStyle, an element's geometry, hit
@@ -157,6 +156,13 @@ impl RenderWait for &BegunRead {
     }
 }
 
+impl private::RenderWait for ForcedRead {}
+impl RenderWait for ForcedRead {
+    fn into_read_right(self) -> ReadRight {
+        ReadRight::Forced(self)
+    }
+}
+
 impl private::RenderWait for super::NoFrameInFlight {}
 impl RenderWait for super::NoFrameInFlight {
     fn into_read_right(self) -> ReadRight {
@@ -291,14 +297,10 @@ impl FrameJobPermit {
     }
 }
 
-/// What the message of a style or layout job carries to show that [`force_read`] or [`run_job`] sent it. Only this
-/// module makes one, so nothing else sends such a job.
-pub(crate) struct SpentWait(());
-
-/// A style or layout job of a document's render state, which only [`force_read`] and [`run_job`] send.
-pub(crate) trait RenderJob {
+/// A style or layout job of a document's render state, which only [`force_read`] and [`run_job`] run.
+pub(crate) trait RenderJob: Send {
     /// What the render state answers the job with.
-    type Answer;
+    type Answer: Send;
 
     /// The permit that sends the job where it is not a forced read's first.
     type Permit: RenderWait;
@@ -306,14 +308,14 @@ pub(crate) trait RenderJob {
     /// Whether the job is a style transaction, which leaves a forced read's layout to a job of its own.
     const IS_STYLE: bool;
 
-    /// The message that sends the job, which answers through `reply`.
-    fn message(self, reply: ReplyTo<'_, Self::Answer>, spent: SpentWait) -> RenderMessage<'_>;
+    /// Runs the job on `state`, the render state of the document it was made for.
+    fn run_on(self, state: &mut RenderState) -> Self::Answer;
 }
 
 /// The first job of a read of `host`'s document's render state the host waits for: spends `read` on `job`, and waits
 /// for its answer. A read whose first job is its style transaction leaves its first layout round a [`StyledFirst`].
 pub(crate) fn force_read<J: RenderJob>(read: ForcedRead, host: &DocumentHost, job: J) -> J::Answer {
-    let answer = send_job(host, ReadRight::Forced(read), job);
+    let answer = send_job(host, read, job);
     if J::IS_STYLE {
         host.leave_forced_read(ForcedRead::AfterStyle(StyledFirst {
             not_send_or_sync: PhantomData,
@@ -335,11 +337,14 @@ pub(crate) fn force_read_flown_style(read: ForcedRead, host: &DocumentHost) {
 /// Runs `job`, a style or layout job of `host`'s document that is not a forced read's first, spending `_permit`, and
 /// waits for its answer.
 pub(crate) fn run_job<J: RenderJob>(permit: J::Permit, host: &DocumentHost, job: J) -> J::Answer {
-    send_job(host, permit.into_read_right(), job)
+    send_job(host, permit, job)
 }
 
-fn send_job<J: RenderJob>(host: &DocumentHost, read: ReadRight, job: J) -> J::Answer {
-    send_and_wait(host, read, |reply| job.message(reply, SpentWait(())))
+fn send_job<J: RenderJob>(host: &DocumentHost, wait: impl RenderWait, job: J) -> J::Answer {
+    if !J::IS_STYLE {
+        host.forget_layout_up_to_date();
+    }
+    host.run(wait, true, move |state| job.run_on(state))
 }
 
 macro_rules! script_entry {
@@ -409,49 +414,6 @@ impl EventLoopEntry for crate::css::style::style_job::TakesFinishedStyleIn {}
 impl private::EventLoopEntry for super::clock::LeasesClockForTask {}
 impl EventLoopEntry for super::clock::LeasesClockForTask {}
 
-/// Where the render side answers a host that waits for it: the slot in the waiting host's frame that the answer moves
-/// into, which the message borrows for as long as the host waits. Only an answer goes through it: a slot left empty
-/// is a render state that died.
-pub(crate) struct ReplyTo<'a, R>(&'a mut Option<R>);
-
-impl<R> ReplyTo<'_, R> {
-    /// Answers with what `job` answers. A panic in `job` leaves the slot empty and goes on to end the message.
-    pub(crate) fn answer(self, job: impl FnOnce() -> R) {
-        *self.0 = Some(job());
-    }
-}
-
-/// Sends the render state of `host`'s document the message `message` makes of where it answers, and waits for the
-/// answer, spending `wait`. The host is only ever shared, so what an outer call holds of it stays live across the wait.
-pub(crate) fn wait_for_render_state<R>(
-    wait: impl RenderWait,
-    host: &DocumentHost,
-    message: impl FnOnce(ReplyTo<'_, R>) -> RenderMessage<'_>,
-) -> R {
-    assert!(
-        wait.reaches(host),
-        "a begun read reaches only the render state of its own document"
-    );
-    send_and_wait(host, wait.into_read_right(), message)
-}
-
-fn send_and_wait<R>(
-    host: &DocumentHost,
-    read: ReadRight,
-    message: impl FnOnce(ReplyTo<'_, R>) -> RenderMessage<'_>,
-) -> R {
-    let mut answered = None;
-    send(host, read, message(ReplyTo(&mut answered)));
-    answered.unwrap_or_else(|| render_state_died())
-}
-
-/// Ends the process, on a host whose wait for a render state found no answer: the message panicked, and may have left
-/// the document's render state half changed, so nothing can go on over it.
-#[cold]
-pub(crate) fn render_state_died() -> ! {
-    std::process::abort()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -482,23 +444,5 @@ mod tests {
     #[test]
     fn a_task_start_is_not_send() {
         <TaskStart as AmbiguousIfSend<_>>::marker();
-    }
-
-    #[test]
-    fn a_job_answers_through_its_reply() {
-        let mut answered = None;
-        ReplyTo(&mut answered).answer(|| 7);
-        assert_eq!(answered, Some(7));
-    }
-
-    #[test]
-    fn a_panic_in_a_job_for_a_waiting_caller_leaves_its_reply_empty() {
-        let mut answered = None::<u32>;
-        let reply = ReplyTo(&mut answered);
-        let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            reply.answer(|| panic!("the job panicked"));
-        }));
-        assert!(panicked.is_err());
-        assert_eq!(answered, None);
     }
 }

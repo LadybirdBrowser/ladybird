@@ -22,7 +22,7 @@
 //! a host for the answer of a job it handed out. Nothing spins or polls, so a waiting thread takes no CPU from the
 //! threads that run.
 
-use crate::render_state::{TaskBoundary, render_state_died};
+use crate::render_state::TaskBoundary;
 use std::cell::{Cell, UnsafeCell};
 use std::marker::PhantomData;
 use std::panic::AssertUnwindSafe;
@@ -151,10 +151,9 @@ impl StageThread {
         wait_for(|| job.done.load(Ordering::Acquire).then_some(()));
         tsan::acquire(&self.shared.busy);
         drop(job);
-        match answer {
-            Some(Ok(answer)) => answer,
-            Some(Err(panic)) => std::panic::resume_unwind(panic),
-            None => render_state_died(),
+        match answer.expect("a job handed out runs before it is done") {
+            Ok(answer) => answer,
+            Err(panic) => std::panic::resume_unwind(panic),
         }
     }
 
@@ -371,7 +370,7 @@ impl<F: FnOnce() + Send> PostedJob<F> {
         // SAFETY: Guaranteed by the caller: the posting thread gave the job up.
         let job = unsafe { Box::from_raw(header.cast::<Self>().as_ptr()) };
         if std::panic::catch_unwind(AssertUnwindSafe(job.job)).is_err() {
-            render_state_died();
+            std::process::abort();
         }
         ran(busy);
     }
@@ -543,10 +542,15 @@ impl<R> InFlight<R> {
 
     fn take_answer(self) -> R {
         tsan::acquire(&self.flight.finished);
-        match self.flight.landing().answer.take() {
-            Some(Ok(answer)) => answer,
-            Some(Err(panic)) => std::panic::resume_unwind(panic),
-            None => render_state_died(),
+        match self
+            .flight
+            .landing()
+            .answer
+            .take()
+            .expect("a finished flight has its answer")
+        {
+            Ok(answer) => answer,
+            Err(panic) => std::panic::resume_unwind(panic),
         }
     }
 }

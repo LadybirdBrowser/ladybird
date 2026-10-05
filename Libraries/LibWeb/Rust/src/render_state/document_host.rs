@@ -57,7 +57,7 @@ pub struct DocumentHost {
     waits_for_frame: Cell<bool>,
     host_tables: HostTables,
     recording: RefCell<RecordingSlot>,
-    /// The rows the render state published last, which the host reads between messages.
+    /// The rows the render state published last, which the host reads between its jobs.
     rows: RefCell<Option<Rc<RowSnapshot>>>,
     /// How far the arena's rows had been written after the last job the host handed the owner, where no write the host
     /// made since may have moved them on.
@@ -84,7 +84,7 @@ pub struct DocumentHost {
     /// The style transaction that flew with the frame, from its landing until the host has drained its reactions.
     flown_style: RefCell<Option<FlownStyle>>,
     /// Whether the paint and hit testing properties the document prepared last were prepared from the render state as it
-    /// is: nothing was written to it since, queued, in place or by a message. Preparing them again would find nothing
+    /// is: nothing was written to it since, queued, in place or by a job. Preparing them again would find nothing
     /// to do.
     paint_preparation_is_current: Cell<bool>,
     /// The first layout round of a rendering update, sealed until the frame flies with it.
@@ -884,6 +884,24 @@ impl DocumentHost {
         })
     }
 
+    /// Runs `job` on the document's render state, spending `wait`, and waits for it, as [`Self::reach`] does. A job that
+    /// `writes` leaves the paint and hit testing properties prepared from the state stale.
+    pub(crate) fn run<R: Send>(
+        &self,
+        wait: impl RenderWait,
+        writes: bool,
+        job: impl FnOnce(&mut RenderState) -> R + Send,
+    ) -> R {
+        assert!(
+            wait.reaches(self),
+            "a begun read reaches only the render state of its own document"
+        );
+        if writes {
+            self.note_render_state_write();
+        }
+        self.reach(wait.into_read_right(), job)
+    }
+
     /// Asks the document's render state `question`, spending `wait`, and answers what it answered as of every write the
     /// host queued.
     pub(super) fn ask<Q: Question + Send>(&self, wait: impl RenderWait, question: Q) -> Q::Answer
@@ -1265,7 +1283,7 @@ pub unsafe extern "C" fn document_host_end_forced_read(host: *const DocumentHost
 
 /// Whether the paint and hit testing properties of `host`'s document were prepared from its render state as it is, so
 /// that preparing them again would find nothing to do: the host noted them current as it began to prepare them, and
-/// wrote nothing to the render state since, queued, in place or by a message.
+/// wrote nothing to the render state since, queued, in place or by a job.
 ///
 /// # Safety
 ///

@@ -55,16 +55,9 @@ impl crate::render_state::RenderJob for LayoutRoundJob {
     type Permit = crate::render_state::FrameJobPermit;
     const IS_STYLE: bool = false;
 
-    fn message(
-        self,
-        reply: crate::render_state::ReplyTo<'_, LayoutRoundAnswer>,
-        spent: crate::render_state::SpentWait,
-    ) -> crate::render_state::RenderMessage<'_> {
-        crate::render_state::RenderMessage::LayoutRound {
-            job: self,
-            reply,
-            _spent: spent,
-        }
+    // The host keeps what the job's inputs name until it has the answer.
+    fn run_on(self, state: &mut crate::render_state::RenderState) -> LayoutRoundAnswer {
+        self.run(state.arena_handle_mut())
     }
 }
 

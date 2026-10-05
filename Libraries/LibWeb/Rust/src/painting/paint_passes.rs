@@ -22,7 +22,7 @@ use crate::painting::visual_context::incremental::{
     IncrementalUpdateResult, debug_assert_every_live_node_is_owned, update_visual_context_tree,
 };
 use crate::painting::visual_context::{VisualContextState, VisualContextTree};
-use crate::render_state::{BegunRead, DocumentHost, PreparationPending, RenderMessage, ask, wait_for_render_state};
+use crate::render_state::{BegunRead, DocumentHost, PreparationPending, ask};
 use libgfx_rust::FloatPoint;
 use std::sync::Arc;
 
@@ -226,7 +226,8 @@ pub(crate) fn run(read: &BegunRead, host: &DocumentHost, pass: PaintPass) -> Pai
     if pass.rewrites_rows() {
         host.let_go_of_rows();
     }
-    wait_for_render_state(read, host, |reply| RenderMessage::Paint { pass, reply })
+    let writes = !pass.leaves_paint_preparation_current();
+    host.run(read, writes, move |state| pass.run(state.arena_mut()))
 }
 
 /// Proof that preparing a document for rendering has something to do, which only [`rendering_preparation_pending`]

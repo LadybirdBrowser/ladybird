@@ -23,8 +23,8 @@ use crate::css::style_compute::FfiLengthResolutionContext;
 use crate::painting::ffi::FfiFlightBlocker;
 use crate::painting::recording_slot::FlightLicense;
 use crate::render_state::{
-    BegunRead, DocumentHost, ReadRight, RenderJob, RenderMessage, RenderWait, ReplyTo, SpentWait, StyleJobPermit,
-    TaskBoundary, fly, force_read, run_job,
+    BegunRead, DocumentHost, ReadRight, RenderJob, RenderState, RenderWait, StyleJobPermit, TaskBoundary, fly,
+    force_read, run_job,
 };
 use std::sync::Arc;
 
@@ -260,12 +260,8 @@ impl RenderJob for StyleJob {
     type Permit = StyleJobPermit;
     const IS_STYLE: bool = true;
 
-    fn message(self, reply: ReplyTo<'_, StyleJobAnswer>, spent: SpentWait) -> RenderMessage<'_> {
-        RenderMessage::Style {
-            job: self,
-            reply,
-            _spent: spent,
-        }
+    fn run_on(self, state: &mut RenderState) -> StyleJobAnswer {
+        self.run(state.engine_mut())
     }
 }
 

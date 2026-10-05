@@ -6,7 +6,7 @@
 
 //! The entries tests and the developer tools call to ask a document's render state about itself.
 
-use super::{DocumentHost, RenderMessage, ScriptForcedRead, ask, wait_for_render_state};
+use super::{DocumentHost, ScriptForcedRead, ask};
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use std::ffi::c_void;
@@ -116,8 +116,8 @@ pub unsafe extern "C" fn render_state_panic_for_testing(host: *mut DocumentHost)
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { &*host };
-    wait_for_render_state(ScriptForcedRead::at_script_entry(&DEVTOOLS_ENTRY), host, |reply| {
-        RenderMessage::PanicForTesting { reply }
+    host.run(ScriptForcedRead::at_script_entry(&DEVTOOLS_ENTRY), false, |_| {
+        panic!("the render state panicked for a test")
     });
 }
 
