@@ -159,11 +159,7 @@ impl StageThread {
     /// thread before it. The calling thread takes what the job answers in from the flight once it has finished, and a
     /// job that panics panics there.
     pub(crate) fn submit<R: Send + 'static>(&self, job: impl FnOnce(&StopWord) -> R + Send + 'static) -> InFlight<R> {
-        let flight = Arc::new(Flight {
-            finished: AtomicBool::new(false),
-            stop: StopWord::default(),
-            landing: Mutex::default(),
-        });
+        let flight = Flight::pending();
         self.hand(SubmittedJob::give_up(job, Arc::clone(&flight)));
         InFlight {
             flight,
@@ -174,14 +170,7 @@ impl StageThread {
     /// Leases `value` to this thread: it lands at once in the flight the host takes it back from, and the ticker runs
     /// jobs on it there, on this thread, beside the host.
     pub(crate) fn lease<R: Send + 'static>(&'static self, value: R) -> (InFlight<R>, Ticker<R>) {
-        let flight = Arc::new(Flight {
-            finished: AtomicBool::new(true),
-            stop: StopWord::default(),
-            landing: Mutex::new(Landing {
-                answer: Some(Ok(value)),
-                joining: None,
-            }),
-        });
+        let flight = Flight::landed(value);
         let ticker = Ticker {
             flight: Arc::downgrade(&flight),
             thread: self,
@@ -447,6 +436,27 @@ impl<R> Default for Landing<R> {
 }
 
 impl<R> Flight<R> {
+    /// A flight whose job has yet to answer.
+    fn pending() -> Arc<Self> {
+        Arc::new(Self {
+            finished: AtomicBool::new(false),
+            stop: StopWord::default(),
+            landing: Mutex::default(),
+        })
+    }
+
+    /// A flight whose job has already answered `answer`.
+    fn landed(answer: R) -> Arc<Self> {
+        Arc::new(Self {
+            finished: AtomicBool::new(true),
+            stop: StopWord::default(),
+            landing: Mutex::new(Landing {
+                answer: Some(Ok(answer)),
+                joining: None,
+            }),
+        })
+    }
+
     fn landing(&self) -> std::sync::MutexGuard<'_, Landing<R>> {
         self.landing.lock().unwrap_or_else(PoisonError::into_inner)
     }
@@ -505,14 +515,7 @@ impl<R> InFlight<R> {
     #[cfg(test)]
     pub(crate) fn landed(answer: R) -> Self {
         Self {
-            flight: Arc::new(Flight {
-                finished: AtomicBool::new(true),
-                stop: StopWord::default(),
-                landing: Mutex::new(Landing {
-                    answer: Some(Ok(answer)),
-                    joining: None,
-                }),
-            }),
+            flight: Flight::landed(answer),
             not_send_or_sync: PhantomData,
         }
     }
@@ -556,11 +559,7 @@ pub(crate) struct Riding<R> {
 impl StageThread {
     /// Hands `job` to this thread, which runs it after the jobs handed to it before, beside whoever holds the ride.
     pub(crate) fn ride<R: Send + 'static>(&self, job: impl FnOnce() -> R + Send + 'static) -> Riding<R> {
-        let flight = Arc::new(Flight {
-            finished: AtomicBool::new(false),
-            stop: StopWord::default(),
-            landing: Mutex::default(),
-        });
+        let flight = Flight::pending();
         let landing = Arc::clone(&flight);
         self.post(move || landing.land(std::panic::catch_unwind(AssertUnwindSafe(job))));
         Riding { flight }
@@ -571,14 +570,7 @@ impl<R: Flown> Riding<R> {
     /// A ride whose job has already answered `answer`.
     pub(crate) fn landed(answer: R) -> Self {
         Self {
-            flight: Arc::new(Flight {
-                finished: AtomicBool::new(true),
-                stop: StopWord::default(),
-                landing: Mutex::new(Landing {
-                    answer: Some(Ok(answer)),
-                    joining: None,
-                }),
-            }),
+            flight: Flight::landed(answer),
         }
     }
 
