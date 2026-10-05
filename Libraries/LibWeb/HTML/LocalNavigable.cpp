@@ -682,7 +682,6 @@ struct LocalNavigable::RecordingInFlight {
     // navigable's presenter, to present the frame itself.
     Optional<Compositor::SealedPresentation> sealed;
     Painting::DisplayListRecording recording;
-    bool held_for_testing { false };
 };
 
 LocalNavigable::LocalNavigable(
@@ -7096,8 +7095,6 @@ bool LocalNavigable::take_recording_in_flight_in(TakeIn take_in)
 {
     if (!m_recording_in_flight)
         return true;
-    if (take_in == TakeIn::IfFinished && m_recording_in_flight->held_for_testing)
-        return false;
     auto* host = m_recording_in_flight->document->layout_node_arena().host();
     Layout::RustFFI::FfiPresentation given_back {};
     auto landing = take_in == TakeIn::Wait
@@ -7141,18 +7138,6 @@ Optional<Compositor::CompositorFrame> LocalNavigable::finish_recording_in_flight
     if (frame.has_value())
         frame->present_viewport_rect = present_viewport_rect();
     return frame;
-}
-
-void LocalNavigable::hold_recording_in_flight_for_testing()
-{
-    if (m_recording_in_flight)
-        m_recording_in_flight->held_for_testing = true;
-}
-
-void LocalNavigable::release_recording_in_flight_for_testing()
-{
-    if (m_recording_in_flight)
-        m_recording_in_flight->held_for_testing = false;
 }
 
 bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_config)

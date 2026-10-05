@@ -44,7 +44,6 @@ public:
 
     // Frames wait only for a recording in flight.
     bool has_recording_in_flight() const { return !m_entries.is_empty(); }
-    void release_held_recordings_for_testing();
 
     void visit_edges(GC::Cell::Visitor&);
 
