@@ -22,7 +22,7 @@ use crate::css::rule::CompiledFunction;
 use crate::css::style_compute::FfiLengthResolutionContext;
 use crate::painting::ffi::FfiFlightBlocker;
 use crate::painting::recording_slot::FlightLicense;
-use crate::render_state::{BegunRead, DocumentHost, RenderJob, RenderState, TaskBoundary, fly, run_job};
+use crate::render_state::{BegunRead, DocumentHost, TaskBoundary, fly};
 use std::sync::Arc;
 
 /// Takes the pending style transaction under `root`, with the document computation inputs the host sealed for it.
@@ -252,14 +252,6 @@ impl StyleJobAnswer {
     }
 }
 
-impl RenderJob for StyleJob {
-    type Answer = StyleJobAnswer;
-
-    fn run_on(self, state: &mut RenderState) -> StyleJobAnswer {
-        self.run(state.engine_mut())
-    }
-}
-
 impl StyleJob {
     /// Runs the job on `engine`, the engine of the document it was sent for.
     pub(crate) fn run(self, engine: &mut StyleEngine) -> StyleJobAnswer {
@@ -355,7 +347,7 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
         computation_inputs: unsafe { SealedStyleInputs::seal(computation_inputs) },
         flies: false,
     };
-    let answer = run_job(read, host, job);
+    let answer = host.run(read, true, move |state| job.run(state.engine_mut()));
     host.keep_style_transaction(answer).output.view()
 }
 

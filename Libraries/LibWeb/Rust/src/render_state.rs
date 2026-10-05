@@ -29,9 +29,7 @@ pub(crate) use document_host::OwedWorkPayment;
 pub(crate) use document_host::TestHost;
 pub use wait::BegunRead;
 pub(crate) use wait::held_node_entries;
-pub(crate) use wait::{
-    ForcedRead, LockstepProof, NodeRead, RenderJob, RenderWait, ScriptForcedRead, TaskBoundary, run_job,
-};
+pub(crate) use wait::{ForcedRead, LockstepProof, NodeRead, RenderWait, ScriptForcedRead, TaskBoundary};
 
 /// One document's render state, on the render owner.
 pub(crate) struct RenderState {
