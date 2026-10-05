@@ -1275,6 +1275,8 @@ pub(crate) struct LayoutNodeArena {
     image_resources_owed_to_host: RefCell<Vec<(NodeSlotId, OwedImageResources)>>,
     /// The image boxes among the rows that own the provider of the image they show.
     owned_image_providers: RefCell<HashMap<NodeSlotId, OwnedImageProvider>>,
+    /// Whether a text box has ever had a first letter split off it, which gives both halves a source range.
+    may_have_text_source_ranges: bool,
     /// Whether a row has ever been given a style with `content-visibility: auto`.
     may_have_auto_content_visibility: Cell<bool>,
     /// Whether a row has ever been given a style with a scroll snap type.
@@ -1378,6 +1380,7 @@ impl LayoutNodeArena {
             built_scroll_containers: RefCell::default(),
             image_resources_owed_to_host: RefCell::default(),
             owned_image_providers: RefCell::default(),
+            may_have_text_source_ranges: false,
             may_have_auto_content_visibility: Cell::new(false),
             may_have_scroll_snap_areas: Cell::new(false),
             nodes_enrolled_for_replaced_content_facts_sync: RefCell::new(Vec::new()),
@@ -4762,6 +4765,7 @@ impl LayoutNodeArena {
         assert_eq!(self.data(first_letter).kind.get(), NodeKind::TextNode);
         assert_eq!(self.data(remainder).kind.get(), NodeKind::TextNode);
         assert!(letter_end <= source_length);
+        self.may_have_text_source_ranges = true;
         self.text_node_state_mut(first_letter).source_range = Some(FfiTextSourceRange {
             start: 0,
             length: letter_end,
@@ -4785,6 +4789,11 @@ impl LayoutNodeArena {
                 start: 0,
                 length: source_length,
             })
+    }
+
+    /// Whether any text box may have a source range: none has before a first letter is split off one.
+    pub(crate) fn may_have_text_source_ranges(&self) -> bool {
+        self.may_have_text_source_ranges
     }
 
     pub(crate) fn text_has_source_range(&self, id: NodeSlotId) -> bool {

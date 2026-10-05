@@ -113,18 +113,22 @@ impl RenderState {
     /// job leaves it.
     fn take_owed(&mut self) -> Owed {
         let engine = self.engine_ref();
+        let arena = self.arena.arena();
         let facts = StateFacts {
             rows_version: self.rows_version(),
-            has_pending_style_transaction: engine.has_pending_transaction(),
-            has_deferred_element_style_inputs: engine.has_deferred_element_style_inputs(),
-            has_size_containers_needing_evaluation_after_layout: engine
-                .has_size_containers_needing_evaluation_after_layout(),
-            layout_is_up_to_date_unless_built: self.arena.arena().layout_is_up_to_date(false),
-            rendering_preparation_pending: crate::painting::paint_passes::rendering_preparation_pending(
-                self.arena.arena(),
-            )
-            .is_some(),
-            owes_image_resources: self.arena.arena().owes_image_resources_to_host(),
+            engine: EngineFacts {
+                has_pending_style_transaction: engine.has_pending_transaction(),
+                has_deferred_element_style_inputs: engine.has_deferred_element_style_inputs(),
+                has_size_containers_needing_evaluation_after_layout: engine
+                    .has_size_containers_needing_evaluation_after_layout(),
+            },
+            arena: ArenaFacts {
+                layout_is_up_to_date_unless_built: arena.layout_is_up_to_date(false),
+                rendering_preparation_pending: crate::painting::paint_passes::rendering_preparation_pending(arena)
+                    .is_some(),
+            },
+            owes_image_resources: arena.owes_image_resources_to_host(),
+            may_have_text_source_ranges: arena.may_have_text_source_ranges(),
             selector_attribute_value_text_requirements_version: engine
                 .selector_attribute_value_text_requirements_version(),
         };
@@ -219,23 +223,40 @@ pub(crate) struct Owed {
 }
 
 /// What a document's render state answers of itself as a job or a frame leaves it, which the host reads in place for as
-/// long as it writes nothing: only the host's jobs and frames write the state.
+/// long as it writes nothing that moves it: only the host's jobs and frames write the state.
 #[derive(Clone, Copy)]
 pub(crate) struct StateFacts {
     /// How far the arena's rows had been written.
     pub(crate) rows_version: crate::layout::RowsVersion,
+    pub(crate) engine: EngineFacts,
+    pub(crate) arena: ArenaFacts,
+    /// Whether the layout tree builds owe the host image resources, which no write moves (see
+    /// [`DocumentHost::known_owed_image_resources`]).
+    pub(crate) owes_image_resources: bool,
+    /// Whether a text box may have a source range, which only a build gives one, never a write (see
+    /// [`DocumentHost::known_no_text_source_ranges`]).
+    pub(crate) may_have_text_source_ranges: bool,
+    /// Where the engine's selectors' requirements of attribute value text are.
+    pub(crate) selector_attribute_value_text_requirements_version: u64,
+}
+
+/// What the style engine answers of itself as a job or a frame leaves it, which only a write to the engine moves (see
+/// [`ArenaChange::moves`]).
+#[derive(Clone, Copy)]
+pub(crate) struct EngineFacts {
     pub(crate) has_pending_style_transaction: bool,
     pub(crate) has_deferred_element_style_inputs: bool,
     pub(crate) has_size_containers_needing_evaluation_after_layout: bool,
+}
+
+/// What the arena answers of itself as a job or a frame leaves it, which a write to the engine or the arena may move (see
+/// [`ArenaChange::moves`]).
+#[derive(Clone, Copy)]
+pub(crate) struct ArenaFacts {
     /// Whether the layout is up to date, unless the document's layout tree update marks ask for a build of it.
     pub(crate) layout_is_up_to_date_unless_built: bool,
     /// Whether preparing the document for rendering has something to do.
     pub(crate) rendering_preparation_pending: bool,
-    /// Whether the layout tree builds owe the host image resources, which no write moves (see
-    /// [`DocumentHost::known_owed_image_resources`]).
-    pub(crate) owes_image_resources: bool,
-    /// Where the engine's selectors' requirements of attribute value text are.
-    pub(crate) selector_attribute_value_text_requirements_version: u64,
 }
 
 // Every write the host makes is moved through its queue and into the render state, so a variant that carries a large
@@ -322,18 +343,24 @@ impl ArenaChange {
         }
     }
 
-    /// Whether the change may move a fact the host knows of the render state (see [`StateFacts`]): a write to the paint
-    /// state never does, nor do some style and layout writes.
-    fn may_move_facts(&self) -> bool {
-        match self {
-            Self::Paint(_) => false,
-            Self::Style(change) => change.may_move_facts(),
-            Self::Layout(change) => change.may_move_facts(),
-            Self::Engine(_)
-            | Self::DetachForRemoval(_)
-            | Self::ReinheritAnonymousDescendants(_)
-            | Self::RemoveBox(_)
-            | Self::Rule(_) => true,
+    /// What the change may move of what the host knows of the render state (see [`StateFacts`]): a write to the paint
+    /// state moves no fact, nor do some style and layout writes, and a write to the layout boxes alone never moves what
+    /// the engine answers.
+    fn moves(&self) -> Moves {
+        let (engine_facts, arena_facts) = match self {
+            Self::Paint(_) => (false, false),
+            Self::Layout(change) => (false, change.may_move_facts()),
+            Self::Style(change) => (change.may_move_facts(), change.may_move_facts()),
+            Self::Engine(write) => (write.may_move_facts(), write.may_move_facts()),
+            Self::DetachForRemoval(_) | Self::ReinheritAnonymousDescendants(_) | Self::RemoveBox(_) | Self::Rule(_) => {
+                (true, true)
+            }
+        };
+        Moves {
+            rows: self.row_write(),
+            engine_facts,
+            arena_facts,
+            selectors: matches!(self, Self::Rule(_)),
         }
     }
 
@@ -390,8 +417,10 @@ struct ChangeQueue {
 struct Moves {
     /// How far they may write the rows (see [`ArenaChange::row_write`]).
     rows: RowWrite,
-    /// A fact (see [`ArenaChange::may_move_facts`]).
-    facts: bool,
+    /// A fact of the engine (see [`EngineFacts`]).
+    engine_facts: bool,
+    /// A fact of the arena (see [`ArenaFacts`]).
+    arena_facts: bool,
     /// The engine's selectors, which only a rule write compiles.
     selectors: bool,
 }
@@ -408,11 +437,12 @@ impl ChangeQueue {
 
     /// Notes what `change`, a write queued, may move.
     fn note(&self, change: &ArenaChange) {
-        let moves = self.moves.get();
+        let (moves, change) = (self.moves.get(), change.moves());
         self.moves.set(Moves {
-            rows: moves.rows.max(change.row_write()),
-            facts: moves.facts || change.may_move_facts(),
-            selectors: moves.selectors || matches!(change, ArenaChange::Rule(_)),
+            rows: moves.rows.max(change.rows),
+            engine_facts: moves.engine_facts || change.engine_facts,
+            arena_facts: moves.arena_facts || change.arena_facts,
+            selectors: moves.selectors || change.selectors,
         });
     }
 

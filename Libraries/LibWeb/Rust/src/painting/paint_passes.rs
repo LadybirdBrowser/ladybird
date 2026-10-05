@@ -254,7 +254,7 @@ pub(crate) fn rendering_preparation_pending(arena: &LayoutNodeArena) -> Option<P
 /// the host knows it has nothing.
 pub(crate) fn pending_preparation(read: &BegunRead, host: &DocumentHost) -> Option<PendingPreparation> {
     if host
-        .known_facts()
+        .known_arena_facts()
         .is_some_and(|facts| !facts.rendering_preparation_pending)
     {
         return None;

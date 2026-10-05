@@ -3247,14 +3247,15 @@ impl StyleChange {
     }
 
     /// Whether the change may move a fact the host knows of the render state. One that keeps records alive, notes what
-    /// an attribute name is or what a value spells, picks the pseudo-element whose style is deferred, or begins or ends
-    /// a cold matching batch never does: none of them stages a style input or touches a layout box.
+    /// an attribute name is or what a value or a text spells, picks the pseudo-element whose style is deferred, or
+    /// begins or ends a cold matching batch never does: none of them stages a style input or touches a layout box.
     pub(crate) fn may_move_facts(&self) -> bool {
         !self.only_keeps_records_alive()
             && !self.notes_attribute_name()
             && !matches!(
                 self,
                 Self::SetAttributeValueText { .. }
+                    | Self::SetTextIsAsciiWhitespace { .. }
                     | Self::SetPseudoElementStyleDeferred { .. }
                     | Self::BeginColdMatchingBatch { .. }
                     | Self::BeginAdaptiveColdMatchingBatch { .. }
