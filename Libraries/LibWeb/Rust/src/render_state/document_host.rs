@@ -7,7 +7,7 @@
 //! What the host keeps of a document's render state, which the render owner holds: its name, the frame that may fly
 //! beside the host, and what the host reads between the jobs it hands the owner.
 
-use super::clock::{ClockLease, ClockPlan, ClockTicks, LeaseLanding};
+use super::clock::{ClockLease, ClockPlan, ClockRecorder, ClockTicks, LeaseLanding, TickPresented, TickRecording};
 use super::owner::{self, DocumentId, SharedWithHost, StateSeed};
 use super::wait::{BegunRead, NodeRead, TaskStart};
 use super::{
@@ -104,6 +104,9 @@ pub struct DocumentHost {
     clock_rounds: RefCell<Vec<LayoutRoundAnswer>>,
     /// The presentation of the document's navigable a clock lease brought back, until the navigable takes it again.
     presentation: RefCell<Option<Presentation>>,
+    /// The recording of the frame the last tick of a lease that ended presented, which brings back the recorder state
+    /// and presentation once the host needs them.
+    tick_recording: RefCell<Option<TickRecording>>,
     /// The border boxes of the elements a clock lease sampled in the last frame one of its ticks presented.
     presented_border_boxes: RefCell<Vec<(StyleNodeID, CssPixelRect)>>,
     /// Whether the render state was leased to the render clock since the last rendering update.
@@ -180,6 +183,7 @@ impl DocumentHost {
             clock_plan: RefCell::default(),
             clock_rounds: RefCell::default(),
             presentation: RefCell::default(),
+            tick_recording: RefCell::default(),
             presented_border_boxes: RefCell::default(),
             leased_since_rendering_update: Cell::default(),
         }
@@ -318,8 +322,7 @@ impl DocumentHost {
     fn lease_landed(
         &self,
         LeaseLanding {
-            recorder,
-            presentation,
+            recording,
             ticked,
             owed,
             presented_border_boxes,
@@ -336,7 +339,35 @@ impl DocumentHost {
         }
         self.clock_rounds.borrow_mut().extend(owed);
         self.note_frame_wait();
-        self.recording().give_back_recorder(recorder);
+        let previous = self.tick_recording.replace(Some(recording));
+        debug_assert!(previous.is_none(), "a lease begins with the recorder state here");
+    }
+
+    /// Takes in the recording of the frame the last tick of a lease presented, waiting for it where it still runs: the
+    /// recorder state and presentation come back, and the document takes the frame in as its last recording.
+    fn take_tick_recording_in(&self) {
+        let Some(recording) = self.tick_recording.take() else {
+            return;
+        };
+        let ClockRecorder {
+            recorder,
+            presentation,
+            presented,
+        } = recording.land();
+        if let TickPresented::Frame {
+            output,
+            hit_test_list_changed,
+        } = presented
+        {
+            self.queue_change(ArenaChange::Paint(
+                crate::painting::paint_changes::PaintChange::TakeInRecording {
+                    output,
+                    hit_test_list_changed,
+                    publishes_recording: true,
+                },
+            ));
+        }
+        self.recording.borrow_mut().give_back_recorder(recorder);
         *self.presentation.borrow_mut() = Some(presentation);
     }
 
@@ -606,6 +637,7 @@ impl DocumentHost {
     /// Ends the clock lease, where one runs, and takes the presentation a lease brought back, if any.
     pub(super) fn take_back_presentation(&self) -> Option<Presentation> {
         self.end_clock_lease();
+        self.take_tick_recording_in();
         self.presentation.take()
     }
 
@@ -1059,6 +1091,7 @@ impl DocumentHost {
 
     /// What the document keeps of its recordings.
     pub(crate) fn recording(&self) -> RefMut<'_, RecordingSlot> {
+        self.take_tick_recording_in();
         self.recording.borrow_mut()
     }
 }
@@ -1187,6 +1220,7 @@ pub unsafe extern "C" fn document_host_destroy(host: *mut DocumentHost) {
     // The document's teardown is the host's own read: a frame in flight lands first, and what it brought back for the
     // host goes unpaid, as the host made nothing of it yet.
     host.take_frame_in(ForcedRead::of_teardown());
+    host.take_tick_recording_in();
     let DocumentHost {
         document,
         seed,

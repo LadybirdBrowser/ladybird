@@ -10,8 +10,10 @@
 //! presentation, to the render clock, which ticks at the display's ticks on the StyleLayout thread: each tick reaches
 //! the state there by the document's name, as the render owner, samples the running animations of the plan the last
 //! rendering update sealed at the tick's time, shows the samples in their elements' boxes, lays out what they moved,
-//! and records and presents the frame with the navigable's presenter, beside the event loop. The host ends the lease
-//! with any job it hands the owner, which waits for at most the one tick that runs, and takes everything back at once.
+//! and has the Paint thread record and present the frame with the navigable's presenter, beside the event loop and the
+//! next tick, which waits for that recording only once it has laid out. The host ends the lease with any job it hands
+//! the owner, which waits for at most the one tick that runs and takes everything back at once, but for the recorder
+//! state and presentation, which the recording beside it brings back once the host needs them.
 //! What a tick showed never becomes visible to script: the boxes take back the styles the host installed before any
 //! job of the host reads them, so the animations' timeline moves only in a rendering update.
 
@@ -24,16 +26,17 @@ use crate::css::style::engine_sample::NeedsHost;
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::used_values::FfiCssPixelRect;
-use crate::layout::{ClockRound, ClockRoundDeclined, HostStyle, LayoutRoundAnswer};
+use crate::layout::{ClockRound, ClockRoundDeclined, HostStyle, LayoutNodeArena, LayoutRoundAnswer};
 use crate::painting::ffi::FfiPresentation;
-use crate::painting::paint_passes::{VisualContextsNeedHost, prepare_for_clock_tick};
+use crate::painting::paint_passes::{ClockTickVisualContexts, VisualContextsNeedHost, prepare_for_clock_tick};
 use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::presentation::Presentation;
 use crate::painting::record::damage::PaintDamage;
 use crate::painting::record::publish::{renders_vector_images, take_in_published_output, take_in_recording};
 use crate::painting::record::recorder_state::RecorderState;
-use crate::painting::recording_slot::{FrameInputs, freeze_recording_frame, present, record_frame};
-use crate::stage_thread::{InFlight, StopWord, Ticker};
+use crate::painting::record::{RecordingInputs, RecordingOutput};
+use crate::painting::recording_slot::{FrameInputs, FrozenFrame, freeze_recording_frame, present, record_frame};
+use crate::stage_thread::{InFlight, Riding, StopWord, Ticker};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 
@@ -69,13 +72,13 @@ impl ClockPlan {
     }
 }
 
-/// What a clock lease brings its host back: the recorder state and presentation it took, the boxes its ticks showed
-/// samples in with the styles the host installed for them, and what the ticks' rounds owe the host, in the order they
-/// ran. The render state stays with the render owner, which the lease names it to.
+/// What a clock lease brings its host back: the recording of the frame a tick presented last, which brings the
+/// recorder state and presentation the lease took, the boxes its ticks showed samples in with the styles the host
+/// installed for them, and what the ticks' rounds owe the host, in the order they ran. The render state stays with the
+/// render owner, which the lease names it to.
 pub(crate) struct LeaseLanding {
     document: DocumentId,
-    pub(super) recorder: RecorderState,
-    pub(super) presentation: Presentation,
+    pub(super) recording: TickRecording,
     plan: ClockPlan,
     pub(super) ticked: Vec<(NodeSlotId, HostStyle)>,
     pub(super) owed: Vec<LayoutRoundAnswer>,
@@ -99,6 +102,48 @@ impl crate::stage_thread::Flown for LeaseLanding {
     type JoinRight = EndsLease;
 }
 
+/// The recorder state and presentation of a clock lease, as the recording of a tick's frame gives them back, with what
+/// it presented.
+pub(crate) struct ClockRecorder {
+    pub(super) recorder: RecorderState,
+    pub(super) presentation: Presentation,
+    pub(super) presented: TickPresented,
+}
+
+/// What the recording of a tick's frame presented.
+pub(crate) enum TickPresented {
+    /// No tick recorded a frame since the recorder state came back.
+    Nothing,
+    /// The frame, which the document takes in as its last recording.
+    Frame {
+        output: Arc<RecordingOutput>,
+        hit_test_list_changed: bool,
+    },
+    /// Nothing: the frame renders an SVG image, which only the host renders, and the lease samples no more.
+    LeftToHost,
+}
+
+/// The recording of the frame the last tick of a clock lease presented, which may still run on the Paint thread, and
+/// which brings back the recorder state and presentation the lease took. A tick waits for it once it has laid out the
+/// next frame, and the host once it needs them again: dropping it would leave the presentation to the Paint thread.
+#[must_use]
+pub(crate) struct TickRecording(Riding<ClockRecorder>);
+
+impl TickRecording {
+    /// Waits for the recording, and answers what it gives back.
+    pub(super) fn land(mut self) -> ClockRecorder {
+        self.0.take(WaitsForTickRecording(()))
+    }
+}
+
+/// The right to wait for the recording of a tick's frame, which only a tick that records the next frame and
+/// [`TickRecording::land`] mint.
+pub(crate) struct WaitsForTickRecording(());
+
+impl crate::stage_thread::Flown for ClockRecorder {
+    type JoinRight = WaitsForTickRecording;
+}
+
 /// A document's render state, leased to the render clock. A task boundary cannot take it in, as a lease has no
 /// `try_take`: only [`Self::end`] takes it back, which waits for at most one tick, and which any wait of the host for the
 /// render state ends it with.
@@ -119,8 +164,11 @@ impl ClockLease {
     ) -> (Self, Arc<ClockTicks>) {
         let (flight, ticker) = crate::stage_thread::style_layout_thread().lease(LeaseLanding {
             document,
-            recorder,
-            presentation,
+            recording: TickRecording(Riding::landed(ClockRecorder {
+                recorder,
+                presentation,
+                presented: TickPresented::Nothing,
+            })),
             plan,
             ticked: Vec::new(),
             owed: Vec::new(),
@@ -308,63 +356,118 @@ impl LeaseLanding {
         }
     }
 
-    /// Records the document's frame again, with the inputs of the last recording that published, and presents it
-    /// beside the event loop. A frame whose visual contexts only the host settles, or that renders an SVG image,
-    /// or whose trace the host reads, is the host's to present.
+    /// Takes in the frame the last tick presented, and has the Paint thread record the document's frame again, with the
+    /// inputs of the last recording that published, and present it beside the event loop and the next tick. A frame
+    /// whose visual contexts only the host settles, or whose trace the host reads, is the host's to present, and so is
+    /// any frame after one that renders an SVG image.
     fn present(&mut self, state: &mut RenderState) -> Result<(), Park> {
+        let mut clock_recorder = self.recording.0.take(WaitsForTickRecording(()));
+        let arena = state.arena.arena_mut();
+        match freeze_tick_frame(arena, &mut clock_recorder) {
+            Ok((frozen, inputs, visual_contexts)) => {
+                let viewport = arena.layout_root();
+                self.recording = TickRecording(
+                    crate::stage_thread::paint_thread()
+                        .ride(move || clock_recorder.record(frozen, viewport, inputs, visual_contexts)),
+                );
+            }
+            Err(park) => {
+                self.recording = TickRecording(Riding::landed(clock_recorder));
+                return Err(park);
+            }
+        }
+        let rows = arena.paintable_rows();
+        self.presented_border_boxes.clear();
+        self.presented_border_boxes
+            .extend(self.plan.elements.iter().filter_map(|&element| {
+                let row = arena.bound_row(element);
+                rows.paintable_row_is_populated(row)
+                    .then(|| (element, absolute_border_box_rect(&rows, row)))
+            }));
+        Ok(())
+    }
+}
+
+/// Takes the frame the last tick presented in as the document's last recording, and prepares and freezes the
+/// document's frame for the next recording, with the inputs of the last recording that published.
+fn freeze_tick_frame(
+    arena: &mut LayoutNodeArena,
+    clock_recorder: &mut ClockRecorder,
+) -> Result<(FrozenFrame, RecordingInputs, Option<ClockTickVisualContexts>), Park> {
+    let ClockRecorder {
+        recorder,
+        presentation,
+        presented,
+    } = clock_recorder;
+    match std::mem::replace(presented, TickPresented::Nothing) {
+        TickPresented::Nothing => {}
+        TickPresented::Frame {
+            output,
+            hit_test_list_changed,
+        } => {
+            take_in_recording(arena, output, hit_test_list_changed, true);
+        }
+        TickPresented::LeftToHost => return Err(Park),
+    }
+    let viewport = arena.layout_root();
+    if arena.paint_state().borrow().trace_recordings {
+        return Err(Park);
+    }
+    let visual_contexts = prepare_for_clock_tick(arena, viewport, presentation)?;
+    let inputs = recorder.published_inputs.take().ok_or(Park)?;
+    let frame_inputs = FrameInputs {
+        viewport,
+        css_viewport_rect: inputs.css_viewport_rect,
+        publishes_recording: true,
+        published_root_background_canvas_rect: recorder
+            .published_recording
+            .as_ref()
+            .map(|recording| recording.root_background_canvas_rect),
+        hit_test_item_capacity_hint: recorder
+            .published_hit_test_items
+            .as_ref()
+            .map_or(0, |published| published.items.len()),
+    };
+    let Some(frozen) = freeze_recording_frame(arena, frame_inputs) else {
+        recorder.published_inputs = Some(inputs);
+        return Err(Park);
+    };
+    Ok((frozen, inputs, visual_contexts))
+}
+
+impl ClockRecorder {
+    /// Records `frozen`, the frame of the document's `viewport`, with `inputs`, and presents it with the visual contexts
+    /// a tick prepared for it, on the Paint thread. Only the host renders an SVG image.
+    fn record(
+        mut self,
+        frozen: FrozenFrame,
+        viewport: NodeSlotId,
+        inputs: RecordingInputs,
+        visual_contexts: Option<ClockTickVisualContexts>,
+    ) -> Self {
         let Self {
             recorder,
             presentation,
-            plan,
-            presented_border_boxes,
-            ..
-        } = self;
-        let arena = state.arena.arena_mut();
-        let viewport = arena.layout_root();
-        if arena.paint_state().borrow().trace_recordings {
-            return Err(Park);
-        }
-        let visual_contexts = prepare_for_clock_tick(arena, viewport, presentation)?;
-        let inputs = recorder.published_inputs.take().ok_or(Park)?;
-        let frame_inputs = FrameInputs {
-            viewport,
-            css_viewport_rect: inputs.css_viewport_rect,
-            publishes_recording: true,
-            published_root_background_canvas_rect: recorder
-                .published_recording
-                .as_ref()
-                .map(|recording| recording.root_background_canvas_rect),
-            hit_test_item_capacity_hint: recorder
-                .published_hit_test_items
-                .as_ref()
-                .map_or(0, |published| published.items.len()),
-        };
-        let Some(frozen) = freeze_recording_frame(arena, frame_inputs) else {
-            recorder.published_inputs = Some(inputs);
-            return Err(Park);
-        };
+            presented,
+        } = &mut self;
         let (pending, _) = record_frame(frozen.frame, recorder, viewport, false, inputs);
-        // Only the host renders an SVG image. The recording wrote the paint-order tree, which no longer describes the
-        // recording published last.
+        // The recording wrote the paint-order tree, which no longer describes the recording published last.
         if renders_vector_images(&pending) {
             recorder.forget_published_recording();
-            return Err(Park);
+            *presented = TickPresented::LeftToHost;
+            return self;
         }
         if let Some(visual_contexts) = visual_contexts {
             presentation.take_visual_context_tree(visual_contexts);
         }
         let output = present(presentation, pending, recorder);
         take_in_published_output(recorder, &mut None, output, true, |output, hit_test_list_changed| {
-            take_in_recording(arena, output, hit_test_list_changed, true);
+            *presented = TickPresented::Frame {
+                output,
+                hit_test_list_changed,
+            };
         });
-        let rows = arena.paintable_rows();
-        presented_border_boxes.clear();
-        presented_border_boxes.extend(plan.elements.iter().filter_map(|&element| {
-            let row = arena.bound_row(element);
-            rows.paintable_row_is_populated(row)
-                .then(|| (element, absolute_border_box_rect(&rows, row)))
-        }));
-        Ok(())
+        self
     }
 }
 
@@ -518,8 +621,8 @@ pub unsafe extern "C" fn document_host_clock_lease_state(host: &DocumentHost) ->
 }
 
 /// Hands the clock lease of `host`'s document, where one runs, a tick at `frame_time_nanoseconds`, and waits until the
-/// StyleLayout thread has run the jobs handed to it before, the tick among them, without ending the lease. For a test,
-/// whose clock ticks only where it injects them.
+/// StyleLayout thread has run the jobs handed to it before, the tick among them, and the Paint thread the recording of
+/// the frame the tick presents, without ending the lease. For a test, whose clock ticks only where it injects them.
 ///
 /// # Safety
 ///
@@ -529,6 +632,7 @@ pub unsafe extern "C" fn document_host_inject_clock_tick(host: &DocumentHost, fr
     if let Some(ticks) = host.clock_ticks() {
         ticks.tick(frame_time_nanoseconds);
         crate::stage_thread::style_layout_thread().run(|| ());
+        crate::stage_thread::paint_thread().run(|| ());
     }
 }
 
