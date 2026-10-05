@@ -534,7 +534,7 @@ impl NormalizationJournal {
 
     /// Fold a newer journal into this one without counting its already-recorded inputs a second
     /// time. This retains the original value before either journal and the final value after both.
-    pub(super) fn absorb_newer(&mut self, newer: &mut Self, memory: &mut MemoryController, counters: &mut Counters) {
+    pub(super) fn absorb_newer(&mut self, newer: &mut Self, memory: &mut MemoryController, counters: &Counters) {
         debug_assert!(self.markers.is_empty());
         debug_assert!(newer.markers.is_empty());
         let newer_entries = std::mem::take(&mut newer.entries);
@@ -623,7 +623,7 @@ impl NormalizationJournal {
         old: InputValue,
         new: InputValue,
         memory: &mut MemoryController,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let kind = key.kind();
         assert_eq!(old.kind(), kind, "journal value does not match its key");
@@ -682,7 +682,7 @@ impl NormalizationJournal {
         &mut self,
         kind: InputKind,
         memory: &mut MemoryController,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         counters.bump(Counter::RawMutationRecords);
         if let Some(counter) = kind.counter() {
@@ -693,7 +693,7 @@ impl NormalizationJournal {
 
     /// Normalize and drain. The result is sorted by key so that downstream planning is
     /// deterministic regardless of mutation arrival order.
-    pub fn take_transaction(&mut self, memory: &mut MemoryController, counters: &mut Counters) -> StyleTransaction {
+    pub fn take_transaction(&mut self, memory: &mut MemoryController, counters: &Counters) -> StyleTransaction {
         let mut inputs: Vec<NormalizedInput> = self
             .entries
             .drain()
@@ -777,7 +777,7 @@ impl NormalizationJournal {
 
     /// Ensure one more fine-grained entry may be inserted, coarsening until it fits. Returns false
     /// when the entry must not be journalled at all, in which case its kind has been marked.
-    fn make_room_for_one(&mut self, kind: InputKind, memory: &mut MemoryController, counters: &mut Counters) -> bool {
+    fn make_room_for_one(&mut self, kind: InputKind, memory: &mut MemoryController, counters: &Counters) -> bool {
         if self.entries.len() < self.entries.capacity() {
             return true;
         }
@@ -786,12 +786,7 @@ impl NormalizationJournal {
 
     #[cold]
     #[inline(never)]
-    fn make_room_for_one_slow(
-        &mut self,
-        kind: InputKind,
-        memory: &mut MemoryController,
-        counters: &mut Counters,
-    ) -> bool {
+    fn make_room_for_one_slow(&mut self, kind: InputKind, memory: &mut MemoryController, counters: &Counters) -> bool {
         while self.entries.len() >= self.entries.capacity() {
             let growth = (JOURNAL_ENTRY_BYTES * self.entries.capacity().max(4)) as u64;
             if u64::from(self.charged_bytes).saturating_add(growth) <= self.capacity_limit() {
@@ -817,7 +812,7 @@ impl NormalizationJournal {
     /// Replace every fine-grained entry of the most numerous remaining kind with one typed
     /// complete-scope marker. Coarsening the largest kind first keeps a burst of class mutations
     /// from also coarsening unrelated tree relations.
-    fn coarsen_largest_kind(&mut self, memory: &mut MemoryController, counters: &mut Counters) -> bool {
+    fn coarsen_largest_kind(&mut self, memory: &mut MemoryController, counters: &Counters) -> bool {
         let mut counts = [0_usize; INPUT_KIND_COUNT];
         for key in self.entries.keys() {
             counts[key.kind().index()] += 1;
@@ -895,7 +890,7 @@ mod tests {
         }
 
         fn record(&mut self, key: InputKey, old: InputValue, new: InputValue) {
-            self.journal.record(key, old, new, &mut self.memory, &mut self.counters);
+            self.journal.record(key, old, new, &mut self.memory, &self.counters);
         }
 
         fn class(&mut self, node: u32, class: u32, old: bool, new: bool) {
@@ -928,7 +923,7 @@ mod tests {
         }
 
         fn take(&mut self) -> StyleTransaction {
-            self.journal.take_transaction(&mut self.memory, &mut self.counters)
+            self.journal.take_transaction(&mut self.memory, &self.counters)
         }
     }
 
@@ -1013,12 +1008,12 @@ mod tests {
                 inherited_style_groups: 0,
             },
             &mut fixture.memory,
-            &mut fixture.counters,
+            &fixture.counters,
         );
 
         fixture
             .journal
-            .absorb_newer(&mut newer, &mut fixture.memory, &mut fixture.counters);
+            .absorb_newer(&mut newer, &mut fixture.memory, &fixture.counters);
         assert!(newer.is_empty());
 
         let transaction = fixture.take();
@@ -1142,11 +1137,9 @@ mod tests {
     #[test]
     fn complete_scope_actions_are_not_counted_as_journal_coarsening() {
         let mut fixture = JournalFixture::new();
-        fixture.journal.record_complete_scope_action(
-            InputKind::Environment,
-            &mut fixture.memory,
-            &mut fixture.counters,
-        );
+        fixture
+            .journal
+            .record_complete_scope_action(InputKind::Environment, &mut fixture.memory, &fixture.counters);
 
         assert_eq!(fixture.counters.get(Counter::RawMutationRecords), 1);
         assert_eq!(fixture.counters.get(Counter::EnvironmentDeltas), 1);

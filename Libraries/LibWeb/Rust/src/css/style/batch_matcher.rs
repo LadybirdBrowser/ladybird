@@ -770,7 +770,7 @@ fn append_matched_entry(
     entry: &SelectorEntry,
     scope_proximity: u32,
     completed: &mut Option<&mut [bool]>,
-    counters: &mut Counters,
+    counters: &Counters,
     count_emission: CountRuleMatchEmission,
 ) {
     out.record_selector_truth(candidate.identity, scope, scope_proximity);
@@ -837,7 +837,7 @@ pub(super) fn append_prefix_matches(
     program: &StyleSheetProgram,
     programs: &SelectorPrograms,
     matches: &[EntryID],
-    counters: &mut Counters,
+    counters: &Counters,
     count_emission: CountRuleMatchEmission,
 ) {
     let mut completed = None;
@@ -876,7 +876,7 @@ pub(super) fn append_selector_truth_matches(
     programs: &SelectorPrograms,
     dispatch: &RuleDispatch,
     truth: &[super::SelectorTruth],
-    counters: &mut Counters,
+    counters: &Counters,
 ) {
     let mut completed = None;
     for &matched in truth {
@@ -1065,7 +1065,7 @@ impl<'a> BatchMatcher<'a> {
         rules: &[(RuleID, SelectorProgramID)],
         evaluator: &mut MatchEvaluator<'_>,
         out: &mut RuleMatches,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Result<(), Incomplete> {
         let start = out.matches.len();
         let selector_truth_start = out.selector_truth_len();
@@ -1161,7 +1161,7 @@ impl<'a> BatchMatcher<'a> {
         &self,
         root: StyleNodeID,
         out: &mut RuleMatches,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Result<(), Incomplete> {
         let start = out.matches.len();
         let selector_truth_start = out.selector_truth_len();
@@ -1196,12 +1196,7 @@ impl<'a> BatchMatcher<'a> {
 
     /// Evaluate one style node exactly.
     #[cfg(test)]
-    pub fn match_node(
-        &self,
-        node: StyleNodeID,
-        out: &mut RuleMatches,
-        counters: &mut Counters,
-    ) -> Result<(), Incomplete> {
+    pub fn match_node(&self, node: StyleNodeID, out: &mut RuleMatches, counters: &Counters) -> Result<(), Incomplete> {
         let mut dispatch_workspace = DispatchCandidateWorkspace::default();
         let mut prefix_states = PrefixStates::new();
         let mut prefix_context = PrefixTransitionContext::new(&mut prefix_states, self.facts);
@@ -1233,7 +1228,7 @@ impl<'a> BatchMatcher<'a> {
         &self,
         node: StyleNodeID,
         out: &mut RuleMatches,
-        counters: &mut Counters,
+        counters: &Counters,
         state: BatchMatchState<'_>,
     ) -> BatchMatchOutcome {
         let mut answer_is_exact = true;
@@ -1761,7 +1756,7 @@ mod tests {
                 .with_ancestor_requirements(&ancestor_requirements);
             let mut matches = RuleMatches::new();
             interpreter
-                .match_subtree(self.nodes[0], &mut matches, &mut self.counters)
+                .match_subtree(self.nodes[0], &mut matches, &self.counters)
                 .expect("the batch covers the whole document");
             matches.settle_memory(&mut self.memory);
             matches
@@ -1942,7 +1937,7 @@ mod tests {
         .in_shadow_tree(document.nodes[0]);
         let mut matches = RuleMatches::new();
         interpreter
-            .match_node(document.nodes[1], &mut matches, &mut document.counters)
+            .match_node(document.nodes[1], &mut matches, &document.counters)
             .expect("the batch covers the shadow child");
         assert!(document.matched_nodes(&matches, rule).is_empty());
     }
@@ -2083,7 +2078,7 @@ mod tests {
                 .match_node_collecting_requests(
                     document.nodes[1],
                     &mut matches,
-                    &mut document.counters,
+                    &document.counters,
                     BatchMatchState {
                         match_workspace: None,
                         witness_effects: None,
@@ -2191,7 +2186,7 @@ mod tests {
                 &document.programs,
                 &document.program,
             )
-            .match_node(node, &mut expected, &mut document.counters)
+            .match_node(node, &mut expected, &document.counters)
             .unwrap();
             BatchMatcher::new(
                 &document.tree,
@@ -2201,7 +2196,7 @@ mod tests {
                 &document.program,
             )
             .with_ancestor_requirements(&requirements)
-            .match_node(node, &mut actual, &mut document.counters)
+            .match_node(node, &mut actual, &document.counters)
             .unwrap();
         }
         assert!(!actual.is_empty());
@@ -2436,7 +2431,7 @@ mod tests {
         );
         let mut matches = RuleMatches::new();
         assert_eq!(
-            interpreter.match_subtree(document.nodes[0], &mut matches, &mut document.counters),
+            interpreter.match_subtree(document.nodes[0], &mut matches, &document.counters),
             Err(Incomplete::MissingFacts(extra))
         );
         assert!(matches.is_empty(), "an aborted pass publishes nothing");

@@ -593,7 +593,7 @@ impl RetainedState {
         &mut self,
         winners: &[PropertyWinner],
         previous: Option<CascadeStateID>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> CascadeStateID {
         self.with_cascade_interning_counters(|groups| groups.intern_sorted(winners, previous), counters)
     }
@@ -601,7 +601,7 @@ impl RetainedState {
     pub(super) fn with_cascade_interning_counters<T>(
         &mut self,
         intern: impl FnOnce(&mut WinnerGroups) -> T,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> T {
         let previous_state_count = self.winner_groups.state_count();
         let previous_group_count = self.winner_groups.payload_count();
@@ -638,7 +638,7 @@ impl RetainedState {
         all: &mut Vec<RuleMatch>,
         can_have_scope_duplicates: bool,
         publish_winners_for: Option<StyleNodeID>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let mut workspace = std::mem::take(&mut self.cascade_compaction_scratch);
         self.compact_matches_for_cascade_with_scratch(
@@ -661,7 +661,7 @@ impl RetainedState {
         can_have_scope_duplicates: bool,
         mut publish_winners_for: Option<StyleNodeID>,
         workspace: &mut CascadeCompactionWorkspace,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         if publish_winners_for.is_some_and(|node| {
             !self.winner_groups.admits_new_rows()
@@ -1121,7 +1121,7 @@ impl RetainedState {
         effects: &mut AnswerEffects,
         node: StyleNodeID,
         states: &[PublishedWinnerState],
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let mut published_row_count = 0;
         for &PublishedWinnerState {
@@ -1184,7 +1184,7 @@ impl RetainedState {
         effects: &mut AnswerEffects,
         node: StyleNodeID,
         all: &mut Vec<RuleMatch>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> bool {
         let mut has_author_pseudo_rules = false;
         if self.node_has_element_declaration_input(node)
@@ -1232,7 +1232,7 @@ impl RetainedState {
         effects: &mut AnswerEffects,
         node: StyleNodeID,
         all: &mut Vec<RuleMatch>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> bool {
         let Some((_, state)) = effects
             .winners
@@ -1325,7 +1325,7 @@ impl RetainedState {
         all: Vec<RuleMatch>,
         can_have_scope_duplicates: bool,
         publish_winners_for: Option<StyleNodeID>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Vec<RuleMatch> {
         let mut effects = AnswerEffects::default();
         let result = self.matches_for_cascade(
@@ -1345,7 +1345,7 @@ impl RetainedState {
         mut all: Vec<RuleMatch>,
         can_have_scope_duplicates: bool,
         publish_winners_for: Option<StyleNodeID>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Vec<RuleMatch> {
         self.compact_matches_for_cascade(
             effects,
@@ -1364,7 +1364,7 @@ impl RetainedState {
         can_have_scope_duplicates: bool,
         publish_winners_for: Option<StyleNodeID>,
         workspace: &mut CascadeCompactionWorkspace,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Vec<RuleMatch> {
         self.compact_matches_for_cascade_with_scratch(
             effects,
@@ -1446,7 +1446,7 @@ impl RetainedState {
         matches: &[RuleMatch],
         deltas: &[SelectorTruthDelta],
         candidates: &mut Vec<OrderedCascadeCandidate>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> bool {
         let mut targets: SmallVec<[Option<tree::PseudoElementTarget>; 3]> = SmallVec::new();
         for delta in deltas {
@@ -1471,7 +1471,7 @@ impl RetainedState {
         deltas: &[SelectorTruthDelta],
         pseudo: Option<tree::PseudoElementTarget>,
         candidates: &mut Vec<OrderedCascadeCandidate>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> bool {
         if !self.cascade_winner_inventory_is_complete_for_target(matches, Some(node), pseudo) {
             return false;
@@ -1716,7 +1716,7 @@ impl RetainedState {
     /// has published and evaluates the match programs its dispatch and prefix state reach. It
     /// reports how many concrete rule matches it found, or the node whose facts were missing - never
     /// a partial answer.
-    pub fn match_document(&mut self, root: StyleNodeID, counters: &mut Counters) -> Result<usize, Incomplete> {
+    pub fn match_document(&mut self, root: StyleNodeID, counters: &Counters) -> Result<usize, Incomplete> {
         let nodes = self.elements_under(root);
 
         let mut batch = StyleNodeFacts::new();
@@ -2110,7 +2110,7 @@ impl RetainedState {
 
 impl StyleEngineState {
     /// Normalize the pending inputs without advancing the committed snapshot.
-    pub(super) fn drain_transaction(&mut self, counters: &mut Counters) -> StyleTransaction {
+    pub(super) fn drain_transaction(&mut self, counters: &Counters) -> StyleTransaction {
         self.merge_deferred_geometry_transaction(counters);
         self.host.initial_tree_bulk_load_is_pending = false;
         self.finalize_staged_sheet_rule_replacements(counters);
@@ -2125,7 +2125,7 @@ impl StyleEngineState {
     }
 
     /// Advance staged program and tree state to the transaction's final snapshot.
-    pub(super) fn apply_staged_structural_state(&mut self, counters: &mut Counters) {
+    pub(super) fn apply_staged_structural_state(&mut self, counters: &Counters) {
         self.commit_staged_program();
         self.host.program_staging.rule_change_is_carried_by_sheet.clear();
         self.apply_staged_tree_deltas(counters);
@@ -2164,7 +2164,7 @@ impl StyleEngineState {
 
     /// Settle inputs which cannot be planned while the document has no style root. Exact element
     /// style reactions are edge-triggered, so preserve them for the first transaction with a root.
-    pub(crate) fn flush_without_document_root(&mut self, counters: &mut Counters) {
+    pub(crate) fn flush_without_document_root(&mut self, counters: &Counters) {
         let transaction = self.take_transaction(counters);
         // NB: Without routing, retained relations still describe the previous tree.
         if !self.host.tree_staging.is_empty() {
@@ -2263,7 +2263,7 @@ impl StyleEngineState {
         (atoms, visited)
     }
 
-    pub(super) fn sweep_style_atoms(&mut self, counters: &mut Counters) {
+    pub(super) fn sweep_style_atoms(&mut self, counters: &Counters) {
         if !self.retained.atoms.should_sweep() || self.host.defers_atom_sweep {
             return;
         }
@@ -2358,7 +2358,7 @@ impl StyleEngineState {
 
 impl StyleEngineState {
     /// Advance every staged input family to the transaction's final snapshot.
-    pub(super) fn apply_staged_transaction(&mut self, transaction: &mut StyleTransaction, counters: &mut Counters) {
+    pub(super) fn apply_staged_transaction(&mut self, transaction: &mut StyleTransaction, counters: &Counters) {
         self.apply_staged_structural_state(counters);
         self.apply_staged_facts(transaction);
         self.finish_staged_application(transaction);
@@ -2366,7 +2366,7 @@ impl StyleEngineState {
 
     /// Normalize and apply the staged inputs into one transaction. A required style observation
     /// drains here first, so normalization never combines changes across an observation boundary.
-    pub fn take_transaction(&mut self, counters: &mut Counters) -> StyleTransaction {
+    pub fn take_transaction(&mut self, counters: &Counters) -> StyleTransaction {
         let mut transaction = self.drain_transaction(counters);
         self.apply_staged_transaction(&mut transaction, counters);
         transaction
@@ -2375,11 +2375,7 @@ impl StyleEngineState {
     /// Release a transaction taken through the bridge and reclaim atoms before the bridge installs
     /// a new primary view. The returned reclamation batch lets C++ purge its atom memos before any
     /// reclaimed identity can be reused.
-    pub(super) fn release_transaction_and_sweep_atoms(
-        &mut self,
-        transaction: StyleTransaction,
-        counters: &mut Counters,
-    ) {
+    pub(super) fn release_transaction_and_sweep_atoms(&mut self, transaction: StyleTransaction, counters: &Counters) {
         self.release_transaction(transaction);
         self.sweep_style_atoms(counters);
     }

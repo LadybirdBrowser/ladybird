@@ -785,7 +785,7 @@ impl<'q> DomQuery<'q> {
     fn matches(&mut self, element: DomNode) -> bool {
         let query = self.query;
         query.subjects.iter().any(|&subject| {
-            let Ok(matches) = self.evaluator.matches_node(&query.program, subject, element, &mut ());
+            let Ok(matches) = self.evaluator.matches_node(&query.program, subject, element, &());
             matches
         })
     }

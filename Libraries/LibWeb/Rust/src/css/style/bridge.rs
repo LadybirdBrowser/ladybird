@@ -996,7 +996,7 @@ impl StyleEngineState {
         state_deltas: &[FfiStateDelta],
         element_declaration_deltas: &[FfiElementDeclarationDelta],
         element_style_inputs: &[FfiElementStyleInput],
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let (element_arrivals, arrival_custom_state_atoms) = arrival_columns;
         let largest_element_index = tree_deltas

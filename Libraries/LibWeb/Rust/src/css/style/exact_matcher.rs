@@ -108,7 +108,7 @@ impl<'a> ExactMatcher<'a> {
         &self,
         node: StyleNodeID,
         out: &mut Vec<ExactRuleMatch>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Result<(), Incomplete> {
         if self.facts.row_of(node).is_none() {
             return Err(Incomplete::MissingFacts(node));
@@ -139,7 +139,7 @@ impl<'a> ExactMatcher<'a> {
         &self,
         root: StyleNodeID,
         out: &mut Vec<ExactRuleMatch>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Result<(), Incomplete> {
         let start = out.len();
         for node in self.tree.preorder(root) {
@@ -159,7 +159,7 @@ impl<'a> ExactMatcher<'a> {
         take: DocumentSheets,
         match_start: usize,
         out: &mut Vec<ExactRuleMatch>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Result<(), Incomplete> {
         for &sheet in self.program.sheets_in_scope(sheet_scope) {
             if take == DocumentSheets::NonAuthorOnly
@@ -288,9 +288,9 @@ mod tests {
         program.replace_rule_version(rule, version);
 
         let mut matches = Vec::new();
-        let mut counters = Counters::new();
+        let counters = Counters::new();
         ExactMatcher::new(&tree, &facts, &programs, &program)
-            .match_subtree(root, &mut matches, &mut counters)
+            .match_subtree(root, &mut matches, &counters)
             .unwrap();
 
         assert_eq!(matches.len(), 1);
@@ -340,7 +340,7 @@ mod tests {
 
         let mut matches = Vec::new();
         ExactMatcher::new(&tree, &facts, &programs, &program)
-            .match_node(node, &mut matches, &mut Counters::new())
+            .match_node(node, &mut matches, &Counters::new())
             .unwrap();
 
         assert_eq!(matches.len(), 1);

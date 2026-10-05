@@ -62,7 +62,7 @@ impl StyleEngineState {
         rule_identity: u64,
         selectors: &[&CompiledSelector],
         namespaces: Option<&NamespaceTexts>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> RuleID {
         debug_assert!(self.program.sheet_origin(sheet) == CascadeOrigin::UserAgent);
         let key = CompilationKey {

@@ -1326,7 +1326,7 @@ impl RetainedState {
         parent_environment: u64,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
         registered: Option<&RegisteredValueContext>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<u64> {
         self.engine_custom_property_environment_of(node, None, parent_environment, inputs, registered, counters)
     }
@@ -1340,7 +1340,7 @@ impl RetainedState {
         parent_environment: u64,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
         registered: Option<&RegisteredValueContext>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<u64> {
         if !self.any_custom_property_is_declared() {
             if pseudo.is_none() {
@@ -1409,7 +1409,7 @@ impl RetainedState {
         parent_environment: u64,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
         registered: Option<&RegisteredValueContext>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<u64> {
         let inherited_environment = self.custom_property_environments.inheritable(parent_environment);
         if cascaded.is_empty() {
@@ -1741,7 +1741,7 @@ impl RetainedState {
         inputs: &SubstitutionInputs<'_>,
         property: u16,
         written: RetainedStyleValueData,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<RetainedStyleValueData> {
         let calls_functions = value_calls_custom_functions(written.data());
         let functions = inputs.functions.filter(|_| calls_functions);

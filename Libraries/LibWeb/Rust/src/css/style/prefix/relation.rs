@@ -319,7 +319,7 @@ impl PrefixRelation {
         }
         assert_eq!(self.nested_capacity_bytes, self.measure_nested_capacity_bytes());
         let mut scalar = PrefixStates::new();
-        let mut counters = Counters::default();
+        let counters = Counters::default();
         let mut context = if evaluation.facts_are_composite() {
             super::PrefixTransitionContext::new_composite(&mut scalar, evaluation.facts, &[])
         } else {
@@ -329,13 +329,9 @@ impl PrefixRelation {
             if !self.live[position] {
                 continue;
             }
-            let PrefixTransitionLookup::Known(answer) = scalar.match_set_for(
-                &mut context.scratch,
-                &mut context.effects,
-                evaluation,
-                node,
-                &mut counters,
-            ) else {
+            let PrefixTransitionLookup::Known(answer) =
+                scalar.match_set_for(&mut context.scratch, &mut context.effects, evaluation, node, &counters)
+            else {
                 panic!("a complete prefix relation must have a complete scalar answer");
             };
             assert_eq!(
@@ -433,7 +429,7 @@ impl PrefixRelation {
         automaton: &PrefixAutomaton,
         evaluation: &mut PrefixEvaluation<'_, '_>,
         changed: &[StyleNodeID],
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Vec<StyleNodeID> {
         let tree = evaluation.tree;
         let mut touched = changed.to_vec();
@@ -659,7 +655,7 @@ impl PrefixRelation {
         evaluation: &mut PrefixEvaluation<'_, '_>,
         old_evaluation: &mut PrefixEvaluation<'_, '_>,
         changed_nodes: &[StyleNodeID],
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         counters.bump(Counter::PrefixRelationUpdates);
         let following_geometry = self.following_geometry_changes(automaton, old_evaluation);
@@ -1173,7 +1169,7 @@ impl PrefixAutomaton {
         &self,
         evaluation: &mut PrefixEvaluation<'_, '_>,
         root: StyleNodeID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> PrefixRelation {
         counters.bump(Counter::PrefixRelationBuilds);
         let tree = evaluation.tree;

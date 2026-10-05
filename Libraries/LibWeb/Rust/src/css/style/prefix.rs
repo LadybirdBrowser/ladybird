@@ -1155,7 +1155,7 @@ impl LocalFactInterner {
         facts: &StyleNodeFacts,
         row: u32,
         dependencies: &PrefixFactDependencies,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> u32 {
         let hash = hash_local_facts(facts, row, dependencies);
         if let Some(slot) = identities.find(hash, |_slot, &(_identity, representative)| {
@@ -1748,7 +1748,7 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
         &mut self,
         node: StyleNodeID,
         index: usize,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Result<bool, Incomplete> {
         let (program, test) = self.automaton.positional_tests()[index];
         match test {
@@ -1767,7 +1767,7 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
         &mut self,
         node: StyleNodeID,
         step: PrefixStepID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Result<bool, Incomplete> {
         let row = self.row_of(node)?;
         let compound = &self.automaton.compounds[self.automaton.steps[step.0 as usize].compound.0 as usize];
@@ -1802,7 +1802,7 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
         node: StyleNodeID,
         positional_bits: u32,
         step: PrefixStepID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Result<bool, Incomplete> {
         let row = self.row_of(node)?;
         let compound = &self.automaton.compounds[self.automaton.steps[step.0 as usize].compound.0 as usize];
@@ -1827,7 +1827,7 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
 
     /// The per-node answers of the automaton's positional tests, one bit per test. Zero for
     /// automata without positional steps, so fact-cohort sharing is unchanged there.
-    pub(super) fn positional_bits(&mut self, node: StyleNodeID, counters: &mut Counters) -> Result<u32, Incomplete> {
+    pub(super) fn positional_bits(&mut self, node: StyleNodeID, counters: &Counters) -> Result<u32, Incomplete> {
         let tests = self.automaton.positional_tests();
         let mut bits = 0_u32;
         for index in 0..tests.len() {
@@ -1931,7 +1931,7 @@ impl PrefixStates {
         effects: &mut PrefixEffects,
         evaluation: &mut PrefixEvaluation<'_, '_>,
         node: StyleNodeID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> PrefixTransitionLookup<PrefixMatchSetID> {
         if let Some(matches) = self.relation_answer(node) {
             return PrefixTransitionLookup::Known(matches);
@@ -2381,7 +2381,7 @@ impl PrefixStates {
         local_producers: Option<&[PrefixProducer]>,
         use_admitted_new_truth: bool,
         arena: &mut PrefixDeltaArena,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Result<PrefixLocalOutputDeltas, Incomplete> {
         for scratch in &mut arena.scratch {
             scratch.clear();
@@ -2564,7 +2564,7 @@ impl PrefixStates {
         delta: PrefixStateDeltaID,
         arena: &PrefixDeltaArena,
         downward: bool,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Option<u32> {
         let mut additions = match downward {
             true => std::mem::take(&mut self.new_descendant),
@@ -2674,7 +2674,7 @@ impl PrefixStates {
         positional_bits: u32,
         local_output_deltas: PrefixLocalOutputDeltas,
         delta_arena: &PrefixDeltaArena,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Option<PrefixTransition> {
         let old_entering = self.entering_of(node)?;
         if entering_deltas.parent.is_none() && entering_deltas.previous.is_none() {
@@ -2765,7 +2765,7 @@ impl PrefixStates {
         entering_deltas: PrefixEnteringDeltas,
         positional_truth_stable: bool,
         delta_arena: &mut PrefixDeltaArena,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> PrefixTransitionLookup<PrefixDifference> {
         let row = match evaluation.row_of(node) {
             Ok(row) => row,
@@ -3176,7 +3176,7 @@ impl PrefixStates {
         new_parent: u32,
         delta: PrefixStateDeltaID,
         arena: &mut PrefixDeltaArena,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Option<PrefixDifference> {
         let automaton = evaluation.automaton;
         let is_document_root = evaluation.tree.parent(node).is_none();
@@ -3333,7 +3333,7 @@ impl PrefixStates {
 
     /// The state a node that admits nothing hands its children under `state`: the state itself
     /// when it carries no expiring steps, its persisting-only form otherwise.
-    fn state_without_expiring(&mut self, state: u32, counters: &mut Counters) -> u32 {
+    fn state_without_expiring(&mut self, state: u32, counters: &Counters) -> u32 {
         match self.states[state as usize].expiring_len == 0 {
             true => state,
             false => self.descendant_only_state(state, counters),
@@ -3347,7 +3347,7 @@ impl PrefixStates {
         evaluation: &mut PrefixEvaluation<'_, '_>,
         nodes: impl Iterator<Item = StyleNodeID>,
         completion_budget: usize,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> bool {
         let mut completions = 0;
         for node in nodes {
@@ -3408,7 +3408,7 @@ impl PrefixStates {
         effects: &mut PrefixEffects,
         evaluation: &mut PrefixEvaluation<'_, '_>,
         node: StyleNodeID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> PrefixTransitionLookup<PrefixTransition> {
         transition_for(
             &mut PrefixTransitionSurface {
@@ -3431,7 +3431,7 @@ impl PrefixStates {
         node: StyleNodeID,
         is_document_root: bool,
         positional_bits: u32,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> PrefixTransitionLookup<PrefixTransition> {
         let automaton = evaluation.automaton;
         if !self.automaton_statistics_recorded {
@@ -3717,12 +3717,7 @@ impl PrefixStates {
 
     /// Intern the transition's downward output state from the parent state and the new
     /// down-axis admissions.
-    fn intern_transition_state(
-        &mut self,
-        automaton: &PrefixAutomaton,
-        parent_state: u32,
-        counters: &mut Counters,
-    ) -> u32 {
+    fn intern_transition_state(&mut self, automaton: &PrefixAutomaton, parent_state: u32, counters: &Counters) -> u32 {
         let mut additions = std::mem::take(&mut self.new_descendant);
         let mut additions_hash = self.new_descendant_hash;
         additions.retain(|step| {
@@ -3755,7 +3750,7 @@ impl PrefixStates {
         &mut self,
         automaton: &PrefixAutomaton,
         previous_state: u32,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> u32 {
         let mut additions = std::mem::take(&mut self.new_following);
         let mut additions_hash = self.new_following_hash;
@@ -3798,7 +3793,7 @@ impl PrefixStates {
         additions_hash: u64,
         expiring: &[PrefixStepID],
         expiring_hash: u32,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> u32 {
         if additions.is_empty() && expiring.is_empty() {
             if self.states[base_state as usize].expiring_len == 0 {
@@ -3863,7 +3858,7 @@ impl PrefixStates {
         source_state: u32,
         old_base_state: u32,
         new_base_state: u32,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Option<u32> {
         if old_base_state == new_base_state {
             return Some(source_state);
@@ -3919,7 +3914,7 @@ impl PrefixStates {
     }
 
     /// The interned state holding exactly `state`'s persisting part, memoized per state.
-    fn descendant_only_state(&mut self, state: u32, counters: &mut Counters) -> u32 {
+    fn descendant_only_state(&mut self, state: u32, counters: &Counters) -> u32 {
         let known = self.descendant_only[state as usize];
         if known != UNKNOWN_STATE {
             return known;
@@ -4223,7 +4218,7 @@ impl PrefixTransitionScratch {
         automaton: &PrefixAutomaton,
         facts: &StyleNodeFacts,
         node: StyleNodeID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> u32 {
         let row = facts.row_of(node).expect("prepared fact row");
         if let Some(&cached) = self.local_facts_by_row.get(&row) {
@@ -4357,7 +4352,7 @@ impl PrefixTransitionSurface<'_> {
         node: StyleNodeID,
         row: MatchFactRow<'_>,
         inputs: TransitionInputs,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> PrefixTransitionLookup<(PrefixTransition, PrefixTransitionOrigin)> {
         let key = PrefixTransitionKey {
             parent: inputs.entering.parent,
@@ -4397,7 +4392,7 @@ fn transition_for(
     surface: &mut PrefixTransitionSurface<'_>,
     evaluation: &mut PrefixEvaluation<'_, '_>,
     node: StyleNodeID,
-    counters: &mut Counters,
+    counters: &Counters,
 ) -> PrefixTransitionLookup<PrefixTransition> {
     let has_sibling_steps = evaluation.automaton.has_sibling_steps();
     surface.clear_ancestor_chain();
@@ -4945,15 +4940,7 @@ mod tests {
             let mut interner = LocalFactInterner::new();
             let mut representatives = Default::default();
             let identities: Vec<_> = (0..3)
-                .map(|row| {
-                    interner.intern(
-                        &mut representatives,
-                        &facts,
-                        row,
-                        &dependencies,
-                        &mut Counters::default(),
-                    )
-                })
+                .map(|row| interner.intern(&mut representatives, &facts, row, &dependencies, &Counters::default()))
                 .collect();
             match operator {
                 AttributeOperator::Presence => assert_eq!(identities, [1, 1, 1]),
@@ -4981,7 +4968,7 @@ mod tests {
         }
         let mut states = PrefixStates::new();
         let automaton = PrefixAutomaton::default();
-        let mut counters = Counters::default();
+        let counters = Counters::default();
         let mut context = PrefixTransitionContext::new(&mut states, &facts);
         assert_eq!(counters.get(Counter::PrefixLocalFactIdentityHits), 0);
         assert_eq!(counters.get(Counter::PrefixLocalFactIdentityMisses), 0);
@@ -4991,14 +4978,14 @@ mod tests {
             &automaton,
             &facts,
             StyleNodeID::element(999),
-            &mut counters,
+            &counters,
         );
         let second = context.scratch.ensure_local_fact_identity(
             &mut states,
             &automaton,
             &facts,
             StyleNodeID::element(1000),
-            &mut counters,
+            &counters,
         );
         assert_eq!(first, second);
         assert_eq!(counters.get(Counter::PrefixLocalFactIdentityHits), 1);
@@ -5010,7 +4997,7 @@ mod tests {
                 &automaton,
                 &facts,
                 StyleNodeID::element(999),
-                &mut counters,
+                &counters,
             ),
         );
         assert_eq!(counters.get(Counter::PrefixLocalFactIdentityHits), 1);
@@ -5037,7 +5024,7 @@ mod tests {
         let retained = states.local_fact_interner.mint_identity();
         states.set_local_facts(StyleNodeID::element(1), retained);
         states.set_local_facts(StyleNodeID::element(2), retained);
-        let mut counters = Counters::default();
+        let counters = Counters::default();
         let mut context = PrefixTransitionContext::new_composite(&mut states, &facts, &[StyleNodeID::element(1)]);
         assert_eq!(counters.get(Counter::PrefixLocalFactIdentityMisses), 0);
         let mut identity = |node| {
@@ -5046,7 +5033,7 @@ mod tests {
                 &PrefixAutomaton::default(),
                 &facts,
                 StyleNodeID::element(node),
-                &mut counters,
+                &counters,
             )
         };
         let changed = identity(1);
@@ -5136,7 +5123,7 @@ mod tests {
                     &automaton,
                     facts,
                     StyleNodeID::element(node),
-                    &mut Counters::default(),
+                    &Counters::default(),
                 )
             };
         let mut context = PrefixTransitionContext::new(&mut states, &facts);
@@ -5263,27 +5250,25 @@ mod tests {
     #[test]
     fn sparse_rebase_shares_unchanged_local_payload() {
         let mut states = PrefixStates::new();
-        let mut counters = Counters::new();
+        let counters = Counters::new();
         let old_base_step = PrefixStepID(1);
         let local_step = PrefixStepID(2);
         let expiring_step = PrefixStepID(3);
         let new_base_step = PrefixStepID(4);
-        let old_base =
-            states.intern_extended_state(0, &[old_base_step], step_hash(old_base_step), &[], 0, &mut counters);
+        let old_base = states.intern_extended_state(0, &[old_base_step], step_hash(old_base_step), &[], 0, &counters);
         let source = states.intern_extended_state(
             old_base,
             &[local_step],
             step_hash(local_step),
             &[expiring_step],
             step_hash(expiring_step) as u32,
-            &mut counters,
+            &counters,
         );
-        let new_base =
-            states.intern_extended_state(0, &[new_base_step], step_hash(new_base_step), &[], 0, &mut counters);
+        let new_base = states.intern_extended_state(0, &[new_base_step], step_hash(new_base_step), &[], 0, &counters);
         let source_payload = states.states[source as usize].payload_start;
 
         let rebased = states
-            .rebase_unchanged_local_payload(source, old_base, new_base, &mut counters)
+            .rebase_unchanged_local_payload(source, old_base, new_base, &counters)
             .expect("a one-level local payload can be rebased");
 
         assert_eq!(states.states[rebased as usize].base, new_base);
@@ -5298,14 +5283,14 @@ mod tests {
         let second = PrefixStepID(2);
         let mut states = PrefixStates::new();
         states.automaton_step_count = 3;
-        let mut counters = Counters::new();
-        let first_base = states.intern_extended_state(0, &[first], step_hash(first), &[], 0, &mut counters);
-        let second_base = states.intern_extended_state(0, &[second], step_hash(second), &[], 0, &mut counters);
+        let counters = Counters::new();
+        let first_base = states.intern_extended_state(0, &[first], step_hash(first), &[], 0, &counters);
+        let second_base = states.intern_extended_state(0, &[second], step_hash(second), &[], 0, &counters);
 
         let first_then_second =
-            states.intern_extended_state(first_base, &[second], step_hash(second), &[], 0, &mut counters);
+            states.intern_extended_state(first_base, &[second], step_hash(second), &[], 0, &counters);
         let second_then_first =
-            states.intern_extended_state(second_base, &[first], step_hash(first), &[], 0, &mut counters);
+            states.intern_extended_state(second_base, &[first], step_hash(first), &[], 0, &counters);
 
         assert_eq!(first_then_second, second_then_first);
     }
@@ -5318,13 +5303,13 @@ mod tests {
         let fourth = PrefixStepID(4);
         let mut states = PrefixStates::new();
         states.automaton_step_count = 5;
-        let mut counters = Counters::new();
-        let first_base = states.intern_extended_state(0, &[first], step_hash(first), &[], 0, &mut counters);
-        let second_base = states.intern_extended_state(0, &[second], step_hash(second), &[], 0, &mut counters);
+        let counters = Counters::new();
+        let first_base = states.intern_extended_state(0, &[first], step_hash(first), &[], 0, &counters);
+        let second_base = states.intern_extended_state(0, &[second], step_hash(second), &[], 0, &counters);
         let collision_hash = step_hash(first).wrapping_add(step_hash(second));
-        let collision = states.intern_extended_state(0, &[third, fourth], collision_hash, &[], 0, &mut counters);
+        let collision = states.intern_extended_state(0, &[third, fourth], collision_hash, &[], 0, &counters);
         let first_then_second =
-            states.intern_extended_state(first_base, &[second], step_hash(second), &[], 0, &mut counters);
+            states.intern_extended_state(first_base, &[second], step_hash(second), &[], 0, &counters);
 
         assert_ne!(collision, first_then_second);
         let key = state_content_key(2, collision_hash, 0, 0);
@@ -5335,7 +5320,7 @@ mod tests {
         );
 
         let second_then_first =
-            states.intern_extended_state(second_base, &[first], step_hash(first), &[], 0, &mut counters);
+            states.intern_extended_state(second_base, &[first], step_hash(first), &[], 0, &counters);
         assert_eq!(second_then_first, first_then_second);
     }
 
@@ -5423,7 +5408,7 @@ mod tests {
     #[test]
     fn sparse_rebase_applies_signed_local_output_edits() {
         let mut states = PrefixStates::new();
-        let mut counters = Counters::new();
+        let counters = Counters::new();
         let old_base_step = PrefixStepID(0);
         let retained_step = PrefixStepID(1);
         let removed_step = PrefixStepID(2);
@@ -5431,18 +5416,16 @@ mod tests {
         let removed_expiring_step = PrefixStepID(4);
         let added_step = PrefixStepID(5);
         let added_expiring_step = PrefixStepID(6);
-        let old_base =
-            states.intern_extended_state(0, &[old_base_step], step_hash(old_base_step), &[], 0, &mut counters);
+        let old_base = states.intern_extended_state(0, &[old_base_step], step_hash(old_base_step), &[], 0, &counters);
         let source = states.intern_extended_state(
             old_base,
             &[retained_step, removed_step],
             step_hash(retained_step).wrapping_add(step_hash(removed_step)),
             &[removed_expiring_step],
             step_hash(removed_expiring_step) as u32,
-            &mut counters,
+            &counters,
         );
-        let new_base =
-            states.intern_extended_state(0, &[new_base_step], step_hash(new_base_step), &[], 0, &mut counters);
+        let new_base = states.intern_extended_state(0, &[new_base_step], step_hash(new_base_step), &[], 0, &counters);
         let mut arena = PrefixDeltaArena::default();
         arena.scratch[0].extend([new_base_step, added_step]);
         arena.scratch[1].push(removed_step);
@@ -5451,7 +5434,7 @@ mod tests {
         let delta = arena.append_scratch_delta(0);
 
         let rebased = states
-            .rebase_payload_with_local_delta(source, old_base, new_base, delta, &arena, true, &mut counters)
+            .rebase_payload_with_local_delta(source, old_base, new_base, delta, &arena, true, &counters)
             .expect("a one-level local payload can apply signed edits");
 
         assert_eq!(states.states[rebased as usize].base, new_base);

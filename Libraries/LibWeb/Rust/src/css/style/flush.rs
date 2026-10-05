@@ -115,14 +115,14 @@ impl TransactionClock {
         }
     }
 
-    fn enter(&mut self, phase: Counter, counters: &mut Counters) {
+    fn enter(&mut self, phase: Counter, counters: &Counters) {
         let elapsed = self.started_at.elapsed().as_micros().min(u128::from(u64::MAX)) as u64;
         counters.add(self.phase, elapsed - self.elapsed_microseconds);
         self.elapsed_microseconds = elapsed;
         self.phase = phase;
     }
 
-    fn finish(mut self, counters: &mut Counters) {
+    fn finish(mut self, counters: &Counters) {
         self.enter(Counter::TransactionRemainderMicroseconds, counters);
         counters.add(Counter::TransactionMicroseconds, self.elapsed_microseconds);
     }
@@ -150,7 +150,7 @@ impl PassTimer {
         Self(pass_clocks_are_enabled().then(std::time::Instant::now))
     }
 
-    pub(super) fn stop(self, counter: Counter, counters: &mut Counters) {
+    pub(super) fn stop(self, counter: Counter, counters: &Counters) {
         if let Some(started_at) = self.0 {
             counters.add(
                 counter,
@@ -393,7 +393,7 @@ impl StyleEngineState {
         root: StyleNodeID,
         mut emit: impl FnMut(StyleTransactionVersion, ProgramVersion, &[PublishedStyleDeltaRecord]),
         clock: &mut TransactionClock,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> bool {
         // The previous transaction's uninstalled records can no longer be consumed. Revert
         // them before this transaction publishes anything: a later C++ computation can install
@@ -1650,7 +1650,7 @@ impl StyleEngineState {
                 self.retained.facts.ensure_row(node);
             }
             self.retained.facts.apply_staged(&mut self.retained.memory);
-            *counters = saved_counters;
+            counters.restore(&saved_counters);
         }
         let publish_style_answers = true;
         {
@@ -2222,7 +2222,7 @@ impl StyleEngineState {
         style_deltas: &mut Vec<PublishedStyleDeltaRecord>,
         style_delta_memory: &mut MemoryLease,
         computation_scratch_memory: &mut MemoryLease,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         // What the chain above a node proves, read by its children in the same pass. A published
         // ancestor's change is exact for a descendant only when none of the ancestors can move
@@ -2764,7 +2764,7 @@ impl StyleEngineState {
         &mut self,
         mut pass: StylePass,
         mut emit: impl FnMut(StyleTransactionVersion, ProgramVersion, &[PublishedStyleDeltaRecord]),
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> bool {
         // A record the host did not install from the last wave is gone, as at a transaction
         // boundary: the host answered that row from its demand, or skipped it.
@@ -2816,7 +2816,7 @@ impl StyleEngineState {
     /// pass: a row takes it with its own reaction, and an element between an installed row and a
     /// row still to come joins the pass before the first row below it, as the host would have
     /// settled it in the batch that applied its ancestor.
-    fn join_reactions_of_installed_rows(&mut self, pass: &mut StylePass, counters: &mut Counters) {
+    fn join_reactions_of_installed_rows(&mut self, pass: &mut StylePass, counters: &Counters) {
         if !self.has_deferred_element_style_inputs() {
             return;
         }
@@ -3004,7 +3004,7 @@ impl StyleEngineState {
         &mut self,
         root: StyleNodeID,
         emit: impl FnMut(StyleTransactionVersion, ProgramVersion, &[PublishedStyleDeltaRecord]),
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> bool {
         let mut clock = TransactionClock::new();
         self.install_witness_effects();

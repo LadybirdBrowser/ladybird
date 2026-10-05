@@ -1367,7 +1367,7 @@ impl ImpactRegions {
         self.rebuild_indexes();
     }
 
-    pub fn widen_to_document(&mut self, counters: &mut Counters) {
+    pub fn widen_to_document(&mut self, counters: &Counters) {
         counters.bump(Counter::DocumentWidenings);
         self.regions.clear();
         self.region_index.clear();
@@ -1940,10 +1940,10 @@ mod tests {
 
     #[test]
     fn widening_replaces_the_plan_rather_than_adding_to_it() {
-        let mut fixture = Fixture::new();
+        let fixture = Fixture::new();
         let mut regions = ImpactRegions::new();
         regions.add(ImpactRegion::Node(fixture.nodes[4]));
-        regions.widen_to_document(&mut fixture.counters);
+        regions.widen_to_document(&fixture.counters);
         assert_eq!(regions.regions(), &[ImpactRegion::Document]);
         assert_eq!(fixture.counters.get(Counter::DocumentWidenings), 1);
     }

@@ -25,7 +25,7 @@ impl RetainedState {
         program: SelectorProgramID,
         origin: selector::SelectorNodeID,
         node: StyleNodeID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Option<bool> {
         let view = self.transaction_fact_view.as_ref()?;
         let compiled = self.programs.get(program);
@@ -52,7 +52,7 @@ impl RetainedState {
         program: SelectorProgramID,
         origin: selector::SelectorNodeID,
         node: StyleNodeID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Option<bool> {
         let InputKey::LocalFeature(_, LocalFeatureKey::Attribute(_)) = input.key else {
             return None;
@@ -109,7 +109,7 @@ impl RetainedState {
         prefix_producer_seen: &mut Vec<u32>,
         sequences: &mut SequenceChanges,
         regions: &mut ImpactRegions,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         // A declaration sourced from the element changes what wins on that element and nothing
         // else. There is no selector to transpose: the region is the element itself.
@@ -563,7 +563,7 @@ impl RetainedState {
         sequences: &SequenceChanges,
         departed: Option<&[StyleNodeID]>,
         regions: &mut ImpactRegions,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let routing = Arc::clone(&self.routing);
         if routing.relational_routes().is_empty() {
@@ -653,7 +653,7 @@ impl RetainedState {
         routing: &RoutingRegistry,
         departed_witnesses: &mut DepartedWitnessKeys<'_>,
         regions: &mut ImpactRegions,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let children = &change.children;
         // Where the seams are, with a record nobody could place widened to the whole sequence.
@@ -891,7 +891,7 @@ impl RetainedState {
         anchor_posting: Option<PostingKey>,
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         if ancestor_predecessors.is_none() {
             let anchors_above =
@@ -922,7 +922,7 @@ impl RetainedState {
         anchor_posting: Option<PostingKey>,
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         if let Some(key) = anchor_posting {
             match self.facts.postings().lookup(key) {
@@ -1311,7 +1311,7 @@ impl RetainedState {
         tree_routing: TreeRoutingMode<'_>,
         regions: &mut ImpactRegions,
         workspace: &mut ImpactPlanningWorkspace,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> DeferredSequenceRoutes {
         if sequences.entries.is_empty() {
             return DeferredSequenceRoutes::default();
@@ -1435,7 +1435,7 @@ impl RetainedState {
         selection: SequenceEntrySelection<'_>,
         regions: &mut ImpactRegions,
         workspace: &mut ImpactPlanningWorkspace,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let routing = Arc::clone(&self.routing);
         let parent_emptiness = entry_index
@@ -1498,7 +1498,7 @@ impl RetainedState {
         sequences: &SequenceChanges,
         regions: &mut ImpactRegions,
         workspace: &mut ImpactPlanningWorkspace,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let entries = std::mem::take(&mut deferred.entries);
         let deferred_mask = std::mem::take(&mut deferred.deferred);
@@ -1576,7 +1576,7 @@ impl RetainedState {
         selection: SequenceEntrySelection<'_>,
         pending_regions: &mut [Vec<ImpactRegion>],
         regions: &mut ImpactRegions,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let routing = Arc::clone(&self.routing);
         let children = &change.children;
@@ -1656,7 +1656,7 @@ impl RetainedState {
             // The positional test is not always on the subject: `#list > :first-child .leaf` moves
             // for the descendants of the child whose count crossed. So the entry's own path is
             // followed from each such child to the subjects it reaches.
-            let mut name = |engine: &mut Self, at: usize, counters: &mut Counters| {
+            let mut name = |engine: &mut Self, at: usize, counters: &Counters| {
                 if !moved.contains(&at) {
                     return;
                 }
@@ -1826,7 +1826,7 @@ impl RetainedState {
         anchor: RelativeAnchor,
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         if anchor.input_is_on_the_anchor {
             counters.bump(Counter::RelationalAnchorsConsidered);
@@ -1882,7 +1882,7 @@ impl RetainedState {
         anchor: RelativeAnchor,
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         // An anchor whose retained witness still witnesses it was true and stays true: only
         // zero/nonzero witness transitions can affect selector truth, so nothing reached
@@ -1917,7 +1917,7 @@ impl RetainedState {
         anchor: RelativeAnchor,
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         // Every anchor a witness walk can find carries the anchor compound's own feature, so when
         // fewer elements carry that than could be witnesses, the anchors are the cheaper side to
@@ -2225,7 +2225,7 @@ impl RetainedState {
         program: SelectorProgramID,
         entry: u32,
         evaluation: ExactTreeEvaluation,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> ExactEntryResult {
         let mut covered = std::mem::take(&mut self.exact_covered_scratch);
         covered.clear();
@@ -2282,7 +2282,7 @@ impl RetainedState {
         &mut self,
         node: StyleNodeID,
         site: &RoutingSite<'_>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> ExactEntryResult {
         let Some((rule, entry_id)) = site.exact_entry else {
             return Lookup::Missing(ExactEntryGap);
@@ -2391,7 +2391,7 @@ impl RetainedState {
         routed_regions: &[ImpactRegion],
         plan: &ImpactRegions,
         workspace: Option<&mut ImpactPlanningWorkspace>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Arc<ImpactRegionBatch> {
         if let Some(workspace) = workspace {
             if let Some(batch) = workspace.batches.get(routed_regions) {
@@ -2410,7 +2410,7 @@ impl RetainedState {
         batch
     }
 
-    pub(super) fn record_compiled_region_batch(&mut self, batch: &ImpactRegionBatch, counters: &mut Counters) {
+    pub(super) fn record_compiled_region_batch(&mut self, batch: &ImpactRegionBatch, counters: &Counters) {
         if let Some(intervals) = batch.interval_count() {
             counters.add(Counter::ExactRegionBatchIntervals, intervals as u64);
         }
@@ -2425,7 +2425,7 @@ impl RetainedState {
         regions: &mut ImpactRegions,
         workspace: Option<&mut ImpactPlanningWorkspace>,
         compiled_batch: Option<Arc<ImpactRegionBatch>>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> bool {
         if !self.exact_batch_is_available(routed_regions, site) {
             return false;
@@ -2531,7 +2531,7 @@ impl RetainedState {
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
         workspace: &mut ImpactPlanningWorkspace,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         if routed_regions.is_empty() {
             return;
@@ -2732,7 +2732,7 @@ impl RetainedState {
         routed_regions: &[ImpactRegion],
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let mut candidates: Vec<_> = routed_regions
             .iter()
@@ -2827,7 +2827,7 @@ impl RetainedState {
         transaction: &StyleTransaction,
         sequences: &SequenceChanges,
         pending_prefix_producers: &[PendingPrefixProducer],
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> PrefixConvergenceOutcome {
         let Some((root, tree_relations_changed)) = self.transaction_fact_view.as_ref().and_then(|transition| {
             transition
@@ -3925,7 +3925,7 @@ impl RetainedState {
         transaction: &StyleTransaction,
         sequences: &SequenceChanges,
         pending_prefix_producers: &[PendingPrefixProducer],
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> PrefixConvergenceOutcome {
         let prefix_convergence = self.add_prefix_convergence_regions(
             pending,
@@ -4082,7 +4082,7 @@ impl RetainedState {
         regions: &mut ImpactRegions,
         workspace: &mut ImpactPlanningWorkspace,
         prefix_convergence_covers_sibling_routes: bool,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         if prefix_convergence_covers_sibling_routes {
             let (_, dispatch) = self.prepare_scope_program(TreeScopeID::DOCUMENT);
@@ -4203,7 +4203,7 @@ impl RetainedState {
         region: ImpactRegion,
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let mut workspace = ImpactPlanningWorkspace::default();
         self.add_narrowed_regions_with_workspace(
@@ -4220,7 +4220,7 @@ impl RetainedState {
         region: ImpactRegion,
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         if regions.is_covered_by_subtree(region, &self.tree) {
             self.attribute_region_covered_by_subtree(region, site, regions);
@@ -4300,7 +4300,7 @@ impl RetainedState {
         name: StyleAtomID,
         scopes: Option<&[TreeScopeID]>,
         regions: &mut ImpactRegions,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let Ok(mut consumers) = self.custom_property_registration_consumers(name) else {
             if let Some(scopes) = scopes
@@ -4681,7 +4681,7 @@ impl StyleEngineState {
         departed_sheet_scopes: &[(SheetID, TreeScopeID)],
         context: ProgramRoutingContext<'_>,
         regions: &mut ImpactRegions,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let ProgramRoutingContext {
             resident_nodes,

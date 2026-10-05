@@ -343,7 +343,7 @@ mod verification {
 
     pub(super) struct StyleAnswerVerifier<'a> {
         engine: &'a mut RetainedState,
-        counters: &'a mut Counters,
+        counters: &'a Counters,
     }
 
     impl StyleAnswerVerifier<'_> {
@@ -378,7 +378,7 @@ mod verification {
     /// only the verifier capability, so it cannot publish through or otherwise mutate the engine.
     pub(super) fn style_answer_patch(
         engine: &mut RetainedState,
-        counters: &mut Counters,
+        counters: &Counters,
         check: impl FnOnce(&mut StyleAnswerVerifier<'_>),
     ) {
         if enabled(&STYLE_ANSWER_PATCH, "LIBWEB_VERIFY_STYLE_ANSWER_PATCH") {
