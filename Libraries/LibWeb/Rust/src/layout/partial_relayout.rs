@@ -704,7 +704,7 @@ impl LayoutNodeArena {
                 )
             };
             if node_facts::kind_is_box(child_kind) && child_is_anonymous && child_kind != NodeKind::TableWrapper {
-                self.bump_fragment_cache_epoch_below_bumped_parent(child);
+                self.bump_fragment_cache_epoch(child);
                 self.set_node_flag(child, NodeFlag::NeedsLayoutUpdate, true);
                 self.reset_cached_intrinsic_sizes(child);
             }
