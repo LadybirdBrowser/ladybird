@@ -140,10 +140,6 @@ pub enum BorderEdge {
 
 impl BorderEdge {
     pub const ALL: [BorderEdge; 4] = [BorderEdge::Top, BorderEdge::Right, BorderEdge::Bottom, BorderEdge::Left];
-
-    pub const fn index(self) -> usize {
-        self as usize
-    }
 }
 
 pub const PIECE_EDGE_TOP: u8 = 1 << 0;

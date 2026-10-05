@@ -406,10 +406,6 @@ impl DisplayListRecorder {
         })
     }
 
-    pub fn builder(&self) -> &DisplayListBuilder {
-        &self.builder
-    }
-
     pub fn into_builder(self) -> DisplayListBuilder {
         debug_assert!(self.ambient_inline_clips.is_empty());
         self.builder
