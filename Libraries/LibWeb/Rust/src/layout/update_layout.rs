@@ -31,16 +31,12 @@ pub(crate) use main_thread_entries::MainThreadFfiEntry;
 
 /// Runs `job`, a layout round of `host`'s document, on the document's render state, and answers what the round owes the
 /// host. The update's first round spends the read the host began, where no job took it yet, and every other round
-/// `permit`.
-fn run_layout_round_job(
-    host: &DocumentHost,
-    job: LayoutRoundJob,
-    permit: impl FnOnce() -> crate::render_state::FrameJobPermit,
-) -> LayoutRoundAnswer {
+/// runs in `read`.
+fn run_layout_round_job(host: &DocumentHost, read: &BegunRead, job: LayoutRoundJob) -> LayoutRoundAnswer {
     host.let_go_of_rows();
     match host.take_forced_read() {
-        Some(read) => crate::render_state::force_read(read, host, job),
-        None => crate::render_state::run_job(permit(), host, job),
+        Some(forced) => crate::render_state::force_read(forced, host, job),
+        None => crate::render_state::run_job(read, host, job),
     }
 }
 
@@ -52,7 +48,6 @@ fn read_arena<A, R>(host: &DocumentHost, read: &BegunRead, args: A, answer: fn(&
 
 impl crate::render_state::RenderJob for LayoutRoundJob {
     type Answer = LayoutRoundAnswer;
-    type Permit = crate::render_state::FrameJobPermit;
     const IS_STYLE: bool = false;
 
     // The host keeps what the job's inputs name until it has the answer.
@@ -793,7 +788,6 @@ unsafe fn update_layout(
     // freshly parsed document after the layout update has already started. The bound is at least
     // the ordinary limit, so the passes within it do not ask for the count.
     let mut layout_pass: u64 = 0;
-    let mut first_job = true;
     while layout_pass <= ORDINARY_STABILIZATION_ROUND_LIMIT
         || layout_pass
             < ORDINARY_STABILIZATION_ROUND_LIMIT + u64::from(host.connected_element_count(main_thread, read)) + 1
@@ -806,10 +800,7 @@ unsafe fn update_layout(
         // A round that flew in the frame the update took in is the update's first, which the host pays before
         // anything else of the update reads the layout.
         let (rebuilds_tree, mut next) = match document_host.take_flown_round() {
-            Some(FlownRound { answer, rebuilds_tree }) => {
-                first_job = false;
-                (rebuilds_tree, NextRound::Flown(answer))
-            }
+            Some(FlownRound { answer, rebuilds_tree }) => (rebuilds_tree, NextRound::Flown(answer)),
             None => {
                 host.process_pending_list_item_renumbers(main_thread, read);
                 host.process_pending_top_layer_layout_changes(main_thread, read);
@@ -834,19 +825,7 @@ unsafe fn update_layout(
         let end = loop {
             let mut answer = match next {
                 NextRound::Flown(answer) => answer,
-                NextRound::Job(job) => {
-                    // The update's first job spends the read the host began; one that finds it spent lays the read out
-                    // again. Every job after it in the update is another round's.
-                    let first = std::mem::replace(&mut first_job, false);
-                    let permit = || {
-                        if first {
-                            crate::render_state::FrameJobPermit::read_lays_out_again(read)
-                        } else {
-                            crate::render_state::FrameJobPermit::for_next_round(read)
-                        }
-                    };
-                    run_layout_round_job(document_host, job, permit)
-                }
+                NextRound::Job(job) => run_layout_round_job(document_host, read, job),
             };
             unsafe { answer.pay(main_thread, &host, read) };
             let built = matches!(answer.end, LayoutRoundEnd::Built { .. });
