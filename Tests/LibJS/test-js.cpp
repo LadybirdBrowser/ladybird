@@ -22,6 +22,24 @@ TEST_ROOT("Tests/LibJS/Runtime");
 
 TESTJS_PROGRAM_FLAG(test262_parser_tests, "Run test262 parser tests", "test262-parser-tests", 0);
 
+TESTJS_MAIN_HOOK()
+{
+    Test::JS::g_vm = JS::VM::create();
+    Test::JS::g_vm->set_dynamic_imports_allowed(true);
+
+    // Configure the test VM to support additional import attributes
+    // This allows tests to use import attributes beyond just "type"
+    Test::JS::g_vm->host_get_supported_import_attributes = []() -> Vector<Utf16String> {
+        return {
+            "type"_utf16,
+            "key"_utf16,     // Used in modules/import-with-attributes.mjs test
+            "key1"_utf16,    // Used in modules/basic-modules.js
+            "key2"_utf16,    // Used in modules/import-with-attributes.mjs test
+            "default"_utf16, // Used in modules/import-with-attributes.mjs test
+        };
+    };
+}
+
 TESTJS_GLOBAL_FUNCTION(can_parse_source, canParseSource)
 {
     auto& realm = *vm.current_realm();
