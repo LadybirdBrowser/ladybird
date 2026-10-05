@@ -48,6 +48,21 @@ macro_rules! define_id {
         #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
         $visibility struct $name($field_visibility u32);
     };
+    // An identity an `InternTable` hands out, which indexes the table directly.
+    ($(#[$attribute:meta])* interned $($rest:tt)*) => {
+        define_id! { $(#[$attribute])* $($rest)* }
+        define_id!(@interned $($rest)*);
+    };
+    (@interned default $($rest:tt)*) => {
+        define_id!(@interned $($rest)*);
+    };
+    (@interned $visibility:vis struct $name:ident($($field:tt)*);) => {
+        impl $crate::css::style::intern_table::InternIdentity for $name {
+            fn index(self) -> usize {
+                self.0 as usize
+            }
+        }
+    };
 }
 
 pub(crate) mod animations;
