@@ -103,7 +103,6 @@ pub(crate) fn property_has_hashless_hex_color_quirk(property_id: u16) -> bool {
 /// How much of the computation a property needs, mirroring the C++
 /// requires-computation levels: 0 = never, 1 = with the cascaded value,
 /// 2 = with any non-inherited value, 3 = always.
-pub const REQUIRES_COMPUTATION_NEVER: u8 = 0;
 pub const REQUIRES_COMPUTATION_CASCADED: u8 = 1;
 pub const REQUIRES_COMPUTATION_NON_INHERITED: u8 = 2;
 pub const REQUIRES_COMPUTATION_ALWAYS: u8 = 3;
