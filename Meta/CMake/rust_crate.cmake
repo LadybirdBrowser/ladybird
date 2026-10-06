@@ -119,8 +119,11 @@ function(import_rust_crate)
 
     configure_file("${CMAKE_CURRENT_FUNCTION_LIST_DIR}/RustPanicInit.cpp.in"
         "${CMAKE_CURRENT_BINARY_DIR}/${ARG_CRATE_NAME}_panic_init.cpp" @ONLY)
-    target_sources(${ARG_CRATE_NAME} INTERFACE
-        "${CMAKE_CURRENT_BINARY_DIR}/${ARG_CRATE_NAME}_panic_init.cpp")
+
+    # A static library only links in the objects that something references, and nothing references the initializer.
+    # Putting its object on the link line runs it in whatever executable or shared library links the crate.
+    add_library(${ARG_CRATE_NAME}_init OBJECT "${CMAKE_CURRENT_BINARY_DIR}/${ARG_CRATE_NAME}_panic_init.cpp")
+    target_link_libraries(${ARG_CRATE_NAME} INTERFACE $<TARGET_OBJECTS:${ARG_CRATE_NAME}_init>)
 
     # Rust allocations go through AK so allocator overrides also apply across the FFI boundary.
     target_link_libraries(${ARG_CRATE_NAME} INTERFACE AK)
