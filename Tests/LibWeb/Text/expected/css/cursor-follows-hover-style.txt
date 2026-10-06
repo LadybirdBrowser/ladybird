@@ -1,0 +1,2 @@
+cursor over #moves: IBeam
+cursor over #handled: IBeam

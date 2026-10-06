@@ -1,0 +1,27 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 20px SerenitySans, sans-serif; line-height: 40px }
+    div { height: 40px }
+    #moves:hover { cursor: move }
+</style>
+<div id="moves">moves on hover</div>
+<div id="handled">pointer from a mouseenter handler</div>
+<script>
+    function nextRenderingUpdate() {
+        return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+
+    // The cursor shows the style of what the pointer is over once the move hovered it: a :hover rule, and a style a
+    // handler of the move's events set.
+    asyncTest(async done => {
+        handled.addEventListener("mouseenter", () => handled.style.cursor = "pointer");
+        for (const element of [moves, handled]) {
+            const rect = element.getBoundingClientRect();
+            internals.mouseMove(rect.left + 100, rect.top + 20);
+            await nextRenderingUpdate();
+            println(`cursor over #${element.id}: ${internals.currentCursor()}`);
+        }
+        done();
+    });
+</script>
