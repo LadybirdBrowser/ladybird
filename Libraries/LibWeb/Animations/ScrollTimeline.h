@@ -10,6 +10,7 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Bindings/ScrollTimeline.h>
+#include <LibWebCommon/Page/AsyncScrollNodeStableID.h>
 
 namespace Web::HTML {
 
@@ -49,6 +50,15 @@ public:
     bool is_stale() const;
     virtual void update_current_time(double timestamp) override;
 
+    // The scroll node the timeline followed at its last update, and the scroll offset at 100% progress there, in CSS
+    // pixels: empty while it was inactive.
+    struct FollowedScroller {
+        AsyncScrollNodeStableID scroll_node;
+        bool vertical { true };
+        double max_scroll_offset { 0 };
+    };
+    Optional<FollowedScroller> const& followed_scroller() const { return m_followed_scroller; }
+
     virtual bool is_progress_based() const override { return true; }
     virtual bool can_convert_a_timeline_time_to_an_origin_relative_time() const override { return false; }
 
@@ -67,6 +77,7 @@ private:
     ScrollAxis m_axis;
 
     Optional<double> m_last_max_scroll_offset;
+    Optional<FollowedScroller> m_followed_scroller;
 };
 
 ScrollAxis scroll_axis_from_css_axis(CSS::Axis);

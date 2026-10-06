@@ -79,12 +79,15 @@ pub unsafe extern "C" fn render_state_pay_flown_round(host: &DocumentHost, read:
 /// Seals the plan of the clock lease of `host`'s document for the tasks after a rendering update, in `read`: the
 /// elements whose running animations a tick samples, the monotonic time in milliseconds at which the document's
 /// timestamps are zero, the timestamp of the next event of the animations, past which a tick samples nothing, and the
-/// timestamp at which the sampled animations have all ended. A document whose layout is not up to date gets no plan.
+/// timestamp at which the sampled animations of the document timeline have all ended, and the scroll timelines a tick
+/// samples where the compositor has scrolled to. A document whose layout is not up to date gets no plan.
 ///
 /// # Safety
 ///
-/// As for [`render_state_update_layout`], with no layout update running, and `elements` must hold `count` style nodes.
+/// As for [`render_state_update_layout`], with no layout update running, and `elements` must hold `count` style nodes
+/// and `scroll_timelines` `scroll_timeline_count` timelines.
 #[unsafe(no_mangle)]
+#[allow(clippy::too_many_arguments)]
 pub unsafe extern "C" fn render_state_seal_clock_plan(
     host: &DocumentHost,
     read: &BegunRead,
@@ -93,20 +96,31 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
     time_origin: f64,
     deadline: f64,
     last_end: f64,
+    scroll_timelines: *const crate::render_state::FfiPlannedScrollTimeline,
+    scroll_timeline_count: usize,
 ) {
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { main_thread(host) };
     // SAFETY: Guaranteed by the caller.
     let elements = unsafe { crate::css::custom_properties::ffi_slice(elements, count) };
+    // SAFETY: Guaranteed by the caller.
+    let scroll_timelines = unsafe { crate::css::custom_properties::ffi_slice(scroll_timelines, scroll_timeline_count) };
     abort_on_panic(|| {
         let elements: Vec<_> = elements
             .iter()
             .filter_map(|&element| StyleNodeID::from_raw(element))
             .collect();
         let round = seal_clock_round(&main_thread, host, read);
-        host.seal_clock_plan(
-            round.map(|round| crate::render_state::ClockPlan::new(elements, time_origin, deadline, last_end, round)),
-        );
+        host.seal_clock_plan(round.map(|round| {
+            crate::render_state::ClockPlan::new(
+                elements,
+                time_origin,
+                deadline,
+                last_end,
+                scroll_timelines.to_vec(),
+                round,
+            )
+        }));
     });
 }
 

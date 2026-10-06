@@ -44,8 +44,8 @@ public:
     }
     ~ClockTicksHandle();
 
-    // Hands the lease a tick, and answers whether it wants the next one.
-    bool tick(i64 frame_time_nanoseconds) const;
+    // Hands the lease a tick, with where the Compositor had scrolled to then, and answers whether it wants the next one.
+    bool tick(i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset>) const;
 
 private:
     Layout::RustFFI::ClockTicks const* m_ticks { nullptr };

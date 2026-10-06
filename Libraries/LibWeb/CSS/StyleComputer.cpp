@@ -617,13 +617,16 @@ void StyleComputer::finish_animation_refresh(Layout::BegunRead const& read, DOM:
 }
 
 // The timing the style engine computes the key an effect samples its keyframes at from: what its animation contributes,
-// the effect's own timing, and its timeline's current time. The engine decides it only where every time is a duration.
+// the effect's own timing, and its timeline's current time. The engine decides it only where every time is in one unit:
+// a duration, or a percentage of a scroll timeline's progress.
 static ComputedValuesFFI::FfiEffectTiming style_engine_effect_timing(Animations::KeyframeEffect const& effect, Animations::Animation const& animation)
 {
     ComputedValuesFFI::FfiEffectTiming timing {};
-    bool all_durations = true;
+    Optional<Animations::TimeValue::Type> unit;
+    bool one_unit = true;
     auto duration = [&](Animations::TimeValue const& time) {
-        all_durations &= time.type == Animations::TimeValue::Type::Milliseconds;
+        one_unit &= time.type == unit.value_or(time.type);
+        unit = time.type;
         return time.value;
     };
     auto optional_duration = [&](Optional<Animations::TimeValue> const& time, bool& has_time, double& value) {
@@ -639,6 +642,14 @@ static ComputedValuesFFI::FfiEffectTiming style_engine_effect_timing(Animations:
             timing.has_timeline_origin_time = origin_time.has_value();
             timing.timeline_origin_time = origin_time.value_or(0);
         }
+        // A scroll timeline's time is the scroll progress of the scroller it follows, which is what lets a clock tick
+        // sample it where the compositor has scrolled to.
+        if (auto const* scroll_timeline = as_if<Animations::ScrollTimeline>(*timeline); scroll_timeline && scroll_timeline->followed_scroller().has_value()) {
+            auto const& scroller = *scroll_timeline->followed_scroller();
+            timing.has_timeline_scroller = true;
+            timing.timeline_scroller_is_vertical = scroller.vertical;
+            timing.timeline_scroller = scroller.scroll_node.node_id.value();
+        }
     }
     optional_duration(animation.start_time(), timing.has_start_time, timing.start_time);
     optional_duration(animation.hold_time(), timing.has_hold_time, timing.hold_time);
@@ -650,7 +661,7 @@ static ComputedValuesFFI::FfiEffectTiming style_engine_effect_timing(Animations:
     timing.iteration_start = effect.iteration_start();
     timing.fill_mode = static_cast<u8>(to_underlying(effect.fill_mode()));
     timing.playback_direction = static_cast<u8>(to_underlying(effect.playback_direction()));
-    timing.decidable = all_durations && !effect.has_local_time_override_for_observation();
+    timing.decidable = one_unit && !effect.has_local_time_override_for_observation();
     return timing;
 }
 

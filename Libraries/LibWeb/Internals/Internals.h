@@ -230,7 +230,7 @@ public:
     Utf16String frame_scheduler_state() const;
     void hold_next_frame(Utf16String const& hold);
     Utf16String last_frame_presented_by(DOM::Document&);
-    void inject_clock_tick(double frame_time_ms);
+    void inject_clock_tick(double frame_time_ms, Optional<double> viewport_scroll_y);
     Utf16String clock_lease_state(DOM::Document&);
     GC::Ptr<Geometry::DOMRect> presented_border_box(DOM::Element&);
     bool last_frame_keyboard_scroll_state_is_current();

@@ -21,7 +21,7 @@ use super::owner::{self, DocumentId};
 use super::wait::TaskStart;
 use super::{DocumentHost, RenderState};
 use crate::css::css_pixels::CssPixelRect;
-use crate::css::style::animations::AnimationTimelineSamples;
+use crate::css::style::animations::{AnimationTimelineSamples, ScrollProgress};
 use crate::css::style::engine_sample::{DependentRestyle, NeedsHost, TickShownRecords};
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::node_data::NodeSlotId;
@@ -40,8 +40,9 @@ use crate::painting::record::recorder_state::RecorderState;
 use crate::painting::record::{RecordingInputs, RecordingOutput};
 use crate::painting::recording_slot::{FrameInputs, FrozenFrame, freeze_recording_frame, present, record_frame};
 use crate::stage_thread::{InFlight, Riding, StopWord, Ticker};
-use std::sync::Arc;
+use smallvec::SmallVec;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
+use std::sync::{Arc, Mutex};
 
 /// What the ticks of a clock lease sample, sealed at the end of a rendering update.
 pub(crate) struct ClockPlan {
@@ -51,10 +52,39 @@ pub(crate) struct ClockPlan {
     time_origin: f64,
     /// The timestamp of the next event of the animations, which the host sends: a tick at or past it samples nothing.
     deadline: f64,
-    /// The timestamp at which the animations a tick samples have all ended: the tick at or past it shows their ends,
-    /// and the lease wants no tick after it.
+    /// The timestamp at which the animations of the document timeline a tick samples have all ended: the tick at or
+    /// past it shows their ends, and after it only a scroll moves anything.
     last_end: f64,
+    /// The scroll timelines a tick samples where the compositor has scrolled their scrollers to.
+    scroll_timelines: Vec<FfiPlannedScrollTimeline>,
     round: ClockRound,
+}
+
+/// A scroll timeline whose animations the ticks of a clock lease sample, as a rendering update sealed it.
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct FfiPlannedScrollTimeline {
+    /// The unique node id of the element whose scroll node the timeline follows, or of the document for its viewport,
+    /// and whether along the vertical axis.
+    pub scroller: i64,
+    pub vertical: bool,
+    /// The scroll offset at 100% progress, in CSS pixels, in the layout the host sealed the plan from.
+    pub max_scroll_offset: f64,
+    /// The progress, in percent, at the scroll offset the host laid out.
+    pub progress: f64,
+    /// The progress from which, and up to which, the timeline's animations send no event the host has listeners for.
+    pub progress_start: f64,
+    pub progress_end: f64,
+}
+
+/// Where the compositor had scrolled the scroll node of an element, or of a document's viewport, by its unique node id,
+/// to at a display tick, in CSS pixels.
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct FfiScrollOffset {
+    pub scroller: i64,
+    pub x: f64,
+    pub y: f64,
 }
 
 impl ClockPlan {
@@ -63,6 +93,7 @@ impl ClockPlan {
         time_origin: f64,
         deadline: f64,
         last_end: f64,
+        scroll_timelines: Vec<FfiPlannedScrollTimeline>,
         round: ClockRound,
     ) -> Self {
         Self {
@@ -70,8 +101,34 @@ impl ClockPlan {
             time_origin,
             deadline,
             last_end,
+            scroll_timelines,
             round,
         }
+    }
+
+    /// The progress of the scroll timelines where `scroll_offsets` scrolled their scrollers to, or where the host laid
+    /// out those it has none for. Past the progress at which an animation sends an event, the host has it to send.
+    fn scroll_progress(&self, scroll_offsets: &[FfiScrollOffset]) -> Result<SmallVec<[ScrollProgress; 2]>, Park> {
+        self.scroll_timelines
+            .iter()
+            .map(|timeline| {
+                let progress = scroll_offsets
+                    .iter()
+                    .find(|offset| offset.scroller == timeline.scroller)
+                    .map_or(timeline.progress, |offset| {
+                        let position = if timeline.vertical { offset.y } else { offset.x };
+                        position / timeline.max_scroll_offset * 100.0
+                    });
+                if !(timeline.progress_start..timeline.progress_end).contains(&progress) {
+                    return Err(Park);
+                }
+                Ok(ScrollProgress {
+                    scroller: timeline.scroller,
+                    vertical: timeline.vertical,
+                    progress,
+                })
+            })
+            .collect()
     }
 }
 
@@ -88,6 +145,12 @@ pub(crate) struct LeaseLanding {
     pub(super) owed: Vec<LayoutRoundAnswer>,
     /// The border boxes of the plan's elements in the last frame a tick presented.
     pub(super) presented_border_boxes: Vec<(StyleNodeID, CssPixelRect)>,
+    /// Where the compositor had scrolled to at the latest tick that said so.
+    scroll_offsets: Vec<FfiScrollOffset>,
+    /// The timestamp at which the last frame presented shows the animations of the document timeline, or negative
+    /// infinity for the host's frame, and the progress at which it shows the plan's scroll timelines.
+    shown_at: f64,
+    shown_scroll_progress: SmallVec<[ScrollProgress; 2]>,
     /// Whether a tick found the lease could sample no more: past the deadline or the animations' ends, or something only
     /// the host computes.
     parked: bool,
@@ -166,6 +229,8 @@ impl ClockLease {
         presentation: Presentation,
         plan: ClockPlan,
     ) -> (Self, Arc<ClockTicks>) {
+        let follows_scrolling = !plan.scroll_timelines.is_empty();
+        let shown_scroll_progress = plan.scroll_progress(&[]).unwrap_or_default();
         let (flight, ticker) = crate::stage_thread::style_layout_thread().lease(LeaseLanding {
             document,
             recording: TickRecording(Riding::landed(ClockRecorder {
@@ -178,11 +243,16 @@ impl ClockLease {
             built: TickBuilt::default(),
             owed: Vec::new(),
             presented_border_boxes: Vec::new(),
+            scroll_offsets: Vec::new(),
+            shown_at: f64::NEG_INFINITY,
+            shown_scroll_progress,
             parked: false,
         });
         let ticks = Arc::new(ClockTicks {
             ticker,
             latest: AtomicI64::new(i64::MIN),
+            follows_scrolling,
+            scroll_offsets: Mutex::default(),
             queued: AtomicBool::new(false),
             parked: AtomicBool::new(false),
         });
@@ -214,6 +284,10 @@ pub struct ClockTicks {
     /// a tick handed an earlier time than one before it, as a display tick behind the immediate first one is, never
     /// samples the animations back in time.
     latest: AtomicI64,
+    /// Whether the lease samples scroll timelines, for which it keeps where the compositor had scrolled to at the latest
+    /// tick handed to it, until the tick that runs next takes it.
+    follows_scrolling: bool,
+    scroll_offsets: Mutex<Option<Vec<FfiScrollOffset>>>,
     /// Whether a tick is queued.
     queued: AtomicBool,
     /// Whether a tick parked the lease, which then samples nothing more.
@@ -221,13 +295,17 @@ pub struct ClockTicks {
 }
 
 impl ClockTicks {
-    /// Hands the lease a tick at `frame_time_nanoseconds`: the tick already queued runs at the latest time, or a tick is
-    /// queued. Answers whether the lease wants the next tick, which it does until it ends or parks.
-    pub(super) fn tick(self: &Arc<Self>, frame_time_nanoseconds: i64) -> bool {
+    /// Hands the lease a tick at `frame_time_nanoseconds`, at which the compositor had scrolled to `scroll_offsets`: the
+    /// tick already queued runs at the latest time and offsets, or a tick is queued. Answers whether the lease wants the
+    /// next tick, which it does until it ends or parks.
+    pub(super) fn tick(self: &Arc<Self>, frame_time_nanoseconds: i64, scroll_offsets: &[FfiScrollOffset]) -> bool {
         if self.parked.load(Ordering::Relaxed) || !self.ticker.is_live() {
             return false;
         }
         self.latest.fetch_max(frame_time_nanoseconds, Ordering::AcqRel);
+        if self.follows_scrolling && !scroll_offsets.is_empty() {
+            *self.scroll_offsets.lock().expect("clock tick scroll offsets") = Some(scroll_offsets.to_vec());
+        }
         if self.queued.swap(true, Ordering::AcqRel) {
             return true;
         }
@@ -235,6 +313,9 @@ impl ClockTicks {
         self.ticker.run(move |landing, stop| {
             // A tick handed after the flag drops queues another run, and one handed before it is in `latest`.
             ticks.queued.swap(false, Ordering::AcqRel);
+            if let Some(scroll_offsets) = ticks.scroll_offsets.lock().expect("clock tick scroll offsets").take() {
+                landing.scroll_offsets = scroll_offsets;
+            }
             landing.tick(ticks.latest.load(Ordering::Acquire), stop);
             if landing.parked {
                 ticks.parked.store(true, Ordering::Relaxed);
@@ -504,31 +585,51 @@ fn mark_region_for_tree_build(
 }
 
 impl LeaseLanding {
-    /// Samples the plan's animations at the timestamp of `frame_time_nanoseconds`, shows the samples, lays out what
-    /// they moved and presents the frame, unless the host said the stop word: the host waits for the lease. A tick at or
-    /// past the deadline, or one that needs the host, parks the lease, and so does the tick that shows the ends of the
-    /// animations, after which a tick would present the same frame again.
+    /// Samples the plan's animations at the timestamp of `frame_time_nanoseconds` and where the compositor has scrolled
+    /// to, shows the samples, lays out what they moved and presents the frame, unless the host said the stop word: the
+    /// host waits for the lease. A tick at or past the deadline, or one that needs the host, parks the lease, and so
+    /// does the tick that shows the ends of the animations where no scroll moves anything after them.
     fn tick(&mut self, frame_time_nanoseconds: i64, stop: &StopWord) {
         if self.parked || stop.is_said() {
             return;
         }
         let timestamp = frame_time_nanoseconds as f64 / 1_000_000.0 - self.plan.time_origin;
-        // The tick runs on the render owner, the one thread that reaches the state. It shows the records the frames
-        // before it showed, and takes them back as it ends.
-        self.parked = timestamp >= self.plan.deadline
-            || owner::with_state(self.document, None, |state| {
-                state
-                    .engine_mut()
-                    .lend_tick_shown(std::mem::take(&mut self.built.shown));
-                let sampled = self.sample(state, timestamp);
-                self.built.shown = state.engine_mut().take_tick_shown();
-                sampled
-            })
-            .is_err()
-            || timestamp >= self.plan.last_end;
+        self.parked = self.tick_at(timestamp).is_err();
     }
 
-    fn sample(&mut self, state: &mut RenderState, timestamp: f64) -> Result<(), Park> {
+    fn tick_at(&mut self, timestamp: f64) -> Result<(), Park> {
+        if timestamp >= self.plan.deadline {
+            return Err(Park);
+        }
+        let scroll_progress = self.plan.scroll_progress(&self.scroll_offsets)?;
+        // Once a frame shows the document timeline's animations ended, a frame where nothing scrolled shows nothing new.
+        if self.shown_at >= self.plan.last_end && scroll_progress == self.shown_scroll_progress {
+            return Ok(());
+        }
+        // The tick runs on the render owner, the one thread that reaches the state. It shows the records the frames
+        // before it showed, and takes them back as it ends.
+        owner::with_state(self.document, None, |state| {
+            state
+                .engine_mut()
+                .lend_tick_shown(std::mem::take(&mut self.built.shown));
+            let sampled = self.sample(state, timestamp, &scroll_progress);
+            self.built.shown = state.engine_mut().take_tick_shown();
+            sampled
+        })?;
+        self.shown_at = timestamp;
+        self.shown_scroll_progress = scroll_progress;
+        match timestamp >= self.plan.last_end && self.plan.scroll_timelines.is_empty() {
+            true => Err(Park),
+            false => Ok(()),
+        }
+    }
+
+    fn sample(
+        &mut self,
+        state: &mut RenderState,
+        timestamp: f64,
+        scroll_progress: &[ScrollProgress],
+    ) -> Result<(), Park> {
         let Self {
             plan,
             ticked,
@@ -536,7 +637,7 @@ impl LeaseLanding {
             owed,
             ..
         } = self;
-        let samples = AnimationTimelineSamples::default().with_time(timestamp);
+        let samples = AnimationTimelineSamples::at_tick(timestamp, scroll_progress);
         for &element in &plan.elements {
             let arena = state.arena.arena();
             let row = arena.bound_row(element);
@@ -701,17 +802,25 @@ pub(crate) struct LeasesClockForTask {
 
 pub(super) const LEASES_CLOCK_FOR_TASK: LeasesClockForTask = LeasesClockForTask { _private: () };
 
-/// Hands the clock lease `ticks` belong to a display tick at `frame_time_nanoseconds`, and answers whether it wants the
-/// next one.
+/// Hands the clock lease `ticks` belong to a display tick at `frame_time_nanoseconds`, at which the compositor had
+/// scrolled to the `scroll_offset_count` offsets at `scroll_offsets`, and answers whether it wants the next one.
 ///
 /// # Safety
 ///
-/// `ticks` must come from `document_host_lease_clock` and not be released yet.
+/// `ticks` must come from `document_host_lease_clock` and not be released yet, and `scroll_offsets` must hold
+/// `scroll_offset_count` offsets.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn clock_ticks_tick(ticks: *const ClockTicks, frame_time_nanoseconds: i64) -> bool {
+pub unsafe extern "C" fn clock_ticks_tick(
+    ticks: *const ClockTicks,
+    frame_time_nanoseconds: i64,
+    scroll_offsets: *const FfiScrollOffset,
+    scroll_offset_count: usize,
+) -> bool {
     // SAFETY: Guaranteed by the caller, whose reference this borrows.
     let ticks = std::mem::ManuallyDrop::new(unsafe { Arc::from_raw(ticks) });
-    ticks.tick(frame_time_nanoseconds)
+    // SAFETY: Guaranteed by the caller.
+    let scroll_offsets = unsafe { crate::css::custom_properties::ffi_slice(scroll_offsets, scroll_offset_count) };
+    ticks.tick(frame_time_nanoseconds, scroll_offsets)
 }
 
 /// Gives up the reference `ticks` holds.
@@ -840,17 +949,25 @@ pub unsafe extern "C" fn document_host_clock_lease_state(host: &DocumentHost) ->
     }
 }
 
-/// Hands the clock lease of `host`'s document, where one runs, a tick at `frame_time_nanoseconds`, and waits until the
-/// StyleLayout thread has run the jobs handed to it before, the tick among them, and the Paint thread the recording of
-/// the frame the tick presents, without ending the lease. For a test, whose clock ticks only where it injects them.
+/// Hands the clock lease of `host`'s document, where one runs, a tick at `frame_time_nanoseconds`, at which the
+/// compositor had scrolled to `scroll_offset`, if not null, and waits until the StyleLayout thread has run the jobs
+/// handed to it before, the tick among them, and the Paint thread the recording of the frame the tick presents, without
+/// ending the lease. For a test, whose clock ticks only where it injects them.
 ///
 /// # Safety
 ///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread, and
+/// `scroll_offset` must be null or valid for reads.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_inject_clock_tick(host: &DocumentHost, frame_time_nanoseconds: i64) {
+pub unsafe extern "C" fn document_host_inject_clock_tick(
+    host: &DocumentHost,
+    frame_time_nanoseconds: i64,
+    scroll_offset: *const FfiScrollOffset,
+) {
     if let Some(ticks) = host.clock_ticks() {
-        ticks.tick(frame_time_nanoseconds);
+        // SAFETY: Guaranteed by the caller.
+        let scroll_offsets = unsafe { scroll_offset.as_ref() }.map_or(&[][..], std::slice::from_ref);
+        ticks.tick(frame_time_nanoseconds, scroll_offsets);
         crate::stage_thread::style_layout_thread().run(|| ());
         crate::stage_thread::paint_thread().run(|| ());
     }

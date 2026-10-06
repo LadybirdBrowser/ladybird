@@ -1,0 +1,4 @@
+render clock after a frame scrolled back: ticking
+last frame presented by: clock
+the presented height follows the scroll: true
+the animation finished on the main thread: finished

@@ -332,19 +332,32 @@ mod playback_direction {
 }
 
 /// The times the engine samples effects' timelines at: those the host sampled them at, or those a clock
-/// tick at a timestamp moves the document timelines to.
+/// tick at a timestamp moves the document timelines to, with the scroll timelines at the scroll progress
+/// the tick samples them at.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub(crate) struct AnimationTimelineSamples {
+pub(crate) struct AnimationTimelineSamples<'a> {
     timestamp: Option<f64>,
+    scroll_progress: &'a [ScrollProgress],
 }
 
-impl AnimationTimelineSamples {
+/// The scroll progress, in percent, of the scroll node of an element or of a document's viewport, by its
+/// unique node id, along one axis: the time of a scroll timeline that follows it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct ScrollProgress {
+    pub(crate) scroller: i64,
+    pub(crate) vertical: bool,
+    pub(crate) progress: f64,
+}
+
+impl<'a> AnimationTimelineSamples<'a> {
     /// The times a clock tick at `timestamp` samples at, which moves every document timeline: a timestamp less its
-    /// timeline's origin time. No other timeline is sampled with it.
+    /// timeline's origin time, and every scroll timeline that follows a scroller in `scroll_progress` to its progress
+    /// there. No other timeline is sampled with it.
     #[must_use]
-    pub(crate) fn with_time(self, timestamp: f64) -> Self {
+    pub(crate) fn at_tick(timestamp: f64, scroll_progress: &'a [ScrollProgress]) -> Self {
         Self {
             timestamp: Some(timestamp),
+            scroll_progress,
         }
     }
 
@@ -353,6 +366,14 @@ impl AnimationTimelineSamples {
     fn timeline_time(self, timing: &FfiEffectTiming) -> Option<Option<f64>> {
         match self.timestamp {
             None => Some(timing.has_timeline_time.then_some(timing.timeline_time)),
+            Some(_) if timing.has_timeline_scroller => self
+                .scroll_progress
+                .iter()
+                .find(|scroll| {
+                    scroll.scroller == timing.timeline_scroller
+                        && scroll.vertical == timing.timeline_scroller_is_vertical
+                })
+                .map(|scroll| Some(scroll.progress)),
             Some(timestamp) => timing
                 .has_timeline_origin_time
                 .then_some(Some(timestamp - timing.timeline_origin_time)),
@@ -405,21 +426,12 @@ impl EffectTiming {
     /// A mirror of `Animation::current_time_at()`, `AnimationEffect::resolve_timing()` and
     /// `transformed_progress()` with everything under it.
     #[must_use]
-    pub(crate) fn key_at(&self, samples: AnimationTimelineSamples) -> Option<Option<f64>> {
+    pub(crate) fn key_at(&self, samples: AnimationTimelineSamples<'_>) -> Option<Option<f64>> {
         let timing = &self.timing;
         if !timing.decidable {
             return None;
         }
         let timeline_time = samples.timeline_time(timing)?;
-
-        // https://www.w3.org/TR/web-animations-1/#animation-current-time
-        let local_time = match (timing.has_hold_time, timeline_time) {
-            (true, _) => Some(timing.hold_time),
-            (false, Some(timeline_time)) if timing.has_start_time => {
-                Some((timeline_time - timing.start_time) * timing.playback_rate)
-            }
-            (false, _) => None,
-        };
 
         // https://www.w3.org/TR/web-animations-1/#active-duration
         let active_duration = match timing.iteration_duration == 0.0 || timing.iteration_count == 0.0 {
@@ -428,6 +440,21 @@ impl EffectTiming {
         };
         // https://www.w3.org/TR/web-animations-1/#end-time
         let end_time = largest(timing.start_delay + active_duration + timing.end_delay, 0.0);
+
+        // https://www.w3.org/TR/web-animations-1/#animation-current-time
+        let unconstrained_time = timeline_time
+            .filter(|_| timing.has_start_time)
+            .map(|timeline_time| (timeline_time - timing.start_time) * timing.playback_rate);
+        // https://www.w3.org/TR/web-animations-1/#update-an-animations-finished-state
+        // Only a finished animation holds a time with its start time resolved. A tick moves its timeline without the
+        // host updating its finished state, which lets go of that hold once the timeline goes back before the end.
+        let finish_released = samples.timestamp.is_some()
+            && timing.playback_rate > 0.0
+            && unconstrained_time.is_some_and(|time| time < end_time);
+        let local_time = match timing.has_hold_time && !finish_released {
+            true => Some(timing.hold_time),
+            false => unconstrained_time,
+        };
 
         // https://www.w3.org/TR/web-animations-1/#animation-effect-phases-and-states
         let backwards = timing.playback_rate < 0.0;
@@ -648,6 +675,69 @@ mod tests {
             ..timing_at(500.0)
         };
         assert_eq!(key(&unresolved), Some(None), "an inactive timeline samples nothing");
+    }
+
+    #[test]
+    fn a_tick_samples_a_scroll_timeline_where_its_scroller_is_scrolled_to() {
+        let on_scroll_timeline = EffectTiming {
+            timing: FfiEffectTiming {
+                has_timeline_origin_time: false,
+                has_timeline_scroller: true,
+                timeline_scroller_is_vertical: true,
+                timeline_scroller: 7,
+                iteration_duration: 100.0,
+                ..timing_at(25.0).timing
+            },
+            ..timing_at(25.0)
+        };
+        let scrolled = |vertical| {
+            [ScrollProgress {
+                scroller: 7,
+                vertical,
+                progress: 60.0,
+            }]
+        };
+        assert_eq!(
+            key(&on_scroll_timeline),
+            Some(Some(25_000.0)),
+            "where the host sampled it"
+        );
+        assert_eq!(
+            on_scroll_timeline.key_at(AnimationTimelineSamples::at_tick(1000.0, &scrolled(true))),
+            Some(Some(60_000.0))
+        );
+        assert_eq!(
+            on_scroll_timeline.key_at(AnimationTimelineSamples::at_tick(1000.0, &scrolled(false))),
+            None,
+            "a tick that has no progress for its scroller does not move it"
+        );
+        let finished = EffectTiming {
+            timing: FfiEffectTiming {
+                has_hold_time: true,
+                hold_time: 100.0,
+                fill_mode: fill_mode::BOTH,
+                ..on_scroll_timeline.timing
+            },
+            ..on_scroll_timeline
+        };
+        assert_eq!(
+            finished.key_at(AnimationTimelineSamples::at_tick(1000.0, &scrolled(true))),
+            Some(Some(60_000.0)),
+            "a finished animation runs again as a tick scrolls back before its end"
+        );
+        let paused = EffectTiming {
+            timing: FfiEffectTiming {
+                has_start_time: false,
+                hold_time: 40.0,
+                ..finished.timing
+            },
+            ..finished
+        };
+        assert_eq!(
+            paused.key_at(AnimationTimelineSamples::at_tick(1000.0, &scrolled(true))),
+            Some(Some(40_000.0)),
+            "a paused animation holds"
+        );
     }
 
     #[test]
