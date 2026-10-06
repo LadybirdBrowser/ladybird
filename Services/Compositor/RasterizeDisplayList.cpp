@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/RasterizeDisplayList.h>
-#include <LibCompositing/DisplayList/DisplayListPlayerSkia.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SkiaBackendContext.h>
@@ -32,7 +32,7 @@ ErrorOr<void> rasterize_display_list(Compositing::DisplayList const& display_lis
     auto surface = Gfx::PaintingSurface::wrap_bitmap(target);
 
     // Raster on the CPU, so the pixels match a raster of the same list in any other process.
-    Compositing::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
+    DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
     display_list_player.execute(display_list, visual_context_tree, resource_storage, {}, surface);
     display_list_player.flush(*surface);
     return {};

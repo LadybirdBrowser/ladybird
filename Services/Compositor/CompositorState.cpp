@@ -24,7 +24,7 @@ NonnullRefPtr<CompositorState> CompositorState::create(RefPtr<Gfx::SkiaBackendCo
 
 CompositorState::CompositorState(RefPtr<Gfx::SkiaBackendContext> skia_backend_context)
     : m_skia_backend_context(move(skia_backend_context))
-    , m_display_list_player(make<Compositing::DisplayListPlayerSkia>(m_skia_backend_context))
+    , m_display_list_player(make<DisplayListPlayerSkia>(m_skia_backend_context))
 {
 }
 
@@ -1119,7 +1119,7 @@ Compositing::CompositedContextSurface CompositorState::resolve_composited_contex
 
     if (child_context->needs_rasterization()) {
         auto composited_context_resolver = resolver_for(child_context_id);
-        Compositing::DisplayListPlayerSkia display_list_player { m_skia_backend_context };
+        DisplayListPlayerSkia display_list_player { m_skia_backend_context };
         child_context->present_synchronously(display_list_player, &composited_context_resolver);
     }
 

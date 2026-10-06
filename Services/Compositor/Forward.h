@@ -11,5 +11,6 @@ namespace Compositor {
 class ConnectionFromClient;
 class ConnectionFromWebContent;
 class CompositorState;
+class DisplayListPlayerSkia;
 
 }

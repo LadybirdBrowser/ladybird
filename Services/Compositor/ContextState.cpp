@@ -9,9 +9,9 @@
 #include <AK/StdLibExtras.h>
 #include <Compositor/CompositorState.h>
 #include <Compositor/ContextState.h>
+#include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/PausedDebuggerOverlay.h>
 #include <LibCompositing/DisplayList/DisplayListDamage.h>
-#include <LibCompositing/DisplayList/DisplayListPlayerSkia.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
@@ -1541,7 +1541,7 @@ bool ContextState::draws_canvas(Compositing::CanvasId canvas_id) const
     return m_last_rasterized_frame.has_value() && m_last_rasterized_frame->canvas_content_generations.contains(canvas_id);
 }
 
-Optional<ContextState::PreparedFrame> ContextState::prepare_frame(Compositing::DisplayListPlayerSkia& display_list_player, PendingFrame pending_frame, CompositedContextResolver const* composited_context_resolver)
+Optional<ContextState::PreparedFrame> ContextState::prepare_frame(DisplayListPlayerSkia& display_list_player, PendingFrame pending_frame, CompositedContextResolver const* composited_context_resolver)
 {
     if (is_present_blocked()) {
         queue_present_frame(pending_frame);
@@ -1580,7 +1580,7 @@ void ContextState::did_submit_prepared_frame(Gfx::IntRect viewport_rect)
     m_presented_frame = viewport_rect;
 }
 
-bool ContextState::present_synchronously(Compositing::DisplayListPlayerSkia& display_list_player, CompositedContextResolver const* composited_context_resolver)
+bool ContextState::present_synchronously(DisplayListPlayerSkia& display_list_player, CompositedContextResolver const* composited_context_resolver)
 {
     if (!can_render_frame())
         return false;
@@ -1614,7 +1614,7 @@ bool ContextState::can_paint_screenshot(Gfx::ShareableBitmap& target_bitmap) con
     return m_display_list && target_bitmap.is_valid() && target_bitmap.bitmap();
 }
 
-void ContextState::paint_screenshot(Compositing::DisplayListPlayerSkia& display_list_player, Gfx::ShareableBitmap& target_bitmap, CompositedContextResolver const* composited_context_resolver)
+void ContextState::paint_screenshot(DisplayListPlayerSkia& display_list_player, Gfx::ShareableBitmap& target_bitmap, CompositedContextResolver const* composited_context_resolver)
 {
     VERIFY(can_paint_screenshot(target_bitmap));
 
@@ -2040,7 +2040,7 @@ bool ContextState::advance_visual_animations(MonotonicTime now)
     return m_has_active_visual_animations;
 }
 
-void ContextState::paint_current_display_list(Compositing::DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& surface, CompositedContextResolver const* composited_context_resolver, Optional<Gfx::IntRect> damage_rect, PaintUIOverlay paint_ui_overlay, bool apply_raster_transform)
+void ContextState::paint_current_display_list(DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& surface, CompositedContextResolver const* composited_context_resolver, Optional<Gfx::IntRect> damage_rect, PaintUIOverlay paint_ui_overlay, bool apply_raster_transform)
 {
     VERIFY(m_display_list);
     auto surface_clear_color = Gfx::to_skia_color(m_display_list->surface_clear_color().value_or(Gfx::Color::Transparent));

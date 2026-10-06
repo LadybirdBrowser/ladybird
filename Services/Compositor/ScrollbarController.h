@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/Vector.h>
+#include <Compositor/Forward.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Point.h>
@@ -21,7 +22,6 @@ class AsyncScrollTree;
 namespace Compositing {
 
 class AccumulatedVisualContextTree;
-class DisplayListPlayerSkia;
 class ScrollStateSnapshot;
 
 }
@@ -57,7 +57,7 @@ public:
     bool set_hovered_scrollbar(Optional<size_t>);
 
     Optional<ScrollOffset> scroll_offset_for_drag(Compositing::AsyncScrollTree const&, Compositing::ScrollStateSnapshot const&, Drag const&) const;
-    bool paint(Gfx::PaintingSurface&, Compositing::DisplayListPlayerSkia&, Compositing::ScrollStateSnapshot const&) const;
+    bool paint(Gfx::PaintingSurface&, DisplayListPlayerSkia&, Compositing::ScrollStateSnapshot const&) const;
 
 private:
     bool is_expanded(size_t scrollbar_index) const;

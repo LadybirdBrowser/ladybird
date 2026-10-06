@@ -32,15 +32,17 @@
 #include <gpu/ganesh/SkSurfaceGanesh.h>
 #include <pathops/SkPathOps.h>
 
+#include <Compositor/DisplayListPlayerSkia.h>
 #include <LibCompositing/DisplayList/CanvasSurfaceRegistry.h>
-#include <LibCompositing/DisplayList/DisplayListPlayerSkia.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/SkiaUtils.h>
 
-namespace Compositing {
+namespace Compositor {
+
+using namespace Compositing;
 
 struct DisplayListPlayerSkia::LayerImageFilterCache {
     AK_ALLOC_WITH_KMALLOC;

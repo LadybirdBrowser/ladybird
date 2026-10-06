@@ -22,13 +22,13 @@ class SkPaint;
 template<typename T>
 class sk_sp;
 
-namespace Compositing {
+namespace Compositor {
 
 // The color filter force-dark runs classified images through: the same Oklab lightness inversion the solid colors
 // take — as a Skia runtime effect. Exposed so a benchmark can time the shipped effect, rather than a copy of it.
-COMPOSITING_API sk_sp<SkColorFilter> force_dark_image_color_filter();
+sk_sp<SkColorFilter> force_dark_image_color_filter();
 
-class COMPOSITING_API DisplayListPlayerSkia final : public DisplayListPlayer {
+class DisplayListPlayerSkia final : public Compositing::DisplayListPlayer {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
@@ -36,51 +36,51 @@ public:
     explicit DisplayListPlayerSkia(RefPtr<Gfx::SkiaBackendContext>);
     ~DisplayListPlayerSkia();
 
-    using DisplayListPlayer::execute;
+    using Compositing::DisplayListPlayer::execute;
     void execute(
-        DisplayList const&,
-        AccumulatedVisualContextTree const&,
-        DisplayListResourceStorage const&,
-        ScrollStateSnapshot const&,
+        Compositing::DisplayList const&,
+        Compositing::AccumulatedVisualContextTree const&,
+        Compositing::DisplayListResourceStorage const&,
+        Compositing::ScrollStateSnapshot const&,
         RefPtr<Gfx::PaintingSurface>,
-        CanvasSurfaceRegistry const*,
-        CompositedContextResolver const*);
+        Compositing::CanvasSurfaceRegistry const*,
+        Compositing::CompositedContextResolver const*);
 
     void flush(Gfx::PaintingSurface&) override;
     void flush_async(Gfx::PaintingSurface&, Function<void()>&&);
-    void paint_scrollbar(Gfx::PaintingSurface&, PaintScrollBar const&);
+    void paint_scrollbar(Gfx::PaintingSurface&, Compositing::PaintScrollBar const&);
 
 private:
 #define DECLARE_PLAY_COMMAND(command_type, player_method) \
-    void play_command(command_type const&) override;
+    void play_command(Compositing::command_type const&) override;
     ENUMERATE_DISPLAY_LIST_COMMANDS(DECLARE_PLAY_COMMAND)
 #undef DECLARE_PLAY_COMMAND
     void set_matrix(Gfx::FloatMatrix4x4 const&) override;
     Gfx::FloatMatrix4x4 canvas_matrix() const override;
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 
-    void push_clip(ReplayClip const&) override;
+    void push_clip(Compositing::ReplayClip const&) override;
     void push_clip_path(Gfx::Path const&, Gfx::WindingRule) override;
     void push_transform(Gfx::AffineTransform const&) override;
-    void push_layer(ReplayLayer const&) override;
-    void push_mask(ReplayMask const&) override;
-    void pop_mask(ReplayMask const&, EffectNodeIndex) override;
+    void push_layer(Compositing::ReplayLayer const&) override;
+    void push_mask(Compositing::ReplayMask const&) override;
+    void pop_mask(Compositing::ReplayMask const&, Compositing::EffectNodeIndex) override;
     void pop() override;
     void push_device_space_plane_clip(Gfx::Path const&) override;
 
     void clip_path(Gfx::Path const&, Gfx::WindingRule, bool anti_aliased);
 
-    SkPaint paint_style_to_skia_paint(DisplayListPaintStyle const&, Gfx::FloatRect const& bounding_rect);
-    sk_sp<SkImageFilter> layer_image_filter(ReplayLayer const&);
-    sk_sp<SkImageFilter> backdrop_image_filter(ReplayLayer const&, bool limited_to_region);
+    SkPaint paint_style_to_skia_paint(Compositing::DisplayListPaintStyle const&, Gfx::FloatRect const& bounding_rect);
+    sk_sp<SkImageFilter> layer_image_filter(Compositing::ReplayLayer const&);
+    sk_sp<SkImageFilter> backdrop_image_filter(Compositing::ReplayLayer const&, bool limited_to_region);
     sk_sp<SkImageFilter> image_filter_from_bytes(ReadonlyBytes);
-    Gfx::Path path_from_data(DisplayListDataSpan) const;
+    Gfx::Path path_from_data(Compositing::DisplayListDataSpan) const;
     sk_sp<SkImage> rasterize_records_into_tile(ReadonlyBytes tile_records, Gfx::IntRect tile_rect);
-    ReadonlySpan<Color> gradient_colors(DisplayListGradientColorStops) const;
-    ReadonlySpan<float> gradient_positions(DisplayListGradientColorStops) const;
+    ReadonlySpan<Color> gradient_colors(Compositing::DisplayListGradientColorStops) const;
+    ReadonlySpan<float> gradient_positions(Compositing::DisplayListGradientColorStops) const;
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
-    CompositedContextResolver const* m_composited_context_resolver { nullptr };
+    Compositing::CompositedContextResolver const* m_composited_context_resolver { nullptr };
 
     // Layer filters are built from their bytes once per frame node and kept until the visual
     // context tree's structure changes, so a replayed frame does not rebuild them.
