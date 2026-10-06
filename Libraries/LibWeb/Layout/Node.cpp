@@ -284,13 +284,13 @@ void NodeWithStyle::rebuild_image_observers(Vector<RefPtr<CSS::CursorStyleValue 
     };
 
     auto new_observers = make<ImageObserverSlots>();
-    for (auto const& layer : background_layers())
-        new_observers->background_layers.append(observer_for(layer.background_image.ptr()));
-    for (auto const& layer : mask_layers())
-        new_observers->mask_layers.append(observer_for(layer.background_image.ptr()));
+    for (auto const& image : background_images())
+        new_observers->background_layers.append(observer_for(image.ptr()));
+    for (auto const& image : mask_images())
+        new_observers->mask_layers.append(observer_for(image.ptr()));
     for (auto const& cursor_style_value : cursor_style_values)
         new_observers->cursors.append(cursor_style_value ? observer_for(&cursor_style_value->image()) : nullptr);
-    new_observers->border_image_source = observer_for(border_image().source.ptr());
+    new_observers->border_image_source = observer_for(border_image_source());
     new_observers->list_style_image = observer_for(list_style_image());
     new_observers->cursor_style_values = move(cursor_style_values);
     // TODO: Observe other <image> accepting properties once we support them.
@@ -349,9 +349,9 @@ namespace Web::Layout {
 void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
 {
     release_pinned_style_record();
-    m_background_layers.clear();
-    m_mask_layers.clear();
-    m_border_image.clear();
+    m_background_images.clear();
+    m_mask_images.clear();
+    m_border_image_source.clear();
     m_list_style_image.clear();
     m_style_record_identity = style_record_identity;
     publish_style_record_to_node_data();
@@ -397,11 +397,11 @@ void NodeWithStyle::attach_style_resources(CSS::StyleRecordID style_record, Pain
             const_cast<CSS::AbstractImageStyleValue&>(*image).load_any_resources(*this);
     };
 
-    for (auto const& layer : background_layers())
-        load_image(layer.background_image.ptr());
-    for (auto const& layer : mask_layers())
-        load_image(layer.background_image.ptr());
-    load_image(border_image().source.ptr());
+    for (auto const& image : background_images())
+        load_image(image.ptr());
+    for (auto const& image : mask_images())
+        load_image(image.ptr());
+    load_image(border_image_source());
     Vector<RefPtr<CSS::CursorStyleValue const>> cursor_style_values;
     cursor_style_values.ensure_capacity(cursor().size());
     for (auto const& cursor_data : cursor()) {
@@ -436,9 +436,9 @@ void NodeWithStyle::refresh_style_from_arena(CSS::StyleRecordID record, void con
     m_style_record_identity = record;
     m_style_payloads = payloads;
     m_has_layout_derived_style = derived;
-    m_background_layers.clear();
-    m_mask_layers.clear();
-    m_border_image.clear();
+    m_background_images.clear();
+    m_mask_images.clear();
+    m_border_image_source.clear();
     m_list_style_image.clear();
     did_update_style_record();
     if (should_attach_resources)
@@ -536,9 +536,9 @@ void NodeWithStyle::set_style_record_identity(CSS::InstalledStyle const& install
         || CSS::ComputedValues::layout_affecting_group_payloads_differ(old_record_view.payloads, new_record_view.payloads);
 
     release_pinned_style_record();
-    m_background_layers.clear();
-    m_mask_layers.clear();
-    m_border_image.clear();
+    m_background_images.clear();
+    m_mask_images.clear();
+    m_border_image_source.clear();
     m_list_style_image.clear();
     m_style_record_identity = style_record_identity;
     publish_style_record_to_node_data();

@@ -850,9 +850,6 @@ static_assert(to_underlying(PositionAnchor::Type::Normal) == 0);
 static_assert(to_underlying(PositionAnchor::Type::None) == 1);
 static_assert(to_underlying(PositionAnchor::Type::Auto) == 2);
 static_assert(to_underlying(PositionAnchor::Type::Name) == 3);
-static_assert(to_underlying(BackgroundSize::Contain) == 0);
-static_assert(to_underlying(BackgroundSize::Cover) == 1);
-static_assert(to_underlying(BackgroundSize::LengthPercentage) == 2);
 static_assert(to_underlying(PaintOrder::Fill) == 0);
 static_assert(to_underlying(PaintOrder::Stroke) == 1);
 static_assert(to_underlying(PaintOrder::Markers) == 2);
@@ -931,26 +928,6 @@ WillChange ComputedValues::MiscResetValues::will_change_value() const
     return WillChange(move(entries));
 }
 
-static StyleValueVector style_value_items(ComputedValuesFFI::ComputedStyleValueHandle const& handle, Optional<StyleValueList::Separator> separator)
-{
-    auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(handle.pointer);
-    VERIFY(value);
-    if (value->tag == StyleValueFFI::StyleValueData::Tag::ValueList
-        && (!separator.has_value() || value->value_list.separator == to_underlying(*separator))) {
-        StyleValueVector items;
-        items.ensure_capacity(value->value_list.values.length);
-        for (size_t i = 0; i < value->value_list.values.length; ++i)
-            items.unchecked_append(StyleValue::wrap_rust_child(value->value_list.values.pointer[i]));
-        return items;
-    }
-    return { StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(value)) };
-}
-
-static StyleValueVector animation_items(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
-{
-    return style_value_items(handle, StyleValueList::Separator::Comma);
-}
-
 static StyleValueFFI::StyleValueData const* first_animation_item_data(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
 {
     auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(handle.pointer);
@@ -963,9 +940,9 @@ static StyleValueFFI::StyleValueData const* first_animation_item_data(ComputedVa
     return value;
 }
 
-static RefPtr<AbstractImageStyleValue const> first_abstract_image_value(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
+static RefPtr<AbstractImageStyleValue const> abstract_image_value(StyleValueFFI::StyleValueData const* image_data)
 {
-    auto const* image_data = first_animation_item_data(handle);
+    VERIFY(image_data);
     if (!AK::first_is_one_of(image_data->tag,
             StyleValueFFI::StyleValueData::Tag::Image,
             StyleValueFFI::StyleValueData::Tag::ImageSet,
@@ -973,13 +950,27 @@ static RefPtr<AbstractImageStyleValue const> first_abstract_image_value(Computed
             StyleValueFFI::StyleValueData::Tag::ConicGradient,
             StyleValueFFI::StyleValueData::Tag::RadialGradient))
         return nullptr;
-    auto image = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(image_data));
-    return image->as_abstract_image();
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(image_data))->as_abstract_image();
 }
 
-static StyleValueVector component_items(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
+static RefPtr<AbstractImageStyleValue const> first_abstract_image_value(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
 {
-    return style_value_items(handle, {});
+    return abstract_image_value(first_animation_item_data(handle));
+}
+
+// One entry per layer of a comma-separated image list, null where the layer has no image.
+static Vector<RefPtr<AbstractImageStyleValue const>> abstract_image_items(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
+{
+    auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(handle.pointer);
+    VERIFY(value);
+    if (value->tag != StyleValueFFI::StyleValueData::Tag::ValueList
+        || value->value_list.separator != to_underlying(StyleValueList::Separator::Comma))
+        return { abstract_image_value(value) };
+    Vector<RefPtr<AbstractImageStyleValue const>> images;
+    images.ensure_capacity(value->value_list.values.length);
+    for (size_t i = 0; i < value->value_list.values.length; ++i)
+        images.unchecked_append(abstract_image_value(static_cast<StyleValueFFI::StyleValueData const*>(value->value_list.values.pointer[i].pointer)));
+    return images;
 }
 
 RefPtr<AbstractImageStyleValue const> ComputedValues::InheritedListValues::list_style_image_value() const
@@ -1060,126 +1051,14 @@ Vector<CounterData, 0> ComputedValues::ContentValues::counter_set_value() const
     return counter_data_from_handle(counter_set);
 }
 
-BorderImageData ComputedValues::BorderValues::border_image_value() const
+RefPtr<AbstractImageStyleValue const> ComputedValues::BorderValues::border_image_source_value() const
 {
-    BorderImageData result;
-    auto source = animation_style_value(border_image_source);
-    if (source->is_abstract_image())
-        result.source = source->as_abstract_image();
-
-    auto slice_style_value = animation_style_value(border_image_slice);
-    auto const& slice = slice_style_value->as_border_image_slice();
-    auto slice_value = [](NonnullRefPtr<StyleValue const> value) -> BorderImageSliceValue {
-        if (value->is_number())
-            return value->as_number().number();
-        if (value->is_integer())
-            return static_cast<double>(value->as_integer().integer());
-        if (value->is_percentage())
-            return value->as_percentage().percentage();
-        return NonnullRefPtr<CalculatedStyleValue const> { value->as_calculated() };
-    };
-    result.slice = {
-        slice_value(slice.top()),
-        slice_value(slice.right()),
-        slice_value(slice.bottom()),
-        slice_value(slice.left()),
-    };
-    result.fill = slice.fill();
-
-    auto width_items = component_items(border_image_width);
-    auto width_value = [](NonnullRefPtr<StyleValue const> value) -> BorderImageWidthValue {
-        if (value->is_integer())
-            return static_cast<double>(value->as_integer().integer());
-        if (value->is_number() || (value->is_calculated() && value->as_calculated().resolves_to_number()))
-            return number_from_style_value(value, {});
-        if (value->is_keyword()) {
-            VERIFY(value->to_keyword() == Keyword::Auto);
-            return BorderImageWidthAuto {};
-        }
-        return LengthPercentage::from_style_value(value);
-    };
-    result.width = {
-        width_value(width_items[0]),
-        width_value(width_items[1 % width_items.size()]),
-        width_value(width_items[2 % width_items.size()]),
-        width_value(width_items[3 % width_items.size()]),
-    };
-    result.width_value_count = static_cast<u8>(width_items.size());
-
-    auto outset_items = component_items(border_image_outset);
-    auto outset_value = [](NonnullRefPtr<StyleValue const> value) -> BorderImageOutsetValue {
-        if (value->is_integer())
-            return static_cast<double>(value->as_integer().integer());
-        if (value->is_number() || (value->is_calculated() && value->as_calculated().resolves_to_number()))
-            return number_from_style_value(value, {});
-        return Length::from_style_value(value, {});
-    };
-    result.outset = {
-        outset_value(outset_items[0]),
-        outset_value(outset_items[1 % outset_items.size()]),
-        outset_value(outset_items[2 % outset_items.size()]),
-        outset_value(outset_items[3 % outset_items.size()]),
-    };
-    result.outset_value_count = static_cast<u8>(outset_items.size());
-
-    auto repeat_items = component_items(border_image_repeat);
-    result.repeat_x = keyword_to_border_image_repeat(repeat_items[0]->to_keyword()).value_or(BorderImageRepeat::Stretch);
-    result.repeat_y = keyword_to_border_image_repeat(repeat_items[1 % repeat_items.size()]->to_keyword()).value_or(BorderImageRepeat::Stretch);
-    return result;
+    return abstract_image_value(static_cast<StyleValueFFI::StyleValueData const*>(border_image_source.pointer));
 }
 
-Vector<BackgroundLayerData> ComputedValues::BackgroundValues::background_layers_value() const
+Vector<RefPtr<AbstractImageStyleValue const>> ComputedValues::BackgroundValues::background_images_value() const
 {
-    auto image_items = animation_items(background_image);
-    auto attachment_items = animation_items(background_attachment);
-    auto blend_mode_items = animation_items(background_blend_mode);
-    auto clip_items = animation_items(background_clip);
-    auto origin_items = animation_items(background_origin);
-    auto position_x_items = animation_items(background_position_x);
-    auto position_y_items = animation_items(background_position_y);
-    auto repeat_items = animation_items(background_repeat);
-    auto size_items = animation_items(background_size);
-
-    Vector<BackgroundLayerData> layers;
-    layers.ensure_capacity(image_items.size());
-    for (size_t index = 0; index < image_items.size(); ++index) {
-        auto const& image = image_items[index];
-        auto const& repeat = repeat_items[index % repeat_items.size()]->as_repeat_style();
-        auto const& size = size_items[index % size_items.size()];
-
-        BackgroundLayerData layer;
-        layer.image_style_value = image;
-        if (image->is_abstract_image())
-            layer.background_image = image->as_abstract_image();
-        layer.attachment = keyword_to_background_attachment(attachment_items[index % attachment_items.size()]->to_keyword()).release_value();
-        layer.blend_mode = keyword_to_mix_blend_mode(blend_mode_items[index % blend_mode_items.size()]->to_keyword()).release_value();
-        layer.clip = keyword_to_background_box(clip_items[index % clip_items.size()]->to_keyword()).release_value();
-        layer.origin = keyword_to_background_box(origin_items[index % origin_items.size()]->to_keyword()).release_value();
-        layer.position_x = LengthPercentage::from_style_value(position_x_items[index % position_x_items.size()]->as_edge().offset());
-        layer.position_y = LengthPercentage::from_style_value(position_y_items[index % position_y_items.size()]->as_edge().offset());
-        layer.repeat_x = repeat.repeat_x();
-        layer.repeat_y = repeat.repeat_y();
-
-        if (size->is_keyword()) {
-            switch (size->to_keyword()) {
-            case Keyword::Contain:
-                layer.size_type = BackgroundSize::Contain;
-                break;
-            case Keyword::Cover:
-                layer.size_type = BackgroundSize::Cover;
-                break;
-            default:
-                VERIFY_NOT_REACHED();
-            }
-        } else {
-            auto const& background_size = size->as_background_size();
-            layer.size_type = BackgroundSize::LengthPercentage;
-            layer.size_x = LengthPercentageOrAuto::from_style_value(background_size.size_x());
-            layer.size_y = LengthPercentageOrAuto::from_style_value(background_size.size_y());
-        }
-        layers.unchecked_append(move(layer));
-    }
-    return layers;
+    return abstract_image_items(background_image);
 }
 
 Optional<MaskReference> ComputedValues::MaskValues::mask_value() const
@@ -1209,77 +1088,9 @@ Optional<URL> ComputedValues::MaskValues::clip_path_value() const
     return {};
 }
 
-Vector<BackgroundLayerData> ComputedValues::MaskValues::mask_layers_value() const
+Vector<RefPtr<AbstractImageStyleValue const>> ComputedValues::MaskValues::mask_images_value() const
 {
-    auto image_items = animation_items(mask_image);
-    auto clip_items = animation_items(mask_clip);
-    auto composite_items = animation_items(mask_composite);
-    auto mode_items = animation_items(mask_mode);
-    auto origin_items = animation_items(mask_origin);
-    auto position_items = animation_items(mask_position);
-    auto repeat_items = animation_items(mask_repeat);
-    auto size_items = animation_items(mask_size);
-
-    Vector<BackgroundLayerData> layers;
-    layers.ensure_capacity(image_items.size());
-    for (size_t index = 0; index < image_items.size(); ++index) {
-        auto const& image = image_items[index];
-        auto const& clip = clip_items[index % clip_items.size()];
-        auto const& composite = composite_items[index % composite_items.size()];
-        auto const& mode = mode_items[index % mode_items.size()];
-        auto const& origin = origin_items[index % origin_items.size()];
-        auto const& position = position_items[index % position_items.size()]->as_position();
-        auto const& repeat = repeat_items[index % repeat_items.size()]->as_repeat_style();
-        auto const& size = size_items[index % size_items.size()];
-
-        BackgroundLayerData layer;
-        layer.origin = BackgroundBox::BorderBox;
-        layer.clip = BackgroundBox::BorderBox;
-        layer.image_style_value = image;
-        if (image->is_abstract_image())
-            layer.background_image = image->as_abstract_image();
-
-        auto clip_keyword = clip->to_keyword();
-        if (clip_keyword == Keyword::NoClip) {
-            layer.mask_clip_is_no_clip = true;
-        } else {
-            layer.mask_clip = keyword_to_coord_box(clip_keyword).release_value();
-            if (auto background_box = keyword_to_background_box(clip_keyword); background_box.has_value())
-                layer.clip = background_box.release_value();
-        }
-        layer.mask_composite = keyword_to_compositing_operator(composite->to_keyword()).release_value();
-        layer.mask_mode = keyword_to_masking_mode(mode->to_keyword()).release_value();
-
-        auto origin_keyword = origin->to_keyword();
-        layer.mask_origin = keyword_to_coord_box(origin_keyword).release_value();
-        if (auto background_box = keyword_to_background_box(origin_keyword); background_box.has_value())
-            layer.origin = background_box.release_value();
-
-        layer.position_x = LengthPercentage::from_style_value(position.edge_x()->offset());
-        layer.position_y = LengthPercentage::from_style_value(position.edge_y()->offset());
-        layer.repeat_x = repeat.repeat_x();
-        layer.repeat_y = repeat.repeat_y();
-
-        if (size->is_keyword()) {
-            switch (size->to_keyword()) {
-            case Keyword::Contain:
-                layer.size_type = BackgroundSize::Contain;
-                break;
-            case Keyword::Cover:
-                layer.size_type = BackgroundSize::Cover;
-                break;
-            default:
-                VERIFY_NOT_REACHED();
-            }
-        } else {
-            auto const& background_size = size->as_background_size();
-            layer.size_type = BackgroundSize::LengthPercentage;
-            layer.size_x = LengthPercentageOrAuto::from_style_value(background_size.size_x());
-            layer.size_y = LengthPercentageOrAuto::from_style_value(background_size.size_y());
-        }
-        layers.unchecked_append(move(layer));
-    }
-    return layers;
+    return abstract_image_items(mask_image);
 }
 
 Vector<ComputedAnimationName> ComputedValues::AnimationValues::animation_names_value() const

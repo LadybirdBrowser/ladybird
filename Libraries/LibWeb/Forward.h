@@ -450,7 +450,6 @@ enum class TextUnderlinePositionVertical : u8;
 enum class TransitionBehavior : u8;
 enum class WritingMode : u8;
 
-struct BackgroundLayerData;
 struct CalculationContext;
 struct CalculationResolutionContext;
 struct ColorResolutionContext;

@@ -470,17 +470,19 @@ public:
     Color outline_color() const { return Color::from_bgra(style_group<CSS::ComputedValues::MiscResetValues>().outline_color); }
     Color column_rule_color() const { return Color::from_bgra(style_group<CSS::ComputedValues::MiscResetValues>().column_rule_color); }
     Color background_color() const { return style_group<CSS::ComputedValues::BackgroundValues>().background_color_value(); }
-    Vector<CSS::BackgroundLayerData> const& background_layers() const
+    // One image per background layer, null where the layer has no image.
+    ReadonlySpan<RefPtr<CSS::AbstractImageStyleValue const>> background_images() const
     {
-        if (!m_background_layers.has_value())
-            m_background_layers = style_group<CSS::ComputedValues::BackgroundValues>().background_layers_value();
-        return *m_background_layers;
+        if (!m_background_images.has_value())
+            m_background_images = style_group<CSS::ComputedValues::BackgroundValues>().background_images_value();
+        return *m_background_images;
     }
-    Vector<CSS::BackgroundLayerData> const& mask_layers() const
+    // One image per mask layer, null where the layer has no image.
+    ReadonlySpan<RefPtr<CSS::AbstractImageStyleValue const>> mask_images() const
     {
-        if (!m_mask_layers.has_value())
-            m_mask_layers = style_group<CSS::ComputedValues::MaskValues>().mask_layers_value();
-        return *m_mask_layers;
+        if (!m_mask_images.has_value())
+            m_mask_images = style_group<CSS::ComputedValues::MaskValues>().mask_images_value();
+        return *m_mask_images;
     }
     CSS::AbstractImageStyleValue const* list_style_image() const
     {
@@ -497,11 +499,11 @@ public:
     CSS::BorderData const& border_top() const { return style_group<CSS::ComputedValues::BorderValues>().border_top_value(); }
     CSS::BorderData const& border_right() const { return style_group<CSS::ComputedValues::BorderValues>().border_right_value(); }
     CSS::BorderData const& border_bottom() const { return style_group<CSS::ComputedValues::BorderValues>().border_bottom_value(); }
-    CSS::BorderImageData const& border_image() const
+    CSS::AbstractImageStyleValue const* border_image_source() const
     {
-        if (!m_border_image.has_value())
-            m_border_image = style_group<CSS::ComputedValues::BorderValues>().border_image_value();
-        return *m_border_image;
+        if (!m_border_image_source.has_value())
+            m_border_image_source = style_group<CSS::ComputedValues::BorderValues>().border_image_source_value();
+        return m_border_image_source->ptr();
     }
     Color color() const { return style_group<CSS::ComputedValues::InheritedTextValues>().color_value(); }
     Color webkit_text_fill_color() const { return style_group<CSS::ComputedValues::InheritedTextValues>().webkit_text_fill_color_value(); }
@@ -592,9 +594,9 @@ private:
     // or has the arena adopt one it derived, and a job that derives one tells the layout node.
     bool m_has_layout_derived_style { false };
     CSS::StyleRecordID m_style_record_identity;
-    mutable Optional<Vector<CSS::BackgroundLayerData>> m_background_layers;
-    mutable Optional<Vector<CSS::BackgroundLayerData>> m_mask_layers;
-    mutable Optional<CSS::BorderImageData> m_border_image;
+    mutable Optional<Vector<RefPtr<CSS::AbstractImageStyleValue const>>> m_background_images;
+    mutable Optional<Vector<RefPtr<CSS::AbstractImageStyleValue const>>> m_mask_images;
+    mutable Optional<RefPtr<CSS::AbstractImageStyleValue const>> m_border_image_source;
     mutable Optional<RefPtr<CSS::AbstractImageStyleValue const>> m_list_style_image;
 };
 

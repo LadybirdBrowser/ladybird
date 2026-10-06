@@ -324,12 +324,6 @@ public:
     static PaintOrderList paint_order() { return { PaintOrder::Fill, PaintOrder::Stroke, PaintOrder::Markers }; }
 };
 
-enum class BackgroundSize {
-    Contain,
-    Cover,
-    LengthPercentage,
-};
-
 // https://svgwg.org/svg2-draft/painting.html#SpecifyingPaint
 class SVGPaint {
 public:
@@ -390,61 +384,6 @@ public:
 
 private:
     URL m_url;
-};
-
-struct BackgroundLayerData {
-    RefPtr<AbstractImageStyleValue const> background_image;
-    RefPtr<StyleValue const> image_style_value;
-    BackgroundAttachment attachment { BackgroundAttachment::Scroll };
-    BackgroundBox origin { BackgroundBox::PaddingBox };
-    BackgroundBox clip { BackgroundBox::BorderBox };
-    LengthPercentage position_x { Percentage(0) };
-    LengthPercentage position_y { Percentage(0) };
-    BackgroundSize size_type { BackgroundSize::LengthPercentage };
-    LengthPercentageOrAuto size_x { LengthPercentageOrAuto::make_auto() };
-    LengthPercentageOrAuto size_y { LengthPercentageOrAuto::make_auto() };
-    Repetition repeat_x { Repetition::Repeat };
-    Repetition repeat_y { Repetition::Repeat };
-    MixBlendMode blend_mode { MixBlendMode::Normal };
-    bool mask_clip_is_no_clip { false };
-    CoordBox mask_clip { CoordBox::BorderBox };
-    CompositingOperator mask_composite { CompositingOperator::Add };
-    MaskingMode mask_mode { MaskingMode::MatchSource };
-    CoordBox mask_origin { CoordBox::BorderBox };
-
-    bool operator==(BackgroundLayerData const&) const = default;
-};
-
-struct BorderImageWidthAuto {
-    bool operator==(BorderImageWidthAuto const&) const = default;
-};
-
-using BorderImageSliceValue = Variant<double, Percentage, NonnullRefPtr<CalculatedStyleValue const>>;
-using BorderImageWidthValue = Variant<double, LengthPercentage, BorderImageWidthAuto>;
-using BorderImageOutsetValue = Variant<double, Length>;
-
-template<typename T>
-struct BorderImageSideValues {
-    T top;
-    T right;
-    T bottom;
-    T left;
-
-    bool operator==(BorderImageSideValues const&) const = default;
-};
-
-struct BorderImageData {
-    RefPtr<AbstractImageStyleValue const> source;
-    BorderImageSideValues<BorderImageSliceValue> slice { Percentage(100), Percentage(100), Percentage(100), Percentage(100) };
-    BorderImageSideValues<BorderImageWidthValue> width { 1.0, 1.0, 1.0, 1.0 };
-    BorderImageSideValues<BorderImageOutsetValue> outset { 0.0, 0.0, 0.0, 0.0 };
-    u8 width_value_count { 1 };
-    u8 outset_value_count { 1 };
-    bool fill { false };
-    BorderImageRepeat repeat_x { BorderImageRepeat::Stretch };
-    BorderImageRepeat repeat_y { BorderImageRepeat::Stretch };
-
-    bool operator==(BorderImageData const&) const = default;
 };
 
 struct BorderData {
@@ -901,7 +840,6 @@ public:
     Color color() const { return m_inherited.text->color_value(); }
     Color background_color() const { return m_noninherited.background->background_color_value(); }
     RefPtr<StyleValue const> background_color_style_value() const;
-    Vector<BackgroundLayerData> mask_layers() const { return m_noninherited.mask_data->mask_layers_value(); }
 
     Color webkit_text_fill_color() const { return m_inherited.text->webkit_text_fill_color_value(); }
 
@@ -1317,7 +1255,7 @@ public:
         Optional<MaskReference> mask_value() const;
         MaskType mask_type_value() const;
         RefPtr<AbstractImageStyleValue const> mask_image_value() const;
-        Vector<BackgroundLayerData> mask_layers_value() const;
+        Vector<RefPtr<AbstractImageStyleValue const>> mask_images_value() const;
         // https://drafts.fxtf.org/css-masking/#the-clip-path
         // TODO: Support basic shapes and geometry boxes.
         Optional<URL> clip_path_value() const;
@@ -1459,7 +1397,7 @@ public:
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Background;
 
         Color background_color_value() const { return Color::from_bgra(background_color); }
-        Vector<BackgroundLayerData> background_layers_value() const;
+        Vector<RefPtr<AbstractImageStyleValue const>> background_images_value() const;
 
         bool operator==(BackgroundValues const& other) const
         {
@@ -1475,7 +1413,7 @@ public:
         BorderData const& border_top_value() const { return reinterpret_cast<BorderData const&>(border_top); }
         BorderData const& border_right_value() const { return reinterpret_cast<BorderData const&>(border_right); }
         BorderData const& border_bottom_value() const { return reinterpret_cast<BorderData const&>(border_bottom); }
-        BorderImageData border_image_value() const;
+        RefPtr<AbstractImageStyleValue const> border_image_source_value() const;
 
         bool operator==(BorderValues const& other) const
         {

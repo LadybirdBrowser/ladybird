@@ -59,10 +59,8 @@ bool HTMLHtmlElement::should_use_body_background_properties(Layout::BegunRead co
     if (!body_layout_node || has_containment(*body_layout_node))
         return false;
 
-    auto background_color = layout_node->background_color();
-    auto const& background_layers = layout_node->background_layers();
-
-    return !any_of(background_layers, [](auto const& layer) { return layer.background_image != nullptr; }) && background_color == Color::Transparent;
+    return layout_node->background_color() == Color::Transparent
+        && !any_of(layout_node->background_images(), [](auto const& image) { return image != nullptr; });
 }
 
 }
