@@ -395,31 +395,30 @@ StyleAtomID StyleEngine::intern_attribute_name(Utf16FlyString const& local_name,
 StyleAtomID StyleEngine::intern_attribute_value(StyleAtomID name, Utf16String const& value)
 {
     auto atom = intern_atom(Utf16FlyString { value });
-    if (!attribute_name_requires_value_text(name))
-        return atom;
-
-    publish_attribute_value_text(atom, value);
+    if (!attribute_value_text_is_known_unread(name))
+        publish_attribute_value_text(name, atom, value);
     return atom;
 }
 
 void StyleEngine::backfill_attribute_value_text_if_required(StyleAtomID name, Utf16String const& value)
 {
-    if (!attribute_name_requires_value_text(name))
+    if (attribute_value_text_is_known_unread(name))
         return;
 
     auto atom = intern_atom(Utf16FlyString { value });
-    publish_attribute_value_text(atom, value);
+    publish_attribute_value_text(name, atom, value);
 }
 
-void StyleEngine::publish_attribute_value_text(StyleAtomID atom, Utf16View value)
+void StyleEngine::publish_attribute_value_text(StyleAtomID name, StyleAtomID atom, Utf16View value)
 {
-    // The engine holds one copy of the text per currently used value, and keeps the one it holds where it still has
-    // it, so the host hands the text over without asking whether it survived reclamation.
+    // The engine holds one copy of the text per currently used value that something reads, and keeps the one it holds
+    // where it still has it, so the host hands the text over without asking whether it survived reclamation, or
+    // whether anything reads the name.
     Vector<u16> code_units;
     code_units.ensure_capacity(value.length_in_code_units());
     for (size_t i = 0; i < value.length_in_code_units(); ++i)
         code_units.unchecked_append(value.code_unit_at(i));
-    StyleEngineFFI::style_engine_set_attribute_value_text(host(), atom, code_units);
+    StyleEngineFFI::style_engine_set_attribute_value_text(host(), name, atom, code_units);
 }
 
 bool StyleEngine::refresh_attribute_value_text_requirements(Layout::BegunRead const& read)
@@ -428,23 +427,24 @@ bool StyleEngine::refresh_attribute_value_text_requirements(Layout::BegunRead co
     if (version == m_attribute_value_text_requirements_version)
         return false;
     m_attribute_value_text_requirements_version = version;
-    m_attribute_names_requiring_value_text.clear();
+    m_attribute_names_with_unread_value_text.clear();
     return true;
 }
 
-bool StyleEngine::attribute_name_requires_value_text(StyleAtomID name)
+bool StyleEngine::attribute_value_text_is_known_unread(StyleAtomID name)
 {
-    return m_attribute_names_requiring_value_text.ensure(name, [&] {
-        // The host holds which names the engine's selectors read the value text of as of its last job.
-        Layout::ForcedReadScope read { render_document() };
-        // The host interned every name it asks about, with its forms.
-        auto it = m_attribute_name_forms.find(name);
-        VERIFY(it != m_attribute_name_forms.end());
-        auto const& forms = it->value;
-        return StyleEngineFFI::style_engine_attribute_name_requires_value_text(m_render_document->host(), read, name.value(),
-            forms.any_namespace.value(), forms.folded_name.value(), forms.folded_local.value(),
-            forms.substitution_name.is_empty() ? nullptr : forms.substitution_name.data(), forms.substitution_name.size());
-    });
+    if (m_attribute_names_with_unread_value_text.contains(name))
+        return true;
+    // The host interned every name it asks about, with its forms.
+    auto it = m_attribute_name_forms.find(name);
+    VERIFY(it != m_attribute_name_forms.end());
+    auto const& forms = it->value;
+    if (!StyleEngineFFI::style_engine_attribute_value_text_is_known_unread(host(), name.value(), forms.any_namespace.value(),
+            forms.folded_name.value(), forms.folded_local.value(),
+            forms.substitution_name.is_empty() ? nullptr : forms.substitution_name.data(), forms.substitution_name.size()))
+        return false;
+    m_attribute_names_with_unread_value_text.set(name);
+    return true;
 }
 
 void StyleEngine::set_text_data(StyleNodeID node, Utf16String const& data)
@@ -946,7 +946,7 @@ StyleEngine::PublishedStyleTransaction StyleEngine::publish_style_transaction_vi
             reclaimed_atoms.set(atom_id);
             m_published_language_atoms.remove(atom_id);
             m_published_custom_property_names.remove(atom_id);
-            m_attribute_names_requiring_value_text.remove(atom_id);
+            m_attribute_names_with_unread_value_text.remove(atom_id);
             if (reclaimed.raw == 0)
                 continue;
             auto atom = m_atoms.take(reclaimed.raw);

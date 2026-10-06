@@ -11,5 +11,5 @@ adding a font face: state in the next task: in-flight
 adding a font face: state after the write: in-flight
 adding a font face: after: the text width changed: true
 a style element's media: state in the next task: in-flight
-a style element's media: state after the write: landed
+a style element's media: state after the write: in-flight
 a style element's media: after: width 784

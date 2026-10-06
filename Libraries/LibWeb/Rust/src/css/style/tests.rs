@@ -11658,6 +11658,49 @@ fn engine_atom_sweeps_preserve_roots_and_purge_reused_identities() {
 }
 
 #[test]
+fn engine_keeps_handed_attribute_value_text_only_where_a_selector_reads_the_name() {
+    let (mut engine, _) = linear_document();
+    let name = engine.intern_atom(0x1000);
+    let before_rule = engine.intern_atom(0x1001);
+    let after_rule = engine.intern_atom(0x1002);
+    engine.note_attribute_name_forms(name, index::AttributeNameForms::default());
+    let text = [u16::from(b'n'), u16::from(b'e'), u16::from(b'w')];
+    let hand_over = |engine: &mut StyleEngine, value| {
+        super::boundary::StyleChange::SetAttributeValueText {
+            name,
+            value,
+            text: text.into(),
+        }
+        .apply(engine);
+    };
+
+    // The host hands over the text where it does not know whether anything reads the name.
+    hand_over(&mut engine, before_rule);
+    assert!(!engine.has_attribute_value_text(before_rule));
+
+    let mut builder = selector::SelectorProgramBuilder::new();
+    let (value_offset, value_length) = builder.push_literal(&text[..2]);
+    let prefix = builder.push_feature(selector::FeatureTest::Attribute(selector::AttributeTest {
+        name,
+        any_namespace: false,
+        folded: name,
+        fold_in_namespace: StyleAtomID::NONE,
+        operator: selector::AttributeOperator::Prefix,
+        value_atom: StyleAtomID::NONE,
+        value_offset,
+        value_length,
+        case: selector::AttributeCase::Sensitive,
+    }));
+    let compound = builder.push_compound(&[prefix]);
+    builder.push_entry(compound);
+    engine.note_attribute_value_text_names(&builder.finish());
+    assert!(engine.attribute_name_requires_value_text(name));
+
+    hand_over(&mut engine, after_rule);
+    assert!(engine.has_attribute_value_text(after_rule));
+}
+
+#[test]
 fn engine_atom_reuse_replaces_catalog_text_and_name_forms() {
     let (mut engine, nodes) = linear_document();
     let old_name = engine.intern_atom(0x1000);

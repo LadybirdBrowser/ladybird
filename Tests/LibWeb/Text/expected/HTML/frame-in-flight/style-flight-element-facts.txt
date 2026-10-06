@@ -2,10 +2,10 @@ a popover shown: state in the next task: in-flight
 a popover shown: state after the write: in-flight
 a popover shown: after: open: true, position: fixed
 disabled inputs: state in the next task: in-flight
-disabled inputs: state after the write: landed
+disabled inputs: state after the write: in-flight
 disabled inputs: after: rgb(0, 128, 0) rgb(0, 128, 0)
 a direction: state in the next task: in-flight
-a direction: state after the write: landed
+a direction: state after the write: in-flight
 a direction: after: rgb(0, 0, 255)
 a slotted child: state in the next task: in-flight
 a slotted child: state after the write: in-flight
