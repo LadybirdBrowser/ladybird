@@ -151,15 +151,7 @@ Utf16String utf16_string_from_preload_scanner(u8 const* pointer, size_t length)
 bool media_attribute_matches_environment(DOM::Document const& document, RustFfiPreloadScannerEntry const& entry)
 {
     auto media = utf16_string_from_preload_scanner(entry.media_ptr, entry.media_len);
-    if (media.is_empty())
-        return true;
-
-    auto media_queries = parse_media_query_list(media);
-    for (auto const& media_query : media_queries) {
-        if (media_query->evaluate(document))
-            return true;
-    }
-    return false;
+    return CSS::RustMediaList::parse(media).evaluate(document);
 }
 
 // Speculatively fetches url the way "fetch a single module script" would for a module script element or a modulepreload

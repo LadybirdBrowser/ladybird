@@ -610,15 +610,7 @@ void HTMLLinkElement::fetch_and_process_linked_preload_resource()
 
 static bool media_attribute_matches_environment(DOM::Document const& document, Utf16View media)
 {
-    if (media.is_empty())
-        return true;
-
-    auto media_queries = parse_media_query_list(media);
-    for (auto const& media_query : media_queries) {
-        if (media_query->evaluate(document))
-            return true;
-    }
-    return false;
+    return CSS::RustMediaList::parse(media).evaluate(document);
 }
 
 static Optional<Fetch::Infrastructure::Request::Destination> module_preload_destination_from_as_attribute(Utf16View as_attribute)

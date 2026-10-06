@@ -341,7 +341,6 @@ class LengthPercentage;
 class LengthPercentageOrAuto;
 class LengthStyleValue;
 class MediaList;
-class MediaQuery;
 class MediaQueryList;
 class MediaQueryListEvent;
 class Number;
