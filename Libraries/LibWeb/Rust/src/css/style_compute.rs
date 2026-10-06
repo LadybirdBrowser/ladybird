@@ -1368,7 +1368,7 @@ pub(crate) struct ExternalValueDependencies {
     pub inheritance_dependent: bool,
 }
 
-fn container_relative_length_unit_bit(unit: u8) -> u8 {
+pub(crate) fn container_relative_length_unit_bit(unit: u8) -> u8 {
     match LENGTH_UNIT_NAMES[unit as usize] {
         "cqw" => 1 << 0,
         "cqh" => 1 << 1,

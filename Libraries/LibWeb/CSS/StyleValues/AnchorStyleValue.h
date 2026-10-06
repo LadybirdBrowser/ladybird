@@ -6,39 +6,20 @@
 
 #pragma once
 
-#include <AK/Utf16FlyString.h>
-#include <LibWeb/CSS/PercentageOr.h>
-#include <LibWeb/CSS/StyleValues/AbstractNonMathCalcFunctionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
 // https://drafts.csswg.org/css-anchor-position-1/#funcdef-anchor
-class AnchorStyleValue final : public AbstractNonMathCalcFunctionStyleValue {
+class AnchorStyleValue final : public StyleValue {
 public:
     virtual ~AnchorStyleValue() override = default;
-
-    virtual Optional<CalcNodeRef> resolve_to_calculation_node(CalculationContext const&, CalculationResolutionContext const&) const override;
-
-    Optional<Utf16FlyString> anchor_name() const
-    {
-        if (!m_value->anchor.has_anchor_name)
-            return {};
-        return css_string_from_rust(&m_value->anchor.anchor_name);
-    }
-    ValueComparingNonnullRefPtr<StyleValue const> anchor_side() const
-    {
-        return wrap_rust_child(m_value->anchor.anchor_side);
-    }
-    ValueComparingRefPtr<StyleValue const> fallback_value() const
-    {
-        return wrap_rust_child_or_null(m_value->anchor.fallback_value);
-    }
 
 private:
     friend class StyleValue;
 
     explicit AnchorStyleValue(StyleValueFFI::StyleValueData const* data)
-        : AbstractNonMathCalcFunctionStyleValue(Type::Anchor, data)
+        : StyleValue(Type::Anchor, data)
     {
     }
 };

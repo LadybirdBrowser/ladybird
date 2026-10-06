@@ -23,7 +23,6 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleComputeFFI.h>
-#include <LibWeb/CSS/StyleValues/AbstractNonMathCalcFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
@@ -37,12 +36,6 @@
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 
 namespace Web::CSS {
-
-static ValueComparingNonnullRefPtr<StyleValue const> wrap_borrowed_style_value_data(void const* data)
-{
-    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-        static_cast<StyleValueFFI::StyleValueData const*>(data)));
-}
 
 // Marshals a numeric type into its FFI mirror.
 static StyleValueFFI::FfiNumericType to_ffi_numeric_type(Optional<NumericType> const& type)
@@ -151,8 +144,11 @@ static Optional<NumericType> from_ffi_numeric_type(StyleValueFFI::FfiNumericType
 }
 
 struct CalcResolutionSnapshot {
-    CalcResolutionSnapshot(StyleValueFFI::CalcNode const* root, CalculationContext const& calculation_context, CalculationResolutionContext const& resolution_context)
+    explicit CalcResolutionSnapshot(CalculationResolutionContext const& resolution_context)
+        : element_facts { resolution_context.length_resolution_context.has_value() ? &*resolution_context.length_resolution_context : nullptr, resolution_context.abstract_element }
+        , ffi_element_facts(element_facts.to_ffi())
     {
+        ffi_context.element_facts = &ffi_element_facts;
         if (resolution_context.length_resolution_context.has_value()) {
             length_resolution_context = to_ffi_length_resolution_context(*resolution_context.length_resolution_context);
             ffi_context.length_resolution_context = &length_resolution_context.value();
@@ -179,51 +175,13 @@ struct CalcResolutionSnapshot {
                 ffi_context.basis_value = time.raw_value();
                 ffi_context.basis_unit = to_underlying(time.unit());
             });
-
-        external_resolutions = StyleValueFFI::rust_calc_external_resolutions(root, ffi_context.basis_kind, ffi_context.basis_value, ffi_context.basis_unit);
-        ffi_context.external_resolutions = external_resolutions.resolutions;
-        ffi_context.external_resolution_count = external_resolutions.resolution_count;
-        for (auto& resolution : Span<StyleValueFFI::FfiCalcExternalResolution> { external_resolutions.resolutions, external_resolutions.resolution_count }) {
-            switch (resolution.kind) {
-            case StyleValueFFI::FfiCalcExternalResolutionKind::NonMathFunction: {
-                auto function = wrap_borrowed_style_value_data(resolution.source);
-                auto resolved = static_cast<AbstractNonMathCalcFunctionStyleValue const&>(*function).resolve_to_calculation_node(calculation_context, resolution_context);
-                if (resolved.has_value())
-                    resolution.resolved_node = resolved->release();
-                break;
-            }
-            case StyleValueFFI::FfiCalcExternalResolutionKind::RandomSharing: {
-                auto sharing = wrap_borrowed_style_value_data(resolution.source);
-                // When we are in the absolutization process we should absolutize the sharing options.
-                if (resolution_context.length_resolution_context.has_value()) {
-                    ComputationContext context { resolution_context.length_resolution_context.value(), resolution_context.abstract_element };
-                    auto absolutized = sharing->absolutized(context);
-                    resolution.resolved_style_value = StyleValueFFI::rust_style_value_retain(absolutized->rust_style_value_data());
-                    resolution.has_number = true;
-                    resolution.number = absolutized->as_random_value_sharing().random_base_value();
-                } else if (resolution_context.abstract_element.has_value() || !resolution_context.percentage_basis.has<Empty>()) {
-                    // NB: We don't want to resolve this before computation time even if it's possible.
-                    resolution.has_number = true;
-                    resolution.number = sharing->as_random_value_sharing().random_base_value();
-                }
-                break;
-            }
-            case StyleValueFFI::FfiCalcExternalResolutionKind::Length:
-                if (resolution_context.length_resolution_context.has_value()) {
-                    resolution.has_number = true;
-                    resolution.number = Length { resolution.input_value, static_cast<LengthUnit>(resolution.unit_or_channel) }.to_px(*resolution_context.length_resolution_context).to_double();
-                }
-                break;
-            default:
-                VERIFY_NOT_REACHED();
-            }
-        }
     }
 
-    ~CalcResolutionSnapshot() { StyleValueFFI::rust_calc_external_resolutions_release(external_resolutions.storage); }
+    CalcResolutionSnapshot(CalcResolutionSnapshot const&) = delete;
 
+    ElementFactsForRust element_facts;
+    StyleValueFFI::FfiElementFacts ffi_element_facts;
     Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_resolution_context;
-    StyleValueFFI::FfiCalcExternalResolutions external_resolutions {};
     StyleValueFFI::FfiCalcResolutionContext ffi_context {};
 };
 
@@ -240,13 +198,8 @@ bool CalculatedStyleValue::equals(StyleValue const& other) const
 // https://drafts.csswg.org/css-values-4/#calc-computed-value
 Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_value(CalculationResolutionContext const& resolution_context, bool apply_censoring_and_clamping) const
 {
-    return resolve_value(calculation_context(), resolution_context, apply_censoring_and_clamping);
-}
-
-Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_value(CalculationContext const& calculation_context, CalculationResolutionContext const& resolution_context, bool apply_censoring_and_clamping) const
-{
     // The resolution runs in the Rust style computation core.
-    CalcResolutionSnapshot resolution_snapshot { m_value->calculated.rust_calculation.node, calculation_context, resolution_context };
+    CalcResolutionSnapshot resolution_snapshot { resolution_context };
 
     auto rust_result = StyleValueFFI::rust_calc_resolve(m_value.operator->(), &resolution_snapshot.ffi_context, apply_censoring_and_clamping);
     if (!rust_result.resolved)
@@ -257,7 +210,7 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
 Optional<Angle> CalculatedStyleValue::resolve_angle(CalculationResolutionContext const& context) const
 {
     auto calculation_context = this->calculation_context();
-    auto result = resolve_value(calculation_context, context);
+    auto result = resolve_value(context);
 
     if (result.has_value() && result->type.has_value() && result->type->matches_angle(calculation_context.percentages_resolve_as))
         return Angle::make_degrees(result->value);
@@ -268,7 +221,7 @@ Optional<Angle> CalculatedStyleValue::resolve_angle(CalculationResolutionContext
 Optional<Flex> CalculatedStyleValue::resolve_flex(CalculationResolutionContext const& context) const
 {
     auto calculation_context = this->calculation_context();
-    auto result = resolve_value(calculation_context, context);
+    auto result = resolve_value(context);
 
     if (result.has_value() && result->type.has_value() && result->type->matches_flex(calculation_context.percentages_resolve_as))
         return Flex::make_fr(result->value);
@@ -279,7 +232,7 @@ Optional<Flex> CalculatedStyleValue::resolve_flex(CalculationResolutionContext c
 Optional<Length> CalculatedStyleValue::resolve_length(CalculationResolutionContext const& context) const
 {
     auto calculation_context = this->calculation_context();
-    auto result = resolve_value(calculation_context, context);
+    auto result = resolve_value(context);
 
     if (result.has_value() && result->type.has_value() && result->type->matches_length(calculation_context.percentages_resolve_as))
         return Length::make_px(result->value);
@@ -290,7 +243,7 @@ Optional<Length> CalculatedStyleValue::resolve_length(CalculationResolutionConte
 Optional<double> CalculatedStyleValue::resolve_raw_length(CalculationResolutionContext const& context) const
 {
     auto calculation_context = this->calculation_context();
-    auto result = resolve_value(calculation_context, context, false);
+    auto result = resolve_value(context, false);
 
     if (result.has_value() && result->type.has_value() && result->type->matches_length(calculation_context.percentages_resolve_as))
         return result->value;
@@ -311,7 +264,7 @@ Optional<Percentage> CalculatedStyleValue::resolve_percentage(CalculationResolut
 Optional<Resolution> CalculatedStyleValue::resolve_resolution(CalculationResolutionContext const& context) const
 {
     auto calculation_context = this->calculation_context();
-    auto result = resolve_value(calculation_context, context);
+    auto result = resolve_value(context);
 
     if (result.has_value() && result->type.has_value() && result->type->matches_resolution(calculation_context.percentages_resolve_as))
         return Resolution::make_dots_per_pixel(result->value);
@@ -322,7 +275,7 @@ Optional<Resolution> CalculatedStyleValue::resolve_resolution(CalculationResolut
 Optional<Time> CalculatedStyleValue::resolve_time(CalculationResolutionContext const& context) const
 {
     auto calculation_context = this->calculation_context();
-    auto result = resolve_value(calculation_context, context);
+    auto result = resolve_value(context);
 
     if (result.has_value() && result->type.has_value() && result->type->matches_time(calculation_context.percentages_resolve_as))
         return Time::make_seconds(result->value);
@@ -333,7 +286,7 @@ Optional<Time> CalculatedStyleValue::resolve_time(CalculationResolutionContext c
 Optional<double> CalculatedStyleValue::resolve_number(CalculationResolutionContext const& context) const
 {
     auto calculation_context = this->calculation_context();
-    auto result = resolve_value(calculation_context, context);
+    auto result = resolve_value(context);
 
     if (result.has_value() && result->type.has_value() && result->type->matches_number(calculation_context.percentages_resolve_as))
         return result->value;
@@ -344,7 +297,7 @@ Optional<double> CalculatedStyleValue::resolve_number(CalculationResolutionConte
 Optional<i32> CalculatedStyleValue::resolve_integer(CalculationResolutionContext const& context) const
 {
     auto calculation_context = this->calculation_context();
-    auto result = resolve_value(calculation_context, context);
+    auto result = resolve_value(context);
 
     if (result.has_value() && result->type.has_value() && result->type->matches_number(calculation_context.percentages_resolve_as))
         return round_to_nearest_integer(result->value);
@@ -355,7 +308,7 @@ Optional<i32> CalculatedStyleValue::resolve_integer(CalculationResolutionContext
 RefPtr<StyleValue const> CalculatedStyleValue::resolve_as_style_value(CalculationResolutionContext const& context) const
 {
     auto calculation_context = this->calculation_context();
-    auto result = resolve_value(calculation_context, context);
+    auto result = resolve_value(context);
     if (!result.has_value() || !result->type.has_value())
         return {};
 
@@ -592,7 +545,7 @@ Optional<NumericType> CalcNodeRef::determine_type(CalculationContext const& cont
 // https://drafts.csswg.org/css-values-4/#calc-simplification
 CalcNodeRef simplify_a_calculation_tree(CalcNodeRef const& root, CalculationContext const& context, CalculationResolutionContext const& resolution_context)
 {
-    CalcResolutionSnapshot resolution_snapshot { root.node(), context, resolution_context };
+    CalcResolutionSnapshot resolution_snapshot { resolution_context };
 
     auto resolve_as_base = context.percentages_resolve_as.has_value()
         ? NumericType::base_type_from_value_type(*context.percentages_resolve_as)

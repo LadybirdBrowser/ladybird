@@ -202,29 +202,31 @@ pub(crate) unsafe fn resolve_calc_with_external_resolutions(
     resolve_non_math_function: Option<unsafe extern "C" fn(*mut c_void, *const c_void) -> *const c_void>,
 ) -> crate::css::calc::FfiResolvedCalc {
     use crate::css::calc::{
-        FfiCalcExternalResolutionKind, calc_root_from_calculated, rust_calc_external_resolutions,
-        rust_calc_external_resolutions_release, rust_calc_resolve,
+        CalcExternalResolutionKind, CalcNode, calc_root_from_calculated, collect_external_resolutions,
+        resolve_calculated,
     };
 
-    let mut context = px_calc_resolution_context(percentage_basis);
-    let root = unsafe { calc_root_from_calculated(calculated) };
-    let external =
-        unsafe { rust_calc_external_resolutions(root, context.basis_kind, context.basis_value, context.basis_unit) };
-    context.external_resolutions = external.resolutions;
-    context.external_resolution_count = external.resolution_count;
-    if let Some(resolve_non_math_function) = resolve_non_math_function
-        && external.resolution_count > 0
-    {
-        for resolution in unsafe { std::slice::from_raw_parts_mut(external.resolutions, external.resolution_count) } {
-            if resolution.kind == FfiCalcExternalResolutionKind::NonMathFunction {
-                resolution.resolved_node =
-                    unsafe { resolve_non_math_function(callback_context, resolution.source) }.cast();
+    let context = px_calc_resolution_context(percentage_basis);
+    let root = unsafe { &*calc_root_from_calculated(calculated) };
+    let mut externals = Vec::new();
+    collect_external_resolutions(root, &mut externals);
+    // The resolver hands back one reference to each node, which these keep until the resolution is done.
+    let mut resolved_nodes = Vec::new();
+    if let Some(resolve_non_math_function) = resolve_non_math_function {
+        for resolution in &mut externals {
+            if resolution.kind == CalcExternalResolutionKind::NonMathFunction {
+                let node = unsafe { resolve_non_math_function(callback_context, resolution.source) }.cast::<CalcNode>();
+                if !node.is_null() {
+                    resolved_nodes.push(unsafe { std::sync::Arc::from_raw(node) });
+                }
+                resolution.resolved_node = node;
             }
         }
     }
-    let result = unsafe { rust_calc_resolve(calculated, &raw const context, true) };
-    unsafe {
-        rust_calc_external_resolutions_release(external.storage);
-    }
-    result
+    resolve_calculated(
+        unsafe { &*calculated.cast::<crate::css::style_value::StyleValueData>() },
+        &context,
+        &externals,
+        true,
+    )
 }
