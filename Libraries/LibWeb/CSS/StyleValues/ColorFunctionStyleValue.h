@@ -58,9 +58,6 @@ public:
     ValueComparingRefPtr<StyleValue const> origin_color() const { return wrap_rust_child_or_null(m_value->color_function.origin_color); }
 
     ColorFunctionDescriptor const& descriptor() const { return color_function_descriptor_for(*color_type()); }
-    ValueComparingRefPtr<StyleValue const> resolve_relative_form(ColorResolutionContext const&) const;
-
-    ValueComparingNonnullRefPtr<StyleValue const> computed_value_form() const;
 
     bool serializes_as_color_function() const
     {

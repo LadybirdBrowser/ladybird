@@ -275,9 +275,6 @@ impl RetainedState {
             current_color_rgba: [color.r, color.g, color.b, color.a],
             current_color_value: color_value,
             length: (&raw const length).cast(),
-            channels_present: [false; 13],
-            channels: [0.0; 13],
-            has_channels: false,
         };
         let build_inputs = FfiTableGroupBuildInputs {
             color_input: (&raw const color_input).cast(),

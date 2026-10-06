@@ -62,12 +62,6 @@ public:
 
     Optional<Color> to_color(ColorResolutionContext) const;
 
-    static Optional<double> resolve_hue(StyleValue const&, CalculationResolutionContext const&);
-    static Optional<double> resolve_with_reference_value(StyleValue const&, float one_hundred_percent_value, CalculationResolutionContext const&);
-    static Optional<double> resolve_alpha(StyleValue const&, CalculationResolutionContext const&);
-
-    static Optional<RelativeColorContext> extract_channels_in_color_space(StyleValue const& origin_color, ColorType target_color_type, ColorResolutionContext const&);
-
 protected:
     friend class StyleValue;
 

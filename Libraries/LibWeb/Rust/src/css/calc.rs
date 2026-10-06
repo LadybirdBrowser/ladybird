@@ -2522,7 +2522,6 @@ pub struct FfiCalcResolutionContext {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum FfiCalcExternalResolutionKind {
     NonMathFunction,
-    Channel,
     RandomSharing,
     Length,
 }
@@ -2570,9 +2569,6 @@ fn collect_external_resolutions(node: &CalcNode, resolutions: &mut Vec<FfiCalcEx
             0.0,
             0,
         ),
-        CalcNode::ChannelKeyword(channel) => {
-            append(FfiCalcExternalResolutionKind::Channel, std::ptr::null(), 0.0, *channel);
-        }
         CalcNode::Random { sharing, .. } => append(
             FfiCalcExternalResolutionKind::RandomSharing,
             sharing.pointer().cast(),
@@ -2807,16 +2803,8 @@ fn with_ffi_evaluation<R>(
             unsafe { Arc::increment_strong_count(resolved) };
             Some(unsafe { Arc::from_raw(resolved) })
         },
-        resolve_channel_keyword: &|channel| {
-            external_resolutions
-                .iter()
-                .find(|resolution| {
-                    matches!(resolution.kind, FfiCalcExternalResolutionKind::Channel)
-                        && resolution.unit_or_channel == channel
-                })
-                .filter(|resolution| resolution.has_number)
-                .map(|resolution| resolution.number)
-        },
+        // Relative color channels resolve through the color resolver, which supplies their values.
+        resolve_channel_keyword: &|_| None,
     };
     f(&evaluation_context, &callbacks)
 }
@@ -4113,12 +4101,6 @@ pub(crate) fn absolutize_calculation_value(
             external.number = number;
             external.resolved_style_value = resolved.pointer().cast();
             resolved_style_values.push(resolved);
-            continue;
-        }
-        if matches!(external.kind, FfiCalcExternalResolutionKind::Channel) {
-            // Relative-color channels resolve later, once the origin color has
-            // supplied their values. They do not prevent other leaves in this
-            // calculation from being absolutized now.
             continue;
         }
         if !matches!(external.kind, FfiCalcExternalResolutionKind::NonMathFunction) {

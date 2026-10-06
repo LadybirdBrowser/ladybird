@@ -22,7 +22,7 @@ use crate::css::animated_overlay::AnimatedOverlay;
 use crate::css::calc::{resolve_calculated_flex_without_context, resolve_calculated_integer_without_context};
 use crate::css::color_resolution::{
     ColorResolutionInput, FfiColorResolutionInput, PREFERRED_COLOR_SCHEME_DARK, Rgba, accent_color,
-    relative_color_context_from_ffi, resolution_input_from_ffi, to_color,
+    resolution_input_from_ffi, to_color,
 };
 use crate::css::computed_longhand_table::ComputedLonghandTable;
 use crate::css::computed_value_types::{
@@ -3509,9 +3509,8 @@ pub unsafe extern "C" fn rust_build_group_payloads_from_table(
         animated_overlay: unsafe { inputs.animated_overlay.as_ref() },
     };
     let color_input = unsafe { &*inputs.color_input.cast::<FfiColorResolutionInput>() };
-    let channels = relative_color_context_from_ffi(color_input);
     // SAFETY: The caller keeps the input's pointers live across the call.
-    let input = unsafe { resolution_input_from_ffi(color_input, &channels) };
+    let input = unsafe { resolution_input_from_ffi(color_input) };
 
     for group in 0..group_count {
         out[group] = std::ptr::null();
