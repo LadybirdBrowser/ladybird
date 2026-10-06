@@ -1562,10 +1562,11 @@ void record_element_language_and_directionality(DOM::Element& element)
         return;
 
     auto const language = element.lang_view();
-    style_engine->set_element_language(
-        element.style_node_id(),
-        language.has_value() ? style_engine->intern_text_atom(*language) : 0,
-        language.value_or({}));
+    // A language range is not a name, so `:lang()` compares against the tag itself rather than against the atom. The
+    // engine is given the tag once per language, not once per element.
+    StyleEngineFFI::style_engine_set_element_language(style_engine->host(), element.style_node_id().value(),
+        language.has_value() ? style_engine->intern_text_atom(*language).value() : 0,
+        StyleEngineFFI::ffi_utf16_view(language.value_or({})));
 
     auto const directionality = element.directionality() == DOM::Element::Directionality::Rtl ? "rtl"sv : "ltr"sv;
     StyleEngineFFI::style_engine_set_element_directionality(style_engine->host(), element.style_node_id(), style_engine->intern_text_atom(Utf16View { directionality }));

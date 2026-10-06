@@ -1135,6 +1135,11 @@ impl DocumentHost {
 
     /// Keeps what the style transaction the host took answered, until the host ends the transaction.
     pub(crate) fn keep_style_transaction(&self, answer: StyleJobAnswer) -> std::cell::Ref<'_, StyleJobAnswer> {
+        // The atoms the host interned forget the ones the engine reclaimed, before the host interns a name again.
+        self.engine_memo
+            .atoms
+            .borrow_mut()
+            .forget(answer.reclaimed_style_atoms());
         *self.style_transaction.borrow_mut() = Some(answer);
         std::cell::Ref::map(self.style_transaction.borrow(), |answer| {
             answer.as_ref().expect("the answer was kept above")

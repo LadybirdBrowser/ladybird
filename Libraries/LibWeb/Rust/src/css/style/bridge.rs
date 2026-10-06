@@ -3118,6 +3118,11 @@ impl FfiStyleTransactionOutput {
         &self.answers
     }
 
+    /// The atoms the engine reclaimed as it took the transaction.
+    pub(crate) fn reclaimed_style_atoms(&self) -> &[FfiReclaimedStyleAtom] {
+        &self.reclaimed_style_atoms
+    }
+
     /// The output as C++ reads it, for as long as the output stays where it is.
     pub(crate) fn view(&self) -> FfiStyleTransactionView {
         FfiStyleTransactionView {
