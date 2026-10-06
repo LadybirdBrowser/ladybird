@@ -1,0 +1,6 @@
+no-keyframe-easing: 214.859375px
+initial-easing: 214.859375px
+inherit-easing: 214.859375px
+unset-easing: 214.859375px
+revert-easing: 214.859375px
+revert-layer-easing: 214.859375px

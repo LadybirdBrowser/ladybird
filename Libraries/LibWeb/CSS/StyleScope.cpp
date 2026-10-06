@@ -461,6 +461,8 @@ void StyleRuleCache::add_rules_from_sheet(StyleSheetState& sheet, CascadeOrigin 
                             return;
                         value = static_cast<StyleValueFFI::StyleValueData const*>(list.pointer[0].pointer);
                     }
+                    if (value->tag == StyleValueFFI::StyleValueData::Tag::Keyword && is_css_wide_keyword(static_cast<Keyword>(value->keyword.keyword)))
+                        return;
                     if (value->tag == StyleValueFFI::StyleValueData::Tag::Easing || value->tag == StyleValueFFI::StyleValueData::Tag::Keyword) {
                         auto easing_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(value));
                         resolved_keyframe.easing = EasingFunction::from_style_value(*easing_value);
