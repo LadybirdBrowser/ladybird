@@ -278,6 +278,61 @@ impl ClockLease {
     }
 }
 
+/// The right to sample a frame of a document for the Paint thread to present. Only a tick of the render clock mints one,
+/// in the job the StyleLayout thread runs it in, so a job the host hands the render owner cannot sample a frame.
+pub(crate) struct SamplingTurn(());
+
+/// The timestamp a frame shows a document's animations at, which is never earlier than that of a frame sampled before
+/// it: only [`SampleClock::next`] mints one.
+#[derive(Clone, Copy)]
+pub(crate) struct SampleTime(f64);
+
+/// What hands out the times a document's frames are sampled at, on the render owner, across clock leases.
+pub(crate) struct SampleClock {
+    last: f64,
+}
+
+impl Default for SampleClock {
+    fn default() -> Self {
+        Self {
+            last: f64::NEG_INFINITY,
+        }
+    }
+}
+
+impl SampleClock {
+    /// The time to sample a frame asked for at `timestamp`: that, or the time of the frame sampled last, if later.
+    pub(crate) fn next(&mut self, timestamp: f64) -> SampleTime {
+        self.last = self.last.max(timestamp);
+        SampleTime(self.last)
+    }
+}
+
+/// A frame of a document the render clock sampled, frozen for the Paint thread to record and present.
+pub(crate) struct SampledFrame {
+    frozen: FrozenFrame,
+    viewport: NodeSlotId,
+    inputs: RecordingInputs,
+    visual_contexts: Option<ClockTickVisualContexts>,
+}
+
+impl SampledFrame {
+    fn new(
+        _: &SamplingTurn,
+        frozen: FrozenFrame,
+        viewport: NodeSlotId,
+        inputs: RecordingInputs,
+        visual_contexts: Option<ClockTickVisualContexts>,
+    ) -> Self {
+        Self {
+            frozen,
+            viewport,
+            inputs,
+            visual_contexts,
+        }
+    }
+}
+
 /// The display ticks the render clock hands a lease, folded into one queued tick, which runs at the latest of their times.
 pub struct ClockTicks {
     ticker: Ticker<LeaseLanding>,
@@ -595,31 +650,36 @@ impl LeaseLanding {
             return;
         }
         let timestamp = frame_time_nanoseconds as f64 / 1_000_000.0 - self.plan.time_origin;
-        self.parked = self.tick_at(timestamp).is_err();
+        self.parked = self.tick_at(timestamp, &SamplingTurn(())).is_err();
     }
 
-    fn tick_at(&mut self, timestamp: f64) -> Result<(), Park> {
-        if timestamp >= self.plan.deadline {
-            return Err(Park);
-        }
+    fn tick_at(&mut self, timestamp: f64, turn: &SamplingTurn) -> Result<(), Park> {
         let scroll_progress = self.plan.scroll_progress(&self.scroll_offsets)?;
-        // Once a frame shows the document timeline's animations ended, a frame where nothing scrolled shows nothing new.
-        if self.shown_at >= self.plan.last_end && scroll_progress == self.shown_scroll_progress {
-            return Ok(());
-        }
         // The tick runs on the render owner, the one thread that reaches the state. It shows the records the frames
         // before it showed, and takes them back as it ends.
-        owner::with_state(self.document, None, |state| {
+        let Some(sampled_at) = owner::with_state(self.document, None, |state| {
+            let sampled_at = state.sample_clock.next(timestamp);
+            if sampled_at.0 >= self.plan.deadline {
+                return Err(Park);
+            }
+            // Once a frame shows the document timeline's animations ended, a frame where nothing scrolled shows nothing
+            // new.
+            if self.shown_at >= self.plan.last_end && scroll_progress == self.shown_scroll_progress {
+                return Ok(None);
+            }
             state
                 .engine_mut()
                 .lend_tick_shown(std::mem::take(&mut self.built.shown));
-            let sampled = self.sample(state, timestamp, &scroll_progress);
+            let sampled = self.sample(state, sampled_at, &scroll_progress, turn);
             self.built.shown = state.engine_mut().take_tick_shown();
-            sampled
-        })?;
-        self.shown_at = timestamp;
+            sampled.map(|()| Some(sampled_at))
+        })?
+        else {
+            return Ok(());
+        };
+        self.shown_at = sampled_at.0;
         self.shown_scroll_progress = scroll_progress;
-        match timestamp >= self.plan.last_end && self.plan.scroll_timelines.is_empty() {
+        match sampled_at.0 >= self.plan.last_end && self.plan.scroll_timelines.is_empty() {
             true => Err(Park),
             false => Ok(()),
         }
@@ -628,8 +688,9 @@ impl LeaseLanding {
     fn sample(
         &mut self,
         state: &mut RenderState,
-        timestamp: f64,
+        sampled_at: SampleTime,
         scroll_progress: &[ScrollProgress],
+        turn: &SamplingTurn,
     ) -> Result<(), Park> {
         let Self {
             plan,
@@ -638,7 +699,7 @@ impl LeaseLanding {
             owed,
             ..
         } = self;
-        let samples = AnimationTimelineSamples::at_tick(timestamp, scroll_progress);
+        let samples = AnimationTimelineSamples::at_tick(sampled_at.0, scroll_progress);
         for &element in &plan.elements {
             let arena = state.arena.arena();
             let row = arena.bound_row(element);
@@ -666,17 +727,17 @@ impl LeaseLanding {
         // does, and lays it out again, until the containers stand.
         for _ in 0..SIZE_QUERY_ROUND_LIMIT {
             let Some(answer) = plan.round.run(&mut state.arena, owed)? else {
-                return self.present(state);
+                return self.present(state, turn);
             };
             let resized: smallvec::SmallVec<[StyleNodeID; 4]> = answer.resized_size_containers().collect();
             if resized.is_empty() {
-                return self.present(state);
+                return self.present(state, turn);
             }
             restyle_size_query_dependents(state, &resized, &plan.elements, ticked, built)?;
         }
         // The last restyle may have left nothing to lay out again.
         match state.arena.arena().layout_is_up_to_date(false) {
-            true => self.present(state),
+            true => self.present(state, turn),
             false => Err(Park),
         }
     }
@@ -685,14 +746,14 @@ impl LeaseLanding {
     /// inputs of the last recording that published, and present it beside the event loop and the next tick. A frame
     /// whose visual contexts only the host settles, or whose trace the host reads, is the host's to present, and so is
     /// any frame after one that renders an SVG image.
-    fn present(&mut self, state: &mut RenderState) -> Result<(), Park> {
+    fn present(&mut self, state: &mut RenderState, turn: &SamplingTurn) -> Result<(), Park> {
         let mut clock_recorder = self.recording.0.take(WaitsForTickRecording(()));
         let arena = state.arena.arena_mut();
         match freeze_tick_frame(arena, &mut clock_recorder) {
             Ok((frozen, inputs, visual_contexts)) => {
-                let viewport = arena.layout_root();
+                let frame = SampledFrame::new(turn, frozen, arena.layout_root(), inputs, visual_contexts);
                 self.recording = TickRecording(crate::paint_stage::ride_presenting(move |presenting| {
-                    clock_recorder.record(frozen, viewport, inputs, visual_contexts, presenting)
+                    clock_recorder.record(frame, presenting)
                 }));
             }
             Err(park) => {
@@ -760,21 +821,20 @@ fn freeze_tick_frame(
 }
 
 impl ClockRecorder {
-    /// Records `frozen`, the frame of the document's `viewport`, with `inputs`, and presents it with the visual contexts
-    /// a tick prepared for it, on the Paint thread. Only the host renders an SVG image.
-    fn record(
-        mut self,
-        frozen: FrozenFrame,
-        viewport: NodeSlotId,
-        inputs: RecordingInputs,
-        visual_contexts: Option<ClockTickVisualContexts>,
-        presenting: &mut Presenting,
-    ) -> Self {
+    /// Records `frame`, which a tick sampled, and presents it with the visual contexts the tick prepared for it, on the
+    /// Paint thread. Only the host renders an SVG image.
+    fn record(mut self, frame: SampledFrame, presenting: &mut Presenting) -> Self {
         let Self {
             recorder,
             presentation,
             presented,
         } = &mut self;
+        let SampledFrame {
+            frozen,
+            viewport,
+            inputs,
+            visual_contexts,
+        } = frame;
         let (pending, _) = record_frame(frozen.frame, recorder, viewport, false, inputs);
         // The recording wrote the paint-order tree, which no longer describes the recording published last.
         if renders_vector_images(&pending) {
