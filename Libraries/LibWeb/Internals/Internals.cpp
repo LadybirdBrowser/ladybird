@@ -1657,11 +1657,12 @@ void Internals::reset_rendering_scheduler_counters()
     HTML::main_thread_event_loop().reset_rendering_scheduler_counters();
 }
 
-void Internals::inject_clock_tick(double frame_time_ms)
+void Internals::inject_clock_tick(double frame_time_ms, Optional<double> viewport_scroll_y)
 {
     auto& document = window().associated_document();
     auto frame_time = document.relevant_settings_object().time_origin() + frame_time_ms;
-    Layout::RustFFI::document_host_inject_clock_tick(document.layout_node_arena().host(), static_cast<i64>(frame_time * 1'000'000.0));
+    auto scroll_offset = viewport_scroll_y.map([&](double y) { return Layout::RustFFI::FfiScrollOffset { document.unique_id().value(), 0, y }; });
+    Layout::RustFFI::document_host_inject_clock_tick(document.layout_node_arena().host(), static_cast<i64>(frame_time * 1'000'000.0), scroll_offset.has_value() ? &*scroll_offset : nullptr);
 }
 
 Utf16String Internals::clock_lease_state(DOM::Document& document)

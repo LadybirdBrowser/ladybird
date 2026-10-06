@@ -53,9 +53,16 @@ ClockTicksHandle::~ClockTicksHandle()
         Layout::RustFFI::clock_ticks_release(m_ticks);
 }
 
-bool ClockTicksHandle::tick(i64 frame_time_nanoseconds) const
+bool ClockTicksHandle::tick(i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset> scroll_offsets) const
 {
-    return Layout::RustFFI::clock_ticks_tick(m_ticks, frame_time_nanoseconds);
+    // A scroll timeline follows the scroll node of an element or a document's viewport, which its unique id names.
+    Vector<Layout::RustFFI::FfiScrollOffset, 8> scrollers;
+    for (auto const& scroll_offset : scroll_offsets) {
+        if (scroll_offset.scroll_node.kind == Web::AsyncScrollNodeKind::PseudoElement)
+            continue;
+        scrollers.append({ scroll_offset.scroll_node.node_id.value(), scroll_offset.offset.x().to_double(), scroll_offset.offset.y().to_double() });
+    }
+    return Layout::RustFFI::clock_ticks_tick(m_ticks, frame_time_nanoseconds, scrollers.data(), scrollers.size());
 }
 
 RenderClock& RenderClock::the()

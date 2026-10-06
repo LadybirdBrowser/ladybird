@@ -622,6 +622,9 @@ impl FreshTransitionSample {
                     decidable: true,
                     has_timeline_time: false,
                     has_timeline_origin_time: false,
+                    has_timeline_scroller: false,
+                    timeline_scroller_is_vertical: false,
+                    timeline_scroller: 0,
                     has_start_time: false,
                     has_hold_time: true,
                     // `Bindings::FillMode::Backwards` and `Bindings::PlaybackDirection::Normal`.

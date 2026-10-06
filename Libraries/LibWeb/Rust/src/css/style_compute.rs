@@ -5311,6 +5311,12 @@ pub struct FfiEffectTiming {
     /// The effect's animation runs on a document timeline, whose time is a timestamp less this origin
     /// time.
     pub has_timeline_origin_time: bool,
+    /// The effect's animation runs on a scroll timeline, whose time is the scroll progress, in percent, of
+    /// the scroll node of this unique node id (an element's, or a document's for its viewport) along the
+    /// vertical or the horizontal axis.
+    pub has_timeline_scroller: bool,
+    pub timeline_scroller_is_vertical: bool,
+    pub timeline_scroller: i64,
     pub has_start_time: bool,
     pub has_hold_time: bool,
     /// `Bindings::FillMode`, in IDL order.

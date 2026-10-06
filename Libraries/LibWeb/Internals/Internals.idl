@@ -220,7 +220,8 @@ interface Internals {
     undefined setManualRenderingOpportunities(boolean enabled);
     undefined injectRenderingOpportunity(double frameTimeMs);
     // Hands the clock lease of the current document, if one runs, a tick at the given time, and waits until it has run.
-    undefined injectClockTick(double frameTimeMs);
+    // With a viewport scroll offset, the compositor had scrolled the viewport down to it at the tick.
+    undefined injectClockTick(double frameTimeMs, optional double viewportScrollY);
     // "none" where no clock lease of the document runs, "ticking" while one does, and "parked" once a tick parked it.
     DOMString clockLeaseState(Document document);
     // The border box of the element in the last frame a clock tick presented, which ends the lease that runs.

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes shrink {
+        from { height: 50px; }
+        to { height: 10px; }
+    }
+    #header {
+        height: 50px;
+        animation: shrink linear both;
+        animation-timeline: scroll(root);
+    }
+    #spacer {
+        height: 2000px;
+    }
+</style>
+<div id="header"></div>
+<div id="spacer"></div>
+<script>
+    // A scroll-driven animation the page was scrolled to the end of has finished and holds its end. While a task runs,
+    // the render clock runs it again where the compositor scrolls the page back to.
+    asyncTest(async done => {
+        const result = await whileClockLeased(() => {
+            window.scrollTo(0, document.documentElement.scrollHeight);
+            return header.getAnimations()[0];
+        }, frameTime => {
+            internals.injectClockTick(frameTime + 16, 1000);
+            const lease = internals.clockLeaseState(document);
+            return {
+                lease,
+                presentedBy: internals.lastFramePresentedBy(document),
+                presented: internals.presentedBorderBox(header),
+            };
+        });
+        // The scroll range the clock samples over is the one laid out with the animation at its end.
+        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+        const expectedHeight = 50 - (40 * 1000) / maxScroll;
+        println(`render clock after a frame scrolled back: ${result.lease}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        println(`the presented height follows the scroll: ${result.presented !== null && Math.abs(result.presented.height - expectedHeight) < 0.02}`);
+        println(`the animation finished on the main thread: ${header.getAnimations()[0].playState}`);
+        done();
+    });
+</script>

@@ -356,7 +356,7 @@ impl super::StyleEngine {
         &mut self,
         node: StyleNodeID,
         record: u64,
-        samples: super::animations::AnimationTimelineSamples,
+        samples: super::animations::AnimationTimelineSamples<'_>,
         transform_reference_box: Option<crate::css::css_pixels::CssPixelRect>,
     ) -> Result<super::layout_style::DerivedStyleRecord, NeedsHost> {
         use crate::css::animation as anim;

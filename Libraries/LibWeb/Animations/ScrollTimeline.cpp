@@ -14,6 +14,7 @@
 #include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/Scrolling.h>
 
 namespace Web::Animations {
 
@@ -112,6 +113,8 @@ static ComputedScrollAxis computed_scroll_axis(ScrollAxis axis, CSS::WritingMode
 }
 
 struct ScrollOffsetData {
+    Optional<AsyncScrollNodeStableID> scroll_node;
+    bool is_vertical;
     double scroll_offset;
     double max_scroll_offset;
 };
@@ -139,6 +142,8 @@ static Optional<ScrollOffsetData> compute_scroll_offset_data(Variant<GC::Ptr<DOM
     // FIXME: Support the case where the computed scroll axis is reversed
 
     return ScrollOffsetData {
+        .scroll_node = Painting::async_scroll_node_stable_id(*layout_node),
+        .is_vertical = computed_axis.is_vertical,
         .scroll_offset = computed_axis.is_vertical
             ? Painting::scroll_offset(*layout_node).y().to_double()
             : Painting::scroll_offset(*layout_node).x().to_double(),
@@ -176,6 +181,7 @@ void ScrollTimeline::update_current_time(double)
     auto scroll_offset_data = compute_scroll_offset_data(get_propagated_source(), m_axis);
 
     m_last_max_scroll_offset = scroll_offset_data.map([](auto const& data) { return data.max_scroll_offset; });
+    m_followed_scroller.clear();
 
     // If the source of a ScrollTimeline is an element whose principal box does not exist or is not a scroll container,
     // or if there is no scrollable overflow, then the ScrollTimeline is inactive.
@@ -199,6 +205,9 @@ void ScrollTimeline::update_current_time(double)
     // Progress (the current time) for a scroll progress timeline is calculated as:
     //     scroll offset ÷ (scrollable overflow size − scroll container size)
     auto progress = scroll_offset_data->scroll_offset / scroll_offset_data->max_scroll_offset;
+
+    if (scroll_offset_data->scroll_node.has_value())
+        m_followed_scroller = FollowedScroller { *scroll_offset_data->scroll_node, scroll_offset_data->is_vertical, scroll_offset_data->max_scroll_offset };
 
     set_current_time(TimeValue { TimeValue::Type::Percentage, progress * 100 });
 }

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes shrink {
+        from { height: 50px; }
+        to { height: 10px; }
+    }
+    #header {
+        height: 50px;
+        animation: shrink linear both;
+        animation-timeline: scroll(root);
+    }
+    #spacer {
+        height: 2000px;
+    }
+</style>
+<div id="header"></div>
+<div id="spacer"></div>
+<script>
+    // While a task runs, the render clock samples a scroll-driven animation where the compositor has scrolled the page
+    // to, up to where the animation has an event a listener hears.
+    asyncTest(async done => {
+        header.addEventListener("animationend", () => {});
+        let maxScroll;
+        const result = await whileClockLeased(() => {
+            maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+            return header.getAnimations()[0];
+        }, frameTime => {
+            internals.injectClockTick(frameTime + 16, 1000);
+            const leaseScrolled = internals.clockLeaseState(document);
+            internals.injectClockTick(frameTime + 32, maxScroll);
+            const leaseAtTheEnd = internals.clockLeaseState(document);
+            return {
+                leaseScrolled,
+                leaseAtTheEnd,
+                presentedBy: internals.lastFramePresentedBy(document),
+                presented: internals.presentedBorderBox(header),
+            };
+        });
+        const expectedHeight = 50 - (40 * 1000) / maxScroll;
+        println(`render clock after a frame scrolled down: ${result.leaseScrolled}`);
+        println(`render clock after a frame scrolled to where the animation ends: ${result.leaseAtTheEnd}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        println(`the presented height follows the scroll: ${result.presented !== null && Math.abs(result.presented.height - expectedHeight) < 0.02}`);
+        println(`the page holds at the top: ${window.scrollY === 0 && header.getBoundingClientRect().height === 50}`);
+        done();
+    });
+</script>
