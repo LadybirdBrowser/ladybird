@@ -202,7 +202,6 @@ public:
     HashTable<StyleNodeID> take_elements_awaiting_first_style_computation();
 
     void set_element_parts(StyleNodeID node, ReadonlySpan<StyleAtomID> names, ReadonlySpan<StyleNodeID> hosts);
-    void set_element_language(StyleNodeID node, StyleAtomID language, Utf16View tag);
     // Which longhand properties one of an element's own declarations covers, their canonical
     // specified values and their authored aliases, and whether the inventory has complete
     // continuation semantics.
@@ -232,10 +231,12 @@ public:
     // Interns one selector-mentioned name and returns its process-global atom, retained by this
     // document.
     //
-    // Utf16FlyString is already interned, so its one-word raw form is the identity: this is a hash
-    // lookup on that word plus one reference to keep the name alive. No string is copied, and
-    // neither side pays an ASCII or UTF-16 conversion for a fact a u32 comparison answers.
+    // Utf16FlyString is already interned, so its one-word raw form is the identity: the document host answers a name
+    // it interned before with one hash lookup on that word. No string is copied, and neither side pays an ASCII or
+    // UTF-16 conversion for a fact a u32 comparison answers.
     StyleAtomID intern_atom(Utf16FlyString const&);
+    // Counts the reclaims of this document's atoms, so a cache keyed by atoms can tell when one may have been reused.
+    [[nodiscard]] u64 atom_generation() const;
     // The process-global atom of `name` qualified by `namespace_atom`, retained by this document.
     StyleAtomID intern_qualified_atom(StyleAtomID namespace_atom, StyleAtomID name);
     // Moves a node's record to the environment its inherited custom-property data was refreshed
@@ -253,7 +254,6 @@ public:
     [[nodiscard]] StyleEngineFFI::FfiRecordDemandAnswer answer_record_demand(Layout::BegunRead const& read, StyleNodeID, RecordDemand);
     // Whether an environment identity is one the engine minted for an environment it resolved.
     [[nodiscard]] static bool is_engine_custom_property_environment(u64 identity) { return (identity & (1ull << 62)) != 0; }
-    [[nodiscard]] u64 atom_generation() const { return m_atom_generation; }
     // The namespace `[*|x]` names, which is any of them. No interned namespace is zero, so this
     // keys a form of its own in the same table.
     static constexpr StyleAtomID any_namespace { 0 };
@@ -460,8 +460,6 @@ private:
     u64 m_published_font_environment_generation { 0 };
     GC::Ptr<StyleComputer> m_style_computer;
 
-    HashMap<FlatPtr, StyleAtomID> m_atoms;
-    HashTable<StyleAtomID> m_published_language_atoms;
     HashMap<StyleAtomID, HashMap<StyleAtomID, StyleAtomID>> m_attribute_name_atoms;
     // The other names an attribute name answers to, and the local name an attr() reads it by, empty unless it is in no
     // namespace.
@@ -473,7 +471,6 @@ private:
     };
     HashMap<StyleAtomID, AttributeNameForms> m_attribute_name_forms;
     HashTable<StyleAtomID> m_attribute_names_with_unread_value_text;
-    u64 m_atom_generation { 1 };
     u64 m_attribute_value_text_requirements_version { 0 };
     HashTable<StyleNodeID> m_nodes_with_pending_initial_features;
     HashTable<StyleNodeID> m_nodes_awaiting_first_style_computation;

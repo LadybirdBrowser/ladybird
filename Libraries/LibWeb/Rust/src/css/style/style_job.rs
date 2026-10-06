@@ -221,6 +221,11 @@ impl StyleJobAnswer {
         self.output.answers()
     }
 
+    /// The atoms the engine reclaimed as it took the transaction.
+    pub(crate) fn reclaimed_style_atoms(&self) -> &[super::bridge::FfiReclaimedStyleAtom] {
+        self.output.reclaimed_style_atoms()
+    }
+
     /// The view of `record`, one the rows name, and the custom-property environment it was computed in.
     pub(crate) fn record(&self, record: u64) -> Option<(super::bridge::FfiStyleRecordView, Option<u64>)> {
         let records = &self.records.0;

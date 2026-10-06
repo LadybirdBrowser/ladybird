@@ -89,6 +89,7 @@ pub(crate) mod engine_sample;
 mod environment_move;
 pub mod exact_matcher;
 pub(crate) mod flight_style_rows;
+pub(crate) mod host_atoms;
 pub(crate) mod style_job;
 pub(crate) use crate::fast_hash;
 mod engine_handle;

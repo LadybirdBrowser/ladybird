@@ -47,8 +47,6 @@ StyleEngine::StyleEngine(StyleComputer* style_computer)
 StyleEngine::~StyleEngine()
 {
     StyleEngineFFI::style_node_id_allocator_destroy(m_style_node_ids);
-    for (auto const& atom : m_atoms)
-        Utf16FlyString::unref_raw(atom.key);
 }
 
 void StyleEngine::visit_edges(GC::Cell::Visitor& visitor)
@@ -178,25 +176,6 @@ StyleEngine::StyleRecordDelta StyleEngine::remove_computed_pseudo(Layout::BegunR
     return { StyleRecordID { delta.old_style_record }, StyleRecordID { delta.new_style_record } };
 }
 
-StyleAtomID StyleEngine::intern_atom(Utf16FlyString const& name)
-{
-    // Utf16FlyString is already interned, so its one-word raw form is the name's identity. The atom
-    // is the process-global one, which is also what selector names intern as: two tables keyed by
-    // the same word but each assigning its own sequence would compare unequal for the same name,
-    // which fails to match silently rather than loudly. The host takes a reference to it without
-    // the engine, which adopts the name later.
-    // First time seen, the leaked reference is kept so the identity cannot be reused while the
-    // atom is live. Duplicates release their new reference and return without crossing the FFI.
-    auto raw = name.to_raw_leaked();
-    if (auto atom = m_atoms.get(raw); atom.has_value()) {
-        Utf16FlyString::unref_raw(raw);
-        return atom.release_value();
-    }
-    auto atom = StyleAtomID { StyleEngineFFI::document_host_intern_atom(host(), raw) };
-    m_atoms.set(raw, atom);
-    return atom;
-}
-
 StyleAtomID StyleEngine::intern_qualified_atom(StyleAtomID namespace_atom, StyleAtomID name)
 {
     return StyleAtomID { StyleEngineFFI::document_host_intern_qualified_atom(host(), namespace_atom.value(), name.value()) };
@@ -239,6 +218,16 @@ StyleEngineFFI::FfiRecordDemandAnswer StyleEngine::answer_record_demand(Layout::
     return StyleEngineFFI::style_engine_answer_record_demand(m_render_document->host(), &read, node.value(), demand);
 }
 
+StyleAtomID StyleEngine::intern_atom(Utf16FlyString const& name)
+{
+    return StyleAtomID { StyleEngineFFI::document_host_intern_atom(host(), name.raw_identity()) };
+}
+
+u64 StyleEngine::atom_generation() const
+{
+    return StyleEngineFFI::document_host_atom_generation(host());
+}
+
 StyleAtomID StyleEngine::intern_text_atom(Utf16View text)
 {
     return intern_atom(Utf16FlyString::from_utf16(text).to_ascii_lowercase());
@@ -247,8 +236,8 @@ StyleAtomID StyleEngine::intern_text_atom(Utf16View text)
 StyleAtomID StyleEngine::intern_language_atom(Utf16View text)
 {
     auto atom = intern_text_atom(text);
-    if (atom != 0 && !text.is_empty() && m_published_language_atoms.set(atom) == AK::HashSetResult::InsertedNewEntry)
-        StyleEngineFFI::style_engine_set_element_language(host(), 0, atom.value(), StyleEngineFFI::ffi_utf16_view(text));
+    // The engine is given the language's tag the first time the host names it.
+    StyleEngineFFI::style_engine_set_element_language(host(), 0, atom.value(), StyleEngineFFI::ffi_utf16_view(text));
     return atom;
 }
 
@@ -363,14 +352,6 @@ bool StyleEngine::attribute_value_text_is_known_unread(StyleAtomID name)
         return false;
     m_attribute_names_with_unread_value_text.set(name);
     return true;
-}
-
-void StyleEngine::set_element_language(StyleNodeID node, StyleAtomID language, Utf16View tag)
-{
-    // A language range is not a name, so `:lang()` compares against the tag itself rather than
-    // against the atom. The text is recorded once per language, not once per element.
-    bool const first_of_language = language != 0 && !tag.is_empty() && m_published_language_atoms.set(language) == AK::HashSetResult::InsertedNewEntry;
-    StyleEngineFFI::style_engine_set_element_language(host(), node.value(), language.value(), StyleEngineFFI::ffi_utf16_view(first_of_language ? tag : Utf16View {}));
 }
 
 // Recording input gives the next rendering update style work to do, but touches no layout tree
@@ -847,14 +828,7 @@ StyleEngine::PublishedStyleTransaction StyleEngine::publish_style_transaction_vi
         for (auto const& reclaimed : ReadonlySpan<StyleEngineFFI::FfiReclaimedStyleAtom> { view.reclaimed_style_atoms, view.reclaimed_style_atom_count }) {
             auto atom_id = StyleAtomID { reclaimed.atom };
             reclaimed_atoms.set(atom_id);
-            m_published_language_atoms.remove(atom_id);
             m_attribute_names_with_unread_value_text.remove(atom_id);
-            if (reclaimed.raw == 0)
-                continue;
-            auto atom = m_atoms.take(reclaimed.raw);
-            VERIFY(atom.has_value());
-            VERIFY(atom.release_value() == reclaimed.atom);
-            Utf16FlyString::unref_raw(reclaimed.raw);
         }
         m_attribute_name_atoms.remove_all_matching([&](StyleAtomID local, auto& names_by_namespace) {
             if (reclaimed_atoms.contains(local))
@@ -867,7 +841,6 @@ StyleEngine::PublishedStyleTransaction StyleEngine::publish_style_transaction_vi
         m_attribute_name_forms.remove_all_matching([&](StyleAtomID name, auto const&) {
             return reclaimed_atoms.contains(name);
         });
-        ++m_atom_generation;
     }
     return {
         .version = { view.transaction_version, view.program_version },

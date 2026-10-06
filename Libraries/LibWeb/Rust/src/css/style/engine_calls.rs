@@ -24,7 +24,6 @@ use super::publication::RecordDemand;
 use super::random_bases::ParkedBaseValues;
 use super::tree::{StyleNodeID, TreeScopeID};
 use super::{HashMap, StyleAtomID};
-use crate::css::ffi_support::FfiUtf16View;
 use crate::css::transition::{FfiTransitionAction, FfiTransitionInput, TransitionDecision};
 use crate::render_state::{ArenaChange, BegunRead, DocumentHost};
 use std::ffi::c_void;
@@ -426,34 +425,13 @@ pub unsafe extern "C" fn style_engine_set_pseudo_element_custom_property_data(
     host.queue_change(ArenaChange::Engine(write));
 }
 
-/// Interns the name whose raw identity is `raw` for the document, without its engine: the host takes a reference to
-/// the name's process-global atom, which the engine adopts later.
-///
-/// # Safety
-/// `host` must be a live document host, and `raw` the raw identity of a live `AK::Utf16FlyString`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_intern_atom(host: &DocumentHost, raw: usize) -> u32 {
-    // SAFETY: Guaranteed by the caller.
-    adopt(host, unsafe { AtomLease::acquire_raw(raw) })
-}
-
-/// Interns `name` qualified by `namespace` for the document, as [`document_host_intern_atom`] does a name.
+/// Interns `name` qualified by `namespace` for the document, as the host interns a name.
 ///
 /// # Safety
 /// `host` must be a live document host.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn document_host_intern_qualified_atom(host: &DocumentHost, namespace: u32, name: u32) -> u32 {
-    adopt(
-        host,
-        AtomLease::acquire_qualified(StyleAtomID(namespace), StyleAtomID(name)),
-    )
-}
-
-/// Queues the engine's adoption of the atom `lease` holds, and answers the atom.
-fn adopt(host: &DocumentHost, lease: AtomLease) -> u32 {
-    let atom = lease.atom().0;
-    host.queue_change(ArenaChange::Engine(EngineWrite::AdoptAtom(lease)));
-    atom
+    super::host_atoms::intern_qualified(host, StyleAtomID(namespace), StyleAtomID(name)).0
 }
 
 /// Makes the `count` identities at `nodes`, which the host minted, live.
@@ -506,30 +484,6 @@ pub unsafe extern "C" fn style_engine_set_text_data(host: &DocumentHost, node: u
     // SAFETY: Guaranteed by the caller.
     let data = unsafe { ak::Utf16String::from_raw_owned(data) };
     host.queue_change(ArenaChange::Engine(EngineWrite::TextData { node, data }));
-}
-
-/// Records the language the element resolves to, and the tag a `:lang()` range compares against.
-///
-/// # Safety
-/// `host` must be a live document host, and `text` must name readable code units.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_set_element_language(
-    host: &DocumentHost,
-    node: u32,
-    language: u32,
-    text: FfiUtf16View,
-) {
-    // SAFETY: Guaranteed by the caller.
-    let text = if language == 0 {
-        Box::default()
-    } else {
-        unsafe { text.to_utf16() }.unwrap_or_default().into()
-    };
-    host.queue_change(ArenaChange::Engine(EngineWrite::ElementLanguage {
-        node,
-        language,
-        text,
-    }));
 }
 
 /// The document host `host` names.
@@ -812,6 +766,8 @@ pub(crate) struct EngineMemo {
     pub(crate) described: std::cell::RefCell<super::effect_descriptions::DescribedVersions>,
     /// The transition baselines the host recorded in the engine.
     pub(crate) baselines: std::cell::RefCell<super::TransitionBaselines>,
+    /// The atoms the host interned for the engine.
+    pub(crate) atoms: std::cell::RefCell<super::host_atoms::HostAtoms>,
 }
 
 impl EngineMemo {
@@ -836,6 +792,7 @@ impl Default for EngineMemo {
             deferred: Default::default(),
             described: Default::default(),
             baselines: Default::default(),
+            atoms: Default::default(),
         }
     }
 }

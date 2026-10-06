@@ -2610,6 +2610,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/style/bridge.rs"),
             manifest_dir.join("src/css/style/identities.rs"),
             manifest_dir.join("src/css/style/engine_calls.rs"),
+            manifest_dir.join("src/css/style/host_atoms.rs"),
             manifest_dir.join("src/css/style/rule_writes.rs"),
             manifest_dir.join("src/css/style/style_job.rs"),
             manifest_dir.join("src/css/ffi_support.rs"),
