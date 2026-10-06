@@ -6,7 +6,6 @@
 
 #include <AK/HashTable.h>
 #include <AK/ScopeGuard.h>
-#include <LibGC/RootVector.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
@@ -502,28 +501,31 @@ static RequiredInvalidationAfterStyleChange install_engine_computed_records(Layo
     return invalidation;
 }
 
-// A targeted update of the element: the record the engine demands for it now, installed as one the engine computed,
-// moving the element from the record it holds. The engine refuses the update where it answers no record.
-static RequiredInvalidationAfterStyleChange apply_engine_record_demand(StyleReactionApplication& application, DOM::Element& element, bool& did_change_custom_properties)
+// What the style engine reads of an element it applies a reaction to.
+static StyleEngineFFI::FfiReactionElement describe_reaction_element(DOM::Document const& document, DOM::Element* element)
 {
-    StyleEngineFFI::FfiRecordInstallation installation;
-    if (!StyleEngineFFI::style_engine_demand_record_installation(application.document->style_computer().style_engine().host(), &application.read, &application, element.style_node_id().value(), &installation))
+    if (!element)
         return {};
-    return install_engine_computed_records(application.read, element, installation, did_change_custom_properties);
+    auto const* box_values = element->style_group<ComputedValues::BoxValues>();
+    return {
+        .element = element,
+        .style_node = element->style_node_id().value(),
+        .connected = element->is_connected() && &element->document() == &document,
+        .has_style = element->has_style(),
+        .style_record = element->style_record_identity().value(),
+        .reads_environment = element->style_uses_var_css_function() || element->style_uses_inherit_css_function(),
+        .display_none = box_values && display_from_ffi_display(box_values->display).is_none(),
+    };
 }
 
 StyleEngineFFI::FfiReactionElement StyleEngineFFI::web_css_style_reaction_element(StyleReactionApplication* application, u32 style_node)
 {
-    auto element = application->document->style_computer().element_for_style_node(style_node);
-    if (!element)
-        return {};
-    return {
-        .element = element.ptr(),
-        .connected = element->is_connected() && &element->document() == &*application->document,
-        .has_style = element->has_style(),
-        .style_record = element->style_record_identity().value(),
-        .reads_environment = element->style_uses_var_css_function() || element->style_uses_inherit_css_function(),
-    };
+    return describe_reaction_element(*application->document, application->document->style_computer().element_for_style_node(style_node).ptr());
+}
+
+StyleEngineFFI::FfiReactionElement StyleEngineFFI::web_css_style_inheritance_parent(StyleReactionApplication* application, DOM::Element* element)
+{
+    return describe_reaction_element(*application->document, const_cast<DOM::Element*>(element->element_to_inherit_style_from({}).ptr()));
 }
 
 void StyleEngineFFI::web_css_record_derived_element_style_input(StyleReactionApplication* application, u32 style_node, u8 reaction, u8 inherited_style_groups)
@@ -744,10 +746,17 @@ static Optional<StyleUpdateInputs> let_style_update_fly(Layout::BegunRead const&
     return inputs;
 }
 
-// A targeted materialization of one element is reported to the engine the way a reaction pass reports it, so the
-// element's children get the same derived reactions either way.
-static void apply_targeted_style_invalidation(Layout::BegunRead const& read, DOM::Element& element, StyleBeforeReaction const& before, RequiredInvalidationAfterStyleChange const& invalidation, bool did_change_custom_properties, bool descendant_style_recompute_needed)
+// A targeted update of one element installs the record the style engine demanded for it, if any, and is reported to
+// the engine the way a reaction pass reports it, so the element's children get the same derived reactions either way.
+StyleEngineFFI::FfiTargetedStyleReaction StyleEngineFFI::web_css_apply_targeted_style_reaction(StyleReactionApplication* application, DOM::Element* element_pointer, StyleEngineFFI::FfiRecordInstallation const* installation, bool descendant_style_recompute_needed)
 {
+    auto const& read = application->read;
+    auto& element = *element_pointer;
+    StyleBeforeReaction const before { element };
+    bool did_change_custom_properties = false;
+    RequiredInvalidationAfterStyleChange invalidation;
+    if (installation)
+        invalidation = install_engine_computed_records(read, element, *installation, did_change_custom_properties);
     if (!invalidation.is_none() || did_change_custom_properties)
         Invalidation::invalidate_assigned_slottables_after_slot_style_change(element);
     apply_element_style_invalidation_after_style_change(read, element, invalidation);
@@ -756,6 +765,26 @@ static void apply_targeted_style_invalidation(Layout::BegunRead const& read, DOM
         reaction |= StyleEngine::RecomputeDescendantStyles;
     note_style_reaction_applied(element, reaction, before, invalidation, did_change_custom_properties ? u32 { StyleEngine::DidChangeCustomProperties } : 0);
     apply_document_style_invalidation_after_style_change(element.document(), invalidation);
+    return {
+        .descendants_need_recompute = did_change_custom_properties || invalidation.needs_layout_tree_rebuild(),
+        .recompute_descendant_styles = invalidation.recompute_descendant_styles,
+    };
+}
+
+// The answer of the style engine to a read of an element's style.
+static bool answer_style_read(DOM::AbstractElement const& abstract_element, StyleEngineFFI::FfiTargetedStyleAnswer answer)
+{
+    switch (answer) {
+    case StyleEngineFFI::FfiTargetedStyleAnswer::Unstyled:
+        return false;
+    case StyleEngineFFI::FfiTargetedStyleAnswer::Styled:
+        return true;
+    case StyleEngineFFI::FfiTargetedStyleAnswer::HeldStyle:
+        return abstract_element.has_style();
+    case StyleEngineFFI::FfiTargetedStyleAnswer::NeedsStyleUpdate:
+        break;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 // A targeted style update has nothing to do when every source of style work in the document is settled: A full style
@@ -795,43 +824,12 @@ static bool embedding_document_chain_has_no_pending_style_or_layout_work(DOM::Do
 
 // The elements an element inherits its style through, from the element itself up to the root. Pseudo-element styles are
 // refreshed when the originating element is recomputed, so the chain of a pseudo-element starts at that.
-static Optional<DOM::AbstractElement> first_element_of_inheritance_chain(DOM::AbstractElement const& abstract_element)
+static StyleEngineFFI::FfiReactionElement first_element_of_inheritance_chain(DOM::AbstractElement const& abstract_element)
 {
+    auto& element = const_cast<DOM::Element&>(abstract_element.element());
     if (abstract_element.pseudo_element().has_value())
-        return abstract_element.element_to_inherit_style_from();
-    return abstract_element;
-}
-
-// What an inheritance chain holds, by depth from its first element.
-struct InheritanceChainScan {
-    // The topmost element that has to compute its style: it has none, or it owes a style input.
-    Optional<size_t> topmost_requiring_style;
-    Optional<size_t> topmost_display_none;
-    Optional<size_t> nearest_display_none;
-
-    bool display_none_above_every_element_requiring_style() const
-    {
-        return topmost_display_none.has_value() && (!topmost_requiring_style.has_value() || *topmost_display_none > *topmost_requiring_style);
-    }
-};
-
-static InheritanceChainScan scan_inheritance_chain(Layout::BegunRead const& read, DOM::AbstractElement const& abstract_element, bool may_owe_style_inputs)
-{
-    auto const& style_engine = abstract_element.document().style_computer().style_engine();
-    InheritanceChainScan scan;
-    size_t depth = 0;
-    for (auto cursor = first_element_of_inheritance_chain(abstract_element); cursor.has_value(); cursor = cursor->element_to_inherit_style_from(), ++depth) {
-        auto const& element = cursor->element();
-        if (!element.has_style()
-            || (may_owe_style_inputs && StyleEngineFFI::style_engine_has_deferred_element_style_input(style_engine.host(), &read, element.style_node_id().value())))
-            scan.topmost_requiring_style = depth;
-        if (auto const* box_values = element.style_group<ComputedValues::BoxValues>(); box_values && display_from_ffi_display(box_values->display).is_none()) {
-            scan.topmost_display_none = depth;
-            if (!scan.nearest_display_none.has_value())
-                scan.nearest_display_none = depth;
-        }
-    }
-    return scan;
+        return describe_reaction_element(element.document(), const_cast<DOM::Element*>(element.element_to_inherit_style_from(abstract_element.pseudo_element()).ptr()));
+    return describe_reaction_element(element.document(), &element);
 }
 
 static bool update_style_for_element(Layout::BegunRead const& read, DOM::Document& document, DOM::AbstractElement const& abstract_element, StyleUpdateMode mode)
@@ -847,11 +845,10 @@ static bool update_style_for_element(Layout::BegunRead const& read, DOM::Documen
         && !abstract_element.pseudo_element().has_value()
         && document_has_no_pending_style_work(read, document)
         && embedding_document_chain_has_no_pending_style_or_layout_work(document)) {
-        auto scan = scan_inheritance_chain(read, abstract_element, false);
-        if (mode == StyleUpdateMode::StopAtDisplayNone && scan.display_none_above_every_element_requiring_style())
-            return false;
-        if (!scan.topmost_requiring_style.has_value())
-            return true;
+        StyleReactionApplication application { read, document };
+        auto answer = StyleEngineFFI::style_engine_read_settled_inheritance_chain(document.style_computer().style_engine().host(), &read, &application, first_element_of_inheritance_chain(abstract_element), static_cast<StyleEngineFFI::FfiStyleUpdateMode>(mode));
+        if (answer != StyleEngineFFI::FfiTargetedStyleAnswer::NeedsStyleUpdate)
+            return answer_style_read(abstract_element, answer);
     }
 
     take_in_pending_style_arrivals(document);
@@ -934,50 +931,8 @@ static bool update_style_for_element(Layout::BegunRead const& read, DOM::Documen
             return true;
     }
 
-    auto scan = scan_inheritance_chain(read, abstract_element, true);
-    if (mode == StyleUpdateMode::StopAtDisplayNone && scan.display_none_above_every_element_requiring_style())
-        return false;
-    // Normal mode also re-cascades the target path under its display:none ancestors.
-    auto topmost_element_to_recompute = scan.topmost_requiring_style;
-    if (mode == StyleUpdateMode::Normal && !topmost_element_to_recompute.has_value() && scan.nearest_display_none.value_or(0) > 0)
-        topmost_element_to_recompute = *scan.nearest_display_none - 1;
-    if (!topmost_element_to_recompute.has_value()) {
-        if (mode != StyleUpdateMode::Normal && !embedding_document_layout_was_stale)
-            return abstract_element.has_style();
-        topmost_element_to_recompute = 0;
-    }
-
-    GC::RootVector<GC::Ref<DOM::Element>> inheritance_chain;
-    for (auto cursor = first_element_of_inheritance_chain(abstract_element); inheritance_chain.size() <= *topmost_element_to_recompute; cursor = cursor->element_to_inherit_style_from())
-        inheritance_chain.append(const_cast<DOM::Element&>(cursor->element()));
-
     StyleReactionApplication application { read, document };
-    bool descendant_style_recompute_needed = false;
-    for (size_t i = *topmost_element_to_recompute + 1; i > 0; --i) {
-        auto& element = inheritance_chain[i - 1];
-        bool did_change_custom_properties = false;
-        StyleBeforeReaction const before { element };
-        auto invalidation = apply_engine_record_demand(application, element, did_change_custom_properties);
-        apply_targeted_style_invalidation(read, element, before, invalidation, did_change_custom_properties, descendant_style_recompute_needed);
-
-        descendant_style_recompute_needed |= invalidation.recompute_descendant_styles;
-
-        // The engine can refuse a first style, which leaves the rest of the chain nothing to inherit from.
-        if (!element->has_style())
-            return abstract_element.has_style();
-        auto const* box_values = element->style_group<ComputedValues::BoxValues>();
-        VERIFY(box_values);
-        if (display_from_ffi_display(box_values->display).is_none()) {
-            if (mode == StyleUpdateMode::StopAtDisplayNone)
-                return false;
-            descendant_style_recompute_needed = false;
-        }
-
-        if (did_change_custom_properties || invalidation.needs_layout_tree_rebuild())
-            descendant_style_recompute_needed = true;
-    }
-
-    return abstract_element.has_style();
+    return answer_style_read(abstract_element, StyleEngineFFI::style_engine_update_style_for_inheritance_chain(document.style_computer().style_engine().host(), &read, &application, first_element_of_inheritance_chain(abstract_element), static_cast<StyleEngineFFI::FfiStyleUpdateMode>(mode), embedding_document_layout_was_stale));
 }
 
 }

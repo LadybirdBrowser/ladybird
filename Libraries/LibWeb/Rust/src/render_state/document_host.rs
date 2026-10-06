@@ -1412,9 +1412,7 @@ pub unsafe extern "C" fn document_host_destroy(host: *mut DocumentHost) {
 mod tests {
     use super::*;
     use crate::css::style::boundary::StyleChange;
-    use crate::css::style::engine_calls::{
-        EngineWrite, absorb_element_style_input, style_engine_has_deferred_element_style_input,
-    };
+    use crate::css::style::engine_calls::{EngineWrite, absorb_element_style_input, has_deferred_element_style_input};
     use crate::css::style::transaction::STYLE_REACTION_INHERITED_STYLE;
     use crate::render_state::ScriptForcedRead;
 
@@ -1459,8 +1457,7 @@ mod tests {
     }
 
     fn host_has_deferred_input(host: &DocumentHost, node: StyleNodeID) -> bool {
-        // SAFETY: The host is live, on this thread.
-        unsafe { style_engine_has_deferred_element_style_input(host, host.read_for_test(), node.raw()) }
+        has_deferred_element_style_input(host, host.read_for_test(), node)
     }
 
     fn engine_has_deferred_input(host: &DocumentHost, node: StyleNodeID) -> bool {
