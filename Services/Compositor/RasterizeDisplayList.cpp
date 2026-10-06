@@ -5,6 +5,7 @@
  */
 
 #include <Compositor/DisplayListPlayerSkia.h>
+#include <Compositor/DisplayListRasterCache.h>
 #include <Compositor/RasterizeDisplayList.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
@@ -33,7 +34,8 @@ ErrorOr<void> rasterize_display_list(Compositing::DisplayList const& display_lis
 
     // Raster on the CPU, so the pixels match a raster of the same list in any other process.
     DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
-    display_list_player.execute(display_list, visual_context_tree, resource_storage, {}, surface);
+    DisplayListRasterCache raster_cache;
+    display_list_player.execute(display_list, visual_context_tree, resource_storage, raster_cache, {}, surface, nullptr, nullptr);
     display_list_player.flush(*surface);
     return {};
 }

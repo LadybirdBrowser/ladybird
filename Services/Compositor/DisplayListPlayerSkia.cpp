@@ -33,6 +33,7 @@
 #include <pathops/SkPathOps.h>
 
 #include <Compositor/DisplayListPlayerSkia.h>
+#include <Compositor/DisplayListRasterCache.h>
 #include <LibCompositing/DisplayList/CanvasSurfaceRegistry.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
@@ -82,12 +83,14 @@ void DisplayListPlayerSkia::execute(
     DisplayList const& display_list,
     AccumulatedVisualContextTree const& visual_context_tree,
     DisplayListResourceStorage const& resource_storage,
+    DisplayListRasterCache& raster_cache,
     ScrollStateSnapshot const& scroll_state_snapshot,
     RefPtr<Gfx::PaintingSurface> surface,
     CanvasSurfaceRegistry const* canvas_surface_registry,
     CompositedContextResolver const* composited_context_resolver)
 {
     TemporaryChange composited_context_resolver_change { m_composited_context_resolver, composited_context_resolver };
+    TemporaryChange raster_cache_change { m_raster_cache, &raster_cache };
     if (m_layer_image_filter_cache->tree_structural_epoch != visual_context_tree.structural_epoch()) {
         m_layer_image_filter_cache->entries_by_tree_structural_epoch_and_effect.clear();
         m_layer_image_filter_cache->backdrop_entries_by_tree_structural_epoch_and_effect.clear();
@@ -222,7 +225,7 @@ void DisplayListPlayerSkia::play_command(DrawGlyphRun const& command)
     if (glyphs.is_empty())
         return;
 
-    auto blob = resource_storage().text_blob(command.font_id, command.scale, glyphs, command.font_smoothing);
+    auto blob = raster_cache().text_blob(resource_storage(), command.font_id, command.scale, glyphs, command.font_smoothing);
     if (!blob)
         return;
 
@@ -323,7 +326,7 @@ void DisplayListPlayerSkia::play_command(DrawCanvas const& command)
 
 void DisplayListPlayerSkia::play_command(DrawVideoFrame const& command)
 {
-    auto image = resource_storage().skia_image_for_video_sink(command.video_sink_id, m_skia_backend_context);
+    auto image = raster_cache().image_for_video_sink(resource_storage(), command.video_sink_id, m_skia_backend_context);
     if (!image)
         return;
 
@@ -408,7 +411,7 @@ sk_sp<SkColorFilter> force_dark_image_color_filter()
 
 void DisplayListPlayerSkia::play_command(DrawScaledDecodedImageFrame const& command)
 {
-    auto image = resource_storage().skia_image_for_image_frame(command.frame_id, m_skia_backend_context);
+    auto image = raster_cache().image_for_image_frame(resource_storage(), command.frame_id, m_skia_backend_context);
     if (!image)
         return;
 
@@ -451,7 +454,7 @@ void DisplayListPlayerSkia::play_command(DrawScaledDecodedImageFrame const& comm
 void DisplayListPlayerSkia::play_command(DrawRepeatedDecodedImageFrame const& command)
 {
     auto const& frame = resource_storage().image_frame(command.frame_id);
-    auto image = resource_storage().skia_image_for_image_frame(command.frame_id, m_skia_backend_context);
+    auto image = raster_cache().image_for_image_frame(resource_storage(), command.frame_id, m_skia_backend_context);
     if (!image)
         return;
 
@@ -520,7 +523,7 @@ static void paint_repeated_image(SkCanvas& canvas, SkImage& image, Gfx::FloatRec
 
 void DisplayListPlayerSkia::play_command(DrawTiledDecodedImageFrame const& command)
 {
-    auto image = resource_storage().skia_image_for_image_frame(command.frame_id, m_skia_backend_context);
+    auto image = raster_cache().image_for_image_frame(resource_storage(), command.frame_id, m_skia_backend_context);
     if (!image)
         return;
 
@@ -607,12 +610,12 @@ void DisplayListPlayerSkia::play_command(DrawRepeatedTile const& command)
 
     auto tile_records = inline_data(command.tile);
     auto raster_key = repeated_tile_raster_key(tile_records, tile_size);
-    auto image = resource_storage().cached_repeated_tile_raster(raster_key, tile_size, m_skia_backend_context);
+    auto image = raster_cache().repeated_tile_raster(raster_key, tile_size, m_skia_backend_context);
     if (!image) {
         image = rasterize_records_into_tile(tile_records, Gfx::IntRect { {}, tile_size });
         if (!image)
             return;
-        resource_storage().add_cached_repeated_tile_raster(raster_key, tile_size, m_skia_backend_context, image);
+        raster_cache().add_repeated_tile_raster(raster_key, tile_size, m_skia_backend_context, image);
     }
     paint_repeated_image(surface().canvas(), *image, command.dst_rect, command.tile_step, command.scaling_mode, command.compositing_and_blending_operator, command.repeat.x, command.repeat.y);
 }
@@ -1262,8 +1265,8 @@ void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
                 return;
 
             Gfx::IntRect raster_rect;
-            auto cached_image = resource_storage().cached_nested_display_list_raster(command.display_list_id, m_skia_backend_context, visible_rect_in_list_space, raster_rect);
-            if (!cached_image && resource_storage().should_cache_nested_display_list_raster(command.display_list_id)) {
+            auto cached_image = raster_cache().nested_display_list_raster(command.display_list_id, m_skia_backend_context, visible_rect_in_list_space, raster_rect);
+            if (!cached_image && raster_cache().should_cache_nested_display_list_raster(resource_storage(), command.display_list_id)) {
                 // Small lists are rasterized whole, so lists painted as many little slices (atlases, repeated
                 // images) hit one raster for every slice. Larger lists are rasterized at the visible portion.
                 constexpr size_t max_full_list_raster_bytes = 16 * MiB;
@@ -1284,7 +1287,7 @@ void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
                     offscreen_surface->canvas().resetMatrix();
                     auto image = offscreen_surface->sk_surface().makeImageSnapshot();
                     if (image) {
-                        resource_storage().add_cached_nested_display_list_raster(command.display_list_id, m_skia_backend_context, raster_candidate_rect, image);
+                        raster_cache().add_nested_display_list_raster(command.display_list_id, m_skia_backend_context, raster_candidate_rect, image);
                         cached_image = move(image);
                         raster_rect = raster_candidate_rect;
                     }

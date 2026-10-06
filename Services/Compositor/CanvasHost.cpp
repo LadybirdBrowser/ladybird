@@ -54,7 +54,7 @@ OwnPtr<Gfx::CanvasCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSi
         display_list_glyphs.ensure_capacity(glyphs.size());
         for (auto const& glyph : glyphs)
             display_list_glyphs.unchecked_append({ .position = glyph.position, .glyph_id = glyph.glyph_id });
-        return m_text_resources.text_blob(Compositing::FontResourceId { font_id }, 1, display_list_glyphs, 0, Compositing::TextRasterizationMode::Unhinted);
+        return m_text_blobs.text_blob(m_text_resources, Compositing::FontResourceId { font_id }, 1, display_list_glyphs, 0, TextRasterizationMode::Unhinted);
     };
     auto player = make<Gfx::CanvasCommandPlayer>(m_skia_backend_context, size, format, Gfx::AlphaType::Premultiplied, move(canvas_surface_resolver), move(text_blob_resolver));
 
@@ -153,7 +153,7 @@ void CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStr
             m_text_resources.set_font(font.id, font.font);
         resources.fonts.set(font.id);
     }
-    m_text_resources.retain_only(resources);
+    m_text_blobs.evict(m_text_resources.retain_only(resources));
     for (auto const& segment : segments) {
         // The canvas may have been destroyed while this segment was pending in
         // WebContent, so a missing context is not a protocol violation.
