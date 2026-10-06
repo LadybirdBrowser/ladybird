@@ -21,6 +21,7 @@ pub struct InlineContent {
     /// Boxes and text in line order, then tree order within each line. Empty when
     /// there are no boxes to interleave, so text can be painted together.
     pub items: Vec<InlineItem>,
+    pub lines_after_clamp_point_rect: Option<Box<used_values::FfiCssPixelRect>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -190,6 +191,7 @@ impl InlineContent {
             fragments,
             inline_box_pieces: pieces,
             items: Vec::new(),
+            lines_after_clamp_point_rect: data.lines_after_clamp_point_rect,
         };
         // Plain text needs no interleaving and keeps its single foreground producer.
         if content.inline_box_pieces.is_empty() && !content.fragments.iter().any(|fragment| fragment.is_atomic_inline) {

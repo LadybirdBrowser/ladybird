@@ -50,6 +50,7 @@ struct LineRelativeAlignedSubtree {
     shift: CssPixels,
 }
 
+#[derive(Clone)]
 pub(crate) struct LineBuilder<'builder, 'context> {
     context: &'builder inline_formatting_context::InlineFormattingContext<'context>,
     available_inline_size_for_current_line: AvailableSize,

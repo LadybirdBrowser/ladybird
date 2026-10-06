@@ -1,0 +1,37 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .clamp {
+        width: 100px;
+        overflow: hidden;
+        font: 16px/20px monospace;
+    }
+
+    .legacy {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    .standard {
+        line-clamp: 2;
+    }
+</style>
+<div id="wrapped-text" class="clamp legacy"><span>aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll</span></div>
+<div id="nested-block" class="clamp legacy"><div>aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll</div></div>
+<div id="float" class="clamp legacy">1<br>2<br><span style="float: left; width: 80px; height: 80px"></span>3<br>4</div>
+<div id="overflowing-inline-block" class="clamp legacy">1<br>2<br><span style="display: inline-block; vertical-align: top; width: 90px; height: 90px"><span style="display: block; width: 200px; height: 200px"></span></span></div>
+<div id="relatively-positioned-text" class="clamp legacy">1<br>2<br><span style="position: relative; top: 100px; left: 200px">3<br>4</span></div>
+<div id="clearing-line-break" class="clamp legacy">1<br>2<br><span style="float: left; width: 30px; height: 80px"></span>3<br style="clear: both">4</div>
+<div id="clearing-block" class="clamp legacy"><div>1<br>2<br><span style="float: left; width: 30px; height: 80px"></span>3</div><div style="clear: both">4<br>5</div></div>
+<div id="block-inside-inline" class="clamp legacy">1<br>2<br><span>3<div style="width: 250px; height: 100px"></div>4</span></div>
+<div id="trailing-whitespace" class="clamp legacy">1<br>2<br><span style="word-spacing: 200px">3 </span><br>4 </div>
+<div id="trailing-newline" class="clamp legacy">1<br>2<br><span style="word-spacing: 200px">3
+</span></div>
+<div id="standard" class="clamp standard"><span>aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll</span></div>
+<script>
+    test(() => {
+        for (const element of document.querySelectorAll(".clamp"))
+            println(`${element.id}: client ${element.clientWidth}x${element.clientHeight}, scroll ${element.scrollWidth}x${element.scrollHeight}`);
+    });
+</script>

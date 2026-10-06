@@ -110,7 +110,7 @@ enum FloatSide {
 }
 
 #[derive(Clone, Copy)]
-struct FloatingBox {
+pub(crate) struct FloatingBox {
     box_: Node,
     side: FloatSide,
 
@@ -157,6 +157,7 @@ pub(crate) struct BlockFormattingContext<'pass> {
     table_box_in_wrapper_border_box_block_size: Cell<Option<CssPixels>>,
     min_content_inline_size_from_max_content_layout: Cell<Option<CssPixels>>,
     is_line_clamp_container: bool,
+    clamped_content_is_scrollable_overflow: bool,
     max_lines: Cell<Option<usize>>,
     line_clamp_line_count: Cell<usize>,
     automatic_line_clamp_block_size: Cell<Option<CssPixels>>,
@@ -180,6 +181,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             || (computed_continue == continue_value::_WEBKIT_LEGACY
                 && style.display_before_box_type_transformation().is_webkit_box_inside()
                 && style.webkit_box_orient() == webkit_box_orient::VERTICAL);
+        // AD-HOC: Content after a -webkit-legacy clamp point stays scrollable overflow, matching other engines. Sites
+        //         detect clamped text by comparing scrollHeight with clientHeight.
+        let clamped_content_is_scrollable_overflow =
+            is_line_clamp_container && computed_continue == continue_value::_WEBKIT_LEGACY;
         Self {
             run: run.clone(),
             block_offset_of_current_block_container: Cell::new(None),
@@ -195,6 +200,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             table_box_in_wrapper_border_box_block_size: Cell::new(None),
             min_content_inline_size_from_max_content_layout: Cell::new(None),
             is_line_clamp_container,
+            clamped_content_is_scrollable_overflow,
             // NB: Measurements at a definite inline size need the clamped block size, just like committed layout.
             max_lines: Cell::new(
                 ((!run.purpose.is_measurement()
@@ -261,6 +267,9 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
     pub(crate) fn has_line_clamp(&self) -> bool {
         self.is_line_clamp_container
+    }
+    pub(crate) fn clamped_content_is_scrollable_overflow(&self) -> bool {
+        self.clamped_content_is_scrollable_overflow
     }
     pub(crate) fn line_clamp_reached(&self) -> bool {
         let reached = self.has_line_clamp() && self.used(self.run.box_).has_line_clamp_point.get();
@@ -1347,6 +1356,29 @@ impl<'pass> BlockFormattingContext<'pass> {
         !self.floats.borrow().is_empty()
     }
 
+    pub(crate) fn floating_box_count(&self) -> usize {
+        self.floats.borrow().len()
+    }
+
+    pub(crate) fn take_floating_boxes_from(&self, index: usize) -> Vec<FloatingBox> {
+        if self.floating_box_count() == index {
+            return Vec::new();
+        }
+        let floating_boxes = self.floats.borrow_mut().split_off(index);
+        self.update_lowest_floating_descendant_bottom_margin_edge();
+        self.rebuild_float_bands();
+        floating_boxes
+    }
+
+    pub(crate) fn append_floating_boxes(&self, floating_boxes: Vec<FloatingBox>) {
+        if floating_boxes.is_empty() {
+            return;
+        }
+        self.floats.borrow_mut().extend(floating_boxes);
+        self.update_lowest_floating_descendant_bottom_margin_edge();
+        self.rebuild_float_bands();
+    }
+
     pub(crate) fn clear_floating_boxes(
         &self,
         node: Node,
@@ -2324,6 +2356,9 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     pub(crate) fn run(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
         let available_space = input.available_space;
+        self.used(self.run.box_)
+            .clamped_content_is_scrollable_overflow
+            .set(self.clamped_content_is_scrollable_overflow);
         if self.is_line_clamp_container && self.style(self.run.box_).max_lines() == 0 {
             let automatic_block_size = self.resolve_automatic_line_clamp_block_size(input);
             if run.purpose.is_measurement() {
@@ -2412,6 +2447,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         containing_block: Node,
         input: LayoutInput,
         line_builder: &mut line_builder::LineBuilder<'_, '_>,
+        is_after_clamp_point: bool,
     ) {
         let line_index = line_builder.line_index_for_block_level_box();
         let current_block_offset = line_builder.current_block_offset();
@@ -2419,17 +2455,23 @@ impl<'pass> BlockFormattingContext<'pass> {
             .block_offset_of_current_block_container
             .replace(Some(current_block_offset));
         let mut dummy_bottom = CssPixels::default();
+        if is_after_clamp_point {
+            self.laying_out_invisible_line_clamp_content.set(true);
+        }
         self.layout_block_level_box(
             run,
             node,
             containing_block,
             &mut dummy_bottom,
             input,
-            Some(used_values::LineBoxFragmentCoordinate {
+            (!is_after_clamp_point).then_some(used_values::LineBoxFragmentCoordinate {
                 line_box_index: line_index,
                 fragment_index: 0,
             }),
         );
+        if is_after_clamp_point {
+            self.laying_out_invisible_line_clamp_content.set(false);
+        }
         // SAFETY: The builder remains live and no reference escaped.
         let block_bottom = self
             .block_offset_of_current_block_container

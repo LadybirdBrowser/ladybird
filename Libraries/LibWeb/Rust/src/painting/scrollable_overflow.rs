@@ -295,11 +295,6 @@ fn measure_scrollable_overflow_impl(
     let box_node = box_paintable;
     let paintable_absolute_padding_box = paintable_geometry::absolute_padding_box_rect(layout_arena, box_paintable);
     let paintable_absolute_content_box = paintable_geometry::absolute_rect(layout_arena, box_paintable);
-    let has_line_clamp_point = layout_arena.with_committed_fragment_link(box_node, |link| {
-        link.is_some_and(|link| link.fragment.has_line_clamp_point)
-    });
-    let line_clamp_clip = has_line_clamp_point.then(|| style_queries::line_clamp_clip_rect(layout_arena, box_node));
-    let clip_in_flow = |rect: CssPixelRect| line_clamp_clip.map_or(rect, |clip| rect.intersected(clip));
 
     if let Some(still_valid_overflow) = still_valid_overflow {
         let scrollable_overflow_rect =
@@ -310,6 +305,11 @@ fn measure_scrollable_overflow_impl(
         });
         return scrollable_overflow_rect;
     }
+
+    let line_clamp_clip = (style_queries::has_line_clamp_point(layout_arena, box_node)
+        && !style_queries::clamped_content_is_scrollable_overflow(layout_arena, box_node))
+    .then(|| style_queries::line_clamp_clip_rect(layout_arena, box_node));
+    let clip_in_flow = |rect: CssPixelRect| line_clamp_clip.map_or(rect, |clip| rect.intersected(clip));
 
     // The scrollable overflow area of a box is the union of:
 
@@ -335,8 +335,9 @@ fn measure_scrollable_overflow_impl(
     if crate::painting::node_painting::has_lines(layout_arena, box_paintable) {
         let side_data = layout_arena.committed_side_data(box_paintable);
         let absolute_position = paintable_geometry::absolute_position(layout_arena, box_paintable);
-        for line in side_data.lines() {
-            let line_rect = CssPixelRect::from(line.rect).translated_by(absolute_position);
+        let line_rects = side_data.lines().iter().map(|line| line.rect);
+        for line_rect in line_rects.chain(side_data.lines_after_clamp_point_rect()) {
+            let line_rect = CssPixelRect::from(line_rect).translated_by(absolute_position);
             scrollable_overflow_rect.unite(line_rect);
             in_flow_and_floated_content_bounds.unite(line_rect);
         }
@@ -408,7 +409,7 @@ fn measure_scrollable_overflow_impl(
         let child_flags = child_row.flags();
         let child_is_flex_or_grid_item = child_flags & (NodeFlag::IsFlexItem as u32 | NodeFlag::IsGridItem as u32) != 0;
         let child_is_floating = !child_is_flex_or_grid_item && child_style.is_some_and(|style| style.is_floating());
-        if style_queries::is_invisible_for_line_clamp(layout_arena, child_node) {
+        if style_queries::is_excluded_from_scrollable_overflow_by_line_clamp(layout_arena, child_node) {
             continue;
         }
         let child_display = child_style.map_or_else(FfiDisplay::block, |style| style.display());

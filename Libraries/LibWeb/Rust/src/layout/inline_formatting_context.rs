@@ -1025,6 +1025,35 @@ impl<'context> InlineFormattingContext<'context> {
         self.used(node).is_invisible_for_line_clamp.set(true);
     }
 
+    fn stops_at_line_clamp_point<'builder>(
+        &'builder self,
+        line_builder: &line_builder::LineBuilder<'builder, 'context>,
+        state_at_clamp_point: &mut Option<LineBuildingState<'builder, 'context>>,
+    ) -> bool {
+        if state_at_clamp_point.is_some() || !self.parent.line_clamp_reached() {
+            return false;
+        }
+        if !self.parent.clamped_content_is_scrollable_overflow()
+            || self.layout_mode != LayoutMode::Normal
+            || self.run.purpose.is_measurement()
+        {
+            return true;
+        }
+        let data = self.line_data();
+        let current_line_index = data
+            .line_boxes
+            .len()
+            .checked_sub(1)
+            .expect("a clamp point follows a line");
+        *state_at_clamp_point = Some(LineBuildingState {
+            line_builder: line_builder.clone(),
+            current_line_index,
+            current_line: data.line_boxes[current_line_index].clone(),
+            floating_box_count: self.parent.floating_box_count(),
+        });
+        false
+    }
+
     pub(crate) fn prepare_line_for_line_clamp(
         &self,
         line_index: usize,
@@ -1643,6 +1672,7 @@ impl<'context> InlineFormattingContext<'context> {
             let mut data = self.line_data_mut();
             data.line_boxes = reused_lines;
             data.inline_box_pieces.clear();
+            data.lines_after_clamp_point_rect = None;
         }
         iterator.skip_items(reused_item_count);
         let reused_line_count = self.line_data().line_boxes.len();
@@ -1658,7 +1688,13 @@ impl<'context> InlineFormattingContext<'context> {
         let mut absolute_boxes = Vec::new();
 
         let mut previous_text_item_allows_overflow_break_after = false;
-        while !self.parent.line_clamp_reached() {
+        let mut state_at_clamp_point = None;
+        let mut items_after_clamp_point = Vec::new();
+        let mut floating_boxes_after_clamp_point = Vec::new();
+        loop {
+            if self.stops_at_line_clamp_point(&line_builder, &mut state_at_clamp_point) {
+                break;
+            }
             let Some(mut item) = iterator.next() else {
                 break;
             };
@@ -1713,7 +1749,7 @@ impl<'context> InlineFormattingContext<'context> {
                         line_builder.break_if_needed(minimum);
                         line_builder.note_soft_wrap_opportunity();
                     }
-                    if self.parent.line_clamp_reached() {
+                    if self.stops_at_line_clamp_point(&line_builder, &mut state_at_clamp_point) {
                         break;
                     }
                     line_builder.append_box(
@@ -1730,8 +1766,8 @@ impl<'context> InlineFormattingContext<'context> {
                     leading_border += item.border_start;
                     leading_padding += item.padding_start;
                     line_builder.finish_current_line_before_block_level_box();
-                    if self.parent.line_clamp_reached() {
-                        continue;
+                    if self.stops_at_line_clamp_point(&line_builder, &mut state_at_clamp_point) {
+                        break;
                     }
                     self.parent.layout_interrupting_block_inside_inline_context(
                         self.run,
@@ -1739,10 +1775,15 @@ impl<'context> InlineFormattingContext<'context> {
                         self.containing_block,
                         self.input,
                         &mut line_builder,
+                        state_at_clamp_point.is_some(),
                     );
                 }
                 inline_level_iterator::ItemType::AbsolutelyPositionedElement => {
                     if !self.facts(item.node).is_box() {
+                        continue;
+                    }
+                    if state_at_clamp_point.is_some() {
+                        items_after_clamp_point.push((item.type_, item.node));
                         continue;
                     }
                     let preceded = item.preceded_by_unattached_inline_start_edges
@@ -1754,7 +1795,9 @@ impl<'context> InlineFormattingContext<'context> {
                 }
                 inline_level_iterator::ItemType::FloatingElement => {
                     line_builder.commit_pending_margin_before_float();
-                    self.create_used_values(item.node, self.input.containing_block_constraints);
+                    self.create_used_values(item.node, self.input.containing_block_constraints)
+                        .is_invisible_for_line_clamp
+                        .set(state_at_clamp_point.is_some());
                     self.clear_floating_boxes(item.node);
                     line_builder.set_unbreakable_run_inline_size_interrupted_by_float(
                         iterator.next_unbreakable_run_inline_size(self),
@@ -1814,7 +1857,7 @@ impl<'context> InlineFormattingContext<'context> {
                             previous_text_item_allows_overflow_break_after = true;
                         }
                     }
-                    if self.parent.line_clamp_reached() {
+                    if self.stops_at_line_clamp_point(&line_builder, &mut state_at_clamp_point) {
                         break;
                     }
                     line_builder.append_text_item(&mut item, style.line_height());
@@ -1822,24 +1865,74 @@ impl<'context> InlineFormattingContext<'context> {
             }
         }
 
+        if let Some(state_at_clamp_point) = state_at_clamp_point {
+            line_builder.update_last_line(false);
+            for line in &mut self.line_data_mut().line_boxes[state_at_clamp_point.current_line_index..] {
+                line.trim_trailing_whitespace();
+            }
+            let content_inline_size = self.containing_used().content_inline_size.get();
+            let mut lines_after_clamp_point_rect = CssPixelRect::default();
+            let mut atomic_inlines_after_clamp_point = Vec::new();
+            for line in self.line_data().line_boxes[state_at_clamp_point.current_line_index..]
+                .iter()
+                .filter(|line| !line.is_empty())
+            {
+                lines_after_clamp_point_rect.unite(line_rect(line, content_inline_size).into());
+                for fragment in line.visible_fragments() {
+                    let (x, y) = fragment.offset();
+                    let relative_insets = accumulated_relative_insets_from_inline_ancestor_chain(
+                        self.run.records,
+                        &self.callbacks,
+                        self.callbacks.parent(fragment.layout_node),
+                        self.containing_block,
+                    );
+                    let position = FfiCssPixelPoint {
+                        x: x + relative_insets.offset_x,
+                        y: y + relative_insets.offset_y,
+                    };
+                    if fragment.is_atomic_inline {
+                        atomic_inlines_after_clamp_point.push((fragment.layout_node, position));
+                    } else {
+                        let (width, height) = fragment.size();
+                        lines_after_clamp_point_rect.unite(CssPixelRect::new(position.x, position.y, width, height));
+                    }
+                }
+            }
+            {
+                let mut data = self.line_data_mut();
+                data.lines_after_clamp_point_rect =
+                    (!lines_after_clamp_point_rect.is_empty()).then(|| Box::new(lines_after_clamp_point_rect.into()));
+                data.line_boxes.truncate(state_at_clamp_point.current_line_index);
+                data.line_boxes.push(state_at_clamp_point.current_line);
+            }
+            line_builder = state_at_clamp_point.line_builder;
+            floating_boxes_after_clamp_point = self
+                .parent
+                .take_floating_boxes_from(state_at_clamp_point.floating_box_count);
+            for (node, position) in atomic_inlines_after_clamp_point {
+                self.used(node).is_invisible_for_line_clamp.set(true);
+                formatting_context::place_child(self.run, node, position, None);
+            }
+        }
         if self.parent.line_clamp_reached() {
-            for item in iterator.items() {
-                if item.type_ == inline_level_iterator::ItemType::Element {
-                    self.hide_atomic_inline_for_line_clamp(item.node);
-                } else if item.type_ == inline_level_iterator::ItemType::AbsolutelyPositionedElement
-                    && self.facts(item.node).is_box()
+            let remaining_items = iterator.items().iter().map(|item| (item.type_, item.node));
+            for (item_type, node) in items_after_clamp_point.into_iter().chain(remaining_items) {
+                if item_type == inline_level_iterator::ItemType::Element {
+                    self.hide_atomic_inline_for_line_clamp(node);
+                } else if item_type == inline_level_iterator::ItemType::AbsolutelyPositionedElement
+                    && self.facts(node).is_box()
                     && self.line_data().line_boxes.iter().any(|line| {
                         line.visible_fragments().any(|fragment| {
                             self.callbacks.is_ancestor(
-                                self.callbacks.parent(item.node),
+                                self.callbacks.parent(node),
                                 fragment.layout_node,
                                 self.containing_block,
                             )
                         })
                     })
                 {
-                    line_builder.append_static_position_marker(item.node, false);
-                    absolute_boxes.push(item.node);
+                    line_builder.append_static_position_marker(node, false);
+                    absolute_boxes.push(node);
                 }
             }
         }
@@ -1967,6 +2060,7 @@ impl<'context> InlineFormattingContext<'context> {
             }
         }
         line_builder.remove_last_line_if_empty();
+        self.parent.append_floating_boxes(floating_boxes_after_clamp_point);
     }
 
     pub(crate) fn run(&mut self) {
@@ -2088,6 +2182,13 @@ impl<'context> InlineFormattingContext<'context> {
             piece.relpos_delta = accumulated_relative_offset_from(piece.node);
         }
     }
+}
+
+struct LineBuildingState<'builder, 'context> {
+    line_builder: line_builder::LineBuilder<'builder, 'context>,
+    current_line_index: usize,
+    current_line: line_box::LineBoxData,
+    floating_box_count: usize,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
