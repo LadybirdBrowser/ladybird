@@ -166,6 +166,18 @@ pub struct FfiTakenStyleTransaction {
 }
 
 unsafe extern "C" {
+    fn web_css_republish_moved_environment(
+        application: *mut HostStyleReactionApplication,
+        node: u32,
+        style_record: u64,
+        replaced: u64,
+        new_inheritable: *const std::ffi::c_void,
+    );
+    fn web_css_rebuild_custom_property_environment(
+        application: *mut HostStyleReactionApplication,
+        node: u32,
+        new_inheritable: *const std::ffi::c_void,
+    );
     fn web_css_style_inheritance_parent(
         application: *mut HostStyleReactionApplication,
         element: *mut HostElement,
@@ -908,4 +920,101 @@ pub unsafe extern "C" fn style_engine_update_style_for_inheritance_chain(
         host_application,
     };
     application.update_style_for_inheritance_chain(first, mode, embedding_document_layout_was_stale)
+}
+
+/// Moves the custom-property environments below `origin`, whose own moved as `moved` says, and acts on what the move
+/// reached, in flat tree preorder, through `host_application`.
+///
+/// Every styled descendant holds the environment it inherits by identity, and the engine keeps what each holds: it
+/// hands the moved environment to the descendants that hold the one the element handed down before, with their
+/// records. What is left is the host's: installing those records, the environments of element-backed pseudo-elements,
+/// which the engine does not keep, and the custom properties a descendant declares itself, built again over the moved
+/// environment. A descendant whose style reads the environment computes again.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, `host_application` must be live for the call, the
+/// stores `moved` names must be null or live raw `Arc` pointers, and `moved.new_inheritable_data` must be null or a
+/// live `Web::CSS::CustomPropertyData`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_move_custom_property_environment(
+    host: &DocumentHost,
+    read: &BegunRead,
+    host_application: *mut HostStyleReactionApplication,
+    origin: u32,
+    moved: super::bridge::FfiEnvironmentMove,
+) {
+    use super::environment_move::{EnvironmentMove, EnvironmentMoveAction, NamedEnvironment};
+    let Some(origin) = StyleNodeID::from_raw(origin) else {
+        return;
+    };
+    let named = |environment: super::bridge::FfiNamedEnvironment| NamedEnvironment {
+        identity: environment.identity,
+        store: environment.store,
+    };
+    let environment_move = EnvironmentMove {
+        old_inheritable: moved.old_inheritable,
+        new_inheritable: named(moved.new_inheritable),
+        new_inheritable_data: moved.new_inheritable_data,
+        new_inheritable_declares: moved.new_inheritable_declares,
+    };
+    let (actions, moved_environments) = with_engine(read, host, |engine| {
+        let mut actions = Vec::new();
+        // SAFETY: Guaranteed by the caller.
+        unsafe { engine.move_custom_property_environment(origin, &environment_move, |action| actions.push(action)) };
+        // Each element the move left an environment takes the record republished over it.
+        let mut moved_environments = Vec::new();
+        for action in &actions {
+            let EnvironmentMoveAction::Republish { node, .. } = *action else {
+                continue;
+            };
+            moved_environments.push((
+                node,
+                None,
+                engine.element_custom_property_data(node).expose_provenance(),
+            ));
+            moved_environments.extend(
+                engine
+                    .pseudo_element_custom_property_environments(node)
+                    .map(|(pseudo, data)| (node, Some(pseudo), data.expose_provenance())),
+            );
+        }
+        (actions, moved_environments)
+    });
+    host.engine_memo().held.borrow_mut().follow_moved(&moved_environments);
+
+    for action in actions {
+        // SAFETY: The host lends its application for the call, and the environment it moved to outlives it.
+        unsafe {
+            match action {
+                EnvironmentMoveAction::Republish {
+                    node,
+                    style_record,
+                    replaced,
+                } => web_css_republish_moved_environment(
+                    host_application,
+                    node.raw(),
+                    style_record,
+                    replaced,
+                    moved.new_inheritable_data,
+                ),
+                EnvironmentMoveAction::Rebuild(node) => {
+                    web_css_rebuild_custom_property_environment(
+                        host_application,
+                        node.raw(),
+                        moved.new_inheritable_data,
+                    );
+                }
+                // An element that has to compute again is recorded with a recompute reaction alone: its descendants
+                // are the move's, or that computation's, to reach. (The engine fans an inherited custom-properties
+                // reaction out to every child of an applied reaction.)
+                EnvironmentMoveAction::Recompute(node) => web_css_record_derived_element_style_input(
+                    host_application,
+                    node.raw(),
+                    STYLE_REACTION_RECOMPUTE_STYLE,
+                    0,
+                ),
+            }
+        }
+    }
 }

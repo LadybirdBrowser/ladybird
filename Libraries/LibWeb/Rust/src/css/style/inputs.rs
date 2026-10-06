@@ -1937,7 +1937,6 @@ impl StyleEngine {
                 deferred_element_style_inputs: Vec::new(),
                 deferred_element_style_inputs_moved: false,
                 deferred_element_style_inputs_are_pending: false,
-                environment_move_actions: Vec::new(),
                 deferred_element_style_input_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
                 initial_tree_batch_applied: false,
                 initial_tree_bulk_load_is_pending: false,

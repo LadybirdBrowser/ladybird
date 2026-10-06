@@ -7154,6 +7154,24 @@ pub(crate) mod ffi_test_stubs {
         unreachable!("no unit test applies style reactions");
     }
     #[unsafe(no_mangle)]
+    extern "C" fn web_css_republish_moved_environment(
+        _application: *mut HostStyleReactionApplication,
+        _node: u32,
+        _style_record: u64,
+        _replaced: u64,
+        _new_inheritable: *const c_void,
+    ) {
+        unreachable!("no unit test applies style reactions");
+    }
+    #[unsafe(no_mangle)]
+    extern "C" fn web_css_rebuild_custom_property_environment(
+        _application: *mut HostStyleReactionApplication,
+        _node: u32,
+        _new_inheritable: *const c_void,
+    ) {
+        unreachable!("no unit test applies style reactions");
+    }
+    #[unsafe(no_mangle)]
     extern "C" fn web_css_apply_style_reaction(
         _application: *mut HostStyleReactionApplication,
         _element: *mut HostElement,
