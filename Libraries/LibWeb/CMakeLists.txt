@@ -782,6 +782,7 @@ set(SOURCES
     Page/EventHandler.cpp
     Page/MiddleButtonScrollHandler.cpp
     Page/Page.cpp
+    Page/PageCursor.cpp
     Page/ScreenWakeLockHandle.cpp
     Painting/Blending.cpp
     Painting/BoxModelMetrics.cpp

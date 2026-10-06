@@ -225,7 +225,6 @@ private:
     virtual void did_finish_rendering_update() override;
     virtual void set_manual_rendering_opportunities(bool enabled) override;
     virtual void inject_rendering_opportunity(double frame_time) override;
-    virtual void page_did_request_cursor_change(Gfx::Cursor const&) override;
     virtual void page_did_change_title(Utf16String const&) override;
     virtual void page_did_update_editing_history_state(bool can_undo, bool can_redo) override;
     virtual void page_did_request_refresh() override;
