@@ -9,7 +9,8 @@
 #pragma once
 
 #include <AK/Debug.h>
-#include <LibGfx/Painter.h>
+#include <LibGfx/AffineTransform.h>
+#include <LibGfx/Path.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/HTML/Canvas/AbstractCanvasMixin.h>
 

@@ -8,7 +8,6 @@
 #include <GLES2/gl2.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibIPC/Limits.h>
 #include <LibWeb/WebGL/WebGLContextProxy.h>
 #include <LibWeb/WebGL/WebGLContextProxyBase.h>
