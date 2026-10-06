@@ -309,10 +309,6 @@ WEB_API Optional<PropertyID> property_id_from_string(Utf16View);
 [[nodiscard]] WEB_API Utf16FlyString const& string_from_property_id(PropertyID);
 [[nodiscard]] Utf16FlyString const& camel_case_string_from_property_id(PropertyID);
 WEB_API bool is_inherited_property(PropertyID);
-// The ComputedValues style group this longhand's computed value is declared to live in, by name,
-// or nothing when the property declares no group. Checked at style group registration against the
-// bindings derived from what actually builds the groups.
-WEB_API Optional<StringView> style_group_name_of_property(PropertyID);
 WEB_API NonnullRefPtr<StyleValue const> property_initial_value(PropertyID);
 
 enum class PropertyMultiplicity {{
@@ -425,6 +421,8 @@ def write_implementation_file(out: TextIO, properties: dict, logical_property_gr
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
+#include <LibWeb/ComputedValuesRustFFI.h>
+#include <LibWeb/StyleValueRustFFI.h>
 #include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::CSS {
@@ -558,32 +556,6 @@ bool is_inherited_property(PropertyID property_id)
     return false;
 }
 
-Optional<StringView> style_group_name_of_property(PropertyID property_id)
-{
-    switch (property_id) {
-""")
-
-    style_groups: dict[str, list[str]] = {}
-    for name, value in properties.items():
-        if is_legacy_alias(value):
-            continue
-        # A logical alias inherits its physical template's fields, but its computed value lives in
-        # the physical property's group field, so it declares no group of its own.
-        if "logical-alias-for" in value:
-            continue
-        if style_group := value.get("style-group"):
-            style_groups.setdefault(style_group, []).append(name)
-    for style_group, group_properties in style_groups.items():
-        for name in group_properties:
-            out.write(f"    case PropertyID::{title_casify(name)}:\n")
-        out.write(f'        return "{style_group}"sv;\n')
-
-    out.write("""
-    default:
-        return {};
-    }
-}
-
 bool property_affects_layout(PropertyID property_id)
 {
     switch (property_id) {
@@ -696,10 +668,15 @@ NonnullRefPtr<StyleValue const> property_initial_value(PropertyID property_id)
     if (auto initial_value = (*initial_values)[to_underlying(property_id)])
         return initial_value.release_nonnull();
 
-    // Lazily parse initial values as needed.
-    // This ensures the shorthands will always be able to get the initial values of their longhands.
-    // This also now allows a longhand have its own longhand (like background-position-x).
+    // A longhand's initial value is the one style computation selects, which Rust parses.
+    if (property_id >= first_longhand_property_id && property_id <= last_longhand_property_id) {
+        auto const* data = static_cast<StyleValueFFI::StyleValueData const*>(ComputedValuesFFI::rust_style_metadata_initial_value(to_underlying(property_id)));
+        auto initial_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(data));
+        (*initial_values)[to_underlying(property_id)] = initial_value;
+        return initial_value;
+    }
 
+    // Lazily parse shorthand initial values as needed.
     Parser::ParsingParams parsing_params;
     switch (property_id) {
 """)
@@ -710,6 +687,8 @@ NonnullRefPtr<StyleValue const> property_initial_value(PropertyID property_id)
         if "initial" not in value:
             print(f"No initial value specified for property '{name}'", file=sys.stderr)
             sys.exit(1)
+        if "longhands" not in value:
+            continue
         initial_value_string = value["initial"]
         title = title_casify(name)
         out.write(f"""        case PropertyID::{title}:

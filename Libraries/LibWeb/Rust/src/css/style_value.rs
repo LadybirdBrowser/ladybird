@@ -406,9 +406,12 @@ impl RetainedStyleValueData {
     }
 
     pub(crate) fn from_owned(data: StyleValueData) -> Self {
-        let pointer = Arc::into_raw(shared_style_value(data));
+        Self::from_arc(shared_style_value(data))
+    }
+
+    pub(crate) fn from_arc(value: Arc<StyleValueData>) -> Self {
         // SAFETY: Arc::into_raw transfers one strong reference to this handle.
-        unsafe { Self::from_retained_pointer(pointer) }
+        unsafe { Self::from_retained_pointer(Arc::into_raw(value)) }
     }
 
     /// Borrow the handles' pointer storage without copying or transferring ownership.

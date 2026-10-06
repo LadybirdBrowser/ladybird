@@ -49,6 +49,7 @@ use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlySt
 use crate::css::style::fast_hash::{FastHasher, fast_hasher};
 use crate::css::style_value::StyleValueData;
 use crate::css::style_value::{retained_list_drop, retained_list_partial_eq};
+use crate::css::table_group_builder::group_index;
 
 /// Reference count value marking an intentionally leaked payload.
 pub const STYLE_GROUP_STATIC_REFCOUNT: usize = usize::MAX;
@@ -1158,11 +1159,9 @@ impl GridValues {
     }
 }
 
-/// Selects the Rust payload type for a computed-value style group.
-#[repr(u8)]
+/// The payload type of one computed-value style group.
 #[derive(Clone, Copy)]
-#[expect(dead_code, reason = "C++ constructs the variants")]
-pub enum StyleGroupLifecycle {
+pub(crate) enum StyleGroup {
     Font,
     InheritedTable,
     InheritedBox,
@@ -1188,380 +1187,373 @@ pub enum StyleGroupLifecycle {
     MiscReset,
 }
 
-/// Size and alignment verification for one Rust-owned style group type.
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct StyleGroupVTable {
-    pub lifecycle: StyleGroupLifecycle,
-    pub size: usize,
-    pub align: usize,
+/// Every style group, in the order of the group indices both sides use (`group_index`, and
+/// LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS in C++).
+const STYLE_GROUPS: [StyleGroup; group_index::COUNT] = [
+    StyleGroup::InheritedTable,
+    StyleGroup::InheritedList,
+    StyleGroup::InheritedUI,
+    StyleGroup::InheritedSVG,
+    StyleGroup::InheritedText,
+    StyleGroup::InheritedBox,
+    StyleGroup::Font,
+    StyleGroup::Animation,
+    StyleGroup::SVGReset,
+    StyleGroup::Grid,
+    StyleGroup::Anchor,
+    StyleGroup::Effects,
+    StyleGroup::Mask,
+    StyleGroup::TextReset,
+    StyleGroup::Content,
+    StyleGroup::Transform,
+    StyleGroup::Background,
+    StyleGroup::Border,
+    StyleGroup::Alignment,
+    StyleGroup::MiscReset,
+    StyleGroup::Sizing,
+    StyleGroup::Surround,
+    StyleGroup::Box,
+];
+
+fn style_group(group_index: usize) -> StyleGroup {
+    STYLE_GROUPS[group_index]
 }
 
-// SAFETY: The plain integers are immutable after registration.
-unsafe impl Send for StyleGroupVTable {}
-unsafe impl Sync for StyleGroupVTable {}
-
-struct Registry {
-    vtables: Box<[StyleGroupVTable]>,
-    /// The intentionally leaked per-group default payloads, for building
-    /// groups without allocating when every field holds its initial value.
-    defaults: Box<[*const c_void]>,
-}
-
-// SAFETY: The defaults are immortal, immutable payloads.
-unsafe impl Send for Registry {}
-unsafe impl Sync for Registry {}
-
-static REGISTRY: OnceLock<Registry> = OnceLock::new();
-
-fn vtable(group_index: usize) -> &'static StyleGroupVTable {
-    let registry = REGISTRY.get().expect("style groups used before registration");
-    &registry.vtables[group_index]
-}
-
-fn payload_size(table: &StyleGroupVTable) -> usize {
-    match table.lifecycle {
-        StyleGroupLifecycle::InheritedTable => size_of::<InheritedTableValues>(),
-        StyleGroupLifecycle::InheritedBox => size_of::<InheritedBoxValues>(),
-        StyleGroupLifecycle::Sizing => size_of::<SizingValues>(),
-        StyleGroupLifecycle::Alignment => size_of::<AlignmentValues>(),
-        StyleGroupLifecycle::SVGReset => size_of::<SVGResetValues>(),
-        StyleGroupLifecycle::Surround => size_of::<SurroundValues>(),
-        StyleGroupLifecycle::Box => size_of::<BoxValues>(),
-        StyleGroupLifecycle::Grid => size_of::<GridValues>(),
-        StyleGroupLifecycle::TextReset => size_of::<TextResetValues>(),
-        StyleGroupLifecycle::Transform => size_of::<TransformValues>(),
-        StyleGroupLifecycle::Effects => size_of::<EffectsValues>(),
-        StyleGroupLifecycle::Anchor => size_of::<AnchorValues>(),
-        StyleGroupLifecycle::InheritedUI => size_of::<InheritedUIValues>(),
-        StyleGroupLifecycle::InheritedSVG => size_of::<InheritedSVGValues>(),
-        StyleGroupLifecycle::InheritedText => size_of::<InheritedTextValues>(),
-        StyleGroupLifecycle::Animation => size_of::<AnimationValues>(),
-        StyleGroupLifecycle::Mask => size_of::<MaskValues>(),
-        StyleGroupLifecycle::Background => size_of::<BackgroundValues>(),
-        StyleGroupLifecycle::Border => size_of::<BorderValues>(),
-        StyleGroupLifecycle::Content => size_of::<ContentValues>(),
-        StyleGroupLifecycle::InheritedList => size_of::<InheritedListValues>(),
-        StyleGroupLifecycle::MiscReset => size_of::<MiscResetValues>(),
-        StyleGroupLifecycle::Font => size_of::<FontValues>(),
+fn payload_size(group: StyleGroup) -> usize {
+    match group {
+        StyleGroup::InheritedTable => size_of::<InheritedTableValues>(),
+        StyleGroup::InheritedBox => size_of::<InheritedBoxValues>(),
+        StyleGroup::Sizing => size_of::<SizingValues>(),
+        StyleGroup::Alignment => size_of::<AlignmentValues>(),
+        StyleGroup::SVGReset => size_of::<SVGResetValues>(),
+        StyleGroup::Surround => size_of::<SurroundValues>(),
+        StyleGroup::Box => size_of::<BoxValues>(),
+        StyleGroup::Grid => size_of::<GridValues>(),
+        StyleGroup::TextReset => size_of::<TextResetValues>(),
+        StyleGroup::Transform => size_of::<TransformValues>(),
+        StyleGroup::Effects => size_of::<EffectsValues>(),
+        StyleGroup::Anchor => size_of::<AnchorValues>(),
+        StyleGroup::InheritedUI => size_of::<InheritedUIValues>(),
+        StyleGroup::InheritedSVG => size_of::<InheritedSVGValues>(),
+        StyleGroup::InheritedText => size_of::<InheritedTextValues>(),
+        StyleGroup::Animation => size_of::<AnimationValues>(),
+        StyleGroup::Mask => size_of::<MaskValues>(),
+        StyleGroup::Background => size_of::<BackgroundValues>(),
+        StyleGroup::Border => size_of::<BorderValues>(),
+        StyleGroup::Content => size_of::<ContentValues>(),
+        StyleGroup::InheritedList => size_of::<InheritedListValues>(),
+        StyleGroup::MiscReset => size_of::<MiscResetValues>(),
+        StyleGroup::Font => size_of::<FontValues>(),
     }
 }
 
-fn payload_align(table: &StyleGroupVTable) -> usize {
-    match table.lifecycle {
-        StyleGroupLifecycle::InheritedTable => align_of::<InheritedTableValues>(),
-        StyleGroupLifecycle::InheritedBox => align_of::<InheritedBoxValues>(),
-        StyleGroupLifecycle::Sizing => align_of::<SizingValues>(),
-        StyleGroupLifecycle::Alignment => align_of::<AlignmentValues>(),
-        StyleGroupLifecycle::SVGReset => align_of::<SVGResetValues>(),
-        StyleGroupLifecycle::Surround => align_of::<SurroundValues>(),
-        StyleGroupLifecycle::Box => align_of::<BoxValues>(),
-        StyleGroupLifecycle::Grid => align_of::<GridValues>(),
-        StyleGroupLifecycle::TextReset => align_of::<TextResetValues>(),
-        StyleGroupLifecycle::Transform => align_of::<TransformValues>(),
-        StyleGroupLifecycle::Effects => align_of::<EffectsValues>(),
-        StyleGroupLifecycle::Anchor => align_of::<AnchorValues>(),
-        StyleGroupLifecycle::InheritedUI => align_of::<InheritedUIValues>(),
-        StyleGroupLifecycle::InheritedSVG => align_of::<InheritedSVGValues>(),
-        StyleGroupLifecycle::InheritedText => align_of::<InheritedTextValues>(),
-        StyleGroupLifecycle::Animation => align_of::<AnimationValues>(),
-        StyleGroupLifecycle::Mask => align_of::<MaskValues>(),
-        StyleGroupLifecycle::Background => align_of::<BackgroundValues>(),
-        StyleGroupLifecycle::Border => align_of::<BorderValues>(),
-        StyleGroupLifecycle::Content => align_of::<ContentValues>(),
-        StyleGroupLifecycle::InheritedList => align_of::<InheritedListValues>(),
-        StyleGroupLifecycle::MiscReset => align_of::<MiscResetValues>(),
-        StyleGroupLifecycle::Font => align_of::<FontValues>(),
+fn payload_align(group: StyleGroup) -> usize {
+    match group {
+        StyleGroup::InheritedTable => align_of::<InheritedTableValues>(),
+        StyleGroup::InheritedBox => align_of::<InheritedBoxValues>(),
+        StyleGroup::Sizing => align_of::<SizingValues>(),
+        StyleGroup::Alignment => align_of::<AlignmentValues>(),
+        StyleGroup::SVGReset => align_of::<SVGResetValues>(),
+        StyleGroup::Surround => align_of::<SurroundValues>(),
+        StyleGroup::Box => align_of::<BoxValues>(),
+        StyleGroup::Grid => align_of::<GridValues>(),
+        StyleGroup::TextReset => align_of::<TextResetValues>(),
+        StyleGroup::Transform => align_of::<TransformValues>(),
+        StyleGroup::Effects => align_of::<EffectsValues>(),
+        StyleGroup::Anchor => align_of::<AnchorValues>(),
+        StyleGroup::InheritedUI => align_of::<InheritedUIValues>(),
+        StyleGroup::InheritedSVG => align_of::<InheritedSVGValues>(),
+        StyleGroup::InheritedText => align_of::<InheritedTextValues>(),
+        StyleGroup::Animation => align_of::<AnimationValues>(),
+        StyleGroup::Mask => align_of::<MaskValues>(),
+        StyleGroup::Background => align_of::<BackgroundValues>(),
+        StyleGroup::Border => align_of::<BorderValues>(),
+        StyleGroup::Content => align_of::<ContentValues>(),
+        StyleGroup::InheritedList => align_of::<InheritedListValues>(),
+        StyleGroup::MiscReset => align_of::<MiscResetValues>(),
+        StyleGroup::Font => align_of::<FontValues>(),
     }
 }
 
-unsafe fn default_construct(table: &StyleGroupVTable, payload: *mut c_void) {
-    match table.lifecycle {
-        StyleGroupLifecycle::InheritedTable => unsafe {
+unsafe fn default_construct(group: StyleGroup, payload: *mut c_void) {
+    match group {
+        StyleGroup::InheritedTable => unsafe {
             (payload as *mut InheritedTableValues).write(InheritedTableValues::initial());
         },
-        StyleGroupLifecycle::InheritedBox => unsafe {
+        StyleGroup::InheritedBox => unsafe {
             (payload as *mut InheritedBoxValues).write(InheritedBoxValues::initial());
         },
-        StyleGroupLifecycle::Sizing => unsafe {
+        StyleGroup::Sizing => unsafe {
             (payload as *mut SizingValues).write(SizingValues::initial());
         },
-        StyleGroupLifecycle::Alignment => unsafe {
+        StyleGroup::Alignment => unsafe {
             (payload as *mut AlignmentValues).write(AlignmentValues::initial());
         },
-        StyleGroupLifecycle::SVGReset => unsafe {
+        StyleGroup::SVGReset => unsafe {
             (payload as *mut SVGResetValues).write(SVGResetValues::initial());
         },
-        StyleGroupLifecycle::Surround => unsafe {
+        StyleGroup::Surround => unsafe {
             (payload as *mut SurroundValues).write(SurroundValues::initial());
         },
-        StyleGroupLifecycle::Box => unsafe {
+        StyleGroup::Box => unsafe {
             (payload as *mut BoxValues).write(BoxValues::initial());
         },
-        StyleGroupLifecycle::Grid => unsafe {
+        StyleGroup::Grid => unsafe {
             (payload as *mut GridValues).write(GridValues::initial());
         },
-        StyleGroupLifecycle::TextReset => unsafe {
+        StyleGroup::TextReset => unsafe {
             (payload as *mut TextResetValues).write(TextResetValues::initial());
         },
-        StyleGroupLifecycle::Transform => unsafe {
+        StyleGroup::Transform => unsafe {
             (payload as *mut TransformValues).write(TransformValues::initial());
         },
-        StyleGroupLifecycle::Effects => unsafe {
+        StyleGroup::Effects => unsafe {
             (payload as *mut EffectsValues).write(EffectsValues::initial());
         },
-        StyleGroupLifecycle::Anchor => unsafe {
+        StyleGroup::Anchor => unsafe {
             (payload as *mut AnchorValues).write(AnchorValues::initial());
         },
-        StyleGroupLifecycle::InheritedUI => unsafe {
+        StyleGroup::InheritedUI => unsafe {
             (payload as *mut InheritedUIValues).write(InheritedUIValues::initial());
         },
-        StyleGroupLifecycle::InheritedSVG => unsafe {
+        StyleGroup::InheritedSVG => unsafe {
             (payload as *mut InheritedSVGValues).write(InheritedSVGValues::initial());
         },
-        StyleGroupLifecycle::InheritedText => unsafe {
+        StyleGroup::InheritedText => unsafe {
             (payload as *mut InheritedTextValues).write(InheritedTextValues::initial());
         },
-        StyleGroupLifecycle::Animation => unsafe {
+        StyleGroup::Animation => unsafe {
             (payload as *mut AnimationValues).write(AnimationValues::initial());
         },
-        StyleGroupLifecycle::Mask => unsafe {
+        StyleGroup::Mask => unsafe {
             (payload as *mut MaskValues).write(MaskValues::initial());
         },
-        StyleGroupLifecycle::Background => unsafe {
+        StyleGroup::Background => unsafe {
             (payload as *mut BackgroundValues).write(BackgroundValues::initial());
         },
-        StyleGroupLifecycle::Border => unsafe {
+        StyleGroup::Border => unsafe {
             (payload as *mut BorderValues).write(BorderValues::initial());
         },
-        StyleGroupLifecycle::Content => unsafe {
+        StyleGroup::Content => unsafe {
             (payload as *mut ContentValues).write(ContentValues::initial());
         },
-        StyleGroupLifecycle::InheritedList => unsafe {
+        StyleGroup::InheritedList => unsafe {
             (payload as *mut InheritedListValues).write(InheritedListValues::initial());
         },
-        StyleGroupLifecycle::MiscReset => unsafe {
+        StyleGroup::MiscReset => unsafe {
             (payload as *mut MiscResetValues).write(MiscResetValues::initial());
         },
-        StyleGroupLifecycle::Font => unsafe {
+        StyleGroup::Font => unsafe {
             (payload as *mut FontValues).write(FontValues::initial());
         },
     }
 }
 
-unsafe fn copy_construct(table: &StyleGroupVTable, payload: *mut c_void, source: *const c_void) {
-    match table.lifecycle {
-        StyleGroupLifecycle::InheritedTable => unsafe {
+unsafe fn copy_construct(group: StyleGroup, payload: *mut c_void, source: *const c_void) {
+    match group {
+        StyleGroup::InheritedTable => unsafe {
             (payload as *mut InheritedTableValues).write(*(source as *const InheritedTableValues));
         },
-        StyleGroupLifecycle::InheritedBox => unsafe {
+        StyleGroup::InheritedBox => unsafe {
             (payload as *mut InheritedBoxValues).write(*(source as *const InheritedBoxValues));
         },
-        StyleGroupLifecycle::Sizing => unsafe {
+        StyleGroup::Sizing => unsafe {
             (payload as *mut SizingValues).write((*(source as *const SizingValues)).clone());
         },
-        StyleGroupLifecycle::Alignment => unsafe {
+        StyleGroup::Alignment => unsafe {
             (payload as *mut AlignmentValues).write((*(source as *const AlignmentValues)).clone());
         },
-        StyleGroupLifecycle::SVGReset => unsafe {
+        StyleGroup::SVGReset => unsafe {
             (payload as *mut SVGResetValues).write((*(source as *const SVGResetValues)).clone());
         },
-        StyleGroupLifecycle::Surround => unsafe {
+        StyleGroup::Surround => unsafe {
             (payload as *mut SurroundValues).write((*(source as *const SurroundValues)).clone());
         },
-        StyleGroupLifecycle::Box => unsafe {
+        StyleGroup::Box => unsafe {
             (payload as *mut BoxValues).write((*(source as *const BoxValues)).clone());
         },
-        StyleGroupLifecycle::Grid => unsafe {
+        StyleGroup::Grid => unsafe {
             (payload as *mut GridValues).write((*(source as *const GridValues)).clone());
         },
-        StyleGroupLifecycle::TextReset => unsafe {
+        StyleGroup::TextReset => unsafe {
             (payload as *mut TextResetValues).write((*(source as *const TextResetValues)).clone());
         },
-        StyleGroupLifecycle::Transform => unsafe {
+        StyleGroup::Transform => unsafe {
             (payload as *mut TransformValues).write((*(source as *const TransformValues)).clone());
         },
-        StyleGroupLifecycle::Effects => unsafe {
+        StyleGroup::Effects => unsafe {
             (payload as *mut EffectsValues).write((*(source as *const EffectsValues)).clone());
         },
-        StyleGroupLifecycle::Anchor => unsafe {
+        StyleGroup::Anchor => unsafe {
             (payload as *mut AnchorValues).write((*(source as *const AnchorValues)).clone());
         },
-        StyleGroupLifecycle::InheritedUI => unsafe {
+        StyleGroup::InheritedUI => unsafe {
             (payload as *mut InheritedUIValues).write((*(source as *const InheritedUIValues)).clone());
         },
-        StyleGroupLifecycle::InheritedSVG => unsafe {
+        StyleGroup::InheritedSVG => unsafe {
             (payload as *mut InheritedSVGValues).write((*(source as *const InheritedSVGValues)).clone());
         },
-        StyleGroupLifecycle::InheritedText => unsafe {
+        StyleGroup::InheritedText => unsafe {
             (payload as *mut InheritedTextValues).write((*(source as *const InheritedTextValues)).clone());
         },
-        StyleGroupLifecycle::Animation => unsafe {
+        StyleGroup::Animation => unsafe {
             (payload as *mut AnimationValues).write((*(source as *const AnimationValues)).clone());
         },
-        StyleGroupLifecycle::Mask => unsafe {
+        StyleGroup::Mask => unsafe {
             (payload as *mut MaskValues).write((*(source as *const MaskValues)).clone());
         },
-        StyleGroupLifecycle::Background => unsafe {
+        StyleGroup::Background => unsafe {
             (payload as *mut BackgroundValues).write((*(source as *const BackgroundValues)).clone());
         },
-        StyleGroupLifecycle::Border => unsafe {
+        StyleGroup::Border => unsafe {
             (payload as *mut BorderValues).write((*(source as *const BorderValues)).clone());
         },
-        StyleGroupLifecycle::Content => unsafe {
+        StyleGroup::Content => unsafe {
             (payload as *mut ContentValues).write((*(source as *const ContentValues)).clone());
         },
-        StyleGroupLifecycle::InheritedList => unsafe {
+        StyleGroup::InheritedList => unsafe {
             (payload as *mut InheritedListValues).write((*(source as *const InheritedListValues)).clone());
         },
-        StyleGroupLifecycle::MiscReset => unsafe {
+        StyleGroup::MiscReset => unsafe {
             (payload as *mut MiscResetValues).write((*(source as *const MiscResetValues)).clone());
         },
-        StyleGroupLifecycle::Font => unsafe {
+        StyleGroup::Font => unsafe {
             (payload as *mut FontValues).write((*(source as *const FontValues)).clone());
         },
     }
 }
 
-unsafe fn destruct(table: &StyleGroupVTable, payload: *mut c_void) {
-    match table.lifecycle {
-        StyleGroupLifecycle::InheritedTable => unsafe { std::ptr::drop_in_place(payload as *mut InheritedTableValues) },
-        StyleGroupLifecycle::InheritedBox => unsafe { std::ptr::drop_in_place(payload as *mut InheritedBoxValues) },
-        StyleGroupLifecycle::Sizing => unsafe { std::ptr::drop_in_place(payload as *mut SizingValues) },
-        StyleGroupLifecycle::Alignment => unsafe { std::ptr::drop_in_place(payload as *mut AlignmentValues) },
-        StyleGroupLifecycle::SVGReset => unsafe { std::ptr::drop_in_place(payload as *mut SVGResetValues) },
-        StyleGroupLifecycle::Surround => unsafe { std::ptr::drop_in_place(payload as *mut SurroundValues) },
-        StyleGroupLifecycle::Box => unsafe { std::ptr::drop_in_place(payload as *mut BoxValues) },
-        StyleGroupLifecycle::Grid => unsafe { std::ptr::drop_in_place(payload as *mut GridValues) },
-        StyleGroupLifecycle::TextReset => unsafe { std::ptr::drop_in_place(payload as *mut TextResetValues) },
-        StyleGroupLifecycle::Transform => unsafe { std::ptr::drop_in_place(payload as *mut TransformValues) },
-        StyleGroupLifecycle::Effects => unsafe { std::ptr::drop_in_place(payload as *mut EffectsValues) },
-        StyleGroupLifecycle::Anchor => unsafe { std::ptr::drop_in_place(payload as *mut AnchorValues) },
-        StyleGroupLifecycle::InheritedUI => unsafe { std::ptr::drop_in_place(payload as *mut InheritedUIValues) },
-        StyleGroupLifecycle::InheritedSVG => unsafe { std::ptr::drop_in_place(payload as *mut InheritedSVGValues) },
-        StyleGroupLifecycle::InheritedText => unsafe { std::ptr::drop_in_place(payload as *mut InheritedTextValues) },
-        StyleGroupLifecycle::Animation => unsafe { std::ptr::drop_in_place(payload as *mut AnimationValues) },
-        StyleGroupLifecycle::Mask => unsafe { std::ptr::drop_in_place(payload as *mut MaskValues) },
-        StyleGroupLifecycle::Background => unsafe { std::ptr::drop_in_place(payload as *mut BackgroundValues) },
-        StyleGroupLifecycle::Border => unsafe { std::ptr::drop_in_place(payload as *mut BorderValues) },
-        StyleGroupLifecycle::Content => unsafe { std::ptr::drop_in_place(payload as *mut ContentValues) },
-        StyleGroupLifecycle::InheritedList => unsafe { std::ptr::drop_in_place(payload as *mut InheritedListValues) },
-        StyleGroupLifecycle::MiscReset => unsafe { std::ptr::drop_in_place(payload as *mut MiscResetValues) },
-        StyleGroupLifecycle::Font => unsafe { std::ptr::drop_in_place(payload as *mut FontValues) },
+unsafe fn destruct(group: StyleGroup, payload: *mut c_void) {
+    match group {
+        StyleGroup::InheritedTable => unsafe { std::ptr::drop_in_place(payload as *mut InheritedTableValues) },
+        StyleGroup::InheritedBox => unsafe { std::ptr::drop_in_place(payload as *mut InheritedBoxValues) },
+        StyleGroup::Sizing => unsafe { std::ptr::drop_in_place(payload as *mut SizingValues) },
+        StyleGroup::Alignment => unsafe { std::ptr::drop_in_place(payload as *mut AlignmentValues) },
+        StyleGroup::SVGReset => unsafe { std::ptr::drop_in_place(payload as *mut SVGResetValues) },
+        StyleGroup::Surround => unsafe { std::ptr::drop_in_place(payload as *mut SurroundValues) },
+        StyleGroup::Box => unsafe { std::ptr::drop_in_place(payload as *mut BoxValues) },
+        StyleGroup::Grid => unsafe { std::ptr::drop_in_place(payload as *mut GridValues) },
+        StyleGroup::TextReset => unsafe { std::ptr::drop_in_place(payload as *mut TextResetValues) },
+        StyleGroup::Transform => unsafe { std::ptr::drop_in_place(payload as *mut TransformValues) },
+        StyleGroup::Effects => unsafe { std::ptr::drop_in_place(payload as *mut EffectsValues) },
+        StyleGroup::Anchor => unsafe { std::ptr::drop_in_place(payload as *mut AnchorValues) },
+        StyleGroup::InheritedUI => unsafe { std::ptr::drop_in_place(payload as *mut InheritedUIValues) },
+        StyleGroup::InheritedSVG => unsafe { std::ptr::drop_in_place(payload as *mut InheritedSVGValues) },
+        StyleGroup::InheritedText => unsafe { std::ptr::drop_in_place(payload as *mut InheritedTextValues) },
+        StyleGroup::Animation => unsafe { std::ptr::drop_in_place(payload as *mut AnimationValues) },
+        StyleGroup::Mask => unsafe { std::ptr::drop_in_place(payload as *mut MaskValues) },
+        StyleGroup::Background => unsafe { std::ptr::drop_in_place(payload as *mut BackgroundValues) },
+        StyleGroup::Border => unsafe { std::ptr::drop_in_place(payload as *mut BorderValues) },
+        StyleGroup::Content => unsafe { std::ptr::drop_in_place(payload as *mut ContentValues) },
+        StyleGroup::InheritedList => unsafe { std::ptr::drop_in_place(payload as *mut InheritedListValues) },
+        StyleGroup::MiscReset => unsafe { std::ptr::drop_in_place(payload as *mut MiscResetValues) },
+        StyleGroup::Font => unsafe { std::ptr::drop_in_place(payload as *mut FontValues) },
     }
 }
 
-unsafe fn payloads_equal(table: &StyleGroupVTable, a: *const c_void, b: *const c_void) -> bool {
-    match table.lifecycle {
-        StyleGroupLifecycle::InheritedTable => unsafe {
+unsafe fn payloads_equal(group: StyleGroup, a: *const c_void, b: *const c_void) -> bool {
+    match group {
+        StyleGroup::InheritedTable => unsafe {
             *(a as *const InheritedTableValues) == *(b as *const InheritedTableValues)
         },
-        StyleGroupLifecycle::InheritedBox => unsafe {
-            *(a as *const InheritedBoxValues) == *(b as *const InheritedBoxValues)
-        },
-        StyleGroupLifecycle::Sizing => unsafe { *(a as *const SizingValues) == *(b as *const SizingValues) },
-        StyleGroupLifecycle::Alignment => unsafe { *(a as *const AlignmentValues) == *(b as *const AlignmentValues) },
-        StyleGroupLifecycle::SVGReset => unsafe { *(a as *const SVGResetValues) == *(b as *const SVGResetValues) },
-        StyleGroupLifecycle::Surround => unsafe { *(a as *const SurroundValues) == *(b as *const SurroundValues) },
-        StyleGroupLifecycle::Box => unsafe { *(a as *const BoxValues) == *(b as *const BoxValues) },
-        StyleGroupLifecycle::Grid => unsafe { *(a as *const GridValues) == *(b as *const GridValues) },
-        StyleGroupLifecycle::TextReset => unsafe { *(a as *const TextResetValues) == *(b as *const TextResetValues) },
-        StyleGroupLifecycle::Transform => unsafe { *(a as *const TransformValues) == *(b as *const TransformValues) },
-        StyleGroupLifecycle::Effects => unsafe { *(a as *const EffectsValues) == *(b as *const EffectsValues) },
-        StyleGroupLifecycle::Anchor => unsafe { *(a as *const AnchorValues) == *(b as *const AnchorValues) },
-        StyleGroupLifecycle::InheritedUI => unsafe {
-            *(a as *const InheritedUIValues) == *(b as *const InheritedUIValues)
-        },
-        StyleGroupLifecycle::InheritedSVG => unsafe {
-            *(a as *const InheritedSVGValues) == *(b as *const InheritedSVGValues)
-        },
-        StyleGroupLifecycle::InheritedText => unsafe {
+        StyleGroup::InheritedBox => unsafe { *(a as *const InheritedBoxValues) == *(b as *const InheritedBoxValues) },
+        StyleGroup::Sizing => unsafe { *(a as *const SizingValues) == *(b as *const SizingValues) },
+        StyleGroup::Alignment => unsafe { *(a as *const AlignmentValues) == *(b as *const AlignmentValues) },
+        StyleGroup::SVGReset => unsafe { *(a as *const SVGResetValues) == *(b as *const SVGResetValues) },
+        StyleGroup::Surround => unsafe { *(a as *const SurroundValues) == *(b as *const SurroundValues) },
+        StyleGroup::Box => unsafe { *(a as *const BoxValues) == *(b as *const BoxValues) },
+        StyleGroup::Grid => unsafe { *(a as *const GridValues) == *(b as *const GridValues) },
+        StyleGroup::TextReset => unsafe { *(a as *const TextResetValues) == *(b as *const TextResetValues) },
+        StyleGroup::Transform => unsafe { *(a as *const TransformValues) == *(b as *const TransformValues) },
+        StyleGroup::Effects => unsafe { *(a as *const EffectsValues) == *(b as *const EffectsValues) },
+        StyleGroup::Anchor => unsafe { *(a as *const AnchorValues) == *(b as *const AnchorValues) },
+        StyleGroup::InheritedUI => unsafe { *(a as *const InheritedUIValues) == *(b as *const InheritedUIValues) },
+        StyleGroup::InheritedSVG => unsafe { *(a as *const InheritedSVGValues) == *(b as *const InheritedSVGValues) },
+        StyleGroup::InheritedText => unsafe {
             *(a as *const InheritedTextValues) == *(b as *const InheritedTextValues)
         },
-        StyleGroupLifecycle::Animation => unsafe { *(a as *const AnimationValues) == *(b as *const AnimationValues) },
-        StyleGroupLifecycle::Mask => unsafe { *(a as *const MaskValues) == *(b as *const MaskValues) },
-        StyleGroupLifecycle::Background => unsafe {
-            *(a as *const BackgroundValues) == *(b as *const BackgroundValues)
-        },
-        StyleGroupLifecycle::Border => unsafe { *(a as *const BorderValues) == *(b as *const BorderValues) },
-        StyleGroupLifecycle::Content => unsafe { *(a as *const ContentValues) == *(b as *const ContentValues) },
-        StyleGroupLifecycle::InheritedList => unsafe {
+        StyleGroup::Animation => unsafe { *(a as *const AnimationValues) == *(b as *const AnimationValues) },
+        StyleGroup::Mask => unsafe { *(a as *const MaskValues) == *(b as *const MaskValues) },
+        StyleGroup::Background => unsafe { *(a as *const BackgroundValues) == *(b as *const BackgroundValues) },
+        StyleGroup::Border => unsafe { *(a as *const BorderValues) == *(b as *const BorderValues) },
+        StyleGroup::Content => unsafe { *(a as *const ContentValues) == *(b as *const ContentValues) },
+        StyleGroup::InheritedList => unsafe {
             *(a as *const InheritedListValues) == *(b as *const InheritedListValues)
         },
-        StyleGroupLifecycle::MiscReset => unsafe { *(a as *const MiscResetValues) == *(b as *const MiscResetValues) },
-        StyleGroupLifecycle::Font => unsafe { *(a as *const FontValues) == *(b as *const FontValues) },
+        StyleGroup::MiscReset => unsafe { *(a as *const MiscResetValues) == *(b as *const MiscResetValues) },
+        StyleGroup::Font => unsafe { *(a as *const FontValues) == *(b as *const FontValues) },
     }
 }
 
-unsafe fn payload_content_hash(table: &StyleGroupVTable, payload: *const c_void, hasher: &mut FastHasher) {
-    match table.lifecycle {
-        StyleGroupLifecycle::InheritedTable => unsafe {
+unsafe fn payload_content_hash(group: StyleGroup, payload: *const c_void, hasher: &mut FastHasher) {
+    match group {
+        StyleGroup::InheritedTable => unsafe {
             (*(payload as *const InheritedTableValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::InheritedBox => unsafe {
+        StyleGroup::InheritedBox => unsafe {
             (*(payload as *const InheritedBoxValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::Sizing => unsafe {
+        StyleGroup::Sizing => unsafe {
             (*(payload as *const SizingValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::Alignment => unsafe {
+        StyleGroup::Alignment => unsafe {
             (*(payload as *const AlignmentValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::SVGReset => unsafe {
+        StyleGroup::SVGReset => unsafe {
             (*(payload as *const SVGResetValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::Surround => unsafe {
+        StyleGroup::Surround => unsafe {
             (*(payload as *const SurroundValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::Box => unsafe {
+        StyleGroup::Box => unsafe {
             (*(payload as *const BoxValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::Grid => unsafe {
+        StyleGroup::Grid => unsafe {
             (*(payload as *const GridValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::TextReset => unsafe {
+        StyleGroup::TextReset => unsafe {
             (*(payload as *const TextResetValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::Transform => unsafe {
+        StyleGroup::Transform => unsafe {
             (*(payload as *const TransformValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::Effects => unsafe {
+        StyleGroup::Effects => unsafe {
             (*(payload as *const EffectsValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::Anchor => unsafe {
+        StyleGroup::Anchor => unsafe {
             (*(payload as *const AnchorValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::InheritedUI => unsafe {
+        StyleGroup::InheritedUI => unsafe {
             (*(payload as *const InheritedUIValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::InheritedSVG => unsafe {
+        StyleGroup::InheritedSVG => unsafe {
             (*(payload as *const InheritedSVGValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::InheritedText => unsafe {
+        StyleGroup::InheritedText => unsafe {
             (*(payload as *const InheritedTextValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::Animation => unsafe {
+        StyleGroup::Animation => unsafe {
             (*(payload as *const AnimationValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::Mask => unsafe {
+        StyleGroup::Mask => unsafe {
             (*(payload as *const MaskValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::Background => unsafe {
+        StyleGroup::Background => unsafe {
             (*(payload as *const BackgroundValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::Border => unsafe {
+        StyleGroup::Border => unsafe {
             (*(payload as *const BorderValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::Content => unsafe {
+        StyleGroup::Content => unsafe {
             (*(payload as *const ContentValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::InheritedList => unsafe {
+        StyleGroup::InheritedList => unsafe {
             (*(payload as *const InheritedListValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::MiscReset => unsafe {
+        StyleGroup::MiscReset => unsafe {
             (*(payload as *const MiscResetValues)).write_content_hash(hasher);
         },
-        StyleGroupLifecycle::Font => unsafe {
+        StyleGroup::Font => unsafe {
             (*(payload as *const FontValues)).write_content_hash(hasher);
         },
     }
@@ -1569,8 +1561,8 @@ unsafe fn payload_content_hash(table: &StyleGroupVTable, payload: *const c_void,
 
 pub(crate) fn style_group_affects_layout(group_index: usize) -> bool {
     !matches!(
-        vtable(group_index).lifecycle,
-        StyleGroupLifecycle::Mask | StyleGroupLifecycle::TextReset | StyleGroupLifecycle::Background
+        style_group(group_index),
+        StyleGroup::Mask | StyleGroup::TextReset | StyleGroup::Background
     )
 }
 
@@ -1579,7 +1571,7 @@ pub(crate) fn style_group_payloads_equal(group_index: usize, a: *const c_void, b
     assert!(!b.is_null());
     // SAFETY: Published style-group payloads remain live for the call and both use the registered
     // group type at `group_index`.
-    unsafe { payloads_equal(vtable(group_index), a, b) }
+    unsafe { payloads_equal(style_group(group_index), a, b) }
 }
 
 /// A content hash for one style-group payload, consistent with `style_group_payloads_equal`:
@@ -1592,7 +1584,7 @@ pub(crate) fn style_group_payloads_hash(group_index: usize, payload: *const c_vo
     hasher.write_usize(group_index);
     // SAFETY: Published style-group payloads remain live for the call and use the registered
     // group type at `group_index`.
-    unsafe { payload_content_hash(vtable(group_index), payload, &mut hasher) };
+    unsafe { payload_content_hash(style_group(group_index), payload, &mut hasher) };
     hasher.finish()
 }
 
@@ -1610,25 +1602,25 @@ fn layer_values_hold_image(handle: &ComputedStyleValueHandle) -> bool {
     }
 }
 
-unsafe fn payload_holds_image_values(table: &StyleGroupVTable, payload: *const c_void) -> bool {
-    match table.lifecycle {
-        StyleGroupLifecycle::Background => unsafe {
+unsafe fn payload_holds_image_values(group: StyleGroup, payload: *const c_void) -> bool {
+    match group {
+        StyleGroup::Background => unsafe {
             layer_values_hold_image(&(*(payload as *const BackgroundValues)).background_image)
         },
-        StyleGroupLifecycle::Mask => unsafe { layer_values_hold_image(&(*(payload as *const MaskValues)).mask_image) },
-        StyleGroupLifecycle::Border => unsafe {
+        StyleGroup::Mask => unsafe { layer_values_hold_image(&(*(payload as *const MaskValues)).mask_image) },
+        StyleGroup::Border => unsafe {
             (*(payload as *const BorderValues))
                 .border_image_source
                 .data()
                 .is_some_and(StyleValueData::is_image)
         },
-        StyleGroupLifecycle::InheritedList => unsafe {
+        StyleGroup::InheritedList => unsafe {
             (*(payload as *const InheritedListValues))
                 .list_style_image
                 .data()
                 .is_some_and(StyleValueData::is_image)
         },
-        StyleGroupLifecycle::InheritedUI => unsafe {
+        StyleGroup::InheritedUI => unsafe {
             let cursors = &(*(payload as *const InheritedUIValues)).cursor;
             !cursors.pointer.is_null()
                 && std::slice::from_raw_parts(cursors.pointer, cursors.length)
@@ -1647,18 +1639,42 @@ pub(crate) fn style_group_payloads_hold_image_values(payloads: &[*const c_void])
     payloads.iter().enumerate().any(|(group_index, &payload)| {
         // SAFETY: Published style-group payloads remain live for the call and use the registered
         // group type at `group_index`.
-        !payload.is_null() && unsafe { payload_holds_image_values(vtable(group_index), payload) }
+        !payload.is_null() && unsafe { payload_holds_image_values(style_group(group_index), payload) }
     })
 }
 
+/// The intentionally leaked per-group default payloads, for building groups without allocating when
+/// every field holds its initial value.
+struct DefaultPayloads([*const c_void; group_index::COUNT]);
+
+// SAFETY: The defaults are immortal, immutable payloads.
+unsafe impl Send for DefaultPayloads {}
+unsafe impl Sync for DefaultPayloads {}
+
 pub(crate) fn default_group_payload(group_index: usize) -> *const c_void {
-    REGISTRY.get().expect("style groups used before registration").defaults[group_index]
+    static DEFAULTS: OnceLock<DefaultPayloads> = OnceLock::new();
+    DEFAULTS
+        .get_or_init(|| {
+            DefaultPayloads(STYLE_GROUPS.map(|group| {
+                let payload = allocate_payload(group, STYLE_GROUP_STATIC_REFCOUNT);
+                // SAFETY: The payload was just allocated for this group's layout.
+                unsafe { default_construct(group, payload) };
+                payload.cast_const()
+            }))
+        })
+        .0[group_index]
+}
+
+/// The default payload of a style group, which StyleStructRef shares instead of allocating.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_group_default_payload(group_index: usize) -> *const c_void {
+    default_group_payload(group_index)
 }
 
 /// Retains one reference to a payload, mirroring StyleStructRef::ref():
 /// intentionally leaked payloads are never counted.
 pub(crate) fn retain_group_payload(group_index: usize, payload: *const c_void) {
-    let refcount = refcount_of(payload, payload_align(vtable(group_index)));
+    let refcount = refcount_of(payload, payload_align(style_group(group_index)));
     if refcount.load(Ordering::Relaxed) == STYLE_GROUP_STATIC_REFCOUNT {
         return;
     }
@@ -1666,22 +1682,22 @@ pub(crate) fn retain_group_payload(group_index: usize, payload: *const c_void) {
 }
 
 pub(crate) fn retained_group_payload_bytes(group_index: usize, payload: *const c_void) -> usize {
-    let table = vtable(group_index);
-    let refcount = refcount_of(payload, payload_align(table));
+    let group = style_group(group_index);
+    let refcount = refcount_of(payload, payload_align(group));
     if refcount.load(Ordering::Relaxed) == STYLE_GROUP_STATIC_REFCOUNT {
         return 0;
     }
-    allocation_layout(table).size()
+    allocation_layout(group).size()
 }
 
 fn header_size(align: usize) -> usize {
     align.max(size_of::<usize>())
 }
 
-fn allocation_layout(vtable: &StyleGroupVTable) -> Layout {
-    let payload_align = payload_align(vtable);
+fn allocation_layout(group: StyleGroup) -> Layout {
+    let payload_align = payload_align(group);
     let align = payload_align.max(align_of::<usize>());
-    Layout::from_size_align(header_size(payload_align) + payload_size(vtable), align)
+    Layout::from_size_align(header_size(payload_align) + payload_size(group), align)
         .expect("style group layout overflow")
 }
 
@@ -1698,128 +1714,20 @@ fn refcount_of(payload: *const c_void, align: usize) -> &'static AtomicUsize {
 /// owning the reference it handed over.
 #[cfg(test)]
 pub(crate) fn group_payload_refcount(group_index: usize, payload: *const c_void) -> usize {
-    refcount_of(payload, payload_align(vtable(group_index))).load(Ordering::Relaxed)
+    refcount_of(payload, payload_align(style_group(group_index))).load(Ordering::Relaxed)
 }
 
-/// The style groups a test binary registers, with the default payload built for each.
-#[cfg(test)]
-pub(crate) struct RegisteredTestStyleGroups {
-    pub(crate) vtables: Box<[StyleGroupVTable]>,
-    pub(crate) defaults: Box<[*const c_void]>,
-}
-
-// SAFETY: The vtables are immutable after registration and the defaults they built are immortal.
-#[cfg(test)]
-unsafe impl Send for RegisteredTestStyleGroups {}
-// SAFETY: The vtables are immutable after registration and the defaults they built are immortal.
-#[cfg(test)]
-unsafe impl Sync for RegisteredTestStyleGroups {}
-
-/// The registry is a process-wide `OnceLock` that refuses a second registration, so every test
-/// needing live payloads goes through this one registration and shares the defaults it built.
-#[cfg(test)]
-pub(crate) fn registered_test_style_groups() -> &'static RegisteredTestStyleGroups {
-    static GROUPS: OnceLock<RegisteredTestStyleGroups> = OnceLock::new();
-    GROUPS.get_or_init(|| {
-        let vtables: Box<[StyleGroupVTable]> = Box::new([
-            StyleGroupVTable {
-                lifecycle: StyleGroupLifecycle::InheritedTable,
-                size: size_of::<InheritedTableValues>(),
-                align: align_of::<InheritedTableValues>(),
-            },
-            StyleGroupVTable {
-                lifecycle: StyleGroupLifecycle::InheritedBox,
-                size: size_of::<InheritedBoxValues>(),
-                align: align_of::<InheritedBoxValues>(),
-            },
-            StyleGroupVTable {
-                lifecycle: StyleGroupLifecycle::Sizing,
-                size: size_of::<SizingValues>(),
-                align: align_of::<SizingValues>(),
-            },
-            StyleGroupVTable {
-                lifecycle: StyleGroupLifecycle::Alignment,
-                size: size_of::<AlignmentValues>(),
-                align: align_of::<AlignmentValues>(),
-            },
-            StyleGroupVTable {
-                lifecycle: StyleGroupLifecycle::SVGReset,
-                size: size_of::<SVGResetValues>(),
-                align: align_of::<SVGResetValues>(),
-            },
-            StyleGroupVTable {
-                lifecycle: StyleGroupLifecycle::Surround,
-                size: size_of::<SurroundValues>(),
-                align: align_of::<SurroundValues>(),
-            },
-            StyleGroupVTable {
-                lifecycle: StyleGroupLifecycle::Box,
-                size: size_of::<BoxValues>(),
-                align: align_of::<BoxValues>(),
-            },
-        ]);
-        let mut defaults = vec![std::ptr::null::<c_void>(); vtables.len()];
-        // SAFETY: The vtables are valid and the output array holds one pointer per group.
-        unsafe { rust_style_group_registry_register(vtables.as_ptr(), vtables.len(), defaults.as_mut_ptr()) };
-        RegisteredTestStyleGroups {
-            vtables,
-            defaults: defaults.into_boxed_slice(),
-        }
-    })
-}
-
-fn allocate_payload(vtable: &StyleGroupVTable, initial_refcount: usize) -> *mut c_void {
+fn allocate_payload(group: StyleGroup, initial_refcount: usize) -> *mut c_void {
     // SAFETY: The layout is never zero-sized (the header is at least a usize).
     unsafe {
-        let allocation = alloc(allocation_layout(vtable));
+        let allocation = alloc(allocation_layout(group));
         if allocation.is_null() {
             std::process::abort();
         }
         let header = allocation as *mut AtomicUsize;
         (*header).store(initial_refcount, Ordering::Relaxed);
-        allocation.add(header_size(payload_align(vtable))) as *mut c_void
+        allocation.add(header_size(payload_align(group))) as *mut c_void
     }
-}
-
-/// Registers the style group vtables and builds the intentionally leaked
-/// default payload for every group, written to `out_default_payloads`.
-/// Must be called exactly once, before any other function in this module.
-///
-/// # Safety
-/// `vtables` must point at `count` valid vtables and `out_default_payloads`
-/// at space for `count` pointers.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_group_registry_register(
-    vtables: *const StyleGroupVTable,
-    count: usize,
-    out_default_payloads: *mut *const c_void,
-) {
-    unsafe {
-        let tables: Box<[StyleGroupVTable]> = std::slice::from_raw_parts(vtables, count).into();
-        let mut defaults = Vec::with_capacity(count);
-        for (index, table) in tables.iter().enumerate() {
-            assert!(payload_align(table).is_power_of_two());
-            assert_eq!(table.size, payload_size(table), "style group size disagrees across FFI");
-            assert_eq!(
-                table.align,
-                payload_align(table),
-                "style group alignment disagrees across FFI"
-            );
-            let payload = allocate_payload(table, STYLE_GROUP_STATIC_REFCOUNT);
-            default_construct(table, payload);
-            *out_default_payloads.add(index) = payload;
-            defaults.push(payload as *const c_void);
-        }
-        assert!(
-            REGISTRY
-                .set(Registry {
-                    vtables: tables,
-                    defaults: defaults.into_boxed_slice(),
-                })
-                .is_ok(),
-            "style group registry registered twice"
-        );
-    };
 }
 
 /// Allocates a new payload for `group_index` with a reference count of one,
@@ -1834,9 +1742,9 @@ pub unsafe extern "C" fn rust_style_group_clone(group_index: usize, source: *con
 
 /// The source must be a live payload of the registered group type.
 pub(crate) unsafe fn clone_group_payload(group_index: usize, source: *const c_void) -> *mut c_void {
-    let table = vtable(group_index);
-    let payload = allocate_payload(table, 1);
-    unsafe { copy_construct(table, payload, source) };
+    let group = style_group(group_index);
+    let payload = allocate_payload(group, 1);
+    unsafe { copy_construct(group, payload, source) };
     payload
 }
 
@@ -1848,26 +1756,26 @@ pub(crate) unsafe fn clone_group_payload(group_index: usize, source: *const c_vo
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_group_free(group_index: usize, payload: *mut c_void) {
     unsafe {
-        let table = vtable(group_index);
-        debug_assert!(refcount_of(payload, payload_align(table)).load(Ordering::Relaxed) == 0);
-        destruct(table, payload);
-        let allocation = (payload as *mut u8).sub(header_size(payload_align(table)));
-        dealloc(allocation, allocation_layout(table));
+        let group = style_group(group_index);
+        debug_assert!(refcount_of(payload, payload_align(group)).load(Ordering::Relaxed) == 0);
+        destruct(group, payload);
+        let allocation = (payload as *mut u8).sub(header_size(payload_align(group)));
+        dealloc(allocation, allocation_layout(group));
     };
 }
 
 pub(crate) fn release_group_payload(group_index: usize, payload: *const c_void) {
-    let table = vtable(group_index);
-    let refcount = refcount_of(payload, payload_align(table));
+    let group = style_group(group_index);
+    let refcount = refcount_of(payload, payload_align(group));
     if refcount.load(Ordering::Relaxed) == STYLE_GROUP_STATIC_REFCOUNT {
         return;
     }
     if refcount.fetch_sub(1, Ordering::AcqRel) == 1 {
         // SAFETY: The count reached zero, so this reference was the last one.
         unsafe {
-            destruct(table, payload.cast_mut());
-            let allocation = (payload as *mut u8).sub(header_size(payload_align(table)));
-            dealloc(allocation, allocation_layout(table));
+            destruct(group, payload.cast_mut());
+            let allocation = (payload as *mut u8).sub(header_size(payload_align(group)));
+            dealloc(allocation, allocation_layout(group));
         }
     }
 }
@@ -1887,132 +1795,390 @@ pub unsafe extern "C" fn rust_style_group_payloads_equal(
     style_group_payloads_equal(group_index, a, b)
 }
 
-/// One field of a style group the generic builder can populate or check: a
-/// pokeable simple field (an enum code mapped through a keyword table, a
-/// number, or a pixel length) or a constraint requiring a hard field's value
-/// to be a specific keyword so the constructor's initial value stands.
-#[repr(C)]
-pub struct FfiGroupFieldDescriptor {
-    pub group_index: u32,
-    pub property_id: u16,
-    pub offset: u32,
-    pub kind: u8,
-    /// For GROUP_FIELD_REQUIRE_KEYWORD: the required keyword.
-    pub keyword: u16,
-    /// For GROUP_FIELD_REQUIRE_PX: the required pixel value.
-    pub required_px: f64,
-    /// For GROUP_FIELD_ENUM_KEYWORD: keyword code -> enum code, 255 invalid.
-    pub keyword_table: *const u8,
-    pub keyword_table_length: usize,
+/// One field of a style group the generic builder can populate or check: a pokeable simple field
+/// at `offset` in the group's payload, or a constraint requiring the value to be one that leaves
+/// the payload's initial value standing.
+#[derive(Clone, Copy)]
+pub(crate) struct GroupFieldDescriptor {
+    pub(crate) property_id: u16,
+    pub(crate) offset: usize,
+    pub(crate) kind: GroupFieldKind,
 }
 
-/// An enum stored as u8, mapped through the descriptor's keyword table.
-pub const GROUP_FIELD_ENUM_KEYWORD: u8 = 0;
-/// A number stored as f32.
-pub const GROUP_FIELD_F32: u8 = 1;
-/// A number stored as f64.
-pub const GROUP_FIELD_F64: u8 = 2;
-/// A pixel length stored as raw CSSPixels (i32).
-pub const GROUP_FIELD_CSS_PIXELS: u8 = 3;
-/// An integer stored as u64.
-pub const GROUP_FIELD_U64: u8 = 4;
-/// A constraint: the value must be this keyword; nothing is written.
-pub const GROUP_FIELD_REQUIRE_KEYWORD: u8 = 5;
-/// An integer stored as i32.
-pub const GROUP_FIELD_I32: u8 = 6;
-/// A color stored as the C++ Color's raw 32-bit value, resolved by the C++
-/// gather loop, which owns the color resolution context.
-pub const GROUP_FIELD_COLOR: u8 = 7;
-/// A number stored as f32, resolved by the C++ gather loop for values whose
-/// normalization has not moved into the core, like opacity.
-pub const GROUP_FIELD_RESOLVED_F32: u8 = 8;
-/// A constraint: the value must be a pixel length equal to `required_px`;
-/// nothing is written.
-pub const GROUP_FIELD_REQUIRE_PX: u8 = 9;
-/// A color like GROUP_FIELD_COLOR, except that the descriptor's keyword
-/// leaves the constructor's initial value standing, for fields like
-/// outline-color whose auto keyword is not a resolvable color.
-pub const GROUP_FIELD_COLOR_OR_KEYWORD: u8 = 10;
-/// A constraint: the value must be the property's initial value, compared by
-/// data pointer identity, which holds exactly for untouched properties since
-/// the driver selects the initial table's entries directly.
-pub const GROUP_FIELD_REQUIRE_INITIAL_VALUE: u8 = 11;
-/// A pixel length stored as raw CSSPixels, clamped at zero.
-pub const GROUP_FIELD_CSS_PIXELS_NON_NEGATIVE: u8 = 12;
-/// A number stored as f64, resolved by the C++ gather loop.
-pub const GROUP_FIELD_RESOLVED_F64: u8 = 13;
-/// The value's Rust data stored into a single-pointer handle slot, retaining
-/// one reference; the slot's constructor default must be null.
-pub const GROUP_FIELD_RETAINED_DATA: u8 = 14;
-/// A bool stored as one byte: whether the value is the descriptor's keyword.
-pub const GROUP_FIELD_KEYWORD_EQUALS_BOOL: u8 = 15;
-/// A byte resolved by the C++ gather loop, carried in the resolved number,
-/// for derived enum fields like the used color-scheme.
-pub const GROUP_FIELD_RESOLVED_U8: u8 = 16;
-
-/// One gathered value for the generic group builder: the computed value's
-/// data, plus the resolved raw color for color-kind fields.
-#[repr(C)]
-pub struct FfiGroupValueEntry {
-    pub data: *const c_void,
-    pub resolved_color: u32,
-    pub has_resolved_color: bool,
-    pub resolved_number: f64,
-    pub has_resolved_number: bool,
+#[derive(Clone, Copy)]
+pub(crate) enum GroupFieldKind {
+    /// An enum stored as u8: the keyword's code through the converter. A keyword it rejects stays
+    /// at the payload default for the Rust group builder to complete.
+    EnumKeyword(fn(u16) -> Option<u8>),
+    /// A number stored as f64.
+    F64,
+    /// A pixel length stored as raw CSSPixels (i32).
+    CssPixels,
+    /// A pixel length stored as raw CSSPixels, clamped at zero.
+    CssPixelsNonNegative,
+    /// An integer stored as u64.
+    U64,
+    /// A color stored as the C++ Color's raw 32-bit value, resolved by the gather loop, which owns
+    /// the color resolution context.
+    Color,
+    /// A color like `Color`, except that this keyword leaves the initial value standing, for fields
+    /// like outline-color whose auto keyword is not a resolvable color.
+    ColorOrKeyword(u16),
+    /// A number resolved by the gather loop, for values whose normalization has not moved into the
+    /// core, like opacity: stored as f32, as f64, or as one byte for derived enum fields like the
+    /// used color-scheme.
+    ResolvedF32,
+    ResolvedF64,
+    ResolvedU8,
+    /// The value's data stored into a single-pointer handle slot, retaining one reference; the
+    /// slot's initial value must be null.
+    RetainedData,
+    /// A bool stored as one byte: whether the value is this keyword.
+    KeywordEqualsBool(u16),
+    /// Constraints, which write nothing: the value must be this keyword, a zero pixel length, or
+    /// the property's initial value. The last compares data pointers, which holds exactly for
+    /// untouched properties since the driver selects the initial table's entries directly.
+    RequireKeyword(u16),
+    RequireZeroPx,
+    RequireInitialValue,
 }
 
-struct FieldDescriptors {
-    entries: Box<[FfiGroupFieldDescriptor]>,
-    group_ranges: Box<[std::ops::Range<usize>]>,
+/// The appearance keywords without the compatibility ones, which normalize to auto for the
+/// appearance field but stay raw for computed_appearance: the misc-reset group builder completes
+/// both fields for them.
+fn appearance_without_compat(keyword: u16) -> Option<u8> {
+    use crate::css::css_enums::appearance::{AUTO, MENULIST_BUTTON, NONE, TEXTFIELD};
+    crate::css::css_enums::keyword_to_appearance(keyword)
+        .filter(|appearance| matches!(*appearance, AUTO | MENULIST_BUTTON | NONE | TEXTFIELD))
 }
 
-// SAFETY: The keyword tables are immortal C++ statics.
-unsafe impl Send for FieldDescriptors {}
-unsafe impl Sync for FieldDescriptors {}
+/// The fields of each group the generic builder decodes, in the order the gather loop reads their
+/// values. Groups that build through bespoke calls have none.
+pub(crate) fn group_field_descriptors(group: usize) -> &'static [GroupFieldDescriptor] {
+    use crate::css::css_enums as enums;
+    use crate::css::css_enums::keyword as k;
+    use GroupFieldKind::*;
 
-static FIELD_DESCRIPTORS: OnceLock<FieldDescriptors> = OnceLock::new();
-
-pub(crate) fn registered_group_field_descriptors(group_index: usize) -> Option<&'static [FfiGroupFieldDescriptor]> {
-    let descriptors = FIELD_DESCRIPTORS.get()?;
-    let range = descriptors.group_ranges.get(group_index).cloned().unwrap_or(0..0);
-    Some(&descriptors.entries[range])
-}
-
-/// The computed style groups each longhand reaches, as the C++ group builders register them once
-/// per process.
-pub(crate) struct StyleGroupMasks {
-    pub(crate) first_property: u16,
-    /// Per longhand, the groups a change of its specified winner may change.
-    pub(crate) masks: &'static [u32],
-    /// Per longhand, the group that owns its output.
-    pub(crate) output_masks: &'static [u32],
-}
-
-static PROPERTY_DEPENDENCY_MASKS: OnceLock<StyleGroupMasks> = OnceLock::new();
-
-/// What an engine created before the host registered any groups holds: no longhand reaches a group.
-static UNREGISTERED_STYLE_GROUPS: StyleGroupMasks = StyleGroupMasks {
-    first_property: 0,
-    masks: &[],
-    output_masks: &[],
-};
-
-impl StyleGroupMasks {
-    pub(crate) fn registered() -> Option<&'static Self> {
-        PROPERTY_DEPENDENCY_MASKS.get()
+    // `PROPERTY @ field => kind` describes a field of the group's payload, `PROPERTY => kind` a
+    // constraint.
+    macro_rules! fields {
+        ($group:ty: $($property:ident $(@ $($field:ident).+)? => $kind:expr),* $(,)?) => {
+            const {
+                &[$(GroupFieldDescriptor {
+                    property_id: crate::css::property_metadata::property_id::$property,
+                    offset: 0 $(+ std::mem::offset_of!($group, $($field).+))?,
+                    kind: $kind,
+                }),*]
+            }
+        };
     }
 
-    /// The registered groups, or none for a process that registered none: an engine of a test.
-    pub(crate) fn registered_or_none() -> &'static Self {
-        Self::registered().unwrap_or(&UNREGISTERED_STYLE_GROUPS)
+    match group {
+        group_index::TEXT_RESET => fields! { TextResetValues:
+            TEXT_DECORATION_LINE => RequireKeyword(k::NONE),
+            TEXT_DECORATION_THICKNESS => RequireKeyword(k::AUTO),
+            TEXT_DECORATION_STYLE @ text_decoration_style => EnumKeyword(enums::keyword_to_text_decoration_style),
+            TEXT_DECORATION_COLOR @ text_decoration_color => Color,
+            WHITE_SPACE_TRIM => RequireKeyword(k::NONE),
+        },
+        group_index::EFFECTS => fields! { EffectsValues:
+            OPACITY @ opacity => ResolvedF32,
+            FILTER => RequireKeyword(k::NONE),
+            BACKDROP_FILTER => RequireKeyword(k::NONE),
+            MIX_BLEND_MODE @ mix_blend_mode => EnumKeyword(enums::keyword_to_mix_blend_mode),
+            ISOLATION @ isolation => EnumKeyword(enums::keyword_to_isolation),
+            BOX_SHADOW => RequireKeyword(k::NONE),
+            CLIP => RequireKeyword(k::AUTO),
+        },
+        group_index::MISC_RESET => fields! { MiscResetValues:
+            SCROLL_MARGIN_TOP => RequireZeroPx,
+            SCROLL_MARGIN_RIGHT => RequireZeroPx,
+            SCROLL_MARGIN_BOTTOM => RequireZeroPx,
+            SCROLL_MARGIN_LEFT => RequireZeroPx,
+            SCROLL_PADDING_TOP => RequireKeyword(k::AUTO),
+            SCROLL_PADDING_RIGHT => RequireKeyword(k::AUTO),
+            SCROLL_PADDING_BOTTOM => RequireKeyword(k::AUTO),
+            SCROLL_PADDING_LEFT => RequireKeyword(k::AUTO),
+            OVERFLOW_CLIP_MARGIN_TOP => RequireInitialValue,
+            OVERFLOW_CLIP_MARGIN_RIGHT => RequireInitialValue,
+            OVERFLOW_CLIP_MARGIN_BOTTOM => RequireInitialValue,
+            OVERFLOW_CLIP_MARGIN_LEFT => RequireInitialValue,
+            COLUMN_SPAN @ column_span => EnumKeyword(enums::keyword_to_column_span),
+            BREAK_BEFORE @ break_before => EnumKeyword(enums::keyword_to_break_between),
+            BREAK_AFTER @ break_after => EnumKeyword(enums::keyword_to_break_between),
+            BREAK_INSIDE @ break_inside => EnumKeyword(enums::keyword_to_break_inside),
+            COLUMN_RULE_STYLE @ column_rule_style => EnumKeyword(enums::keyword_to_line_style),
+            BOX_DECORATION_BREAK @ box_decoration_break => EnumKeyword(enums::keyword_to_box_decoration_break),
+            COLUMN_FILL @ column_fill => EnumKeyword(enums::keyword_to_column_fill),
+            APPEARANCE @ appearance => EnumKeyword(appearance_without_compat),
+            APPEARANCE @ computed_appearance => EnumKeyword(enums::keyword_to_appearance),
+            OUTLINE_STYLE @ outline_style => EnumKeyword(enums::keyword_to_outline_style),
+            OBJECT_FIT @ object_fit => EnumKeyword(enums::keyword_to_object_fit),
+            COLUMN_HEIGHT => RequireKeyword(k::AUTO),
+            OUTLINE_COLOR @ outline_color => ColorOrKeyword(k::AUTO),
+            OUTLINE_OFFSET => RequireZeroPx,
+            OUTLINE_WIDTH @ outline_width => CssPixelsNonNegative,
+            COLUMN_RULE_COLOR @ column_rule_color => Color,
+            COLUMN_RULE_WIDTH @ column_rule_width => CssPixelsNonNegative,
+            USER_SELECT @ user_select => EnumKeyword(enums::keyword_to_user_select),
+            OBJECT_POSITION => RequireInitialValue,
+            VIEW_TRANSITION_NAME => RequireKeyword(k::NONE),
+            TOUCH_ACTION => RequireInitialValue,
+            SCROLL_BEHAVIOR @ scroll_behavior => EnumKeyword(enums::keyword_to_scroll_behavior),
+            SCROLL_SNAP_ALIGN => RequireInitialValue,
+            SCROLL_SNAP_STOP @ scroll_snap_stop => EnumKeyword(enums::keyword_to_scroll_snap_stop),
+            SCROLL_SNAP_TYPE => RequireInitialValue,
+            SCROLLBAR_GUTTER => RequireInitialValue,
+            SCROLLBAR_WIDTH @ scrollbar_width => EnumKeyword(enums::keyword_to_scrollbar_width),
+            SHAPE_IMAGE_THRESHOLD @ shape_image_threshold => ResolvedF64,
+            SHAPE_MARGIN => RequireZeroPx,
+            SHAPE_OUTSIDE => RequireKeyword(k::NONE),
+            WILL_CHANGE => RequireKeyword(k::AUTO),
+        },
+        group_index::INHERITED_TEXT => fields! { InheritedTextValues:
+            _WEBKIT_FONT_SMOOTHING @ font_smoothing => EnumKeyword(enums::keyword_to_font_smoothing),
+            COLOR @ color => Color,
+            COLOR @ color_style_value => RetainedData,
+            _WEBKIT_TEXT_FILL_COLOR @ webkit_text_fill_color => Color,
+            _WEBKIT_TEXT_FILL_COLOR @ webkit_text_fill_color_is_current_color => KeywordEqualsBool(k::CURRENTCOLOR),
+            TEXT_SHADOW => RequireKeyword(k::NONE),
+            TEXT_ALIGN @ text_align => EnumKeyword(enums::keyword_to_text_align),
+            TEXT_JUSTIFY @ text_justify => EnumKeyword(enums::keyword_to_text_justify),
+            TEXT_TRANSFORM @ text_transform => EnumKeyword(enums::keyword_to_text_transform),
+            TEXT_WRAP_MODE @ text_wrap_mode => EnumKeyword(enums::keyword_to_text_wrap_mode),
+            TEXT_WRAP_STYLE @ text_wrap_style => EnumKeyword(enums::keyword_to_text_wrap_style),
+            TEXT_DECORATION_SKIP_INK @ text_decoration_skip_ink => EnumKeyword(enums::keyword_to_text_decoration_skip_ink),
+            TEXT_UNDERLINE_POSITION => RequireKeyword(k::AUTO),
+            TEXT_UNDERLINE_OFFSET => RequireKeyword(k::AUTO),
+            TEXT_INDENT => RequireInitialValue,
+            TAB_SIZE => RequireInitialValue,
+            WHITE_SPACE_COLLAPSE @ white_space_collapse => EnumKeyword(enums::keyword_to_white_space_collapse),
+            WORD_BREAK @ word_break => EnumKeyword(enums::keyword_to_word_break),
+            OVERFLOW_WRAP @ overflow_wrap => EnumKeyword(enums::keyword_to_overflow_wrap),
+            BLOCK_ELLIPSIS @ block_ellipsis => RetainedData,
+            WORD_SPACING @ word_spacing => CssPixels,
+            WORD_SPACING @ word_spacing_style_value => RetainedData,
+            LETTER_SPACING @ letter_spacing => CssPixels,
+            LETTER_SPACING @ letter_spacing_style_value => RetainedData,
+            ORPHANS @ orphans => U64,
+            WIDOWS @ widows => U64,
+        },
+        group_index::INHERITED_UI => fields! { InheritedUIValues:
+            CARET_COLOR @ caret_color.used_color => Color,
+            CARET_COLOR => RequireKeyword(k::AUTO),
+            ACCENT_COLOR @ accent_color.used_color => Color,
+            ACCENT_COLOR => RequireKeyword(k::AUTO),
+            CURSOR => RequireKeyword(k::AUTO),
+            POINTER_EVENTS @ pointer_events => EnumKeyword(enums::keyword_to_pointer_events),
+            SCROLLBAR_COLOR => RequireKeyword(k::AUTO),
+            COLOR_SCHEME @ color_scheme => ResolvedU8,
+            COLOR_SCHEME => RequireInitialValue,
+        },
+        group_index::TRANSFORM => fields! { TransformValues:
+            TRANSFORM => RequireKeyword(k::NONE),
+            TRANSFORM_BOX @ transform_box => EnumKeyword(enums::keyword_to_transform_box),
+            TRANSFORM_ORIGIN => RequireInitialValue,
+            TRANSFORM_STYLE @ transform_style => EnumKeyword(enums::keyword_to_transform_style),
+            BACKFACE_VISIBILITY @ backface_visibility => EnumKeyword(enums::keyword_to_backface_visibility),
+            ROTATE => RequireKeyword(k::NONE),
+            TRANSLATE => RequireKeyword(k::NONE),
+            SCALE => RequireKeyword(k::NONE),
+            PERSPECTIVE => RequireKeyword(k::NONE),
+            PERSPECTIVE_ORIGIN => RequireInitialValue,
+        },
+        group_index::MASK => fields! { MaskValues:
+            MASK_IMAGE => RequireKeyword(k::NONE),
+            MASK_TYPE => RequireInitialValue,
+            CLIP_PATH => RequireKeyword(k::NONE),
+            MASK_MODE => RequireInitialValue,
+            MASK_REPEAT => RequireInitialValue,
+            MASK_POSITION => RequireInitialValue,
+            MASK_CLIP => RequireInitialValue,
+            MASK_ORIGIN => RequireInitialValue,
+            MASK_SIZE => RequireInitialValue,
+            MASK_COMPOSITE => RequireInitialValue,
+        },
+        // Elements without animations, timelines or transitions adopt a shared payload.
+        group_index::ANIMATION => fields! { AnimationValues:
+            ANIMATION_NAME => RequireInitialValue,
+            ANIMATION_COMPOSITION => RequireInitialValue,
+            ANIMATION_DELAY => RequireInitialValue,
+            ANIMATION_DIRECTION => RequireInitialValue,
+            ANIMATION_DURATION => RequireInitialValue,
+            ANIMATION_FILL_MODE => RequireInitialValue,
+            ANIMATION_ITERATION_COUNT => RequireInitialValue,
+            ANIMATION_PLAY_STATE => RequireInitialValue,
+            ANIMATION_TIMELINE => RequireInitialValue,
+            ANIMATION_TIMING_FUNCTION => RequireInitialValue,
+            SCROLL_TIMELINE_NAME => RequireInitialValue,
+            SCROLL_TIMELINE_AXIS => RequireInitialValue,
+            TIMELINE_SCOPE => RequireInitialValue,
+            VIEW_TIMELINE_NAME => RequireInitialValue,
+            VIEW_TIMELINE_AXIS => RequireInitialValue,
+            VIEW_TIMELINE_INSET => RequireInitialValue,
+            TRANSITION_PROPERTY => RequireInitialValue,
+            TRANSITION_DURATION => RequireInitialValue,
+            TRANSITION_TIMING_FUNCTION => RequireInitialValue,
+            TRANSITION_DELAY => RequireInitialValue,
+            TRANSITION_BEHAVIOR => RequireInitialValue,
+        },
+        group_index::INHERITED_SVG => fields! { InheritedSVGValues:
+            FILL => RequireInitialValue,
+            STROKE => RequireInitialValue,
+            FILL_RULE @ fill_rule => EnumKeyword(enums::keyword_to_fill_rule),
+            CLIP_RULE @ clip_rule => EnumKeyword(enums::keyword_to_fill_rule),
+            FILL_OPACITY @ fill_opacity => ResolvedF32,
+            STROKE_OPACITY @ stroke_opacity => ResolvedF32,
+            STROKE_LINECAP @ stroke_linecap => EnumKeyword(enums::keyword_to_stroke_linecap),
+            STROKE_LINEJOIN @ stroke_linejoin => EnumKeyword(enums::keyword_to_stroke_linejoin),
+            STROKE_DASHARRAY => RequireKeyword(k::NONE),
+            STROKE_DASHOFFSET => RequireInitialValue,
+            STROKE_MITERLIMIT @ stroke_miterlimit => F64,
+            STROKE_WIDTH => RequireInitialValue,
+            COLOR_INTERPOLATION @ color_interpolation => EnumKeyword(enums::keyword_to_color_interpolation),
+            COLOR_INTERPOLATION_FILTERS @ color_interpolation_filters => EnumKeyword(enums::keyword_to_color_interpolation),
+            PAINT_ORDER => RequireKeyword(k::NORMAL),
+            TEXT_ANCHOR @ text_anchor => EnumKeyword(enums::keyword_to_text_anchor),
+            DOMINANT_BASELINE => RequireKeyword(k::AUTO),
+            SHAPE_RENDERING @ shape_rendering => EnumKeyword(enums::keyword_to_shape_rendering),
+        },
+        group_index::INHERITED_LIST => fields! { InheritedListValues:
+            LIST_STYLE_TYPE => RequireInitialValue,
+            LIST_STYLE_POSITION @ list_style_position => EnumKeyword(enums::keyword_to_list_style_position),
+            LIST_STYLE_IMAGE => RequireKeyword(k::NONE),
+            QUOTES => RequireKeyword(k::AUTO),
+        },
+        group_index::CONTENT => fields! { ContentValues:
+            CONTENT => RequireKeyword(k::NORMAL),
+            COUNTER_INCREMENT => RequireKeyword(k::NONE),
+            COUNTER_RESET => RequireKeyword(k::NONE),
+            COUNTER_SET => RequireKeyword(k::NONE),
+        },
+        group_index::ANCHOR => fields! { AnchorValues:
+            ANCHOR_NAME => RequireKeyword(k::NONE),
+            ANCHOR_SCOPE => RequireKeyword(k::NONE),
+            POSITION_ANCHOR => RequireKeyword(k::AUTO),
+            POSITION_AREA => RequireKeyword(k::NONE),
+            POSITION_TRY_FALLBACKS => RequireKeyword(k::NONE),
+            POSITION_TRY_ORDER => RequireKeyword(k::NORMAL),
+            POSITION_VISIBILITY => RequireKeyword(k::ALWAYS),
+        },
+        // A none border-style keeps the used width at zero; the Rust group builder completes styled
+        // borders.
+        group_index::BORDER => fields! { BorderValues:
+            BORDER_LEFT_COLOR @ border_left.color => Color,
+            BORDER_LEFT_COLOR => RequireInitialValue,
+            BORDER_LEFT_STYLE => RequireKeyword(k::NONE),
+            BORDER_LEFT_WIDTH @ border_left_computed_width => CssPixelsNonNegative,
+            BORDER_TOP_COLOR @ border_top.color => Color,
+            BORDER_TOP_COLOR => RequireInitialValue,
+            BORDER_TOP_STYLE => RequireKeyword(k::NONE),
+            BORDER_TOP_WIDTH @ border_top_computed_width => CssPixelsNonNegative,
+            BORDER_RIGHT_COLOR @ border_right.color => Color,
+            BORDER_RIGHT_COLOR => RequireInitialValue,
+            BORDER_RIGHT_STYLE => RequireKeyword(k::NONE),
+            BORDER_RIGHT_WIDTH @ border_right_computed_width => CssPixelsNonNegative,
+            BORDER_BOTTOM_COLOR @ border_bottom.color => Color,
+            BORDER_BOTTOM_COLOR => RequireInitialValue,
+            BORDER_BOTTOM_STYLE => RequireKeyword(k::NONE),
+            BORDER_BOTTOM_WIDTH @ border_bottom_computed_width => CssPixelsNonNegative,
+            BORDER_BOTTOM_LEFT_RADIUS => RequireInitialValue,
+            BORDER_BOTTOM_RIGHT_RADIUS => RequireInitialValue,
+            BORDER_TOP_LEFT_RADIUS => RequireInitialValue,
+            BORDER_TOP_RIGHT_RADIUS => RequireInitialValue,
+            CORNER_BOTTOM_LEFT_SHAPE @ corner_bottom_left_shape => ResolvedF64,
+            CORNER_BOTTOM_RIGHT_SHAPE @ corner_bottom_right_shape => ResolvedF64,
+            CORNER_TOP_LEFT_SHAPE @ corner_top_left_shape => ResolvedF64,
+            CORNER_TOP_RIGHT_SHAPE @ corner_top_right_shape => ResolvedF64,
+            BORDER_IMAGE_SOURCE => RequireKeyword(k::NONE),
+            BORDER_IMAGE_OUTSET => RequireInitialValue,
+            BORDER_IMAGE_REPEAT => RequireInitialValue,
+            BORDER_IMAGE_SLICE => RequireInitialValue,
+            BORDER_IMAGE_WIDTH => RequireInitialValue,
+        },
+        group_index::BACKGROUND => fields! { BackgroundValues:
+            BACKGROUND_COLOR @ background_color => Color,
+            BACKGROUND_COLOR => RequireInitialValue,
+            BACKGROUND_IMAGE => RequireInitialValue,
+            BACKGROUND_CLIP => RequireInitialValue,
+            BACKGROUND_ATTACHMENT => RequireInitialValue,
+            BACKGROUND_ORIGIN => RequireInitialValue,
+            BACKGROUND_POSITION_X => RequireInitialValue,
+            BACKGROUND_POSITION_Y => RequireInitialValue,
+            BACKGROUND_REPEAT => RequireInitialValue,
+            BACKGROUND_SIZE => RequireInitialValue,
+            BACKGROUND_BLEND_MODE => RequireInitialValue,
+        },
+        _ => &[],
+    }
+}
+
+/// The computed style groups each longhand reaches.
+pub(crate) struct StyleGroupMasks {
+    /// Per longhand, the groups a change of its specified winner may change.
+    masks: Box<[u32]>,
+    /// Per longhand, the group that owns its output.
+    output_masks: Box<[u32]>,
+}
+
+impl StyleGroupMasks {
+    pub(crate) fn get() -> &'static Self {
+        static MASKS: OnceLock<StyleGroupMasks> = OnceLock::new();
+        MASKS.get_or_init(Self::compute)
+    }
+
+    fn compute() -> Self {
+        use crate::css::property_metadata::property_id::{DIRECTION, WRITING_MODE};
+        use crate::css::property_metadata::{
+            FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, longhand_is_logical_alias,
+            property_style_group_index,
+        };
+        use crate::css::style_compute::{DIRECTION_COUNT, WRITING_MODE_COUNT, map_logical_alias_to_physical};
+
+        let group_mask = |property| property_style_group_index(property).map_or(0, |group| 1u32 << group);
+        let index = |property: u16| usize::from(property - FIRST_LONGHAND_PROPERTY_ID);
+        let longhands = FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID;
+        // Direction and writing-mode select the physical winners for every logical property group.
+        // Those aliases own no payload, so they reach the groups of every physical property they
+        // map to.
+        let output_masks: Box<[u32]> = longhands
+            .clone()
+            .map(|property| {
+                if longhand_is_logical_alias(property) {
+                    0
+                } else {
+                    group_mask(property)
+                }
+            })
+            .collect();
+        let mut masks = output_masks.clone();
+
+        let mut logical_mapping_mask = 0;
+        for property in longhands.filter(|&property| longhand_is_logical_alias(property)) {
+            let mut alias_mask = 0;
+            for writing_mode in 0..WRITING_MODE_COUNT as u8 {
+                for direction in 0..DIRECTION_COUNT as u8 {
+                    alias_mask |= group_mask(map_logical_alias_to_physical(property, writing_mode, direction));
+                }
+            }
+            masks[index(property)] |= alias_mask;
+            logical_mapping_mask |= alias_mask;
+        }
+        masks[index(DIRECTION)] |= logical_mapping_mask;
+        masks[index(WRITING_MODE)] |= logical_mapping_mask;
+        Self { masks, output_masks }
+    }
+
+    fn longhand_index(property: u16) -> Option<usize> {
+        use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
+        property.checked_sub(FIRST_LONGHAND_PROPERTY_ID).map(usize::from)
     }
 
     /// The computed style groups which may change when `property`'s specified winner changes; none
     /// for a longhand that feeds no group of its own.
     pub(crate) fn dependencies(&self, property: u16) -> u32 {
-        property
-            .checked_sub(self.first_property)
-            .and_then(|index| self.masks.get(usize::from(index)))
+        Self::longhand_index(property)
+            .and_then(|index| self.masks.get(index))
             .copied()
             .unwrap_or(0)
     }
@@ -2020,90 +2186,32 @@ impl StyleGroupMasks {
 
 /// The computed style group which directly owns one longhand's output.
 pub(crate) fn computed_group_output_mask(property: u16) -> Option<u32> {
-    let mapping = PROPERTY_DEPENDENCY_MASKS.get()?;
-    let index = property.checked_sub(mapping.first_property)?;
-    mapping
-        .output_masks
-        .get(index as usize)
+    let masks = StyleGroupMasks::get();
+    StyleGroupMasks::longhand_index(property)
+        .and_then(|index| masks.output_masks.get(index))
         .copied()
         .filter(|mask| *mask != 0)
 }
 
-/// Installs the pokeable-field descriptors for every group in one flat array.
-///
-/// # Safety
-/// `descriptors` must point at `count` valid descriptors whose keyword tables
-/// stay alive for the process lifetime.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_group_register_field_descriptors(
-    descriptors: *const FfiGroupFieldDescriptor,
-    count: usize,
-) {
-    let slice = unsafe { std::slice::from_raw_parts(descriptors, count) };
-    let copied: Box<[FfiGroupFieldDescriptor]> = slice
-        .iter()
-        .map(|descriptor| FfiGroupFieldDescriptor { ..*descriptor })
-        .collect();
-    let group_count = copied
-        .iter()
-        .map(|descriptor| descriptor.group_index as usize + 1)
-        .max()
-        .unwrap_or(0);
-    let mut group_ranges = vec![0..0; group_count];
-    for (index, descriptor) in copied.iter().enumerate() {
-        let range = &mut group_ranges[descriptor.group_index as usize];
-        if range.start == range.end {
-            *range = index..index + 1;
-        } else {
-            assert_eq!(range.end, index, "a group's field descriptors must be contiguous");
-            range.end += 1;
-        }
-    }
-    assert!(
-        FIELD_DESCRIPTORS
-            .set(FieldDescriptors {
-                entries: copied,
-                group_ranges: group_ranges.into_boxed_slice(),
-            })
-            .is_ok(),
-        "field descriptors installed twice"
-    );
+/// One gathered value for the generic group builder: the computed value's
+/// data, plus the resolved raw color for color-kind fields.
+pub(crate) struct GroupValueEntry {
+    pub(crate) data: *const c_void,
+    pub(crate) resolved_color: u32,
+    pub(crate) has_resolved_color: bool,
+    pub(crate) resolved_number: f64,
+    pub(crate) has_resolved_number: bool,
 }
 
-/// Installs the dependency closure from longhand winners to computed style groups.
-///
-/// # Safety
-/// `masks` and `output_masks` must each point at `count` initialized entries.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_group_register_property_dependency_masks(
-    first_property: u16,
-    masks: *const u32,
-    output_masks: *const u32,
-    count: usize,
-) {
-    let masks = unsafe { std::slice::from_raw_parts(masks, count) };
-    let output_masks = unsafe { std::slice::from_raw_parts(output_masks, count) };
-    assert!(
-        PROPERTY_DEPENDENCY_MASKS
-            .set(StyleGroupMasks {
-                first_property,
-                masks: masks.to_vec().leak(),
-                output_masks: output_masks.to_vec().leak(),
-            })
-            .is_ok(),
-        "property dependency masks installed twice"
-    );
-}
-
-/// One decoded write into a scratch payload.
+/// One decoded write into a scratch payload, at an offset into it.
 enum GroupFieldPoke {
-    U8(u32, u8),
-    F32(u32, f32),
-    F64(u32, f64),
-    I32(u32, i32),
-    U64(u32, u64),
-    U32(u32, u32),
-    Data(u32, *const crate::css::style_value::StyleValueData),
+    U8(usize, u8),
+    F32(usize, f32),
+    F64(usize, f64),
+    I32(usize, i32),
+    U64(usize, u64),
+    U32(usize, u32),
+    Data(usize, *const crate::css::style_value::StyleValueData),
 }
 
 pub(crate) const MAX_GROUP_FIELD_COUNT: usize = 48;
@@ -2141,81 +2249,70 @@ impl std::ops::Deref for GroupFieldPokes {
 }
 
 /// Decodes one group's gathered values against its descriptors into scratch
-/// pokes. Constraint descriptors (the REQUIRE kinds) fail the decode when the
+/// pokes. Constraint descriptors (the Require kinds) fail the decode when the
 /// value diverges and constraints are enforced. A Rust group builder that
 /// completes complex members itself skips those constraints.
 fn decode_group_field_pokes(
-    descriptors: &[FfiGroupFieldDescriptor],
-    values: &[FfiGroupValueEntry],
+    descriptors: &[GroupFieldDescriptor],
+    values: &[GroupValueEntry],
     enforce_constraints: bool,
 ) -> Option<GroupFieldPokes> {
+    use crate::css::style_compute::px_length_unit;
     use crate::css::style_value::StyleValueData;
+    use GroupFieldKind as Kind;
     use GroupFieldPoke as Poke;
 
     assert!(values.len() <= MAX_GROUP_FIELD_COUNT);
     let mut pokes = GroupFieldPokes::new();
     for (descriptor, value) in descriptors.iter().zip(values) {
         let data = unsafe { (value.data as *const StyleValueData).as_ref() }?;
+        let offset = descriptor.offset;
+        let resolved_number = || value.has_resolved_number.then_some(value.resolved_number);
         match descriptor.kind {
-            GROUP_FIELD_ENUM_KEYWORD => {
-                let StyleValueData::Keyword { keyword } = data else {
-                    if enforce_constraints {
-                        return None;
-                    }
-                    continue;
-                };
-                let table =
-                    unsafe { std::slice::from_raw_parts(descriptor.keyword_table, descriptor.keyword_table_length) };
-                let code = table.get(*keyword as usize).copied();
-                match code {
-                    Some(code) if code != 255 => pokes.push(Poke::U8(descriptor.offset, code)),
-                    // A keyword the converter rejects (the appearance compat
-                    // keywords) stays at the payload default; the Rust group
-                    // builder owns the field.
-                    _ => {
-                        if enforce_constraints {
-                            return None;
-                        }
-                    }
+            Kind::EnumKeyword(keyword_to_code) => {
+                match data {
+                    StyleValueData::Keyword { keyword } => match keyword_to_code(*keyword) {
+                        Some(code) => pokes.push(Poke::U8(offset, code)),
+                        // A keyword the converter rejects (the appearance compat keywords) stays
+                        // at the payload default; the Rust group builder owns the field.
+                        None if enforce_constraints => return None,
+                        None => {}
+                    },
+                    _ if enforce_constraints => return None,
+                    _ => {}
                 }
             }
-            GROUP_FIELD_F32 => {
+            Kind::F64 => {
                 let StyleValueData::Number { value } = data else {
                     return None;
                 };
-                pokes.push(Poke::F32(descriptor.offset, *value as f32));
+                pokes.push(Poke::F64(offset, *value));
             }
-            GROUP_FIELD_F64 => {
-                let StyleValueData::Number { value } = data else {
-                    return None;
-                };
-                pokes.push(Poke::F64(descriptor.offset, *value));
-            }
-            GROUP_FIELD_CSS_PIXELS => {
+            Kind::CssPixels => match data {
+                StyleValueData::Length { value, unit } if *unit == px_length_unit() => pokes.push(Poke::I32(
+                    offset,
+                    crate::css::css_pixels::CssPixels::nearest_value_for(*value).raw_value(),
+                )),
+                // A value that is not a plain pixel length (the normal keyword, a percentage
+                // against font metrics) stays at the payload default; the Rust group builder owns
+                // the field.
+                _ if enforce_constraints => return None,
+                _ => {}
+            },
+            Kind::CssPixelsNonNegative => {
                 let StyleValueData::Length { value, unit } = data else {
-                    if enforce_constraints {
-                        return None;
-                    }
-                    // A value that is not a plain pixel length (the normal
-                    // keyword, a percentage against font metrics) stays at
-                    // the payload default; the Rust group builder owns the
-                    // field.
-                    continue;
+                    return None;
                 };
-                if *unit != crate::css::style_compute::px_length_unit() {
-                    if enforce_constraints {
-                        return None;
-                    }
-                    continue;
+                if *unit != px_length_unit() {
+                    return None;
                 }
                 pokes.push(Poke::I32(
-                    descriptor.offset,
-                    crate::css::css_pixels::CssPixels::nearest_value_for(*value).raw_value(),
+                    offset,
+                    crate::css::css_pixels::CssPixels::nearest_value_for(value.max(0.0)).raw_value(),
                 ));
             }
-            GROUP_FIELD_U64 => {
-                // A plain integer, or a calculation that resolves to one
-                // without context, matching the C++ resolve_integer arm.
+            Kind::U64 => {
+                // A plain integer, or a calculation that resolves to one without context.
                 let value = match data {
                     StyleValueData::Integer { value } => *value,
                     StyleValueData::Calculated { .. } => {
@@ -2223,15 +2320,36 @@ fn decode_group_field_pokes(
                     }
                     _ => return None,
                 };
-                if value < 0 {
+                pokes.push(Poke::U64(offset, u64::try_from(value).ok()?));
+            }
+            Kind::Color => {
+                if value.has_resolved_color {
+                    pokes.push(Poke::U32(offset, value.resolved_color));
+                } else if enforce_constraints {
                     return None;
                 }
-                pokes.push(Poke::U64(descriptor.offset, value as u64));
+                // Otherwise a color the generic decoder cannot resolve stays at the payload
+                // default; the Rust group builder owns the field.
             }
-            GROUP_FIELD_REQUIRE_KEYWORD => {
-                if !enforce_constraints {
-                    continue;
-                }
+            Kind::ColorOrKeyword(keyword) => match data {
+                StyleValueData::Keyword { keyword: value_keyword } if *value_keyword == keyword => {}
+                _ if value.has_resolved_color => pokes.push(Poke::U32(offset, value.resolved_color)),
+                // As for Color, the Rust group builder owns colors the generic decoder cannot
+                // resolve.
+                _ if enforce_constraints => return None,
+                _ => {}
+            },
+            Kind::ResolvedF32 => pokes.push(Poke::F32(offset, resolved_number()? as f32)),
+            Kind::ResolvedF64 => pokes.push(Poke::F64(offset, resolved_number()?)),
+            Kind::ResolvedU8 => pokes.push(Poke::U8(offset, resolved_number()? as u8)),
+            Kind::RetainedData => pokes.push(Poke::Data(offset, value.data.cast())),
+            Kind::KeywordEqualsBool(keyword) => {
+                let is_keyword =
+                    matches!(data, StyleValueData::Keyword { keyword: value_keyword } if *value_keyword == keyword);
+                pokes.push(Poke::U8(offset, is_keyword as u8));
+            }
+            Kind::RequireKeyword(_) | Kind::RequireZeroPx | Kind::RequireInitialValue if !enforce_constraints => {}
+            Kind::RequireKeyword(keyword) => {
                 // NB: Repeatable-list properties keep even a single computed item in a value list.
                 let data = match data {
                     StyleValueData::ValueList { values, .. } if values.as_slice().len() == 1 => {
@@ -2239,101 +2357,21 @@ fn decode_group_field_pokes(
                     }
                     data => data,
                 };
-                let StyleValueData::Keyword { keyword } = data else {
-                    return None;
-                };
-                if *keyword != descriptor.keyword {
+                if !matches!(data, StyleValueData::Keyword { keyword: value_keyword } if *value_keyword == keyword) {
                     return None;
                 }
             }
-            GROUP_FIELD_I32 => {
-                let StyleValueData::Integer { value } = data else {
-                    return None;
-                };
-                pokes.push(Poke::I32(descriptor.offset, *value));
-            }
-            GROUP_FIELD_COLOR => {
-                if !value.has_resolved_color {
-                    if enforce_constraints {
-                        return None;
-                    }
-                    // A color the generic decoder cannot resolve stays at the
-                    // payload default; the Rust group builder owns the field.
-                    continue;
-                }
-                pokes.push(Poke::U32(descriptor.offset, value.resolved_color));
-            }
-            GROUP_FIELD_RESOLVED_F32 => {
-                if !value.has_resolved_number {
-                    return None;
-                }
-                pokes.push(Poke::F32(descriptor.offset, value.resolved_number as f32));
-            }
-            GROUP_FIELD_REQUIRE_PX => {
-                if !enforce_constraints {
-                    continue;
-                }
-                let StyleValueData::Length { value, unit } = data else {
-                    return None;
-                };
-                if *unit != crate::css::style_compute::px_length_unit() || *value != descriptor.required_px {
+            Kind::RequireZeroPx => {
+                if !matches!(data, StyleValueData::Length { value, unit } if *unit == px_length_unit() && *value == 0.0)
+                {
                     return None;
                 }
             }
-            GROUP_FIELD_COLOR_OR_KEYWORD => match data {
-                StyleValueData::Keyword { keyword } if *keyword == descriptor.keyword => {}
-                _ => {
-                    if !value.has_resolved_color {
-                        if enforce_constraints {
-                            return None;
-                        }
-                        // As for GROUP_FIELD_COLOR, the Rust group builder
-                        // owns colors the generic decoder cannot resolve.
-                        continue;
-                    }
-                    pokes.push(Poke::U32(descriptor.offset, value.resolved_color));
-                }
-            },
-            GROUP_FIELD_REQUIRE_INITIAL_VALUE => {
-                if !enforce_constraints {
-                    continue;
-                }
+            Kind::RequireInitialValue => {
                 if value.data != crate::css::style_compute::initial_value_data(descriptor.property_id).cast() {
                     return None;
                 }
             }
-            GROUP_FIELD_CSS_PIXELS_NON_NEGATIVE => {
-                let StyleValueData::Length { value, unit } = data else {
-                    return None;
-                };
-                if *unit != crate::css::style_compute::px_length_unit() {
-                    return None;
-                }
-                pokes.push(Poke::I32(
-                    descriptor.offset,
-                    crate::css::css_pixels::CssPixels::nearest_value_for(value.max(0.0)).raw_value(),
-                ));
-            }
-            GROUP_FIELD_RESOLVED_F64 => {
-                if !value.has_resolved_number {
-                    return None;
-                }
-                pokes.push(Poke::F64(descriptor.offset, value.resolved_number));
-            }
-            GROUP_FIELD_RETAINED_DATA => {
-                pokes.push(Poke::Data(descriptor.offset, value.data.cast()));
-            }
-            GROUP_FIELD_KEYWORD_EQUALS_BOOL => {
-                let is_keyword = matches!(data, StyleValueData::Keyword { keyword } if *keyword == descriptor.keyword);
-                pokes.push(Poke::U8(descriptor.offset, is_keyword as u8));
-            }
-            GROUP_FIELD_RESOLVED_U8 => {
-                if !value.has_resolved_number {
-                    return None;
-                }
-                pokes.push(Poke::U8(descriptor.offset, value.resolved_number as u8));
-            }
-            _ => return None,
         }
     }
     Some(pokes)
@@ -2352,16 +2390,16 @@ unsafe fn apply_group_field_pokes(scratch: *mut c_void, pokes: &[GroupFieldPoke]
         for poke in pokes {
             let base = scratch as *mut u8;
             match *poke {
-                Poke::U8(offset, value) => *base.add(offset as usize) = value,
-                Poke::F32(offset, value) => *(base.add(offset as usize) as *mut f32) = value,
-                Poke::F64(offset, value) => *(base.add(offset as usize) as *mut f64) = value,
-                Poke::I32(offset, value) => *(base.add(offset as usize) as *mut i32) = value,
-                Poke::U64(offset, value) => *(base.add(offset as usize) as *mut u64) = value,
-                Poke::U32(offset, value) => *(base.add(offset as usize) as *mut u32) = value,
+                Poke::U8(offset, value) => *base.add(offset) = value,
+                Poke::F32(offset, value) => *(base.add(offset) as *mut f32) = value,
+                Poke::F64(offset, value) => *(base.add(offset) as *mut f64) = value,
+                Poke::I32(offset, value) => *(base.add(offset) as *mut i32) = value,
+                Poke::U64(offset, value) => *(base.add(offset) as *mut u64) = value,
+                Poke::U32(offset, value) => *(base.add(offset) as *mut u32) = value,
                 Poke::Data(offset, data) => {
                     // The slot's constructor default is null, so nothing is released.
                     let retained = crate::css::style_value::retain_style_value(data);
-                    *(base.add(offset as usize) as *mut *const StyleValueData) = retained;
+                    *(base.add(offset) as *mut *const StyleValueData) = retained;
                 }
             }
         }
@@ -2371,13 +2409,13 @@ unsafe fn apply_group_field_pokes(scratch: *mut c_void, pokes: &[GroupFieldPoke]
 /// Frees a scratch payload that was not published.
 ///
 /// # Safety
-/// `scratch` must be a payload of the vtable's group, allocated by
+/// `scratch` must be a payload of the group, allocated by
 /// `allocate_payload` and not shared.
-unsafe fn free_scratch_payload(table: &StyleGroupVTable, scratch: *mut c_void) {
+unsafe fn free_scratch_payload(group: StyleGroup, scratch: *mut c_void) {
     unsafe {
-        destruct(table, scratch);
-        let allocation = (scratch as *mut u8).sub(header_size(payload_align(table)));
-        dealloc(allocation, allocation_layout(table));
+        destruct(group, scratch);
+        let allocation = (scratch as *mut u8).sub(header_size(payload_align(group)));
+        dealloc(allocation, allocation_layout(group));
     }
 }
 
@@ -2393,48 +2431,46 @@ unsafe fn free_scratch_payload(table: &StyleGroupVTable, scratch: *mut c_void) {
 /// payload of the group or null.
 pub(crate) unsafe fn build_style_group(
     group_index: usize,
-    values: *const FfiGroupValueEntry,
-    count: usize,
+    values: &[GroupValueEntry],
     parent_payload: *const c_void,
 ) -> *const c_void {
     let build_or_reuse_group_payload = || {
-        let descriptors = registered_group_field_descriptors(group_index)?;
-        if descriptors.len() != count {
+        let descriptors = group_field_descriptors(group_index);
+        if descriptors.len() != values.len() {
             return None;
         }
-        let values = unsafe { std::slice::from_raw_parts(values, count) };
         let pokes = decode_group_field_pokes(descriptors, values, true)?;
 
-        let table = vtable(group_index);
+        let group = style_group(group_index);
 
         // A group whose descriptors are all satisfied constraints would
         // scratch-build an exact copy of the default payload, so skip the
         // allocation and share directly.
         if pokes.is_empty() {
             let default_payload = default_group_payload(group_index);
-            if !parent_payload.is_null() && unsafe { payloads_equal(table, parent_payload, default_payload) } {
+            if !parent_payload.is_null() && unsafe { payloads_equal(group, parent_payload, default_payload) } {
                 retain_group_payload(group_index, parent_payload);
                 return Some(parent_payload);
             }
             return Some(default_payload);
         }
 
-        let scratch = allocate_payload(table, 1);
+        let scratch = allocate_payload(group, 1);
         // SAFETY: The scratch payload was allocated for this group's layout,
         // and every poke offset comes from offsetof on the C++ side.
         unsafe {
-            default_construct(table, scratch);
+            default_construct(group, scratch);
             apply_group_field_pokes(scratch, &pokes);
         }
 
-        if !parent_payload.is_null() && unsafe { payloads_equal(table, scratch, parent_payload) } {
-            unsafe { free_scratch_payload(table, scratch) };
+        if !parent_payload.is_null() && unsafe { payloads_equal(group, scratch, parent_payload) } {
+            unsafe { free_scratch_payload(group, scratch) };
             retain_group_payload(group_index, parent_payload);
             return Some(parent_payload);
         }
         let default_payload = default_group_payload(group_index);
-        if unsafe { payloads_equal(table, scratch, default_payload) } {
-            unsafe { free_scratch_payload(table, scratch) };
+        if unsafe { payloads_equal(group, scratch, default_payload) } {
+            unsafe { free_scratch_payload(group, scratch) };
             return Some(default_payload);
         }
         Some(scratch as *const c_void)
@@ -2449,9 +2485,9 @@ pub(crate) unsafe fn build_style_group(
 /// # Safety
 /// `parent_payload` must be a valid payload of the group or null.
 pub(crate) unsafe fn share_default_group_payload(group_index: usize, parent_payload: *const c_void) -> *const c_void {
-    let table = vtable(group_index);
+    let group = style_group(group_index);
     let default_payload = default_group_payload(group_index);
-    if !parent_payload.is_null() && unsafe { payloads_equal(table, parent_payload, default_payload) } {
+    if !parent_payload.is_null() && unsafe { payloads_equal(group, parent_payload, default_payload) } {
         retain_group_payload(group_index, parent_payload);
         return parent_payload;
     }
@@ -2468,33 +2504,33 @@ pub(crate) unsafe fn share_default_group_payload(group_index: usize, parent_payl
 /// Rust-native type only.
 pub(crate) unsafe fn build_group_payload_with_rust_fill(
     group_index: usize,
-    values: &[FfiGroupValueEntry],
+    values: &[GroupValueEntry],
     fill: impl FnOnce(*mut c_void),
     parent_payload: *const c_void,
 ) -> *const c_void {
-    let descriptors = registered_group_field_descriptors(group_index).expect("descriptors register before any build");
+    let descriptors = group_field_descriptors(group_index);
     assert_eq!(descriptors.len(), values.len());
     let pokes = decode_group_field_pokes(descriptors, values, false)
         .expect("computed values decode for every non-constraint descriptor");
 
-    let table = vtable(group_index);
-    let scratch = allocate_payload(table, 1);
+    let group = style_group(group_index);
+    let scratch = allocate_payload(group, 1);
     // SAFETY: The scratch payload was allocated for this group's Rust-native
     // layout, and every poke offset comes from offsetof on the C++ mirror.
     unsafe {
-        default_construct(table, scratch);
+        default_construct(group, scratch);
         apply_group_field_pokes(scratch, &pokes);
     }
     fill(scratch);
 
-    if !parent_payload.is_null() && unsafe { payloads_equal(table, scratch, parent_payload) } {
-        unsafe { free_scratch_payload(table, scratch) };
+    if !parent_payload.is_null() && unsafe { payloads_equal(group, scratch, parent_payload) } {
+        unsafe { free_scratch_payload(group, scratch) };
         retain_group_payload(group_index, parent_payload);
         return parent_payload;
     }
     let default_payload = default_group_payload(group_index);
-    if unsafe { payloads_equal(table, scratch, default_payload) } {
-        unsafe { free_scratch_payload(table, scratch) };
+    if unsafe { payloads_equal(group, scratch, default_payload) } {
+        unsafe { free_scratch_payload(group, scratch) };
         return default_payload;
     }
     scratch as *const c_void
@@ -2555,7 +2591,7 @@ pub(crate) unsafe fn build_inherited_box_group(
         return default_payload;
     }
 
-    let payload = allocate_payload(vtable(group_index), 1);
+    let payload = allocate_payload(style_group(group_index), 1);
     // SAFETY: The payload was allocated for this group's layout.
     unsafe { *(payload as *mut InheritedBoxValues) = built };
     payload as *const c_void
@@ -3475,7 +3511,7 @@ pub(crate) unsafe fn rust_build_alignment_group(
             return Some(default_payload);
         }
 
-        let payload = allocate_payload(vtable(group_index), 1);
+        let payload = allocate_payload(style_group(group_index), 1);
         unsafe { payload.cast::<AlignmentValues>().write(built) };
         Some(payload.cast_const())
     };
@@ -3505,7 +3541,7 @@ pub(crate) unsafe fn build_svg_reset_group_payload(
             return default_payload;
         }
 
-        let payload = allocate_payload(vtable(group_index), 1);
+        let payload = allocate_payload(style_group(group_index), 1);
         unsafe { payload.cast::<SVGResetValues>().write(built) };
         payload.cast_const()
     })
@@ -3560,7 +3596,7 @@ pub(crate) unsafe fn rust_build_text_reset_group(
         return default_payload;
     }
 
-    let payload = allocate_payload(vtable(group_index), 1);
+    let payload = allocate_payload(style_group(group_index), 1);
     unsafe { payload.cast::<TextResetValues>().write(built) };
     payload.cast_const()
 }
@@ -3647,7 +3683,7 @@ pub(crate) unsafe fn rust_build_surround_group(
         built.bottom_anchor_inset_wrapper = wrapper(&built.bottom_anchor_inset);
         built.left_anchor_inset_wrapper = wrapper(&built.left_anchor_inset);
 
-        let payload = allocate_payload(vtable(group_index), 1);
+        let payload = allocate_payload(style_group(group_index), 1);
         unsafe { payload.cast::<SurroundValues>().write(built) };
         Some(payload.cast_const())
     };
@@ -3685,7 +3721,7 @@ pub(crate) unsafe fn rust_build_box_group(
         return default_payload;
     }
 
-    let payload = allocate_payload(vtable(group_index), 1);
+    let payload = allocate_payload(style_group(group_index), 1);
     unsafe { payload.cast::<BoxValues>().write(built) };
     payload.cast_const()
 }
@@ -3711,7 +3747,7 @@ pub(crate) unsafe fn rust_build_grid_group(
         return default_payload;
     }
 
-    let payload = allocate_payload(vtable(group_index), 1);
+    let payload = allocate_payload(style_group(group_index), 1);
     unsafe { payload.cast::<GridValues>().write(built) };
     payload.cast_const()
 }
@@ -3783,7 +3819,7 @@ pub(crate) unsafe fn build_sizing_group(
         return default_payload;
     }
 
-    let payload = allocate_payload(vtable(group_index), 1);
+    let payload = allocate_payload(style_group(group_index), 1);
     unsafe { (payload as *mut SizingValues).write(built) };
     payload
 }
@@ -3845,7 +3881,7 @@ pub(crate) unsafe fn build_inherited_table_group(
         return default_payload;
     }
 
-    let payload = allocate_payload(vtable(group_index), 1);
+    let payload = allocate_payload(style_group(group_index), 1);
     // SAFETY: The payload was allocated for this group's layout.
     unsafe { *(payload as *mut InheritedTableValues) = built };
     payload as *const c_void
@@ -3898,65 +3934,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn payload_lifecycle() {
-        let RegisteredTestStyleGroups { vtables, defaults } = registered_test_style_groups();
-        unsafe {
-            let table_default = *(defaults[0] as *const InheritedTableValues);
-            assert_eq!(table_default, InheritedTableValues::initial());
-            let table_clone = rust_style_group_clone(0, defaults[0]);
-            assert_eq!(*(table_clone as *const InheritedTableValues), table_default);
-            refcount_of(table_clone, align_of::<InheritedTableValues>()).store(0, Ordering::Relaxed);
-            rust_style_group_free(0, table_clone);
-
-            let box_default = *(defaults[1] as *const InheritedBoxValues);
-            assert_eq!(box_default, InheritedBoxValues::initial());
-            let box_clone = rust_style_group_clone(1, defaults[1]);
-            assert_eq!(*(box_clone as *const InheritedBoxValues), box_default);
-            refcount_of(box_clone, align_of::<InheritedBoxValues>()).store(0, Ordering::Relaxed);
-            rust_style_group_free(1, box_clone);
-
-            let sizing_default = &*(defaults[2] as *const SizingValues);
-            assert!(sizing_default.eq(&SizingValues::initial()));
-            let sizing_clone = rust_style_group_clone(2, defaults[2]);
-            assert!((*(sizing_clone as *const SizingValues)).eq(sizing_default));
-            refcount_of(sizing_clone, align_of::<SizingValues>()).store(0, Ordering::Relaxed);
-            rust_style_group_free(2, sizing_clone);
-
-            let alignment_default = &*(defaults[3] as *const AlignmentValues);
-            assert!(alignment_default.eq(&AlignmentValues::initial()));
-            let alignment_clone = rust_style_group_clone(3, defaults[3]);
-            assert!((*(alignment_clone as *const AlignmentValues)).eq(alignment_default));
-            refcount_of(alignment_clone, align_of::<AlignmentValues>()).store(0, Ordering::Relaxed);
-            rust_style_group_free(3, alignment_clone);
-
-            let svg_reset_default = &*(defaults[4] as *const SVGResetValues);
-            assert!(svg_reset_default.eq(&SVGResetValues::initial()));
-            let svg_reset_clone = rust_style_group_clone(4, defaults[4]);
-            assert!((*(svg_reset_clone as *const SVGResetValues)).eq(svg_reset_default));
-            refcount_of(svg_reset_clone, align_of::<SVGResetValues>()).store(0, Ordering::Relaxed);
-            rust_style_group_free(4, svg_reset_clone);
-
-            let surround_default = &*(defaults[5] as *const SurroundValues);
-            assert!(surround_default.eq(&SurroundValues::initial()));
-            let surround_clone = rust_style_group_clone(5, defaults[5]);
-            assert!((*(surround_clone as *const SurroundValues)).eq(surround_default));
-            refcount_of(surround_clone, align_of::<SurroundValues>()).store(0, Ordering::Relaxed);
-            rust_style_group_free(5, surround_clone);
-
-            let box_default = &*(defaults[6] as *const BoxValues);
-            assert!(box_default.eq(&BoxValues::initial()));
-            let box_clone = rust_style_group_clone(6, defaults[6]);
-            assert!((*(box_clone as *const BoxValues)).eq(box_default));
-            refcount_of(box_clone, align_of::<BoxValues>()).store(0, Ordering::Relaxed);
-            rust_style_group_free(6, box_clone);
+    fn field_descriptors_belong_to_the_group_properties_json_declares() {
+        for group in 0..group_index::COUNT {
+            for descriptor in group_field_descriptors(group) {
+                let declared = crate::css::property_metadata::property_style_group_index(descriptor.property_id);
+                assert_eq!(declared.map(usize::from), Some(group));
+            }
         }
+    }
 
+    #[test]
+    fn payload_lifecycle() {
         // The contract a payload's content hash owes its equality: two payloads that compare
         // equal hash equal, whoever built them and wherever they live. That is what lets a
         // group's identity be its content instead of the address of the first payload to
         // carry it.
-        for (group_index, &default) in defaults.iter().enumerate() {
-            // SAFETY: The default payload is a live payload of its registered group.
+        for group_index in 0..group_index::COUNT {
+            let default = default_group_payload(group_index);
+            // SAFETY: The default payload is a live payload of its group.
             let clone = unsafe { rust_style_group_clone(group_index, default) };
             assert!(style_group_payloads_equal(group_index, default, clone));
             assert_eq!(
@@ -3964,7 +3959,7 @@ mod tests {
                 style_group_payloads_hash(group_index, clone),
                 "a clone must hash like the payload it was copied from"
             );
-            refcount_of(clone, payload_align(&vtables[group_index])).store(0, Ordering::Relaxed);
+            refcount_of(clone, payload_align(style_group(group_index))).store(0, Ordering::Relaxed);
             // SAFETY: The clone holds the last reference and is a payload of this group.
             unsafe { rust_style_group_free(group_index, clone) };
         }
@@ -3974,10 +3969,15 @@ mod tests {
         let mut changed = InheritedTableValues::initial();
         changed.border_spacing_horizontal = 17;
         let changed_payload = (&raw const changed).cast::<c_void>();
-        assert!(!style_group_payloads_equal(0, defaults[0], changed_payload));
+        let table_default = default_group_payload(group_index::INHERITED_TABLE);
+        assert!(!style_group_payloads_equal(
+            group_index::INHERITED_TABLE,
+            table_default,
+            changed_payload
+        ));
         assert_ne!(
-            style_group_payloads_hash(0, defaults[0]),
-            style_group_payloads_hash(0, changed_payload)
+            style_group_payloads_hash(group_index::INHERITED_TABLE, table_default),
+            style_group_payloads_hash(group_index::INHERITED_TABLE, changed_payload)
         );
     }
 }

@@ -73,7 +73,6 @@ public:
     [[nodiscard]] Optional<StyleEngineRuleTarget> style_engine_rule_target(Layout::BegunRead const& read, StyleEngineRuleID rule_id) const;
 
     static CSSPixels default_user_font_size();
-    static void ensure_style_metadata_tables_installed();
     static CSSPixels absolute_size_mapping(AbsoluteSize, CSSPixels default_font_size);
 
     void set_viewport_rect(Badge<DOM::Document>, CSSPixelRect const& viewport_rect) { m_viewport_rect = viewport_rect; }

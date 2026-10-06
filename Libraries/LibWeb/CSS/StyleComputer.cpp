@@ -1996,8 +1996,6 @@ void StyleComputer::finalize_animated_box_type(Layout::BegunRead const& read, Co
 
 NonnullRefPtr<ComputedValues const> StyleComputer::create_document_style() const
 {
-    ensure_style_metadata_tables_installed();
-
     Vector<u8> document_supported_color_scheme_codes;
     auto document_supported_color_schemes = document().supported_color_schemes();
     if (document_supported_color_schemes.has_value()) {
@@ -2181,24 +2179,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::reconstruct_computed_prope
 u64 StyleComputer::style_environment_version_for_sharing() const
 {
     return document().style_environment_version() ^ (m_viewport_environment_version << 32);
-}
-
-void StyleComputer::ensure_style_metadata_tables_installed()
-{
-    static bool const installed = [] {
-        // Transfer one shared Rust reference for every longhand initial value, so
-        // initial-value selection never crosses the FFI.
-        Vector<void const*> initial_value_entries;
-        initial_value_entries.ensure_capacity(number_of_longhand_properties);
-        for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
-            auto initial_value = property_initial_value(static_cast<PropertyID>(i));
-            initial_value_entries.unchecked_append(StyleValueFFI::rust_style_value_retain(initial_value->rust_style_value_data()));
-        }
-        ComputedValuesFFI::rust_style_metadata_set_initial_value_table(initial_value_entries.data(), initial_value_entries.size());
-
-        return true;
-    }();
-    (void)installed;
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<StyleValue const> const& absolutized_value, int computed_math_depth, Optional<DOM::AbstractElement> const& inheritance_parent, CSSPixels initial_font_size)

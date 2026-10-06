@@ -2503,71 +2503,59 @@ fn collapse_containment_list(value: &StyleValueData) -> Option<Arc<StyleValueDat
     }))
 }
 
-/// The per-longhand initial values as shared Rust value identities.
+/// The per-longhand initial values as shared Rust value identities, parsed from Properties.json on
+/// first use.
 struct InitialValueTable {
-    values: Vec<crate::css::style_value::RetainedStyleValueData>,
-    dependencies: Vec<ExternalValueDependencies>,
+    values: Box<[crate::css::style_value::RetainedStyleValueData]>,
+    dependencies: Box<[ExternalValueDependencies]>,
 }
 
 // SAFETY: The entries reference immortal, immutable style values.
 unsafe impl Send for InitialValueTable {}
 unsafe impl Sync for InitialValueTable {}
 
-static INITIAL_VALUE_TABLE: std::sync::OnceLock<InitialValueTable> = std::sync::OnceLock::new();
+fn initial_value_table() -> &'static InitialValueTable {
+    use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID};
+    use crate::css::style_value::RetainedStyleValueData;
 
-/// Installs the initial value table, one entry per longhand in property id
-/// order.
-///
-/// # Safety
-/// `entries` must point at `length` transferred strong references.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_metadata_set_initial_value_table(entries: *const *const c_void, length: usize) {
-    let values: Vec<_> = unsafe { std::slice::from_raw_parts(entries, length) }
-        .iter()
-        .map(|entry| unsafe {
-            crate::css::style_value::RetainedStyleValueData::from_retained_pointer(
-                (*entry).cast::<crate::css::style_value::StyleValueData>(),
-            )
-        })
-        .collect();
-    assert_eq!(
-        length,
-        crate::css::property_metadata::NUMBER_OF_LONGHAND_PROPERTIES,
-        "initial value table has one entry per longhand"
-    );
-    assert!(
-        INITIAL_VALUE_TABLE
-            .set(InitialValueTable {
-                dependencies: values
-                    .iter()
-                    .map(|value| external_value_dependencies(value.data()))
-                    .collect(),
-                values,
+    static TABLE: std::sync::OnceLock<InitialValueTable> = std::sync::OnceLock::new();
+    TABLE.get_or_init(|| {
+        let values: Box<[_]> = (FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID)
+            .map(|property| {
+                crate::css::parser::value_parser::parse_initial_value(property)
+                    .map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_arc)
             })
-            .is_ok(),
-        "initial value table installed twice"
-    );
+            .collect();
+        let dependencies = values
+            .iter()
+            .map(|value| {
+                value
+                    .optional_data()
+                    .map_or_else(Default::default, external_value_dependencies)
+            })
+            .collect();
+        InitialValueTable { values, dependencies }
+    })
 }
 
 /// Returns the initial value data of a longhand property.
-pub(crate) fn initial_value_if_available(property_id: u16) -> Option<&'static crate::css::style_value::StyleValueData> {
-    use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
-    INITIAL_VALUE_TABLE.get()?.values[(property_id - FIRST_LONGHAND_PROPERTY_ID) as usize].optional_data()
+pub(crate) fn initial_value(property_id: u16) -> Option<&'static crate::css::style_value::StyleValueData> {
+    initial_value_table().values[longhand_index(property_id)].optional_data()
 }
 
 pub(crate) fn initial_value_data(property_id: u16) -> *const crate::css::style_value::StyleValueData {
-    use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
-    let table = INITIAL_VALUE_TABLE.get().expect("initial value table not installed");
-    table.values[(property_id - FIRST_LONGHAND_PROPERTY_ID) as usize].pointer()
+    initial_value_table().values[longhand_index(property_id)].pointer()
 }
 
 fn initial_value_dependencies(property_id: u16) -> ExternalValueDependencies {
-    use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
-    let table = INITIAL_VALUE_TABLE.get().expect("initial value table not installed");
-    table.dependencies[(property_id - FIRST_LONGHAND_PROPERTY_ID) as usize]
+    initial_value_table().dependencies[longhand_index(property_id)]
 }
 
-/// FFI accessor for the parity test on the C++ side.
+fn longhand_index(property_id: u16) -> usize {
+    usize::from(property_id - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID)
+}
+
+/// A longhand's initial value, which C++ property_initial_value() shares.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_metadata_initial_value(property_id: u16) -> *const c_void {
     initial_value_data(property_id).cast()

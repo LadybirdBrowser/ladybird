@@ -40,11 +40,9 @@ use crate::css::computed_value_types::{
     RetainedPositionTryFallbackList, SVGResetValues, TransformValues,
 };
 use crate::css::computed_values::{
-    FfiGroupValueEntry, GROUP_FIELD_COLOR, GROUP_FIELD_COLOR_OR_KEYWORD, GROUP_FIELD_RESOLVED_F32,
-    GROUP_FIELD_RESOLVED_F64, GROUP_FIELD_RESOLVED_U8, MAX_GROUP_FIELD_COUNT, build_inherited_box_group,
-    build_inherited_table_group, build_sizing_group, build_style_group, build_svg_reset_group_payload,
-    registered_group_field_descriptors, rust_build_alignment_group, rust_build_grid_group, rust_build_surround_group,
-    rust_build_text_reset_group,
+    GroupFieldKind, GroupValueEntry, MAX_GROUP_FIELD_COUNT, build_inherited_box_group, build_inherited_table_group,
+    build_sizing_group, build_style_group, build_svg_reset_group_payload, group_field_descriptors,
+    rust_build_alignment_group, rust_build_grid_group, rust_build_surround_group, rust_build_text_reset_group,
 };
 use crate::css::css_enums::keyword;
 use crate::css::css_pixels::CssPixels;
@@ -129,7 +127,7 @@ struct EffectiveValues<'a> {
 }
 
 struct GroupValueEntries {
-    entries: [std::mem::MaybeUninit<FfiGroupValueEntry>; MAX_GROUP_FIELD_COUNT],
+    entries: [std::mem::MaybeUninit<GroupValueEntry>; MAX_GROUP_FIELD_COUNT],
     len: usize,
 }
 
@@ -141,7 +139,7 @@ impl GroupValueEntries {
         }
     }
 
-    fn push(&mut self, entry: FfiGroupValueEntry) {
+    fn push(&mut self, entry: GroupValueEntry) {
         assert!(
             self.len < self.entries.len(),
             "a computed style group has too many fields"
@@ -152,10 +150,10 @@ impl GroupValueEntries {
 }
 
 impl std::ops::Deref for GroupValueEntries {
-    type Target = [FfiGroupValueEntry];
+    type Target = [GroupValueEntry];
 
     fn deref(&self) -> &Self::Target {
-        // SAFETY: push initializes every entry below len and FfiGroupValueEntry has no drop glue.
+        // SAFETY: push initializes every entry below len and GroupValueEntry has no drop glue.
         unsafe { std::slice::from_raw_parts(self.entries.as_ptr().cast(), self.len) }
     }
 }
@@ -227,13 +225,13 @@ unsafe fn gather_group_entries(
     input: &ColorResolutionInput,
     used_color_scheme: u8,
 ) -> Option<GroupValueEntries> {
-    let descriptors = registered_group_field_descriptors(group_index)?;
+    let descriptors = group_field_descriptors(group_index);
     assert!(descriptors.len() <= MAX_GROUP_FIELD_COUNT);
     let mut entries = GroupValueEntries::new();
     for descriptor in descriptors {
         let data_pointer = values.pointer(descriptor.property_id);
         let data = unsafe { data_pointer.cast::<StyleValueData>().as_ref() }?;
-        let mut entry = FfiGroupValueEntry {
+        let mut entry = GroupValueEntry {
             data: data_pointer,
             resolved_color: 0,
             has_resolved_color: false,
@@ -241,19 +239,19 @@ unsafe fn gather_group_entries(
             has_resolved_number: false,
         };
         match descriptor.kind {
-            GROUP_FIELD_COLOR | GROUP_FIELD_COLOR_OR_KEYWORD => {
+            GroupFieldKind::Color | GroupFieldKind::ColorOrKeyword(_) => {
                 if let Some(color) = resolved_color(input, descriptor.property_id, data) {
                     entry.resolved_color = color;
                     entry.has_resolved_color = true;
                 }
             }
-            GROUP_FIELD_RESOLVED_F32 | GROUP_FIELD_RESOLVED_F64 => {
+            GroupFieldKind::ResolvedF32 | GroupFieldKind::ResolvedF64 => {
                 if let Some(number) = resolved_wrapped_number(data) {
                     entry.resolved_number = number;
                     entry.has_resolved_number = true;
                 }
             }
-            GROUP_FIELD_RESOLVED_U8 => {
+            GroupFieldKind::ResolvedU8 => {
                 // The only resolved-u8 field is the used color-scheme.
                 entry.resolved_number = f64::from(used_color_scheme);
                 entry.has_resolved_number = true;
@@ -279,7 +277,7 @@ unsafe fn build_generic_group(
     };
     // SAFETY: The entries hold live value data gathered above and the caller
     // warrants the parent payload.
-    unsafe { build_style_group(group_index, entries.as_ptr(), entries.len(), parent_payload) }
+    unsafe { build_style_group(group_index, &entries, parent_payload) }
 }
 
 unsafe fn build_surround_group(values: &EffectiveValues, parent_payload: *const c_void) -> *const c_void {

@@ -3782,14 +3782,13 @@ mod tests {
         }
     }
 
-    /// One owned payload per group, each a fresh clone of the group's registered default: an
-    /// allocation the caller holds the only reference to, which is what a drive hands `publish`.
+    /// One owned payload per group, each a fresh clone of the group's default: an allocation the
+    /// caller holds the only reference to, which is what a drive hands `publish`.
     fn owned_payloads(group_count: usize) -> Vec<SharedPayload> {
-        crate::css::computed_values::registered_test_style_groups();
         (0..group_count)
             .map(|index| {
                 let default = crate::css::computed_values::default_group_payload(index);
-                // SAFETY: The default payload is a live payload of its registered group.
+                // SAFETY: The default payload is a live payload of its group.
                 SharedPayload::new(
                     unsafe { crate::css::computed_values::clone_group_payload(index, default) }.cast_const(),
                 )

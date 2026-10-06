@@ -802,7 +802,6 @@ public:
     // The layout and lifecycle of this group are defined in Rust (computed_values.rs).
     struct InheritedTableValues : ComputedValuesFFI::InheritedTableValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedTableValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::InheritedTable;
 
         bool operator==(InheritedTableValues const& other) const
         {
@@ -816,7 +815,6 @@ public:
 
     struct InheritedListValues : ComputedValuesFFI::InheritedListValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedListValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::InheritedList;
 
         RefPtr<AbstractImageStyleValue const> list_style_image_value() const;
 
@@ -828,7 +826,6 @@ public:
 
     struct InheritedUIValues : ComputedValuesFFI::InheritedUIValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedUIValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::InheritedUI;
 
         Color caret_color_value() const { return Color::from_bgra(caret_color.used_color); }
         Optional<Color> accent_color_value() const
@@ -863,7 +860,6 @@ public:
 
     struct InheritedSVGValues : ComputedValuesFFI::InheritedSVGValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedSVGValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::InheritedSVG;
 
         // The paint server a fill or stroke names by URL, if it does.
         static Optional<URL> paint_url_value(ComputedValuesFFI::ComputedSvgPaint const& paint)
@@ -908,7 +904,6 @@ public:
 
     struct InheritedTextValues : ComputedValuesFFI::InheritedTextValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedTextValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::InheritedText;
 
         TextAlign text_align_value() const { return static_cast<TextAlign>(text_align); }
         WhiteSpaceCollapse white_space_collapse_value() const { return static_cast<WhiteSpaceCollapse>(white_space_collapse); }
@@ -933,7 +928,6 @@ public:
     // and setters convert.
     struct InheritedBoxValues : ComputedValuesFFI::InheritedBoxValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedBoxValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::InheritedBox;
 
         Visibility visibility_value() const { return static_cast<Visibility>(visibility); }
         Direction direction_value() const { return static_cast<Direction>(direction); }
@@ -954,7 +948,6 @@ public:
     // The payload holds its own reference to the platform font cascade list.
     struct FontValues : ComputedValuesFFI::FontValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::FontValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Font;
 
         WEB_API Gfx::FontCascadeList const& font_list_value() const;
         RefPtr<StyleValue const> font_family_style_value() const;
@@ -981,7 +974,6 @@ private:
 public:
     struct AnimationValues : ComputedValuesFFI::AnimationValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::AnimationValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Animation;
 
         Vector<Utf16FlyString> animation_names_value() const;
         bool transition_delay_and_duration_are_single_zero_value() const { return transition_delay_and_duration_are_single_zero; }
@@ -995,7 +987,6 @@ public:
     // The layout and lifecycle of this group are defined in Rust (computed_values.rs).
     struct SVGResetValues : ComputedValuesFFI::SVGResetValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::SVGResetValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::SVGReset;
 
         bool operator==(SVGResetValues const& other) const
         {
@@ -1005,7 +996,6 @@ public:
 
     struct GridValues : ComputedValuesFFI::GridValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::GridValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Grid;
 
         bool operator==(GridValues const& other) const
         {
@@ -1015,7 +1005,6 @@ public:
 
     struct AnchorValues : ComputedValuesFFI::AnchorValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::AnchorValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Anchor;
 
         ReadonlySpan<Utf16FlyString> anchor_names_span() const { return fly_strings(anchor_names); }
         PositionAnchor position_anchor_value() const
@@ -1045,7 +1034,6 @@ public:
 
     struct EffectsValues : ComputedValuesFFI::EffectsValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::EffectsValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Effects;
 
         ComputedFilterView filter_value() const { return ComputedFilterView { filter }; }
         ComputedFilterView backdrop_filter_value() const { return ComputedFilterView { backdrop_filter }; }
@@ -1082,7 +1070,6 @@ public:
 
     struct MaskValues : ComputedValuesFFI::MaskValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::MaskValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Mask;
 
         // The mask layer the first mask-image names by URL, if it does.
         Optional<URL> mask_url_value() const;
@@ -1101,7 +1088,6 @@ public:
 
     struct TextResetValues : ComputedValuesFFI::TextResetValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::TextResetValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::TextReset;
 
         ReadonlySpan<TextDecorationLine> decoration_lines() const
         {
@@ -1126,7 +1112,6 @@ public:
 
     struct ContentValues : ComputedValuesFFI::ContentValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::ContentValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Content;
 
         NonnullRefPtr<StyleValue const> computed_content_value() const;
         bool content_is_normal() const;
@@ -1143,7 +1128,6 @@ public:
 
     struct TransformValues : public ComputedValuesFFI::TransformValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::TransformValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Transform;
 
         static RefPtr<StyleValue const> style_value(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
         {
@@ -1227,7 +1211,6 @@ public:
 
     struct BackgroundValues : ComputedValuesFFI::BackgroundValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::BackgroundValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Background;
 
         Color background_color_value() const { return Color::from_bgra(background_color); }
         Vector<RefPtr<AbstractImageStyleValue const>> background_images_value() const;
@@ -1240,7 +1223,6 @@ public:
 
     struct BorderValues : ComputedValuesFFI::BorderValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::BorderValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Border;
 
         BorderData const& border_left_value() const { return reinterpret_cast<BorderData const&>(border_left); }
         BorderData const& border_top_value() const { return reinterpret_cast<BorderData const&>(border_top); }
@@ -1256,7 +1238,6 @@ public:
 
     struct AlignmentValues : ComputedValuesFFI::AlignmentValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::AlignmentValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Alignment;
 
         bool operator==(AlignmentValues const& other) const
         {
@@ -1286,7 +1267,6 @@ public:
 
     struct MiscResetValues : ComputedValuesFFI::MiscResetValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::MiscResetValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::MiscReset;
 
         Optional<Utf16FlyString> view_transition_name_value() const;
         ScrollSnapStrictness scroll_snap_strictness_value() const { return static_cast<ScrollSnapStrictness>(scroll_snap_strictness); }
@@ -1300,7 +1280,6 @@ public:
 
     struct SizingValues : ComputedValuesFFI::SizingValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::SizingValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Sizing;
 
         bool operator==(SizingValues const& other) const
         {
@@ -1315,7 +1294,6 @@ public:
 
     struct SurroundValues : ComputedValuesFFI::SurroundValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::SurroundValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Surround;
 
         bool operator==(SurroundValues const& other) const
         {
@@ -1325,7 +1303,6 @@ public:
 
     struct BoxValues : ComputedValuesFFI::BoxValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::BoxValues);
-        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Box;
 
         Display display_value() const { return display_from_ffi_display(display); }
         Display display_before_box_type_transformation_value() const { return display_from_ffi_display(display_before_box_type_transformation); }

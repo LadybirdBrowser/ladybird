@@ -6,7 +6,7 @@
 
 use super::*;
 use crate::css::parser::value_parser::{ParseContext, ParseOutcome, parse_css_value};
-use crate::css::property_metadata::{longhands_for_shorthand, property_id, property_initial_value};
+use crate::css::property_metadata::{longhands_for_shorthand, property_id};
 use crate::css::style_value::{RetainedPropertyIdList, RetainedStyleValueData, RetainedStyleValueDataList};
 use std::borrow::Cow;
 
@@ -125,17 +125,12 @@ pub(super) fn initial(property: u16) -> Cow<'static, StyleValueData> {
             ),
         });
     }
-    if let Some(value) = crate::css::style_compute::initial_value_if_available(property) {
-        return Cow::Borrowed(value);
-    }
-    // Standalone Rust parsing can run before the engine installs its initial-value table.
-    Cow::Owned(
-        (*parse(
-            property,
-            TokenizerInput::Ascii(property_initial_value(property).as_bytes()),
-        )
-        .unwrap())
-        .clone(),
+    // Every longhand's initial value parses, which value_parser's tests check.
+    crate::css::style_compute::initial_value(property).map_or(
+        Cow::Owned(StyleValueData::Keyword {
+            keyword: keyword::INITIAL,
+        }),
+        Cow::Borrowed,
     )
 }
 

@@ -49,7 +49,6 @@ TEST_CASE(computation_order_matches)
 
 TEST_CASE(logical_alias_mapping_matches)
 {
-    StyleComputer::ensure_style_metadata_tables_installed();
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
         auto property_id = static_cast<PropertyID>(i);
         for (u8 writing_mode = 0; writing_mode < 5; ++writing_mode) {
@@ -65,7 +64,6 @@ TEST_CASE(logical_alias_mapping_matches)
 
 TEST_CASE(physical_to_logical_mapping_matches)
 {
-    StyleComputer::ensure_style_metadata_tables_installed();
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
         auto property_id = static_cast<PropertyID>(i);
         for (u8 writing_mode = 0; writing_mode < 5; ++writing_mode) {
@@ -97,7 +95,6 @@ TEST_CASE(shorthand_expansions_match)
 
 TEST_CASE(initial_value_table_matches)
 {
-    StyleComputer::ensure_style_metadata_tables_installed();
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
         auto const* data = static_cast<StyleValueFFI::StyleValueData const*>(ComputedValuesFFI::rust_style_metadata_initial_value(i));
         auto initial_value = property_initial_value(static_cast<PropertyID>(i));
