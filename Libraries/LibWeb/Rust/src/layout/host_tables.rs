@@ -75,6 +75,10 @@ impl HostTables {
         let Some((context, factory)) = self.shell_factory.get() else {
             return std::ptr::null_mut();
         };
+        assert!(
+            !crate::stage_thread::style_layout_thread().is_current(),
+            "a layout node is made on the main thread, whose heap it is allocated from"
+        );
         // SAFETY: Registration and unregistration keep the factory context live. The factory's
         // layout node attaches itself to the table, which no borrow is held of across the call.
         unsafe { factory(context, facts.id, facts.kind) };

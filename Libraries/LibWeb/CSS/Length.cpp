@@ -21,7 +21,6 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Painting/BoxViews.h>
 
 namespace Web::CSS {
 
@@ -158,9 +157,12 @@ double Length::container_relative_length_to_px_without_rounding(ResolutionContex
             return viewport_length.to_double();
         }
 
+        // The container's box is read without making its layout node: a layout round asks this on the render owner,
+        // which must not allocate one.
+        auto const* arena = query_container->document().layout_node_arena_if_created();
         Layout::ForcedReadScope read { query_container->document() };
-        auto const* layout_node = query_container->unsafe_layout_node(read);
-        if (!layout_node || !Painting::has_committed_box(*layout_node)) {
+        CSSPixelSize container_size;
+        if (!arena || !Layout::RustFFI::layout_row_bound_committed_content_size(arena->host(), read, query_container->style_node_id().value(), &container_size)) {
             // A running partial relayout pass reports layout as up to date, but a container
             // with no paintable yet still needs the post-layout evaluation, which routes the
             // follow-up pass to the full layout path that resolves the container's size.
@@ -169,7 +171,7 @@ double Length::container_relative_length_to_px_without_rounding(ResolutionContex
             return 0.0;
         }
 
-        auto container_length = physical_axis == ContainerRelativeAxis::Width ? Painting::content_width(*layout_node) : Painting::content_height(*layout_node);
+        auto container_length = physical_axis == ContainerRelativeAxis::Width ? container_size.width() : container_size.height();
         return container_length.to_double();
     };
 

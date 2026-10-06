@@ -257,6 +257,36 @@ pub unsafe extern "C" fn layout_row_bound_shell(host: &DocumentHost, read: &Begu
     unsafe { bound_shell(host, read, |identities| identities.bound_row(style_node)) }
 }
 
+/// The content size of the committed box of the row the element with `style_node` is bound to, or none where the
+/// element has no row or its row no committed box. It makes no layout node, so a host callback a layout round makes
+/// on the render owner may ask it.
+///
+/// # Safety
+///
+/// As for [`layout_row_bound_shell`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_row_bound_committed_content_size(
+    host: &DocumentHost,
+    read: &BegunRead,
+    style_node: u32,
+    size: &mut crate::layout::FfiCssPixelSize,
+) -> bool {
+    let Some(style_node) = StyleNodeID::from_raw(style_node) else {
+        return false;
+    };
+    // SAFETY: Guaranteed by the caller.
+    let Some(row) = unsafe { identities(host, read) }.bound_row(style_node) else {
+        return false;
+    };
+    host.read_rows(read, false, |rows| {
+        if !rows.paintable_row_is_populated(row) {
+            return false;
+        }
+        *size = crate::painting::paintable_geometry::committed_content_size(rows, row);
+        true
+    })
+}
+
 /// The layout node of the row the pseudo-element of kind `generated_for` on the element with `style_node` is bound to,
 /// made if nothing has asked for it yet, or null.
 ///
