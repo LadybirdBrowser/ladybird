@@ -1,7 +1,7 @@
 after ending: ended=true
 after remove: ended=true, readyState=HAVE_METADATA
-after setting currentTime: ended=true
-after play(): ended=true
+after setting currentTime: ended=false
+after play(): ended=false
 seeking: ended=false
 play: ended=false
 waiting: ended=false

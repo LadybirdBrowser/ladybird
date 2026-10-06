@@ -560,6 +560,11 @@ void HTMLMediaElement::set_official_playback_position(double position)
 {
     m_official_playback_position = position;
     m_official_playback_position_task_generation = main_thread_event_loop().task_generation();
+
+    // AD-HOC: Other browsers keep the ended attribute in line with the official playback position, so that a seek or
+    //         load within a task is reflected by both, rather than only once the event loop reaches step 1.
+    //         See https://github.com/whatwg/html/issues/11773
+    update_ended_attribute();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-duration
@@ -3274,8 +3279,18 @@ void HTMLMediaElement::upon_has_ended_playback_possibly_changed()
     run_when_event_loop_reaches_step_1(GC::Function<void()>::create(GC::Heap::the(), [&] {
         // The ended attribute must return true if, the last time the event loop reached step 1, the media element had ended
         // playback and the direction of playback was forwards, and false otherwise.
-        set_ended(has_ended_playback() && direction_of_playback() == PlaybackDirection::Forwards);
+        update_ended_attribute();
     }));
+}
+
+void HTMLMediaElement::update_ended_attribute()
+{
+    // NB: Forgetting the media resource releases the playback manager before the readyState returns to HAVE_NOTHING.
+    if (!m_playback_manager) {
+        set_ended(false);
+        return;
+    }
+    set_ended(has_ended_playback() && direction_of_playback() == PlaybackDirection::Forwards);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#reaches-the-end

@@ -1,4 +1,4 @@
 after ending: ended=true
-after setting currentTime: ended=true
+after setting currentTime: ended=false
 seeking: ended=false
 seeked: ended=false

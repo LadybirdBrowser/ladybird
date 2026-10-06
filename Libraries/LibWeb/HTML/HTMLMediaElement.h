@@ -277,6 +277,7 @@ private:
     void set_paused(bool);
     void set_duration(double);
     void set_ended(bool);
+    void update_ended_attribute();
 
     void volume_or_muted_attribute_changed();
     void update_volume();
