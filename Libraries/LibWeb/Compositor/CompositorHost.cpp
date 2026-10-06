@@ -9,7 +9,6 @@
 #include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibGfx/CanvasCommandList.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibWeb/Compositor/CompositorConnection.h>
 #include <LibWeb/Compositor/CompositorFrame.h>
@@ -98,10 +97,10 @@ void CompositorContextHandle::hurry_rendering_opportunity()
     m_host.hurry_rendering_opportunity(m_context_id);
 }
 
-void CompositorContextHandle::request_screenshot(NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)
+void CompositorContextHandle::request_screenshot(NonnullRefPtr<Gfx::Bitmap> target_bitmap, Function<void()>&& callback)
 {
     m_host.flush_canvas_2d_stream();
-    m_host.request_screenshot(m_context_id, move(target_surface), move(callback));
+    m_host.request_screenshot(m_context_id, move(target_bitmap), move(callback));
 }
 
 CompositorHost::CompositorHost()
@@ -434,10 +433,10 @@ void CompositorHost::hurry_rendering_opportunity(Web::CompositorContextId contex
         connection->hurry_rendering_opportunity(context_id);
 }
 
-void CompositorHost::request_screenshot(Web::CompositorContextId context_id, NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)
+void CompositorHost::request_screenshot(Web::CompositorContextId context_id, NonnullRefPtr<Gfx::Bitmap> target_bitmap, Function<void()>&& callback)
 {
     if (auto* connection = compositor_connection()) {
-        connection->request_screenshot(context_id, move(target_surface), move(callback));
+        connection->request_screenshot(context_id, move(target_bitmap), move(callback));
         return;
     }
     if (callback)

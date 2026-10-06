@@ -15,7 +15,6 @@
 #include <AK/Variant.h>
 #include <LibCore/Timer.h>
 #include <LibGC/RootVector.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -7210,7 +7209,7 @@ bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_r
     return true;
 }
 
-void LocalNavigable::render_screenshot(Gfx::PaintingSurface& painting_surface, PaintConfig paint_config, Function<void()>&& callback)
+void LocalNavigable::render_screenshot(NonnullRefPtr<Gfx::Bitmap> target, PaintConfig paint_config, Function<void()>&& callback)
 {
     if (!has_compositor_context()) {
         callback();
@@ -7232,7 +7231,7 @@ void LocalNavigable::render_screenshot(Gfx::PaintingSurface& painting_surface, P
     }
     // The screenshot is of what the compositor composes, so every frame committed before it is presented first.
     main_thread_event_loop().take_committed_frames_in();
-    compositor_context().request_screenshot(painting_surface, move(callback));
+    compositor_context().request_screenshot(move(target), move(callback));
 }
 
 void LocalNavigable::abort_in_flight_smooth_scrolls(Web::AsyncScrollNodeStableID stable_node_id, SmoothScrollAbortCause abort_cause)

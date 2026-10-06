@@ -14,7 +14,6 @@
 #include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibIPC/Limits.h>
 #include <LibIPC/Transport.h>
 #include <LibMediaClient/Client.h>
@@ -639,7 +638,7 @@ bool CompositorConnection::read_webgl_buffer_sub_data(Compositing::CanvasId canv
     return response->success();
 }
 
-void CompositorConnection::request_screenshot(Web::CompositorContextId context_id, NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)
+void CompositorConnection::request_screenshot(Web::CompositorContextId context_id, NonnullRefPtr<Gfx::Bitmap> target_bitmap, Function<void()>&& callback)
 {
     if (!can_send_message_to_compositor()) {
         if (callback)
@@ -647,10 +646,11 @@ void CompositorConnection::request_screenshot(Web::CompositorContextId context_i
         return;
     }
 
-    auto target_bitmap = MUST(Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, target_surface->size()));
+    // The compositor paints straight into the target, so it has to be memory both processes can map.
+    VERIFY(target_bitmap->anonymous_buffer().is_valid());
     auto shareable_bitmap = Gfx::ShareableBitmap { target_bitmap, Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap };
     auto request_id = Compositing::ScreenshotRequestId { m_next_screenshot_request_id++ };
-    m_screenshots.set(request_id, PendingScreenshot { move(target_surface), move(target_bitmap), move(callback) });
+    m_screenshots.set(request_id, PendingScreenshot { move(target_bitmap), move(callback) });
     // The screenshot is of what the compositor composes, so it goes after the frames handed to the Paint thread before.
     paint_stage_request_screenshot(new ScreenshotRequestForPaintThread { context_id, { request_id, move(shareable_bitmap) } });
 }
@@ -699,7 +699,6 @@ void CompositorConnection::did_complete_screenshot(Compositing::ScreenshotReques
     if (!pending_screenshot.has_value())
         return;
 
-    pending_screenshot->target_surface->write_from_bitmap(*pending_screenshot->target_bitmap);
     if (pending_screenshot->callback)
         pending_screenshot->callback();
 }
