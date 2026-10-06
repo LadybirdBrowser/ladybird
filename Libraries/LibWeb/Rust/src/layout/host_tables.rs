@@ -15,7 +15,7 @@ use super::layout_node_arena::{ShellFactory, ShellStyleChangedHost};
 use super::node_data::{NodeKind, NodeSlotId};
 use super::trace::DescribeNode;
 use super::update_layout::FfiLayoutUpdateHostCallbacks;
-use crate::css::style::fast_hash::FastMap as HashMap;
+use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
 use crate::painting::host::FfiGeometryHostCallbacks;
 use crate::painting::paintable_rows::ChromeStateCallback;
 use std::cell::Cell;
@@ -54,6 +54,10 @@ pub(crate) struct HostTables {
     pub(crate) shells: RefCell<HashMap<NodeSlotId, NonNull<c_void>>>,
     /// Whether the document runs a layout update, which it does one at a time.
     pub(crate) update_layout_running: Cell<bool>,
+    /// Whether the host gave the rows search text highlights that it has not cleared since.
+    pub(crate) shows_search_text: Cell<bool>,
+    /// The rows the host gave layer image paint facts, which the arena drops with the row.
+    pub(crate) rows_with_layer_image_paint_facts: RefCell<HashSet<NodeSlotId>>,
     /// The image resources the tree builds of the rounds the host was paid for owe the rows they stamped, which the
     /// host attaches once its layout update is over.
     pub(super) owed_images: RefCell<Vec<super::update_layout::OwedImage>>,

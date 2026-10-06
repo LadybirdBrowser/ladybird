@@ -847,6 +847,7 @@ impl FreedSubtree {
                 }
             }
             for &slot in &self.rows {
+                host_tables.rows_with_layer_image_paint_facts.borrow_mut().remove(&slot);
                 let provider = host_tables.owned_image_providers.borrow_mut().remove(&slot);
                 if let Some(provider) = provider {
                     crate::layout::tree_mutation::destroy_owned_image_provider(main_thread, provider);
@@ -5487,6 +5488,21 @@ pub unsafe extern "C" fn render_state_layout_root(
     unsafe { read_arena(host, read, (), |arena, ()| arena.layout_root()) }
 }
 
+/// Whether the layout of `host`'s document is up to date, where the host knows it without asking and no frame brings
+/// layout the host waits for.
+fn known_layout_is_up_to_date(
+    host: &DocumentHost,
+    _: &crate::render_state::NoFrameInFlight,
+    document: Option<StyleNodeID>,
+) -> Option<bool> {
+    let up_to_date = host.known_layout_up_to_date_unless_built()?;
+    Some(
+        up_to_date
+            && !document
+                .is_some_and(|document| host.read_marks(|marks| marks.needs(document) || marks.child_needs(document))),
+    )
+}
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_layout_is_up_to_date(host: &DocumentHost, document_style_node: u32) -> bool {
     // A frame in flight, or a round that flew and is not paid yet, brings layout the host waits for. The document's
@@ -5495,10 +5511,8 @@ pub unsafe extern "C" fn render_state_layout_is_up_to_date(host: &DocumentHost, 
         return false;
     };
     let document = StyleNodeID::from_raw(document_style_node);
-    if let Some(up_to_date) = host.known_layout_up_to_date_unless_built() {
-        return up_to_date
-            && !document
-                .is_some_and(|document| host.read_marks(|marks| marks.needs(document) || marks.child_needs(document)));
+    if let Some(up_to_date) = known_layout_is_up_to_date(host, &here, document) {
+        return up_to_date;
     }
     host.ask(here, |state| {
         let arena = state.arena_mut();
@@ -5508,6 +5522,20 @@ pub unsafe extern "C" fn render_state_layout_is_up_to_date(host: &DocumentHost, 
         });
         arena.layout_is_up_to_date(document_needs_layout_tree_build)
     })
+}
+
+/// Whether the host knows, without asking, that the layout of `host`'s document is not up to date: a frame brings
+/// layout it waits for, or what it knows of the render state says so.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_layout_is_known_stale(host: &DocumentHost, document_style_node: u32) -> bool {
+    let Some(here) = host.layout_waits_for_no_frame() else {
+        return true;
+    };
+    known_layout_is_up_to_date(host, &here, StyleNodeID::from_raw(document_style_node)) == Some(false)
 }
 
 /// Refreshes the text content and replaced-content facts of every node enrolled since the last

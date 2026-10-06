@@ -105,6 +105,17 @@ pub(crate) enum PaintChange {
 }
 
 impl PaintChange {
+    /// How far the change may write the rows. Noting what the visual context tree is to be updated for writes nothing
+    /// the rows answer before the tree is updated.
+    pub(crate) fn row_write(&self) -> crate::render_state::RowWrite {
+        match self {
+            Self::NoteVisualContextBoxDirty { .. } | Self::RequestFullVisualContextRebuild(_) => {
+                crate::render_state::RowWrite::None
+            }
+            _ => crate::render_state::RowWrite::Rows,
+        }
+    }
+
     /// Applies the change to `arena`, the arena of the document it was queued for.
     pub(crate) fn apply(self, arena: &mut LayoutNodeArena) {
         match self {
@@ -287,6 +298,7 @@ pub unsafe extern "C" fn render_state_apply_search_text(
         // SAFETY: Guaranteed by the caller.
         unsafe { std::slice::from_raw_parts(entries, entry_count) }.into()
     };
+    host.host_tables().shows_search_text.set(range_count != 0);
     let change = PaintChange::ApplySearchText {
         viewport,
         ranges,
@@ -301,6 +313,11 @@ pub unsafe extern "C" fn render_state_apply_search_text(
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_clear_search_text(host: &DocumentHost) {
+    // Rows that show no search text have none to clear, which spares the write that would leave the rows the host
+    // holds stale.
+    if !host.host_tables().shows_search_text.replace(false) {
+        return;
+    }
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, PaintChange::ClearSearchText) };
 }
@@ -375,6 +392,17 @@ pub unsafe extern "C" fn render_state_set_layer_image_paint_facts(
             })
             .collect()
     };
+    // A row the host gave no facts has none to clear, which spares the write that would leave the rows the host holds
+    // stale.
+    let mut rows_with_facts = host.host_tables().rows_with_layer_image_paint_facts.borrow_mut();
+    if entries.is_empty() {
+        if !rows_with_facts.remove(&node) {
+            return;
+        }
+    } else {
+        rows_with_facts.insert(node);
+    }
+    drop(rows_with_facts);
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, PaintChange::SetLayerImagePaintFacts { node, entries }) };
 }
