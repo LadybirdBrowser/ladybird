@@ -264,7 +264,7 @@ Compositing::ContextRef accumulated_visual_context_for_descendants(Layout::Node 
     return row.has_value() ? row->accumulated_visual_context_for_descendants : Compositing::ContextRef {};
 }
 
-Compositing::SpatialNodeIndex enclosing_scroll_node_index(Layout::Node const& node)
+static Compositing::SpatialNodeIndex enclosing_scroll_node_index(Layout::Node const& node)
 {
     auto row = committed_row(node);
     return row.has_value() ? row->enclosing_scroll_node_index : Compositing::VISUAL_VIEWPORT_NODE_INDEX;
@@ -779,7 +779,7 @@ void set_needs_repaint_in_subtree(Layout::Node const& node)
     mark_box(node, marks);
 }
 
-void invalidate_propagated_text_decoration_caches(Layout::Node const& node)
+static void invalidate_propagated_text_decoration_caches(Layout::Node const& node)
 {
     Layout::RustFFI::FfiBoxMarks marks {};
     marks.propagated_text_decorations = true;

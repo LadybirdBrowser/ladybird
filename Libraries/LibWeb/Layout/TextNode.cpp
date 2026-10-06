@@ -122,9 +122,4 @@ Gfx::GlyphRun::TextType text_type_for_code_point(u32 code_point)
     }
 }
 
-void TextNode::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list) const
-{
-    Painting::mark_box(*this, Painting::repaint_marks(should_invalidate_display_list));
-}
-
 }

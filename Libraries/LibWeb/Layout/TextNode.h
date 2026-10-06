@@ -39,8 +39,6 @@ public:
     Utf16String rendered_text_for_dom(bool collapse_whitespace) const;
     RustFFI::FfiTextSourceRange word_range_at(size_t dom_offset) const;
 
-    void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::PaintCommandsAndHitTestList) const;
-
 private:
     virtual bool is_text_node() const final { return true; }
 };

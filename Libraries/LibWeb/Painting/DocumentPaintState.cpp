@@ -47,12 +47,6 @@ Compositing::AccumulatedVisualContextTree DocumentPaintState::visual_context_tre
     return visual_context_tree_without_update(read, document);
 }
 
-u64 DocumentPaintState::visual_context_tree_structural_epoch(Layout::BegunRead const& read, DOM::Document const& document) const
-{
-    ensure_visual_context_tree(document);
-    return visual_context_tree_structural_epoch_without_update(read);
-}
-
 u64 DocumentPaintState::visual_context_tree_structural_epoch_without_update(Layout::BegunRead const& read) const
 {
     return Layout::RustFFI::render_state_visual_context_tree_structural_epoch(m_layout_node_arena->host(), &read);
