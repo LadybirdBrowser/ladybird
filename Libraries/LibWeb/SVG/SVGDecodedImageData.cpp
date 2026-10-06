@@ -47,6 +47,14 @@ static GC::Ref<SVGDecodedImageData::SVGPageClient> shared_svg_page_client_for_pa
     return page_client;
 }
 
+Optional<ScopedSVGImageDocument> ScopedSVGImageDocument::create_if_needed(GC::Ptr<DOM::Document const> document, FrameRequests frame_requests)
+{
+    if (!document || !document->is_decoded_svg())
+        return {};
+
+    return ScopedSVGImageDocument { *const_cast<DOM::Document*>(document.ptr()), frame_requests };
+}
+
 ScopedSVGImageDocument::ScopedSVGImageDocument(DOM::Document& document, FrameRequests frame_requests)
     : m_page_client(as<SVGDecodedImageData::SVGPageClient>(document.page().client()))
     , m_navigable(m_page_client->page().local_traversable())

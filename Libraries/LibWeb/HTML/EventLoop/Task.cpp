@@ -9,6 +9,7 @@
 #include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
+#include <LibWeb/SVG/SVGDecodedImageData.h>
 
 namespace Web::HTML {
 
@@ -53,6 +54,8 @@ void Task::visit_edges(Visitor& visitor)
 
 void Task::execute()
 {
+    auto scope_guard = SVG::ScopedSVGImageDocument::create_if_needed(m_document, SVG::ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage);
+
     m_steps->function()();
 }
 
@@ -68,20 +71,13 @@ void Task::discard()
 bool Task::is_runnable() const
 {
     // A task is runnable if its document is either null or fully active.
-    return !m_document || m_document->is_fully_active();
+    // AD-HOC: Decoded SVG documents are not generally active but are made active while executing their tasks.
+    return !m_document || m_document->is_fully_active() || (m_document->is_decoded_svg() && !m_document->has_been_destroyed());
 }
 
 bool Task::is_permanently_unrunnable() const
 {
-    if (!m_document)
-        return false;
-    if (m_document->has_been_destroyed())
-        return true;
-
-    // NB: A decoded SVG image document is only active while SVGDecodedImageData has it installed in the shared SVG
-    //     image environment, which never spans a turn of the event loop. A task queued for it (e.g. a style element's
-    //     load event) can never run, and would otherwise keep the document and the shared environment alive.
-    return m_document->is_decoded_svg() && !m_document->is_fully_active();
+    return m_document && m_document->has_been_destroyed();
 }
 
 DOM::Document const* Task::document() const

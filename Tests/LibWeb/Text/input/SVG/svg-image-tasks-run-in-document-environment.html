@@ -1,0 +1,36 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 20;
+        const context = canvas.getContext("2d");
+
+        async function loadImage(color) {
+            context.fillStyle = color;
+            context.fillRect(0, 0, 20, 20);
+            const png = canvas.toDataURL();
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+                <rect width="20" height="20" fill="black"/>
+                <foreignObject width="20" height="20"><img xmlns="http://www.w3.org/1999/xhtml" width="20" height="20" src="${png}"/></foreignObject>
+            </svg>`;
+            const image = new Image();
+            image.src = "data:image/svg+xml," + encodeURIComponent(svg);
+            await image.decode();
+            return image;
+        }
+
+        const [red, blue] = await Promise.all([loadImage("red"), loadImage("blue")]);
+
+        function pixel(image) {
+            context.clearRect(0, 0, 20, 20);
+            context.drawImage(image, 0, 0);
+            return context.getImageData(0, 0, 1, 1).data.toString();
+        }
+
+        // SVG image loading doesn't wait for subresources at time of writing - manually poll until they load.
+        await waitForCondition(() => pixel(red) === "255,0,0,255" && pixel(blue) === "0,0,255,255");
+        println(`Red image: ${pixel(red)}`);
+        println(`Blue image: ${pixel(blue)}`);
+    });
+</script>
