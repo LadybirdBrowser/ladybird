@@ -3313,6 +3313,69 @@ impl ContentValues {
             counter_set: initial(property_id::COUNTER_SET),
         }
     }
+
+    fn generated_content_facts(&self) -> u8 {
+        use crate::css::css_enums::keyword;
+        use crate::layout::counters::LIST_ITEM_COUNTER_NAME;
+
+        let mut facts = 0;
+        for counters in [&self.counter_increment, &self.counter_reset, &self.counter_set] {
+            let Some(StyleValueData::CounterDefinitions { counter_definitions }) = counters.data() else {
+                continue;
+            };
+            let definitions = counter_definitions.as_slice();
+            if !definitions.is_empty() {
+                facts |= GENERATED_CONTENT_DEFINES_COUNTERS;
+            }
+            if definitions
+                .iter()
+                .any(|definition| definition.name().units() == LIST_ITEM_COUNTER_NAME)
+            {
+                facts |= GENERATED_CONTENT_DEFINES_LIST_ITEM_COUNTER;
+            }
+        }
+        let Some(StyleValueData::Content { content, alt_text }) = self.content.data() else {
+            return facts;
+        };
+        fn items(
+            list: &crate::css::style_value::RetainedStyleValueData,
+        ) -> &[crate::css::style_value::RetainedStyleValueData] {
+            match list.optional_data() {
+                Some(StyleValueData::ValueList { values, .. }) => values.as_slice(),
+                _ => &[],
+            }
+        }
+        for item in items(content) {
+            if let StyleValueData::Keyword { keyword } = item.data()
+                && matches!(
+                    *keyword,
+                    keyword::OPEN_QUOTE | keyword::CLOSE_QUOTE | keyword::NO_OPEN_QUOTE | keyword::NO_CLOSE_QUOTE
+                )
+            {
+                facts |= GENERATED_CONTENT_HAS_QUOTES;
+            }
+        }
+        if items(content).iter().chain(items(alt_text)).any(|item| {
+            matches!(item.data(), StyleValueData::Counter { counter_name, .. } if counter_name.units() == LIST_ITEM_COUNTER_NAME)
+        }) {
+            facts |= GENERATED_CONTENT_SHOWS_LIST_ITEM_COUNTER;
+        }
+        facts
+    }
+}
+
+/// What a content group's generated content involves, which the DOM asks to know which changes
+/// can renumber or requote it: counter-increment, counter-reset or counter-set define a counter,
+/// one of them defines list-item, the content or its alternative text shows list-item, and the
+/// content has a quote.
+pub const GENERATED_CONTENT_DEFINES_COUNTERS: u8 = 1 << 0;
+pub const GENERATED_CONTENT_DEFINES_LIST_ITEM_COUNTER: u8 = 1 << 1;
+pub const GENERATED_CONTENT_SHOWS_LIST_ITEM_COUNTER: u8 = 1 << 2;
+pub const GENERATED_CONTENT_HAS_QUOTES: u8 = 1 << 3;
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_content_group_generated_content_facts(content: &ContentValues) -> u8 {
+    content.generated_content_facts()
 }
 
 impl InheritedListValues {

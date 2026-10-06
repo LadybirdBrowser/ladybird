@@ -416,65 +416,6 @@ bool ComputedValues::ContentValues::content_is_normal() const
     return value->is_keyword() && value->to_keyword() == Keyword::Normal;
 }
 
-static bool content_list_uses_list_item_counter(StyleValueFFI::StyleValueData const* list)
-{
-    VERIFY(list->tag == StyleValueFFI::StyleValueData::Tag::ValueList);
-    auto const& items = list->value_list.values;
-    for (size_t i = 0; i < items.length; ++i) {
-        auto const* item = static_cast<StyleValueFFI::StyleValueData const*>(items.pointer[i].pointer);
-        if (item->tag == StyleValueFFI::StyleValueData::Tag::Counter && css_string_from_rust(&item->counter.counter_name) == list_item_counter_name())
-            return true;
-    }
-    return false;
-}
-
-bool ComputedValues::ContentValues::content_uses_list_item_counter() const
-{
-    auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(content.pointer);
-    VERIFY(value);
-    if (value->tag != StyleValueFFI::StyleValueData::Tag::Content)
-        return false;
-    if (content_list_uses_list_item_counter(static_cast<StyleValueFFI::StyleValueData const*>(value->content.content.pointer)))
-        return true;
-    auto const* alt_text = static_cast<StyleValueFFI::StyleValueData const*>(value->content.alt_text.pointer);
-    return alt_text && content_list_uses_list_item_counter(alt_text);
-}
-
-static Vector<CounterData, 0> counter_data_from_handle(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
-{
-    auto value = animation_style_value(handle);
-    if (value->is_keyword()) {
-        VERIFY(value->to_keyword() == Keyword::None);
-        return {};
-    }
-
-    Vector<CounterData, 0> result;
-    auto definitions = value->as_counter_definitions().counter_definitions();
-    result.ensure_capacity(definitions.size());
-    for (auto const& definition : definitions) {
-        Optional<CounterValue> counter_value;
-        if (definition.value)
-            counter_value = int_from_style_value(NonnullRefPtr<StyleValue const> { *definition.value });
-        result.unchecked_append({ definition.name, definition.is_reversed, counter_value });
-    }
-    return result;
-}
-
-Vector<CounterData, 0> ComputedValues::ContentValues::counter_increment_value() const
-{
-    return counter_data_from_handle(counter_increment);
-}
-
-Vector<CounterData, 0> ComputedValues::ContentValues::counter_reset_value() const
-{
-    return counter_data_from_handle(counter_reset);
-}
-
-Vector<CounterData, 0> ComputedValues::ContentValues::counter_set_value() const
-{
-    return counter_data_from_handle(counter_set);
-}
-
 RefPtr<AbstractImageStyleValue const> ComputedValues::BorderValues::border_image_source_value() const
 {
     return abstract_image_value(static_cast<StyleValueFFI::StyleValueData const*>(border_image_source.pointer));
