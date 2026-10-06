@@ -39,7 +39,6 @@ struct CustomPropertyRegistration {
 
 NonnullRefPtr<StyleValue const> compute_registered_custom_property_value(CustomPropertyRegistration const&, NonnullRefPtr<StyleValue const>, ComputationContext const&);
 NonnullRefPtr<StyleValue const> compute_registered_custom_property_initial_value(DOM::Document const&, CustomPropertyRegistration const&);
-NonnullRefPtr<StyleValue const> initial_custom_property_value(Optional<CustomPropertyRegistration const&> registration, DOM::Document const& document);
 
 inline bool operator==(CustomPropertyRegistration const& a, CustomPropertyRegistration const& b)
 {

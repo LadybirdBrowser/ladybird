@@ -10,15 +10,4 @@
 
 namespace Web::CSS {
 
-Percentage Percentage::from_style_value(NonnullRefPtr<StyleValue const> const& value)
-{
-    if (value->is_percentage())
-        return value->as_percentage().percentage();
-
-    if (value->is_calculated())
-        return value->as_calculated().resolve_percentage({}).value();
-
-    VERIFY_NOT_REACHED();
-}
-
 }

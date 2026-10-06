@@ -22,9 +22,6 @@ public:
 
     static Resolution from_style_value(NonnullRefPtr<StyleValue const> const&);
 
-    void serialize(StringBuilder&, SerializationMode = SerializationMode::Normal) const;
-    void serialize(Utf16StringBuilder&, SerializationMode = SerializationMode::Normal) const;
-    String to_string(SerializationMode = SerializationMode::Normal) const;
     double to_dots_per_pixel() const;
 
     double raw_value() const { return m_value; }

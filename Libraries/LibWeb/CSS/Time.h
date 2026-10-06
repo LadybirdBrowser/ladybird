@@ -18,10 +18,7 @@ class Time {
 public:
     Time(double value, TimeUnit unit);
     static Time make_seconds(double);
-    Time percentage_of(Percentage const&) const;
 
-    void serialize(StringBuilder&, SerializationMode = SerializationMode::Normal) const;
-    String to_string(SerializationMode = SerializationMode::Normal) const;
     double to_milliseconds() const;
     double to_seconds() const;
 
@@ -46,19 +43,9 @@ public:
         return 0;
     }
 
-    static Time from_style_value(NonnullRefPtr<StyleValue const> const&, Optional<Time> percentage_basis);
-
 private:
     TimeUnit m_unit;
     double m_value { 0 };
 };
 
 }
-
-template<>
-struct AK::Formatter<Web::CSS::Time> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::Time const& time)
-    {
-        return Formatter<StringView>::format(builder, time.to_string());
-    }
-};

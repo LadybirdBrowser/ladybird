@@ -51,8 +51,6 @@ public:
     Utf16String to_string() const;
     void serialize_to(Utf16StringBuilder&) const;
 
-    void dump(StringBuilder&, int indent_levels = 0) const;
-
 private:
     explicit MediaQuery(RustQueryHandle handle)
         : m_rust_query_handle(move(handle))

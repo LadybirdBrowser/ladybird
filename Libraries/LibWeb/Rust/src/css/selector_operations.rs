@@ -245,20 +245,6 @@ pub unsafe extern "C" fn rust_selector_contains_named_namespace(selector: *const
     }
 }
 
-/// # Safety
-/// `selector` must point to a live `RustSelector`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_first_combinator(selector: *const RustSelector) -> Combinator {
-    unsafe {
-        assert!(!selector.is_null());
-        (*selector)
-            .compiled()
-            .compound_selectors
-            .first()
-            .map_or(Combinator::None, |compound| compound.combinator)
-    }
-}
-
 pub(crate) fn absolutize_selector_list(
     selectors: &SelectorList,
     parent: StyleNestingParent,

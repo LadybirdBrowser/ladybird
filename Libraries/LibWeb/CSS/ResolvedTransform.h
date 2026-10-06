@@ -46,8 +46,6 @@ public:
 
     Gfx::FloatMatrix4x4 to_matrix(CSSPixels reference_width, CSSPixels reference_height) const;
 
-    bool operator==(ResolvedTransform const&) const;
-
 private:
     Variant<Gfx::FloatMatrix4x4, Translate> m_value;
 };

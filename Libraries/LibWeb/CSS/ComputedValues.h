@@ -414,9 +414,6 @@ public:
     Optional<Color> const& fallback_color() const { return m_fallback_color; }
     bool color_is_currentcolor() const { return m_color_is_currentcolor; }
 
-public:
-    bool operator==(SVGPaint const&) const = default;
-
 private:
     Variant<URL, Color> m_value;
     Optional<Color> m_fallback_color;
@@ -433,8 +430,6 @@ public:
     }
 
     URL const& url() const { return m_url; }
-
-    bool operator==(MaskReference const&) const = default;
 
 private:
     URL m_url;

@@ -26,14 +26,4 @@ Gfx::FloatMatrix4x4 ResolvedTransform::to_matrix(CSSPixels reference_width, CSSP
         });
 }
 
-bool ResolvedTransform::operator==(ResolvedTransform const& other) const
-{
-    if (auto const* matrix = m_value.get_pointer<Gfx::FloatMatrix4x4>()) {
-        auto const* other_matrix = other.m_value.get_pointer<Gfx::FloatMatrix4x4>();
-        return other_matrix && __builtin_memcmp(matrix->elements(), other_matrix->elements(), sizeof(float) * 16) == 0;
-    }
-    auto const* other_translate = other.m_value.get_pointer<Translate>();
-    return other_translate && m_value.get<Translate>() == *other_translate;
-}
-
 }

@@ -49,14 +49,4 @@ NonnullRefPtr<StyleValue const> compute_registered_custom_property_initial_value
     return computed_initial_value;
 }
 
-NonnullRefPtr<StyleValue const> initial_custom_property_value(Optional<CustomPropertyRegistration const&> registration, DOM::Document const& document)
-{
-    if (registration.has_value())
-        return compute_registered_custom_property_initial_value(document, registration.value());
-
-    // For non-registered properties, the initial value is the guaranteed-invalid value.
-    // See: https://drafts.csswg.org/css-variables/#propdef-
-    return StyleValue::create_guaranteed_invalid();
-}
-
 }

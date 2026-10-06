@@ -50,14 +50,6 @@ Selector::~Selector()
     SelectorFFI::rust_selector_destroy(m_rust_selector);
 }
 
-Optional<PseudoElement> Selector::target_pseudo_element() const
-{
-    auto value = SelectorFFI::rust_selector_target_pseudo_element(m_rust_selector);
-    if (value == NumericLimits<u8>::max())
-        return {};
-    return pseudo_element_from_ffi(value);
-}
-
 bool Selector::contains_the_nesting_selector() const
 {
     return SelectorFFI::rust_selector_contains_nesting(m_rust_selector);
@@ -71,11 +63,6 @@ bool Selector::contains_pseudo_class(PseudoClass pseudo_class) const
 bool Selector::contains_named_namespace() const
 {
     return SelectorFFI::rust_selector_contains_named_namespace(m_rust_selector);
-}
-
-Selector::Combinator Selector::first_combinator() const
-{
-    return static_cast<Combinator>(SelectorFFI::rust_selector_first_combinator(m_rust_selector));
 }
 
 u32 Selector::specificity() const

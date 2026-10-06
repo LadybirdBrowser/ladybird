@@ -178,14 +178,6 @@ double EasingFunction::evaluate_at(double input_progress, bool before_flag) cons
         });
 }
 
-String EasingFunction::to_string() const
-{
-    return visit(
-        [](auto const& function) {
-            return function.stringified.to_utf8();
-        });
-}
-
 Utf16String const& EasingFunction::to_utf16_string() const
 {
     return visit(

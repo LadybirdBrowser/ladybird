@@ -17,11 +17,7 @@ namespace Web::CSS {
 class Frequency {
 public:
     Frequency(double value, FrequencyUnit unit);
-    static Frequency make_hertz(double);
-    Frequency percentage_of(Percentage const&) const;
 
-    void serialize(StringBuilder&, SerializationMode = SerializationMode::Normal) const;
-    String to_string(SerializationMode = SerializationMode::Normal) const;
     double to_hertz() const;
 
     double raw_value() const { return m_value; }
@@ -51,11 +47,3 @@ private:
 };
 
 }
-
-template<>
-struct AK::Formatter<Web::CSS::Frequency> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::Frequency const& frequency)
-    {
-        return Formatter<StringView>::format(builder, frequency.to_string());
-    }
-};

@@ -49,11 +49,4 @@ void Number::serialize(StringBuilder& builder, SerializationMode) const
     serialize_a_number(builder, m_value);
 }
 
-String Number::to_string(SerializationMode mode) const
-{
-    StringBuilder builder;
-    serialize(builder, mode);
-    return builder.to_string_without_validation();
-}
-
 }

@@ -75,10 +75,6 @@ public:
     static CalcNodeRef invert(CalcNodeRef);
 
     static CalcNodeRef clamp(CalcNodeRef minimum, CalcNodeRef center, CalcNodeRef maximum);
-    static CalcNodeRef non_math_function(StyleValue const& function, Optional<NumericType> const&);
-    // Numeric style values become numeric leaves; a calculated value
-    // contributes its own Rust tree.
-    static CalcNodeRef from_style_value(StyleValue const&);
 
     // https://drafts.csswg.org/css-values-4/#determine-the-type-of-a-calculation
     // The type of the calculation this node roots, determined by the Rust

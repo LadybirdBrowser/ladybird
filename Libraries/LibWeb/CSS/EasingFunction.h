@@ -60,7 +60,6 @@ struct EasingFunction : public Variant<LinearEasingFunction, CubicBezierEasingFu
     static EasingFunction from_style_value(StyleValue const&);
 
     double evaluate_at(double input_progress, bool before_flag) const;
-    String to_string() const;
     Utf16String const& to_utf16_string() const;
 };
 

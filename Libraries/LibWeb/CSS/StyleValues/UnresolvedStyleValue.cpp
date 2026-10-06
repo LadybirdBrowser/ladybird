@@ -71,11 +71,6 @@ Utf16String UnresolvedStyleValue::serialize_components(u8 mode) const
     return Utf16String::adopt_raw(text);
 }
 
-Utf16String UnresolvedStyleValue::serialized_components() const
-{
-    return serialize_components(0);
-}
-
 Utf16String UnresolvedStyleValue::token_source() const
 {
     return serialize_components(2);
