@@ -1158,9 +1158,13 @@ impl ComputedGroupSets {
         if record.base_record().is_some() {
             return Some(record);
         }
-        let slot = *self.animation_overlay_slots_by_record.get(&record)?;
-        let overlay = self.animation_overlay_slots.get(slot)?;
-        Some(self.final_base_style_record(overlay.base_style_record))
+        Some(self.final_base_style_record(self.overlay_base_style_record(record)?))
+    }
+
+    /// The base record an animation overlay record composes over.
+    fn overlay_base_style_record(&self, overlay: FinalStyleRecordID) -> Option<StyleRecordID> {
+        let slot = *self.animation_overlay_slots_by_record.get(&overlay)?;
+        Some(self.animation_overlay_slots.get(slot)?.base_style_record)
     }
 
     /// The record a target holds beneath its composition, and the composition's slot.
@@ -2930,11 +2934,14 @@ impl ComputedGroupSets {
             .map(|identity| *self.custom_property_environments.get(identity))
     }
 
-    /// The raw custom-property environment identity a record was published with.
+    /// The raw custom-property environment identity a record was published with. An animation overlay record animates
+    /// no custom property, and holds the environment of the base record it composes over.
     pub fn style_record_custom_property_environment(&self, raw_style_record: u64) -> Option<u64> {
-        let record = self
-            .style_records
-            .get_index(FinalStyleRecordID(raw_style_record).base_record()?.index())?;
+        let record = FinalStyleRecordID(raw_style_record);
+        let base = record
+            .base_record()
+            .or_else(|| self.overlay_base_style_record(record))?;
+        let record = self.style_records.get_index(base.index())?;
         Some(self.custom_property_environments[record.custom_properties])
     }
 
