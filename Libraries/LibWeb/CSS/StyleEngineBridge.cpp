@@ -740,7 +740,7 @@ struct StyleEngine::LentComputationInputs {
     Vector<StyleEngineFFI::FfiCustomFunctionEntry> custom_functions;
 };
 
-void StyleEngine::gather_computation_inputs(Layout::BegunRead const& read, LentComputationInputs& lent)
+void StyleEngine::gather_computation_inputs(LentComputationInputs& lent)
 {
     if (!m_style_computer)
         return;
@@ -770,37 +770,37 @@ void StyleEngine::gather_computation_inputs(Layout::BegunRead const& read, LentC
     }
     auto const viewport_rect = m_style_computer->viewport_rect_for_style_environment();
     auto const& media_environment = *m_style_computer->ensure_media_environment_for_style_update();
-    // What each scope's custom function calls name, published after the media environment is
-    // settled: a media change rebuilds the definitions. A definition is seen only below a
-    // scope holding @function rules, which most documents have none of.
-    auto has_function_rules = [](StyleScope const& scope) { return !scope.rule_cache().function_rules_by_name.is_empty(); };
+    // Each scope's @function rules, published after the media environment is settled: a media
+    // change rebuilds the definitions. The style engine decides which of them a call names. Most
+    // documents hold none, and then no scope is published.
+    auto has_function_rules = [](StyleScope const& scope) { return !scope.rule_cache().function_rules.is_empty(); };
     bool document_has_function_rules = has_function_rules(document.style_scope());
     document.for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) {
         document_has_function_rules = document_has_function_rules || has_function_rules(shadow_root.style_scope());
     });
     if (document_has_function_rules) {
-        // A call in a function's body names what the function's own scope sees, so the scopes
-        // that define what another sees publish what they see too.
-        HashTable<StyleScope const*> visited_scopes;
-        Vector<StyleScope const*> scopes;
-        auto append_scope = [&](StyleScope const& scope) {
-            if (visited_scopes.set(&scope) == AK::HashSetResult::InsertedNewEntry)
-                scopes.append(&scope);
+        auto& style_engine = m_style_computer->style_engine();
+        auto publish_scope = [&](StyleScope const& scope) {
+            StyleEngineFFI::FfiCustomFunctionEntry entry {
+                .function = nullptr,
+                .scope = bit_cast<FlatPtr>(&scope),
+                .parent_scope = bit_cast<FlatPtr>(scope.parent_style_scope()),
+                .tree_scope = scope.style_engine_tree_scope().value(),
+                .layer = 0,
+                .origin = 0,
+            };
+            auto const& rules = scope.rule_cache().function_rules;
+            if (rules.is_empty())
+                lent.custom_functions.append(entry);
+            for (auto const& rule : rules) {
+                entry.function = rule.rule.handle();
+                entry.layer = rule.qualified_layer_name.is_empty() ? 0 : style_engine.intern_atom(rule.qualified_layer_name).value();
+                entry.origin = cascade_origin_precedence(rule.cascade_origin);
+                lent.custom_functions.append(entry);
+            }
         };
-        append_scope(document.style_scope());
-        document.for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) { append_scope(shadow_root.style_scope()); });
-        for (size_t index = 0; index < scopes.size(); ++index) {
-            auto const& scope = *scopes[index];
-            scope.for_each_visible_function_definition(read, [&](StyleScope::FunctionDefinitionAndScope const& definition) {
-                lent.custom_functions.append({
-                    .function = definition.function.handle(),
-                    .caller_scope = bit_cast<FlatPtr>(&scope),
-                    .definition_scope = bit_cast<FlatPtr>(&definition.scope),
-                    .tree_scope = scope.style_engine_tree_scope().value(),
-                });
-                append_scope(definition.scope);
-            });
-        }
+        publish_scope(document.style_scope());
+        document.for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) { publish_scope(shadow_root.style_scope()); });
     }
     auto const& root_font_metrics = m_style_computer->root_element_font_metrics();
     auto const& initial_font = m_style_computer->document().font_computer().initial_font();
@@ -860,7 +860,7 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Layou
     auto submission_started_at = MonotonicTime::now();
     submit_recorded_input();
     LentComputationInputs lent;
-    gather_computation_inputs(read, lent);
+    gather_computation_inputs(lent);
     auto bridge_started_at = MonotonicTime::now();
     if (m_style_computer)
         publish_font_faces(m_style_computer->document().font_computer());
@@ -972,7 +972,7 @@ bool StyleEngine::let_style_transaction_fly(Layout::BegunRead const& read, Style
         return false;
     submit_recorded_input();
     LentComputationInputs lent;
-    gather_computation_inputs(read, lent);
+    gather_computation_inputs(lent);
     publish_font_faces(m_style_computer->document().font_computer());
     // The reactions are read inside the style record view epoch the transaction is taken in, which stays open until
     // take_style_transaction() takes them.

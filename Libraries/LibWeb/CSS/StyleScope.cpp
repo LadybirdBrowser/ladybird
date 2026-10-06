@@ -411,8 +411,7 @@ void StyleRuleCache::add_rules_from_cache(StyleRuleCache const& other)
 {
     for (auto const& [name, keyframe_set] : other.rules_by_animation_keyframes)
         rules_by_animation_keyframes.set(name, keyframe_set);
-    for (auto const& [name, rules] : other.function_rules_by_name)
-        function_rules_by_name.ensure(name).extend(rules);
+    function_rules.extend(other.function_rules);
     has_size_container_queries |= other.has_size_container_queries;
 }
 
@@ -422,11 +421,8 @@ void StyleRuleCache::add_rules_from_sheet(StyleSheetState& sheet, CascadeOrigin 
     rule_sheet.for_each_effective_rule_data(TraversalOrder::Preorder, [&](RustRuleView const& rule, Utf16View layer_prefix) {
         if (rule.type() == RustRule::Type::Container && Parser::ValueParserFFI::rust_container_conditions_contains_size_feature(rule.container()))
             has_size_container_queries = true;
-        if (rule.type() == RustRule::Type::Function) {
-            auto function = rule.compile_function();
-            auto name = Parser::ValueParserFFI::rust_function_signature_view(function.signature()).name;
-            function_rules_by_name.ensure(Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(name.utf16), name.length })).append({ move(function), Utf16FlyString::from_utf16(layer_prefix), cascade_origin });
-        }
+        if (rule.type() == RustRule::Type::Function)
+            function_rules.append({ rule.compile_function(), Utf16FlyString::from_utf16(layer_prefix), cascade_origin });
         if (rule.type() != RustRule::Type::Keyframes)
             return;
 
@@ -614,7 +610,7 @@ void StyleScope::invalidate_counter_style_cache()
     // extend the ones defined in this scope, can resolve differently.
     m_node->document().for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) {
         auto& scope = shadow_root.style_scope();
-        for (auto const* ancestor = scope.parent_counter_style_scope(); ancestor; ancestor = ancestor->parent_counter_style_scope()) {
+        for (auto const* ancestor = scope.parent_style_scope(); ancestor; ancestor = ancestor->parent_style_scope()) {
             if (ancestor == this) {
                 scope.m_needs_counter_style_cache_update = true;
                 break;
@@ -624,7 +620,7 @@ void StyleScope::invalidate_counter_style_cache()
 }
 
 // The precedence of a counter style rule's cascade origin: user agent, then user, then author.
-static u8 counter_style_origin_precedence(CascadeOrigin origin)
+u8 cascade_origin_precedence(CascadeOrigin origin)
 {
     switch (origin) {
     case CascadeOrigin::UserAgent:
@@ -664,7 +660,7 @@ void StyleScope::build_counter_style_cache(Layout::BegunRead const& read)
             rules.append({
                 .name = Utf16FlyString { rule.name() },
                 .descriptors = rule.descriptors(),
-                .origin = counter_style_origin_precedence(cascade_origin),
+                .origin = cascade_origin_precedence(cascade_origin),
                 .layer = StyleEngineFFI::style_engine_layer_index(style_engine.host(), &read, tree_scope, layer),
             });
         });
@@ -692,7 +688,7 @@ void StyleScope::build_counter_style_cache(Layout::BegunRead const& read)
         ffi_rules.ensure_capacity(rules.size());
         for (auto const& rule : rules)
             ffi_rules.unchecked_append({ Parser::ffi_utf16_view(rule.name), rule.descriptors.handle(), rule.origin, rule.layer });
-        auto const* parent = parent_counter_style_scope();
+        auto const* parent = parent_style_scope();
         auto outer_scopes = parent ? parent->counter_style_lookup_chain(read) : CounterStyleLookupChain {};
         auto length_resolution_context = to_ffi_length_resolution_context(CSS::Length::ResolutionContext::for_document(document()));
         counter_styles = Parser::ValueParserFFI::rust_counter_styles_resolve(ffi_rules.data(), ffi_rules.size(), is_document, outer_scopes.data(), outer_scopes.size(), m_counter_styles, &length_resolution_context);
@@ -724,9 +720,7 @@ u64 StyleScope::counter_style_environment_identity(Layout::BegunRead const& read
     return m_counter_style_environment_identity;
 }
 
-// The scope a counter style name this scope does not register is looked for in next, which is the chain
-// `dereference_global_tree_scoped_reference` walks.
-StyleScope* StyleScope::parent_counter_style_scope() const
+StyleScope* StyleScope::parent_style_scope() const
 {
     auto* shadow_root = as_if<DOM::ShadowRoot>(*m_node);
     if (!shadow_root)
@@ -750,7 +744,7 @@ StyleScope* StyleScope::parent_counter_style_scope() const
 StyleScope::CounterStyleLookupChain StyleScope::counter_style_lookup_chain(Layout::BegunRead const& read) const
 {
     CounterStyleLookupChain chain;
-    for (auto const* scope = this; scope; scope = scope->parent_counter_style_scope()) {
+    for (auto const* scope = this; scope; scope = scope->parent_style_scope()) {
         if (scope->m_needs_counter_style_cache_update && !scope->m_is_doing_counter_style_cache_update)
             const_cast<StyleScope*>(scope)->build_counter_style_cache(read);
         if (scope->m_counter_styles)
@@ -770,7 +764,7 @@ bool StyleScope::list_style_type_depends_on_counter_value(void const* list_style
 // to the layout node arena, so that the arena answers every lookup the way counter_style_lookup_chain() does.
 void StyleScope::publish_counter_style_lookup_chain(Layout::BegunRead const& read) const
 {
-    for (auto const* scope = this; scope; scope = scope->parent_counter_style_scope()) {
+    for (auto const* scope = this; scope; scope = scope->parent_style_scope()) {
         if (scope->m_needs_counter_style_cache_update && !scope->m_is_doing_counter_style_cache_update)
             const_cast<StyleScope*>(scope)->build_counter_style_cache(read);
         scope->publish_counter_styles_if_changed();
@@ -779,7 +773,7 @@ void StyleScope::publish_counter_style_lookup_chain(Layout::BegunRead const& rea
 
 void StyleScope::publish_counter_styles_if_changed() const
 {
-    auto const* parent = parent_counter_style_scope();
+    auto const* parent = parent_style_scope();
     auto parent_tree_scope = parent ? parent->style_engine_tree_scope() : Optional<TreeScopeID> {};
     if (m_published_counter_style_environment_identity == m_counter_style_environment_identity && m_published_parent_counter_style_scope == parent_tree_scope)
         return;
@@ -806,125 +800,6 @@ void StyleScope::for_each_active_css_style_sheet(Function<void(CSS::StyleSheetSt
     } else {
         m_node->document().for_each_active_css_style_sheet(callback);
     }
-}
-
-Optional<StyleScope::FunctionDefinitionAndScope> StyleScope::get_function_definition(Layout::BegunRead const& read, Utf16FlyString const& name) const
-{
-    return dereference_global_tree_scoped_reference<FunctionDefinitionAndScope>([&](StyleScope const& scope) -> Optional<FunctionDefinitionAndScope> {
-        auto const get_function_definition_for_cascade_origin = [&](CSS::CascadeOrigin cascade_origin) {
-            RustCompiledFunction const* cascade_origin_result = nullptr;
-            u32 existing_layer_index = 0;
-            auto& style_engine = scope.document().style_computer().style_engine();
-            auto const tree_scope = scope.style_engine_tree_scope();
-            auto layer_index_of = [&](Utf16FlyString const& qualified_layer_name) {
-                auto const layer = qualified_layer_name.is_empty() ? 0 : style_engine.intern_atom(qualified_layer_name);
-                return StyleEngineFFI::style_engine_layer_index(style_engine.host(), &read, tree_scope, layer.value());
-            };
-
-            auto cached_rules = scope.rule_cache().function_rules_by_name.get(name);
-            if (!cached_rules.has_value())
-                return cascade_origin_result;
-
-            for (auto const& cached_rule : *cached_rules) {
-                if (cached_rule.cascade_origin != cascade_origin)
-                    continue;
-
-                auto layer_index = layer_index_of(cached_rule.qualified_layer_name);
-                if (!cascade_origin_result || layer_index >= existing_layer_index) {
-                    cascade_origin_result = &cached_rule.rule;
-                    existing_layer_index = layer_index;
-                }
-            }
-
-            return cascade_origin_result;
-        };
-
-        RustCompiledFunction const* result = nullptr;
-
-        if (scope.m_node->is_document()) {
-            if (auto const* user_agent_result = get_function_definition_for_cascade_origin(CSS::CascadeOrigin::UserAgent))
-                result = user_agent_result;
-
-            if (auto const* user_result = get_function_definition_for_cascade_origin(CSS::CascadeOrigin::User))
-                result = user_result;
-        }
-
-        if (auto const* author_result = get_function_definition_for_cascade_origin(CSS::CascadeOrigin::Author))
-            result = author_result;
-
-        if (!result)
-            return OptionalNone {};
-
-        return FunctionDefinitionAndScope { .function = *result, .scope = scope };
-    });
-}
-
-void StyleScope::for_each_visible_function_definition(Layout::BegunRead const& read, Function<void(FunctionDefinitionAndScope const&)> const& callback) const
-{
-    HashTable<Utf16FlyString> names;
-    Function<void(StyleScope const&)> collect_names = [&](StyleScope const& scope) {
-        for (auto const& [name, rules] : scope.rule_cache().function_rules_by_name) {
-            (void)rules;
-            names.set(name);
-        }
-
-        if (auto* shadow_root = as_if<DOM::ShadowRoot>(*scope.m_node)) {
-            if (auto* host = shadow_root->host()) {
-                auto const& root = host->root();
-                if (root.is_shadow_root()) {
-                    auto const& parent_shadow_root = as<DOM::ShadowRoot>(root);
-                    if (parent_shadow_root.uses_document_style_sheets())
-                        collect_names(root.document().style_scope());
-                    else
-                        collect_names(parent_shadow_root.style_scope());
-                } else if (auto const* document = as_if<DOM::Document>(root)) {
-                    collect_names(document->style_scope());
-                }
-            }
-        }
-    };
-    collect_names(*this);
-
-    for (auto const& name : names) {
-        if (auto definition = get_function_definition(read, name); definition.has_value())
-            callback(*definition);
-    }
-}
-
-template<typename T>
-Optional<T> StyleScope::dereference_global_tree_scoped_reference(Function<Optional<T>(StyleScope const&)> const& callback) const
-{
-    // https://drafts.csswg.org/css-shadow-1/#tree-scoped-name-global
-    // If a tree-scoped name is global (such as @font-face names), then when a tree-scoped reference is dereferenced to
-    // find it, first search only the tree-scoped names associated with the same root as the tree-scoped reference. If
-    // no relevant tree-scoped name is found, and the root is a shadow root, then repeat this search in the root’s
-    // host’s node tree (recursively). (In other words, global tree-scoped names “inherit” into descendant shadow trees,
-    // so long as they don’t define the same name themselves.)
-    if (auto result = callback(*this); result.has_value())
-        return result;
-
-    if (auto* shadow_root = as_if<DOM::ShadowRoot>(*m_node)) {
-        if (auto* host = shadow_root->host()) {
-            auto const& root = host->root();
-
-            if (root.is_shadow_root()) {
-                auto const& shadow_root = as<DOM::ShadowRoot>(root);
-                if (shadow_root.uses_document_style_sheets())
-                    return root.document().style_scope().dereference_global_tree_scoped_reference(callback);
-
-                return shadow_root.style_scope().dereference_global_tree_scoped_reference(callback);
-            }
-
-            if (auto const* document = as_if<DOM::Document>(root))
-                return document->style_scope().dereference_global_tree_scoped_reference(callback);
-
-            // A detached host's node tree is rooted at an ordinary element. Such a tree carries no
-            // tree-scoped names of its own, so the inheritance chain ends here.
-            return OptionalNone {};
-        }
-    }
-
-    return {};
 }
 
 }
