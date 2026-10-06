@@ -12,6 +12,7 @@
 #include <QWidget>
 
 class QFrame;
+class QHideEvent;
 
 namespace Ladybird {
 
@@ -37,6 +38,12 @@ public:
     void update_chrome_style(QPalette const&);
 
     Function<void()> on_accept;
+    Function<void()> on_dismiss;
+
+private:
+    virtual void hideEvent(QHideEvent*) override;
+
+    bool m_is_accepted { false };
 };
 
 void move_popover_below(Popover&, QWidget& anchor);
