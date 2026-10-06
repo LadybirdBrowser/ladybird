@@ -1742,8 +1742,8 @@ Utf16String Internals::last_frame_presented_by(DOM::Document& document)
     switch (navigable->presenter().last_frame_presented_by()) {
     case Compositor::PresentedBy::Main:
         return "main"_utf16;
-    case Compositor::PresentedBy::Flight:
-        return "flight"_utf16;
+    case Compositor::PresentedBy::Commit:
+        return "commit"_utf16;
     case Compositor::PresentedBy::Clock:
         return "clock"_utf16;
     }

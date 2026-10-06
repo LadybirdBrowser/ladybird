@@ -679,10 +679,12 @@ pub unsafe extern "C" fn render_state_for_each_subtree_fragment_rect(
     }
 }
 
-/// Records `host`'s document's viewport with `inputs` on the Paint thread: in step with the host, or beside the event
-/// loop where `blocker` is none, until the host takes it in. A recording that flies takes the presentation `presentation`
-/// names, if any, to present its frame with, and nulls it there; any other leaves it with the host. Answers how the
-/// recording started, which it does not where the viewport has no box to record.
+/// Records `host`'s document's viewport with `inputs` on the Paint thread: in step with the host, or, where `blocker` is
+/// none, as the frame of the rendering update the host commits, which the render owner samples beside the event loop at
+/// `timestamp`, the time of the document's timeline the update sampled its animations at, and which flies until the
+/// host takes it in. A committed frame takes the presentation `presentation` names, if any, to present the frame with,
+/// and nulls it there; a recording in step leaves it with the host. Answers how the recording started, which a
+/// recording in step does not where the viewport has no box to record.
 ///
 /// # Safety
 ///
@@ -696,6 +698,7 @@ pub unsafe extern "C" fn render_state_record_display_list(
     viewport: NodeSlotId,
     inputs: crate::painting::host::FfiRecordingInputs,
     blocker: FfiFlightBlocker,
+    timestamp: f64,
     presentation: *mut crate::painting::ffi::FfiPresentation,
 ) -> FfiRecordingStart {
     // The recording takes the recorder state, which a clock lease brings back.
@@ -717,6 +720,21 @@ pub unsafe extern "C" fn render_state_record_display_list(
             .map(|recording| recording.root_background_canvas_rect),
         hit_test_item_capacity_hint: recording.hit_test_item_capacity_hint(),
     };
+    // SAFETY: The host lends the input arrays and buffers for this call, and the inputs copy what they read of them.
+    let inputs = unsafe { inputs.recording_inputs() };
+    if let Some(license) = crate::painting::recording_slot::FlightLicense::for_blocker(blocker) {
+        let commit = crate::render_state::CommittedFrame {
+            frame_inputs,
+            inputs,
+            recorder,
+            // SAFETY: Guaranteed by the caller.
+            presentation: unsafe { crate::painting::presentation::Presentation::take(&mut *presentation) },
+            timestamp,
+            held_for_testing: crate::painting::recording_slot::take_recording_hold_for_testing(),
+        };
+        recording.fly(host.commit_rendering_update(read, commit, license));
+        return FfiRecordingStart::InFlight;
+    }
     // SAFETY: As above.
     let Some(frame) = (unsafe {
         read_arena(
@@ -729,23 +747,11 @@ pub unsafe extern "C" fn render_state_record_display_list(
         recording.give_back_recorder(recorder);
         return FfiRecordingStart::NothingToRecord;
     };
-    // SAFETY: The host lends the input arrays and buffers for this call, and the inputs copy what they read of them.
-    let inputs = unsafe { inputs.recording_inputs(frame.tree_inputs, frame.root_background_source) };
-    let job =
-        crate::painting::recording_slot::RecordingJob::new(frame.frame, recorder, viewport, frame.trace_recordings);
-    match crate::painting::recording_slot::FlightLicense::for_blocker(blocker) {
-        Some(license) => {
-            // SAFETY: Guaranteed by the caller.
-            let presentation = unsafe { crate::painting::presentation::Presentation::take(&mut *presentation) };
-            recording.fly(job.fly(inputs, presentation, license), frame.rows_version);
-            FfiRecordingStart::InFlight
-        }
-        None => {
-            let answer = job.run_on_paint_thread(inputs);
-            recording.accept_recording_answer(answer);
-            FfiRecordingStart::Recorded
-        }
-    }
+    let inputs = inputs.for_frame(frame.tree_inputs, frame.root_background_source);
+    let answer =
+        crate::painting::recording_slot::RecordingJob::new(frame, recorder, viewport, None).run_on_paint_thread(inputs);
+    recording.accept_recording_answer(answer);
+    FfiRecordingStart::Recorded
 }
 
 /// Holds the next recording that flies before it reads its frame, until the test releases it or the host waits for it.
@@ -845,6 +851,11 @@ unsafe fn recording_landing(
             // SAFETY: Guaranteed by the caller.
             unsafe { give_back(given_back, presentation) };
             FfiRecordingLanding::LandedBehindRows
+        }
+        RecordingLanding::NothingRecorded(given_back) => {
+            // SAFETY: Guaranteed by the caller.
+            unsafe { give_back(given_back, presentation) };
+            FfiRecordingLanding::NothingRecorded
         }
     }
 }

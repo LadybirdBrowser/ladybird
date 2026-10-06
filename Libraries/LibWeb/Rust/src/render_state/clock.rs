@@ -36,11 +36,15 @@ use crate::painting::paint_passes::{ClockTickVisualContexts, VisualContextsNeedH
 use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::presentation::Presentation;
 use crate::painting::record::damage::PaintDamage;
+use crate::painting::record::inputs::UnframedRecordingInputs;
 use crate::painting::record::publish::{renders_vector_images, take_in_published_output, take_in_recording};
 use crate::painting::record::recorder_state::RecorderState;
 use crate::painting::record::{RecordingInputs, RecordingOutput};
-use crate::painting::recording_slot::{FrameInputs, FrozenFrame, freeze_recording_frame, present, record_frame};
-use crate::stage_thread::{InFlight, Riding, StopWord, Ticker};
+use crate::painting::recording_slot::{
+    FrameInputs, FrozenFrame, RecordingAnswer, RecordingJob, freeze_recording_frame, present, record_frame,
+    wait_while_recording_is_held_for_testing,
+};
+use crate::stage_thread::{InFlight, Relay, Riding, StopWord, Ticker};
 use smallvec::SmallVec;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -278,8 +282,9 @@ impl ClockLease {
     }
 }
 
-/// The right to sample a frame of a document for the Paint thread to present. Only a tick of the render clock mints one,
-/// in the job the StyleLayout thread runs it in, so a job the host hands the render owner cannot sample a frame.
+/// The right to sample a frame of a document for the Paint thread to present. Only a tick of the render clock and the
+/// commit of a rendering update mint one, in the job the StyleLayout thread runs them in, so a job the host hands the
+/// render owner to ask or write its render state cannot sample a frame.
 pub(crate) struct SamplingTurn(());
 
 /// The timestamp a frame shows a document's animations at, which is never earlier than that of a frame sampled before
@@ -330,6 +335,66 @@ impl SampledFrame {
             inputs,
             visual_contexts,
         }
+    }
+
+    /// Records the frame, which a rendering update committed, with `recorder`, and presents it with `presentation`,
+    /// unless the host waits for the recording by then.
+    fn record_committed(
+        self,
+        recorder: RecorderState,
+        presentation: Option<Presentation>,
+        stop: &StopWord,
+        presenting: &mut Presenting,
+    ) -> RecordingAnswer {
+        let Self {
+            frozen,
+            viewport,
+            inputs,
+            visual_contexts: _,
+        } = self;
+        RecordingJob::new(frozen, recorder, viewport, presentation).run_beside_host(inputs, stop, presenting)
+    }
+}
+
+/// A rendering update's frame, which the host commits to the render owner: what freezing it reads, the inputs it is
+/// recorded with but for what the frame decides, the recorder state it is recorded with, the presentation that presents
+/// it, the time the update sampled the document's animations at, and whether a test holds its recording.
+pub(crate) struct CommittedFrame {
+    pub(crate) frame_inputs: FrameInputs,
+    pub(crate) inputs: UnframedRecordingInputs,
+    pub(crate) recorder: RecorderState,
+    pub(crate) presentation: Option<Presentation>,
+    pub(crate) timestamp: f64,
+    pub(crate) held_for_testing: bool,
+}
+
+impl CommittedFrame {
+    /// Samples the frame from `state`, as the render owner, and hands it on with `relay` to the Paint thread, which
+    /// records and presents it beside the host. The frames the render clock samples after it sample no earlier.
+    pub(super) fn sample(self, state: &mut RenderState, relay: Relay<RecordingAnswer>) {
+        let turn = SamplingTurn(());
+        let Self {
+            frame_inputs,
+            inputs,
+            recorder,
+            presentation,
+            timestamp,
+            held_for_testing,
+        } = self;
+        let viewport = frame_inputs.viewport;
+        let Some(frozen) = freeze_recording_frame(state.arena_mut(), frame_inputs) else {
+            relay.land(RecordingAnswer::nothing_recorded(recorder, presentation));
+            return;
+        };
+        state.sample_clock.next(timestamp);
+        let inputs = inputs.for_frame(frozen.tree_inputs, frozen.root_background_source);
+        let frame = SampledFrame::new(&turn, frozen, viewport, inputs, None);
+        crate::paint_stage::relay_presenting(relay, move |presenting, stop| {
+            if held_for_testing {
+                wait_while_recording_is_held_for_testing();
+            }
+            frame.record_committed(recorder, presentation, stop, presenting)
+        });
     }
 }
 

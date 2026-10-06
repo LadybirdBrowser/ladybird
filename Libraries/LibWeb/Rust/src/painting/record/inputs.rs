@@ -31,6 +31,25 @@ pub(crate) struct UncapturedContentInputs {
     pub background_color: Color,
 }
 
+/// The inputs of one recording but for what the frame it records decides, which only the frame frozen for the recording
+/// fills in: the host makes them before the render owner freezes the frame.
+pub(crate) struct UnframedRecordingInputs(pub(in crate::painting) RecordingInputs);
+
+impl UnframedRecordingInputs {
+    /// The inputs of the recording of a frame frozen with `tree_inputs`, whose canvas background `root_background_source`
+    /// paints.
+    pub(crate) fn for_frame(
+        self,
+        tree_inputs: crate::painting::host::FfiVisualContextTreeInputs,
+        root_background_source: RootBackgroundSource,
+    ) -> RecordingInputs {
+        let Self(mut inputs) = self;
+        inputs.device_pixels_per_css_pixel = tree_inputs.device_pixels_per_css_pixel;
+        inputs.uncaptured.root_background_source = root_background_source;
+        inputs
+    }
+}
+
 /// The inputs of one recording, which own what they read, so that the recording may outlive the
 /// call that started it. Recording results retain their own resources and never borrow these inputs.
 #[derive(Clone)]
