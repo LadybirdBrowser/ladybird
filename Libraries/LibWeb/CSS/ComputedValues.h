@@ -199,13 +199,6 @@ struct ScrollbarColorData {
     bool operator==(ScrollbarColorData const&) const = default;
 };
 
-struct ScrollSnapType {
-    ScrollSnapAxis axis { ScrollSnapAxis::Both };
-    ScrollSnapStrictness strictness { ScrollSnapStrictness::None };
-
-    bool operator==(ScrollSnapType const&) const = default;
-};
-
 struct TextIndentData {
     LengthPercentage length_percentage;
     bool each_line { false };
@@ -1296,7 +1289,7 @@ public:
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::MiscReset;
 
         Optional<Utf16FlyString> view_transition_name_value() const;
-        ScrollSnapType scroll_snap_type_value() const;
+        ScrollSnapStrictness scroll_snap_strictness_value() const { return static_cast<ScrollSnapStrictness>(scroll_snap_strictness); }
         WillChange will_change_value() const;
 
         bool operator==(MiscResetValues const& other) const

@@ -5452,7 +5452,7 @@ void Element::scroll(Bindings::ScrollToOptions options, GC::Ptr<WebIDL::Promise>
         && this != document.document_element()) {
         document.update_style();
         auto const* misc_reset_values = style_group<CSS::ComputedValues::MiscResetValues>();
-        if (!misc_reset_values || misc_reset_values->scroll_snap_type_value().strictness == CSS::ScrollSnapStrictness::None) {
+        if (!misc_reset_values || misc_reset_values->scroll_snap_strictness_value() == CSS::ScrollSnapStrictness::None) {
             if (promise)
                 WebIDL::resolve_promise(*promise);
             return;

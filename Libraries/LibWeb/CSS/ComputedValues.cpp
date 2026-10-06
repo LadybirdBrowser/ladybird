@@ -881,14 +881,6 @@ Optional<Utf16FlyString> ComputedValues::MiscResetValues::view_transition_name_v
     return css_string_from_rust(&value->custom_ident.custom_ident);
 }
 
-ScrollSnapType ComputedValues::MiscResetValues::scroll_snap_type_value() const
-{
-    return {
-        .axis = static_cast<ScrollSnapAxis>(scroll_snap_axis),
-        .strictness = static_cast<ScrollSnapStrictness>(scroll_snap_strictness),
-    };
-}
-
 WillChange ComputedValues::MiscResetValues::will_change_value() const
 {
     auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(will_change.pointer);
