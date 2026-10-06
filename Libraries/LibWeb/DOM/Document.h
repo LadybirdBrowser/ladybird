@@ -410,7 +410,6 @@ public:
     GC::Ptr<Node const> inspected_node() const { return m_inspected_node; }
 
     void set_highlighted_node(GC::Ptr<Node>, Optional<CSS::PseudoElement>);
-    GC::Ptr<Node const> highlighted_node() const { return m_highlighted_node; }
     Layout::Node* highlighted_layout_node(Layout::BegunRead const& read);
     Layout::Node const* highlighted_layout_node(Layout::BegunRead const& read) const { return const_cast<Document*>(this)->highlighted_layout_node(read); }
     void set_flexbox_highlighted_node(GC::Ptr<Node>, Painting::FlexboxInspectorOverlayOptions);
@@ -477,7 +476,6 @@ public:
     Color background_color(Layout::BegunRead const& read) const;
     Color canvas_background_color(Layout::BegunRead const& read) const;
     CSS::PreferredColorScheme canvas_color_scheme(Layout::BegunRead const& read) const;
-    CSS::ImageRendering background_image_rendering(Layout::BegunRead const& read) const;
 
     Optional<Color> normal_link_color() const;
     void set_normal_link_color(Optional<Color>);

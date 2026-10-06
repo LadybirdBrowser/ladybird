@@ -1755,20 +1755,6 @@ CSS::PreferredColorScheme Document::canvas_color_scheme(Layout::BegunRead const&
     return color_scheme;
 }
 
-CSS::ImageRendering Document::background_image_rendering(Layout::BegunRead const& read) const
-{
-    auto* body_element = body();
-    if (!body_element)
-        return CSS::ImageRendering::Auto;
-
-    // NB: Called during painting inside update_layout().
-    auto body_layout_node = body_element->unsafe_layout_node(read);
-    if (!body_layout_node)
-        return CSS::ImageRendering::Auto;
-
-    return body_layout_node->image_rendering();
-}
-
 void Document::update_base_element(Badge<HTML::HTMLBaseElement>)
 {
     GC::Ptr<HTML::HTMLBaseElement> base_element_with_href = nullptr;

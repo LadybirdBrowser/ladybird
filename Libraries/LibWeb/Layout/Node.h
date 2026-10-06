@@ -457,7 +457,6 @@ public:
         VERIFY_NOT_REACHED();
     }
     CSS::Visibility visibility() const { return static_cast<CSS::Visibility>(style_group<CSS::ComputedValues::InheritedBoxValues>().visibility); }
-    CSS::ImageRendering image_rendering() const { return static_cast<CSS::ImageRendering>(style_group<CSS::ComputedValues::InheritedBoxValues>().image_rendering); }
     Color caret_color() const { return style_group<CSS::ComputedValues::InheritedUIValues>().caret_color_value(); }
     CSS::PreferredColorScheme color_scheme() const { return style_group<CSS::ComputedValues::InheritedUIValues>().color_scheme_value(); }
     ReadonlySpan<Utf16FlyString> color_schemes() const { return style_group<CSS::ComputedValues::InheritedUIValues>().color_schemes_span(); }
