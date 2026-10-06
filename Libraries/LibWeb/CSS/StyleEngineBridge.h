@@ -113,7 +113,6 @@ size_t style_engine_match_document(DocumentHost const*, BegunRead const*, StyleN
 u32 style_engine_layer_index(DocumentHost const*, BegunRead const*, TreeScopeID tree_scope, u32 layer);
 bool style_engine_node_declares_custom_properties(DocumentHost const*, BegunRead const*, StyleNodeID node);
 u64 style_engine_size_query_container_scan_visits(DocumentHost const*, BegunRead const*, bool reset);
-bool style_engine_complete_published_match_answers_for_closure(DocumentHost const*, BegunRead const*, ReadonlySpan<StyleNodeID> nodes);
 u64 style_engine_ensure_random_base_value(DocumentHost const*, BegunRead const*, StyleNodeID node, ReadonlySpan<u16> name, bool element_shared);
 }
 
@@ -374,7 +373,7 @@ public:
     // The transaction that flew knows an element that arrived or was removed beside it as it was sealed: the drain
     // leaves its change, and what inherits from it, to the next transaction.
     void note_style_node_arrived_or_retired(StyleNodeID);
-    [[nodiscard]] bool style_node_arrived_or_retired_beside_flown_transaction(StyleNodeID style_node) const { return m_style_nodes_beside_flown_transaction.contains(style_node); }
+    [[nodiscard]] bool style_node_arrived_or_retired_beside_flown_transaction(StyleNodeID style_node) const { return StyleEngineFFI::style_engine_style_node_is_beside_flown_transaction(host(), style_node.value()); }
     // The transaction that flew decided which of its rows the host composes from the animations each element had as it
     // was sealed: an element whose animations changed beside it holds them composed from the next transaction on.
     void note_animations_changed(StyleNodeID);
@@ -458,7 +457,6 @@ private:
     HashTable<StyleNodeID> m_declaration_changes_during_apply;
     size_t m_element_match_capacity { 64 };
 
-    HashTable<StyleNodeID> m_style_nodes_beside_flown_transaction;
     HashTable<StyleNodeID> m_style_nodes_with_animations_changed_beside_flown_transaction;
     HashTable<StyleNodeID> m_parents_whose_children_changed_beside_flown_transaction;
     size_t m_pending_arrival_count { 0 };
