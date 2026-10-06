@@ -351,6 +351,9 @@ enum BuildEnd {
 
 /// Where a layout round ended.
 enum LayoutRoundEnd {
+    /// The round's build may build the viewport, whose style is the document's, which only the host makes. The round
+    /// did nothing, for the host to send it again with the style.
+    NeedsDocumentStyle,
     /// The round built the tree and stopped before laying it out: the build asks for another pass,
     /// or the document reconciles stale list item counters with what it rebuilt first.
     Built {
@@ -466,8 +469,10 @@ impl ClockRound {
         }
         .run(state);
         // A box the build gave an image has none until the host attaches it.
-        let declined =
-            matches!(answer.end, LayoutRoundEnd::Built { .. }) || state.arena().owes_shown_image_resources_to_host();
+        let declined = matches!(
+            answer.end,
+            LayoutRoundEnd::Built { .. } | LayoutRoundEnd::NeedsDocumentStyle
+        ) || state.arena().owes_shown_image_resources_to_host();
         owed.push(answer);
         match state.arena().mark_unresolved_container_lengths_for_layout() || declined {
             true => Err(ClockRoundDeclined),
@@ -527,6 +532,14 @@ impl LayoutRoundJob {
         };
         // The round cannot call the host, which hears of the boxes nodes gain and lose once it is over.
         state.arena().queue_box_presence();
+        if self
+            .build
+            .as_ref()
+            .is_some_and(|build| build.lacks_document_style(state.arena()))
+        {
+            answer.end = LayoutRoundEnd::NeedsDocumentStyle;
+            return answer;
+        }
         // Attempts to satisfy the round by laying out only the registered partial relayout boundary subtrees. The
         // build runs here when the tree needs one, so a round that is not eligible goes on to the full layout without
         // building again.
@@ -647,7 +660,10 @@ impl LayoutRoundAnswer {
     /// Prepares `arena` for rendering where the round committed a layout, as the host's commit of it asks, so that the
     /// host waits for no preparation of its own after the round.
     fn prepare_committed_layout_for_rendering(&mut self, arena: &LayoutNodeArena) {
-        if matches!(self.end, LayoutRoundEnd::Built { .. }) {
+        if matches!(
+            self.end,
+            LayoutRoundEnd::Built { .. } | LayoutRoundEnd::NeedsDocumentStyle
+        ) {
             return;
         }
         // The commit has the host update the visual contexts, which refreshes the sticky constraints.
@@ -699,13 +715,15 @@ enum NextRound {
 }
 
 /// Readies the next round of the layout update of `document_host`'s document, which lays it out as of `facts`, with a
-/// tree build where the tree needs one.
+/// tree build where the tree needs one, handed the document's style where `with_document_style` says. Only a build that
+/// builds the viewport needs it, which the round finds out itself.
 fn next_round(
     main_thread: &MainThread,
     document_host: &DocumentHost,
     read: &BegunRead,
     host: &FfiLayoutUpdateHostCallbacks,
     facts: FfiLayoutUpdateDocumentFacts,
+    with_document_style: bool,
 ) -> SealedRound {
     let layout_host = FfiLayoutHostCallbacks::of(main_thread);
     let rebuilds_tree = facts.document_needs_layout_tree_build
@@ -715,15 +733,9 @@ fn next_round(
     let build = rebuilds_tree.then(|| {
         let document_style_node = StyleNodeID::from_raw(facts.document_style_node)
             .expect("a document that lays out is named in the style mirror");
-        let may_create_viewport = read_arena(
-            document_host,
-            read,
-            document_style_node,
-            |arena, document_style_node| arena.tree_build_may_create_viewport(Some(document_style_node)),
-        );
         TreeBuildJob::new(
             document_style_node,
-            host.prepare_layout_tree_build(main_thread, read, may_create_viewport),
+            host.prepare_layout_tree_build(main_thread, read, with_document_style),
         )
     });
     SealedRound {
@@ -765,7 +777,7 @@ unsafe fn sealed_first_round(
     if !facts.document_is_active || inputs.is_template_contents_document || !needs_round(&facts) {
         return None;
     }
-    let mut round = next_round(main_thread, document_host, read, &host, facts);
+    let mut round = next_round(main_thread, document_host, read, &host, facts, false);
     // The round runs beside the host, which it cannot ask.
     round.job.container_length_bases = round.job.container_length_bases.sealed();
     Some(round)
@@ -851,7 +863,7 @@ unsafe fn take_flown_layout_in(main_thread: &MainThread, document_host: &Documen
         return false;
     }
     match answer.end {
-        LayoutRoundEnd::Built { .. } => return false,
+        LayoutRoundEnd::Built { .. } | LayoutRoundEnd::NeedsDocumentStyle => return false,
         LayoutRoundEnd::PartialLayout => host.after_layout_commit(main_thread, read, rebuilds_tree),
         LayoutRoundEnd::FullLayout => {
             host.note_full_layout_performed(main_thread);
@@ -918,7 +930,7 @@ unsafe fn update_layout(
                     return;
                 }
 
-                let round = next_round(main_thread, document_host, read, &host, facts);
+                let round = next_round(main_thread, document_host, read, &host, facts, false);
                 (round.rebuilds_tree, NextRound::Job(round.job))
             }
         };
@@ -928,6 +940,11 @@ unsafe fn update_layout(
                 NextRound::Job(job) => run_layout_round_job(document_host, read, job),
             };
             unsafe { answer.pay(main_thread, document_host, read) };
+            if matches!(answer.end, LayoutRoundEnd::NeedsDocumentStyle) {
+                let facts = host.document_facts(main_thread, read);
+                next = NextRound::Job(next_round(main_thread, document_host, read, &host, facts, true).job);
+                continue;
+            }
             let built = matches!(answer.end, LayoutRoundEnd::Built { .. });
             if rebuilds_tree
                 && host.reconcile_stale_list_item_counters_after_tree_build(main_thread, &answer.rebuilt_roots)
@@ -960,6 +977,7 @@ unsafe fn update_layout(
 
         match end {
             None | Some(LayoutRoundEnd::Built { .. }) => continue,
+            Some(LayoutRoundEnd::NeedsDocumentStyle) => unreachable!("a round that needs the style runs again with it"),
             Some(LayoutRoundEnd::PartialLayout) => {
                 // A round that built the tree changed it, whichever of its jobs ran the build.
                 host.after_layout_commit(main_thread, read, rebuilds_tree);

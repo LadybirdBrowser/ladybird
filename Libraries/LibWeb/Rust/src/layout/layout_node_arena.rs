@@ -3470,10 +3470,10 @@ impl LayoutNodeArena {
 
     /// Whether the build about to run may build the viewport, which is what needs the document's
     /// style: there is no viewport row yet, the whole tree is to be rebuilt, or the document is.
-    pub(crate) fn tree_build_may_create_viewport(&self, document_style_node: Option<StyleNodeID>) -> bool {
+    pub(crate) fn tree_build_may_create_viewport(&self, document_style_node: StyleNodeID) -> bool {
         self.bound_viewport_row().is_invalid()
             || self.needs_full_layout_tree_update()
-            || document_style_node.is_some_and(|document| self.needs_layout_tree_update(document))
+            || self.needs_layout_tree_update(document_style_node)
     }
 
     /// Stamps a row the build allocated for a pseudo-element of `generator`, with the style record
