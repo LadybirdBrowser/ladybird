@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1095 Pass
-685 Fail
+1113 Pass
+667 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -1107,11 +1107,11 @@ Pass	SVGTextContentElement interface: constant LENGTHADJUST_SPACINGANDGLYPHS on 
 Fail	SVGTextContentElement interface: attribute textLength
 Fail	SVGTextContentElement interface: attribute lengthAdjust
 Pass	SVGTextContentElement interface: operation getNumberOfChars()
-Fail	SVGTextContentElement interface: operation getComputedTextLength()
-Fail	SVGTextContentElement interface: operation getSubStringLength(unsigned long, unsigned long)
+Pass	SVGTextContentElement interface: operation getComputedTextLength()
+Pass	SVGTextContentElement interface: operation getSubStringLength(unsigned long, unsigned long)
 Pass	SVGTextContentElement interface: operation getStartPositionOfChar(unsigned long)
 Fail	SVGTextContentElement interface: operation getEndPositionOfChar(unsigned long)
-Fail	SVGTextContentElement interface: operation getExtentOfChar(unsigned long)
+Pass	SVGTextContentElement interface: operation getExtentOfChar(unsigned long)
 Fail	SVGTextContentElement interface: operation getRotationOfChar(unsigned long)
 Fail	SVGTextContentElement interface: operation getCharNumAtPosition(optional DOMPointInit)
 Fail	SVGTextContentElement interface: operation selectSubString(unsigned long, unsigned long)
@@ -1145,15 +1145,15 @@ Pass	SVGTextContentElement interface: objects.text must inherit property "LENGTH
 Fail	SVGTextContentElement interface: objects.text must inherit property "textLength" with the proper type
 Fail	SVGTextContentElement interface: objects.text must inherit property "lengthAdjust" with the proper type
 Pass	SVGTextContentElement interface: objects.text must inherit property "getNumberOfChars()" with the proper type
-Fail	SVGTextContentElement interface: objects.text must inherit property "getComputedTextLength()" with the proper type
-Fail	SVGTextContentElement interface: objects.text must inherit property "getSubStringLength(unsigned long, unsigned long)" with the proper type
-Fail	SVGTextContentElement interface: calling getSubStringLength(unsigned long, unsigned long) on objects.text with too few arguments must throw TypeError
+Pass	SVGTextContentElement interface: objects.text must inherit property "getComputedTextLength()" with the proper type
+Pass	SVGTextContentElement interface: objects.text must inherit property "getSubStringLength(unsigned long, unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getSubStringLength(unsigned long, unsigned long) on objects.text with too few arguments must throw TypeError
 Pass	SVGTextContentElement interface: objects.text must inherit property "getStartPositionOfChar(unsigned long)" with the proper type
 Pass	SVGTextContentElement interface: calling getStartPositionOfChar(unsigned long) on objects.text with too few arguments must throw TypeError
 Fail	SVGTextContentElement interface: objects.text must inherit property "getEndPositionOfChar(unsigned long)" with the proper type
 Fail	SVGTextContentElement interface: calling getEndPositionOfChar(unsigned long) on objects.text with too few arguments must throw TypeError
-Fail	SVGTextContentElement interface: objects.text must inherit property "getExtentOfChar(unsigned long)" with the proper type
-Fail	SVGTextContentElement interface: calling getExtentOfChar(unsigned long) on objects.text with too few arguments must throw TypeError
+Pass	SVGTextContentElement interface: objects.text must inherit property "getExtentOfChar(unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getExtentOfChar(unsigned long) on objects.text with too few arguments must throw TypeError
 Fail	SVGTextContentElement interface: objects.text must inherit property "getRotationOfChar(unsigned long)" with the proper type
 Fail	SVGTextContentElement interface: calling getRotationOfChar(unsigned long) on objects.text with too few arguments must throw TypeError
 Fail	SVGTextContentElement interface: objects.text must inherit property "getCharNumAtPosition(optional DOMPointInit)" with the proper type
@@ -1191,15 +1191,15 @@ Pass	SVGTextContentElement interface: objects.tspan must inherit property "LENGT
 Fail	SVGTextContentElement interface: objects.tspan must inherit property "textLength" with the proper type
 Fail	SVGTextContentElement interface: objects.tspan must inherit property "lengthAdjust" with the proper type
 Pass	SVGTextContentElement interface: objects.tspan must inherit property "getNumberOfChars()" with the proper type
-Fail	SVGTextContentElement interface: objects.tspan must inherit property "getComputedTextLength()" with the proper type
-Fail	SVGTextContentElement interface: objects.tspan must inherit property "getSubStringLength(unsigned long, unsigned long)" with the proper type
-Fail	SVGTextContentElement interface: calling getSubStringLength(unsigned long, unsigned long) on objects.tspan with too few arguments must throw TypeError
+Pass	SVGTextContentElement interface: objects.tspan must inherit property "getComputedTextLength()" with the proper type
+Pass	SVGTextContentElement interface: objects.tspan must inherit property "getSubStringLength(unsigned long, unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getSubStringLength(unsigned long, unsigned long) on objects.tspan with too few arguments must throw TypeError
 Pass	SVGTextContentElement interface: objects.tspan must inherit property "getStartPositionOfChar(unsigned long)" with the proper type
 Pass	SVGTextContentElement interface: calling getStartPositionOfChar(unsigned long) on objects.tspan with too few arguments must throw TypeError
 Fail	SVGTextContentElement interface: objects.tspan must inherit property "getEndPositionOfChar(unsigned long)" with the proper type
 Fail	SVGTextContentElement interface: calling getEndPositionOfChar(unsigned long) on objects.tspan with too few arguments must throw TypeError
-Fail	SVGTextContentElement interface: objects.tspan must inherit property "getExtentOfChar(unsigned long)" with the proper type
-Fail	SVGTextContentElement interface: calling getExtentOfChar(unsigned long) on objects.tspan with too few arguments must throw TypeError
+Pass	SVGTextContentElement interface: objects.tspan must inherit property "getExtentOfChar(unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getExtentOfChar(unsigned long) on objects.tspan with too few arguments must throw TypeError
 Fail	SVGTextContentElement interface: objects.tspan must inherit property "getRotationOfChar(unsigned long)" with the proper type
 Fail	SVGTextContentElement interface: calling getRotationOfChar(unsigned long) on objects.tspan with too few arguments must throw TypeError
 Fail	SVGTextContentElement interface: objects.tspan must inherit property "getCharNumAtPosition(optional DOMPointInit)" with the proper type
@@ -1258,15 +1258,15 @@ Pass	SVGTextContentElement interface: objects.textPath must inherit property "LE
 Fail	SVGTextContentElement interface: objects.textPath must inherit property "textLength" with the proper type
 Fail	SVGTextContentElement interface: objects.textPath must inherit property "lengthAdjust" with the proper type
 Pass	SVGTextContentElement interface: objects.textPath must inherit property "getNumberOfChars()" with the proper type
-Fail	SVGTextContentElement interface: objects.textPath must inherit property "getComputedTextLength()" with the proper type
-Fail	SVGTextContentElement interface: objects.textPath must inherit property "getSubStringLength(unsigned long, unsigned long)" with the proper type
-Fail	SVGTextContentElement interface: calling getSubStringLength(unsigned long, unsigned long) on objects.textPath with too few arguments must throw TypeError
+Pass	SVGTextContentElement interface: objects.textPath must inherit property "getComputedTextLength()" with the proper type
+Pass	SVGTextContentElement interface: objects.textPath must inherit property "getSubStringLength(unsigned long, unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getSubStringLength(unsigned long, unsigned long) on objects.textPath with too few arguments must throw TypeError
 Pass	SVGTextContentElement interface: objects.textPath must inherit property "getStartPositionOfChar(unsigned long)" with the proper type
 Pass	SVGTextContentElement interface: calling getStartPositionOfChar(unsigned long) on objects.textPath with too few arguments must throw TypeError
 Fail	SVGTextContentElement interface: objects.textPath must inherit property "getEndPositionOfChar(unsigned long)" with the proper type
 Fail	SVGTextContentElement interface: calling getEndPositionOfChar(unsigned long) on objects.textPath with too few arguments must throw TypeError
-Fail	SVGTextContentElement interface: objects.textPath must inherit property "getExtentOfChar(unsigned long)" with the proper type
-Fail	SVGTextContentElement interface: calling getExtentOfChar(unsigned long) on objects.textPath with too few arguments must throw TypeError
+Pass	SVGTextContentElement interface: objects.textPath must inherit property "getExtentOfChar(unsigned long)" with the proper type
+Pass	SVGTextContentElement interface: calling getExtentOfChar(unsigned long) on objects.textPath with too few arguments must throw TypeError
 Fail	SVGTextContentElement interface: objects.textPath must inherit property "getRotationOfChar(unsigned long)" with the proper type
 Fail	SVGTextContentElement interface: calling getRotationOfChar(unsigned long) on objects.textPath with too few arguments must throw TypeError
 Fail	SVGTextContentElement interface: objects.textPath must inherit property "getCharNumAtPosition(optional DOMPointInit)" with the proper type

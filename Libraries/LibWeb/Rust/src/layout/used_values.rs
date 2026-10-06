@@ -240,6 +240,7 @@ impl CommittedSvgFacts {
 #[derive(Clone, Default)]
 pub(crate) struct UsedValuesRareData {
     pub(crate) computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::OwnedPath>>,
+    pub(crate) svg_text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
     pub(crate) svg: CommittedSvgFacts,
     pub(crate) grid_layout_data: Option<std::sync::Arc<grid_formatting_context::GridLayoutData>>,
     pub(crate) flex_layout_data: Option<std::sync::Arc<formatting_context::FlexLayoutData>>,
@@ -252,6 +253,7 @@ impl UsedValuesRareData {
     pub(crate) fn install_present_payloads_into(self, record: &UsedValues) {
         let Self {
             computed_svg_path,
+            svg_text_character_cells,
             svg,
             grid_layout_data,
             flex_layout_data,
@@ -264,6 +266,7 @@ impl UsedValuesRareData {
             "a run authored a parent-owned rare payload on its root record"
         );
         if computed_svg_path.is_none()
+            && svg_text_character_cells.is_none()
             && svg == CommittedSvgFacts::default()
             && grid_layout_data.is_none()
             && flex_layout_data.is_none()
@@ -275,6 +278,9 @@ impl UsedValuesRareData {
         let mut rare = record.rare_data_mut();
         if let Some(path) = computed_svg_path {
             rare.computed_svg_path = Some(path);
+        }
+        if let Some(cells) = svg_text_character_cells {
+            rare.svg_text_character_cells = Some(cells);
         }
         svg.install_present_into(&mut rare.svg);
         if let Some(data) = grid_layout_data {

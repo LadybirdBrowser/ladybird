@@ -23,6 +23,96 @@ pub struct FfiFloatRect {
     pub height: f32,
 }
 
+/// The glyph cell one code unit of an SVG text content element's character data occupies, in the
+/// element's coordinate system. The SVG DOM text methods read these back from the committed box.
+/// https://svgwg.org/svg2-draft/coords.html#BoundingBoxes
+/// The full glyph cell must have width equal to the horizontal advance and height equal to the EM
+/// box for horizontal text.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(C)]
+pub struct FfiSvgTextCharacterCell {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    /// Whether this code unit is the first, in document order, of the typographic character whose
+    /// cell this is. A later code unit of the same character carries the same cell, unmarked.
+    pub starts_typographic_character: bool,
+}
+
+/// What shaping one SVG text run yields: its glyphs, its total advance, the union of its glyph
+/// cells, and the glyph cell of every one of its code units.
+struct ShapedSvgText {
+    runs: Vec<libgfx_rust::path::GlyphRun>,
+    advance: f32,
+    glyph_cells: SvgCssPixelRect,
+    character_cells: Vec<FfiSvgTextCharacterCell>,
+}
+
+/// Appends the glyph cell of each code unit of one shaped run, in code unit order. A typographic
+/// character's cell spans its advance; every code unit of it carries that cell, and the first one
+/// is marked as the one that starts it.
+/// https://svgwg.org/svg2-draft/text.html#TermTypographicCharacterUnit
+/// A unit of a writing system - such as a Latin alphabetic letter (including its diacritics),
+/// Hangul syllable, Chinese ideographic character, Myanmar syllable cluster - that is indivisible
+/// with respect to a particular typographic operation [...]
+/// FIXME: The glyphs are taken to be in code unit order, which holds for the left-to-right text
+///        this layout shapes.
+fn append_svg_text_character_cells(
+    cells: &mut Vec<FfiSvgTextCharacterCell>,
+    glyphs: &[libgfx_rust::text_layout::DrawGlyph],
+    length_in_code_units: usize,
+    run_end_x: f32,
+    top: f32,
+    height: f32,
+) {
+    let mut covered = 0usize;
+    let mut index = 0usize;
+    while index < glyphs.len() && covered < length_in_code_units {
+        let first = glyphs[index];
+        // A glyph that maps to no code unit of its own (a combining mark's, e.g.) belongs to the
+        // typographic character before it, so it extends that character's cell. One at the start
+        // of the run has no character before it, so it joins the character after it instead.
+        let mut next = index + 1;
+        let mut code_units = first.length_in_code_units;
+        while next < glyphs.len() && (glyphs[next].length_in_code_units == 0 || code_units == 0) {
+            code_units += glyphs[next].length_in_code_units;
+            next += 1;
+        }
+        let end_x = glyphs.get(next).map_or(run_end_x, |glyph| glyph.x);
+        let code_units = code_units.max(1).min(length_in_code_units - covered);
+        let cell = FfiSvgTextCharacterCell {
+            x: first.x,
+            y: top,
+            width: end_x - first.x,
+            height,
+            starts_typographic_character: true,
+        };
+        cells.push(cell);
+        cells.extend(std::iter::repeat_n(
+            FfiSvgTextCharacterCell {
+                starts_typographic_character: false,
+                ..cell
+            },
+            code_units - 1,
+        ));
+        covered += code_units;
+        index = next;
+    }
+    // A code unit no glyph accounts for gets an empty cell at the run's end, so that indices keep
+    // lining up with the characters.
+    cells.extend(std::iter::repeat_n(
+        FfiSvgTextCharacterCell {
+            x: run_end_x,
+            y: top,
+            width: 0.0,
+            height,
+            starts_typographic_character: false,
+        },
+        length_in_code_units - covered,
+    ));
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct FfiAffineTransform {
@@ -1020,22 +1110,22 @@ impl<'pass> SvgFormattingContext<'pass> {
 
     /// Mirrors Gfx::shape_text(baseline_start, text, font_cascade_list): one run per stretch of
     /// text the cascade resolves to the same font, each starting where the last one ended. Also
-    /// returns the union of the runs' glyph cells, each run's measured with its own font.
-    fn shape_svg_text(
-        &self,
-        style: StyleValues<'_>,
-        text: &[u16],
-        baseline_start: FfiFloatPoint,
-    ) -> (Vec<libgfx_rust::path::GlyphRun>, f32, SvgCssPixelRect) {
-        let mut runs = Vec::new();
-        let mut advance = 0.0f32;
-        let mut glyph_cells = SvgCssPixelRect::default();
+    /// returns the union of the runs' glyph cells, each run's measured with its own font, and the
+    /// glyph cell of every code unit of the text.
+    fn shape_svg_text(&self, style: StyleValues<'_>, text: &[u16], baseline_start: FfiFloatPoint) -> ShapedSvgText {
+        let mut shaped_text = ShapedSvgText {
+            runs: Vec::new(),
+            advance: 0.0,
+            glyph_cells: SvgCssPixelRect::default(),
+            character_cells: Vec::with_capacity(text.len()),
+        };
         Self::for_each_svg_font_run(style, text, |font, run_text| {
+            let run_start_x = baseline_start.x + shaped_text.advance;
             let shaped = libgfx_rust::text_layout::shape_text(
                 font,
                 run_text,
                 libgfx_rust::text_layout::TextType::Common,
-                baseline_start.x + advance,
+                run_start_x,
                 0.0,
                 0.0,
             );
@@ -1047,13 +1137,23 @@ impl<'pass> SvgFormattingContext<'pass> {
             // NB: The glyphs of one run sit side by side on one baseline, so the union of their cells is a single rect.
             // FIXME: Take writing mode into account.
             let facts = font.facts();
-            glyph_cells.unite(float_rect_to_css_pixels(FfiFloatRect {
-                x: baseline_start.x + advance,
-                y: baseline_start.y - facts.ascent,
+            let cell_top = baseline_start.y - facts.ascent;
+            let cell_height = facts.ascent + facts.descent;
+            shaped_text.glyph_cells.unite(float_rect_to_css_pixels(FfiFloatRect {
+                x: run_start_x,
+                y: cell_top,
                 width: shaped.width(),
-                height: facts.ascent + facts.descent,
+                height: cell_height,
             }));
-            advance += shaped.width();
+            append_svg_text_character_cells(
+                &mut shaped_text.character_cells,
+                shaped.glyphs(),
+                run_text.len(),
+                run_start_x + shaped.width(),
+                cell_top,
+                cell_height,
+            );
+            shaped_text.advance += shaped.width();
             let mut glyph_buffer = shaped.into_glyphs();
             let glyphs = glyph_buffer.to_mut();
             if baseline_start.y != 0.0 {
@@ -1061,12 +1161,12 @@ impl<'pass> SvgFormattingContext<'pass> {
                     glyph.y += baseline_start.y;
                 }
             }
-            runs.push(libgfx_rust::path::GlyphRun {
+            shaped_text.runs.push(libgfx_rust::path::GlyphRun {
                 font: font.clone(),
                 glyphs: std::mem::take(glyphs),
             });
         });
-        (runs, advance, glyph_cells)
+        shaped_text
     }
 
     /// The advance of the text run rendered by the given box; that is, of its direct child text.
@@ -1149,8 +1249,16 @@ impl<'pass> SvgFormattingContext<'pass> {
         measurement
     }
 
-    /// The glyph outlines a <text> or <tspan> renders and the cells they occupy, advancing the current text position.
-    fn svg_text_box_path(&mut self, text_box: Node) -> (libgfx_rust::path::OwnedPath, SvgCssPixelRect) {
+    /// The glyph outlines a <text> or <tspan> renders, the cells they occupy, and the glyph cell of each of its
+    /// characters, advancing the current text position.
+    fn svg_text_box_path(
+        &mut self,
+        text_box: Node,
+    ) -> (
+        libgfx_rust::path::OwnedPath,
+        SvgCssPixelRect,
+        Vec<FfiSvgTextCharacterCell>,
+    ) {
         let attributes = self.svg_attributes(text_box);
         // https://svgwg.org/svg2-draft/text.html#TextElementXAttribute
         // the starting X (Y) coordinate for rendering the glyphs corresponding to the given
@@ -1195,29 +1303,39 @@ impl<'pass> SvgFormattingContext<'pass> {
             y: self.current_text_position.y + self.svg_dominant_baseline_offset(style),
         };
         let text = self.svg_text_contents(text_box);
-        let (runs, advance, glyph_cells) = self.shape_svg_text(style, &text, text_offset);
+        let shaped = self.shape_svg_text(style, &text, text_offset);
 
         // https://svgwg.org/svg2-draft/text.html#TextLayoutIntroduction
         // After each glyph is placed, the current text position is advanced by the glyph's advance
         // value (typically the width for horizontal text or height for vertical text).
         // FIXME: Take writing mode and text direction into account.
-        self.current_text_position.x += advance;
+        self.current_text_position.x += shaped.advance;
 
-        (libgfx_rust::path::OwnedPath::from_glyph_runs(&runs), glyph_cells)
+        (
+            libgfx_rust::path::OwnedPath::from_glyph_runs(&shaped.runs),
+            shaped.glyph_cells,
+            shaped.character_cells,
+        )
     }
 
     /// The glyph outlines a <textPath> renders: its whole subtree's text, shaped from the origin
-    /// and then laid along the shape its `href` names.
+    /// and then laid along the shape its `href` names. Also returns the glyph cell of each of its
+    /// characters.
     /// https://svgwg.org/svg2-draft/text.html#TextPathElement
-    fn svg_text_path_box_path(&self, text_path_box: Node) -> libgfx_rust::path::OwnedPath {
+    /// FIXME: The character cells are those of the text shaped from the origin; they aren't moved
+    ///        onto the path or rotated along it, so only their advances are meaningful.
+    fn svg_text_path_box_path(
+        &self,
+        text_path_box: Node,
+    ) -> (libgfx_rust::path::OwnedPath, Vec<FfiSvgTextCharacterCell>) {
         let empty = || libgfx_rust::path::PathBuilder::new().build();
         let Some(shape_path) = self.svg_referenced_shape_path(text_path_box) else {
-            return empty();
+            return (empty(), Vec::new());
         };
 
         let style = self.style(text_path_box);
         let text = self.rendered_svg_text_contents(text_path_box);
-        let (runs, total_advance, _) = self.shape_svg_text(style, &text, FfiFloatPoint::default());
+        let shaped = self.shape_svg_text(style, &text, FfiFloatPoint::default());
 
         // https://svgwg.org/svg2-draft/text.html#TextPathElementStartOffsetAttribute
         let mut start_offset = self
@@ -1227,12 +1345,15 @@ impl<'pass> SvgFormattingContext<'pass> {
         // FIXME: Take writing mode and text direction into account.
         match style.inherited_svg().text_anchor {
             text_anchor::START => {}
-            text_anchor::MIDDLE => start_offset -= total_advance / 2.0,
-            text_anchor::END => start_offset -= total_advance,
+            text_anchor::MIDDLE => start_offset -= shaped.advance / 2.0,
+            text_anchor::END => start_offset -= shaped.advance,
             _ => unreachable!("invalid text-anchor value"),
         }
 
-        shape_path.place_glyph_runs_along(&runs, start_offset)
+        (
+            shape_path.place_glyph_runs_along(&shaped.runs, start_offset),
+            shaped.character_cells,
+        )
     }
 
     /// The geometry of the shape element an SVG reference names, read from what that element
@@ -1732,14 +1853,17 @@ impl<'pass> SvgFormattingContext<'pass> {
         // A shape's geometry is its own attributes and computed style against the viewport, and
         // text is its own character data shaped with its own font cascade, so the pass draws both.
         let kind = self.node_kind(graphics_box);
-        let (path, glyph_cells) = match kind {
-            NodeKind::SVGGeometryBox => (self.svg_geometry_path(graphics_box), None),
+        let (path, glyph_cells, character_cells) = match kind {
+            NodeKind::SVGGeometryBox => (self.svg_geometry_path(graphics_box), None, None),
             NodeKind::SVGTextBox => {
-                let (path, glyph_cells) = self.svg_text_box_path(graphics_box);
-                (path, Some(glyph_cells))
+                let (path, glyph_cells, character_cells) = self.svg_text_box_path(graphics_box);
+                (path, Some(glyph_cells), Some(character_cells))
             }
-            NodeKind::SVGTextPathBox => (self.svg_text_path_box_path(graphics_box), None),
-            _ => (libgfx_rust::path::PathBuilder::new().build(), None),
+            NodeKind::SVGTextPathBox => {
+                let (path, character_cells) = self.svg_text_path_box_path(graphics_box);
+                (path, None, Some(character_cells))
+            }
+            _ => (libgfx_rust::path::PathBuilder::new().build(), None, None),
         };
 
         // https://svgwg.org/svg2-draft/coords.html#BoundingBoxes
@@ -1782,7 +1906,11 @@ impl<'pass> SvgFormattingContext<'pass> {
         let used = &used_pointer;
         used.set_content_inline_size(bounding_box.width);
         used.set_content_block_size(bounding_box.height);
-        self.used_values(graphics_box).rare_data_mut().computed_svg_path = Some(std::sync::Arc::new(path));
+        {
+            let mut rare_data = used.rare_data_mut();
+            rare_data.computed_svg_path = Some(std::sync::Arc::new(path));
+            rare_data.svg_text_character_cells = character_cells.map(std::sync::Arc::new);
+        }
         self.place_child(graphics_box, bounding_box.x, bounding_box.y);
         used.has_definite_inline_size.set(true);
         used.has_definite_block_size.set(true);

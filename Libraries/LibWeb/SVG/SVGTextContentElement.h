@@ -7,6 +7,8 @@
 #pragma once
 
 #include <LibWeb/Geometry/DOMPoint.h>
+#include <LibWeb/Geometry/DOMRect.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -19,14 +21,17 @@ class SVGTextContentElement : public SVGGraphicsElement {
     WEB_WRAPPABLE(SVGTextContentElement, SVGGraphicsElement);
 
 public:
-    WebIDL::ExceptionOr<WebIDL::Long> get_number_of_chars() const;
-
-    Utf16String text_contents() const;
-
+    WebIDL::ExceptionOr<WebIDL::Long> get_number_of_chars();
+    WebIDL::ExceptionOr<float> get_computed_text_length();
+    WebIDL::ExceptionOr<float> get_sub_string_length(WebIDL::UnsignedLong charnum, WebIDL::UnsignedLong nchars);
     GC::Ref<Geometry::DOMPoint> get_start_position_of_char(WebIDL::UnsignedLong charnum);
+    WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> get_extent_of_char(WebIDL::UnsignedLong charnum);
 
 protected:
     SVGTextContentElement(DOM::Document&, DOM::QualifiedName);
+
+private:
+    Vector<Layout::RustFFI::FfiSvgTextCharacterCell> character_cells();
 };
 
 }

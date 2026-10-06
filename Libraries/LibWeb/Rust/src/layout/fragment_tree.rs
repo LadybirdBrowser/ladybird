@@ -36,6 +36,7 @@ pub(crate) struct Fragment {
     pub(crate) used_grid_tracks: Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>>,
     pub(crate) svg: CommittedSvgFacts,
     pub(crate) computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::OwnedPath>>,
+    pub(crate) svg_text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
     pub(crate) has_line_clamp_point: bool,
     pub(crate) is_invisible_for_line_clamp: bool,
     pub(crate) clamped_content_is_scrollable_overflow: bool,
@@ -107,6 +108,10 @@ impl Fragment {
             && same_allocation(self.used_grid_tracks.as_ref(), previous.used_grid_tracks.as_ref())
             && self.svg == previous.svg
             && same_allocation(self.computed_svg_path.as_ref(), previous.computed_svg_path.as_ref())
+            && same_allocation(
+                self.svg_text_character_cells.as_ref(),
+                previous.svg_text_character_cells.as_ref(),
+            )
             && self.has_line_clamp_point == previous.has_line_clamp_point
             && self.is_invisible_for_line_clamp == previous.is_invisible_for_line_clamp
             && self.clamped_content_is_scrollable_overflow == previous.clamped_content_is_scrollable_overflow
@@ -165,6 +170,7 @@ impl FragmentLink {
                 used_grid_tracks: None,
                 svg: Default::default(),
                 computed_svg_path: None,
+                svg_text_character_cells: None,
                 has_line_clamp_point: false,
                 is_invisible_for_line_clamp: false,
                 clamped_content_is_scrollable_overflow: false,
@@ -331,6 +337,7 @@ struct CommittedRarePayloads {
     used_grid_tracks: Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>>,
     svg: CommittedSvgFacts,
     computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::OwnedPath>>,
+    svg_text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
 }
 
 fn snapshot_fragment(
@@ -353,6 +360,7 @@ fn snapshot_fragment(
                 used_grid_tracks: rare.used_grid_tracks.take(),
                 svg: rare.svg,
                 computed_svg_path: rare.computed_svg_path.take(),
+                svg_text_character_cells: rare.svg_text_character_cells.take(),
             }
         })
         .unwrap_or_default();
@@ -363,6 +371,7 @@ fn snapshot_fragment(
         used_grid_tracks,
         svg,
         computed_svg_path,
+        svg_text_character_cells,
     } = rare_payloads;
     let mut fragment = Fragment {
         identity: 0,
@@ -393,6 +402,7 @@ fn snapshot_fragment(
         used_grid_tracks,
         svg,
         computed_svg_path,
+        svg_text_character_cells,
         has_line_clamp_point: used.has_line_clamp_point.get(),
         is_invisible_for_line_clamp: used.is_invisible_for_line_clamp.get(),
         clamped_content_is_scrollable_overflow: used.clamped_content_is_scrollable_overflow.get(),

@@ -188,6 +188,7 @@ enum class InvalidateLayoutTreeReason {
     X(SVGGraphicsElementGetScreenCTM, false)        \
     X(SVGLengthValue, false)                        \
     X(SVGPathLength, false)                         \
+    X(SVGTextContentElementTextQuery, true)         \
     X(ViewTransitionCapture, false)                 \
     X(ViewTransitionPseudoElementStyles, false)     \
     X(WindowScroll, false)

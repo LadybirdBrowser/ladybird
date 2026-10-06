@@ -155,6 +155,23 @@ pub(crate) fn committed_svg_path(
     })
 }
 
+/// The glyph cell of every code unit of a text content element's own character data, as its box
+/// committed them; None for any other box, and for a text box that has not been committed.
+pub(crate) fn committed_svg_text_character_cells(
+    arena: &impl GeometryRead,
+    slot: NodeSlotId,
+) -> Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>> {
+    if !matches!(
+        arena.node_kind_if_live(slot),
+        Some(crate::layout::node_data::NodeKind::SVGTextBox | crate::layout::node_data::NodeKind::SVGTextPathBox)
+    ) {
+        return None;
+    }
+    arena.with_committed_fragment_link(slot, |link| {
+        link.and_then(|link| link.fragment.svg_text_character_cells.clone())
+    })
+}
+
 pub(crate) fn committed_containing_line_box_index(arena: &impl GeometryRead, slot: NodeSlotId) -> Option<usize> {
     arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.containing_line_box_index))
 }
