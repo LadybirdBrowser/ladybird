@@ -131,15 +131,7 @@ impl SealedStyleInputs {
                 ..context
             })
         });
-        let custom_functions: Box<[_]> = lent_functions
-            .iter()
-            .map(|entry| FfiCustomFunctionEntry {
-                function: entry.function,
-                caller_scope: entry.caller_scope,
-                definition_scope: entry.definition_scope,
-                tree_scope: entry.tree_scope,
-            })
-            .collect();
+        let custom_functions = Box::<[FfiCustomFunctionEntry]>::from(lent_functions);
         let retained_functions = lent_functions
             .iter()
             .filter(|entry| !entry.function.is_null())

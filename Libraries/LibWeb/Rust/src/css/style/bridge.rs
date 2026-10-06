@@ -323,22 +323,26 @@ pub struct FfiDocumentStyleComputationInputs {
     pub media_feature_value_count: usize,
     pub media_length_resolution_context: FfiHostHandle,
     /// What a custom function call reads, lent for the boundary call only: an
-    /// `FfiCustomFunctionEntry` for each definition a scope sees. None where no scope holds an
-    /// `@function` rule. The engine retains the definitions and clears these fields before it
+    /// `FfiCustomFunctionEntry` for each `@function` rule of each scope. None where no scope holds
+    /// an `@function` rule. The engine retains the definitions and clears these fields before it
     /// keeps the inputs.
     pub custom_functions: FfiHostHandle,
     pub custom_function_count: usize,
 }
 
-/// That a scope sees a custom function definition: the compiled function its name dereferences
-/// to there, the scope (a `StyleScope`'s identity) whose calls see it, the scope defining it, and
-/// the tree scope of the scope whose calls see it.
+/// One `@function` rule of a scope (a `StyleScope`'s identity), or, with no function, a scope that
+/// holds none: the scope a name the scope does not define is looked up in next, none for the
+/// document's, the scope's tree scope, and of the rule, the interned name of its cascade layer and
+/// the precedence of its cascade origin (user agent, user, then author).
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct FfiCustomFunctionEntry {
     pub function: *const c_void,
-    pub caller_scope: usize,
-    pub definition_scope: usize,
+    pub scope: usize,
+    pub parent_scope: usize,
     pub tree_scope: u32,
+    pub layer: u32,
+    pub origin: u8,
 }
 
 /// One style sheet's resource context, keyed by the identity of its native sheet: the base URL a
@@ -3073,8 +3077,15 @@ pub(crate) unsafe fn take_style_transaction(
     unsafe { engine.document_resource_contexts.take_in(&mut computation_inputs) };
     // SAFETY: The host lends the media environment the inputs name for this call.
     unsafe { engine.document_media.take_in(&mut computation_inputs) };
+    // What a call from each scope reaches is decided under the media the inputs moved first.
+    let mut functions = std::mem::take(&mut engine.document_functions);
     // SAFETY: The host lends the custom functions the inputs name for this call.
-    unsafe { engine.take_in_document_functions(&mut computation_inputs) };
+    unsafe {
+        functions.take_in(&mut computation_inputs, &engine.document_media, |scope, layer| {
+            engine.layer_index(scope, layer)
+        });
+    }
+    engine.document_functions = functions;
     engine.custom_property_registrations_changed = engine
         .document_style_computation_inputs
         .custom_property_registration_generation

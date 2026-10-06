@@ -489,7 +489,7 @@ private:
     using InputTransaction = StyleEngineFFI::FfiStyleInputTransaction;
 
     struct LentComputationInputs;
-    void gather_computation_inputs(Layout::BegunRead const& read, LentComputationInputs&);
+    void gather_computation_inputs(LentComputationInputs&);
     PublishedStyleTransaction publish_style_transaction_view(StyleEngineFFI::FfiStyleTransactionView const&, MonotonicTime submission_started_at, MonotonicTime bridge_started_at);
 
     void apply_transaction(InputTransaction const&);

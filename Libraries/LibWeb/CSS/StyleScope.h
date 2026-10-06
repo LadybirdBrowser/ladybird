@@ -46,6 +46,9 @@ struct StyleEngineRuleTarget {
     CascadeOrigin cascade_origin { CascadeOrigin::Author };
 };
 
+// The precedence of a cascade origin among rules that are not cascaded: user agent, then user, then author.
+u8 cascade_origin_precedence(CascadeOrigin);
+
 struct CachedFunctionRule {
     RustCompiledFunction rule;
     Utf16FlyString qualified_layer_name;
@@ -65,7 +68,7 @@ struct StyleRuleCache {
     void add_rules_from_cache(StyleRuleCache const&);
 
     HashMap<Utf16FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
-    HashMap<Utf16FlyString, Vector<CachedFunctionRule>> function_rules_by_name;
+    Vector<CachedFunctionRule> function_rules;
     bool has_size_container_queries { false };
 };
 
@@ -133,15 +136,9 @@ public:
     // Whether the marker text of a list item with this `list-style-type` value differs between counter values.
     bool list_style_type_depends_on_counter_value(void const* list_style_type) const;
 
-    struct FunctionDefinitionAndScope {
-        RustCompiledFunction function;
-        StyleScope const& scope;
-    };
-    Optional<FunctionDefinitionAndScope> get_function_definition(Layout::BegunRead const& read, Utf16FlyString const& name) const;
-    void for_each_visible_function_definition(Layout::BegunRead const& read, Function<void(FunctionDefinitionAndScope const&)> const&) const;
-
-    template<typename T>
-    Optional<T> dereference_global_tree_scoped_reference(Function<Optional<T>(StyleScope const&)> const& callback) const;
+    // https://drafts.csswg.org/css-shadow-1/#tree-scoped-name-global
+    // The scope a global tree-scoped name this scope does not define is looked up in next, if any.
+    [[nodiscard]] StyleScope* parent_style_scope() const;
 
     void visit_edges(GC::Cell::Visitor&);
 
@@ -172,7 +169,6 @@ private:
 
     Optional<StyleRuleCache> m_rule_cache;
 
-    [[nodiscard]] StyleScope* parent_counter_style_scope() const;
     using CounterStyleLookupChain = Vector<Parser::ValueParserFFI::RegisteredCounterStyles const*, 4>;
     [[nodiscard]] CounterStyleLookupChain counter_style_lookup_chain(Layout::BegunRead const& read) const;
     void publish_counter_styles_if_changed() const;
