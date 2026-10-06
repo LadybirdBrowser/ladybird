@@ -23,28 +23,28 @@ public:
 
     FontFaceState& state() const { return m_state; }
 
-    Utf16String family() const { return m_state->family(); }
-    WebIDL::ExceptionOr<void> set_family(Utf16View value) { return m_state->set_family(value); }
-    Utf16String style() const { return m_state->style(); }
-    WebIDL::ExceptionOr<void> set_style(Utf16View value) { return m_state->set_style(value); }
-    Utf16String weight() const { return m_state->weight(); }
-    WebIDL::ExceptionOr<void> set_weight(Utf16View value) { return m_state->set_weight(value); }
-    Utf16String stretch() const { return m_state->stretch(); }
-    WebIDL::ExceptionOr<void> set_stretch(Utf16View value) { return m_state->set_stretch(value); }
-    Utf16String unicode_range() const { return m_state->unicode_range(); }
-    WebIDL::ExceptionOr<void> set_unicode_range(Utf16View value) { return m_state->set_unicode_range(value); }
-    Utf16String feature_settings() const { return m_state->feature_settings(); }
-    WebIDL::ExceptionOr<void> set_feature_settings(Utf16View value) { return m_state->set_feature_settings(value); }
-    Utf16String variation_settings() const { return m_state->variation_settings(); }
-    WebIDL::ExceptionOr<void> set_variation_settings(Utf16View value) { return m_state->set_variation_settings(value); }
-    Utf16String display() const { return m_state->display(); }
-    WebIDL::ExceptionOr<void> set_display(Utf16View value) { return m_state->set_display(value); }
-    Utf16String ascent_override() const { return m_state->ascent_override(); }
-    WebIDL::ExceptionOr<void> set_ascent_override(Utf16View value) { return m_state->set_ascent_override(value); }
-    Utf16String descent_override() const { return m_state->descent_override(); }
-    WebIDL::ExceptionOr<void> set_descent_override(Utf16View value) { return m_state->set_descent_override(value); }
-    Utf16String line_gap_override() const { return m_state->line_gap_override(); }
-    WebIDL::ExceptionOr<void> set_line_gap_override(Utf16View value) { return m_state->set_line_gap_override(value); }
+    Utf16String family() const { return m_state->descriptor_text(DescriptorID::FontFamily); }
+    WebIDL::ExceptionOr<void> set_family(Utf16View value) { return m_state->set_descriptor(DescriptorID::FontFamily, value); }
+    Utf16String style() const { return m_state->descriptor_text(DescriptorID::FontStyle); }
+    WebIDL::ExceptionOr<void> set_style(Utf16View value) { return m_state->set_descriptor(DescriptorID::FontStyle, value); }
+    Utf16String weight() const { return m_state->descriptor_text(DescriptorID::FontWeight); }
+    WebIDL::ExceptionOr<void> set_weight(Utf16View value) { return m_state->set_descriptor(DescriptorID::FontWeight, value); }
+    Utf16String stretch() const { return m_state->descriptor_text(DescriptorID::FontWidth); }
+    WebIDL::ExceptionOr<void> set_stretch(Utf16View value) { return m_state->set_descriptor(DescriptorID::FontWidth, value); }
+    Utf16String unicode_range() const { return m_state->descriptor_text(DescriptorID::UnicodeRange); }
+    WebIDL::ExceptionOr<void> set_unicode_range(Utf16View value) { return m_state->set_descriptor(DescriptorID::UnicodeRange, value); }
+    Utf16String feature_settings() const { return m_state->descriptor_text(DescriptorID::FontFeatureSettings); }
+    WebIDL::ExceptionOr<void> set_feature_settings(Utf16View value) { return m_state->set_descriptor(DescriptorID::FontFeatureSettings, value); }
+    Utf16String variation_settings() const { return m_state->descriptor_text(DescriptorID::FontVariationSettings); }
+    WebIDL::ExceptionOr<void> set_variation_settings(Utf16View value) { return m_state->set_descriptor(DescriptorID::FontVariationSettings, value); }
+    Utf16String display() const { return m_state->descriptor_text(DescriptorID::FontDisplay); }
+    WebIDL::ExceptionOr<void> set_display(Utf16View value) { return m_state->set_descriptor(DescriptorID::FontDisplay, value); }
+    Utf16String ascent_override() const { return m_state->descriptor_text(DescriptorID::AscentOverride); }
+    WebIDL::ExceptionOr<void> set_ascent_override(Utf16View value) { return m_state->set_descriptor(DescriptorID::AscentOverride, value); }
+    Utf16String descent_override() const { return m_state->descriptor_text(DescriptorID::DescentOverride); }
+    WebIDL::ExceptionOr<void> set_descent_override(Utf16View value) { return m_state->set_descriptor(DescriptorID::DescentOverride, value); }
+    Utf16String line_gap_override() const { return m_state->descriptor_text(DescriptorID::LineGapOverride); }
+    WebIDL::ExceptionOr<void> set_line_gap_override(Utf16View value) { return m_state->set_descriptor(DescriptorID::LineGapOverride, value); }
 
     FontFaceLoadStatus status() const { return m_state->status(); }
     GC::Ref<WebIDL::Promise> load() { return m_state->load(); }

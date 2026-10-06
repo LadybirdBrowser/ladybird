@@ -85,6 +85,40 @@ static Utf16String serialize_style_value_to_utf16(StyleValue const& value)
     return value.to_utf16_string(SerializationMode::Normal);
 }
 
+struct FontFaceAttribute {
+    DescriptorID descriptor;
+    StringView name;
+};
+
+// The FontFace attributes, each of which reflects an @font-face descriptor.
+static constexpr Array<FontFaceAttribute, FontFaceState::attribute_count> font_face_attributes { {
+    { DescriptorID::FontFamily, "family"sv },
+    { DescriptorID::FontStyle, "style"sv },
+    { DescriptorID::FontWeight, "weight"sv },
+    { DescriptorID::FontWidth, "stretch"sv },
+    { DescriptorID::UnicodeRange, "unicodeRange"sv },
+    { DescriptorID::FontFeatureSettings, "featureSettings"sv },
+    { DescriptorID::FontVariationSettings, "variationSettings"sv },
+    { DescriptorID::FontDisplay, "display"sv },
+    { DescriptorID::AscentOverride, "ascentOverride"sv },
+    { DescriptorID::DescentOverride, "descentOverride"sv },
+    { DescriptorID::LineGapOverride, "lineGapOverride"sv },
+} };
+
+static size_t attribute_index(DescriptorID descriptor)
+{
+    for (size_t index = 0; index < font_face_attributes.size(); ++index) {
+        if (font_face_attributes[index].descriptor == descriptor)
+            return index;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+Utf16String const& FontFaceState::descriptor_text(DescriptorID descriptor) const
+{
+    return m_descriptor_texts[attribute_index(descriptor)];
+}
+
 static FontWeightRange compute_weight_range(StyleValue const& value)
 {
     if (value.to_keyword() == Keyword::Auto || value.to_keyword() == Keyword::Normal)
@@ -218,25 +252,25 @@ GC::Ref<FontFace> FontFaceState::create_for_constructor(JS::Object& relevant_glo
     //    Otherwise, set font face’s corresponding attributes to the serialization of the parsed values.
 
     Parser::ParsingParams parsing_params {};
-    auto try_set_descriptor = [&](DescriptorID descriptor_id, Utf16String const& string, auto setter_impl) {
+    auto try_set_descriptor = [&](DescriptorID descriptor_id, Utf16String const& string) {
         auto result = parse_css_descriptor(parsing_params, AtRuleID::FontFace, DescriptorNameAndID::from_id(descriptor_id), string.utf16_view());
         if (!result) {
             font_face->reject_status_promise(WebIDL::SyntaxError::create(Utf16String::formatted("FontFace constructor: Invalid {}", to_string(descriptor_id))));
             return;
         }
-        (font_face.ptr()->*setter_impl)(result.release_nonnull());
+        font_face->apply_descriptor(descriptor_id, *result);
     };
-    try_set_descriptor(DescriptorID::FontFamily, family, &FontFaceState::set_family_impl);
-    try_set_descriptor(DescriptorID::FontStyle, descriptors.style, &FontFaceState::set_style_impl);
-    try_set_descriptor(DescriptorID::FontWeight, descriptors.weight, &FontFaceState::set_weight_impl);
-    try_set_descriptor(DescriptorID::FontWidth, descriptors.stretch, &FontFaceState::set_stretch_impl);
-    try_set_descriptor(DescriptorID::UnicodeRange, descriptors.unicode_range, &FontFaceState::set_unicode_range_impl);
-    try_set_descriptor(DescriptorID::FontFeatureSettings, descriptors.feature_settings, &FontFaceState::set_feature_settings_impl);
-    try_set_descriptor(DescriptorID::FontVariationSettings, descriptors.variation_settings, &FontFaceState::set_variation_settings_impl);
-    try_set_descriptor(DescriptorID::FontDisplay, descriptors.display, &FontFaceState::set_display_impl);
-    try_set_descriptor(DescriptorID::AscentOverride, descriptors.ascent_override, &FontFaceState::set_ascent_override_impl);
-    try_set_descriptor(DescriptorID::DescentOverride, descriptors.descent_override, &FontFaceState::set_descent_override_impl);
-    try_set_descriptor(DescriptorID::LineGapOverride, descriptors.line_gap_override, &FontFaceState::set_line_gap_override_impl);
+    try_set_descriptor(DescriptorID::FontFamily, family);
+    try_set_descriptor(DescriptorID::FontStyle, descriptors.style);
+    try_set_descriptor(DescriptorID::FontWeight, descriptors.weight);
+    try_set_descriptor(DescriptorID::FontWidth, descriptors.stretch);
+    try_set_descriptor(DescriptorID::UnicodeRange, descriptors.unicode_range);
+    try_set_descriptor(DescriptorID::FontFeatureSettings, descriptors.feature_settings);
+    try_set_descriptor(DescriptorID::FontVariationSettings, descriptors.variation_settings);
+    try_set_descriptor(DescriptorID::FontDisplay, descriptors.display);
+    try_set_descriptor(DescriptorID::AscentOverride, descriptors.ascent_override);
+    try_set_descriptor(DescriptorID::DescentOverride, descriptors.descent_override);
+    try_set_descriptor(DescriptorID::LineGapOverride, descriptors.line_gap_override);
     RefPtr<StyleValue const> parsed_source;
     if (auto* source_string = source.get_pointer<Utf16String>()) {
         parsed_source = parse_css_descriptor(parsing_params, AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::Src), source_string->utf16_view());
@@ -380,18 +414,8 @@ NonnullRefPtr<FontFaceState> FontFaceState::create_css_connected(JS::Realm& real
 void FontFaceState::reparse_connected_css_font_face_rule_descriptors()
 {
     auto descriptors = connected_descriptors();
-
-    set_family_impl(*descriptors.descriptor(DescriptorNameAndID::from_id(DescriptorID::FontFamily)));
-    set_style_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontStyle)));
-    set_weight_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontWeight)));
-    set_stretch_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontWidth)));
-    set_unicode_range_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::UnicodeRange)));
-    set_feature_settings_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontFeatureSettings)));
-    set_variation_settings_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontVariationSettings)));
-    set_display_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontDisplay)));
-    set_ascent_override_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::AscentOverride)));
-    set_descent_override_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::DescentOverride)));
-    set_line_gap_override_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::LineGapOverride)));
+    for (auto const& attribute : font_face_attributes)
+        apply_descriptor(attribute.descriptor, *descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(attribute.descriptor)));
 }
 
 static HashMap<u64, FontFaceState*>& font_faces_by_id()
@@ -775,330 +799,87 @@ void FontFaceState::set_parsed_font(RefPtr<Gfx::Typeface const> typeface)
     m_rendering_typeface->set(m_font_display_failed ? nullptr : m_parsed_font);
 }
 
-// https://drafts.csswg.org/css-font-loading/#dom-fontface-family
-WebIDL::ExceptionOr<void> FontFaceState::set_family(Utf16View string)
+// https://drafts.csswg.org/css-font-loading/#fontface-interface
+WebIDL::ExceptionOr<void> FontFaceState::set_descriptor(DescriptorID descriptor, Utf16View string)
 {
     // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
     // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
     // parsed value.
-
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontFamily), string);
-    if (!property)
-        return WebIDL::SyntaxError::create("FontFace.family setter: Invalid descriptor value"_utf16);
+    auto value = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(descriptor), string);
+    if (!value)
+        return WebIDL::SyntaxError::create(Utf16String::formatted("FontFace.{} setter: Invalid descriptor value", font_face_attributes[attribute_index(descriptor)].name));
 
     if (m_css_font_face_rule_identity.has_value())
-        TRY(cssom_rule().descriptors()->set_font_family(string));
+        TRY(cssom_rule().descriptors()->set_property(to_string(descriptor), string, {}));
 
-    if (should_be_registered_with_font_computer()) {
-        if (auto font_computer = this->font_computer(); font_computer.has_value())
+    auto registered_font_computer = [&] -> Optional<FontComputer&> {
+        if (!should_be_registered_with_font_computer())
+            return {};
+        return font_computer();
+    };
+
+    // The family, style, weight and width are the key the font computer files the face under.
+    bool changes_matching_key = first_is_one_of(descriptor, DescriptorID::FontFamily, DescriptorID::FontStyle, DescriptorID::FontWeight, DescriptorID::FontWidth);
+    if (changes_matching_key) {
+        if (auto font_computer = registered_font_computer(); font_computer.has_value())
             font_computer->unregister_font_face(*this);
     }
 
-    set_family_impl(property.release_nonnull());
+    apply_descriptor(descriptor, *value);
 
-    if (should_be_registered_with_font_computer()) {
-        if (auto font_computer = this->font_computer(); font_computer.has_value())
+    if (auto font_computer = registered_font_computer(); font_computer.has_value()) {
+        if (changes_matching_key)
             font_computer->register_font_face(*this);
-    }
-
-    return {};
-}
-
-void FontFaceState::set_family_impl(NonnullRefPtr<StyleValue const> const& value)
-{
-    m_family = string_from_style_value(value);
-}
-
-// https://drafts.csswg.org/css-font-loading/#dom-fontface-style
-WebIDL::ExceptionOr<void> FontFaceState::set_style(Utf16View string)
-{
-    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
-    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
-    // parsed value.
-
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontStyle), string);
-    if (!property)
-        return WebIDL::SyntaxError::create("FontFace.style setter: Invalid descriptor value"_utf16);
-
-    if (m_css_font_face_rule_identity.has_value())
-        TRY(cssom_rule().descriptors()->set_font_style(string));
-
-    if (should_be_registered_with_font_computer()) {
-        if (auto font_computer = this->font_computer(); font_computer.has_value())
-            font_computer->unregister_font_face(*this);
-    }
-
-    set_style_impl(property.release_nonnull());
-
-    if (should_be_registered_with_font_computer()) {
-        if (auto font_computer = this->font_computer(); font_computer.has_value())
-            font_computer->register_font_face(*this);
-    }
-
-    return {};
-}
-
-void FontFaceState::set_style_impl(NonnullRefPtr<StyleValue const> const& value)
-{
-    auto context = computation_context();
-    NonnullRefPtr<StyleValue const> absolutized_value = context.has_value() ? value->absolutized(*context) : value;
-    m_style = serialize_style_value_to_utf16(*absolutized_value);
-    m_cached_slope = compute_slope(*absolutized_value);
-}
-
-// https://drafts.csswg.org/css-font-loading/#dom-fontface-weight
-WebIDL::ExceptionOr<void> FontFaceState::set_weight(Utf16View string)
-{
-    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
-    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
-    // parsed value.
-
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontWeight), string);
-    if (!property)
-        return WebIDL::SyntaxError::create("FontFace.weight setter: Invalid descriptor value"_utf16);
-
-    if (m_css_font_face_rule_identity.has_value())
-        TRY(cssom_rule().descriptors()->set_font_weight(string));
-
-    if (should_be_registered_with_font_computer()) {
-        if (auto font_computer = this->font_computer(); font_computer.has_value())
-            font_computer->unregister_font_face(*this);
-    }
-
-    set_weight_impl(property.release_nonnull());
-
-    if (should_be_registered_with_font_computer()) {
-        if (auto font_computer = this->font_computer(); font_computer.has_value())
-            font_computer->register_font_face(*this);
-    }
-
-    return {};
-}
-
-void FontFaceState::set_weight_impl(NonnullRefPtr<StyleValue const> const& value)
-{
-    auto context = computation_context();
-    NonnullRefPtr<StyleValue const> absolutized_value = context.has_value() ? value->absolutized(*context) : value;
-    m_weight = serialize_style_value_to_utf16(*absolutized_value);
-    m_cached_weight_range = compute_weight_range(*absolutized_value);
-}
-
-// https://drafts.csswg.org/css-font-loading/#dom-fontface-stretch
-WebIDL::ExceptionOr<void> FontFaceState::set_stretch(Utf16View string)
-{
-    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
-    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
-    // parsed value.
-
-    // NOTE: font-stretch is now an alias for font-width
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontWidth), string);
-    if (!property)
-        return WebIDL::SyntaxError::create("FontFace.stretch setter: Invalid descriptor value"_utf16);
-
-    if (m_css_font_face_rule_identity.has_value())
-        TRY(cssom_rule().descriptors()->set_font_width(string));
-
-    if (should_be_registered_with_font_computer()) {
-        if (auto font_computer = this->font_computer(); font_computer.has_value())
-            font_computer->unregister_font_face(*this);
-    }
-
-    set_stretch_impl(property.release_nonnull());
-
-    if (should_be_registered_with_font_computer()) {
-        if (auto font_computer = this->font_computer(); font_computer.has_value())
-            font_computer->register_font_face(*this);
-    }
-
-    return {};
-}
-
-void FontFaceState::set_stretch_impl(NonnullRefPtr<StyleValue const> const& value)
-{
-    auto context = computation_context();
-    NonnullRefPtr<StyleValue const> absolutized_value = context.has_value() ? value->absolutized(*context) : value;
-    m_stretch = serialize_style_value_to_utf16(*absolutized_value);
-    m_cached_width = compute_width(*absolutized_value);
-}
-
-// https://drafts.csswg.org/css-font-loading/#dom-fontface-unicoderange
-WebIDL::ExceptionOr<void> FontFaceState::set_unicode_range(Utf16View string)
-{
-    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
-    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
-    // parsed value.
-
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::UnicodeRange), string);
-    if (!property)
-        return WebIDL::SyntaxError::create("FontFace.unicodeRange setter: Invalid descriptor value"_utf16);
-
-    if (m_css_font_face_rule_identity.has_value())
-        TRY(cssom_rule().descriptors()->set_unicode_range(string));
-
-    set_unicode_range_impl(property.release_nonnull());
-
-    if (should_be_registered_with_font_computer()) {
-        if (auto font_computer = this->font_computer(); font_computer.has_value())
+        else if (descriptor == DescriptorID::UnicodeRange)
             font_computer->did_load_font(m_family);
     }
-
     return {};
 }
 
-void FontFaceState::set_unicode_range_impl(NonnullRefPtr<StyleValue const> const& value)
+void FontFaceState::apply_descriptor(DescriptorID descriptor, StyleValue const& value)
 {
-    m_unicode_range = serialize_style_value_to_utf16(*value);
-    auto const& ranges = value->as_value_list().values();
-    m_unicode_ranges.clear_with_capacity();
-    m_unicode_ranges.ensure_capacity(ranges.size());
-    for (auto const& range : ranges)
-        m_unicode_ranges.unchecked_append(range->as_unicode_range().unicode_range());
-}
+    auto& text = m_descriptor_texts[attribute_index(descriptor)];
+    auto absolutized = [&] -> NonnullRefPtr<StyleValue const> {
+        auto context = computation_context();
+        NonnullRefPtr<StyleValue const> absolutized_value = value;
+        if (context.has_value())
+            absolutized_value = value.absolutized(*context);
+        text = serialize_style_value_to_utf16(*absolutized_value);
+        return absolutized_value;
+    };
 
-// https://drafts.csswg.org/css-font-loading/#dom-fontface-featuresettings
-WebIDL::ExceptionOr<void> FontFaceState::set_feature_settings(Utf16View string)
-{
-    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
-    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
-    // parsed value.
-
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontFeatureSettings), string);
-    if (!property)
-        return WebIDL::SyntaxError::create("FontFace.featureSettings setter: Invalid descriptor value"_utf16);
-
-    if (m_css_font_face_rule_identity.has_value())
-        TRY(cssom_rule().descriptors()->set_font_feature_settings(string));
-
-    set_feature_settings_impl(property.release_nonnull());
-
-    return {};
-}
-
-void FontFaceState::set_feature_settings_impl(NonnullRefPtr<StyleValue const> const& value)
-{
-    m_feature_settings = serialize_style_value_to_utf16(*value);
-}
-
-// https://drafts.csswg.org/css-font-loading/#dom-fontface-variationsettings
-WebIDL::ExceptionOr<void> FontFaceState::set_variation_settings(Utf16View string)
-{
-    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
-    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
-    // parsed value.
-
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontVariationSettings), string);
-    if (!property)
-        return WebIDL::SyntaxError::create("FontFace.variationSettings setter: Invalid descriptor value"_utf16);
-
-    if (m_css_font_face_rule_identity.has_value())
-        TRY(cssom_rule().descriptors()->set_font_variation_settings(string));
-
-    set_variation_settings_impl(property.release_nonnull());
-
-    return {};
-}
-
-void FontFaceState::set_variation_settings_impl(NonnullRefPtr<StyleValue const> const& value)
-{
-    m_variation_settings = serialize_style_value_to_utf16(*value);
-}
-
-// https://drafts.csswg.org/css-font-loading/#dom-fontface-display
-WebIDL::ExceptionOr<void> FontFaceState::set_display(Utf16View string)
-{
-    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
-    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
-    // parsed value.
-
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontDisplay), string);
-    if (!property)
-        return WebIDL::SyntaxError::create("FontFace.display setter: Invalid descriptor value"_utf16);
-
-    if (m_css_font_face_rule_identity.has_value())
-        TRY(cssom_rule().descriptors()->set_font_display(string));
-
-    set_display_impl(property.release_nonnull());
-
-    return {};
-}
-
-void FontFaceState::set_display_impl(NonnullRefPtr<StyleValue const> const& value)
-{
-    m_display = serialize_style_value_to_utf16(*value);
-    m_font_display = keyword_to_font_display(value->to_keyword()).value_or(FontDisplay::Auto);
-    update_font_display_period();
-}
-
-// https://drafts.csswg.org/css-font-loading/#dom-fontface-ascentoverride
-WebIDL::ExceptionOr<void> FontFaceState::set_ascent_override(Utf16View string)
-{
-    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
-    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
-    // parsed value.
-
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::AscentOverride), string);
-    if (!property)
-        return WebIDL::SyntaxError::create("FontFace.ascentOverride setter: Invalid descriptor value"_utf16);
-
-    if (m_css_font_face_rule_identity.has_value())
-        TRY(cssom_rule().descriptors()->set_ascent_override(string));
-
-    set_ascent_override_impl(property.release_nonnull());
-
-    return {};
-}
-
-void FontFaceState::set_ascent_override_impl(NonnullRefPtr<StyleValue const> const& value)
-{
-    m_ascent_override = serialize_style_value_to_utf16(*value);
-}
-
-// https://drafts.csswg.org/css-font-loading/#dom-fontface-descentoverride
-WebIDL::ExceptionOr<void> FontFaceState::set_descent_override(Utf16View string)
-{
-    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
-    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
-    // parsed value.
-
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::DescentOverride), string);
-    if (!property)
-        return WebIDL::SyntaxError::create("FontFace.descentOverride setter: Invalid descriptor value"_utf16);
-
-    if (m_css_font_face_rule_identity.has_value())
-        TRY(cssom_rule().descriptors()->set_descent_override(string));
-
-    set_descent_override_impl(property.release_nonnull());
-
-    return {};
-}
-
-void FontFaceState::set_descent_override_impl(NonnullRefPtr<StyleValue const> const& value)
-{
-    m_descent_override = serialize_style_value_to_utf16(*value);
-}
-
-// https://drafts.csswg.org/css-font-loading/#dom-fontface-linegapoverride
-WebIDL::ExceptionOr<void> FontFaceState::set_line_gap_override(Utf16View string)
-{
-    // On setting, parse the string according to the grammar for the corresponding @font-face descriptor.
-    // If it does not match the grammar, throw a SyntaxError; otherwise, set the attribute to the serialization of the
-    // parsed value.
-
-    auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::LineGapOverride), string);
-    if (!property)
-        return WebIDL::SyntaxError::create("FontFace.lineGapOverride setter: Invalid descriptor value"_utf16);
-
-    if (m_css_font_face_rule_identity.has_value())
-        TRY(cssom_rule().descriptors()->set_line_gap_override(string));
-
-    set_line_gap_override_impl(property.release_nonnull());
-
-    return {};
-}
-
-void FontFaceState::set_line_gap_override_impl(NonnullRefPtr<StyleValue const> const& value)
-{
-    m_line_gap_override = serialize_style_value_to_utf16(*value);
+    switch (descriptor) {
+    case DescriptorID::FontFamily:
+        m_family = string_from_style_value(value);
+        text = m_family.to_utf16_string();
+        break;
+    case DescriptorID::FontStyle:
+        m_cached_slope = compute_slope(*absolutized());
+        break;
+    case DescriptorID::FontWeight:
+        m_cached_weight_range = compute_weight_range(*absolutized());
+        break;
+    case DescriptorID::FontWidth:
+        m_cached_width = compute_width(*absolutized());
+        break;
+    case DescriptorID::UnicodeRange: {
+        text = serialize_style_value_to_utf16(value);
+        auto const& ranges = value.as_value_list().values();
+        m_unicode_ranges.clear_with_capacity();
+        m_unicode_ranges.ensure_capacity(ranges.size());
+        for (auto const& range : ranges)
+            m_unicode_ranges.unchecked_append(range->as_unicode_range().unicode_range());
+        break;
+    }
+    case DescriptorID::FontDisplay:
+        text = serialize_style_value_to_utf16(value);
+        m_font_display = keyword_to_font_display(value.to_keyword()).value_or(FontDisplay::Auto);
+        update_font_display_period();
+        break;
+    default:
+        text = serialize_style_value_to_utf16(value);
+        break;
+    }
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-load
