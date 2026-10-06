@@ -125,7 +125,7 @@ fn main() {
         heap_region_offset_mask: heap_region_size(&target, thread_sanitizer) - 1,
         // Mirrors GC::PrimitiveStorage::default_cage_size.
         primitive_storage_cage_offset_mask: 4 * TIB - 1,
-        // Mirrors the C++ generator: instrumented frames need more room before the stack is considered exhausted.
+        // Instrumented frames need more room before the stack is considered exhausted.
         vm_stack_space_limit: if address_sanitizer { 96 * KIB } else { 32 * KIB },
     };
     println!(
@@ -251,8 +251,7 @@ fn assemble_interpreter(target: &Target, assembly_path: &Path) {
         build.flag(format!("-mmacosx-version-min={deployment_target}"));
     }
     if env::var("CARGO_CFG_TARGET_ENV").is_ok_and(|environment| environment == "msvc") {
-        // flapc writes GNU assembly, which MSVC's cl.exe cannot assemble. Ladybird builds for Windows with clang-cl,
-        // which also assembles the C++ LibJS's interpreter.
+        // flapc writes GNU assembly, which MSVC's cl.exe cannot assemble. Ladybird builds for Windows with clang-cl.
         if !build
             .try_get_compiler()
             .is_ok_and(|compiler| compiler.is_like_clang_cl())

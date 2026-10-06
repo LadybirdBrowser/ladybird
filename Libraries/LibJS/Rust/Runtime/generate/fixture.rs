@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Compares the generated layout with Libraries/LibJS/Flap/tests/interpreter-layout.conf, which records what the C++
-//! runtime's generator emits. Offsets and sizes may differ between the runtimes. The set of fields, how the
-//! interpreter accesses each of them, and the values that encode shared meaning may not.
+//! Compares the generated layout with Libraries/LibJS/Flap/tests/interpreter-layout.conf, the recorded layout that
+//! flapc's tests and the CI lint compile the interpreter against. Offsets and sizes may drift from the recording. The
+//! set of fields, how the interpreter accesses each of them, and the values that encode shared meaning may not.
 
 use std::collections::BTreeMap;
 
@@ -45,8 +45,8 @@ fn normalize_integer(value: &str) -> String {
     value.to_string()
 }
 
-/// Constants whose values are shared meaning rather than layout: value encodings, enum values and flags the
-/// interpreter and both runtimes agree on.
+/// Constants whose values are shared meaning rather than layout: value encodings, enum values and flags that the
+/// interpreter relies on.
 const SHARED_CONSTANTS: &[&str] = &[
     "OBJECT_TAG",
     "STRING_TAG",
@@ -118,7 +118,7 @@ pub fn check_against_fixture(generated: &ParsedLayout, fixture: &ParsedLayout) -
             None => problems.push(format!("missing field {name}")),
             Some(generated_access) if generated_access != access => {
                 problems.push(format!(
-                    "field {name} is `{generated_access}`, the C++ runtime has `{access}`"
+                    "field {name} is `{generated_access}`, the recorded layout has `{access}`"
                 ));
             }
             Some(_) => {}
@@ -126,7 +126,7 @@ pub fn check_against_fixture(generated: &ParsedLayout, fixture: &ParsedLayout) -
     }
     for name in generated.fields.keys() {
         if !fixture.fields.contains_key(name) {
-            problems.push(format!("field {name} is unknown to the C++ runtime"));
+            problems.push(format!("field {name} is not in the recorded layout"));
         }
     }
 
@@ -144,7 +144,7 @@ pub fn check_against_fixture(generated: &ParsedLayout, fixture: &ParsedLayout) -
         };
         if generated_value != fixture_value {
             problems.push(format!(
-                "constant {name} is {generated_value}, the C++ runtime has {fixture_value}"
+                "constant {name} is {generated_value}, the recorded layout has {fixture_value}"
             ));
         }
     }
