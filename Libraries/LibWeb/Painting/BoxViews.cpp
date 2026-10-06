@@ -234,7 +234,7 @@ bool is_paintable_with_lines(Layout::Node const& node)
     }
 }
 
-bool is_inline_paintable(Layout::Node const& node)
+static bool is_inline_paintable(Layout::Node const& node)
 {
     return has_committed_box(node) && node.is_fragmented_inline();
 }
@@ -608,7 +608,7 @@ CSSPixelRect transform_rect_to_viewport(Layout::Node const& node, CSSPixelRect c
     return (result * (1.f / pixel_ratio)).to_type<CSSPixels>();
 }
 
-Optional<CSSPixelPoint> transform_point_to_local(Layout::Node const& node, CSSPixelPoint position)
+static Optional<CSSPixelPoint> transform_point_to_local(Layout::Node const& node, CSSPixelPoint position)
 {
     auto row = committed_row(node);
     if (!row.has_value())

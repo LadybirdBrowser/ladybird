@@ -42,7 +42,9 @@ static Compositing::SnapAxes snap_axes_of_scroll_container(Layout::Node const& s
     return { .x = axes.x, .y = axes.y };
 }
 
-Optional<Compositing::SnapContainerGeometry> snap_container_geometry(Layout::Node const& snap_container)
+// The geometry snap position selection runs over, collected from the layout of a snap container and of the snap areas
+// it captures.
+static Optional<Compositing::SnapContainerGeometry> snap_container_geometry(Layout::Node const& snap_container)
 {
     if (!has_committed_box(snap_container))
         return {};
@@ -61,7 +63,7 @@ Optional<Compositing::SnapContainerGeometry> snap_container_geometry(Layout::Nod
     };
 }
 
-Vector<Compositing::SnapAreaGeometry> collect_snap_areas(Layout::Node const& snap_container)
+static Vector<Compositing::SnapAreaGeometry> collect_snap_areas(Layout::Node const& snap_container)
 {
     Vector<Compositing::SnapAreaGeometry> areas;
     if (!has_committed_box(snap_container))

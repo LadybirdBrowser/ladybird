@@ -479,7 +479,6 @@ public:
     // Which narrower rebuild a layout tree update mark made for `reason` permits.
     static u8 layout_tree_update_reuse_reason(SetNeedsLayoutTreeUpdateReason);
 
-    [[nodiscard]] bool needs_pseudo_element_layout_tree_update() const { return layout_tree_update_reuse_reasons() & PseudoElementChange; }
     [[nodiscard]] bool may_reuse_layout_node_for_child_list_insertion() const { return layout_tree_update_reuse_reasons() & ChildListInsertion; }
 
     [[nodiscard]] bool child_needs_layout_tree_update() const;
