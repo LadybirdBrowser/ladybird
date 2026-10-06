@@ -382,23 +382,17 @@ private:
     QPushButton* m_cancel_button { nullptr };
 };
 
-class DownloadsPopover final : public QFrame {
+class DownloadsPopover final : public Popover {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
     explicit DownloadsPopover(QWidget* parent)
-        : QFrame(parent, Qt::Popup | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint)
+        : Popover(parent)
     {
-        setObjectName("LadybirdDownloadsPopover");
-#if defined(AK_OS_MACOS)
-        setAttribute(Qt::WA_NativeWindow);
-#endif
-        setFrameShape(QFrame::StyledPanel);
-        setFrameShadow(QFrame::Raised);
-        setAutoFillBackground(true);
-        setFixedWidth(DOWNLOADS_POPOVER_WIDTH);
+        card().setObjectName("LadybirdDownloadsPopover");
+        card().setFixedWidth(DOWNLOADS_POPOVER_WIDTH);
 
-        auto* layout = new QVBoxLayout(this);
+        auto* layout = new QVBoxLayout(&card());
         layout->setContentsMargins(12, 10, 12, 12);
         layout->setSpacing(8);
 
@@ -1508,11 +1502,13 @@ void Tab::position_downloads_popover()
         return;
 
     m_downloads_popover->adjustSize();
-    auto size = m_downloads_popover->sizeHint();
+    auto& card = m_downloads_popover->card();
+    auto size = card.sizeHint();
     size.setWidth(DOWNLOADS_POPOVER_WIDTH);
     if (size.height() > DOWNLOADS_POPOVER_MAX_HEIGHT)
         size.setHeight(DOWNLOADS_POPOVER_MAX_HEIGHT);
-    m_downloads_popover->setFixedSize(size);
+    card.setFixedSize(size);
+    m_downloads_popover->adjustSize();
 
     move_popover_below(*m_downloads_popover, *m_downloads_button);
 }
