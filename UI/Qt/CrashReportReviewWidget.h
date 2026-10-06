@@ -25,7 +25,6 @@ class QLineEdit;
 class QPlainTextEdit;
 class QProgressBar;
 class QPushButton;
-class QStackedWidget;
 
 namespace Ladybird {
 
@@ -61,6 +60,7 @@ protected:
 private:
     void send();
     void update_chrome_style();
+    void show_page(QWidget&);
     // Shows the given actions of the status page, with the primary one as the default and focused action.
     void show_status(QString const& title, QString const& message, Vector<QPushButton*> const& actions = {},
         QPushButton* primary = nullptr);
@@ -71,7 +71,6 @@ private:
     String m_description;
     Optional<String> m_url;
 
-    QStackedWidget* m_pages { nullptr };
     QWidget* m_review_page { nullptr };
     QWidget* m_status_page { nullptr };
 

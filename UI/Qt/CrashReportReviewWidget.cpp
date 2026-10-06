@@ -21,7 +21,6 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QScrollArea>
-#include <QStackedWidget>
 #include <QStyle>
 #include <QVBoxLayout>
 
@@ -117,12 +116,11 @@ CrashReportReviewWidget::CrashReportReviewWidget(QString exit_text, QWidget* par
 {
     setObjectName("LadybirdCrashReportReview");
 
-    m_pages = new QStackedWidget(this);
+    // Only the page on screen is laid out, so the widget is only as tall as the page it shows.
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
-    layout->addWidget(m_pages);
 
-    m_review_page = new QWidget(m_pages);
+    m_review_page = new QWidget(this);
     auto* review_layout = new QVBoxLayout(m_review_page);
     review_layout->setContentsMargins(0, 0, 0, 0);
     review_layout->setSpacing(CrashReportReviewWidget::group_spacing);
@@ -210,9 +208,9 @@ CrashReportReviewWidget::CrashReportReviewWidget(QString exit_text, QWidget* par
     setFocusProxy(review_exit_button);
     review_layout->addLayout(review_buttons);
     review_layout->addStretch();
-    m_pages->addWidget(m_review_page);
+    layout->addWidget(m_review_page);
 
-    m_status_page = new QWidget(m_pages);
+    m_status_page = new QWidget(this);
     auto* status_layout = new QVBoxLayout(m_status_page);
     status_layout->setContentsMargins(0, 0, 0, 0);
     status_layout->setSpacing(CrashReportReviewWidget::group_spacing);
@@ -248,7 +246,8 @@ CrashReportReviewWidget::CrashReportReviewWidget(QString exit_text, QWidget* par
     status_buttons->addStretch();
     status_layout->addLayout(status_buttons);
     status_layout->addStretch();
-    m_pages->addWidget(m_status_page);
+    m_status_page->hide();
+    layout->addWidget(m_status_page);
 
     QObject::connect(send_button, &QPushButton::clicked, this, [this] { send(); });
     QObject::connect(decline_button, &QPushButton::clicked, this, [this] {
@@ -356,7 +355,7 @@ ErrorOr<void> CrashReportReviewWidget::open_report(Optional<ByteString> const& n
 
     m_description_edit->clear();
     m_validation->hide();
-    m_pages->setCurrentWidget(m_review_page);
+    show_page(*m_review_page);
     return {};
 }
 
@@ -386,6 +385,12 @@ void CrashReportReviewWidget::send()
     VERIFY(!m_review.send(m_description, m_url).has_value());
 }
 
+void CrashReportReviewWidget::show_page(QWidget& page)
+{
+    m_review_page->setVisible(&page == m_review_page);
+    m_status_page->setVisible(&page == m_status_page);
+}
+
 void CrashReportReviewWidget::show_status(QString const& title, QString const& message,
     Vector<QPushButton*> const& actions, QPushButton* primary)
 {
@@ -395,7 +400,7 @@ void CrashReportReviewWidget::show_status(QString const& title, QString const& m
         button->setVisible(actions.contains_slow(button));
         button->setDefault(button == primary);
     }
-    m_pages->setCurrentWidget(m_status_page);
+    show_page(*m_status_page);
     if (primary)
         primary->setFocus(Qt::OtherFocusReason);
 }
