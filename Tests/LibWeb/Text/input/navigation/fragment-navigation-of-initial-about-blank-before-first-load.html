@@ -1,0 +1,50 @@
+<!doctype html>
+<body></body>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const createPage = (path, body) =>
+            server.createEcho("GET", path, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body,
+                delay_ms: 200,
+            });
+
+        // An iframe's initial about:blank, while its first navigation loads.
+        const iframe = document.createElement("iframe");
+        iframe.src = await createPage("/iframe-page", "<!DOCTYPE html>loaded");
+        document.body.append(iframe);
+        const iframeEvents = [];
+        const hashchange = new Promise(resolve => {
+            iframe.contentWindow.addEventListener("popstate", () => iframeEvents.push("popstate"));
+            iframe.contentWindow.addEventListener("hashchange", () => {
+                iframeEvents.push("hashchange");
+                resolve();
+            });
+        });
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.contentWindow.location.hash = "frag";
+        await hashchange;
+        println("iframe events: " + iframeEvents.join(", "));
+        await loaded;
+        println("iframe loaded its first navigation");
+
+        // A popup's initial about:blank, while its first navigation loads.
+        const popupUrl = await createPage(
+            "/popup-page",
+            `<!DOCTYPE html><script>opener.postMessage("popup loaded", "*");<\/script>`
+        );
+        const popupLoaded = new Promise(resolve => {
+            window.addEventListener("message", event => {
+                if (event.data === "popup loaded") resolve();
+            });
+        });
+        const popup = window.open(popupUrl);
+        popup.location.hash = "frag";
+        await popupLoaded;
+        println("popup loaded its first navigation");
+        popup.close();
+    });
+</script>

@@ -4072,6 +4072,21 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
     // 14. Set navigable's active session history entry to historyEntry.
     m_active_session_history_entry = history_entry;
 
+    // AD-HOC: The spec sets a document's latest entry only in "update document for history step application" and in the
+    //         URL and history update steps, and an initial about:blank gets one only once something runs the latter on
+    //         it — as the window open steps and the shared attribute processing steps for iframe and frame elements do
+    //         when they're given about:blank. Thus, the initial about:blank of a fresh top-level traversable, or of a
+    //         popup or iframe whose first navigation is still loading, reaches this step with no latest entry. The
+    //         update below would then take it for a new document ("Let documentIsNew be true if document's latest entry
+    //         is null"), and fail "Assert: entriesForNavigationAPI is given".
+    //         https://github.com/whatwg/html/issues/13041
+    //         So instead, we set its latest entry to the entry it's displayed by — as the URL and history update steps
+    //         would have. The update then runs as a same-document navigation — which fires popstate and hashchange.
+    if (!active_document()->latest_entry()) {
+        VERIFY(active_document()->is_initial_about_blank());
+        active_document()->set_latest_entry(active_entry);
+    }
+
     // 15. Update document for history step application given navigable's active document, historyEntry, true,
     //     scriptHistoryIndex, scriptHistoryLength, and historyHandling.
     active_document()->update_for_history_step_application(*history_entry, true, script_history_length, script_history_index, navigation_type);
