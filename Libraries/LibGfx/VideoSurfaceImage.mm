@@ -14,6 +14,7 @@
 #include <LibGfx/YUVData.h>
 
 #include <core/SkColorSpace.h>
+#include <core/SkImage.h>
 #include <core/SkYUVAInfo.h>
 #include <gpu/ganesh/GrBackendSurface.h>
 #include <gpu/ganesh/GrDirectContext.h>
