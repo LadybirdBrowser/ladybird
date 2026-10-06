@@ -55,8 +55,8 @@ struct CompositorFrame {
 };
 
 class CompositorConnection;
-class NavigablePresenter;
 struct FrameSinkFFI;
+struct PresenterFFI;
 
 // Hands finished frames to the compositor. Unlike the rest of a compositor connection, which belongs to the thread that
 // made it, a frame sink takes frames from any thread. The messages of one frame reach the compositor together, and
@@ -68,7 +68,7 @@ public:
 private:
     // The Paint thread presents through these.
     friend struct FrameSinkFFI;
-    friend class NavigablePresenter;
+    friend struct PresenterFFI;
     // Only for a test of the transport.
     friend class CompositorConnection;
 

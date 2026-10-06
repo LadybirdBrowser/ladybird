@@ -33,10 +33,12 @@ namespace Web::Compositor {
 
 class CompositorFrameSink;
 class CompositorHost;
+class NavigablePresenter;
 struct CompositorFrame;
+struct SealedFrame;
 
-// A frame's turn to be presented. Only the event loop's presentation queue hands one out, to a frame no recording of
-// its navigable's containers flies ahead of, so that a frame presented before the one it goes with does not compile.
+// A frame's turn to be presented. Only the event loop's presentation queue hands one out, so that the main thread hands
+// the Paint thread its frames through the queue alone.
 class PresentationTurn {
     friend class HTML::PresentationQueue;
     PresentationTurn() = default;
@@ -89,6 +91,9 @@ private:
 
     // Brings the context up to date with one frame, whose messages reach the compositor in order.
     void submit_frame(PresentationTurn, CompositorFrame&&);
+    // Has the Paint thread build the frame the navigable sealed with its presenter, and present it after the frames
+    // handed to it before, and waits for that.
+    void present_sealed_frame(PresentationTurn, NavigablePresenter&, SealedFrame&&);
     // Sends the canvas commands a frame may sample ahead of it, and answers whether the compositor can be reached.
     bool ready_for_frame();
 

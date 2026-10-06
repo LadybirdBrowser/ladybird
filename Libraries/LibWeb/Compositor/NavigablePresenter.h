@@ -78,6 +78,13 @@ struct SealedPresentation {
     bool visual_context_tree_changed { false };
 };
 
+// A frame a navigable sealed on the main thread, with the display list its recording published, if any, which the Paint
+// thread builds and presents.
+struct SealedFrame {
+    SealedPresentation sealed;
+    Optional<PublishedDisplayList> published;
+};
+
 // What a navigable presents to its compositor context from: the resource storage its recordings add to, and the
 // display list the compositor context holds with the resources it holds for it. The presenter holds no GC pointer.
 class WEB_API NavigablePresenter {
@@ -104,20 +111,17 @@ public:
     Optional<u64> last_keyboard_scroll_state_generation() const { return m_last_keyboard_scroll_state_generation; }
 
 private:
-    // Only what presents frames builds them.
+    // Only the Paint thread builds and presents frames.
     friend struct PresenterFFI;
-    // FIXME: Only the Paint thread should present frames. The navigable still builds its frames on the main thread.
-    friend class HTML::LocalNavigable;
 
-    // Builds the frame that brings the compositor context up to date with `published`, the display list a recording just
-    // published, or with what changed for the one the compositor has where none was published, from what `sealed`
-    // sealed. Reads no navigable or document.
+    // Builds the frame that brings the compositor context `sealed` names up to date with `published`, the display list a
+    // recording just published, or with what changed for the one the compositor has where none was published, from what
+    // `sealed` sealed. Reads no navigable or document.
     CompositorFrame build_frame(SealedPresentation const&, Optional<PublishedDisplayList>);
 
-    // Presents the frame `sealed` sealed, with `display_list`, the display list its recording published, beside the event
-    // loop: through `sink`, if the compositor can be reached, keeping what it published in the seal, which the next frame
-    // from the seal copies paint commands from.
-    void present_beside_event_loop(SealedPresentation&, NonnullRefPtr<Compositing::DisplayList>, CompositorFrameSink*);
+    // Builds the frame `sealed` sealed, with `display_list`, the display list its recording published, beside the event
+    // loop, keeping what it published in the seal, which the next frame from the seal copies paint commands from.
+    CompositorFrame build_frame_beside_event_loop(SealedPresentation&, NonnullRefPtr<Compositing::DisplayList>);
 
     Compositing::DisplayListResourceStorage m_resource_storage;
     Optional<HTML::PaintConfig> m_compositor_display_list_paint_config;

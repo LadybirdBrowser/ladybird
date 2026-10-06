@@ -307,7 +307,7 @@ public:
     // Records what brings the compositor context up to date: a new display list, or what changed for the one it has.
     // A recording that `blocker` does not block flies beside the event loop instead, which finishes its frame once it
     // takes the recording in.
-    Optional<Compositor::CompositorFrame> record_compositor_frame(PaintConfig, Layout::RustFFI::FfiFlightBlocker = Layout::RustFFI::FfiFlightBlocker::NotInRenderingUpdate);
+    Optional<Compositor::SealedFrame> record_compositor_frame(PaintConfig, Layout::RustFFI::FfiFlightBlocker = Layout::RustFFI::FfiFlightBlocker::NotInRenderingUpdate);
     void paint_next_frame(Layout::RustFFI::FfiFlightBlocker = Layout::RustFFI::FfiFlightBlocker::NotInRenderingUpdate);
     enum class LayOutFirst : bool {
         No,
@@ -452,9 +452,9 @@ private:
     PaintConfig stamp_paint_config(PaintConfig) const;
     Compositor::SealedPresentation seal_presentation(DOM::Document&, PaintConfig const&, bool records_display_list);
     void unseal_presentation(DOM::Document&, Compositor::SealedPresentation const&);
-    Optional<Compositor::CompositorFrame> finish_recording(Layout::BegunRead const&, DOM::Document&, Compositor::SealedPresentation const&, Painting::DisplayListRecording const&, Painting::HitTestListStands = Painting::HitTestListStands::Yes);
-    Optional<Compositor::CompositorFrame> finish_recording_in_flight(RecordingInFlight&, Layout::RustFFI::FfiRecordingLanding, Layout::RustFFI::FfiPresentation);
-    void submit_painted_frame(Compositor::CompositorFrame);
+    Optional<Compositor::SealedFrame> finish_recording(Layout::BegunRead const&, DOM::Document&, Compositor::SealedPresentation, Painting::DisplayListRecording const&, Painting::HitTestListStands = Painting::HitTestListStands::Yes);
+    Optional<Compositor::SealedFrame> finish_recording_in_flight(RecordingInFlight&, Layout::RustFFI::FfiRecordingLanding, Layout::RustFFI::FfiPresentation);
+    void submit_painted_frame(Compositor::SealedFrame);
     Gfx::IntRect present_viewport_rect() const;
 
     enum class PendingNavigationBehavior {

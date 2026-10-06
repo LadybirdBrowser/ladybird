@@ -14,8 +14,12 @@
 #include <LibWeb/Compositor/CompositorConnection.h>
 #include <LibWeb/Compositor/CompositorFrame.h>
 #include <LibWeb/Compositor/CompositorHost.h>
+#include <LibWeb/Compositor/NavigablePresenter.h>
 #include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
 #include <LibWeb/WebGL/RemoteWebGLTransport.h>
+
+// The Paint stage builds and presents frames, and only the compositor context hands it the frames the main thread seals.
+extern "C" void paint_stage_present_sealed_frame(void* presenter, void* sealed_frame);
 
 namespace Web::Compositor {
 
@@ -48,6 +52,17 @@ void CompositorContextHandle::submit_frame(PresentationTurn turn, CompositorFram
     if (frame.display_list_update.has_value() || frame.present_viewport_rect.has_value())
         m_host.flush_canvas_2d_stream();
     m_host.submit_frame(turn, move(frame));
+}
+
+void CompositorContextHandle::present_sealed_frame(PresentationTurn, NavigablePresenter& presenter, SealedFrame&& frame)
+{
+    if (!m_host.compositor_connection())
+        return;
+    frame.sealed.context_id = m_context_id;
+    // Pending canvas commands (and present markers) must reach the Compositor before a frame that samples the presented
+    // canvas surfaces.
+    m_host.flush_canvas_2d_stream();
+    paint_stage_present_sealed_frame(&presenter, &frame);
 }
 
 bool CompositorContextHandle::ready_for_frame()
