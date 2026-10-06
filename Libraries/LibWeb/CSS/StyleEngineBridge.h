@@ -253,8 +253,6 @@ public:
     // a language subtag and a `:dir()` keyword. Matched ASCII case-insensitively.
     StyleAtomID intern_text_atom(Utf16View);
     StyleAtomID intern_language_atom(Utf16View);
-    // The same, without the ASCII folding, for names compared literally such as namespace URIs.
-    StyleAtomID intern_case_sensitive_text_atom(Utf16View);
 
     // The namespace an element of an HTML document is an HTML element in, or none in any other document. It changes
     // only with the document's kind, so only a change goes to the engine.
