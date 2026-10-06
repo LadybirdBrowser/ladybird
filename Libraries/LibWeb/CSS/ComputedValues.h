@@ -26,7 +26,6 @@
 #include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Filter.h>
-#include <LibWeb/CSS/FontFeatureData.h>
 #include <LibWeb/CSS/LengthBox.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/PropertyID.h>

@@ -137,10 +137,9 @@ void CanvasTextDrawingStyles<CanvasType>::set_font(Utf16View font)
             property_initial_value(CSS::PropertyID::FontVariationSettings), // font-variation-settings
         });
 
-    CSS::FontFeatureData font_feature_data;
-
-    if (keyword_to_font_variant_caps(computed_font_variant->as_shorthand().longhand(CSS::PropertyID::FontVariantCaps)->to_keyword()) == CSS::FontVariantCaps::SmallCaps)
-        font_feature_data.font_variant_caps = CSS::FontVariantCaps::SmallCaps;
+    CSS::FontResolutionFeatureValues feature_values;
+    if (auto caps = computed_font_variant->as_shorthand().longhand(CSS::PropertyID::FontVariantCaps); caps->to_keyword() == CSS::Keyword::SmallCaps)
+        feature_values[to_underlying(CSS::FontResolutionFeatureInput::FontVariantCaps)] = caps;
 
     // https://drafts.csswg.org/css-font-loading/#font-source
     auto& font_computer = canvas_element.canvas_font_computer();
@@ -154,8 +153,7 @@ void CanvasTextDrawingStyles<CanvasType>::set_font(Utf16View font)
             .font_slope = computed_font_style->as_font_style().to_font_slope(),
             .font_weight = computed_font_weight->as_number().number(),
             .font_width = computed_font_width->as_percentage().percentage(),
-            .font_variation_settings = {},
-            .font_feature_data = font_feature_data,
+            .feature_values = move(feature_values),
             .font_feature_values_scope = {},
         });
 }

@@ -509,228 +509,34 @@ CSSPixels ComputedStyleWorkingSet::line_height(FontComputer const& font_computer
     VERIFY_NOT_REACHED();
 }
 
-TextRendering ComputedStyleWorkingSet::text_rendering() const
-{
-    auto const& value = property(PropertyID::TextRendering);
-    return keyword_to_text_rendering(value.to_keyword()).release_value();
-}
-
-FontKerning ComputedStyleWorkingSet::font_kerning() const
-{
-    auto const& value = property(PropertyID::FontKerning);
-    return keyword_to_font_kerning(value.to_keyword()).release_value();
-}
-
-FontFeatureData ComputedStyleWorkingSet::font_feature_data() const
-{
-    return {
-        .font_variant_alternates = font_variant_alternates(),
-        .font_variant_caps = font_variant_caps(),
-        .font_variant_east_asian = font_variant_east_asian(),
-        .font_variant_emoji = font_variant_emoji(),
-        .font_variant_ligatures = font_variant_ligatures(),
-        .font_variant_numeric = font_variant_numeric(),
-        .font_variant_position = font_variant_position(),
-        .font_feature_settings = font_feature_settings(),
-        .font_kerning = font_kerning(),
-        .text_rendering = text_rendering(),
-    };
-}
-
-Optional<FontVariantAlternates> ComputedStyleWorkingSet::font_variant_alternates() const
-{
-    return font_variant_alternates_from_style_value(property(PropertyID::FontVariantAlternates));
-}
-
-Optional<FontVariantAlternates> font_variant_alternates_from_style_value(StyleValue const& value)
-{
-    // normal
-    if (value.is_keyword()) {
-        VERIFY(value.to_keyword() == Keyword::Normal);
-        return {};
-    }
-
-    FontVariantAlternates alternates;
-
-    for (auto const& value : value.as_value_list().values()) {
-        // historical-forms
-        if (value->is_keyword() && value->to_keyword() == Keyword::HistoricalForms) {
-            alternates.historical_forms = true;
-            continue;
-        }
-
-        if (value->is_function()) {
-            auto function_type = font_feature_value_type_from_string(value->as_function().name()).release_value();
-            auto const& names = value->as_function().value()->as_value_list().values();
-
-            for (auto const& name : names)
-                alternates.font_feature_value_entries.append({ function_type, string_from_style_value(name) });
-
-            continue;
-        }
-
-        VERIFY_NOT_REACHED();
-    }
-
-    return alternates;
-}
-
-FontVariantCaps ComputedStyleWorkingSet::font_variant_caps() const
-{
-    auto const& value = property(PropertyID::FontVariantCaps);
-    return keyword_to_font_variant_caps(value.to_keyword()).release_value();
-}
-
-Optional<FontVariantEastAsian> ComputedStyleWorkingSet::font_variant_east_asian() const
-{
-    return font_variant_east_asian_from_style_value(property(PropertyID::FontVariantEastAsian));
-}
-
-Optional<FontVariantEastAsian> font_variant_east_asian_from_style_value(StyleValue const& value)
-{
-    if (value.to_keyword() == Keyword::Normal)
-        return {};
-
-    auto const& tuple = value.as_tuple().tuple();
-
-    FontVariantEastAsian east_asian {};
-
-    if (tuple[TupleStyleValue::Indices::FontVariantEastAsian::Variant])
-        east_asian.variant = keyword_to_east_asian_variant(tuple[TupleStyleValue::Indices::FontVariantEastAsian::Variant]->to_keyword()).value();
-
-    if (tuple[TupleStyleValue::Indices::FontVariantEastAsian::Width])
-        east_asian.width = keyword_to_east_asian_width(tuple[TupleStyleValue::Indices::FontVariantEastAsian::Width]->to_keyword()).value();
-
-    if (tuple[TupleStyleValue::Indices::FontVariantEastAsian::Ruby])
-        east_asian.ruby = true;
-
-    return east_asian;
-}
-
 FontVariantEmoji ComputedStyleWorkingSet::font_variant_emoji() const
 {
     auto const& value = property(PropertyID::FontVariantEmoji);
     return keyword_to_font_variant_emoji(value.to_keyword()).release_value();
 }
 
-Optional<FontVariantLigatures> ComputedStyleWorkingSet::font_variant_ligatures() const
+// What a font resolution reads beside the family, as a style engine request names it: the values whose property does
+// not have its initial value.
+FontResolutionFeatureValues ComputedStyleWorkingSet::font_resolution_feature_values() const
 {
-    return font_variant_ligatures_from_style_value(property(PropertyID::FontVariantLigatures));
-}
-
-Optional<FontVariantLigatures> font_variant_ligatures_from_style_value(StyleValue const& value)
-{
-    if (value.to_keyword() == Keyword::Normal)
-        return {};
-
-    if (value.to_keyword() == Keyword::None)
-        return FontVariantLigatures { .none = true };
-
-    auto const& tuple = value.as_tuple().tuple();
-
-    FontVariantLigatures ligatures {};
-
-    if (tuple[TupleStyleValue::Indices::FontVariantLigatures::Common])
-        ligatures.common = keyword_to_common_lig_value(tuple[TupleStyleValue::Indices::FontVariantLigatures::Common]->to_keyword()).value();
-
-    if (tuple[TupleStyleValue::Indices::FontVariantLigatures::Discretionary])
-        ligatures.discretionary = keyword_to_discretionary_lig_value(tuple[TupleStyleValue::Indices::FontVariantLigatures::Discretionary]->to_keyword()).value();
-
-    if (tuple[TupleStyleValue::Indices::FontVariantLigatures::Historical])
-        ligatures.historical = keyword_to_historical_lig_value(tuple[TupleStyleValue::Indices::FontVariantLigatures::Historical]->to_keyword()).value();
-
-    if (tuple[TupleStyleValue::Indices::FontVariantLigatures::Contextual])
-        ligatures.contextual = keyword_to_contextual_alt_value(tuple[TupleStyleValue::Indices::FontVariantLigatures::Contextual]->to_keyword()).value();
-
-    return ligatures;
-}
-
-Optional<FontVariantNumeric> ComputedStyleWorkingSet::font_variant_numeric() const
-{
-    return font_variant_numeric_from_style_value(property(PropertyID::FontVariantNumeric));
-}
-
-Optional<FontVariantNumeric> font_variant_numeric_from_style_value(StyleValue const& value)
-{
-    if (value.to_keyword() == Keyword::Normal)
-        return {};
-
-    auto const& tuple = value.as_tuple().tuple();
-
-    FontVariantNumeric numeric {};
-
-    if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Figure])
-        numeric.figure = keyword_to_numeric_figure_value(tuple[TupleStyleValue::Indices::FontVariantNumeric::Figure]->to_keyword()).value();
-
-    if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Spacing])
-        numeric.spacing = keyword_to_numeric_spacing_value(tuple[TupleStyleValue::Indices::FontVariantNumeric::Spacing]->to_keyword()).value();
-
-    if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Fraction])
-        numeric.fraction = keyword_to_numeric_fraction_value(tuple[TupleStyleValue::Indices::FontVariantNumeric::Fraction]->to_keyword()).value();
-
-    if (tuple[TupleStyleValue::Indices::FontVariantNumeric::Ordinal])
-        numeric.ordinal = true;
-
-    if (tuple[TupleStyleValue::Indices::FontVariantNumeric::SlashedZero])
-        numeric.slashed_zero = true;
-
-    return numeric;
-}
-
-FontVariantPosition ComputedStyleWorkingSet::font_variant_position() const
-{
-    auto const& value = property(PropertyID::FontVariantPosition);
-    return keyword_to_font_variant_position(value.to_keyword()).release_value();
-}
-
-HashMap<Utf16FlyString, u8> ComputedStyleWorkingSet::font_feature_settings() const
-{
-    return font_feature_settings_from_style_value(property(PropertyID::FontFeatureSettings));
-}
-
-HashMap<Utf16FlyString, u8> font_feature_settings_from_style_value(StyleValue const& value)
-{
-    if (value.is_keyword())
-        return {}; // normal
-
-    if (value.is_value_list()) {
-        auto const& feature_tags = value.as_value_list().values();
-        HashMap<Utf16FlyString, u8> result;
-        result.ensure_capacity(feature_tags.size());
-        for (auto const& tag_value : feature_tags) {
-            auto const& feature_tag = tag_value->as_open_type_tagged();
-
-            result.set(feature_tag.tag(), int_from_style_value(feature_tag.value()));
-        }
-        return result;
-    }
-
-    return {};
-}
-
-HashMap<Utf16FlyString, double> ComputedStyleWorkingSet::font_variation_settings() const
-{
-    return font_variation_settings_from_style_value(property(PropertyID::FontVariationSettings));
-}
-
-HashMap<Utf16FlyString, double> font_variation_settings_from_style_value(StyleValue const& value)
-{
-    if (value.is_keyword())
-        return {}; // normal
-
-    if (value.is_value_list()) {
-        auto const& axis_tags = value.as_value_list().values();
-        HashMap<Utf16FlyString, double> result;
-        result.ensure_capacity(axis_tags.size());
-        for (auto const& tag_value : axis_tags) {
-            auto const& axis_tag = tag_value->as_open_type_tagged();
-
-            result.set(axis_tag.tag(), number_from_style_value(axis_tag.value(), {}));
-        }
-        return result;
-    }
-
-    return {};
+    FontResolutionFeatureValues values;
+    auto set = [&](FontResolutionFeatureInput input, PropertyID property_id, Keyword initial) {
+        auto const& value = property(property_id);
+        if (!value.is_keyword() || value.to_keyword() != initial)
+            values[to_underlying(input)] = &value;
+    };
+    set(FontResolutionFeatureInput::FontFeatureSettings, PropertyID::FontFeatureSettings, Keyword::Normal);
+    set(FontResolutionFeatureInput::FontVariationSettings, PropertyID::FontVariationSettings, Keyword::Normal);
+    set(FontResolutionFeatureInput::FontVariantCaps, PropertyID::FontVariantCaps, Keyword::Normal);
+    set(FontResolutionFeatureInput::FontVariantEastAsian, PropertyID::FontVariantEastAsian, Keyword::Normal);
+    set(FontResolutionFeatureInput::FontVariantEmoji, PropertyID::FontVariantEmoji, Keyword::Normal);
+    set(FontResolutionFeatureInput::FontVariantLigatures, PropertyID::FontVariantLigatures, Keyword::Normal);
+    set(FontResolutionFeatureInput::FontVariantNumeric, PropertyID::FontVariantNumeric, Keyword::Normal);
+    set(FontResolutionFeatureInput::FontVariantPosition, PropertyID::FontVariantPosition, Keyword::Normal);
+    set(FontResolutionFeatureInput::FontVariantAlternates, PropertyID::FontVariantAlternates, Keyword::Normal);
+    set(FontResolutionFeatureInput::FontKerning, PropertyID::FontKerning, Keyword::Auto);
+    set(FontResolutionFeatureInput::TextRendering, PropertyID::TextRendering, Keyword::Auto);
+    return values;
 }
 
 ComputedValuesFFI::FfiFontGroupBuildInputs ComputedStyleWorkingSet::font_group_build_inputs(DOM::Document const& document, TreeScopeID tree_scope) const
@@ -771,8 +577,7 @@ ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> ComputedStyleWorkingSet:
                 .font_slope = font_slope(),
                 .font_weight = font_weight(),
                 .font_width = font_width(),
-                .font_variation_settings = font_variation_settings(),
-                .font_feature_data = font_feature_data(),
+                .feature_values = font_resolution_feature_values(),
                 .font_feature_values_scope = tree_scope,
             });
         m_cached_computed_font_list_scope = tree_scope;

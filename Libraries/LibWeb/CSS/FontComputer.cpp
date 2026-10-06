@@ -290,22 +290,16 @@ static void append_font_feature_values(StyleScope const& style_scope, Utf16FlySt
             if (!matches_family)
                 return;
 
-            auto append = [&](FontFeatureValuesRuleKind kind, FontFeatureValueType type) {
-                values.for_each_entry(kind, [&](auto key, auto values) {
-                    Vector<u32> copy;
-                    copy.append(values.data(), values.size());
-                    font_feature_values.set({ type, Utf16FlyString::from_utf16(key) }, move(copy));
-                });
-            };
-            append(FontFeatureValuesRuleKind::Annotation, FontFeatureValueType::Annotation);
-            append(FontFeatureValuesRuleKind::Ornaments, FontFeatureValueType::Ornaments);
-            append(FontFeatureValuesRuleKind::Stylistic, FontFeatureValueType::Stylistic);
-            append(FontFeatureValuesRuleKind::Swash, FontFeatureValueType::Swash);
-            append(FontFeatureValuesRuleKind::CharacterVariant, FontFeatureValueType::CharacterVariant);
-            append(FontFeatureValuesRuleKind::Styleset, FontFeatureValueType::Styleset);
             // NB: We don't include historical-forms since it can't be referenced - it seems like it's inclusion in the syntax
             //     for @font-feature-values was a mistake and isn't supported by Chrome or Firefox. See
             //     https://github.com/w3c/csswg-drafts/issues/9926#issuecomment-2017241274
+            for (auto kind : { FontFeatureValuesRuleKind::Annotation, FontFeatureValuesRuleKind::Ornaments, FontFeatureValuesRuleKind::Stylistic, FontFeatureValuesRuleKind::Swash, FontFeatureValuesRuleKind::CharacterVariant, FontFeatureValuesRuleKind::Styleset }) {
+                values.for_each_entry(kind, [&](auto key, auto values) {
+                    Vector<u32> copy;
+                    copy.append(values.data(), values.size());
+                    font_feature_values.set({ kind, Utf16FlyString::from_utf16(key) }, move(copy));
+                });
+            }
         });
     });
 }
