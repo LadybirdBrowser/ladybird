@@ -6,6 +6,7 @@
 
 #include <AK/Array.h>
 #include <AK/FixedArray.h>
+#include <Compositor/VideoFrameSkia.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/YUVData.h>
 #include <LibTest/TestCase.h>
@@ -85,7 +86,7 @@ TEST_CASE(high_bit_depth_pixmaps_expand_without_mutating_native_samples)
 
     auto bitmap_before = TRY_OR_FAIL(yuv_data.to_bitmap());
 
-    auto pixmaps = yuv_data.make_pixmaps();
+    auto pixmaps = Compositor::make_yuva_pixmaps(yuv_data);
     EXPECT(pixmaps.isValid());
     EXPECT(pixmaps.ownsStorage());
     EXPECT(pixmaps.dataType() == SkYUVAPixmapInfo::DataType::kUnorm16);
