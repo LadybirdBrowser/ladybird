@@ -505,8 +505,10 @@ pub(crate) fn compute(
             let fragment_index = committed_fragment_index;
             committed_fragment_index += 1;
             let interrupting = line.has_block_level_box;
+            // Block-level here means what the line builder interrupted the line for, which includes
+            // boxes whose outer display is not `block` (e.g. `run-in`, laid out as a block).
             debug_assert!(
-                !interrupting || context.style(fragment.style_source).display().is_block_outside(),
+                !interrupting || context.facts(fragment.layout_node).is_inline_flow_interrupting_block(),
                 "an interrupting line's fragment must be a block-level box"
             );
             let position = fragment.offset();
