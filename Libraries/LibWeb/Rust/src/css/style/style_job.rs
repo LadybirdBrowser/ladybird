@@ -32,6 +32,10 @@ pub(crate) struct StyleJob {
     /// Whether the transaction flies beside the host, which leaves its atom sweep to a later transaction: the host may
     /// name an atom meanwhile that the sweep would reclaim before the host hears of it.
     flies: bool,
+    /// Where a style update applies the transaction's reactions as the job answers them, they close over the elements
+    /// they inherit through, but for those that inherit from the elements here, which arrived, moved or retired
+    /// beside the transaction the host drains: those are the next transaction's.
+    closes_beside: Option<super::HashSet<StyleNodeID>>,
 }
 
 /// A style transaction's document computation inputs, sealed on the host's thread: the job owns a copy of every buffer
@@ -254,7 +258,14 @@ impl StyleJob {
     pub(crate) fn run(self, engine: &mut StyleEngine) -> StyleJobAnswer {
         engine.defer_atom_sweep(self.flies);
         // SAFETY: The sealed inputs name only what they own, and live until the transaction has taken them in.
-        let output = unsafe { take_style_transaction(engine, self.root, self.computation_inputs.inputs) };
+        let output = unsafe {
+            take_style_transaction(
+                engine,
+                self.root,
+                self.computation_inputs.inputs,
+                self.closes_beside.as_ref(),
+            )
+        };
         engine.defer_atom_sweep(false);
         // The host reads the record each row replaces as well, as it compares a box's old style with its new one. Only a
         // live base record comes along: the host asks about a replaced overlay record itself.
@@ -340,6 +351,7 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
         // SAFETY: Guaranteed by the caller.
         computation_inputs: unsafe { SealedStyleInputs::seal(computation_inputs) },
         flies: false,
+        closes_beside: host.engine_memo().closes_taken_transaction_beside(),
     };
     let answer = host.run(read, true, move |state| job.run(state.engine_mut()));
     host.keep_style_transaction(answer).output.view()
@@ -373,6 +385,7 @@ pub unsafe extern "C" fn style_engine_let_style_transaction_fly(
         // SAFETY: Guaranteed by the caller.
         computation_inputs: unsafe { SealedStyleInputs::seal(computation_inputs) },
         flies: true,
+        closes_beside: None,
     };
     fly(host, Some(job), round, &license);
     true

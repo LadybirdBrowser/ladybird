@@ -15,7 +15,8 @@ use super::StyleNodeID;
 use super::boundary::StyleChange;
 use super::bridge::{
     FfiEngineComputedRecord, FfiRecordDemand, FfiStyleDelta, FfiStyleDeltaDamage, FfiStyleDeltaGap,
-    FfiStyleInvalidationField, PSEUDO_RECORD_SLOTS,
+    FfiStyleInvalidationField, PSEUDO_RECORD_SLOTS, close_style_reactions_over_inheritance,
+    sort_style_deltas_for_direct_application,
 };
 use super::engine_calls::{absorb_element_style_input, has_deferred_element_style_input, with_engine};
 use super::publication::RecordDemand;
@@ -555,8 +556,11 @@ impl Application<'_> {
     /// answers the reactions naming an element into `reactions`, and whether the batch is dense enough to match
     /// broadly.
     fn take_transaction(self, flown: bool, reactions: &mut Vec<FfiStyleDelta>) -> (bool, bool) {
-        // SAFETY: The host lends its application for the call that updates the style.
-        let taken = unsafe { web_css_take_style_transaction(self.host_application, flown) };
+        let taken = {
+            let _taking = self.host.engine_memo().take_transactions_to_apply();
+            // SAFETY: The host lends its application for the call that updates the style.
+            unsafe { web_css_take_style_transaction(self.host_application, flown) }
+        };
         // SAFETY: The host's transaction lives until it takes the next one.
         let taken_reactions = unsafe { super::bridge::borrow(taken.reactions, taken.count) };
         reactions.clear();
@@ -577,6 +581,20 @@ impl Application<'_> {
             }
             reactions.push(*reaction);
         }
+        // A reaction can name an element created by editing after its new inheritance parent was inserted, and an
+        // element between a reaction and an ancestor that reacts too needs a reaction of its own for the reactions the
+        // ancestor derives to reach the reaction. The engine closes a transaction's reactions over both as it computes
+        // them, and orders them for application in preorder: every parent is ready before its descendants, and a
+        // parent's derived reaction can merge into an unconsumed child reaction in the same batch. The reactions of a
+        // transaction computed beside the event loop close only as the host drains them, over the elements it has now.
+        if flown {
+            let beside_flown_transaction = self.host.engine_memo().beside_flown_transaction.borrow();
+            with_engine(self.read, self.host, |engine| {
+                if close_style_reactions_over_inheritance(engine, reactions, &beside_flown_transaction) {
+                    sort_style_deltas_for_direct_application(engine, reactions);
+                }
+            });
+        }
         // A reaction batch covering more than one sixteenth of the connected elements is dense enough that packing
         // the scope once is cheaper than repeatedly reconstructing cold element state while matching its elements.
         let prefers_broad_matching_batch =
@@ -591,15 +609,15 @@ impl Application<'_> {
 }
 
 /// Applies the reactions of the style transactions of one style update, from the first, computed beside the event
-/// loop where the update
-/// drains it, until the reactions they feed back settle. Each pass applies one transaction's reactions, closed over
-/// the elements they inherit through, and the consequences produced while applying them become the next transaction.
+/// loop where the update drains it, until the reactions they feed back settle. Each pass applies one transaction's
+/// reactions, closed over the elements they inherit through, and the consequences produced while applying them become
+/// the next transaction.
 fn update_style(
     application: Application<'_>,
     drains_flown_transaction: bool,
     root: Option<StyleNodeID>,
 ) -> FfiStyleReactionCounts {
-    let Application { host, read, .. } = application;
+    let host = application.host;
     let mut counts = FfiStyleReactionCounts::default();
     let mut reactions = Vec::new();
     let (mut prefers_broad_matching_batch, mut only_derived_child_reactions) =
@@ -630,8 +648,6 @@ fn update_style(
         }));
     });
 
-    let mut closed = Vec::new();
-    let mut batch = Vec::new();
     let mut style_update_passes = 0;
     let mut first_pass = true;
     while !reactions.is_empty() {
@@ -654,36 +670,14 @@ fn update_style(
             }
         }
 
-        // A reaction can name an element created by editing after its new inheritance parent was inserted, and an
-        // element between a reaction and an ancestor that reacts too needs a reaction of its own for the reactions the
-        // ancestor derives to reach the reaction. The engine closes the batch over both, and orders it for application
-        // in preorder: every parent is ready before its descendants, and a parent's derived reaction can merge into an
-        // unconsumed child reaction in the same batch.
-        let changed = {
-            let beside_flown_transaction = host.engine_memo().beside_flown_transaction.borrow();
-            let beside_flown_transaction = drains_flown_transaction.then_some(&*beside_flown_transaction);
-            with_engine(read, host, |engine| {
-                super::bridge::close_style_reactions_over_inheritance(
-                    engine,
-                    &reactions,
-                    beside_flown_transaction,
-                    &mut closed,
-                )
-            })
-        };
-        batch.clear();
-        batch.extend(
-            (if changed { &closed } else { &reactions })
-                .iter()
-                .filter(|reaction| application.element(reaction.style_node).connected),
-        );
-        reactions.clear();
-        if !batch.is_empty() {
+        reactions.retain(|reaction| application.element(reaction.style_node).connected);
+        if !reactions.is_empty() {
             if published_reactions > 0 {
                 counts.batch_runs += 1;
                 counts.reaction_elements += published_reactions;
             }
-            apply_style_reactions(application, &batch, &mut counts);
+            apply_style_reactions(application, &reactions, &mut counts);
+            reactions.clear();
         }
         counts.apply_microseconds += apply_started_at.elapsed().as_micros() as u64;
 

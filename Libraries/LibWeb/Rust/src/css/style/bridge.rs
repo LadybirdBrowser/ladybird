@@ -2945,6 +2945,7 @@ pub(crate) unsafe fn take_style_transaction(
     engine: &mut StyleEngine,
     root: StyleNodeID,
     mut computation_inputs: FfiDocumentStyleComputationInputs,
+    closes_beside: Option<&super::HashSet<StyleNodeID>>,
 ) -> FfiStyleTransactionOutput {
     // SAFETY: Guaranteed by the caller.
     unsafe { engine.document_resource_contexts.take_in(&mut computation_inputs) };
@@ -2993,6 +2994,9 @@ pub(crate) unsafe fn take_style_transaction(
     });
     output.reclaimed_style_atoms = std::mem::take(&mut engine.host.reclaimed_style_atoms);
     output.only_derived_child_reactions = engine.take_only_derived_child_reactions();
+    if let Some(beside_flown_transaction) = closes_beside {
+        close_style_reactions_over_inheritance(engine, &mut output.answers, beside_flown_transaction);
+    }
     // The host applies the rows in this order, so the transaction answers them in it.
     sort_style_deltas_for_direct_application(engine, &mut output.answers);
     output.connected_element_count = engine.connected_element_count();
@@ -3024,44 +3028,38 @@ impl FfiStyleTransactionOutput {
     }
 }
 
-/// Closes `reactions` into `closed`, where that changes them, and answers whether it did.
+/// Closes `reactions` over the elements they inherit through, and answers whether that added rows, which then need
+/// ordering for application. While the host drains the transaction that flew, the elements it noted
+/// `beside_flown_transaction` are left to the next transaction.
 pub(super) fn close_style_reactions_over_inheritance(
     engine: &mut StyleEngine,
-    reactions: &[FfiStyleDelta],
-    beside_flown_transaction: Option<&super::HashSet<StyleNodeID>>,
-    closed: &mut Vec<FfiStyleDelta>,
+    reactions: &mut Vec<FfiStyleDelta>,
+    beside_flown_transaction: &super::HashSet<StyleNodeID>,
 ) -> bool {
     let InheritanceClosure {
         left_to_next_transaction,
         mut unstyled_ancestors,
         gaps,
-    } = engine.close_over_inheritance(reactions, beside_flown_transaction);
-    if unstyled_ancestors.is_empty() && gaps.is_empty() && left_to_next_transaction.is_empty() {
+    } = engine.close_over_inheritance(reactions, Some(beside_flown_transaction));
+    if !left_to_next_transaction.is_empty() {
+        reactions.retain(|reaction| !left_to_next_transaction.contains(&delta_node(reaction)));
+    }
+    if unstyled_ancestors.is_empty() && gaps.is_empty() {
         return false;
     }
-    closed.clear();
-    closed.extend(
-        reactions
-            .iter()
-            .filter(|reaction| !left_to_next_transaction.contains(&delta_node(reaction))),
-    );
-    closed.extend(
+    reactions.extend(
         unstyled_ancestors
             .iter()
             .map(|&element| FfiStyleDelta::unsettled(element, super::transaction::STYLE_REACTION_RECOMPUTE_STYLE)),
     );
-    closed.extend(gaps.iter().map(|&element| FfiStyleDelta::unsettled(element, 0)));
+    reactions.extend(gaps.iter().map(|&element| FfiStyleDelta::unsettled(element, 0)));
     unstyled_ancestors.extend(gaps);
-    if !unstyled_ancestors.is_empty() {
-        assert!(
-            engine
-                .complete_published_match_answers_for_closure(&unstyled_ancestors)
-                .is_ok(),
-            "the engine answers the elements a reaction batch closes over"
-        );
-        // The engine answers a transaction's reactions in order already, so only the rows closed over need sorting.
-        sort_style_deltas_for_direct_application(engine, closed);
-    }
+    assert!(
+        engine
+            .complete_published_match_answers_for_closure(&unstyled_ancestors)
+            .is_ok(),
+        "the engine answers the elements a reaction batch closes over"
+    );
     true
 }
 
@@ -3149,7 +3147,7 @@ impl super::RetainedState {
 
 /// Orders `deltas` for direct application in C++: each inheritance branch contiguously in preorder, an element's own
 /// delta ahead of the pseudo-element deltas settled beside it.
-fn sort_style_deltas_for_direct_application(engine: &StyleEngine, deltas: &mut [FfiStyleDelta]) {
+pub(super) fn sort_style_deltas_for_direct_application(engine: &StyleEngine, deltas: &mut [FfiStyleDelta]) {
     let pseudo_rank = |delta: &FfiStyleDelta| {
         if delta.pseudo_kind == u8::MAX {
             0
