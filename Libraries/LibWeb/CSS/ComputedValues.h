@@ -449,19 +449,6 @@ struct CounterData {
     bool operator==(CounterData const&) const = default;
 };
 
-enum class ComputedAnimationNameSyntax {
-    None,
-    CustomIdent,
-    String,
-};
-
-struct ComputedAnimationName {
-    Utf16FlyString name;
-    ComputedAnimationNameSyntax syntax { ComputedAnimationNameSyntax::None };
-
-    bool operator==(ComputedAnimationName const&) const = default;
-};
-
 struct TextDecorationThickness {
     struct Auto {
         bool operator==(Auto const&) const = default;
@@ -731,7 +718,8 @@ private:
 public:
     ReadonlySpan<Utf16FlyString> anchor_names() const { return m_noninherited.anchor->anchor_names_span(); }
     PositionAnchor position_anchor_value() const { return m_noninherited.anchor->position_anchor_value(); }
-    Vector<ComputedAnimationName> animation_names() const { return m_noninherited.animation->animation_names_value(); }
+    // The animation-name entries other than none.
+    Vector<Utf16FlyString> animation_names() const { return m_noninherited.animation->animation_names_value(); }
 
     Float float_() const { return static_cast<Float>(m_noninherited.box->float_); }
     Clear clear() const { return static_cast<Clear>(m_noninherited.box->clear); }
@@ -1151,7 +1139,7 @@ public:
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::AnimationValues);
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Animation;
 
-        Vector<ComputedAnimationName> animation_names_value() const;
+        Vector<Utf16FlyString> animation_names_value() const;
         bool transition_delay_and_duration_are_single_zero_value() const { return transition_delay_and_duration_are_single_zero; }
 
         bool operator==(AnimationValues const& other) const

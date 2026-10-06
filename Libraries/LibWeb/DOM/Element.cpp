@@ -2214,16 +2214,8 @@ static void record_engine_container_query_effects(Layout::BegunRead const& read,
 // animation it describes.
 static void update_animation_name_index(Element& element, CSS::ComputedValues const* old_style, CSS::ComputedValues const& new_style)
 {
-    auto indexable_animation_names = [](CSS::ComputedValues const& style) {
-        Vector<Utf16FlyString> animation_names;
-        for (auto const& animation_name : style.animation_names()) {
-            if (animation_name.syntax != CSS::ComputedAnimationNameSyntax::None)
-                animation_names.append(animation_name.name);
-        }
-        return animation_names;
-    };
-    auto animation_names = indexable_animation_names(new_style);
-    if (old_style ? indexable_animation_names(*old_style) != animation_names : !animation_names.is_empty())
+    auto animation_names = new_style.animation_names();
+    if (old_style ? old_style->animation_names() != animation_names : !animation_names.is_empty())
         CSS::record_element_animation_names(element, animation_names);
 }
 
