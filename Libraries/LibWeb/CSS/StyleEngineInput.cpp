@@ -1251,6 +1251,9 @@ void record_element_assigned_slot_changed(DOM::Element& element, DOM::Element* o
     // The engine holds the slot a slottable is assigned to, and only relinking updates it. Every other relation is
     // identical on both sides, so unlinking and linking again leaves them where they were.
     record_element_relinked(*style_engine, element.style_node_id(), previous, relations);
+    // A style transaction already running on the StyleLayout thread styled the element under its previous slot,
+    // as for a move.
+    style_engine->note_style_node_arrived_or_retired(element.style_node_id());
 }
 
 void record_slot_assignment_changed(HTML::HTMLSlotElement& slot)

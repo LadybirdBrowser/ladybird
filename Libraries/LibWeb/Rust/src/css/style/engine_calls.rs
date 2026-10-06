@@ -860,6 +860,9 @@ pub(crate) struct EngineMemo {
     /// the elements whose declarations changed that way, while `applying_reactions` counts the batches being applied.
     declarations_changed_during_apply: std::cell::RefCell<super::HashSet<StyleNodeID>>,
     applying_reactions: std::cell::Cell<u32>,
+    /// Whether the transaction the host takes is one a style update applies, whose reactions close over the elements
+    /// they inherit through as the engine computes them.
+    takes_transaction_to_apply: std::cell::Cell<bool>,
 }
 
 impl EngineMemo {
@@ -882,6 +885,26 @@ impl EngineMemo {
 
     pub(crate) fn declarations_changed_during_apply(&self, node: StyleNodeID) -> bool {
         self.declarations_changed_during_apply.borrow().contains(&node)
+    }
+
+    /// Marks the transactions the host takes until the answer is dropped as ones a style update applies.
+    pub(crate) fn take_transactions_to_apply(&self) -> impl Drop + '_ {
+        struct Taking<'a>(&'a EngineMemo);
+        impl Drop for Taking<'_> {
+            fn drop(&mut self) {
+                self.0.takes_transaction_to_apply.set(false);
+            }
+        }
+        self.takes_transaction_to_apply.set(true);
+        Taking(self)
+    }
+
+    /// The elements a transaction the host takes now leaves to the next transaction as its reactions close over the
+    /// elements they inherit through, or none where the host does not apply its reactions.
+    pub(crate) fn closes_taken_transaction_beside(&self) -> Option<super::HashSet<StyleNodeID>> {
+        self.takes_transaction_to_apply
+            .get()
+            .then(|| self.beside_flown_transaction.borrow().clone())
     }
 
     /// Notes the elements whose declarations change until the answer is dropped, beside the batches being applied
@@ -917,6 +940,7 @@ impl Default for EngineMemo {
             beside_flown_transaction: Default::default(),
             declarations_changed_during_apply: Default::default(),
             applying_reactions: Default::default(),
+            takes_transaction_to_apply: Default::default(),
         }
     }
 }
