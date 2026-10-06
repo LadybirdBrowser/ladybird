@@ -3111,50 +3111,8 @@ impl FfiStyleTransactionOutput {
     }
 }
 
-/// A batch of reactions the host applies, as C++ reads it.
-#[repr(C)]
-pub struct FfiStyleDeltaSpan {
-    pub deltas: *const FfiStyleDelta,
-    pub count: usize,
-}
-
-/// Closes the reactions the host applies next over the elements they inherit through, and answers the batch the host
-/// applies, in order: `reactions` itself where that adds no row, or the closed batch, which lives until the next call.
-/// While the host drains the transaction that flew, the elements the host noted beside it are left to the next
-/// transaction.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread, and `reactions` must name `count` entries.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_close_style_reactions_over_inheritance(
-    host: &DocumentHost,
-    read: &crate::render_state::BegunRead,
-    reactions: *const FfiStyleDelta,
-    count: usize,
-    drains_flown_transaction: bool,
-) -> FfiStyleDeltaSpan {
-    // SAFETY: Guaranteed by the caller.
-    let reactions = unsafe { borrow(reactions, count) };
-    let memo = host.engine_memo();
-    let beside_flown_transaction = memo.beside_flown_transaction.borrow();
-    let mut closed = memo.closed_reactions.borrow_mut();
-    let changed = with_engine(read, host, |engine| {
-        close_style_reactions_over_inheritance(
-            engine,
-            reactions,
-            drains_flown_transaction.then_some(&*beside_flown_transaction),
-            &mut closed,
-        )
-    });
-    let batch = if changed { closed.as_slice() } else { reactions };
-    FfiStyleDeltaSpan {
-        deltas: batch.as_ptr(),
-        count: batch.len(),
-    }
-}
-
 /// Closes `reactions` into `closed`, where that changes them, and answers whether it did.
-fn close_style_reactions_over_inheritance(
+pub(super) fn close_style_reactions_over_inheritance(
     engine: &mut StyleEngine,
     reactions: &[FfiStyleDelta],
     beside_flown_transaction: Option<&super::HashSet<StyleNodeID>>,

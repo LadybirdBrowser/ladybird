@@ -191,52 +191,6 @@ static void note_style_reaction_applied(DOM::Element const& element, u8 reaction
     StyleEngineFFI::style_engine_note_style_reaction_applied(element.document().style_computer().style_engine().host(), element.style_node_id(), reaction, invalidation.inherited_style_groups_changed(), facts);
 }
 
-// Consume everything recorded since the last transaction boundary and publish its match answers.
-//
-// The reaction batch is a superset by construction: routing may over-approximate, and every subject
-// it yields is checked exactly before publication. What it may not do is under-approximate, so a
-// region that could not be proven narrower covers the whole document rather than guessing at part
-// of it. Reactions are consumed as the engine emits them so bridge scratch cannot determine the
-// transaction's scope.
-struct StyleEngineTransaction {
-    Vector<StyleEngine::PublishedStyleDelta> reactions;
-    Optional<StyleEngine::PublishedTransactionVersion> published_version;
-    bool prefers_broad_matching_batch { false };
-    // The transaction continues the style change whose reactions were applied last, one tree
-    // generation further, rather than answering new inputs.
-    bool only_derived_child_reactions { false };
-};
-
-static StyleEngineTransaction accept_style_engine_transaction(DOM::Document& document, StyleEngine::PublishedStyleTransaction const& published_transaction)
-{
-    StyleEngineTransaction transaction;
-    auto& style_computer = document.style_computer();
-    document.style_invalidation_counters().style_update_submission_microseconds += published_transaction.submission_microseconds;
-    document.style_invalidation_counters().style_update_bridge_microseconds += published_transaction.bridge_microseconds;
-    if (!published_transaction.reactions.is_empty())
-        transaction.published_version = published_transaction.version;
-    for (auto const& answer : published_transaction.reactions) {
-        // The complete answer remains in Rust transaction scratch under this node. The identity
-        // names both the semantic reaction and the payload that consumes it.
-        if (!style_computer.element_for_style_node(answer.style_node)) {
-            // NB: The element was removed beside the transaction that flew. Its removal is the next transaction's, and
-            //     it has no style to install.
-            VERIFY(style_computer.style_engine().style_node_arrived_or_retired_beside_flown_transaction(StyleNodeID { answer.style_node }));
-            continue;
-        }
-        transaction.reactions.append(answer);
-    }
-
-    // A reaction batch covering more than one sixteenth of the connected elements is dense enough that
-    // packing the scope once is cheaper than repeatedly reconstructing cold facts while matching
-    // the planned elements.
-    transaction.prefers_broad_matching_batch = !published_transaction.is_scoped
-        || transaction.reactions.size() * 16 > published_transaction.connected_element_count;
-    transaction.only_derived_child_reactions = published_transaction.only_derived_child_reactions;
-
-    return transaction;
-}
-
 // One element's computed style answers for another only while the inputs it was keyed on still mean what they meant. A
 // transaction boundary is exactly where they stop doing so: a declaration keyed on by identity may have been edited,
 // and a sheet may have come or gone. The engine resolves custom properties against the registrations in force, and an
@@ -247,29 +201,68 @@ static void prepare_for_style_engine_transaction(DOM::Document& document)
     document.style_computer().prepare_for_style_engine_transaction();
 }
 
-static StyleEngineTransaction take_style_engine_transaction(Layout::BegunRead const& read, DOM::Document& document, StyleUpdateInputs const&)
+// Consume everything recorded since the last transaction boundary, or the transaction that flew beside the event loop,
+// and publish its match answers.
+//
+// The reaction batch is a superset by construction: routing may over-approximate, and every subject it yields is
+// checked exactly before publication. What it may not do is under-approximate, so a region that could not be proven
+// narrower covers the whole document rather than guessing at part of it.
+StyleEngineFFI::FfiTakenStyleTransaction StyleEngineFFI::web_css_take_style_transaction(StyleReactionApplication* application, bool flown)
 {
-    auto& style_computer = document.style_computer();
+    auto const& read = application->read;
+    auto& document = *application->document;
+    auto& style_engine = document.style_computer().style_engine();
     auto& counters = document.style_invalidation_counters();
-    auto transaction_setup_started_at = MonotonicTime::now();
-    ++counters.style_engine_transaction_setups;
-    prepare_for_style_engine_transaction(document);
-    auto setup_microseconds = microseconds_since(transaction_setup_started_at);
-    counters.style_engine_transaction_setup_microseconds += setup_microseconds;
-    counters.style_update_submission_microseconds += setup_microseconds;
-    auto* root = document.document_element();
-    if (!root || root->style_node_id() == 0) {
-        style_computer.style_engine().flush();
-        return {};
+    StyleEngine::PublishedStyleTransaction transaction {};
+    if (flown) {
+        transaction = style_engine.take_flown_style_transaction(read);
+    } else {
+        auto transaction_setup_started_at = MonotonicTime::now();
+        ++counters.style_engine_transaction_setups;
+        prepare_for_style_engine_transaction(document);
+        auto setup_microseconds = microseconds_since(transaction_setup_started_at);
+        counters.style_engine_transaction_setup_microseconds += setup_microseconds;
+        counters.style_update_submission_microseconds += setup_microseconds;
+        auto* root = document.document_element();
+        if (!root || root->style_node_id() == 0) {
+            style_engine.flush();
+            return {};
+        }
+        transaction = style_engine.take_style_transaction(read, root->style_node_id());
     }
-
-    return accept_style_engine_transaction(document, style_computer.style_engine().take_style_transaction(read, root->style_node_id()));
+    counters.style_update_submission_microseconds += transaction.submission_microseconds;
+    counters.style_update_bridge_microseconds += transaction.bridge_microseconds;
+    return {
+        .reactions = transaction.reactions.data(),
+        .count = transaction.reactions.size(),
+        .scoped = transaction.is_scoped,
+        .only_derived_child_reactions = transaction.only_derived_child_reactions,
+        .connected_element_count = transaction.connected_element_count,
+    };
 }
 
-// The style transaction that flew beside the event loop, taken in to drain its reactions.
-static StyleEngineTransaction take_flown_style_engine_transaction(Layout::BegunRead const& read, DOM::Document& document)
+bool StyleEngineFFI::web_css_has_pending_style_transaction(StyleReactionApplication* application)
 {
-    return accept_style_engine_transaction(document, document.style_computer().style_engine().take_flown_style_transaction(read));
+    return application->document->style_computer().style_engine().has_pending_transaction(application->read);
+}
+
+void StyleEngineFFI::web_css_note_style_update_has_reactions(StyleReactionApplication* application)
+{
+    application->document->note_style_stabilization_has_style_reactions();
+}
+
+void StyleEngineFFI::web_css_sample_animations_for_style_update(StyleReactionApplication* application)
+{
+    application->document->sample_animation_effects_needing_style_update();
+}
+
+// A pass of the current style change event. The outer stabilization epoch advanced the transition generation once,
+// before any style, animation, or layout feedback ran.
+void StyleEngineFFI::web_css_begin_style_update_pass(StyleReactionApplication* application, bool first)
+{
+    if (first)
+        application->document->build_registered_properties_cache_for_style_update();
+    application->document->record_style_stabilization_pass(application->read);
 }
 
 // The swapped groups are the parent's base values; a child of a parent holding animated values inherits the
@@ -691,12 +684,9 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
     if (!inputs.has_value())
         return;
 
-    // A style flush is a transaction boundary. Everything recorded since the last one crosses into
-    // StyleEngine as one flat batch, is normalized there, and is routed into the region its
-    // transpose programs reach. A transaction that could not be proven narrower publishes a
-    // complete document reaction batch. Only a transaction that cannot complete its answers falls
-    // back to document invalidation.
-    auto style_engine_transaction = drains_flown_transaction ? take_flown_style_engine_transaction(read, document) : take_style_engine_transaction(read, document, *inputs);
+    // A style flush is a transaction boundary. Everything recorded since the last one crosses into StyleEngine as one
+    // flat batch, is normalized there, and is routed into the region its transpose programs reach. A transaction that
+    // could not be proven narrower publishes a complete document reaction batch.
     // What was written beside the transaction that flew reaches the engine once the drain of its reactions has ended,
     // as the next transaction's input.
     ScopeGuard end_flown_style_drain = [&] {
@@ -706,116 +696,21 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
     ScopeGuard discard_style_engine_transaction_outputs = [&] {
         document.style_computer().style_engine().discard_style_transaction_outputs(read);
     };
-
-    if (!style_engine_transaction.reactions.is_empty())
-        document.note_style_stabilization_has_style_reactions();
-    document.sample_animation_effects_needing_style_update();
-
-    auto style_engine_reactions = move(style_engine_transaction.reactions);
-    auto prefers_broad_matching_batch = style_engine_transaction.prefers_broad_matching_batch;
-    auto transaction_only_derived_child_reactions = style_engine_transaction.only_derived_child_reactions;
-    if (style_engine_reactions.is_empty()
-        && document.style_computer().style_engine().has_pending_transaction(read)) {
-        auto feedback_transaction = take_style_engine_transaction(read, document, *inputs);
-        style_engine_reactions = move(feedback_transaction.reactions);
-        prefers_broad_matching_batch = feedback_transaction.prefers_broad_matching_batch;
-        transaction_only_derived_child_reactions = feedback_transaction.only_derived_child_reactions;
-    }
-
-    document.build_registered_properties_cache_for_style_update();
-
-    // This pass belongs to the current style change event. The outer stabilization epoch advanced
-    // the transition generation once, before any style, animation, or layout feedback ran.
-    document.record_style_stabilization_pass(read);
-
-    if (style_engine_reactions.is_empty())
+    StyleReactionApplication application { read, document };
+    auto* root = document.document_element();
+    auto applied = StyleEngineFFI::style_engine_update_style(document.style_computer().style_engine().host(), &read, &application, drains_flown_transaction, root ? root->style_node_id().value() : 0);
+    timing_counters.style_engine_reaction_batch_runs += applied.batch_runs;
+    timing_counters.style_engine_reaction_elements += applied.reaction_elements;
+    timing_counters.style_engine_published_reactions += applied.published_reactions;
+    timing_counters.style_engine_materialized_gaps += applied.materialized_gaps;
+    timing_counters.style_engine_record_deltas_applied += applied.record_deltas_applied;
+    timing_counters.style_update_pass_guard_hits += applied.pass_guard_hits;
+    timing_counters.style_update_apply_microseconds += applied.apply_microseconds;
+    if (!applied.had_reactions)
         return;
 
-    auto* root = document.document_element();
-    bool const has_cold_matching_traversal = root && root->style_node_id() != 0;
-    if (has_cold_matching_traversal) {
-        if (prefers_broad_matching_batch)
-            StyleEngineFFI::style_engine_begin_cold_matching_batch(document.style_computer().style_engine().host(), root->style_node_id());
-        else
-            StyleEngineFFI::style_engine_begin_adaptive_cold_matching_batch(document.style_computer().style_engine().host(), root->style_node_id());
-    }
-    ScopeGuard end_cold_matching_batch = [&] {
-        if (has_cold_matching_traversal)
-            StyleEngineFFI::style_engine_end_cold_matching_batch(document.style_computer().style_engine().host());
-    };
-
-    RequiredInvalidationAfterStyleChange invalidation;
-    constexpr size_t max_style_update_passes = 8;
-    size_t style_update_pass = 0;
-    size_t style_reaction_pass = 0;
-    while (!style_engine_reactions.is_empty()) {
-        auto apply_started_at = MonotonicTime::now();
-        ArmedScopeGuard record_apply_time = [&] {
-            timing_counters.style_update_apply_microseconds += microseconds_since(apply_started_at);
-        };
-        // One more tree generation of the same style change is not a new pass of it.
-        if (style_reaction_pass++ > 0 && !transaction_only_derived_child_reactions)
-            document.record_style_stabilization_pass(read);
-
-        size_t published_reaction_count = 0;
-        for (auto const& reaction : style_engine_reactions) {
-            if (reaction.reaction & StyleEngine::PublishedStyle)
-                ++published_reaction_count;
-        }
-        if (published_reaction_count > 0 && !transaction_only_derived_child_reactions) {
-            if (++style_update_pass > max_style_update_passes) {
-                ++document.style_invalidation_counters().style_update_pass_guard_hits;
-                break;
-            }
-        }
-
-        // A reaction can name an element created by editing after its new inheritance parent was inserted, and an
-        // element between a reaction and an ancestor that reacts too needs a row for the reactions the ancestor derives
-        // to reach the reaction. The engine closes the batch over both, and orders it for application in preorder:
-        // every parent is ready before its descendants, and a parent's derived reaction can merge into an unconsumed
-        // child reaction in the same batch.
-        auto closed_reactions = StyleEngineFFI::style_engine_close_style_reactions_over_inheritance(document.style_computer().style_engine().host(), &read, style_engine_reactions.data(), style_engine_reactions.size(), drains_flown_transaction);
-        Vector<StyleEngine::PublishedStyleDelta> applicable_style_engine_reactions;
-        for (auto const& reaction : ReadonlySpan<StyleEngine::PublishedStyleDelta> { closed_reactions.deltas, closed_reactions.count }) {
-            auto element = document.style_computer().element_for_style_node(reaction.style_node);
-            if (!element)
-                continue;
-            if (!element->is_connected() || &element->document() != &document)
-                continue;
-            applicable_style_engine_reactions.append(reaction);
-        }
-        style_engine_reactions.clear();
-        if (!applicable_style_engine_reactions.is_empty()) {
-            auto& counters = document.style_invalidation_counters();
-            if (published_reaction_count > 0) {
-                ++counters.style_engine_reaction_batch_runs;
-                counters.style_engine_reaction_elements += published_reaction_count;
-            }
-            StyleReactionApplication application { read, document };
-            auto applied = StyleEngineFFI::style_engine_apply_style_reactions(document.style_computer().style_engine().host(), &read, &application, applicable_style_engine_reactions.data(), applicable_style_engine_reactions.size());
-            counters.style_engine_published_reactions += applied.published_reactions;
-            counters.style_engine_materialized_gaps += applied.materialized_gaps;
-            counters.style_engine_record_deltas_applied += applied.record_deltas_applied;
-            invalidation |= application.invalidation;
-        }
-
-        timing_counters.style_update_apply_microseconds += microseconds_since(apply_started_at);
-        record_apply_time.disarm();
-
-        // Exact consequences produced while recomputing become the next transaction in this
-        // stabilization epoch. Take it only after consuming the current published answers, since
-        // a new transaction retires their scratch.
-        if (document.style_computer().style_engine().has_pending_transaction(read)) {
-            auto next_transaction = take_style_engine_transaction(read, document, *inputs);
-            style_engine_reactions = move(next_transaction.reactions);
-            transaction_only_derived_child_reactions = next_transaction.only_derived_child_reactions;
-        }
-        if (style_engine_reactions.is_empty())
-            break;
-    }
-
     document.set_has_completed_style_update();
-    apply_document_style_invalidation_after_style_change(document, invalidation);
+    apply_document_style_invalidation_after_style_change(document, application.invalidation);
     document.sample_animation_effects_needing_style_update();
 }
 
