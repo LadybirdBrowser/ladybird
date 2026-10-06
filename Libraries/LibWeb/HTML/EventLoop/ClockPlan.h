@@ -15,4 +15,8 @@ namespace Web::HTML {
 // Answers whether there is one.
 bool seal_clock_plan(DOM::Document&, bool may_plan);
 
+// Whether `document` has a running animation that a clock plan can advance and the compositor does not run, so a
+// rendering update may make a clock plan for it.
+bool runs_animations_for_clock_plan(DOM::Document const&);
+
 }

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Math.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
@@ -128,6 +129,30 @@ static bool animates_what_a_tick_cannot(Animations::KeyframeEffect const& effect
     return false;
 }
 
+// An animation of a scroll timeline that finished runs again as the scroll goes back.
+static bool runs_for_clock_plan(Animations::Animation const& animation, bool on_scroll_timeline)
+{
+    auto play_state = animation.play_state();
+    return play_state == Bindings::AnimationPlayState::Running || (on_scroll_timeline && play_state == Bindings::AnimationPlayState::Finished);
+}
+
+// The compositor runs these on its own, so the render clock does not sample them.
+static bool runs_on_compositor(Animations::KeyframeEffect const& effect)
+{
+    return effect.is_compositor_driven() || effect.is_compositor_replaced();
+}
+
+bool runs_animations_for_clock_plan(DOM::Document const& document)
+{
+    return any_of(document.associated_animation_timelines(), [](auto const& timeline) {
+        bool const on_scroll_timeline = is<Animations::ScrollTimeline>(*timeline);
+        return any_of(timeline->associated_animations(), [&](auto const& animation) {
+            auto const* effect = as_if<Animations::KeyframeEffect>(animation.effect().ptr());
+            return runs_for_clock_plan(animation, on_scroll_timeline) && effect && !runs_on_compositor(*effect);
+        });
+    });
+}
+
 bool seal_clock_plan(DOM::Document& document, bool may_plan)
 {
     auto* arena = document.layout_node_arena_if_created();
@@ -154,9 +179,7 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan)
             for (auto const& associated_timeline : document.associated_animation_timelines()) {
                 auto const* scroll_timeline = as_if<Animations::ScrollTimeline>(*associated_timeline);
                 for (auto& animation : associated_timeline->associated_animations()) {
-                    // An animation of a scroll timeline that finished runs again as the scroll goes back.
-                    auto play_state = animation.play_state();
-                    if (play_state != Bindings::AnimationPlayState::Running && !(scroll_timeline && play_state == Bindings::AnimationPlayState::Finished))
+                    if (!runs_for_clock_plan(animation, scroll_timeline != nullptr))
                         continue;
                     // A tick moves the document's timeline, at the rate it runs, and the scroll timelines, to where the
                     // compositor has scrolled.
@@ -188,7 +211,7 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan)
                     }
                     // What the compositor runs, or what the main thread does not sample per frame either, a tick does not
                     // sample: the lease only stops at its events.
-                    if (keyframe_effect.is_compositor_driven() || keyframe_effect.is_compositor_replaced() || keyframe_effect.can_skip_per_frame_style_update())
+                    if (runs_on_compositor(keyframe_effect) || keyframe_effect.can_skip_per_frame_style_update())
                         continue;
                     // The root element and the body paint the background the canvas may take over, which only the host
                     // resolves.

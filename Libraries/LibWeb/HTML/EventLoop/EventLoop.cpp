@@ -1181,6 +1181,13 @@ void EventLoop::take_finished_frames_in()
 
 void EventLoop::lease_clocks_for_task()
 {
+    // A rendering update that returned while its layout is still running on the StyleLayout thread leaves the clock
+    // plan for its document's animations only in its remaining steps. If the document has running animations that the
+    // compositor does not run, finish those steps before the task, which would otherwise find no clock plan, or the
+    // frame still in flight, and leave the animations frozen for the whole task.
+    if (m_rendering_update_in_flight && m_rendering_update_in_flight->ended() && !m_rendering_update_in_flight->held_for_testing
+        && runs_animations_for_clock_plan(m_rendering_update_in_flight->document()))
+        finish_rendering_update_in_flight();
     if (m_navigables_with_clock_plans.is_empty())
         return;
     for (auto const& navigable : m_navigables_with_clock_plans)
