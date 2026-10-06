@@ -7,13 +7,15 @@
 //! Generating a counter representation: the pure function from a resolved counter style and an
 //! integer to the text a marker or a `counter()` shows.
 //!
-//! The descriptors a `@counter-style` rule settles on are resolved by C++ - `extends` chains,
-//! `auto` ranges and the cascade between origins and layers all belong to the rule cache - and the
-//! result is published here, per tree scope, as the registry a fallback chain is looked up in.
+//! The counter styles a tree scope registers are resolved from its `@counter-style` rules (see
+//! `counter_style.rs`) and published here, per tree scope, as the registry a fallback chain is
+//! looked up in.
 
+use crate::css::css_enums::symbols_type;
 use crate::css::css_string::CssString;
 use crate::css::style_value::StyleValueData;
 use std::collections::HashMap;
+use std::ffi::c_void;
 use std::sync::Arc;
 use std::sync::LazyLock;
 
@@ -42,7 +44,7 @@ pub(crate) enum ExtendedCjkStyle {
     KoreanHanjaFormal,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Algorithm {
     Additive(Vec<(i32, Symbol)>),
     Fixed {
@@ -63,7 +65,7 @@ pub(crate) struct RangeEntry {
     pub end: i32,
 }
 
-/// A counter style with every descriptor resolved: what `CounterStyle::create` produces C++-side.
+/// A counter style with every descriptor resolved.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct CounterStyle {
     pub name: Symbol,
@@ -79,12 +81,25 @@ pub(crate) struct CounterStyle {
     pub pad_symbol: Symbol,
 }
 
+/// The counter styles one tree scope registers, by name. A C++ style scope holds its own as an
+/// `Arc` pointer, and every document that defines none of its own shares the user agent's.
+#[derive(Default, PartialEq)]
+pub struct RegisteredCounterStyles(pub(crate) HashMap<Symbol, Arc<CounterStyle>>);
+
+impl RegisteredCounterStyles {
+    /// The style a name resolves to in the first of `scopes` that registers it, nearest first.
+    /// https://drafts.csswg.org/css-shadow-1/#tree-scoped-name-global
+    pub(crate) fn lookup<'a>(scopes: &[&'a Self], name: &[u16]) -> Option<&'a Arc<CounterStyle>> {
+        scopes.iter().find_map(|scope| scope.0.get(name))
+    }
+}
+
 /// The counter styles one tree scope registers, and the scope a name it does not register is
 /// looked for in next. https://drafts.csswg.org/css-shadow-1/#tree-scoped-name-global
 #[derive(Default)]
 pub(crate) struct CounterStyleScope {
     pub(crate) parent: Option<u32>,
-    pub(crate) styles: HashMap<Symbol, Arc<CounterStyle>>,
+    pub(crate) styles: Arc<RegisteredCounterStyles>,
 }
 
 /// Every tree scope's registered counter styles, keyed by the tree scope's identity.
@@ -106,7 +121,7 @@ impl CounterStyleRegistry {
         let mut remaining_hops = self.scopes.len() + 1;
         while let Some(current) = scope_id {
             let scope = self.scopes.get(&current)?;
-            if let Some(style) = scope.styles.get(name) {
+            if let Some(style) = scope.styles.0.get(name) {
                 return Some(style);
             }
             remaining_hops = remaining_hops.checked_sub(1)?;
@@ -116,7 +131,7 @@ impl CounterStyleRegistry {
     }
 }
 
-fn symbol(text: &str) -> Symbol {
+pub(crate) fn symbol(text: &str) -> Symbol {
     text.encode_utf16().collect::<Vec<_>>().into_boxed_slice()
 }
 
@@ -146,18 +161,10 @@ pub(crate) fn decimal() -> &'static CounterStyle {
     &DECIMAL
 }
 
-/// https://drafts.csswg.org/css-counter-styles-3/#typedef-symbols-type
-/// The `SymbolsType` a `symbols()` function names, as the C++ enum orders them. CounterStyleStyleValue.cpp
-/// asserts the order.
-const SYMBOLS_TYPE_CYCLIC: u8 = 0;
-const SYMBOLS_TYPE_NUMERIC: u8 = 1;
-const SYMBOLS_TYPE_ALPHABETIC: u8 = 2;
-const SYMBOLS_TYPE_SYMBOLIC: u8 = 3;
-const SYMBOLS_TYPE_FIXED: u8 = 4;
-
 /// https://drafts.csswg.org/css-counter-styles-3/#counter-style-range
-/// The range `auto` resolves to, which depends on the counter system.
-fn auto_range(algorithm: &Algorithm) -> Vec<RangeEntry> {
+/// The range `auto` resolves to, which depends on the counter system. None for the complex
+/// predefined styles, which define their range explicitly.
+pub(crate) fn auto_range(algorithm: &Algorithm) -> Option<Vec<RangeEntry>> {
     let entry = match algorithm {
         // For additive systems, the range is 0 to positive infinity.
         Algorithm::Additive(_) => RangeEntry {
@@ -181,12 +188,9 @@ fn auto_range(algorithm: &Algorithm) -> Vec<RangeEntry> {
             start: 1,
             end: i32::MAX,
         },
-        // NB: All complex predefined counter styles define their range explicitly, never via auto.
-        Algorithm::EthiopicNumeric | Algorithm::ExtendedCjk(_) => {
-            unreachable!("a complex predefined counter style defines its range explicitly")
-        }
+        Algorithm::EthiopicNumeric | Algorithm::ExtendedCjk(_) => return None,
     };
-    vec![entry]
+    Some(vec![entry])
 }
 
 /// https://drafts.csswg.org/css-counter-styles-3/#symbols-function
@@ -199,32 +203,32 @@ fn symbols_function_counter_style(symbols_type: u8, symbols: &[CssString]) -> Ar
         .map(|symbol| symbol.units().to_vec().into_boxed_slice())
         .collect();
     let algorithm = match symbols_type {
-        SYMBOLS_TYPE_CYCLIC => Algorithm::Generic {
+        symbols_type::CYCLIC => Algorithm::Generic {
             system: GenericSystem::Cyclic,
             symbols: symbol_list,
         },
-        SYMBOLS_TYPE_NUMERIC => Algorithm::Generic {
+        symbols_type::NUMERIC => Algorithm::Generic {
             system: GenericSystem::Numeric,
             symbols: symbol_list,
         },
-        SYMBOLS_TYPE_ALPHABETIC => Algorithm::Generic {
+        symbols_type::ALPHABETIC => Algorithm::Generic {
             system: GenericSystem::Alphabetic,
             symbols: symbol_list,
         },
-        SYMBOLS_TYPE_SYMBOLIC => Algorithm::Generic {
+        symbols_type::SYMBOLIC => Algorithm::Generic {
             system: GenericSystem::Symbolic,
             symbols: symbol_list,
         },
         // If the system is fixed, the first symbol value is 1.
-        SYMBOLS_TYPE_FIXED => Algorithm::Fixed {
+        symbols_type::FIXED => Algorithm::Fixed {
             first_symbol: 1,
             symbols: symbol_list,
         },
         other => panic!("unknown symbols() type {other}"),
     };
-    let range = auto_range(&algorithm);
+    let range = auto_range(&algorithm).unwrap_or_default();
     Arc::new(CounterStyle {
-        // NB: C++ uses the empty string rather than no name, which cannot clash with an authored
+        // NB: The empty string rather than no name cannot clash with an authored
         //     <counter-style-name>, and the name only shows up in serialization.
         name: symbol(""),
         algorithm,
@@ -242,8 +246,6 @@ fn symbols_function_counter_style(symbols_type: u8, symbols: &[CssString]) -> Ar
 /// The counter style a `<counter-style>` value names, resolved from `tree_scope`: the style the
 /// registry holds under the name, or the anonymous style a `symbols()` function defines. `None`
 /// for a name no scope in the chain registers, which reads as `decimal`.
-///
-/// Port of `CounterStyleStyleValue::resolve_counter_style`.
 pub(crate) fn resolve_counter_style_value(
     registry: &CounterStyleRegistry,
     tree_scope: u32,
@@ -864,7 +866,13 @@ pub(crate) fn generate_a_counter_representation<'a>(
     // Each hop either lands on `decimal`, which represents every value and so is the last one, or
     // on a style whose name the history does not hold yet, so the chain is bounded by the registry.
     // The bound is a backstop for a registry that changed under a chain, not a rule of the algorithm.
-    for _ in 0..=registry.scopes.values().map(|scope| scope.styles.len()).sum::<usize>() + 2 {
+    for _ in 0..=registry
+        .scopes
+        .values()
+        .map(|scope| scope.styles.0.len())
+        .sum::<usize>()
+        + 2
+    {
         let mut fall_back_to = |style: &'a CounterStyle| -> &'a CounterStyle {
             let Some(fallback_name) = style.fallback.as_deref() else {
                 return decimal();
@@ -959,168 +967,69 @@ pub(crate) fn generate_a_counter_representation<'a>(
     Vec::new()
 }
 
-// The FFI half: the resolved descriptors arrive from C++, which owns `@counter-style` parsing and
-// the cascade that picks one definition per name.
+// The FFI half: C++ style scopes hold their registered counter styles as `Arc` pointers, publish
+// them to the layout node arena, and ask what a list marker shows.
 
-/// A counter style C++ holds a handle to and names in a publication or a representation request.
-pub struct FfiRegisteredCounterStyle(Arc<CounterStyle>);
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct FfiCounterStyleRange {
-    pub start: i32,
-    pub end: i32,
-}
-
-/// One resolved counter style, as flat rows of `AK::Utf16FlyString` raw words. Every string word
-/// carries one leaked reference, which this side gives up.
-#[repr(C)]
-pub struct FfiCounterStyleDescriptors {
-    pub name: usize,
-    /// 0 additive, 1 fixed, 2 generic, 3 ethiopic-numeric, 4 extended CJK.
-    pub algorithm_kind: u8,
-    /// `CounterStyleSystem`, for the generic algorithms.
-    pub generic_system: u8,
-    /// `ExtendedCjkStyle`, for the extended CJK algorithms.
-    pub extended_cjk_style: u8,
-    pub fixed_first_symbol: i32,
-    pub symbols: *const usize,
-    pub symbol_count: usize,
-    /// Parallel with `symbols` for the additive algorithm, and null otherwise.
-    pub additive_weights: *const i32,
-    pub ranges: *const FfiCounterStyleRange,
-    pub range_count: usize,
-    pub negative_prefix: usize,
-    pub negative_suffix: usize,
-    pub prefix: usize,
-    pub suffix: usize,
-    /// Zero when the style has no fallback, which only `decimal` does not.
-    pub fallback: usize,
-    pub pad_symbol: usize,
-    pub pad_minimum_length: i32,
-}
-
-/// Adopts one leaked `AK::Utf16FlyString` reference and copies out its code units.
+/// Takes another reference to a scope's registered counter styles.
 ///
 /// # Safety
-/// `raw` must be zero, or a raw representation the caller owns one reference to.
-unsafe fn adopt_symbol(raw: usize) -> Symbol {
-    if raw == 0 {
-        return Symbol::default();
+///
+/// `styles` must be a live reference from `rust_counter_styles_resolve`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_counter_styles_retain(
+    styles: *const RegisteredCounterStyles,
+) -> *const RegisteredCounterStyles {
+    // SAFETY: The caller holds a reference, so the allocation is live.
+    unsafe { Arc::increment_strong_count(styles) };
+    styles
+}
+
+/// # Safety
+///
+/// `styles` must be null or a reference from `rust_counter_styles_resolve` or
+/// `rust_counter_styles_retain` that has not been released.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_counter_styles_release(styles: *const RegisteredCounterStyles) {
+    if !styles.is_null() {
+        // SAFETY: The caller gives up the reference it holds.
+        drop(unsafe { Arc::from_raw(styles) });
     }
-    // SAFETY: The caller transfers one reference, which the owner releases on drop.
-    let string = unsafe { ak::Utf16FlyString::from_raw_owned(raw) };
-    string.to_utf16().into_owned().into_boxed_slice()
 }
 
-/// Builds the counter style C++ resolved, taking ownership of every string reference in it.
+/// Whether the marker text of a list item whose `list-style-type` is `list_style_type` depends on
+/// its counter value, with counter style names looked up in `scopes`, nearest first.
 ///
 /// # Safety
 ///
-/// The pointer columns must address their stated number of elements for the duration of the call,
-/// and every string word must carry one leaked reference.
+/// `list_style_type` must point to a live style value, and `scopes` must address `scope_count`
+/// live registrations.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_counter_style_create(
-    descriptors: FfiCounterStyleDescriptors,
-) -> *mut FfiRegisteredCounterStyle {
-    let symbol_words = if descriptors.symbol_count == 0 {
-        &[][..]
-    } else {
-        // SAFETY: The caller keeps the column alive for this synchronous call.
-        unsafe { std::slice::from_raw_parts(descriptors.symbols, descriptors.symbol_count) }
-    };
-    let symbols: Vec<Symbol> = symbol_words.iter().map(|raw| unsafe { adopt_symbol(*raw) }).collect();
-
-    let algorithm = match descriptors.algorithm_kind {
-        0 => {
-            let weights = if descriptors.symbol_count == 0 {
-                &[][..]
-            } else {
-                // SAFETY: The additive column is as long as the symbol column.
-                unsafe { std::slice::from_raw_parts(descriptors.additive_weights, descriptors.symbol_count) }
-            };
-            Algorithm::Additive(weights.iter().copied().zip(symbols).collect())
-        }
-        1 => Algorithm::Fixed {
-            first_symbol: descriptors.fixed_first_symbol,
-            symbols,
-        },
-        2 => Algorithm::Generic {
-            system: match descriptors.generic_system {
-                0 => GenericSystem::Cyclic,
-                1 => GenericSystem::Numeric,
-                2 => GenericSystem::Alphabetic,
-                _ => GenericSystem::Symbolic,
-            },
-            symbols,
-        },
-        3 => Algorithm::EthiopicNumeric,
-        _ => Algorithm::ExtendedCjk(match descriptors.extended_cjk_style {
-            0 => ExtendedCjkStyle::SimpChineseInformal,
-            1 => ExtendedCjkStyle::SimpChineseFormal,
-            2 => ExtendedCjkStyle::TradChineseInformal,
-            3 => ExtendedCjkStyle::TradChineseFormal,
-            4 => ExtendedCjkStyle::JapaneseInformal,
-            5 => ExtendedCjkStyle::JapaneseFormal,
-            6 => ExtendedCjkStyle::KoreanHangulFormal,
-            7 => ExtendedCjkStyle::KoreanHanjaInformal,
-            _ => ExtendedCjkStyle::KoreanHanjaFormal,
-        }),
-    };
-
-    let ranges = if descriptors.range_count == 0 {
-        &[][..]
-    } else {
-        // SAFETY: The caller keeps the column alive for this synchronous call.
-        unsafe { std::slice::from_raw_parts(descriptors.ranges, descriptors.range_count) }
-    };
-
-    let style = CounterStyle {
-        name: unsafe { adopt_symbol(descriptors.name) },
-        algorithm,
-        negative_prefix: unsafe { adopt_symbol(descriptors.negative_prefix) },
-        negative_suffix: unsafe { adopt_symbol(descriptors.negative_suffix) },
-        prefix: unsafe { adopt_symbol(descriptors.prefix) },
-        suffix: unsafe { adopt_symbol(descriptors.suffix) },
-        range: ranges
-            .iter()
-            .map(|entry| RangeEntry {
-                start: entry.start,
-                end: entry.end,
-            })
-            .collect(),
-        fallback: (descriptors.fallback != 0).then(|| unsafe { adopt_symbol(descriptors.fallback) }),
-        pad_minimum_length: descriptors.pad_minimum_length,
-        pad_symbol: unsafe { adopt_symbol(descriptors.pad_symbol) },
-    };
-
-    Box::into_raw(Box::new(FfiRegisteredCounterStyle(Arc::new(style))))
-}
-
-/// # Safety
-///
-/// `style` must be a handle from `rust_counter_style_create` that has not been released.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_counter_style_release(style: *mut FfiRegisteredCounterStyle) {
-    if style.is_null() {
-        return;
-    }
-    // SAFETY: The caller gives up the one owner the constructor handed out.
-    drop(unsafe { Box::from_raw(style) });
-}
-
-/// Whether two counter values can be represented by different text: a marker whose text never
-/// changes (disc, circle, square, ...) reveals no renumbering.
-///
-/// # Safety
-///
-/// `style` must be a live handle from `rust_counter_style_create`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_counter_style_representation_depends_on_value(
-    style: *const FfiRegisteredCounterStyle,
+pub unsafe extern "C" fn rust_list_style_type_depends_on_counter_value(
+    list_style_type: *const c_void,
+    scopes: *const &RegisteredCounterStyles,
+    scope_count: usize,
 ) -> bool {
-    // SAFETY: The handle is live for the duration of the call.
-    unsafe { &*style }.0.representation_depends_on_value()
+    // SAFETY: Guaranteed by the caller.
+    let (list_style_type, scopes) = unsafe {
+        (
+            &*list_style_type.cast::<StyleValueData>(),
+            std::slice::from_raw_parts(scopes, scope_count),
+        )
+    };
+    match list_style_type {
+        // `none`, and a string marker, are the same for every item.
+        StyleValueData::Keyword { .. } | StyleValueData::String { .. } => false,
+        StyleValueData::CounterStyle {
+            is_symbols: true,
+            symbols_type,
+            symbols,
+            ..
+        } => symbols_function_counter_style(*symbols_type, symbols.as_slice()).representation_depends_on_value(),
+        // A name no scope registers counts in decimal.
+        StyleValueData::CounterStyle { name, .. } => RegisteredCounterStyles::lookup(scopes, name.units())
+            .is_none_or(|style| style.representation_depends_on_value()),
+        _ => true,
+    }
 }
 
 /// Replaces one tree scope's registered counter styles, and names the scope a name it does not
@@ -1128,40 +1037,25 @@ pub unsafe extern "C" fn rust_counter_style_representation_depends_on_value(
 ///
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread. The name and style columns must address `count`
-/// elements, every name word must carry one leaked string reference, and every style handle must be live.
+/// `host` must be a live document host, on its document's thread, and `styles` null, for a scope
+/// that registers none, or a live reference from `rust_counter_styles_resolve`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_publish_counter_styles(
     host: &crate::render_state::DocumentHost,
     tree_scope: u32,
     parent_tree_scope: u32,
     has_parent_tree_scope: bool,
-    names: *const usize,
-    styles: *const *const FfiRegisteredCounterStyle,
-    count: usize,
+    styles: *const RegisteredCounterStyles,
 ) {
-    let (names, styles) = if count == 0 {
-        (&[][..], &[][..])
-    } else {
-        // SAFETY: The caller keeps both columns alive for this synchronous call.
-        unsafe {
-            (
-                std::slice::from_raw_parts(names, count),
-                std::slice::from_raw_parts(styles, count),
-            )
-        }
-    };
-
-    let mut scope = CounterStyleScope {
+    let scope = CounterStyleScope {
         parent: has_parent_tree_scope.then_some(parent_tree_scope),
-        styles: HashMap::with_capacity(count),
+        // SAFETY: The caller keeps its own reference.
+        styles: if styles.is_null() {
+            Arc::default()
+        } else {
+            unsafe { Arc::from_raw(rust_counter_styles_retain(styles)) }
+        },
     };
-    for (name, style) in names.iter().zip(styles) {
-        let name = unsafe { adopt_symbol(*name) };
-        // SAFETY: The handle is live, so borrowing it without taking a reference is sound.
-        let style = unsafe { &**style };
-        scope.styles.insert(name, style.0.clone());
-    }
     host.queue_change(crate::render_state::ArenaChange::Layout(
         crate::layout::layout_changes::LayoutChange::CounterStyles { tree_scope, scope },
     ));

@@ -1817,17 +1817,11 @@ impl RetainedState {
                 .cast::<StyleValueData>()
                 .as_ref()
         };
-        let names_a_counter_style = value(prop::CONTENT)
-            .is_some_and(crate::css::style_compute::content_reads_counter_style_environment)
-            || match value(prop::LIST_STYLE_TYPE) {
-                Some(StyleValueData::CounterStyle {
-                    is_symbols: false,
-                    name,
-                    ..
-                }) => target.is_pseudo() || !counter_style_name_is_non_overridable(name.units()),
-                _ => false,
-            };
-        if !names_a_counter_style {
+        if !crate::css::style_compute::style_reads_counter_style_environment(
+            value(prop::CONTENT),
+            value(prop::LIST_STYLE_TYPE),
+            target.is_pseudo(),
+        ) {
             return 0;
         }
         self.counter_style_environment_identities
@@ -4814,27 +4808,6 @@ fn font_group_carries_longhand(property: u16) -> bool {
                 | prop::MATH_STYLE
                 | prop::TEXT_RENDERING
         )
-}
-
-/// The counter-style names no @counter-style rule overrides: decimal, disc, square, circle,
-/// disclosure-open and disclosure-closed.
-fn counter_style_name_is_non_overridable(name: &[u16]) -> bool {
-    [
-        "decimal",
-        "disc",
-        "square",
-        "circle",
-        "disclosure-open",
-        "disclosure-closed",
-    ]
-    .iter()
-    .any(|candidate| {
-        candidate.len() == name.len()
-            && candidate
-                .bytes()
-                .zip(name)
-                .all(|(expected, &unit)| unit < 128 && (unit as u8).eq_ignore_ascii_case(&expected))
-    })
 }
 
 /// What a winner store is built for: a drive reads the winners admission proved.

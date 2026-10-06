@@ -19,12 +19,17 @@
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/CSS/CascadeOrigin.h>
 #include <LibWeb/CSS/ContainerQuery.h>
-#include <LibWeb/CSS/CounterStyle.h>
 #include <LibWeb/CSS/RustDeclarationBlock.h>
 #include <LibWeb/CSS/RustRule.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/Forward.h>
+
+namespace Web::CSS::Parser::ValueParserFFI {
+
+struct RegisteredCounterStyles;
+
+}
 
 namespace Web::CSS {
 
@@ -93,6 +98,9 @@ private:
 };
 
 class StyleScope {
+    AK_MAKE_NONCOPYABLE(StyleScope);
+    AK_MAKE_NONMOVABLE(StyleScope);
+
 public:
     explicit StyleScope(GC::Ref<DOM::Node>);
     ~StyleScope();
@@ -154,8 +162,9 @@ public:
     void invalidate_counter_style_cache();
     void build_counter_style_cache(Layout::BegunRead const& read);
     u64 counter_style_environment_identity(Layout::BegunRead const& read) const;
-    RefPtr<CSS::CounterStyle const> get_registered_counter_style(Layout::BegunRead const& read, Utf16FlyString const& name) const;
     void publish_counter_style_lookup_chain(Layout::BegunRead const& read) const;
+    // Whether the marker text of a list item with this `list-style-type` value differs between counter values.
+    bool list_style_type_depends_on_counter_value(void const* list_style_type) const;
 
     struct FunctionDefinitionAndScope {
         RustCompiledFunction function;
@@ -187,7 +196,8 @@ public:
     // scope a name it does not register is looked for in next.
     mutable Optional<u64> m_published_counter_style_environment_identity;
     mutable Optional<TreeScopeID> m_published_parent_counter_style_scope;
-    HashMap<Utf16FlyString, NonnullRefPtr<CSS::CounterStyle const>> m_registered_counter_styles;
+    // The counter styles this scope registers, which Rust holds; null when it registers none.
+    Parser::ValueParserFFI::RegisteredCounterStyles const* m_counter_styles { nullptr };
 
     GC::Ref<DOM::Node> m_node;
 
@@ -202,6 +212,8 @@ private:
     RefPtr<StyleCache> m_sheetless_shadow_root_style_cache;
 
     [[nodiscard]] StyleScope* parent_counter_style_scope() const;
+    using CounterStyleLookupChain = Vector<Parser::ValueParserFFI::RegisteredCounterStyles const*, 4>;
+    [[nodiscard]] CounterStyleLookupChain counter_style_lookup_chain(Layout::BegunRead const& read) const;
     void publish_counter_styles_if_changed() const;
 
     void add_sheet(StyleSheetState&, StyleEngineUpdate);

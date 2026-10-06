@@ -483,13 +483,6 @@ public:
             m_mask_layers = style_group<CSS::ComputedValues::MaskValues>().mask_layers_value();
         return *m_mask_layers;
     }
-    CSS::ListStyleType const& list_style_type() const
-    {
-        if (!m_list_style_type.has_value()) {
-            m_list_style_type = style_group<CSS::ComputedValues::InheritedListValues>().list_style_type_value(style_scope());
-        }
-        return *m_list_style_type;
-    }
     CSS::AbstractImageStyleValue const* list_style_image() const
     {
         if (!m_list_style_image.has_value())
@@ -603,7 +596,6 @@ private:
     mutable Optional<Vector<CSS::BackgroundLayerData>> m_background_layers;
     mutable Optional<Vector<CSS::BackgroundLayerData>> m_mask_layers;
     mutable Optional<CSS::BorderImageData> m_border_image;
-    mutable Optional<CSS::ListStyleType> m_list_style_type;
     mutable Optional<RefPtr<CSS::AbstractImageStyleValue const>> m_list_style_image;
 };
 

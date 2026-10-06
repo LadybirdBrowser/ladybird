@@ -6,7 +6,6 @@
 
 #include <AK/AnyOf.h>
 #include <AK/Utf16StringBuilder.h>
-#include <LibWeb/CSS/CSSCounterStyleRule.h>
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CountersSet.h>
@@ -23,7 +22,6 @@
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
@@ -982,69 +980,6 @@ static RefPtr<AbstractImageStyleValue const> first_abstract_image_value(Computed
 static StyleValueVector component_items(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
 {
     return style_value_items(handle, {});
-}
-
-ListStyleType ComputedValues::InheritedListValues::list_style_type_value(StyleScope const& style_scope) const
-{
-    auto value = animation_style_value(list_style_type);
-    if (value->to_keyword() == Keyword::None)
-        return Empty {};
-    if (value->is_string())
-        return value->as_string().string_value().to_utf16_string();
-
-    auto const& counter_style_value = value->as_counter_style();
-    auto counter_style_descriptor = counter_style_value.value();
-    auto counter_style = counter_style_value.resolve_counter_style(style_scope);
-    if (!counter_style) {
-        VERIFY(counter_style_descriptor.has<Utf16FlyString>());
-        return UnresolvedCounterStyleName { counter_style_descriptor.get<Utf16FlyString>() };
-    }
-    if (!counter_style_descriptor.has<CounterStyleStyleValue::SymbolsFunction>())
-        return counter_style;
-
-    auto const& symbols = counter_style_descriptor.get<CounterStyleStyleValue::SymbolsFunction>();
-    return ListStyleSymbols {
-        .counter_style = counter_style.release_nonnull(),
-        .type = symbols.type,
-        .symbols = symbols.symbols,
-    };
-}
-
-bool ComputedValues::InheritedListValues::list_style_type_depends_on_counter_style_environment() const
-{
-    auto value = animation_style_value(list_style_type);
-    return value->is_counter_style() && value->as_counter_style().value().has<Utf16FlyString>();
-}
-
-bool ComputedValues::InheritedListValues::list_style_type_uses_non_overridable_counter_style() const
-{
-    auto value = animation_style_value(list_style_type);
-    return value->is_counter_style()
-        && value->as_counter_style().value().has<Utf16FlyString>()
-        && CSSCounterStyleRule::matches_non_overridable_counter_style_name(
-            value->as_counter_style().value().get<Utf16FlyString>());
-}
-
-bool marker_text_depends_on_list_item_counter_value(ListStyleType const& list_style_type)
-{
-    return list_style_type.visit(
-        [](Empty const&) {
-            return false;
-        },
-        [](RefPtr<CounterStyle const> const& counter_style) {
-            return !counter_style || !counter_style->representation_is_constant();
-        },
-        [](Utf16String const&) {
-            // A string literal marker is the same for every item, regardless of the counter value.
-            return false;
-        },
-        [](UnresolvedCounterStyleName const&) {
-            // The name of a counter style that could not be resolved renders the counter value as `decimal`.
-            return true;
-        },
-        [](ListStyleSymbols const& symbols) {
-            return !symbols.counter_style->representation_is_constant();
-        });
 }
 
 RefPtr<AbstractImageStyleValue const> ComputedValues::InheritedListValues::list_style_image_value() const

@@ -9,8 +9,6 @@
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
@@ -238,7 +236,7 @@ TEST_CASE(rust_scalar_handles_create_typed_wrappers)
     EXPECT(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_resolution(1, 0))->is_resolution());
     EXPECT(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_time(1, 0))->is_time());
     EXPECT(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_custom_ident(Utf16FlyString::from_utf8("foo"sv).to_raw_leaked()))->is_custom_ident());
-    EXPECT(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_counter_style(false, Utf16FlyString::from_utf8("decimal"sv).to_raw_leaked(), 0, nullptr, 0))->is_counter_style());
+    EXPECT(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_counter_style(Utf16FlyString::from_utf8("decimal"sv).to_raw_leaked()))->is_counter_style());
 }
 
 TEST_CASE(rust_style_value_handles_outlive_original_shells)
@@ -361,23 +359,6 @@ TEST_CASE(rust_font_style_handles_retain_angle_data)
     auto angle = font_style->as_font_style().angle();
     font_style = KeywordStyleValue::create(Keyword::None);
     EXPECT_EQ(angle->to_string(SerializationMode::Normal), "20deg"sv);
-}
-
-TEST_CASE(rust_counter_style_system_handles_retain_first_symbol_data)
-{
-    auto first_symbol = NumberStyleValue::create(1);
-    auto data = StyleValueFFI::rust_style_value_create_counter_style_system(
-        1,
-        0,
-        StyleValueFFI::rust_style_value_retain(first_symbol->rust_style_value_data()),
-        0);
-
-    first_symbol = NumberStyleValue::create(2);
-    auto system = StyleValue::adopt_rust_style_value_data(data);
-    EXPECT(system->is_counter_style_system());
-    auto retained_symbol = system->as_counter_style_system().value().get<CounterStyleSystemStyleValue::Fixed>().first_symbol;
-    system = KeywordStyleValue::create(Keyword::None);
-    EXPECT_EQ(retained_symbol->to_string(SerializationMode::Normal), "1"sv);
 }
 
 TEST_CASE(rust_pending_substitution_handles_retain_shorthand_data)

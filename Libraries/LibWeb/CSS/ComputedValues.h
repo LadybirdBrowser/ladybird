@@ -21,7 +21,6 @@
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/Clip.h>
 #include <LibWeb/CSS/ColumnCount.h>
-#include <LibWeb/CSS/CounterStyle.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Display.h>
 #include <LibWeb/CSS/EasingFunction.h>
@@ -298,24 +297,6 @@ private:
 
     Vector<WillChangeEntry> m_value;
 };
-
-struct ListStyleSymbols {
-    NonnullRefPtr<CounterStyle const> counter_style;
-    SymbolsType type;
-    Vector<Utf16FlyString> symbols;
-
-    bool operator==(ListStyleSymbols const&) const = default;
-};
-
-struct UnresolvedCounterStyleName {
-    Utf16FlyString name;
-
-    bool operator==(UnresolvedCounterStyleName const&) const = default;
-};
-
-using ListStyleType = Variant<Empty, RefPtr<CounterStyle const>, Utf16String, UnresolvedCounterStyleName, ListStyleSymbols>;
-
-bool marker_text_depends_on_list_item_counter_value(ListStyleType const&);
 
 class InitialValues {
 public:
@@ -925,10 +906,11 @@ public:
 
     Color webkit_text_fill_color() const { return m_inherited.text->webkit_text_fill_color_value(); }
 
-    ListStyleType list_style_type(StyleScope const& style_scope) const { return m_inherited.list->list_style_type_value(style_scope); }
+    void const* list_style_type_data() const { return m_inherited.list->list_style_type.pointer; }
     RefPtr<AbstractImageStyleValue const> list_style_image() const { return m_inherited.list->list_style_image_value(); }
-    bool list_style_type_depends_on_counter_style_environment() const { return m_inherited.list->list_style_type_depends_on_counter_style_environment(); }
-    bool list_style_type_uses_non_overridable_counter_style() const { return m_inherited.list->list_style_type_uses_non_overridable_counter_style(); }
+    // Whether this style reads its tree scope's counter-style registry, which a pseudo-element's does for any named
+    // counter style.
+    bool reads_counter_style_environment(bool is_pseudo) const { return ComputedValuesFFI::rust_style_reads_counter_style_environment(m_noninherited.content_data->content.pointer, list_style_type_data(), is_pseudo); }
 
     RefPtr<AbstractImageStyleValue const> mask_image() const { return m_noninherited.mask_data->mask_image_value(); }
     Optional<MaskReference> mask() const { return m_noninherited.mask_data->mask_value(); }
@@ -1057,9 +1039,6 @@ public:
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedListValues);
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::InheritedList;
 
-        ListStyleType list_style_type_value(StyleScope const&) const;
-        bool list_style_type_depends_on_counter_style_environment() const;
-        bool list_style_type_uses_non_overridable_counter_style() const;
         RefPtr<AbstractImageStyleValue const> list_style_image_value() const;
 
         bool operator==(InheritedListValues const& other) const

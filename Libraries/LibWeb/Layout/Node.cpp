@@ -352,7 +352,6 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
     m_background_layers.clear();
     m_mask_layers.clear();
     m_border_image.clear();
-    m_list_style_type.clear();
     m_list_style_image.clear();
     m_style_record_identity = style_record_identity;
     publish_style_record_to_node_data();
@@ -440,7 +439,6 @@ void NodeWithStyle::refresh_style_from_arena(CSS::StyleRecordID record, void con
     m_background_layers.clear();
     m_mask_layers.clear();
     m_border_image.clear();
-    m_list_style_type.clear();
     m_list_style_image.clear();
     did_update_style_record();
     if (should_attach_resources)
@@ -541,7 +539,6 @@ void NodeWithStyle::set_style_record_identity(CSS::InstalledStyle const& install
     m_background_layers.clear();
     m_mask_layers.clear();
     m_border_image.clear();
-    m_list_style_type.clear();
     m_list_style_image.clear();
     m_style_record_identity = style_record_identity;
     publish_style_record_to_node_data();

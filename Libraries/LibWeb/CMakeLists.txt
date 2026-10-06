@@ -94,8 +94,6 @@ set(SOURCES
     CSS/RustDescriptorBlock.cpp
     CSS/ContainerQuery.cpp
     CSS/CountersSet.cpp
-    CSS/CounterStyle.cpp
-    CSS/CounterStyleDefinition.cpp
     CSS/CustomPropertyRegistration.cpp
     CSS/GeneratedContent.cpp
     CSS/CSS.cpp
@@ -238,7 +236,6 @@ set(SOURCES
     CSS/StyleValues/ContentStyleValue.cpp
     CSS/StyleValues/CounterDefinitionsStyleValue.cpp
     CSS/StyleValues/CounterStyleSystemStyleValue.cpp
-    CSS/StyleValues/CounterStyleStyleValue.cpp
     CSS/StyleValues/CursorStyleValue.cpp
     CSS/StyleValues/CustomIdentStyleValue.cpp
     CSS/StyleValues/DimensionStyleValue.cpp

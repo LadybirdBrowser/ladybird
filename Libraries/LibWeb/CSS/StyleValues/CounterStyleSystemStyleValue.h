@@ -13,21 +13,6 @@ namespace Web::CSS {
 
 class CounterStyleSystemStyleValue : public StyleValueWithDefaultOperators<CounterStyleSystemStyleValue> {
 public:
-    NonnullRefPtr<StyleValue const> static create(CounterStyleSystem system)
-    {
-        return adopt_ref(*new CounterStyleSystemStyleValue(system));
-    }
-
-    NonnullRefPtr<StyleValue const> static create_fixed(RefPtr<StyleValue const> first_symbol)
-    {
-        return adopt_ref(*new CounterStyleSystemStyleValue(Fixed { move(first_symbol) }));
-    }
-
-    NonnullRefPtr<StyleValue const> static create_extends(Utf16FlyString name)
-    {
-        return adopt_ref(*new CounterStyleSystemStyleValue(Extends { move(name) }));
-    }
-
     virtual ~CounterStyleSystemStyleValue() override = default;
     bool algorithm_differs_from(CounterStyleSystemStyleValue const& other) const;
     bool is_valid_symbol_count(size_t count) const;
@@ -57,35 +42,12 @@ public:
         }
     }
 
-    // NB: We only use this style value within the @counter-style at-rule so will never call this
 private:
     friend class StyleValue;
-
-    explicit CounterStyleSystemStyleValue(Variant<CounterStyleSystem, Fixed, Extends> value)
-        : StyleValueWithDefaultOperators(Type::CounterStyleSystem, make_counter_style_system_data(value))
-    {
-    }
 
     explicit CounterStyleSystemStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::CounterStyleSystem, data)
     {
-    }
-
-    static StyleValueFFI::StyleValueData const* make_counter_style_system_data(Value const& value)
-    {
-        // The Rust allocation takes ownership of one strong reference to the first symbol and
-        // one leaked reference to the name when they are present.
-        return value.visit(
-            [](CounterStyleSystem system) {
-                return StyleValueFFI::rust_style_value_create_counter_style_system(0, to_underlying(system), nullptr, 0);
-            },
-            [](Fixed const& fixed) {
-                auto const* first_symbol_data = fixed.first_symbol ? StyleValueFFI::rust_style_value_retain(fixed.first_symbol->rust_style_value_data()) : nullptr;
-                return StyleValueFFI::rust_style_value_create_counter_style_system(1, 0, first_symbol_data, 0);
-            },
-            [](Extends const& extends) {
-                return StyleValueFFI::rust_style_value_create_counter_style_system(2, 0, nullptr, extends.name.to_raw_leaked());
-            });
     }
 };
 

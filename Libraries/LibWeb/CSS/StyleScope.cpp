@@ -8,12 +8,11 @@
 
 #include <AK/StringBuilder.h>
 #include <AK/Utf16StringBuilder.h>
-#include <LibWeb/CSS/CounterStyle.h>
-#include <LibWeb/CSS/CounterStyleDefinition.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleScope.h>
@@ -225,7 +224,10 @@ StyleScope::StyleScope(GC::Ref<DOM::Node> node)
 {
 }
 
-StyleScope::~StyleScope() = default;
+StyleScope::~StyleScope()
+{
+    Parser::ValueParserFFI::rust_counter_styles_release(m_counter_styles);
+}
 
 bool SheetSetStyleCacheRegistry::entry_is_current(Entry const& entry)
 {
@@ -746,6 +748,19 @@ void StyleScope::invalidate_counter_style_cache()
     });
 }
 
+// The precedence of a counter style rule's cascade origin: user agent, then user, then author.
+static u8 counter_style_origin_precedence(CascadeOrigin origin)
+{
+    switch (origin) {
+    case CascadeOrigin::UserAgent:
+        return 0;
+    case CascadeOrigin::User:
+        return 1;
+    default:
+        return 2;
+    }
+}
+
 void StyleScope::build_counter_style_cache(Layout::BegunRead const& read)
 {
     m_is_doing_counter_style_cache_update = true;
@@ -754,371 +769,72 @@ void StyleScope::build_counter_style_cache(Layout::BegunRead const& read)
     // Publish this scope's layer order before comparing definitions from different layers.
     build_rule_cache_if_needed();
 
-    // A rebuild is triggered by any sheet arriving, and almost every rebuild produces the same
-    // counter styles it produced last time. A style names the one it resolved to by identity, so
-    // minting a fresh object for an unchanged style makes every element's inherited list group new,
-    // which is what a child reads of its parent.
-    auto previously_registered_counter_styles = move(m_registered_counter_styles);
-    m_registered_counter_styles.clear_with_capacity();
-
-    auto register_counter_style = [&](Utf16FlyString const& name, NonnullRefPtr<CSS::CounterStyle const> counter_style) {
-        if (auto previous = previously_registered_counter_styles.get(name); previous.has_value() && previous.value()->equals(*counter_style)) {
-            m_registered_counter_styles.set(name, *previous.value());
-            return;
-        }
-        m_registered_counter_styles.set(name, move(counter_style));
-    };
-
-    HashMap<Utf16FlyString, CSS::CounterStyleDefinition> counter_style_definitions;
-    struct CounterStylePriority {
+    struct CounterStyleRule {
+        Utf16FlyString name;
+        RustDescriptorBlock descriptors;
         u8 origin;
         u32 layer;
     };
-    HashMap<Utf16FlyString, CounterStylePriority> counter_style_priorities;
-
-    auto const define_complex_predefined_counter_styles = [&]() {
-        // https://drafts.csswg.org/css-counter-styles-3/#complex-predefined-counters
-        // While authors may define their own counter styles using the @counter-style rule or rely on the set of
-        // predefined counter styles, a few counter styles are described by rules that are too complex to be captured by
-        // the predefined algorithms.
-
-        // FIXME: All of the counter styles defined in this section have a spoken form of numbers
-
-        // https://drafts.csswg.org/css-counter-styles-3/#ethiopic-numeric-counter-style
-        // For this system, the name is "ethiopic-numeric", the range is 1 infinite, the suffix is "/ " (U+002F SOLIDUS
-        // followed by a U+0020 SPACE), and the rest of the descriptors have their initial value.
-        counter_style_definitions.set(
-            "ethiopic-numeric"_utf16_fly_string,
-            CSS::CounterStyleDefinition::create(
-                "ethiopic-numeric"_utf16_fly_string,
-                CSS::CounterStyleAlgorithmOrExtends { CSS::EthiopicNumericCounterStyleAlgorithm {} },
-                {},
-                {},
-                "/ "_utf16_fly_string,
-                Vector<CSS::CounterStyleRangeEntry> { { 1, AK::NumericLimits<i32>::max() } },
-                {},
-                {}));
-
-        // https://drafts.csswg.org/css-counter-styles-3/#extended-range-optional
-        // For all of these counter styles, the descriptors are the same as for the limited range variants, except for
-        // the range, which is calc(-1 * pow(10, 16) + 1) calc(pow(10, 16) - 1).
-        // AD-HOC: Ranges (as with all other CSS <integer>s are limited to i32 range)
-        Vector<CSS::CounterStyleRangeEntry> extended_cjk_range { { AK::clamp_to<i32>(-9999999999999999), AK::clamp_to<i32>(9999999999999999) } };
-
-        // https://drafts.csswg.org/css-counter-styles-3/#limited-chinese
-        // For all of these counter styles, the suffix is "、" U+3001, the fallback is cjk-decimal, the range is -9999
-        // 9999, and the negative value is given in the table of symbols for each style.
-
-        //                  simp-chinese-informal simp-chinese-formal trad-chinese-informal trad-chinese-formal
-        // Negative Sign    负 U+8D1F             负 U+8D1F           負 U+8CA0              負 U+8CA0
-
-        // https://drafts.csswg.org/css-counter-styles-3/#simp-chinese-informal
-        // simp-chinese-informal
-        counter_style_definitions.set(
-            "simp-chinese-informal"_utf16_fly_string,
-            CSS::CounterStyleDefinition::create(
-                "simp-chinese-informal"_utf16_fly_string,
-                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::SimpChineseInformal } },
-                CSS::CounterStyleNegativeSign { "\U00008D1F"_utf16_fly_string, ""_utf16_fly_string },
-                {},
-                "\U00003001"_utf16_fly_string,
-                extended_cjk_range,
-                "cjk-decimal"_utf16_fly_string,
-                {}));
-
-        // https://drafts.csswg.org/css-counter-styles-3/#simp-chinese-formal
-        // simp-chinese-formal
-        counter_style_definitions.set(
-            "simp-chinese-formal"_utf16_fly_string,
-            CSS::CounterStyleDefinition::create(
-                "simp-chinese-formal"_utf16_fly_string,
-                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::SimpChineseFormal } },
-                CSS::CounterStyleNegativeSign { "\U00008D1F"_utf16_fly_string, ""_utf16_fly_string },
-                {},
-                "\U00003001"_utf16_fly_string,
-                extended_cjk_range,
-                "cjk-decimal"_utf16_fly_string,
-                {}));
-
-        // https://drafts.csswg.org/css-counter-styles-3/#trad-chinese-informal
-        // trad-chinese-informal
-        counter_style_definitions.set(
-            "trad-chinese-informal"_utf16_fly_string,
-            CSS::CounterStyleDefinition::create(
-                "trad-chinese-informal"_utf16_fly_string,
-                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::TradChineseInformal } },
-                CSS::CounterStyleNegativeSign { "\U00008CA0"_utf16_fly_string, ""_utf16_fly_string },
-                {},
-                "\U00003001"_utf16_fly_string,
-                extended_cjk_range,
-                "cjk-decimal"_utf16_fly_string,
-                {}));
-
-        // https://drafts.csswg.org/css-counter-styles-3/#trad-chinese-formal
-        // trad-chinese-formal
-        counter_style_definitions.set(
-            "trad-chinese-formal"_utf16_fly_string,
-            CSS::CounterStyleDefinition::create(
-                "trad-chinese-formal"_utf16_fly_string,
-                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::TradChineseFormal } },
-                CSS::CounterStyleNegativeSign { "\U00008CA0"_utf16_fly_string, ""_utf16_fly_string },
-                {},
-                "\U00003001"_utf16_fly_string,
-                extended_cjk_range,
-                "cjk-decimal"_utf16_fly_string,
-                {}));
-
-        // https://drafts.csswg.org/css-counter-styles-3/#cjk-ideographic
-        // cjk-ideographic
-        // This counter style is identical to trad-chinese-informal. (It exists for legacy reasons.)
-        counter_style_definitions.set(
-            "cjk-ideographic"_utf16_fly_string,
-            CSS::CounterStyleDefinition::create(
-                "cjk-ideographic"_utf16_fly_string,
-                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::TradChineseInformal } },
-                CSS::CounterStyleNegativeSign { "\U00008CA0"_utf16_fly_string, ""_utf16_fly_string },
-                {},
-                "\U00003001"_utf16_fly_string,
-                extended_cjk_range,
-                "cjk-decimal"_utf16_fly_string,
-                {}));
-
-        // https://drafts.csswg.org/css-counter-styles-3/#japanese-informal
-        // japanese-informal
-        counter_style_definitions.set(
-            "japanese-informal"_utf16_fly_string,
-            CSS::CounterStyleDefinition::create(
-                "japanese-informal"_utf16_fly_string,
-                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::JapaneseInformal } },
-                CSS::CounterStyleNegativeSign { "\U000030DE\U000030A4\U000030CA\U000030B9"_utf16_fly_string, ""_utf16_fly_string },
-                {},
-                "\U00003001"_utf16_fly_string,
-                extended_cjk_range,
-                "cjk-decimal"_utf16_fly_string,
-                {}));
-
-        // https://drafts.csswg.org/css-counter-styles-3/#japanese-formal
-        // japanese-formal
-        counter_style_definitions.set(
-            "japanese-formal"_utf16_fly_string,
-            CSS::CounterStyleDefinition::create(
-                "japanese-formal"_utf16_fly_string,
-                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::JapaneseFormal } },
-                CSS::CounterStyleNegativeSign { "\U000030DE\U000030A4\U000030CA\U000030B9"_utf16_fly_string, ""_utf16_fly_string },
-                {},
-                "\U00003001"_utf16_fly_string,
-                extended_cjk_range,
-                "cjk-decimal"_utf16_fly_string,
-                {}));
-
-        // https://drafts.csswg.org/css-counter-styles-3/#korean-hangul-formal
-        // korean-hangul-formal
-        counter_style_definitions.set(
-            "korean-hangul-formal"_utf16_fly_string,
-            CSS::CounterStyleDefinition::create(
-                "korean-hangul-formal"_utf16_fly_string,
-                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::KoreanHangulFormal } },
-                CSS::CounterStyleNegativeSign { "\U0000B9C8\U0000C774\U0000B108\U0000C2A4 "_utf16_fly_string, ""_utf16_fly_string },
-                {},
-                ", "_utf16_fly_string,
-                extended_cjk_range,
-                "cjk-decimal"_utf16_fly_string,
-                {}));
-
-        // https://drafts.csswg.org/css-counter-styles-3/#korean-hanja-informal
-        // korean-hanja-informal
-        counter_style_definitions.set(
-            "korean-hanja-informal"_utf16_fly_string,
-            CSS::CounterStyleDefinition::create(
-                "korean-hanja-informal"_utf16_fly_string,
-                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaInformal } },
-                CSS::CounterStyleNegativeSign { "\U0000B9C8\U0000C774\U0000B108\U0000C2A4 "_utf16_fly_string, ""_utf16_fly_string },
-                {},
-                ", "_utf16_fly_string,
-                extended_cjk_range,
-                "cjk-decimal"_utf16_fly_string,
-                {}));
-
-        // https://drafts.csswg.org/css-counter-styles-3/#korean-hanja-formal
-        // korean-hanja-formal
-        counter_style_definitions.set(
-            "korean-hanja-formal"_utf16_fly_string,
-            CSS::CounterStyleDefinition::create(
-                "korean-hanja-formal"_utf16_fly_string,
-                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaFormal } },
-                CSS::CounterStyleNegativeSign { "\U0000B9C8\U0000C774\U0000B108\U0000C2A4 "_utf16_fly_string, ""_utf16_fly_string },
-                {},
-                ", "_utf16_fly_string,
-                extended_cjk_range,
-                "cjk-decimal"_utf16_fly_string,
-                {}));
-    };
-
-    CSS::ComputationContext computation_context {
-        .length_resolution_context = CSS::Length::ResolutionContext::for_document(document())
-    };
-
-    auto collect_counter_style_definitions = [&](CSS::CascadeOrigin cascade_origin, CSS::StyleSheetState const& style_sheet) {
+    Vector<CounterStyleRule> rules;
+    auto& style_engine = document().style_computer().style_engine();
+    auto const tree_scope = style_engine_tree_scope();
+    auto collect_counter_style_rules = [&](CSS::CascadeOrigin cascade_origin, CSS::StyleSheetState const& style_sheet) {
         if (!style_sheet.native_media_list().matches())
             return;
-        auto& style_engine = document().style_computer().style_engine();
-        auto const tree_scope = style_engine_tree_scope();
-        auto const origin_priority = [&]() -> u8 {
-            switch (cascade_origin) {
-            case CSS::CascadeOrigin::UserAgent:
-                return 0;
-            case CSS::CascadeOrigin::User:
-                return 1;
-            case CSS::CascadeOrigin::Author:
-                return 2;
-            default:
-                VERIFY_NOT_REACHED();
-            }
-        }();
         auto const& rule_sheet = style_sheet.shared_compiled_style_sheet() ? style_sheet.shared_compiled_style_sheet()->contents() : style_sheet;
         rule_sheet.for_each_effective_rule_data(TraversalOrder::Preorder, [&](RustRuleView const& rule, Utf16View layer_prefix) {
             if (rule.type() != RustRule::Type::CounterStyle)
                 return;
-            auto name = Utf16FlyString { rule.name() };
-            auto qualified_layer_name = Utf16FlyString::from_utf16(layer_prefix);
-            auto const layer = qualified_layer_name.is_empty() ? 0 : style_engine.intern_atom(qualified_layer_name).value();
-            CounterStylePriority priority {
-                .origin = origin_priority,
+            auto const layer = layer_prefix.is_empty() ? 0 : style_engine.intern_atom(Utf16FlyString::from_utf16(layer_prefix)).value();
+            rules.append({
+                .name = Utf16FlyString { rule.name() },
+                .descriptors = rule.descriptors(),
+                .origin = counter_style_origin_precedence(cascade_origin),
                 .layer = StyleEngineFFI::style_engine_layer_index(style_engine.host(), &read, tree_scope, layer),
-            };
-            if (auto existing = counter_style_priorities.get(name); existing.has_value()) {
-                if (existing->origin > priority.origin || (existing->origin == priority.origin && existing->layer > priority.layer))
-                    return;
-            }
-            if (auto const& definition = CSS::CounterStyleDefinition::from_descriptors(name.view(), rule.descriptors(), computation_context); definition.has_value()) {
-                counter_style_definitions.set(definition->name(), *definition);
-                counter_style_priorities.set(definition->name(), priority);
-            }
+            });
         });
     };
 
-    if (m_node->is_document())
-        for_each_stylesheet(CSS::CascadeOrigin::User, [&](auto& sheet) { collect_counter_style_definitions(CSS::CascadeOrigin::User, sheet); });
-    for_each_stylesheet(CSS::CascadeOrigin::Author, [&](auto& sheet) { collect_counter_style_definitions(CSS::CascadeOrigin::Author, sheet); });
-
-    auto const finish_counter_style_cache_update = [&] {
-        bool counter_style_environment_changed = previously_registered_counter_styles.size() != m_registered_counter_styles.size();
-        if (!counter_style_environment_changed) {
-            for (auto const& [name, counter_style] : m_registered_counter_styles) {
-                auto previous = previously_registered_counter_styles.get(name);
-                if (!previous.has_value() || previous.value() != counter_style.ptr()) {
-                    counter_style_environment_changed = true;
-                    break;
-                }
-            }
-        }
-        if (counter_style_environment_changed) {
-            m_counter_style_environment_identity = document().next_counter_style_environment_identity();
-            // The style engine names the same registry on every record it computes against it.
-            StyleEngineFFI::style_engine_set_counter_style_environment_identity(document().style_computer().style_engine().host(), style_engine_tree_scope(), m_counter_style_environment_identity);
-        }
-
-        m_is_doing_counter_style_cache_update = false;
-        m_needs_counter_style_cache_update = false;
-    };
+    bool const is_document = m_node->is_document();
+    if (is_document)
+        for_each_stylesheet(CSS::CascadeOrigin::User, [&](auto& sheet) { collect_counter_style_rules(CSS::CascadeOrigin::User, sheet); });
+    for_each_stylesheet(CSS::CascadeOrigin::Author, [&](auto& sheet) { collect_counter_style_rules(CSS::CascadeOrigin::Author, sheet); });
 
     // OPTIMIZATION: The predefined counter styles are the same for every document (they all come from Default.css),
     //               and so is what a document that defines no counter style of its own registers. Every new iframe
     //               and SVG image registers them in its first style update, so they are made once.
-    static auto& user_agent_registered_counter_styles = *new HashMap<Utf16FlyString, NonnullRefPtr<CSS::CounterStyle const>>;
-    bool const registers_only_user_agent_counter_styles = m_node->is_document() && counter_style_definitions.is_empty();
-    if (registers_only_user_agent_counter_styles && !user_agent_registered_counter_styles.is_empty()) {
-        for (auto const& [name, counter_style] : user_agent_registered_counter_styles)
-            register_counter_style(name, counter_style);
-        finish_counter_style_cache_update();
-        return;
+    static Parser::ValueParserFFI::RegisteredCounterStyles const* user_agent_counter_styles = nullptr;
+    bool const registers_only_user_agent_counter_styles = is_document && rules.is_empty();
+    Parser::ValueParserFFI::RegisteredCounterStyles const* counter_styles = nullptr;
+    if (registers_only_user_agent_counter_styles && user_agent_counter_styles) {
+        counter_styles = Parser::ValueParserFFI::rust_counter_styles_retain(user_agent_counter_styles);
+    } else {
+        // NB: Only the document's style scope registers the predefined counter styles, so that overrides of them are
+        //     inherited by shadow roots.
+        if (is_document)
+            for_each_stylesheet(CSS::CascadeOrigin::UserAgent, [&](auto& sheet) { collect_counter_style_rules(CSS::CascadeOrigin::UserAgent, sheet); });
+        Vector<Parser::ValueParserFFI::FfiCounterStyleRule> ffi_rules;
+        ffi_rules.ensure_capacity(rules.size());
+        for (auto const& rule : rules)
+            ffi_rules.unchecked_append({ Parser::ffi_utf16_view(rule.name), rule.descriptors.handle(), rule.origin, rule.layer });
+        auto const* parent = parent_counter_style_scope();
+        auto outer_scopes = parent ? parent->counter_style_lookup_chain(read) : CounterStyleLookupChain {};
+        auto length_resolution_context = to_ffi_length_resolution_context(CSS::Length::ResolutionContext::for_document(document()));
+        counter_styles = Parser::ValueParserFFI::rust_counter_styles_resolve(ffi_rules.data(), ffi_rules.size(), is_document, outer_scopes.data(), outer_scopes.size(), m_counter_styles, &length_resolution_context);
+        if (registers_only_user_agent_counter_styles)
+            user_agent_counter_styles = Parser::ValueParserFFI::rust_counter_styles_retain(counter_styles);
     }
 
-    // NB: We should only register predefined counter styles in the document's style scope, this ensures overrides are
-    //     correctly inherited by shadow roots. A user or author definition wins over a predefined one whatever its
-    //     layer, so the ones collected above go over them.
-    if (m_node->is_document()) {
-        auto user_and_author_counter_style_definitions = move(counter_style_definitions);
-        counter_style_definitions.clear();
-        for_each_stylesheet(CSS::CascadeOrigin::UserAgent, [&](auto& sheet) { collect_counter_style_definitions(CSS::CascadeOrigin::UserAgent, sheet); });
-        define_complex_predefined_counter_styles();
-        for (auto& [name, definition] : user_and_author_counter_style_definitions)
-            counter_style_definitions.set(name, move(definition));
+    if (counter_styles != m_counter_styles) {
+        m_counter_style_environment_identity = document().next_counter_style_environment_identity();
+        // The style engine names the same registry on every record it computes against it.
+        StyleEngineFFI::style_engine_set_counter_style_environment_identity(style_engine.host(), tree_scope, m_counter_style_environment_identity);
     }
+    Parser::ValueParserFFI::rust_counter_styles_release(m_counter_styles);
+    m_counter_styles = counter_styles;
 
-    VERIFY(!m_node->is_document() || counter_style_definitions.contains("decimal"_utf16_fly_string));
-
-    auto const is_part_of_extends_cycle = [&](Utf16FlyString const& counter_style_name) {
-        HashTable<Utf16FlyString> visited;
-        auto current_counter_style_name = counter_style_name;
-
-        while (true) {
-            if (visited.contains(current_counter_style_name))
-                return true;
-
-            visited.set(current_counter_style_name);
-
-            auto const& current_definition = counter_style_definitions.get(current_counter_style_name);
-
-            // NB: If we don't have a definition for this counter style it means it's either undefined in this scope
-            //     (and will the counter style extending it will instead default to extending "decimal" instead) or it's
-            //     defined in an outer style scope (and thus can't extend a counter style in the current scope), neither
-            //     of which can lead to a cycle.
-            if (!current_definition.has_value())
-                return false;
-
-            if (current_definition->algorithm().has<CSS::CounterStyleAlgorithm>())
-                return false;
-
-            current_counter_style_name = current_definition->algorithm().get<CSS::CounterStyleSystemStyleValue::Extends>().name;
-        }
-
-        VERIFY_NOT_REACHED();
-    };
-
-    // NB: We register non-extending counter styles immediately and then extending counter styles after we have
-    //     registered their corresponding extended counter style.
-    Vector<CSS::CounterStyleDefinition> extending_counter_styles;
-
-    for (auto const& [name, definition] : counter_style_definitions) {
-        // NB: We don't need to wait for this counter style's extended counter style to be registered since it doesn't
-        //     have one - register it immediately.
-        if (definition.algorithm().has<CSS::CounterStyleAlgorithm>()) {
-            register_counter_style(name, CSS::CounterStyle::from_counter_style_definition(read, definition, *this));
-            continue;
-        }
-
-        auto extends = definition.algorithm().get<CSS::CounterStyleSystemStyleValue::Extends>();
-
-        if (is_part_of_extends_cycle(name)) {
-            auto copied = definition;
-            copied.set_algorithm(CSS::CounterStyleSystemStyleValue::Extends { "decimal"_utf16_fly_string });
-            extending_counter_styles.append(copied);
-        } else {
-            extending_counter_styles.append(definition);
-        }
-    }
-
-    // FIXME: This is O(n^2) in the worst case but we usually don't see many counter styles so it should be fine in practice.
-    while (!extending_counter_styles.is_empty()) {
-        for (size_t i = 0; i < extending_counter_styles.size(); ++i) {
-            auto const& definition = extending_counter_styles.at(i);
-            auto extends = definition.algorithm().get<CSS::CounterStyleSystemStyleValue::Extends>();
-
-            auto const& extends_name = extends.name;
-            if (!m_registered_counter_styles.contains(extends_name) && counter_style_definitions.contains(extends_name))
-                continue;
-
-            register_counter_style(definition.name(), CSS::CounterStyle::from_counter_style_definition(read, definition, *this));
-            extending_counter_styles.remove(i);
-            --i;
-        }
-    }
-
-    if (registers_only_user_agent_counter_styles)
-        user_agent_registered_counter_styles = m_registered_counter_styles;
-
-    finish_counter_style_cache_update();
+    m_is_doing_counter_style_cache_update = false;
+    m_needs_counter_style_cache_update = false;
 }
 
 u64 StyleScope::counter_style_environment_identity(Layout::BegunRead const& read) const
@@ -1155,8 +871,28 @@ StyleScope* StyleScope::parent_counter_style_scope() const
     return nullptr;
 }
 
+// The counter styles of every scope a counter style name used in this scope is looked up in, nearest first.
+StyleScope::CounterStyleLookupChain StyleScope::counter_style_lookup_chain(Layout::BegunRead const& read) const
+{
+    CounterStyleLookupChain chain;
+    for (auto const* scope = this; scope; scope = scope->parent_counter_style_scope()) {
+        if (scope->m_needs_counter_style_cache_update && !scope->m_is_doing_counter_style_cache_update)
+            const_cast<StyleScope*>(scope)->build_counter_style_cache(read);
+        if (scope->m_counter_styles)
+            chain.append(scope->m_counter_styles);
+    }
+    return chain;
+}
+
+bool StyleScope::list_style_type_depends_on_counter_value(void const* list_style_type) const
+{
+    Layout::ForcedReadScope read { document() };
+    auto scopes = counter_style_lookup_chain(read);
+    return Parser::ValueParserFFI::rust_list_style_type_depends_on_counter_value(list_style_type, scopes.data(), scopes.size());
+}
+
 // Settles every scope a counter style name used in this scope may be looked up in, and publishes what each registers
-// to the layout node arena, so that the arena answers every lookup the way get_registered_counter_style() would.
+// to the layout node arena, so that the arena answers every lookup the way counter_style_lookup_chain() does.
 void StyleScope::publish_counter_style_lookup_chain(Layout::BegunRead const& read) const
 {
     for (auto const* scope = this; scope; scope = scope->parent_counter_style_scope()) {
@@ -1173,22 +909,12 @@ void StyleScope::publish_counter_styles_if_changed() const
     if (m_published_counter_style_environment_identity == m_counter_style_environment_identity && m_published_parent_counter_style_scope == parent_tree_scope)
         return;
 
-    Vector<size_t> names;
-    Vector<Parser::ValueParserFFI::FfiRegisteredCounterStyle const*> counter_styles;
-    names.ensure_capacity(m_registered_counter_styles.size());
-    counter_styles.ensure_capacity(m_registered_counter_styles.size());
-    for (auto const& [name, counter_style] : m_registered_counter_styles) {
-        names.unchecked_append(name.to_raw_leaked());
-        counter_styles.unchecked_append(counter_style->rust_counter_style());
-    }
     Parser::ValueParserFFI::render_state_publish_counter_styles(
         document().layout_node_arena().host(),
         style_engine_tree_scope().value(),
         parent_tree_scope.has_value() ? parent_tree_scope->value() : 0,
         parent_tree_scope.has_value(),
-        names.data(),
-        counter_styles.data(),
-        names.size());
+        m_counter_styles);
     m_published_counter_style_environment_identity = m_counter_style_environment_identity;
     m_published_parent_counter_style_scope = parent_tree_scope;
 }
@@ -1205,17 +931,6 @@ void StyleScope::for_each_active_css_style_sheet(Function<void(CSS::StyleSheetSt
     } else {
         m_node->document().for_each_active_css_style_sheet(callback);
     }
-}
-
-RefPtr<CSS::CounterStyle const> StyleScope::get_registered_counter_style(Layout::BegunRead const& read, Utf16FlyString const& name) const
-{
-    return dereference_global_tree_scoped_reference<CSS::CounterStyle const*>([&](StyleScope const& scope) {
-        if (scope.m_needs_counter_style_cache_update && !scope.m_is_doing_counter_style_cache_update)
-            const_cast<StyleScope&>(scope).build_counter_style_cache(read);
-
-        return scope.m_registered_counter_styles.get(name);
-    })
-        .value_or(nullptr);
 }
 
 Optional<StyleScope::FunctionDefinitionAndScope> StyleScope::get_function_definition(Layout::BegunRead const& read, Utf16FlyString const& name) const

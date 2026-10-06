@@ -108,27 +108,31 @@ fn parse_integer_component(
     if !stream.is_empty() {
         return None;
     }
-    let resolved = match &parsed {
-        StyleValueData::Integer { value } => *value,
-        // NB: This matches CalculatedStyleValue::resolve_integer() at
-        //     Libraries/LibWeb/CSS/StyleValues/CalculatedStyleValue.cpp, before descriptor
-        //     integer resolution moved to Rust.
-        StyleValueData::Calculated { .. } => {
-            super::stylesheet_cache::record_length_resolution_dependency();
-            unsafe {
-                context
-                    .length_resolution_context
-                    .cast::<FfiLengthResolutionContext>()
-                    .as_ref()
-            }
-            .and_then(|length_context| {
-                crate::css::calc::resolve_calculated_integer_with_context(&parsed, length_context)
-            })
-            .or_else(|| crate::css::calc::resolve_calculated_integer_without_context(&parsed))?
-        }
-        _ => return None,
+    if matches!(parsed, StyleValueData::Calculated { .. }) {
+        super::stylesheet_cache::record_length_resolution_dependency();
+    }
+    let length_context = unsafe {
+        context
+            .length_resolution_context
+            .cast::<FfiLengthResolutionContext>()
+            .as_ref()
     };
-    Some((resolved, parsed))
+    Some((resolve_descriptor_integer(&parsed, length_context)?, parsed))
+}
+
+/// A descriptor's `<integer>`, with a calculation resolved against the document's lengths when
+/// there are some to resolve against.
+pub(crate) fn resolve_descriptor_integer(
+    value: &StyleValueData,
+    length_context: Option<&FfiLengthResolutionContext>,
+) -> Option<i32> {
+    match value {
+        StyleValueData::Integer { value } => Some(*value),
+        StyleValueData::Calculated { .. } => length_context
+            .and_then(|length_context| crate::css::calc::resolve_calculated_integer_with_context(value, length_context))
+            .or_else(|| crate::css::calc::resolve_calculated_integer_without_context(value)),
+        _ => None,
+    }
 }
 
 fn parse_integer_symbol_pair(context: &ParseContext, values: &[ComponentValue]) -> Option<(i32, StyleValueData)> {
