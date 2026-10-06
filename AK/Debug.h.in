@@ -50,10 +50,6 @@
 #    cmakedefine01 CSS_TOKENIZER_DEBUG
 #endif
 
-#ifndef CSS_TRANSITIONS_DEBUG
-#    cmakedefine01 CSS_TRANSITIONS_DEBUG
-#endif
-
 #ifndef CURL_DEBUG
 #    cmakedefine01 CURL_DEBUG
 #endif

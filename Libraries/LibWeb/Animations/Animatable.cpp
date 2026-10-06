@@ -326,22 +326,6 @@ bool Animatable::has_matching_transition_property_entry(Optional<CSS::PseudoElem
     return has_matching_transition_property_entry(pseudo_element, installed_longhand_table(static_cast<DOM::Element const&>(*this), pseudo_element));
 }
 
-// The longhands the element's installed style gives a matching transition-property entry, read from
-// the style's transition longhands.
-Vector<CSS::PropertyID> Animatable::property_ids_with_matching_transition_property_entry(Optional<CSS::PseudoElement> pseudo_element) const
-{
-    auto const* longhand_table = installed_longhand_table(static_cast<DOM::Element const&>(*this), pseudo_element);
-    if (!has_matching_transition_property_entry(pseudo_element, longhand_table))
-        return {};
-    auto entries = CSS::StyleValueFFI::rust_transition_entries(longhand_table);
-    Vector<CSS::PropertyID> property_ids;
-    property_ids.ensure_capacity(entries.count);
-    for (auto const& entry : ReadonlySpan<CSS::StyleValueFFI::FfiTransitionEntry> { entries.entries, entries.count })
-        property_ids.unchecked_append(static_cast<CSS::PropertyID>(entry.property_id));
-    CSS::StyleValueFFI::rust_transition_entries_release(entries);
-    return property_ids;
-}
-
 bool Animatable::has_existing_transitions(Optional<CSS::PseudoElement> pseudo_element) const
 {
     auto const* transition = transition_if_exists(pseudo_element);

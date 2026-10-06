@@ -27,13 +27,6 @@
 #include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/StyleEngineRustFFI.h>
 
-namespace Web::CSS::StyleValueFFI {
-
-struct FfiTransitionAction;
-struct FfiTransitionInput;
-
-}
-
 namespace Web::CSS::StyleEngineFFI {
 
 using Layout::RustFFI::BegunRead;
@@ -233,7 +226,6 @@ public:
     // The borrowed views are stable while a base record exists or an animation-overlay generation remains assigned or
     // pinned.
     [[nodiscard]] StyleRecordView style_record_view(Layout::BegunRead const& read, StyleRecordID style_record) const;
-    void decide_transitions(Layout::BegunRead const& read, StyleRecordID before_style_record, StyleRecordID after_style_record, StyleValueFFI::FfiTransitionInput const&, StyleValueFFI::FfiTransitionAction*) const;
     // Remove the retained input identities for one pseudo-element kind and return its removal.
     [[nodiscard]] StyleRecordDelta remove_computed_pseudo(Layout::BegunRead const& read, StyleNodeID node, u8 pseudo_kind);
     // A sheet the host numbers itself, which the engine adds as it applies the host's writes.

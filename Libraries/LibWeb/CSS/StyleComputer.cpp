@@ -446,23 +446,24 @@ void StyleComputer::commit_transition_stabilization_epoch()
         };
 
         switch (state.action) {
-        case ProvisionalTransitionAction::None:
+            using enum StyleValueFFI::FfiTransitionActionKind;
+        case None:
             continue;
-        case ProvisionalTransitionAction::Remove:
+        case Remove:
             remove_committed_transition();
             break;
-        case ProvisionalTransitionAction::Cancel:
+        case Cancel:
             VERIFY(state.committed_transition);
             state.committed_transition->cancel();
             break;
-        case ProvisionalTransitionAction::Start:
+        case Start:
             commit_proposed_transition();
             break;
-        case ProvisionalTransitionAction::RemoveAndStart:
+        case RemoveAndStart:
             remove_committed_transition();
             commit_proposed_transition();
             break;
-        case ProvisionalTransitionAction::CancelRemoveAndStart:
+        case CancelRemoveAndStart:
             cancel_and_remove_committed_transition();
             commit_proposed_transition();
             break;
@@ -1093,11 +1094,11 @@ RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_inst
 
     record_transition_baseline_for_later_passes(abstract_element, before_change_style_record);
 
-    // OPTIMIZATION: The two lists `start_needed_transitions` decides over, plus this element's own provisional states.
-    //               With none of them there is nothing to decide, and the after-change style need not be
-    //               reconstructed at all.
-    if (element.property_ids_with_matching_transition_property_entry(pseudo_element).is_empty()
-        && element.property_ids_with_existing_transitions(pseudo_element).is_empty()
+    // OPTIMIZATION: The transition entries and existing transitions `start_needed_transitions` decides over, plus this
+    //               element's own provisional states. With none of them there is nothing to decide, and the
+    //               after-change style need not be reconstructed at all.
+    if (!element.has_matching_transition_property_entry(pseudo_element)
+        && !element.has_existing_transitions(pseudo_element)
         && !has_provisional_transition_states(abstract_element))
         return {};
 
@@ -1141,30 +1142,22 @@ RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_inst
     return decode_style_invalidation(publication.invalidation.invalidation);
 }
 
+// The key of the provisional transition states of an element or pseudo-element, whose element has a style node.
+static u64 transition_target_key(DOM::AbstractElement abstract_element)
+{
+    auto style_node_id = abstract_element.element().style_node_id();
+    VERIFY(style_node_id != 0);
+    return (static_cast<u64>(style_node_id.value()) << 8) | pseudo_element_to_ffi(abstract_element.pseudo_element());
+}
+
 // https://drafts.csswg.org/css-transitions/#starting
 void StyleComputer::start_needed_transitions(Layout::BegunRead const& read, ComputedStyleWorkingSet& new_style, DOM::AbstractElement abstract_element, StyleRecordID before_change_style_record) const
 {
     auto had_pending_animated_style_update = m_document->needs_animated_style_update();
 
-    // FIXME: Add some transition helpers to AbstractElement.
     auto& element = abstract_element.element();
     auto pseudo_element = abstract_element.pseudo_element();
-    auto style_node_id = element.style_node_id();
-    Optional<u64> transition_target_key;
-    if (style_node_id != 0)
-        transition_target_key = (static_cast<u64>(style_node_id.value()) << 8) | pseudo_element_to_ffi(pseudo_element);
-    VERIFY(before_change_style_record);
-    Vector<size_t> existing_stabilization_state_indices;
-    if (transition_target_key.has_value()) {
-        if (auto indices = m_provisional_transition_state_indices_by_target.get(*transition_target_key); indices.has_value())
-            existing_stabilization_state_indices = *indices;
-    } else {
-        for (size_t index = 0; index < m_provisional_transition_states.size(); ++index) {
-            auto const& state = m_provisional_transition_states[index];
-            if (state.element == GC::Ptr { element } && state.pseudo_element == pseudo_element)
-                existing_stabilization_state_indices.append(index);
-        }
-    }
+    auto target_key = transition_target_key(abstract_element);
 
     // NB: We know that a DocumentTimeline's current time is always in milliseconds
     auto current_time = m_document->timeline()->current_time();
@@ -1173,273 +1166,90 @@ void StyleComputer::start_needed_transitions(Layout::BegunRead const& read, Comp
     VERIFY(current_time->type == Animations::TimeValue::Type::Milliseconds);
     auto style_change_event_time = current_time->value;
 
-    // The after-change style's transition declarations, per longhand they name. A declaration
-    // whose delay and duration are each the single value 0s starts nothing, so it is read only
-    // when the element holds a transition such an entry could cancel.
-    auto const* after_change_table = new_style.computed_longhand_table();
-    auto existing_transition_property_ids = element.property_ids_with_existing_transitions(pseudo_element);
-    StyleValueFFI::FfiTransitionEntries transition_entries {};
-    if (!StyleValueFFI::rust_transition_delay_and_duration_are_single_zero(after_change_table) || !existing_transition_property_ids.is_empty())
-        transition_entries = StyleValueFFI::rust_transition_entries(after_change_table);
-    ScopeGuard release_transition_entries = [&] {
-        if (transition_entries.entries)
-            StyleValueFFI::rust_transition_entries_release(transition_entries);
-    };
-    ReadonlySpan<StyleValueFFI::FfiTransitionEntry> matching_entries { transition_entries.entries, transition_entries.count };
-
-    // OPTIMIZATION: The two lists below are what this decides over, and an element with neither
-    //               starts nothing. Answering that first is worth doing because the after-change
-    //               style is a whole computed style built for the comparison, and every recompute
-    //               of every element that has a style at all reaches here.
-    if (matching_entries.is_empty()
-        && existing_transition_property_ids.is_empty()
-        && existing_stabilization_state_indices.is_empty())
-        return;
-
-    StyleValueFFI::FfiAnimationContext transition_animation_context {
-        .allow_discrete = false,
-        .current_color = new_style.property(PropertyID::Color).rust_style_value_data(),
-        .has_length_resolution_context = false,
-        .length_resolution_context = {},
-        .has_transform_reference_box = false,
-        .transform_reference_box_width = 0,
-        .transform_reference_box_height = 0,
-    };
-
-    struct PreparedTransition {
-        size_t stabilization_state_index;
-        PropertyID property_id;
-        RefPtr<StyleValue const> before_change_value;
-        RefPtr<StyleValue const> after_change_value;
-        RefPtr<StyleValue const> current_value;
-        GC::Ptr<CSSTransition> existing_transition;
-        StyleValueFFI::StyleValueData const* timing_function;
-    };
-    Vector<PreparedTransition> prepared_transitions;
-    Vector<StyleValueFFI::FfiTransitionPropertyInput> ffi_properties;
-
-    auto ensure_stabilization_state = [&](PropertyID property_id) -> size_t {
-        Optional<u64> state_key;
-        if (transition_target_key.has_value()) {
-            auto property = to_underlying(property_id);
-            VERIFY(property <= NumericLimits<u16>::max());
-            state_key = (*transition_target_key << 16) | property;
-            if (auto index = m_provisional_transition_state_indices.get(*state_key); index.has_value())
-                return *index;
-        } else {
-            for (size_t index = 0; index < m_provisional_transition_states.size(); ++index) {
-                auto const& state = m_provisional_transition_states[index];
-                if (state.element == GC::Ptr { element } && state.pseudo_element == pseudo_element && state.property_id == property_id)
-                    return index;
-            }
-        }
-        VERIFY(document().is_in_style_stabilization_epoch());
-        auto existing_transition = element.property_transition(pseudo_element, property_id);
-        m_provisional_transition_states.append({
-            .element = element,
-            .pseudo_element = pseudo_element,
-            .property_id = property_id,
-            .committed_transition = existing_transition,
-            .proposed_transition = nullptr,
-            .action = ProvisionalTransitionAction::None,
-            .has_decision = false,
-        });
-        auto index = m_provisional_transition_states.size() - 1;
-        if (state_key.has_value()) {
-            m_provisional_transition_state_indices.set(*state_key, index);
-            m_provisional_transition_state_indices_by_target.ensure(*transition_target_key).append(index);
-        }
-        return index;
-    };
-    auto append_transition_input = [&](PropertyID property_id, StyleValueFFI::FfiTransitionEntry const* matching_entry) {
-        auto stabilization_state_index = ensure_stabilization_state(property_id);
-        auto const& stabilization_state = m_provisional_transition_states[stabilization_state_index];
-        auto existing_transition = stabilization_state.committed_transition;
-        bool has_running_transition = existing_transition && !existing_transition->is_finished() && !existing_transition->is_idle();
-        bool has_completed_transition = existing_transition && !has_running_transition;
-        bool allow_discrete = false;
-        double delay = 0;
-        double duration = 0;
-        double old_timing_function_output = 0;
-        double old_reversing_shortening_factor = 1;
-
-        if (matching_entry) {
-            delay = matching_entry->delay;
-            duration = matching_entry->duration;
-            allow_discrete = static_cast<TransitionBehavior>(matching_entry->behavior) == TransitionBehavior::AllowDiscrete;
-            if (existing_transition) {
-                old_reversing_shortening_factor = existing_transition->reversing_shortening_factor();
-                if (has_running_transition)
-                    old_timing_function_output = existing_transition->timing_function_output_at_time(style_change_event_time);
-            }
-        }
-
-        ffi_properties.append({
+    Vector<StyleValueFFI::FfiExistingTransition> existing_transitions;
+    for (auto property_id : element.property_ids_with_existing_transitions(pseudo_element)) {
+        auto transition = element.property_transition(pseudo_element, property_id);
+        bool running = !transition->is_finished() && !transition->is_idle();
+        existing_transitions.append({
             .property_id = to_underlying(property_id),
-            .before_change_value = nullptr,
-            .after_change_value = nullptr,
-            .current_value = nullptr,
-            .existing_end_value = existing_transition ? existing_transition->transition_end_value()->rust_style_value_data() : nullptr,
-            .reversing_adjusted_start_value = existing_transition ? existing_transition->reversing_adjusted_start_value()->rust_style_value_data() : nullptr,
-            .has_matching_transition = matching_entry != nullptr,
-            .allow_discrete = allow_discrete,
-            .has_running_transition = has_running_transition,
-            .has_completed_transition = has_completed_transition,
-            .delay = delay,
-            .duration = duration,
-            .old_timing_function_output = old_timing_function_output,
-            .old_reversing_shortening_factor = old_reversing_shortening_factor,
+            .running = running,
+            .end_value = transition->transition_end_value()->rust_style_value_data(),
+            .reversing_adjusted_start_value = transition->reversing_adjusted_start_value()->rust_style_value_data(),
+            .timing_function_output = running ? transition->timing_function_output_at_time(style_change_event_time) : 0,
+            .reversing_shortening_factor = transition->reversing_shortening_factor(),
         });
-        prepared_transitions.append({
-            .stabilization_state_index = stabilization_state_index,
-            .property_id = property_id,
-            .before_change_value = {},
-            .after_change_value = {},
-            .current_value = {},
-            .existing_transition = existing_transition,
-            .timing_function = matching_entry ? matching_entry->timing_function : nullptr,
-        });
-    };
-
-    // OPTIMIZATION: Instead of iterating over all properties we collect properties which appear in
-    //               transition-property, followed by existing transitions without a matching entry.
-    for (auto const& entry : matching_entries)
-        append_transition_input(static_cast<PropertyID>(entry.property_id), &entry);
-    for (auto property_id : existing_transition_property_ids) {
-        if (!any_of(matching_entries, [&](auto const& entry) { return entry.property_id == to_underlying(property_id); }))
-            append_transition_input(property_id, nullptr);
     }
 
-    for (auto stabilization_state_index : existing_stabilization_state_indices) {
-        auto& stabilization_state = m_provisional_transition_states[stabilization_state_index];
-        bool has_prepared_transition = false;
-        for (auto const& prepared_transition : prepared_transitions) {
-            if (prepared_transition.stabilization_state_index == stabilization_state_index) {
-                has_prepared_transition = true;
-                break;
-            }
-        }
-        if (has_prepared_transition)
-            continue;
+    // A transition action is provisional until the stabilization epoch commits; a later pass of the epoch decides
+    // again, superseding the decision of this one.
+    auto decide = [&](ProvisionalTransitionState& state, StyleValueFFI::FfiTransitionActionKind action) {
         ++document().style_invalidation_counters().provisional_transition_decisions;
-        if (stabilization_state.has_decision)
+        if (state.has_decision)
             ++document().style_invalidation_counters().superseded_provisional_transition_decisions;
-        stabilization_state.has_decision = true;
-        if (stabilization_state.proposed_transition)
-            stabilization_state.proposed_transition->discard_provisional_transition();
-        stabilization_state.proposed_transition = nullptr;
-        stabilization_state.action = ProvisionalTransitionAction::None;
-    }
-
-    StyleValueFFI::FfiTransitionInput input {
-        .context = transition_animation_context,
-        .properties = ffi_properties.data(),
-        .property_count = ffi_properties.size(),
-        .target_node = style_node_id.value(),
-        .target_pseudo_kind = pseudo_element_to_ffi(pseudo_element),
-        .element_box_slot = Layout::Node::slot_id(element.unsafe_layout_node(read)).index,
+        state.has_decision = true;
+        if (state.proposed_transition)
+            state.proposed_transition->discard_provisional_transition();
+        state.proposed_transition = nullptr;
+        state.action = action;
     };
-    Vector<StyleValueFFI::FfiTransitionAction> actions;
-    actions.resize(prepared_transitions.size());
-    // The after-change style is the record the element installed, with its overlay, and the transitions resolve their
-    // lengths against it.
-    m_style_engine.decide_transitions(read, before_change_style_record, abstract_element.style_record_identity(), input, actions.data());
-    auto retain_style_value = [](StyleValueFFI::StyleValueData const* value) -> RefPtr<StyleValue const> {
-        if (!value)
-            return {};
+    auto ensure_state = [&](PropertyID property_id) -> ProvisionalTransitionState& {
+        auto index = m_provisional_transition_state_indices.ensure((target_key << 16) | to_underlying(property_id), [&] {
+            VERIFY(document().is_in_style_stabilization_epoch());
+            m_provisional_transition_state_indices_by_target.ensure(target_key).append(m_provisional_transition_states.size());
+            m_provisional_transition_states.append({
+                .element = element,
+                .pseudo_element = pseudo_element,
+                .property_id = property_id,
+                .committed_transition = element.property_transition(pseudo_element, property_id),
+                .proposed_transition = nullptr,
+                .action = StyleValueFFI::FfiTransitionActionKind::None,
+                .has_decision = false,
+            });
+            return m_provisional_transition_states.size() - 1;
+        });
+        return m_provisional_transition_states[index];
+    };
+    auto adopt = [](StyleValueFFI::StyleValueData const* value) {
         return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(value));
     };
-    for (size_t index = 0; index < prepared_transitions.size(); ++index) {
-        auto& prepared_transition = prepared_transitions[index];
-        auto const& property = ffi_properties[index];
-        switch (actions[index].kind) {
-        case StyleValueFFI::FfiTransitionActionKind::None:
-        case StyleValueFFI::FfiTransitionActionKind::Remove:
-        case StyleValueFFI::FfiTransitionActionKind::Cancel:
-            break;
-        case StyleValueFFI::FfiTransitionActionKind::Start:
-        case StyleValueFFI::FfiTransitionActionKind::RemoveAndStart:
-            prepared_transition.before_change_value = retain_style_value(property.before_change_value);
-            prepared_transition.after_change_value = retain_style_value(property.after_change_value);
-            break;
-        case StyleValueFFI::FfiTransitionActionKind::CancelRemoveAndStartReversing:
-        case StyleValueFFI::FfiTransitionActionKind::CancelRemoveAndStartInterrupted:
-            prepared_transition.after_change_value = retain_style_value(property.after_change_value);
-            prepared_transition.current_value = retain_style_value(property.current_value);
-            break;
-        }
-    }
 
     Vector<GC::Ref<Animations::KeyframeEffect>> newly_started_transition_effects;
     HashTable<Animations::KeyframeEffect*> replaced_transition_effects;
-    for (size_t index = 0; index < prepared_transitions.size(); ++index) {
-        auto const& prepared_transition = prepared_transitions[index];
-        auto& stabilization_state = m_provisional_transition_states[prepared_transition.stabilization_state_index];
-        auto property_id = prepared_transition.property_id;
-        auto const& action = actions[index];
-        VERIFY(action.property_id == to_underlying(property_id));
-        auto existing_transition = prepared_transition.existing_transition;
-        ++document().style_invalidation_counters().provisional_transition_decisions;
-        if (stabilization_state.has_decision)
-            ++document().style_invalidation_counters().superseded_provisional_transition_decisions;
-        stabilization_state.has_decision = true;
-        if (stabilization_state.proposed_transition)
-            stabilization_state.proposed_transition->discard_provisional_transition();
-        stabilization_state.proposed_transition = nullptr;
-        auto start_a_transition = [&](StyleValue const& start_value, StyleValue const& end_value, StyleValue const& reversing_adjusted_start_value) {
-            dbgln_if(CSS_TRANSITIONS_DEBUG, "Proposing a transition of {} from {} to {}", string_from_property_id(property_id), start_value.to_string(SerializationMode::Normal), end_value.to_string(SerializationMode::Normal));
-            auto start_time = style_change_event_time;
-            auto end_time = start_time + action.active_duration;
-            auto timing_function = EasingFunction::from_style_value(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(prepared_transition.timing_function)));
-            auto transition = CSSTransition::start_a_transition(abstract_element, property_id,
-                document().transition_generation(), action.delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, action.reversing_shortening_factor, move(timing_function), CSSTransition::Publication::Provisional);
-            stabilization_state.proposed_transition = transition;
+    auto on_actions = [&](ReadonlySpan<StyleValueFFI::FfiTransitionAction> actions) {
+        for (auto const& action : actions) {
+            auto property_id = static_cast<PropertyID>(action.property_id);
+            auto& state = ensure_state(property_id);
+            decide(state, action.kind);
+            if (action.kind != StyleValueFFI::FfiTransitionActionKind::None && action.kind != StyleValueFFI::FfiTransitionActionKind::Start) {
+                VERIFY(state.committed_transition);
+                if (auto effect = state.committed_transition->effect(); effect && effect->is_keyframe_effect())
+                    replaced_transition_effects.set(static_cast<Animations::KeyframeEffect*>(effect.ptr()));
+            }
+            if (!action.start_value)
+                continue;
+            auto transition = CSSTransition::start_a_transition(abstract_element, property_id, document().transition_generation(),
+                action.delay, style_change_event_time, style_change_event_time + action.active_duration,
+                adopt(action.start_value), adopt(action.end_value), adopt(action.reversing_adjusted_start_value),
+                action.reversing_shortening_factor, EasingFunction::from_style_value(adopt(action.timing_function)), CSSTransition::Publication::Provisional);
+            state.proposed_transition = transition;
             newly_started_transition_effects.append(as<Animations::KeyframeEffect>(*transition->effect()));
-        };
-        auto replace_existing_transition = [&] {
-            VERIFY(existing_transition);
-            auto effect = existing_transition->effect();
-            if (effect && effect->is_keyframe_effect())
-                replaced_transition_effects.set(static_cast<Animations::KeyframeEffect*>(effect.ptr()));
-        };
-
-        switch (action.kind) {
-        case StyleValueFFI::FfiTransitionActionKind::None:
-            stabilization_state.action = ProvisionalTransitionAction::None;
-            break;
-        case StyleValueFFI::FfiTransitionActionKind::Remove:
-            stabilization_state.action = ProvisionalTransitionAction::Remove;
-            replace_existing_transition();
-            break;
-        case StyleValueFFI::FfiTransitionActionKind::Cancel:
-            VERIFY(existing_transition);
-            stabilization_state.action = ProvisionalTransitionAction::Cancel;
-            replace_existing_transition();
-            break;
-        case StyleValueFFI::FfiTransitionActionKind::Start:
-            stabilization_state.action = ProvisionalTransitionAction::Start;
-            start_a_transition(*prepared_transition.before_change_value, *prepared_transition.after_change_value, *prepared_transition.before_change_value);
-            break;
-        case StyleValueFFI::FfiTransitionActionKind::RemoveAndStart:
-            stabilization_state.action = ProvisionalTransitionAction::RemoveAndStart;
-            replace_existing_transition();
-            start_a_transition(*prepared_transition.before_change_value, *prepared_transition.after_change_value, *prepared_transition.before_change_value);
-            break;
-        case StyleValueFFI::FfiTransitionActionKind::CancelRemoveAndStartReversing: {
-            VERIFY(existing_transition);
-            auto reversing_adjusted_start_value = existing_transition->transition_end_value();
-            stabilization_state.action = ProvisionalTransitionAction::CancelRemoveAndStart;
-            replace_existing_transition();
-            start_a_transition(*prepared_transition.current_value, *prepared_transition.after_change_value, *reversing_adjusted_start_value);
-            break;
         }
-        case StyleValueFFI::FfiTransitionActionKind::CancelRemoveAndStartInterrupted:
-            stabilization_state.action = ProvisionalTransitionAction::CancelRemoveAndStart;
-            replace_existing_transition();
-            start_a_transition(*prepared_transition.current_value, *prepared_transition.after_change_value, *prepared_transition.current_value);
-            break;
+        // A property an earlier pass of the epoch decided over that this one does not leaves its transitions as they are.
+        auto indices = m_provisional_transition_state_indices_by_target.get(target_key);
+        for (auto index : indices.has_value() ? indices->span() : ReadonlySpan<size_t> {}) {
+            auto& state = m_provisional_transition_states[index];
+            if (!any_of(actions, [&](auto const& action) { return action.property_id == to_underlying(state.property_id); }))
+                decide(state, StyleValueFFI::FfiTransitionActionKind::None);
         }
-    }
+    };
+    StyleValueFFI::FfiTransitionInput input {
+        .existing_transitions = existing_transitions.data(),
+        .existing_transition_count = existing_transitions.size(),
+        .target_node = element.style_node_id().value(),
+        .target_pseudo_kind = pseudo_element_to_ffi(pseudo_element),
+        .element_box_slot = Layout::Node::slot_id(element.unsafe_layout_node(read)).index,
+    };
+    StyleEngineFFI::style_engine_decide_transitions(m_style_engine.host(), &read, before_change_style_record.value(), abstract_element.style_record_identity().value(), &input, [](void* context, StyleValueFFI::FfiTransitionAction const* actions, size_t count) { (*static_cast<decltype(on_actions)*>(context))({ actions, count }); }, &on_actions);
 
     // A transition action is provisional until the stabilization epoch commits, but the style
     // published by this pass must already reflect that decision. Rebuild the effect stack without
@@ -1482,15 +1292,7 @@ void StyleComputer::start_needed_transitions(Layout::BegunRead const& read, Comp
 
 bool StyleComputer::has_provisional_transition_states(DOM::AbstractElement abstract_element) const
 {
-    auto& element = abstract_element.element();
-    auto pseudo_element = abstract_element.pseudo_element();
-    if (auto style_node_id = element.style_node_id(); style_node_id != 0) {
-        auto transition_target_key = (static_cast<u64>(style_node_id.value()) << 8) | pseudo_element_to_ffi(pseudo_element);
-        return m_provisional_transition_state_indices_by_target.contains(transition_target_key);
-    }
-    return any_of(m_provisional_transition_states, [&](auto const& state) {
-        return state.element == GC::Ptr { element } && state.pseudo_element == pseudo_element;
-    });
+    return m_provisional_transition_state_indices_by_target.contains(transition_target_key(abstract_element));
 }
 
 void StyleComputer::register_style_engine_sheet_source(StyleSheetState const& sheet)

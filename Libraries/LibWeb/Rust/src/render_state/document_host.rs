@@ -1159,25 +1159,29 @@ impl DocumentHost {
         self.style_transaction.borrow().as_ref()?.composed_pseudo_styles(node)
     }
 
-    /// Answers the transition step `decision` asks of `properties`, writing the values each transition compared and the
-    /// decisions into `actions`, where the style transaction the host took last decided it beside the row of the
-    /// step's element, `node`, over the same inputs. Answers whether it did. The transitions such a step starts are what
-    /// the host samples next, which reads the transaction's first sample of them.
+    /// Hands `hand_over` the actions of the transition step `decision` asks of a target with the `existing` transitions,
+    /// where the style transaction the host took last decided it beside the row of the step's element, `node`, over the
+    /// same inputs. Answers whether it did. The transitions such a step starts are what the host samples next, which
+    /// reads the transaction's first sample of them.
     pub(crate) fn answer_decided_transition_step(
         &self,
         node: u32,
         decision: &crate::css::transition::TransitionDecision,
-        properties: &mut [crate::css::transition::FfiTransitionPropertyInput],
-        actions: &mut [crate::css::transition::FfiTransitionAction],
+        existing: &[crate::css::transition::FfiExistingTransition],
+        hand_over: impl FnOnce(&[crate::css::transition::FfiTransitionAction]),
     ) -> bool {
         let transaction = self.style_transaction.borrow();
         let step = transaction
             .as_ref()
             .and_then(|answer| answer.decided_transition_step(node))
-            .filter(|step| step.answer(decision, properties, actions));
+            .and_then(|step| Some((step, step.answer(decision, existing)?)));
         self.fresh_transition_sample
-            .set(step.and_then(|step| Some((node, step.take_fresh_sample()?))));
-        step.is_some()
+            .set(step.and_then(|(step, _)| Some((node, step.take_fresh_sample()?))));
+        let Some((_, actions)) = step else {
+            return false;
+        };
+        hand_over(actions);
+        true
     }
 
     /// Answers the sample `input` from the transaction's first sample of the transitions the step the host read last
