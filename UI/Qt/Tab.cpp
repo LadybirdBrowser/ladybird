@@ -723,7 +723,12 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     };
 
     view().on_close = [this] {
-        m_window->definitely_close_tab(tab_index());
+        auto index = tab_index();
+        if (m_tab_to_activate_on_close) {
+            if (auto index_to_activate = m_window->tab_index(m_tab_to_activate_on_close); index_to_activate >= 0)
+                m_window->activate_tab(index_to_activate);
+        }
+        m_window->definitely_close_tab(index);
     };
 
     view().on_link_hover = [this](auto const& url) {

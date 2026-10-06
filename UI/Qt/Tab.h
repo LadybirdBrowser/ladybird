@@ -108,6 +108,8 @@ public:
     void update_window_control_icons();
     void update_hover_label();
 
+    void set_tab_to_activate_on_close(Tab& tab) { m_tab_to_activate_on_close = &tab; }
+
     bool url_is_hidden() const { return m_location_edit->url_is_hidden(); }
     void set_url_is_hidden(bool url_is_hidden) { m_location_edit->set_url_is_hidden(url_is_hidden); }
 
@@ -165,6 +167,7 @@ private:
     QToolButton* m_downloads_button { nullptr };
     QPointer<DownloadsPopover> m_downloads_popover;
     QPointer<MessagePopover> m_private_session_popover;
+    QPointer<Tab> m_tab_to_activate_on_close;
     LocationEdit* m_location_edit { nullptr };
     WebContentView* m_view { nullptr };
     FindInPageWidget* m_find_in_page { nullptr };

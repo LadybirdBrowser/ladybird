@@ -18,20 +18,26 @@ Nothing is uploaded automatically.
 
 Once the report of a WebContent crash is saved, the crash screen shows a review
 of it, with sending it as the main action and **Reload page** next to it. After
-the report is answered, reloading is what the screen offers. A browser-process
-report is recovered on the next launch, which shows the same crash screen with
-every report still awaiting review: in the first tab when the window opens only
-the new tab page, otherwise in a background tab that is opened once it is first
-shown. Browsers driven by WebDriver never ask. Ladybird automatically offers
-each report at most once; leaving the crash screen without answering keeps the
-report on the device without offering it again on a later launch. A report of a
-crash from more than 14 days ago, or from before October 2, 2026 20:00 UTC, is
-never offered, but stays in the folder. Reports that have been offered move into
-a `Seen/` subdirectory, where the newest 20 are kept for reference. **Settings >
-Advanced > Crash reports > Open folder** remains available even when nothing has
-crashed. Reload restores the failed page without adding a crash-screen history
-entry; Back and Forward continue to use the original session history. The crash
-screen is native browser UI, so it does not depend on a web content process.
+the report is answered, reloading is what the screen offers. Any other crash,
+such as one of the Compositor or RequestServer, shows a popover below the menu
+button as soon as its report is saved. A newer crash takes the place of a
+popover still on screen, and the popover closes when its tab goes out of view.
+It offers to review the report on the same crash screen in a new blank tab,
+which **Close tab** closes. A report on its way keeps being sent after the
+screen that showed its review is closed or lost. A browser-process report is
+recovered on the next launch, which shows the same popover for the newest report
+still awaiting review. While no browser window is active, the popover waits
+until one is. Browsers driven by WebDriver never ask. Ladybird automatically
+offers each report at most once; leaving the crash screen or the popover without
+answering keeps the report on the device without offering it again on a later
+launch. A report of a crash from more than 14 days ago, or from before October
+2, 2026 20:00 UTC, is never offered, but stays in the folder. Reports that have
+been offered move into a `Seen/` subdirectory, where the newest 20 are kept for
+reference. **Settings > Advanced > Crash reports > Open folder** remains
+available even when nothing has crashed. Reload restores the failed page without
+adding a crash-screen history entry; Back and Forward continue to use the
+original session history. The crash screen is native browser UI, so it does not
+depend on a web content process.
 
 The review asks what the user was doing and lets them choose whether to send the
 report. Report details lists its main fields, such as the failure, signal,

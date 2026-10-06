@@ -1182,47 +1182,42 @@ void WebContentView::set_crash_overlay_visible(bool visible)
     schedule_repaint();
 }
 
-// A report is marked as seen once it is shown, so an unseen view leaves the reports of earlier crashes pending.
-void WebContentView::show_earlier_crash_reports()
+void WebContentView::review_hidden_crash_report(ByteString const& report_name)
 {
-    if (!isVisible()) {
-        m_show_earlier_crash_reports_when_shown = true;
-        return;
-    }
-
     set_crash_overlay_visible(true);
-    show_crash_report_review(CrashScreen::Earlier);
+    show_crash_report_review(report_name);
     if (!m_crash_report_review)
         set_crash_overlay_visible(false);
 }
 
-void WebContentView::show_crash_report_review(CrashScreen screen)
+// A report of a crash with no crash screen of its own is reviewed in a blank tab opened for it.
+void WebContentView::show_crash_report_review(Optional<ByteString> const& hidden_crash_report_name)
 {
     if (!m_crash_report_container || m_crash_report_review)
         return;
 
-    auto is_earlier = screen == CrashScreen::Earlier;
-    Optional<ByteString> report_name;
-    if (!is_earlier) {
-        report_name = crash_report_name();
-        if (!report_name.has_value())
-            return;
-    }
+    auto is_hidden_crash = hidden_crash_report_name.has_value();
+    auto report_name = is_hidden_crash ? hidden_crash_report_name : crash_report_name();
+    if (!report_name.has_value())
+        return;
 
-    m_crash_report_review = new CrashReportReviewWidget(is_earlier ? tr("Continue") : tr("Reload page"), m_crash_report_container);
-    if (auto result = m_crash_report_review->open_report(report_name, is_earlier ? Optional<String> {} : crash_report_website()); result.is_error()) {
-        warnln("Could not open a crash report: {}", result.error());
+    m_crash_report_review = new CrashReportReviewWidget(is_hidden_crash ? tr("Close tab") : tr("Reload page"), m_crash_report_container);
+    if (auto result = m_crash_report_review->open_report(report_name, is_hidden_crash ? Optional<String> {} : crash_report_website()); result.is_error()) {
+        warnln("Could not open crash report {}: {}", *report_name, result.error());
         delete m_crash_report_review;
         m_crash_report_review = nullptr;
         return;
     }
-    m_crash_report_review->on_exit = [this, is_earlier] {
-        if (is_earlier)
-            set_crash_overlay_visible(false);
-        else
-            reload();
+    m_crash_report_review->on_exit = [this, is_hidden_crash] {
+        // The tab was opened only for the review, and a report on its way keeps going without it.
+        if (is_hidden_crash) {
+            if (on_close)
+                on_close();
+            return;
+        }
+        reload();
     };
-    auto answered_message = is_earlier ? tr("Ladybird crashed earlier.") : crash_screen_message();
+    auto answered_message = is_hidden_crash ? tr("Part of Ladybird stopped unexpectedly.") : crash_screen_message();
     m_crash_report_review->on_answered = [this, answered_message] {
         m_crash_overlay_message->setText(answered_message);
     };
@@ -1233,8 +1228,8 @@ void WebContentView::show_crash_report_review(CrashScreen screen)
     auto reload_button_had_focus = m_crash_overlay_reload_button->hasFocus();
     m_crash_overlay_reload_button->hide();
     m_crash_overlay_url->hide();
-    m_crash_overlay_message->setText(is_earlier
-            ? tr("Ladybird crashed earlier. You can send us a crash report to help fix it.")
+    m_crash_overlay_message->setText(is_hidden_crash
+            ? tr("Part of Ladybird stopped unexpectedly. You can send us a crash report to help fix it.")
             : tr("This page crashed. You can send us a crash report to help fix it."));
     m_crash_report_container->layout()->addWidget(m_crash_report_review);
     m_crash_report_container->show();
@@ -1367,10 +1362,6 @@ void WebContentView::showEvent(QShowEvent* event)
     // A frame may have arrived before this view had a native view to attach its layer to.
     present_current_paintable_as_layer_contents();
 #endif
-    if (m_show_earlier_crash_reports_when_shown) {
-        m_show_earlier_crash_reports_when_shown = false;
-        show_earlier_crash_reports();
-    }
 }
 
 void WebContentView::hideEvent(QHideEvent* event)

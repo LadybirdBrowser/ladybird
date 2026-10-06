@@ -2125,6 +2125,9 @@ void Application::process_did_exit(Process&& process, Optional<int>)
 
     dbgln_if(WEBVIEW_PROCESS_DEBUG, "Process {} died, type: {}", process.pid(), process_name_from_type(process.type()));
 
+    auto const& report_name = process.saved_crash_report_name();
+    auto crash_is_shown_in_tab = false;
+
     switch (process.type()) {
     case ProcessType::Compositor:
         if (auto client = process.client<CompositorClient>()) {
@@ -2158,15 +2161,9 @@ void Application::process_did_exit(Process&& process, Optional<int>)
     case ProcessType::WebContent:
         if (auto client = process.client<WebContentClient>()) {
             client->did_lose_process();
-            if (auto const& report_name = process.saved_crash_report_name(); !report_name.is_empty()) {
+            if (!report_name.is_empty()) {
                 client->did_save_crash_report(report_name);
-
-                // The tab's crash screen is this report's one automatic prompt, so the next launch does not ask about
-                // it again. Other helpers have no crash screen and stay unanswered until then.
-                if (client->has_crashed_views() && !browser_options().headless_mode.has_value()) {
-                    if (auto result = CrashReportStore::the().mark_seen(report_name); result.is_error())
-                        warnln("Could not mark crash report as seen: {}", result.error());
-                }
+                crash_is_shown_in_tab = client->has_crashed_views();
             }
             m_web_content_clients.remove(client.release_nonnull());
         }
@@ -2178,6 +2175,31 @@ void Application::process_did_exit(Process&& process, Optional<int>)
         dbgln("Invalid process type to be dying: Browser");
         VERIFY_NOT_REACHED();
     }
+
+    if (report_name.is_empty())
+        return;
+
+    // The tab's crash screen is this report's one automatic prompt, so it is not offered again. Every other crash is
+    // hidden from the user, so its report is offered right away.
+    if (!crash_is_shown_in_tab) {
+        offer_crash_report(report_name);
+    } else if (!browser_options().headless_mode.has_value()) {
+        if (auto result = CrashReportStore::the().mark_seen(report_name); result.is_error())
+            warnln("Could not mark crash report as seen: {}", result.error());
+    }
+}
+
+void Application::offer_newest_pending_crash_report()
+{
+    if (auto names = CrashReportStore::the().pending_report_names(); !names.is_error() && !names.value().is_empty())
+        offer_crash_report(names.value().first());
+}
+
+void Application::offer_crash_report(ByteString const& report_name)
+{
+    if (browser_options().headless_mode.has_value() || browser_options().webdriver_browser_endpoint.has_value())
+        return;
+    display_crash_report_notification(report_name);
 }
 
 static bool download_path_is_available(LexicalPath const& path)

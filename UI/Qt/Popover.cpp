@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/StdLibExtras.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Popover.h>
 
@@ -11,6 +12,7 @@
 #include <QGraphicsDropShadowEffect>
 #include <QGuiApplication>
 #include <QHBoxLayout>
+#include <QHideEvent>
 #include <QLabel>
 #include <QPushButton>
 #include <QScreen>
@@ -47,7 +49,8 @@ Popover::Popover(QWidget* parent)
     m_card->setGraphicsEffect(shadow);
 }
 
-// A message that asks whether to act on it.
+// A message that asks whether to act on it. Leaving the popover in any other way than accepting it, such as by clicking
+// outside it, dismisses the message.
 MessagePopover::MessagePopover(QWidget* parent, int width, QString const& title, QString const& body, QString const& dismiss_text, QString const& accept_text)
     : Popover(parent)
 {
@@ -83,6 +86,7 @@ MessagePopover::MessagePopover(QWidget* parent, int width, QString const& title,
     accept_button->setObjectName("LadybirdMessagePopoverAcceptButton");
     accept_button->setDefault(true);
     QObject::connect(accept_button, &QPushButton::clicked, this, [this] {
+        m_is_accepted = true;
         close();
         if (on_accept)
             on_accept();
@@ -94,6 +98,13 @@ void MessagePopover::update_chrome_style(QPalette const& palette)
 {
     setPalette(palette);
     setStyleSheet(ChromeStyle::message_popover_style_sheet(palette));
+}
+
+void MessagePopover::hideEvent(QHideEvent* event)
+{
+    Popover::hideEvent(event);
+    if (!exchange(m_is_accepted, false) && on_dismiss)
+        on_dismiss();
 }
 
 // Places the popover's card below the anchor with their right edges aligned, kept on the anchor's screen, and above the

@@ -6,7 +6,6 @@
 
 #include <LibCore/GeolocationProvider.h>
 #include <LibMain/Main.h>
-#include <LibURL/URL.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowserProcess.h>
 #include <LibWebView/CrashReportStore.h>
@@ -142,16 +141,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         auto& window = app->new_window(browser_options.urls, configuration);
         window.setWindowTitle("Ladybird");
 
-        if (!browser_options.webdriver_browser_endpoint.has_value() && WebView::CrashReportStore::the().has_pending_reports()) {
-            // A window that opened only the new tab page shows the reports there. Otherwise, they wait in a tab of their
-            // own, which does not take the page the user asked for out of view.
-            auto opened_only_new_tab_page = browser_options.urls.size() == 1
-                && browser_options.urls.first() == WebView::Application::settings().new_tab_page_url();
-            auto& tab = opened_only_new_tab_page && window.current_tab()
-                ? *window.current_tab()
-                : window.new_tab_from_url(URL::about_blank(), Web::HTML::ActivateTab::No, Ladybird::BrowserWindow::TabLocation::end());
-            tab.view().show_earlier_crash_reports();
-        }
+        app->offer_newest_pending_crash_report();
     }
 
     return app->execute();

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/ByteString.h>
 #include <AK/Function.h>
 #include <AK/Platform.h>
 #include <LibURL/URL.h>
@@ -13,6 +14,7 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
 #include <UI/Qt/BrowserWindow.h>
+#include <UI/Qt/CrashReportNotifier.h>
 
 #include <QApplication>
 
@@ -60,6 +62,9 @@ public:
     void show_process_manager();
     void quit();
     bool confirm_stop_active_downloads(QWidget* parent = nullptr);
+
+    CrashReportNotifier& crash_report_notifier() { return m_crash_report_notifier; }
+    void review_crash_report(ByteString const& report_name);
 
     BrowserWindow& active_window() const { return *m_active_window; }
     void set_active_window(BrowserWindow& window) { m_active_window = &window; }
@@ -128,6 +133,8 @@ private:
     virtual void open_download(WebView::FileDownloader::Download const&) const override;
     virtual void show_download_in_folder(WebView::FileDownloader::Download const&) const override;
 
+    virtual void display_crash_report_notification(ByteString const& report_name) override;
+
     virtual bool supports_clipboard_type(ClipboardType) const override;
     virtual Utf16String clipboard_text(ClipboardType) const override;
     virtual void set_clipboard_text(String, ClipboardType = ClipboardType::Text) override;
@@ -166,6 +173,7 @@ private:
     OwnPtr<QApplication> m_application;
     BrowserWindow* m_active_window { nullptr };
     OwnPtr<ProcessManagerWindow> m_process_manager_window;
+    CrashReportNotifier m_crash_report_notifier;
 };
 
 }
