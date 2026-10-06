@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+@keyframes no-keyframe-easing { from { left: 0px; } to { left: 1000px; } }
+@keyframes initial-easing { from { left: 0px; animation-timing-function: initial; } to { left: 1000px; } }
+@keyframes inherit-easing { from { left: 0px; animation-timing-function: inherit; } to { left: 1000px; } }
+@keyframes unset-easing { from { left: 0px; animation-timing-function: unset; } to { left: 1000px; } }
+@keyframes revert-easing { from { left: 0px; animation-timing-function: revert; } to { left: 1000px; } }
+@keyframes revert-layer-easing { from { left: 0px; animation-timing-function: revert-layer; } to { left: 1000px; } }
+</style>
+<div id="target" style="position: absolute"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        for (const name of ["no-keyframe-easing", "initial-easing", "inherit-easing", "unset-easing", "revert-easing", "revert-layer-easing"]) {
+            target.style.animation = `${name} 1s ease-in paused`;
+            target.getAnimations()[0].currentTime = 400;
+            println(`${name}: ${getComputedStyle(target).left}`);
+        }
+    });
+</script>
