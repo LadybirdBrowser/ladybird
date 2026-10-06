@@ -6,12 +6,10 @@
  */
 
 #include <AK/Vector.h>
-#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/ImageFormats/ExifOrientedBitmap.h>
 #include <LibGfx/ImageFormats/ExifReader.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
-#include <LibGfx/Painter.h>
 #include <png.h>
 
 namespace Gfx {
@@ -42,14 +40,12 @@ struct PNGLoadingContext {
     Vector<u8*> row_pointers;
     RefPtr<Bitmap> in_flight_bitmap;
     RefPtr<Bitmap> output_buffer;
-    OwnPtr<Painter> painter;
 
     void clear_read_frames_working_state()
     {
         row_pointers.clear();
         in_flight_bitmap = nullptr;
         output_buffer = nullptr;
-        painter = nullptr;
     }
 
     ErrorOr<size_t> read_frames(png_structp, png_infop);
@@ -274,6 +270,68 @@ ErrorOr<void> PNGLoadingContext::apply_exif_orientation()
     return {};
 }
 
+// The APNG output buffer and its frames are BGRA8888 with unpremultiplied alpha. These helpers take the same steps as
+// Skia takes when it draws such a bitmap onto such a buffer: premultiply both, blend, and unpremultiply.
+
+template<typename Callback>
+static void for_each_frame_pixel(Bitmap& output_buffer, IntPoint location, Bitmap const& source, IntRect source_rect, Callback callback)
+{
+    auto destination_rect = IntRect { location, source_rect.size() }.intersected(output_buffer.rect());
+    auto source_offset = source_rect.location() - location;
+    for (int y = destination_rect.top(); y < destination_rect.bottom(); ++y) {
+        auto* destination_pixel = output_buffer.scanline_u8(y) + destination_rect.left() * 4;
+        auto const* source_pixel = source.scanline_u8(y + source_offset.y()) + (destination_rect.left() + source_offset.x()) * 4;
+        for (int x = 0; x < destination_rect.width(); ++x, destination_pixel += 4, source_pixel += 4)
+            callback(destination_pixel, source_pixel);
+    }
+}
+
+// The source pixels replace the output buffer pixels. A pixel with no alpha also loses its color.
+static void copy_frame_pixels(Bitmap& output_buffer, IntPoint location, Bitmap const& source, IntRect source_rect)
+{
+    for_each_frame_pixel(output_buffer, location, source, source_rect, [](u8* destination, u8 const* source) {
+        __builtin_memcpy(destination, source, 4);
+        if (source[3] == 0)
+            __builtin_memset(destination, 0, 3);
+    });
+}
+
+// The source pixels go over the output buffer pixels with a simple OVER operation.
+static void blend_frame_pixels(Bitmap& output_buffer, IntPoint location, Bitmap const& source)
+{
+    for_each_frame_pixel(output_buffer, location, source, source.rect(), [](u8* destination, u8 const* source) {
+        auto source_alpha = source[3];
+        if (source_alpha == 255) {
+            __builtin_memcpy(destination, source, 4);
+            return;
+        }
+        if (source_alpha == 0) {
+            if (destination[3] == 0)
+                __builtin_memset(destination, 0, 3);
+            return;
+        }
+        constexpr float k = 1 / 255.0f;
+        float sa = source_alpha * k;
+        float da = destination[3] * k;
+        float result_alpha = da * (1.0f - sa) + sa;
+        float scale = 1.0f / result_alpha;
+        for (int channel = 0; channel < 3; ++channel) {
+            float sc = (source[channel] * k) * sa;
+            float dc = (destination[channel] * k) * da;
+            float result = (dc * (1.0f - sa) + sc) * scale;
+            destination[channel] = static_cast<u8>(__builtin_rintf(clamp(result * 255.0f, 0.0f, 255.0f)));
+        }
+        destination[3] = static_cast<u8>(__builtin_rintf(clamp(result_alpha * 255.0f, 0.0f, 255.0f)));
+    });
+}
+
+static void clear_frame_pixels(Bitmap& output_buffer, IntRect rect)
+{
+    rect.intersect(output_buffer.rect());
+    for (int y = rect.top(); y < rect.bottom(); ++y)
+        __builtin_memset(output_buffer.scanline_u8(y) + rect.left() * 4, 0, rect.width() * 4);
+}
+
 ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop info_ptr)
 {
     auto decode_frame = [&](IntSize frame_size) -> ErrorOr<NonnullRefPtr<Bitmap>> {
@@ -296,7 +354,6 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
 
         // Conceptually, at the beginning of each play the output buffer must be completely initialized to a fully transparent black rectangle, with width and height dimensions from the `IHDR` chunk.
         output_buffer = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, size));
-        painter = Painter::create(*output_buffer);
         size_t animation_frame_count = 0;
 
         for (size_t frame_index = 0; frame_index < frame_count; ++frame_index) {
@@ -327,7 +384,7 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
                 width = png_get_image_width(png_ptr, info_ptr);
                 height = png_get_image_height(png_ptr, info_ptr);
             }
-            auto frame_rect = FloatRect { x, y, width, height };
+            auto frame_rect = IntRect { static_cast<int>(x), static_cast<int>(y), static_cast<int>(width), static_cast<int>(height) };
 
             auto decoded_frame_bitmap = TRY(decode_frame({ width, height }));
 
@@ -341,11 +398,11 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
             switch (blend_op) {
             case PNG_BLEND_OP_SOURCE:
                 // All color components of the frame, including alpha, overwrite the current contents of the frame's output buffer region.
-                painter->draw_bitmap(frame_rect, Gfx::DecodedImageFrame { *decoded_frame_bitmap }, decoded_frame_bitmap->rect(), Gfx::ScalingMode::NearestNeighbor, {}, 1.0f, Gfx::CompositingAndBlendingOperator::Copy);
+                copy_frame_pixels(*output_buffer, frame_rect.location(), *decoded_frame_bitmap, decoded_frame_bitmap->rect());
                 break;
             case PNG_BLEND_OP_OVER:
                 // The frame should be composited onto the output buffer based on its alpha, using a simple OVER operation as described in the "Alpha Channel Processing" section of the PNG specification.
-                painter->draw_bitmap(frame_rect, Gfx::DecodedImageFrame { *decoded_frame_bitmap }, decoded_frame_bitmap->rect(), ScalingMode::NearestNeighbor, {}, 1.0f, Gfx::CompositingAndBlendingOperator::SourceOver);
+                blend_frame_pixels(*output_buffer, frame_rect.location(), *decoded_frame_bitmap);
                 break;
             default:
                 VERIFY_NOT_REACHED();
@@ -360,11 +417,11 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
                 break;
             case PNG_DISPOSE_OP_BACKGROUND:
                 // The frame's region of the output buffer is to be cleared to fully transparent black before rendering the next frame.
-                painter->clear_rect(frame_rect, Gfx::Color::Transparent);
+                clear_frame_pixels(*output_buffer, frame_rect);
                 break;
             case PNG_DISPOSE_OP_PREVIOUS:
                 // The frame's region of the output buffer is to be reverted to the previous contents before rendering the next frame.
-                painter->draw_bitmap(frame_rect, Gfx::DecodedImageFrame { *prev_output_buffer }, IntRect { x, y, width, height }, Gfx::ScalingMode::NearestNeighbor, {}, 1.0f, Gfx::CompositingAndBlendingOperator::Copy);
+                copy_frame_pixels(*output_buffer, frame_rect.location(), *prev_output_buffer, frame_rect);
                 break;
             default:
                 VERIFY_NOT_REACHED();
