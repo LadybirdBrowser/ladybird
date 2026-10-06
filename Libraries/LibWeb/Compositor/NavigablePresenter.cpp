@@ -14,7 +14,16 @@ namespace Web::Compositor {
 struct PresenterFFI {
     static void present(NavigablePresenter& presenter, SealedPresentation& sealed, NonnullRefPtr<Compositing::DisplayList> display_list, CompositorFrameSink* sink)
     {
-        presenter.present_beside_event_loop(sealed, move(display_list), sink);
+        auto frame = presenter.build_frame_beside_event_loop(sealed, move(display_list));
+        if (sink)
+            sink->submit(move(frame));
+    }
+
+    static void present_sealed_frame(NavigablePresenter& presenter, SealedFrame& sealed_frame, CompositorFrameSink* sink)
+    {
+        auto frame = presenter.build_frame(sealed_frame.sealed, move(sealed_frame.published));
+        if (sink)
+            sink->submit(move(frame));
     }
 };
 
@@ -53,6 +62,8 @@ CompositorFrame NavigablePresenter::build_frame(SealedPresentation const& sealed
 
     m_last_frame_presented_by = PresentedBy::Main;
     CompositorFrame frame;
+    frame.context_id = sealed.context_id;
+    frame.present_viewport_rect = sealed.present_viewport_rect;
     bool const display_list_is_unchanged = published.has_value() && m_compositor_display_list == published->display_list;
     if (published.has_value() && !display_list_is_unchanged) {
         auto command_resources = published->display_list == sealed.paint_command_cache_source
@@ -98,16 +109,12 @@ CompositorFrame NavigablePresenter::build_frame(SealedPresentation const& sealed
     return frame;
 }
 
-void NavigablePresenter::present_beside_event_loop(SealedPresentation& sealed, NonnullRefPtr<Compositing::DisplayList> display_list, CompositorFrameSink* sink)
+CompositorFrame NavigablePresenter::build_frame_beside_event_loop(SealedPresentation& sealed, NonnullRefPtr<Compositing::DisplayList> display_list)
 {
     bool const replaces_paint_command_cache_source = sealed.recording->cache_mode == Painting::PaintCommandCacheMode::ReadWrite
         && display_list != sealed.paint_command_cache_source;
     PublishedDisplayList published { move(display_list), replaces_paint_command_cache_source };
     auto frame = build_frame(sealed, published);
-    frame.context_id = sealed.context_id;
-    frame.present_viewport_rect = sealed.present_viewport_rect;
-    if (sink)
-        sink->submit(move(frame));
     if (replaces_paint_command_cache_source) {
         sealed.paint_command_cache_source = published.display_list;
         sealed.paint_command_cache_source_resources = m_compositor_display_list_command_resources;
@@ -115,6 +122,7 @@ void NavigablePresenter::present_beside_event_loop(SealedPresentation& sealed, N
     }
     sealed.published = move(published);
     m_last_frame_presented_by = sealed.presented_by;
+    return frame;
 }
 
 }
@@ -164,8 +172,14 @@ extern "C" WEB_API void web_navigable_presenter_add_video_sink(void* presenter, 
     static_cast<Web::Compositor::NavigablePresenter*>(presenter)->display_list_resource_storage().add_video_sink(Compositing::VideoSinkResourceId { resource_id }, Media::VideoSinkHandle { sink_handle });
 }
 
-// Declared here, not in a header, so that no C++ presents a frame through it.
+// Declared here, not in a header, so that no C++ presents a frame through them.
 extern "C" WEB_API void web_navigable_presenter_present(void* presenter, void* sealed, Web::Layout::RustFFI::FfiPresentedRecording const* presented, void* sink);
+extern "C" WEB_API void web_navigable_presenter_present_sealed_frame(void* presenter, void* sealed_frame, void* sink);
+
+extern "C" WEB_API void web_navigable_presenter_present_sealed_frame(void* presenter, void* sealed_frame, void* sink)
+{
+    Web::Compositor::PresenterFFI::present_sealed_frame(*static_cast<Web::Compositor::NavigablePresenter*>(presenter), *static_cast<Web::Compositor::SealedFrame*>(sealed_frame), static_cast<Web::Compositor::CompositorFrameSink*>(sink));
+}
 
 extern "C" WEB_API void web_navigable_presenter_present(void* presenter, void* sealed_pointer, Web::Layout::RustFFI::FfiPresentedRecording const* presented, void* sink)
 {
