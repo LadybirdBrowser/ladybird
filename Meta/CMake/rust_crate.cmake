@@ -274,6 +274,11 @@ function(_rust_crate_common_setup)
         "CARGO_BUILD_RUSTC=${RUST_RUSTC}"
     )
 
+    if (RUSTC_TARGET_CPU_FLAGS)
+        list(JOIN RUSTC_TARGET_CPU_FLAGS " " rustc_target_cpu_flags)
+        list(APPEND cargo_env "CARGO_TARGET_${target_upper}_RUSTFLAGS=${rustc_target_cpu_flags}")
+    endif()
+
     if (RUSTC_WRAPPER)
         list(APPEND cargo_env
             "RUSTC_WRAPPER=${RUSTC_WRAPPER}"

@@ -47,14 +47,18 @@ function(add_cxx_link_option_if_supported option)
     cmake_pop_check_state()
 endfunction()
 
+# RUSTC_TARGET_CPU_FLAGS names the same CPU for rustc, so that Rust code runs on the instruction set C++ code does.
 if (ENABLE_CI_BASELINE_CPU)
     # In CI, we want to target a common architecture so different runners can share ccache caches effectively.
     if (APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
         add_cxx_compile_options(-mcpu=apple-m1)
+        set(RUSTC_TARGET_CPU_FLAGS -Ctarget-cpu=apple-m1)
     elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
         add_cxx_compile_options(-march=armv8.2-a)
+        set(RUSTC_TARGET_CPU_FLAGS -Ctarget-feature=+v8.2a)
     elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
         add_cxx_compile_options(-march=x86-64-v3)
+        set(RUSTC_TARGET_CPU_FLAGS -Ctarget-cpu=x86-64-v3)
     endif()
 elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
     # On RISC-V the generic -march=native is not yet supported and both gcc and clang require an explicit
@@ -64,6 +68,7 @@ elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
 elseif (NOT CMAKE_CROSSCOMPILING)
     # In all other cases, compile for the native architecture of the host system.
     add_cxx_compile_options(-march=native)
+    set(RUSTC_TARGET_CPU_FLAGS -Ctarget-cpu=native)
 endif()
 
 add_cxx_compile_options(-Wcast-qual)
