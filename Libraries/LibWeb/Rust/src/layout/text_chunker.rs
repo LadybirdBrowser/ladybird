@@ -20,11 +20,70 @@ unsafe extern "C" {
         start: *mut usize,
         end: *mut usize,
     );
-    fn ladybird_layout_text_type_for_code_point(code_point: u32) -> u8;
-    fn ladybird_layout_code_point_has_break_all_line_break_class(code_point: u32) -> bool;
-    fn ladybird_layout_code_point_has_keep_all_line_break_class(code_point: u32) -> bool;
-    fn ladybird_layout_code_point_has_combining_mark_line_break_class(code_point: u32) -> bool;
-    fn ladybird_layout_code_point_has_emoji_property(code_point: u32) -> bool;
+    fn unicode_layout_bidirectional_class(code_point: u32) -> u8;
+    fn unicode_layout_line_break_class(code_point: u32) -> u8;
+    fn unicode_layout_code_point_has_emoji_property(code_point: u32) -> bool;
+}
+
+// LibUnicode's LineBreakClass, in declaration order.
+mod line_break_class {
+    pub(super) const ALPHABETIC: u8 = 0;
+    pub(super) const NUMERIC: u8 = 1;
+    pub(super) const IDEOGRAPHIC: u8 = 2;
+    pub(super) const AMBIGUOUS: u8 = 3;
+    pub(super) const COMPLEX_CONTEXT: u8 = 4;
+    pub(super) const COMBINING_MARK: u8 = 5;
+}
+
+fn line_break_class(code_point: u32) -> u8 {
+    // SAFETY: Pure Unicode table lookup.
+    unsafe { unicode_layout_line_break_class(code_point) }
+}
+
+// Classifies a code point for direction-run splitting: strong LTR/RTL, direction-neutral Common, or ContextDependent
+// (resolved from surrounding runs).
+fn text_type_for_code_point(code_point: u32) -> u8 {
+    use line_box_fragment::{
+        GLYPH_TEXT_TYPE_COMMON as C, GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT as X, GLYPH_TEXT_TYPE_LTR as L,
+        GLYPH_TEXT_TYPE_RTL as R,
+    };
+
+    // Each ASCII character has a statically known bidi class.
+    #[rustfmt::skip]
+    const ASCII_TEXT_TYPES: [u8; 128] = [
+        // 0x00-0x0F: Control characters (BN=Common, S/B/WS=ContextDependent)
+        C, C, C, C, C, C, C, C, C, X, X, X, X, X, C, C,
+        // 0x10-0x1F: Control characters
+        C, C, C, C, C, C, C, C, C, C, C, C, X, X, X, X,
+        // 0x20-0x2F: Space and punctuation
+        X, C, C, X, X, X, C, C, C, C, C, X, X, X, X, X,
+        // 0x30-0x3F: Digits and punctuation
+        X, X, X, X, X, X, X, X, X, X, X, C, C, C, C, C,
+        // 0x40-0x4F: @ and uppercase letters
+        C, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L,
+        // 0x50-0x5F: Uppercase letters and punctuation
+        L, L, L, L, L, L, L, L, L, L, L, C, C, C, C, C,
+        // 0x60-0x6F: ` and lowercase letters
+        C, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L,
+        // 0x70-0x7F: Lowercase letters and punctuation
+        L, L, L, L, L, L, L, L, L, L, L, C, C, C, C, C,
+    ];
+    if let Some(&text_type) = ASCII_TEXT_TYPES.get(code_point as usize) {
+        return text_type;
+    }
+
+    // SAFETY: Pure Unicode table lookup.
+    match unsafe { unicode_layout_bidirectional_class(code_point) } {
+        // LibUnicode's BidiClass, in declaration order: AN, B, CS, NSM, EN, ES, ET, S, WS.
+        0 | 1 | 3..=7 | 21 | 22 => X,
+        // BN, FSI, ON, PDF, PDI.
+        2 | 8 | 13..=15 => C,
+        // L, LRE, LRI, LRO.
+        9..=12 => L,
+        // R, AL, RLE, RLI, RLO.
+        16..=20 => R,
+        _ => unreachable!("invalid bidi class"),
+    }
 }
 
 // Stand-ins for the Unicode library's segmenters and the host's code point facts, which a unit test links through a
@@ -63,11 +122,6 @@ mod unicode_test_stubs {
     }
 
     #[unsafe(no_mangle)]
-    extern "C" fn ladybird_layout_text_type_for_code_point(_code_point: u32) -> u8 {
-        unreachable!("no unit test segments text");
-    }
-
-    #[unsafe(no_mangle)]
     extern "C" fn ladybird_layout_code_point_category_facts(
         _code_point: u32,
     ) -> crate::layout::tree_builder::FfiCodePointCategoryFacts {
@@ -75,22 +129,17 @@ mod unicode_test_stubs {
     }
 
     #[unsafe(no_mangle)]
-    extern "C" fn ladybird_layout_code_point_has_break_all_line_break_class(_code_point: u32) -> bool {
+    extern "C" fn unicode_layout_bidirectional_class(_code_point: u32) -> u8 {
         unreachable!("no unit test segments text");
     }
 
     #[unsafe(no_mangle)]
-    extern "C" fn ladybird_layout_code_point_has_keep_all_line_break_class(_code_point: u32) -> bool {
+    extern "C" fn unicode_layout_line_break_class(_code_point: u32) -> u8 {
         unreachable!("no unit test segments text");
     }
 
     #[unsafe(no_mangle)]
-    extern "C" fn ladybird_layout_code_point_has_combining_mark_line_break_class(_code_point: u32) -> bool {
-        unreachable!("no unit test segments text");
-    }
-
-    #[unsafe(no_mangle)]
-    extern "C" fn ladybird_layout_code_point_has_emoji_property(_code_point: u32) -> bool {
+    extern "C" fn unicode_layout_code_point_has_emoji_property(_code_point: u32) -> bool {
         unreachable!("no unit test segments text");
     }
 }
@@ -362,8 +411,7 @@ impl<'text> TextChunker<'text> {
         if self.unidirectional_ltr {
             return line_box_fragment::GLYPH_TEXT_TYPE_LTR;
         }
-        // SAFETY: Pure Unicode table lookup.
-        unsafe { ladybird_layout_text_type_for_code_point(self.current_code_point()) }
+        text_type_for_code_point(self.current_code_point())
     }
 
     fn next_grapheme_boundary(&self) -> usize {
@@ -387,10 +435,7 @@ impl<'text> TextChunker<'text> {
             }
             let mut index = self.current_index;
             let mut previous_code_point = previous_code_point_at(self.text, &mut index);
-            // SAFETY: Pure Unicode table lookups.
-            while unsafe { ladybird_layout_code_point_has_combining_mark_line_break_class(previous_code_point) }
-                && index > 0
-            {
+            while line_break_class(previous_code_point) == line_break_class::COMBINING_MARK && index > 0 {
                 previous_code_point = previous_code_point_at(self.text, &mut index);
             }
             Some(previous_code_point)
@@ -411,10 +456,16 @@ impl<'text> TextChunker<'text> {
                 if self.current_index >= self.text.len() {
                     return false;
                 }
-                // SAFETY: Pure Unicode table lookups.
+                use line_break_class::*;
+                let breaks_anywhere = |code_point| {
+                    matches!(
+                        line_break_class(code_point),
+                        ALPHABETIC | NUMERIC | COMPLEX_CONTEXT | IDEOGRAPHIC
+                    )
+                };
                 if let Some(previous_code_point) = get_previous_code_point()
-                    && unsafe { ladybird_layout_code_point_has_break_all_line_break_class(previous_code_point) }
-                    && unsafe { ladybird_layout_code_point_has_break_all_line_break_class(self.current_code_point()) }
+                    && breaks_anywhere(previous_code_point)
+                    && breaks_anywhere(self.current_code_point())
                 {
                     return true;
                 }
@@ -424,10 +475,16 @@ impl<'text> TextChunker<'text> {
                 if self.current_index >= self.text.len() {
                     return false;
                 }
-                // SAFETY: Pure Unicode table lookups.
+                use line_break_class::*;
+                let keeps_together = |code_point| {
+                    matches!(
+                        line_break_class(code_point),
+                        ALPHABETIC | NUMERIC | AMBIGUOUS | IDEOGRAPHIC
+                    )
+                };
                 if let Some(previous_code_point) = get_previous_code_point()
-                    && unsafe { ladybird_layout_code_point_has_keep_all_line_break_class(previous_code_point) }
-                    && unsafe { ladybird_layout_code_point_has_keep_all_line_break_class(self.current_code_point()) }
+                    && keeps_together(previous_code_point)
+                    && keeps_together(self.current_code_point())
                 {
                     return false;
                 }
@@ -443,7 +500,7 @@ impl<'text> TextChunker<'text> {
         let default_presentation = emoji_presentation_for_code_point(code_point, next_code_point);
 
         // SAFETY: Pure Unicode table lookup.
-        if default_presentation.forced || !unsafe { ladybird_layout_code_point_has_emoji_property(code_point) } {
+        if default_presentation.forced || !unsafe { unicode_layout_code_point_has_emoji_property(code_point) } {
             return default_presentation;
         }
 

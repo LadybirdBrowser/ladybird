@@ -767,6 +767,10 @@ u32 unicode_simple_case_fold(u32, bool);
 
 bool unicode_code_point_matches_range_ignoring_case(u32, u32, u32, bool);
 u32 unicode_get_case_closure(u32, u32*, u32);
+
+u8 unicode_layout_bidirectional_class(u32);
+u8 unicode_layout_line_break_class(u32);
+bool unicode_layout_code_point_has_emoji_property(u32);
 }
 
 extern "C" bool unicode_property_matches(
@@ -958,4 +962,21 @@ extern "C" u32 unicode_get_case_closure(
     });
 
     return count;
+}
+
+// LibWeb's text chunker classifies code points by these, mirroring the declaration order of BidiClass and
+// LineBreakClass.
+extern "C" u8 unicode_layout_bidirectional_class(u32 code_point)
+{
+    return to_underlying(Unicode::bidirectional_class(code_point));
+}
+
+extern "C" u8 unicode_layout_line_break_class(u32 code_point)
+{
+    return to_underlying(Unicode::line_break_class(code_point));
+}
+
+extern "C" bool unicode_layout_code_point_has_emoji_property(u32 code_point)
+{
+    return Unicode::code_point_has_emoji_property(code_point);
 }
