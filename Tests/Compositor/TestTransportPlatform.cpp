@@ -36,6 +36,14 @@ TEST_CASE(non_windows_transport_initialization_disconnects_web_content)
     EXPECT(!connection->is_open());
 }
 
+// A test of the transport has no Paint thread, and hands its frames to the compositor itself.
+struct Web::Compositor::TransportTestAccess {
+    static void submit_frame(CompositorConnection& connection, CompositorFrame&& frame)
+    {
+        connection.submit_frame_for_testing(move(frame));
+    }
+};
+
 namespace {
 
 // A WebContent connection talking to a Compositor over a real transport pair, with one context owned by it.
@@ -109,7 +117,7 @@ TEST_CASE(a_display_list_larger_than_an_ipc_message_travels_through_shared_memor
         .resource_transaction = {},
         .scroll_state_snapshot = {},
     };
-    fixture.client->submit_frame_for_testing(move(frame));
+    Web::Compositor::TransportTestAccess::submit_frame(*fixture.client, move(frame));
     fixture.pump();
     EXPECT(!fixture.disconnected);
     EXPECT(fixture.connection->is_open());
