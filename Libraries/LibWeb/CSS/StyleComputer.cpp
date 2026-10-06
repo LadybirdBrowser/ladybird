@@ -392,11 +392,9 @@ void StyleComputer::record_transition_stabilization_baseline(DOM::AbstractElemen
     auto style_node_id = abstract_element.element().style_node_id();
     if (style_node_id == 0)
         return;
-    // Few epochs record a baseline, so the engine keeps them only for one that does.
-    auto& style_engine = const_cast<StyleEngine&>(m_style_engine);
-    if (!exchange(m_transition_baselines_recorded, true))
-        StyleEngineFFI::style_engine_begin_transition_baselines(style_engine.host());
-    StyleEngineFFI::style_engine_record_transition_baseline(style_engine.host(), style_node_id, pseudo_element_to_ffi(abstract_element.pseudo_element()), before_change_style_record.value());
+    // Few epochs record a baseline, so only one that does asks for or releases them.
+    m_transition_baselines_recorded = true;
+    StyleEngineFFI::style_engine_record_transition_baseline(m_style_engine.host(), style_node_id, pseudo_element_to_ffi(abstract_element.pseudo_element()), before_change_style_record.value());
 }
 
 // https://drafts.csswg.org/css-transitions-2/#defining-before-change-style

@@ -276,7 +276,6 @@ style_boundary! {
         record_transition_baseline => RecordTransitionBaseline {
             node: StyleNodeID, pseudo_kind: u8, style_record: u64
         };
-        begin_transition_baselines => BeginTransitionBaselines;
         release_transition_baselines => ReleaseTransitionBaselines;
         pin_style_record => PinStyleRecord { style_record: u64 };
         unpin_style_record => UnpinStyleRecord { style_record: u64 };
