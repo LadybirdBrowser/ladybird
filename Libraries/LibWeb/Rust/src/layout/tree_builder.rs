@@ -1287,6 +1287,15 @@ pub(crate) struct TreeBuildAnswer {
     pub(crate) built_scroll_containers: Vec<super::formatting_context::FfiBuiltScrollContainer>,
 }
 
+impl TreeBuildAnswer {
+    /// Whether the build shows the value of a `list-item` counter anywhere.
+    pub(crate) fn shows_list_item_counter_value(&self) -> bool {
+        self.reports
+            .iter()
+            .any(|report| report.kind == crate::layout::commit::FfiCommitMessageKind::ListItemCounterValueRendered)
+    }
+}
+
 impl TreeBuildJob {
     pub(crate) fn new(document_style_node: StyleNodeID, document_style_record: Option<u64>) -> Self {
         Self {

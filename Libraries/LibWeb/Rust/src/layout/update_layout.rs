@@ -325,6 +325,17 @@ enum RoundLayout {
     Full,
 }
 
+/// How a layout round goes on from its tree build.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum BuildEnd {
+    /// The build asks for another pass before anything is laid out.
+    AnotherPass,
+    /// The document reconciles stale list item counters with what was built before anything is laid out.
+    ReconcileCounters,
+    /// The round lays out what was built.
+    LayOut,
+}
+
 /// Where a layout round ended.
 enum LayoutRoundEnd {
     /// The round built the tree and stopped before laying it out: the build asks for another pass,
@@ -515,10 +526,10 @@ impl LayoutRoundJob {
             )
         {
             if let Some(build) = self.build.take() {
-                let needs_another_build_pass = Self::build(state, build, work, &mut answer);
-                if needs_another_build_pass || facts.has_stale_list_item_counters {
+                let end = Self::build(state, build, work, &mut answer, facts.has_stale_list_item_counters);
+                if end != BuildEnd::LayOut {
                     answer.end = LayoutRoundEnd::Built {
-                        needs_another_build_pass,
+                        needs_another_build_pass: end == BuildEnd::AnotherPass,
                         layout: RoundLayout::PartialIfPlanned,
                     };
                     return answer;
@@ -546,7 +557,8 @@ impl LayoutRoundJob {
         }
 
         if let Some(build) = self.build.take() {
-            if Self::build(state, build, work, &mut answer) {
+            let end = Self::build(state, build, work, &mut answer, facts.has_stale_list_item_counters);
+            if end == BuildEnd::AnotherPass {
                 answer.end = LayoutRoundEnd::Built {
                     needs_another_build_pass: true,
                     layout: RoundLayout::Full,
@@ -554,7 +566,7 @@ impl LayoutRoundJob {
                 return answer;
             }
             state.arena().set_needs_full_layout_tree_update(false);
-            if facts.has_stale_list_item_counters {
+            if end == BuildEnd::ReconcileCounters {
                 answer.end = LayoutRoundEnd::Built {
                     needs_another_build_pass: false,
                     layout: RoundLayout::Full,
@@ -579,19 +591,28 @@ impl LayoutRoundJob {
         answer
     }
 
-    /// Runs `build`, records it, and answers whether it asks for another pass.
+    /// Runs `build`, records it, and answers how the round goes on from it. A build that shows the value of a
+    /// `list-item` counter, while some list's counters are stale, may show a stale one: the document reconciles them
+    /// with what was built before anything is laid out.
     fn build(
         state: &mut ArenaHandle,
         build: TreeBuildJob,
         work: &OwedHostWork,
         answer: &mut LayoutRoundAnswer,
-    ) -> bool {
+        has_stale_list_item_counters: bool,
+    ) -> BuildEnd {
         let replaced_viewport = state.arena().layout_root();
         let built = build.run(state, work);
         state.arena().record_layout_tree_build(&built.outcome);
-        let needs_another_build_pass = built.outcome.needs_another_build_pass;
+        let end = if built.outcome.needs_another_build_pass {
+            BuildEnd::AnotherPass
+        } else if has_stale_list_item_counters && built.shows_list_item_counter_value() {
+            BuildEnd::ReconcileCounters
+        } else {
+            BuildEnd::LayOut
+        };
         answer.build = Some((replaced_viewport, built));
-        needs_another_build_pass
+        end
     }
 }
 
