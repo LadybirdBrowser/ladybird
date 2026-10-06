@@ -159,7 +159,8 @@ Layout::RustFFI::FfiLayoutUpdateInputs Document::first_layout_round_inputs() con
 }
 
 // The style a rendering update's layout lays out is brought up to date first, as the layout update would: the round then
-// reads it as it is, and what is written beside the round is the next layout update's.
+// reads it as it is, and what is written beside the round is the next layout update's. The round takes in the list items
+// that wait to be renumbered and the top layer changes first, as the layout update's first round does.
 bool Document::let_layout_fly(Layout::RustFFI::FfiFlightBlocker blocker)
 {
     if (blocker != Layout::RustFFI::FfiFlightBlocker::None)
@@ -171,7 +172,8 @@ bool Document::let_layout_fly(Layout::RustFFI::FfiFlightBlocker blocker)
         style_computer().end_style_record_view_epoch();
     };
     update_style();
-    if (!may_seal_first_layout_round())
+    auto navigable = this->navigable();
+    if (!navigable || navigable->active_document().ptr() != this || !m_layout_node_arena)
         return false;
     Layout::ForcedReadScope read { *this };
     update_highlight_states_if_needed(read);

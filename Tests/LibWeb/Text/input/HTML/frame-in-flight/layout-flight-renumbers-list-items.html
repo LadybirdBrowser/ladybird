@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<ol id="list"><li>first</li><li>second</li></ol>
+<script>
+    // A rendering update whose style is already up to date lays out beside the event loop even where list items wait
+    // to be renumbered: the round renumbers them first, as the layout update's first round would.
+    asyncTest(async done => {
+        await twoFrames();
+        requestAnimationFrame(() => {
+            internals.holdNextFrame("layout");
+            internals.setManualRenderingOpportunities(true);
+            const item = document.createElement("li");
+            item.textContent = "inserted";
+            list.prepend(item);
+            // Style only, so that the update has layout to do but no style.
+            getComputedStyle(item).color;
+        });
+        await nextFrame();
+        await nextTask();
+        println(`state in the next task: ${internals.frameSchedulerState()}`);
+        internals.releaseHeldFrame();
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        println(`items: ${list.children.length}, height grew: ${list.offsetHeight > 40}`);
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>
