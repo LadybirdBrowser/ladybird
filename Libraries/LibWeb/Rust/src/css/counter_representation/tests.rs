@@ -10,13 +10,24 @@ fn text(units: &[u16]) -> String {
     String::from_utf16(units).unwrap()
 }
 
+fn registered(styles: Vec<CounterStyle>) -> Arc<RegisteredCounterStyles> {
+    Arc::new(RegisteredCounterStyles(
+        styles
+            .into_iter()
+            .map(|style| (style.name.clone(), Arc::new(style)))
+            .collect(),
+    ))
+}
+
 fn registry_with(styles: Vec<CounterStyle>) -> CounterStyleRegistry {
     let mut registry = CounterStyleRegistry::default();
-    let mut scope = CounterStyleScope::default();
-    for style in styles {
-        scope.styles.insert(style.name.clone(), Arc::new(style));
-    }
-    registry.publish_scope(0, scope);
+    registry.publish_scope(
+        0,
+        CounterStyleScope {
+            parent: None,
+            styles: registered(styles),
+        },
+    );
     registry
 }
 
@@ -224,34 +235,32 @@ fn the_pad_descriptor_counts_the_negative_sign() {
 #[test]
 fn a_name_resolves_through_the_host_scope() {
     let mut registry = CounterStyleRegistry::default();
-    let mut document_scope = CounterStyleScope::default();
-    document_scope.styles.insert(
-        symbol("shared"),
-        Arc::new(style(
-            "shared",
-            Algorithm::Generic {
-                system: GenericSystem::Cyclic,
-                symbols: symbols(&["outer"]),
-            },
-        )),
+    registry.publish_scope(
+        0,
+        CounterStyleScope {
+            parent: None,
+            styles: registered(vec![style(
+                "shared",
+                Algorithm::Generic {
+                    system: GenericSystem::Cyclic,
+                    symbols: symbols(&["outer"]),
+                },
+            )]),
+        },
     );
-    registry.publish_scope(0, document_scope);
-
-    let mut shadow_scope = CounterStyleScope {
-        parent: Some(0),
-        ..CounterStyleScope::default()
-    };
-    shadow_scope.styles.insert(
-        symbol("local"),
-        Arc::new(style(
-            "local",
-            Algorithm::Generic {
-                system: GenericSystem::Cyclic,
-                symbols: symbols(&["inner"]),
-            },
-        )),
+    registry.publish_scope(
+        7,
+        CounterStyleScope {
+            parent: Some(0),
+            styles: registered(vec![style(
+                "local",
+                Algorithm::Generic {
+                    system: GenericSystem::Cyclic,
+                    symbols: symbols(&["inner"]),
+                },
+            )]),
+        },
     );
-    registry.publish_scope(7, shadow_scope);
 
     assert!(registry.lookup(7, &symbol("local")).is_some());
     assert!(registry.lookup(7, &symbol("shared")).is_some());
@@ -310,11 +319,7 @@ fn the_extended_cjk_styles() {
 
 #[test]
 fn a_marker_with_one_symbol_does_not_depend_on_the_value() {
-    let depends_on_value = |algorithm| {
-        let handle = FfiRegisteredCounterStyle(Arc::new(style("marker", algorithm)));
-        // SAFETY: The handle is live for the duration of the call.
-        unsafe { rust_counter_style_representation_depends_on_value(&handle) }
-    };
+    let depends_on_value = |algorithm| style("marker", algorithm).representation_depends_on_value();
     assert!(!depends_on_value(Algorithm::Generic {
         system: GenericSystem::Cyclic,
         symbols: symbols(&["\u{2022}"]),

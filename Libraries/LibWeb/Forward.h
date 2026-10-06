@@ -249,7 +249,6 @@ class ComputedStyleRecordView;
 class ContainerQuery;
 class ContentStyleValue;
 class CounterDefinitionsStyleValue;
-class CounterStyle;
 class CounterStyleStyleValue;
 class CounterStyleSystemStyleValue;
 class CSSAnimation;

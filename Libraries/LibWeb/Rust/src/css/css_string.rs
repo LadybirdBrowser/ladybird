@@ -208,16 +208,6 @@ impl CssStringList {
         }
     }
 
-    /// # Safety
-    /// `strings` must contain `length` leaked AK::Utf16FlyString references.
-    pub(crate) unsafe fn from_raw(strings: *const usize, length: usize) -> Self {
-        Self::from_strings(
-            (0..length)
-                .map(|index| unsafe { CssString::from_leaked_raw(*strings.add(index)) })
-                .collect(),
-        )
-    }
-
     pub(crate) fn as_slice(&self) -> &[CssString] {
         if self.length == 0 {
             return &[];

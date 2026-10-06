@@ -15,7 +15,6 @@
 #include <AK/Utf16String.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/CSS/ComputedValues.h>
-#include <LibWeb/CSS/CounterStyle.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/PseudoElement.h>

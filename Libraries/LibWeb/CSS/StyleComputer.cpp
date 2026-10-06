@@ -63,7 +63,6 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
@@ -2232,14 +2231,6 @@ NonnullRefPtr<ComputedValues const> StyleComputer::create_document_style() const
     return computed_values;
 }
 
-static bool computed_style_depends_on_counter_style_environment(ComputedValues const& values, bool is_pseudo)
-{
-    auto const& base = values.base_values();
-    return ComputedValuesFFI::rust_content_reads_counter_style_environment(base.computed_content()->rust_style_value_data())
-        || (base.list_style_type_depends_on_counter_style_environment()
-            && (is_pseudo || !base.list_style_type_uses_non_overridable_counter_style()));
-}
-
 void StyleComputer::publish_sampled_animation_overlays(Layout::BegunRead const& read, ReadonlySpan<SampledAnimationOverlay> overlays, Span<StyleEngineFFI::FfiAnimationOverlayPublication> publications) const
 {
     // The engine composes each overlay over the record the element installed, rebuilding only the groups the overlay
@@ -2317,7 +2308,7 @@ StyleEngine::StyleRecordDelta StyleComputer::record_computed_style_inputs(Layout
     auto custom_property_environment = abstract_element.has_value() ? abstract_element->custom_property_data() : nullptr;
     u64 counter_style_environment_identity = 0;
     if (abstract_element.has_value()
-        && computed_style_depends_on_counter_style_environment(values, abstract_element->pseudo_element().has_value()))
+        && base.reads_counter_style_environment(abstract_element->pseudo_element().has_value()))
         counter_style_environment_identity = abstract_element->style_scope().counter_style_environment_identity(read);
     auto animated_properties = style_node_id != 0 ? values.animated_properties() : nullptr;
     u64 animation_overlay_identity = animated_properties ? animated_properties->identity() : 0;

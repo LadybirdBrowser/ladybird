@@ -35,7 +35,6 @@
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/ComputedValues.h>
-#include <LibWeb/CSS/CounterStyle.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/ElementBoxKind.h>
@@ -1371,26 +1370,6 @@ static CSS::StyleComputer::ComputedStyleInvalidation decode_style_record_invalid
     result.any_computed_value_changed = packed & to_underlying(CSS::StyleEngineFFI::FfiStyleInvalidationField::AnyComputedValueChanged);
     return result;
 }
-struct ElementDependentInvalidationState {
-    Layout::NodeWithStyle const* layout_node { nullptr };
-    Optional<ValueComparingRefPtr<CSS::CounterStyle const>> list_counter_style;
-    bool has_snapshot { false };
-
-    void snapshot()
-    {
-        if (!layout_node)
-            return;
-        // Only a list item renders a marker, so only its counter style can matter; a display
-        // change to or from list-item rebuilds the box regardless.
-        if (layout_node->display().is_list_item()) {
-            if (auto const& list_style_type = layout_node->list_style_type(); list_style_type.has<RefPtr<CSS::CounterStyle const>>())
-                list_counter_style = list_style_type.get<RefPtr<CSS::CounterStyle const>>();
-        }
-        layout_node = nullptr;
-        has_snapshot = true;
-    }
-};
-
 // Whether the counter styles the element's generated content names now differ from the ones the box built for it
 // renders from. The build resolves them from the published record and the tree scope's registered counter styles, and
 // the arena keeps what each box was built with.
@@ -1412,37 +1391,16 @@ static bool content_counter_styles_changed(Layout::BegunRead const& read, DOM::A
     return Layout::RustFFI::render_state_content_counter_styles_changed(arena->host(), &read, abstract_element.element().style_node_id().value(), Layout::Node::encode_generated_for(*pseudo_element));
 }
 
-static void add_element_dependent_invalidation(Layout::BegunRead const& read, CSS::RequiredInvalidationAfterStyleChange& invalidation, CSS::ComputedValues const& new_computed_values, ElementDependentInvalidationState const& old_state, DOM::AbstractElement& abstract_element)
+static void add_element_dependent_invalidation(Layout::BegunRead const& read, CSS::RequiredInvalidationAfterStyleChange& invalidation, CSS::ComputedValues const& new_computed_values, bool had_layout_node, DOM::AbstractElement& abstract_element)
 {
     // NB: Even if the computed value hasn't changed the resolved counter style may have (e.g. if the relevant
     //     @counter-style rule was modified, or a new rule with the same name took precedence over the old one).
+    //     A list item's marker is a pseudo-element of its own, which answers for the list item's counter style.
     // Generated content and the marker live inside the element's own layout subtree, so, like a
     // 'content' change, they rebuild from the element rather than its parent. The rebuild moves no
     // style, so the element's children do not react to it.
-    auto compare = [&](Optional<ValueComparingRefPtr<CSS::CounterStyle const>> const& old_list_counter_style) {
-        if (content_counter_styles_changed(read, abstract_element, new_computed_values))
-            invalidation |= CSS::RequiredInvalidationAfterStyleChange::rebuild_layout_tree_for_counter_styles_from(CSS::LayoutTreeRebuildRoot::Self);
-
-        if (old_list_counter_style.has_value()) {
-            auto new_list_style_type = new_computed_values.list_style_type(abstract_element.style_scope());
-            if (new_list_style_type.has<RefPtr<CSS::CounterStyle const>>()) {
-                ValueComparingRefPtr<CSS::CounterStyle const> new_counter_style = new_list_style_type.get<RefPtr<CSS::CounterStyle const>>();
-                if (*old_list_counter_style != new_counter_style)
-                    invalidation |= CSS::RequiredInvalidationAfterStyleChange::rebuild_layout_tree_for_counter_styles_from(CSS::LayoutTreeRebuildRoot::Self);
-            }
-        }
-    };
-
-    if (old_state.layout_node) {
-        Optional<ValueComparingRefPtr<CSS::CounterStyle const>> old_list_counter_style;
-        if (old_state.layout_node->display().is_list_item()) {
-            if (auto const& list_style_type = old_state.layout_node->list_style_type(); list_style_type.has<RefPtr<CSS::CounterStyle const>>())
-                old_list_counter_style = list_style_type.get<RefPtr<CSS::CounterStyle const>>();
-        }
-        compare(old_list_counter_style);
-    } else if (old_state.has_snapshot) {
-        compare(old_state.list_counter_style);
-    }
+    if (had_layout_node && content_counter_styles_changed(read, abstract_element, new_computed_values))
+        invalidation |= CSS::RequiredInvalidationAfterStyleChange::rebuild_layout_tree_for_counter_styles_from(CSS::LayoutTreeRebuildRoot::Self);
 }
 
 static bool style_record_is_unchanged(CSS::StyleEngine::StyleRecordDelta const& delta)
@@ -1465,7 +1423,7 @@ bool Element::is_viewport_propagation_source() const
         && document_element->first_child_of_type<HTML::HTMLBodyElement>() == this;
 }
 
-static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidation_with_cache(Layout::BegunRead const& read, CSS::StyleComputer& style_computer, CSS::ComputedValues const& new_computed_values, ElementDependentInvalidationState const& old_state, DOM::AbstractElement& abstract_element, CSS::StyleEngine::StyleRecordDelta const& style_record_delta, Optional<u32> answered_damage = {})
+static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidation_with_cache(Layout::BegunRead const& read, CSS::StyleComputer& style_computer, CSS::ComputedValues const& new_computed_values, bool had_layout_node, DOM::AbstractElement& abstract_element, CSS::StyleEngine::StyleRecordDelta const& style_record_delta, Optional<u32> answered_damage = {})
 {
     CSS::StyleComputer::ComputedStyleInvalidation result;
     if (style_record_is_unchanged(style_record_delta)) {
@@ -1481,7 +1439,7 @@ static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidati
     if (packed & to_underlying(CSS::StyleEngineFFI::FfiStyleInvalidationField::CacheHit))
         ++abstract_element.document().style_invalidation_counters().style_record_property_damage_cache_hits;
     result = decode_style_record_invalidation(packed);
-    add_element_dependent_invalidation(read, result.invalidation, new_computed_values, old_state, abstract_element);
+    add_element_dependent_invalidation(read, result.invalidation, new_computed_values, had_layout_node, abstract_element);
     return result;
 }
 
@@ -1607,18 +1565,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             return;
         auto pseudo_element_style = computed_style(pseudo_element);
         auto const* pseudo_element_values = pseudo_element_style ? &*pseudo_element_style : nullptr;
-        ElementDependentInvalidationState old_state {
-            .layout_node = pseudo_element_unsafe_layout_node(read, pseudo_element),
-            .list_counter_style = {},
-            .has_snapshot = false,
-        };
+        bool const had_layout_node = !!pseudo_element_unsafe_layout_node(read, pseudo_element);
         RefPtr<CSS::ComputedValues const> style_to_preserve_for_detachment;
-        if (pseudo_element_values && pseudo_element_values->animated_properties()) {
-            auto had_layout_node = !!old_state.layout_node;
-            old_state.snapshot();
-            if (had_layout_node)
-                style_to_preserve_for_detachment = CSS::ComputedValues::Builder { *pseudo_element_values }.build();
-        }
+        if (had_layout_node && pseudo_element_values && pseudo_element_values->animated_properties())
+            style_to_preserve_for_detachment = CSS::ComputedValues::Builder { *pseudo_element_values }.build();
 
         CSS::StyleEngine::StyleRecordDelta style_record_delta {};
         style_record_delta.new_style_record = *engine_record;
@@ -1638,7 +1588,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             } else {
                 DOM::AbstractElement abstract_element { *this, pseudo_element };
                 CSS::RequiredInvalidationAfterStyleChange counter_style_invalidation;
-                add_element_dependent_invalidation(read, counter_style_invalidation, *new_pseudo_element_style, old_state, abstract_element);
+                add_element_dependent_invalidation(read, counter_style_invalidation, *new_pseudo_element_style, had_layout_node, abstract_element);
                 counter_styles_changed = !counter_style_invalidation.is_none();
             }
         }
@@ -1811,23 +1761,7 @@ static bool element_displays_a_list_item_counter_value(Element const& element)
     }
     if (!CSS::display_from_ffi_display(element.style_group<CSS::ComputedValues::BoxValues>()->display).is_list_item())
         return false;
-    auto list_style_type = element.style_group<CSS::ComputedValues::InheritedListValues>()->list_style_type_value(element.style_scope());
-    return list_style_type.visit(
-        [](Empty const&) {
-            return false;
-        },
-        [](RefPtr<CSS::CounterStyle const> const& counter_style) {
-            return !counter_style || CSS::counter_style_representation_depends_on_value(*counter_style);
-        },
-        [](Utf16String const&) {
-            return false;
-        },
-        [](CSS::UnresolvedCounterStyleName const&) {
-            return true;
-        },
-        [](CSS::ListStyleSymbols const& symbols) {
-            return CSS::counter_style_representation_depends_on_value(*symbols.counter_style);
-        });
+    return element.style_scope().list_style_type_depends_on_counter_value(element.style_group<CSS::ComputedValues::InheritedListValues>()->list_style_type.pointer);
 }
 
 // A list item box that appears or disappears renumbers the list-item counter for everything after
@@ -2393,11 +2327,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
         }
         auto new_computed_values = style_computer.computed_style_record_view(read, new_style_record);
         VERIFY(new_computed_values);
-        ElementDependentInvalidationState old_state {
-            .layout_node = unsafe_layout_node(read),
-            .list_counter_style = {},
-            .has_snapshot = false,
-        };
+        bool const had_layout_node = !!unsafe_layout_node(read);
         DOM::AbstractElement abstract_element { *this };
         CSS::StyleEngine::StyleRecordDelta style_record_delta {
             .old_style_record = old_style_record,
@@ -2406,7 +2336,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
         Optional<u32> answered_damage;
         if (engine_record_damages && engine_record_damages->element.has_value() && engine_record_damages->element->answers(old_style_record, new_style_record))
             answered_damage = engine_record_damages->element->packed;
-        result = compute_required_invalidation_with_cache(read, style_computer, *new_computed_values, old_state, abstract_element, style_record_delta, answered_damage);
+        result = compute_required_invalidation_with_cache(read, style_computer, *new_computed_values, had_layout_node, abstract_element, style_record_delta, answered_damage);
         if (result.any_computed_value_changed)
             counters.element_computed_style_changes++;
         set_computed_style({}, new_style_record);
@@ -5835,7 +5765,7 @@ static bool subtree_renders_list_item_counters(Element const& ancestor, bool ite
             && style->display().is_list_item()
             && (!marker_style || marker_style->content_is_normal())
             && !style->list_style_image()
-            && CSS::marker_text_depends_on_list_item_counter_value(style->list_style_type(element->style_scope())))
+            && element->style_scope().list_style_type_depends_on_counter_value(style->list_style_type_data()))
             return true;
         if (subtree_renders_list_item_counters(*element, items_renumber_with_walked_owner && !element->is_html_ol_ul_menu_element()))
             return true;

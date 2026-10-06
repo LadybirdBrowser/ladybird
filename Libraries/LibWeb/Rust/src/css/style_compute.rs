@@ -956,6 +956,64 @@ pub unsafe extern "C" fn rust_content_reads_counter_style_environment(value: *co
     content_reads_counter_style_environment(unsafe { &*value.cast::<StyleValueData>() })
 }
 
+/// The counter-style names no @counter-style rule overrides: decimal, disc, square, circle,
+/// disclosure-open and disclosure-closed.
+fn counter_style_name_is_non_overridable(name: &[u16]) -> bool {
+    [
+        "decimal",
+        "disc",
+        "square",
+        "circle",
+        "disclosure-open",
+        "disclosure-closed",
+    ]
+    .iter()
+    .any(|candidate| {
+        candidate.len() == name.len()
+            && candidate
+                .bytes()
+                .zip(name)
+                .all(|(expected, &unit)| unit < 128 && (unit as u8).eq_ignore_ascii_case(&expected))
+    })
+}
+
+/// Whether a style with this `content` and `list-style-type` reads its tree scope's counter-style
+/// registry: its content holds a counter in a named counter style, or its `list-style-type` names a
+/// counter style that registry may define, which for a pseudo-element is any named one.
+pub(crate) fn style_reads_counter_style_environment(
+    content: Option<&StyleValueData>,
+    list_style_type: Option<&StyleValueData>,
+    is_pseudo: bool,
+) -> bool {
+    content.is_some_and(content_reads_counter_style_environment)
+        || match list_style_type {
+            Some(StyleValueData::CounterStyle {
+                is_symbols: false,
+                name,
+                ..
+            }) => is_pseudo || !counter_style_name_is_non_overridable(name.units()),
+            _ => false,
+        }
+}
+
+/// # Safety
+/// `content` and `list_style_type` must point to live style values.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_reads_counter_style_environment(
+    content: *const c_void,
+    list_style_type: *const c_void,
+    is_pseudo: bool,
+) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        style_reads_counter_style_environment(
+            content.cast::<StyleValueData>().as_ref(),
+            list_style_type.cast::<StyleValueData>().as_ref(),
+            is_pseudo,
+        )
+    }
+}
+
 /// https://drafts.css-houdini.org/css-properties-values-api/#computationally-independent
 /// A property value is computationally independent if it can be converted into a computed value
 /// using only the value of the property on the element, and "global" information that cannot be

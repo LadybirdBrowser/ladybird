@@ -1838,8 +1838,7 @@ pub enum StyleValueData {
         name: CssString,
     },
     /// A counter style reference: either a retained counter style name, or a symbols() function
-    /// with its type (the C++ `enum class SymbolsType : u8`, whose values counter style
-    /// resolution reads as the `SYMBOLS_TYPE_*` constants) and retained symbol strings.
+    /// with its type (a `css_enums::symbols_type` value) and retained symbol strings.
     CounterStyle {
         is_symbols: bool,
         name: CssString,
@@ -3170,38 +3169,14 @@ pub unsafe extern "C" fn rust_style_value_create_counter_definitions(
     }))
 }
 
-/// Takes ownership of one strong reference to the first symbol and one leaked reference to the
-/// name when they are present.
+/// A counter style reference by name. Takes ownership of one leaked reference to the name.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_counter_style_system(
-    kind: u8,
-    system: u8,
-    first_symbol: *const StyleValueData,
-    name: usize,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::CounterStyleSystem {
-        kind,
-        system,
-        first_symbol: unsafe { RetainedStyleValueData::from_retained_optional_pointer(first_symbol) },
-        name: unsafe { CssString::from_leaked_raw(name) },
-    }))
-}
-
-/// Takes ownership of one leaked reference to the name (0 when this is a symbols() function)
-/// and to each symbol string.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_counter_style(
-    is_symbols: bool,
-    name: usize,
-    symbols_type: u8,
-    symbols: *const usize,
-    symbol_count: usize,
-) -> *const StyleValueData {
+pub unsafe extern "C" fn rust_style_value_create_counter_style(name: usize) -> *const StyleValueData {
     Arc::into_raw(Arc::new(StyleValueData::CounterStyle {
-        is_symbols,
+        is_symbols: false,
         name: unsafe { CssString::from_leaked_raw(name) },
-        symbols_type,
-        symbols: unsafe { CssStringList::from_raw(symbols, symbol_count) },
+        symbols_type: 0,
+        symbols: CssStringList::from_strings(Vec::new()),
     }))
 }
 
