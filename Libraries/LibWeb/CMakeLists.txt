@@ -1230,6 +1230,8 @@ import_rust_crate(
         SelectorStateFactsGenerated.inc
         Layout/TreeBuilderRustFFI.h
         Layout/LayoutRustFFI.h
+    # The copy of libgfx_rust in this crate, which TestRustCrateCopies reaches by name.
+    KEEP_SYMBOLS ladybird_gfx_register_rust_crate_copy
 )
 target_link_libraries(libweb_rust INTERFACE LibGfx)
 test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libweb_rust)
