@@ -827,7 +827,6 @@ public:
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::FontValues);
 
         WEB_API Gfx::FontCascadeList const& font_list_value() const;
-        RefPtr<StyleValue const> font_family_style_value() const;
 
         bool operator==(FontValues const& other) const
         {

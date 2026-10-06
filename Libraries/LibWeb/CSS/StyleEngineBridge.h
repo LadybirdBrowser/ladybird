@@ -73,6 +73,7 @@ void style_engine_end_cold_matching_batch(DocumentHost const*);
 void style_engine_record_container_query_input(DocumentHost const*, StyleNodeID node);
 void style_engine_note_children_explicitly_inherit(DocumentHost const*, StyleNodeID node);
 void style_engine_record_derived_element_style_input(DocumentHost const*, StyleNodeID node, u8 reaction, u8 inherited_style_groups);
+void style_engine_record_font_input_changes(DocumentHost const*, ReadonlySpan<u32> family_name_lengths, ReadonlySpan<u16> family_name_units, ReadonlySpan<u64> font_lists);
 void style_engine_record_flat_tree_descendant_style_inputs(DocumentHost const*, StyleNodeID root, u8 reaction, u8 inherited_style_groups);
 void style_engine_consume_element_style_input(DocumentHost const*, StyleNodeID node);
 void style_engine_note_style_reaction_applied(DocumentHost const*, StyleNodeID node, u8 reaction, u8 inherited_style_groups_changed, u32 facts);

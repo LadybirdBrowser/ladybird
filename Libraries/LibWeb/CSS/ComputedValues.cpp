@@ -335,11 +335,6 @@ Gfx::FontCascadeList const& ComputedValues::FontValues::font_list_value() const
     return *static_cast<Gfx::FontCascadeList const*>(font_cascade_list.pointer);
 }
 
-RefPtr<StyleValue const> ComputedValues::FontValues::font_family_style_value() const
-{
-    return animation_style_value(font_family);
-}
-
 Optional<Utf16FlyString> ComputedValues::MiscResetValues::view_transition_name_value() const
 {
     auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(view_transition_name.pointer);
