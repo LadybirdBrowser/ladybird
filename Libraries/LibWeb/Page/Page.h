@@ -54,6 +54,7 @@
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 #include <LibWeb/HTML/WebViewHints.h>
 #include <LibWeb/Loader/FileRequest.h>
+#include <LibWeb/Page/PageCursor.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
@@ -255,8 +256,8 @@ public:
     GC::Ptr<HTML::LocalNavigable> hover_reporting_navigable() const { return m_hover_reporting_navigable.ptr(); }
     void set_hover_reporting_navigable(Badge<EventHandler>, GC::Ptr<HTML::LocalNavigable>);
 
-    Gfx::Cursor current_cursor() const { return m_current_cursor; }
-    void set_current_cursor(Gfx::Cursor cursor) { m_current_cursor = move(cursor); }
+    Gfx::Cursor current_cursor() const { return m_cursor->current(); }
+    PageCursor& cursor() { return *m_cursor; }
 
     DevicePixelPoint window_position() const { return m_window_position; }
     void set_window_position(DevicePixelPoint position) { m_window_position = position; }
@@ -479,7 +480,7 @@ private:
     bool m_is_hovering_link { false };
     bool m_is_in_tooltip_area { false };
 
-    Gfx::Cursor m_current_cursor { Gfx::StandardCursor::Arrow };
+    NonnullRefPtr<PageCursor> m_cursor { PageCursor::create() };
 
     DevicePixelPoint m_window_position {};
     DevicePixelSize m_window_size {};
@@ -685,7 +686,6 @@ public:
     // The node an assistive technology should treat as focused: the focused element, or the document element once
     // nothing in the document is focused.
     virtual void page_did_change_accessibility_focus(Web::UniqueNodeID) { }
-    virtual void page_did_request_cursor_change(Gfx::Cursor const&) { }
     virtual void page_did_request_context_menu([[maybe_unused]] HTML::CrossProcessId local_root_id, CSSPixelPoint, ContextMenuForInputEventsTarget) { }
     virtual void page_did_request_link_context_menu([[maybe_unused]] HTML::CrossProcessId local_root_id, CSSPixelPoint, HTML::PreparedNavigationDescriptor, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers) { }
     virtual void page_did_request_image_context_menu([[maybe_unused]] HTML::CrossProcessId local_root_id, CSSPixelPoint, HTML::PreparedNavigationDescriptor, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers, Optional<Gfx::Bitmap const*>) { }

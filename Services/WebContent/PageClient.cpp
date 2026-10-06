@@ -142,6 +142,12 @@ PageClient::PageClient(PageHost& owner, Web::PageId id, Optional<Web::HTML::Cros
 {
     setup_palette();
 
+    // A hover of the render clock asks for its cursor on the StyleLayout thread, as the main thread does on its own: both
+    // over the one connection, under the page cursor's lock.
+    m_page->cursor().set_send([&client = client(), id = m_id](Gfx::Cursor const& cursor) {
+        client.async_did_request_cursor_change(id, cursor);
+    });
+
     m_frame_timer = Core::Timer::create_single_shot(0, [this] { frame_timer_fired(); });
 }
 
@@ -827,11 +833,6 @@ void PageClient::set_maximum_frames_per_second(double maximum_frames_per_second)
         return;
     m_maximum_frames_per_second = maximum_frames_per_second;
     m_last_rendering_opportunity_frame_interval = 1000.0 / maximum_frames_per_second;
-}
-
-void PageClient::page_did_request_cursor_change(Gfx::Cursor const& cursor)
-{
-    client().async_did_request_cursor_change(m_id, cursor);
 }
 
 void PageClient::page_did_change_title(Utf16String const& title)
