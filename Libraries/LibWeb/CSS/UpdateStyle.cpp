@@ -230,21 +230,26 @@ static StyleEngineTransaction accept_style_engine_transaction(DOM::Document& doc
     return transaction;
 }
 
+// One element's computed style answers for another only while the inputs it was keyed on still mean what they meant. A
+// transaction boundary is exactly where they stop doing so: a declaration keyed on by identity may have been edited,
+// and a sheet may have come or gone. The engine resolves custom properties against the registrations in force, and an
+// @property rule registers through this cache.
+static void prepare_for_style_engine_transaction(DOM::Document& document)
+{
+    document.build_registered_properties_cache_for_style_update();
+    document.style_computer().prepare_for_style_engine_transaction();
+}
+
 static StyleEngineTransaction take_style_engine_transaction(Layout::BegunRead const& read, DOM::Document& document, StyleUpdateInputs const&)
 {
     auto& style_computer = document.style_computer();
-    // One element's computed style answers for another only while the inputs it was keyed on still
-    // mean what they meant. A transaction boundary is exactly where they stop doing so: a
-    // declaration keyed on by identity may have been edited, and a sheet may have come or gone.
+    auto& counters = document.style_invalidation_counters();
     auto transaction_setup_started_at = MonotonicTime::now();
-    ++document.style_invalidation_counters().style_engine_transaction_setups;
-    // The engine resolves custom properties against the registrations in force, and an
-    // @property rule registers through this cache.
-    document.build_registered_properties_cache_for_style_update();
-    style_computer.prepare_for_style_engine_transaction();
+    ++counters.style_engine_transaction_setups;
+    prepare_for_style_engine_transaction(document);
     auto setup_microseconds = microseconds_since(transaction_setup_started_at);
-    document.style_invalidation_counters().style_engine_transaction_setup_microseconds += setup_microseconds;
-    document.style_invalidation_counters().style_update_submission_microseconds += setup_microseconds;
+    counters.style_engine_transaction_setup_microseconds += setup_microseconds;
+    counters.style_update_submission_microseconds += setup_microseconds;
     auto* root = document.document_element();
     if (!root || root->style_node_id() == 0) {
         style_computer.style_engine().flush();
@@ -1126,8 +1131,7 @@ static Optional<StyleUpdateInputs> let_style_update_fly(Layout::BegunRead const&
     document.sample_animation_effects_needing_style_update();
     if (!style_computer.style_engine().has_pending_transaction(read))
         return {};
-    document.build_registered_properties_cache_for_style_update();
-    style_computer.prepare_for_style_engine_transaction();
+    prepare_for_style_engine_transaction(document);
     if (!style_computer.style_engine().let_style_transaction_fly(read, *inputs, root->style_node_id(), blocker))
         return {};
     return inputs;
