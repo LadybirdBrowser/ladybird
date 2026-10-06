@@ -6931,31 +6931,56 @@ bool LocalNavigable::commit_frame(PaintConfig paint_config)
     auto should_record_display_list = m_needs_to_record_display_list
         || !compositor_display_list_paint_config.has_value()
         || !(compositor_display_list_paint_config.value() == paint_config);
-    auto sealed = make<Compositor::SealedPresentation>(seal_presentation(*document, paint_config, should_record_display_list));
-    sealed->context_id = compositor_context().id();
-    sealed->present_viewport_rect = present_viewport_rect();
-    Compositor::FlightPresentation presentation {
-        .presenter = move(m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>()),
-        .sealed = move(sealed),
-    };
-    m_presenter_slot = GC::Ref { *document };
-
-    main_thread_event_loop().ensure_frame_completion_registered();
-    // The frame goes to the render owner, which samples it, and has the Paint thread record it where it records, and
-    // present it beside the event loop, in the order of the frames the render clock samples. The presenter comes back
-    // once the event loop takes the frame in.
+    auto sealed = seal_presentation(*document, paint_config, should_record_display_list);
     if (!should_record_display_list) {
-        Painting::commit_unrecorded_frame(read, *document, move(presentation));
-        m_recording_in_flight = make<RecordingInFlight>(*document, OptionalNone {});
-        main_thread_event_loop().presentation_queue().enqueue_recording_in_flight(*this);
+        commit_unrecorded_frame(read, *document, move(sealed));
         return true;
     }
-    auto recording = document->commit_display_list_recording(read, paint_config, move(presentation));
+    auto recording = document->commit_display_list_recording(read, paint_config, take_presentation(*document, move(sealed)));
     // What asks for another recording once this one has started asks for the next one.
     m_needs_to_record_display_list = false;
     m_recording_in_flight = make<RecordingInFlight>(*document, move(recording));
     main_thread_event_loop().did_let_recording_fly(*this);
     return true;
+}
+
+// The frame goes to the render owner, which samples it, and has the Paint thread record it where it records, and present
+// it beside the event loop, in the order of the frames the render clock samples. The presenter goes with the frame, and
+// comes back once the event loop takes the frame in.
+Compositor::FlightPresentation LocalNavigable::take_presentation(DOM::Document& document, Compositor::SealedPresentation sealed)
+{
+    sealed.context_id = compositor_context().id();
+    sealed.present_viewport_rect = present_viewport_rect();
+    Compositor::FlightPresentation presentation {
+        .presenter = move(m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>()),
+        .sealed = make<Compositor::SealedPresentation>(move(sealed)),
+    };
+    m_presenter_slot = GC::Ref { document };
+    main_thread_event_loop().ensure_frame_completion_registered();
+    return presentation;
+}
+
+void LocalNavigable::commit_unrecorded_frame(Layout::BegunRead const& read, DOM::Document& document, Compositor::SealedPresentation sealed)
+{
+    Painting::commit_unrecorded_frame(read, document, take_presentation(document, move(sealed)));
+    m_recording_in_flight = make<RecordingInFlight>(document, OptionalNone {});
+    main_thread_event_loop().presentation_queue().enqueue_recording_in_flight(*this);
+}
+
+void LocalNavigable::commit_mismatched_visual_context_tree_for_testing()
+{
+    take_recording_in_flight_in(TakeIn::Wait);
+    auto document = active_document();
+    if (!document || !has_compositor_context() || !compositor_context().ready_for_frame())
+        return;
+    auto paint_config = presenter().compositor_display_list_paint_config();
+    if (!paint_config.has_value())
+        return;
+    Layout::ForcedReadScope read { *document };
+    auto sealed = seal_presentation(*document, *paint_config, false);
+    sealed.sends_visual_context_tree = true;
+    sealed.visual_context_tree_mismatches_for_testing = true;
+    commit_unrecorded_frame(read, *document, move(sealed));
 }
 
 // Stamps the per-navigable state onto `paint_config`, here rather than where it is built, so no call site (the headless

@@ -23,10 +23,11 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Page/Page.h>
 
-// The Paint stage presents frames, and only the connection hands it the frames and the sink it presents them through.
+// The Paint stage presents frames, and only the connection hands it the sink it presents them through, and the
+// screenshots it asks for after them.
 extern "C" {
 void paint_stage_adopt_frame_sink(void* sink);
-void paint_stage_present_frame_from_main_thread(void* frame);
+void paint_stage_request_screenshot(void* request);
 }
 
 namespace Web::Compositor {
@@ -255,6 +256,15 @@ CompositorConnection::~CompositorConnection()
     m_frame_sink->detach();
 }
 
+// A screenshot of what the compositor composes for a context, on its way to the Paint thread, which asks for it after
+// the frames handed to it before.
+struct ScreenshotRequestForPaintThread {
+    AK_ALLOC_WITH_KMALLOC;
+
+    Web::CompositorContextId context_id;
+    CompositorFrame::ScreenshotRequest request;
+};
+
 // What the Paint thread presents frames through. Only the Paint stage calls these, which holds the sink.
 struct FrameSinkFFI {
     static void submit(CompositorFrameSink& sink, CompositorFrame&& frame)
@@ -268,13 +278,6 @@ void CompositorConnection::hand_frame_sink_to_paint_thread()
 {
     NonnullRefPtr<CompositorFrameSink> sink = m_frame_sink;
     paint_stage_adopt_frame_sink(&sink.leak_ref());
-}
-
-void CompositorConnection::submit_frame(CompositorFrame&& frame)
-{
-    if (!can_send_message_to_compositor())
-        return;
-    paint_stage_present_frame_from_main_thread(new CompositorFrame(move(frame)));
 }
 
 void CompositorConnection::submit_frame_for_testing(CompositorFrame&& frame)
@@ -649,10 +652,7 @@ void CompositorConnection::request_screenshot(Web::CompositorContextId context_i
     auto request_id = Compositing::ScreenshotRequestId { m_next_screenshot_request_id++ };
     m_screenshots.set(request_id, PendingScreenshot { move(target_surface), move(target_bitmap), move(callback) });
     // The screenshot is of what the compositor composes, so it goes after the frames handed to the Paint thread before.
-    CompositorFrame frame;
-    frame.context_id = context_id;
-    frame.screenshot_request = CompositorFrame::ScreenshotRequest { request_id, move(shareable_bitmap) };
-    submit_frame(move(frame));
+    paint_stage_request_screenshot(new ScreenshotRequestForPaintThread { context_id, { request_id, move(shareable_bitmap) } });
 }
 
 void CompositorConnection::key_event(u64 page_id, Web::KeyEvent event)
@@ -744,21 +744,24 @@ Optional<CompositorConnection::PendingScreenshot> CompositorConnection::take_scr
 }
 
 extern "C" WEB_API void web_frame_sink_release(void* sink);
-extern "C" WEB_API void web_frame_sink_submit(void* sink, void* frame);
-extern "C" WEB_API void web_compositor_frame_destroy(void* frame);
+extern "C" WEB_API void web_frame_sink_request_screenshot(void* sink, void* request);
+extern "C" WEB_API void web_screenshot_request_destroy(void* request);
 
 extern "C" WEB_API void web_frame_sink_release(void* sink)
 {
     static_cast<Web::Compositor::CompositorFrameSink*>(sink)->unref();
 }
 
-extern "C" WEB_API void web_frame_sink_submit(void* sink, void* frame)
+extern "C" WEB_API void web_frame_sink_request_screenshot(void* sink, void* request_pointer)
 {
-    auto taken = adopt_own(*static_cast<Web::Compositor::CompositorFrame*>(frame));
-    Web::Compositor::FrameSinkFFI::submit(*static_cast<Web::Compositor::CompositorFrameSink*>(sink), move(*taken));
+    auto request = adopt_own(*static_cast<Web::Compositor::ScreenshotRequestForPaintThread*>(request_pointer));
+    Web::Compositor::CompositorFrame frame;
+    frame.context_id = request->context_id;
+    frame.screenshot_request = move(request->request);
+    Web::Compositor::FrameSinkFFI::submit(*static_cast<Web::Compositor::CompositorFrameSink*>(sink), move(frame));
 }
 
-extern "C" WEB_API void web_compositor_frame_destroy(void* frame)
+extern "C" WEB_API void web_screenshot_request_destroy(void* request)
 {
-    delete static_cast<Web::Compositor::CompositorFrame*>(frame);
+    delete static_cast<Web::Compositor::ScreenshotRequestForPaintThread*>(request);
 }

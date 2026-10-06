@@ -10,12 +10,6 @@
 
 namespace Web::HTML {
 
-void PresentationQueue::submit(LocalNavigable& navigable, Compositor::CompositorFrame frame)
-{
-    if (navigable.has_compositor_context())
-        navigable.compositor_context().submit_frame(Compositor::PresentationTurn {}, move(frame));
-}
-
 void PresentationQueue::enqueue_recording_in_flight(LocalNavigable& navigable)
 {
     m_recordings_in_flight.append(navigable);

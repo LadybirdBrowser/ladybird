@@ -21,8 +21,8 @@ use std::sync::OnceLock;
 
 unsafe extern "C" {
     fn web_frame_sink_release(sink: *mut c_void);
-    fn web_frame_sink_submit(sink: *mut c_void, frame: *mut c_void);
-    fn web_compositor_frame_destroy(frame: *mut c_void);
+    fn web_frame_sink_request_screenshot(sink: *mut c_void, request: *mut c_void);
+    fn web_screenshot_request_destroy(request: *mut c_void);
 }
 
 /// The Paint thread, which records display lists from the frames the render states publish, and presents frames.
@@ -156,38 +156,38 @@ pub unsafe extern "C" fn paint_stage_adopt_frame_sink(sink: NonNull<c_void>) {
     });
 }
 
-/// A frame the main thread built, on its way to the Paint thread, which presents it.
-struct MainThreadFrame(NonNull<c_void>);
+/// A screenshot of what the compositor composes for a context (a `Web::Compositor::ScreenshotRequestForPaintThread`), on
+/// its way to the Paint thread, which asks the compositor for it after the frames handed to it before.
+struct ScreenshotRequest(NonNull<c_void>);
 
-// SAFETY: A frame owns everything its messages carry, so it can be handed to the compositor from any thread.
-unsafe impl Send for MainThreadFrame {}
+// SAFETY: A request owns everything it carries, and nothing else reaches it on the way.
+unsafe impl Send for ScreenshotRequest {}
 
-impl Drop for MainThreadFrame {
+impl Drop for ScreenshotRequest {
     fn drop(&mut self) {
-        // SAFETY: The box owns the frame.
-        unsafe { web_compositor_frame_destroy(self.0.as_ptr()) };
+        // SAFETY: The box owns the request.
+        unsafe { web_screenshot_request_destroy(self.0.as_ptr()) };
     }
 }
 
-/// Presents `frame`, which the main thread built, after the frames handed to the Paint thread before it. Only the
-/// connection calls this, which declares it.
+/// Asks the compositor for the screenshot `request` names after the frames handed to the Paint thread before it. Only
+/// the connection calls this, which declares it.
 ///
 /// # Safety
 ///
-/// `frame` must be a `Web::Compositor::CompositorFrame`, which the caller gives up.
-// FIXME: Only the render owner should sample the frames the Paint thread presents.
+/// `request` must be a `Web::Compositor::ScreenshotRequestForPaintThread`, which the caller gives up.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn paint_stage_present_frame_from_main_thread(frame: NonNull<c_void>) {
-    let frame = MainThreadFrame(frame);
+pub unsafe extern "C" fn paint_stage_request_screenshot(request: NonNull<c_void>) {
+    let request = ScreenshotRequest(request);
     paint_thread().post(move || {
         Presenting::lend(|presenting| {
             let sink = presenting.sink();
             if sink.is_null() {
                 return;
             }
-            let frame = std::mem::ManuallyDrop::new(frame);
-            // SAFETY: The stage holds the sink, which takes the frame over.
-            unsafe { web_frame_sink_submit(sink, frame.0.as_ptr()) };
+            let request = std::mem::ManuallyDrop::new(request);
+            // SAFETY: The stage holds the sink, and the sink takes the request over.
+            unsafe { web_frame_sink_request_screenshot(sink, request.0.as_ptr()) };
         });
     });
 }
@@ -200,8 +200,8 @@ mod ffi_test_stubs {
     extern "C" fn web_frame_sink_release(_: *mut c_void) {}
 
     #[unsafe(no_mangle)]
-    extern "C" fn web_frame_sink_submit(_: *mut c_void, _: *mut c_void) {}
+    extern "C" fn web_frame_sink_request_screenshot(_: *mut c_void, _: *mut c_void) {}
 
     #[unsafe(no_mangle)]
-    extern "C" fn web_compositor_frame_destroy(_: *mut c_void) {}
+    extern "C" fn web_screenshot_request_destroy(_: *mut c_void) {}
 }
