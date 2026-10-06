@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<audio id="audio" src="../../../Assets/test-webm-audio.ogg"></audio>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<script>
+    asyncTest(async done => {
+        const audio = document.getElementById("audio");
+        if (audio.readyState < HTMLMediaElement.HAVE_METADATA)
+            await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        audio.currentTime = audio.duration - 0.3;
+        await new Promise(resolve => audio.addEventListener("seeked", resolve, { once: true }));
+        await audio.play();
+
+        await new Promise(resolve => audio.addEventListener("pause", resolve, { once: true }));
+        try {
+            await audio.play();
+            println("play() resolved");
+        } catch (error) {
+            println(`play() rejected: ${error.name}`);
+        }
+        audio.pause();
+        done();
+    });
+</script>
