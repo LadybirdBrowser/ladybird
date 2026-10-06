@@ -24,6 +24,7 @@ use super::publication::RecordDemand;
 use super::random_bases::ParkedBaseValues;
 use super::tree::{StyleNodeID, TreeScopeID};
 use super::{HashMap, StyleAtomID};
+use crate::css::ffi_support::FfiUtf16View;
 use crate::css::transition::{FfiTransitionAction, FfiTransitionInput, TransitionDecision};
 use crate::render_state::{ArenaChange, BegunRead, DocumentHost};
 use std::ffi::c_void;
@@ -313,13 +314,6 @@ fn element_parts(node: u32, names: &[u32], hosts: &[u32]) -> Option<(StyleNodeID
     Some((node, pairs))
 }
 
-impl EngineWrite {
-    fn element_language(node: u32, language: u32, text: &[u16]) -> Self {
-        let text = if language == 0 { Box::default() } else { text.into() };
-        Self::ElementLanguage { node, language, text }
-    }
-}
-
 /// Queues `write` for the render state of `host`'s document.
 ///
 /// # Safety
@@ -517,18 +511,25 @@ pub unsafe extern "C" fn style_engine_set_text_data(host: &DocumentHost, node: u
 /// Records the language the element resolves to, and the tag a `:lang()` range compares against.
 ///
 /// # Safety
-/// `host` must be a live document host, and `text` must point at `text_length` readable code units.
+/// `host` must be a live document host, and `text` must name readable code units.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_set_element_language(
     host: &DocumentHost,
     node: u32,
     language: u32,
-    text: *const u16,
-    text_length: usize,
+    text: FfiUtf16View,
 ) {
     // SAFETY: Guaranteed by the caller.
-    let text = unsafe { borrow(text, text_length) };
-    host.queue_change(ArenaChange::Engine(EngineWrite::element_language(node, language, text)));
+    let text = if language == 0 {
+        Box::default()
+    } else {
+        unsafe { text.to_utf16() }.unwrap_or_default().into()
+    };
+    host.queue_change(ArenaChange::Engine(EngineWrite::ElementLanguage {
+        node,
+        language,
+        text,
+    }));
 }
 
 /// The document host `host` names.

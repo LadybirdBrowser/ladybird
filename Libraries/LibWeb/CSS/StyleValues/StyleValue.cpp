@@ -455,11 +455,11 @@ StyleValueFFI::FfiElementFacts ElementFactsForRust::to_ffi() const
                 return false;
             // https://drafts.csswg.org/css-values-5/#random-caching
             // NB: The style engine keeps the base values, one engine per document. A key names the element by its style
-            //     node, and a pseudo-element's by its element's.
+            //     node, and a pseudo-element's by its element's: the name, and the element unless the sharing is
+            //     element-shared.
             auto const& element = facts.abstract_element->element();
-            auto& style_engine = const_cast<StyleEngine&>(element.document().style_computer().style_engine());
             Layout::ForcedReadScope read { element.document() };
-            *value = style_engine.ensure_random_base_value(read, element.style_node_id(), Utf16View { reinterpret_cast<char16_t const*>(name), name_length }, element_shared);
+            *value = bit_cast<double>(StyleEngineFFI::style_engine_ensure_random_base_value(element.document().style_computer().style_engine().host(), read, element.style_node_id(), { name, name_length }, element_shared));
             return true; },
     };
 }

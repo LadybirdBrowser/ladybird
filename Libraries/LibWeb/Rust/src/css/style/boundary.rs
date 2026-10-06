@@ -20,6 +20,7 @@ use super::index::{AttributeNameForms, StyleAtomID};
 use super::program::{CascadeLayerID, SheetID};
 use super::tree::{StyleNodeID, TableSpans, TreeScopeID};
 use crate::abort_on_panic;
+use crate::css::ffi_support::FfiUtf16View;
 use crate::render_state::{ArenaChange, BegunRead, DocumentHost};
 
 /// An array the host lends an entry for the call, as C++ passes an AK `Span`.
@@ -80,6 +81,8 @@ carried! {
     Option<SheetID>: u32 as "SheetID" = |sheet| sheet.checked_sub(1).map(SheetID);
     [u32; 4]: *const [u32; 4] as "u32 const*" = |values| unsafe { *values };
     Box<[u16]>: FfiSpan<u16> as "ReadonlySpan<u16>" = |span| unsafe { borrow(span.data, span.size) }.into();
+    // What a string spells, which the host lends as a view of the string's own ASCII or UTF-16 storage.
+    Vec<u16>: FfiUtf16View as "FfiUtf16View" = |view| unsafe { view.to_utf16() }.unwrap_or_default();
     Box<[u32]>: FfiSpan<u32> as "ReadonlySpan<u32>" = |span| unsafe { borrow(span.data, span.size) }.into();
     Box<[StyleAtomID]>: FfiSpan<u32> as "ReadonlySpan<StyleAtomID>" =
         |span| unsafe { borrow(span.data, span.size) }.iter().copied().map(StyleAtomID).collect();
@@ -225,7 +228,7 @@ style_boundary! {
         set_element_id_name => SetElementIdName { node: StyleNodeID, name: StyleAtomID };
         set_shadow_root => SetShadowRoot { shadow_host: StyleNodeID, shadow_root: StyleNodeID };
         note_attribute_substitution_name => NoteAttributeSubstitutionName {
-            name: StyleAtomID, local_name: Box<[u16]>
+            name: StyleAtomID, local_name: Vec<u16>
         } => engine.note_attribute_substitution_name(name, &local_name);
         note_attribute_name_forms => NoteAttributeNameForms {
             name: StyleAtomID, local: StyleAtomID, folded_name: StyleAtomID, folded_local: StyleAtomID
@@ -282,7 +285,7 @@ style_boundary! {
         begin_style_record_view_epoch => BeginStyleRecordViewEpoch;
         end_style_record_view_epoch => EndStyleRecordViewEpoch;
         set_tree_scope_uses_document_sheets => SetTreeScopeUsesDocumentSheets { tree_scope: TreeScopeID };
-        set_attribute_value_text => SetAttributeValueText { name: StyleAtomID, value: StyleAtomID, text: Box<[u16]> } =>
+        set_attribute_value_text => SetAttributeValueText { name: StyleAtomID, value: StyleAtomID, text: Vec<u16> } =>
             if engine.attribute_name_requires_value_text(name) {
                 engine.set_attribute_value_text(value, &text);
             };

@@ -2608,6 +2608,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/style/engine_calls.rs"),
             manifest_dir.join("src/css/style/rule_writes.rs"),
             manifest_dir.join("src/css/style/style_job.rs"),
+            manifest_dir.join("src/css/ffi_support.rs"),
             out_dir.join("ffi_state_fact_generated.rs"),
         ],
         &out_dir,
