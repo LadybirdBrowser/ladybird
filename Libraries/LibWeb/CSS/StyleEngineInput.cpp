@@ -291,6 +291,19 @@ static StyleEngineFFI::FfiTreeRelations detached_relations()
     };
 }
 
+// An element that stays in the tree moves from one set of relations to another. Its delta takes the relinking path
+// rather than the neighbor one, which is the only one that updates the engine's relation columns.
+static void record_element_relinked(StyleEngine& style_engine, StyleNodeID node, StyleEngineFFI::FfiTreeRelations const& old_relations, StyleEngineFFI::FfiTreeRelations const& new_relations)
+{
+    style_engine.record_tree_delta({
+        .node = node.value(),
+        .old_connected = true,
+        .new_connected = true,
+        .old_relations = old_relations,
+        .new_relations = new_relations,
+    });
+}
+
 static void record_element_arrival_delta(DOM::Element& element, StyleEngine& style_engine, TreeScopeID tree_scope)
 {
     // A shadow root that took its identity before its host had one is still waiting to be linked to
@@ -599,7 +612,6 @@ void take_in_pending_style_arrivals(DOM::Document& document)
         record_subtree_arrivals(document, roots);
 }
 
-// Publish every selector-visible fact intrinsic to one element.
 // The element-backed pseudo-element an element in its host's shadow tree stands for, as one plus
 // its kind, or zero.
 static u8 associated_pseudo_kind_plus_one(DOM::Element const& element)
@@ -608,9 +620,25 @@ static u8 associated_pseudo_kind_plus_one(DOM::Element const& element)
     return pseudo_element.has_value() ? static_cast<u8>(to_underlying(*pseudo_element) + 1) : 0;
 }
 
-template<typename PublishFeature, typename PublishEmptiness>
-static void publish_element_selector_features(StyleEngine& style_engine, DOM::Element& element, StyleNodeID node, PublishFeature publish_feature, PublishEmptiness publish_emptiness)
+// Publish every selector-visible fact intrinsic to one element.
+//
+// An element arrives with facts already true of it, and the engine has heard none of them. They are
+// published as ordinary deltas from absent, so the resident fact store is built by exactly the same
+// path later mutations take rather than by a second one.
+static void publish_element_selector_features(StyleEngine& style_engine, DOM::Element& element)
 {
+    auto node = element.style_node_id();
+    auto publish_feature = [&](StyleEngineFFI::FfiFeatureKind kind, StyleAtomID name_atom, StyleEngineFFI::FfiFeatureValueKind value_kind, StyleAtomID value_atom) {
+        style_engine.record_local_feature_delta({
+            .node = node.value(),
+            .feature_kind = kind,
+            .name_atom = name_atom.value(),
+            .old_kind = StyleEngineFFI::FfiFeatureValueKind::Absent,
+            .old_atom = 0,
+            .new_kind = value_kind,
+            .new_atom = value_atom.value(),
+        });
+    };
     // Slot identity and namespace never change during an element's lifetime.
     auto is_slot = is<HTML::HTMLSlotElement>(element);
     StyleAtomID namespace_atom;
@@ -636,7 +664,15 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
             break;
         }
     }
-    publish_emptiness(has_nonempty_text_child);
+    style_engine.record_local_feature_delta({
+        .node = node.value(),
+        .feature_kind = StyleEngineFFI::FfiFeatureKind::Emptiness,
+        .name_atom = 0,
+        .old_kind = has_nonempty_text_child ? StyleEngineFFI::FfiFeatureValueKind::Present : StyleEngineFFI::FfiFeatureValueKind::Absent,
+        .old_atom = 0,
+        .new_kind = has_nonempty_text_child ? StyleEngineFFI::FfiFeatureValueKind::Absent : StyleEngineFFI::FfiFeatureValueKind::Present,
+        .new_atom = 0,
+    });
 
     auto states = SelectorMatching::element_states(element);
     for (size_t index = 0; index < to_underlying(PseudoClass::__Count); ++index) {
@@ -1031,34 +1067,13 @@ static StyleAtomID intern_id_or_class_atom(StyleEngine& style_engine, DOM::Eleme
     return style_engine.intern_atom(name);
 }
 
-// An element arrives with facts already true of it, and the engine has heard none of them. They are
-// published as ordinary deltas from absent, so the resident fact store is built by exactly the same
-// path later mutations take rather than by a second one.
-static Optional<StyleEngineFFI::FfiStateFact> state_fact_for(PseudoClass);
-
 static void record_element_initial_features(DOM::Element& element)
 {
     auto* style_engine = style_engine_for_identified(element);
     if (!style_engine)
         return;
 
-    publish_element_selector_features(*style_engine, element, element.style_node_id(), [&](auto kind, auto name_atom, auto value_kind, auto value_atom) { style_engine->record_local_feature_delta({
-                                                                                                                                                              .node = element.style_node_id().value(),
-                                                                                                                                                              .feature_kind = kind,
-                                                                                                                                                              .name_atom = name_atom.value(),
-                                                                                                                                                              .old_kind = StyleEngineFFI::FfiFeatureValueKind::Absent,
-                                                                                                                                                              .old_atom = 0,
-                                                                                                                                                              .new_kind = value_kind,
-                                                                                                                                                              .new_atom = value_atom.value(),
-                                                                                                                                                          }); }, [&](bool has_nonempty_text_child) { style_engine->record_local_feature_delta({
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                               .node = element.style_node_id().value(),
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                               .feature_kind = StyleEngineFFI::FfiFeatureKind::Emptiness,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                               .name_atom = 0,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                               .old_kind = has_nonempty_text_child ? StyleEngineFFI::FfiFeatureValueKind::Present : StyleEngineFFI::FfiFeatureValueKind::Absent,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                               .old_atom = 0,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                               .new_kind = has_nonempty_text_child ? StyleEngineFFI::FfiFeatureValueKind::Absent : StyleEngineFFI::FfiFeatureValueKind::Present,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                               .new_atom = 0,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                           }); });
+    publish_element_selector_features(*style_engine, element);
 
     if (auto const& id = element.id(); id.has_value())
         StyleEngineFFI::style_engine_set_element_id_name(style_engine->host(), element.style_node_id(), style_engine->intern_atom(*id));
@@ -1145,13 +1160,7 @@ void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Ele
     // anything happened: they are the engine's copy of the child sequence, and only a delta splices
     // them. Publishing this as a neighbour change leaves the columns holding the order the element
     // left, which is the order every positional question is then answered in.
-    style_engine->record_tree_delta({
-        .node = element.style_node_id().value(),
-        .old_connected = true,
-        .new_connected = true,
-        .old_relations = previous,
-        .new_relations = relations,
-    });
+    record_element_relinked(*style_engine, element.style_node_id(), previous, relations);
 
     // A move across parents is a departure from one child list and an arrival in another, so both
     // parents' emptiness can have moved even though no node was created or destroyed.
@@ -1175,16 +1184,9 @@ void record_element_assigned_slot_changed(DOM::Element& element, DOM::Element* o
     if (previous.assigned_slot == relations.assigned_slot)
         return;
 
-    // The relinking path rather than the neighbour one: the engine holds the slot a slottable is
-    // assigned to, and only relinking updates it. Every other relation is identical on both sides,
-    // so unlinking and linking again leaves them where they were.
-    style_engine->record_tree_delta({
-        .node = element.style_node_id().value(),
-        .old_connected = true,
-        .new_connected = true,
-        .old_relations = previous,
-        .new_relations = relations,
-    });
+    // The engine holds the slot a slottable is assigned to, and only relinking updates it. Every other relation is
+    // identical on both sides, so unlinking and linking again leaves them where they were.
+    record_element_relinked(*style_engine, element.style_node_id(), previous, relations);
 }
 
 void record_slot_assignment_changed(HTML::HTMLSlotElement& slot)
@@ -1253,13 +1255,7 @@ static void record_element_disconnecting(DOM::Element& element, TreeScopeID tree
             auto old_relations = relations_of(**assigned_element, *style_engine);
             auto new_relations = old_relations;
             new_relations.assigned_slot = no_style_node.value();
-            style_engine->record_tree_delta({
-                .node = (*assigned_element)->style_node_id().value(),
-                .old_connected = true,
-                .new_connected = true,
-                .old_relations = old_relations,
-                .new_relations = new_relations,
-            });
+            record_element_relinked(*style_engine, (*assigned_element)->style_node_id(), old_relations, new_relations);
         }
     }
 
@@ -1575,8 +1571,7 @@ void record_element_language_and_directionality(DOM::Element& element)
         language.has_value() ? style_engine->intern_text_atom(*language).value() : 0,
         StyleEngineFFI::ffi_utf16_view(language.value_or({})));
 
-    auto const directionality = element.directionality() == DOM::Element::Directionality::Rtl ? "rtl"sv : "ltr"sv;
-    StyleEngineFFI::style_engine_set_element_directionality(style_engine->host(), element.style_node_id(), style_engine->intern_text_atom(Utf16View { directionality }));
+    record_element_directionality(element);
 
     // Reading the tag caches it, and this can run while the element is still being built - an XML
     // parser sets attributes after insertion, so the tag read here may not be the one it ends up
