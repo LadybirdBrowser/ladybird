@@ -236,11 +236,6 @@ StyleAtomID StyleEngine::intern_language_atom(Utf16View text)
     return atom;
 }
 
-StyleAtomID StyleEngine::intern_case_sensitive_text_atom(Utf16View text)
-{
-    return intern_atom(Utf16FlyString::from_utf16(text));
-}
-
 void StyleEngine::publish_html_element_namespace(StyleAtomID namespace_atom)
 {
     // NB: The engine keeps the atom it was told alive, so an equal one names the same namespace.
