@@ -351,11 +351,17 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
 
     let mut sticky_scroll_node_index = VISUAL_VIEWPORT_NODE_INDEX;
     if creates_sticky_scroll_node {
+        // The scroll state fills in the geometry once the tree is built. The scroller is the nearest scroll node
+        // above any enclosing sticky boxes, as the scroll state resolves it.
+        let (scroller, parent_sticky) = match &sink.spatial_node_at(nearest_ancestor_scroll_node_index).data {
+            SpatialData::Sticky(parent) => (parent.scroller, Some(nearest_ancestor_scroll_node_index)),
+            _ => (nearest_ancestor_scroll_node_index, None),
+        };
         own_state = sink.append_spatial_node_under(
             own_state,
             SpatialData::Sticky(StickyData::unconstrained(
-                nearest_ancestor_scroll_node_index,
-                None,
+                scroller,
+                parent_sticky,
                 NO_SCROLL_STATE_SLOT,
                 slot,
                 nearest_ancestor_scroll_node_index,
