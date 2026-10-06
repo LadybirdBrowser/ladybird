@@ -63,22 +63,19 @@ pub struct FfiRecordingInputs {
 }
 
 impl FfiRecordingInputs {
-    /// The inputs of a recording, which copy what they read of the arrays and byte buffers.
+    /// The inputs of a recording, but for what the frame it records decides, which copy what they read of the arrays
+    /// and byte buffers.
     ///
     /// # Safety
     ///
     /// Nonempty arrays and byte buffers must be aligned, valid and immutable for this call. Fonts
     /// for enabled overlays must point to live `Gfx::Font`s.
-    pub(crate) unsafe fn recording_inputs(
-        &self,
-        tree_inputs: super::FfiVisualContextTreeInputs,
-        root_background_source: super::RootBackgroundSource,
-    ) -> crate::painting::record::inputs::RecordingInputs {
+    pub(crate) unsafe fn recording_inputs(&self) -> crate::painting::record::inputs::UnframedRecordingInputs {
         use crate::painting::display_list::commands::UniqueNodeId;
         use crate::painting::force_dark::ForceDarkSettings;
         use crate::painting::record::inputs::{
             CaretPaint, CaretTarget, FocusedAreaOutline, FocusedTextControlSelection, GridOverlays, InspectorHighlight,
-            RecordingInputs,
+            RecordingInputs, UnframedRecordingInputs,
         };
         use libcompositing_rust::ffi::ffi_slice;
 
@@ -103,10 +100,10 @@ impl FfiRecordingInputs {
             FfiCaretPaintKind::EmptyInline => Some(CaretTarget::EmptyInline(caret.block)),
         };
         let control = self.focused_text_control;
-        RecordingInputs {
-            device_pixels_per_css_pixel: tree_inputs.device_pixels_per_css_pixel,
+        UnframedRecordingInputs(RecordingInputs {
+            device_pixels_per_css_pixel: 0.0,
             uncaptured: crate::painting::record::inputs::UncapturedContentInputs {
-                root_background_source,
+                root_background_source: Default::default(),
                 device_viewport_size: libgfx_rust::IntSize {
                     width: self.device_viewport_rect.width,
                     height: self.device_viewport_rect.height,
@@ -191,7 +188,7 @@ impl FfiRecordingInputs {
                 image: self.focused_area_outline.image,
                 path_bytes: outline_path.into(),
             }),
-        }
+        })
     }
 }
 

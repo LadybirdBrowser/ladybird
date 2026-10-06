@@ -6933,9 +6933,9 @@ Optional<Compositor::SealedFrame> LocalNavigable::record_compositor_frame(PaintC
         return Compositor::SealedFrame { move(sealed), {} };
 
     main_thread_event_loop().ensure_frame_completion_registered();
-    // A recording that flies presents its frame itself, beside the event loop, holding the navigable's presenter until
-    // it lands. One whose navigable hosts navigables leaves its frame to the presentation queue, as their frames go along
-    // with it.
+    // The rendering update commits its frame to the render owner, which samples it and has the Paint thread record and
+    // present it beside the event loop, holding the navigable's presenter until the recording lands. One whose navigable
+    // hosts navigables leaves its frame to the presentation queue, as their frames go along with it.
     Optional<Compositor::FlightPresentation> flight;
     if (blocker == Layout::RustFFI::FfiFlightBlocker::None && !main_thread_event_loop().takes_next_frame_presentation_for_testing()
         && !any_of(all_local_navigables(), [&](auto navigable) { return navigable->parent().ptr() == this; })) {
@@ -7131,6 +7131,12 @@ Optional<Compositor::SealedFrame> LocalNavigable::finish_recording_in_flight(Rec
     if (given_back.presenter) {
         m_presenter_slot = adopt_own(*static_cast<Compositor::NavigablePresenter*>(given_back.presenter));
         sealed = move(*adopt_own(*static_cast<Compositor::SealedPresentation*>(given_back.sealed)));
+    }
+    // A frame the render owner found no box to record of presents nothing.
+    if (landing == Layout::RustFFI::FfiRecordingLanding::NothingRecorded) {
+        if (sealed.has_value())
+            unseal_presentation(document, *sealed);
+        return {};
     }
 
     Layout::ForcedReadScope read { *document };

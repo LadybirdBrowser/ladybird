@@ -22,8 +22,8 @@ mod document_host;
 mod owner;
 mod wait;
 
-pub(crate) use clock::ClockPlan;
 pub use clock::FfiPlannedScrollTimeline;
+pub(crate) use clock::{ClockPlan, CommittedFrame};
 pub use document_host::DocumentHost;
 pub(crate) use document_host::OwedWorkPayment;
 #[cfg(test)]

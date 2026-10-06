@@ -584,6 +584,59 @@ impl<R> InFlight<R> {
     }
 }
 
+impl StageThread {
+    /// Submits `job` to this thread, as [`Self::submit`] does, but lends it the relay of its flight rather than landing
+    /// what it answers: the job hands the relay on to the thread that answers, as the commit of a rendering update hands
+    /// the frame it sampled on the StyleLayout thread to the Paint thread, which records it. The flight lands as the
+    /// relay does.
+    pub(crate) fn submit_relayed<R: Send + 'static>(&self, job: impl FnOnce(Relay<R>) + Send + 'static) -> InFlight<R> {
+        let flight = Flight::pending();
+        let relay = Relay(Some(Arc::clone(&flight)));
+        // A job that panics drops the relay, which lands the panic.
+        self.post(move || drop(std::panic::catch_unwind(AssertUnwindSafe(|| job(relay)))));
+        InFlight {
+            flight,
+            not_send_or_sync: PhantomData,
+        }
+    }
+}
+
+/// What lands the flight of a relayed job, on whichever thread the job hands it on to. A relay dropped before it lands
+/// lands a panic, so the thread that waits for the flight never waits for nothing.
+pub(crate) struct Relay<R>(Option<Arc<Flight<R>>>);
+
+impl<R: Send + 'static> Relay<R> {
+    /// Hands `job` to `thread`, which runs it after the jobs handed to it before, and lands what it answers.
+    pub(crate) fn hand_on(mut self, thread: &StageThread, job: impl FnOnce(&StopWord) -> R + Send + 'static) {
+        let flight = self.0.take().expect("a relay lands once");
+        thread.post(move || {
+            let answer = std::panic::catch_unwind(AssertUnwindSafe(|| job(&flight.stop)));
+            land_relayed(&flight, answer);
+        });
+    }
+
+    /// Lands `answer` right here.
+    pub(crate) fn land(mut self, answer: R) {
+        land_relayed(&self.0.take().expect("a relay lands once"), Ok(answer));
+    }
+}
+
+impl<R> Drop for Relay<R> {
+    fn drop(&mut self) {
+        if let Some(flight) = self.0.take() {
+            land_relayed(&flight, Err(Box::new("a relayed job dropped its relay")));
+        }
+    }
+}
+
+/// Lands `answer` in `flight`, and has the thread that submitted the job take it in, as a submitted job's.
+fn land_relayed<R>(flight: &Flight<R>, answer: std::thread::Result<R>) {
+    flight.land(answer);
+    if let Some(finished) = FLIGHT_FINISHED.get() {
+        finished();
+    }
+}
+
 /// A job a stage thread runs beside a value another thread leased out, which owns it: its answer rides with the value,
 /// and whichever thread holds the value then waits for it, as the recording of the frame a clock tick presents rides
 /// with the lease beside the next tick. The job hears no stop word, and nothing wakes the host's event loop for it.
@@ -863,6 +916,23 @@ mod tests {
         let unstopped = test_thread().submit(|stop| stop.is_said());
         test_thread().run(|| ());
         assert!(matches!(unstopped.try_take(&TaskBoundary::for_test()), Ok(false)));
+    }
+
+    #[test]
+    fn a_relayed_job_lands_where_it_hands_its_relay_on() {
+        let flight = test_thread().submit_relayed(|relay: Relay<u32>| {
+            relay.hand_on(test_thread(), |_| 7);
+        });
+        assert_eq!(flight.join(()), 7);
+        let landed_here = test_thread().submit_relayed(|relay: Relay<u32>| relay.land(3));
+        assert_eq!(landed_here.join(()), 3);
+    }
+
+    #[test]
+    fn a_relay_dropped_unlanded_lands_a_panic() {
+        let flight = test_thread().submit_relayed(|relay: Relay<u32>| drop(relay));
+        let panicked = std::panic::catch_unwind(AssertUnwindSafe(|| flight.join(())));
+        assert!(panicked.is_err());
     }
 
     trait AmbiguousIfSend<A> {

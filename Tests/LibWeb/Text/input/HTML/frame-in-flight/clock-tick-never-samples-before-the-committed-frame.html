@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 10px; height: 0px; background: green"></div>
+<script>
+    // The render owner samples the frame a rendering update commits at the time the update sampled the animations at,
+    // so a tick of the render clock handed an earlier time, here one before the animation started, still shows the
+    // animation where the committed frame did, and never before.
+    asyncTest(async done => {
+        const result = await whileClockLeased(() => {
+            return box.animate([{ height: "0px" }, { height: "100000px" }], { duration: 1000 });
+        }, (frameTime, animation, startTime) => {
+            internals.injectClockTick(startTime - 100);
+            const presentedBorderBox = internals.presentedBorderBox(box);
+            // The lease has ended: the timeline reads as the rendering update left it.
+            return { committedHeight: (document.timeline.currentTime - startTime) * 100, presentedBorderBox };
+        });
+        println(`a tick presented the box: ${result.presentedBorderBox !== null}`);
+        println(`the tick shows the committed frame's time: ${Math.abs(result.presentedBorderBox.height - result.committedHeight) < 1}`);
+        done();
+    });
+</script>

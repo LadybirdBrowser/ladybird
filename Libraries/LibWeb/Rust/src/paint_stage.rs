@@ -11,7 +11,7 @@
 //! handed to it, so frames reach the compositor in the order their jobs were handed out, and code that runs anywhere
 //! else cannot present a frame: it has no [`Presenting`] to present with.
 
-use crate::stage_thread::{InFlight, Riding, StageThread, StopWord};
+use crate::stage_thread::{Relay, Riding, StageThread, StopWord};
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::marker::PhantomData;
@@ -120,12 +120,16 @@ pub(crate) fn ride_presenting<R: Send + 'static>(job: impl FnOnce(&mut Presentin
     paint_thread().ride(move || Presenting::lend(job))
 }
 
-/// Submits `job` to the Paint thread, which runs it after the jobs handed to it before, beside the host, and lends it
-/// what it presents with. The host takes what it answers in from the flight.
-pub(crate) fn submit_presenting<R: Send + 'static>(
+/// Hands `job` on to the Paint thread with `relay`, the relay of a job submitted to the render owner, which lands what
+/// it answers: the Paint thread runs it after the jobs handed to it before, beside the host, and lends it what it
+/// presents with.
+pub(crate) fn relay_presenting<R: Send + 'static>(
+    relay: Relay<R>,
     job: impl FnOnce(&mut Presenting, &StopWord) -> R + Send + 'static,
-) -> InFlight<R> {
-    paint_thread().submit(move |stop| Presenting::lend(|presenting| job(presenting, stop)))
+) {
+    relay.hand_on(paint_thread(), move |stop| {
+        Presenting::lend(|presenting| job(presenting, stop))
+    });
 }
 
 /// Has the Paint stage present frames through `sink`, a reference to the frame sink of a new connection to the

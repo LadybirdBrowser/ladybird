@@ -36,11 +36,11 @@ struct PublishedDisplayList {
     bool replaces_paint_command_cache_source { false };
 };
 
-// What presented a navigable's last frame: the main thread, or what presents beside it: a recording that flew, or a tick
-// of a clock lease.
+// What presented a navigable's last frame: the main thread, or what presents beside it: the recording of a frame a
+// rendering update committed, or a tick of a clock lease.
 enum class PresentedBy : u8 {
     Main,
-    Flight,
+    Commit,
     Clock,
 };
 
@@ -71,7 +71,7 @@ struct SealedPresentation {
     Optional<Painting::DisplayListRecording> recording;
     Web::CompositorContextId context_id;
     Optional<Gfx::IntRect> present_viewport_rect;
-    PresentedBy presented_by { PresentedBy::Flight };
+    PresentedBy presented_by { PresentedBy::Commit };
     Optional<PublishedDisplayList> published;
     // Whether a tick of a clock lease changed the document's visual context tree, which the host records again where no
     // tick published a frame.

@@ -1,0 +1,2 @@
+a tick presented the box: true
+the tick shows the committed frame's time: true

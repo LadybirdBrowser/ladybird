@@ -18,6 +18,7 @@
 #include <LibGfx/Matrix4x4.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/TextLayout.h>
+#include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
@@ -675,8 +676,13 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
         (*flight)->sealed->recording = recording;
         ffi_presentation = { .presenter = (*flight)->presenter.ptr(), .sealed = (*flight)->sealed.ptr() };
     }
+    // The frames sampled after a rendering update's never show the document's animations before the time it sampled them
+    // at.
+    double timestamp = -AK::Infinity<double>;
+    if (auto time = document.timeline()->current_time(); time.has_value() && time->type == Animations::TimeValue::Type::Milliseconds)
+        timestamp = time->value;
     // The recording copies what it reads of the overlay arrays and buffers, which live until here.
-    auto start = Layout::RustFFI::render_state_record_display_list(host, &read, viewport_row_slot(read, document), inputs, blocker, &ffi_presentation);
+    auto start = Layout::RustFFI::render_state_record_display_list(host, &read, viewport_row_slot(read, document), inputs, blocker, timestamp, &ffi_presentation);
     if (flight && flight->has_value() && !ffi_presentation.presenter) {
         auto taken = flight->release_value();
         (void)taken.presenter.leak_ptr();

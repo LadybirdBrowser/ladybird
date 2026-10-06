@@ -7,7 +7,9 @@
 //! What the host keeps of a document's render state, which the render owner holds: its name, the frame that may fly
 //! beside the host, and what the host reads between the jobs it hands the owner.
 
-use super::clock::{ClockLease, ClockPlan, ClockRecorder, ClockTicks, LeaseLanding, TickPresented, TickRecording};
+use super::clock::{
+    ClockLease, ClockPlan, ClockRecorder, ClockTicks, CommittedFrame, LeaseLanding, TickPresented, TickRecording,
+};
 use super::owner::{self, DocumentId, SharedWithHost, StateSeed};
 use super::wait::{BegunRead, NodeRead, TaskStart};
 use super::{
@@ -26,7 +28,7 @@ use crate::layout::{FlownRound, HostTables, LayoutRoundAnswer, RowsVersion, Seal
 use crate::painting::paint_read::PaintSource;
 use crate::painting::presentation::Presentation;
 use crate::painting::record::recorder_state::AbsoluteRectMemo;
-use crate::painting::recording_slot::RecordingSlot;
+use crate::painting::recording_slot::{FlightLicense, RecordingAnswer, RecordingSlot};
 use crate::painting::visual_animation::VisualAnimation;
 use crate::render_state::TaskBoundary;
 use crate::stage_thread::InFlight;
@@ -258,6 +260,40 @@ impl DocumentHost {
         self.streamed.set(true);
         let document = self.document;
         post_to_render_side(move || owner::with_state(document, None, |state| state.apply_streamed(changes)));
+    }
+
+    /// Commits the rendering update's frame to the render owner, spending `read`, and goes on: the owner applies the
+    /// writes the host queued, samples the frame as `commit` says, and hands it to the Paint thread, which records and
+    /// presents it beside the host. Answers the flight the recording's answer lands in. Only a rendering update whose
+    /// frame `_license` lets fly commits it.
+    pub(crate) fn commit_rendering_update(
+        &self,
+        read: &BegunRead,
+        commit: CommittedFrame,
+        _license: FlightLicense,
+    ) -> InFlight<RecordingAnswer> {
+        self.take_frame_in(read);
+        // Writes the host may not stream beside its task the owner applies in a job first, which the frame reads as a
+        // read would.
+        let changes = match self.may_stream_writes() {
+            true => self.changes.take_for_stream(),
+            false => {
+                self.run(read, false, |_| ());
+                Vec::new()
+            }
+        };
+        if !changes.is_empty() {
+            self.streamed.set(true);
+        }
+        let document = self.document;
+        crate::stage_thread::style_layout_thread().submit_relayed(move |relay| {
+            owner::with_state(document, None, |state| {
+                if !changes.is_empty() {
+                    state.apply_streamed(changes);
+                }
+                commit.sample(state, relay);
+            });
+        })
     }
 
     /// Whether the render state may apply the writes the host queued now: a job made it, none runs, as a host callback
