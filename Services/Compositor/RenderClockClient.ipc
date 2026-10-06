@@ -1,6 +1,8 @@
+#include <LibWebCommon/Page/AsyncScrollNodeStableID.h>
 #include <LibWebCommon/Page/CompositorContextId.h>
 
 endpoint RenderClockClient
 {
-    clock_tick(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds) =|
+    // With where the compositor has scrolled the context's scroll nodes to at the tick.
+    clock_tick(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds, Vector<Web::CompositorScrollOffset> scroll_offsets) =|
 }

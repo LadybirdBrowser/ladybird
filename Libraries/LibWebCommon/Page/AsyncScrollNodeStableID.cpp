@@ -30,6 +30,23 @@ ErrorOr<Web::AsyncScrollNodeStableID> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, Web::CompositorScrollOffset const& scroll_offset)
+{
+    TRY(encoder.encode(scroll_offset.scroll_node));
+    TRY(encoder.encode(scroll_offset.offset));
+    return {};
+}
+
+template<>
+ErrorOr<Web::CompositorScrollOffset> decode(Decoder& decoder)
+{
+    return Web::CompositorScrollOffset {
+        .scroll_node = TRY(decoder.decode<Web::AsyncScrollNodeStableID>()),
+        .offset = TRY(decoder.decode<Web::CSSPixelPoint>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, Web::ScrollbarDraggedByCompositor const& scrollbar)
 {
     TRY(encoder.encode(scrollbar.scroller_stable_node_id));

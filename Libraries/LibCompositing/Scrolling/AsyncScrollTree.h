@@ -66,6 +66,7 @@ public:
     Optional<AsyncScrollNodeID> viewport_scroll_node_id() const;
     Optional<AsyncScrollNodeID> scroll_node_id_for_stable_id(Web::AsyncScrollNodeStableID) const;
     AsyncScrollNode const* scroll_node_for_id(AsyncScrollNodeID) const;
+    ReadonlySpan<AsyncScrollNode> scroll_nodes() const { return m_scroll_nodes; }
     AsyncSnapContainer const* snap_container_for_node(AsyncScrollNodeID) const;
 
     // Scroll offsets are held in the device pixels of the display list; snap geometry is in the CSS pixels it was

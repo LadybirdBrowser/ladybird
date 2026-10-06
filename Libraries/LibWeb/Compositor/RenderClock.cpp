@@ -37,10 +37,10 @@ private:
             m_clock.did_lose_channel();
     }
 
-    virtual void clock_tick(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double) override
+    virtual void clock_tick(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double, Vector<Web::CompositorScrollOffset> scroll_offsets) override
     {
         if (!m_detached)
-            m_clock.did_receive_clock_tick(context_id, frame_time_nanoseconds);
+            m_clock.did_receive_clock_tick(context_id, frame_time_nanoseconds, scroll_offsets);
     }
 
     RenderClock& m_clock;
@@ -169,7 +169,7 @@ void RenderClock::request_clock_tick(Web::CompositorContextId context_id, double
         m_channel->async_request_clock_tick(context_id, maximum_frames_per_second);
 }
 
-void RenderClock::did_receive_clock_tick(Web::CompositorContextId context_id, i64 frame_time_nanoseconds)
+void RenderClock::did_receive_clock_tick(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset> scroll_offsets)
 {
     // A tick for a context disarmed after its request went out, or armed on an earlier channel.
     auto it = m_armed_contexts.find(context_id);
@@ -178,7 +178,7 @@ void RenderClock::did_receive_clock_tick(Web::CompositorContextId context_id, i6
 
     // Handing a tick on only queues it, so the next request goes out right after: however long this tick takes, the next
     // one is already on its way, and the Compositor's pacing is the only limit on the rate.
-    if (!it->value.on_tick(frame_time_nanoseconds)) {
+    if (!it->value.on_tick(frame_time_nanoseconds, scroll_offsets)) {
         m_armed_contexts.remove(it);
         return;
     }

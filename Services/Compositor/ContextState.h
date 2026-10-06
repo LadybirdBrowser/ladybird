@@ -199,6 +199,8 @@ public:
     double clock_tick_interval(double display_refresh_rate) const { return m_clock_tick_pacer.frame_interval(display_refresh_rate); }
     bool clock_tick_is_due(MonotonicTime frame_time, double display_refresh_rate) const { return m_clock_tick_pacer.is_due(frame_time, display_refresh_rate); }
     void did_deliver_clock_tick(MonotonicTime frame_time);
+    // Where the compositor has scrolled each scroll node to.
+    Vector<Web::CompositorScrollOffset> scroll_offsets() const;
     bool display_tick_requested() const { return m_rendering_opportunity_requested || m_clock_tick_requested; }
 
     void queue_present_frame(PendingFrame);
