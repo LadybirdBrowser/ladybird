@@ -77,7 +77,7 @@ static void apply_element_style_invalidation_after_style_change(Layout::BegunRea
     // A frame applied the element's record to its box ahead of this install, and marked the relayout the move asks
     // for, which the frame's layout round, or the host's next one, runs.
     bool const needs_relayout = invalidation.needs_relayout()
-        && !element.document().style_computer().style_engine().frame_marked_relayout(element.style_node_id(), element.style_record_identity());
+        && !StyleEngineFFI::style_engine_frame_marked_relayout(element.document().style_computer().style_engine().host(), element.style_node_id().value(), element.style_record_identity().value());
 
     // Only a full layout pass applies viewport propagation again, so a relayout of an element the viewport takes its
     // overflow, writing mode, or direction from must not finish as a partial relayout of that element.
@@ -1053,7 +1053,7 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
             // unconsumed child reaction in the same batch. The engine answers a transaction's
             // reactions in that order, so only the gap deltas closed over here need the engine's sort.
             if (!inheritance_closure.is_empty())
-                document.style_computer().style_engine().sort_style_deltas_for_direct_application(read, applicable_style_engine_reactions);
+                StyleEngineFFI::style_engine_sort_style_deltas_for_direct_application(document.style_computer().style_engine().host(), &read, applicable_style_engine_reactions.data(), applicable_style_engine_reactions.size());
             auto& counters = document.style_invalidation_counters();
             if (published_reaction_count > 0) {
                 ++counters.style_engine_reaction_batch_runs;
@@ -1161,7 +1161,7 @@ static bool document_has_no_pending_style_work(Layout::BegunRead const& read, DO
     // root — so has_pending_transaction() alone would report a settled engine still owing an element its recomputation.
     return document.has_completed_style_update()
         && !document.style_computer().style_engine().has_pending_transaction(read)
-        && !document.style_computer().style_engine().has_deferred_element_style_inputs(read)
+        && !StyleEngineFFI::style_engine_has_deferred_element_style_inputs(document.style_computer().style_engine().host(), &read)
         && !document.needs_media_rule_evaluation()
         && !document.needs_animated_style_update();
 }

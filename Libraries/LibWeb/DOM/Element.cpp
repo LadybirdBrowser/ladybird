@@ -1434,7 +1434,7 @@ static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidati
     // and answers a record it computed with it.
     VERIFY(!abstract_element.pseudo_element().has_value());
     auto packed = answered_damage.value_or_lazy_evaluated([&] {
-        return style_computer.style_engine().element_record_damage(read, abstract_element.element().style_node_id(), style_record_delta.old_style_record, style_record_delta.new_style_record);
+        return CSS::StyleEngineFFI::style_engine_element_record_damage(style_computer.style_engine().host(), &read, abstract_element.element().style_node_id().value(), style_record_delta.old_style_record.value(), style_record_delta.new_style_record.value());
     });
     if (packed & to_underlying(CSS::StyleEngineFFI::FfiStyleInvalidationField::CacheHit))
         ++abstract_element.document().style_invalidation_counters().style_record_property_damage_cache_hits;
@@ -1505,7 +1505,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             && !highlight_may_have_style(CSS::PseudoElement::SearchText)
             && !highlight_may_have_style(CSS::PseudoElement::SearchTextCurrent))
             return false;
-        auto settled = style_computer.style_engine().settle_pseudo_records_after_host_record(read, style_node_id(), had_list_marker);
+        auto settled = CSS::StyleEngineFFI::style_engine_settle_pseudo_records_after_host_record(style_computer.style_engine().host(), &read, style_node_id().value(), had_list_marker);
         // What the settled pseudo-elements' container-relative lengths read of the element's containers.
         record_engine_container_query_effects(read, *this);
         // The engine leaves the pseudo-elements alone where it cannot compute one of them: they
@@ -1593,12 +1593,12 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             }
         }
         auto record_damage = [&](bool with_counter_style_rebuild) {
-            return style_computer.style_engine().pseudo_element_record_damage(
-                read, style_node_id(),
-                pseudo_element,
-                style_record_delta.old_style_record,
-                style_record_delta.new_style_record,
-                style_record_identity(),
+            return CSS::StyleEngineFFI::style_engine_pseudo_element_record_damage(
+                style_computer.style_engine().host(), &read, style_node_id().value(),
+                to_underlying(pseudo_element),
+                style_record_delta.old_style_record.value(),
+                style_record_delta.new_style_record.value(),
+                style_record_identity().value(),
                 with_counter_style_rebuild);
         };
         // The engine answered its record with what the move from the pseudo-element record it names
@@ -2033,7 +2033,7 @@ void Element::publish_custom_property_names()
     };
     Vector<RefPtr<CSS::CustomPropertyData const>> published_pseudo_element_data;
     // NB: The engine names the synthetic pseudo-elements that hold an environment in one answer.
-    auto const synthetic_pseudo_elements_with_data = style_node_id() == 0 ? 0 : document().style_computer().style_engine().pseudo_elements_with_custom_property_data(style_node_id());
+    auto const synthetic_pseudo_elements_with_data = CSS::StyleEngineFFI::style_engine_pseudo_elements_with_custom_property_data(document().style_computer().style_engine().host(), style_node_id().value());
     for (auto i = 0; i < to_underlying(CSS::PseudoElement::KnownPseudoElementCount); ++i) {
         auto pseudo_element = static_cast<CSS::PseudoElement>(i);
         if (is_synthetic_pseudo_element(pseudo_element) && !((synthetic_pseudo_elements_with_data >> i) & 1))
@@ -5337,7 +5337,7 @@ void Element::install_custom_property_data(Layout::BegunRead const& read, Option
         }
         if (data)
             (void)ensure_synthetic_pseudo_element(pseudo_element.value());
-        style_engine.set_pseudo_element_custom_property_data(style_node, pseudo_element.value(), data.ptr());
+        CSS::StyleEngineFFI::style_engine_set_pseudo_element_custom_property_data(style_engine.host(), style_node.value(), to_underlying(pseudo_element.value()), data.ptr(), data ? data->identity() : 0);
         return;
     }
 
@@ -5364,8 +5364,8 @@ RefPtr<CSS::CustomPropertyData const> Element::custom_property_data(Optional<CSS
             return nullptr;
         auto const& style_engine = document().style_computer().style_engine();
         if (!pseudo_element.has_value())
-            return style_engine.element_custom_property_data(style_node);
-        return style_engine.pseudo_element_custom_property_data(style_node, pseudo_element.value());
+            return static_cast<CSS::CustomPropertyData const*>(CSS::StyleEngineFFI::style_engine_element_custom_property_data(style_engine.host(), style_node.value()));
+        return static_cast<CSS::CustomPropertyData const*>(CSS::StyleEngineFFI::style_engine_pseudo_element_custom_property_data(style_engine.host(), style_node.value(), to_underlying(pseudo_element.value())));
     }
 
     if (auto existing_pseudo_element = get_pseudo_element(pseudo_element.value()); existing_pseudo_element.has_value())

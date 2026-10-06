@@ -619,7 +619,7 @@ static void install_engine_pseudo_element_style(Layout::BegunRead const& read, D
     auto pseudo_element = *target.pseudo_element();
     auto& element = target.element();
     auto& style_engine = element.document().style_computer().style_engine();
-    auto answer = style_engine.answer_pseudo_element_record_demand(read, element.style_node_id(), StyleEngine::PseudoElementRecordDemand::CssomRead, *StyleEngine::demanded_pseudo_element(pseudo_element));
+    auto answer = StyleEngineFFI::style_engine_answer_pseudo_element_record_demand(style_engine.host(), &read, element.style_node_id().value(), StyleEngine::PseudoElementRecordDemand::CssomRead, *StyleEngine::demanded_pseudo_element(pseudo_element));
     if (!answer.is_absent && answer.record.style_record == 0)
         return;
     StyleRecordID record { answer.record.style_record };

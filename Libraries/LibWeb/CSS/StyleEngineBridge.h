@@ -198,9 +198,6 @@ public:
 
     void set_element_parts(StyleNodeID node, ReadonlySpan<StyleAtomID> names, ReadonlySpan<StyleNodeID> hosts);
     void set_element_language(StyleNodeID node, StyleAtomID language, Utf16View tag);
-    // The characters a text node holds. The engine shares the document's string rather than copying it, so this
-    // costs one reference.
-    void set_text_data(StyleNodeID node, Utf16String const& data);
     // Which longhand properties one of an element's own declarations covers, their canonical
     // specified values and their authored aliases, and whether the inventory has complete
     // continuation semantics.
@@ -217,12 +214,6 @@ public:
     [[nodiscard]] StyleRecordDelta publish_computed_groups(Layout::BegunRead const& read, StyleNodeID node, u8 pseudo_kind, ReadonlySpan<void const*> payloads, size_t inherited_group_count, u64 custom_property_environment, bool inherited_group_swap_candidate, u64 counter_style_environment_identity, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> animation_overlay_payloads, void const* computed_longhand_table, void const* custom_property_store);
     [[nodiscard]] StyleRecordDependencyFlag style_record_dependency_flags(Layout::BegunRead const& read, StyleRecordID style_record) const;
     [[nodiscard]] u64 style_record_custom_property_environment(Layout::BegunRead const& read, StyleRecordID style_record) const;
-    // What moving the element from one record to another damages, which the engine reads from the
-    // records and its own facts of the element.
-    [[nodiscard]] u32 element_record_damage(Layout::BegunRead const& read, StyleNodeID, StyleRecordID old_style_record, StyleRecordID new_style_record) const;
-    // The same for one of its pseudo-elements, whose box appears or goes away when either record is
-    // none. The host compares the counter styles the box was built with.
-    [[nodiscard]] u32 pseudo_element_record_damage(Layout::BegunRead const& read, StyleNodeID, PseudoElement, StyleRecordID old_style_record, StyleRecordID new_style_record, StyleRecordID originating_style_record, bool counter_styles_changed) const;
     // The borrowed views are stable while a base record exists or an animation-overlay generation remains assigned or
     // pinned.
     [[nodiscard]] StyleRecordView style_record_view(Layout::BegunRead const& read, StyleRecordID style_record) const;
@@ -230,14 +221,8 @@ public:
     [[nodiscard]] StyleRecordDelta remove_computed_pseudo(Layout::BegunRead const& read, StyleNodeID node, u8 pseudo_kind);
     // A sheet the host numbers itself, which the engine adds as it applies the host's writes.
     [[nodiscard]] SheetID add_sheet(u32 object, StyleEngineFFI::FfiCascadeOrigin origin);
-    void begin_sheet_rules_replacement(SheetID sheet);
+    // Ends a replacement of the sheet's rules that style_engine_begin_sheet_rules_replacement() began.
     void finish_sheet_rules_replacement(SheetID sheet);
-    // A fresh identity for an element-sourced declaration block.
-    //
-    // A block's contents change while the CSSOM object stays the same, so its address is not what
-    // makes one version of it different from the next. A version is: an edit that reported the same
-    // identity on both sides would cancel in the journal and invalidate nothing.
-    [[nodiscard]] u32 next_declaration_block_version() { return StyleEngineFFI::style_engine_next_declaration_block_version(host()); }
 
     // Interns one selector-mentioned name and returns its process-global atom, retained by this
     // document.
@@ -251,11 +236,6 @@ public:
     // The engine keeps what a custom property's name spells, once per name, for the environments
     // it computes.
     void note_custom_property_name(StyleAtomID, Utf16FlyString const&);
-    // The store of an environment the engine resolved, with one strong reference transferred, and
-    // the environment it was resolved over; null for one C++ published.
-    [[nodiscard]] void const* borrow_engine_custom_property_environment(Layout::BegunRead const& read, u64 identity, u64& parent_identity) const;
-    // The environment a child inherits from one the engine resolved.
-    [[nodiscard]] u64 inheritable_custom_property_environment(Layout::BegunRead const& read, u64 identity) const;
     // Moves a node's record to the environment its inherited custom-property data was refreshed
     // to; the new record's identity, or zero when nothing moved.
     [[nodiscard]] StyleRecordID republish_record_environment(Layout::BegunRead const&, StyleNodeID, u64 environment, void const* store);
@@ -269,11 +249,6 @@ public:
     // Answers a record demand of an element: the record the engine derived from the document as it is now, or zero
     // where the read is C++'s.
     [[nodiscard]] StyleEngineFFI::FfiRecordDemandAnswer answer_record_demand(Layout::BegunRead const& read, StyleNodeID, RecordDemand);
-    // Answers a record demand of one of an element's pseudo-elements: its record, that it generates no box, or zero
-    // where the read is C++'s.
-    [[nodiscard]] StyleEngineFFI::FfiRecordDemandAnswer answer_pseudo_element_record_demand(Layout::BegunRead const& read, StyleNodeID, PseudoElementRecordDemand, DemandedPseudoElement);
-    // Settles the synthetic pseudo-elements of an element whose record the host just installed, or refuses them all.
-    [[nodiscard]] StyleEngineFFI::FfiSettledPseudoRecords settle_pseudo_records_after_host_record(Layout::BegunRead const& read, StyleNodeID, bool old_is_list_item);
     // Whether an environment identity is one the engine minted for an environment it resolved.
     [[nodiscard]] static bool is_engine_custom_property_environment(u64 identity) { return (identity & (1ull << 62)) != 0; }
     [[nodiscard]] u64 atom_generation() const { return m_atom_generation; }
@@ -354,7 +329,6 @@ public:
     // Whether a geometry read deferred a transaction that has_deferred_geometry_transaction() may still find, which the
     // host knows without reading the render state.
     [[nodiscard]] bool may_have_deferred_geometry_transaction() const { return m_geometry_read_deferred_transaction; }
-    [[nodiscard]] bool has_deferred_element_style_inputs(Layout::BegunRead const& read) const;
     [[nodiscard]] bool pending_transaction_may_affect_layout_geometry(Layout::BegunRead const& read);
     [[nodiscard]] bool defer_pending_transaction_for_geometry_read(Layout::BegunRead const& read);
     [[nodiscard]] bool begin_deferred_geometry_transaction_flush(Layout::BegunRead const& read);
@@ -393,18 +367,12 @@ public:
     // Lets the pending style transaction under root, taken against `inputs`, fly beside the event loop where `blocker` is
     // none, and answers whether it flies. The next style update drains it first, with take_flown_style_transaction().
     [[nodiscard]] bool let_style_transaction_fly(Layout::BegunRead const& read, StyleUpdateInputs const& inputs, StyleNodeID root, Layout::RustFFI::FfiFlightBlocker blocker);
-    // Whether the style transaction that flew still flies. One that has landed is taken in, which only the event loop
-    // does, between two tasks.
-    [[nodiscard]] bool style_transaction_flies();
     // Whether a style transaction flew whose reactions no style update has drained yet, which its document knows.
     [[nodiscard]] bool has_flown_style_transaction() const;
     // Takes the style transaction that flew in, waiting for it to land, to drain its reactions against the inputs it
     // was sealed with. What was written beside it waits for end_flown_style_drain(): it is the next transaction's.
     PublishedStyleTransaction take_flown_style_transaction(Layout::BegunRead const& read);
     void end_flown_style_drain();
-    // Whether the frame whose style transaction is drained applied the element `style_node` names the record
-    // `style_record` ahead of the host, and marked the relayout the move asks for.
-    [[nodiscard]] bool frame_marked_relayout(StyleNodeID style_node, StyleRecordID style_record) const;
     // The transaction that flew knows an element that arrived or was removed beside it as it was sealed: the drain
     // leaves its change, and what inherits from it, to the next transaction.
     void note_style_node_arrived_or_retired(StyleNodeID);
@@ -424,7 +392,6 @@ public:
         if (parent != 0)
             m_parents_whose_children_changed_beside_flown_transaction.set(parent);
     }
-    void sort_style_deltas_for_direct_application(Layout::BegunRead const& read, Span<PublishedStyleDelta>) const;
     void discard_style_transaction_outputs(Layout::BegunRead const& read);
 
     // While a batch's reactions are applied, a host's own style application may rewrite the declarations of an element
@@ -461,11 +428,6 @@ public:
 
     // The custom-property environment each element holds is kept here; the element keeps none of its own.
     void set_element_custom_property_data(Layout::BegunRead const& read, DOM::Element const&, CustomPropertyData const*);
-    [[nodiscard]] CustomPropertyData const* element_custom_property_data(StyleNodeID) const;
-    void set_pseudo_element_custom_property_data(StyleNodeID, PseudoElement, CustomPropertyData const*);
-    [[nodiscard]] CustomPropertyData const* pseudo_element_custom_property_data(StyleNodeID, PseudoElement) const;
-    // One bit per kind of the element's synthetic pseudo-elements that hold an environment.
-    [[nodiscard]] u64 pseudo_elements_with_custom_property_data(StyleNodeID) const;
 
     // Enumerates the engine's counters. Returns false once index is past the last counter.
     bool counter(Layout::BegunRead const& read, size_t index, StringView& out_name, u64& out_value) const;
@@ -484,7 +446,6 @@ private:
     void gather_computation_inputs(LentComputationInputs&);
     PublishedStyleTransaction publish_style_transaction_view(StyleEngineFFI::FfiStyleTransactionView const&, MonotonicTime submission_started_at, MonotonicTime bridge_started_at);
 
-    void apply_transaction(InputTransaction const&);
     void submit_recorded_input();
     bool refresh_attribute_value_text_requirements(Layout::BegunRead const& read);
     [[nodiscard]] bool attribute_value_text_is_known_unread(StyleAtomID name);

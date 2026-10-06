@@ -190,7 +190,7 @@ RefPtr<CustomPropertyData const> CustomPropertyData::inheritable(Layout::BegunRe
     RefPtr<CustomPropertyData const> inheritable;
     if (StyleEngine::is_engine_custom_property_environment(m_identity)) {
         auto const& style_computer = document.style_computer();
-        auto inheritable_identity = style_computer.style_engine().inheritable_custom_property_environment(read, m_identity);
+        auto inheritable_identity = StyleEngineFFI::style_engine_inheritable_custom_property_environment(style_computer.style_engine().host(), &read, m_identity);
         if (inheritable_identity == m_identity)
             inheritable = this;
         else if (inheritable_identity == (inheritable_parent ? inheritable_parent->identity() : 0))

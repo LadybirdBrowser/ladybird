@@ -1170,7 +1170,7 @@ void EventLoop::take_finished_frames_in()
     // but for those it holds back, which wait. None is in flight in a nested event loop, which finishes it as it begins,
     // and a paused event loop does not come here.
     if (m_rendering_update_in_flight && !m_rendering_update_in_flight->held_for_testing
-        && !m_rendering_update_in_flight->document().style_computer().style_engine().style_transaction_flies()
+        && !CSS::StyleEngineFFI::style_engine_style_transaction_flies(m_rendering_update_in_flight->document().style_computer().style_engine().host())
         && (m_rendering_update_in_flight->layout_flew || !let_layout_of_rendering_update_fly()))
         resume_rendering_update_in_flight();
 

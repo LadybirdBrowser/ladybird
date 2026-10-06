@@ -1792,7 +1792,7 @@ RefPtr<CustomPropertyData const> StyleComputer::engine_custom_property_environme
     if (auto existing = m_engine_custom_property_environments.get(identity); existing.has_value())
         return *existing;
     u64 parent_identity = 0;
-    auto const* store = m_style_engine.borrow_engine_custom_property_environment(read, identity, parent_identity);
+    auto const* store = StyleEngineFFI::style_engine_borrow_engine_custom_property_environment(m_style_engine.host(), &read, identity, &parent_identity);
     if (!store)
         return {};
     if (parent_identity != (inherited ? inherited->identity() : 0)) {
@@ -1813,7 +1813,7 @@ RefPtr<CustomPropertyData const> StyleComputer::engine_custom_property_environme
     auto data = CustomPropertyData::create(move(own_values), inherited, store, identity);
     m_engine_custom_property_environments.set(identity, data);
     // What its children inherit is the engine's to name too: the children's environments are resolved over it.
-    if (auto inheritable = m_style_engine.inheritable_custom_property_environment(read, identity); inheritable != identity)
+    if (auto inheritable = StyleEngineFFI::style_engine_inheritable_custom_property_environment(m_style_engine.host(), &read, identity); inheritable != identity)
         data->set_inheritable(document(), inheritable == (inherited ? inherited->identity() : 0) ? inherited : engine_custom_property_environment(read, inheritable, inherited));
     return data;
 }
@@ -2122,7 +2122,7 @@ StyleEngine::StyleRecordDelta StyleComputer::record_computed_style_inputs(Layout
 
 RefPtr<ComputedValues const> StyleComputer::engine_transient_pseudo_element_style(Layout::BegunRead const& read, DOM::Element const& element, StyleEngine::DemandedPseudoElement pseudo_element)
 {
-    auto answer = m_style_engine.answer_pseudo_element_record_demand(read, element.style_node_id(), StyleEngine::PseudoElementRecordDemand::ReadOnly, pseudo_element);
+    auto answer = StyleEngineFFI::style_engine_answer_pseudo_element_record_demand(m_style_engine.host(), &read, element.style_node_id().value(), StyleEngine::PseudoElementRecordDemand::ReadOnly, pseudo_element);
     auto view = computed_style_record_view(read, StyleRecordID { answer.record.style_record });
     if (!view)
         return {};
