@@ -1,0 +1,3 @@
+iframe events: popstate, hashchange
+iframe loaded its first navigation
+popup loaded its first navigation
