@@ -30,10 +30,8 @@ public:
     virtual void quadratic_bezier_curve_to(FloatPoint through, FloatPoint point) override;
     virtual void cubic_bezier_curve_to(FloatPoint c1, FloatPoint c2, FloatPoint p2) override;
     virtual void glyph_run(GlyphRun const&) override;
-    virtual void offset(Gfx::FloatPoint const&) override;
 
     virtual void append_path(Gfx::Path const&) override;
-    virtual void intersect(Gfx::Path const&) override;
 
     [[nodiscard]] virtual Vector<u8> serialize_to_bytes() const override;
     virtual void deserialize_from_bytes(ReadonlyBytes) override;
