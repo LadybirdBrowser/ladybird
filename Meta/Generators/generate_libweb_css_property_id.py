@@ -311,12 +311,6 @@ WEB_API Optional<PropertyID> property_id_from_string(Utf16View);
 WEB_API bool is_inherited_property(PropertyID);
 WEB_API NonnullRefPtr<StyleValue const> property_initial_value(PropertyID);
 
-enum class PropertyMultiplicity {{
-    Single,
-    List,
-    CoordinatingList,
-}};
-PropertyMultiplicity property_multiplicity(PropertyID);
 bool property_is_single_valued(PropertyID);
 bool property_is_list_valued(PropertyID);
 
@@ -349,10 +343,6 @@ bool property_is_positional_value_list_shorthand(PropertyID);
 
 size_t property_maximum_value_count(PropertyID);
 
-bool property_affects_layout(PropertyID);
-bool property_affects_stacking_context(PropertyID);
-bool property_affects_accumulated_visual_contexts(PropertyID);
-bool property_affects_scrollable_overflow(PropertyID);
 bool property_needs_layout_for_getcomputedstyle(PropertyID);
 bool property_needs_layout_node_for_resolved_value(PropertyID);
 
@@ -363,14 +353,6 @@ constexpr PropertyID last_inherited_property_id = PropertyID::{title_casify(last
 constexpr PropertyID first_longhand_property_id = PropertyID::{title_casify(first_longhand_property_id)};
 constexpr PropertyID last_longhand_property_id = PropertyID::{title_casify(last_longhand_property_id)};
 constexpr size_t number_of_longhand_properties = to_underlying(last_longhand_property_id) - to_underlying(first_longhand_property_id) + 1;
-
-enum class Quirk {{
-    // https://quirks.spec.whatwg.org/#the-hashless-hex-color-quirk
-    HashlessHexColor,
-    // https://quirks.spec.whatwg.org/#the-unitless-length-quirk
-    UnitlessLength,
-}};
-bool property_has_quirk(PropertyID, Quirk);
 
 struct LogicalAliasMappingContext {{
     WritingMode writing_mode;
@@ -556,76 +538,6 @@ bool is_inherited_property(PropertyID property_id)
     return false;
 }
 
-bool property_affects_layout(PropertyID property_id)
-{
-    switch (property_id) {
-""")
-
-    for name, value in properties.items():
-        if is_legacy_alias(value):
-            continue
-        affects_layout = value.get("affects-layout", True)
-        if affects_layout:
-            out.write(f"    case PropertyID::{title_casify(name)}:\n")
-
-    out.write("""
-        return true;
-    default:
-        return false;
-    }
-}
-
-bool property_affects_stacking_context(PropertyID property_id)
-{
-    switch (property_id) {
-""")
-
-    for name, value in properties.items():
-        if is_legacy_alias(value):
-            continue
-        if value.get("affects-stacking-context", False):
-            out.write(f"    case PropertyID::{title_casify(name)}:\n")
-    out.write("""
-        return true;
-    default:
-        return false;
-    }
-}
-
-bool property_affects_accumulated_visual_contexts(PropertyID property_id)
-{
-    switch (property_id) {
-""")
-
-    for name, value in properties.items():
-        if is_legacy_alias(value):
-            continue
-        if value.get("affects-accumulated-visual-contexts", False):
-            out.write(f"    case PropertyID::{title_casify(name)}:\n")
-    out.write("""
-        return true;
-    default:
-        return false;
-    }
-}
-
-bool property_affects_scrollable_overflow(PropertyID property_id)
-{
-    switch (property_id) {
-""")
-
-    for name, value in properties.items():
-        if is_legacy_alias(value):
-            continue
-        if value.get("affects-scrollable-overflow", False):
-            out.write(f"    case PropertyID::{title_casify(name)}:\n")
-    out.write("""
-        return true;
-    default:
-        return false;
-    }
-}
-
 bool property_needs_layout_for_getcomputedstyle(PropertyID property_id)
 {
     switch (property_id) {
@@ -706,32 +618,6 @@ NonnullRefPtr<StyleValue const> property_initial_value(PropertyID property_id)
     VERIFY_NOT_REACHED();
 }
 
-PropertyMultiplicity property_multiplicity(PropertyID property_id)
-{
-    switch (property_id) {
-""")
-
-    for name, value in properties.items():
-        multiplicity = value.get("multiplicity")
-        if multiplicity is not None and multiplicity != "single":
-            if multiplicity not in ("single", "list", "coordinating-list"):
-                print(
-                    f"'{multiplicity}' is not a valid value for 'multiplicity'. "
-                    "Accepted values are: 'single', 'list', 'coordinating-list'",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-            out.write(f"    case PropertyID::{title_casify(name)}:\n")
-            out.write(f"        return PropertyMultiplicity::{title_casify(multiplicity)};\n")
-
-    out.write("""
-    default:
-        return PropertyMultiplicity::Single;
-    }
-
-    VERIFY_NOT_REACHED();
-}
-
 bool property_is_single_valued(PropertyID property_id)
 {
     return !property_is_list_valued(property_id);
@@ -756,40 +642,6 @@ bool property_is_list_valued(PropertyID property_id)
 
     out.write("""
         return true;
-    default:
-        return false;
-    }
-}
-
-bool property_has_quirk(PropertyID property_id, Quirk quirk)
-{
-    switch (property_id) {
-""")
-
-    for name, value in properties.items():
-        if is_legacy_alias(value):
-            continue
-        quirks = value.get("quirks")
-        if quirks:
-            out.write(f"""
-    case PropertyID::{title_casify(name)}: {{
-        switch (quirk) {{
-""")
-            out.writelines(
-                f"""
-        case Quirk::{title_casify(quirk)}:
-            return true;
-"""
-                for quirk in quirks
-            )
-            out.write("""
-        default:
-            return false;
-        }
-    }
-""")
-
-    out.write("""
     default:
         return false;
     }

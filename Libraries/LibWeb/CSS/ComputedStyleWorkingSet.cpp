@@ -48,20 +48,11 @@ static_assert(to_underlying(PseudoElement::KnownPseudoElementCount) <= sizeof(u6
 
 ComputedStyleWorkingSet::ComputedStyleWorkingSet()
     : m_computed_longhand_table(ComputedValuesFFI::rust_computed_longhand_table_create())
-    , m_mint_cache(adopt_ref(*new WrapperMintCache))
 {
 }
 
 ComputedStyleWorkingSet::ComputedStyleWorkingSet(ComputedValuesFFI::ComputedLonghandTable* longhand_table)
     : m_computed_longhand_table(longhand_table)
-    , m_mint_cache(adopt_ref(*new WrapperMintCache))
-{
-}
-
-ComputedStyleWorkingSet::ComputedStyleWorkingSet(ShareFrozenTable, ComputedStyleWorkingSet const& other)
-    : m_computed_longhand_table(const_cast<ComputedValuesFFI::ComputedLonghandTable*>(ComputedValuesFFI::rust_computed_longhand_table_retain(other.m_computed_longhand_table)))
-    , m_computed_longhand_table_is_shared(true)
-    , m_mint_cache(other.m_mint_cache)
 {
 }
 
@@ -150,11 +141,6 @@ void ComputedStyleWorkingSet::ensure_mutable_computed_longhand_table()
 void ComputedStyleWorkingSet::freeze_computed_longhand_table()
 {
     ComputedValuesFFI::rust_computed_longhand_table_freeze(m_computed_longhand_table);
-}
-
-NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::copy_without_animations() const
-{
-    return adopt_ref(*new ComputedStyleWorkingSet(ShareFrozenTable {}, *this));
 }
 
 AnimatedProperties::AnimatedProperties()
@@ -409,7 +395,7 @@ StyleValue const& ComputedStyleWorkingSet::property(PropertyID property_id, With
 {
     VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
 
-    auto& cache = m_mint_cache->wrappers;
+    auto& cache = m_minted_wrappers;
     // Without an animated overlay, a cached wrapper is always the effective value: the store
     // funnels replace or invalidate the entry on every table write, and the recorded specified
     // values invalidate it when they change.

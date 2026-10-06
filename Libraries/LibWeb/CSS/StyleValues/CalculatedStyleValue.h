@@ -43,7 +43,6 @@ public:
 
     static ValueComparingNonnullRefPtr<CalculatedStyleValue const> create(CalcNodeRef root, NumericType resolved_type, CalculationContext context);
     bool equals(StyleValue const& other) const;
-    StyleValueFFI::CalcNode const* rust_calculation_root() const { return m_value->calculated.rust_calculation.node; }
     CalculationContext calculation_context() const;
 
     Optional<Angle> resolve_angle(CalculationResolutionContext const&) const;
@@ -64,7 +63,6 @@ public:
     Optional<i32> resolve_integer(CalculationResolutionContext const&) const;
 
     bool contains_percentage() const;
-    bool is_fully_simplified() const;
 
     GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
 

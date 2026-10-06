@@ -238,7 +238,6 @@ class BorderImageSliceStyleValue;
 class BorderRadiusStyleValue;
 class CalculatedStyleValue;
 class CustomPropertyData;
-class Clip;
 class ColorFilterStyleValue;
 class ColorFunctionStyleValue;
 class ColorSchemeStyleValue;

@@ -36,11 +36,6 @@ public:
         return data.presence_attr || data.presence_dashed_function || data.presence_env || data.presence_if || data.presence_inherit || data.presence_var;
     }
     bool contains_attr_tainted_values() const { return m_value->unresolved.contains_attr_tainted_values; }
-    bool includes_attr_function() const { return m_value->unresolved.presence_attr; }
-    bool includes_inherit_function() const { return m_value->unresolved.presence_inherit; }
-    bool includes_if_function() const { return m_value->unresolved.presence_if; }
-    bool includes_var_function() const { return m_value->unresolved.presence_var; }
-    bool includes_dashed_function() const { return m_value->unresolved.presence_dashed_function; }
     RefPtr<StyleValue const> parsed_value() const { return wrap_rust_child_or_null(m_value->unresolved.parsed_value); }
 
     bool equals(StyleValue const& other) const;
