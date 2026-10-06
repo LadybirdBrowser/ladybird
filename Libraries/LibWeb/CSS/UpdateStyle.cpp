@@ -36,13 +36,34 @@ using StyleUpdateMode = DOM::Document::StyleUpdateMode;
 
 extern "C" void ladybird_utf16_fly_string_unref(size_t);
 
-static void finish_complete_style_update()
-{
-    auto releases = StyleValueFFI::rust_style_ffi_complete_style_update_end();
-    ScopeGuard clear_releases = StyleValueFFI::rust_deferred_cpp_releases_clear;
-    for (size_t i = 0; i < releases.fly_string_count; ++i)
-        ladybird_utf16_fly_string_unref(releases.fly_strings[i]);
-}
+// One style update of a document: its style computation, the style record views it reads, and the strings the engine
+// lets go of meanwhile, whose release waits for the update to end.
+class StyleUpdateScope {
+    AK_MAKE_NONCOPYABLE(StyleUpdateScope);
+    AK_MAKE_NONMOVABLE(StyleUpdateScope);
+
+public:
+    explicit StyleUpdateScope(StyleComputer const& style_computer)
+        : m_style_computer(style_computer)
+    {
+        StyleValueFFI::rust_style_ffi_complete_style_update_begin();
+        m_style_computer->begin_style_update();
+        m_style_computer->begin_style_record_view_epoch();
+    }
+
+    ~StyleUpdateScope()
+    {
+        m_style_computer->end_style_record_view_epoch();
+        m_style_computer->end_style_update();
+        auto releases = StyleValueFFI::rust_style_ffi_complete_style_update_end();
+        ScopeGuard clear_releases = StyleValueFFI::rust_deferred_cpp_releases_clear;
+        for (size_t i = 0; i < releases.fly_string_count; ++i)
+            ladybird_utf16_fly_string_unref(releases.fly_strings[i]);
+    }
+
+private:
+    GC::Ref<StyleComputer const> m_style_computer;
+};
 
 enum class DocumentWithoutBrowsingContext {
     Skip,
@@ -828,9 +849,6 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
         //     intervals are disjoint; rounding each down leaves fractional time here too.
         timing_counters.style_update_remainder_microseconds += whole - measured;
     };
-    StyleValueFFI::rust_style_ffi_complete_style_update_begin();
-    ScopeGuard leave_complete_style_update = finish_complete_style_update;
-
     // NB: The drain of a transaction that flew reads the container's layout its seal read.
     [[maybe_unused]] auto container_layout = [&] {
         if constexpr (drains_flown_transaction)
@@ -852,15 +870,7 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
     // NB: What connected beside the transaction that flew is the next transaction's.
     if constexpr (!drains_flown_transaction)
         take_in_pending_style_arrivals(document);
-    document.style_computer().begin_style_update();
-    ScopeGuard end_style_update = [&] {
-        document.style_computer().end_style_update();
-    };
-
-    document.style_computer().begin_style_record_view_epoch();
-    ScopeGuard end_style_record_view_epoch = [&] {
-        document.style_computer().end_style_record_view_epoch();
-    };
+    StyleUpdateScope style_update_scope { document.style_computer() };
 
     document.begin_style_stabilization_epoch();
     ScopeGuard end_stabilization_epoch = [&] {
@@ -1204,18 +1214,7 @@ static bool update_style_for_element(Layout::BegunRead const& read, DOM::Documen
     }
 
     take_in_pending_style_arrivals(document);
-    document.style_computer().begin_style_update();
-    ScopeGuard end_style_update = [&] {
-        document.style_computer().end_style_update();
-    };
-
-    document.style_computer().begin_style_record_view_epoch();
-    ScopeGuard end_style_record_view_epoch = [&] {
-        document.style_computer().end_style_record_view_epoch();
-    };
-
-    StyleValueFFI::rust_style_ffi_complete_style_update_begin();
-    ScopeGuard leave_complete_style_update = finish_complete_style_update;
+    StyleUpdateScope style_update_scope { document.style_computer() };
     // Refresh computed properties for an abstract element. An ordinary read first consumes the complete exact
     // reaction batch. A reentrant layout read leaves that transaction untouched and walks the flat-tree inheritance
     // chain, re-cascading from the rootmost stale element on the path back down to the target. Normal mode also
