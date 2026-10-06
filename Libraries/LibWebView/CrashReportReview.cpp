@@ -7,6 +7,7 @@
 #include <AK/AnyOf.h>
 #include <AK/Array.h>
 #include <AK/Hex.h>
+#include <AK/WeakPtr.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibWebView/CrashReportDiagnostics.h>
 #include <LibWebView/CrashReportReview.h>
@@ -149,26 +150,31 @@ Optional<String> CrashReportReview::send(String const& description, Optional<Str
             .manifest = m_prepared_manifest,
         });
 
-    submission->on_progress = [this](auto stage) {
-        if (on_progress)
-            on_progress(stage);
+    submission->on_progress = [weak_this = make_weak_ptr()](auto stage) {
+        if (auto* self = weak_this.ptr(); self && self->on_progress)
+            self->on_progress(stage);
     };
-    submission->on_prepared = [this](ByteString const& manifest) {
-        m_prepared_manifest = manifest;
+    submission->on_prepared = [weak_this = make_weak_ptr()](ByteString const& manifest) {
+        if (auto* self = weak_this.ptr())
+            self->m_prepared_manifest = manifest;
     };
-    submission->on_retry = [this](String reason, u32 retry_number, u32 delay_seconds) {
-        if (on_retry)
-            on_retry(move(reason), retry_number, CrashReportSubmission::maximum_attempts - 1, delay_seconds);
+    submission->on_retry = [weak_this = make_weak_ptr()](String reason, u32 retry_number, u32 delay_seconds) {
+        if (auto* self = weak_this.ptr(); self && self->on_retry)
+            self->on_retry(move(reason), retry_number, CrashReportSubmission::maximum_attempts - 1, delay_seconds);
     };
-    submission->on_sent = [this] {
-        m_submission = nullptr;
-        if (on_sent)
-            on_sent();
+    submission->on_sent = [weak_this = make_weak_ptr()] {
+        if (auto* self = weak_this.ptr()) {
+            self->m_submission = nullptr;
+            if (self->on_sent)
+                self->on_sent();
+        }
     };
-    submission->on_failed = [this](auto failure, String reason) {
-        m_submission = nullptr;
-        if (on_failed)
-            on_failed(failure, move(reason));
+    submission->on_failed = [weak_this = make_weak_ptr()](auto failure, String reason) {
+        if (auto* self = weak_this.ptr()) {
+            self->m_submission = nullptr;
+            if (self->on_failed)
+                self->on_failed(failure, move(reason));
+        }
     };
 
     m_submission = submission;
