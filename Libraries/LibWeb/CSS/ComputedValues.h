@@ -957,7 +957,6 @@ public:
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Font;
 
         WEB_API Gfx::FontCascadeList const& font_list_value() const;
-        RefPtr<StyleValue const> font_family_style_value() const;
 
         bool operator==(FontValues const& other) const
         {

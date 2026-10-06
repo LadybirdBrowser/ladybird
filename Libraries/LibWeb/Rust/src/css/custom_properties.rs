@@ -47,7 +47,7 @@ pub(crate) fn environment_variable_is_known(name: &[u16]) -> bool {
 const MAX_ANCESTOR_COUNT: u8 = 32;
 const ABSORB_THRESHOLD: usize = 8;
 
-trait Utf16SliceExt {
+pub(crate) trait Utf16SliceExt {
     fn eq_ignore_ascii_case(&self, expected: &str) -> bool;
     fn eq_ignore_ascii_case_utf16(&self, expected: &[u16]) -> bool;
     fn starts_with_ascii(&self, expected: &str) -> bool;

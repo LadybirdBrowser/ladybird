@@ -81,6 +81,7 @@ carried! {
     [u32; 4]: *const [u32; 4] as "u32 const*" = |values| unsafe { *values };
     Box<[u16]>: FfiSpan<u16> as "ReadonlySpan<u16>" = |span| unsafe { borrow(span.data, span.size) }.into();
     Box<[u32]>: FfiSpan<u32> as "ReadonlySpan<u32>" = |span| unsafe { borrow(span.data, span.size) }.into();
+    Box<[u64]>: FfiSpan<u64> as "ReadonlySpan<u64>" = |span| unsafe { borrow(span.data, span.size) }.into();
     Box<[StyleAtomID]>: FfiSpan<u32> as "ReadonlySpan<StyleAtomID>" =
         |span| unsafe { borrow(span.data, span.size) }.iter().copied().map(StyleAtomID).collect();
     Box<[StyleNodeID]>: FfiSpan<u32> as "ReadonlySpan<StyleNodeID>" =
@@ -257,6 +258,9 @@ style_boundary! {
         record_derived_element_style_input => RecordDerivedElementStyleInput {
             node: StyleNodeID, reaction: u8, inherited_style_groups: u8
         };
+        record_font_input_changes => RecordFontInputChanges {
+            family_name_lengths: Box<[u32]>, family_name_units: Box<[u16]>, font_lists: Box<[u64]>
+        } => engine.record_font_input_changes(&family_name_lengths, &family_name_units, &font_lists);
         record_flat_tree_descendant_style_inputs => RecordFlatTreeDescendantStyleInputs {
             root: StyleNodeID, reaction: u8, inherited_style_groups: u8
         };

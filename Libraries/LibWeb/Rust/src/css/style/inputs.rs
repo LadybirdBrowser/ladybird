@@ -2059,6 +2059,76 @@ impl StyleEngine {
         );
     }
 
+    /// Record a font input change for every element whose style, or the style of one of its
+    /// pseudo-elements, uses a font that resolves differently now: its `font-family` names one of
+    /// the families, packed as one buffer of code units with a length each, or its cascade is one of
+    /// `font_lists`, which are compared by address only. Styles share font groups, so each distinct
+    /// group is asked once.
+    pub fn record_font_input_changes(
+        &mut self,
+        family_name_lengths: &[u32],
+        family_name_units: &[u16],
+        font_lists: &[u64],
+    ) {
+        use crate::css::computed_value_types::{FontValues, STYLE_GROUP_INDEX_FONT};
+        use crate::css::custom_properties::Utf16SliceExt;
+        use crate::css::style_value::StyleValueData;
+
+        let families = || {
+            family_name_lengths.iter().scan(0, |offset, &length| {
+                let start = *offset;
+                *offset += length as usize;
+                Some(&family_name_units[start..*offset])
+            })
+        };
+        let names_changed_family = |font: &FontValues| {
+            let Some(StyleValueData::ValueList { values, .. }) = font.font_family.data() else {
+                return false;
+            };
+            values.as_slice().iter().any(|value| {
+                let name = match value.data() {
+                    StyleValueData::String { string, .. } => string.units(),
+                    StyleValueData::CustomIdent { custom_ident } => custom_ident.units(),
+                    _ => return false,
+                };
+                families().any(|family| name.eq_ignore_ascii_case_utf16(family))
+            })
+        };
+        let mut answers = HashMap::<*const FontValues, bool>::default();
+        let mut uses_changed_font = |style_record: u64| {
+            let Some(payloads) = self.computed_group_sets.style_record_payloads(style_record) else {
+                return false;
+            };
+            let font =
+                crate::css::computed_value_views::ComputedValuesView::new(SharedPayload::as_pointer_slice(payloads))
+                    .font();
+            *answers.entry(std::ptr::from_ref(font)).or_insert_with(|| {
+                font_lists.contains(&(font.font_cascade_list.as_raw() as u64)) || names_changed_family(font)
+            })
+        };
+        let users: Vec<StyleNodeID> = self
+            .held_style_records
+            .iter()
+            .map(|(&node, &style_record)| (node, style_record))
+            .chain(
+                self.computed_group_sets
+                    .pseudo_style_records()
+                    .map(|(node, style_record)| (node, style_record.raw())),
+            )
+            .filter_map(|(node, style_record)| uses_changed_font(style_record).then_some(node))
+            .collect();
+        // An element and its pseudo-elements may both be users: what it owes merges.
+        for node in users {
+            self.record_derived_element_style_input(
+                node,
+                transaction::STYLE_REACTION_PUBLISHED_STYLE
+                    | transaction::STYLE_REACTION_RECOMPUTE_STYLE
+                    | transaction::STYLE_REACTION_FONT_INPUTS_CHANGED,
+                1 << STYLE_GROUP_INDEX_FONT,
+            );
+        }
+    }
+
     /// Record a style reaction for one element, which the engine derived itself or C++ derived
     /// from what it saw move, merged with what the element already owes. It joins the next
     /// transaction, and the engine settles it where it can.

@@ -23,17 +23,13 @@
 #include <LibWeb/CSS/RustFontFeatureValues.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleSheetState.h>
-#include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
-#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
-#include <LibWeb/CSS/StyleValues/StringStyleValue.h>
-#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Response.h>
 #include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/MimeSniff/Resource.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/FontPlugin.h>
 
 namespace Web::CSS {
@@ -392,23 +388,6 @@ Gfx::Font const& FontComputer::initial_font() const
     return font;
 }
 
-static bool style_value_references_any_font_family(StyleValue const& font_family_value, Vector<Utf16FlyString> const& family_names)
-{
-    if (!font_family_value.is_value_list())
-        return false;
-
-    for (auto const& item : font_family_value.as_value_list().values()) {
-        if (item->is_keyword())
-            continue; // Skip generic keywords (monospace, serif, etc.)
-
-        auto item_family_name = string_from_style_value(*item);
-
-        if (any_of(family_names, [&](auto const& family_name) { return item_family_name.equals_ignoring_ascii_case(family_name); }))
-            return true;
-    }
-    return false;
-}
-
 static bool computed_font_families_reference_any_family(ReadonlySpan<ComputedFontFamily const> font_families, Vector<Utf16FlyString> const& family_names)
 {
     return any_of(font_families, [&](ComputedFontFamily const& family) {
@@ -417,66 +396,11 @@ static bool computed_font_families_reference_any_family(ReadonlySpan<ComputedFon
     });
 }
 
-static bool font_values_reference_any_font_family(ComputedValues::FontValues const& font_values, Vector<Utf16FlyString> const& family_names)
-{
-    auto font_family = font_values.font_family_style_value();
-    return font_family && style_value_references_any_font_family(*font_family, family_names);
-}
-
-static bool element_uses_any_font_family(DOM::Element const& element, Vector<Utf16FlyString> const& family_names)
-{
-    // Check the element's own font-family.
-    if (auto const* values = element.style_group<ComputedValues::FontValues>()) {
-        if (font_values_reference_any_font_family(*values, family_names))
-            return true;
-    }
-
-    // Check pseudo-elements, which may use a different font-family than the element itself.
-    bool synthetic_pseudo_element_uses_font_family = false;
-    element.for_each_synthetic_pseudo_element([&](Web::CSS::PseudoElement pseudo_element, Web::DOM::SyntheticPseudoElement const&) {
-        if (auto const* values = element.style_group<ComputedValues::FontValues>(pseudo_element)) {
-            if (font_values_reference_any_font_family(*values, family_names)) {
-                synthetic_pseudo_element_uses_font_family = true;
-                return IterationDecision::Break;
-            }
-        }
-        return IterationDecision::Continue;
-    });
-
-    return synthetic_pseudo_element_uses_font_family;
-}
-
-static bool element_uses_any_font_list(DOM::Element const& element, HashTable<Gfx::FontCascadeList const*> const& font_lists)
-{
-    auto uses_font_list = [&](Optional<CSS::PseudoElement> pseudo_element = {}) {
-        auto const* values = element.style_group<ComputedValues::FontValues>(pseudo_element);
-        return values && font_lists.contains(&values->font_list_value());
-    };
-    bool uses_any = uses_font_list();
-    element.for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element, DOM::SyntheticPseudoElement const&) {
-        if (uses_font_list(pseudo_element)) {
-            uses_any = true;
-            return IterationDecision::Break;
-        }
-        return IterationDecision::Continue;
-    });
-    return uses_any;
-}
-
 void FontComputer::clear_computed_font_cache(Utf16FlyString const& family_name)
 {
     Vector<Utf16FlyString> family_names;
     family_names.append(family_name);
     clear_computed_font_cache_for_families(family_names);
-}
-
-static void record_font_input_change(DOM::Element& element)
-{
-    constexpr u8 font_group = 1u << ComputedValues::FontValues::style_group_index;
-    // NB: A derived input, not a recorded one: the change is to the published @font-face table, which the style
-    //     engine holds and versions, so the engine settles the element's record itself where it can.
-    element.document().style_computer().style_engine().record_derived_element_style_input_change(
-        element.style_node_id(), StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle | StyleEngine::FontInputsChanged, font_group);
 }
 
 void FontComputer::clear_computed_font_cache_for_families(Vector<Utf16FlyString> const& family_names)
@@ -489,25 +413,41 @@ void FontComputer::clear_computed_font_cache_for_families(Vector<Utf16FlyString>
         return computed_font_families_reference_any_family(key.font_families, family_names);
     });
 
-    record_font_input_changes([family_names](DOM::Element const& element) {
-        return element_uses_any_font_family(element, family_names);
-    });
+    record_font_input_changes(family_names, {});
 }
 
-// Publishes an input change for every element whose style uses a font that resolves differently now. Beside a style
+// Has the style engine record an input change for every element whose style uses a font that resolves differently
+// now: one whose font-family names one of the families, or whose cascade is one of the font lists. Beside a style
 // transaction that flew, the elements are found once its drain has installed the styles it computed.
-void FontComputer::record_font_input_changes(ElementUsesChangedFonts uses_changed_fonts)
+void FontComputer::record_font_input_changes(ReadonlySpan<Utf16FlyString> family_names, ReadonlySpan<Gfx::FontCascadeList const*> font_lists)
 {
     if (document().has_flown_style_transaction()) {
-        m_font_changes_beside_flown_transaction.append(move(uses_changed_fonts));
+        m_font_families_changed_beside_flown_transaction.append(family_names.data(), family_names.size());
+        m_font_lists_changed_beside_flown_transaction.append(font_lists.data(), font_lists.size());
         return;
     }
-    // Walk the DOM tree (including shadow trees) and publish inputs for elements that use the changed fonts.
-    document().for_each_shadow_including_inclusive_descendant([&](DOM::Node& node) {
-        if (auto* element = as_if<DOM::Element>(node); element && uses_changed_fonts(*element))
-            record_font_input_change(*element);
-        return TraversalDecision::Continue;
-    });
+    Vector<u32> family_name_lengths;
+    Vector<u16> family_name_units;
+    family_name_lengths.ensure_capacity(family_names.size());
+    for (auto const& family_name : family_names) {
+        family_name_lengths.unchecked_append(family_name.length_in_code_units());
+        for (size_t index = 0; index < family_name.length_in_code_units(); ++index)
+            family_name_units.append(family_name.code_unit_at(index));
+    }
+    // NB: The engine compares the lists by address only: a record that holds a list keeps it alive.
+    Vector<u64> font_list_addresses;
+    font_list_addresses.ensure_capacity(font_lists.size());
+    for (auto const* font_list : font_lists)
+        font_list_addresses.unchecked_append(bit_cast<FlatPtr>(font_list));
+
+    // These are style inputs like any other: the transaction a geometry read deferred is flushed before them, and the
+    // first one asks for a frame.
+    auto& style_engine = document().style_computer().style_engine();
+    if (style_engine.may_have_deferred_geometry_transaction())
+        document().flush_deferred_style_change_event();
+    if (!style_engine.has_recorded_input())
+        document().page().client().request_frame();
+    StyleEngineFFI::style_engine_record_font_input_changes(style_engine.host(), family_name_lengths, family_name_units, font_list_addresses);
 }
 
 void FontComputer::did_end_flown_style_drain()
@@ -516,19 +456,14 @@ void FontComputer::did_end_flown_style_drain()
     // than the memo, into cascades the memo never holds. The elements holding one that answers differently now, or
     // waits on a face the memo would no longer find it waiting on, are found here.
     auto resolutions = m_font_cascade_memo->take_resolutions_against_older_tables();
-    HashTable<Gfx::FontCascadeList const*> stale_font_lists;
     for (auto const& [key, font_list] : resolutions) {
         if (font_list->has_pending_faces() || !font_list->equals(*m_font_cascade_memo->resolve(*font_face_snapshot(), key, font_feature_values_provider(key.font_feature_values_scope))))
-            stale_font_lists.set(font_list.ptr());
+            m_font_lists_changed_beside_flown_transaction.append(font_list.ptr());
     }
-    if (!stale_font_lists.is_empty()) {
-        // The lists the walk compares addresses against stay alive with it.
-        record_font_input_changes([stale_font_lists = move(stale_font_lists), kept_alive = move(resolutions)](DOM::Element const& element) {
-            return element_uses_any_font_list(element, stale_font_lists);
-        });
-    }
-    for (auto& uses_changed_fonts : exchange(m_font_changes_beside_flown_transaction, {}))
-        record_font_input_changes(move(uses_changed_fonts));
+    auto family_names = move(m_font_families_changed_beside_flown_transaction);
+    auto font_lists = move(m_font_lists_changed_beside_flown_transaction);
+    if (!family_names.is_empty() || !font_lists.is_empty())
+        record_font_input_changes(family_names, font_lists);
 }
 
 // Every change to what a font resolution would answer passes through here. Nothing else may touch
@@ -613,8 +548,7 @@ void FontComputer::did_load_font(FontFaceKey const& changed_face)
     // A family can contain many faces, but one face becoming available changes only the cached
     // selections which now resolve to it. Compare those selections before discarding their cache
     // entries, then find the elements holding the discarded cascade identities.
-    HashTable<Gfx::FontCascadeList const*> invalidated_font_lists;
-    Vector<NonnullRefPtr<Gfx::FontCascadeList const>> invalidated_font_lists_kept_alive_for_the_walk;
+    Vector<Gfx::FontCascadeList const*> invalidated_font_lists;
     // NB: The table is built for the first remembered cascade that names the family, if any does.
     RefPtr<FontFaceSnapshot const> snapshot;
     m_font_cascade_memo->forget_matching(m_environment_generation, [&](auto const& key, auto const& font_list) {
@@ -628,19 +562,14 @@ void FontComputer::did_load_font(FontFaceKey const& changed_face)
         auto updated_font_list = resolve_font_cascade(*snapshot, key, font_feature_values_provider(key.font_feature_values_scope));
         if (!font_list->has_pending_faces() && font_list->equals(*updated_font_list))
             return false;
-        invalidated_font_lists.set(font_list.ptr());
-        invalidated_font_lists_kept_alive_for_the_walk.append(font_list);
+        invalidated_font_lists.append(font_list.ptr());
         return true;
     });
     // NB: A style transaction that flew may still resolve the family against the table it was sealed with, into a
     //     cascade the memo never holds and no list here names: did_end_flown_style_drain() finds the elements holding
     //     one that answers differently now.
-    if (!invalidated_font_lists.is_empty()) {
-        // The lists the walk compares addresses against stay alive with it.
-        record_font_input_changes([invalidated_font_lists = move(invalidated_font_lists), kept_alive = move(invalidated_font_lists_kept_alive_for_the_walk)](DOM::Element const& element) {
-            return element_uses_any_font_list(element, invalidated_font_lists);
-        });
-    }
+    if (!invalidated_font_lists.is_empty())
+        record_font_input_changes({}, invalidated_font_lists);
 
     // The selections resolved again above can want a face loaded. Outside a style update it loads now, as it did
     // when matching loaded a face itself.

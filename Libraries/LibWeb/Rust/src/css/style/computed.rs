@@ -2762,6 +2762,19 @@ impl ComputedGroupSets {
         Some(self.final_style_record(assignment.style_record, assignment.animation_overlay_slot))
     }
 
+    /// Each record a pseudo-element holds, with the node it belongs to.
+    pub(super) fn pseudo_style_records(&self) -> impl Iterator<Item = (StyleNodeID, FinalStyleRecordID)> + '_ {
+        self.pseudo_rows_by_node.iter().flat_map(move |(&node, rows)| {
+            rows.iter().filter_map(move |row| {
+                let assignment = row.assignment.as_ref()?;
+                Some((
+                    node,
+                    self.final_style_record(assignment.style_record, assignment.animation_overlay_slot),
+                ))
+            })
+        })
+    }
+
     /// The pseudo-element kinds this node holds published computed styles for.
     pub fn assigned_pseudo_kinds(&self, node: StyleNodeID) -> impl Iterator<Item = u8> + '_ {
         self.pseudo_rows(node)

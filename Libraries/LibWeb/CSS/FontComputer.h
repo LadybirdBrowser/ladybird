@@ -231,8 +231,7 @@ private:
     void begin_font_face_change_batch();
     void end_font_face_change_batch();
     void clear_computed_font_cache_for_families(Vector<Utf16FlyString> const& family_names);
-    using ElementUsesChangedFonts = Function<bool(DOM::Element const&)>;
-    void record_font_input_changes(ElementUsesChangedFonts);
+    void record_font_input_changes(ReadonlySpan<Utf16FlyString> family_names, ReadonlySpan<Gfx::FontCascadeList const*> font_lists);
 
     FontFeatureValues const& font_feature_values_for_family(Utf16FlyString const& family_name, TreeScopeID) const;
     FontFeatureValues font_feature_values_in_scope(Utf16FlyString const& family_name, TreeScopeID) const;
@@ -257,7 +256,8 @@ private:
     Vector<Utf16FlyString> m_batched_font_face_change_families;
     // What font resolution answers changed beside a style transaction that flew, which computed styles from the old
     // answers: the elements that use the changed fonts are found once the transaction's drain installed them.
-    Vector<ElementUsesChangedFonts> m_font_changes_beside_flown_transaction;
+    Vector<Utf16FlyString> m_font_families_changed_beside_flown_transaction;
+    Vector<Gfx::FontCascadeList const*> m_font_lists_changed_beside_flown_transaction;
 };
 
 }
