@@ -535,12 +535,7 @@ void HTMLMediaElement::set_current_time(double current_time)
     if (m_ready_state == ReadyState::HaveNothing) {
         m_default_playback_start_position = current_time;
     } else {
-        // AD-HOC: Don't set the official playback position here, as seek_element() will set it according to the seekable
-        //         ranges. We return the value passed to the setter to ensure that chained assignments like
-        //             videoA.currentTime = videoB.currentTime = Number.MAX_VALUE;
-        //         will seek both videoA and videoB to their corresponding ending positions.
-        //         See https://github.com/whatwg/html/issues/11773
-
+        // AD-HOC: seek_element() sets the official playback position, once the playback manager has begun seeking.
         seek_element(current_time);
     }
 }
@@ -2904,15 +2899,17 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     // NOTE: We implement the async nature of seeking through PlaybackManager, and the steps here are implemented as options
     //       that define how PlaybackManager's seeking behaves.
 
+    auto new_playback_position = playback_position;
+
     // 6. If the new playback position is later than the end of the media resource, then let it be the end of the media resource instead.
-    playback_position = min(playback_position, m_duration);
+    new_playback_position = min(new_playback_position, m_duration);
 
     // 7. If the new playback position is less than the earliest possible position, let it be that position instead.
-    playback_position = max(playback_position, 0);
+    new_playback_position = max(new_playback_position, 0);
 
     // 8. If the (possibly now changed) new playback position is not in one of the ranges given in the seekable attribute,
     auto time_ranges = seekable();
-    if (!time_ranges->in_range(playback_position)) {
+    if (!time_ranges->in_range(new_playback_position)) {
         // then let it be the position in one of the ranges given in the seekable attribute that is the nearest to the new
         // playback position.
 
@@ -2927,7 +2924,7 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
         double distance = INFINITY;
         for (size_t i = 0; i < time_ranges->length(); i++) {
             for (double point : { MUST(time_ranges->start(i)), MUST(time_ranges->end(i)) }) {
-                auto point_distance = abs(playback_position - point);
+                auto point_distance = abs(new_playback_position - point);
                 if (point_distance < distance) {
                     nearest_point = point;
                     other_nearest_point = {};
@@ -2945,9 +2942,9 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
             auto nearest_point_distance = abs(current_position - nearest_point);
             auto other_nearest_point_distance = abs(current_position - other_nearest_point.value());
             if (nearest_point_distance < other_nearest_point_distance) {
-                playback_position = nearest_point;
+                new_playback_position = nearest_point;
             } else {
-                playback_position = other_nearest_point.value();
+                new_playback_position = other_nearest_point.value();
             }
         }
     }
@@ -2958,9 +2955,9 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     //    playback position, then the adjusted new playback position must also be after the current playback position.
     auto manager_seek_mode = Media::SeekMode::Accurate;
     if (seek_mode == MediaSeekMode::ApproximateForSpeed) {
-        if (playback_position < current_playback_position())
+        if (new_playback_position < current_playback_position())
             manager_seek_mode = Media::SeekMode::FastBefore;
-        else if (playback_position > current_playback_position())
+        else if (new_playback_position > current_playback_position())
             manager_seek_mode = Media::SeekMode::FastAfter;
     }
 
@@ -2972,17 +2969,18 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     // 11. Set the current playback position to the new playback position.
     if (m_playback_manager) {
         AK::Duration new_playback_position_as_duration;
-        if (playback_position == m_duration)
+        if (new_playback_position == m_duration)
             new_playback_position_as_duration = m_playback_manager->duration();
         else
-            new_playback_position_as_duration = AK::Duration::from_seconds_f64(playback_position);
+            new_playback_position_as_duration = AK::Duration::from_seconds_f64(new_playback_position);
         m_playback_manager->seek(new_playback_position_as_duration, manager_seek_mode);
     }
 
-    // AD-HOC: Ensure that currentTime returns the new playback position on the timeline immediately, as other
-    //         browsers do.
+    // AD-HOC: Set the official playback position to the requested position, as the currentTime setter would. Doing it
+    //         here also covers fastSeek(), which other browsers reflect in currentTime immediately, and ensures the
+    //         ended attribute is updated after the playback manager has left its ended state.
     //         See https://github.com/whatwg/html/issues/11773
-    set_official_playback_position(current_playback_position());
+    set_official_playback_position(playback_position);
 
     // 12. Wait until the user agent has established whether or not the media data for the new playback position is
     //     available, and, if it is, until it has decoded enough data to play back that position.
