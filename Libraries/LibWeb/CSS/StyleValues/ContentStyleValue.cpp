@@ -12,13 +12,6 @@
 
 namespace Web::CSS {
 
-StyleValueFFI::StyleValueData const* ContentStyleValue::make_content_data(ValueComparingNonnullRefPtr<StyleValueList const> const& content, ValueComparingRefPtr<StyleValueList const> const& alt_text)
-{
-    // The Rust allocation takes ownership of one strong reference to each non-null list data.
-    auto const* alt_text_data = alt_text ? StyleValueFFI::rust_style_value_retain(alt_text->rust_style_value_data()) : nullptr;
-    return StyleValueFFI::rust_style_value_create_content(StyleValueFFI::rust_style_value_retain(content->rust_style_value_data()), alt_text_data);
-}
-
 void ContentStyleValue::set_style_sheet(StyleSheetState* style_sheet)
 {
     const_cast<StyleValueList&>(content()).set_style_sheet(style_sheet);

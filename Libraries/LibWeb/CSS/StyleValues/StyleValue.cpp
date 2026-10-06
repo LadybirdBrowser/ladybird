@@ -17,22 +17,18 @@
 #include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/AnchorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
-#include <LibWeb/CSS/StyleValues/BorderRadiusRectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -48,19 +44,13 @@
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
-#include <LibWeb/CSS/StyleValues/LinearGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
-#include <LibWeb/CSS/StyleValues/OverflowClipMarginStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PendingSubstitutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarColorStyleValue.h>
@@ -69,11 +59,8 @@
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
-#include <LibWeb/CSS/StyleValues/SuperellipseStyleValue.h>
-#include <LibWeb/CSS/StyleValues/TextIndentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
-#include <LibWeb/CSS/StyleValues/TreeCountingFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TupleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
@@ -149,7 +136,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     VERIFY(data);
     switch (data->tag) {
     case StyleValueFFI::StyleValueData::Tag::Anchor:
-        return adopt_ref(*new (nothrow) AnchorStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::Anchor, data));
     case StyleValueFFI::StyleValueData::Tag::AnchorSize:
         return adopt_ref(*new (nothrow) StyleValue(Type::AnchorSize, data));
     case StyleValueFFI::StyleValueData::Tag::BackgroundSize:
@@ -159,7 +146,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::BorderRadius:
         return adopt_ref(*new (nothrow) BorderRadiusStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::BorderRadiusRect:
-        return adopt_ref(*new (nothrow) BorderRadiusRectStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::BorderRadiusRect, data));
     case StyleValueFFI::StyleValueData::Tag::BorderImageSlice:
         return adopt_ref(*new (nothrow) BorderImageSliceStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Calculated:
@@ -173,7 +160,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::ColorScheme:
         return adopt_ref(*new (nothrow) ColorSchemeStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::ConicGradient:
-        return adopt_ref(*new (nothrow) ConicGradientStyleValue(data));
+        return adopt_ref(*new (nothrow) AbstractImageStyleValue(Type::ConicGradient, data));
     case StyleValueFFI::StyleValueData::Tag::CustomIdent:
         return adopt_ref(*new (nothrow) CustomIdentStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Display:
@@ -187,7 +174,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::CounterDefinitions:
         return adopt_ref(*new (nothrow) CounterDefinitionsStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Counter:
-        return adopt_ref(*new (nothrow) CounterStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::Counter, data));
     case StyleValueFFI::StyleValueData::Tag::ContrastColor:
         return adopt_ref(*new (nothrow) ColorStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Content:
@@ -214,7 +201,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::LightDark:
         return adopt_ref(*new (nothrow) ColorStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::LinearGradient:
-        return adopt_ref(*new (nothrow) LinearGradientStyleValue(data));
+        return adopt_ref(*new (nothrow) AbstractImageStyleValue(Type::LinearGradient, data));
     case StyleValueFFI::StyleValueData::Tag::Angle:
         return adopt_ref(*new (nothrow) AngleStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Flex:
@@ -264,21 +251,21 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::OpenTypeTagged:
         return adopt_ref(*new (nothrow) OpenTypeTaggedStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::OverflowClipMargin:
-        return adopt_ref(*new (nothrow) OverflowClipMarginStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::OverflowClipMargin, data));
     case StyleValueFFI::StyleValueData::Tag::Position:
         return adopt_ref(*new (nothrow) PositionStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Ratio:
         return adopt_ref(*new (nothrow) RatioStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Rect:
-        return adopt_ref(*new (nothrow) RectStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::Rect, data));
     case StyleValueFFI::StyleValueData::Tag::RepeatStyle:
         return adopt_ref(*new (nothrow) RepeatStyleStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::RandomValueSharing:
-        return adopt_ref(*new (nothrow) RandomValueSharingStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::RandomValueSharing, data));
     case StyleValueFFI::StyleValueData::Tag::RadialSize:
-        return adopt_ref(*new (nothrow) RadialSizeStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::RadialSize, data));
     case StyleValueFFI::StyleValueData::Tag::RadialGradient:
-        return adopt_ref(*new (nothrow) RadialGradientStyleValue(data));
+        return adopt_ref(*new (nothrow) AbstractImageStyleValue(Type::RadialGradient, data));
     case StyleValueFFI::StyleValueData::Tag::ScrollbarColor:
         return adopt_ref(*new (nothrow) ScrollbarColorStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::ScrollbarGutter:
@@ -290,13 +277,13 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::String:
         return adopt_ref(*new (nothrow) StringStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Superellipse:
-        return adopt_ref(*new (nothrow) SuperellipseStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::Superellipse, data));
     case StyleValueFFI::StyleValueData::Tag::TextIndent:
-        return adopt_ref(*new (nothrow) TextIndentStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::TextIndent, data));
     case StyleValueFFI::StyleValueData::Tag::TextUnderlinePosition:
         return adopt_ref(*new (nothrow) StyleValue(Type::TextUnderlinePosition, data));
     case StyleValueFFI::StyleValueData::Tag::TreeCountingFunction:
-        return adopt_ref(*new (nothrow) TreeCountingFunctionStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::TreeCountingFunction, data));
     case StyleValueFFI::StyleValueData::Tag::Transformation:
         return adopt_ref(*new (nothrow) TransformationStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::ValueList:
@@ -312,12 +299,6 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     default:
         VERIFY_NOT_REACHED();
     }
-}
-
-ValueComparingNonnullRefPtr<StyleValue const> StyleValue::create_empty_optional()
-{
-    static auto& instance = adopt_ref(*new (nothrow) StyleValue(Type::EmptyOptional, StyleValueFFI::rust_style_value_create_empty_optional())).leak_ref();
-    return instance;
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> StyleValue::create_guaranteed_invalid()

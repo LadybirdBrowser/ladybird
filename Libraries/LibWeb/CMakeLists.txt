@@ -232,23 +232,17 @@ set(SOURCES
     CSS/StyleSheetState.cpp
     CSS/StyleValues/AbstractImageStyleValue.cpp
     CSS/StyleValues/AngleStyleValue.cpp
-    CSS/StyleValues/BackgroundSizeStyleValue.cpp
-    CSS/StyleValues/BorderRadiusStyleValue.cpp
-    CSS/StyleValues/BorderRadiusRectStyleValue.cpp
     CSS/StyleValues/CalculatedStyleValue.cpp
     CSS/StyleValues/ColorFunctionStyleValue.cpp
     CSS/StyleValues/ColorStyleValue.cpp
-    CSS/StyleValues/ConicGradientStyleValue.cpp
     CSS/StyleValues/ContentStyleValue.cpp
     CSS/StyleValues/CounterDefinitionsStyleValue.cpp
     CSS/StyleValues/CounterStyleSystemStyleValue.cpp
-    CSS/StyleValues/CounterStyleValue.cpp
     CSS/StyleValues/CounterStyleStyleValue.cpp
     CSS/StyleValues/CursorStyleValue.cpp
     CSS/StyleValues/CustomIdentStyleValue.cpp
     CSS/StyleValues/DimensionStyleValue.cpp
     CSS/StyleValues/DisplayStyleValue.cpp
-    CSS/StyleValues/EdgeStyleValue.cpp
     CSS/StyleValues/FilterStyleValue.cpp
     CSS/StyleValues/FunctionStyleValue.cpp
     CSS/StyleValues/FontSourceStyleValue.cpp
@@ -258,26 +252,15 @@ set(SOURCES
     CSS/StyleValues/IntegerStyleValue.cpp
     CSS/StyleValues/KeywordStyleValue.cpp
     CSS/StyleValues/LengthStyleValue.cpp
-    CSS/StyleValues/LinearGradientStyleValue.cpp
     CSS/StyleValues/NumberStyleValue.cpp
     CSS/StyleValues/OpacityValueStyleValue.cpp
     CSS/StyleValues/OpenTypeTaggedStyleValue.cpp
-    CSS/StyleValues/OverflowClipMarginStyleValue.cpp
-    CSS/StyleValues/PositionStyleValue.cpp
-    CSS/StyleValues/RadialGradientStyleValue.cpp
-    CSS/StyleValues/RadialSizeStyleValue.cpp
-    CSS/StyleValues/RandomValueSharingStyleValue.cpp
     CSS/StyleValues/RatioStyleValue.cpp
-    CSS/StyleValues/RectStyleValue.cpp
-    CSS/StyleValues/ScrollbarColorStyleValue.cpp
     CSS/StyleValues/ShadowStyleValue.cpp
     CSS/StyleValues/ShorthandStyleValue.cpp
     CSS/StyleValues/StyleValue.cpp
     CSS/StyleValues/StyleValueList.cpp
-    CSS/StyleValues/SuperellipseStyleValue.cpp
-    CSS/StyleValues/TextIndentStyleValue.cpp
     CSS/StyleValues/TransformationStyleValue.cpp
-    CSS/StyleValues/TreeCountingFunctionStyleValue.cpp
     CSS/StyleValues/UnresolvedStyleValue.cpp
     CSS/Supports.cpp
     CSS/SyntaxHighlighter/SyntaxHighlighter.cpp

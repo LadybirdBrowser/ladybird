@@ -16,7 +16,6 @@
 #include <LibWeb/CSS/Display.h>
 #include <LibWeb/CSS/LengthBox.h>
 #include <LibWeb/CSS/StyleComputer.h>
-#include <LibWeb/CSS/StyleValues/AnchorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/ValueType.h>
 #include <LibWeb/DOM/AbstractElement.h>

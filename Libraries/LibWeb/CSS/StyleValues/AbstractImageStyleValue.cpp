@@ -13,24 +13,6 @@
 
 namespace Web::CSS {
 
-StyleValueFFI::RetainedColorStop retain_color_stop_for_rust(ColorStopListElement const& stop)
-{
-    auto retain = [](StyleValue const* value) {
-        return value ? StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()) : nullptr;
-    };
-    return { { retain(stop.transition_hint.ptr()) }, { retain(stop.color_stop.color.ptr()) },
-        { retain(stop.color_stop.position.ptr()) }, { retain(stop.color_stop.second_position.ptr()) } };
-}
-
-Vector<StyleValueFFI::RetainedColorStop> retain_color_stops_for_rust(ReadonlySpan<ColorStopListElement> color_stop_list)
-{
-    Vector<StyleValueFFI::RetainedColorStop> stops;
-    stops.ensure_capacity(color_stop_list.size());
-    for (auto const& stop : color_stop_list)
-        stops.unchecked_append(retain_color_stop_for_rust(stop));
-    return stops;
-}
-
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-stylevalue
 GC::Ref<CSSStyleValue> AbstractImageStyleValue::reify(Utf16FlyString const&) const
 {
@@ -65,6 +47,8 @@ SizeWithAspectRatio AbstractImageStyleValue::natural_size(HTML::DecodedImageData
 
 Optional<Painting::ImagePaint> AbstractImageStyleValue::image_paint(Painting::ImagePaintRequest const&) const
 {
+    if (is_linear_gradient() || is_radial_gradient() || is_conic_gradient())
+        return Painting::ImagePaint { Painting::ImagePaint::Gradient { *this } };
     return {};
 }
 

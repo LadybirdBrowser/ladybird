@@ -147,7 +147,7 @@ pub(crate) fn decimal() -> &'static CounterStyle {
 }
 
 /// https://drafts.csswg.org/css-counter-styles-3/#typedef-symbols-type
-/// The `SymbolsType` a `symbols()` function names, as the C++ enum orders them. CounterStyleValue.cpp
+/// The `SymbolsType` a `symbols()` function names, as the C++ enum orders them. CounterStyleStyleValue.cpp
 /// asserts the order.
 const SYMBOLS_TYPE_CYCLIC: u8 = 0;
 const SYMBOLS_TYPE_NUMERIC: u8 = 1;

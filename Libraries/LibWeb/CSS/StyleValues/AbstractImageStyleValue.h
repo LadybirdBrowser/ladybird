@@ -18,6 +18,7 @@
 
 namespace Web::CSS {
 
+// An image value. A gradient is one as it is: Rust reads it and paints it.
 class WEB_API AbstractImageStyleValue : public StyleValue {
 public:
     using StyleValue::StyleValue;
@@ -25,7 +26,7 @@ public:
     virtual void load_any_resources(DOM::Document&) { }
     virtual void load_any_resources(Layout::NodeWithStyle const&);
 
-    virtual bool is_paintable(GC::Ptr<HTML::DecodedImageData>) const = 0;
+    virtual bool is_paintable(GC::Ptr<HTML::DecodedImageData>) const { return true; }
     virtual SizeWithAspectRatio natural_size(HTML::DecodedImageData const&) const;
     virtual Optional<Painting::ImagePaint> image_paint(Painting::ImagePaintRequest const&) const;
 
@@ -33,35 +34,5 @@ public:
 
     GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
 };
-
-// And now, some gradient related things. Maybe these should live somewhere else.
-
-enum class GradientRepeating {
-    Yes,
-    No
-};
-
-struct ColorStopListElement {
-    ValueComparingRefPtr<StyleValue const> transition_hint;
-    struct ColorStop {
-        ValueComparingRefPtr<StyleValue const> color;
-        ValueComparingRefPtr<StyleValue const> position;
-        ValueComparingRefPtr<StyleValue const> second_position {};
-        bool operator==(ColorStop const&) const = default;
-    } color_stop;
-
-    bool operator==(ColorStopListElement const&) const = default;
-};
-
-namespace StyleValueFFI {
-
-struct RetainedColorStop;
-
-}
-
-// Marshals a color stop for a Rust-owned gradient allocation, retaining one strong reference
-// to each non-null sub-value.
-StyleValueFFI::RetainedColorStop retain_color_stop_for_rust(ColorStopListElement const&);
-Vector<StyleValueFFI::RetainedColorStop> retain_color_stops_for_rust(ReadonlySpan<ColorStopListElement>);
 
 }

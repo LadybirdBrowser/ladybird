@@ -16,12 +16,6 @@ namespace Web::CSS {
 
 class CursorStyleValue final : public StyleValueWithDefaultOperators<CursorStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<CursorStyleValue const> create(ValueComparingNonnullRefPtr<AbstractImageStyleValue const> image, RefPtr<StyleValue const> x, RefPtr<StyleValue const> y)
-    {
-        // We require either both or neither the X and Y parameters
-        VERIFY((!x && !y) || (x && y));
-        return adopt_ref(*new (nothrow) CursorStyleValue(move(image), move(x), move(y)));
-    }
     virtual ~CursorStyleValue() override = default;
 
     AbstractImageStyleValue const& image() const { return m_image; }
@@ -31,17 +25,7 @@ public:
 private:
     friend class StyleValue;
 
-    CursorStyleValue(ValueComparingNonnullRefPtr<AbstractImageStyleValue const> image,
-        RefPtr<StyleValue const> x,
-        RefPtr<StyleValue const> y)
-        : StyleValueWithDefaultOperators(Type::Cursor, make_cursor_data(image, x, y))
-        , m_image(move(image))
-    {
-    }
-
     explicit CursorStyleValue(StyleValueFFI::StyleValueData const*);
-
-    static StyleValueFFI::StyleValueData const* make_cursor_data(NonnullRefPtr<AbstractImageStyleValue const> const&, RefPtr<StyleValue const> const&, RefPtr<StyleValue const> const&);
 
     ValueComparingRefPtr<StyleValue const> x() const { return wrap_rust_child_or_null(m_value->cursor.x); }
     ValueComparingRefPtr<StyleValue const> y() const { return wrap_rust_child_or_null(m_value->cursor.y); }

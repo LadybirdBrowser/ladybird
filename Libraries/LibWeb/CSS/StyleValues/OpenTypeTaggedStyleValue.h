@@ -20,10 +20,6 @@ public:
         FontFeatureSettings,
         FontVariationSettings,
     };
-    static ValueComparingNonnullRefPtr<OpenTypeTaggedStyleValue const> create(Mode mode, Utf16FlyString tag, ValueComparingNonnullRefPtr<StyleValue const> value)
-    {
-        return adopt_ref(*new (nothrow) OpenTypeTaggedStyleValue(mode, move(tag), move(value)));
-    }
     virtual ~OpenTypeTaggedStyleValue() override = default;
 
     Mode mode() const { return static_cast<Mode>(m_value->open_type_tagged.mode); }
@@ -36,20 +32,6 @@ private:
     explicit OpenTypeTaggedStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::OpenTypeTagged, data)
     {
-    }
-
-    explicit OpenTypeTaggedStyleValue(Mode mode, Utf16FlyString tag, ValueComparingNonnullRefPtr<StyleValue const> value)
-        : StyleValueWithDefaultOperators(Type::OpenTypeTagged, StyleValueFFI::rust_style_value_create_open_type_tagged(to_underlying(mode), tag.to_raw_leaked(), pack_tag(tag), StyleValueFFI::rust_style_value_retain(value->rust_style_value_data())))
-    {
-    }
-
-    static u32 pack_tag(Utf16FlyString const& tag)
-    {
-        VERIFY(tag.length_in_code_units() == 4);
-        return static_cast<u32>(tag.code_unit_at(0)) << 24
-            | static_cast<u32>(tag.code_unit_at(1)) << 16
-            | static_cast<u32>(tag.code_unit_at(2)) << 8
-            | static_cast<u32>(tag.code_unit_at(3));
     }
 };
 

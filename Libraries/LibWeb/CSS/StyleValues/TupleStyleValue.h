@@ -12,10 +12,6 @@ namespace Web::CSS {
 
 class TupleStyleValue final : public StyleValueWithDefaultOperators<TupleStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<TupleStyleValue const> create(StyleValueTuple values)
-    {
-        return adopt_ref(*new (nothrow) TupleStyleValue(move(values)));
-    }
     virtual ~TupleStyleValue() override = default;
 
     StyleValueTuple tuple() const
@@ -74,24 +70,6 @@ private:
     explicit TupleStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::Tuple, data)
     {
-    }
-
-    explicit TupleStyleValue(StyleValueTuple values)
-        : StyleValueWithDefaultOperators(Type::Tuple, make_tuple_data(values))
-    {
-    }
-
-    static StyleValueFFI::StyleValueData const* make_tuple_data(StyleValueTuple const& values)
-    {
-        Vector<StyleValueFFI::StyleValueData const*> pointers;
-        pointers.ensure_capacity(values.size());
-        for (auto const& value : values) {
-            if (value)
-                pointers.unchecked_append(StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()));
-            else
-                pointers.unchecked_append(nullptr);
-        }
-        return StyleValueFFI::rust_style_value_create_tuple(pointers.data(), pointers.size());
     }
 };
 

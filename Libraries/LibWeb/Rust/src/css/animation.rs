@@ -8266,4 +8266,205 @@ mod tests {
         let value = unsafe { Arc::from_raw(result.value) };
         assert!(matches!(&*value, StyleValueData::Calculated { .. }));
     }
+
+    fn parsed(property: u16, source: &str) -> Arc<StyleValueData> {
+        use crate::css::css_tokenizer::{TokenizerInput, tokenize_for_parser};
+        use crate::css::parser::component_value::consume_a_list_of_component_values;
+        use crate::css::parser::value_parser::{ParseContext, ParseOutcome, parse_css_value};
+        let units: Vec<_> = source.encode_utf16().collect();
+        let values = consume_a_list_of_component_values(tokenize_for_parser(TokenizerInput::Utf16(&units))).unwrap();
+        // All fields are scalars or nullable pointers.
+        let context: ParseContext = unsafe { std::mem::zeroed() };
+        let ParseOutcome::Parsed(value) = parse_css_value(&context, property, &values) else {
+            panic!("invalid test value {source}");
+        };
+        value
+    }
+
+    // The value a handled interpolation or composition produced, serialized; nothing where it declined to combine.
+    fn serialized(result: FfiAnimationValueResult) -> Option<String> {
+        assert!(result.handled);
+        (!result.value.is_null()).then(|| {
+            let value = unsafe { Arc::from_raw(result.value) };
+            String::from_utf16(&crate::css::serialize::serialize_style_value_to_utf16(&value).unwrap()).unwrap()
+        })
+    }
+
+    #[test]
+    fn interpolates_and_adds_structured_values() {
+        use crate::css::property_metadata::property_id;
+        for (property, from, to, halfway, sum) in [
+            (
+                property_id::TEXT_INDENT,
+                "2px hanging",
+                "6px hanging",
+                "4px hanging",
+                "8px hanging",
+            ),
+            (property_id::BACKGROUND_POSITION_X, "4px", "8px", "6px", "12px"),
+            (
+                property_id::OBJECT_POSITION,
+                "4px 8px",
+                "8px 16px",
+                "6px 12px",
+                "12px 24px",
+            ),
+            (
+                property_id::CLIP,
+                "rect(1px, 2px, 3px, 4px)",
+                "rect(3px, 6px, 9px, 12px)",
+                "rect(2px, 4px, 6px, 8px)",
+                "rect(4px, 8px, 12px, 16px)",
+            ),
+            (
+                property_id::BORDER_IMAGE_SLICE,
+                "1 2 3 4 fill",
+                "3 6 9 12 fill",
+                "2 4 6 8 fill",
+                "4 8 12 16 fill",
+            ),
+            (
+                property_id::BORDER_TOP_LEFT_RADIUS,
+                "2px 4px",
+                "6px 8px",
+                "4px 6px",
+                "8px 12px",
+            ),
+            (
+                property_id::BACKGROUND_SIZE,
+                "4px 8px",
+                "8px 16px",
+                "6px 12px",
+                "12px 24px",
+            ),
+            (
+                property_id::FONT_VARIATION_SETTINGS,
+                "\"wght\" 100",
+                "\"wght\" 300",
+                "\"wght\" 200",
+                "\"wght\" 400",
+            ),
+        ] {
+            let (from, to) = (parsed(property, from), parsed(property, to));
+            assert_eq!(
+                serialized(interpolate_value(None, property, &from, &to, 0.5)).as_deref(),
+                Some(halfway)
+            );
+            assert_eq!(
+                serialized(composite_scalar_value(&from, &to, FfiCompositeOperation::Add)).as_deref(),
+                Some(sum)
+            );
+        }
+    }
+
+    #[test]
+    fn declines_to_interpolate_unlike_structured_values() {
+        use crate::css::property_metadata::property_id;
+        for (property, from, to) in [
+            (property_id::BORDER_IMAGE_SLICE, "1 2 3 4 fill", "3 6 9 12"),
+            (property_id::FONT_VARIATION_SETTINGS, "\"wght\" 100", "\"slnt\" 300"),
+        ] {
+            let (from, to) = (parsed(property, from), parsed(property, to));
+            assert_eq!(serialized(interpolate_value(None, property, &from, &to, 0.5)), None);
+        }
+    }
+
+    #[test]
+    fn clamps_extrapolated_structured_values() {
+        use crate::css::property_metadata::property_id;
+        let property = property_id::BORDER_IMAGE_SLICE;
+        let (from, to) = (parsed(property, "1 2 3 4 fill"), parsed(property, "3 6 9 12 fill"));
+        assert_eq!(
+            serialized(interpolate_value(None, property, &from, &to, -1.0)).as_deref(),
+            Some("0 fill")
+        );
+
+        let result = interpolate_value(
+            None,
+            property_id::MARGIN_TOP,
+            &border_radius_rect([(1.0, 1.0); 4]),
+            &border_radius_rect([(3.0, 3.0); 4]),
+            -1.0,
+        );
+        assert_eq!(serialized(result).as_deref(), Some("0px"));
+    }
+
+    // Corner radii, horizontal and vertical, from the top left corner clockwise.
+    fn border_radius_rect(corners: [(f64, f64); 4]) -> Arc<StyleValueData> {
+        let px = |value| {
+            RetainedStyleValueData::from_owned(StyleValueData::Length {
+                value,
+                unit: crate::css::style_compute::px_length_unit(),
+            })
+        };
+        let [top_left, top_right, bottom_right, bottom_left] = corners.map(|(horizontal, vertical)| {
+            RetainedStyleValueData::from_owned(StyleValueData::BorderRadius {
+                is_elliptical: horizontal != vertical,
+                horizontal_radius: px(horizontal),
+                vertical_radius: px(vertical),
+            })
+        });
+        Arc::new(StyleValueData::BorderRadiusRect {
+            top_left,
+            top_right,
+            bottom_right,
+            bottom_left,
+        })
+    }
+
+    #[test]
+    fn interpolates_and_adds_border_radius_rects() {
+        let from = border_radius_rect([(1.0, 2.0), (2.0, 3.0), (3.0, 4.0), (4.0, 5.0)]);
+        let to = border_radius_rect([(3.0, 4.0), (4.0, 5.0), (5.0, 6.0), (6.0, 7.0)]);
+        let property = crate::css::property_metadata::property_id::MARGIN_TOP;
+        assert_eq!(
+            serialized(interpolate_value(None, property, &from, &to, 0.5)).as_deref(),
+            Some("2px 3px 4px 5px / 3px 4px 5px 6px")
+        );
+        assert_eq!(
+            serialized(composite_scalar_value(&from, &to, FfiCompositeOperation::Add)).as_deref(),
+            Some("4px 6px 8px 10px / 6px 8px 10px 12px")
+        );
+    }
+
+    #[test]
+    fn compares_gradients_by_value() {
+        use crate::css::property_metadata::property_id::BACKGROUND_IMAGE;
+        let radial = "radial-gradient(farthest-corner, currentcolor, red)";
+        assert!(parsed(BACKGROUND_IMAGE, radial) == parsed(BACKGROUND_IMAGE, radial));
+        assert!(
+            parsed(BACKGROUND_IMAGE, "radial-gradient(50px 30px, red, blue)")
+                != parsed(BACKGROUND_IMAGE, "radial-gradient(50px 40px, red, blue)")
+        );
+        let legacy = "conic-gradient(rgb(255, 0, 0), rgb(0, 0, 255))";
+        assert!(parsed(BACKGROUND_IMAGE, legacy) == parsed(BACKGROUND_IMAGE, legacy));
+        assert!(
+            parsed(BACKGROUND_IMAGE, legacy) != parsed(BACKGROUND_IMAGE, "conic-gradient(rgb(255 0 0), rgb(0 0 255))")
+        );
+    }
+
+    #[test]
+    fn resolves_halfway_superellipses_to_a_bevel() {
+        let property = crate::css::property_metadata::property_id::CORNER_TOP_LEFT_SHAPE;
+        let (from, to) = (
+            parsed(property, "superellipse(-infinity)"),
+            parsed(property, "superellipse(infinity)"),
+        );
+        let result = interpolate_value(None, property, &from, &to, 0.5);
+        assert!(result.handled);
+        let value = unsafe { Arc::from_raw(result.value) };
+        let text = crate::css::serialize::serialize_resolved_style_value_to_utf16(&value).unwrap();
+        assert_eq!(String::from_utf16(&text).unwrap(), "bevel");
+    }
+
+    #[test]
+    fn adds_opacities_up_to_one() {
+        let opacity = || {
+            Arc::new(StyleValueData::OpacityValue {
+                value: retained_number(0.75),
+            })
+        };
+        let result = composite_scalar_value(&opacity(), &opacity(), FfiCompositeOperation::Add);
+        assert_eq!(serialized(result).as_deref(), Some("1"));
+    }
 }

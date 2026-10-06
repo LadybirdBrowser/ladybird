@@ -23,7 +23,6 @@ public:
         Optional<Utf16String> type;
     };
 
-    static ValueComparingNonnullRefPtr<ImageSetStyleValue const> create(Vector<Option>);
     virtual ~ImageSetStyleValue() override = default;
 
     virtual void load_any_resources(DOM::Document&) override;
@@ -36,7 +35,6 @@ public:
     Optional<size_t> selected_option_index() const { return m_selected_option_index; }
 
 private:
-    explicit ImageSetStyleValue(Vector<Option>);
     explicit ImageSetStyleValue(StyleValueFFI::StyleValueData const*);
 
     // NB: StyleValue dispatches operations by type tag, so it may call private impls.
@@ -69,8 +67,6 @@ private:
         m_options = move(options);
         return *m_options;
     }
-
-    static StyleValueFFI::StyleValueData const* make_image_set_data(Vector<Option> const&);
 
     mutable Optional<Vector<Option>> m_options;
     mutable Optional<size_t> m_selected_option_index;
