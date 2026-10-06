@@ -10,11 +10,7 @@
 #include <AK/Checked.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ShareableBitmap.h>
-#include <LibGfx/SkiaUtils.h>
 
-#include <core/SkColorSpace.h>
-#include <core/SkImageInfo.h>
-#include <core/SkPixmap.h>
 #include <errno.h>
 
 #ifdef AK_OS_MACOS
@@ -335,20 +331,27 @@ void Bitmap::set_alpha_type_destructive(AlphaType alpha_type)
     }
     VERIFY(err == kvImageNoError);
 #else
-    auto color_type = to_skia_color_type(m_format);
-    auto source_alpha = to_skia_alpha_type(m_format, m_alpha_type);
-    auto destination_alpha = to_skia_alpha_type(m_format, alpha_type);
-
-    auto color_space = SkColorSpace::MakeSRGB();
-
-    auto source_info = SkImageInfo::Make(width(), height(), color_type, source_alpha, color_space);
-    auto destination_info = SkImageInfo::Make(width(), height(), color_type, destination_alpha, color_space);
-
-    SkPixmap src_pixmap(source_info, m_data, pitch());
-    SkPixmap dst_pixmap(destination_info, m_data, pitch());
-
-    bool ok = src_pixmap.readPixels(dst_pixmap);
-    VERIFY(ok);
+    VERIFY(m_format == BitmapFormat::BGRA8888 || m_format == BitmapFormat::RGBA8888);
+    // Both formats keep alpha in the last byte, and their color channels convert the same way. The arithmetic is the
+    // same as Skia's, so a bitmap converted here matches one that Skia converts.
+    for (int y = 0; y < height(); ++y) {
+        auto* pixel = scanline_u8(y);
+        for (int x = 0; x < width(); ++x, pixel += 4) {
+            auto alpha = pixel[3];
+            if (alpha == 255)
+                continue;
+            if (alpha_type == AlphaType::Premultiplied) {
+                for (int channel = 0; channel < 3; ++channel)
+                    pixel[channel] = (pixel[channel] * alpha + 127) / 255;
+                continue;
+            }
+            float scale = alpha == 0 ? 0.0f : 1.0f / (alpha * (1 / 255.0f));
+            for (int channel = 0; channel < 3; ++channel) {
+                float value = pixel[channel] * (1 / 255.0f) * scale;
+                pixel[channel] = static_cast<u8>(__builtin_rintf(clamp(value * 255.0f, 0.0f, 255.0f)));
+            }
+        }
+    }
 #endif
     m_alpha_type = alpha_type;
 }
