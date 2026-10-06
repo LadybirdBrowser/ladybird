@@ -2626,6 +2626,16 @@ impl LayoutNodeArena {
         )
     }
 
+    /// The DOM nodes the subtrees the last build rebuilt and left live stand for. An anonymous root stands for none.
+    pub(crate) fn pending_rebuilt_dom_roots(&self) -> Vec<crate::painting::host::FfiNodeIdentity> {
+        self.pending_rebuilt_subtree_roots
+            .borrow()
+            .iter()
+            .filter(|&&root| self.node_is_dom_backed(root))
+            .map(|&root| crate::painting::hit_test::resolve::row_node_identity(self, root, false))
+            .collect()
+    }
+
     pub(crate) fn clear_pending_rebuilt_subtree_roots(&self) {
         self.pending_rebuilt_subtree_roots.borrow_mut().clear();
         self.pending_layout_tree_update_escaped_rebuild_roots.set(false);

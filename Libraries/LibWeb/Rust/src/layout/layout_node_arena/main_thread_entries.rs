@@ -88,36 +88,6 @@ pub unsafe extern "C" fn render_state_reinherit_anonymous_descendants(
     host.queue_change(crate::render_state::ArenaChange::ReinheritAnonymousDescendants(node));
 }
 
-/// Visits every subtree root the last layout tree build rebuilt and left live, as the row's layout
-/// node. Anonymous roots stand for no DOM node and are skipped; the host resolves the rest.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, and `visit` must return synchronously.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_for_each_pending_rebuilt_subtree_root(
-    host: &DocumentHost,
-    read: &crate::render_state::BegunRead,
-    context: *mut c_void,
-    visit: unsafe extern "C" fn(*mut c_void, crate::painting::host::FfiNodeIdentity),
-) {
-    // SAFETY: Guaranteed by the caller.
-    let roots = unsafe {
-        read_arena(host, read, (), |arena, ()| {
-            let roots = arena.pending_rebuilt_subtree_roots.borrow();
-            roots
-                .iter()
-                .filter(|&&root| arena.node_is_dom_backed(root))
-                .map(|&root| crate::painting::hit_test::resolve::row_node_identity(arena, root, false))
-                .collect::<Vec<_>>()
-        })
-    };
-    for root in roots {
-        // SAFETY: The callback copies the node it is handed synchronously.
-        unsafe { visit(context, root) };
-    }
-}
-
 /// Gives the image box `slot` the image provider it owns, which the arena destroys with the row.
 ///
 /// # Safety

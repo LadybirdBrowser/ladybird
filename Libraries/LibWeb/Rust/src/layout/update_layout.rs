@@ -20,6 +20,7 @@ use super::{ArenaHandle, LayoutNodeArena};
 use crate::abort_on_panic;
 use crate::css::css_pixels::CssPixelPoint;
 use crate::css::style::tree::StyleNodeID;
+use crate::painting::host::FfiNodeIdentity;
 use crate::painting::recording_slot::FlightLicense;
 use crate::render_state::{BegunRead, DocumentHost};
 use crate::stage::MainThread;
@@ -71,8 +72,10 @@ pub struct FfiLayoutUpdateHostCallbacks {
     /// Retires the tree a build replaced once the host has been paid for the build: the viewport
     /// before the build, then the one it placed.
     finish_layout_tree_build: unsafe extern "C" fn(*mut c_void, &BegunRead, NodeSlotId, NodeSlotId),
-    /// True when stale list-item counters marked more of the tree for a rebuild.
-    reconcile_stale_list_item_counters_after_tree_build: unsafe extern "C" fn(*mut c_void, &BegunRead) -> bool,
+    /// True when stale list-item counters marked more of the tree for a rebuild, given the DOM nodes whose subtrees the
+    /// build rebuilt.
+    reconcile_stale_list_item_counters_after_tree_build:
+        unsafe extern "C" fn(*mut c_void, *const FfiNodeIdentity, usize) -> bool,
     /// Refreshes what derives from committed layout; the flag says whether the tree changed.
     after_layout_commit: unsafe extern "C" fn(*mut c_void, &BegunRead, bool),
     note_full_layout_performed: unsafe extern "C" fn(*mut c_void),
@@ -185,8 +188,18 @@ impl FfiLayoutUpdateHostCallbacks {
         unsafe { (self.finish_layout_tree_build)(self.context, read, replaced_viewport, viewport) }
     }
 
-    fn reconcile_stale_list_item_counters_after_tree_build(&self, _: &MainThread, read: &BegunRead) -> bool {
-        unsafe { (self.reconcile_stale_list_item_counters_after_tree_build)(self.context, read) }
+    fn reconcile_stale_list_item_counters_after_tree_build(
+        &self,
+        _: &MainThread,
+        rebuilt_roots: &[FfiNodeIdentity],
+    ) -> bool {
+        unsafe {
+            (self.reconcile_stale_list_item_counters_after_tree_build)(
+                self.context,
+                rebuilt_roots.as_ptr(),
+                rebuilt_roots.len(),
+            )
+        }
     }
 
     fn after_layout_commit(&self, _: &MainThread, read: &BegunRead, layout_tree_changed: bool) {
@@ -361,6 +374,9 @@ pub(crate) struct LayoutRoundAnswer {
     /// What committing each layout stage of the round owes.
     commits: Vec<CommitNotifications>,
     end: LayoutRoundEnd,
+    /// The DOM nodes whose subtrees the round's build rebuilt, where the document has stale list item counters to
+    /// reconcile with them.
+    rebuilt_roots: Vec<FfiNodeIdentity>,
     /// The scroll offsets the new overflow moved out of range, each clamped into it, where the round prepared the layout
     /// it committed for rendering, for the host to store.
     clamped_scroll_offsets: Vec<(NodeSlotId, CssPixelPoint)>,
@@ -500,6 +516,7 @@ impl LayoutRoundJob {
             work: HostWorkDue::default(),
             commits: Vec::new(),
             end: LayoutRoundEnd::FullLayout,
+            rebuilt_roots: Vec::new(),
             clamped_scroll_offsets: Vec::new(),
         };
         let stage = LayoutStageFacts {
@@ -604,6 +621,9 @@ impl LayoutRoundJob {
         let replaced_viewport = state.arena().layout_root();
         let built = build.run(state, work);
         state.arena().record_layout_tree_build(&built.outcome);
+        if has_stale_list_item_counters {
+            answer.rebuilt_roots = state.arena().pending_rebuilt_dom_roots();
+        }
         let end = if built.outcome.needs_another_build_pass {
             BuildEnd::AnotherPass
         } else if has_stale_list_item_counters && built.shows_list_item_counter_value() {
@@ -827,7 +847,7 @@ unsafe fn take_flown_layout_in(main_thread: &MainThread, document_host: &Documen
         return false;
     };
     unsafe { answer.pay(main_thread, document_host, read) };
-    if rebuilds_tree && host.reconcile_stale_list_item_counters_after_tree_build(main_thread, read) {
+    if rebuilds_tree && host.reconcile_stale_list_item_counters_after_tree_build(main_thread, &answer.rebuilt_roots) {
         return false;
     }
     match answer.end {
@@ -909,7 +929,9 @@ unsafe fn update_layout(
             };
             unsafe { answer.pay(main_thread, document_host, read) };
             let built = matches!(answer.end, LayoutRoundEnd::Built { .. });
-            if rebuilds_tree && host.reconcile_stale_list_item_counters_after_tree_build(main_thread, read) {
+            if rebuilds_tree
+                && host.reconcile_stale_list_item_counters_after_tree_build(main_thread, &answer.rebuilt_roots)
+            {
                 // The stale counters marked more of the tree for a rebuild, which the next round runs.
                 debug_assert!(
                     built,
@@ -1079,6 +1101,7 @@ mod tests {
             work: HostWorkDue::default(),
             commits: Vec::new(),
             end,
+            rebuilt_roots: Vec::new(),
             clamped_scroll_offsets: Vec::new(),
         };
         let mut arena = LayoutNodeArena::new();
