@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    @keyframes outer { from { opacity: 0.5; } to { opacity: 0.5; } }
+</style>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        const host = makeElement("div");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const span = makeElement("span", { text: "x" });
+        shadowRoot.appendChild(span);
+        document.body.appendChild(host);
+
+        // A sheetless shadow tree still finds a document's @keyframes by name.
+        span.style.animation = "outer 1s paused";
+        println(`animation from the document's keyframes: opacity=${getComputedStyle(span).opacity}`);
+
+        // A shadow root that gets a sheet finds its own keyframes first.
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync("@keyframes outer { from { opacity: 0.25; } to { opacity: 0.25; } }");
+        shadowRoot.adoptedStyleSheets = [sheet];
+        println(`after adopting a sheet: opacity=${getComputedStyle(span).opacity}`);
+
+        // Taking the sheet away brings back the document's keyframes.
+        shadowRoot.adoptedStyleSheets = [];
+        println(`after dropping the sheet: opacity=${getComputedStyle(span).opacity}`);
+
+        host.remove();
+    });
+</script>

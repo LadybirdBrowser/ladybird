@@ -207,11 +207,6 @@ void StyleScope::attach_sheet_to_style_engine(StyleSheetState& sheet)
     record_stylesheet_conditions(sheet, node(), !sheet.disabled() && sheet.native_media_list().matches());
 }
 
-NonnullRefPtr<StyleCache> StyleCache::create()
-{
-    return adopt_ref(*new StyleCache);
-}
-
 void StyleScope::visit_edges(GC::Cell::Visitor& visitor)
 {
     visitor.visit(m_node);
@@ -229,184 +224,45 @@ StyleScope::~StyleScope()
     Parser::ValueParserFFI::rust_counter_styles_release(m_counter_styles);
 }
 
-bool SheetSetStyleCacheRegistry::entry_is_current(Entry const& entry)
-{
-    for (size_t i = 0; i < entry.sheets.size(); ++i) {
-        if (entry.sheets[i]->shared_style_cache_generation() != entry.sheet_generations[i])
-            return false;
-    }
-    return true;
-}
-
-static u32 hash_sheet_set(Vector<NonnullRefPtr<StyleSheetState>> const& sheets)
-{
-    u32 hash = u64_hash(sheets.size());
-    for (auto const& sheet : sheets)
-        hash = pair_int_hash(hash, ptr_hash(sheet.ptr()));
-    return hash;
-}
-
-NonnullRefPtr<StyleCache> SheetSetStyleCacheRegistry::ensure_style_cache_for_sheet_set(Vector<NonnullRefPtr<StyleSheetState>> const& sheets)
-{
-    auto hash = hash_sheet_set(sheets);
-    if (auto entries = m_entries_by_hash.get(hash); entries.has_value()) {
-        entries->remove_all_matching([](Entry const& entry) { return !entry_is_current(entry); });
-        for (auto& entry : *entries) {
-            if (entry.sheets == sheets)
-                return entry.style_cache;
-        }
-    }
-
-    // NB: Entries are only revalidated when their bucket is consulted, so purge entries registry-wide on every
-    //     insert: stale ones, and current ones whose cache no longer has any scope using it (the registry holds
-    //     the only reference). Otherwise abandoned sheet sets would keep their sheets and built caches alive
-    //     through visit_edges for the lifetime of the document. Inserts only happen once per distinct sheet set
-    //     and generation, so this walk stays rare.
-    m_entries_by_hash.remove_all_matching([](auto&, Vector<Entry>& entries) {
-        entries.remove_all_matching([](Entry const& entry) { return !entry_is_current(entry) || entry.style_cache->ref_count() == 1; });
-        return entries.is_empty();
-    });
-
-    Entry entry {
-        .sheets = sheets,
-        .sheet_generations = {},
-        .style_cache = StyleCache::create(),
-    };
-    entry.sheet_generations.ensure_capacity(sheets.size());
-    for (auto const& sheet : sheets)
-        entry.sheet_generations.append(sheet->shared_style_cache_generation());
-
-    auto style_cache = entry.style_cache;
-    m_entries_by_hash.ensure(hash).append(move(entry));
-    return style_cache;
-}
-
-void SheetSetStyleCacheRegistry::visit_edges(GC::Cell::Visitor& visitor)
-{
-    for (auto& [hash, entries] : m_entries_by_hash) {
-        for (auto& entry : entries) {
-            visitor.visit(entry.sheets);
-        }
-    }
-}
-
-StyleCache* StyleScope::style_cache() const
-{
-    if (m_reads_document_sheetless_style_cache)
-        return document().style_scope().m_sheetless_shadow_root_style_cache.ptr();
-    return m_style_cache.ptr();
-}
-
-bool StyleScope::has_valid_rule_cache() const
-{
-    auto* style_cache = this->style_cache();
-    return style_cache && style_cache->rule_cache;
-}
-
-StyleCache& StyleScope::ensure_style_cache()
-{
-    if (auto* style_cache = this->style_cache())
-        return *style_cache;
-    m_reads_document_sheetless_style_cache = false;
-
-    // NB: A quirks-mode scope folds id and class name case into its bucket keys, and neither shared cache
-    //     below keys on that, so such a scope keeps its own cache.
-    if (auto* shadow_root = as_if<DOM::ShadowRoot>(*m_node); shadow_root && !document().page().user_style().has_value() && !document().in_quirks_mode()) {
-        Vector<NonnullRefPtr<StyleSheetState>> sheets;
-        bool all_sheets_are_constructed = true;
-        shadow_root->for_each_active_css_style_sheet([&](StyleSheetState& style_sheet) {
-            if (!style_sheet.constructed())
-                all_sheets_are_constructed = false;
-            else
-                sheets.append(style_sheet);
-        });
-
-        // OPTIMIZATION: A scope with no stylesheets of its own, such as the user-agent shadow tree of every form
-        //               control, holds only what the user-agent origin puts in its cache. That is the same for every
-        //               such scope in the document, so they read one, which the document's scope holds and drops
-        //               along with its own.
-        if (all_sheets_are_constructed && sheets.is_empty()) {
-            auto& shared_style_cache = document().style_scope().m_sheetless_shadow_root_style_cache;
-            if (!shared_style_cache)
-                shared_style_cache = StyleCache::create();
-            m_reads_document_sheetless_style_cache = true;
-            return *shared_style_cache;
-        }
-
-        if (all_sheets_are_constructed && !sheets.is_empty()) {
-            if (sheets.size() == 1) {
-                m_style_cache = sheets.first()->shared_single_constructed_sheet_style_cache();
-                return *m_style_cache;
-            }
-
-            // OPTIMIZATION: Scopes whose active stylesheets are the same ordered set of constructed sheets can
-            //               share one cache, for the same reason the single-constructed-sheet cache above is
-            //               shareable: the contents only depend on the sheets and document-wide state.
-            m_style_cache = document().sheet_set_style_cache_registry().ensure_style_cache_for_sheet_set(sheets);
-            return *m_style_cache;
-        }
-    }
-
-    m_style_cache = StyleCache::create();
-    return *m_style_cache;
-}
-
-StyleCache& StyleScope::ensure_style_cache() const
-{
-    return const_cast<StyleScope&>(*this).ensure_style_cache();
-}
-
 void StyleScope::build_rule_cache()
 {
-    auto& style_cache = ensure_style_cache();
+    if (!m_rule_cache.has_value()) {
+        m_rule_cache = StyleRuleCache {};
+        add_rules_to_rule_cache(CascadeOrigin::Author);
 
-    if (!style_cache.rule_cache) {
-        ++document().style_invalidation_counters().scope_rule_cache_builds;
+        // NB: A shadow root's scope holds only its own sheets. What the user and user-agent sheets define is found
+        //     in the document's scope, where every name a shadow root's scope does not define is looked for next.
+        if (m_node->is_document()) {
+            build_user_style_sheet_if_needed();
 
-        static u64 s_last_rule_cache_generation = 0;
-        style_cache.rule_cache = make<StyleRuleCache>();
-        style_cache.rule_cache_generation = ++s_last_rule_cache_generation;
-        populate_rule_cache(*style_cache.rule_cache);
+            // A user-agent sheet is a process-wide singleton with no owning document, so nothing that walks a
+            // document's own sheets ever evaluates its media rules. Its `@media` answers are still per
+            // document - `(scripting)` is - so they are evaluated here, where the rule cache that consumes
+            // them is built. Without this the cache is built against whatever state some other document
+            // happened to leave behind, and `noscript` keeps the UA sheet's `display: none` only by accident.
+            for (auto origin : { CascadeOrigin::UserAgent, CascadeOrigin::User }) {
+                for_each_stylesheet(origin, [&](StyleSheetState& sheet) {
+                    sheet.evaluate_media_queries(document());
+                });
+            }
+            add_rules_to_rule_cache(CascadeOrigin::User);
+            add_rules_to_rule_cache(CascadeOrigin::UserAgent);
+        }
     }
 
-    // A constructed-sheet cache can be shared by several shadow scopes. Its keyframes and other
-    // reference data are reusable, but each scope owns a distinct engine layer order and keyframes
-    // row, and publishes this cache generation into them once.
-    if (m_published_layer_order_generation != style_cache.rule_cache_generation) {
+    if (!m_has_published_rule_cache) {
         publish_cascade_layer_order();
         publish_animation_keyframes();
-        m_published_layer_order_generation = style_cache.rule_cache_generation;
+        m_has_published_rule_cache = true;
     }
-}
-
-void StyleScope::populate_rule_cache(StyleRuleCache& rule_cache)
-{
-    build_user_style_sheet_if_needed();
-
-    // A user-agent sheet is a process-wide singleton with no owning document, so nothing that walks a
-    // document's own sheets ever evaluates its media rules. Its `@media` answers are still per
-    // document - `(scripting)` is - so they are evaluated here, where the rule cache that consumes
-    // them is built. Without this the cache is built against whatever state some other document
-    // happened to leave behind, and `noscript` keeps the UA sheet's `display: none` only by accident.
-    for (auto origin : { CascadeOrigin::UserAgent, CascadeOrigin::User }) {
-        for_each_stylesheet(origin, [&](StyleSheetState& sheet) {
-            sheet.evaluate_media_queries(document());
-        });
-    }
-
-    make_rule_cache_for_cascade_origin(CascadeOrigin::Author, rule_cache);
-    make_rule_cache_for_cascade_origin(CascadeOrigin::User, rule_cache);
-    make_rule_cache_for_cascade_origin(CascadeOrigin::UserAgent, rule_cache);
 }
 
 void StyleScope::invalidate_style_cache()
 {
     document().note_style_sheet_set_change();
     invalidate_counter_style_cache();
-    m_style_cache = nullptr;
-    m_reads_document_sheetless_style_cache = false;
-    m_sheetless_shadow_root_style_cache = nullptr;
-    m_published_layer_order_generation = 0;
+    m_rule_cache.clear();
+    m_has_published_rule_cache = false;
     // The registered custom properties cache is built from the document's active stylesheets, so it only needs a
     // rebuild when the document scope's rule set changes.
     if (m_node->is_document())
@@ -446,7 +302,7 @@ void StyleScope::build_user_style_sheet_if_needed()
 
 void StyleScope::build_rule_cache_if_needed() const
 {
-    if (has_valid_rule_cache() && m_published_layer_order_generation == style_cache()->rule_cache_generation)
+    if (m_rule_cache.has_value() && m_has_published_rule_cache)
         return;
     const_cast<StyleScope&>(*this).build_rule_cache();
 }
@@ -454,7 +310,7 @@ void StyleScope::build_rule_cache_if_needed() const
 StyleRuleCache const& StyleScope::rule_cache() const
 {
     build_rule_cache_if_needed();
-    return *style_cache()->rule_cache;
+    return *m_rule_cache;
 }
 
 static StyleSheetState& default_stylesheet()
@@ -537,125 +393,144 @@ void StyleScope::for_each_stylesheet(CascadeOrigin cascade_origin, Function<void
     }
 }
 
-void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, StyleRuleCache& rule_cache)
+void StyleScope::add_rules_to_rule_cache(CascadeOrigin cascade_origin)
 {
     for_each_stylesheet(cascade_origin, [&](auto& sheet) {
         if (!sheet.native_media_list().matches())
             return;
-        auto& rule_sheet = sheet.shared_compiled_style_sheet() ? sheet.shared_compiled_style_sheet()->contents() : sheet;
-        rule_sheet.for_each_effective_rule_data(TraversalOrder::Preorder, [&](RustRuleView const& rule, Utf16View layer_prefix) {
-            if (rule.type() == RustRule::Type::Container && Parser::ValueParserFFI::rust_container_conditions_contains_size_feature(rule.container()))
-                rule_cache.has_size_container_queries = true;
-            if (rule.type() == RustRule::Type::Function) {
-                auto function = rule.compile_function();
-                auto name = Parser::ValueParserFFI::rust_function_signature_view(function.signature()).name;
-                rule_cache.function_rules_by_name.ensure(Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(name.utf16), name.length })).append({ move(function), Utf16FlyString::from_utf16(layer_prefix), cascade_origin });
-            }
-            if (rule.type() != RustRule::Type::Keyframes)
-                return;
+        // OPTIMIZATION: A constructed sheet may be adopted by many shadow roots. What it defines is collected once,
+        //               on the sheet, and every scope that adopts it takes that in.
+        if (sheet.constructed())
+            m_rule_cache->add_rules_from_cache(sheet.rule_cache());
+        else
+            m_rule_cache->add_rules_from_sheet(sheet, cascade_origin);
+    });
+}
 
-            // Loosely based on https://drafts.csswg.org/css-animations-2/#keyframe-processing
-            auto name = rule.name();
-            auto keyframe_set = adopt_ref(*new Animations::KeyframeEffect::KeyFrameSet);
-            auto base_url = sheet.style_resource_base_url();
-            keyframe_set->style_sheet_resource_context = {
-                .base_url = base_url.has_value() ? base_url->to_string() : String {},
-                .origin_clean = sheet.is_origin_clean(),
-            };
-            HashTable<PropertyNameAndID> animated_properties;
+void StyleRuleCache::add_rules_from_cache(StyleRuleCache const& other)
+{
+    for (auto const& [name, keyframe_set] : other.rules_by_animation_keyframes)
+        rules_by_animation_keyframes.set(name, keyframe_set);
+    for (auto const& [name, rules] : other.function_rules_by_name)
+        function_rules_by_name.ensure(name).extend(rules);
+    has_size_container_queries |= other.has_size_container_queries;
+}
 
-            // Forwards pass, resolve all the user-specified keyframe properties.
-            Function<void(ReadonlySpan<double>, RustDeclarationBlockSnapshot const&)> append_keyframe = [&](ReadonlySpan<double> keys, RustDeclarationBlockSnapshot const& keyframe_style) {
-                Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame resolved_keyframe;
+void StyleRuleCache::add_rules_from_sheet(StyleSheetState& sheet, CascadeOrigin cascade_origin)
+{
+    auto& rule_sheet = sheet.shared_compiled_style_sheet() ? sheet.shared_compiled_style_sheet()->contents() : sheet;
+    rule_sheet.for_each_effective_rule_data(TraversalOrder::Preorder, [&](RustRuleView const& rule, Utf16View layer_prefix) {
+        if (rule.type() == RustRule::Type::Container && Parser::ValueParserFFI::rust_container_conditions_contains_size_feature(rule.container()))
+            has_size_container_queries = true;
+        if (rule.type() == RustRule::Type::Function) {
+            auto function = rule.compile_function();
+            auto name = Parser::ValueParserFFI::rust_function_signature_view(function.signature()).name;
+            function_rules_by_name.ensure(Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(name.utf16), name.length })).append({ move(function), Utf16FlyString::from_utf16(layer_prefix), cascade_origin });
+        }
+        if (rule.type() != RustRule::Type::Keyframes)
+            return;
 
-                auto append_property = [&](Parser::ValueParserFFI::FfiDeclaredProperty const& declaration) {
-                    auto* value = static_cast<StyleValueFFI::StyleValueData const*>(declaration.value);
-                    if (declaration.name.length != 0) {
-                        auto name = Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(declaration.name.utf16), declaration.name.length });
-                        auto property = PropertyNameAndID::from_name(name);
-                        if (!property.has_value())
-                            return;
-                        animated_properties.set(*property);
-                        resolved_keyframe.properties.set(*property, RustStyleValueHandle::retained(value));
+        // Loosely based on https://drafts.csswg.org/css-animations-2/#keyframe-processing
+        auto name = rule.name();
+        auto keyframe_set = adopt_ref(*new Animations::KeyframeEffect::KeyFrameSet);
+        auto base_url = sheet.style_resource_base_url();
+        keyframe_set->style_sheet_resource_context = {
+            .base_url = base_url.has_value() ? base_url->to_string() : String {},
+            .origin_clean = sheet.is_origin_clean(),
+        };
+        HashTable<PropertyNameAndID> animated_properties;
+
+        // Forwards pass, resolve all the user-specified keyframe properties.
+        Function<void(ReadonlySpan<double>, RustDeclarationBlockSnapshot const&)> append_keyframe = [&](ReadonlySpan<double> keys, RustDeclarationBlockSnapshot const& keyframe_style) {
+            Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame resolved_keyframe;
+
+            auto append_property = [&](Parser::ValueParserFFI::FfiDeclaredProperty const& declaration) {
+                auto* value = static_cast<StyleValueFFI::StyleValueData const*>(declaration.value);
+                if (declaration.name.length != 0) {
+                    auto name = Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(declaration.name.utf16), declaration.name.length });
+                    auto property = PropertyNameAndID::from_name(name);
+                    if (!property.has_value())
                         return;
-                    }
-                    auto property_id = static_cast<PropertyID>(declaration.property_id);
-                    if (property_id == PropertyID::AnimationTimingFunction) {
-                        // animation-timing-function is a list property, but inside @keyframes only
-                        // a single value is meaningful.
-                        if (value->tag == StyleValueFFI::StyleValueData::Tag::ValueList) {
-                            auto const& list = value->value_list.values;
-                            if (list.length == 0)
-                                return;
-                            value = static_cast<StyleValueFFI::StyleValueData const*>(list.pointer[0].pointer);
-                        }
-                        if (value->tag == StyleValueFFI::StyleValueData::Tag::Easing || value->tag == StyleValueFFI::StyleValueData::Tag::Keyword) {
-                            auto easing_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(value));
-                            resolved_keyframe.easing = EasingFunction::from_style_value(*easing_value);
-                        } else {
-                            resolved_keyframe.easing = RustStyleValueHandle::retained(value);
-                        }
-                        return;
-                    }
-                    if (property_id == PropertyID::AnimationComposition) {
-                        AnimationComposition composition = AnimationComposition::Replace;
-                        if (value->tag == StyleValueFFI::StyleValueData::Tag::ValueList && value->value_list.values.length == 1)
-                            value = static_cast<StyleValueFFI::StyleValueData const*>(value->value_list.values.pointer[0].pointer);
-                        if (value->tag == StyleValueFFI::StyleValueData::Tag::Keyword) {
-                            if (static_cast<Keyword>(value->keyword.keyword) == Keyword::Add)
-                                composition = AnimationComposition::Add;
-                            else if (static_cast<Keyword>(value->keyword.keyword) == Keyword::Accumulate)
-                                composition = AnimationComposition::Accumulate;
-                        }
-                        resolved_keyframe.composite = Animations::css_animation_composition_to_composite_operation_or_auto(composition);
-                        return;
-                    }
-                    if (!is_animatable_property(property_id))
-                        return;
-
-                    // Unresolved properties will be resolved in collect_animation_into()
-                    auto expansion = ComputedValuesFFI::rust_expand_property_shorthands(
-                        to_underlying(property_id), value);
-                    for (size_t i = 0; i < expansion.count; ++i) {
-                        auto const& property = expansion.properties[i];
-                        auto longhand_property = PropertyNameAndID::from_id(static_cast<PropertyID>(property.property_id));
-                        animated_properties.set(longhand_property);
-                        resolved_keyframe.properties.set(longhand_property,
-                            RustStyleValueHandle::retained(static_cast<StyleValueFFI::StyleValueData const*>(property.data)));
-                    }
-                    ComputedValuesFFI::rust_shorthand_expansion_destroy(expansion.storage);
-                };
-                Parser::ValueParserFFI::rust_declaration_data_visit(keyframe_style.data(), &append_property, [](void* context, Parser::ValueParserFFI::FfiDeclaredProperty const* property) {
-                    (*static_cast<decltype(append_property)*>(context))(*property);
-                });
-
-                for (auto key : keys) {
-                    auto resolved_key = static_cast<u64>(key * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
-
-                    if (auto* existing_keyframe = keyframe_set->keyframes_by_key.find(resolved_key)) {
-                        for (auto& [property, value] : resolved_keyframe.properties)
-                            existing_keyframe->properties.set(property, value);
-                        if (resolved_keyframe.composite != Bindings::CompositeOperationOrAuto::Auto)
-                            existing_keyframe->composite = resolved_keyframe.composite;
-                        if (!resolved_keyframe.easing.has<Empty>())
-                            existing_keyframe->easing = resolved_keyframe.easing;
-                    } else {
-                        keyframe_set->keyframes_by_key.insert(resolved_key, resolved_keyframe);
-                    }
+                    animated_properties.set(*property);
+                    resolved_keyframe.properties.set(*property, RustStyleValueHandle::retained(value));
+                    return;
                 }
+                auto property_id = static_cast<PropertyID>(declaration.property_id);
+                if (property_id == PropertyID::AnimationTimingFunction) {
+                    // animation-timing-function is a list property, but inside @keyframes only
+                    // a single value is meaningful.
+                    if (value->tag == StyleValueFFI::StyleValueData::Tag::ValueList) {
+                        auto const& list = value->value_list.values;
+                        if (list.length == 0)
+                            return;
+                        value = static_cast<StyleValueFFI::StyleValueData const*>(list.pointer[0].pointer);
+                    }
+                    if (value->tag == StyleValueFFI::StyleValueData::Tag::Easing || value->tag == StyleValueFFI::StyleValueData::Tag::Keyword) {
+                        auto easing_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(value));
+                        resolved_keyframe.easing = EasingFunction::from_style_value(*easing_value);
+                    } else {
+                        resolved_keyframe.easing = RustStyleValueHandle::retained(value);
+                    }
+                    return;
+                }
+                if (property_id == PropertyID::AnimationComposition) {
+                    AnimationComposition composition = AnimationComposition::Replace;
+                    if (value->tag == StyleValueFFI::StyleValueData::Tag::ValueList && value->value_list.values.length == 1)
+                        value = static_cast<StyleValueFFI::StyleValueData const*>(value->value_list.values.pointer[0].pointer);
+                    if (value->tag == StyleValueFFI::StyleValueData::Tag::Keyword) {
+                        if (static_cast<Keyword>(value->keyword.keyword) == Keyword::Add)
+                            composition = AnimationComposition::Add;
+                        else if (static_cast<Keyword>(value->keyword.keyword) == Keyword::Accumulate)
+                            composition = AnimationComposition::Accumulate;
+                    }
+                    resolved_keyframe.composite = Animations::css_animation_composition_to_composite_operation_or_auto(composition);
+                    return;
+                }
+                if (!is_animatable_property(property_id))
+                    return;
+
+                // Unresolved properties will be resolved in collect_animation_into()
+                auto expansion = ComputedValuesFFI::rust_expand_property_shorthands(
+                    to_underlying(property_id), value);
+                for (size_t i = 0; i < expansion.count; ++i) {
+                    auto const& property = expansion.properties[i];
+                    auto longhand_property = PropertyNameAndID::from_id(static_cast<PropertyID>(property.property_id));
+                    animated_properties.set(longhand_property);
+                    resolved_keyframe.properties.set(longhand_property,
+                        RustStyleValueHandle::retained(static_cast<StyleValueFFI::StyleValueData const*>(property.data)));
+                }
+                ComputedValuesFFI::rust_shorthand_expansion_destroy(expansion.storage);
             };
-            rule.for_each_keyframe(append_keyframe);
+            Parser::ValueParserFFI::rust_declaration_data_visit(keyframe_style.data(), &append_property, [](void* context, Parser::ValueParserFFI::FfiDeclaredProperty const* property) {
+                (*static_cast<decltype(append_property)*>(context))(*property);
+            });
 
-            Animations::KeyframeEffect::generate_initial_and_final_frames(keyframe_set, animated_properties);
+            for (auto key : keys) {
+                auto resolved_key = static_cast<u64>(key * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
 
-            if constexpr (LIBWEB_CSS_DEBUG) {
-                dbgln("Resolved keyframe set '{}' into {} keyframes:", name, keyframe_set->keyframes_by_key.size());
-                for (auto it = keyframe_set->keyframes_by_key.begin(); it != keyframe_set->keyframes_by_key.end(); ++it)
-                    dbgln("    - keyframe {}: {} properties", it.key(), it->properties.size());
+                if (auto* existing_keyframe = keyframe_set->keyframes_by_key.find(resolved_key)) {
+                    for (auto& [property, value] : resolved_keyframe.properties)
+                        existing_keyframe->properties.set(property, value);
+                    if (resolved_keyframe.composite != Bindings::CompositeOperationOrAuto::Auto)
+                        existing_keyframe->composite = resolved_keyframe.composite;
+                    if (!resolved_keyframe.easing.has<Empty>())
+                        existing_keyframe->easing = resolved_keyframe.easing;
+                } else {
+                    keyframe_set->keyframes_by_key.insert(resolved_key, resolved_keyframe);
+                }
             }
+        };
+        rule.for_each_keyframe(append_keyframe);
 
-            rule_cache.rules_by_animation_keyframes.set(Utf16FlyString { name }, move(keyframe_set));
-        });
+        Animations::KeyframeEffect::generate_initial_and_final_frames(keyframe_set, animated_properties);
+
+        if constexpr (LIBWEB_CSS_DEBUG) {
+            dbgln("Resolved keyframe set '{}' into {} keyframes:", name, keyframe_set->keyframes_by_key.size());
+            for (auto it = keyframe_set->keyframes_by_key.begin(); it != keyframe_set->keyframes_by_key.end(); ++it)
+                dbgln("    - keyframe {}: {} properties", it.key(), it->properties.size());
+        }
+
+        rules_by_animation_keyframes.set(Utf16FlyString { name }, move(keyframe_set));
     });
 }
 
@@ -687,7 +562,7 @@ void StyleScope::publish_cascade_layer_order(StyleSheetState* pending_attachment
 // animation's keyframes from these, so it never builds a rule cache itself.
 void StyleScope::publish_animation_keyframes()
 {
-    auto const& keyframes = style_cache()->rule_cache->rules_by_animation_keyframes;
+    auto const& keyframes = m_rule_cache->rules_by_animation_keyframes;
     Vector<u32> name_lengths;
     Vector<u16> name_units;
     Vector<size_t> keyframe_sets;
@@ -715,7 +590,7 @@ void StyleScope::publish_animation_keyframes()
 Optional<StyleScope::DepartedAnimationKeyframes> StyleScope::take_published_animation_keyframes()
 {
     // The scope publishes again in the document it joins, if it joins one, under the tree scope that document gives it.
-    m_published_layer_order_generation = 0;
+    m_has_published_rule_cache = false;
     auto* shadow_root = as_if<DOM::ShadowRoot>(*m_node);
     if (!shadow_root || m_published_keyframe_sets.is_empty())
         return {};
