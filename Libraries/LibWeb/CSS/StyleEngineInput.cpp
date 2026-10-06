@@ -1367,19 +1367,12 @@ void record_element_css_defined_animations(DOM::Element& element, u8 slot, Reado
     if (!style_engine)
         return;
 
-    // The names travel as one buffer of code units with a length each, since a list is almost
-    // always a single name and a handle per name would cost more than the names do.
-    Vector<u32> lengths;
-    Vector<u16> units;
-    lengths.ensure_capacity(names.size());
-    for (auto const& name : names) {
-        auto view = name.view();
-        lengths.unchecked_append(static_cast<u32>(view.length_in_code_units()));
-        units.ensure_capacity(units.size() + view.length_in_code_units());
-        for (size_t index = 0; index < view.length_in_code_units(); ++index)
-            units.unchecked_append(view.code_unit_at(index));
-    }
-    StyleEngineFFI::style_engine_set_element_css_defined_animations(style_engine->host(), element.style_node_id(), slot, lengths, units, definitions);
+    // The names cross as the fly strings they are, which the engine copies. A list is almost always a single name.
+    Vector<FlatPtr, 1> raw_names;
+    raw_names.ensure_capacity(names.size());
+    for (auto const& name : names)
+        raw_names.unchecked_append(name.raw_identity());
+    StyleEngineFFI::style_engine_set_element_css_defined_animations(style_engine->host(), element.style_node_id(), slot, raw_names, definitions);
 }
 
 // A keyframe's composite operation as a published keyframe spells it: the keyframe's own, or its effect's where the

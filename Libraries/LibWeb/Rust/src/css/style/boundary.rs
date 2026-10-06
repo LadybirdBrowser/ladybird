@@ -20,6 +20,7 @@ use super::index::StyleAtomID;
 use super::program::{CascadeLayerID, SheetID};
 use super::tree::{StyleNodeID, TableSpans, TreeScopeID};
 use crate::abort_on_panic;
+use crate::css::css_string::CssString;
 use crate::render_state::{ArenaChange, BegunRead, DocumentHost};
 
 /// An array the host lends an entry for the call, as C++ passes an AK `Span`.
@@ -79,7 +80,9 @@ carried! {
     Option<StyleNodeID>: u32 as "StyleNodeID" = |node| StyleNodeID::from_raw(node);
     Option<SheetID>: u32 as "SheetID" = |sheet| sheet.checked_sub(1).map(SheetID);
     [u32; 4]: *const [u32; 4] as "u32 const*" = |values| unsafe { *values };
-    Box<[u16]>: FfiSpan<u16> as "ReadonlySpan<u16>" = |span| unsafe { borrow(span.data, span.size) }.into();
+    // The names of fly strings the host lends, as their raw identities, which a change copies.
+    Box<[CssString]>: FfiSpan<usize> as "ReadonlySpan<FlatPtr>" =
+        |span| unsafe { borrow(span.data, span.size) }.iter().map(|&raw| unsafe { CssString::from_borrowed_raw(raw) }).collect();
     Box<[u32]>: FfiSpan<u32> as "ReadonlySpan<u32>" = |span| unsafe { borrow(span.data, span.size) }.into();
     Box<[StyleAtomID]>: FfiSpan<u32> as "ReadonlySpan<StyleAtomID>" =
         |span| unsafe { borrow(span.data, span.size) }.iter().copied().map(StyleAtomID).collect();
@@ -303,12 +306,8 @@ style_boundary! {
         };
         set_held_style_record => SetHeldStyleRecord { node: StyleNodeID, style_record: u64 };
         set_element_css_defined_animations => SetElementCssDefinedAnimations {
-            node: StyleNodeID,
-            slot: u8,
-            name_lengths: Box<[u32]>,
-            name_units: Box<[u16]>,
-            definitions: Box<[FfiAppliedAnimationDefinition]>
-        } => engine.set_element_css_defined_animations(node, slot, &name_lengths, &name_units, &definitions);
+            node: StyleNodeID, slot: u8, names: Box<[CssString]>, definitions: Box<[FfiAppliedAnimationDefinition]>
+        } => engine.set_element_css_defined_animations(node, slot, names, &definitions);
         set_tree_scope_root => SetTreeScopeRoot { tree_scope: TreeScopeID, root: StyleNodeID };
         set_sheet_conditions_hold => SetSheetConditionsHold { sheet: SheetID, conditions_hold: bool };
     }

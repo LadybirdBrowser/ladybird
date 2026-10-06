@@ -1385,19 +1385,15 @@ impl RetainedState {
     }
 
     /// Record the CSS animations the host holds for one of an element's animation lists, in the
-    /// order it holds them: each one's name, and the definition the last plan applied to it. The
-    /// names arrive packed into one buffer because a list is almost always a single name, and a
-    /// length per name is cheaper than a handle per name.
+    /// order it holds them: each one's name, and the definition the last plan applied to it.
     pub fn set_element_css_defined_animations(
         &mut self,
         node: StyleNodeID,
         slot: animations::AnimationSlot,
-        name_lengths: &[u32],
-        name_units: &[u16],
+        names: Box<[crate::css::css_string::CssString]>,
         definitions: &[super::bridge::FfiAppliedAnimationDefinition],
     ) {
-        self.css_defined_animations
-            .set(node, slot, name_lengths, name_units, definitions);
+        self.css_defined_animations.set(node, slot, names, definitions);
     }
 
     /// The CSS animations the host holds for one of an element's animation lists.
