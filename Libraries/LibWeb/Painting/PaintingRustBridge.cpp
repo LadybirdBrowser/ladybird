@@ -749,6 +749,18 @@ NonnullRefPtr<Compositing::DisplayList> display_list_of_published_recording(Disp
     return display_list;
 }
 
+static Compositing::DisplayListResource record_image_paint(Layout::RustFFI::FfiImagePaintRecordInputs const& inputs)
+{
+    Optional<Compositing::DisplayListResource> recorded_display_list;
+    Layout::RustFFI::ladybird_web_record_image_paint_display_list(&inputs, &recorded_display_list,
+        [](void* context, void const* retained_commands, void const* retained_tree) {
+            auto visual_context_tree = Compositing::AccumulatedVisualContextTree::adopt_rust_handle(retained_tree);
+            auto display_list = Compositing::DisplayList::adopt_rust_command_storage(visual_context_tree, retained_commands);
+            *static_cast<Optional<Compositing::DisplayListResource>*>(context) = Compositing::DisplayListResource { move(display_list), move(visual_context_tree) };
+        });
+    return recorded_display_list.release_value();
+}
+
 Compositing::DisplayListResource record_image_paint_display_list(ImagePaint const& paint, ImagePaintRequest const& request, double device_pixels_per_css_pixel)
 {
     Layout::RustFFI::FfiImagePaintRecordInputs inputs {};
@@ -774,14 +786,18 @@ Compositing::DisplayListResource record_image_paint_display_list(ImagePaint cons
             gradient_stop_color_resolution_input = CSS::make_rust_color_resolution_input(request.gradient_stop_color_resolution_context, gradient_stop_length_resolution_context_storage);
             inputs.gradient_stop_color_resolution_input = &gradient_stop_color_resolution_input;
         });
-    Optional<Compositing::DisplayListResource> recorded_display_list;
-    Layout::RustFFI::ladybird_web_record_image_paint_display_list(&inputs, &recorded_display_list,
-        [](void* context, void const* retained_commands, void const* retained_tree) {
-            auto visual_context_tree = Compositing::AccumulatedVisualContextTree::adopt_rust_handle(retained_tree);
-            auto display_list = Compositing::DisplayList::adopt_rust_command_storage(visual_context_tree, retained_commands);
-            *static_cast<Optional<Compositing::DisplayListResource>*>(context) = Compositing::DisplayListResource { move(display_list), move(visual_context_tree) };
-        });
-    return recorded_display_list.release_value();
+    return record_image_paint(inputs);
+}
+
+Compositing::DisplayListResource record_image_frame_display_list(Gfx::DecodedImageFrame const& frame, Gfx::FloatRect const& dest_rect, Gfx::ScalingMode scaling_mode, Compositing::DisplayListResourceStorage& resource_storage)
+{
+    Layout::RustFFI::FfiImagePaintRecordInputs inputs {};
+    inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::DecodedFrame;
+    inputs.dest_rect = dest_rect;
+    inputs.device_pixels_per_css_pixel = 1;
+    inputs.frame_id = resource_storage.add_image_frame(frame).value();
+    inputs.scaling_mode = scaling_mode;
+    return record_image_paint(inputs);
 }
 
 }

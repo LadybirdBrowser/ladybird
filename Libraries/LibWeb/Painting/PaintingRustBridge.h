@@ -87,5 +87,7 @@ WEB_API CSS::ColorResolutionContext gradient_stop_color_resolution_context(Layou
 WEB_API Optional<Gfx::Filter> filter_from_functions(ReadonlySpan<Compositing::RustFFI::FfiFilterFunction>);
 
 WEB_API Compositing::DisplayListResource record_image_paint_display_list(ImagePaint const&, ImagePaintRequest const&, double device_pixels_per_css_pixel);
+// Records one image frame drawn into the destination rectangle, in device pixels.
+WEB_API Compositing::DisplayListResource record_image_frame_display_list(Gfx::DecodedImageFrame const&, Gfx::FloatRect const& dest_rect, Gfx::ScalingMode, Compositing::DisplayListResourceStorage&);
 
 }
