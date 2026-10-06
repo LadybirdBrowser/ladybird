@@ -5,9 +5,7 @@
  */
 
 #[cfg(feature = "allocator")]
-/// cbindgen:ignore
-#[path = "../../../RustAllocator.rs"]
-mod rust_allocator;
+extern crate ladybird_allocator;
 
 #[path = "../../../RustPanic.rs"]
 mod rust_panic;

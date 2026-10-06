@@ -10,11 +10,12 @@ crate-type = ["staticlib"]
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py
 [dependencies]
 adblock = "0.12.5"
+ladybird_allocator = { path = "../../../RustAllocator", optional = true }
 serde_json = "1.0"
 
 [features]
 default = []
-allocator = []
+allocator = ["dep:ladybird_allocator"]
 
 [build-dependencies]
 cbindgen = "0.29"

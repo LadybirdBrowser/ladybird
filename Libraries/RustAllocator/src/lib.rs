@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-// Standalone Rust tests use the test harness allocator without linking the C++ runtime.
+// Standalone Rust tests use the test harness allocator without linking the C++ runtime, so crates only depend on this
+// one through an "allocator" feature that the CMake build enables.
 #![cfg(not(test))]
 
 use std::alloc::GlobalAlloc;

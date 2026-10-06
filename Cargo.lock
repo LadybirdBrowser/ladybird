@@ -779,6 +779,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "ladybird_allocator"
+version = "0.1.0"
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -802,6 +806,7 @@ version = "0.1.0"
 dependencies = [
  "cbindgen",
  "foldhash 0.1.5",
+ "ladybird_allocator",
  "libgfx_rust",
 ]
 
@@ -811,6 +816,7 @@ version = "0.1.0"
 dependencies = [
  "cbindgen",
  "foldhash 0.1.5",
+ "ladybird_allocator",
  "yuv",
 ]
 
@@ -820,6 +826,7 @@ version = "0.1.0"
 dependencies = [
  "cbindgen",
  "jxl",
+ "ladybird_allocator",
 ]
 
 [[package]]
@@ -833,6 +840,7 @@ dependencies = [
  "foldhash 0.1.5",
  "iced-x86",
  "indexmap",
+ "ladybird_allocator",
  "libunicode_rust",
  "num-bigint",
  "num-integer",
@@ -850,6 +858,7 @@ name = "libregex_rust"
 version = "0.1.0"
 dependencies = [
  "cbindgen",
+ "ladybird_allocator",
  "libunicode_rust",
 ]
 
@@ -859,6 +868,7 @@ version = "0.1.0"
 dependencies = [
  "cbindgen",
  "encoding_rs",
+ "ladybird_allocator",
 ]
 
 [[package]]
@@ -868,6 +878,7 @@ dependencies = [
  "calendrical_calculations",
  "cbindgen",
  "icu_calendar",
+ "ladybird_allocator",
 ]
 
 [[package]]
@@ -876,6 +887,7 @@ version = "0.1.0"
 dependencies = [
  "cbindgen",
  "encoding_rs",
+ "ladybird_allocator",
  "libregex_rust",
  "libunicode_rust",
 ]
@@ -900,6 +912,7 @@ version = "0.1.0"
 dependencies = [
  "adblock",
  "cbindgen",
+ "ladybird_allocator",
  "serde_json",
 ]
 
@@ -920,6 +933,7 @@ dependencies = [
  "chardetng",
  "foldhash 0.1.5",
  "hashbrown 0.16.1",
+ "ladybird_allocator",
  "libcompositing_rust",
  "libgfx_rust",
  "liburl_rust",

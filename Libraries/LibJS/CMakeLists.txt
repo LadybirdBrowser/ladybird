@@ -301,7 +301,7 @@ endif()
 
 target_link_libraries(LibJS PUBLIC JSClangPlugin)
 
-import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libjs_rust FFI_HEADER RustFFI.h)
+import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libjs_rust FEATURES allocator FFI_HEADER RustFFI.h)
 target_link_libraries(LibJS PRIVATE libjs_rust)
 if ((LINUX OR BSD) AND NOT BUILD_SHARED_LIBS)
     # Rust staticlibs each carry the same allocator shim symbols. LibJS can
