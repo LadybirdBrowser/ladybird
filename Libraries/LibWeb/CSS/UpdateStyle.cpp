@@ -36,6 +36,12 @@ using StyleUpdateMode = DOM::Document::StyleUpdateMode;
 
 extern "C" void ladybird_utf16_fly_string_unref(size_t);
 
+// The time since `started_at`, for the timing counters of style updates.
+static u64 microseconds_since(MonotonicTime started_at)
+{
+    return (MonotonicTime::now() - started_at).to_truncated_microseconds();
+}
+
 // One style update of a document: its style computation, the style record views it reads, and the strings the engine
 // lets go of meanwhile, whose release waits for the update to end.
 class StyleUpdateScope {
@@ -236,7 +242,7 @@ static StyleEngineTransaction take_style_engine_transaction(Layout::BegunRead co
     // @property rule registers through this cache.
     document.build_registered_properties_cache_for_style_update();
     style_computer.prepare_for_style_engine_transaction();
-    auto setup_microseconds = (MonotonicTime::now() - transaction_setup_started_at).to_truncated_microseconds();
+    auto setup_microseconds = microseconds_since(transaction_setup_started_at);
     document.style_invalidation_counters().style_engine_transaction_setup_microseconds += setup_microseconds;
     document.style_invalidation_counters().style_update_submission_microseconds += setup_microseconds;
     auto* root = document.document_element();
@@ -809,7 +815,7 @@ Optional<StyleUpdateInputs> begin_style_update_inputs(Layout::BegunRead const& r
     // change selector or cascade inputs. Apply an animation-only update first, then take a
     // transaction only if the resulting inherited-style feedback requires one.
     record_non_author_stylesheets(document);
-    document.style_invalidation_counters().style_update_submission_microseconds += (MonotonicTime::now() - submission_started_at).to_truncated_microseconds();
+    document.style_invalidation_counters().style_update_submission_microseconds += microseconds_since(submission_started_at);
     if (document.has_completed_style_update()
         && !document.style_computer().style_engine().has_pending_transaction(read)) {
         if (!document.needs_animated_style_update())
@@ -840,7 +846,7 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
     auto const bridge_before = timing_counters.style_update_bridge_microseconds;
     auto const apply_before = timing_counters.style_update_apply_microseconds;
     ScopeGuard record_style_update_time = [&] {
-        auto whole = (MonotonicTime::now() - style_update_started_at).to_truncated_microseconds();
+        auto whole = microseconds_since(style_update_started_at);
         auto measured = timing_counters.style_update_submission_microseconds - submission_before
             + timing_counters.style_update_bridge_microseconds - bridge_before
             + timing_counters.style_update_apply_microseconds - apply_before;
@@ -950,7 +956,7 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
     while (!style_engine_reactions.is_empty()) {
         auto apply_started_at = MonotonicTime::now();
         ArmedScopeGuard record_apply_time = [&] {
-            timing_counters.style_update_apply_microseconds += (MonotonicTime::now() - apply_started_at).to_truncated_microseconds();
+            timing_counters.style_update_apply_microseconds += microseconds_since(apply_started_at);
         };
         // One more tree generation of the same style change is not a new pass of it.
         if (style_reaction_pass++ > 0 && !transaction_only_derived_child_reactions)
@@ -1076,7 +1082,7 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
             invalidation |= apply_style_engine_reactions(read, document, applicable_style_engine_reactions);
         }
 
-        timing_counters.style_update_apply_microseconds += (MonotonicTime::now() - apply_started_at).to_truncated_microseconds();
+        timing_counters.style_update_apply_microseconds += microseconds_since(apply_started_at);
         record_apply_time.disarm();
 
         // Exact consequences produced while recomputing become the next transaction in this
