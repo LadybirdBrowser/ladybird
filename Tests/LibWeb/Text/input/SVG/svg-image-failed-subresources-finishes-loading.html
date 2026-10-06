@@ -1,0 +1,28 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        for (const resource of [
+            '<image width="20" height="20" href="data:image/png,invalid"/>',
+            '<image width="20" height="20" href="data:image/svg+xml,invalid"/>',
+            '<foreignObject width="20" height="20"><img xmlns="http://www.w3.org/1999/xhtml" src="data:image/png,invalid"/></foreignObject>',
+        ]) {
+            const image = new Image();
+            const loaded = new Promise((resolve, reject) => {
+                image.onload = resolve;
+                image.onerror = reject;
+            });
+            image.src =
+                "data:image/svg+xml," +
+                encodeURIComponent(
+                    `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="green"/>${resource}</svg>`
+                );
+            await loaded;
+            await image.decode();
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+            context.drawImage(image, 0, 0);
+            println([...context.getImageData(0, 0, 1, 1).data].join(","));
+        }
+    });
+</script>

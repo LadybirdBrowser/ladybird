@@ -57,6 +57,7 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
 #include <LibWebCommon/Infra/CharacterTypes.h>
 #include <LibWebCommon/Infra/Strings.h>
@@ -691,6 +692,7 @@ void HTMLParserEndState::schedule_progress_check()
         return;
     m_check_pending = true;
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this] {
+        auto scope_guard = SVG::ScopedSVGImageDocument::create_if_needed(m_document, SVG::ScopedSVGImageDocument::FrameRequests::Suppress);
         perform_pre_progress_microtask_checkpoint();
         check_progress();
         m_check_pending = false;

@@ -286,13 +286,6 @@ void XMLDocumentBuilder::document_end()
     m_template_node_stack.clear();
     m_current_node = nullptr;
 
-    // AD-HOC: Decoded SVG images finish loading in SVGDecodedImageData::create().
-    if (m_document->is_decoded_svg()) {
-        m_document->update_readiness(HTML::DocumentReadyState::Interactive);
-        m_document->update_readiness(HTML::DocumentReadyState::Complete);
-        return;
-    }
-
     HTML::HTMLParser::the_end(m_document, nullptr);
 }
 

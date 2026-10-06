@@ -1,0 +1,7 @@
+load: 0,128,0,255
+decode: 0,128,0,255
+Concurrent and nested SVGs: true
+Forward use references: 0,128,0,255 0,128,0,255
+HTML image in foreignObject: 0,128,0,255
+CSS image in foreignObject: 0,128,0,255
+createImageBitmap: 0,128,0,255

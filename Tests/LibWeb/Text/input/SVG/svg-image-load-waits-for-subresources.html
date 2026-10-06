@@ -1,0 +1,78 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const png =
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAD0lEQVR4AQEEAPv/AACAAAEEAIEu/TP9AAAAAElFTkSuQmCC";
+
+        const svgURL = body =>
+            "data:image/svg+xml," +
+            encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20">${body}</svg>`);
+
+        const embeddedImage = `<image width="20" height="20" href="${png}"/>`;
+
+        async function loadImage(source, completion) {
+            const image = new Image();
+            if (completion === "load") {
+                const loaded = new Promise((resolve, reject) => {
+                    image.onload = resolve;
+                    image.onerror = reject;
+                });
+                image.src = source;
+                await loaded;
+            } else {
+                image.src = source;
+                await image.decode();
+            }
+            return image;
+        }
+
+        function pixel(image, x = 0) {
+            const canvas = document.createElement("canvas");
+            canvas.width = canvas.height = 20;
+            const context = canvas.getContext("2d");
+            context.drawImage(image, 0, 0);
+            return [...context.getImageData(x, 0, 1, 1).data].join(",");
+        }
+
+        for (const completion of ["load", "decode"]) {
+            const image = await loadImage(svgURL(`${embeddedImage}<!-- ${completion} -->`), completion);
+            println(`${completion}: ${pixel(image)}`);
+        }
+
+        const images = await Promise.all([
+            loadImage(svgURL(`${embeddedImage}<!-- concurrent -->`), "load"),
+            loadImage(svgURL(`<rect width="20" height="20" fill="blue"/>${embeddedImage}`), "load"),
+            loadImage(svgURL(`<image width="20" height="20" href="${svgURL(embeddedImage)}"/>`), "load"),
+        ]);
+        println(`Concurrent and nested SVGs: ${images.every(image => pixel(image) === "0,128,0,255")}`);
+
+        const forwardUses = await loadImage(
+            svgURL(
+                `<use href="#tile"/><use href="#tile" x="10"/><defs><g id="tile"><image width="10" height="10" href="${png}"/></g></defs>`
+            ),
+            "load"
+        );
+        println(`Forward use references: ${pixel(forwardUses)} ${pixel(forwardUses, 19)}`);
+
+        const htmlImage = await loadImage(
+            svgURL(
+                `<foreignObject width="20" height="20"><img xmlns="http://www.w3.org/1999/xhtml" width="20" height="20" src="${png}"/></foreignObject>`
+            ),
+            "load"
+        );
+        println(`HTML image in foreignObject: ${pixel(htmlImage)}`);
+
+        const backgroundImage = await loadImage(
+            svgURL(
+                `<foreignObject width="20" height="20"><div xmlns="http://www.w3.org/1999/xhtml" style="width:20px;height:20px;background-image:url('${png}')"/></foreignObject>`
+            ),
+            "load"
+        );
+        println(`CSS image in foreignObject: ${pixel(backgroundImage)}`);
+
+        const bitmap = await createImageBitmap(images[0]);
+        println(`createImageBitmap: ${pixel(bitmap)}`);
+        bitmap.close();
+    });
+</script>
