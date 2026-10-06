@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        iframe.style.width = "300px";
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <style>
+                .row { color: black; }
+                /* The custom property means nothing lists whom the rule wins for, so the selector is tested. */
+                @media (max-width: 400px) {
+                    .row:first-child { --first: 1; color: green; }
+                }
+            </style>
+            <div id="table"><div class="row"></div><div class="row"></div><div class="row"></div></div>
+        `;
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        document.body.append(iframe);
+        await loaded;
+
+        const contentWindow = iframe.contentWindow;
+        const doc = iframe.contentDocument;
+        const colors = () => [...doc.querySelectorAll(".row")].map(row => contentWindow.getComputedStyle(row).color).join(", ");
+        println(`Before: ${colors()}`);
+
+        // The style update that takes the rule away also moves the row it matched off the first place.
+        const query = contentWindow.matchMedia("(max-width: 400px)");
+        const changed = new Promise(resolve => {
+            query.addEventListener(
+                "change",
+                () => {
+                    doc.getElementById("table").prepend(doc.createElement("span"));
+                    resolve();
+                },
+                { once: true }
+            );
+        });
+        iframe.style.width = "500px";
+        await changed;
+        await animationFrame();
+        println(`After: ${colors()}`);
+    });
+</script>

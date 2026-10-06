@@ -1,0 +1,2 @@
+Before: rgb(0, 128, 0), rgb(0, 0, 0), rgb(0, 0, 0)
+After: rgb(0, 0, 0), rgb(0, 0, 0), rgb(0, 0, 0)

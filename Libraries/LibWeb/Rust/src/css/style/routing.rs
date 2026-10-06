@@ -4246,14 +4246,37 @@ impl RetainedState {
         }
     }
 
-    /// Whether a node is near enough to either end of its sibling sequence to be a bounded subject.
+    /// Whether a node is near enough to either end of its sibling sequence to be a bounded subject
+    /// on one side of the transaction.
     ///
     /// The bound is how far in the sequence the subject can be, so the walk is at most that many
-    /// steps: `:first-child` asks whether anything precedes the node, and stops there.
+    /// steps: `:first-child` asks whether anything precedes the node, and stops there. The old side
+    /// is where the transaction captured it: a sequence it did not capture did not change, and a
+    /// transaction that captured nothing leaves every node possibly anywhere.
     #[must_use]
-    pub(super) fn node_is_within_subject_position(&self, node: StyleNodeID, position: SubjectPosition) -> bool {
+    pub(super) fn node_is_within_subject_position(
+        &self,
+        node: StyleNodeID,
+        position: SubjectPosition,
+        side: TransactionFactSide,
+    ) -> bool {
         if position.bound == u32::MAX {
             return true;
+        }
+        if side == TransactionFactSide::Before {
+            let Some(view) = self
+                .transaction_fact_view
+                .as_ref()
+                .filter(|view| view.before_sibling_relations_available)
+            else {
+                return true;
+            };
+            if let Some(old) = view.before_sibling_geometry.sibling_positions(node) {
+                return match position.from_end {
+                    true => old.from_end,
+                    false => old.from_start,
+                } <= position.bound;
+            }
         }
         let mut remaining = position.bound;
         let mut cursor = Some(node);
@@ -4668,6 +4691,16 @@ impl StyleEngine {
         let changes_selector_truth = program_joins
             .iter()
             .any(|delta| delta.kind == ProgramJoinDeltaKind::ActiveRuleMatch);
+        let removes_contribution = matches!(
+            (key, input.old, input.new),
+            (
+                InputKey::SheetAttachment(..)
+                    | InputKey::SheetActivation(_)
+                    | InputKey::RuleField(_, RuleField::Existence | RuleField::Activation),
+                InputValue::Flag(true),
+                InputValue::Flag(false)
+            )
+        );
 
         for delta in program_joins {
             let rule = delta.rule;
@@ -4793,16 +4826,6 @@ impl StyleEngine {
             }
             if let Some(selector_program) = version.selector_program {
                 let compiled = self.retained.programs.get(selector_program);
-                let removes_contribution = matches!(
-                    (key, input.old, input.new),
-                    (
-                        InputKey::SheetAttachment(..)
-                            | InputKey::SheetActivation(_)
-                            | InputKey::RuleField(_, RuleField::Existence | RuleField::Activation),
-                        InputValue::Flag(true),
-                        InputValue::Flag(false)
-                    )
-                );
                 let winner_inventory_is_complete = removes_contribution
                     // Container conditions are evaluated by the style consumer, so its
                     // winning declarations are not proven by the native winner inventory.
@@ -4862,6 +4885,12 @@ impl StyleEngine {
             return;
         }
 
+        // The old side's tree is the one the transaction captured, and a transaction too wide for
+        // exact tree routing captures none, so there the old side cannot be read at all.
+        let old_side_is_readable = self
+            .transaction_fact_view
+            .as_ref()
+            .is_some_and(|view| view.before_sibling_relations_available);
         let mut first_program_rule = 0;
         while first_program_rule < programs.len() {
             let selector_program = programs[first_program_rule].1;
@@ -4960,11 +4989,22 @@ impl StyleEngine {
                 first_program_rule = end_program_rule;
                 continue;
             }
-            let activation_fact_sides = can_filter_exactly.then_some(match (input.old, input.new) {
-                (InputValue::Flag(false), InputValue::Flag(true)) => (None, Some(TransactionFactSide::After)),
-                (InputValue::Flag(true), InputValue::Flag(false)) => (Some(TransactionFactSide::Before), None),
-                _ => (Some(TransactionFactSide::Before), Some(TransactionFactSide::After)),
-            });
+            let activation_fact_sides = can_filter_exactly
+                .then_some(match (input.old, input.new) {
+                    (InputValue::Flag(false), InputValue::Flag(true)) => (None, Some(TransactionFactSide::After)),
+                    (InputValue::Flag(true), InputValue::Flag(false)) => (Some(TransactionFactSide::Before), None),
+                    _ => (Some(TransactionFactSide::Before), Some(TransactionFactSide::After)),
+                })
+                .filter(|(old_side, _)| old_side.is_none() || old_side_is_readable);
+            // A program that stops deciding - a rule turned off or deleted, a sheet detached, the old
+            // selector of a retargeted rule - matched its subjects where they stood before the
+            // change, and tree routing reaches none that has moved since: its routes are gone.
+            let subject_side = match removes_contribution
+                || matches!(input.new, InputValue::SelectorProgram(after) if after != Some(selector_program))
+            {
+                true => TransactionFactSide::Before,
+                false => TransactionFactSide::After,
+            };
             let compiled = self.retained.programs.get(selector_program);
             for (entry_index, entry) in compiled.entries().iter().enumerate() {
                 if scopes.as_slice() == [TreeScopeID::DOCUMENT]
@@ -5046,7 +5086,7 @@ impl StyleEngine {
                             if bounded_by_scope && scopes.binary_search(&self.retained.tree.tree_scope(node)).is_err() {
                                 continue;
                             }
-                            if !self.node_is_within_subject_position(node, position) {
+                            if !self.node_is_within_subject_position(node, position, subject_side) {
                                 continue;
                             }
                             if let Some((old_side, new_side)) = activation_fact_sides {

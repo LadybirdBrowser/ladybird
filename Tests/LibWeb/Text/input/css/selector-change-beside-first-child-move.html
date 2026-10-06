@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+    .row { color: black; }
+    /* The custom property means nothing lists whom the rule wins for, so the selector is tested. */
+    .row:first-child { --first: 1; color: green; }
+</style>
+<div id="table"><div class="row"></div><div class="row"></div><div class="row"></div></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const colors = () => [...document.querySelectorAll(".row")].map(row => getComputedStyle(row).color).join(", ");
+        // Edit the sheet once first, so the change below is a rule changing and not the sheet being replaced.
+        const sheet = document.styleSheets[0];
+        sheet.insertRule(".unused { color: red; }", 0);
+        println(`Before: ${colors()}`);
+
+        // The style update that retargets the rule also moves the row its old selector matched off the first place.
+        sheet.cssRules[2].selectorText = ".row:last-child";
+        document.getElementById("table").prepend(document.createElement("span"));
+        println(`After: ${colors()}`);
+    });
+</script>
