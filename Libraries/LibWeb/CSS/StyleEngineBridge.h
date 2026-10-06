@@ -52,8 +52,6 @@ void style_engine_set_element_unique_node_id(DocumentHost const*, StyleNodeID no
 void style_engine_set_element_table_spans(DocumentHost const*, StyleNodeID node, u32 column_span, u32 row_span, u32 raw_column_span);
 void style_engine_set_element_id_name(DocumentHost const*, StyleNodeID node, StyleAtomID name);
 void style_engine_set_shadow_root(DocumentHost const*, StyleNodeID shadow_host, StyleNodeID shadow_root);
-void style_engine_note_attribute_substitution_name(DocumentHost const*, StyleAtomID name, FfiUtf16View local_name);
-void style_engine_note_attribute_name_forms(DocumentHost const*, StyleAtomID name, StyleAtomID local, StyleAtomID folded_name, StyleAtomID folded_local);
 void style_engine_record_environment_change(DocumentHost const*);
 void style_engine_record_custom_property_registration_change(DocumentHost const*, StyleAtomID name);
 void style_engine_flush(DocumentHost const*);
@@ -90,7 +88,6 @@ void style_engine_unpin_style_record(DocumentHost const*, u64 style_record);
 void style_engine_begin_style_record_view_epoch(DocumentHost const*);
 void style_engine_end_style_record_view_epoch(DocumentHost const*);
 void style_engine_set_tree_scope_uses_document_sheets(DocumentHost const*, TreeScopeID tree_scope);
-void style_engine_set_attribute_value_text(DocumentHost const*, StyleAtomID name, StyleAtomID value, FfiUtf16View text);
 void style_engine_set_element_custom_property_names(DocumentHost const*, StyleNodeID node, ReadonlySpan<StyleAtomID> name_atoms, bool uses_unnamed, bool uses_custom_functions);
 void style_engine_set_element_animation_names(DocumentHost const*, StyleNodeID node, ReadonlySpan<StyleAtomID> name_atoms);
 void style_engine_set_element_recomputes_on_environment_move(DocumentHost const*, StyleNodeID node, bool recomputes);
@@ -236,8 +233,6 @@ public:
     StyleAtomID intern_atom(Utf16FlyString const&);
     // Counts the reclaims of this document's atoms, so a cache keyed by atoms can tell when one may have been reused.
     [[nodiscard]] u64 atom_generation() const;
-    // The process-global atom of `name` qualified by `namespace_atom`, retained by this document.
-    StyleAtomID intern_qualified_atom(StyleAtomID namespace_atom, StyleAtomID name);
     // Moves a node's record to the environment its inherited custom-property data was refreshed
     // to; the new record's identity, or zero when nothing moved.
     [[nodiscard]] StyleRecordID republish_record_environment(Layout::BegunRead const&, StyleNodeID, u64 environment, void const* store);
@@ -253,9 +248,6 @@ public:
     [[nodiscard]] StyleEngineFFI::FfiRecordDemandAnswer answer_record_demand(Layout::BegunRead const& read, StyleNodeID, RecordDemand);
     // Whether an environment identity is one the engine minted for an environment it resolved.
     [[nodiscard]] static bool is_engine_custom_property_environment(u64 identity) { return (identity & (1ull << 62)) != 0; }
-    // The namespace `[*|x]` names, which is any of them. No interned namespace is zero, so this
-    // keys a form of its own in the same table.
-    static constexpr StyleAtomID any_namespace { 0 };
 
     // A name both a selector and the DOM produce as text, with no interned identity on either side:
     // a language subtag and a `:dir()` keyword. Matched ASCII case-insensitively.
@@ -268,14 +260,20 @@ public:
     // only with the document's kind, so only a change goes to the engine.
     void publish_html_element_namespace(StyleAtomID);
 
-    // Interns the exact identity an attribute fact uses and memoizes its namespace and folded
-    // forms. Demand expansion revisits every live attribute, so these forms must not cross the
-    // boundary again merely to recover an already published name.
-    StyleAtomID intern_attribute_name(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_uri);
+    // Interns the name an attribute fact is published under. The document host works out the other names it answers to
+    // once per name, as demand expansion revisits every live attribute.
+    StyleAtomID intern_attribute_name(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_uri)
+    {
+        auto namespace_identity = namespace_uri.has_value() && !namespace_uri->is_empty() ? namespace_uri->raw_identity() : 0;
+        return StyleAtomID { StyleEngineFFI::document_host_intern_attribute_name(host(), local_name.raw_identity(), namespace_identity) };
+    }
 
     // Interns an attribute value and hands the engine what it spells unless the host knows that no selector and no
     // attr() reads this name. The engine keeps the text only where something reads it.
-    StyleAtomID intern_attribute_value(StyleAtomID name, Utf16String const& value);
+    StyleAtomID intern_attribute_value(StyleAtomID name, Utf16String const& value)
+    {
+        return StyleAtomID { StyleEngineFFI::document_host_intern_attribute_value(host(), name.value(), Utf16FlyString { value }.raw_identity()) };
+    }
     // Demand expansion already has every value identity. Check the name before interning the text
     // so attributes nothing reads as text do not pay another string hash.
     void backfill_attribute_value_text_if_required(StyleAtomID name, Utf16String const& value);
@@ -448,9 +446,7 @@ private:
     PublishedStyleTransaction publish_style_transaction_view(StyleEngineFFI::FfiStyleTransactionView const&, MonotonicTime submission_started_at, MonotonicTime bridge_started_at);
 
     void submit_recorded_input();
-    bool refresh_attribute_value_text_requirements(Layout::BegunRead const& read);
-    [[nodiscard]] bool attribute_value_text_is_known_unread(StyleAtomID name);
-    void publish_attribute_value_text(StyleAtomID name, StyleAtomID value, Utf16View);
+    void publish_attribute_value_texts_if_requirements_moved(Layout::BegunRead const& read);
 
     Optional<StyleSheetResourceContexts> m_style_sheet_resource_contexts;
 
@@ -459,18 +455,6 @@ private:
     u64 m_published_font_environment_generation { 0 };
     GC::Ptr<StyleComputer> m_style_computer;
 
-    HashMap<StyleAtomID, HashMap<StyleAtomID, StyleAtomID>> m_attribute_name_atoms;
-    // The other names an attribute name answers to, and the local name an attr() reads it by, empty unless it is in no
-    // namespace.
-    struct AttributeNameForms {
-        StyleAtomID any_namespace;
-        StyleAtomID folded_name;
-        StyleAtomID folded_local;
-        Vector<u16> substitution_name {};
-    };
-    HashMap<StyleAtomID, AttributeNameForms> m_attribute_name_forms;
-    HashTable<StyleAtomID> m_attribute_names_with_unread_value_text;
-    u64 m_attribute_value_text_requirements_version { 0 };
     HashTable<StyleNodeID> m_nodes_with_pending_initial_features;
     HashTable<StyleNodeID> m_nodes_awaiting_first_style_computation;
     u32 m_declaration_change_noting_depth { 0 };

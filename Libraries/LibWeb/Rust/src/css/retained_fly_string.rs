@@ -41,6 +41,18 @@ impl RetainedUtf16FlyString {
         &self.raw
     }
 
+    /// The code units the string holds, borrowed where it stores them as UTF-16.
+    pub(crate) fn to_utf16(&self) -> std::borrow::Cow<'_, [u16]> {
+        if self.raw == 0 {
+            return std::borrow::Cow::Borrowed(&[]);
+        }
+        // SAFETY: Every non-zero value owns one reference to a valid fly string.
+        match unsafe { ak::utf16_string_units(&self.raw) } {
+            ak::Utf16StringUnits::Ascii(units) => units.iter().map(|&unit| u16::from(unit)).collect(),
+            ak::Utf16StringUnits::Utf16(units) => std::borrow::Cow::Borrowed(units),
+        }
+    }
+
     /// The no-string sentinel; holds no reference. No real fly string uses the
     /// zero raw representation.
     pub(crate) fn none() -> Self {

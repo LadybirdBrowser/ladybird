@@ -11666,10 +11666,10 @@ fn engine_keeps_handed_attribute_value_text_only_where_a_selector_reads_the_name
     engine.note_attribute_name_forms(name, index::AttributeNameForms::default());
     let text = [u16::from(b'n'), u16::from(b'e'), u16::from(b'w')];
     let hand_over = |engine: &mut StyleEngine, value| {
-        super::boundary::StyleChange::SetAttributeValueText {
+        super::engine_calls::EngineWrite::AttributeValueText {
             name,
             value,
-            text: text.into(),
+            text: crate::css::retained_fly_string::RetainedUtf16FlyString::from_utf16(&text),
         }
         .apply(engine);
     };

@@ -230,7 +230,7 @@ impl StyleJobAnswer {
     }
 
     /// The atoms the engine reclaimed as it took the transaction.
-    pub(crate) fn reclaimed_style_atoms(&self) -> &[super::bridge::FfiReclaimedStyleAtom] {
+    pub(crate) fn reclaimed_style_atoms(&self) -> &[super::atoms::ReclaimedStyleAtom] {
         self.output.reclaimed_style_atoms()
     }
 

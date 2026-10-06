@@ -243,7 +243,7 @@ pub(super) struct DocumentAtoms {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct ReclaimedStyleAtom {
+pub(crate) struct ReclaimedStyleAtom {
     pub raw: usize,
     pub atom: StyleAtomID,
 }

@@ -212,14 +212,7 @@ pub(crate) struct FfiStyleTransactionOutput {
     transaction_version: u64,
     program_version: u64,
     answers: Vec<FfiStyleDelta>,
-    reclaimed_style_atoms: Vec<FfiReclaimedStyleAtom>,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiReclaimedStyleAtom {
-    pub raw: usize,
-    pub atom: u32,
+    reclaimed_style_atoms: Vec<super::atoms::ReclaimedStyleAtom>,
 }
 
 #[derive(Clone, Copy)]
@@ -229,8 +222,6 @@ pub struct FfiStyleTransactionView {
     pub program_version: u64,
     pub answers: *const FfiStyleDelta,
     pub count: usize,
-    pub reclaimed_style_atoms: *const FfiReclaimedStyleAtom,
-    pub reclaimed_style_atom_count: usize,
     pub scoped: bool,
     /// The transaction planned nothing but the child reactions the engine derived from the
     /// reactions C++ applied last: one more generation of the same style change, not a new one.
@@ -478,8 +469,6 @@ impl Default for FfiStyleTransactionView {
             program_version: 0,
             answers: std::ptr::null(),
             count: 0,
-            reclaimed_style_atoms: std::ptr::null(),
-            reclaimed_style_atom_count: 0,
             scoped: false,
             only_derived_child_reactions: false,
             connected_element_count: 0,
@@ -3098,13 +3087,7 @@ pub(crate) unsafe fn take_style_transaction(
         output.program_version = program_version.0;
         output.answers.extend_from_slice(answers);
     });
-    output.reclaimed_style_atoms = std::mem::take(&mut engine.host.reclaimed_style_atoms)
-        .into_iter()
-        .map(|reclaimed| FfiReclaimedStyleAtom {
-            raw: reclaimed.raw,
-            atom: reclaimed.atom.0,
-        })
-        .collect();
+    output.reclaimed_style_atoms = std::mem::take(&mut engine.host.reclaimed_style_atoms);
     output.only_derived_child_reactions = engine.take_only_derived_child_reactions();
     // The host applies the rows in this order, so the transaction answers them in it.
     sort_style_deltas_for_direct_application(engine, &mut output.answers);
@@ -3119,7 +3102,7 @@ impl FfiStyleTransactionOutput {
     }
 
     /// The atoms the engine reclaimed as it took the transaction.
-    pub(crate) fn reclaimed_style_atoms(&self) -> &[FfiReclaimedStyleAtom] {
+    pub(crate) fn reclaimed_style_atoms(&self) -> &[super::atoms::ReclaimedStyleAtom] {
         &self.reclaimed_style_atoms
     }
 
@@ -3130,8 +3113,6 @@ impl FfiStyleTransactionOutput {
             program_version: self.program_version,
             answers: self.answers.as_ptr(),
             count: self.answers.len(),
-            reclaimed_style_atoms: self.reclaimed_style_atoms.as_ptr(),
-            reclaimed_style_atom_count: self.reclaimed_style_atoms.len(),
             scoped: self.scoped,
             only_derived_child_reactions: self.only_derived_child_reactions,
             connected_element_count: self.connected_element_count,
