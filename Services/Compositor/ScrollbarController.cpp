@@ -5,9 +5,9 @@
  */
 
 #include <AK/Math.h>
+#include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/ScrollbarController.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
-#include <LibCompositing/DisplayList/DisplayListPlayerSkia.h>
 #include <LibCompositing/Scrolling/AsyncScrollTree.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
 
@@ -301,7 +301,7 @@ Optional<ScrollbarController::ScrollOffset> ScrollbarController::scroll_offset_f
     return ScrollOffset { scrollbar.scroll_node_id, scroll_offset };
 }
 
-bool ScrollbarController::paint(Gfx::PaintingSurface& surface, Compositing::DisplayListPlayerSkia& display_list_player, Compositing::ScrollStateSnapshot const& scroll_state_snapshot) const
+bool ScrollbarController::paint(Gfx::PaintingSurface& surface, DisplayListPlayerSkia& display_list_player, Compositing::ScrollStateSnapshot const& scroll_state_snapshot) const
 {
     bool painted_a_scrollbar = false;
     for (size_t i = 0; i < m_scrollbars.size(); ++i) {

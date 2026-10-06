@@ -15,6 +15,7 @@
 #include <AK/Span.h>
 #include <AK/Vector.h>
 #include <Compositor/BackingStoreManager.h>
+#include <Compositor/Forward.h>
 #include <Compositor/FramePacer.h>
 #include <Compositor/ScrollSnapController.h>
 #include <Compositor/ScrollbarController.h>
@@ -42,12 +43,6 @@
 namespace Gfx {
 
 class SkiaBackendContext;
-
-}
-
-namespace Compositing {
-
-class DisplayListPlayerSkia;
 
 }
 
@@ -214,11 +209,11 @@ public:
     Optional<Gfx::IntRect> frame_rect_to_repaint() const;
     Optional<Gfx::IntRect> self_present_rect() const;
     bool draws_canvas(Compositing::CanvasId) const;
-    Optional<PreparedFrame> prepare_frame(Compositing::DisplayListPlayerSkia&, PendingFrame, CompositedContextResolver const*);
+    Optional<PreparedFrame> prepare_frame(DisplayListPlayerSkia&, PendingFrame, CompositedContextResolver const*);
     void did_submit_prepared_frame(Gfx::IntRect);
-    bool present_synchronously(Compositing::DisplayListPlayerSkia&, CompositedContextResolver const*);
+    bool present_synchronously(DisplayListPlayerSkia&, CompositedContextResolver const*);
     bool can_paint_screenshot(Gfx::ShareableBitmap&) const;
-    void paint_screenshot(Compositing::DisplayListPlayerSkia&, Gfx::ShareableBitmap&, CompositedContextResolver const*);
+    void paint_screenshot(DisplayListPlayerSkia&, Gfx::ShareableBitmap&, CompositedContextResolver const*);
     bool acknowledge_presented_bitmap(i32 bitmap_id);
     void did_finish_gpu_present(i32 bitmap_id);
 
@@ -303,7 +298,7 @@ private:
         No,
         Yes,
     };
-    void paint_current_display_list(Compositing::DisplayListPlayerSkia&, Gfx::PaintingSurface&, CompositedContextResolver const*, Optional<Gfx::IntRect> damage_rect = {}, PaintUIOverlay = PaintUIOverlay::Yes, bool apply_raster_transform = true);
+    void paint_current_display_list(DisplayListPlayerSkia&, Gfx::PaintingSurface&, CompositedContextResolver const*, Optional<Gfx::IntRect> damage_rect = {}, PaintUIOverlay = PaintUIOverlay::Yes, bool apply_raster_transform = true);
     Gfx::IntSize raster_size() const;
     Gfx::IntRect raster_damage_rect(Gfx::IntRect) const;
     Gfx::IntRect frame_damage_for(PendingFrame const&);

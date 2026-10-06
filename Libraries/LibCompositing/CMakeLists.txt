@@ -5,7 +5,6 @@ set(SOURCES
     DisplayList/Canvas2DCommandStream.cpp
     DisplayList/DisplayList.cpp
     DisplayList/DisplayListDamage.cpp
-    DisplayList/DisplayListPlayerSkia.cpp
     DisplayList/DisplayListResourceStorage.cpp
     DisplayList/DisplayListResourceTransaction.cpp
     DisplayList/RustFFIAssertions.cpp

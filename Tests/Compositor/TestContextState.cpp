@@ -7,9 +7,9 @@
 #include <AK/Array.h>
 #include <AK/Math.h>
 #include <Compositor/CompositorState.h>
+#include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/FramePacer.h>
 #include <LibCompositing/DisplayList/DisplayListDamage.h>
-#include <LibCompositing/DisplayList/DisplayListPlayerSkia.h>
 #include <LibCompositing/DisplayList/VisualContextTreeTestBuilder.h>
 #include <LibCompositing/PausedDebuggerOverlay.h>
 #include <LibCore/EventLoop.h>
@@ -253,7 +253,7 @@ TEST_CASE(rasterization_clears_damaged_pixels_to_the_canvas_color_in_presentatio
     TestWebContentClient client;
     Compositing::CanvasSurfaceRegistry canvas_surface_registry;
     Compositor::ContextState context { Web::CompositorContextId { 0 }, 0, client, canvas_surface_registry };
-    Compositing::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
+    Compositor::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
     auto visual_context_tree = Compositing::VisualContextTreeTestBuilder().finish();
     auto viewport_rect = Gfx::IntRect { 0, 0, 4, 4 };
 
@@ -1487,7 +1487,7 @@ struct RasterizingContextFixture {
     TestWebContentClient client;
     Compositing::CanvasSurfaceRegistry canvas_surface_registry;
     Compositor::ContextState context;
-    Compositing::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
+    Compositor::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
     Gfx::IntRect viewport_rect;
 
     explicit RasterizingContextFixture(Gfx::IntSize viewport_size = test_viewport_rect.size())
