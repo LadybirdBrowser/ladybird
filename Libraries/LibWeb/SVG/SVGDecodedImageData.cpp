@@ -4,19 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Checked.h>
 #include <AK/NeverDestroyed.h>
-#include <AK/NumericLimits.h>
 #include <AK/ScopeGuard.h>
-#include <LibCompositing/DisplayList/DisplayListPlayerSkia.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGC/Heap.h>
 #include <LibGC/WeakHashMap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/XMLDocument.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
@@ -178,30 +175,12 @@ void SVGDecodedImageData::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_root_element);
 }
 
-static size_t surface_external_memory_size(Gfx::PaintingSurface const& surface)
-{
-    auto surface_size = surface.size();
-    if (surface_size.is_empty())
-        return 0;
-
-    Checked<size_t> pixel_size = static_cast<size_t>(surface_size.width());
-    pixel_size *= static_cast<size_t>(surface_size.height());
-    pixel_size *= sizeof(u32);
-    if (pixel_size.has_overflow())
-        return NumericLimits<size_t>::max();
-    return pixel_size.value();
-}
-
 size_t SVGDecodedImageData::external_memory_size() const
 {
     size_t size = Base::external_memory_size();
     size = JS::saturating_add_external_memory_size(size, JS::hash_map_external_memory_size(m_cached_rendered_frames));
     for (auto const& cached_frame : m_cached_rendered_frames)
         size = JS::saturating_add_external_memory_size(size, cached_frame.value.bitmap().data_size());
-
-    size = JS::saturating_add_external_memory_size(size, JS::hash_map_external_memory_size(m_cached_rendered_surfaces));
-    for (auto const& cached_surface : m_cached_rendered_surfaces)
-        size = JS::saturating_add_external_memory_size(size, surface_external_memory_size(*cached_surface.value));
 
     return size;
 }
@@ -282,7 +261,6 @@ Optional<Compositing::DisplayListResource> SVGDecodedImageData::record_display_l
     if (m_color_scheme != color_scheme) {
         m_color_scheme = color_scheme;
         m_cached_rendered_frames.clear();
-        m_cached_rendered_surfaces.clear();
         m_natural_size.clear();
         m_document->set_svg_image_color_scheme(color_scheme);
         m_document->style_scope().invalidate_style_cache();
@@ -309,31 +287,33 @@ Optional<Compositing::DisplayListResource> SVGDecodedImageData::record_display_l
     return display_list_resource;
 }
 
-RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize size) const
+// An SVG image inside another SVG image has an SVG page as its host. Walk up to the page that shows the outermost one.
+Compositor::CompositorHost* SVGDecodedImageData::host_compositor() const
 {
-    if (size.is_empty())
-        return {};
+    GC::Ref<Page> page = m_page_client->m_host_page;
+    while (page->client().is_svg_page_client())
+        page = static_cast<SVGPageClient&>(page->client()).m_host_page;
+    return page->client().compositor_host();
+}
 
-    if (auto it = m_cached_rendered_surfaces.find(size); it != m_cached_rendered_surfaces.end())
-        return it->value;
+RefPtr<Gfx::Bitmap> SVGDecodedImageData::render_frame(Gfx::IntSize size) const
+{
+    auto* compositor_host = host_compositor();
+    if (!compositor_host)
+        return nullptr;
 
-    // Prevent the cache from growing too big.
-    // FIXME: Evict least used entries.
-    if (m_cached_rendered_surfaces.size() > 10)
-        m_cached_rendered_surfaces.remove(m_cached_rendered_surfaces.begin());
+    auto bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size);
+    if (bitmap.is_error())
+        return nullptr;
 
-    auto surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
     Compositing::DisplayListResourceStorage resource_storage;
     auto display_list = record_display_list(size, m_color_scheme, resource_storage);
     if (!display_list.has_value())
         return nullptr;
 
-    Compositing::DisplayListPlayerSkia display_list_player;
-    display_list_player.execute(*display_list->display_list, display_list->visual_context_tree, resource_storage, {}, surface);
-    display_list_player.flush(*surface);
-
-    m_cached_rendered_surfaces.set(size, *surface);
-    return surface;
+    if (!compositor_host->rasterize_display_list(*display_list, resource_storage, bitmap.value()))
+        return nullptr;
+    return bitmap.release_value();
 }
 
 Optional<Gfx::DecodedImageFrame> SVGDecodedImageData::current_frame(Gfx::IntSize size) const
@@ -344,12 +324,16 @@ Optional<Gfx::DecodedImageFrame> SVGDecodedImageData::current_frame(Gfx::IntSize
     if (auto it = m_cached_rendered_frames.find(size); it != m_cached_rendered_frames.end())
         return it->value;
 
+    auto bitmap = render_frame(size);
+    if (!bitmap)
+        return {};
+
     // Prevent the cache from growing too big.
     // FIXME: Evict least used entries.
     if (m_cached_rendered_frames.size() > 10)
         m_cached_rendered_frames.remove(m_cached_rendered_frames.begin());
 
-    auto decoded_frame = Gfx::DecodedImageFrame { *render_to_surface(size)->snapshot_bitmap() };
+    auto decoded_frame = Gfx::DecodedImageFrame { *bitmap };
     m_cached_rendered_frames.set(size, decoded_frame);
     return decoded_frame;
 }
@@ -512,7 +496,6 @@ void SVGDecodedImageData::invalidate_cached_rendering()
     m_vector_content_identity = next_vector_content_identity();
     m_natural_size.clear();
     m_cached_rendered_frames.clear();
-    m_cached_rendered_surfaces.clear();
     m_cached_display_lists.clear();
     prune_cached_display_list_resources();
 }
