@@ -111,8 +111,6 @@ include_directories(${CMAKE_BINARY_DIR})
 include_directories(${CMAKE_BINARY_DIR}/Libraries)
 include_directories(${CMAKE_BINARY_DIR}/Services)
 
-include(libjs_facade)
-
 include(lagom_install)
 
 include(rust_crate)
