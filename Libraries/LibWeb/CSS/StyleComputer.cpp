@@ -1167,17 +1167,18 @@ void StyleComputer::start_needed_transitions(Layout::BegunRead const& read, Comp
     auto style_change_event_time = current_time->value;
 
     Vector<StyleValueFFI::FfiExistingTransition> existing_transitions;
-    for (auto property_id : element.property_ids_with_existing_transitions(pseudo_element)) {
-        auto transition = element.property_transition(pseudo_element, property_id);
-        bool running = !transition->is_finished() && !transition->is_idle();
-        existing_transitions.append({
-            .property_id = to_underlying(property_id),
-            .running = running,
-            .end_value = transition->transition_end_value()->rust_style_value_data(),
-            .reversing_adjusted_start_value = transition->reversing_adjusted_start_value()->rust_style_value_data(),
-            .timing_function_output = running ? transition->timing_function_output_at_time(style_change_event_time) : 0,
-            .reversing_shortening_factor = transition->reversing_shortening_factor(),
-        });
+    if (auto const* transitions = element.existing_transitions(pseudo_element)) {
+        for (auto const& [property_id, transition] : *transitions) {
+            bool running = !transition->is_finished() && !transition->is_idle();
+            existing_transitions.append({
+                .property_id = to_underlying(property_id),
+                .running = running,
+                .end_value = transition->transition_end_value()->rust_style_value_data(),
+                .reversing_adjusted_start_value = transition->reversing_adjusted_start_value()->rust_style_value_data(),
+                .timing_function_output = running ? transition->timing_function_output_at_time(style_change_event_time) : 0,
+                .reversing_shortening_factor = transition->reversing_shortening_factor(),
+            });
+        }
     }
 
     // A transition action is provisional until the stabilization epoch commits; a later pass of the epoch decides

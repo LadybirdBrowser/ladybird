@@ -789,29 +789,20 @@ pub(crate) struct TransitionEntry {
     pub(crate) behavior: u8,
 }
 
-/// Whether the table's `transition-*` values name any longhand, stopping at the first.
+/// Whether the table's `transition-*` values give any longhand a matching entry, stopping at the first. A declaration
+/// whose delay and duration are each the single value `0s`, which is how nearly every element declares no transition
+/// at all, starts nothing, so it gives none unless the element `has_existing_transitions` it could still cancel.
 ///
 /// # Safety
 /// `longhand_table` must point to a live computed longhand table.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_transition_has_entries(longhand_table: *const std::ffi::c_void) -> bool {
-    crate::css::style_compute::has_transition_entries(unsafe {
-        &*longhand_table.cast::<crate::css::computed_longhand_table::ComputedLonghandTable>()
-    })
-}
-
-/// Whether the table's `transition-delay` and `transition-duration` are each the single value `0s`,
-/// which is how nearly every element declares no transition at all.
-///
-/// # Safety
-/// `longhand_table` must point to a live computed longhand table.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_transition_delay_and_duration_are_single_zero(
+pub unsafe extern "C" fn rust_transition_has_matching_entries(
     longhand_table: *const std::ffi::c_void,
+    has_existing_transitions: bool,
 ) -> bool {
-    crate::css::style_compute::transition_delay_and_duration_are_single_zero(unsafe {
-        &*longhand_table.cast::<crate::css::computed_longhand_table::ComputedLonghandTable>()
-    })
+    let table = unsafe { &*longhand_table.cast::<crate::css::computed_longhand_table::ComputedLonghandTable>() };
+    (has_existing_transitions || !crate::css::style_compute::transition_delay_and_duration_are_single_zero(table))
+        && crate::css::style_compute::has_transition_entries(table)
 }
 
 #[cfg(test)]

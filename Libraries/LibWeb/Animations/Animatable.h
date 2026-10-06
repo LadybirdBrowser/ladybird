@@ -65,14 +65,13 @@ public:
     Vector<GC::Ref<CSS::CSSAnimation>> const* css_defined_animations(Optional<CSS::PseudoElement>);
     void set_css_defined_animations(Optional<CSS::PseudoElement>, Vector<GC::Ref<CSS::CSSAnimation>>&&);
 
-    // Whether the installed style, or a style with the given computed longhand table, gives any longhand a matching
-    // transition-property entry, answered without listing them.
+    // Whether the installed style gives any longhand a matching transition-property entry, answered without listing them.
     bool has_matching_transition_property_entry(Optional<CSS::PseudoElement>) const;
-    bool has_matching_transition_property_entry(Optional<CSS::PseudoElement>, void const* longhand_table) const;
     void set_transition(Optional<CSS::PseudoElement>, CSS::PropertyID, GC::Ref<CSS::CSSTransition>);
     void remove_transition(Optional<CSS::PseudoElement>, CSS::PropertyID);
     bool has_existing_transitions(Optional<CSS::PseudoElement>) const;
-    Vector<CSS::PropertyID> property_ids_with_existing_transitions(Optional<CSS::PseudoElement>) const;
+    // The running or completed transition for each property, if the element holds any.
+    HashMap<CSS::PropertyID, GC::Ref<CSS::CSSTransition>> const* existing_transitions(Optional<CSS::PseudoElement>) const;
     GC::Ptr<CSS::CSSTransition> property_transition(Optional<CSS::PseudoElement>, CSS::PropertyID) const;
 
 protected:
