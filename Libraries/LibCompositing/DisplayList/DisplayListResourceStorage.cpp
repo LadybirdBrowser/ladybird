@@ -91,7 +91,6 @@ struct DisplayListCachedNestedRasterResource {
     }
 
     RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
-    Optional<bool> requires_direct_replay;
     bool was_painted { false };
 
     // The same display list can be painted at several places in one frame (repeated SVG images, atlas-style
@@ -645,8 +644,13 @@ bool DisplayListResourceStorage::should_cache_nested_display_list_raster(Display
     });
     if (!exchange(resource.was_painted, true))
         return false;
+    return !display_list_requires_direct_replay(id);
+}
+
+bool DisplayListResourceStorage::display_list_requires_direct_replay(DisplayListResourceId id) const
+{
     HashTable<u64> visited_display_lists;
-    return !nested_display_list_requires_direct_replay(id, visited_display_lists);
+    return nested_display_list_requires_direct_replay(id, visited_display_lists);
 }
 
 // Determines whether reusing a rasterization of the display list can produce different pixels than replaying it
@@ -656,14 +660,11 @@ bool DisplayListResourceStorage::should_cache_nested_display_list_raster(Display
 // content that changes underneath its immutable command stream (video frames are updated in place under a stable
 // resource id, canvas surfaces and composited child contexts are resolved at replay time). Destination-reading
 // operations enclosed in a save layer recorded within the list only ever read within-list content, so they do
-// not require direct replay. The verdict is intrinsic to the list and memoized alongside its cached rasters.
+// not require direct replay. The verdict is intrinsic to the list and memoized until the list is removed.
 bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(DisplayListResourceId id, HashTable<u64>& visited_display_lists) const
 {
-    auto& resource = *m_display_list_cached_nested_rasters.ensure(id.value(), [&] {
-        return make<DisplayListCachedNestedRasterResource>(nullptr);
-    });
-    if (resource.requires_direct_replay.has_value())
-        return *resource.requires_direct_replay;
+    if (auto memoized = m_display_list_requires_direct_replay.get(id.value()); memoized.has_value())
+        return *memoized;
 
     visited_display_lists.set(id.value());
     auto const& list_resource = display_list_resource(id);
@@ -712,7 +713,7 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
     for (auto const& run : list_resource.display_list->command_runs())
         scan_records(list_resource.display_list->command_bytes_of_run(run), run.context, false);
 
-    resource.requires_direct_replay = requires_direct_replay;
+    m_display_list_requires_direct_replay.set(id.value(), requires_direct_replay);
     return requires_direct_replay;
 }
 
@@ -884,55 +885,85 @@ DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
     return transaction;
 }
 
-void DisplayListResourceStorage::apply_transaction(DisplayListResourceTransaction&& transaction)
+DisplayListResourceSet DisplayListResourceStorage::apply_transaction(DisplayListResourceTransaction&& transaction)
 {
+    DisplayListResourceSet removed_resources;
     m_has_resources_added_since_last_retain = true;
     for (auto& font : transaction.fonts)
         set_font(font.id, move(font.font));
-    for (auto& frame : transaction.image_frames)
+    for (auto& frame : transaction.image_frames) {
+        if (m_image_frames.contains(frame.id.value()))
+            removed_resources.image_frames.set(frame.id);
         set_image_frame(frame.id, move(frame.frame));
+    }
     for (auto& video_sink : transaction.video_sinks)
         add_video_sink(video_sink.id, video_sink.sink_handle);
     for (auto& display_list : transaction.display_lists)
         add_display_list(move(display_list));
 
-    for (auto id : transaction.font_ids_to_remove)
-        m_fonts.remove(id.value());
+    for (auto id : transaction.font_ids_to_remove) {
+        if (m_fonts.remove(id.value()))
+            removed_resources.fonts.set(id);
+    }
     if (!transaction.font_ids_to_remove.is_empty())
         remove_text_blobs_without_font();
-    for (auto id : transaction.image_frame_ids_to_remove)
-        m_image_frames.remove(id.value());
-    for (auto id : transaction.video_sink_ids_to_remove) {
-        m_video_sink_handles.remove(id.value());
-        m_video_sinks.remove(id.value());
+    for (auto id : transaction.image_frame_ids_to_remove) {
+        if (m_image_frames.remove(id.value()))
+            removed_resources.image_frames.set(id);
     }
-    for (auto id : transaction.display_list_ids_to_remove)
-        m_display_lists.remove(id.value());
-    for (auto id : transaction.display_list_ids_to_remove)
+    for (auto id : transaction.video_sink_ids_to_remove) {
+        auto removed_handle = m_video_sink_handles.remove(id.value());
+        auto removed_sink = m_video_sinks.remove(id.value());
+        if (removed_handle || removed_sink)
+            removed_resources.video_sinks.set(id);
+    }
+    for (auto id : transaction.display_list_ids_to_remove) {
+        if (m_display_lists.remove(id.value()))
+            removed_resources.display_lists.set(id);
+        m_display_list_requires_direct_replay.remove(id.value());
         m_display_list_cached_nested_rasters.remove(id.value());
+    }
+    return removed_resources;
 }
 
-void DisplayListResourceStorage::retain_only(DisplayListResourceSet const& resource_set)
+DisplayListResourceSet DisplayListResourceStorage::retain_only(DisplayListResourceSet const& resource_set)
 {
+    DisplayListResourceSet removed_resources;
     m_fonts.remove_all_matching([&](auto id, auto const&) {
-        return !resource_set.fonts.contains(FontResourceId { id });
+        if (resource_set.fonts.contains(FontResourceId { id }))
+            return false;
+        removed_resources.fonts.set(FontResourceId { id });
+        return true;
     });
     remove_text_blobs_without_font();
     m_image_frames.remove_all_matching([&](auto id, auto const&) {
-        return !resource_set.image_frames.contains(ImageFrameResourceId { id });
+        if (resource_set.image_frames.contains(ImageFrameResourceId { id }))
+            return false;
+        removed_resources.image_frames.set(ImageFrameResourceId { id });
+        return true;
     });
-    auto should_remove_video_resource = [&](auto id) {
-        return !resource_set.video_sinks.contains(VideoSinkResourceId { id });
+    auto remove_video_resource = [&](auto id) {
+        if (resource_set.video_sinks.contains(VideoSinkResourceId { id }))
+            return false;
+        removed_resources.video_sinks.set(VideoSinkResourceId { id });
+        return true;
     };
-    m_video_sink_handles.remove_all_matching([&](auto id, auto const&) { return should_remove_video_resource(id); });
-    m_video_sinks.remove_all_matching([&](auto id, auto const&) { return should_remove_video_resource(id); });
+    m_video_sink_handles.remove_all_matching([&](auto id, auto const&) { return remove_video_resource(id); });
+    m_video_sinks.remove_all_matching([&](auto id, auto const&) { return remove_video_resource(id); });
     m_display_lists.remove_all_matching([&](auto id, auto const&) {
+        if (resource_set.display_lists.contains(DisplayListResourceId { id }))
+            return false;
+        removed_resources.display_lists.set(DisplayListResourceId { id });
+        return true;
+    });
+    m_display_list_requires_direct_replay.remove_all_matching([&](auto id, auto const&) {
         return !resource_set.display_lists.contains(DisplayListResourceId { id });
     });
     m_display_list_cached_nested_rasters.remove_all_matching([&](auto id, auto const&) {
         return !resource_set.display_lists.contains(DisplayListResourceId { id });
     });
     m_has_resources_added_since_last_retain = false;
+    return removed_resources;
 }
 
 void DisplayListResourceStorage::set_video_sink(VideoSinkResourceId id, RefPtr<Media::VideoSink> sink)

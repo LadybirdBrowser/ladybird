@@ -130,8 +130,8 @@ public:
     DisplayListResourceId add_display_list(DisplayListResource&&);
     bool has_display_list(DisplayListResourceId id) const { return m_display_lists.contains(id.value()); }
     void set_font(FontResourceId, NonnullRefPtr<Gfx::Font const>);
-    void set_image_frame(ImageFrameResourceId, Gfx::DecodedImageFrame);
-    void apply_transaction(DisplayListResourceTransaction&&);
+    // Returns the resources that the transaction removed or replaced, so whatever was made from them can be dropped.
+    DisplayListResourceSet apply_transaction(DisplayListResourceTransaction&&);
     DisplayListResourceTransaction create_transaction(DisplayListResourceSet const& previous, DisplayListResourceSet const& current) const;
     DisplayListResourceSet collect_referenced_resources(DisplayList const&) const;
     DisplayListResourceSet collect_referenced_resources(AccumulatedVisualContextTree const&) const;
@@ -140,7 +140,8 @@ public:
     // Checks that the list, and each list nested in it, can replay against what this storage holds, and that no nested
     // list reaches itself.
     ErrorOr<void> validate_for_replay(DisplayList const&, AccumulatedVisualContextTree const&) const;
-    void retain_only(DisplayListResourceSet const&);
+    // Returns the resources that were removed.
+    DisplayListResourceSet retain_only(DisplayListResourceSet const&);
     bool has_resources_added_since_last_retain() const { return m_has_resources_added_since_last_retain; }
     void set_video_sink(VideoSinkResourceId, RefPtr<Media::VideoSink>);
 
@@ -157,6 +158,9 @@ public:
     sk_sp<SkImage> cached_nested_display_list_raster(DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect visible_rect_in_list_space, Gfx::IntRect& raster_rect_in_list_space) const;
     void add_cached_nested_display_list_raster(DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_list_space, sk_sp<SkImage>) const;
     bool should_cache_nested_display_list_raster(DisplayListResourceId) const;
+    // Whether reusing a raster of the display list could show other pixels than a replay in place, worked out once
+    // and cached.
+    bool display_list_requires_direct_replay(DisplayListResourceId) const;
     sk_sp<SkTextBlob> text_blob(FontResourceId, float scale, ReadonlySpan<DisplayListGlyph>, u8 font_smoothing, TextRasterizationMode = TextRasterizationMode::Normal) const;
     RefPtr<Media::VideoSink const> video_sink(VideoSinkResourceId id) const;
     Optional<Media::VideoSinkHandle> video_sink_handle(VideoSinkResourceId id) const { return m_video_sink_handles.get(id.value()); }
@@ -166,6 +170,7 @@ public:
     AccumulatedVisualContextTree const& display_list_visual_context_tree(DisplayListResourceId id) const { return display_list_resource(id).visual_context_tree; }
 
 private:
+    void set_image_frame(ImageFrameResourceId, Gfx::DecodedImageFrame);
     void collect_referenced_resources(ReadonlyBytes command_bytes, DisplayListResourceSet&) const;
     void collect_referenced_resources(DisplayList const&, DisplayListResourceSet&) const;
     void collect_referenced_resources(AccumulatedVisualContextTree const&, DisplayListResourceSet&) const;
@@ -179,6 +184,7 @@ private:
     HashMap<u64, Media::VideoSinkHandle> m_video_sink_handles;
     HashMap<u64, NonnullOwnPtr<DisplayListStoredVideoSinkResource>> m_video_sinks;
     HashMap<u64, DisplayListResource> m_display_lists;
+    mutable HashMap<u64, bool> m_display_list_requires_direct_replay;
     mutable HashMap<u64, NonnullOwnPtr<DisplayListCachedRepeatedTileRaster>> m_repeated_tile_rasters;
     mutable size_t m_repeated_tile_raster_bytes { 0 };
     mutable HashMap<u64, NonnullOwnPtr<DisplayListCachedNestedRasterResource>> m_display_list_cached_nested_rasters;
