@@ -1976,9 +1976,98 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
     }
 }
 
-/// What a C++ caller outside the style drive gives an absolutization: its length resolution
-/// context and color scheme, and callbacks for the facts of the element it computes for, which
-/// are asked for only when the value needs them.
+/// The facts of the element a C++ caller computes a value for, which Rust asks for only when a
+/// value needs them.
+#[repr(C)]
+pub struct FfiElementFacts {
+    pub has_element: bool,
+    pub callback_context: *const core::ffi::c_void,
+    /// Fills in the container bases that the given container-relative units read, into the
+    /// given copy of the length resolution context.
+    pub fill_container_bases: unsafe extern "C" fn(*const core::ffi::c_void, u8, *mut core::ffi::c_void),
+    /// Writes the element's sibling count and index. False when there is no element.
+    pub tree_counting: unsafe extern "C" fn(*const core::ffi::c_void, &mut u64, &mut u64) -> bool,
+    /// Draws the random base value of a random caching key. False when there is no element.
+    pub random_base_value: unsafe extern "C" fn(*const core::ffi::c_void, *const u16, usize, bool, &mut f64) -> bool,
+}
+
+impl FfiElementFacts {
+    pub(crate) fn fill_container_bases(&self, unit_mask: u8, length: &mut FfiLengthResolutionContext) {
+        unsafe { (self.fill_container_bases)(self.callback_context, unit_mask, std::ptr::from_mut(length).cast()) };
+    }
+
+    pub(crate) fn tree_counting(&self) -> Option<(u64, u64)> {
+        let (mut sibling_count, mut sibling_index) = (0, 0);
+        unsafe { (self.tree_counting)(self.callback_context, &mut sibling_count, &mut sibling_index) }
+            .then_some((sibling_count, sibling_index))
+    }
+
+    pub(crate) fn random_base_value(&self, name: &[u16], element_shared: bool) -> Option<f64> {
+        let mut value = 0.0;
+        unsafe {
+            (self.random_base_value)(
+                self.callback_context,
+                name.as_ptr(),
+                name.len(),
+                element_shared,
+                &mut value,
+            )
+        }
+        .then_some(value)
+    }
+}
+
+/// Absolutizes a value outside the style drive, asking the element's facts for what the value
+/// needs.
+pub(crate) fn absolutize_with_element_facts(
+    value: &StyleValueData,
+    length: &FfiLengthResolutionContext,
+    scheme: Option<u8>,
+    document_base_url: &[u8],
+    facts: Option<&FfiElementFacts>,
+) -> Option<Absolutized> {
+    let dependencies = crate::css::style_compute::collect_external_value_dependencies(value);
+    let mut length = *length;
+    let mut tree_counting = None;
+    let mut random_base_values = Vec::new();
+    if let Some(facts) = facts {
+        if dependencies.container_relative_length_unit_mask != 0 {
+            facts.fill_container_bases(dependencies.container_relative_length_unit_mask, &mut length);
+        }
+        if dependencies.uses_tree_counting_function {
+            tree_counting = facts.tree_counting();
+        }
+        if dependencies.has_unfixed_random_sharing {
+            let mut sharings = Vec::new();
+            crate::css::style_compute::collect_unfixed_random_sharings_in_value(value, &mut sharings);
+            for sharing in sharings {
+                // SAFETY: The value retains every sharing in it.
+                let (name, element_shared) = crate::css::style_compute::random_caching_key(unsafe { &*sharing });
+                if let Some(base_value) = facts.random_base_value(name, element_shared) {
+                    random_base_values.push(crate::css::style_compute::FfiRandomBaseValue {
+                        source: sharing.cast(),
+                        value: base_value,
+                    });
+                }
+            }
+        }
+    }
+    // The length context records a viewport-relative resolution through its own flag.
+    absolutize(
+        value,
+        &AbsolutizationContext {
+            length: &length,
+            scheme,
+            resolved_viewport_relative_length: Cell::new(false),
+            tree_counting,
+            random_base_values: &random_base_values,
+            document_base_url,
+            style_sheet_resource_context: None,
+        },
+    )
+}
+
+/// What a C++ caller outside the style drive gives an absolutization.
 #[repr(C)]
 pub struct FfiAbsolutizationContext {
     /// The length resolution context, as an opaque pointer since its type lives in the computed
@@ -1988,14 +2077,7 @@ pub struct FfiAbsolutizationContext {
     pub scheme: u8,
     pub document_base_url: *const u8,
     pub document_base_url_length: usize,
-    pub callback_context: *const core::ffi::c_void,
-    /// Fills in the container bases that the given container-relative units read, into the
-    /// given copy of the length resolution context.
-    pub fill_container_bases: unsafe extern "C" fn(*const core::ffi::c_void, u8, *mut core::ffi::c_void),
-    /// Writes the element's sibling count and index. False when there is no element.
-    pub tree_counting: unsafe extern "C" fn(*const core::ffi::c_void, &mut u64, &mut u64) -> bool,
-    /// Draws the random base value of a random caching key. False when there is no element.
-    pub random_base_value: unsafe extern "C" fn(*const core::ffi::c_void, *const u16, usize, bool, &mut f64) -> bool,
+    pub element_facts: FfiElementFacts,
 }
 
 /// Absolutizes a style value for a C++ caller outside the style drive. Returns one strong
@@ -2009,61 +2091,18 @@ pub unsafe extern "C" fn rust_style_value_absolutize(
     value: &StyleValueData,
     context: &FfiAbsolutizationContext,
 ) -> *const StyleValueData {
-    let dependencies = crate::css::style_compute::collect_external_value_dependencies(value);
-    let mut length = unsafe { *context.length.cast::<FfiLengthResolutionContext>() };
-    if dependencies.container_relative_length_unit_mask != 0 {
-        unsafe {
-            (context.fill_container_bases)(
-                context.callback_context,
-                dependencies.container_relative_length_unit_mask,
-                (&raw mut length).cast(),
-            );
-        }
-    }
-    let tree_counting = dependencies.uses_tree_counting_function.then(|| {
-        let (mut count, mut index) = (0, 0);
-        unsafe { (context.tree_counting)(context.callback_context, &mut count, &mut index) }.then_some((count, index))
-    });
-    let mut random_base_values = Vec::new();
-    if dependencies.has_unfixed_random_sharing {
-        let mut sharings = Vec::new();
-        crate::css::style_compute::collect_unfixed_random_sharings_in_value(value, &mut sharings);
-        for sharing in sharings {
-            // SAFETY: The value retains every sharing in it.
-            let (name, element_shared) = crate::css::style_compute::random_caching_key(unsafe { &*sharing });
-            let mut base_value = 0.0;
-            if unsafe {
-                (context.random_base_value)(
-                    context.callback_context,
-                    name.as_ptr(),
-                    name.len(),
-                    element_shared,
-                    &mut base_value,
-                )
-            } {
-                random_base_values.push(crate::css::style_compute::FfiRandomBaseValue {
-                    source: sharing.cast(),
-                    value: base_value,
-                });
-            }
-        }
-    }
     let document_base_url = if context.document_base_url_length == 0 {
         &[][..]
     } else {
         unsafe { std::slice::from_raw_parts(context.document_base_url, context.document_base_url_length) }
     };
-    let absolutization_context = AbsolutizationContext {
-        length: &length,
-        scheme: context.has_scheme.then_some(context.scheme),
-        resolved_viewport_relative_length: Cell::new(false),
-        tree_counting: tree_counting.flatten(),
-        random_base_values: &random_base_values,
+    match absolutize_with_element_facts(
+        value,
+        unsafe { &*context.length.cast::<FfiLengthResolutionContext>() },
+        context.has_scheme.then_some(context.scheme),
         document_base_url,
-        style_sheet_resource_context: None,
-    };
-    // The length context records a viewport-relative resolution through its own flag.
-    match absolutize(value, &absolutization_context) {
+        Some(&context.element_facts),
+    ) {
         Some(Absolutized::Changed(new_value)) => {
             let pointer = new_value.pointer();
             core::mem::forget(new_value);

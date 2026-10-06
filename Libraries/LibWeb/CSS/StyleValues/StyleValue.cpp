@@ -452,41 +452,50 @@ DimensionStyleValue const& StyleValue::as_dimension() const
 ENUMERATE_CSS_STYLE_VALUE_TYPES
 #undef __ENUMERATE_CSS_STYLE_VALUE_TYPE
 
+StyleValueFFI::FfiElementFacts ElementFactsForRust::to_ffi() const
+{
+    return {
+        .has_element = abstract_element.has_value(),
+        .callback_context = this,
+        .fill_container_bases = [](void const* opaque_facts, u8 unit_mask, void* length) {
+            auto const& facts = *static_cast<ElementFactsForRust const*>(opaque_facts);
+            *static_cast<ComputedValuesFFI::FfiLengthResolutionContext*>(length) = to_ffi_length_resolution_context_with_container_bases(*facts.length_resolution_context, unit_mask); },
+        .tree_counting = [](void const* opaque_facts, u64* sibling_count, u64* sibling_index) {
+            auto const& facts = *static_cast<ElementFactsForRust const*>(opaque_facts);
+            if (!facts.abstract_element.has_value())
+                return false;
+            const_cast<DOM::Element&>(facts.abstract_element->element()).set_style_uses_tree_counting_function();
+            auto tree_counting = facts.abstract_element->tree_counting_function_resolution_context();
+            *sibling_count = tree_counting.sibling_count;
+            *sibling_index = tree_counting.sibling_index;
+            return true; },
+        .random_base_value = [](void const* opaque_facts, u16 const* name, size_t name_length, bool element_shared, double* value) {
+            auto const& facts = *static_cast<ElementFactsForRust const*>(opaque_facts);
+            if (!facts.abstract_element.has_value())
+                return false;
+            // https://drafts.csswg.org/css-values-5/#random-caching
+            // NB: The style engine keeps the base values, one engine per document. A key names the element by its style
+            //     node, and a pseudo-element's by its element's.
+            auto const& element = facts.abstract_element->element();
+            auto& style_engine = const_cast<StyleEngine&>(element.document().style_computer().style_engine());
+            Layout::ForcedReadScope read { element.document() };
+            *value = style_engine.ensure_random_base_value(read, element.style_node_id(), Utf16View { reinterpret_cast<char16_t const*>(name), name_length }, element_shared);
+            return true; },
+    };
+}
+
 ValueComparingNonnullRefPtr<StyleValue const> StyleValue::absolutized(ComputationContext const& context) const
 {
     auto length_context = to_ffi_length_resolution_context(context.length_resolution_context);
     auto document_base_url = context.abstract_element.has_value() ? context.abstract_element->document().serialized_base_url() : String {};
+    ElementFactsForRust element_facts { &context.length_resolution_context, context.abstract_element };
     StyleValueFFI::FfiAbsolutizationContext ffi_context {
         .length = &length_context,
         .has_scheme = context.color_scheme.has_value(),
         .scheme = static_cast<u8>(context.color_scheme.has_value() ? to_underlying(*context.color_scheme) : 0),
         .document_base_url = document_base_url.bytes().data(),
         .document_base_url_length = document_base_url.bytes().size(),
-        .callback_context = &context,
-        .fill_container_bases = [](void const* opaque_context, u8 unit_mask, void* length) {
-            auto const& context = *static_cast<ComputationContext const*>(opaque_context);
-            *static_cast<ComputedValuesFFI::FfiLengthResolutionContext*>(length) = to_ffi_length_resolution_context_with_container_bases(context.length_resolution_context, unit_mask); },
-        .tree_counting = [](void const* opaque_context, u64* sibling_count, u64* sibling_index) {
-            auto const& context = *static_cast<ComputationContext const*>(opaque_context);
-            if (!context.abstract_element.has_value())
-                return false;
-            const_cast<DOM::Element&>(context.abstract_element->element()).set_style_uses_tree_counting_function();
-            auto facts = context.abstract_element->tree_counting_function_resolution_context();
-            *sibling_count = facts.sibling_count;
-            *sibling_index = facts.sibling_index;
-            return true; },
-        .random_base_value = [](void const* opaque_context, u16 const* name, size_t name_length, bool element_shared, double* value) {
-            auto const& context = *static_cast<ComputationContext const*>(opaque_context);
-            if (!context.abstract_element.has_value())
-                return false;
-            // https://drafts.csswg.org/css-values-5/#random-caching
-            // NB: The style engine keeps the base values, one engine per document. A key names the element by its style
-            //     node, and a pseudo-element's by its element's.
-            auto const& element = context.abstract_element->element();
-            auto& style_engine = const_cast<StyleEngine&>(element.document().style_computer().style_engine());
-            Layout::ForcedReadScope read { element.document() };
-            *value = style_engine.ensure_random_base_value(read, element.style_node_id(), Utf16View { reinterpret_cast<char16_t const*>(name), name_length }, element_shared);
-            return true; },
+        .element_facts = element_facts.to_ffi(),
     };
     if (auto const* absolutized = StyleValueFFI::rust_style_value_absolutize(m_value.operator->(), &ffi_context))
         return adopt_rust_style_value_data(absolutized);

@@ -110,6 +110,15 @@ WEB_API Utf16FlyString css_string_from_rust(void const*);
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(URL, url, URLStyleValue)                                                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(ValueList, value_list, StyleValueList)
 
+// The facts of the element a value computes for, which Rust asks for only when a value needs them. The pointers in
+// the FFI form point at this, which must outlive their use.
+struct ElementFactsForRust {
+    Length::ResolutionContext const* length_resolution_context { nullptr };
+    Optional<DOM::AbstractElement> abstract_element;
+
+    StyleValueFFI::FfiElementFacts to_ffi() const;
+};
+
 struct ColorResolutionContext {
     Optional<PreferredColorScheme> color_scheme;
     Optional<Color> current_color;

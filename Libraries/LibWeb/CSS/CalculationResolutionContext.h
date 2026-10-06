@@ -18,20 +18,12 @@
 
 namespace Web::CSS {
 
-class AnchorResolver {
-public:
-    virtual ~AnchorResolver() = default;
-    virtual Optional<CSSPixels> resolve(AnchorStyleValue const&) const = 0;
-};
-
 struct CalculationResolutionContext {
     using PercentageBasis = Variant<Empty, Angle, Frequency, Length, Time>;
 
     PercentageBasis percentage_basis {};
     Optional<Length::ResolutionContext> length_resolution_context {};
     Optional<DOM::AbstractElement> abstract_element {};
-
-    AnchorResolver const* anchor_resolver { nullptr };
 
     static CalculationResolutionContext from_computation_context(ComputationContext const& computation_context, PercentageBasis percentage_basis = {})
     {

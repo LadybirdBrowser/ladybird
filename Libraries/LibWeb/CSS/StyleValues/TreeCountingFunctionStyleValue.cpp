@@ -5,11 +5,6 @@
  */
 
 #include "TreeCountingFunctionStyleValue.h"
-#include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
-#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
-#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
-#include <LibWeb/DOM/Element.h>
 
 namespace Web::CSS {
 
@@ -17,29 +12,5 @@ namespace Web::CSS {
 // depends on it.
 static_assert(to_underlying(TreeCountingFunctionStyleValue::TreeCountingFunction::SiblingCount) == 0);
 static_assert(to_underlying(TreeCountingFunctionStyleValue::TreeCountingFunction::SiblingIndex) == 1);
-
-size_t TreeCountingFunctionStyleValue::resolve(DOM::AbstractElement const& abstract_element) const
-{
-    const_cast<DOM::Element&>(abstract_element.element()).set_style_uses_tree_counting_function();
-
-    auto tree_counting_function_resolution_context = abstract_element.tree_counting_function_resolution_context();
-
-    switch (function()) {
-    case TreeCountingFunction::SiblingCount:
-        return tree_counting_function_resolution_context.sibling_count;
-    case TreeCountingFunction::SiblingIndex:
-        return tree_counting_function_resolution_context.sibling_index;
-    }
-
-    VERIFY_NOT_REACHED();
-}
-
-Optional<CalcNodeRef> TreeCountingFunctionStyleValue::resolve_to_calculation_node(CalculationContext const&, CalculationResolutionContext const& calculation_resolution_context) const
-{
-    if (!calculation_resolution_context.abstract_element.has_value())
-        return {};
-
-    return CalcNodeRef::numeric(Number { Number::Type::Number, static_cast<double>(resolve(calculation_resolution_context.abstract_element.value())) });
-}
 
 }

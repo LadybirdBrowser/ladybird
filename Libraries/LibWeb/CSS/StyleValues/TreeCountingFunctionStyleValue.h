@@ -6,11 +6,11 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/AbstractNonMathCalcFunctionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
-class TreeCountingFunctionStyleValue final : public AbstractNonMathCalcFunctionStyleValue {
+class TreeCountingFunctionStyleValue final : public StyleValue {
 public:
     enum class TreeCountingFunction : u8 {
         SiblingCount,
@@ -24,10 +24,6 @@ public:
 
     virtual ~TreeCountingFunctionStyleValue() override = default;
 
-    size_t resolve(DOM::AbstractElement const&) const;
-
-    virtual Optional<CalcNodeRef> resolve_to_calculation_node(CalculationContext const&, CalculationResolutionContext const&) const override;
-
 private:
     // NB: StyleValue dispatches operations by type tag, so it may call private constructors.
     friend class StyleValue;
@@ -36,7 +32,7 @@ private:
     ComputedType computed_type() const { return static_cast<ComputedType>(m_value->tree_counting_function.computed_type); }
 
     explicit TreeCountingFunctionStyleValue(StyleValueFFI::StyleValueData const* data)
-        : AbstractNonMathCalcFunctionStyleValue(Type::TreeCountingFunction, data)
+        : StyleValue(Type::TreeCountingFunction, data)
     {
     }
 };

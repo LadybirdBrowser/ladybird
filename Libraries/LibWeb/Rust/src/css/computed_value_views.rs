@@ -36,8 +36,7 @@ pub(crate) fn px_calc_resolution_context(percentage_basis: CssPixels) -> calc::F
         basis_value: percentage_basis.to_double(),
         basis_unit: crate::css::style_compute::px_length_unit(),
         length_resolution_context: std::ptr::null(),
-        external_resolutions: std::ptr::null(),
-        external_resolution_count: 0,
+        element_facts: std::ptr::null(),
     }
 }
 
