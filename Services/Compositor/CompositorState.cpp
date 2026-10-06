@@ -296,6 +296,10 @@ void CompositorState::on_video_sink_ready(CompositorStateWebContentClient& clien
         return;
     sink_state->sink = sink;
     sink->set_on_present_needed([this, &client, handle] {
+        for (auto& context_entry : m_contexts) {
+            if (&context_entry.value->web_content_client() == &client)
+                context_entry.value->did_change_video_frame(handle);
+        }
         present_contexts_drawing_video_sink(client, handle);
     });
     for (auto& context_entry : m_contexts) {
@@ -332,7 +336,7 @@ void CompositorState::present_contexts_drawing_video_sink(CompositorStateWebCont
         for (auto const& resource_entry : context.video_sink_handles()) {
             if (resource_entry.value == handle) {
                 if (auto rect = context.self_present_rect(); rect.has_value())
-                    schedule_present_frame(context_entry.key, context, *rect);
+                    schedule_present_frame(context_entry.key, context, ContextState::PendingFrame::repainting_changes(*rect));
                 break;
             }
         }

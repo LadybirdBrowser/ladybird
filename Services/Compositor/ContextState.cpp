@@ -34,6 +34,16 @@ static void for_each_drawn_canvas(Compositing::DisplayList const& display_list, 
 }
 
 template<typename Callback>
+static void for_each_drawn_video_frame(Compositing::DisplayList const& display_list, Callback callback)
+{
+    display_list.for_each_command_header([&](Compositing::ContextRef context, Compositing::DisplayListCommandHeader const& header, ReadonlyBytes payload) {
+        if (header.command_type != Compositing::DisplayListCommandType::DrawVideoFrame)
+            return;
+        callback(context, header, Compositing::read_display_list_object<Compositing::DrawVideoFrame>(payload));
+    });
+}
+
+template<typename Callback>
 static void for_each_caret(Compositing::DisplayList const& display_list, Callback callback)
 {
     display_list.for_each_command_header([&](Compositing::ContextRef context, Compositing::DisplayListCommandHeader const& header, ReadonlyBytes payload) {
@@ -177,6 +187,8 @@ void ContextState::set_parent_context(Optional<Web::CompositorContextId> parent_
 
 void ContextState::apply_display_list_resource_transaction(Compositing::DisplayListResourceTransaction&& resource_transaction)
 {
+    for (auto id : resource_transaction.video_sink_ids_to_remove)
+        m_video_frame_generations.remove(id);
     m_raster_cache.evict(m_display_list_resource_storage.apply_transaction(move(resource_transaction)));
 }
 
@@ -337,7 +349,22 @@ void ContextState::update_scroll_state(Compositing::ScrollStateSnapshot&& scroll
 
 void ContextState::set_video_sink(Compositing::VideoSinkResourceId frame_id, RefPtr<Media::VideoSink> sink)
 {
+    if (m_display_list_resource_storage.video_sink(frame_id).ptr() != sink.ptr())
+        bump_video_frame_generation(frame_id);
     m_display_list_resource_storage.set_video_sink(frame_id, move(sink));
+}
+
+void ContextState::did_change_video_frame(Media::VideoSinkHandle handle)
+{
+    for (auto const& resource_entry : video_sink_handles()) {
+        if (resource_entry.value == handle)
+            bump_video_frame_generation(Compositing::VideoSinkResourceId { resource_entry.key });
+    }
+}
+
+void ContextState::bump_video_frame_generation(Compositing::VideoSinkResourceId frame_id)
+{
+    m_video_frame_generations.ensure(frame_id, [] { return 0; })++;
 }
 
 void ContextState::invalidate_wheel_event_listener_state(u64 generation)
@@ -1973,23 +2000,32 @@ Gfx::IntRect ContextState::damage_since_last_raster(Gfx::IntSize viewport_size)
             continue;
         damage_rect.unite(scrollbar.gutter_rect.united(scrollbar.expanded_gutter_rect));
     }
-    for_each_drawn_canvas(*m_display_list, [&](auto context, auto const& header, auto const& draw_canvas) {
-        auto last_content_generation = last_frame.canvas_content_generations.get(draw_canvas.canvas_id);
-        if (last_content_generation.has_value() && *last_content_generation == m_canvas_surface_registry.canvas_content_generation(draw_canvas.canvas_id))
-            return;
+    auto unite_command_bounds = [&](Compositing::ContextRef context, Compositing::DisplayListCommandHeader const& header) {
         if (!header.has_bounding_rect) {
             damage_rect = viewport_rect;
             return;
         }
-        auto canvas_rect = visual_context_tree.transform_rect_to_viewport(context.spatial, header.bounding_rect.template to_type<float>(), m_scroll_state_snapshot);
-        if (!isfinite(canvas_rect.x()) || !isfinite(canvas_rect.y()) || !isfinite(canvas_rect.width()) || !isfinite(canvas_rect.height())) {
+        auto command_rect = visual_context_tree.transform_rect_to_viewport(context.spatial, header.bounding_rect.template to_type<float>(), m_scroll_state_snapshot);
+        if (!isfinite(command_rect.x()) || !isfinite(command_rect.y()) || !isfinite(command_rect.width()) || !isfinite(command_rect.height())) {
             damage_rect = viewport_rect;
             return;
         }
-        canvas_rect.intersect(viewport_rect.to_type<float>());
-        if (canvas_rect.is_empty())
+        command_rect.intersect(viewport_rect.to_type<float>());
+        if (command_rect.is_empty())
             return;
-        damage_rect.unite(Gfx::enclosing_int_rect(canvas_rect).inflated(1, 1, 1, 1));
+        damage_rect.unite(Gfx::enclosing_int_rect(command_rect).inflated(1, 1, 1, 1));
+    };
+    for_each_drawn_canvas(*m_display_list, [&](auto context, auto const& header, auto const& draw_canvas) {
+        auto last_content_generation = last_frame.canvas_content_generations.get(draw_canvas.canvas_id);
+        if (last_content_generation.has_value() && *last_content_generation == m_canvas_surface_registry.canvas_content_generation(draw_canvas.canvas_id))
+            return;
+        unite_command_bounds(context, header);
+    });
+    for_each_drawn_video_frame(*m_display_list, [&](auto context, auto const& header, auto const& draw_video_frame) {
+        auto last_generation = last_frame.video_frame_generations.get(draw_video_frame.video_sink_id);
+        if (last_generation == m_video_frame_generations.get(draw_video_frame.video_sink_id))
+            return;
+        unite_command_bounds(context, header);
     });
     damage_rect.intersect(viewport_rect);
     return damage_rect;
@@ -2001,12 +2037,18 @@ void ContextState::remember_rasterized_frame(Gfx::IntSize viewport_size)
     for_each_drawn_canvas(*m_display_list, [&](auto const&, auto const&, auto const& draw_canvas) {
         canvas_content_generations.set(draw_canvas.canvas_id, m_canvas_surface_registry.canvas_content_generation(draw_canvas.canvas_id));
     });
+    HashMap<Compositing::VideoSinkResourceId, u64> video_frame_generations;
+    for_each_drawn_video_frame(*m_display_list, [&](auto const&, auto const&, auto const& draw_video_frame) {
+        if (auto generation = m_video_frame_generations.get(draw_video_frame.video_sink_id); generation.has_value())
+            video_frame_generations.set(draw_video_frame.video_sink_id, generation.value());
+    });
     m_last_rasterized_frame = RasterizedFrame {
         .display_list = NonnullRefPtr { *m_display_list },
         .visual_context_tree = visual_context_tree_for_compositing(),
         .scroll_state_snapshot = m_scroll_state_snapshot,
         .viewport_size = viewport_size,
         .canvas_content_generations = move(canvas_content_generations),
+        .video_frame_generations = move(video_frame_generations),
     };
 }
 

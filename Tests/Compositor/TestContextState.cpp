@@ -15,6 +15,8 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/SharedImageBuffer.h>
+#include <LibMedia/MediaTime.h>
+#include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibTest/TestCase.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <Tests/LibCompositing/DisplayListTestHelpers.h>
@@ -280,6 +282,70 @@ TEST_CASE(rasterization_clears_damaged_pixels_to_the_canvas_color_in_presentatio
     paint_frame(make_display_list(visual_context_tree, {}));
     bitmap = context.latest_rendered_surface()->snapshot_bitmap();
     EXPECT_EQ(bitmap->get_pixel(0, 0), Gfx::Color::Transparent);
+}
+
+struct ContextDrawingVideo {
+    static constexpr Compositing::VideoSinkResourceId video_sink_id { 1 };
+    static constexpr Media::VideoSinkHandle video_sink_handle { 1 };
+
+    ContextDrawingVideo()
+    {
+        context.viewport_size_updated(viewport_rect.size(), Compositing::WindowResizingInProgress::No);
+        auto publication = context.resize_backing_stores_if_needed({}, Compositor::BackingStoreManager::GpuSharing::Disallowed);
+        VERIFY(publication.has_value());
+        imported_backing_stores = import_shared_images(publication.value().shared_images);
+
+        Compositing::DisplayListResourceTransaction resource_transaction;
+        resource_transaction.video_sinks.append({ video_sink_id, video_sink_handle });
+        context.apply_display_list_resource_transaction(move(resource_transaction));
+        TestDisplayList command_bytes;
+        auto fill = Compositing::FillRect { { 0, 0, 4, 4 }, Gfx::Color::Red, Gfx::CompositingAndBlendingOperator::Normal, Compositing::NO_EFFECT_NODE };
+        append_display_list_command(command_bytes, fill, fill.rect);
+        auto video = Compositing::DrawVideoFrame { { 8, 8, 4, 4 }, video_sink_id, Gfx::ScalingMode::NearestNeighbor };
+        append_display_list_command(command_bytes, video, video.dst_rect);
+        context.install_display_list_update(decode_display_list(visual_context_tree, move(command_bytes)), visual_context_tree, {});
+        context.queue_present_frame(Compositor::ContextState::PendingFrame::repainting_everything(viewport_rect));
+        VERIFY(context.present_synchronously(display_list_player, nullptr));
+    }
+
+    Optional<Gfx::IntRect> damage_of_next_frame()
+    {
+        auto prepared_frame = context.prepare_frame(display_list_player, Compositor::ContextState::PendingFrame::repainting_changes(viewport_rect), nullptr);
+        if (!prepared_frame.has_value())
+            return {};
+        return prepared_frame.value().damage_rect;
+    }
+
+    Gfx::IntRect viewport_rect { 0, 0, 16, 16 };
+    Gfx::IntRect video_damage_rect { 7, 7, 6, 6 };
+    TestWebContentClient client;
+    Compositing::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { Web::CompositorContextId { 0 }, 0, client, canvas_surface_registry };
+    Compositor::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
+    Compositing::AccumulatedVisualContextTree visual_context_tree { Compositing::VisualContextTreeTestBuilder().finish() };
+    Vector<Gfx::SharedImageBuffer> imported_backing_stores;
+};
+
+TEST_CASE(a_new_video_frame_damages_only_the_video)
+{
+    ContextDrawingVideo fixture;
+    EXPECT(!fixture.damage_of_next_frame().has_value());
+
+    fixture.context.did_change_video_frame(ContextDrawingVideo::video_sink_handle);
+    EXPECT_EQ(fixture.damage_of_next_frame(), fixture.video_damage_rect);
+}
+
+TEST_CASE(attaching_a_video_sink_damages_only_the_video)
+{
+    ContextDrawingVideo fixture;
+    auto media_time_writer = MUST(Media::MediaTimeWriter::create());
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(MUST(Media::MediaTimeReader::create(media_time_writer.buffer()))));
+
+    fixture.context.set_video_sink(ContextDrawingVideo::video_sink_id, sink);
+    EXPECT_EQ(fixture.damage_of_next_frame(), fixture.video_damage_rect);
+
+    fixture.context.set_video_sink(ContextDrawingVideo::video_sink_id, sink);
+    EXPECT(!fixture.damage_of_next_frame().has_value());
 }
 
 TEST_CASE(wheel_hit_testing_ignores_targets_from_a_larger_visual_context_tree)

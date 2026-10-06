@@ -114,6 +114,7 @@ public:
     void update_scroll_state(Compositing::ScrollStateSnapshot&&, Compositing::KeyboardScrollState);
     void set_video_sink(Compositing::VideoSinkResourceId, RefPtr<Media::VideoSink>);
     HashMap<u64, Media::VideoSinkHandle> const& video_sink_handles() const { return m_display_list_resource_storage.video_sink_handles(); }
+    void did_change_video_frame(Media::VideoSinkHandle);
 
     void invalidate_wheel_event_listener_state(u64 generation);
     void invalidate_keyboard_scroll_state(u64 generation);
@@ -254,8 +255,10 @@ private:
         Compositing::ScrollStateSnapshot scroll_state_snapshot;
         Gfx::IntSize viewport_size;
         HashMap<Compositing::CanvasId, u64> canvas_content_generations;
+        HashMap<Compositing::VideoSinkResourceId, u64> video_frame_generations;
     };
 
+    void bump_video_frame_generation(Compositing::VideoSinkResourceId);
     void stop_backing_store_shrink_timer();
     void stop_surplus_backing_store_retirement_timer();
     void end_keyboard_scroll_gesture();
@@ -325,6 +328,7 @@ private:
     bool m_has_active_visual_animations { false };
     Optional<bool> m_animated_content_may_affect_viewport;
     Compositing::DisplayListResourceStorage m_display_list_resource_storage;
+    HashMap<Compositing::VideoSinkResourceId, u64> m_video_frame_generations;
     DisplayListRasterCache m_raster_cache;
     Compositing::ScrollStateSnapshot m_scroll_state_snapshot;
     BackingStoreManager m_backing_store_manager;
