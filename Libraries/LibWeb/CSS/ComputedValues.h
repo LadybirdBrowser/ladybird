@@ -25,7 +25,6 @@
 #include <LibWeb/CSS/Display.h>
 #include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/Enums.h>
-#include <LibWeb/CSS/Filter.h>
 #include <LibWeb/CSS/LengthBox.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -38,7 +37,6 @@
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
-#include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
@@ -71,73 +69,26 @@ public:
     bool has_filters() const { return m_filter.filter_list.pointer; }
     bool is_none() const { return !has_filters(); }
 
-    template<typename Callback>
-    void for_each_operation(Callback callback) const
+    // The computed filter list, or a null handle for none.
+    RustStyleValueHandle filter_list() const
     {
-        for (size_t index = 0; index < m_filter.operations.length; ++index) {
-            auto const& operation = m_filter.operations.pointer[index];
-            switch (operation.kind) {
-            case to_underlying(FilterStyleValue::Kind::Blur):
-                callback(Filter::FilterOperation { Filter::Blur { .resolved_radius = operation.amount } });
-                break;
-            case to_underlying(FilterStyleValue::Kind::DropShadow):
-                callback(Filter::FilterOperation { Filter::DropShadow {
-                    .offset_x = CSSPixels::from_raw(operation.shadow_offset_x),
-                    .offset_y = CSSPixels::from_raw(operation.shadow_offset_y),
-                    .radius = CSSPixels::from_raw(operation.shadow_radius),
-                    .color = Color::from_bgra(operation.shadow_color),
-                } });
-                break;
-            case to_underlying(FilterStyleValue::Kind::HueRotate):
-                callback(Filter::FilterOperation { Filter::HueRotate { .angle_degrees = operation.amount } });
-                break;
-            case to_underlying(FilterStyleValue::Kind::Color):
-                callback(Filter::FilterOperation { Filter::ColorOperation {
-                    .operation = static_cast<Gfx::ColorFilterType>(operation.color_operation),
-                    .resolved_amount = operation.amount,
-                } });
-                break;
-            case 4:
-                callback(Filter::FilterOperation { Filter::Url { url_fragment(operation.url_value) } });
-                break;
-            default:
-                VERIFY_NOT_REACHED();
-            }
-        }
+        if (!has_filters())
+            return {};
+        return RustStyleValueHandle::retained(static_cast<StyleValueFFI::StyleValueData const*>(m_filter.filter_list.pointer));
     }
 
     static Utf16String url_fragment(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
     {
-        auto value = retained_style_value(handle);
-        VERIFY(value);
-        auto url = value->as_url().url();
+        auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(handle.pointer);
+        VERIFY(value && value->tag == StyleValueFFI::StyleValueData::Tag::Url);
+        auto url = url_from_rust_data(value->url.url, value->url.url_type, value->url.modifiers);
         auto const& url_string = url.url();
         if (url_string.is_empty() || !url_string.starts_with('#'))
             return {};
         return Utf16String::from_utf16(url_string.substring_view(1));
     }
 
-    Filter materialize() const
-    {
-        if (!has_filters())
-            return Filter::make_none();
-        Vector<Filter::FilterOperation> operations;
-        operations.ensure_capacity(m_filter.operations.length);
-        for_each_operation([&](auto operation) { operations.unchecked_append(move(operation)); });
-        auto filter_list = retained_style_value(m_filter.filter_list);
-        RefPtr<StyleValueList const> list = &filter_list->as_value_list();
-        return Filter::create_lowered(move(list), move(operations));
-    }
-
 private:
-    static RefPtr<StyleValue const> retained_style_value(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
-    {
-        if (!handle.pointer)
-            return nullptr;
-        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-            static_cast<StyleValueFFI::StyleValueData const*>(handle.pointer)));
-    }
-
     ComputedValuesFFI::ComputedFilter const& m_filter;
 };
 
