@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<canvas id="canvas" width="4" height="4"></canvas>
+<script>
+    function pixel(imageData, x, y) {
+        const i = (y * imageData.width + x) * 4;
+        return Array.from(imageData.data.slice(i, i + 4)).join(",");
+    }
+
+    function printRows(label, imageData) {
+        println(label);
+        for (let y = 0; y < imageData.height; ++y) {
+            const row = [];
+            for (let x = 0; x < imageData.width; ++x)
+                row.push(pixel(imageData, x, y));
+            println(`  ${row.join(" | ")}`);
+        }
+    }
+
+    test(() => {
+        const context = canvas.getContext("2d");
+        context.fillStyle = "rgb(255, 0, 0)";
+        context.fillRect(0, 0, 2, 2);
+        context.fillStyle = "rgb(0, 0, 255)";
+        context.fillRect(2, 2, 2, 2);
+
+        printRows("Off the top-left:", context.getImageData(-2, -2, 4, 4));
+        printRows("Off the bottom-right:", context.getImageData(2, 2, 4, 4));
+        printRows("Negative size off the top-left:", context.getImageData(2, 2, -4, -4));
+    });
+</script>
