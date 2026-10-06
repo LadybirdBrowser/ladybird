@@ -569,6 +569,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
 
         if (found_parent_element) {
             update_cursor(read, target_layout_node, *node, chrome_widget, hit_text_fragment);
+            m_cursor_resolved_before_hover = true;
             clear_cursor.disarm();
 
             auto coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *layout_node);
@@ -1176,6 +1177,34 @@ void EventHandler::update_hover_after_scroll()
     update_hover_after_scroll(*m_last_known_mouse_visual_viewport_position, m_last_known_mouse_screen_position, UIEvents::MouseButton::None, m_last_known_mouse_buttons, m_last_known_mouse_modifiers);
 }
 
+// AD-HOC: A move resolves the cursor before it hovers what is under the pointer, which the style of the hover (a :hover
+//         rule, or a style a handler of the move's events set) then gives a cursor of its own. Blink resolves the
+//         cursor again on a timer once a style change moved a box's cursor. Here the rendering update after the move
+//         resolves it again, once.
+void EventHandler::update_cursor_after_rendering_update()
+{
+    if (!exchange(m_cursor_resolved_before_hover, false))
+        return;
+    if (!m_last_known_mouse_visual_viewport_position.has_value() || should_ignore_device_input_event())
+        return;
+    auto document = m_navigable->active_document();
+    if (!document || !document->is_fully_active() || !has_committed_root_box())
+        return;
+    Layout::ForcedReadScope read { *document };
+    auto target = target_for_mouse_position(*m_last_known_mouse_visual_viewport_position);
+    if (!target.has_value())
+        return;
+    auto node = target->dom_node();
+    auto* target_layout_node = target->layout_node(read);
+    // A nested navigable's own event handler shows the cursor over its content.
+    if (!node || !target_layout_node || Painting::is_navigable_container_viewport_paintable(*target_layout_node))
+        return;
+    Layout::Node* layout_node = nullptr;
+    if (!parent_element_for_event_dispatch(*target_layout_node, node, layout_node))
+        return;
+    update_cursor(read, target_layout_node, *node, target->chrome_widget, target->is_text_fragment);
+}
+
 void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers)
 {
     auto document = m_navigable->active_document();
@@ -1231,6 +1260,7 @@ void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_posit
 
     update_hovered_chrome_widget(chrome_widget);
     update_cursor(read, target_layout_node, *node, chrome_widget, hit_text_fragment);
+    m_cursor_resolved_before_hover = true;
 
     auto coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *layout_node);
     track_the_effective_position_of_the_legacy_mouse_pointer(node, DOM::HoverEventData {

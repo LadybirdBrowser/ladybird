@@ -937,6 +937,9 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
 
         auto now = relative_frame_timestamp_for(*document);
         document->run_the_update_intersection_observations_steps(now);
+
+        // AD-HOC: The cursor shows the style the update applied to what the pointer is over.
+        document->navigable()->event_handler().update_cursor_after_rendering_update();
     }
 
     // AD-HOC: Whether a video sink is ticked depends on whether the element would be painted, which is only known once
