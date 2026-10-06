@@ -9,6 +9,7 @@
 //! a token nor call an entry that does.
 
 use super::*;
+use crate::painting::host::FfiCaretAt;
 use crate::painting::host::FfiVisualContextTreeInputs;
 use crate::painting::paint_passes::{PassEffect, pending_preparation, run as run_paint_pass};
 
@@ -952,49 +953,6 @@ pub unsafe extern "C" fn layout_hit_test_visit_chrome_widgets(
 
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread;
-/// the callback context and function pointers must remain valid for this synchronous call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_hit_test_caret_line_for_position(
-    host: &crate::render_state::DocumentHost,
-    read: &crate::render_state::BegunRead,
-    query: crate::painting::host::FfiCaretPositionQuery,
-    offset: usize,
-    affinity_is_downstream: bool,
-) -> crate::painting::host::FfiCaretLineForPosition {
-    with_hit_test_list_and_caret_lines(host, read, Default::default(), |list, arena| {
-        match list.caret_line_for_position(arena, &query, offset, affinity_is_downstream) {
-            Some(line_index) => crate::painting::host::FfiCaretLineForPosition {
-                has_line: true,
-                line_index,
-            },
-            None => Default::default(),
-        }
-    })
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread; `line_index` in range.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_hit_test_caret_line(
-    host: &crate::render_state::DocumentHost,
-    read: &crate::render_state::BegunRead,
-    line_index: usize,
-) -> crate::painting::host::FfiCaretLineExport {
-    with_hit_test_list_and_caret_lines(host, read, Default::default(), |list, _| {
-        let line = &list.caret_lines[line_index];
-        crate::painting::host::FfiCaretLineExport {
-            rect: line.rect.into(),
-            context: line.context,
-            first_caret_item_index: line.first_caret_item_index,
-            last_caret_item_index: line.last_caret_item_index,
-        }
-    })
-}
-
-/// # Safety
-///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_hit_test_list_generation(host: &crate::render_state::DocumentHost) -> u64 {
@@ -1053,40 +1011,6 @@ pub unsafe extern "C" fn layout_hit_test_item_facts(
     .expect("no hit-test list")
 }
 
-/// The DOM node the hit-test item stands for.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread;
-/// `item_index` must be in range for the current hit-test list.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_hit_test_item_target(
-    host: &crate::render_state::DocumentHost,
-    read: &crate::render_state::BegunRead,
-    item_index: usize,
-) -> crate::painting::host::FfiNodeIdentity {
-    with_hit_test_list_items_only(host, read, Default::default(), |list, arena| {
-        list.item_target(arena, item_index)
-    })
-}
-
-/// The DOM node the hit-test item dispatches events to.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread;
-/// `item_index` must be in range for the current hit-test list.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_hit_test_item_dispatch_target(
-    host: &crate::render_state::DocumentHost,
-    read: &crate::render_state::BegunRead,
-    item_index: usize,
-) -> crate::painting::host::FfiNodeIdentity {
-    with_hit_test_list_items_only(host, read, Default::default(), |list, arena| {
-        list.item_dispatch_target(arena, item_index)
-    })
-}
-
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread;
@@ -1100,28 +1024,6 @@ pub unsafe extern "C" fn layout_hit_test_resolve_hit(
 ) -> crate::painting::host::FfiResolvedHit {
     with_hit_test_list_items_only(host, read, Default::default(), |list, arena| {
         list.resolve_hit(arena, item_index, local_point.into())
-    })
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread;
-/// `item_index` must be in range for the current hit-test list.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_hit_test_resolve_caret(
-    host: &crate::render_state::DocumentHost,
-    read: &crate::render_state::BegunRead,
-    item_index: usize,
-    local_point: FfiCssPixelPoint,
-    position_type: u8,
-) -> crate::painting::host::FfiResolvedCaret {
-    with_hit_test_list_items_only(host, read, Default::default(), |list, arena| {
-        list.resolve_caret(
-            arena,
-            item_index,
-            local_point.into(),
-            crate::painting::hit_test::caret::CaretPositionType::from_u8(position_type),
-        )
     })
 }
 
@@ -1141,31 +1043,6 @@ pub unsafe extern "C" fn layout_hit_test_find_topmost_item(
         false,
         Default::default(),
         |list, tree, arena| ffi_topmost(list.find_topmost_item(arena, tree, &callbacks, point.into())),
-    )
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_hit_test_find_topmost_items_for_caret(
-    host: &crate::render_state::DocumentHost,
-    read: &crate::render_state::BegunRead,
-    callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
-    point: FfiCssPixelPoint,
-) -> crate::painting::host::FfiTopmostItemsForCaret {
-    with_hit_test_list_spatial_indexes_and_visual_context_tree(
-        host,
-        read,
-        false,
-        Default::default(),
-        |list, tree, arena| {
-            let (caret_item, hit_item) = list.find_topmost_items_for_caret(arena, tree, &callbacks, point.into());
-            crate::painting::host::FfiTopmostItemsForCaret {
-                caret_item: ffi_topmost(caret_item),
-                hit_item: ffi_topmost(hit_item),
-            }
-        },
     )
 }
 
@@ -1194,77 +1071,125 @@ pub unsafe extern "C" fn layout_hit_test_all(
     }
 }
 
+/// The caret position at `point`, constrained to `constraint_scope` when it names a node.
+///
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread.
+/// `host` must be a live document host, on its document's thread; the callbacks must stay valid for this synchronous
+/// call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_hit_test_item_at_line_edge(
+pub unsafe extern "C" fn layout_hit_test_caret_position_from_point(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
-    line_index: usize,
-    position_type: u8,
-) -> usize {
-    let position_type = crate::painting::hit_test::caret::CaretPositionType::from_u8(position_type);
-    with_hit_test_list_and_caret_lines(host, read, usize::MAX, |list, _| {
-        list.item_at_line_edge(line_index, position_type)
-    })
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_hit_test_caret_item_for_line(
-    host: &crate::render_state::DocumentHost,
-    read: &crate::render_state::BegunRead,
-    line_index: usize,
+    callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
     point: FfiCssPixelPoint,
     mode: u8,
-) -> crate::painting::host::FfiCaretItemForLine {
-    with_hit_test_list_and_caret_lines(host, read, Default::default(), |list, arena| {
-        match list.caret_item_for_line(
+    constraint_scope: crate::painting::host::FfiNodeIdentity,
+) -> FfiCaretAt {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { main_thread(host) };
+    let mode = crate::painting::hit_test::caret::CaretPositionMode::from_u8(mode);
+    with_hit_test_list_spatial_indexes_and_visual_context_tree(host, read, true, None, |list, tree, arena| {
+        list.caret_position_from_point(
+            &main_thread,
             arena,
-            line_index,
+            tree,
+            &callbacks,
             point.into(),
-            crate::painting::hit_test::caret::CaretPositionMode::from_u8(mode),
-        ) {
-            Some((item_index, position_type)) => crate::painting::host::FfiCaretItemForLine {
-                has_item: true,
-                item_index,
-                position_type: position_type as u8,
-            },
-            None => Default::default(),
-        }
+            mode,
+            constraint_scope,
+        )
     })
+    .unwrap_or_else(FfiCaretAt::none)
 }
 
+/// The caret position at the start (`edge` 1) or end (`edge` 2) of the painted line holding the position `query`
+/// describes.
+///
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread.
+/// `host` must be a live document host, on its document's thread; the query must stay valid for this synchronous call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_hit_test_line_block_coordinate(
+pub unsafe extern "C" fn layout_hit_test_caret_at_line_edge(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
-    line_index: usize,
-) -> i32 {
-    with_hit_test_list_and_caret_lines(host, read, 0, |list, _| {
-        list.line_block_coordinate(line_index).raw_value()
+    query: crate::painting::host::FfiCaretPositionQuery,
+    offset: usize,
+    affinity_is_downstream: bool,
+    edge: u8,
+) -> FfiCaretAt {
+    let edge = crate::painting::hit_test::caret::CaretPositionType::from_u8(edge);
+    with_hit_test_list_and_caret_lines(host, read, None, |list, arena| {
+        list.caret_at_line_edge(arena, &query, offset, affinity_is_downstream, edge)
     })
+    .unwrap_or_else(FfiCaretAt::none)
 }
 
+/// The caret position on the line visually after (`direction` 1) or before (`direction` 0) the line holding the
+/// position `query` describes, among the lines inside `scope`.
+///
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread.
+/// `host` must be a live document host, on its document's thread; the query and callbacks must stay valid for this
+/// synchronous call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_hit_test_item_is_inline_adjacent_to_line(
+pub unsafe extern "C" fn layout_hit_test_caret_on_adjacent_line(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
-    item_index: usize,
-    line_index: usize,
+    callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
+    query: crate::painting::host::FfiCaretPositionQuery,
+    offset: usize,
+    affinity_is_downstream: bool,
+    direction: u8,
+    inline_coordinate: i32,
+    scope: crate::painting::host::FfiNodeIdentity,
+) -> FfiCaretAt {
+    let direction = if direction == 1 {
+        crate::painting::hit_test::caret::CaretLineDirection::Next
+    } else {
+        crate::painting::hit_test::caret::CaretLineDirection::Previous
+    };
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { main_thread(host) };
+    with_hit_test_list_and_caret_lines(host, read, None, |list, arena| {
+        list.caret_on_adjacent_line(
+            &main_thread,
+            arena,
+            &callbacks,
+            &query,
+            offset,
+            affinity_is_downstream,
+            direction,
+            CssPixels::from_raw(inline_coordinate),
+            scope,
+        )
+    })
+    .unwrap_or_else(FfiCaretAt::none)
+}
+
+/// The block-axis middle of the painted line holding the position `query` describes, if a line holds it.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread; the query must stay valid for this synchronous call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_hit_test_caret_line_block_coordinate(
+    host: &crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
+    query: crate::painting::host::FfiCaretPositionQuery,
+    offset: usize,
+    affinity_is_downstream: bool,
+    out_coordinate: &mut i32,
 ) -> bool {
-    with_hit_test_list_and_caret_lines(host, read, false, |list, _| {
-        list.item_is_inline_adjacent_to_line(item_index, line_index)
-    })
+    let coordinate = with_hit_test_list_and_caret_lines(host, read, None, |list, arena| {
+        let line_index = list.caret_line_for_position(arena, &query, offset, affinity_is_downstream)?;
+        Some(list.line_block_coordinate(line_index))
+    });
+    let Some(coordinate) = coordinate else {
+        return false;
+    };
+    *out_coordinate = coordinate.raw_value();
+    true
 }
 
 /// The style-tree identity of the first `<area>` of the image's map, in tree order, whose shape
@@ -1281,89 +1206,4 @@ pub unsafe extern "C" fn layout_image_map_area_for_point(
     y: f32,
 ) -> u32 {
     host.fresh_rows(super::node_read()).image_map_area_for_point(slot, x, y)
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_hit_test_find_closest_line(
-    host: &crate::render_state::DocumentHost,
-    read: &crate::render_state::BegunRead,
-    callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
-    point: FfiCssPixelPoint,
-    mode: u8,
-    scoped: bool,
-    respect_clip: bool,
-) -> crate::painting::host::FfiClosestLine {
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { main_thread(host) };
-    with_hit_test_list_spatial_indexes_and_visual_context_tree(
-        host,
-        read,
-        true,
-        Default::default(),
-        |list, tree, arena| {
-            let closest = list.find_closest_line(
-                &main_thread,
-                arena,
-                tree,
-                &callbacks,
-                point.into(),
-                crate::painting::hit_test::caret::CaretPositionMode::from_u8(mode),
-                scoped,
-                respect_clip,
-            );
-            crate::painting::host::FfiClosestLine {
-                has_index: closest.index.is_some(),
-                index: closest.index.unwrap_or(0),
-                local_x: closest.local_point.x.raw_value(),
-                local_y: closest.local_point.y.raw_value(),
-                block_distance: closest.block_distance.raw_value(),
-                block_start_distance: closest.block_start_distance.raw_value(),
-                inline_distance: closest.inline_distance.raw_value(),
-                is_before_point: closest.is_before_point,
-                contains_point_in_block_axis: closest.contains_point_in_block_axis,
-            }
-        },
-    )
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_hit_test_adjacent_line(
-    host: &crate::render_state::DocumentHost,
-    read: &crate::render_state::BegunRead,
-    callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
-    current_line_index: usize,
-    direction: u8,
-    inline_coordinate_raw: i32,
-) -> crate::painting::host::FfiAdjacentLine {
-    let direction = if direction == 1 {
-        crate::painting::hit_test::caret::CaretLineDirection::Next
-    } else {
-        crate::painting::hit_test::caret::CaretLineDirection::Previous
-    };
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { main_thread(host) };
-    with_hit_test_list_and_caret_lines(host, read, Default::default(), |list, arena| {
-        match list.adjacent_line(
-            &main_thread,
-            arena,
-            &callbacks,
-            current_line_index,
-            direction,
-            CssPixels::from_raw(inline_coordinate_raw),
-        ) {
-            Some((line_index, point)) => crate::painting::host::FfiAdjacentLine {
-                has_line: true,
-                line_index,
-                point_x: point.x.raw_value(),
-                point_y: point.y.raw_value(),
-            },
-            None => Default::default(),
-        }
-    })
 }

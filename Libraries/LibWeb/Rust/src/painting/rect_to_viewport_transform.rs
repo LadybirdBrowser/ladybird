@@ -7,7 +7,7 @@
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_read::PaintRead;
-use crate::painting::visual_context::{IncludeVisualViewportTransform, VisualContextTree};
+use crate::painting::visual_context::{IncludeVisualViewportTransform, SpatialNodeIndex, VisualContextTree};
 use libgfx_rust::{FloatPoint, FloatRect};
 
 pub(crate) struct RectToViewportTransform<'a> {
@@ -26,6 +26,17 @@ impl RectToViewportTransform<'_> {
         if !arena.paintable_row_is_populated(node) {
             return CssPixelRect::default();
         }
+        let spatial = arena.paintable_data(node).accumulated_visual_context.spatial;
+        self.transform_rect_in_space(spatial, rect, IncludeVisualViewportTransform::No)
+    }
+
+    /// Transforms `rect` from the local space of `spatial` into the viewport.
+    pub(crate) fn transform_rect_in_space(
+        &self,
+        spatial: SpatialNodeIndex,
+        rect: CssPixelRect,
+        include_visual_viewport_transform: IncludeVisualViewportTransform,
+    ) -> CssPixelRect {
         let pixel_ratio = self.device_pixels_per_css_pixel;
         let device_rect = FloatRect {
             x: rect.x.to_float() * pixel_ratio,
@@ -33,12 +44,11 @@ impl RectToViewportTransform<'_> {
             width: rect.width.to_float() * pixel_ratio,
             height: rect.height.to_float() * pixel_ratio,
         };
-        let spatial = arena.paintable_data(node).accumulated_visual_context.spatial;
         let transformed = self.visual_context_tree.transform_rect_to_viewport(
             spatial,
             device_rect,
             self.scroll_offsets,
-            IncludeVisualViewportTransform::No,
+            include_visual_viewport_transform,
         );
         let inverse_pixel_ratio = 1.0 / pixel_ratio;
         CssPixelRect {
