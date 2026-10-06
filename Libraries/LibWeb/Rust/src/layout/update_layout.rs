@@ -18,6 +18,7 @@ use super::tree_builder::{FfiGeneratedImage, FfiPseudoElement, TreeBuildAnswer, 
 use super::tree_mutation::{HostWorkDue, OwedHostWork};
 use super::{ArenaHandle, LayoutNodeArena};
 use crate::abort_on_panic;
+use crate::css::css_pixels::CssPixelPoint;
 use crate::css::style::tree::StyleNodeID;
 use crate::painting::recording_slot::FlightLicense;
 use crate::render_state::{BegunRead, DocumentHost};
@@ -33,7 +34,11 @@ pub(crate) use main_thread_entries::MainThreadFfiEntry;
 fn run_layout_round_job(host: &DocumentHost, read: &BegunRead, job: LayoutRoundJob) -> LayoutRoundAnswer {
     host.let_go_of_rows();
     // The host keeps what the job's inputs name until it has the answer.
-    host.run(read, true, move |state| job.run(state.arena_handle_mut()))
+    host.run(read, true, move |state| {
+        let mut answer = job.run(state.arena_handle_mut());
+        answer.prepare_committed_layout_for_rendering(state.arena_mut());
+        answer
+    })
 }
 
 /// Answers `answer` from the render state of `host`'s document and `args`, in `read`: the host's layout update reads it
@@ -345,6 +350,9 @@ pub(crate) struct LayoutRoundAnswer {
     /// What committing each layout stage of the round owes.
     commits: Vec<CommitNotifications>,
     end: LayoutRoundEnd,
+    /// The scroll offsets the new overflow moved out of range, each clamped into it, where the round prepared the layout
+    /// it committed for rendering, for the host to store.
+    clamped_scroll_offsets: Vec<(NodeSlotId, CssPixelPoint)>,
 }
 
 /// The first round of a rendering update's layout, sealed on the host's thread with the facts it read there, to run in
@@ -366,7 +374,8 @@ impl SealedRound {
         {
             return None;
         }
-        let answer = self.job.run_owing(state, work);
+        let mut answer = self.job.run_owing(state, work);
+        answer.prepare_committed_layout_for_rendering(state.arena());
         state.arena().mark_unresolved_container_lengths_for_layout();
         Some(FlownRound {
             answer,
@@ -388,13 +397,8 @@ impl FlownRound {
     ///
     /// The host's layout update callbacks must answer synchronously from its live document.
     pub(crate) unsafe fn pay(mut self, main_thread: &MainThread, host: &DocumentHost, read: &BegunRead) {
-        let callbacks = host
-            .host_tables()
-            .layout_update_host
-            .get()
-            .expect("the document has no layout update host");
         // SAFETY: Guaranteed by the caller.
-        unsafe { self.answer.pay(main_thread, &callbacks, read) };
+        unsafe { self.answer.pay(main_thread, host, read) };
     }
 }
 
@@ -485,6 +489,7 @@ impl LayoutRoundJob {
             work: HostWorkDue::default(),
             commits: Vec::new(),
             end: LayoutRoundEnd::FullLayout,
+            clamped_scroll_offsets: Vec::new(),
         };
         let stage = LayoutStageFacts {
             container_length_bases: self.container_length_bases,
@@ -598,20 +603,32 @@ impl LayoutRoundAnswer {
             .flat_map(CommitNotifications::resized_size_containers)
     }
 
-    /// Pays what the round owes the host, in the order it came to owe it. The boxes nodes gained
-    /// and lost and the host calls the round owes come first, then a build's commit messages and
-    /// styled scroll containers, after which the document retires the tree the build replaced; then
-    /// what the layout stages owe.
+    /// Prepares `arena` for rendering where the round committed a layout, as the host's commit of it asks, so that the
+    /// host waits for no preparation of its own after the round.
+    fn prepare_committed_layout_for_rendering(&mut self, arena: &LayoutNodeArena) {
+        if matches!(self.end, LayoutRoundEnd::Built { .. }) {
+            return;
+        }
+        // The commit has the host update the visual contexts, which refreshes the sticky constraints.
+        if let Some(pending) = crate::painting::paint_passes::rendering_preparation_pending(arena) {
+            self.clamped_scroll_offsets = pending.prepare(arena, None).clamped_scroll_offsets;
+        }
+    }
+
+    /// Pays what the round owes `document_host`, in the order it came to owe it. The boxes nodes
+    /// gained and lost and the host calls the round owes come first, then a build's commit messages
+    /// and styled scroll containers, after which the document retires the tree the build replaced;
+    /// then what the layout stages owe, and the scroll offsets the round's preparation clamped.
     ///
     /// # Safety
     ///
     /// The host's callbacks must answer synchronously from its live document.
-    pub(crate) unsafe fn pay(
-        &mut self,
-        main_thread: &MainThread,
-        host: &FfiLayoutUpdateHostCallbacks,
-        read: &BegunRead,
-    ) {
+    pub(crate) unsafe fn pay(&mut self, main_thread: &MainThread, document_host: &DocumentHost, read: &BegunRead) {
+        let host = document_host
+            .host_tables()
+            .layout_update_host
+            .get()
+            .expect("the document has no layout update host");
         let layout_host = FfiLayoutHostCallbacks::of(main_thread);
         // SAFETY (for every call below): Guaranteed by the caller.
         std::mem::take(&mut self.work).pay(main_thread);
@@ -629,6 +646,12 @@ impl LayoutRoundAnswer {
             unsafe { commit.notify_host(main_thread, read, &layout_host) };
         }
         super::trace::name_layout_trace_owners(main_thread, read);
+        if let Some(geometry_host) = document_host.host_tables().geometry_host.get() {
+            for (slot, offset) in self.clamped_scroll_offsets.drain(..) {
+                // SAFETY: The round clamped the offsets of rows it left live, whose layout nodes the host has now.
+                unsafe { geometry_host.set_scroll_offset(main_thread, read, slot, offset.into()) };
+            }
+        }
     }
 }
 
@@ -772,7 +795,7 @@ unsafe fn take_flown_layout_in(main_thread: &MainThread, document_host: &Documen
         .expect("the document has no layout update host");
     document_host.take_frame_in_with(read);
     // SAFETY (for every pay below): Guaranteed by the caller.
-    document_host.pay_clock_rounds(|mut answer| unsafe { answer.pay(main_thread, &host, read) });
+    document_host.pay_clock_rounds(|mut answer| unsafe { answer.pay(main_thread, document_host, read) });
     let Some(FlownRound {
         mut answer,
         rebuilds_tree,
@@ -780,7 +803,7 @@ unsafe fn take_flown_layout_in(main_thread: &MainThread, document_host: &Documen
     else {
         return false;
     };
-    unsafe { answer.pay(main_thread, &host, read) };
+    unsafe { answer.pay(main_thread, document_host, read) };
     if rebuilds_tree && host.reconcile_stale_list_item_counters_after_tree_build(main_thread, read) {
         return false;
     }
@@ -833,7 +856,7 @@ unsafe fn update_layout(
 
         host.update_style(main_thread, read);
         // What the ticks of a clock lease the update ended laid out, the host pays before anything else of the update.
-        document_host.pay_clock_rounds(|mut answer| unsafe { answer.pay(main_thread, &host, read) });
+        document_host.pay_clock_rounds(|mut answer| unsafe { answer.pay(main_thread, document_host, read) });
         // A round that flew in the frame the update took in is the update's first, which the host pays before
         // anything else of the update reads the layout.
         document_host.take_frame_in_with(read);
@@ -865,7 +888,7 @@ unsafe fn update_layout(
                 NextRound::Flown(answer) => answer,
                 NextRound::Job(job) => run_layout_round_job(document_host, read, job),
             };
-            unsafe { answer.pay(main_thread, &host, read) };
+            unsafe { answer.pay(main_thread, document_host, read) };
             let built = matches!(answer.end, LayoutRoundEnd::Built { .. });
             if rebuilds_tree && host.reconcile_stale_list_item_counters_after_tree_build(main_thread, read) {
                 // The stale counters marked more of the tree for a rebuild, which the next round runs.
@@ -1027,6 +1050,35 @@ mod tests {
             .free_subtree(viewport)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         assert!(!layout_is_up_to_date(&arena, &facts));
+    }
+
+    #[test]
+    fn a_round_that_commits_a_layout_prepares_it_for_rendering_and_a_built_round_does_not() {
+        use crate::painting::paint_passes::rendering_preparation_pending;
+        let answer_ending = |end| LayoutRoundAnswer {
+            build: None,
+            work: HostWorkDue::default(),
+            commits: Vec::new(),
+            end,
+            clamped_scroll_offsets: Vec::new(),
+        };
+        let mut arena = LayoutNodeArena::new();
+        let viewport = arena.allocate_unbound();
+        arena.set_layout_root(viewport);
+        assert!(rendering_preparation_pending(&arena).is_some());
+
+        answer_ending(LayoutRoundEnd::Built {
+            needs_another_build_pass: false,
+            layout: RoundLayout::Full,
+        })
+        .prepare_committed_layout_for_rendering(&arena);
+        assert!(rendering_preparation_pending(&arena).is_some());
+
+        answer_ending(LayoutRoundEnd::FullLayout).prepare_committed_layout_for_rendering(&arena);
+        assert!(rendering_preparation_pending(&arena).is_none());
+        arena
+            .free_subtree(viewport)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]

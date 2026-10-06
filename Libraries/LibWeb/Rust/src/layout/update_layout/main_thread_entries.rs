@@ -58,19 +58,9 @@ pub unsafe extern "C" fn render_state_pay_flown_round(host: &DocumentHost, read:
     let main_thread = unsafe { main_thread(host) };
     abort_on_panic(|| {
         host.take_frame_in_with(read);
-        host.pay_clock_rounds(|mut answer| {
-            let callbacks = host.host_tables().layout_update_host.get();
-            // SAFETY: Guaranteed by the entry point's contract.
-            unsafe {
-                answer.pay(
-                    &main_thread,
-                    &callbacks.expect("the document has no layout update host"),
-                    read,
-                );
-            }
-        });
+        // SAFETY (for both pays): Guaranteed by the entry point's contract.
+        host.pay_clock_rounds(|mut answer| unsafe { answer.pay(&main_thread, host, read) });
         if let Some(round) = host.take_flown_round() {
-            // SAFETY: Guaranteed by the entry point's contract.
             unsafe { round.pay(&main_thread, host, read) };
         }
     });

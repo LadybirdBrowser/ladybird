@@ -1639,15 +1639,14 @@ mod tests {
                 root_layout_node: root,
                 ..Default::default()
             },
-            false,
-            &crate::painting::host::FfiVisualContextTreeInputs {
+            Some(&crate::painting::host::FfiVisualContextTreeInputs {
                 device_pixels_per_css_pixel: 1.0,
                 visual_viewport_offset_x: 0.0,
                 visual_viewport_offset_y: 0.0,
                 visual_viewport_scale: 1.0,
                 viewport_wheel_overflow_x: 0,
                 viewport_wheel_overflow_y: 0,
-            },
+            }),
         )
         .outcome;
         assert!(outcome.requires_visual_context_update);

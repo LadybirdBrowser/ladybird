@@ -2078,8 +2078,8 @@ void Document::after_layout_commit(Layout::BegunRead const& read, LayoutTreeChan
 
     set_needs_to_record_display_list();
 
+    // The round that committed the layout prepared it for rendering, but for the visual contexts, which update next.
     set_needs_accumulated_visual_contexts_update(true);
-    prepare_for_rendering(read);
 
     // A tree update can replace layout nodes referenced by selection state.
     if (auto range = get_selection()->range())
