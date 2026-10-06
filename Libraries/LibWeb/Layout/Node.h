@@ -541,8 +541,8 @@ public:
     bool has_translate() const { return translate() != nullptr; }
     bool has_scale() const { return scale() != nullptr; }
     Optional<CSSPixels> perspective() const { return style_group<CSS::ComputedValues::TransformValues>().perspective_value(); }
-    Optional<CSS::SVGPaint> fill() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().fill_value(); }
-    Optional<CSS::SVGPaint> stroke() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().stroke_value(); }
+    Optional<CSS::URL> fill_url() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().fill_url_value(); }
+    Optional<CSS::URL> stroke_url() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().stroke_url_value(); }
     Gfx::AffineTransform used_svg_element_transform() const;
 
     bool is_positioned() const;

@@ -136,13 +136,6 @@ static CSS::StyleAtomID svg_style_reference_fragment_atom(DOM::Element& element,
     return element.document().style_computer().style_engine().intern_atom(Utf16FlyString::from_utf16(fragment.utf16_view()));
 }
 
-static Optional<CSS::URL> svg_paint_url(Optional<CSS::SVGPaint> const& paint)
-{
-    if (!paint.has_value() || !paint->is_url())
-        return {};
-    return paint->as_url();
-}
-
 // The four resources `mask`, `clip-path`, `fill` and `stroke` name. Read from the record's group payloads rather than
 // through a materialized view: this runs for every SVG graphics element whose style record is replaced, and pinning a
 // record to look at four properties is most of the cost of looking at them.
@@ -157,12 +150,11 @@ static Array<CSS::StyleAtomID, 4> svg_style_reference_atoms(DOM::Element& elemen
     auto const* svg_payload = static_cast<CSS::ComputedValues::InheritedSVGValues const*>(payloads[CSS::ComputedValues::InheritedSVGValues::style_group_index]);
     if (!mask_payload || !svg_payload)
         return {};
-    auto const& mask = mask_payload->mask_value();
     return {
-        svg_style_reference_fragment_atom(element, mask.has_value() ? Optional<CSS::URL> { mask->url() } : OptionalNone {}),
+        svg_style_reference_fragment_atom(element, mask_payload->mask_url_value()),
         svg_style_reference_fragment_atom(element, mask_payload->clip_path_value()),
-        svg_style_reference_fragment_atom(element, svg_paint_url(svg_payload->fill_value())),
-        svg_style_reference_fragment_atom(element, svg_paint_url(svg_payload->stroke_value())),
+        svg_style_reference_fragment_atom(element, svg_payload->fill_url_value()),
+        svg_style_reference_fragment_atom(element, svg_payload->stroke_url_value()),
     };
 }
 

@@ -34,13 +34,6 @@ SVGGraphicsElement::SVGGraphicsElement(DOM::Document& document, DOM::QualifiedNa
 {
 }
 
-GC::Ptr<DOM::Element> SVGGraphicsElement::paint_server_element(Optional<CSS::SVGPaint> const& paint_value) const
-{
-    if (!paint_value.has_value() || !paint_value->is_url())
-        return {};
-    return resolve_url_to_element(paint_value->as_url());
-}
-
 GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_url_to_element(CSS::URL const& url) const
 {
     // FIXME: Complete and use the entire URL, not just the fragment.

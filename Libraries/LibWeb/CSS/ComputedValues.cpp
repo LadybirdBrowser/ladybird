@@ -1061,11 +1061,11 @@ Vector<RefPtr<AbstractImageStyleValue const>> ComputedValues::BackgroundValues::
     return abstract_image_items(background_image);
 }
 
-Optional<MaskReference> ComputedValues::MaskValues::mask_value() const
+Optional<URL> ComputedValues::MaskValues::mask_url_value() const
 {
     auto const* image = first_animation_item_data(mask_image);
     if (image->tag == StyleValueFFI::StyleValueData::Tag::Url)
-        return MaskReference { url_from_rust_data(image->url.url, image->url.url_type, image->url.modifiers) };
+        return url_from_rust_data(image->url.url, image->url.url_type, image->url.modifiers);
     return {};
 }
 
