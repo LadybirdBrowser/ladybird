@@ -12273,6 +12273,115 @@ fn a_text_node_holds_its_published_characters_until_its_identity_is_reissued() {
 }
 
 #[test]
+fn reaction_batches_close_over_unstyled_ancestors_and_the_gaps_between_reactions() {
+    use super::bridge::InheritanceClosure;
+    let mut engine = StyleEngine::new();
+    let mut raw = [0_u32; 4];
+    engine.allocate_style_nodes(&mut raw);
+    let [root, outer, inner, leaf] = raw.map(|raw| StyleNodeID::from_raw(raw).unwrap());
+    for (child, parent) in [(outer, root), (inner, outer), (leaf, inner)] {
+        engine.tree.set_first_element_child(parent, Some(child));
+        engine.tree.set_parent(child, Some(parent));
+    }
+    let reaction = |node: StyleNodeID, gap| PublishedStyleDeltaRecord {
+        style_node: node.raw(),
+        match_answer: 0,
+        old_style_record: 0,
+        new_style_record: 0,
+        damage: FfiStyleDeltaDamage::None,
+        reaction: 0,
+        inherited_style_groups: 0,
+        pseudo_kind: u8::MAX,
+        gap,
+        uses_substitution: false,
+        record_reads: 0,
+        explicitly_inherited_groups: 0,
+        record_damage: 0,
+        owes_an_animation_plan: false,
+        owes_a_transition_step: false,
+        composed_by_the_host: false,
+    };
+    let closure =
+        |engine: &StyleEngine, reactions: &[PublishedStyleDeltaRecord], beside: Option<&HashSet<StyleNodeID>>| {
+            engine.close_over_inheritance(reactions, beside)
+        };
+
+    // Every element has style: the elements between two reactions get rows of their own.
+    for node in [root, outer, inner, leaf] {
+        engine.retained.held_style_records.insert(node, 1);
+    }
+    let batch = [
+        reaction(root, FfiStyleDeltaGap::None),
+        reaction(leaf, FfiStyleDeltaGap::Materialize),
+    ];
+    assert_eq!(
+        closure(&engine, &batch, None),
+        InheritanceClosure {
+            gaps: vec![inner, outer],
+            ..Default::default()
+        }
+    );
+    // A reaction the engine answered as hidden inherits from nothing.
+    let batch = [
+        reaction(root, FfiStyleDeltaGap::None),
+        reaction(leaf, FfiStyleDeltaGap::Hidden),
+    ];
+    assert_eq!(closure(&engine, &batch, None), InheritanceClosure::default());
+
+    // The ancestors without style a reaction inherits from compute theirs ahead of it.
+    engine.retained.held_style_records.remove(&outer);
+    engine.retained.held_style_records.remove(&inner);
+    let batch = [reaction(leaf, FfiStyleDeltaGap::Materialize)];
+    assert_eq!(
+        closure(&engine, &batch, None),
+        InheritanceClosure {
+            unstyled_ancestors: vec![inner, outer],
+            ..Default::default()
+        }
+    );
+
+    // Draining the transaction that flew, a reaction inheriting from an element without style that arrived beside it
+    // is the next transaction's, and an element that arrived beside it stops the gap.
+    let beside = HashSet::from_iter([outer]);
+    assert_eq!(
+        closure(&engine, &batch, Some(&beside)),
+        InheritanceClosure {
+            left_to_next_transaction: HashSet::from_iter([leaf]),
+            ..Default::default()
+        }
+    );
+    engine.retained.held_style_records.insert(outer, 1);
+    engine.retained.held_style_records.insert(inner, 1);
+    let batch = [
+        reaction(root, FfiStyleDeltaGap::None),
+        reaction(leaf, FfiStyleDeltaGap::Materialize),
+    ];
+    assert_eq!(closure(&engine, &batch, Some(&beside)), InheritanceClosure::default());
+
+    // The ancestors without style a reaction left to the next transaction went through are not in the batch, so
+    // they stop no gap: a reaction under a styled element below one of them gets no row for that element.
+    let mut raw = [0_u32; 2];
+    engine.allocate_style_nodes(&mut raw);
+    let [styled, under_styled] = raw.map(|raw| StyleNodeID::from_raw(raw).unwrap());
+    engine.tree.set_parent(styled, Some(inner));
+    engine.tree.set_parent(under_styled, Some(styled));
+    engine.retained.held_style_records.remove(&outer);
+    engine.retained.held_style_records.remove(&inner);
+    engine.retained.held_style_records.insert(styled, 1);
+    let batch = [
+        reaction(leaf, FfiStyleDeltaGap::Materialize),
+        reaction(under_styled, FfiStyleDeltaGap::Materialize),
+    ];
+    assert_eq!(
+        closure(&engine, &batch, Some(&HashSet::from_iter([outer]))),
+        InheritanceClosure {
+            left_to_next_transaction: HashSet::from_iter([leaf]),
+            ..Default::default()
+        }
+    );
+}
+
+#[test]
 fn inheritance_parent_keeps_the_dom_parent_of_nodes_outside_the_flat_tree() {
     let mut engine = StyleEngine::new();
     let mut raw = [0_u32; 7];

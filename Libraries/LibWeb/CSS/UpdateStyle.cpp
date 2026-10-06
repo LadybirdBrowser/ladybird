@@ -5,7 +5,6 @@
  */
 
 #include <AK/HashTable.h>
-#include <AK/QuickSort.h>
 #include <AK/ScopeGuard.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/Animations/AnimationEffect.h>
@@ -263,28 +262,6 @@ static StyleEngineTransaction take_style_engine_transaction(Layout::BegunRead co
 static StyleEngineTransaction take_flown_style_engine_transaction(Layout::BegunRead const& read, DOM::Document& document)
 {
     return accept_style_engine_transaction(document, document.style_computer().style_engine().take_flown_style_transaction(read));
-}
-
-static StyleEngine::PublishedStyleDelta make_materialize_gap_delta(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups = 0)
-{
-    return {
-        .style_node = style_node.value(),
-        .match_answer = 0,
-        .old_style_record = 0,
-        .new_style_record = 0,
-        .damage = StyleEngineFFI::FfiStyleDeltaDamage::None,
-        .reaction = reaction,
-        .inherited_style_groups = inherited_style_groups,
-        .pseudo_kind = NumericLimits<u8>::max(),
-        .gap = StyleEngineFFI::FfiStyleDeltaGap::Materialize,
-        .uses_substitution = false,
-        .record_reads = 0,
-        .explicitly_inherited_groups = 0,
-        .record_damage = 0,
-        .owes_an_animation_plan = false,
-        .owes_a_transition_step = false,
-        .composed_by_the_host = false,
-    };
 }
 
 // The swapped groups are the parent's base values; a child of a parent holding animated values inherits the
@@ -979,91 +956,14 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
             }
         }
 
-        HashTable<StyleNodeID> reaction_set;
-        reaction_set.ensure_capacity(style_engine_reactions.size());
-        for (auto const& reaction : style_engine_reactions)
-            reaction_set.set(StyleNodeID { reaction.style_node });
-        Vector<StyleNodeID> inheritance_closure;
-
-        HashTable<StyleNodeID> reactions_of_next_transaction;
-        // A reaction can name an element created by editing after its new inheritance parent was
-        // inserted. Close the batch over unstyled inheritance prerequisites, which are bounded by
-        // the reaction paths rather than discovered by a document traversal. An element the engine
-        // answered as hidden needs no style to inherit from.
-        for (size_t index = 0; index < style_engine_reactions.size(); ++index) {
-            if (style_engine_reactions[index].gap == StyleEngineFFI::FfiStyleDeltaGap::Hidden)
-                continue;
-            auto element = document.style_computer().element_for_style_node(style_engine_reactions[index].style_node);
-            if (!element || !element->is_connected() || &element->document() != &document)
-                continue;
-            auto const& style_engine = document.style_computer().style_engine();
-            auto inherits_from_arrival_beside_flown_transaction = [&] {
-                for (auto ancestor = DOM::AbstractElement { *element }.element_to_inherit_style_from(); ancestor.has_value() && !ancestor->has_style(); ancestor = ancestor->element_to_inherit_style_from()) {
-                    if (style_engine.style_node_arrived_or_retired_beside_flown_transaction(ancestor->element().style_node_id()))
-                        return true;
-                }
-                return false;
-            };
-            if (drains_flown_transaction && inherits_from_arrival_beside_flown_transaction()) {
-                // NB: The transaction that flew computed the element's style under the ancestors it had as it was
-                //     sealed. The arrival of its new one is the next transaction's, which styles it under that.
-                reactions_of_next_transaction.set(StyleNodeID { style_engine_reactions[index].style_node });
-                continue;
-            }
-            for (auto ancestor = DOM::AbstractElement { *element }.element_to_inherit_style_from(); ancestor.has_value() && !ancestor->has_style(); ancestor = ancestor->element_to_inherit_style_from()) {
-                auto prerequisite = ancestor->element().style_node_id();
-                VERIFY(prerequisite != 0);
-                if (reaction_set.set(prerequisite) == AK::HashSetResult::InsertedNewEntry) {
-                    style_engine_reactions.append(make_materialize_gap_delta(prerequisite, StyleEngine::RecomputeStyle));
-                    inheritance_closure.append(prerequisite);
-                }
-            }
-        }
-        if (!reactions_of_next_transaction.is_empty()) {
-            style_engine_reactions.remove_all_matching([&](auto const& reaction) {
-                return reactions_of_next_transaction.contains(StyleNodeID { reaction.style_node });
-            });
-            for (auto style_node : reactions_of_next_transaction)
-                reaction_set.remove(style_node);
-        }
-
-        // A published descendant may have an inheritance ancestor in the batch while the nodes
-        // between them have no selector reaction of their own. Keep zero-bit scheduling slots for
-        // that gap so derived inheritance bits can reach the descendant before its published
-        // reaction is consumed, unless the descendant is hidden.
-        auto reaction_count_before_inheritance_closure = style_engine_reactions.size();
-        Vector<StyleNodeID, 16> inheritance_gap;
-        for (size_t index = 0; index < reaction_count_before_inheritance_closure; ++index) {
-            if (style_engine_reactions[index].gap == StyleEngineFFI::FfiStyleDeltaGap::Hidden)
-                continue;
-            auto element = document.style_computer().element_for_style_node(style_engine_reactions[index].style_node);
-            if (!element)
-                continue;
-            inheritance_gap.clear_with_capacity();
-            for (auto ancestor = DOM::AbstractElement { *element }.element_to_inherit_style_from(); ancestor.has_value(); ancestor = ancestor->element_to_inherit_style_from()) {
-                auto ancestor_style_node = ancestor->element().style_node_id();
-                VERIFY(ancestor_style_node != 0);
-                // NB: The transaction that flew knows nothing of a node that arrived beside it, nor of the descendants
-                //     the node took in. The next transaction styles them under it.
-                if (drains_flown_transaction && document.style_computer().style_engine().style_node_arrived_or_retired_beside_flown_transaction(ancestor_style_node))
-                    break;
-                if (reaction_set.contains(ancestor_style_node)) {
-                    for (auto style_node : inheritance_gap) {
-                        if (reaction_set.set(style_node) == AK::HashSetResult::InsertedNewEntry) {
-                            style_engine_reactions.append(make_materialize_gap_delta(style_node, 0));
-                            inheritance_closure.append(style_node);
-                        }
-                    }
-                    break;
-                }
-                inheritance_gap.append(ancestor_style_node);
-            }
-        }
-        if (!inheritance_closure.is_empty())
-            VERIFY(StyleEngineFFI::style_engine_complete_published_match_answers_for_closure(document.style_computer().style_engine().host(), &read, inheritance_closure));
-
+        // A reaction can name an element created by editing after its new inheritance parent was inserted, and an
+        // element between a reaction and an ancestor that reacts too needs a row for the reactions the ancestor derives
+        // to reach the reaction. The engine closes the batch over both, and orders it for application in preorder:
+        // every parent is ready before its descendants, and a parent's derived reaction can merge into an unconsumed
+        // child reaction in the same batch.
+        auto closed_reactions = StyleEngineFFI::style_engine_close_style_reactions_over_inheritance(document.style_computer().style_engine().host(), &read, style_engine_reactions.data(), style_engine_reactions.size(), drains_flown_transaction);
         Vector<StyleEngine::PublishedStyleDelta> applicable_style_engine_reactions;
-        for (auto const& reaction : style_engine_reactions) {
+        for (auto const& reaction : ReadonlySpan<StyleEngine::PublishedStyleDelta> { closed_reactions.deltas, closed_reactions.count }) {
             auto element = document.style_computer().element_for_style_node(reaction.style_node);
             if (!element)
                 continue;
@@ -1073,12 +973,6 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
         }
         style_engine_reactions.clear();
         if (!applicable_style_engine_reactions.is_empty()) {
-            // Apply each inheritance branch contiguously in preorder. Besides making every parent
-            // ready before its descendants, this lets a parent's derived reaction merge into an
-            // unconsumed child reaction in the same batch. The engine answers a transaction's
-            // reactions in that order, so only the gap deltas closed over here need the engine's sort.
-            if (!inheritance_closure.is_empty())
-                StyleEngineFFI::style_engine_sort_style_deltas_for_direct_application(document.style_computer().style_engine().host(), &read, applicable_style_engine_reactions.data(), applicable_style_engine_reactions.size());
             auto& counters = document.style_invalidation_counters();
             if (published_reaction_count > 0) {
                 ++counters.style_engine_reaction_batch_runs;

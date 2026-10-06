@@ -330,12 +330,6 @@ style_boundary! {
         node_declares_custom_properties(node: Option<StyleNodeID>) -> bool =>
             node.is_some_and(|node| engine.node_declares_custom_properties(node));
         size_query_container_scan_visits(reset: bool) -> u64;
-        complete_published_match_answers_for_closure(nodes: FfiSpan<u32>) -> bool => {
-            // SAFETY: The host lends the nodes for the call.
-            let nodes = unsafe { borrow(nodes.data, nodes.size) }.iter().copied().map(StyleNodeID::from_raw);
-            let nodes: Option<Vec<_>> = nodes.collect();
-            nodes.is_some_and(|nodes| engine.complete_published_match_answers_for_closure(&nodes).is_ok())
-        };
         ensure_random_base_value(node: Option<StyleNodeID>, name: FfiSpan<u16>, element_shared: bool) -> u64 => {
             // SAFETY: The host lends the name for the call.
             let name = unsafe { borrow(name.data, name.size) };

@@ -403,7 +403,32 @@ pub unsafe extern "C" fn style_engine_take_flown_style_transaction(
 /// `host` must be a live document host, on its document's thread, that drains a style transaction that flew.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_end_flown_style_drain(host: &DocumentHost) {
+    host.engine_memo().beside_flown_transaction.borrow_mut().clear();
     host.end_style_drain();
+}
+
+/// Notes that the element `node` names arrived, moved or retired beside the style transaction of `host`'s document that
+/// flew, which knows nothing of that, until the drain of its reactions ends.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_note_style_node_beside_flown_transaction(host: &DocumentHost, node: u32) {
+    if let Some(node) = StyleNodeID::from_raw(node) {
+        host.engine_memo().beside_flown_transaction.borrow_mut().insert(node);
+    }
+}
+
+/// Whether the element `node` names arrived, moved or retired beside the style transaction of `host`'s document that
+/// flew.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_style_node_is_beside_flown_transaction(host: &DocumentHost, node: u32) -> bool {
+    StyleNodeID::from_raw(node).is_some_and(|node| host.engine_memo().beside_flown_transaction.borrow().contains(&node))
 }
 
 /// Whether the frame whose style transaction `host`'s document drains applied the element `style_node` names its record

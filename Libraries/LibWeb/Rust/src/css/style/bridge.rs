@@ -3111,28 +3111,187 @@ impl FfiStyleTransactionOutput {
     }
 }
 
-/// Orders a completed reaction batch for direct application in C++.
+/// A batch of reactions the host applies, as C++ reads it.
+#[repr(C)]
+pub struct FfiStyleDeltaSpan {
+    pub deltas: *const FfiStyleDelta,
+    pub count: usize,
+}
+
+/// Closes the reactions the host applies next over the elements they inherit through, and answers the batch the host
+/// applies, in order: `reactions` itself where that adds no row, or the closed batch, which lives until the next call.
+/// While the host drains the transaction that flew, the elements the host noted beside it are left to the next
+/// transaction.
 ///
 /// # Safety
-/// `host` must be a live document host, on its document's thread, and `deltas` must name `count`
-/// writable entries.
+/// `host` must be a live document host, on its document's thread, and `reactions` must name `count` entries.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_sort_style_deltas_for_direct_application(
+pub unsafe extern "C" fn style_engine_close_style_reactions_over_inheritance(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
-    deltas: *mut FfiStyleDelta,
+    reactions: *const FfiStyleDelta,
     count: usize,
-) {
-    // A single delta is in order already, which the host knows without asking.
-    if count < 2 {
-        return;
-    }
+    drains_flown_transaction: bool,
+) -> FfiStyleDeltaSpan {
     // SAFETY: Guaranteed by the caller.
-    with_engine(read, host, |engine| {
-        assert!(!deltas.is_null(), "a non-empty delta span must have storage");
-        // SAFETY: Guaranteed by the caller.
-        sort_style_deltas_for_direct_application(engine, unsafe { std::slice::from_raw_parts_mut(deltas, count) });
+    let reactions = unsafe { borrow(reactions, count) };
+    let memo = host.engine_memo();
+    let beside_flown_transaction = memo.beside_flown_transaction.borrow();
+    let mut closed = memo.closed_reactions.borrow_mut();
+    let changed = with_engine(read, host, |engine| {
+        close_style_reactions_over_inheritance(
+            engine,
+            reactions,
+            drains_flown_transaction.then_some(&*beside_flown_transaction),
+            &mut closed,
+        )
     });
+    let batch = if changed { closed.as_slice() } else { reactions };
+    FfiStyleDeltaSpan {
+        deltas: batch.as_ptr(),
+        count: batch.len(),
+    }
+}
+
+/// Closes `reactions` into `closed`, where that changes them, and answers whether it did.
+fn close_style_reactions_over_inheritance(
+    engine: &mut StyleEngine,
+    reactions: &[FfiStyleDelta],
+    beside_flown_transaction: Option<&super::HashSet<StyleNodeID>>,
+    closed: &mut Vec<FfiStyleDelta>,
+) -> bool {
+    let InheritanceClosure {
+        left_to_next_transaction,
+        mut unstyled_ancestors,
+        gaps,
+    } = engine.close_over_inheritance(reactions, beside_flown_transaction);
+    if unstyled_ancestors.is_empty() && gaps.is_empty() && left_to_next_transaction.is_empty() {
+        return false;
+    }
+    let materialize = |element: StyleNodeID, reaction: u8| FfiStyleDelta {
+        style_node: element.raw(),
+        match_answer: 0,
+        old_style_record: 0,
+        new_style_record: 0,
+        damage: FfiStyleDeltaDamage::None,
+        reaction,
+        inherited_style_groups: 0,
+        pseudo_kind: u8::MAX,
+        gap: FfiStyleDeltaGap::Materialize,
+        uses_substitution: false,
+        record_reads: 0,
+        explicitly_inherited_groups: 0,
+        record_damage: 0,
+        owes_an_animation_plan: false,
+        owes_a_transition_step: false,
+        composed_by_the_host: false,
+    };
+    closed.clear();
+    closed.extend(
+        reactions
+            .iter()
+            .filter(|reaction| !left_to_next_transaction.contains(&delta_node(reaction))),
+    );
+    closed.extend(
+        unstyled_ancestors
+            .iter()
+            .map(|&element| materialize(element, super::transaction::STYLE_REACTION_RECOMPUTE_STYLE)),
+    );
+    closed.extend(gaps.iter().map(|&element| materialize(element, 0)));
+    unstyled_ancestors.extend(gaps);
+    if !unstyled_ancestors.is_empty() {
+        assert!(
+            engine
+                .complete_published_match_answers_for_closure(&unstyled_ancestors)
+                .is_ok(),
+            "the engine answers the elements a reaction batch closes over"
+        );
+        // The engine answers a transaction's reactions in order already, so only the rows closed over need sorting.
+        sort_style_deltas_for_direct_application(engine, closed);
+    }
+    true
+}
+
+fn delta_node(delta: &FfiStyleDelta) -> StyleNodeID {
+    StyleNodeID::from_raw(delta.style_node).expect("a style delta must name an element")
+}
+
+/// What a reaction batch closes over: an element without style that a reaction inherits from computes its style ahead
+/// of it, and a reaction whose ancestor reacts too keeps a row without a reaction of its own for each element in
+/// between, for the reactions the ancestor derives to reach it. Neither applies to a reaction the engine answered as
+/// hidden, which needs no style to inherit from.
+///
+/// The transaction that flew computed its reactions under the ancestors the elements had as it was sealed, so a
+/// reaction inheriting from an element without style that arrived beside it is the next transaction's, which styles
+/// it under that, and the elements an element that arrived, moved or retired beside it inherits through are not
+/// closed over.
+#[derive(Debug, Default, PartialEq)]
+pub(super) struct InheritanceClosure {
+    pub(super) left_to_next_transaction: super::HashSet<StyleNodeID>,
+    pub(super) unstyled_ancestors: Vec<StyleNodeID>,
+    pub(super) gaps: Vec<StyleNodeID>,
+}
+
+impl super::RetainedState {
+    pub(super) fn close_over_inheritance(
+        &self,
+        reactions: &[FfiStyleDelta],
+        beside_flown_transaction: Option<&super::HashSet<StyleNodeID>>,
+    ) -> InheritanceClosure {
+        let is_beside_flown_transaction = |node| beside_flown_transaction.is_some_and(|beside| beside.contains(&node));
+        let ancestors = |node| {
+            std::iter::successors(self.tree.inheritance_parent(node), |&ancestor| {
+                self.tree.inheritance_parent(ancestor)
+            })
+        };
+        let reacting_elements = || {
+            reactions
+                .iter()
+                .filter(|reaction| reaction.gap != FfiStyleDeltaGap::Hidden)
+                .map(delta_node)
+                .filter(|&reacting| !is_beside_flown_transaction(reacting))
+        };
+        let mut in_batch: super::HashSet<StyleNodeID> = reactions.iter().map(delta_node).collect();
+        let mut closure = InheritanceClosure::default();
+
+        for reacting in reacting_elements() {
+            let start = closure.unstyled_ancestors.len();
+            for ancestor in ancestors(reacting).take_while(|ancestor| !self.held_style_records.contains_key(ancestor)) {
+                if is_beside_flown_transaction(ancestor) {
+                    for truncated in closure.unstyled_ancestors.drain(start..) {
+                        in_batch.remove(&truncated);
+                    }
+                    closure.left_to_next_transaction.insert(reacting);
+                    break;
+                }
+                if in_batch.insert(ancestor) {
+                    closure.unstyled_ancestors.push(ancestor);
+                }
+            }
+        }
+        for reacting in &closure.left_to_next_transaction {
+            in_batch.remove(reacting);
+        }
+
+        let mut between = Vec::new();
+        let kept = reacting_elements().filter(|reacting| !closure.left_to_next_transaction.contains(reacting));
+        for reacting in kept.chain(closure.unstyled_ancestors.iter().copied()) {
+            between.clear();
+            for ancestor in ancestors(reacting) {
+                if is_beside_flown_transaction(ancestor) {
+                    break;
+                }
+                if in_batch.contains(&ancestor) {
+                    closure
+                        .gaps
+                        .extend(between.iter().copied().filter(|&element| in_batch.insert(element)));
+                    break;
+                }
+                between.push(ancestor);
+            }
+        }
+        closure
+    }
 }
 
 /// Orders `deltas` for direct application in C++: each inheritance branch contiguously in preorder, an element's own

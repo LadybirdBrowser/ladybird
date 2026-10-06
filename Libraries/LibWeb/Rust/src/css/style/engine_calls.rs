@@ -14,7 +14,8 @@ use super::StyleEngine;
 use super::atoms::{AtomKey, AtomLease};
 use super::bridge::{
     FfiDemandedPseudoElement, FfiElementArrival, FfiElementDeclarationDelta, FfiLocalFeatureDelta,
-    FfiPseudoElementRecordDemand, FfiRecordDemand, FfiRecordDemandAnswer, FfiStateDelta, FfiTreeDelta, borrow,
+    FfiPseudoElementRecordDemand, FfiRecordDemand, FfiRecordDemandAnswer, FfiStateDelta, FfiStyleDelta, FfiTreeDelta,
+    borrow,
 };
 use super::font_resolution::{FontResolverHost, PublishedFontFaces};
 use super::inputs::RetainedCustomPropertyData;
@@ -852,6 +853,11 @@ pub(crate) struct EngineMemo {
     pub(crate) atoms: std::cell::RefCell<super::host_atoms::HostAtoms>,
     /// The deltas the host recorded since it last submitted them.
     pub(crate) staged_input: std::cell::RefCell<StagedInput>,
+    /// The elements that arrived, moved or retired beside the style transaction that flew, which knows nothing of
+    /// them, until the drain of its reactions ends.
+    pub(crate) beside_flown_transaction: std::cell::RefCell<super::HashSet<StyleNodeID>>,
+    /// The reactions the host applies next, where closing them over the elements they inherit through changed them.
+    pub(crate) closed_reactions: std::cell::RefCell<Vec<FfiStyleDelta>>,
 }
 
 impl EngineMemo {
@@ -878,6 +884,8 @@ impl Default for EngineMemo {
             baselines: Default::default(),
             atoms: Default::default(),
             staged_input: Default::default(),
+            beside_flown_transaction: Default::default(),
+            closed_reactions: Default::default(),
         }
     }
 }
