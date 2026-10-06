@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The digit generation of NumberPrototype.cpp: the parts of toExponential, toFixed, toPrecision and toString(radix)
+//! The digit generation of Number.prototype: the parts of toExponential, toFixed, toPrecision and toString(radix)
 //! that run once the arguments are validated and x is known to be finite, as functions returning ASCII strings.
 
 use num_bigint::BigUint;

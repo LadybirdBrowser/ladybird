@@ -51,7 +51,7 @@ fn wtf8_of(string: &Utf16String) -> Vec<u8> {
     Utf16View::of_string(string).to_wtf8()
 }
 
-/// Test::JS::TestRunnerGlobalObject.
+/// The global object the runtime tests run with.
 #[repr(C)]
 #[derive(Trace)]
 pub struct TestRunnerGlobalObject {
@@ -102,7 +102,7 @@ impl TestRunnerGlobalObject {
             None,
         );
 
-        // NB: The C++ runner keeps these functions in a HashMap, and defines them in the order of its buckets.
+        // NB: The functions are defined in the order of the buckets of a HashTable of their names.
         let mut names = HashTable::default();
         for (name, _) in EXPOSED_GLOBAL_FUNCTIONS {
             names.set(Utf16FlyString::from_utf8(name));

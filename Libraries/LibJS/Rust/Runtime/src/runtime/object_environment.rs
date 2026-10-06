@@ -22,7 +22,6 @@ use crate::runtime::object::ShouldThrowExceptions;
 use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
 
-/// Mirrors ObjectEnvironment::IsWithEnvironment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IsWithEnvironment {
     No,
@@ -79,7 +78,7 @@ pub const OBJECT_ENVIRONMENT_METHODS: EnvironmentMethods = EnvironmentMethods {
 };
 
 impl ObjectEnvironment {
-    /// The C++ constructor, which NewObjectEnvironment and NewGlobalEnvironment allocate through.
+    /// The constructor that NewObjectEnvironment and NewGlobalEnvironment allocate through.
     pub(crate) fn create(
         vm: &Vm,
         binding_object: Gc<Object>,

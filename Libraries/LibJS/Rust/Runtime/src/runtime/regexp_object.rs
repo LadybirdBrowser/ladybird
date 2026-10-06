@@ -60,7 +60,7 @@ impl RegExpFlags {
     }
 }
 
-/// JS_ENUMERATE_REGEXP_FLAGS: each flag with its flag character, in the order the C++ enumerates them.
+/// Each flag with its flag character, in the order get RegExp.prototype.flags lists them.
 pub const REGEXP_FLAGS_WITH_CHARACTERS: [(RegExpFlags, u8); 8] = [
     (RegExpFlags::HAS_INDICES, b'd'),
     (RegExpFlags::GLOBAL, b'g'),
@@ -140,8 +140,7 @@ pub struct RegExpObject {
     flag_bits: Cell<RegExpFlags>,
     #[gc(untraced)]
     legacy_features_enabled: Cell<bool>, // [[LegacyFeaturesEnabled]]
-    /// The compiled pattern, which the C++ caches in a process-wide map shared by every RegExp object with the same
-    /// pattern and flags, and which this object owns.
+    /// The compiled pattern, which RegExp objects with the same pattern and flags share through the regex cache.
     #[gc(untraced)]
     cached_regex: GcRefCell<Option<Rc<EcmaScriptRegex>>>,
     // Note: This is initialized in RegExpAlloc, but will be non-null afterwards
@@ -375,8 +374,8 @@ impl RegExpObject {
         }
 
         // FIXME: Check the 'u' and 'v' flags and escape accordingly
-        // NB: The C++ walks the pattern by code point and appends each one back. Only code points of the BMP are ever
-        //     escaped, so walking it by code unit gives the same string.
+        // NB: Only code points of the BMP are ever escaped, so walking the pattern by code unit gives the same string
+        //     as walking it by code point.
         let mut builder = Utf16StringBuilder::new();
         let mut escaped = false;
         let mut in_character_class = false;
@@ -606,9 +605,8 @@ fn invalid_group_name_error() -> ParseRegexPatternError {
     }
 }
 
-/// The C++ classifies escaped values through the u16 surrogate predicates, so a braced escape above the BMP is
-/// classified by its low 16 bits (\u{1DF00} counts as a low surrogate). That narrowing is kept so that the same group
-/// names are rejected.
+/// Escaped values are classified through the u16 surrogate predicates, so a braced escape above the BMP is classified
+/// by its low 16 bits (\u{1DF00} counts as a low surrogate), which decides the group names that are rejected.
 fn classify_escaped_value(value: u32) -> RegExpNameElementKind {
     let truncated_to_code_unit = value as u16;
     if is_utf16_high_surrogate(truncated_to_code_unit) {

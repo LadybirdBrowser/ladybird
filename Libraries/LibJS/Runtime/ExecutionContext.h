@@ -27,9 +27,9 @@
 
 namespace JS {
 
-// [[ScriptOrModule]]: null, a Script Record or a Module Record. The C++ runtime's is a Variant<Empty, GC::Ref<Script>,
-// GC::Ref<Module>>, whose index follows its storage. The Rust runtime puts the tag first, so this type keeps that
-// layout and offers the part of Variant's interface that LibJS's users call.
+// [[ScriptOrModule]]: null, a Script Record or a Module Record. The Rust runtime puts the tag before the record, so
+// this type keeps that layout rather than being a Variant<Empty, GC::Ref<Script>, GC::Ref<Module>>, whose index
+// follows its storage, and offers the part of Variant's interface that LibJS's users call.
 class ScriptOrModule {
 public:
     ScriptOrModule() { }

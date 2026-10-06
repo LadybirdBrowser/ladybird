@@ -158,8 +158,8 @@ fn strndup(string: &[u8]) -> *mut c_char {
     }
 }
 
-/// What the C++ js does without libedit: shows `prompt`, and reads a line as fgets() into a buffer of 4096 bytes does,
-/// with its newline. Returns None at the end of the input.
+/// Shows `prompt` and reads a line without libedit, as fgets() into a buffer of 4096 bytes does, with its newline.
+/// Returns None at the end of the input.
 pub fn read_line_without_line_editor(prompt: &CStr) -> Option<Vec<u8>> {
     use std::io::BufRead;
 

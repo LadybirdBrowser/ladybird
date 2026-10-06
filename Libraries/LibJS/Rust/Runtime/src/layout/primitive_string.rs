@@ -9,7 +9,6 @@ use core::cell::Cell;
 use super::cell::CellHeader;
 use crate::layout_forward::Utf16StringSlot;
 
-/// Mirrors JS::PrimitiveString::DeferredKind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum DeferredKind {

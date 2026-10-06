@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Runtime/Temporal/PlainDatePrototype.cpp: %Temporal.PlainDate.prototype%.
+//! %Temporal.PlainDate.prototype%.
 
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;

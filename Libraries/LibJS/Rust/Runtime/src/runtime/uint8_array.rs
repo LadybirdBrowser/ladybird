@@ -32,10 +32,10 @@ fn append_lowercase_hex_byte(builder: &mut Utf16StringBuilder, byte: u8) {
     builder.append_code_unit(u16::from(HEX_DIGITS[usize::from(byte & 0xf)]));
 }
 
-/// The Uint8Array constructor's functions, which C++ defines with Uint8ArrayConstructorHelpers.
+/// The Uint8Array constructor's functions.
 pub struct Uint8ArrayConstructorHelpers;
 
-/// The functions of %Uint8Array.prototype%, which C++ defines with Uint8ArrayPrototypeHelpers.
+/// The functions of %Uint8Array.prototype%.
 pub struct Uint8ArrayPrototypeHelpers;
 
 fn base64_decode_error_message(error: Base64DecodeError) -> &'static str {

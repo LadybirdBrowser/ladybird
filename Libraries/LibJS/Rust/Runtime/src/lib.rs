@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! A JavaScript runtime for LibJS, written in Rust. It runs the same bytecode as the C++ runtime, produced by the
-//! same frontend and executed by the same Flap-generated interpreter, on cells allocated from LibGC.
+//! A JavaScript runtime for LibJS, written in Rust. It runs the bytecode of LibJS's frontend in the Flap-generated
+//! interpreter, on cells allocated from LibGC.
 
 #[cfg(feature = "allocator")]
 extern crate ladybird_allocator;

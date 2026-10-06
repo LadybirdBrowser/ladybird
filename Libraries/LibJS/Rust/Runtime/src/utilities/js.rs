@@ -125,7 +125,7 @@ const fn option(
     }
 }
 
-/// The options in the order the C++ js registers them, after the two every Core::ArgsParser has.
+/// The options of js in the order its help lists them, after the two every Core::ArgsParser has.
 const OPTIONS: &[OptionDescription] = &[
     OptionDescription {
         shown_in_synopsis: false,
@@ -273,9 +273,9 @@ fn print_usage(file: &mut dyn Write, argv0: &str) -> io::Result<()> {
     )
 }
 
-/// Core::ArgsParser::parse() on the C++ js's options, with AK::OptionParser's getopt rules: options and scripts may
-/// come in any order, short options may be grouped, values follow their option or are attached to it, and `--` ends
-/// the options. Returns the exit code instead when it fails, or when it shows the help or the version.
+/// Core::ArgsParser::parse() on js's options, with AK::OptionParser's getopt rules: options and scripts may come in
+/// any order, short options may be grouped, values follow their option or are attached to it, and `--` ends the
+/// options. Returns the exit code instead when it fails, or when it shows the help or the version.
 fn parse_arguments(arguments: &[String], output: &mut dyn Write) -> Result<Options, c_int> {
     let argv0 = arguments.first().map_or("<exe>", String::as_str);
     let fail = || -> c_int {
@@ -373,20 +373,21 @@ fn parse_arguments(arguments: &[String], output: &mut dyn Write) -> Result<Optio
     Ok(options)
 }
 
-/// s_strip_ansi and s_raw_strings of the C++ js, which the native functions of its global objects print with.
+/// Whether ANSI colors are disabled and strings are displayed raw, which the native functions of the global objects
+/// of js print with.
 static STRIP_ANSI: AtomicBool = AtomicBool::new(false);
 static RAW_STRINGS: AtomicBool = AtomicBool::new(false);
 
-/// s_repl_line_level, s_keep_running_repl and s_exit_code of the C++ js. The line level counts the brackets that the
-/// lines read so far have left open, and is not reset between pieces.
+/// The line level of the REPL, whether the REPL keeps running, and the exit code of js. The line level counts the
+/// brackets that the lines read so far have left open, and is not reset between pieces.
 static REPL_LINE_LEVEL: AtomicI32 = AtomicI32::new(0);
 static KEEP_RUNNING_REPL: AtomicBool = AtomicBool::new(true);
 static EXIT_CODE: AtomicI32 = AtomicI32::new(0);
 
 thread_local! {
-    /// g_repl_statements of the C++ js: the pieces of input the REPL has run, which save() writes.
+    /// The pieces of input the REPL has run, which save() writes.
     static REPL_STATEMENTS: RefCell<Vec<Vec<u8>>> = const { RefCell::new(Vec::new()) };
-    /// g_last_value of the C++ js: the completion value of the last script that ran, which `_` of the REPL reads.
+    /// The completion value of the last script that ran, which `_` of the REPL reads.
     static LAST_VALUE: RefCell<Option<Root<'static, Value>>> = const { RefCell::new(None) };
 }
 
@@ -485,8 +486,7 @@ impl ReplObject {
 
     fn exit_interpreter(vm: &Vm) -> ThrowCompletionOr<Value> {
         if vm.argument_count() != 0 {
-            // NB: The C++ js converts the double to the int s_exit_code, which on AArch64 saturates and takes NaN to
-            //     0, like this cast.
+            // NB: The exit code is the double converted to an int, which saturates and takes NaN to 0.
             EXIT_CODE.store(vm.argument(0).to_double(vm)? as i32, Ordering::Relaxed);
         }
 
@@ -959,7 +959,7 @@ fn write_to_file(path: &[u8]) -> io::Result<()> {
     })
 }
 
-/// error->stack_string(JS::CompactTraceback::Yes) of a thrown Error, which the C++ js prints after the error.
+/// error->stack_string(JS::CompactTraceback::Yes) of a thrown Error, which js prints after the error.
 fn stack_string_of_thrown_error(thrown_value: Value) -> Option<Utf16String> {
     if !thrown_value.is_object() {
         return None;
@@ -1011,9 +1011,9 @@ fn parse_and_run(
         standard_output::outln(error_string.as_bytes());
         result = vm.throw_completion_with_message(ErrorKind::SyntaxError, error_string);
     } else {
-        // NB: The C++ js dumps the AST in color unless -i is given, which the frontend only offers to standard output
-        //     directly, so this dumps it without color. Like the frontend, it prints through the standard output of
-        //     std, which writes each line out past the buffer that js prints its other output into.
+        // NB: The frontend only offers to dump the AST in color to standard output directly, so this dumps it without
+        //     color even when -i is not given. Like the frontend, it prints through the standard output of std, which
+        //     writes each line out past the buffer that js prints its other output into.
         if options.dump_ast {
             let mut stdout = io::stdout().lock();
             let _ = stdout.write_all(parsed.ast_dump().as_bytes());
@@ -1147,7 +1147,7 @@ struct ConfigFile {
     groups: Vec<(Vec<u8>, ConfigFileEntries)>,
 }
 
-/// The values of a HashMap keyed by ByteStrings, in the order the C++ map visits them.
+/// The values of a HashMap keyed by ByteStrings, in the order AK::HashMap visits them.
 fn in_hash_map_order<T>(entries: &[(Vec<u8>, T)]) -> Vec<&(Vec<u8>, T)> {
     let mut table = HashTable::default();
     for (key, _) in entries {
@@ -1283,7 +1283,7 @@ fn load_json_impl(vm: &Vm) -> ThrowCompletionOr<Value> {
     JSONObject::parse_json(vm, Utf16View::of_string(&json_text), None)
 }
 
-/// ReplConsoleClient of the C++ js: prints what the console logs to the standard output.
+/// The console client of js: prints what the console logs to the standard output.
 #[repr(C)]
 #[derive(Trace)]
 pub struct ReplConsoleClient {
@@ -1414,7 +1414,7 @@ mod repl {
     use libjs_rust::lexer::Lexer;
     use libjs_rust::token::TokenType;
 
-    /// s_repl_realm and s_repl_global_environment of the C++ js, which complete_repl_line() completes names in.
+    /// The realm and the global environment of the REPL, which complete_repl_line() completes names in.
     struct ReplRealm {
         vm: &'static Vm,
         realm: Root<'static, Gc<Realm>>,
@@ -1740,7 +1740,7 @@ fn home_directory_of_user() -> Vec<u8> {
     }
 }
 
-/// s_history_path of the C++ js: .js-history in Core::StandardPaths::home_directory(), which String::formatted()
+/// The path of the REPL's history: .js-history in Core::StandardPaths::home_directory(), which String::formatted()
 /// fails to make if the home directory is not UTF-8.
 fn history_path() -> Result<CString, String> {
     #[cfg(unix)]
@@ -1833,12 +1833,11 @@ fn ladybird_main(arguments: &[String], line_editor: Option<JSLineEditor>) -> c_i
         }
     };
 
-    // NB: The -h and -s options change nothing, since the C++ js reads neither. Besides the warnings about rejected
-    //     promises, --disable-debug-output silences debug output, which the runtime prints none of.
+    // NB: The -h and -s options are accepted but change nothing. Besides the warnings about rejected promises,
+    //     --disable-debug-output silences debug output, which the runtime prints none of.
     set_dump_bytecode(options.dump_bytecode);
 
-    // NB: Like the VM of the C++ js, which is NeverDestroyed, this one lives until the process exits, so that exiting does
-    //     not first destroy every cell of the heap.
+    // NB: The VM lives until the process exits, so that exiting does not first destroy every cell of the heap.
     let vm: &'static Vm = Box::leak(Vm::create());
     vm.set_dynamic_imports_allowed(true);
 
@@ -1937,7 +1936,7 @@ fn ladybird_main(arguments: &[String], line_editor: Option<JSLineEditor>) -> c_i
 
 /// The entry point of js, called from its C++ main on the main thread. The REPL and the debugger prompt read
 /// their input with `line_editor`, which is copied. Without one, the REPL is not supported, and the debugger prompt
-/// reads the standard input as the C++ js does without libedit.
+/// reads the standard input without line editing.
 ///
 /// # Safety
 ///

@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The BigInt arithmetic of the C++ runtime that needs no cells: what BigInt.cpp, BigIntConstructor.cpp and the BigInt
-//! branches of Value.cpp compute, and the Crypto::SignedBigInteger operations they rely on, over num_bigint::BigInt.
+//! The BigInt arithmetic that needs no cells: the BigInt operations of the spec, the conversions between BigInts,
+//! Numbers and strings, and the Crypto::SignedBigInteger operations they rely on, over num_bigint::BigInt.
 
 use core::cmp::Ordering;
 
@@ -285,7 +285,6 @@ pub fn as_uint_n(bits: u64, bigint: &BigInt) -> Result<BigInt, NumericOperationE
     mod_power_of_two(bigint, bits)
 }
 
-/// The BigInt branch of Value.cpp's left_shift.
 /// 6.1.6.2.9 BigInt::leftShift ( x, y ), https://tc39.es/ecma262/#sec-numeric-types-bigint-leftShift
 pub fn left_shift(x: &BigInt, y: &BigInt) -> Result<BigInt, NumericOperationError> {
     // AD-HOC: Prevent allocating huge amounts of memory.
@@ -294,7 +293,7 @@ pub fn left_shift(x: &BigInt, y: &BigInt) -> Result<BigInt, NumericOperationErro
         return Err(NumericOperationError::BigIntSizeExceeded);
     }
 
-    // The C++ runtime multiplies or divides by 2^|y| computed with Crypto's pow().
+    // x is multiplied or divided by 2^|y| as Crypto's pow() computes it.
     let shift = u64::from(exponent_applied_by_crypto_pow(
         rhs_bigint.to_u32().expect("at most 32 bits"),
     ));
@@ -318,14 +317,12 @@ pub fn left_shift(x: &BigInt, y: &BigInt) -> Result<BigInt, NumericOperationErro
     Ok(x << shift)
 }
 
-/// The BigInt branch of Value.cpp's right_shift.
 /// 6.1.6.2.10 BigInt::signedRightShift ( x, y ), https://tc39.es/ecma262/#sec-numeric-types-bigint-signedRightShift
 pub fn signed_right_shift(x: &BigInt, y: &BigInt) -> Result<BigInt, NumericOperationError> {
     // 1. Return BigInt::leftShift(x, -y).
     left_shift(x, &-y)
 }
 
-/// The BigInt branch of Value.cpp's exp.
 /// 6.1.6.2.3 BigInt::exponentiate ( base, exponent ), https://tc39.es/ecma262/#sec-numeric-types-bigint-exponentiate
 pub fn exponentiate(base: &BigInt, exponent: &BigInt) -> Result<BigInt, NumericOperationError> {
     // 1. If exponent < 0ℤ, throw a RangeError exception.

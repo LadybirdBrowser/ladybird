@@ -94,7 +94,7 @@ impl FinalizationRegistry {
         }
     }
 
-    /// Registers the new FinalizationRegistry as a weak container, which C++ does in the constructor.
+    /// Registers the new FinalizationRegistry as a weak container.
     fn initialize(object: &Object, vm: &Vm, _: Gc<Realm>) {
         vm.register_weak_container(WeakContainer::new(
             object.as_gc(),

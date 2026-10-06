@@ -274,7 +274,6 @@ impl Vm {
         result
     }
 
-    /// VM::run(SourceTextModule&)
     pub fn run_module(&self, module: Gc<SourceTextModule>) -> ThrowCompletionOr<Value> {
         // FIXME: This is not a entry point as defined in the spec, but is convenient.
         //        To avoid work we use link_and_eval_module however that can already be

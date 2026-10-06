@@ -93,7 +93,7 @@ impl DataViewConstructor {
             .then(|| buffer_value.as_object().downcast::<ArrayBuffer>())
             .flatten();
         let Some(buffer) = buffer else {
-            // NB: Like C++, this formats the null ArrayBuffer pointer it did not find.
+            // NB: The message shows the null pointer of the ArrayBuffer that was not found rather than the value.
             return vm.throw_completion(
                 ErrorKind::TypeError,
                 ErrorType::IsNotAn,
@@ -131,7 +131,7 @@ impl DataViewConstructor {
             // a. If bufferIsFixedLength is true, then
             if buffer_is_fixed_length {
                 // i. Let viewByteLength be bufferByteLength - offset.
-                // NB: Like C++, the length is truncated to a u32.
+                // NB: The length is truncated to the u32 that a ByteLength holds.
                 view_byte_length = ByteLength::Length((buffer_byte_length - offset) as u32);
             }
             // b. Else,
@@ -143,7 +143,7 @@ impl DataViewConstructor {
         // 9. Else,
         else {
             // a. Let viewByteLength be ? ToIndex(byteLength).
-            // NB: Like C++, the length is truncated to a u32.
+            // NB: The length is truncated to the u32 that a ByteLength holds.
             view_byte_length = ByteLength::Length(byte_length.to_index(vm)? as u32);
 
             // b. If offset + viewByteLength > bufferByteLength, throw a RangeError exception.

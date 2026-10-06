@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Runtime/Value.cpp: the conversions and operators on values.
+//! The conversions and operators on values.
 
 use core::ptr::NonNull;
 
@@ -63,8 +63,8 @@ impl Value {
         Self(nan_box::SHIFTED_INT32_TAG | value as u32 as u64)
     }
 
-    /// Like the C++ Value(double): integral doubles that fit in an i32, other than negative zero, are stored as
-    /// Int32, and every NaN becomes the canonical NaN.
+    /// Integral doubles that fit in an i32, other than negative zero, are stored as Int32, and every NaN becomes the
+    /// canonical NaN.
     pub fn from_f64(value: f64) -> Self {
         let is_negative_zero = value.to_bits() == nan_box::NEGATIVE_ZERO_BITS;
         if value >= f64::from(i32::MIN) && value <= f64::from(i32::MAX) && value.trunc() == value && !is_negative_zero {
@@ -1032,7 +1032,6 @@ impl Value {
     }
 }
 
-/// Mirrors JS::Value::PreferredType.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PreferredType {
     Default,
@@ -1429,7 +1428,7 @@ pub fn right_shift(vm: &Vm, lhs: Value, rhs: Value) -> ThrowCompletionOr<Value> 
         // 6.1.6.2.10 BigInt::signedRightShift ( x, y ), https://tc39.es/ecma262/#sec-numeric-types-bigint-signedRightShift
         // 1. Return BigInt::leftShift(x, -y).
         let rhs_negated = -rhs_numeric.as_bigint().big_integer();
-        // NOTE: Like the C++ runtime, this passes the original left operand, which converts it with ToNumeric again.
+        // NOTE: This passes the original left operand, which converts it with ToNumeric again.
         return left_shift(vm, lhs, create_bigint_value(vm, rhs_negated));
     }
 
@@ -1801,12 +1800,12 @@ pub fn instance_of(vm: &Vm, value: Value, target: Value) -> ThrowCompletionOr<Va
     }
 
     // 5. Return ? OrdinaryHasInstance(target, V).
-    // NOTE: Like the C++ runtime, this passes target as the instance and V as the constructor.
+    // NOTE: This passes target as the instance and V as the constructor.
     ordinary_has_instance(vm, target, value)
 }
 
 // 7.3.22 OrdinaryHasInstance ( C, O ), https://tc39.es/ecma262/#sec-ordinaryhasinstance
-// NOTE: As in the C++ runtime, lhs is O and rhs is C.
+// NOTE: lhs is O and rhs is C.
 pub fn ordinary_has_instance(vm: &Vm, lhs: Value, rhs: Value) -> ThrowCompletionOr<Value> {
     // 1. If IsCallable(C) is false, return false.
     if !rhs.is_function() {
@@ -2232,7 +2231,7 @@ pub fn is_less_than(vm: &Vm, lhs: Value, rhs: Value, left_first: bool) -> ThrowC
     Ok(TriState::False)
 }
 
-/// Formats a value the way AK formats a C++ JS::Value, without side effects.
+/// Formats a value the way AK formats a JS::Value, without side effects.
 impl Utf16Display for Value {
     fn fmt_utf16(&self, builder: &mut Utf16StringBuilder) {
         builder.append(Utf16View::of_string(&self.to_utf16_string_without_side_effects()));

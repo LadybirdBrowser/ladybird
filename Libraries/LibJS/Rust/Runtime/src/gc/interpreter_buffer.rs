@@ -4,10 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Growable storage for the buffers a cell owns and the interpreter reads through their data pointer, like the
-//! Vectors the C++ runtime keeps there. A buffer allocated through these methods belongs to the cell that holds it,
-//! which frees it with clear() in its finalizer. The interpreter may read and write elements at any time, so
-//! elements are only ever copied in and out, never borrowed.
+//! Growable storage for the buffers a cell owns and the interpreter reads through their data pointer. A buffer
+//! allocated through these methods belongs to the cell that holds it, which frees it with clear() in its finalizer. The
+//! interpreter may read and write elements at any time, so elements are only ever copied in and out, never borrowed.
 
 use core::cell::Cell;
 use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};

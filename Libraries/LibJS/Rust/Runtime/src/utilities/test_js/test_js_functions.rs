@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Tests/LibJS/test-js.cpp: the global functions the runtime tests call besides the harness, and the hook that runs
-//! the test262 parser tests instead of the runtime tests.
+//! The global functions the runtime tests call besides the harness, and the hook that runs the test262 parser tests
+//! instead of the runtime tests.
 
 use core::ops::ControlFlow;
 use std::ffi::{CStr, CString};
@@ -39,7 +39,8 @@ use crate::script::Script;
 use crate::unicode::time_zone as unicode_time_zone;
 use crate::utf16::Utf16View;
 
-/// The functions TESTJS_GLOBAL_FUNCTION defines, in the order test-js.cpp registers them. Each has a length of 1.
+/// The global functions the runtime tests call besides the harness, in the order they are registered in. Like the
+/// functions TESTJS_GLOBAL_FUNCTION defines, each has a length of 1.
 pub const EXPOSED_GLOBAL_FUNCTIONS: &[(&str, RawNativeFunctionPointer)] = &[
     ("canParseSource", raw_native!(can_parse_source)),
     ("gc", raw_native!(collect_garbage)),

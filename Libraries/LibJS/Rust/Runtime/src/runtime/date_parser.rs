@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The date string parser of Date.parse and the Date constructor, mirroring Libraries/LibJS/Runtime/DateParser.h.
+//! The date string parser of Date.parse and the Date constructor.
 
 // Parse simplified ISO8601 and non-standard date formats to milliseconds
 // from epoch (double). Synopsis:
@@ -585,8 +585,6 @@ impl DateParser {
                         return false; // To many digits to be anything else than a signed year.
                     }
 
-                    // NB: The C++ multiplies the sign and the number as unsigned ints, which the conversion of the
-                    //     year to an i32 in build_date() undoes.
                     self.year = Some(i64::from(sign) * number.number as i64); // Candidate for signed year
                     return true;
                 }

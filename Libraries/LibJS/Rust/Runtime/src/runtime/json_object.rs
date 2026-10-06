@@ -377,8 +377,8 @@ impl JSONTextBytes<'_> {
         &self.utf8[..self.length]
     }
 
-    /// The text of a string or key without escapes, which `bytes` holds between two quotes, as C++ makes it with
-    /// from_utf8_without_validation().
+    /// The text of a string or key without escapes, which `bytes` holds between two quotes, as UTF-8 that is not
+    /// validated again.
     fn unescaped_text<'a>(&self, bytes: &'a [u8]) -> &'a str {
         assert!(self.bytes().as_ptr_range().contains(&bytes.as_ptr()) || bytes.is_empty());
         debug_assert!(core::str::from_utf8(bytes).is_ok());
@@ -576,7 +576,7 @@ fn json_token_source(json_text: &JSONTextBytes<'_>, raw: &[u8]) -> Utf16String {
         .to_utf16_string()
 }
 
-/// The simdjson values JSONObject.cpp parses with templates: a document, or a value inside one.
+/// The simdjson values the parser handles alike: a document, or a value inside one.
 trait SimdjsonValueOrDocument<'a> {
     fn get_double(&self) -> simdjson::SimdjsonResult<f64>;
     fn get_raw_json_string(&self) -> simdjson::SimdjsonResult<simdjson::RawJsonString>;
@@ -868,7 +868,7 @@ fn parse_simdjson_value(
     value: simdjson::ValueIterator<'_, '_>,
     record: Option<usize>,
 ) -> ThrowCompletionOr<Value> {
-    // NB: The C++ runtime has no limit here and runs out of stack for deeply nested texts.
+    // NB: Deeply nested texts would otherwise run out of stack.
     if vm.did_reach_stack_space_limit() {
         return vm.throw_completion(ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[]);
     }

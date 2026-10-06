@@ -5,9 +5,9 @@
  */
 
 //! Constants whose value depends on the VM, so codegen records only which one it needs, and the tags of the encoding
-//! that the C++ runtime and the bytecode cache store constants in.
+//! that the runtime and the bytecode cache store constants in.
 
-/// Well-known symbol IDs resolved by C++ when materializing an Executable.
+/// Well-known symbol IDs that the runtime resolves when materializing an Executable.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
 pub enum WellKnownSymbolKind {
@@ -15,7 +15,7 @@ pub enum WellKnownSymbolKind {
     SymbolAsyncIterator = 1,
 }
 
-/// NativeJavaScriptBackedFunction intrinsic IDs resolved by C++ when materializing an Executable.
+/// NativeJavaScriptBackedFunction intrinsic IDs that the runtime resolves when materializing an Executable.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
 pub enum AbstractOperationKind {

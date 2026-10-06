@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! AK::HashTable, for the places where the C++ runtime walks one where the spec walks a List: the order it visits its
-//! values in is the order of its buckets, which is observable, so this keeps the same buckets.
+//! AK::HashTable, for the places where the runtime walks one where the spec walks a List: the order it visits its
+//! values in is the order of its buckets, which is observable, so this keeps the buckets of AK::HashTable.
 
 use ak::Utf16FlyString;
 
@@ -122,7 +122,7 @@ impl<T: HashTableTraits> HashTable<T> {
         }
     }
 
-    /// The values in the order iterating the C++ table visits them: by bucket.
+    /// The values in the order iterating an AK::HashTable visits them: by bucket.
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         self.buckets.iter().flatten().map(|bucket| &bucket.value)
     }

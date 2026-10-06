@@ -27,8 +27,8 @@ impl<'vm> ResolutionOptionDescriptor<'vm> {
     }
 }
 
-/// The C++ IntlObject, the base of the Intl service objects ResolveOptions resolves the options of: what their
-/// constructors' [[RelevantExtensionKeys]] and [[ResolutionOptionDescriptors]] are.
+/// The Intl service objects ResolveOptions resolves the options of: what their constructors' [[RelevantExtensionKeys]]
+/// and [[ResolutionOptionDescriptors]] are.
 pub trait IntlObject {
     fn relevant_extension_keys(&self) -> &'static [&'static str];
     fn resolution_option_descriptors<'vm>(&self, vm: &'vm Vm) -> Vec<ResolutionOptionDescriptor<'vm>>;

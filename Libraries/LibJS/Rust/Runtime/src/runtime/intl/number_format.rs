@@ -47,7 +47,7 @@ pub enum ComputedRoundingPriority {
     Invalid,
 }
 
-/// The C++ NumberFormatBase, the slots Intl.NumberFormat and Intl.PluralRules share.
+/// The slots Intl.NumberFormat and Intl.PluralRules share.
 #[repr(C)]
 #[derive(Trace)]
 pub struct NumberFormatBase {

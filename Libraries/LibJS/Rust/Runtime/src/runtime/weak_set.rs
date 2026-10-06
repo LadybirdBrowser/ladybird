@@ -70,7 +70,7 @@ impl WeakSet {
         realm.create_object(vm, WeakSet::new(vm, realm.intrinsics().weak_set_prototype(vm)))
     }
 
-    /// Registers the new WeakSet as a weak container, which C++ does in the constructor.
+    /// Registers the new WeakSet as a weak container.
     fn initialize(object: &Object, vm: &Vm, _: Gc<Realm>) {
         vm.register_weak_container(WeakContainer::new(object.as_gc(), WeakSet::remove_dead_cells));
     }

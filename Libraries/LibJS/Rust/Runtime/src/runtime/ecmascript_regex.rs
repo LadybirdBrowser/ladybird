@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The compiled regular expressions of RegExp objects, as Libraries/LibRegex/ECMAScriptRegex.cpp and RustRegex.cpp
-//! wrap the regex engine for the C++ runtime. The engine is the same libregex_rust crate, called directly.
+//! The compiled regular expressions of RegExp objects, which call the libregex_rust crate directly, where C++ code goes
+//! through the wrappers of Libraries/LibRegex/ECMAScriptRegex.cpp and RustRegex.cpp.
 
 use core::cell::RefCell;
 
@@ -59,8 +59,8 @@ pub struct MatchPair {
 /// What rust_regex_find_all returns when the buffer it was given is too small for every match.
 const FIND_ALL_BUFFER_TOO_SMALL: i32 = -1;
 
-/// regex::ECMAScriptRegex. Like the C++, an exec leaves its captures in a buffer of the regex, which capture_slot()
-/// reads until the next exec.
+/// regex::ECMAScriptRegex. An exec leaves its captures in a buffer of the regex, which capture_slot() reads until the
+/// next exec.
 pub struct EcmaScriptRegex {
     regex: Regex,
     named_groups: Vec<EcmaScriptNamedCaptureGroup>,

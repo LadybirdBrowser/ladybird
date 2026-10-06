@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Runtime/ValueTraits.h: hashing values the way Map and Set tell their keys apart.
+//! Hashing values the way Map and Set tell their keys apart.
 
 use core::hash::{BuildHasher, Hash, Hasher};
 
 use crate::layout::value::Value;
 use crate::runtime::value::same_value;
 
-/// A value keyed by the C++ ValueTraits: hashed by its contents and compared with SameValue.
+/// A value as a hash key: hashed by its contents and compared with SameValue.
 #[derive(Clone, Copy)]
 pub struct ValueTraitsKey(pub Value);
 

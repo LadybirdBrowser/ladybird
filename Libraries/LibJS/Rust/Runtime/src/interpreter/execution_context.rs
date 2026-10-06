@@ -155,9 +155,9 @@ fn trace_slots(slots: &[Cell<Value>], visitor: &mut Visitor) {
     visitor.visit_values(values);
 }
 
-/// The slot counts that C++ ExecutionContextAllocator rounds the slots of a context outside the interpreter stack up
-/// to. Contexts of these sizes are not freed, but kept for the next context of their size, as the host creates and
-/// drops one for many callbacks and promise jobs.
+/// The slot counts that the slots of a context outside the interpreter stack are rounded up to. Contexts of these sizes
+/// are not freed, but kept for the next context of their size, as the host creates and drops one for many callbacks
+/// and promise jobs.
 const REUSED_SLOT_COUNTS: [u32; 6] = [4, 16, 64, 128, 256, 512];
 
 /// The contexts of each of REUSED_SLOT_COUNTS that were dropped on this thread, which is the thread of its VM.
@@ -191,8 +191,8 @@ fn reused_slot_count_index(slot_count: u32) -> Option<usize> {
         .position(|&reused_slot_count| slot_count <= reused_slot_count)
 }
 
-/// An execution context that lives outside the interpreter stack, like the ones C++ ExecutionContext::create()
-/// allocates for realms. It must be popped off the execution context stack before it is dropped.
+/// An execution context that lives outside the interpreter stack, such as those made for realms. It must be popped off
+/// the execution context stack before it is dropped.
 pub struct OwnedExecutionContext {
     context: NonNull<ExecutionContext>,
 }
@@ -280,8 +280,7 @@ impl core::ops::Deref for OwnedExecutionContext {
 
 impl Drop for OwnedExecutionContext {
     fn drop(&mut self) {
-        // Like C++ ExecutionContext::operator delete, this finds the size of the allocation from the context's slot
-        // count, which never changes after it is created.
+        // This finds the size of the allocation from the context's slot count, which never changes after it is created.
         let slot_count = self.registers_and_constants_and_locals_and_arguments_count.get();
         let allocated_slot_count = match reused_slot_count_index(slot_count) {
             Some(index) => {

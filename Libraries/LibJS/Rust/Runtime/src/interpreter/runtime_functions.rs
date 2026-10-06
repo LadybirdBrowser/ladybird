@@ -67,7 +67,7 @@ pub fn unimplemented_runtime_function(symbol: &str, pc: u32) -> ! {
 }
 
 /// Unwraps a ThrowCompletionOr in a slow path, or returns the control word that hands its exception to the
-/// interpreter, like ASM_TRY in SlowPaths.cpp.
+/// interpreter.
 #[allow(unused_macros)] // Until the first slow path that calls a throwing operation lands.
 macro_rules! asm_try {
     ($vm:expr, $pc:expr, $expression:expr) => {

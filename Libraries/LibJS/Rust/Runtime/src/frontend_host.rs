@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The functions the Rust frontend (Libraries/LibJS/Rust) calls on the runtime that embeds it, which the C++ runtime
-//! defines in Libraries/LibJS/RustIntegration.cpp: the hooks the parser calls, and the callbacks through which the
-//! frontend's bytecode dumper asks for the names and constants of an executable.
+//! The functions the Rust frontend (Libraries/LibJS/Rust) calls on the runtime that embeds it: the hooks the parser
+//! calls, and the callbacks through which the frontend's bytecode dumper asks for the names and constants of an
+//! executable.
 
 use core::alloc::Layout;
 use core::ffi::c_void;

@@ -142,7 +142,7 @@ static void append_frame_binding(void* context, JSDebuggerFrameBinding const* bi
     });
 }
 
-// The values are the frame's own, which the paused frame keeps alive, as C++ reads them from the frame.
+// The values are the frame's own, which the paused frame keeps alive.
 Vector<Debugger::FrameBinding> Debugger::bindings_for_frame(ExecutionContext const& execution_context) const
 {
     Vector<FrameBinding> bindings;

@@ -169,8 +169,8 @@ impl FunctionPrototype {
         if !arg_array_object.may_interfere_with_indexed_property_access()
             && arg_array_object.indexed_storage_kind() == IndexedStorageKind::Packed
         {
-            // NB: C++ passes the call a span of the storage. A call may change the storage, so this copies the
-            //     elements first: few enough onto the stack, which the collector scans, and others into a rooted list.
+            // NB: A call may change the storage, so this copies the elements first: few enough onto the stack, which
+            //     the collector scans, and others into a rooted list.
             if u64::from(arg_array_object.indexed_packed_elements_span_size()) >= length {
                 let length = length as usize;
                 if length <= STACK_ARGUMENT_CAPACITY {
@@ -297,8 +297,8 @@ impl FunctionPrototype {
         let this_arg = vm.argument(0);
 
         // 4. Return ? Call(func, thisArg, args).
-        // NB: C++ passes the call a span of this call's arguments, in the interpreter stack the call runs on, so they
-        //     are copied first: few enough onto the stack, which the collector scans, and others into a rooted list.
+        // NB: This call's arguments are in the interpreter stack the call runs on, so they are copied first: few
+        //     enough onto the stack, which the collector scans, and others into a rooted list.
         let argument_count = vm.argument_count().saturating_sub(1);
         if argument_count <= STACK_ARGUMENT_CAPACITY {
             let mut args = [Value::UNDEFINED; STACK_ARGUMENT_CAPACITY];

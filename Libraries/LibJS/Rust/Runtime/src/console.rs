@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Console.{h,cpp}: the console namespace of https://console.spec.whatwg.org, and the client a host
-//! gives it to print with.
+//! The console namespace of https://console.spec.whatwg.org, and the client a host gives it to print with.
 
 use core::cell::Cell;
 use std::collections::HashMap;
@@ -286,7 +285,7 @@ impl Console {
             else if tabular_data.is_object() {
                 let object = tabular_data.as_object();
                 // 4.1. For each `key` -> `value` of `tabularData`
-                // NB: Like C++, this ignores an error that stops the enumeration.
+                // NB: An error that stops the enumeration is ignored.
                 let _ = object.enumerate_object_properties(vm, |key| -> Option<Throw> {
                     let row = (|| -> ThrowCompletionOr<Gc<Object>> {
                         let index = PropertyKey::from_value(vm, key)?;
@@ -601,7 +600,7 @@ impl Console {
         Value::UNDEFINED
     }
 
-    /// Prints the warning C++ prints for a timer that exists or does not, which no spec has yet: see
+    /// Prints the warning for a timer that exists or does not, which no spec has yet: see
     /// https://github.com/whatwg/console/issues/134
     fn print_timer_warning(&self, vm: &Vm, before: &str, label: &Utf16String, after: &str) -> ThrowCompletionOr<()> {
         if let Some(client) = self.client.get() {
@@ -850,7 +849,7 @@ fn create_table_row(
     else if tabular_data_item.is_object() {
         let object = tabular_data_item.as_object();
         // 4.1. For each `key` -> `value` of `tabularDataItem`
-        // NB: Like C++, this ignores an error that stops the enumeration.
+        // NB: An error that stops the enumeration is ignored.
         let _ = object.enumerate_object_properties(vm, |key_v| -> Option<Throw> {
             let step = || -> ThrowCompletionOr<()> {
                 let key = PropertyKey::from_value(vm, key_v)?;

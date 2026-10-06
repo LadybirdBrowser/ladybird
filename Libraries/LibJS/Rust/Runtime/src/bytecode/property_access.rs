@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Mirrors Libraries/LibJS/Bytecode/PropertyAccess.h: the property gets and puts that consult and fill the inline
-//! caches the interpreter's fast paths read.
+//! The property gets and puts that consult and fill the inline caches the interpreter's fast paths read.
 
 use ak::Utf16FlyString;
 use libjs_abi::PutKind;

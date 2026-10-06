@@ -892,7 +892,7 @@ inline fn load_primitive_string_utf16_code_unit(
     }
 }
 
-# Handlers whose complete semantics live in their C++ slow path.
+# Handlers whose complete semantics live in their slow path.
 
 # Bytecode handlers are kept in native layout order.
 

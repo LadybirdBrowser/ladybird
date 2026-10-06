@@ -11,7 +11,7 @@
 
 namespace JS {
 
-// String.prototype is a StringObject too, as in the C++ runtime.
+// String.prototype is a StringObject too, as it has a [[StringData]] internal slot.
 class JS_API StringObject : public Object {
 public:
     [[nodiscard]] static GC::Ref<StringObject> create(Realm&, PrimitiveString&, Object& prototype);

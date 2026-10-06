@@ -7,12 +7,11 @@
 //! Logging every exception where it is thrown, which WebContent's --log-all-js-exceptions turns on through
 //! JS::set_log_all_js_exceptions().
 //!
-//! The runtime logs where the C++ runtime calls JS::throw_completion(): when it throws an error of its own, when an
-//! exception leaves the bytecode it runs, and where it turns a value it did not throw into a throw completion, such as
-//! the rejection that resumes an async function or that a promise reaction without a handler passes on. The embedder
-//! logs the throws it starts itself with js_completion_log_exception. The log is that of the C++ runtime: "THROW!" and
-//! the thrown value, or the "message" of a thrown object followed by the call stack, one line per execution context
-//! from the running one down.
+//! The runtime logs when it throws an error of its own, when an exception leaves the bytecode it runs, and where it
+//! turns a value it did not throw into a throw completion, such as the rejection that resumes an async function or that
+//! a promise reaction without a handler passes on. The embedder logs the throws it starts itself with
+//! js_completion_log_exception. The log is "THROW!" and the thrown value, or the "message" of a thrown object followed
+//! by the call stack, one line per execution context from the running one down.
 
 use core::cell::Cell;
 use core::ffi::c_void;
@@ -44,8 +43,8 @@ struct ExceptionLogLineWriter {
     append: unsafe extern "C" fn(context: *mut c_void, bytes: *const u8, length: usize) -> bool,
 }
 
-// SAFETY: Every thread that throws writes to the one writer the embedder installed for the process, as the C++
-//         runtime's dbgln() is shared by every thread.
+// SAFETY: Every thread that throws writes to the one writer the embedder installed for the process, which
+//         js_completion_set_log_all_exceptions() requires any thread to be able to call.
 unsafe impl Send for ExceptionLogLineWriter {}
 
 /// Turns logging every exception where it is thrown on or off for the whole process. Each line of the log goes to
@@ -106,9 +105,9 @@ fn log_exception(vm: &Vm, value: Value) {
     }
 }
 
-// The C++ runtime reads the message with [[Get]], which runs getters such as DOMException's. Where the getter throws,
-// C++ crashes; here the message shows as the object stores it. Throws while the message is read are logged too, but
-// read no message with a getter, so that a getter that throws its own object cannot recurse.
+// The message is read with [[Get]], which runs getters such as DOMException's. Where the getter throws, the message
+// shows as the object stores it. Throws while the message is read are logged too, but read no message with a getter,
+// so that a getter that throws its own object cannot recurse.
 fn message_of_thrown_object(vm: &Vm, object: Gc<Object>) -> Value {
     let stored_message = || object.get_without_side_effects(vm, &vm.names.message);
     if IS_READING_MESSAGE_OF_THROWN_OBJECT.get() {
@@ -120,7 +119,6 @@ fn message_of_thrown_object(vm: &Vm, object: Gc<Object>) -> Value {
     message.unwrap_or_else(|_| stored_message())
 }
 
-// What the C++ runtime's log_exception() and VM::dump_backtrace() print.
 fn exception_log_lines(vm: &Vm, value: Value) -> Vec<String> {
     let throw_line = |shown_value: Value| {
         format!(

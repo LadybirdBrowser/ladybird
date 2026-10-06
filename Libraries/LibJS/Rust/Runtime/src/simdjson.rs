@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The parts of simdjson's On-Demand API that JSONObject.cpp drives, with simdjson 4's acceptance rules. Stage 1
-//! indexes the structural characters of the whole text, and the iterators then read values token by token,
-//! validating only what the caller consumes. JSON.parse and JSON.rawJSON are observable through those rules (which
-//! inputs are malformed, and where a value's source text ends), so they are reproduced here, scalar by scalar, rather
-//! than replaced with a stricter parser.
+//! The parts of simdjson's On-Demand API that JSON parsing drives, with simdjson 4's acceptance rules. Stage 1 indexes
+//! the structural characters of the whole text, and the iterators then read values token by token, validating only
+//! what the caller consumes. JSON.parse and JSON.rawJSON are observable through those rules (which inputs are
+//! malformed, and where a value's source text ends), so they are reproduced here, scalar by scalar, rather than
+//! replaced with a stricter parser.
 
 use core::cell::Cell;
 

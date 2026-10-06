@@ -277,7 +277,7 @@ pub fn array_append(
                 let Some(iterator_value) = iterator_value else {
                     break;
                 };
-                // NB: The C++ runtime truncates the size_t index to the u32 indexed_put() takes.
+                // NB: The index is truncated to the u32 that indexed_put() takes.
                 lhs_array.indexed_put(index as u32, iterator_value, DEFAULT_ATTRIBUTES);
                 index += 1;
             }

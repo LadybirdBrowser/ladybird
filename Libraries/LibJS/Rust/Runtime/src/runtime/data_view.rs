@@ -39,7 +39,6 @@ impl Deref for DataView {
 }
 
 impl DataView {
-    /// DataView(GC::Ptr<ArrayBuffer>, ByteLength byte_length, size_t byte_offset, Object& prototype)
     pub fn new(
         vm: &Vm,
         viewed_buffer: Gc<ArrayBuffer>,
@@ -77,7 +76,7 @@ impl DataView {
         self.byte_length.get()
     }
 
-    /// NB: Like C++, this truncates the byte offset to a u32.
+    /// NB: This truncates the byte offset to a u32.
     pub fn byte_offset(&self) -> u32 {
         self.byte_offset.get() as u32
     }
@@ -103,7 +102,7 @@ pub fn make_data_view_with_buffer_witness_record(data_view: Gc<DataView>, order:
     // 3. Else,
     else {
         // a. Let byteLength be ArrayBufferByteLength(buffer, order).
-        // NB: Like C++, the length is truncated to a u32.
+        // NB: The length is truncated to the u32 that a ByteLength holds.
         ByteLength::Length(array_buffer_byte_length(&buffer, order) as u32)
     };
 
@@ -170,7 +169,7 @@ pub fn is_view_out_of_bounds(view_record: &DataViewWithBufferWitness) -> bool {
     // 7. Else,
     else {
         // a. Let byteOffsetEnd be byteOffsetStart + view.[[ByteLength]].
-        // NB: Like C++, this is computed in 32 bits.
+        // NB: This is computed in 32 bits.
         byte_offset_start.wrapping_add(view.byte_length().length())
     };
 

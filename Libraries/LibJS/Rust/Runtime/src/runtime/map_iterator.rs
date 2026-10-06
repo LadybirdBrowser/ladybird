@@ -90,7 +90,7 @@ impl MapIterator {
     }
 
     fn as_builtin_iterator_if_next_is_not_redefined(_: &Object, next_method: Value) -> Option<BuiltinIteratorNext> {
-        // NB: Only functions are native functions, so this checks is_function() where C++ checks is_object().
+        // NB: Only functions are native functions, so this only needs to look at functions.
         if next_method.is_function() {
             let next_function = next_method.as_function();
             if next_function.as_native_function().is_some() && next_function.is_map_prototype_next_builtin() {

@@ -561,7 +561,7 @@ impl Drop for PropertyLookupCache {
 }
 
 impl GlobalVariableCache {
-    /// Assigns a default GlobalVariableCache, as `cache = {}` does in C++.
+    /// Assigns a default GlobalVariableCache.
     pub fn reset(&self) {
         self.entry.set(PropertyLookupCacheEntryData::default());
         self.environment_serial_number.set(0);
@@ -588,8 +588,7 @@ impl GlobalVariableCache {
     }
 }
 
-/// Defines the call sites of the runtime that keep a property lookup cache of their own, the C++ static
-/// StaticPropertyLookupCache locals.
+/// Defines the call sites of the runtime that keep a property lookup cache of their own.
 macro_rules! define_static_property_lookup_cache_sites {
     ($($site:ident,)*) => {
         #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1018,8 +1017,8 @@ pub struct Executable {
     pub identifier_table: Vec<ak::Utf16FlyString>,
     /// The property keys as the strings they were made from, which is how the bytecode dump prints them.
     property_key_table: Vec<ak::Utf16FlyString>,
-    /// The property keys themselves, made once like the C++ PropertyKeyTable holds them, since turning a string into
-    /// a property key checks whether it is an array index.
+    /// The property keys themselves, made once, since turning a string into a property key checks whether it is an
+    /// array index.
     property_keys: Box<[PropertyKey]>,
     pub string_table: Vec<ak::Utf16FlyString>,
     /// Sorted by start offset, and not overlapping.
@@ -1101,8 +1100,7 @@ fn interpreter_buffer<T>(elements: &[T]) -> InterpreterBuffer<T> {
 }
 
 impl Executable {
-    /// Moves `executable` into the heap and has the VM prune its inline caches after every collection, as C++
-    /// executables do as weak containers.
+    /// Moves `executable` into the heap and has the VM prune its inline caches after every collection.
     pub fn create_from_parts(vm: &Vm, executable: Executable) -> Gc<Executable> {
         let executable = vm.heap().allocate(executable);
         vm.register_executable(executable);
@@ -1274,7 +1272,7 @@ impl Executable {
     }
 
     /// Creates the executable for what the frontend compiled from `source_code`, with the functions and classes it
-    /// declares, as ffi::create_executable does for the C++ runtime.
+    /// declares.
     pub fn create_with_source_code(
         vm: &Vm,
         mut data: ExecutableData,

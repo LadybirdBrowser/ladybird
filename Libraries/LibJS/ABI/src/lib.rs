@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Values that bytecode, the interpreter and the runtimes have to agree on. Each one mirrors the C++ definition
-//! named in its documentation.
+//! Values that bytecode, the interpreter, the runtime and LibJS's C++ API have to agree on. Where a header of LibJS or
+//! LibGC has the same definition, the documentation names it.
 
 #![no_std]
 
@@ -48,7 +48,7 @@ pub mod value {
     pub const TRUE_VALUE: u64 = SHIFTED_BOOLEAN_TAG | 1;
 }
 
-/// The reserved registers at the start of every frame, from LibJS/Bytecode/Register.h.
+/// The reserved registers at the start of every frame.
 pub mod register {
     pub const ACCUMULATOR: u32 = 0;
     pub const EXCEPTION: u32 = 1;
@@ -60,8 +60,7 @@ pub mod register {
 
 macro_rules! define_builtins {
     ($($name:ident: $base:literal . $property:literal, $argument_count:literal;)*) => {
-        /// Builtin functions the interpreter recognizes at call sites, in JS_ENUMERATE_BUILTINS order from
-        /// LibJS/Bytecode/Builtins.h.
+        /// Builtin functions the interpreter recognizes at call sites.
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
         #[repr(u8)]
         pub enum Builtin {
@@ -124,7 +123,7 @@ define_builtins! {
     StringPrototypeCharAt: "StringPrototype"."charAt", 1;
 }
 
-/// How a property is being set, from LibJS/Bytecode/PutKind.h.
+/// How a property is being set.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum PutKind {
@@ -136,7 +135,6 @@ pub enum PutKind {
     Own,
 }
 
-/// From LibJS/Bytecode/Instruction.h.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum EnvironmentMode {
@@ -144,7 +142,6 @@ pub enum EnvironmentMode {
     Var,
 }
 
-/// From LibJS/Bytecode/Instruction.h.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum ArgumentsKind {
@@ -152,7 +149,6 @@ pub enum ArgumentsKind {
     Unmapped,
 }
 
-/// From LibJS/Bytecode/Instruction.h.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum FunctionNamePrefix {
@@ -181,7 +177,7 @@ pub enum CompletionType {
     Throw,
 }
 
-/// ClassBlueprint::Element::Kind from LibJS/Bytecode/ClassBlueprint.h.
+/// The kind of an element of a ClassBlueprint.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum ClassElementKind {

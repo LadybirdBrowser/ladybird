@@ -20,7 +20,7 @@
 //! - Borrowed strings cross as a JSUtf16View. An owned AK::Utf16String crosses as its raw word, a
 //!   JSOwnedUtf16String: the sender gives up its reference with AK::Utf16String::into_raw(), and the receiver adopts it
 //!   with AK::Utf16String::adopt_raw(), so the string's storage is never copied.
-//! - Property keys cross as the one word of the engine's own property key, which both runtimes encode the same way.
+//! - Property keys cross as the one word of the engine's own property key, which JS::PropertyKey encodes the same way.
 
 use core::ffi::c_void;
 use core::mem::ManuallyDrop;

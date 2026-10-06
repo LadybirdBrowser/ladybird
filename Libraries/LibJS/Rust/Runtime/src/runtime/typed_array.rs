@@ -93,7 +93,7 @@ impl Kind {
         }
     }
 
-    /// The Element Type of Table 71 for the typed array, the T of the C++ TypedArray<T>.
+    /// The Element Type of Table 71 for the typed array.
     pub fn element_type(self) -> ElementType {
         match self {
             Self::Uint8Array => ElementType::Uint8,
@@ -196,14 +196,14 @@ impl TypedArrayBase {
             },
         };
         assert!(array_length.checked_mul(u32::from(element_size)).is_some());
-        // NB: C++ caches the data offset here, which the view can only do once it is a cell. Its creators do that
-        //     with update_cached_data_offset() right after allocating it.
+        // NB: The data offset can only be cached once the view is a cell. Its creators do that with
+        //     update_cached_data_offset() right after allocating it.
         typed_array.storage.viewed_array_buffer.set(Some(array_buffer));
         if array_length > 0 {
             assert!(!array_buffer.is_detached() && array_buffer.byte_length() > 0);
         }
         typed_array.array_length.set(ByteLength::Length(array_length));
-        // NB: Like C++, the byte length starts out as the length of the whole buffer, truncated to a u32.
+        // NB: The byte length starts out as the length of the whole buffer, truncated to the u32 a ByteLength holds.
         typed_array
             .storage
             .byte_length
@@ -422,8 +422,7 @@ impl TypedArrayBase {
             .checked_add(self.byte_offset() as usize)
             .expect("the cached data offset does not overflow");
 
-        // NB: C++ appends the view to the buffer's intrusive list every time, which moves it if it is listed already.
-        //     A view with a cached offset is registered with its buffer, so only one without needs registering.
+        // NB: A view with a cached offset is registered with its buffer, so only one without needs registering.
         if self.cached_data_offset() == TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID {
             let view = self
                 .as_gc()
@@ -649,7 +648,7 @@ impl TypedArrayBase {
         }
 
         // 2. Return ? OrdinarySet(O, P, V, Receiver).
-        // NB: Like C++, this passes neither the cacheable metadata nor the lookup phase on.
+        // NB: This passes neither the cacheable metadata nor the lookup phase on.
         object.ordinary_set(
             vm,
             property_key,
@@ -766,7 +765,7 @@ pub fn make_typed_array_with_buffer_witness_record(
     // 3. Else,
     else {
         // a. Let byteLength be ArrayBufferByteLength(buffer, order).
-        // NB: Like C++, the length is truncated to a u32.
+        // NB: The length is truncated to the u32 a ByteLength holds.
         ByteLength::Length(array_buffer_byte_length(&buffer, order) as u32)
     };
 
@@ -870,7 +869,7 @@ pub fn is_typed_array_out_of_bounds(typed_array_record: &TypedArrayWithBufferWit
         let element_size = object.element_size();
 
         // b. Let byteOffsetEnd be byteOffsetStart + O.[[ArrayLength]] × elementSize.
-        // NB: Like C++, this is computed in 32 bits.
+        // NB: This is computed in 32 bits.
         byte_offset_start.wrapping_add(object.array_length().length().wrapping_mul(element_size))
     };
 
@@ -923,7 +922,7 @@ pub fn is_valid_integer_index(typed_array: &TypedArrayBase, property_index: Cano
     let array_length = typed_array.array_length();
     if !array_length.is_auto() {
         let byte_length = array_buffer_byte_length(&buffer, Order::Unordered);
-        // NB: Like C++, the end is computed in 32 bits.
+        // NB: The end is computed in 32 bits.
         let byte_offset_end = typed_array
             .byte_offset()
             .wrapping_add(array_length.length().wrapping_mul(typed_array.element_size()));
@@ -1565,7 +1564,7 @@ pub fn canonical_index_from_double(
 }
 
 /// Generates the class of each kind of typed array, of its prototype and of its constructor, and the functions that
-/// stand in for the C++ virtual functions that differ between them.
+/// differ between them.
 macro_rules! define_typed_arrays {
     ($($class:ident, $snake:ident, $prototype:ident, $prototype_accessor:ident, $constructor:ident, $constructor_accessor:ident;)*) => {
         $(
@@ -1586,7 +1585,6 @@ macro_rules! define_typed_arrays {
             }
 
             impl $class {
-                /// ClassName::create(Realm&, u32 length, FunctionObject& new_target)
                 pub fn create_with_new_target(
                     vm: &Vm,
                     realm: Gc<Realm>,
@@ -1757,7 +1755,7 @@ macro_rules! define_typed_arrays {
             }
         }
 
-        /// ClassName::create(Realm&, u32 length, FunctionObject& new_target) for the typed array of `kind`.
+        /// create_with_new_target() of the typed array class of `kind`.
         fn create_typed_array_with_new_target(
             vm: &Vm,
             realm: Gc<Realm>,
@@ -1812,7 +1810,7 @@ define_typed_arrays! {
     Float64Array, float64_array, Float64ArrayPrototype, float64_array_prototype, Float64ArrayConstructor, float64_array_constructor;
 }
 
-/// The construct() of each ConstructorName in TypedArray.cpp, for the typed array of `kind`.
+/// The construct() of each ConstructorName, for the typed array of `kind`.
 // 23.2.5.1 TypedArray ( ...args ), https://tc39.es/ecma262/#sec-typedarray
 fn construct_typed_array(vm: &Vm, kind: Kind, new_target: Gc<FunctionObject>) -> ThrowCompletionOr<Gc<Object>> {
     let realm = vm.current_realm().expect("a constructor runs in a realm");

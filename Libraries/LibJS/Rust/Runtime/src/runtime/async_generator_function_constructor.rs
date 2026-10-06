@@ -35,8 +35,8 @@ define_native_function_class!(
 
 impl AsyncGeneratorFunctionConstructor {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<AsyncGeneratorFunctionConstructor> {
-        // NB: The spec has %Function% as the [[Prototype]] of %AsyncGeneratorFunction%. The C++ runtime has
-        //     %Function.prototype%, which this replicates.
+        // NB: The spec has %Function% as the [[Prototype]] of %AsyncGeneratorFunction%, but this uses
+        //     %Function.prototype%.
         realm.create_object(
             vm,
             AsyncGeneratorFunctionConstructor {

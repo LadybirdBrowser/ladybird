@@ -6,16 +6,15 @@
 
 //! JS::Environment, the base of every Environment Record.
 //!
-//! The C++ virtual methods of Environment are a table of function pointers per class of environment,
-//! EnvironmentMethods, which Environment::methods() finds by matching on the environment's class. A class's table
-//! starts from the table of the class it extends, as in `EnvironmentMethods { has_this_binding: ...,
-//! ..DECLARATIVE_ENVIRONMENT_METHODS }`, so it overrides exactly what the C++ class overrides. GlobalEnvironment and
-//! ObjectEnvironment plug in by defining their tables and adding their class to the match.
+//! The virtual methods of Environment are a table of function pointers per class of environment, EnvironmentMethods,
+//! which Environment::methods() finds by matching on the environment's class. A class's table starts from the table of
+//! the class it extends, as in `EnvironmentMethods { has_this_binding: ..., ..DECLARATIVE_ENVIRONMENT_METHODS }`, so it
+//! overrides exactly the methods the class implements itself. GlobalEnvironment and ObjectEnvironment plug in by
+//! defining their tables and adding their class to the match.
 //!
-//! The methods of Environment dispatch on the class, like C++ calls through an Environment pointer. The inherent
-//! methods of each environment type are that type's own implementation, like a qualified C++ call such as
-//! DeclarativeEnvironment::get_binding_value(); call through Environment when the environment may be of a class that
-//! overrides the method.
+//! The methods of Environment dispatch on the class. The inherent methods of each environment type are that type's own
+//! implementation, such as DeclarativeEnvironment::get_binding_value(); call through Environment when the environment
+//! may be of a class that overrides the method.
 
 use ak::Utf16FlyString;
 
@@ -36,8 +35,7 @@ use crate::runtime::module_environment::MODULE_ENVIRONMENT_METHODS;
 use crate::runtime::object_environment::OBJECT_ENVIRONMENT_METHODS;
 use libjs_abi::value as nan_box;
 
-/// Mirrors JS::ThisBindingStatus, the [[ThisBindingStatus]] of a function Environment Record. C++ keeps it in
-/// Environment to pack better, and so does the layout.
+/// The [[ThisBindingStatus]] of a function Environment Record, which Environment keeps to pack better.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum ThisBindingStatus {
@@ -70,7 +68,7 @@ pub type HasBindingMethod =
     fn(&Environment, &Vm, &Utf16FlyString, Option<&mut Option<usize>>) -> ThrowCompletionOr<bool>;
 
 /// The virtual methods of JS::Environment, as one class of environment implements them. The binding methods take
-/// the VM because object environments call into their binding object, which C++ reaches through the cell.
+/// the VM because object environments call into their binding object.
 pub struct EnvironmentMethods {
     pub has_this_binding: fn(&Environment) -> bool,
     pub get_this_binding: fn(&Environment, &Vm) -> ThrowCompletionOr<Value>,
@@ -155,7 +153,7 @@ impl Environment {
             .then(|| unsafe { &*core::ptr::from_ref(self).cast::<T>() })
     }
 
-    /// Like C++ as<DeclarativeEnvironment>, which only checks the declarative flag.
+    /// The environment as a DeclarativeEnvironment, if its declarative flag is set.
     pub fn as_declarative_environment(&self) -> Option<&DeclarativeEnvironment> {
         self.is_declarative_environment()
             // SAFETY: Only DeclarativeEnvironment and the classes extending it are declarative, and they start with
@@ -278,13 +276,12 @@ impl Environment {
 }
 
 impl Value {
-    /// An environment as the interpreter keeps it in a register: a cell value without a more specific tag, like the
-    /// C++ Value(Cell const*).
+    /// An environment as the interpreter keeps it in a register: a cell value without a more specific tag.
     pub fn from_environment<T: GcCell + Extends<Environment>>(environment: Gc<T>) -> Self {
         Self::with_cell_tag(nan_box::IS_CELL_BIT, environment.upcast::<Environment>())
     }
 
-    /// Like the C++ as<Environment>(value.as_cell()).
+    /// The environment the value holds, which must be one.
     pub fn as_environment(self) -> Gc<Environment> {
         assert!(self.is_cell());
         // SAFETY: The value holds a cell, and every cell starts with its class, which is checked below.

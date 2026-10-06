@@ -43,12 +43,12 @@ use libjs_rust::compile::{
     compile_parsed_program_off_thread, compile_script, parse,
 };
 
-/// A program that the frontend parsed, with or without syntax errors, which no VM owns: C++ JS::ParsedProgram.
+/// A program that the frontend parsed, with or without syntax errors, which no VM owns: LibJS's JS::ParsedProgram.
 pub struct JSParsedProgram {
     _opaque: [u8; 0],
 }
 
-/// A program compiled to bytecode, which no VM owns yet: C++ JS::CompiledProgram.
+/// A program compiled to bytecode, which no VM owns yet: LibJS's JS::CompiledProgram.
 pub struct JSCompiledProgram {
     _opaque: [u8; 0],
 }
@@ -473,8 +473,8 @@ pub unsafe extern "C" fn js_compile_top_level_source_code_of_script(script: *mut
 }
 
 /// top_level_source_code(SourceTextModule const&): like js_compile_top_level_source_code_of_script(), but null for a
-/// module with top-level await, whose body is compiled as an async function instead, as in C++. Only the VM's thread
-/// may call this.
+/// module with top-level await, whose body is compiled as an async function instead. Only the VM's thread may call
+/// this.
 ///
 /// # Safety
 ///
@@ -513,8 +513,8 @@ pub struct JSOffThreadCompilationCallbacks {
     pub release: Option<unsafe extern "C" fn(context: *mut c_void)>,
 }
 
-/// The embedder's callbacks, which the VM's thread and the worker share, as C++ SharedOffThreadCompilationCallbacks
-/// does: the worker can still be inside post_to_main_thread() when the VM's thread has run the task it posted.
+/// The embedder's callbacks, which the VM's thread and the worker share: the worker can still be inside
+/// post_to_main_thread() when the VM's thread has run the task it posted.
 struct SharedOffThreadCompilationCallbacks(JSOffThreadCompilationCallbacks);
 
 // SAFETY: The embedder's callbacks work on any thread, as JSOffThreadCompilationCallbacks requires.
@@ -556,7 +556,7 @@ struct LazyFunctionsAwaitingCompilation {
     callbacks: Arc<SharedOffThreadCompilationCallbacks>,
 }
 
-/// What a worker carries without touching it, from the VM's thread and back, as C++ carries its GC roots.
+/// What a worker carries without touching it, from the VM's thread and back.
 struct OnlyForTheVmsThread(Box<LazyFunctionsAwaitingCompilation>);
 
 // SAFETY: Only the VM's thread opens what the worker carries.
@@ -587,8 +587,7 @@ const _: fn() = || {
     assert_send::<CompiledLazyFunctions>();
 };
 
-/// Has a worker compile copies of the ASTs of the functions, and installs the results on the VM's thread, as C++
-/// compile_lazy_functions_off_thread() does.
+/// Has a worker compile copies of the ASTs of the functions, and installs the results on the VM's thread.
 fn compile_lazy_functions_off_thread(
     vm: &'static Vm,
     functions: Vec<(Gc<SharedFunctionInstanceData>, Box<FunctionPayload>)>,
@@ -748,9 +747,9 @@ pub unsafe extern "C" fn js_compile_remaining_functions_of_module_off_thread(
     }
 }
 
-/// A token of a source text, with the trivia (whitespace and comments) before it, laid out like the FFIToken that C++
-/// JS::SyntaxHighlighter reads. token_type and category are the values of JS::TokenType and JS::TokenCategory, and the
-/// offsets and lengths count UTF-16 code units.
+/// A token of a source text, with the trivia (whitespace and comments) before it, which JS::SyntaxHighlighter reads.
+/// token_type and category are the values of JS::TokenType and JS::TokenCategory, and the offsets and lengths count
+/// UTF-16 code units.
 #[repr(C)]
 pub struct JSToken {
     pub token_type: u8,

@@ -88,7 +88,7 @@ const fn option(
 }
 
 /// The options in the order JavaScriptTestRunnerMain.cpp registers them, after the two every Core::ArgsParser has,
-/// with the one test-js.cpp adds last.
+/// with --test262-parser-tests last.
 const OPTIONS: &[OptionDescription] = &[
     OptionDescription {
         shown_in_synopsis: false,

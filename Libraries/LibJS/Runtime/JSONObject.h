@@ -39,8 +39,8 @@ class JS_API JSONObject final : public Object {
 public:
     static bool is_engine_class_of(Object const& object) { return object.engine_class_id() == JS_LAYOUT_CLASS_ID_JSON_OBJECT; }
 
-    // The base implementation of stringify is exposed because it is used by
-    // test-js to communicate between the JS tests and the C++ test runner.
+    // The base implementation of stringify is exposed because it is used by LibTest's
+    // JavaScriptTestRunner to communicate between the JS tests and the C++ test runner.
     static ThrowCompletionOr<Optional<Utf16String>> stringify_impl(VM&, Value value, Value replacer, Value space);
 
     // The runtime keeps no parse records for the embedder, so `root_record` must be null.

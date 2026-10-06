@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Runtime/Temporal/TimeZone.cpp: time zone identifiers, offsets, and the conversions between epoch
-//! nanoseconds and the wall-clock time of a time zone.
+//! Time zone identifiers, offsets, and the conversions between epoch nanoseconds and the wall-clock time of a time
+//! zone.
 
 use std::cell::RefCell;
 use std::collections::HashMap;

@@ -72,8 +72,8 @@ impl ModuleRequest {
         self.attributes.push(ImportAttribute::new(key, value));
     }
 
-    /// The ModuleRequest a module request of the frontend stands for, as C++ builds it from what the frontend hands
-    /// over: the attributes of a request that has any are sorted.
+    /// The ModuleRequest a module request of the frontend stands for: the attributes of a request that has any are
+    /// sorted.
     pub fn from_frontend(request: &ast::ModuleRequest) -> Self {
         let specifier = Utf16FlyString::from_utf16(&request.module_specifier);
         let attributes: Vec<ImportAttribute> = request
@@ -92,8 +92,8 @@ impl ModuleRequest {
         Self::new_with_attributes(specifier, attributes)
     }
 
-    /// The [[ModuleRequest]] of an import or export entry the frontend describes. C++ records none for an empty
-    /// specifier, as if the entry had no module request.
+    /// The [[ModuleRequest]] of an import or export entry the frontend describes. There is none for an empty specifier,
+    /// as if the entry had no module request.
     pub fn of_entry_from_frontend(request: Option<&ast::ModuleRequest>) -> Option<Self> {
         let request = request?;
         if request.module_specifier.is_empty() {

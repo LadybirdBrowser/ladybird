@@ -184,11 +184,11 @@ pub unsafe extern "C" fn js_vm_set_embedder(vm: *mut JSVM, hooks: *const JSVmHos
     install_embedder(vm, hooks.map(|hooks| Embedder { hooks, data }));
 }
 
-/// Makes `agent` the surrounding agent of the VM, as VM::set_agent() of the C++ runtime does: its [[CanBlock]] says
-/// whether Atomics.wait() may block, and await in native code spins its event loop until the awaited promise settles.
-/// Without an agent, which a null `agent` sets, Atomics.wait() may block and await runs the VM's own queue of promise
-/// jobs, which is empty if an enqueue_promise_job hook takes the jobs. The VM copies the agent, whose data the embedder
-/// keeps alive until it sets another agent or destroys the VM. Only the VM's thread may call this.
+/// Makes `agent` the surrounding agent of the VM: its [[CanBlock]] says whether Atomics.wait() may block, and await in
+/// native code spins its event loop until the awaited promise settles. Without an agent, which a null `agent` sets,
+/// Atomics.wait() may block and await runs the VM's own queue of promise jobs, which is empty if an enqueue_promise_job
+/// hook takes the jobs. The VM copies the agent, whose data the embedder keeps alive until it sets another agent or
+/// destroys the VM. Only the VM's thread may call this.
 ///
 /// # Safety
 ///

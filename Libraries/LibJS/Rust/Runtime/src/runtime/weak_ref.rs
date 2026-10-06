@@ -24,7 +24,7 @@ pub struct WeakRef {
     /// The object or symbol the WeakRef refers to, which is empty once it died.
     value: Cell<Value>,
     last_execution_generation: Cell<u64>,
-    /// The execution generation of the VM, which C++ reads through vm() while visiting.
+    /// The execution generation of the VM, which visiting reads.
     vm_execution_generation: NonNull<Cell<u64>>,
 }
 
@@ -64,7 +64,7 @@ impl WeakRef {
         realm.create_object(vm, WeakRef::new(vm, value, realm.intrinsics().weak_ref_prototype(vm)))
     }
 
-    /// Registers the new WeakRef as a weak container, which C++ does in the constructor.
+    /// Registers the new WeakRef as a weak container.
     fn initialize(object: &Object, vm: &Vm, _: Gc<Realm>) {
         vm.register_weak_container(WeakContainer::new(object.as_gc(), WeakRef::remove_dead_cells));
     }

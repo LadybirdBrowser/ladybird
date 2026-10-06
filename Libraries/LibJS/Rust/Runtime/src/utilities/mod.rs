@@ -8,7 +8,7 @@
 
 pub mod js;
 pub mod line_editor;
-// Like the C++ test262-runner, the Rust one is not built on Windows: it relies on pipes, alarm() and rlimits.
+// test262-runner is not built on Windows: it relies on pipes, alarm() and rlimits.
 #[cfg(unix)]
 pub mod test262_runner;
 pub mod test_js;
@@ -21,7 +21,7 @@ use crate::runtime::completion::Must;
 use crate::runtime::realm::Realm;
 
 /// The execution context InitializeHostDefinedRealm pushes, which stays the bottom of the execution context stack for
-/// as long as a tool runs scripts in its realm, like the one the C++ tools keep.
+/// as long as a tool runs scripts in its realm.
 pub(crate) struct RootExecutionContext<'vm> {
     vm: &'vm Vm,
     context: OwnedExecutionContext,

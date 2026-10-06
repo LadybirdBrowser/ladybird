@@ -1406,7 +1406,7 @@ pub fn to_date_string(time: f64) -> Utf16String {
     let time = local_time(time);
 
     // 3. Return the string-concatenation of DateString(t), the code unit 0x0020 (SPACE), TimeString(t), and TimeZoneString(tv).
-    // NB: The C++ passes t rather than tv to TimeZoneString, and so do we.
+    // NB: This passes t rather than tv to TimeZoneString.
     let mut string = Utf16StringBuilder::new();
     string.append(Utf16View::of_string(&date_string(time)));
     string.append_ascii(" ");

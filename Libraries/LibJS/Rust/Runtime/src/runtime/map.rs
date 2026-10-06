@@ -225,9 +225,8 @@ impl Map {
 }
 
 /// An iterator that stays valid while the map is modified, with the visiting rules of the spec's index-based loops:
-/// entries added during iteration are visited, removed entries are skipped, and entries that were moved by a
-/// compaction or cleared are found again by their insertion ID. The C++ Map::ConstIterator, which compares equal to
-/// Map::end() once is_end() is true.
+/// entries added during iteration are visited, removed entries are skipped, and entries that were moved by a compaction
+/// or cleared are found again by their insertion ID.
 #[derive(Trace)]
 pub struct ConstIterator {
     map: Gc<Map>,

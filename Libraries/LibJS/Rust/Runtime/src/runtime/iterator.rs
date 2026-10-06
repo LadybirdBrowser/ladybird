@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Iterator records, the Iterator object and the iterator abstract operations of Libraries/LibJS/Runtime/Iterator.cpp.
+//! Iterator records, the Iterator object and the iterator abstract operations.
 
 use core::cell::Cell;
 use core::ops::Deref;
@@ -40,7 +40,7 @@ pub fn iterator_hint_from_bytecode(encoded: u32) -> IteratorHint {
 }
 
 /// The fields of an Iterator Record. They are cells, so that the records slow paths keep in locals and the ones
-/// IteratorRecord cells hold go through the same operations, as the C++ IteratorRecord derives from IteratorRecordImpl.
+/// IteratorRecord cells hold go through the same operations.
 #[repr(C)]
 #[derive(Trace)]
 pub struct IteratorRecordImpl {
@@ -150,8 +150,8 @@ pub enum PrimitiveHandling {
     RejectPrimitives,
 }
 
-/// The C++ BuiltinIterator interface: the step of an iterator the runtime takes without calling its next method,
-/// given the iterator. It sets `done`, or the value the step produces.
+/// The step of an iterator the runtime takes without calling its next method, given the iterator. It sets `done`, or
+/// the value the step produces.
 pub type BuiltinIteratorNext = fn(&Object, &Vm, &mut bool, &mut Value) -> ThrowCompletionOr<()>;
 
 /// What IteratorStep produces: DONE, or a value.

@@ -12,7 +12,8 @@
 //! with the C signature documented on its [`RuntimeFunctionKind`]. In those
 //! signatures `VM*` is the pointer the interpreter was entered with, `pc` is
 //! the bytecode offset of the current instruction, and `Value` is a NaN-boxed
-//! `u64`. Slow paths return the control word described in `SlowPaths.cpp`.
+//! `u64`. Slow paths return the control word that the runtime's
+//! `SlowPathControl` describes.
 
 use crate::intrinsic::CallOperation;
 use crate::metadata::{SlowPathAbi, SlowPathLayout};

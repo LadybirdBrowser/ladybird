@@ -229,8 +229,8 @@ fn get_own_property_through_hook(
 }
 
 /// The descriptor that a [[GetOwnProperty]] hook filled in. A data property with all of its attributes, such as an
-/// indexed or named property of a collection, skips the general conversion, as the C++ HostObject does, since reads
-/// of such properties spend a measurable share of their time in it.
+/// indexed or named property of a collection, skips the general conversion, since reads of such properties spend a
+/// measurable share of their time in it.
 ///
 /// # Safety
 ///

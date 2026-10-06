@@ -5,7 +5,7 @@
  */
 
 //! The text transformations of LibUnicode, through its C exports, so the runtime maps case and normalizes text with
-//! the same ICU data as the C++ runtime.
+//! the same ICU data as the rest of Ladybird.
 
 use core::ffi::c_void;
 

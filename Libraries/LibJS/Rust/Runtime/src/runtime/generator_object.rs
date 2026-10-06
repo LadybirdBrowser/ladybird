@@ -173,7 +173,7 @@ impl GeneratorObject {
         object
     }
 
-    /// The protected constructor of the C++ GeneratorObject, for it and the classes that extend it.
+    /// The constructor of GeneratorObject, for it and the classes that extend it.
     pub fn new(
         vm: &Vm,
         class: &'static Class,

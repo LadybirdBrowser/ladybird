@@ -85,7 +85,7 @@ impl ConsoleObject {
         define(&names.trace, raw_native!(ConsoleObject::trace));
         define(&names.warn, raw_native!(ConsoleObject::warn));
         define(&names.dir, raw_native!(ConsoleObject::dir));
-        // NB: C++ defines dirxml with the native function of dir, so ConsoleObject::dirxml is never called.
+        // NB: dirxml is defined with the native function of dir, so ConsoleObject::dirxml is never called.
         define(&names.dirxml, raw_native!(ConsoleObject::dir));
         define(&names.count, raw_native!(ConsoleObject::count));
         define(&names.countReset, raw_native!(ConsoleObject::count_reset));
@@ -159,7 +159,7 @@ impl ConsoleObject {
     }
 
     // 1.1.11 dirxml(...data) https://console.spec.whatwg.org/#dirxml
-    #[allow(dead_code, reason = "C++ defines dirxml with dir, as initialize() does")]
+    #[allow(dead_code, reason = "initialize() defines dirxml with dir")]
     fn dirxml(vm: &Vm) -> ThrowCompletionOr<Value> {
         console_of_current_realm(vm).dirxml(vm)
     }

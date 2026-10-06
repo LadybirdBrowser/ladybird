@@ -33,7 +33,6 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::module_environment::ModuleEnvironment;
 
-/// Mirrors DeclarativeEnvironment::Binding.
 #[derive(Clone)]
 pub struct Binding {
     pub name: Utf16FlyString,
@@ -44,8 +43,8 @@ pub struct Binding {
     pub initialized: bool,
 }
 
-/// Mirrors DeclarativeEnvironment::BindingAndIndex: a binding of the environment that was searched, by index, or a
-/// copy of a binding of another environment, which module environments find for their indirect bindings.
+/// A binding of the environment that was searched, by index, or a copy of a binding of another environment, which
+/// module environments find for their indirect bindings.
 pub enum BindingAndIndex {
     Index(usize),
     Temporary(Binding),
@@ -707,7 +706,7 @@ impl DeclarativeEnvironment {
         Ok(())
     }
 
-    /// The C++ overload of set_mutable_binding_direct for a binding found outside the environment's own storage.
+    /// set_mutable_binding_direct for a binding found outside the environment's own storage.
     fn set_mutable_binding_of_binding(
         &self,
         vm: &Vm,
@@ -766,7 +765,7 @@ impl DeclarativeEnvironment {
         self.binding_values.get(index)
     }
 
-    /// The C++ overload of get_binding_value_direct for a binding found outside the environment's own storage.
+    /// get_binding_value_direct for a binding found outside the environment's own storage.
     fn get_binding_value_of_binding(&self, vm: &Vm, binding: &Binding) -> ThrowCompletionOr<Value> {
         // 2. If the binding for N in envRec is an uninitialized binding, throw a ReferenceError exception.
         if !binding.initialized {

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Runtime/Temporal/Temporal.cpp: the Temporal namespace object.
+//! The Temporal namespace object.
 
 use libjs_runtime_macros::Trace;
 

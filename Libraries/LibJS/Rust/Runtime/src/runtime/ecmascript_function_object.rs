@@ -121,7 +121,7 @@ fn as_ecmascript_function(object: &Object) -> &EcmascriptFunctionObject {
     unsafe { &*core::ptr::from_ref(object).cast::<EcmascriptFunctionObject>() }
 }
 
-/// Like C++ as_if<ECMAScriptFunctionObject>, which checks the object's flag.
+/// The object as an ECMAScript function object, if its flag says that it is one.
 pub fn as_ecmascript_function_object<T: Extends<Object>>(cell: Gc<T>) -> Option<Gc<EcmascriptFunctionObject>> {
     let object = cell.upcast::<Object>();
     object
@@ -531,7 +531,7 @@ impl EcmascriptFunctionObject {
 
         // 13. NOTE: Any exception objects produced after this point are associated with calleeRealm.
         // 14. Return calleeContext.
-        // NOTE: See the comment after step 2 above about how contexts are allocated on the C++ stack.
+        // NOTE: The caller allocated calleeContext, so there is nothing to return.
     }
 
     // 10.2.1.2 OrdinaryCallBindThis ( F, calleeContext, thisArgument ), https://tc39.es/ecma262/#sec-ordinarycallbindthis

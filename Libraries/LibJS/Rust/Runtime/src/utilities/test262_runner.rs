@@ -10,8 +10,7 @@
 //! newline to standard output, and after the last one `DONE <count>`. While a test runs, standard output is a
 //! non-blocking pipe, and the start of whatever the test printed is reported in its result. A test that runs longer
 //! than the timeout is killed by SIGALRM, which the driver records as a timeout. A panic, including one from a runtime
-//! function that is not implemented yet, reports `assert_fail` for the running test and exits with status 12, like a
-//! failed assertion in the C++ runner.
+//! function that is not implemented yet, reports `assert_fail` for the running test and exits with status 12.
 //!
 //! With --agent, the runner is instead one of the agents that a test starts with $262.agent.start(): it runs the
 //! agent's script, which the test sends it, in a VM of its own (see contrib/test262/agents.rs).
@@ -214,14 +213,13 @@ fn apply_flag(metadata: &mut TestMetadata<'_>, flag: &str) {
             metadata.harness_files.push(ASYNC_INCLUDE);
             metadata.is_async = true;
         }
-        // This should only skip the test if the agent can suspend, which it always can here, as in the C++ runner.
+        // This should only skip the test if the agent can suspend, which it always can here.
         "CanBlockIsFalse" => metadata.skip_test = true,
         _ => {}
     }
 }
 
-/// Reads the metadata block of a test, line by line exactly as the C++ runner does, so that both runners accept and
-/// reject the same files.
+/// Reads the metadata block of a test, line by line.
 fn extract_metadata(source: &str) -> Result<TestMetadata<'_>, String> {
     let mut metadata = TestMetadata::default();
     let mut failed_message = None;
@@ -506,8 +504,7 @@ fn first_parser_error(errors: &[ParserError]) -> String {
     errors.first().map(ToString::to_string).unwrap_or_default()
 }
 
-/// The code units of a source that must be valid. Like AK's Utf16String::from_utf8() in the C++ runner, this stops the
-/// process otherwise.
+/// The code units of a source that must be valid. Like AK's Utf16String::from_utf8(), this stops the process otherwise.
 fn decoded_source<'source>(source: Option<&'source [u16]>, what: &str) -> &'source [u16] {
     source.unwrap_or_else(|| panic!("{what} is not valid UTF-8"))
 }
@@ -523,7 +520,6 @@ fn parse_only_check(source: &[u16], program_type: ProgramType) -> Result<(), Tes
     Ok(())
 }
 
-/// The C++ ScriptOrModuleProgram.
 #[derive(Clone, Copy)]
 enum ScriptOrModuleProgram {
     Script(Gc<Script>),
@@ -791,8 +787,7 @@ fn parse_options(arguments: &[String]) -> Result<Options, String> {
                 let text = value(name)?;
                 options.timeout_in_seconds = text.parse().map_err(|_| format!("Invalid value for {name}: {text}"))?;
             }
-            // The C++ runner enables its debug logging with this; the Rust runtime has none, so it is accepted and
-            // does nothing.
+            // The runtime has no debug logging to enable, so this is accepted and does nothing.
             "-d" | "--debug" => {}
             "--disable-core-dump" => options.disable_core_dumping = true,
             "--agent" => options.run_as_agent = true,
@@ -802,7 +797,7 @@ fn parse_options(arguments: &[String]) -> Result<Options, String> {
     Ok(options)
 }
 
-/// Like the C++ runner, this leaves core dumps alone on macOS.
+/// This leaves core dumps alone on macOS.
 fn disable_core_dumps() -> Result<(), std::io::Error> {
     if cfg!(target_os = "macos") {
         return Ok(());
@@ -888,8 +883,7 @@ impl CapturedStandardOutput {
         Some(output)
     }
 
-    /// Puts standard output back. Results have all been written by now, so failures are ignored, like in the C++
-    /// runner.
+    /// Puts standard output back. Results have all been written by now, so failures are ignored.
     fn restore(self) {
         // SAFETY: Both descriptors belong to this struct and are not used afterwards.
         unsafe {
@@ -1085,7 +1079,7 @@ mod agent_mode {
     }
 }
 
-/// A test file's text, decoded once for reading its metadata and once for parsing it as C++ does.
+/// A test file's text, decoded once for reading its metadata and once for parsing it.
 struct TestSource {
     text: String,
     is_valid_utf8: bool,
@@ -1122,7 +1116,7 @@ fn run_test_file(
     let metadata = match extract_metadata(&source.text) {
         Ok(metadata) => metadata,
         Err(message) => {
-            // The C++ runner cannot even format a message that holds an invalid byte sequence.
+            // A message that holds an invalid byte sequence cannot be formatted, which stops the runner.
             assert!(
                 source.is_valid_utf8 || !message.contains('\u{FFFD}'),
                 "The metadata of the test is not valid UTF-8"

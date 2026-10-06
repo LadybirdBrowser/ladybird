@@ -406,7 +406,7 @@ pub struct Generator {
 
     // --- Shared function data ---
     // Pending descriptors for SharedFunctionInstanceData objects. These are
-    // materialized at the C++ boundary so bytecode generation can run without
+    // materialized by the runtime so bytecode generation can run without
     // allocating GC cells.
     pub shared_function_data: Vec<PendingSharedFunctionData>,
     pub eager_compile_function_ids: HashSet<FunctionId>,

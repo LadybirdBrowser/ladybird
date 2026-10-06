@@ -58,7 +58,7 @@ impl PrototypeChainValidity {
     }
 }
 
-/// The bits of Shape::flags, the C++ bitfields that are not the forward transition storage.
+/// The bits of Shape::flags, the flags of a shape that are not its forward transition storage.
 mod shape_flag {
     pub const DICTIONARY: u8 = 1 << 0;
     pub const HAS_PARAMETER_MAP: u8 = 1 << 1;

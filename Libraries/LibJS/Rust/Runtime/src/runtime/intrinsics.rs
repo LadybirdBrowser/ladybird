@@ -530,8 +530,7 @@ created_intrinsics! {
     }
 }
 
-/// The lazy accessors of a constructor and its prototype, which create both the first time either is asked for, as
-/// the C++ Intrinsics::snake_name_constructor() and snake_name_prototype() do.
+/// The lazy accessors of a constructor and its prototype, which create both the first time either is asked for.
 macro_rules! builtin_type_accessors {
     ($($prototype:ident, $constructor:ident: $constructor_type:ty, $initialize:ident;)*) => {
         impl Intrinsics {
@@ -779,8 +778,7 @@ initialize_typed_array_types! {
     initialize_float64_array: float64_array_prototype: Float64ArrayPrototype, float64_array_constructor: Float64ArrayConstructor, Float64Array;
 }
 
-/// The lazy accessors of the namespace objects, which create the object the first time it is asked for, as the C++
-/// Intrinsics::snake_name_object() does.
+/// The lazy accessors of the namespace objects, which create the object the first time it is asked for.
 macro_rules! namespace_object_accessors {
     ($($name:ident: $type:ty;)*) => {
         impl Intrinsics {
@@ -816,8 +814,7 @@ fn array_constructor_source() -> Utf16String {
     ))
 }
 
-/// The shared data of each named function a builtin file declares at its top level, in source order, as C++
-/// RustIntegration::compile_builtin_file() creates it.
+/// The shared data of each named function a builtin file declares at its top level, in source order.
 pub(crate) fn parse_builtin_file(vm: &Vm, script_text: Utf16String) -> MarkedVec<'_, Gc<SharedFunctionInstanceData>> {
     let code = SourceCode::create(Utf16String::from_utf8("BuiltinFile"), script_text);
     let mut source = Vec::with_capacity(code.length_in_code_units());
@@ -832,8 +829,7 @@ pub(crate) fn parse_builtin_file(vm: &Vm, script_text: Utf16String) -> MarkedVec
 }
 
 /// The accessors of the functions a builtin file written in JavaScript declares, which parse the file and create the
-/// function the first time they are asked for, as the C++ Intrinsics::snake_name_abstract_operation_function() and
-/// Intrinsics::snake_name_array_constructor_function() do.
+/// function the first time they are asked for.
 macro_rules! native_javascript_backed_function_accessors {
     ($($name:ident: $source:ident, $function_name:literal, $length:literal;)*) => {
         impl Intrinsics {

@@ -13,7 +13,7 @@
 //! nothing else holds a reference to it, and from then on only the VM's thread may use it.
 //!
 //! Scripts and modules materialized from a cache run their bytecode in place in the blob's bytes, which stay alive as
-//! long as any of them, or the cache, does. A blob written for the C++ runtime is rejected like a corrupt one.
+//! long as any of them, or the cache, does. A blob whose tag names another runtime is rejected like a corrupt one.
 
 use core::ffi::c_void;
 use std::rc::Rc;
@@ -36,7 +36,7 @@ use libjs_rust::bytecode_cache::{
 };
 use libjs_rust::compile::FunctionPrecompileMode;
 
-/// A decoded bytecode cache blob: C++ JS::DecodedBytecodeCache.
+/// A decoded bytecode cache blob: LibJS's JS::DecodedBytecodeCache.
 pub struct JSDecodedBytecodeCache {
     _opaque: [u8; 0],
 }

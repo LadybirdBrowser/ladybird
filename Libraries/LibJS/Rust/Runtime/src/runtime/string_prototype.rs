@@ -201,7 +201,7 @@ pub fn code_point_at(string: Utf16View<'_>, position: usize) -> CodePoint {
     }
 }
 
-/// Mirrors the C++ clamp(value, min, max) of doubles, followed by the conversion of the clamped value to size_t.
+/// `value` clamped to the range from 0 to `max`, converted to an index.
 fn clamp_to_index(value: f64, max: usize) -> usize {
     value.clamp(0.0, max as f64) as usize
 }
@@ -1049,8 +1049,8 @@ impl StringPrototype {
             if let Some(replacer) = replacer {
                 if replacer.builtin() == Some(Builtin::RegExpPrototypeReplace) {
                     // OPTIMIZATION: The common case of RegExp.prototype[@@replace]
-                    // NB: Unlike String.prototype.replace, the C++ does not check that the replacer is the one of the
-                    //     current realm here, so the @@replace of another realm runs in this one.
+                    // NB: Unlike String.prototype.replace, this does not check that the replacer is the one of the
+                    //     current realm, so the @@replace of another realm runs in this one.
                     let rx = search_value.as_object();
                     let string = this_object.to_primitive_string(vm)?;
                     return RegExpPrototype::symbol_replace_impl(vm, rx, string, replace_value);

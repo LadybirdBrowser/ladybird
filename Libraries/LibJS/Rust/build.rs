@@ -895,7 +895,7 @@ fn generate_validate_instruction(
 fn generate_opcode_enum(mut w: impl Write, ops: &[InstructionDefinition]) -> Result<(), Box<dyn std::error::Error>> {
     writeln!(
         w,
-        "/// Bytecode opcode (u8), matching the C++ `Instruction::Type` enum."
+        "/// Bytecode opcode (u8), numbered in the order of the instruction definitions."
     )?;
     writeln!(w, "#[derive(Debug, Clone, Copy, PartialEq, Eq)]")?;
     writeln!(w, "#[repr(u8)]")?;
@@ -915,14 +915,14 @@ fn generate_instruction_enum(
 ) -> Result<(), Box<dyn std::error::Error>> {
     writeln!(w, "/// A bytecode instruction with typed fields.")?;
     writeln!(w, "///")?;
-    writeln!(w, "/// Each variant corresponds to one C++ instruction class.")?;
+    writeln!(w, "/// Each variant corresponds to one instruction definition.")?;
     writeln!(
         w,
         "/// During codegen, instructions are stored as these typed variants."
     )?;
     writeln!(
         w,
-        "/// During flattening, they are serialized to bytes matching C++ layw."
+        "/// During flattening, they are serialized to bytes in the instruction's struct layout."
     )?;
     writeln!(w, "#[derive(Debug, Clone)]")?;
     writeln!(w, "pub enum Instruction {{")?;
@@ -1071,7 +1071,7 @@ fn generate_encoded_size_method(
 fn generate_encode_method(mut w: impl Write, ops: &[InstructionDefinition]) -> Result<(), Box<dyn std::error::Error>> {
     writeln!(
         w,
-        "    /// Encode this instruction into bytes matching the C++ struct layout."
+        "    /// Encode this instruction into bytes in the struct layout of its fields."
     )?;
     writeln!(w, "    pub fn encode(&self, strict: bool, buf: &mut Vec<u8>) {{")?;
     writeln!(w, "        let start = buf.len();")?;
@@ -1097,7 +1097,7 @@ fn generate_encode_method(mut w: impl Write, ops: &[InstructionDefinition]) -> R
         writeln!(w, "                buf.push(OpCode::{} as u8);", op.name)?;
         writeln!(w, "                buf.push(strict as u8);")?;
 
-        // Track offset for C++ struct layw.
+        // Track offset for the struct layout.
         // We iterate ALL fields (including m_type, m_strict, m_length) for
         // accurate alignment but only emit writes for user fields.
         let mut offset: usize = 2;
@@ -1235,7 +1235,7 @@ fn emit_field_write(
         }
         "label" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.0.to_ne_bytes());")?,
         "optional_label" => {
-            // C++ Optional<Label> layw: u32 value, bool has_value, 3 bytes padding = 8 bytes total
+            // Optional<Label> layout: u32 value, bool has_value, 3 bytes padding = 8 bytes total
             writeln!(w, "{prefix}match {name} {{")?;
             writeln!(w, "{prefix}    Some(lbl) => {{")?;
             writeln!(w, "{prefix}        buf.extend_from_slice(&lbl.0.to_ne_bytes());")?;

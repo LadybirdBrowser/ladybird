@@ -149,7 +149,6 @@ unsafe impl Trace for SharedFunctionInstanceData {
 }
 
 impl SharedFunctionInstanceData {
-    /// SharedFunctionInstanceData(VM&, FunctionKind, Utf16FlyString name, i32 function_length, u32 formal_parameter_count, bool strict, bool is_arrow_function, bool has_simple_parameter_list, Vector<Utf16FlyString> parameter_names_for_mapped_arguments, NoSharedFunctionDataList, void* rust_function_ast)
     #[allow(clippy::too_many_arguments)]
     fn new(
         kind: FunctionKind,
@@ -213,8 +212,7 @@ impl SharedFunctionInstanceData {
         }
     }
 
-    /// Creates the shared data of a function the frontend described, as the C++ runtime's
-    /// create_shared_function_instance_data() does for the Rust pipeline.
+    /// Creates the shared data of a function the frontend described.
     pub fn create(
         vm: &Vm,
         description: SharedFunctionDescription,
@@ -267,9 +265,8 @@ impl SharedFunctionInstanceData {
         shared
     }
 
-    /// Creates the shared data of a function of a bytecode cache blob that passed validation, whose executable stays
-    /// in the blob until the function is first called, as rust_create_sfd and rust_sfd_set_cached_bytecode_executable
-    /// do for the C++ runtime. The function is strict if its own code is or `outer_strict` is.
+    /// Creates the shared data of a function of a bytecode cache blob that passed validation, whose executable stays in
+    /// the blob until the function is first called. The function is strict if its own code is or `outer_strict` is.
     pub fn create_from_bytecode_cache(
         vm: &Vm,
         function: &DecodedFunctionRecord,
@@ -496,8 +493,7 @@ impl SharedFunctionInstanceData {
         source_text
     }
 
-    /// Makes `source_text` the [[SourceText]] while keeping the source code the function compiles from, as C++
-    /// RustIntegration::compile_dynamic_function assigns m_source_text_owner.
+    /// Makes `source_text` the [[SourceText]] while keeping the source code the function compiles from.
     pub fn set_source_text_owner(&self, source_text: Utf16String) {
         self.storage.source_text_owner.replace(source_text);
     }
@@ -554,7 +550,7 @@ impl SharedFunctionInstanceData {
 
     /// The functions that `executable` creates and that have not been compiled yet, with a copy of the AST of each, so
     /// that they can be compiled elsewhere, such as on another thread, while their own ASTs stay in place for a first
-    /// call that comes sooner, as C++ lazy_functions_to_compile() collects them.
+    /// call that comes sooner.
     pub fn uncompiled_functions_of(
         executable: Gc<Executable>,
     ) -> Vec<(Gc<SharedFunctionInstanceData>, Box<FunctionPayload>)> {

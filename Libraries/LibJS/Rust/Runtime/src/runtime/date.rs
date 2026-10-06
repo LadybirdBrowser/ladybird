@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Date objects and the time value math of Libraries/LibJS/Runtime/Date.cpp.
+//! Date objects and the time value math of the spec.
 
 use core::cell::Cell;
 use core::ops::Deref;
@@ -56,7 +56,6 @@ impl Deref for Date {
 }
 
 impl Date {
-    /// Date(double date_value, Object& prototype).
     pub fn new(vm: &Vm, date_value: f64, prototype: Gc<Object>) -> Date {
         Date {
             base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
@@ -128,7 +127,7 @@ pub const NS_PER_DAY: f64 = 86_400_000_000_000.0;
 // A time value supports a [...] range of -8,640,000,000,000,000 to 8,640,000,000,000,000 milliseconds
 pub const MAX_TIME_VALUE: f64 = 8.64E15;
 
-/// The notation “x modulo y” of the spec for doubles, as the C++ modulo() computes it with fmod.
+/// The notation “x modulo y” of the spec for doubles, computed with fmod.
 fn modulo(x: f64, y: f64) -> f64 {
     assert!(y != 0.0 && y.is_finite());
     let remainder = x % y;
@@ -209,8 +208,7 @@ pub fn year_from_time(t: f64) -> i32 {
     }
 
     // Approximation using average number of milliseconds per year. We might have to adjust this guess afterwards.
-    // NB: The conversion saturates, as the C++ static_cast does on the platforms Ladybird runs on, and so does the
-    //     adjustment wrap around like the C++ arithmetic, for times far outside the time value range.
+    // NB: For times far outside the time value range, the conversion saturates and the adjustment wraps around.
     let mut year = (t / (365.2425 * MS_PER_DAY) + 1970.0).floor() as i32;
 
     let year_t = time_from_year(year);
@@ -223,9 +221,8 @@ pub fn year_from_time(t: f64) -> i32 {
     year
 }
 
-/// static_cast<u16>() of an integral double, as the day within a year is computed: a value outside the u16 range,
-/// which only a year far outside the time value range gives, stays outside the range of a day within a year, as the
-/// C++ register it lives in does.
+/// An integral double as the u16 of a day within a year: a value outside the u16 range, which only a year far outside
+/// the time value range gives, becomes u16::MAX, which stays outside the range of a day within a year.
 fn day_within_year_to_u16(value: f64) -> u16 {
     if (0.0..=f64::from(u16::MAX)).contains(&value) {
         value as u16

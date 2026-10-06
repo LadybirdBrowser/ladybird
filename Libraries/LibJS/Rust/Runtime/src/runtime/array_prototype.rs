@@ -36,12 +36,12 @@ use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
 use crate::utf16::Utf16View;
 
 thread_local! {
-    /// The objects Array.prototype.join and Array.prototype.toLocaleString are joining, by address, the C++ static
-    /// array_join_seen_objects(). Each joins keeps its object alive while it is in here.
+    /// The objects Array.prototype.join and Array.prototype.toLocaleString are joining, by address. Each join keeps its
+    /// object alive while it is in here.
     static ARRAY_JOIN_SEEN_OBJECTS: RefCell<HashSet<usize>> = RefCell::new(HashSet::new());
 }
 
-/// Takes an object out of the seen objects of joins when its join returns, like the C++ ArmedScopeGuard.
+/// Takes an object out of the seen objects of joins when its join returns.
 struct UnseeObjectGuard {
     object_address: usize,
 }
@@ -2545,8 +2545,8 @@ pub fn array_merge_sort(
     array_merge_sort(vm, compare_func, &left)?;
     array_merge_sort(vm, compare_func, &right)?;
 
-    // NB: C++ clears arr_to_sort and appends to it. Every element is written back in order, so this overwrites it in
-    //     place instead; a throwing comparison leaves it half merged either way.
+    // NB: Every element is written back in order, so this overwrites arr_to_sort in place; a throwing comparison leaves
+    //     it half merged.
     let mut sorted_count = 0;
     let mut append = |value: Value| {
         arr_to_sort.set(sorted_count, value);

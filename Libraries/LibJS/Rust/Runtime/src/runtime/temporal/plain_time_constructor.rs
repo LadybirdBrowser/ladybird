@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Runtime/Temporal/PlainTimeConstructor.cpp: %Temporal.PlainTime%.
+//! %Temporal.PlainTime%.
 
 use libjs_runtime_macros::Trace;
 

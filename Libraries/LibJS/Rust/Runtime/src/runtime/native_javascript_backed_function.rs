@@ -135,7 +135,7 @@ impl NativeJavaScriptBackedFunction {
         stack_frame_info.registers_and_locals_count = bytecode_executable.registers_and_locals_count();
         stack_frame_info.constant_count =
             u32::try_from(bytecode_executable.constants().len()).expect("the constant count fits in u32");
-        // NB: C++ makes room for as many arguments as the function's length, where an ECMAScript function makes room
+        // NB: This makes room for as many arguments as the function's length, where an ECMAScript function makes room
         //     for its formal parameters. The builtin files only declare functions whose two counts are the same.
         let function_length =
             u32::try_from(function.shared_data().function_length()).expect("a builtin's length is not negative");

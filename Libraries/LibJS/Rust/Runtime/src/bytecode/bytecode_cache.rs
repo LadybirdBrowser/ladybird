@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Bytecode cache blobs on this runtime's types, as RustIntegration.cpp, Script.cpp and SourceTextModule.cpp use them
-//! in C++: Script and Source Text Module Records materialized from a decoded blob, and blobs installed into records
-//! that already run.
+//! Bytecode cache blobs on this runtime's types: Script and Source Text Module Records materialized from a decoded
+//! blob, and blobs installed into records that already run.
 //!
 //! The executables made from a blob run their bytecode in place in it and keep it alive. A function's executable stays
 //! in the blob until the function is first called. Installing a blob into a running record matches every function the
@@ -57,7 +56,7 @@ impl DecodedBytecodeCache {
     }
 }
 
-/// The error a record that cannot be materialized from a bytecode cache blob reports, as in C++.
+/// The error a record that cannot be materialized from a bytecode cache blob reports.
 pub fn failed_to_materialize_bytecode_cache() -> Vec<ParserError> {
     vec![ParserError {
         message: "Failed to materialize bytecode cache".to_string(),
@@ -124,7 +123,7 @@ impl ExecutableBacking {
 }
 
 /// Every function a record has created so far: those it declares, those its executables create, and so on for the
-/// executables of the functions that ran, as the record's SharedFunctionInstanceDataList holds them in C++.
+/// executables of the functions that ran.
 pub fn functions_created_by(
     vm: &Vm,
     declared_functions: impl IntoIterator<Item = Gc<SharedFunctionInstanceData>>,

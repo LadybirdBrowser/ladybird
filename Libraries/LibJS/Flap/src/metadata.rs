@@ -61,7 +61,7 @@ pub struct SlowPathLayout {
 
 /// How an operation's slow path receives its operands and returns its outputs.
 ///
-/// The control word every form returns is described in `SlowPaths.cpp`.
+/// The control word every form returns is the runtime's `SlowPathControl`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SlowPathAbi {
     /// `AsmSlowPathResult f(VM*, u32 pc, Op::Name const*, Value inputs...)`,
@@ -232,7 +232,7 @@ impl From<(&'static str, usize, usize, &'static str)> for FieldType {
     }
 }
 
-/// The alignment of the C++ Instruction base class (`alignas(void*)`).
+/// The alignment of every instruction in the bytecode, that of a pointer.
 /// On 64-bit: alignof(void*) = 8.
 pub const STRUCT_ALIGN: usize = 8;
 
@@ -778,7 +778,7 @@ fn validate_op(op: &mut InstructionDefinition) -> Result<(), String> {
 /// Computed layout info for a single opcode.
 #[derive(Debug, Clone, Default)]
 pub struct OpLayout {
-    /// Byte offset of each field within the C++ struct (keyed by field name, e.g. "m_dst").
+    /// Byte offset of each field within the instruction (keyed by field name, e.g. "m_dst").
     pub field_offsets: HashMap<String, usize>,
     /// Total encoded size (for fixed-size instructions), or None for variable-length.
     pub size: Option<usize>,

@@ -172,8 +172,8 @@ impl PropertyKey {
     }
 }
 
-/// The index an array-index string stands for, if it is one: the canonical decimal form of an integer below
-/// u32::MAX, the same strings that the C++ PropertyKey stores as numbers.
+/// The index an array-index string stands for, if it is one: the canonical decimal form of an integer below u32::MAX,
+/// which a PropertyKey stores as a number.
 fn array_index_of_canonical_string(string: Utf16View<'_>) -> Option<u32> {
     if string.is_empty() {
         return None;
@@ -261,7 +261,7 @@ unsafe impl Trace for PropertyKey {
     }
 }
 
-/// Formats a key the way AK formats a C++ JS::PropertyKey.
+/// Formats a key the way AK formats a JS::PropertyKey.
 impl Utf16Display for PropertyKey {
     fn fmt_utf16(&self, builder: &mut Utf16StringBuilder) {
         if self.is_number() {

@@ -33,7 +33,7 @@ use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ObjectMethod
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 
-/// The virtual methods of the C++ NativeFunction, which the classes extending it override.
+/// The methods of a NativeFunction that the classes extending it override.
 pub struct NativeFunctionMethods {
     /// Used for [[Call]] / [[Construct]]'s "...result of evaluating F in a manner that conforms to the specification of F".
     pub call: fn(&NativeFunction, &Vm) -> ThrowCompletionOr<Value>,
@@ -95,7 +95,6 @@ fn as_native_function(object: &Object) -> &NativeFunction {
 }
 
 impl NativeFunction {
-    /// NativeFunction(GC::Ptr<Object> prototype, Realm& realm, Optional<Bytecode::Builtin> builtin)
     pub fn new_with_realm(
         vm: &Vm,
         class: &'static Class,
@@ -118,13 +117,11 @@ impl NativeFunction {
     //        Realm Record. The former is not something that's commonly used or we support, the
     //        latter is impossible as no ExecutionContext exists when most NativeFunctions are created...
 
-    /// NativeFunction(Object& prototype)
     pub fn new_with_prototype(vm: &Vm, class: &'static Class, prototype: Gc<Object>) -> NativeFunction {
         let base = FunctionObject::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No);
         Self::from_function_object(base, None, prototype.shape().realm())
     }
 
-    /// NativeFunction(Utf16FlyString name, Object& prototype)
     pub fn new_with_name(
         vm: &Vm,
         class: &'static Class,
@@ -200,7 +197,7 @@ impl NativeFunction {
         function
     }
 
-    /// NativeFunction::create(realm, behaviour, length) of C++: CreateBuiltinFunction(behaviour, length, "", « »).
+    /// CreateBuiltinFunction(behaviour, length, "", « »).
     pub fn create_anonymous<C, F>(vm: &Vm, captures: C, behaviour: F, length: i32) -> Gc<NativeFunction>
     where
         C: Trace + 'static,
@@ -458,7 +455,7 @@ impl FunctionObject {
     }
 }
 
-/// The behaviour of a native function that captures state, the C++ AK::Function a CapturingNativeFunction calls.
+/// The behaviour of a native function that captures state, which a CapturingNativeFunction calls.
 pub trait NativeFunctionBehaviour: Trace + 'static {
     fn call(&self, vm: &Vm) -> ThrowCompletionOr<Value>;
 }
@@ -561,9 +558,8 @@ impl Deref for CapturingNativeFunction {
     }
 }
 
-/// Defines the class of a NativeFunction subclass that is a constructor, as the C++ classes of the built-in
-/// constructors override NativeFunction::call(), construct() and has_constructor(). The type keeps its NativeFunction in
-/// a field named `base` and derefs to it.
+/// Defines the class of a NativeFunction subclass that is a constructor, which overrides call(), construct() and
+/// has_constructor(). The type keeps its NativeFunction in a field named `base` and derefs to it.
 macro_rules! define_native_function_class {
     ($type:ident, initialize: $initialize:expr, call: $call:expr, construct: $construct:expr) => {
         const _: () = {
@@ -642,7 +638,7 @@ pub fn call_raw_native_function(function: RawNativeFunctionPointer, vm: &Vm) -> 
 }
 
 /// Turns a `fn(&Vm) -> ThrowCompletionOr<Value>` into the RawNativeFunctionPointer the interpreter calls a raw native
-/// function through, with the calling convention of the C++ runtime's NativeFunctionPointer on the target.
+/// function through, with the calling convention of LibJS's NativeFunctionPointer on the target.
 macro_rules! raw_native {
     ($function:expr) => {{
         #[cfg(not(any(all(target_arch = "x86_64", target_vendor = "apple"), target_os = "windows")))]
@@ -715,7 +711,6 @@ impl Deref for RawNativeFunction {
 }
 
 impl RawNativeFunction {
-    /// RawNativeFunction(NativeFunctionPointer, GC::Ptr<Object> prototype, Realm& realm, Optional<Bytecode::Builtin> builtin)
     pub fn new_with_realm(
         vm: &Vm,
         class: &'static Class,
@@ -735,7 +730,6 @@ impl RawNativeFunction {
         }
     }
 
-    /// RawNativeFunction(Utf16FlyString name, NativeFunctionPointer, Object& prototype)
     pub fn new_with_name(
         vm: &Vm,
         class: &'static Class,

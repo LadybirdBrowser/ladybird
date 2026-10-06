@@ -96,7 +96,7 @@ inline Utf16String filename_to_utf16(StringView filename)
     return Utf16String::from_utf8_with_replacement_character(filename, Utf16String::WithBOMHandling::No);
 }
 
-// Collects the syntax errors that the runtime reports to a JSParserErrorSink as the C++ runtime's ParserErrors.
+// Collects the syntax errors that the runtime reports to a JSParserErrorSink as ParserErrors.
 class ParserErrorCollector {
     AK_MAKE_NONCOPYABLE(ParserErrorCollector);
     AK_MAKE_NONMOVABLE(ParserErrorCollector);
@@ -158,7 +158,7 @@ private:
     JSModuleRequest* m_module_request { nullptr };
 };
 
-// A copy of a module request of the runtime, with its attributes sorted by key, as the C++ runtime keeps them.
+// A copy of a module request of the runtime, with its attributes sorted by key.
 inline ModuleRequest module_request_from_abi(JSModuleRequest const& module_request)
 {
     auto attribute_count = js_module_request_attribute_count(&module_request);

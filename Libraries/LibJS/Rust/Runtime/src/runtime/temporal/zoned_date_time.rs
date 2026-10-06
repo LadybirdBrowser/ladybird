@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Runtime/Temporal/ZonedDateTime.cpp: Temporal.ZonedDateTime objects and the epoch nanosecond
-//! arithmetic in a time zone.
+//! Temporal.ZonedDateTime objects and the epoch nanosecond arithmetic in a time zone.
 
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;

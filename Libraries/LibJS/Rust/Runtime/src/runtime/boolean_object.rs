@@ -35,7 +35,7 @@ impl Deref for BooleanObject {
 }
 
 impl BooleanObject {
-    /// BooleanObject(bool, Object& prototype), for `class`, which is BooleanObject or a class that extends it.
+    /// A BooleanObject with `prototype`, for `class`, which is BooleanObject or a class that extends it.
     pub fn new(vm: &Vm, class: &'static Class, value: bool, prototype: Gc<Object>) -> BooleanObject {
         BooleanObject {
             base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),

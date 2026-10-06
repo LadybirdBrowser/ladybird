@@ -201,7 +201,7 @@ pub fn create_variable(
     }
 
     // NOTE: CreateVariable with m_is_global set to true is expected to only be used in GlobalDeclarationInstantiation currently, which only uses "false" for "can_be_deleted".
-    //       The only area that sets "can_be_deleted" to true is EvalDeclarationInstantiation, which is currently fully implemented in C++ and not in Bytecode.
+    //       The only area that sets "can_be_deleted" to true is EvalDeclarationInstantiation, which is currently fully implemented in the runtime and not in Bytecode.
     running_execution_context_environment(vm, EnvironmentMode::Var)
         .downcast::<GlobalEnvironment>()
         .expect("a global CreateVariable runs with the global environment as its variable environment")
@@ -257,7 +257,7 @@ fn throw_error(
     }
 }
 
-/// What a binding helper returns to continue after its instruction, like the C++ helpers that return `pc`.
+/// What a binding helper returns to continue after its instruction.
 fn continue_after_instruction(pc: u32) -> SlowPathControl {
     SlowPathControl::dispatch_at(pc)
 }
@@ -300,7 +300,7 @@ fn environment_at_hops(environment: Gc<Environment>, hops: u32) -> Gc<Environmen
     environment
 }
 
-/// static_cast<DeclarativeEnvironment&>, for an environment a coordinate refers to.
+/// An environment a coordinate refers to, as the DeclarativeEnvironment it is.
 fn as_declarative(environment: &Environment) -> &DeclarativeEnvironment {
     environment
         .as_declarative_environment()
@@ -313,7 +313,6 @@ enum AsmBindingIsKnownToBeInitialized {
     Yes,
 }
 
-/// Mirrors Op::BindingInitializationMode.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum BindingInitializationMode {
     Initialize,
@@ -1279,8 +1278,8 @@ pub fn create_private_environment(
 }
 
 /// The var environment shape cache of the active function's shared data, when `capacity` is its var binding count:
-/// VM::active_shared_function_data() with SharedFunctionInstanceData::m_var_environment_bindings_count and
-/// m_var_environment_shape. Only code that runs without a function object has no shared data.
+/// Vm::active_shared_function_data() with SharedFunctionInstanceData::var_environment_bindings_count() and
+/// var_environment_shape_cache(). Only code that runs without a function object has no shared data.
 /// The active function's var environment shape cache, if this environment is the one its shared data describes.
 fn var_environment_shape_cache_of_active_function(vm: &Vm, capacity: u32) -> Option<EnvironmentShapeCache> {
     let shared_data = vm.active_shared_function_data()?;

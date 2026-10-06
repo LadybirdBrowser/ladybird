@@ -126,7 +126,7 @@ impl Promise {
         )
     }
 
-    /// Promise(Object& prototype), for `class`, which is Promise or a class that extends it.
+    /// A promise with `prototype`, for `class`, which is Promise or a class that extends it.
     pub fn new(vm: &Vm, class: &'static Class, prototype: Gc<Object>) -> Promise {
         Promise {
             base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),

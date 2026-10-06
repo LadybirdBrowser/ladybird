@@ -20,8 +20,7 @@ import_rust_crate(
 # generated there.
 set_target_properties(libjs_runtime_rust PROPERTIES SYSTEM OFF)
 
-# The runtime allocates its cells from LibGC, and the regex engine it shares with the C++ runtime reads Unicode
-# properties from LibUnicode.
+# The runtime allocates its cells from LibGC, and its regex engine reads Unicode properties from LibUnicode.
 target_link_libraries(libjs_runtime_rust INTERFACE LibGC LibUnicode)
 if ((LINUX OR BSD) AND NOT BUILD_SHARED_LIBS)
     # The staticlib carries its own copy of the Rust standard library and of the Rust crates it shares with

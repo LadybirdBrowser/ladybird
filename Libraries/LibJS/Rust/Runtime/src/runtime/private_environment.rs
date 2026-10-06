@@ -69,7 +69,7 @@ unsafe impl Trace for PrivateEnvironment {
 }
 
 impl PrivateEnvironment {
-    /// The C++ constructor, which only NewPrivateEnvironment calls.
+    /// The constructor, which only NewPrivateEnvironment calls.
     pub(crate) fn create(vm: &Vm, parent: Option<Gc<PrivateEnvironment>>) -> Gc<PrivateEnvironment> {
         // FIXME: We might want to delay getting the next unique id until required.
         let unique_id = vm.next_private_environment_id().get();

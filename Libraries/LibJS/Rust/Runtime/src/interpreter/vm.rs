@@ -252,7 +252,7 @@ pub(crate) fn default_host_system_utc_epoch_nanoseconds(_: &Vm, _: &Object) -> S
     nanoseconds.clamp(NANOSECONDS_MIN_INSTANT.clone(), NANOSECONDS_MAX_INSTANT.clone())
 }
 
-/// The VM's job queues, VM::m_promise_jobs and VM::m_finalization_registry_cleanup_jobs, in a cell the VM roots.
+/// The VM's queues of promise jobs and finalization registry cleanup jobs, in a cell the VM roots.
 #[repr(C)]
 #[derive(Trace)]
 pub struct JobQueues {
@@ -291,7 +291,7 @@ pub(crate) fn default_host_get_supported_import_attributes(_: &Vm) -> Vec<Utf16S
     vec![Utf16String::from_utf8("type")]
 }
 
-/// A module the VM loaded, VM::StoredModule.
+/// A module the VM loaded.
 #[derive(Clone, Trace)]
 struct StoredModule {
     referrer: ImportedModuleReferrer,
@@ -301,7 +301,7 @@ struct StoredModule {
     has_once_started_linking: bool,
 }
 
-/// VM::m_loaded_modules, in a cell the VM roots, as C++ keeps each of the modules in a GC::Root.
+/// The modules the VM loaded, in a cell the VM roots.
 #[repr(C)]
 #[derive(Trace)]
 pub struct LoadedModules {
@@ -528,14 +528,13 @@ pub struct Vm {
     on_promise_unhandled_rejection: Cell<Option<PromiseRejectionCallback>>,
     on_promise_rejection_handled: Cell<Option<PromiseRejectionCallback>>,
     job_queues: OnceCell<Gc<JobQueues>>,
-    /// How many run_executable() calls are running, VM::m_run_executable_depth: the outermost one runs the promise jobs
-    /// its code queued.
+    /// How many run_executable() calls are running: the outermost one runs the promise jobs its code queued.
     run_executable_depth: Cell<u32>,
     /// The cells that hold others weakly, LibGC's list of weak containers. The list is weak: the sweep callback drops
     /// the containers that die, and has the others forget the cells that died.
     weak_containers: RefCell<Vec<WeakContainer>>,
     /// The finalization registries whose targets died in the collection in progress, which are handed to
-    /// HostEnqueueFinalizationRegistryCleanupJob once it is over. C++ roots each of them in a post-GC task.
+    /// HostEnqueueFinalizationRegistryCleanupJob once it is over.
     finalization_registries_with_dead_cells: RefCell<Vec<Gc<FinalizationRegistry>>>,
     host_resize_array_buffer: Cell<HostResizeArrayBuffer>,
     host_grow_shared_array_buffer: Cell<HostGrowSharedArrayBuffer>,
@@ -547,25 +546,22 @@ pub struct Vm {
     loaded_modules: OnceCell<Gc<LoadedModules>>,
     module_execution_depth: Cell<u32>,
     module_async_evaluation_count: Cell<u64>, // [[ModuleAsyncEvaluationCount]]
-    /// The id the next PrivateEnvironment gives its names, the C++ static PrivateEnvironment::s_next_id. It starts
-    /// at one such that 0 can be invalid / default initialized.
+    /// The id the next PrivateEnvironment gives its names. It starts at one such that 0 can be invalid / default
+    /// initialized.
     next_private_environment_id: Cell<u64>,
     /// The properties defined with Object::define_intrinsic_accessor that have not been read yet, by the address of
-    /// their object, the C++ static intrinsic_accessor_map(). The objects are weak: the sweep callback forgets the
-    /// ones that die.
+    /// their object. The objects are weak: the sweep callback forgets the ones that die.
     intrinsic_accessors: RefCell<IntrinsicAccessorMap>,
-    /// VM::m_debugger, which the head points to while it is attached.
+    /// The debugger, which the head points to while it is attached.
     debugger: RefCell<Option<Rc<Debugger>>>,
-    /// The properties defined with Object::define_unimplemented_property, the C++ static unimplemented_property_map().
-    /// The objects are weak: the sweep callback forgets the ones that die.
+    /// The properties defined with Object::define_unimplemented_property. The objects are weak: the sweep callback
+    /// forgets the ones that die.
     unimplemented_properties: RefCell<UnimplementedPropertyMap>,
     on_unimplemented_property_access: Cell<Option<OnUnimplementedPropertyAccess>>,
 
     options: VmOptions,
     embedder: Cell<Option<Embedder>>,
-    /// VM::m_agent.
     agent: Cell<AgentRecord>,
-    /// VM::m_saved_execution_context_stacks.
     saved_execution_context_stacks: RefCell<Vec<SavedExecutionContextStack>>,
     host_classes: RefCell<HostClassRegistry>,
 }
@@ -1060,8 +1056,7 @@ impl Vm {
         }
     }
 
-    /// Forgets the intrinsic accessors and unimplemented properties of objects that died in this collection, as
-    /// JS::Object::~Object does.
+    /// Forgets the intrinsic accessors and unimplemented properties of objects that died in this collection.
     fn remove_dead_objects_from_intrinsic_accessors_and_unimplemented_properties(&self) {
         let is_live = |object: usize| {
             // SAFETY: The maps only hold objects that were live when their entries were added, and a dead object is
@@ -1175,7 +1170,7 @@ impl Vm {
         stack_trace
     }
 
-    /// Drops the weak cache entries of strings that died in this collection, as JS::PrimitiveString::finalize does.
+    /// Drops the weak cache entries of strings that died in this collection.
     fn remove_dead_strings_from_weak_caches(&self) {
         let is_dead = |string: Gc<PrimitiveString>| !string.header.mark.get();
         for cache_slot in self.fly_string_cache.iter() {
@@ -1190,8 +1185,7 @@ impl Vm {
         }
     }
 
-    /// Forgets the cells that died in this collection from the inline caches of executables and static call sites, as
-    /// the C++ heap does when it prunes its weak containers.
+    /// Forgets the cells that died in this collection from the inline caches of executables and static call sites.
     fn remove_dead_cells_from_property_lookup_caches(&self) {
         self.executables.borrow_mut().retain(|executable| {
             if cell_is_dead(*executable) {

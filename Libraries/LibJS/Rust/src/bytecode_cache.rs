@@ -1774,8 +1774,8 @@ impl ExecutableRecord<'_> {
             number_of_arguments: u32::decode(decoder)?,
             cache_counters: CacheCounters::decode(decoder)?,
             length_identifier: {
-                // this_value_needs_environment_resolution, which runtimes take from the metadata of the function that
-                // owns the executable instead.
+                // this_value_needs_environment_resolution, which the runtime takes from the metadata of the function
+                // that owns the executable instead.
                 bool::decode(decoder)?;
                 Option::<u32>::decode(decoder)?
             },
@@ -2148,7 +2148,7 @@ impl DecodedConstantTable {
         self.count
     }
 
-    /// Whether every constant is one that both runtimes create a value from.
+    /// Whether every constant is one that the runtime creates a value from.
     fn is_well_formed(&self) -> bool {
         let mut decoder = Decoder::new(self.bytes.as_slice(), None);
         (0..self.count).all(|_| validate_constant_value(&mut decoder).is_some()) && decoder.is_empty()
@@ -2197,7 +2197,7 @@ fn validate_constant_value(decoder: &mut Decoder<'_>) -> Option<()> {
     Some(())
 }
 
-/// Whether `literal` is a BigInt as the frontend writes one into a constant table, which both runtimes parse: the
+/// Whether `literal` is a BigInt as the frontend writes one into a constant table, which the runtime parses: the
 /// digits of a literal, after its 0x, 0o or 0b prefix and with the numeric separators of its source text, or the
 /// decimal digits of a folded value, which may be negative.
 fn is_big_int_constant(literal: &[u8]) -> bool {

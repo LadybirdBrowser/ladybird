@@ -48,8 +48,8 @@ impl FlyStringSlot {
 #[repr(transparent)]
 pub struct Utf16StringSlot(pub UnsafeCell<Option<ak::Utf16String>>);
 
-/// What a raw native function returns: the ABI of the C++ runtime's ThrowCompletionOr<Value>, whose variant is 0 for a
-/// value and 1 for a thrown exception.
+/// What a raw native function returns: the ABI of LibJS's ThrowCompletionOr<Value>, whose variant is 0 for a value and
+/// 1 for a thrown exception.
 #[repr(C)]
 pub struct RawNativeFunctionResult {
     pub payload: u64,

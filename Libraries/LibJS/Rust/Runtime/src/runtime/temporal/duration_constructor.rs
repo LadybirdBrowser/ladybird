@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Runtime/Temporal/DurationConstructor.cpp: %Temporal.Duration%.
+//! %Temporal.Duration%.
 
 use libjs_runtime_macros::Trace;
 

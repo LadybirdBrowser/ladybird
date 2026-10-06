@@ -11,7 +11,6 @@ use super::shape::Shape;
 use super::value::Value;
 use crate::layout_forward::{PrivateElements, TypedArrayBaseStorage};
 
-/// Mirrors JS::Object::Flag.
 pub mod object_flag {
     pub const IS_EXTENSIBLE: u16 = 1 << 0;
     pub const IS_RAW_NATIVE_FUNCTION: u16 = 1 << 1;
@@ -29,7 +28,6 @@ pub mod object_flag {
     pub const IS_HTMLDDA: u16 = 1 << 13;
 }
 
-/// Mirrors JS::IndexedStorageKind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum IndexedStorageKind {

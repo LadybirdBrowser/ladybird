@@ -27,7 +27,7 @@ pub fn rust_identifier(name: &str) -> String {
     }
 }
 
-/// The Rust name of a bytecode field, which C++ prefixes with m_.
+/// The Rust name of a bytecode field, without the m_ prefix of its name in the instruction definitions.
 pub fn field_name(name: &str) -> String {
     rust_identifier(name.strip_prefix("m_").unwrap_or(name))
 }
@@ -92,7 +92,7 @@ pub fn generate(ops: &[InstructionDefinition], ops_with_values: &BTreeSet<String
             (Some(size), _) => {
                 let _ = writeln!(
                     out,
-                    "impl {} {{\n    /// The instruction's size in the bytecode, as C++ sizeof(Op::{}).\n    pub const LENGTH: u32 = {size};\n\n    pub fn length(&self) -> u32 {{\n        Self::LENGTH\n    }}\n}}",
+                    "impl {} {{\n    /// The size of every {} instruction in the bytecode.\n    pub const LENGTH: u32 = {size};\n\n    pub fn length(&self) -> u32 {{\n        Self::LENGTH\n    }}\n}}",
                     op.name, op.name
                 );
             }

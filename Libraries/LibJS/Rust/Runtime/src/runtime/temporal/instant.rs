@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Runtime/Temporal/Instant.cpp: Temporal.Instant objects and the epoch nanosecond operations.
+//! Temporal.Instant objects and the epoch nanosecond operations.
 
 use std::sync::LazyLock;
 

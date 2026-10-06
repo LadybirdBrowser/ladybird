@@ -7,9 +7,8 @@
 //! Maps and Sets.
 //!
 //! The functions here follow the contract object.rs states for the embedding module. A Map or Set crosses as its
-//! JSObject, and the functions that take one abort for any other object, as the C++ as<JS::Map>() does. Like the C++
-//! Map and Set, the operations compare keys with SameValue, so -0 and +0 are different keys; only the JavaScript
-//! methods turn a -0 key into +0.
+//! JSObject, and the functions that take one abort for any other object, as the C++ as<JS::Map>() does. The operations
+//! compare keys with SameValue, so -0 and +0 are different keys; only the JavaScript methods turn a -0 key into +0.
 
 #![allow(
     clippy::missing_safety_doc,
