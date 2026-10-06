@@ -26,8 +26,6 @@ using Compositing::SnapDestination;
 using Compositing::SnappedAreas;
 using Compositing::SnapSelectionStrategy;
 
-WEB_API Compositing::SnapAxes snap_axes_of_scroll_container(Layout::Node const& snap_container);
-
 WEB_API bool is_scroll_snap_container(Layout::Node const&);
 
 // Registers a scroll container a layout tree build gave a style as a scroll snap container, or forgets its snapped areas

@@ -150,17 +150,6 @@ unsafe fn write_and_pay(host: &DocumentHost, wait: impl crate::render_state::Ren
     written.was_attached
 }
 
-/// Prepares the row `slot` for leaving the layout tree. See [`prepare_row_for_detach`].
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, and `slot` a live row.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_prepare_node_for_detach(host: &DocumentHost, slot: NodeSlotId) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { write_and_pay(host, node_read(), LayoutWrite::PrepareRowForDetach { row: slot }) };
-}
-
 /// Prepares every row of the subtree `root` heads for leaving the layout tree.
 ///
 /// # Safety

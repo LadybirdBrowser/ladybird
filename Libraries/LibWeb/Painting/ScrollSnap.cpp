@@ -36,7 +36,7 @@ static DOM::Element const* element_of_snap_area(Compositing::SnapAreaIdentity co
 }
 
 // https://drafts.csswg.org/css-scroll-snap-1/#snap-axis
-Compositing::SnapAxes snap_axes_of_scroll_container(Layout::Node const& snap_container)
+static Compositing::SnapAxes snap_axes_of_scroll_container(Layout::Node const& snap_container)
 {
     auto axes = Layout::RustFFI::layout_row_scroll_snap_axes(snap_container.document_host(), Layout::Node::slot_id(&snap_container));
     return { .x = axes.x, .y = axes.y };

@@ -163,11 +163,6 @@ void Node::pin_style_record_for_detachment()
         node_with_style->pin_style_record_for_cxx_consumers();
 }
 
-void Node::prepare_for_detach_from_layout_tree()
-{
-    RustFFI::render_state_prepare_node_for_detach(document_host(), slot_id(this));
-}
-
 void Node::prepare_subtree_for_detach_from_layout_tree()
 {
     RustFFI::render_state_prepare_subtree_for_detach(document_host(), slot_id(this));
@@ -218,14 +213,6 @@ Viewport& Node::root()
     return *document().unsafe_layout_node(read);
 }
 
-bool NodeWithStyle::is_floating() const
-{
-    // flex-items don't float.
-    if (is_flex_item())
-        return false;
-    return float_() != CSS::Float::None;
-}
-
 bool NodeWithStyle::is_positioned() const
 {
     return position() != CSS::Positioning::Static;
@@ -260,20 +247,6 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bi
     m_style_payloads = RustFFI::layout_row_style_payloads(document_host(), slot);
     VERIFY(m_style_payloads);
     m_has_layout_derived_style = RustFFI::layout_row_style_is_derived(document_host(), slot);
-}
-
-NonnullRefPtr<CSS::ComputedValues const> NodeWithStyle::copy_computed_values() const
-{
-    auto record_view = computed_style_record_view();
-    VERIFY(record_view);
-    return CSS::ComputedValues::Builder { *record_view }.build();
-}
-
-CSS::ComputedStyleRecordView NodeWithStyle::computed_style_record_view() const
-{
-    auto const& read = held_read();
-    VERIFY(m_style_record_identity);
-    return document().style_computer().computed_style_record_view(read, m_style_record_identity);
 }
 
 NodeWithStyle::ImageObserver::ImageObserver(NodeWithStyle& owner, NonnullRefPtr<CSS::ImageStyleValue const> image)
@@ -481,13 +454,6 @@ void NodeWithStyle::refresh_style_from_arena(CSS::StyleRecordID record, void con
         attach_style_resources();
 }
 
-bool Node::is_root_element() const
-{
-    if (is_anonymous())
-        return false;
-    return is<HTML::HTMLHtmlElement>(*dom_node());
-}
-
 String Node::debug_description() const
 {
     StringBuilder builder;
@@ -505,18 +471,6 @@ String Node::debug_description() const
         builder.append("(anonymous)"sv);
     }
     return MUST(builder.to_string());
-}
-
-bool NodeWithStyle::is_inline_block() const
-{
-    auto display = this->display();
-    return display.is_inline_outside() && display.is_flow_root_inside();
-}
-
-bool NodeWithStyle::is_inline_table() const
-{
-    auto display = this->display();
-    return display.is_inline_outside() && display.is_table_inside();
 }
 
 bool Node::is_atomic_inline() const
@@ -674,12 +628,6 @@ void NodeWithStyle::did_update_style_record()
 void NodeWithStyle::synchronize_table_span_data()
 {
     RustFFI::render_state_restamp_table_spans(document_host(), slot_id(this));
-}
-
-void NodeWithStyle::set_display(CSS::Display display)
-{
-    VERIFY(!RustFFI::render_state_layout_pass_is_running(document_host()));
-    RustFFI::render_state_set_layout_display(document_host(), slot_id(this), bit_cast<u32>(display));
 }
 
 bool overflow_value_makes_box_a_scroll_container(CSS::Overflow overflow)

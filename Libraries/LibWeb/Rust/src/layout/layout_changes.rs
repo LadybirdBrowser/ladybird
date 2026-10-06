@@ -347,8 +347,6 @@ pub(crate) enum LayoutWrite<'a> {
     SetLayoutDisplay { node: NodeSlotId, display: u32 },
     /// The anonymous rows below the row inherit its style again.
     ReinheritAnonymousDescendants { node: NodeSlotId },
-    /// Prepares the row for leaving the layout tree.
-    PrepareRowForDetach { row: NodeSlotId },
     /// Prepares every row of the subtree the row heads for leaving the layout tree.
     PrepareSubtreeForDetach { root: NodeSlotId },
     /// Clears the committed box of every row of the subtree the row heads, and prepares each for leaving the layout
@@ -404,10 +402,6 @@ impl LayoutWrite<'_> {
             }
             Self::ReinheritAnonymousDescendants { node } => {
                 arena.reinherit_anonymous_descendants(host_calls, node);
-                false
-            }
-            Self::PrepareRowForDetach { row } => {
-                super::layout_node_arena::prepare_row_for_detach(host_calls, arena, row);
                 false
             }
             Self::PrepareSubtreeForDetach { root } => {

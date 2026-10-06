@@ -110,12 +110,6 @@ WheelScrollableAxes wheel_scrollable_axes(Layout::Node const& node)
     return { axes.horizontal, axes.vertical };
 }
 
-bool could_be_scrolled_by_wheel_event(Layout::Node const& node, ScrollDirection direction)
-{
-    auto axes = wheel_scrollable_axes(node);
-    return direction == ScrollDirection::Horizontal ? axes.horizontal : axes.vertical;
-}
-
 bool could_be_scrolled_by_wheel_event(Layout::Node const& node)
 {
     auto axes = wheel_scrollable_axes(node);

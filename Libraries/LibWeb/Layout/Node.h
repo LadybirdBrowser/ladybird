@@ -252,7 +252,6 @@ public:
     static CSS::StyleNodeID style_node_of(DOM::Node const*);
     static void dom_node_style_node_changed(DOM::Node&, CSS::StyleNodeID old_style_node);
 
-    void prepare_for_detach_from_layout_tree();
     void prepare_subtree_for_detach_from_layout_tree();
     void pin_style_record_for_detachment();
 
@@ -266,8 +265,6 @@ public:
     GC::Ptr<HTML::LocalNavigable> navigable() const;
 
     Viewport& root();
-
-    bool is_root_element() const;
 
     String debug_description() const;
 
@@ -408,7 +405,6 @@ public:
     ImageObserver const* cursor_image_observer(size_t cursor_index) const;
     ImageObserver const* border_image_source_observer() const;
 
-    NonnullRefPtr<CSS::ComputedValues const> copy_computed_values() const;
     CSS::StyleRecordID style_record_identity() const { return m_style_record_identity; }
 
     template<typename StyleGroup>
@@ -611,11 +607,8 @@ public:
     CSS::LengthPercentage const& stroke_width() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().stroke_width_value(); }
     CSS::PaintOrderList paint_order() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().paint_order_value(); }
     CSS::TextAnchor text_anchor() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().text_anchor_value(); }
-    bool is_inline_block() const;
-    bool is_inline_table() const;
     Gfx::AffineTransform used_svg_element_transform() const;
 
-    bool is_floating() const;
     bool is_positioned() const;
     bool is_absolutely_positioned() const;
     bool is_fixed_position() const;
@@ -651,11 +644,7 @@ public:
     void pin_style_record_for_cxx_consumers();
     void release_pinned_style_record();
 
-    void set_display(CSS::Display);
-
 private:
-    CSS::ComputedStyleRecordView computed_style_record_view() const;
-
     virtual bool is_node_with_style() const final { return true; }
 
     void publish_style_record_to_node_data();

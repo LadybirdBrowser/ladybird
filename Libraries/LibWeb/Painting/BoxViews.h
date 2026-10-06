@@ -66,7 +66,6 @@ WEB_API CSSPixelPoint transform_to_local_coordinates(Layout::Node const&, CSSPix
 WEB_API bool has_accumulated_visual_context(Layout::Node const&);
 WEB_API Compositing::ContextRef accumulated_visual_context(Layout::Node const&);
 WEB_API Compositing::ContextRef accumulated_visual_context_for_descendants(Layout::Node const&);
-WEB_API Compositing::SpatialNodeIndex enclosing_scroll_node_index(Layout::Node const&);
 WEB_API Compositing::SpatialNodeIndex own_scroll_node_index(Layout::Node const&);
 
 WEB_API Gfx::Path const* committed_svg_path(Layout::Node const&);
@@ -101,7 +100,6 @@ WEB_API void set_needs_repaint_in_subtree(Layout::Node const&);
 // changes itself.
 WEB_API void request_document_repaint(DOM::Document const&, InvalidateDisplayList);
 
-WEB_API void invalidate_propagated_text_decoration_caches(Layout::Node const&);
 WEB_API void repaint_after_style_change(Layout::Node const&, CSS::RequiredInvalidationAfterStyleChange const&);
 
 WEB_API Layout::RustFFI::FfiRectToViewportTransform identity_rect_to_viewport_transform();
