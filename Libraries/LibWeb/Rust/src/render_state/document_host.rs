@@ -87,6 +87,9 @@ pub struct DocumentHost {
     flown_round: RefCell<Option<FlownRound>>,
     /// Whether a job of the host runs, whose host callbacks see rows it freed and the host has not heard of yet.
     in_job: Cell<bool>,
+    /// Whether the host streamed writes to the render state since its last job or frame, which bring back what they owe
+    /// the host and the marks they made.
+    streamed: Cell<bool>,
     /// The document's layout tree update marks, which the host lends the render owner's jobs.
     marks: RefCell<HostMarks>,
     /// The rules the host published to each of its document's style sheets.
@@ -173,6 +176,7 @@ impl DocumentHost {
             sealed_round: RefCell::default(),
             flown_round: RefCell::default(),
             in_job: Cell::new(false),
+            streamed: Cell::new(false),
             marks: RefCell::new(HostMarks {
                 here: Some(LayoutTreeUpdateMarks::default()),
                 beside_flight: LayoutTreeUpdateMarks::default(),
@@ -231,12 +235,46 @@ impl DocumentHost {
         }
         self.changes
             .push(change, |queued| self.engine_memo.follow_queued(queued));
+        self.stream_writes_if_due();
     }
 
     /// Whether a write the host queues now waits behind the drain of the reactions of a style transaction that flew,
     /// beside the writes the drain queues meanwhile.
     pub(crate) fn holds_style_writes(&self) -> bool {
         self.changes.holds_style.get()
+    }
+
+    /// How many writes the host queues before it streams them to the render state.
+    const STREAMED_WRITES: usize = 256;
+
+    /// Streams the writes the host queued to the render state, once a batch of them is due, where nothing keeps them
+    /// queued: the render owner applies them beside the host's task, behind the jobs and frames handed to it before,
+    /// rather than in the host's next job. What they owe the host and the marks they make wait for that job.
+    fn stream_writes_if_due(&self) {
+        if self.changes.len() < Self::STREAMED_WRITES || !self.may_stream_writes() {
+            return;
+        }
+        let changes = self.changes.take_for_stream();
+        self.streamed.set(true);
+        let document = self.document;
+        post_to_render_side(move || owner::with_state(document, None, |state| state.apply_streamed(changes)));
+    }
+
+    /// Whether the render state may apply the writes the host queued now: a job made it, none runs, as a host callback
+    /// of one does, no frame flies, is leased or waits to be taken in, and the host reads the state as of its writes.
+    fn may_stream_writes(&self) -> bool {
+        if self.in_job.get()
+            || self.away.borrow().is_some()
+            || self.waits_for_frame.get()
+            || self.flown_style.borrow().is_some()
+            || self.changes.sets_writes_aside()
+        {
+            return false;
+        }
+        let seed = self.seed.take();
+        let made = seed.is_none();
+        self.seed.set(seed);
+        made && (cfg!(test) || !crate::stage_thread::style_layout_thread().is_current())
     }
 
     /// Notes that the document's render state is written, which leaves the paint and hit testing properties prepared
@@ -293,6 +331,7 @@ impl DocumentHost {
         flight: impl FnOnce(DocumentId, Option<StateSeed>, Option<LayoutTreeUpdateMarks>) -> (InFlight<Landing>, bool),
     ) {
         self.facts.set(None);
+        self.streamed.set(false);
         let (flight, held_for_testing) = flight(self.document, self.seed.take(), self.lend_marks());
         self.frame_held_for_testing.set(held_for_testing);
         let previous = self.away.borrow_mut().replace(Away::Flying(flight));
@@ -871,6 +910,10 @@ impl DocumentHost {
             answer
         });
         let (answer, owed) = answer.into_inner();
+        // A job lent the marks folded in those the streamed writes made, and brought back what they owe.
+        if marks.is_some() {
+            self.streamed.set(false);
+        }
         self.take_marks_back(marks);
         // A write a host callback of the job queued comes after the facts the job left, which the host's reads of them
         // learn from the queue.
@@ -1304,6 +1347,10 @@ pub unsafe extern "C" fn document_host_destroy(host: *mut DocumentHost) {
     // The document's teardown is the host's own read: a frame in flight lands first, and what it brought back for the
     // host goes unpaid, as the host made nothing of it yet.
     host.take_frame_in(ForcedRead::of_teardown());
+    // What writes the host streamed since its last job owe it, it pays as it would after a job.
+    if host.streamed.get() {
+        host.ask(ForcedRead::of_teardown(), |_| ());
+    }
     host.take_tick_recording_in();
     let DocumentHost {
         document,
@@ -1433,5 +1480,48 @@ mod tests {
         host.end_style_drain();
         assert!(host_has_deferred_input(&host, node));
         assert!(engine_has_deferred_input(&host, node));
+    }
+
+    fn render_state_has_deferred_inputs(host: &DocumentHost, nodes: &[StyleNodeID]) -> bool {
+        owner::with_state(host.document, None, |state| {
+            nodes
+                .iter()
+                .all(|&node| state.engine_mut().has_deferred_element_style_input(node))
+        })
+    }
+
+    #[test]
+    fn a_batch_of_writes_streams_to_the_render_state_before_any_job() {
+        let host = DocumentHost::for_test();
+        let nodes: [StyleNodeID; DocumentHost::STREAMED_WRITES] = style_nodes(&host);
+        for &node in &nodes[..DocumentHost::STREAMED_WRITES - 1] {
+            record_input(&host, node);
+        }
+        assert!(
+            !render_state_has_deferred_inputs(&host, &nodes[..1]),
+            "a batch is not due yet"
+        );
+        record_input(&host, nodes[DocumentHost::STREAMED_WRITES - 1]);
+        assert!(host.changes.is_empty());
+        assert!(render_state_has_deferred_inputs(&host, &nodes));
+        assert!(host.streamed.get());
+        host.ask(ScriptForcedRead::for_test(), |_| ());
+        assert!(
+            !host.streamed.get(),
+            "the next job brings back what the streamed writes owe"
+        );
+    }
+
+    #[test]
+    fn writes_beside_a_style_drain_stay_queued() {
+        let host = DocumentHost::for_test();
+        let nodes: [StyleNodeID; DocumentHost::STREAMED_WRITES] = style_nodes(&host);
+        begin_drain(&host);
+        for node in nodes {
+            record_input(&host, node);
+        }
+        assert_eq!(host.changes.len(), DocumentHost::STREAMED_WRITES);
+        assert!(!host.streamed.get());
+        host.end_style_drain();
     }
 }

@@ -128,6 +128,38 @@ impl LayoutTreeUpdateMarks {
     pub(crate) fn clear(&mut self, node: StyleNodeID) {
         self.update(node, |_| 0);
     }
+
+    /// Fold in `other`, marks made from none by merges and child marks alone, as if each of them
+    /// had been made to these: a node's reuse reasons combine the same in any order.
+    pub(crate) fn fold(&mut self, other: Self) {
+        fold_column(&mut self.elements, other.elements);
+        fold_column(&mut self.text, other.text);
+    }
+}
+
+fn fold_column(column: &mut Vec<u8>, other: Vec<u8>) {
+    if column.len() < other.len() {
+        column.resize(other.len(), 0);
+    }
+    for (marks, other) in column.iter_mut().zip(other) {
+        *marks = fold_marks(*marks, other);
+    }
+}
+
+/// The marks of a node with `marks` once the merges and child marks that made `other` are made to them.
+fn fold_marks(marks: u8, other: u8) -> u8 {
+    use layout_tree_update_reuse_reason::ALL;
+    let mut folded = marks | (other & CHILD_NEEDS);
+    if other & NEEDS != 0 {
+        let (own, reasons) = (marks & ALL, other & ALL);
+        let merged = match marks & NEEDS != 0 {
+            true if own == 0 || reasons == 0 => 0,
+            true => own | reasons,
+            false => reasons,
+        };
+        folded = (folded & !ALL) | NEEDS | merged;
+    }
+    folded
 }
 
 /// A write of one node's layout tree update marks.
@@ -801,5 +833,49 @@ mod tests {
         marks.clear(element);
         assert!(!marks.child_needs(element));
         assert!(marks.needs(text));
+    }
+
+    #[test]
+    fn marks_made_apart_and_folded_in_are_the_marks_made_in_place() {
+        let reasons = [0, CHILD_LIST_INSERTION, PSEUDO_ELEMENT_CHANGE];
+        let make_held = |marks: &mut LayoutTreeUpdateMarks, held: usize| {
+            if held > 0 {
+                marks.merge(StyleNodeID::element(1), true, reasons[held - 1]);
+            }
+            marks.set_child_needs(StyleNodeID::element(2), held % 2 == 0);
+        };
+        let make_apart = |marks: &mut LayoutTreeUpdateMarks, first: u8, second: u8| {
+            marks.merge(StyleNodeID::element(1), true, first);
+            marks.merge(StyleNodeID::element(1), true, second);
+            marks.set_child_needs(StyleNodeID::element(4), true);
+            marks.merge(StyleNodeID::text(7), true, 0);
+        };
+        for held in 0..=reasons.len() {
+            for first in reasons {
+                for second in reasons {
+                    let mut in_place = LayoutTreeUpdateMarks::default();
+                    make_held(&mut in_place, held);
+                    make_apart(&mut in_place, first, second);
+
+                    let mut apart = LayoutTreeUpdateMarks::default();
+                    make_apart(&mut apart, first, second);
+                    let mut folded = LayoutTreeUpdateMarks::default();
+                    make_held(&mut folded, held);
+                    folded.fold(apart);
+
+                    for node in [1, 2, 4, 7]
+                        .map(StyleNodeID::element)
+                        .into_iter()
+                        .chain([StyleNodeID::text(7)])
+                    {
+                        assert_eq!(
+                            folded.get(node),
+                            in_place.get(node),
+                            "held {held}, apart {first} then {second}"
+                        );
+                    }
+                }
+            }
+        }
     }
 }

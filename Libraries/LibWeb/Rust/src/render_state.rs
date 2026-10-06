@@ -43,6 +43,9 @@ pub(crate) struct RenderState {
     /// What the writes the state applied since the host's last job ended owe the host, which the host pays once it has
     /// the job back.
     owed: Vec<crate::layout::tree_mutation::HostWorkDue>,
+    /// The layout tree update marks the writes the host streamed since its last job made, apart from the marks the host
+    /// holds, which the host's next job folds into those it is lent.
+    streamed_marks: Option<crate::layout::tree_update_marks::LayoutTreeUpdateMarks>,
 }
 
 impl RenderState {
@@ -63,27 +66,43 @@ impl RenderState {
             arena,
             engine,
             owed: Vec::new(),
+            streamed_marks: None,
         }
     }
 
     /// Runs `job` on the state with `marks`, the layout tree update marks the document's host lends it, if it lends
-    /// them, and answers them back.
+    /// them, and answers them back, with the marks the writes it streamed made since folded in.
     fn with_marks<R>(
         &mut self,
         marks: Option<crate::layout::tree_update_marks::LayoutTreeUpdateMarks>,
         job: impl FnOnce(&mut Self) -> R,
     ) -> (R, Option<crate::layout::tree_update_marks::LayoutTreeUpdateMarks>) {
-        let Some(marks) = marks else {
+        let Some(mut marks) = marks else {
             return (job(self), None);
         };
+        if let Some(streamed) = self.streamed_marks.take() {
+            marks.fold(streamed);
+        }
         *self.arena.arena().layout_tree_update_marks().borrow_mut() = marks;
         let answer = job(self);
         (answer, Some(self.arena.arena().layout_tree_update_marks().take()))
     }
 
+    /// Applies `changes`, writes the host streamed to the state beside its task, into marks of their own, which the
+    /// host's next job folds into the marks it is lent: the host keeps its marks, and reads them as it reads them while
+    /// its writes wait in its queue.
+    fn apply_streamed(&mut self, changes: Vec<ArenaChange>) {
+        let streamed = self.streamed_marks.take().unwrap_or_default();
+        *self.arena.arena().layout_tree_update_marks().borrow_mut() = streamed;
+        self.apply(changes);
+        self.streamed_marks = Some(self.arena.arena().layout_tree_update_marks().take());
+    }
+
     /// Drops the state, which must hold no layout node any more.
     fn retire(self) {
-        let Self { arena, engine, owed } = self;
+        let Self {
+            arena, engine, owed, ..
+        } = self;
         assert!(owed.is_empty(), "every job's host pays what its writes owe it");
         assert_eq!(
             arena.arena().live_slot_count(),
@@ -436,6 +455,8 @@ struct ChangeQueue {
     >,
     /// The writes set aside while the host reads the render state as it was before them.
     set_aside: RefCell<Vec<ArenaChange>>,
+    /// Whether the host reads the render state as it was before the writes set aside.
+    sets_writes_aside: Cell<bool>,
 }
 
 /// A style write as it joins the writes the render state applies next, in the order it applies them: one the host
@@ -466,6 +487,16 @@ impl ChangeQueue {
     /// Whether no write waits, queued or set aside, not counting the held style writes.
     fn is_empty(&self) -> bool {
         self.queued.borrow().is_empty() && self.set_aside.borrow().is_empty()
+    }
+
+    /// How many writes are queued, not counting those held or set aside.
+    fn len(&self) -> usize {
+        self.queued.borrow().len()
+    }
+
+    /// Whether the host reads the render state as it was before the writes it set aside.
+    fn sets_writes_aside(&self) -> bool {
+        self.sets_writes_aside.get()
     }
 
     fn moves(&self) -> Moves {
@@ -627,6 +658,14 @@ impl ChangeQueue {
         self.queued.borrow_mut().append(&mut held);
     }
 
+    /// Takes the queued writes, for the host to stream them to the render state, leaving room for as many again. What
+    /// they may move stays noted: the host learns what they moved only from its next job.
+    fn take_for_stream(&self) -> Vec<ArenaChange> {
+        self.replaced_paint_facts_positions.borrow_mut().clear();
+        let capacity = self.len();
+        self.queued.replace(Vec::with_capacity(capacity))
+    }
+
     /// Sets the queued writes aside, until queue_set_aside(): the render state reads as it was before them meanwhile.
     fn set_aside(&self) {
         debug_assert!(
@@ -634,11 +673,13 @@ impl ChangeQueue {
             "one set of writes is set aside at a time"
         );
         self.forget_moves();
+        self.sets_writes_aside.set(true);
         *self.set_aside.borrow_mut() = self.queued.take();
     }
 
     /// Queues the writes set aside behind the writes queued meanwhile.
     fn queue_set_aside(&self) {
+        self.sets_writes_aside.set(false);
         let mut set_aside = self.set_aside.take();
         set_aside.iter().for_each(|change| self.note(change));
         self.queued.borrow_mut().append(&mut set_aside);
