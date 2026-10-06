@@ -8,12 +8,13 @@ crate-type = ["rlib", "staticlib"]
 
 [dependencies]
 encoding_rs = "0.8.40"
+ladybird_allocator = { path = "../../RustAllocator", optional = true }
 libregex_rust = { path = "../../LibRegex/Rust" }
 libunicode_rust = { path = "../../LibUnicode/Rust", features = ["idna"] }
 
 [features]
 default = []
-allocator = []
+allocator = ["dep:ladybird_allocator"]
 debug-validation-errors = []
 
 [build-dependencies]

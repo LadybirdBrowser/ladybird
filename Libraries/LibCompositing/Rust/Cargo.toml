@@ -8,10 +8,11 @@ crate-type = ["rlib", "staticlib"]
 
 [features]
 default = []
-allocator = []
+allocator = ["dep:ladybird_allocator"]
 
 [dependencies]
 foldhash = "0.1"
+ladybird_allocator = { path = "../../RustAllocator", optional = true }
 libgfx_rust = { path = "../../LibGfx/Rust", default-features = false }
 
 [build-dependencies]

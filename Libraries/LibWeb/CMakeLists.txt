@@ -1182,7 +1182,7 @@ foreach(angle_target IN LISTS ANGLE_TARGETS)
     target_compile_options(LibWeb PRIVATE $<TARGET_PROPERTY:${angle_target},INTERFACE_COMPILE_OPTIONS>)
 endforeach()
 
-set(libweb_rust_features)
+set(libweb_rust_features allocator)
 if (ENABLE_THREAD_SANITIZER)
     list(APPEND libweb_rust_features thread-sanitizer)
 endif()

@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-/// cbindgen:ignore
-#[path = "../../../RustAllocator.rs"]
-mod rust_allocator;
+#[cfg(feature = "allocator")]
+extern crate ladybird_allocator;
 
 #[path = "../../../RustPanic.rs"]
 mod rust_panic;

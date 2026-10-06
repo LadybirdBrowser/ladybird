@@ -5,7 +5,7 @@ edition = "2024"
 
 [features]
 default = []
-allocator = []
+allocator = ["dep:ladybird_allocator"]
 idna = []
 
 [lib]
@@ -16,6 +16,7 @@ crate-type = ["staticlib", "rlib"]
 [dependencies]
 calendrical_calculations = "=0.2.4"
 icu_calendar = { version = "=2.2.1", features = ["compiled_data"] }
+ladybird_allocator = { path = "../../RustAllocator", optional = true }
 
 [build-dependencies]
 cbindgen = "0.29"
