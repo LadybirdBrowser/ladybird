@@ -259,21 +259,13 @@ private:
     // The environments the style engine resolved, by the identity it minted, materialized once.
     mutable HashMap<u64, NonnullRefPtr<CustomPropertyData const>> m_engine_custom_property_environments;
 
-    enum class ProvisionalTransitionAction : u8 {
-        None,
-        Remove,
-        Cancel,
-        Start,
-        RemoveAndStart,
-        CancelRemoveAndStart,
-    };
     struct ProvisionalTransitionState {
         GC::Ptr<DOM::Element> element;
         Optional<PseudoElement> pseudo_element;
         PropertyID property_id;
         GC::Ptr<CSSTransition> committed_transition;
         GC::Ptr<CSSTransition> proposed_transition;
-        ProvisionalTransitionAction action { ProvisionalTransitionAction::None };
+        StyleValueFFI::FfiTransitionActionKind action {};
         bool has_decision { false };
     };
     // Whether the animation collection of the computation in progress resolved a keyframe-borne

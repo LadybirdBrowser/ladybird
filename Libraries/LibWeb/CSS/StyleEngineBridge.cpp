@@ -203,11 +203,6 @@ ParkedRandomBaseValues::~ParkedRandomBaseValues()
         StyleEngineFFI::style_engine_release_random_base_values(m_slot);
 }
 
-void StyleEngine::decide_transitions(Layout::BegunRead const& read, StyleRecordID before_style_record, StyleRecordID after_style_record, StyleValueFFI::FfiTransitionInput const& input, StyleValueFFI::FfiTransitionAction* actions) const
-{
-    StyleEngineFFI::style_engine_decide_transitions(m_render_document->host(), &read, before_style_record.value(), after_style_record.value(), &input, actions);
-}
-
 StyleEngine::StyleRecordDelta StyleEngine::remove_computed_pseudo(Layout::BegunRead const& read, StyleNodeID node, u8 pseudo_kind)
 {
     auto delta = StyleEngineFFI::style_engine_remove_computed_pseudo(host(), &read, node.value(), pseudo_kind);

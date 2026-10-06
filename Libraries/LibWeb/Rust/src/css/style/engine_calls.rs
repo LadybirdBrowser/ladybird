@@ -1418,57 +1418,52 @@ pub unsafe extern "C" fn style_engine_counter(
     name.as_ptr()
 }
 
-/// Decides what each property `input` prepared does to the transitions of its target, as the target's style changes
-/// from the record `before` to the record `after` it installed. Writes the values each decision compared into its
-/// property, and the decision into `actions`. The style transaction the host drains decided the step beside the row of
-/// an element whose step nothing but the engine's records decides; any other the render owner decides, reading the
-/// transform reference box of the target's element's box as it does.
+/// Decides what the transition step of `input`'s target does to its transitions, as the target's style changes from the
+/// record `before` to the record `after` it installed, and hands `on_actions` one action per property it decided over.
+/// The style transaction the host drains decided the step beside the row of an element whose step nothing but the
+/// engine's records decides; any other the render owner decides, reading the transform reference box of the target's
+/// element's box as it does.
 ///
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread, `input` must be valid, and `actions` must point at
-/// writable storage for one action per property.
+/// `host` must be a live document host, on its document's thread, and `input` must be valid. The values the actions
+/// point at live until `on_actions` returns.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_decide_transitions(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     before: u64,
     after: u64,
-    input: *const FfiTransitionInput,
-    actions: *mut FfiTransitionAction,
+    input: &FfiTransitionInput,
+    on_actions: unsafe extern "C" fn(*mut c_void, *const FfiTransitionAction, usize),
+    context: *mut c_void,
 ) {
     crate::css::ffi_stats::note_transition_decision();
     // SAFETY: Guaranteed by the caller.
-    let input = unsafe { &*input };
-    if input.property_count == 0 {
-        return;
-    }
-    // SAFETY: As above.
-    let (properties, actions) = unsafe {
-        (
-            std::slice::from_raw_parts_mut(input.properties, input.property_count),
-            std::slice::from_raw_parts_mut(actions, input.property_count),
-        )
+    let existing = unsafe {
+        crate::css::custom_properties::ffi_slice(input.existing_transitions, input.existing_transition_count)
     };
+    // SAFETY: As above.
+    let hand_over = |actions: &[FfiTransitionAction]| unsafe { on_actions(context, actions.as_ptr(), actions.len()) };
     let decision = TransitionDecision {
         before,
         after,
-        context: input.context,
         element: (input.target_pseudo_kind == u8::MAX)
             .then(|| StyleNodeID::from_raw(input.target_node))
             .flatten(),
     };
     if decision.element.is_some()
-        && host.answer_decided_transition_step(input.target_node, &decision, properties, actions)
+        && host.answer_decided_transition_step(input.target_node, &decision, existing, hand_over)
     {
         return;
     }
     let element_box = crate::layout::node_data::NodeSlotId {
         index: input.element_box_slot,
     };
-    with_engine_and_arena(read, host, |engine, arena| {
+    let actions = with_engine_and_arena(read, host, |engine, arena| {
         let reference_box =
             crate::painting::ffi::committed_transform_reference_box(&arena.paintable_rows(), element_box);
-        decision.decide(engine, reference_box, properties, actions);
+        decision.decide(engine, reference_box, existing)
     });
+    hand_over(&actions);
 }

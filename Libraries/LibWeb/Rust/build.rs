@@ -2462,7 +2462,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "StyleValueData",
         "RetainedGridTrackEntry",
         "FfiTransitionInput",
-        "FfiTransitionPropertyInput",
+        "FfiExistingTransition",
         "FfiTransitionAction",
     ]
     .map(String::from)
@@ -2585,7 +2585,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .insert(name.to_string(), format!("Web::CSS::StyleValueFFI::{name}"));
     }
     style_engine_config.after_includes = Some(
-        "namespace Web::CSS::StyleValueFFI { enum class FfiCompositeOperation : uint8_t; struct FfiTransitionInput; struct FfiTransitionAction; }"
+        "namespace Web::CSS::StyleValueFFI { enum class FfiCompositeOperation : uint8_t; enum class FfiTransitionActionKind : uint8_t; struct FfiTransitionInput; struct FfiTransitionAction; }"
             .to_string(),
     );
     // The host queues the engine's changes on the document host, which the layout header declares.

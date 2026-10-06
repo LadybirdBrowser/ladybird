@@ -4620,7 +4620,7 @@ pub(crate) fn active_transition_longhands(table: &ComputedLonghandTable) -> Cow<
 
 /// The table's `transition-*` values, per physical longhand they name: shorthands expanded,
 /// logical aliases mapped, and a longhand named more than once taking its last entry.
-pub(crate) fn transition_entries(table: &ComputedLonghandTable) -> Vec<crate::css::transition::FfiTransitionEntry> {
+pub(crate) fn transition_entries(table: &ComputedLonghandTable) -> Vec<crate::css::transition::TransitionEntry> {
     use crate::css::property_metadata::property_id as prop;
 
     let property_values = computed_value_list(table, prop::TRANSITION_PROPERTY);
@@ -4630,7 +4630,7 @@ pub(crate) fn transition_entries(table: &ComputedLonghandTable) -> Vec<crate::cs
     let behavior_values = computed_value_list(table, prop::TRANSITION_BEHAVIOR);
     let (writing_mode, direction) = computed_writing_mode_and_direction(table);
 
-    let mut entries: Vec<crate::css::transition::FfiTransitionEntry> = Vec::new();
+    let mut entries: Vec<crate::css::transition::TransitionEntry> = Vec::new();
     // Where each longhand's entry is in `entries`, so a longhand named again takes the later entry's place.
     let mut entry_indices = [u16::MAX; crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID as usize + 1];
     let mut properties = Vec::new();
@@ -4655,7 +4655,7 @@ pub(crate) fn transition_entries(table: &ComputedLonghandTable) -> Vec<crate::cs
         };
         entries.reserve(properties.len());
         for &property_id in &properties {
-            let entry = crate::css::transition::FfiTransitionEntry {
+            let entry = crate::css::transition::TransitionEntry {
                 property_id,
                 delay,
                 duration,
