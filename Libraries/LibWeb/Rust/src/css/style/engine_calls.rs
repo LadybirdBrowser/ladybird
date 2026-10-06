@@ -858,6 +858,11 @@ pub(crate) struct EngineMemo {
     pub(crate) beside_flown_transaction: std::cell::RefCell<super::HashSet<StyleNodeID>>,
     /// The reactions the host applies next, where closing them over the elements they inherit through changed them.
     pub(crate) closed_reactions: std::cell::RefCell<Vec<FfiStyleDelta>>,
+    /// While a batch's reactions are applied, a host's own style application may rewrite the declarations of an
+    /// element in its shadow tree, after the engine computed that element's record from the ones it had. These name
+    /// the elements whose declarations changed that way, while `applying_reactions` counts the batches being applied.
+    declarations_changed_during_apply: std::cell::RefCell<super::HashSet<StyleNodeID>>,
+    applying_reactions: std::cell::Cell<u32>,
 }
 
 impl EngineMemo {
@@ -869,6 +874,34 @@ impl EngineMemo {
     /// Follows `queued`, a write the host queued for the engine, as it joins the writes the engine applies next.
     pub(crate) fn follow_queued(&self, queued: crate::render_state::QueuedStyleChange<'_>) {
         self.deferred.borrow_mut().follow(queued);
+    }
+
+    /// Notes the declarations of `node` changed, where a batch's reactions are being applied.
+    fn note_declarations_changed(&self, node: StyleNodeID) {
+        if self.applying_reactions.get() > 0 {
+            self.declarations_changed_during_apply.borrow_mut().insert(node);
+        }
+    }
+
+    pub(crate) fn declarations_changed_during_apply(&self, node: StyleNodeID) -> bool {
+        self.declarations_changed_during_apply.borrow().contains(&node)
+    }
+
+    /// Notes the elements whose declarations change until the answer is dropped, beside the batches being applied
+    /// already.
+    pub(crate) fn note_declaration_changes_during_apply(&self) -> impl Drop + '_ {
+        struct Noting<'a>(&'a EngineMemo);
+        impl Drop for Noting<'_> {
+            fn drop(&mut self) {
+                let applying = self.0.applying_reactions.get() - 1;
+                self.0.applying_reactions.set(applying);
+                if applying == 0 {
+                    self.0.declarations_changed_during_apply.borrow_mut().clear();
+                }
+            }
+        }
+        self.applying_reactions.set(self.applying_reactions.get() + 1);
+        Noting(self)
     }
 }
 
@@ -886,6 +919,8 @@ impl Default for EngineMemo {
             staged_input: Default::default(),
             beside_flown_transaction: Default::default(),
             closed_reactions: Default::default(),
+            declarations_changed_during_apply: Default::default(),
+            applying_reactions: Default::default(),
         }
     }
 }
@@ -1266,22 +1301,14 @@ pub unsafe extern "C" fn style_engine_has_size_containers_needing_evaluation_aft
 /// and answers the merged reaction in the low byte and the merged inherited style groups in the next, or zero, as
 /// [`super::StyleEngine::absorb_element_style_input`] does. The host answers where it knows the answer, and the
 /// engine folds the input the same as it applies the host's writes.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_absorb_element_style_input(
+pub(crate) fn absorb_element_style_input(
     host: &DocumentHost,
     read: &BegunRead,
-    node: u32,
+    style_node: StyleNodeID,
     reaction: u8,
     inherited_style_groups: u8,
     absorbs_any: bool,
 ) -> u32 {
-    let Some(style_node) = StyleNodeID::from_raw(node) else {
-        return 0;
-    };
     // A job of the engine, or a frame in flight, moves what it defers beside what the host knows, and a fold held
     // behind the drain of a style transaction's reactions reaches the engine after the drain's writes.
     let known = (host.knows_engine_between_jobs() && !host.holds_style_writes()).then(|| {
@@ -1307,6 +1334,18 @@ pub unsafe extern "C" fn style_engine_absorb_element_style_input(
         }));
     }
     absorbed
+}
+
+/// Notes that the host rewrote the declarations of `node`, which a batch of reactions being applied reads.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_note_element_declarations_changed(host: &DocumentHost, node: u32) {
+    if let Some(node) = StyleNodeID::from_raw(node) {
+        host.engine_memo().note_declarations_changed(node);
+    }
 }
 
 /// A direct-mapped memo of one answer per key, which keeps the answers of the keys the host asked about last.

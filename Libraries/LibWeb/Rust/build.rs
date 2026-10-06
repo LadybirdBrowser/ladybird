@@ -2604,6 +2604,24 @@ fn main() -> Result<(), Box<dyn Error>> {
         .get_or_insert_with(String::new)
         .push_str("\nnamespace Web::Layout::RustFFI { enum class FfiFlightBlocker : uint8_t; }");
 
+    // The host's objects a style reaction is applied through cross as the host's own types, except an element a struct
+    // holds, which crosses opaque.
+    for (name, cpp_name) in [
+        ("HostElement", "Web::DOM::Element"),
+        ("HostElementPtr", "void*"),
+        ("HostStyleReactionApplication", "Web::CSS::StyleReactionApplication"),
+    ] {
+        style_engine_config.export.exclude.push(name.to_string());
+        style_engine_config
+            .export
+            .rename
+            .insert(name.to_string(), cpp_name.to_string());
+    }
+    style_engine_config
+        .after_includes
+        .get_or_insert_with(String::new)
+        .push_str("\nnamespace Web::DOM { class Element; }\nnamespace Web::CSS { struct StyleReactionApplication; }");
+
     generate_ffi_header(
         style_engine_config,
         &[
@@ -2611,6 +2629,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/style/identities.rs"),
             manifest_dir.join("src/css/style/engine_calls.rs"),
             manifest_dir.join("src/css/style/host_atoms.rs"),
+            manifest_dir.join("src/css/style/reaction_application.rs"),
             manifest_dir.join("src/css/style/rule_writes.rs"),
             manifest_dir.join("src/css/style/style_job.rs"),
             manifest_dir.join("src/css/ffi_support.rs"),
