@@ -253,75 +253,17 @@ Layout::Node* first_wheel_scrollable_box_in_containing_block_chain(Layout::Node 
     return node.node_arena().node_if_live(read, Layout::RustFFI::render_state_first_wheel_scrollable_box_in_containing_block_chain(node.document_host(), committed_row_slot(node)));
 }
 
-static void scroll_into_view(Layout::Node& node, CSSPixelRect rect)
-{
-    if (!has_committed_box(node))
-        return;
-
-    auto snapport = scroll_snapport_rect(node);
-    auto current_offset = scroll_offset(node);
-
-    // Both rect and snapport are in layout coordinate space (not scroll-adjusted).
-    auto content_rect = rect.translated(-snapport.x(), -snapport.y());
-    auto new_offset = current_offset;
-
-    if (content_rect.right() > current_offset.x() + snapport.width())
-        new_offset.set_x(content_rect.right() - snapport.width());
-    else if (content_rect.left() < current_offset.x())
-        new_offset.set_x(content_rect.left());
-
-    if (content_rect.bottom() > current_offset.y() + snapport.height())
-        new_offset.set_y(content_rect.bottom() - snapport.height());
-    else if (content_rect.top() < current_offset.y())
-        new_offset.set_y(content_rect.top());
-
-    set_scroll_offset(node, new_offset);
-}
-
 void scroll_text_offset_into_view(Layout::BegunRead const& read, DOM::Text const& text, size_t offset, TextAffinity affinity, ScrollBlockDirection scroll_block_direction)
 {
     auto const* layout_node = text.unsafe_layout_node(read);
     if (!layout_node)
         return;
-    auto result = Layout::RustFFI::layout_script_text_caret_rect_for_position(
+    CSSPixelPoint scroll_offset;
+    auto container = Layout::RustFFI::render_state_scroll_target_for_text_position(
         layout_node->document_host(), Layout::Node::slot_id(layout_node), offset,
-        affinity == TextAffinity::Downstream);
-    if (!result.found)
-        return;
-    auto const* style_source_pointer = static_cast<Layout::NodeWithStyle const*>(layout_node->node_arena().node_if_live(read, result.style_source));
-    if (!style_source_pointer)
-        return;
-    auto const& style_source = *style_source_pointer;
-
-    auto cursor_rect = result.rect;
-    if (style_source.writing_mode() == CSS::WritingMode::HorizontalTb) {
-        if (style_source.inline_axis_is_reverse())
-            cursor_rect.set_x(cursor_rect.x() - 1);
-        cursor_rect.set_width(1);
-    } else {
-        if (style_source.inline_axis_is_reverse())
-            cursor_rect.set_y(cursor_rect.y() - 1);
-        cursor_rect.set_height(1);
-    }
-    auto* owner = layout_node_for_committed_slot(read, layout_node->node_arena(), result.owner_paintable);
-    for (auto* ancestor = owner; ancestor;) {
-        if (Painting::has_scrollable_overflow(*ancestor)) {
-            if (scroll_block_direction == ScrollBlockDirection::No) {
-                auto snapport = scroll_snapport_rect(*ancestor);
-                if (style_source.writing_mode() == CSS::WritingMode::HorizontalTb) {
-                    cursor_rect.set_y(snapport.y() + scroll_offset(*ancestor).y());
-                    cursor_rect.set_height(snapport.height());
-                } else {
-                    cursor_rect.set_x(snapport.x() + scroll_offset(*ancestor).x());
-                    cursor_rect.set_width(snapport.width());
-                }
-            }
-            scroll_into_view(*ancestor, cursor_rect);
-            return;
-        }
-        auto* containing_block_box = ancestor->containing_block();
-        ancestor = containing_block_box && has_committed_box(*containing_block_box) ? containing_block_box : nullptr;
-    }
+        affinity == TextAffinity::Downstream, scroll_block_direction == ScrollBlockDirection::Yes, &scroll_offset);
+    if (auto* scroll_container = layout_node_for_committed_slot(read, layout_node->node_arena(), container))
+        set_scroll_offset(*scroll_container, scroll_offset);
 }
 
 }
