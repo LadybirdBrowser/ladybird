@@ -11,7 +11,9 @@
 
 use std::sync::Arc;
 
-use crate::css::easing::{FfiEasingDescriptor, FfiEasingKind, FfiLinearEasingPoint, evaluate_easing_descriptor};
+use crate::css::easing::{
+    Easing, FfiEasingDescriptor, FfiEasingKind, FfiLinearEasingPoint, evaluate_easing_descriptor,
+};
 use crate::css::property_metadata::{property_animation_type, property_numeric_ranges};
 use crate::css::style_value::{
     BasicShapeData, ColorBase, CssString, CssStringList, FILTER_KIND_BLUR, FILTER_KIND_COLOR, FILTER_KIND_DROP_SHADOW,
@@ -160,6 +162,41 @@ pub unsafe extern "C" fn rust_evaluate_easing(
     before_flag: bool,
 ) -> f64 {
     evaluate_easing_descriptor(unsafe { &*descriptor }, input_progress, before_flag)
+}
+
+/// Describes the easing a computed timing function value names, appending a linear easing's
+/// control points through `append_point`. Returns false for a value that names none.
+///
+/// # Safety
+/// `append_point` must accept `points` for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_easing_from_style_value(
+    value: &StyleValueData,
+    descriptor: &mut FfiEasingDescriptor,
+    points: *mut std::ffi::c_void,
+    append_point: unsafe extern "C" fn(*mut std::ffi::c_void, FfiLinearEasingPoint),
+) -> bool {
+    let Some(easing) = crate::css::style::effect_descriptions::easing_from_computed_timing_function(value) else {
+        return false;
+    };
+    descriptor.kind = easing.kind();
+    match easing {
+        Easing::Linear(linear_points) => {
+            for point in linear_points {
+                unsafe { append_point(points, point) };
+            }
+        }
+        Easing::CubicBezier { x1, y1, x2, y2 } => {
+            (descriptor.x1, descriptor.y1, descriptor.x2, descriptor.y2) = (x1, y1, x2, y2);
+        }
+        Easing::Steps {
+            interval_count,
+            position,
+        } => {
+            (descriptor.interval_count, descriptor.step_position) = (interval_count, position);
+        }
+    }
+    true
 }
 
 #[derive(Clone, Copy, Default)]

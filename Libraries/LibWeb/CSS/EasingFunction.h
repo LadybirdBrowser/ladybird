@@ -10,82 +10,46 @@
 
 namespace Web::CSS {
 
-struct LinearEasingFunction {
-    struct ControlPoint {
-        double input;
-        double output;
-
-        bool operator==(ControlPoint const&) const = default;
-    };
-
-    Vector<ControlPoint> control_points;
-    Utf16String stringified;
-
-    bool operator==(LinearEasingFunction const&) const = default;
-};
-
-struct CubicBezierEasingFunction {
-    double x1;
-    double y1;
-    double x2;
-    double y2;
-    Utf16String stringified;
-
-    bool operator==(CubicBezierEasingFunction const&) const = default;
-};
-
-struct StepsEasingFunction {
-    i32 interval_count;
-    StepPosition position;
-    Utf16String stringified;
-
-    bool operator==(StepsEasingFunction const&) const = default;
-};
-
-struct EasingFunction : public Variant<LinearEasingFunction, CubicBezierEasingFunction, StepsEasingFunction> {
-    using Variant::Variant;
+// An easing function, held as the descriptor the Rust animation code evaluates.
+class EasingFunction {
+public:
+    using Descriptor = Compositing::RustFFI::FfiEasingDescriptor;
+    using LinearPoint = Compositing::RustFFI::FfiLinearEasingPoint;
 
     static EasingFunction linear();
-    static EasingFunction ease_in();
-    static EasingFunction ease_out();
-    static EasingFunction ease_in_out();
     static EasingFunction ease();
 
     static EasingFunction from_style_value(StyleValue const&);
 
-    double evaluate_at(double input_progress, bool before_flag) const;
-    Utf16String const& to_utf16_string() const;
-};
+    // The descriptor borrows this function's control points.
+    Descriptor descriptor() const
+    {
+        auto descriptor = m_descriptor;
+        descriptor.linear_points = m_linear_points.data();
+        descriptor.linear_point_count = m_linear_points.size();
+        return descriptor;
+    }
 
-// The easing as one of the generated Rust FFI namespaces describes it. A linear easing's control
-// points go into the storage the caller provides, which the descriptor borrows.
-template<typename FfiEasingDescriptor, typename FfiLinearEasingPoint>
-FfiEasingDescriptor to_ffi_easing_descriptor(EasingFunction const& easing, Vector<FfiLinearEasingPoint>& linear_points)
-{
-    using FfiEasingKind = decltype(FfiEasingDescriptor::kind);
-    FfiEasingDescriptor descriptor {};
-    easing.visit(
-        [&](LinearEasingFunction const& linear) {
-            descriptor.kind = FfiEasingKind::Linear;
-            linear_points.ensure_capacity(linear.control_points.size());
-            for (auto const& point : linear.control_points)
-                linear_points.unchecked_append({ .input = point.input, .output = point.output });
-            descriptor.linear_points = linear_points.data();
-            descriptor.linear_point_count = linear_points.size();
-        },
-        [&](CubicBezierEasingFunction const& cubic_bezier) {
-            descriptor.kind = FfiEasingKind::CubicBezier;
-            descriptor.x1 = cubic_bezier.x1;
-            descriptor.y1 = cubic_bezier.y1;
-            descriptor.x2 = cubic_bezier.x2;
-            descriptor.y2 = cubic_bezier.y2;
-        },
-        [&](StepsEasingFunction const& steps) {
-            descriptor.kind = FfiEasingKind::Steps;
-            descriptor.interval_count = steps.interval_count;
-            descriptor.step_position = to_underlying(steps.position);
-        });
-    return descriptor;
-}
+    // The descriptor reads its control points from a copy in storage the caller keeps alive.
+    Descriptor descriptor_with_points_in(Vector<LinearPoint>& storage) const
+    {
+        storage.extend(m_linear_points);
+        auto descriptor = m_descriptor;
+        descriptor.linear_points = storage.data();
+        descriptor.linear_point_count = storage.size();
+        return descriptor;
+    }
+
+    double evaluate_at(double input_progress, bool before_flag) const;
+    Utf16String const& to_utf16_string() const { return m_text; }
+
+    // NB: The serialization is of the value the function was made from, so it tells functions apart.
+    bool operator==(EasingFunction const& other) const { return m_text == other.m_text; }
+
+private:
+    Descriptor m_descriptor {};
+    Vector<LinearPoint> m_linear_points;
+    Utf16String m_text;
+};
 
 }

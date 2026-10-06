@@ -1333,25 +1333,18 @@ static StyleValueFFI::FfiCompositeOperation published_composite_operation(Bindin
 // shared buffer the keyframe names by range.
 static void describe_easing(EasingFunction const& easing, StyleEngineFFI::FfiPublishedAnimationKeyframe& keyframe, Vector<StyleEngineFFI::FfiPublishedLinearEasingPoint>& points)
 {
+    static_assert(to_underlying(StyleEngineFFI::FfiPublishedEasingKind::Steps) == to_underlying(Compositing::RustFFI::FfiEasingKind::Steps));
+    auto descriptor = easing.descriptor();
+    keyframe.easing_kind = static_cast<StyleEngineFFI::FfiPublishedEasingKind>(to_underlying(descriptor.kind));
+    keyframe.x1 = descriptor.x1;
+    keyframe.y1 = descriptor.y1;
+    keyframe.x2 = descriptor.x2;
+    keyframe.y2 = descriptor.y2;
+    keyframe.interval_count = descriptor.interval_count;
+    keyframe.step_position = descriptor.step_position;
     keyframe.first_linear_point = static_cast<u32>(points.size());
-    easing.visit(
-        [&](LinearEasingFunction const& linear) {
-            keyframe.easing_kind = StyleEngineFFI::FfiPublishedEasingKind::Linear;
-            for (auto const& point : linear.control_points)
-                points.append({ .input = point.input, .output = point.output });
-        },
-        [&](CubicBezierEasingFunction const& cubic_bezier) {
-            keyframe.easing_kind = StyleEngineFFI::FfiPublishedEasingKind::CubicBezier;
-            keyframe.x1 = cubic_bezier.x1;
-            keyframe.y1 = cubic_bezier.y1;
-            keyframe.x2 = cubic_bezier.x2;
-            keyframe.y2 = cubic_bezier.y2;
-        },
-        [&](StepsEasingFunction const& steps) {
-            keyframe.easing_kind = StyleEngineFFI::FfiPublishedEasingKind::Steps;
-            keyframe.interval_count = steps.interval_count;
-            keyframe.step_position = static_cast<u8>(to_underlying(steps.position));
-        });
+    for (size_t index = 0; index < descriptor.linear_point_count; ++index)
+        points.append({ .input = descriptor.linear_points[index].input, .output = descriptor.linear_points[index].output });
     keyframe.linear_point_count = static_cast<u32>(points.size()) - keyframe.first_linear_point;
 }
 
