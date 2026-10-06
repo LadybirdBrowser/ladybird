@@ -19,8 +19,9 @@
 #include <LibJS/Runtime/Symbol.h>
 #include <LibJS/Runtime/Value.h>
 
-// Conversions between the facade's types and those of the Rust runtime's embedding ABI. Only the facade's own .cpp
-// files may include this header, because it includes the runtime's C ABI.
+// Conversions between the facade's types and those of the Rust runtime's embedding ABI. Only LibJS's own .cpp files
+// include this header, because it includes the runtime's C ABI, which code outside LibJS may not reach
+// (Meta/Linters/check_libjs_includes.py).
 //
 // A facade handle is the runtime's cell itself, and the facade's JS::VM holds the runtime's VM in its first bytes, so
 // both cross as reinterpreted pointers. Values and property keys have the same bits in both.
