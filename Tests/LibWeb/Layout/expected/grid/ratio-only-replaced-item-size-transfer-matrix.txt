@@ -83,10 +83,18 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
       Box <div> at [8,249] [0+0+0 0 0+0+784] [0+0+0 0 0+0+0] [GFC] children: not-inline
         ImageBox <img.cyclic-zero-minimum> at [8,249] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] viewport-transform=[0 0 0 0 0 0] [SVG] children: not-inline
+              SVGGeometryBox <rect> at [0,0] [0+0+0 2 0+0+0] [0+0+0 1 0+0+0] children: not-inline
       BlockContainer <(anonymous)> at [8,249] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
       Box <div> at [8,249] [0+0+0 0 0+0+784] [0+0+0 0 0+0+0] [GFC] children: not-inline
         ImageBox <img.cyclic-zero-calculated-minimum> at [8,249] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] viewport-transform=[0 0 0 0 0 0] [SVG] children: not-inline
+              SVGGeometryBox <rect> at [0,0] [0+0+0 2 0+0+0] [0+0+0 1 0+0+0] children: not-inline
       BlockContainer <(anonymous)> at [8,249] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
       Box <div> at [8,249] [0+0+0 80 0+0+704] [0+0+0 32 0+0+0] [GFC] children: not-inline
@@ -139,6 +147,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
       Box <div.available-width> at [8,649] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] [GFC] children: not-inline
         ImageBox <img.cyclic-zero-minimum> at [8,649] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+          (SVG-as-image isolated context)
+          Viewport <#document> at [0,0] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] viewport-transform=[0 0 0 0 0 0] [SVG] children: not-inline
+              SVGGeometryBox <rect> at [0,0] [0+0+0 2 0+0+0] [0+0+0 1 0+0+0] children: not-inline
       BlockContainer <(anonymous)> at [8,649] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 

@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/XMLDocument.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
@@ -152,9 +153,14 @@ NonnullRefPtr<SVGDecodedImageData::DecodePromise> SVGDecodedImageData::decode(GC
         return DecodePromise::rejected(Error::from_string_literal("SVGDecodedImageData: Invalid SVG input"));
     }
     auto promise = DecodePromise::construct();
-    auto svg_image_data = create(page, page_client, document, *svg_root);
-    page_client->register_svg_image_data(svg_image_data);
-    promise->resolve(svg_image_data);
+    auto observer = DOM::DocumentObserver::create(*document);
+    // Keep the loading state alive until the document finishes loading its internal resources.
+    observer->set_document_completely_loaded([page_client, document, svg_root = GC::Ref { *svg_root }, observer = GC::Root { observer }, promise] {
+        observer->set_document_completely_loaded(nullptr);
+        auto svg_image_data = create(page_client->page(), page_client, document, svg_root);
+        page_client->register_svg_image_data(svg_image_data);
+        promise->resolve(svg_image_data);
+    });
     return promise;
 }
 
