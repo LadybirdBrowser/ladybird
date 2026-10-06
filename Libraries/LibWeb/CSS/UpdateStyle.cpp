@@ -200,7 +200,7 @@ static void prepare_for_style_engine_transaction(DOM::Document& document)
     document.style_computer().prepare_for_style_engine_transaction();
 }
 
-// Consume everything recorded since the last transaction boundary, or the transaction that flew beside the event loop,
+// Consume everything recorded since the last transaction boundary, or the transaction computed beside the event loop,
 // and publish its match answers.
 //
 // The reaction batch is a superset by construction: routing may over-approximate, and every subject it yields is
@@ -420,7 +420,7 @@ static void propagate_custom_property_environment_move(StyleReactionApplication&
 // and runs the transition step the row owes.
 static RequiredInvalidationAfterStyleChange install_engine_computed_records(Layout::BegunRead const& read, DOM::Element& element, StyleEngineFFI::FfiRecordInstallation const& installation, bool& did_change_custom_properties)
 {
-    auto const& reaction = installation.row;
+    auto const& reaction = installation.delta;
     // The engine answered its records with what the moves from the records they name damage.
     DOM::Element::EnginePseudoElementRecords pseudo_element_records {};
     DOM::Element::EngineRecordDamages engine_record_damages;
