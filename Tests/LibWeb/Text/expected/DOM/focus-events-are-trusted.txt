@@ -1,0 +1,7 @@
+focus target=#a isTrusted=true
+focusin target=#a isTrusted=true
+blur target=#a isTrusted=true
+focusout target=#a isTrusted=true
+focus target=#b isTrusted=true
+focusin target=#b isTrusted=true
+focus target=#a isTrusted=false

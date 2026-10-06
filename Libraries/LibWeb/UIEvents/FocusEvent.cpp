@@ -13,10 +13,28 @@ GC_DEFINE_ALLOCATOR(FocusEvent);
 
 GC::Ref<FocusEvent> FocusEvent::create(FlyString const& event_name, FocusEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return GC::Heap::the().allocate<FocusEvent>(event_name, event_init, time_stamp);
+    // https://dom.spec.whatwg.org/#concept-event-create
+    auto event = GC::Heap::the().allocate<FocusEvent>(event_name, event_init, time_stamp);
+    // 4. Initialize event's isTrusted attribute to true.
+    event->set_is_trusted(true);
+    return event;
 }
 
 GC::Ref<FocusEvent> FocusEvent::create(Utf16String const& event_name, FocusEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    // https://dom.spec.whatwg.org/#concept-event-create
+    auto event = GC::Heap::the().allocate<FocusEvent>(Utf16FlyString::from_utf16(event_name.utf16_view()), event_init, time_stamp);
+    // 4. Initialize event's isTrusted attribute to true.
+    event->set_is_trusted(true);
+    return event;
+}
+
+GC::Ref<FocusEvent> FocusEvent::create_for_constructor(FlyString const& event_name, FocusEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    return GC::Heap::the().allocate<FocusEvent>(event_name, event_init, time_stamp);
+}
+
+GC::Ref<FocusEvent> FocusEvent::create_for_constructor(Utf16String const& event_name, FocusEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
     return GC::Heap::the().allocate<FocusEvent>(Utf16FlyString::from_utf16(event_name.utf16_view()), event_init, time_stamp);
 }
