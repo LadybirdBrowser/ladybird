@@ -11,6 +11,7 @@
 //! the owner of a navigable's presenter presents to its compositor context, so frames reach the compositor in the order
 //! their presenter's owners presented them.
 
+use crate::paint_stage::Presenting;
 use crate::painting::ffi::{FfiPresentation, FfiPresentedRecording};
 use crate::painting::paint_passes::ClockTickVisualContexts;
 use crate::painting::record::publish::RecordingResourceSink;
@@ -145,7 +146,7 @@ impl Presentation {
     }
 
     /// Presents the sealed frame with the recording `presented` describes, whose resources the presenter took already.
-    pub(crate) fn present(&mut self, presented: &FfiPresentedRecording) {
+    pub(crate) fn present(&mut self, presented: &FfiPresentedRecording, _: &mut Presenting) {
         // SAFETY: The presentation owns both objects, and the recording's display list is live for the call.
         unsafe { web_navigable_presenter_present(self.presenter.0.as_ptr(), self.sealed.0.as_ptr(), presented) };
     }

@@ -109,7 +109,7 @@ TEST_CASE(a_display_list_larger_than_an_ipc_message_travels_through_shared_memor
         .resource_transaction = {},
         .scroll_state_snapshot = {},
     };
-    fixture.client->submit_frame(move(frame));
+    fixture.client->submit_frame_for_testing(move(frame));
     fixture.pump();
     EXPECT(!fixture.disconnected);
     EXPECT(fixture.connection->is_open());

@@ -10,6 +10,14 @@
 
 namespace Web::Compositor {
 
+// What the Paint thread presents a frame through. Only Rust calls it, from a job that presents.
+struct PresenterFFI {
+    static void present(NavigablePresenter& presenter, SealedPresentation& sealed, NonnullRefPtr<Compositing::DisplayList> display_list)
+    {
+        presenter.present_beside_event_loop(sealed, move(display_list));
+    }
+};
+
 void NavigablePresenter::forget_compositor_display_list()
 {
     m_compositor_display_list_paint_config.clear();
@@ -155,9 +163,12 @@ extern "C" WEB_API void web_navigable_presenter_add_video_sink(void* presenter, 
     static_cast<Web::Compositor::NavigablePresenter*>(presenter)->display_list_resource_storage().add_video_sink(Compositing::VideoSinkResourceId { resource_id }, Media::VideoSinkHandle { sink_handle });
 }
 
+// Declared here, not in a header, so that no C++ presents a frame through it.
+extern "C" WEB_API void web_navigable_presenter_present(void* presenter, void* sealed, Web::Layout::RustFFI::FfiPresentedRecording const* presented);
+
 extern "C" WEB_API void web_navigable_presenter_present(void* presenter, void* sealed_pointer, Web::Layout::RustFFI::FfiPresentedRecording const* presented)
 {
     auto& sealed = *static_cast<Web::Compositor::SealedPresentation*>(sealed_pointer);
     auto display_list = Web::Painting::display_list_of_published_recording(sealed.recording.value(), *presented);
-    static_cast<Web::Compositor::NavigablePresenter*>(presenter)->present_beside_event_loop(sealed, move(display_list));
+    Web::Compositor::PresenterFFI::present(*static_cast<Web::Compositor::NavigablePresenter*>(presenter), sealed, move(display_list));
 }

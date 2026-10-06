@@ -17,6 +17,7 @@
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibWeb/Compositor/CompositorFrame.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/Painting/DisplayListRecording.h>
 #include <LibWebCommon/Page/CompositorContextId.h>
@@ -103,6 +104,12 @@ public:
     // The generation of the keyboard scroll state the last frame handed the compositor, if it handed one.
     Optional<u64> last_keyboard_scroll_state_generation() const { return m_last_keyboard_scroll_state_generation; }
 
+private:
+    // Only what presents frames builds them.
+    friend struct PresenterFFI;
+    // FIXME: Only the Paint thread should present frames. The navigable still builds its frames on the main thread.
+    friend class HTML::LocalNavigable;
+
     // Builds the frame that brings the compositor context up to date with `published`, the display list a recording just
     // published, or with what changed for the one the compositor has where none was published, from what `sealed`
     // sealed. Reads no navigable or document.
@@ -113,7 +120,6 @@ public:
     // paint commands from.
     void present_beside_event_loop(SealedPresentation&, NonnullRefPtr<Compositing::DisplayList>);
 
-private:
     Compositing::DisplayListResourceStorage m_resource_storage;
     Optional<HTML::PaintConfig> m_compositor_display_list_paint_config;
     RefPtr<Compositing::DisplayList> m_compositor_display_list;
@@ -142,5 +148,4 @@ WEB_API void web_sealed_presentation_note_visual_context_tree_changed(void* seal
 WEB_API void web_navigable_presenter_add_font(void* presenter, void const* font);
 WEB_API void web_navigable_presenter_add_image_frame(void* presenter, void const* frame);
 WEB_API void web_navigable_presenter_add_video_sink(void* presenter, u64 resource_id, u64 sink_handle);
-WEB_API void web_navigable_presenter_present(void* presenter, void* sealed, Web::Layout::RustFFI::FfiPresentedRecording const* presented);
 }

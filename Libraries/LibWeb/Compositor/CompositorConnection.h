@@ -45,13 +45,11 @@ public:
     explicit CompositorConnection(NonnullOwnPtr<IPC::Transport>);
     virtual ~CompositorConnection() override;
 
-    // Takes the frames of this connection's contexts from any thread.
-    NonnullRefPtr<CompositorFrameSink> frame_sink() const;
-
     void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId>);
     void stop_presenting_to_client(Web::CompositorContextId);
     void destroy_context(Web::CompositorContextId);
-    void submit_frame(CompositorFrame&&);
+    // Hands a frame straight to the compositor, for a test of the transport that has no Paint thread.
+    void submit_frame_for_testing(CompositorFrame&&);
     void add_video_sink(Media::VideoSinkHandle);
     void remove_video_sink(Media::VideoSinkHandle);
     void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick);
@@ -93,6 +91,13 @@ public:
     Function<void()> on_compositor_lost;
 
 private:
+    // FIXME: Only the Paint thread should present frames.
+    friend class CompositorHost;
+
+    // Takes the frames of this connection's contexts from any thread.
+    NonnullRefPtr<CompositorFrameSink> frame_sink() const;
+    void submit_frame(CompositorFrame&&);
+
     struct PendingScreenshot {
         NonnullRefPtr<Gfx::PaintingSurface> target_surface;
         NonnullRefPtr<Gfx::Bitmap> target_bitmap;

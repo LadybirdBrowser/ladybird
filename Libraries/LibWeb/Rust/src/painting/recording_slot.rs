@@ -17,6 +17,7 @@
 
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::{LayoutNodeArena, RowsVersion};
+use crate::paint_stage::Presenting;
 use crate::painting::ffi::{FfiFlightBlocker, FfiPresentedRecording};
 use crate::painting::hit_test::HitTestList;
 use crate::painting::paint_read::PaintSource;
@@ -111,17 +112,17 @@ impl RecordingJob {
     ) -> InFlight<RecordingAnswer> {
         self.presentation = presentation;
         let held = take_recording_hold_for_testing();
-        crate::stage_thread::paint_thread().submit(move |stop| {
+        crate::paint_stage::submit_presenting(move |presenting, stop| {
             if held {
                 wait_while_recording_is_held_for_testing();
             }
-            self.run(inputs, Some(stop))
+            self.run(inputs, Some((stop, presenting)))
         })
     }
 
-    /// Records the frame with `inputs`, and presents it where the job has a presentation and `stop`
-    /// is not said. It takes no main thread token, so nothing it calls can reach the host.
-    fn run(self, inputs: RecordingInputs, stop: Option<&StopWord>) -> RecordingAnswer {
+    /// Records the frame with `inputs`, and presents it where the job has a presentation, runs beside the host
+    /// with `presenting`, and `stop` is not said. It takes no main thread token, so nothing it calls can reach the host.
+    fn run(self, inputs: RecordingInputs, beside_host: Option<(&StopWord, &mut Presenting)>) -> RecordingAnswer {
         let Self {
             frame,
             mut recorder,
@@ -132,14 +133,13 @@ impl RecordingJob {
         let (pending, trace) = record_frame(frame, &mut recorder, viewport, trace_recordings, inputs);
         // A recording that renders an SVG image, or that the host waits for by now, leaves its frame
         // for the host to present.
-        let recorded = match presentation.as_mut() {
-            Some(presentation)
-                if stop.is_some_and(|stop| !stop.is_said())
-                    && !crate::painting::record::publish::renders_vector_images(&pending) =>
+        let recorded = match (presentation.as_mut(), beside_host) {
+            (Some(presentation), Some((stop, presenting)))
+                if !stop.is_said() && !crate::painting::record::publish::renders_vector_images(&pending) =>
             {
                 let publishes_recording = pending.publishes_recording;
                 Recorded::Presented {
-                    output: present(presentation, pending, &recorder),
+                    output: present(presentation, pending, &recorder, presenting),
                     publishes_recording,
                 }
             }
@@ -282,9 +282,10 @@ pub(crate) fn present(
     presentation: &mut Presentation,
     pending: PendingRecording,
     recorder: &RecorderState,
+    presenting: &mut Presenting,
 ) -> RecordingOutput {
     let output = crate::painting::record::publish::publish_to_presenter(pending, recorder, &mut presentation.presenter);
-    presentation.present(&FfiPresentedRecording::of_output(&output));
+    presentation.present(&FfiPresentedRecording::of_output(&output), presenting);
     output
 }
 

@@ -52,9 +52,12 @@ public:
         m_transport = nullptr;
     }
 
+private:
+    // FIXME: Only the Paint thread should present frames.
+    friend class CompositorConnection;
+
     virtual bool submit(CompositorFrame&&) override;
 
-private:
     bool post(IPC::MessageBuffer&);
     bool post_resource_additions_in_batches(Web::CompositorContextId, Compositing::DisplayListResourceTransaction&);
     bool post_display_list_update(Web::CompositorContextId, CompositorFrame::DisplayListUpdate&);
@@ -252,6 +255,11 @@ void CompositorConnection::submit_frame(CompositorFrame&& frame)
         return;
     if (!m_frame_sink->submit(move(frame)))
         did_lose_compositor();
+}
+
+void CompositorConnection::submit_frame_for_testing(CompositorFrame&& frame)
+{
+    submit_frame(move(frame));
 }
 
 void CompositorConnection::add_video_sink(Media::VideoSinkHandle video_sink_handle)
