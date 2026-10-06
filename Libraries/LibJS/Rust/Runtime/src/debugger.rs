@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Debugger.h and Debugger.cpp: pauses the code a VM runs at breakpoints, debugger statements,
-//! exceptions and steps, so that its host can inspect the paused frames and evaluate code in them.
+//! Pauses the code a VM runs at breakpoints, debugger statements, exceptions and steps, so that its host can inspect
+//! the paused frames and evaluate code in them.
 
 use core::cell::{Cell, RefCell};
 use core::ops::ControlFlow;
@@ -116,7 +116,7 @@ pub struct Debugger {
     next_breakpoint_id: Cell<BreakpointID>,
     step_state: RefCell<Option<StepState>>,
     pause_on_exceptions: Cell<PauseOnExceptions>,
-    /// The VM keeps it alive, as C++ keeps it in a GC::Root.
+    /// The VM keeps it alive.
     last_paused_exception: Cell<Option<Value>>,
     paused_execution_context: Cell<*const ExecutionContext>,
     paused_source_range: RefCell<Option<SourceRange>>,

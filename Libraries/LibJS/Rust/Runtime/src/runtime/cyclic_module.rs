@@ -109,8 +109,7 @@ fn new_intrinsic_promise_capability(vm: &Vm, realm: Gc<Realm>) -> Gc<PromiseCapa
 }
 
 impl CyclicModule {
-    /// CyclicModule(Realm&, StringView filename, bool has_top_level_await, Vector<ModuleRequest> requested_modules,
-    /// GC::Ptr<GC::Cell> host_defined), for `class`, which extends CyclicModule.
+    /// A cyclic module of `realm`, for `class`, which extends CyclicModule.
     pub fn new(
         class: &'static Class,
         realm: Gc<Realm>,
@@ -249,7 +248,7 @@ impl CyclicModule {
         // 1. If module is not a Cyclic Module Record, then
         //    a. Perform ? module.Link().
         //    b. Return index.
-        // Note: Step 1, 1.a and 1.b are handled in Module.cpp
+        // Note: Step 1, 1.a and 1.b are handled in Module::inner_module_linking_of_module()
 
         // 2. If module.[[Status]] is linking, linked, evaluating-async, or evaluated, then
         if matches!(
@@ -474,7 +473,7 @@ impl CyclicModule {
 
     // 16.2.1.5.2.1 InnerModuleEvaluation ( module, stack, index ), https://tc39.es/ecma262/#sec-innermoduleevaluation
     fn inner_module_evaluation(&self, vm: &Vm, stack: &ModuleStack<'_>, mut index: u32) -> ThrowCompletionOr<u32> {
-        // Note: Step 1 is performed in Module.cpp
+        // Note: Step 1 is performed in Module::inner_module_evaluation_of_module()
 
         // 2. If module.[[Status]] is evaluating-async or evaluated, then
         if matches!(self.status(), ModuleStatus::EvaluatingAsync | ModuleStatus::Evaluated) {
@@ -1180,7 +1179,7 @@ pub fn continue_dynamic_import(
             );
 
             // f. Perform PerformPromiseThen(evaluatePromise, onFulfilled, onRejected).
-            let evaluate_promise = evaluate_promise.expect("the C++ runtime never expects Evaluate() to throw here");
+            let evaluate_promise = evaluate_promise.expect("Evaluate() does not throw here");
             promise_of(evaluate_promise).perform_then(
                 vm,
                 Value::from_object(on_fulfilled),

@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Runtime/CanonicalIndex.h: the result of CanonicalNumericIndexString.
+//! The result of CanonicalNumericIndexString.
 
-/// Mirrors JS::CanonicalIndex::Type.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CanonicalIndexType {
     Index,
@@ -14,7 +13,6 @@ pub enum CanonicalIndexType {
     Undefined,
 }
 
-/// Mirrors JS::CanonicalIndex.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CanonicalIndex {
     index_type: CanonicalIndexType,

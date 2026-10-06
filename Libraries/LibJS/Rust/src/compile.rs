@@ -228,7 +228,7 @@ pub(crate) fn compile_program_body_to_bytecode(
     {
         generator.emit(bytecode::instruction::Instruction::End { value: value.operand() });
     }
-    // If result is None, the assembler will add End(undefined) as a fallthrough for unterminated blocks, matching C++.
+    // If result is None, the assembler will add End(undefined) as a fallthrough for unterminated blocks.
 
     generator.assemble()
 }
@@ -1398,8 +1398,7 @@ pub fn parse_dynamic_function(
     parser.parse_program(false);
     take_parser_errors(&mut parser)?;
 
-    // Check the body on its own as a script with the flags of a function body of the kind, as the C++
-    // parse_function_body_from_string did.
+    // Check the body on its own as a script with the flags of a function body of the kind.
     let mut parser = Parser::new(body_source, ProgramType::Script);
     parser.flags.in_function_context = true;
     parser.flags.new_target_is_valid = true;
@@ -1446,8 +1445,7 @@ fn take_parser_errors(parser: &mut Parser) -> Result<(), Vec<ParseError>> {
 }
 
 impl ParsedDynamicFunction {
-    /// Describes the function the source defines, which always gets an arguments object, as C++
-    /// FunctionConstructor::create_dynamic_function asks for.
+    /// Describes the function the source defines, which always gets an arguments object.
     pub fn into_description(mut self) -> Result<SharedFunctionDescription, Vec<ParseError>> {
         // The program is a single ExpressionStatement wrapping a FunctionExpression.
         let function_id = if let StatementKind::Program(ref data) = self.program.inner {
@@ -1970,7 +1968,7 @@ pub(crate) fn compile_function_payload_to_bytecode(
     // https://tc39.es/ecma262/#sec-async-functions-abstract-operations-async-function-start
     // For async (non-generator) functions, emit the initial Yield BEFORE
     // GetLexicalEnvironment so that parameter evaluation errors are caught
-    // by the async promise wrapper. This matches C++ ordering.
+    // by the async promise wrapper.
     if generator.is_in_async_function() && !generator.is_in_generator_function() {
         let start_block = generator.make_block();
         let undef = generator.add_constant_undefined();
@@ -2020,7 +2018,7 @@ pub(crate) fn compile_function_payload_to_bytecode(
             generator.emit(bytecode::instruction::Instruction::End { value: value.operand() });
         }
         // If result is None, the assembler will add End(undefined) as a
-        // fallthrough for unterminated blocks, matching C++ compile().
+        // fallthrough for unterminated blocks.
     }
 
     // For generator/async functions, terminate all unterminated blocks with Yield.
@@ -2060,8 +2058,8 @@ struct BodyScopeInfo {
     has_arguments_object_local: bool,
 }
 
-/// Compute FDI runtime metadata matching the C++ SharedFunctionInstanceData
-/// constructor (ECMA-262 §10.2.11).
+/// Compute FDI runtime metadata for the SharedFunctionInstanceData of a
+/// function (ECMA-262 §10.2.11).
 fn compute_sfd_metadata(
     function_data: &ast::FunctionData,
     arena: &ast::AstArena,

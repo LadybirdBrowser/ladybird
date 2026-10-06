@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The parts of Libraries/LibJS/Runtime/AbstractOperations.cpp the runtime has so far.
+//! The abstract operations that the runtime's objects, environments and built-ins share.
 
 use core::cell::Cell;
 use std::collections::{HashMap, HashSet};
@@ -357,7 +357,7 @@ pub fn get_function_realm(vm: &Vm, function: Gc<FunctionObject>) -> ThrowComplet
 }
 
 /// The groups GroupBy collects, in the order their keys first appeared, for the key coercion that tells their keys
-/// apart: the C++ GroupsType and KeyType template parameters of group_by().
+/// apart.
 pub trait KeyedGroups<'vm> {
     type Key;
 
@@ -370,7 +370,7 @@ pub trait KeyedGroups<'vm> {
     fn add_value_to_keyed_group(&mut self, key: Self::Key, value: Value);
 }
 
-/// The groups of GroupBy with the property key coercion, the C++ OrderedHashMap<PropertyKey, GC::RootVector<Value>>.
+/// The groups of GroupBy with the property key coercion.
 pub struct PropertyKeyGroups<'vm> {
     vm: &'vm Vm,
     keys: MarkedVec<'vm, PropertyKey>,
@@ -723,7 +723,7 @@ pub fn validate_and_apply_property_descriptor(
     true
 }
 
-/// A realm's intrinsic object, the C++ pointer to an Intrinsics member function.
+/// A realm's intrinsic object, as one of the accessors of its Intrinsics.
 pub type IntrinsicDefaultPrototype = fn(&Intrinsics, &Vm) -> Gc<Object>;
 
 // 10.1.13 OrdinaryCreateFromConstructor ( constructor, intrinsicDefaultProto [ , internalSlotsList ] ), https://tc39.es/ecma262/#sec-ordinarycreatefromconstructor
@@ -740,8 +740,8 @@ pub fn ordinary_create_from_constructor(
 }
 
 // 10.1.13 OrdinaryCreateFromConstructor ( constructor, intrinsicDefaultProto [ , internalSlotsList ] ), https://tc39.es/ecma262/#sec-ordinarycreatefromconstructor
-/// The C++ ordinary_create_from_constructor<T>(): `create` makes the object with the internal slots of a T from the
-/// prototype, as the C++ forwards its arguments and the prototype to realm.create<T>().
+/// The form of OrdinaryCreateFromConstructor that creates an object with the internal slots of a T, which `create`
+/// makes from the prototype.
 pub fn ordinary_create_from_constructor_of<T: GcCell + Extends<Object>>(
     vm: &Vm,
     realm: Gc<Realm>,
@@ -1186,8 +1186,8 @@ pub fn perform_eval(vm: &Vm, x: Value, strict_caller: CallerMode, direct: EvalMo
     eval_context.private_environment.set(private_environment);
 
     // 29. Push evalContext onto the execution context stack; evalContext is now the running execution context.
-    // NB: Like C++, a push that fails leaves the context allocated, until the frame that called eval frees the
-    //     interpreter stack above its own mark.
+    // NB: A push that fails leaves the context allocated, until the frame that called eval frees the interpreter stack
+    //     above its own mark.
     vm.push_execution_context_checking_stack_space(eval_context_pointer)?;
 
     // NOTE: We use a ScopeGuard to automatically pop the execution context when any of the `TRY`s below return a throw completion.
@@ -1207,7 +1207,7 @@ pub fn perform_eval(vm: &Vm, x: Value, strict_caller: CallerMode, direct: EvalMo
     // NOTE: Step 33 and 34 is handled by `pop_guard` above.
     // 35. Return ? result.
     // NOTE: Step 35 is also performed with each use of `TRY` above.
-    // NB: C++ only replaces a result that is missing, which it never is, so an empty result is returned as it is.
+    // NB: An empty result is returned as it is rather than replaced with undefined.
     Ok(result)
 }
 
@@ -2266,8 +2266,8 @@ pub fn dispose_resources(
             .expect("the disposable resource stack does not change while it is disposed of");
 
         // a. Let value be resource.[[ResourceValue]].
-        // NB: Like the C++ runtime, which turns the null pointer it keeps for an undefined value into a Value, this
-        //     calls the method with null as its this value when the value is undefined.
+        // NB: The resource keeps an undefined value as no object, which becomes null, so the method is called with null
+        //     as its this value when the value is undefined.
         let value = resource.resource_value.map_or(Value::NULL, Value::from_object);
 
         // b. Let hint be resource.[[Hint]].
@@ -2295,8 +2295,8 @@ pub fn dispose_resources(
                 && hint == InitializeBindingHint::AsyncDispose
             {
                 // 1. Set result to Completion(Await(result.[[Value]])).
-                // NB: Like the C++ runtime, this drops a throw completion of the Await rather than handling it in step
-                //     iii, so the rejection of a promise an async-dispose method returns is lost.
+                // NB: This drops a throw completion of the Await rather than handling it in step iii, so the rejection
+                //     of a promise an async-dispose method returns is lost.
                 let _ = r#await(vm, result_value);
 
                 // 2. Set hasAwaited to true.
@@ -2363,7 +2363,6 @@ pub fn dispose_resources(
     completion
 }
 
-/// Mirrors JS::CanonicalIndexMode.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CanonicalIndexMode {
     DetectNumericRoundtrip,
@@ -2625,7 +2624,7 @@ pub enum OptionType {
     String,
 }
 
-/// OptionDefault, the default of GetOption: REQUIRED, undefined (the C++ Empty), or a value.
+/// OptionDefault, the default of GetOption: REQUIRED, undefined (Empty), or a value.
 #[derive(Clone, Copy, Debug)]
 pub enum OptionDefault<'a> {
     Required,
@@ -2822,14 +2821,14 @@ pub fn big_floor(numerator: &SignedBigInteger, denominator: &SignedBigInteger) -
 
 // x modulo y, https://tc39.es/ecma262/#eqn-modulo
 /// The notation “x modulo y” (y must be finite and non-zero) computes a value k of the same sign as y (or zero) such
-/// that abs(k) < abs(y) and x - k = q × y for some integer q. This is the C++ modulo() of floating point operands.
+/// that abs(k) < abs(y) and x - k = q × y for some integer q.
 pub fn modulo(x: f64, y: f64) -> f64 {
     assert!(y != 0.0 && y.is_finite());
     let r = x % y;
     if r < 0.0 { r + y } else { r }
 }
 
-/// modulo() of integral operands, which the C++ computes as ((x % y) + y) % y.
+/// modulo() of integral operands, computed as ((x % y) + y) % y.
 pub fn integer_modulo(x: i64, y: i64) -> i64 {
     assert!(y != 0);
     ((x % y) + y) % y

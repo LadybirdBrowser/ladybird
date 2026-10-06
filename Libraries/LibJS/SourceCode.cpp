@@ -24,8 +24,8 @@ static Utf16String const& string_in_place_from_abi(JSOwnedUtf16String const* str
     return *reinterpret_cast<Utf16String const*>(string);
 }
 
-// What the C++ runtime's SourceCode decodes its source bytes to: the code units in the range, with the encoding of a
-// byte order mark taking precedence over the given one.
+// What SourceCode decodes its source bytes to: the code units in the range, with the encoding of a byte order mark
+// taking precedence over the given one.
 static Utf16String decode_source_bytes(ReadonlyBytes source_bytes, StringView source_encoding, size_t length_in_code_units)
 {
     if (length_in_code_units == 0)

@@ -29,7 +29,7 @@ use crate::runtime::realm::Realm;
 use crate::script::Script;
 use crate::utf16::Utf16View;
 
-/// JS::Test262::$262Object.
+/// The $262 object that test262's INTERPRETING.md describes.
 #[repr(C)]
 #[derive(Trace)]
 pub struct Dollar262Object {

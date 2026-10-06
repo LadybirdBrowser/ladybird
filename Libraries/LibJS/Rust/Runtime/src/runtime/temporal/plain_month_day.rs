@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Runtime/Temporal/PlainMonthDay.cpp: Temporal.PlainMonthDay objects.
+//! Temporal.PlainMonthDay objects.
 
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;

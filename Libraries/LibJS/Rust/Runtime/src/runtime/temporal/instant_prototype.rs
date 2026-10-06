@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Runtime/Temporal/InstantPrototype.cpp: %Temporal.Instant.prototype%.
+//! %Temporal.Instant.prototype%.
 
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;

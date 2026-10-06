@@ -51,7 +51,6 @@ pub struct DirectGetterFunction {
     pub weak_impl_value_word_offset: Cell<u32>,
 }
 
-/// Mirrors JS::NativeFunctionType.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum NativeFunctionType {

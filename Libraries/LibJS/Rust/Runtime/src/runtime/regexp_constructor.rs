@@ -57,8 +57,7 @@ fn is_ascii_alphanumeric(code_point: u32) -> bool {
     code_point < 0x80 && (code_point as u8).is_ascii_alphanumeric()
 }
 
-/// Whether `function` is a RawNativeFunction that runs `native_function`, the C++ comparison of
-/// RawNativeFunction::native_function() with a native function's address.
+/// Whether `function` is a RawNativeFunction that runs `native_function`, compared by the native function's address.
 pub fn is_raw_native_function_running(
     vm: &Vm,
     function: Gc<FunctionObject>,

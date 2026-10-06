@@ -67,8 +67,7 @@ pub struct JSConsolePrinterArguments {
 }
 
 /// The virtual methods of a ConsoleClient that the embedder implements. Each receives the context of the client, and
-/// may run JavaScript. A null method does what the C++ base class does: nothing, and a printer that prints nothing
-/// returns undefined.
+/// may run JavaScript. A null method does nothing, and a printer that prints nothing returns undefined.
 #[repr(C)]
 pub struct JSConsoleClientMethods {
     /// Printer(logLevel, args): returns a completion with a value, or throws what console method threw.

@@ -77,8 +77,9 @@ that exits unsuccessfully.
 `--suite runtime`, both options retain the original runtime JSON format.
 `--test262-parser-tests` selects only the runtime suite and retains its JSON
 format for the test262 results collector.
-Additional runtime options and custom test roots are forwarded to the C++
-runner; use `--suite runtime --help-runtime` to list its options.
+Additional runtime options and custom test roots are forwarded to the runtime
+runner, `test-js-runtime`; use `--suite runtime --help-runtime` to list its
+options.
 
 For a native debugging session, run `test-js-runtime` directly with the
 original runtime options.

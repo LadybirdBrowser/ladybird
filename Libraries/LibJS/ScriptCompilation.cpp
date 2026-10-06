@@ -231,8 +231,7 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> create_module(CompiledPro
 
 RefPtr<DecodedBytecodeCache> decode_and_validate_bytecode_cache(Core::ImmutableBytes bytes, ProgramType program_type, ReadonlyBytes source_hash, size_t source_length_in_code_units, Core::EventLoop& main_thread_event_loop)
 {
-    // The runtime may release the bytes on this thread, so their last reference goes on the main thread, as the C++
-    // runtime releases them.
+    // The runtime may release the bytes on this thread, so their last reference goes on the main thread.
     struct BlobBytesOwner {
         AK_ALLOC_WITH_KMALLOC;
 

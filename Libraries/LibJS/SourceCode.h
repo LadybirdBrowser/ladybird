@@ -21,8 +21,8 @@
 namespace JS {
 
 // The source code that scripts, modules and functions are compiled from. A pointer to it is the Rust runtime's source
-// code itself, which the runtime and its embedder share by reference counting, as RefPtr<SourceCode const> does in the
-// C++ runtime. Only the runtime creates and destroys it, and only the VM's thread may reference or release it.
+// code itself, which the runtime and its embedder share by reference counting. Only the runtime creates and destroys
+// it, and only the VM's thread may reference or release it.
 class JS_API SourceCode {
     AK_MAKE_NONCOPYABLE(SourceCode);
     AK_MAKE_NONMOVABLE(SourceCode);
@@ -30,7 +30,7 @@ class JS_API SourceCode {
 public:
     static NonnullRefPtr<SourceCode const> create(Utf16String filename, Utf16String code);
 
-    // The C++ runtime decodes the bytes when the code is first needed; this decodes them right away.
+    // This decodes the bytes right away rather than when the code is first needed.
     static NonnullRefPtr<SourceCode const> create(Utf16String filename, size_t length_in_code_units, ByteString source_encoding, Core::ImmutableBytes source_bytes);
 
     Utf16String const& filename() const;

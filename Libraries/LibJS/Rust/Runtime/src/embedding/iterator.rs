@@ -27,7 +27,7 @@ use crate::runtime::iterator::{
     iterator_complete, iterator_next, iterator_step_value, iterator_to_list, iterator_value,
 };
 
-/// The kind of iterator GetIterator gets, in the order of the C++ JS::IteratorHint.
+/// The kind of iterator GetIterator gets, in the order of LibJS's JS::IteratorHint.
 pub type JSIteratorHint = u8;
 
 pub const JS_ITERATOR_HINT_SYNC: JSIteratorHint = 0;

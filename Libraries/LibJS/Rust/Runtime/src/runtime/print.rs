@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Pretty printing of values for js, mirroring Libraries/LibJS/Print.cpp.
+//! Pretty printing of values for js.
 
 use std::collections::HashSet;
 use std::io::{self, Write};
@@ -70,7 +70,7 @@ use crate::unicode::date_time_format::{
 };
 use crate::utf16::Utf16View;
 
-/// Where and how to print. A Vec<u8> stream stands in for the StringBuilder C++ can print into.
+/// Where and how to print. Printing into a string goes to a Vec<u8> stream.
 pub struct PrintContext<'a> {
     pub vm: &'a Vm,
     pub stream: &'a mut dyn Write,
@@ -153,8 +153,8 @@ fn strip_ansi(format_string: &str) -> Vec<u8> {
     builder
 }
 
-/// js_out() with a format string that has no arguments. Like C++, stripping ANSI colors only applies to the format
-/// string, so the arguments of a format string are written with the functions below rather than through this.
+/// js_out() with a format string that has no arguments. Stripping ANSI colors only applies to the format string, so the
+/// arguments of a format string are written with the functions below rather than through this.
 fn js_out(print_context: &mut PrintContext<'_>, format_string: &str) -> io::Result<()> {
     if print_context.strip_ansi {
         return print_context.stream.write_all(&strip_ansi(format_string));
@@ -1129,7 +1129,6 @@ fn print_value(
         if object.is_typed_array() {
             return print_typed_array(print_context, object, seen_objects);
         }
-        // NB: After the typed arrays, Print.cpp checks for BooleanObject, NumberObject and StringObject below.
         if let Some(boolean_object) = object.downcast::<BooleanObject>() {
             return print_boolean_object(print_context, boolean_object, seen_objects);
         }
@@ -1148,14 +1147,14 @@ fn print_value(
         if let Some(list_format) = object.downcast::<ListFormat>() {
             return print_intl_list_format(print_context, list_format, seen_objects);
         }
-        // NB: Print.cpp then checks for Intl.NumberFormat, which comes with a later unit.
+        // NB: A printer for Intl.NumberFormat comes with a later unit.
         if let Some(date_time_format) = object.downcast::<DateTimeFormat>() {
             return print_intl_date_time_format(print_context, date_time_format, seen_objects);
         }
         if let Some(relative_time_format) = object.downcast::<RelativeTimeFormat>() {
             return print_intl_relative_time_format(print_context, relative_time_format, seen_objects);
         }
-        // NB: Print.cpp then checks for Intl.PluralRules, which comes with a later unit.
+        // NB: A printer for Intl.PluralRules comes with a later unit.
         if let Some(collator) = object.downcast::<Collator>() {
             return print_intl_collator(print_context, collator, seen_objects);
         }
@@ -1165,7 +1164,7 @@ fn print_value(
         if let Some(segments) = object.downcast::<Segments>() {
             return print_intl_segments(print_context, segments, seen_objects);
         }
-        // NB: Print.cpp then checks for Intl.DurationFormat, which comes with a later unit.
+        // NB: A printer for Intl.DurationFormat comes with a later unit.
         if let Some(duration) = object.downcast::<Duration>() {
             return print_temporal_duration(print_context, duration);
         }

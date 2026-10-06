@@ -65,10 +65,10 @@ pub struct RegExpLegacyStaticProperties {
     parens_materialized: Cell<bool>,
 }
 
-/// One of the getters of RegExpLegacyStaticProperties, the C++ pointer to a member function.
+/// One of the getters of RegExpLegacyStaticProperties.
 pub type LegacyStaticPropertyGetter = fn(&RegExpLegacyStaticProperties, &Vm) -> Option<Gc<PrimitiveString>>;
 
-/// One of the setters of RegExpLegacyStaticProperties, the C++ pointer to a member function.
+/// One of the setters of RegExpLegacyStaticProperties.
 pub type LegacyStaticPropertySetter = fn(&RegExpLegacyStaticProperties, Gc<PrimitiveString>);
 
 impl Default for RegExpLegacyStaticProperties {

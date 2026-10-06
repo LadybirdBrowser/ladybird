@@ -156,7 +156,7 @@ pub fn iterate_directory_recursively(directory_path: &str, callback: &mut dyn Fn
         let Ok(file_type) = entry.file_type() else {
             continue;
         };
-        // NB: The C++ runner also skips directories named "/Fixtures", which no name is.
+        // NB: LibTest's runner also skips directories named "/Fixtures", which no name is.
         if file_type.is_dir() {
             iterate_directory_recursively(&full_path, callback);
         } else {

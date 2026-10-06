@@ -35,7 +35,7 @@ impl Deref for NumberObject {
 }
 
 impl NumberObject {
-    /// NumberObject(double, Object& prototype), for `class`, which is NumberObject or a class that extends it.
+    /// A NumberObject with `prototype`, for `class`, which is NumberObject or a class that extends it.
     pub fn new(vm: &Vm, class: &'static Class, value: f64, prototype: Gc<Object>) -> NumberObject {
         NumberObject {
             base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),

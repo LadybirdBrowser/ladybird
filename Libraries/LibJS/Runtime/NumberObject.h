@@ -11,7 +11,7 @@
 
 namespace JS {
 
-// Number.prototype is a NumberObject too, as in the C++ runtime.
+// Number.prototype is a NumberObject too, as it has a [[NumberData]] internal slot.
 class JS_API NumberObject : public Object {
 public:
     static GC::Ref<NumberObject> create(Realm&, double);

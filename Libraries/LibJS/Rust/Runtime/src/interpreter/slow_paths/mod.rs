@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The runtime's implementation of the slow paths the interpreter calls, as in Libraries/LibJS/Interpreter/SlowPaths.cpp.
+//! The runtime's implementation of the slow paths the interpreter calls.
 //! Each group lives in its own module, and the methods here hand each call to it.
 
 pub mod bindings;

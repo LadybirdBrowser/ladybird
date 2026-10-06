@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The Temporal abstract operations and built-in objects, one module per file in Libraries/LibJS/Runtime/Temporal.
+//! The Temporal abstract operations and built-in objects.
 
 pub mod abstract_operations;
 pub mod calendar;
@@ -35,7 +35,7 @@ pub mod plain_year_month_constructor;
 pub mod plain_year_month_prototype;
 #[allow(
     clippy::module_inception,
-    reason = "Temporal.cpp defines the Temporal object of the Temporal namespace"
+    reason = "the module defines the Temporal object of the Temporal namespace"
 )]
 pub mod temporal;
 pub mod time_zone;

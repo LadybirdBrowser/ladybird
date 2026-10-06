@@ -19,8 +19,8 @@ use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::value::{self, PreferredType};
 use crate::utf16::Utf16View;
 
-/// The size of the instruction at `pc` in the running executable, as C++ Instruction::length(). The slow paths that
-/// receive their operands in registers serve several instructions, so they read it from the bytecode.
+/// The size of the instruction at `pc` in the running executable. The slow paths that receive their operands in
+/// registers serve several instructions, so they read it from the bytecode.
 fn length_of_instruction_at(vm: &Vm, pc: u32) -> u32 {
     let context = vm.running_execution_context().expect("a slow path runs in a frame");
     // SAFETY: The running context is live.

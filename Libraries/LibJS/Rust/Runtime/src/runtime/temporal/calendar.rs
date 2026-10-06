@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Runtime/Temporal/Calendar.cpp: calendar identifiers, calendar fields, and the date arithmetic of
-//! the ISO 8601 calendar and of the calendars LibUnicode provides.
+//! Calendar identifiers, calendar fields, and the date arithmetic of the ISO 8601 calendar and of the calendars
+//! LibUnicode provides.
 
 use std::cell::OnceCell;
 
@@ -49,7 +49,7 @@ pub const ISO8601_CALENDAR: &str = "iso8601";
 
 #[allow(
     clippy::enum_variant_names,
-    reason = "the variants are the C++ CalendarFieldConversion values"
+    reason = "the variants are the Conversion values of the spec's table of calendar fields"
 )]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum CalendarFieldConversion {
@@ -117,7 +117,7 @@ pub struct CalendarFields {
     pub time_zone: Option<Utf16String>,
 }
 
-/// The C++ CalendarFields {}, whose time fields default to 0.
+/// Calendar fields with only the time fields set, to 0.
 impl Default for CalendarFields {
     fn default() -> Self {
         Self {
@@ -191,8 +191,8 @@ impl CalendarFields {
         }
     }
 
-    /// The C++ set_field_value() with a double, which C++ converts to the integer type of the field: to an i32 or a
-    /// u32 saturating, and to the u8 and u16 time fields through an i32, wrapping.
+    /// Sets a field to a double, converted to the integer type of the field: to an i32 or a u32 saturating, and to the
+    /// u8 and u16 time fields through an i32, wrapping.
     fn set_number_field(&mut self, field: CalendarField, value: f64) {
         match field {
             CalendarField::EraYear => self.era_year = Some(value as i32),
@@ -209,7 +209,6 @@ impl CalendarFields {
         }
     }
 
-    /// The C++ set_field_value() with a string.
     fn set_string_field(&mut self, field: CalendarField, value: Utf16String) {
         match field {
             CalendarField::Era => self.era = Some(value),
@@ -544,8 +543,7 @@ std::thread_local! {
 
 // 12.1.2 AvailableCalendars ( ), https://tc39.es/proposal-temporal/#sec-availablecalendars
 // 1.1.1 AvailableCalendars ( ), https://tc39.es/proposal-intl-era-monthcode/#sup-availablecalendars
-/// Calls `callback` with the available calendars, which are computed once per thread, as the C++ computes them once
-/// per process.
+/// Calls `callback` with the available calendars, which are computed once per thread.
 pub fn with_available_calendars<R>(callback: impl FnOnce(&[Utf16String]) -> R) -> R {
     // The implementation-defined abstract operation AvailableCalendars takes no arguments and returns a List of calendar
     // types. The returned List is sorted according to lexicographic code unit order, and contains unique calendar types
@@ -2218,7 +2216,7 @@ pub fn canonicalize_era_in_calendar(calendar: Utf16View<'_>, era: Utf16View<'_>)
 
             // iii. Let aliases be a List whose elements are the strings given in the "Aliases" column of the row.
             // iv. If aliases contains era, return canonicalName.
-            // NB: The C++ compares the era with an empty alias too, so an empty era matches eras without an alias.
+            // NB: A row without an alias compares as an empty alias, so an empty era matches eras without an alias.
             if era == row.alias.unwrap_or("") {
                 return Some(canonical_name);
             }

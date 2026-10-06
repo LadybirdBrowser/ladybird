@@ -4,10 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! AST dump matching the C++ ASTDump.cpp output format exactly.
+//! AST dump in the format of the AST tests' expectations.
 //!
-//! Produces tree-drawing output to stdout via `println!`, matching
-//! the C++ `outln` calls.
+//! Produces tree-drawing output to stdout via `println!`.
 
 use crate::ast::*;
 use std::cell::RefCell;
@@ -45,7 +44,7 @@ macro_rules! dump_node {
     };
 }
 
-// ANSI color codes matching C++ ASTDump.cpp.
+// ANSI color codes of the dump.
 const RESET: &str = "\x1b[0m";
 const DIM: &str = "\x1b[2m";
 const GREEN: &str = "\x1b[32m";
@@ -152,7 +151,7 @@ fn color_string_utf16(state: &DumpState, value: &[u16]) -> String {
 }
 
 fn color_number_f64(state: &DumpState, value: f64) -> String {
-    // Match C++ format: integers print as integers, floats as floats.
+    // Integers print as integers, floats as floats.
     let s = format_f64(value);
     if !state.use_color {
         return s;
@@ -217,7 +216,7 @@ fn utf16_to_string(s: &[u16]) -> String {
         .collect()
 }
 
-/// Format f64 matching the C++ Number::toString output exactly.
+/// Format f64 exactly as Number::toString does.
 fn format_f64(value: f64) -> String {
     utf16_to_string(&crate::host::js_number_to_utf16(value))
 }
@@ -342,8 +341,8 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
 
         StatementKind::Block(scope) => {
             let s = &state.arena.scopes[*scope];
-            // The parser wraps for-loops in a Block for scope. The C++
-            // parser does not, so skip the wrapper and dump the child directly.
+            // The parser wraps for-loops in a Block for scope. The dump does
+            // not show it, so skip the wrapper and dump the child directly.
             if s.children.len() == 1 && matches!(s.children[0].inner, StatementKind::For(_) | StatementKind::ForInOf(_))
             {
                 dump_statement(&s.children[0], state);
@@ -569,7 +568,7 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
                         Some(name) => format!("\"{}\"", utf16_to_string(name)),
                         None => "null".to_string(),
                     };
-                    // When the entry is a module re-export, C++ prints
+                    // When the entry is a module re-export, the dump prints
                     // "null" for LocalName regardless of the stored value.
                     let local_name = if data.module_request.is_some() {
                         "null".to_string()
@@ -594,9 +593,9 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             if let Some(ref statement) = data.statement {
                 print_node(&child_state(state, true), &color_label(state, "statement"));
                 let inner_state = &child_state(&child_state(state, true), true);
-                // For `export default <expression>`, the C++ AST stores the
-                // expression directly without an ExpressionStatement wrapper.
-                // Match that by unwrapping StatementKind::Expression here.
+                // For `export default <expression>`, the dump shows the
+                // expression directly without an ExpressionStatement wrapper,
+                // so unwrap StatementKind::Expression here.
                 if let StatementKind::Expression(ref expression) = statement.inner {
                     dump_expression(expression, inner_state);
                 } else {

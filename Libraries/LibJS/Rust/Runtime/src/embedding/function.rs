@@ -42,17 +42,17 @@ use crate::runtime::native_function::{
 use crate::runtime::private_environment::PrivateEnvironment;
 use crate::runtime::shared_function_instance_data::{FunctionKind, SharedFunctionInstanceData};
 
-/// A raw native function: the C++ runtime's NativeFunctionPointer, ThrowCompletionOr<Value> (*)(VM&). It reads its
-/// arguments, this value and callee from the running execution context. C++ returns the 16-byte ThrowCompletionOr in
-/// two registers, as C returns a JSCompletion, except on Mach-O x86_64 and Windows, where it returns it through a
-/// buffer the caller passes first.
+/// A raw native function: LibJS's NativeFunctionPointer, ThrowCompletionOr<Value> (*)(VM&). It reads its arguments,
+/// this value and callee from the running execution context. C++ returns the 16-byte ThrowCompletionOr in two
+/// registers, as C returns a JSCompletion, except on Mach-O x86_64 and Windows, where it returns it through a buffer
+/// the caller passes first.
 #[cfg(not(any(all(target_arch = "x86_64", target_vendor = "apple"), target_os = "windows")))]
 pub type JSNativeFunction = Option<unsafe extern "C" fn(vm: *mut JSVM) -> JSCompletion>;
 
-/// A raw native function: the C++ runtime's NativeFunctionPointer, ThrowCompletionOr<Value> (*)(VM&). It reads its
-/// arguments, this value and callee from the running execution context. C++ returns the 16-byte ThrowCompletionOr in
-/// two registers, as C returns a JSCompletion, except on Mach-O x86_64 and Windows, where it returns it through a
-/// buffer the caller passes first.
+/// A raw native function: LibJS's NativeFunctionPointer, ThrowCompletionOr<Value> (*)(VM&). It reads its arguments,
+/// this value and callee from the running execution context. C++ returns the 16-byte ThrowCompletionOr in two
+/// registers, as C returns a JSCompletion, except on Mach-O x86_64 and Windows, where it returns it through a buffer
+/// the caller passes first.
 #[cfg(any(all(target_arch = "x86_64", target_vendor = "apple"), target_os = "windows"))]
 pub type JSNativeFunction = Option<unsafe extern "C" fn(result: *mut JSCompletion, vm: *mut JSVM)>;
 
@@ -220,7 +220,7 @@ pub unsafe extern "C" fn js_function_create_closure_with_name(
 /// Where a direct getter finds the value it returns, as byte offsets of pointer-sized fields: the wrapped
 /// implementation in the wrapper (JS_HOST_OBJECT_WRAPPABLE_OFFSET for a host object), the field of the implementation
 /// that holds the value's GC::Weak implementation, the main world wrapper in that value, and the cell in a
-/// GC::WeakImpl. This is C++ JS::DirectGetterConfiguration.
+/// GC::WeakImpl. This is LibJS's JS::DirectGetterConfiguration.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct JSDirectGetterConfiguration {
@@ -370,7 +370,7 @@ fn function_kind_from_abi(kind: u8) -> FunctionKind {
 }
 
 /// Compiles the function that the source text defines the way CreateDynamicFunction does, after checking its
-/// parameters and its body on their own, as C++ JS::CompiledDynamicFunction::compile() does: the kind is a
+/// parameters and its body on their own, as JS::CompiledDynamicFunction::compile() does: the kind is a
 /// JS_FUNCTION_KIND_* value, and the body is the body parse string, the body between two line feeds. Returns the
 /// compiled code, an unrooted cell that the caller keeps alive (in a GC::Root) until it instantiates it, or null after
 /// writing the message of the first syntax error, which the caller owns, to `error_message`. Borrows the strings. Main

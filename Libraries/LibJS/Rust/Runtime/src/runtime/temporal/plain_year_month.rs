@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Runtime/Temporal/PlainYearMonth.cpp: Temporal.PlainYearMonth objects and the ISO Year-Month
-//! Record operations.
+//! Temporal.PlainYearMonth objects and the ISO Year-Month Record operations.
 
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;

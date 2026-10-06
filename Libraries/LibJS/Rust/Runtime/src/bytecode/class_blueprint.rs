@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The classes an executable declares, as in Libraries/LibJS/Bytecode/ClassBlueprint.h.
+//! The classes an executable declares.
 
 use std::rc::Rc;
 

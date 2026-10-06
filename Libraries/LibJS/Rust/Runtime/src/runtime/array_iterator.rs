@@ -72,7 +72,7 @@ impl ArrayIterator {
     }
 
     fn as_builtin_iterator_if_next_is_not_redefined(_: &Object, next_method: Value) -> Option<BuiltinIteratorNext> {
-        // NB: Only functions are native functions, so this checks is_function() where C++ checks is_object().
+        // NB: Only functions are native functions, so this checks is_function() rather than is_object().
         if next_method.is_function() {
             let next_function = next_method.as_function();
             if next_function.as_native_function().is_some() && next_function.is_array_prototype_next_builtin() {
@@ -150,7 +150,7 @@ impl ArrayIterator {
         self.index.set(index + 1);
 
         // 12. Let indexNumber be 𝔽(index).
-        // NB: The C++ runtime makes the index an i32, which wraps for indices past 2^31 - 1.
+        // NB: The index is made an i32, which wraps for indices past 2^31 - 1.
         let index_number = Value::from_i32(index as i32);
 
         // 13. If kind is KEY, then
@@ -164,7 +164,7 @@ impl ArrayIterator {
             // b. Let elementValue be ? Get(array, elementKey).
             let element_value = 'element_value: {
                 // OPTIMIZATION: For objects that don't interfere with indexed property access, we try looking directly at storage.
-                // NB: The C++ runtime passes the index to the storage as a u32, which truncates indices past 2^32 - 1.
+                // NB: The index is passed to the storage as the u32 it takes, which truncates indices past 2^32 - 1.
                 let storage_index = index as u32;
                 if !array.may_interfere_with_indexed_property_access()
                     && array.indexed_has(storage_index)

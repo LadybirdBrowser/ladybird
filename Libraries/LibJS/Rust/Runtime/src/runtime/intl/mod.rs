@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The Intl abstract operations and built-in objects, one module per file in Libraries/LibJS/Runtime/Intl.
+//! The Intl abstract operations and built-in objects.
 
 pub mod abstract_operations;
 pub mod collator;
@@ -23,7 +23,7 @@ pub mod duration_format_constructor;
 pub mod duration_format_prototype;
 #[allow(
     clippy::module_inception,
-    reason = "Intl.cpp is a file of Libraries/LibJS/Runtime/Intl"
+    reason = "the module defines the Intl object of the Intl namespace"
 )]
 pub mod intl;
 pub mod intl_object;

@@ -18,7 +18,7 @@
 namespace JS {
 
 // An Error object of the runtime. Its [[ErrorData]] lives inside it rather than at its address, so an Error converts
-// to its ErrorData, where the C++ runtime's Error derives from it.
+// to its ErrorData rather than deriving from it.
 class JS_API Error : public Object {
 public:
     static GC::Ref<Error> create(Realm&);

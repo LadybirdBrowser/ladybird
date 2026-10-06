@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Runtime/Temporal/Duration.cpp: Temporal.Duration objects, the duration records, and the rounding
-//! of durations relative to a date.
+//! Temporal.Duration objects, the duration records, and the rounding of durations relative to a date.
 
 use std::sync::LazyLock;
 
@@ -121,7 +120,7 @@ impl DurationFields {
     }
 }
 
-/// The NOTE of the C++ constructor: the fields are finite and integral, and negative zero is normalized.
+/// A field as a Temporal.Duration keeps it: finite and integral, with negative zero normalized.
 fn normalize_field(value: f64) -> f64 {
     assert!(value.is_finite());
     // FIXME: test-js contains a small number of cases where a Temporal.Duration is constructed with a non-integral
@@ -301,7 +300,7 @@ pub struct CalendarNudgeResult {
     pub total: BigFraction,
 }
 
-/// The magnitude of a time duration, which is what C++ compares through unsigned_value().
+/// Whether the magnitude of a time duration exceeds that of maxTimeDuration.
 fn magnitude_exceeds_max_time_duration(value: &TimeDuration) -> bool {
     value.magnitude() > MAX_TIME_DURATION.magnitude()
 }

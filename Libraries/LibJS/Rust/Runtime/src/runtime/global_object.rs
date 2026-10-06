@@ -48,7 +48,7 @@ impl Deref for GlobalObject {
 }
 
 impl GlobalObject {
-    /// GlobalObject(Realm&), for `class`, which is GlobalObject or a class that extends it.
+    /// The global object of `realm`, for `class`, which is GlobalObject or a class that extends it.
     pub fn new(vm: &Vm, class: &'static Class, realm: Gc<Realm>) -> GlobalObject {
         let base = Object::new_global_object(vm, class, realm, MayInterfereWithIndexedPropertyAccess::No);
         base.set_prototype(vm, Some(realm.object_prototype()));
@@ -291,8 +291,7 @@ fn js_nan() -> Value {
     Value::from_f64(f64::NAN)
 }
 
-/// TrimString(string, start) of StringPrototype.cpp, for a string that is already a String: the string without its
-/// leading white space.
+/// TrimString(string, start), for a string that is already a String: the string without its leading white space.
 // FIXME: Use the TrimString of the String builtins once they exist.
 fn trim_string_start(string: Utf16View<'_>) -> Utf16View<'_> {
     let length = string.length_in_code_units();

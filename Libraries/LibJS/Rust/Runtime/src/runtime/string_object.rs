@@ -61,8 +61,7 @@ fn as_string_object(object: &Object) -> &StringObject {
 }
 
 impl StringObject {
-    /// StringObject(PrimitiveString&, Object& prototype), for `class`, which is StringObject or a class that extends
-    /// it.
+    /// A StringObject with `prototype`, for `class`, which is StringObject or a class that extends it.
     pub fn new(vm: &Vm, class: &'static Class, string: Gc<PrimitiveString>, prototype: Gc<Object>) -> StringObject {
         StringObject {
             base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::Yes),

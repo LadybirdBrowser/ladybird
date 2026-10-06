@@ -92,14 +92,14 @@ impl AgentObject {
         let milliseconds = monotonic_time_now_in_milliseconds();
         #[allow(
             clippy::cast_precision_loss,
-            reason = "C++ converts the milliseconds to a double as well"
+            reason = "the milliseconds are returned as a JavaScript number, which is a double"
         )]
         Ok(Value::from_f64(milliseconds as f64))
     }
 
     fn sleep(vm: &Vm) -> ThrowCompletionOr<Value> {
         let milliseconds = vm.argument(0).to_i32(vm)?;
-        // NB: Core::System::sleep_ms() takes a u32, so a negative count of milliseconds wraps around like in C++.
+        // NB: Core::System::sleep_ms() takes a u32, so a negative count of milliseconds wraps around.
         sleep_milliseconds(milliseconds.cast_unsigned());
         Ok(Value::UNDEFINED)
     }
@@ -239,7 +239,7 @@ impl AgentObject {
 /// Core::System::sleep_ms().
 #[cfg(unix)]
 fn sleep_milliseconds(milliseconds: u32) {
-    // SAFETY: usleep has no preconditions; like C++, a failure is ignored.
+    // SAFETY: usleep has no preconditions; a failure is ignored.
     unsafe { libc::usleep(milliseconds.wrapping_mul(1000)) };
 }
 

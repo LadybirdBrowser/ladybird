@@ -138,7 +138,7 @@ unsafe impl Trace for SymbolsByKey {
     }
 }
 
-/// The C++ VM::m_global_symbol_registry, the GlobalSymbolRegistry List, https://tc39.es/ecma262/#table-globalsymbolregistry-record-fields.
+/// The GlobalSymbolRegistry List, https://tc39.es/ecma262/#table-globalsymbolregistry-record-fields.
 /// The VM roots it, so the symbols it holds live as long as the VM.
 #[repr(C)]
 #[derive(Trace)]

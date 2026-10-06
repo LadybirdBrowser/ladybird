@@ -5,7 +5,7 @@
  */
 
 //! The calendars of LibUnicode/Calendar.h, through the C exports of LibUnicode/TextMapping.h, so that Temporal
-//! converts between ISO dates and calendar dates with the same ICU data as the C++ runtime.
+//! converts between ISO dates and calendar dates with the same ICU data as the rest of Ladybird.
 
 use ak::Utf16String;
 

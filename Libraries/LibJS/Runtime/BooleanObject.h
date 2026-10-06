@@ -11,7 +11,7 @@
 
 namespace JS {
 
-// Boolean.prototype is a BooleanObject too, as in the C++ runtime.
+// Boolean.prototype is a BooleanObject too, as it has a [[BooleanData]] internal slot.
 class JS_API BooleanObject : public Object {
 public:
     static GC::Ref<BooleanObject> create(Realm&, bool);

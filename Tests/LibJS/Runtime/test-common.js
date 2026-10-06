@@ -10,7 +10,7 @@ var __TestResults__ = {};
 // So test names like "toString" don't automatically produce an error
 Object.setPrototypeOf(__TestResults__, null);
 
-// This array is used to communicate with the C++ program. It treats
+// This array is used to communicate with the test runner. It treats
 // each message in this array as a separate message. Has a terrible
 // name to avoid name collision.
 var __UserOutput__ = [];

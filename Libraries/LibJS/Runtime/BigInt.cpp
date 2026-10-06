@@ -32,7 +32,7 @@ Crypto::SignedBigInteger BigInt::big_integer() const
     return Crypto::SignedBigInteger { Crypto::UnsignedBigInteger { magnitude_words }, js_bigint_is_negative(bigint) };
 }
 
-// The decimal digits with the "n" of a BigInt literal, as the C++ runtime writes them.
+// The decimal digits with the "n" of a BigInt literal.
 Utf16String BigInt::to_utf16_string() const
 {
     auto digits = owned_utf16_string_from_abi(js_bigint_to_string(bigint_to_abi(*this), 10));

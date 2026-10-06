@@ -687,7 +687,7 @@ pub fn put_private_by_id(
     SlowPathControl::continue_at(pc + op::PutPrivateById::LENGTH)
 }
 
-/// What a fast for-in snapshot is built from, as FastPropertyNameIteratorData in SlowPaths.cpp.
+/// What a fast for-in snapshot is built from.
 struct FastPropertyNameIteratorData<'vm> {
     properties: MarkedVec<'vm, PropertyKey>,
     fast_path: ObjectPropertyIteratorFastPath,

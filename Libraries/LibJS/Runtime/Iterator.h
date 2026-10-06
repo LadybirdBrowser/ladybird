@@ -27,7 +27,7 @@ struct IteratorRecordImpl {
 };
 
 // 7.4.1 Iterator Records, https://tc39.es/ecma262/#sec-iterator-records
-// The record is one of the embedder's cells, as in the C++ runtime, and the runtime's operations on it take its fields.
+// The record is one of the embedder's cells, and the runtime's operations on it take its fields.
 class JS_API IteratorRecord final
     : public Cell
     , public IteratorRecordImpl {

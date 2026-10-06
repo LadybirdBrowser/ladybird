@@ -39,7 +39,7 @@ enum ReferencedName {
 #[derive(Clone)]
 pub struct Reference {
     name: ReferencedName,
-    /// The [[Base]] of a reference whose base type is Value. C++ keeps it in a union with the base environment.
+    /// The [[Base]] of a reference whose base type is Value.
     base_value: Value,
     base_environment: Option<Gc<Environment>>,
     this_value: Option<Value>,

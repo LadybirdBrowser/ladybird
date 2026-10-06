@@ -5,9 +5,9 @@
  */
 
 //! The standard output that AK's out() and outln() write to: C stdio's stdout, which buffers lines when it is a
-//! terminal and whole blocks otherwise. Writes that C++ makes through Core::File::standard_output() instead go past
-//! the buffer, after flushing it, as the C++ tools do. Keeping both kinds of writes apart keeps the order in which
-//! output reaches a pipe that also gets the standard error the same as with the C++ tools.
+//! terminal and whole blocks otherwise. Writes made through Core::File::standard_output() instead go past the buffer,
+//! after flushing it. Keeping both kinds of writes apart keeps the order in which output reaches a pipe that also gets
+//! the standard error the same as in a program that writes through AK and LibCore.
 
 use core::cell::RefCell;
 use std::io::{self, IsTerminal, Write};
@@ -74,7 +74,7 @@ pub fn flush() {
     }
 }
 
-/// Writes `bytes` past the buffer, as C++ writes through Core::File::standard_output() after fflush(stdout).
+/// Writes `bytes` past the buffer, as a write through Core::File::standard_output() after fflush(stdout) does.
 pub fn write_unbuffered(bytes: &[u8]) {
     flush();
     write_to_file_descriptor(bytes);

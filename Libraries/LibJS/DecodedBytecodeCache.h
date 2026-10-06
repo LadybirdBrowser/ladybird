@@ -22,9 +22,9 @@ enum class ProgramType : u8 {
 };
 
 // A bytecode cache blob, decoded and checked against the program type and the source hash it was written for. A
-// pointer to it is the Rust runtime's decoded cache itself, which is reference counted like the C++ runtime's
-// RefCounted<DecodedBytecodeCache>: the thread that decoded it may hand it to the VM's thread while nothing else
-// references it, and from then on only the VM's thread may reference or release it.
+// pointer to it is the Rust runtime's decoded cache itself, which is reference counted: the thread that decoded it may
+// hand it to the VM's thread while nothing else references it, and from then on only the VM's thread may reference or
+// release it.
 class JS_API DecodedBytecodeCache {
     AK_MAKE_NONCOPYABLE(DecodedBytecodeCache);
     AK_MAKE_NONMOVABLE(DecodedBytecodeCache);

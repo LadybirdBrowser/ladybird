@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The helpers of the C++ PrototypeObject<PrototypeType, ObjectType>, for the built-in functions of prototypes, which
-//! check the this value they are called with.
+//! Helpers for the built-in functions of prototypes, which check the this value they are called with.
 
 use crate::gc::class::{Extends, GcCell};
 use crate::interpreter::vm::Vm;

@@ -4,6 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Contrib: what the runtime offers the hosts of conformance test suites.
+//! What the runtime offers the hosts of conformance test suites.
 
 pub mod test262;

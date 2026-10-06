@@ -32,8 +32,7 @@ use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::promise_capability::{PromiseCapability, new_promise_capability};
 use crate::utf16::Utf16View;
 
-/// The [[EvaluationSteps]] of a Synthetic Module Record together with the state they capture, the C++
-/// GC::Function<ThrowCompletionOr<void>(SyntheticModule&)>.
+/// The [[EvaluationSteps]] of a Synthetic Module Record together with the state they capture.
 trait EvaluationSteps: Trace + 'static {
     fn call(&self, vm: &Vm, module: &SyntheticModule) -> ThrowCompletionOr<()>;
 }
@@ -96,9 +95,8 @@ fn as_synthetic_module(module: &Module) -> &SyntheticModule {
 }
 
 impl SyntheticModule {
-    /// SyntheticModule(Realm&, Vector<Utf16FlyString> export_names, EvaluationFunction evaluation_steps, ByteString
-    /// filename). The steps must not capture anything: the state they need is `captures`, which the module keeps
-    /// alive.
+    /// A synthetic module of `realm` that exports `export_names` and evaluates with `evaluation_steps`. The steps must
+    /// not capture anything: the state they need is `captures`, which the module keeps alive.
     pub fn create<C, F>(
         vm: &Vm,
         realm: Gc<Realm>,

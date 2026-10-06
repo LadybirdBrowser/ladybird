@@ -34,7 +34,7 @@ struct CacheableGetPropertyMetadata;
 struct CacheableSetPropertyMetadata;
 
 // An object of the Rust runtime. Its internal methods are those of its class, so the internal_*() functions dispatch
-// the way the virtual functions of the C++ runtime's objects do, and the ordinary_*() functions never dispatch.
+// on the class the way virtual functions would, and the ordinary_*() functions never dispatch.
 //
 // The facade type of a class of objects derives from Object and recognizes the objects of its class with
 // `static bool is_engine_class_of(Object const&)`, which is<T>(), as<T>() and as_if<T>() go through: an object flag

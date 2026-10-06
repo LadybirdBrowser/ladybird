@@ -26,9 +26,9 @@ use crate::runtime::realm::Realm;
 
 pub const ITERATOR_HELPER_BRAND: &str = "Iterator Helper";
 
-/// IteratorHelper::Closure and IteratorHelper::AbruptClosure: the abstract closure an iterator helper runs, with what
-/// it captures. The C++ runtime keeps each as a GC::Function; here the closures are functions of the files whose
-/// built-ins create them, and the state that changes as the helper runs lives in cells they capture, as in C++.
+/// The abstract closure an iterator helper runs, and the one it runs for an abrupt completion, with what they capture.
+/// The closures are functions of the files whose built-ins create them, and the state that changes as the helper runs
+/// lives in cells they capture.
 #[derive(Clone, Copy, Trace)]
 pub enum IteratorHelperClosure {
     Concat {
@@ -191,8 +191,8 @@ impl IteratorHelper {
         let closure = self.closure.get();
 
         if completion.is_abrupt() {
-            // NB: Like the C++ runtime, this leaves the helper executing when closing its iterators throws, so that it
-            //     throws on every later call.
+            // NB: This leaves the helper executing when closing its iterators throws, so that it throws on every later
+            //     call.
             let abrupt_result = match closure.abrupt_closure(vm, completion) {
                 Some(abrupt_result) => abrupt_result?,
                 None => {

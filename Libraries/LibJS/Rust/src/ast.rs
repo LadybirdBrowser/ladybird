@@ -659,7 +659,7 @@ impl FunctionTable {
 }
 
 /// Bundles a `FunctionData` with a subtable of all nested functions
-/// reachable from its body. Stored as the raw pointer in C++ SFDs.
+/// reachable from its body. Stored in the runtime's SharedFunctionInstanceData.
 #[derive(Clone)]
 pub struct FunctionPayload {
     pub data: FunctionData,
@@ -1240,7 +1240,7 @@ pub struct TemplateLiteralData {
 // RegExp literal
 // =============================================================================
 
-/// Handle to a compiled regex from C++.
+/// Handle to a compiled regex from the host's regex engine.
 ///
 /// Wrapped in `Arc` in `RegExpLiteralData` so that AST clones (e.g. for
 /// class field initializers) share the handle cheaply. The first codegen

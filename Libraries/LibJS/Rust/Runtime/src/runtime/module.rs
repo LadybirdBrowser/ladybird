@@ -6,10 +6,10 @@
 
 //! JS::Module, the base of every Module Record.
 //!
-//! The C++ virtual methods of Module are a table of function pointers per class of module, ModuleMethods, which
+//! The abstract methods of Module are a table of function pointers per class of module, ModuleMethods, which
 //! Module::methods() finds by matching on the module's class. A class's table starts from the table of the class it
-//! extends, as in `ModuleMethods { resolve_export: ..., ..CYCLIC_MODULE_METHODS }`, so it overrides exactly what the
-//! C++ class overrides.
+//! extends, as in `ModuleMethods { resolve_export: ..., ..CYCLIC_MODULE_METHODS }`, so that it only names the methods
+//! the class overrides.
 
 use core::cell::Cell;
 use core::ffi::c_void;
@@ -88,8 +88,8 @@ impl ResolvedBinding {
     }
 }
 
-/// The resolveSet of ResolveExport. C++ passes it by value, so the records a call appends are only seen by the calls
-/// it makes, not by its caller.
+/// The resolveSet of ResolveExport. It is passed by value, so the records a call appends are only seen by the calls it
+/// makes, not by its caller.
 pub type ResolveSet<'vm> = MarkedVec<'vm, ResolvedBinding>;
 
 /// A copy of `resolve_set`, for passing it on by value.
@@ -227,7 +227,7 @@ pub struct Module {
 define_cell!(Module, Other);
 
 impl Module {
-    /// Module(Realm&, ByteString filename, GC::Ptr<GC::Cell> host_defined), for `class`, which extends Module.
+    /// A module of `realm`, for `class`, which extends Module.
     pub fn new(class: &'static Class, realm: Gc<Realm>, filename: String, host_defined: ForeignCellSlot) -> Module {
         Module {
             header: CellHeader::for_class(class),

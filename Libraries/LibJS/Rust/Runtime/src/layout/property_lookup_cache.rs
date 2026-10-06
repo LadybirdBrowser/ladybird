@@ -13,7 +13,6 @@ use super::shape::{PrototypeChainValidity, Shape};
 use super::value::Value;
 use crate::layout_forward::ObjectPropertyIteratorCacheDataStorage;
 
-/// Mirrors JS::Bytecode::PropertyLookupCache::Entry::Type.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum PropertyLookupCacheEntryType {
@@ -57,7 +56,6 @@ pub struct GlobalVariableCache {
     pub has_environment_binding_index: Cell<bool>,
 }
 
-/// Mirrors JS::Bytecode::ObjectPropertyIteratorFastPath.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum ObjectPropertyIteratorFastPath {
@@ -85,7 +83,6 @@ pub struct ObjectPropertyIteratorCache {
     pub data: Cell<Option<Gc<ObjectPropertyIteratorCacheData>>>,
 }
 
-/// Mirrors JS::EnvironmentCoordinate.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct EnvironmentCoordinate {

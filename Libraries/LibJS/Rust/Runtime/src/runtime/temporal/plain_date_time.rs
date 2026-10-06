@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Runtime/Temporal/PlainDateTime.cpp: Temporal.PlainDateTime objects and the ISO Date-Time Record
-//! operations.
+//! Temporal.PlainDateTime objects and the ISO Date-Time Record operations.
 
 use std::sync::LazyLock;
 

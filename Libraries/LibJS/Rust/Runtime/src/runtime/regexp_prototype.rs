@@ -247,8 +247,8 @@ impl Hash for RegexCacheKey {
 }
 
 thread_local! {
-    /// The compiled regexes of every pattern and flags, which C++ keeps in a static map. Compiled regexes hold no
-    /// cells, and each thread runs its own VM, so each thread keeps its own.
+    /// The compiled regexes of every pattern and flags. Compiled regexes hold no cells, and each thread runs its own
+    /// VM, so each thread keeps its own.
     static REGEX_CACHE: RefCell<HashMap<RegexCacheKey, Rc<EcmaScriptRegex>, foldhash::fast::RandomState>> =
         RefCell::new(HashMap::default());
 }
@@ -1520,7 +1520,7 @@ impl RegExpPrototype {
 
         // OPTIMIZATION: Fast path for str.replace(regexp, simple_string).
         // When the replacement is a string without $ substitution patterns,
-        // we can do the entire replace in C++ without creating any JS objects.
+        // we can do the entire replace natively without creating any JS objects.
         if !replace_value.is_function() {
             let typed_regexp = regexp_object.downcast::<RegExpObject>();
             if Self::replace_is_fast_and_non_observable(vm, realm, &regexp_object) {

@@ -64,13 +64,13 @@ pub struct JSModuleRequest {
     _opaque: [u8; 0],
 }
 
-/// The compilationType of HostEnsureCanCompileStrings, in the order of the C++ JS::CompilationType.
+/// The compilationType of HostEnsureCanCompileStrings, in the order of LibJS's JS::CompilationType.
 pub const JS_COMPILATION_TYPE_DIRECT_EVAL: u8 = 0;
 pub const JS_COMPILATION_TYPE_INDIRECT_EVAL: u8 = 1;
 pub const JS_COMPILATION_TYPE_FUNCTION: u8 = 2;
 pub const JS_COMPILATION_TYPE_TIMER: u8 = 3;
 
-/// The operation of HostPromiseRejectionTracker, in the order of the C++ JS::Promise::RejectionOperation.
+/// The operation of HostPromiseRejectionTracker, in the order of LibJS's JS::Promise::RejectionOperation.
 pub const JS_PROMISE_REJECTION_OPERATION_REJECT: u8 = 0;
 pub const JS_PROMISE_REJECTION_OPERATION_HANDLE: u8 = 1;
 
@@ -79,12 +79,12 @@ pub const JS_PROMISE_REJECTION_OPERATION_HANDLE: u8 = 1;
 pub const JS_HANDLED_BY_HOST_HANDLED: u8 = 0;
 pub const JS_HANDLED_BY_HOST_UNHANDLED: u8 = 1;
 
-/// What the record of a JSImportedModuleReferrer is, in the order of the C++ JS::ImportedModuleReferrer.
+/// What the record of a JSImportedModuleReferrer is, in the order of LibJS's JS::ImportedModuleReferrer.
 pub const JS_IMPORTED_MODULE_REFERRER_SCRIPT: u8 = 0;
 pub const JS_IMPORTED_MODULE_REFERRER_CYCLIC_MODULE: u8 = 1;
 pub const JS_IMPORTED_MODULE_REFERRER_REALM: u8 = 2;
 
-/// What the record of a JSImportedModulePayload is, in the order of the C++ JS::ImportedModulePayload.
+/// What the record of a JSImportedModulePayload is, in the order of LibJS's JS::ImportedModulePayload.
 pub const JS_IMPORTED_MODULE_PAYLOAD_GRAPH_LOADING_STATE: u8 = 0;
 pub const JS_IMPORTED_MODULE_PAYLOAD_PROMISE_CAPABILITY: u8 = 1;
 
@@ -132,7 +132,7 @@ pub struct JSImportMetaPropertySink {
 /// Whether the goal of a spin of the event loop is met, given the context that came with it.
 pub type JSGoalCondition = unsafe extern "C" fn(goal_context: *mut c_void) -> bool;
 
-/// The surrounding agent of the VM, which the embedder provides: the C++ runtime's JS::Agent.
+/// The surrounding agent of the VM, which the embedder provides: a JS::Agent.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct JSAgent {
@@ -327,7 +327,7 @@ pub(crate) fn install_embedder(vm: &Vm, embedder: Option<Embedder>) {
     );
 }
 
-/// The event loop of the agent that an embedder provides, which the C++ runtime reaches through VM::agent().
+/// The event loop of the agent that an embedder provides.
 #[derive(Clone, Copy)]
 pub struct EmbedderAgent {
     spin_event_loop_until: unsafe extern "C" fn(*mut c_void, *mut JSVM, JSGoalCondition, *mut c_void),

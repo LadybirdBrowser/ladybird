@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The numeric conversions of Value.cpp that need no objects and no VM, as functions over the numbers and strings
-//! the spec operations have already obtained. The Value methods apply ToNumber or ToPrimitive and then call these.
+//! The numeric conversions on values that need no objects and no VM, as functions over the numbers and strings the spec
+//! operations have already obtained. The Value methods apply ToNumber or ToPrimitive and then call these.
 
 use core::cmp::Ordering;
 
@@ -21,8 +21,8 @@ use crate::runtime::string_conversions::parse_number_f64;
 
 pub const MAX_ARRAY_LIKE_INDEX: f64 = 9007199254740991.0;
 
-/// An error that the C++ runtime throws from one of these numeric operations, named after its ErrorType. The
-/// operations return it so that the caller, which has a VM, can throw the matching error object.
+/// An error that one of these numeric operations throws, named after its ErrorType. The operations return it so that
+/// the caller, which has a VM, can throw the matching error object.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NumericOperationError {
     /// A RangeError with ErrorType::InvalidIndex.
@@ -38,7 +38,7 @@ pub enum NumericOperationError {
 }
 
 impl NumericOperationError {
-    /// The constructor and message of the error the C++ runtime throws.
+    /// The constructor and message of the error to throw.
     pub fn error_kind_and_type(self) -> (ErrorKind, ErrorType) {
         match self {
             Self::InvalidIndex => (ErrorKind::RangeError, ErrorType::InvalidIndex),
@@ -246,7 +246,7 @@ fn parse_bigint_text(mut text: &[u16]) -> Option<BigIntParseResult<'_>> {
 }
 
 /// 7.1.14 StringToBigInt ( str ), https://tc39.es/ecma262/#sec-stringtobigint
-/// Like the C++ runtime, this accepts a lone sign as 0n.
+/// This accepts a lone sign as 0n.
 pub fn string_to_bigint(string: &[u16]) -> Option<BigInt> {
     // 1. Let text be StringToCodePoints(str).
     let text = trim_js_whitespace(string);

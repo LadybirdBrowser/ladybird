@@ -74,8 +74,8 @@ impl BigFraction {
     }
 
     /// BigFraction(double), which reads the decimal digits of the double one at a time with AK::pow(), and so is
-    /// only exact for small values. Its exponent is an i8, which wraps for values of 10^127 and above, where the
-    /// C++ never finishes reading digits; this replicates that.
+    /// only exact for small values. Its exponent is an i8, which wraps for values of 10^127 and above, for which it
+    /// never finishes reading digits.
     pub fn from_double(mut value: f64) -> Self {
         let mut numerator = SignedBigInteger::zero();
         let mut denominator = SignedBigInteger::one();

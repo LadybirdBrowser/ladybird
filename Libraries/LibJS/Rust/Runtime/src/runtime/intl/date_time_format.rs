@@ -316,9 +316,8 @@ impl DateTimeFormat {
         }
     }
 
-    /// The C++ get_or_create_formatter() behind temporal_plain_date_formatter() and the other accessors of the
-    /// formatters of the Temporal types: creates the formatter of `value_formatter` the first time it is needed, and
-    /// returns whether there is one, which there is not when the type's format is null.
+    /// Creates the formatter of the Temporal type of `value_formatter` the first time it is needed, and returns whether
+    /// there is one, which there is not when the type's format is null.
     fn get_or_create_temporal_formatter(&self, value_formatter: ValueFormatter) -> bool {
         let (format, formatter) = self.temporal_format_and_formatter(value_formatter);
         if formatter.borrow().is_some() {
@@ -428,7 +427,7 @@ pub struct CalendarFieldRow<'vm> {
     pub values: &'static [&'static str],
 }
 
-/// The C++ for_each_calendar_field(): calls `callback` with each row of Table 16, in table order.
+/// Calls `callback` with each row of Table 16, in table order.
 pub fn for_each_calendar_field<'vm>(
     vm: &'vm Vm,
     mut callback: impl FnMut(&CalendarFieldRow<'vm>) -> ThrowCompletionOr<()>,

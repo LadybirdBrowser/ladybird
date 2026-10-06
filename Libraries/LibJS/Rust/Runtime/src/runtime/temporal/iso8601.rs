@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The RFC 9557 / ISO 8601 grammar of Temporal, from Libraries/LibJS/Runtime/Temporal/ISO8601.cpp: a backtracking
-//! parser whose parse results are views into the parsed string.
+//! The RFC 9557 / ISO 8601 grammar of Temporal: a backtracking parser whose parse results are views into the parsed
+//! string.
 
 use crate::runtime::temporal::date_equations::{epoch_time_for_year, mathematical_in_leap_year};
 use crate::runtime::value_conversions::string_to_number;
@@ -224,8 +224,8 @@ impl<'a> ISO8601Parser<'a> {
             .substring_view(start_index, self.state.position - start_index)
     }
 
-    /// The C++ StateTransaction: runs `body` with the position it starts at, and restores the state from before it if
-    /// it fails. `body` returns whether it commits.
+    /// Runs `body` with the position it starts at, and restores the state from before it if it fails. `body` returns
+    /// whether it commits.
     fn transaction(&mut self, body: impl FnOnce(&mut Self, usize) -> bool) -> bool {
         let saved_state = self.state.clone();
         let start_index = self.state.position;
@@ -236,7 +236,7 @@ impl<'a> ISO8601Parser<'a> {
         false
     }
 
-    /// The C++ scoped_parse(): the source text `parser` matches, or None with the state restored if it fails.
+    /// The source text `parser` matches, or None with the state restored if it fails.
     fn scoped_parse(&mut self, parser: impl FnOnce(&mut Self) -> bool) -> Option<Utf16View<'a>> {
         let mut parsed = None;
         self.transaction(|parser_state, start_index| {
@@ -369,7 +369,7 @@ impl<'a> ISO8601Parser<'a> {
         let has_time_designator = self.parse_time_designator();
 
         if !has_time_designator {
-            // NB: The C++ looks ahead in a transaction that it never commits, so the state is restored either way.
+            // NB: This looks ahead without committing, so the state is restored either way.
             let saved_state = self.state.clone();
 
             // It is a Syntax Error if ParseText(Time DateTimeUTCOffset[~Z], DateSpecMonthDay) is a Parse Node.

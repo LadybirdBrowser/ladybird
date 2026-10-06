@@ -28,8 +28,8 @@ use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::value;
 
-// NB: Rust's acosh, asinh and atanh are computed in Rust rather than by the C library, whose results the C++ runtime
-//     returns. Every other function here is one Rust also takes from the C library.
+// NB: Rust's acosh, asinh and atanh are computed in Rust rather than by the C library, whose results these return
+//     instead. Every other function here is one Rust also takes from the C library.
 // SAFETY: These are the C library's math functions, which take and return a double and have no other effects.
 unsafe extern "C" {
     #[link_name = "acosh"]
@@ -1332,8 +1332,8 @@ pub fn pow_impl(vm: &Vm, base: Value, exponent: Value) -> ThrowCompletionOr<Valu
     value::exp(vm, base, exponent)
 }
 
-/// The generator of Math.random, which the C++ runtime keeps in a function-local static, so every realm and VM of the
-/// process draws from the one generator, seeded the first time it is used.
+/// The generator of Math.random. Every realm and VM of the process draws from the one generator, seeded the first time
+/// it is used.
 static RANDOM_NUMBER_GENERATOR: LazyLock<Mutex<XorShift128PlusRNG>> =
     LazyLock::new(|| Mutex::new(XorShift128PlusRNG::new()));
 

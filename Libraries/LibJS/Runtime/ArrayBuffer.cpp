@@ -259,8 +259,8 @@ Value ArrayBuffer::get_value_of_element_type(ElementType element_type, size_t by
     auto raw_value = raw_value_storage.span().trim(element_size);
 
     // 5. If IsSharedArrayBuffer(arrayBuffer) is true, then
-    // AD-HOC: As in the C++ runtime, the read of a shared block is an atomic load: sequentially consistent for SeqCst
-    //         order, and relaxed for a typed-array element read, while a DataView read may tear.
+    // AD-HOC: The read of a shared block is an atomic load: sequentially consistent for SeqCst order, and relaxed for a
+    //         typed-array element read, while a DataView read may tear.
     if (is_shared_array_buffer() && (order == Order::SeqCst || is_typed_array)) {
         switch (element_size) {
         case 1:
@@ -337,7 +337,7 @@ ThrowCompletionOr<DataBlock::OwnedBackingStore> allocate_zeroed_storage_for_byte
             : DataBlock::OwnedBackingStore::create_zeroed(size);
     };
     // A large allocation that fails may succeed once dead buffers that pin address space are collected, so it is
-    // retried once after a collection, as in the C++ runtime.
+    // retried once after a collection.
     auto storage = allocate();
     if (storage.is_error()) {
         vm.heap().collect_garbage();

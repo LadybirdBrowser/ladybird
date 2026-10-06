@@ -15,8 +15,8 @@ namespace JS {
 
 using namespace EmbeddingABI;
 
-// C++ hands out [[RequestedModules]] by reference, so the facade keeps a copy of each module's, which never change,
-// for as long as the module lives.
+// requested_modules() hands out [[RequestedModules]] by reference, so the facade keeps a copy of each module's, which
+// never change, for as long as the module lives.
 static GC::WeakHashMap<CyclicModule, NonnullOwnPtr<Vector<ModuleRequest>>>& requested_modules_of_live_cyclic_modules()
 {
     static NeverDestroyed<GC::WeakHashMap<CyclicModule, NonnullOwnPtr<Vector<ModuleRequest>>>> requested_modules;

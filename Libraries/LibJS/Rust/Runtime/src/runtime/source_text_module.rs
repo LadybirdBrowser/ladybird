@@ -277,8 +277,8 @@ impl SourceTextModule {
         let mut function_names = Vec::with_capacity(functions_to_initialize.len());
         for function in functions_to_initialize {
             let mut description = function.description;
-            // NB: C++ renames the shared data of an anonymous default export to the name the module binds it under
-            //     once it is created, from which the function's name is all that follows.
+            // NB: The shared data of an anonymous default export takes the name the module binds it under, from which
+            //     the function's name is all that follows.
             if function.is_anonymous_default_export {
                 description.name.clone_from(&function.name.0);
             }

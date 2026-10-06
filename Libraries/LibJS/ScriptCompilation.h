@@ -55,7 +55,7 @@ public:
     GC::Ref<FunctionObject> instantiate(Realm&, Environment& scope, GC::Ptr<PrivateEnvironment>, ScriptOrModule) const;
 
 private:
-    // The runtime's compiled code of a function, which the C++ runtime calls SharedFunctionInstanceData.
+    // The runtime's compiled code of a function, its SharedFunctionInstanceData.
     class FunctionData final : public EngineCell {
     };
 

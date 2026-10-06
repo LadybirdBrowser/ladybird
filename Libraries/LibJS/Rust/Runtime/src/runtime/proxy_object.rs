@@ -70,7 +70,7 @@ fn limit_proxy_recursion_depth(vm: &Vm) -> ThrowCompletionOr<RecursionDepthUpdat
     Ok(recursion_depth_updater)
 }
 
-/// A field of a descriptor that [[GetOwnProperty]] returned, which C++ dereferences as an Optional that has a value.
+/// A field of a descriptor that [[GetOwnProperty]] returned, which is fully populated.
 fn fully_populated<T>(field: Option<T>) -> T {
     field.expect("an own property descriptor is fully populated")
 }
@@ -84,9 +84,9 @@ pub struct ProxyObject {
     is_revoked: Cell<bool>,
 }
 
-/// The internal methods of a Proxy exotic object. Every proxy has [[Call]] and [[Construct]], as the C++ ProxyObject
-/// overrides both: IsCallable and IsConstructor only reach them for a proxy whose target has them, since the proxy
-/// keeps the IsFunction flag only if its target is callable and has_constructor() asks the target.
+/// The internal methods of a Proxy exotic object. Every proxy has [[Call]] and [[Construct]]: IsCallable and
+/// IsConstructor only reach them for a proxy whose target has them, since the proxy keeps the IsFunction flag only if
+/// its target is callable and has_constructor() asks the target.
 pub static PROXY_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     internal_get_prototype_of: ProxyObject::internal_get_prototype_of,
     internal_set_prototype_of: ProxyObject::internal_set_prototype_of,
@@ -132,8 +132,8 @@ impl Object {
     }
 }
 
-/// The C++ GC::ConservativeHashTable<PropertyKey> of the keys an ownKeys trap reported. Symbol keys are told apart by
-/// their address, which stays theirs since the list the trap result is collected into keeps them alive.
+/// The set of the keys an ownKeys trap reported. Symbol keys are told apart by their address, which stays theirs since
+/// the list the trap result is collected into keeps them alive.
 #[derive(Default)]
 struct UniquePropertyKeys {
     string_and_number_keys: HashSet<PropertyKey>,
@@ -168,8 +168,7 @@ impl<'list, 'vm> UncheckedResultKeys<'list, 'vm> {
         }
     }
 
-    /// The C++ contains_slow() followed by remove_first_matching(), both of which compare with SameValue: removes the
-    /// first unchecked element that is `key`, and says whether there was one.
+    /// Removes the first unchecked element that is `key`, compared with SameValue, and says whether there was one.
     fn remove_first_matching(&mut self, key: Value) -> bool {
         for (index, is_unchecked) in self.is_unchecked.iter_mut().enumerate() {
             if *is_unchecked && same_value(self.trap_result.get(index).expect("the index is in bounds"), key) {

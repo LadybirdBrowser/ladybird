@@ -25,7 +25,7 @@ use crate::runtime::realm::Realm;
 use crate::standard_output::outln;
 use crate::utf16::Utf16View;
 
-/// JS::Test262::GlobalObject.
+/// The global object test262 runs its tests with.
 #[repr(C)]
 #[derive(Trace)]
 pub struct Test262GlobalObject {

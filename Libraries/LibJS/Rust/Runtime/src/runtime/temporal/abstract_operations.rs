@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Runtime/Temporal/AbstractOperations.cpp: the options, units, rounding and parsing operations
-//! every Temporal type shares.
+//! The options, units, rounding and parsing operations every Temporal type shares.
 
 use core::fmt;
 
@@ -223,7 +222,7 @@ pub enum SecondsPrecision {
 }
 
 impl SecondsPrecision {
-    /// The C++ precision.downcast<Auto, u8>(), for precisions that are not MINUTE.
+    /// The fractional second digits of a precision that is not MINUTE.
     pub fn to_precision(self) -> Precision {
         match self {
             SecondsPrecision::Auto => Precision::Auto,
@@ -361,7 +360,7 @@ pub fn temporal_unit_to_string(unit: Unit) -> &'static str {
     }
 }
 
-/// A view of an ASCII string, for passing string constants where the C++ passes a Utf16View literal.
+/// A view of an ASCII string, for passing string constants as Utf16View literals.
 pub fn ascii_view(string: &str) -> Utf16View<'_> {
     Utf16View::Ascii(string.as_bytes())
 }

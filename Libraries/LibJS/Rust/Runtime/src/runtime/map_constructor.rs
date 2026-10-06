@@ -47,8 +47,7 @@ define_native_function_class!(
     construct: MapConstructor::construct
 );
 
-/// The groups of GroupBy with the zero key coercion, the C++ OrderedHashMap<GC::Root<Value>, GC::RootVector<Value>,
-/// KeyedGroupTraits>.
+/// The groups of GroupBy with the zero key coercion.
 pub struct ValueKeyedGroups<'vm> {
     vm: &'vm Vm,
     keys: MarkedVec<'vm, Value>,

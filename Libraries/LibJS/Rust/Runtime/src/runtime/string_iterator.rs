@@ -23,7 +23,7 @@ use crate::runtime::string_prototype::code_point_at;
 use crate::utf16::Utf16View;
 
 /// The iterator String.prototype[@@iterator] returns, which steps through the code points of `string`. `position` is
-/// the code unit offset of the next code point, the C++ m_iterator.
+/// the code unit offset of the next code point.
 #[repr(C)]
 #[derive(Trace)]
 pub struct StringIterator {

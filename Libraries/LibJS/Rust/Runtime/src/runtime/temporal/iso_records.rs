@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The records of Libraries/LibJS/Runtime/Temporal/ISORecords.h.
+//! The Time, ISO Date-Time, ISO Year-Month and parse records of Temporal.
 
 use ak::Utf16String;
 

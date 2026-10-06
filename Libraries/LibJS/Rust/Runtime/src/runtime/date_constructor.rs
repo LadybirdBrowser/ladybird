@@ -30,7 +30,6 @@ use crate::utf16::Utf16View;
 
 fn parse_date_string(vm: &Vm, date_string: Utf16View<'_>) -> f64 {
     let result = DateParser::parse(date_string);
-    // NB: The C++ compares the result with NAN, which no double equals, so it never tells the host.
     if result.is_nan() {
         // NB: The view can be into the string an unresolved substring was taken from, which a collection may free
         //     once the hook runs code that resolves the substring.

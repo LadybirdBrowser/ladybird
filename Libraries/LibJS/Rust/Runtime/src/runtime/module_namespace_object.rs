@@ -79,8 +79,6 @@ fn export_name_of(property_key: &PropertyKey) -> Utf16FlyString {
 }
 
 impl ModuleNamespaceObject {
-    /// ModuleNamespaceObject(Realm&, Module* module, Vector<Utf16FlyString> exports), allocated through
-    /// realm.create().
     pub fn create(
         vm: &Vm,
         realm: Gc<Realm>,

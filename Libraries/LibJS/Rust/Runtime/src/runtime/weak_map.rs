@@ -75,7 +75,7 @@ impl WeakMap {
         realm.create_object(vm, WeakMap::new(vm, realm.intrinsics().weak_map_prototype(vm)))
     }
 
-    /// Registers the new WeakMap as a weak container, which C++ does in the constructor.
+    /// Registers the new WeakMap as a weak container.
     fn initialize(object: &Object, vm: &Vm, _: Gc<Realm>) {
         vm.register_weak_container(WeakContainer::new(object.as_gc(), WeakMap::remove_dead_cells));
     }

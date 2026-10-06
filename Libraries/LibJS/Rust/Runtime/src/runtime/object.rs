@@ -228,12 +228,11 @@ pub type InternalCall = fn(&Object, &Vm, &ExecutionContext, Value) -> ThrowCompl
 /// [[Construct]], given the callee's frame with the arguments in place and the new target.
 pub type InternalConstruct = fn(&Object, &Vm, &ExecutionContext, Gc<FunctionObject>) -> ThrowCompletionOr<Gc<Object>>;
 
-/// The internal methods of a class of objects: the Rust form of the virtual methods of the C++ Object, and of the
-/// FunctionObject virtuals that calls go through. Exotic objects override some of them, as in
-/// `ObjectMethods { internal_get: ..., ..ORDINARY_OBJECT_METHODS }`.
+/// The internal methods of a class of objects, and the methods of function objects that calls go through. Exotic
+/// objects override some of them, as in `ObjectMethods { internal_get: ..., ..ORDINARY_OBJECT_METHODS }`.
 pub struct ObjectMethods {
-    /// Cell::initialize(Realm&), which C++ calls once an object is allocated through Realm::create and which defines
-    /// the properties of built-in objects. Subclasses call the method of the class they extend first.
+    /// What Realm::create_object() runs once it allocates an object, which defines the properties of built-in objects.
+    /// Subclasses call the method of the class they extend first.
     pub initialize: fn(&Object, &Vm, Gc<Realm>),
     pub internal_get_prototype_of: fn(&Object, &Vm) -> ThrowCompletionOr<Option<Gc<Object>>>,
     pub internal_set_prototype_of: fn(&Object, &Vm, Option<Gc<Object>>) -> ThrowCompletionOr<bool>,
@@ -528,8 +527,7 @@ const SPARSE_ARRAY_HOLE_THRESHOLD: u32 = 200;
 const MAX_TRANSITIONS_BEFORE_CONVERTING_TO_DICTIONARY: u32 = 64;
 
 /// Moves an object into the heap and finishes what its constructor could not do before it had an address: its named
-/// properties start out in its inline storage. Every object, of any class, is allocated through this, as C++ objects
-/// are through Realm::create.
+/// properties start out in its inline storage. Every object, of any class, is allocated through this.
 pub fn allocate_object<T: GcCell + Extends<Object>>(vm: &Vm, object: T) -> Gc<T> {
     set_up_named_storage(vm.heap().allocate(object))
 }
@@ -552,9 +550,8 @@ fn set_up_named_storage<T: GcCell + Extends<Object>>(cell: Gc<T>) -> Gc<T> {
 }
 
 impl Object {
-    // The constructors of the C++ Object, which build the data of an object of `class` for allocate_object().
+    // The constructors of Object, which build the data of an object of `class` for allocate_object().
 
-    /// Object(Shape&)
     pub fn new_with_shape(
         class: &'static Class,
         shape: Gc<Shape>,
@@ -578,7 +575,6 @@ impl Object {
         object
     }
 
-    /// Object(GlobalObjectTag, Realm&)
     pub fn new_global_object(
         vm: &Vm,
         class: &'static Class,
@@ -595,7 +591,6 @@ impl Object {
         object
     }
 
-    /// Object(ConstructWithoutPrototypeTag, Realm&)
     pub fn new_without_prototype(
         vm: &Vm,
         class: &'static Class,
@@ -609,7 +604,6 @@ impl Object {
         )
     }
 
-    /// Object(Realm&, GC::Ptr<Object> prototype)
     pub fn new_with_realm_and_prototype(
         vm: &Vm,
         class: &'static Class,
@@ -624,7 +618,6 @@ impl Object {
         Self::new_with_shape(class, shape, may_interfere_with_indexed_property_access)
     }
 
-    /// Object(ConstructWithPrototypeTag, Object& prototype)
     pub fn new_with_prototype(
         vm: &Vm,
         class: &'static Class,
@@ -2906,8 +2899,7 @@ impl Object {
     }
 
     // 14.7.5.9 EnumerateObjectProperties ( O ), https://tc39.es/ecma262/#sec-enumerate-object-properties
-    /// Calls `callback` with each key until it returns something, which this then returns. Throws propagate as errors,
-    /// where the C++ returns them as completions.
+    /// Calls `callback` with each key until it returns something, which this then returns. Throws propagate as errors.
     pub fn enumerate_object_properties<T>(
         &self,
         vm: &Vm,
@@ -3865,7 +3857,7 @@ impl Object {
         elements
     }
 
-    /// The size of indexed_packed_elements_span() in C++, which only packed storage has.
+    /// The number of elements in the span of packed storage, which only packed storage has.
     pub fn indexed_packed_elements_span_size(&self) -> u32 {
         assert!(self.indexed_storage_kind() == IndexedStorageKind::Packed);
         self.indexed_packed_element_count()
@@ -3879,8 +3871,7 @@ impl Object {
         }
     }
 
-    /// Writes one element of packed storage in place, as C++ writes through the span of
-    /// set_indexed_property_elements_to_undefined().
+    /// Writes one element of packed storage in place.
     pub fn set_packed_indexed_element(&self, index: u32, value: Value) {
         assert!(self.indexed_storage_kind() == IndexedStorageKind::Packed);
         assert!(index < self.indexed_packed_element_count());
@@ -3921,7 +3912,7 @@ fn create_data_property_for_set(
 }
 
 impl Object {
-    /// Whether the object was allocated as a `T`, the Rust form of the C++ is<T>() on objects.
+    /// Whether the object was allocated as a `T`.
     pub fn is<T: GcCell + Extends<Object>>(&self) -> bool {
         self.class().is_subclass_of(T::CLASS)
     }

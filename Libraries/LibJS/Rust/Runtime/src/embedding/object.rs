@@ -788,7 +788,7 @@ pub unsafe extern "C" fn js_object_eligible_for_own_property_enumeration_fast_pa
     unsafe { cell_from_abi::<JSObject>(object) }.eligible_for_own_property_enumeration_fast_path()
 }
 
-// The internal methods, which dispatch through the object's class like a call through a C++ Object pointer
+// The internal methods, which dispatch through the object's class
 
 /// [[GetPrototypeOf]] ( ), whose payload is the prototype or null. Main thread only.
 #[unsafe(no_mangle)]

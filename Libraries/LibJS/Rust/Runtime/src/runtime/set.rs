@@ -104,7 +104,7 @@ impl Set {
     }
 }
 
-/// The C++ Set::ConstIterator, which compares equal to Set::end() once is_end() is true.
+/// An iterator that stays valid while the set is modified, with the visiting rules of map::ConstIterator.
 #[derive(Trace)]
 pub struct ConstIterator {
     iterator: map::ConstIterator,

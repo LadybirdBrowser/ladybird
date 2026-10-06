@@ -304,8 +304,8 @@ VM::VM(ErrorMessages error_messages)
 {
     VERIFY(static_cast<void*>(m_engine_storage) == static_cast<void*>(this));
 
-    // As with the C++ runtime's VM, the embedder's C++ cells live in the VM's heap, and a SharedArrayBuffer of a fixed
-    // length lives in memory that other processes can map.
+    // The embedder's C++ cells live in the VM's heap, and a SharedArrayBuffer of a fixed length lives in memory that
+    // other processes can map.
     JSVmOptions options {
         .become_process_default_heap = true,
         .shared_memory_shared_array_buffers = true,

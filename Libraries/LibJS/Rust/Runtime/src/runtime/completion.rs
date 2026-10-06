@@ -33,7 +33,7 @@ impl Throw {
 /// The result of an operation that completes normally with a T or throws.
 pub type ThrowCompletionOr<T> = Result<T, Throw>;
 
-/// MUST() of the C++ runtime: the spec's `!`, for an operation that cannot throw here.
+/// The spec's `!`, for an operation that cannot throw here.
 pub trait Must<T> {
     fn must(self) -> T;
 }
@@ -106,8 +106,7 @@ impl Completion {
         Throw::new(self.value)
     }
 
-    /// The completion the way TRY() and ASM_TRY() see a C++ Completion: a throw completion is an error, and any other
-    /// completion its value.
+    /// The completion as a ThrowCompletionOr: a throw completion is an error, and any other completion its value.
     pub fn into_throw_completion_or(self) -> ThrowCompletionOr<Value> {
         if self.is_error() {
             return Err(Throw::new(self.value));
@@ -213,8 +212,8 @@ pub fn r#await(vm: &Vm, value: Value) -> ThrowCompletionOr<Value> {
     //        by synchronously running all queued promise jobs.
     if let Some(agent) = vm.agent().embedder_agent {
         // Embedder case (i.e. LibWeb). Runs all promise jobs by performing a microtask checkpoint.
-        // NB: The C++ goal condition captures a copy of the outcome taken before the promise settles, so it never
-        //     becomes true. This one reads the outcome itself.
+        // NB: The goal condition reads the outcome itself, as a copy taken before the promise settles would never
+        //     make it true.
         agent.spin_event_loop_until(vm, &|| awaited_completion.success.get().is_some());
     } else {
         // No embedder, standalone LibJS implementation

@@ -17,8 +17,8 @@
 namespace JS {
 
 // The Rust runtime's property keys have exactly these bits, so a PropertyKey crosses the embedding ABI as a
-// JSPropertyKey unchanged, and a string key names the same property in both runtimes because AK interns fly strings
-// process-wide.
+// JSPropertyKey unchanged, and a string key names the same property on both sides of it because AK interns fly
+// strings process-wide.
 class PropertyKey {
 public:
     AK_ALLOC_WITH_KMALLOC;

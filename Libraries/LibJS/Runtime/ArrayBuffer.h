@@ -307,7 +307,7 @@ struct DataBlock {
 // An ArrayBuffer or a SharedArrayBuffer of the Rust runtime, whose data block the runtime keeps.
 //
 // The members that make or take a DataBlock are defined in this header, over out-of-line members that describe the
-// storage in plain values, because a DataBlock can hold a Core::AnonymousBuffer, which LibJS does not link.
+// storage in plain values, because a DataBlock can hold a Core::AnonymousBuffer, and LibJS links LibCore privately.
 class JS_API ArrayBuffer final : public Object {
 public:
     static bool is_engine_class_of(Object const& object) { return object.engine_class_id() == JS_LAYOUT_CLASS_ID_ARRAY_BUFFER; }

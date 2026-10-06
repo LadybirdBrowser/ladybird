@@ -99,8 +99,8 @@ impl EnvironmentShape {
 }
 
 /// The slot where the environments one piece of code creates find their shape: an entry of an executable's
-/// environment shape caches, or the function or var environment shape of a function's shared data. C++ keeps a
-/// pointer to the slot; this also keeps the cell that owns the slot alive, so that the pointer cannot dangle.
+/// environment shape caches, or the function or var environment shape of a function's shared data. Along with a
+/// pointer to the slot, this keeps the cell that owns the slot alive, so that the pointer cannot dangle.
 #[derive(Clone, Copy, Trace)]
 pub struct EnvironmentShapeCache {
     owner: Gc<CellHeader>,

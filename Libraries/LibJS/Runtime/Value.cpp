@@ -32,7 +32,7 @@ static_assert(to_underlying(GC::CellKind::Symbol) == JS_LAYOUT_CELL_KIND_SYMBOL)
 static_assert(to_underlying(GC::CellKind::BigInt) == JS_LAYOUT_CELL_KIND_BIG_INT);
 static_assert(to_underlying(GC::CellKind::Accessor) == JS_LAYOUT_CELL_KIND_ACCESSOR);
 
-// Number::toString needs nothing of the runtime, so the facade formats numbers itself, exactly as the C++ runtime does.
+// Number::toString needs nothing of the runtime, so the facade formats numbers itself, exactly as the runtime does.
 static void append_ascii_for_number(StringBuilder& builder, char code_unit)
 {
     builder.append(code_unit);

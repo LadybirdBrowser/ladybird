@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Libraries/LibJS/Runtime/Temporal/PlainTime.cpp: Temporal.PlainTime objects and the Time Record operations.
+//! Temporal.PlainTime objects and the Time Record operations.
 
 use libjs_runtime_macros::Trace;
 

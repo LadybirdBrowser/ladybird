@@ -71,9 +71,9 @@ pub unsafe fn host_defined_slot_from_abi(host_defined: *mut c_void) -> ForeignCe
 }
 
 /// Script::parse(source_text, realm, filename, display_filename, host_defined, line_number_offset): ParseScript of
-/// `source` in `realm`, as C++ runs it for a host. The script's code reports `display_filename`, or `filename` if that
-/// is empty, in its stack frames and errors, and counts its lines from `line_number_offset`. Its dynamic imports resolve
-/// against `filename`. `host_defined` is null or one of the embedder's GC cells, which the script keeps alive as its
+/// `source` in `realm` for a host. The script's code reports `display_filename`, or `filename` if that is empty, in its
+/// stack frames and errors, and counts its lines from `line_number_offset`. Its dynamic imports resolve against
+/// `filename`. `host_defined` is null or one of the embedder's GC cells, which the script keeps alive as its
 /// [[HostDefined]]. Returns the script, which the caller keeps alive, or null after appending the syntax errors to
 /// `errors` (which may be null). Borrows the views. Only the VM's thread may call this.
 ///
@@ -124,11 +124,11 @@ pub unsafe extern "C" fn js_script_parse(
 }
 
 /// VM::run(Script&, lexical_environment_override): ScriptEvaluation of the script, whose execution context gets the
-/// override as its LexicalEnvironment unless that is null. As in C++, the override only reaches what resolves through
-/// the LexicalEnvironment, such as typeof and direct eval: identifiers that the script compiles to global variable
-/// accesses still read and write the global environment directly. Like every script, it runs on top of the execution
-/// context stack, which must not be empty, as a host runs it in a context of the script's realm. Only the VM's thread
-/// may call this.
+/// override as its LexicalEnvironment unless that is null. The override only reaches what resolves through the
+/// LexicalEnvironment, such as typeof and direct eval: identifiers that the script compiles to global variable accesses
+/// still read and write the global environment directly. Like every script, it runs on top of the execution context
+/// stack, which must not be empty, as a host runs it in a context of the script's realm. Only the VM's thread may call
+/// this.
 ///
 /// # Safety
 ///

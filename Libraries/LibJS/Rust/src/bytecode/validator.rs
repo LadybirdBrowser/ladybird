@@ -22,8 +22,7 @@ use super::instruction::instruction_length_from_bytes;
 use super::instruction::validate_instruction;
 
 /// Sentinel u32 used by `Operand::INVALID` and by `Optional<*TableIndex>` for
-/// "no value". Mirrors the C++ `0xFFFFFFFF` constant used throughout
-/// `Bytecode/Operand.h` and the per-table index types.
+/// "no value".
 const INVALID_INDEX_U32: u32 = 0xFFFF_FFFF;
 
 /// Sentinel u32 written into cache fields by the bytecode encoder when no
@@ -50,10 +49,8 @@ pub struct FFIValidatorBounds {
     pub environment_shape_cache_count: u32,
     pub class_blueprint_count: u32,
     pub shared_function_data_count: u32,
-    /// Variant counts for the C++ enum types referenced by bytecode declarations
-    /// fields. Plumbed across the FFI rather than hardcoded so that adding
-    /// or removing a variant in the C++ enum can't silently outdate the
-    /// Rust validator.
+    /// Variant counts for the enum types referenced by bytecode declarations
+    /// fields.
     pub completion_type_variant_count: u32,
     pub iterator_hint_variant_count: u32,
     pub environment_mode_variant_count: u32,
@@ -62,7 +59,7 @@ pub struct FFIValidatorBounds {
     pub function_name_prefix_variant_count: u32,
 }
 
-/// Categorization of validation failures, mirrored to C++ as an enum class.
+/// Categorization of validation failures.
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ValidationErrorKind {
@@ -97,7 +94,7 @@ pub enum ValidationErrorKind {
     EnvironmentShapeCacheIndexOutOfRange = 28,
 }
 
-/// Detail returned to the C++ caller on validation failure.
+/// Detail returned to the caller on validation failure.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct FFIValidationError {

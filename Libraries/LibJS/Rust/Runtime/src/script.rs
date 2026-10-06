@@ -382,8 +382,8 @@ impl Script {
             var_scoped_names: parts.var_scoped_names,
             annex_b_candidate_names: parts.annex_b_candidate_names,
             lexical_bindings: parts.lexical_bindings,
-            // NB: The C++ runtime never sets the strictness of a script it compiles, so Annex B function hoisting
-            //     always runs; the frontend only collects candidates for sloppy scripts.
+            // NB: A script is never marked strict here, so Annex B function hoisting always runs; the frontend only
+            //     collects candidates for sloppy scripts.
             is_strict_mode: false,
             filename: filename.to_string(),
         });
@@ -688,7 +688,7 @@ impl Script {
             );
 
             // c. Perform ? env.CreateGlobalFunctionBinding(fn, fo, false).
-            // NB: C++ binds function->name(), which is the name the declaration binds.
+            // NB: The function's name is the sole element of the BoundNames of f.
             global_environment.create_global_function_binding(
                 vm,
                 function_name,

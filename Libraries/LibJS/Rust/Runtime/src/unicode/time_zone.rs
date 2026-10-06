@@ -5,7 +5,7 @@
  */
 
 //! The time zones of LibUnicode (Libraries/LibUnicode/TimeZone.h), through its C exports, so the runtime resolves
-//! time zones and their offsets with the same ICU data as the C++ runtime.
+//! time zones and their offsets with the same ICU data as the rest of Ladybird.
 
 use core::ffi::c_void;
 use std::sync::OnceLock;

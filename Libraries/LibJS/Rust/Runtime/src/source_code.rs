@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The parts of Libraries/LibJS/SourceCode.h the runtime has so far: the code a script, module or function was
-//! compiled from, which functions keep to compile themselves lazily and to recover their [[SourceText]].
+//! The code a script, module or function was compiled from, which functions keep to compile themselves lazily and to
+//! recover their [[SourceText]].
 
 use std::cell::OnceCell;
 use std::rc::Rc;
@@ -17,8 +17,8 @@ use crate::utf16::Utf16View;
 pub struct SourceCode {
     filename: Utf16String,
     code: Utf16String,
-    // The code widened to UTF-16 code units, made on first use for code in the ASCII storage kind, as C++
-    // SourceCode::utf16_data() caches it for an embedder that hands the code to a parser on another thread.
+    // The code widened to UTF-16 code units, made on first use for code in the ASCII storage kind, for an embedder
+    // that hands the code to a parser on another thread through SourceCode::utf16_data().
     utf16_code_units_of_ascii_code: OnceCell<Box<[u16]>>,
 }
 

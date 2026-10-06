@@ -44,7 +44,7 @@ public:
         return Array::create_from(realm, values);
     }
 
-    // Both runtimes give exactly the Array exotic objects, host arrays included, the magical length property.
+    // The runtime gives exactly the Array exotic objects, host arrays included, the magical length property.
     static bool is_engine_class_of(Object const& object) { return object.has_magical_length_property(); }
 };
 

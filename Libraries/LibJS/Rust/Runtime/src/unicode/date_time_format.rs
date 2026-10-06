@@ -371,8 +371,7 @@ impl CalendarPattern {
         }
     }
 
-    /// Sets `field` to `style` if it holds a style, as the C++ only assigns a CalendarPatternStyle to the fields whose
-    /// type is one.
+    /// Sets `field` to `style` if it holds a style, since only the fields whose type is CalendarPatternStyle take one.
     pub fn set_style_field_if_style(&mut self, field: CalendarPatternField, style: CalendarPatternStyle) {
         if let Some(field) = self.style_field_mut(field) {
             *field = Some(style);

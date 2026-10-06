@@ -171,7 +171,7 @@ impl HostFunction {
 
     /// HostFunction::create_without_own_properties(): for a caller that defines the function's own properties
     /// itself, in an order of its own. The function's realm is that of the shape of its prototype, which defaults to
-    /// %Function.prototype%, as for a C++ NativeFunction made from a name and a prototype.
+    /// %Function.prototype%.
     ///
     /// # Safety
     ///

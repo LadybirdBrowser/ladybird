@@ -49,7 +49,6 @@ impl Deref for FunctionObject {
 }
 
 impl FunctionObject {
-    /// FunctionObject(Realm&, GC::Ptr<Object> prototype, MayInterfereWithIndexedPropertyAccess)
     pub fn new_with_realm_and_prototype(
         vm: &Vm,
         class: &'static Class,
@@ -68,7 +67,6 @@ impl FunctionObject {
         Self::from_object(object)
     }
 
-    /// FunctionObject(Object& prototype, MayInterfereWithIndexedPropertyAccess)
     pub fn new_with_prototype(
         vm: &Vm,
         class: &'static Class,
@@ -225,7 +223,7 @@ impl FunctionObject {
         // 3. Return unused.
     }
 
-    /// The function as a NativeFunction, if it is one, the C++ as_if<NativeFunction>.
+    /// The function as a NativeFunction, if it is one.
     pub fn as_native_function(&self) -> Option<&NativeFunction> {
         // SAFETY: A NativeFunction starts with its FunctionObject.
         self.is::<NativeFunction>()

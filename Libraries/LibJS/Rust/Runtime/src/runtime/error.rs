@@ -25,8 +25,8 @@ use crate::runtime::realm::Realm;
 use crate::runtime::suppressed_error::SuppressedError;
 use crate::utf16::Utf16Display;
 
-/// The constructors of the errors the runtime and its embedder throw: %Error%, the NativeError constructors, as the
-/// C++ Error subclasses, and %AggregateError% and %SuppressedError%.
+/// The constructors of the errors the runtime and its embedder throw: %Error%, the NativeError constructors,
+/// %AggregateError% and %SuppressedError%.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ErrorKind {
     Error,
@@ -134,7 +134,7 @@ pub fn error_data_of_error(object: &Object) -> Option<&ErrorData> {
 }
 
 impl Error {
-    /// Error(Object& prototype), for `class`, which is Error or a class that extends it.
+    /// An error with `prototype`, for `class`, which is Error or a class that extends it.
     pub fn new(vm: &Vm, class: &'static Class, prototype: Gc<Object>) -> Error {
         Error {
             base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),

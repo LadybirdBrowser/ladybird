@@ -81,7 +81,7 @@ impl Array {
         Self::new_with_class(vm, Self::CLASS, realm, prototype)
     }
 
-    /// Array(Realm&, Object& prototype), for `class`, which is Array or a class that extends it.
+    /// An array with `prototype`, for `class`, which is Array or a class that extends it.
     pub fn new_with_class(vm: &Vm, class: &'static Class, realm: Gc<Realm>, prototype: Gc<Object>) -> Self {
         let array = Self {
             base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),
