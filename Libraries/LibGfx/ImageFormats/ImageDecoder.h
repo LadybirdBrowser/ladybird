@@ -15,18 +15,12 @@
 #include <LibGfx/CMYKBitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Size.h>
-#include <LibGfx/VectorGraphic.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
 
 namespace Gfx {
 
 struct ImageFrameDescriptor {
     NonnullRefPtr<Bitmap> image;
-    int duration { 0 };
-};
-
-struct VectorImageFrameDescriptor {
-    NonnullRefPtr<VectorGraphic> image;
     int duration { 0 };
 };
 
@@ -58,7 +52,6 @@ enum class NaturalFrameFormat {
     RGB,
     Grayscale,
     CMYK,
-    Vector,
 };
 
 class ImageDecoderPlugin {
@@ -102,7 +95,6 @@ public:
 
     virtual NaturalFrameFormat natural_frame_format() const { return NaturalFrameFormat::RGB; }
     virtual ErrorOr<NonnullRefPtr<CMYKBitmap>> cmyk_frame() { VERIFY_NOT_REACHED(); }
-    virtual ErrorOr<VectorImageFrameDescriptor> vector_frame(size_t) { VERIFY_NOT_REACHED(); }
 
 protected:
     ImageDecoderPlugin() = default;
@@ -132,9 +124,6 @@ public:
 
     // Call only if natural_frame_format() == NaturalFrameFormat::CMYK.
     ErrorOr<NonnullRefPtr<CMYKBitmap>> cmyk_frame() { return m_plugin->cmyk_frame(); }
-
-    // Call only if natural_frame_format() == NaturalFrameFormat::Vector.
-    ErrorOr<VectorImageFrameDescriptor> vector_frame(size_t index) { return m_plugin->vector_frame(index); }
 
 private:
     explicit ImageDecoder(NonnullOwnPtr<ImageDecoderPlugin>);

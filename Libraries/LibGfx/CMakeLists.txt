@@ -55,7 +55,6 @@ set(SOURCES
     SystemTheme.cpp
     TextLayout.cpp
     Triangle.cpp
-    VectorGraphic.cpp
     YUVData.cpp
 )
 
