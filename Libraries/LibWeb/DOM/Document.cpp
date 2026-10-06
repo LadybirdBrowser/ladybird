@@ -10385,7 +10385,6 @@ Optional<Painting::HitTestQuery> Document::prepare_hit_test_query(Layout::BegunR
         scroll_state_snapshot(),
         page().client().device_pixels_per_css_pixel(),
         page().chrome_metrics(),
-        Painting::overflow_values_applied_to_viewport_for_wheel_scrolling(*this),
     };
 }
 

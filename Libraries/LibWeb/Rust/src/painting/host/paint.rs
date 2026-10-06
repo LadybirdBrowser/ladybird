@@ -106,8 +106,6 @@ impl FfiRecordingInputs {
         RecordingInputs {
             device_pixels_per_css_pixel: tree_inputs.device_pixels_per_css_pixel,
             uncaptured: crate::painting::record::inputs::UncapturedContentInputs {
-                viewport_wheel_overflow_x: tree_inputs.viewport_wheel_overflow_x,
-                viewport_wheel_overflow_y: tree_inputs.viewport_wheel_overflow_y,
                 root_background_source,
                 device_viewport_size: libgfx_rust::IntSize {
                     width: self.device_viewport_rect.width,

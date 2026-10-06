@@ -148,7 +148,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         if let Some(facts) = self.scratch.hit_test_facts(paintable) {
             return facts;
         }
-        let facts = hit_test_items::hit_test_facts(self.source, paintable, self.inputs);
+        let facts = hit_test_items::hit_test_facts(self.source, paintable);
         self.scratch.set_hit_test_facts(paintable, facts);
         facts
     }

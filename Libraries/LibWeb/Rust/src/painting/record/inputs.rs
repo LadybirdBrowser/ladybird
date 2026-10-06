@@ -19,8 +19,6 @@ use libgfx_rust::{Color, IntRect, IntSize};
 /// values from here and a new one is part of that check automatically.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct UncapturedContentInputs {
-    pub viewport_wheel_overflow_x: u8,
-    pub viewport_wheel_overflow_y: u8,
     pub root_background_source: RootBackgroundSource,
     // Scroll commands use a scrollport at the origin. Its position is compositor state.
     pub device_viewport_size: IntSize,

@@ -96,8 +96,6 @@ struct HitTestDisplayList::QueryContext {
             .scroll_offsets_len = scroll_offsets.size(),
             .has_chrome_metrics = chrome_metrics != nullptr,
             .chrome_metrics = {},
-            .viewport_wheel_overflow_x = 0,
-            .viewport_wheel_overflow_y = 0,
             .node_in_scope = [](void* context_pointer, Layout::RustFFI::FfiNodeIdentity node) -> bool {
                 auto& context = *static_cast<QueryContext*>(context_pointer);
                 VERIFY(context.scope);
@@ -107,11 +105,6 @@ struct HitTestDisplayList::QueryContext {
         };
         if (chrome_metrics)
             callbacks.chrome_metrics = *chrome_metrics;
-        if (query) {
-            auto viewport_overflow = query->viewport_wheel_overflow();
-            callbacks.viewport_wheel_overflow_x = to_underlying(viewport_overflow.x);
-            callbacks.viewport_wheel_overflow_y = to_underlying(viewport_overflow.y);
-        }
         return callbacks;
     }
 };

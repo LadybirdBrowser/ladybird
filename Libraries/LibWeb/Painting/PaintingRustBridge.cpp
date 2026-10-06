@@ -195,9 +195,6 @@ static Compositing::RustFFI::FfiVisualContextTreeInputs visual_context_tree_inpu
     inputs.visual_viewport_offset_x = offset.x();
     inputs.visual_viewport_offset_y = offset.y();
     inputs.visual_viewport_scale = visual_viewport.scale();
-    auto viewport_overflow = overflow_values_applied_to_viewport_for_wheel_scrolling(document);
-    inputs.viewport_wheel_overflow_x = static_cast<u8>(to_underlying(viewport_overflow.x));
-    inputs.viewport_wheel_overflow_y = static_cast<u8>(to_underlying(viewport_overflow.y));
     return inputs;
 }
 

@@ -20,7 +20,6 @@ use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_rows::{PaintableRowsRead, with_inline_pieces};
 use crate::painting::rect_to_viewport_transform::RectToViewportTransform;
-use crate::painting::scroll_chain::ViewportWheelOverflow;
 use crate::painting::svg_filter::SvgFilterPrimitive;
 use crate::render_state::{DocumentHost, RenderWait};
 use libcompositing_rust::ffi::{ffi_slice, tree_from_handle};
@@ -1644,8 +1643,6 @@ mod tests {
                 visual_viewport_offset_x: 0.0,
                 visual_viewport_offset_y: 0.0,
                 visual_viewport_scale: 1.0,
-                viewport_wheel_overflow_x: 0,
-                viewport_wheel_overflow_y: 0,
             }),
         )
         .outcome;

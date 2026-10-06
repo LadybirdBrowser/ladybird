@@ -5,13 +5,11 @@
  */
 
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
-#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/EventNames.h>
-#include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
@@ -66,47 +64,9 @@ CSSPixelRect scroll_snapport_rect(Layout::Node const& node, CSSPixelRect scrollp
     return Layout::RustFFI::layout_row_scroll_snapport_rect(node.document_host(), committed_row_slot(node), scrollport);
 }
 
-ViewportWheelOverflow overflow_values_applied_to_viewport_for_wheel_scrolling(DOM::Document const& document)
-{
-    auto has_containment = [](CSS::ComputedValues::BoxValues const& style) {
-        return style.size_containment || style.inline_size_containment || style.layout_containment || style.style_containment || style.paint_containment;
-    };
-
-    auto* root_element = document.document_element();
-    auto const* root_style = root_element ? root_element->style_group<CSS::ComputedValues::BoxValues>() : nullptr;
-    if (!root_style)
-        return {};
-
-    auto const* overflow_origin = root_style;
-    if (root_element->is_html_html_element() && !has_containment(*root_style)) {
-        auto root_overflow_x = static_cast<CSS::Overflow>(root_style->overflow_x);
-        auto root_overflow_y = static_cast<CSS::Overflow>(root_style->overflow_y);
-        if (root_overflow_x == CSS::Overflow::Visible && root_overflow_y == CSS::Overflow::Visible) {
-            auto* body_element = root_element->first_child_of_type<HTML::HTMLBodyElement>();
-            auto const* body_style = body_element ? body_element->style_group<CSS::ComputedValues::BoxValues>() : nullptr;
-            if (body_style && !has_containment(*body_style))
-                overflow_origin = body_style;
-        }
-    }
-
-    auto applied = [](CSS::Overflow overflow) {
-        if (overflow == CSS::Overflow::Visible)
-            return CSS::Overflow::Auto;
-        if (overflow == CSS::Overflow::Clip)
-            return CSS::Overflow::Hidden;
-        return overflow;
-    };
-    return {
-        applied(static_cast<CSS::Overflow>(overflow_origin->overflow_x)),
-        applied(static_cast<CSS::Overflow>(overflow_origin->overflow_y)),
-    };
-}
-
 WheelScrollableAxes wheel_scrollable_axes(Layout::Node const& node)
 {
-    auto overflow = overflow_values_applied_to_viewport_for_wheel_scrolling(node.document());
-    auto axes = Layout::RustFFI::layout_row_paintable_wheel_scrollable_axes(
-        node.document_host(), committed_row_slot(node), to_underlying(overflow.x), to_underlying(overflow.y));
+    auto axes = Layout::RustFFI::layout_row_paintable_wheel_scrollable_axes(node.document_host(), committed_row_slot(node));
     return { axes.horizontal, axes.vertical };
 }
 
@@ -261,17 +221,6 @@ ScrollHandled set_scroll_offset_from_user_input(Layout::Node& node, CSSPixelPoin
     return scroll_handled;
 }
 
-struct ViewportWheelOverflowValues {
-    u8 x;
-    u8 y;
-};
-
-static ViewportWheelOverflowValues viewport_wheel_overflow(DOM::Document const& document)
-{
-    auto overflow = overflow_values_applied_to_viewport_for_wheel_scrolling(document);
-    return { .x = to_underlying(overflow.x), .y = to_underlying(overflow.y) };
-}
-
 Layout::Node* wheel_scroll_along_containing_block_chain(Layout::Node& node, double wheel_delta_x, double wheel_delta_y, ScrollKind scroll_kind)
 {
     auto const& read = node.held_read();
@@ -281,10 +230,8 @@ Layout::Node* wheel_scroll_along_containing_block_chain(Layout::Node& node, doub
         double accepted_delta_y;
     };
     Vector<WheelScrollableBox, 4> wheel_scrollable_boxes;
-    auto overflow = viewport_wheel_overflow(node.document());
     Layout::RustFFI::render_state_for_each_wheel_scrollable_box_in_containing_block_chain(
-        node.document_host(), committed_row_slot(node), wheel_delta_x, wheel_delta_y, overflow.x, overflow.y,
-        &wheel_scrollable_boxes, [](void* context, Compositing::RustFFI::NodeSlotId slot, double accepted_delta_x, double accepted_delta_y) {
+        node.document_host(), committed_row_slot(node), wheel_delta_x, wheel_delta_y, &wheel_scrollable_boxes, [](void* context, Compositing::RustFFI::NodeSlotId slot, double accepted_delta_x, double accepted_delta_y) {
             static_cast<Vector<WheelScrollableBox, 4>*>(context)->append({ slot, accepted_delta_x, accepted_delta_y });
         });
     for (auto const& wheel_scrollable_box : wheel_scrollable_boxes) {
@@ -297,15 +244,13 @@ Layout::Node* wheel_scroll_along_containing_block_chain(Layout::Node& node, doub
 
 Layout::Node* scrolling_box_for_scroll_step_in_containing_block_chain(Layout::BegunRead const& read, Layout::Node& target, CSSPixelPoint delta)
 {
-    auto overflow = viewport_wheel_overflow(target.document());
-    return target.node_arena().node_if_live(read, Layout::RustFFI::render_state_scrolling_box_for_scroll_step(target.document_host(), committed_row_slot(target), viewport_row_slot(read, target.document()), delta, overflow.x, overflow.y));
+    return target.node_arena().node_if_live(read, Layout::RustFFI::render_state_scrolling_box_for_scroll_step(target.document_host(), committed_row_slot(target), viewport_row_slot(read, target.document()), delta));
 }
 
 Layout::Node* first_wheel_scrollable_box_in_containing_block_chain(Layout::Node const& node)
 {
     auto const& read = node.held_read();
-    auto overflow = viewport_wheel_overflow(node.document());
-    return node.node_arena().node_if_live(read, Layout::RustFFI::render_state_first_wheel_scrollable_box_in_containing_block_chain(node.document_host(), committed_row_slot(node), overflow.x, overflow.y));
+    return node.node_arena().node_if_live(read, Layout::RustFFI::render_state_first_wheel_scrollable_box_in_containing_block_chain(node.document_host(), committed_row_slot(node)));
 }
 
 static void scroll_into_view(Layout::Node& node, CSSPixelRect rect)

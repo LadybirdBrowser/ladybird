@@ -291,13 +291,20 @@ pub(crate) fn update_accumulated_visual_contexts(
     if state.tree.is_none() {
         scope = VisualContextUpdateScope::FreshTree;
     }
+    let viewport_overflow = arena
+        .paintable_rows()
+        .node_style_if_live(viewport)
+        .map_or((0, 0), |style| {
+            let box_values = style.box_values();
+            (box_values.overflow_x, box_values.overflow_y)
+        });
     if state.last_tree_inputs.is_some_and(|last| {
         last.device_pixels_per_css_pixel != inputs.device_pixels_per_css_pixel
-            || last.viewport_wheel_overflow_x != inputs.viewport_wheel_overflow_x
-            || last.viewport_wheel_overflow_y != inputs.viewport_wheel_overflow_y
+            || state.last_viewport_overflow != viewport_overflow
     }) {
         scope = scope.max(VisualContextUpdateScope::EveryBox);
     }
+    state.last_viewport_overflow = viewport_overflow;
     if state.tree.as_deref().is_some_and(|tree| tree.should_compact()) {
         scope = VisualContextUpdateScope::FreshTree;
     }

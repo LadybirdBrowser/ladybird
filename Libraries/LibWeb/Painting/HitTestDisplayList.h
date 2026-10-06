@@ -51,18 +51,16 @@ public:
     Compositing::ScrollStateSnapshot const& scroll_state() const { return m_scroll_state; }
     double device_pixels_per_css_pixel() const { return m_device_pixels_per_css_pixel; }
     ChromeMetrics const& chrome_metrics() const { return m_chrome_metrics; }
-    ViewportWheelOverflow viewport_wheel_overflow() const { return m_viewport_wheel_overflow; }
 
 private:
     friend class DOM::Document;
 
-    HitTestQuery(HitTestDisplayList const& list, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::ScrollStateSnapshot const& scroll_state, double device_pixels_per_css_pixel, ChromeMetrics chrome_metrics, ViewportWheelOverflow viewport_wheel_overflow)
+    HitTestQuery(HitTestDisplayList const& list, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::ScrollStateSnapshot const& scroll_state, double device_pixels_per_css_pixel, ChromeMetrics chrome_metrics)
         : m_list(list)
         , m_visual_context_tree(move(visual_context_tree))
         , m_scroll_state(scroll_state)
         , m_device_pixels_per_css_pixel(device_pixels_per_css_pixel)
         , m_chrome_metrics(chrome_metrics)
-        , m_viewport_wheel_overflow(viewport_wheel_overflow)
     {
     }
 
@@ -71,7 +69,6 @@ private:
     Compositing::ScrollStateSnapshot const& m_scroll_state;
     double m_device_pixels_per_css_pixel { 1 };
     ChromeMetrics m_chrome_metrics;
-    ViewportWheelOverflow m_viewport_wheel_overflow;
 };
 
 class WEB_API HitTestDisplayList : public RefCounted<HitTestDisplayList> {
