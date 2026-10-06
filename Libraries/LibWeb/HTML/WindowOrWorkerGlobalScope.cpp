@@ -65,7 +65,7 @@
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/LargestContentfulPaint/LargestContentfulPaint.h>
-#include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/Loader/LoaderConfig.h>
 #include <LibWeb/NavigationTiming/PerformanceNavigationTiming.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/RenderingStats.h>
@@ -1751,11 +1751,7 @@ bool WindowOrWorkerGlobalScopeMixin::expose_experimental_interface(EnvironmentSe
     if (s_experimental_interfaces_exposed)
         return true;
 
-    // The first global of a page is set up before the loader exists, and holds nothing a rule could match anyway.
-    if (!ResourceLoader::is_initialized())
-        return false;
-
-    return ResourceLoader::the().site_compatibility_exposes_experimental_interface(settings.creation_url, name);
+    return current_loader_config()->config.exposes_experimental_interface(settings.creation_url, name);
 }
 
 }

@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/GPC/GlobalPrivacyControl.h>
-#include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/Loader/LoaderConfig.h>
 
 namespace Web::GlobalPrivacyControl {
 
@@ -15,7 +15,7 @@ GlobalPrivacyControlMixin::~GlobalPrivacyControlMixin() = default;
 bool GlobalPrivacyControlMixin::global_privacy_control() const
 {
     // The value is false if no Sec-GPC header field would be sent; otherwise, the value is true.
-    return ResourceLoader::the().enable_global_privacy_control();
+    return current_loader_config()->config.enable_global_privacy_control;
 }
 
 }

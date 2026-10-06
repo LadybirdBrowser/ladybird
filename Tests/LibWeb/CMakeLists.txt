@@ -23,6 +23,7 @@ set(TEST_SOURCES
     TestImageData.cpp
     TestInitialLoadTracker.cpp
     TestInlineStyle.cpp
+    TestLoaderConfig.cpp
     TestMicrosyntax.cpp
     TestMimeSniff.cpp
     TestNumbers.cpp

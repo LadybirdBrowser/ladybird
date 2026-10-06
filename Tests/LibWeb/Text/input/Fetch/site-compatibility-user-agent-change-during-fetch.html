@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const url = await server.createEcho("GET", "/site-compatibility-user-agent-change-during-fetch", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "application/json",
+            },
+            reflect_headers_in_body: true,
+        });
+
+        try {
+            const responsePromise = fetch(url);
+            internals.setSiteCompatibilityData(JSON.stringify([{
+                matches: [url],
+                user_agent: ["hide_Ladybird"],
+            }]));
+
+            const userAgent = (await (await responsePromise).json())["User-Agent"][0];
+            println(`User-Agent as at the fetch's start: ${userAgent.includes("Ladybird/") ? "PASS" : "FAIL"}`);
+        } catch (error) {
+            println(`FAIL: ${error}`);
+        } finally {
+            internals.setSiteCompatibilityData("[]");
+        }
+    });
+</script>

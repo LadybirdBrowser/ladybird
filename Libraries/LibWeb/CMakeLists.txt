@@ -736,6 +736,7 @@ set(SOURCES
     Loader/ContentBlocker.cpp
     Loader/FileRequest.cpp
     Loader/GeneratedPagesLoader.cpp
+    Loader/LoaderConfig.cpp
     Loader/ResourceLoader.cpp
     Loader/SourceHighlighter.cpp
     MathML/AttributeNames.cpp

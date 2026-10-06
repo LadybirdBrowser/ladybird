@@ -23,7 +23,6 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/Loader/NavigatorCompatibilityMode.h>
-#include <LibWebCommon/Loader/SiteCompatibility.h>
 
 namespace Web {
 
@@ -61,30 +60,13 @@ public:
 
     static bool is_known_hsts_host(Page&, String const& host);
 
-    String const& user_agent() const { return m_user_agent; }
-    String user_agent_for_url(URL::URL const& url) const { return m_site_compatibility_data.user_agent_for_url(url, m_user_agent); }
-    String user_agent_for_websocket_url(URL::URL const& url) const { return m_site_compatibility_data.user_agent_for_websocket_url(url, m_user_agent); }
-    void set_user_agent(String user_agent) { m_user_agent = move(user_agent); }
-    void set_site_compatibility_data(SiteCompatibilityData data) { m_site_compatibility_data = move(data); }
-    bool site_compatibility_exposes_experimental_interface(URL::URL const& url, StringView name) const { return m_site_compatibility_data.exposes_experimental_interface(url, name); }
-
     String const& platform() const { return m_platform; }
     void set_platform(String platform) { m_platform = move(platform); }
-
-    Vector<String> const& preferred_languages() const { return m_preferred_languages; }
-    void set_preferred_languages(Vector<String> preferred_languages)
-    {
-        m_preferred_languages = move(preferred_languages);
-        VERIFY(!m_preferred_languages.is_empty());
-    }
 
     // The engine the navigator claims to be. A process-wide setting, readable before the loader exists: the bindings
     // consult it while they build a realm's global object.
     static NavigatorCompatibilityMode navigator_compatibility_mode() { return s_navigator_compatibility_mode; }
     static void set_navigator_compatibility_mode(NavigatorCompatibilityMode);
-
-    bool enable_global_privacy_control() const { return m_enable_global_privacy_control; }
-    void set_enable_global_privacy_control(bool enable) { m_enable_global_privacy_control = enable; }
 
 private:
     explicit ResourceLoader(GC::Heap&);
@@ -111,12 +93,8 @@ private:
     HashMap<Utf16String, RefPtr<Requests::RequestClient>> m_site_request_clients;
     HashTable<NonnullRefPtr<Requests::Request>> m_active_requests;
 
-    String m_user_agent;
-    SiteCompatibilityData m_site_compatibility_data;
     String m_platform;
-    Vector<String> m_preferred_languages = { "en"_string };
     static NavigatorCompatibilityMode s_navigator_compatibility_mode;
-    bool m_enable_global_privacy_control { false };
 };
 
 }

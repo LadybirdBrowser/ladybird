@@ -36,6 +36,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/Loader/LoaderConfig.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/MixedContent/AbstractOperations.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -229,7 +230,8 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
 
     auto additional_headers = HTTP::HeaderList::create();
 
-    additional_headers->append({ "User-Agent"sv, ResourceLoader::the().user_agent_for_websocket_url(connection_url).to_byte_string() });
+    auto user_agent = current_loader_config()->config.user_agent_for_websocket_url(connection_url);
+    additional_headers->append({ "User-Agent"sv, user_agent.to_byte_string() });
 
     if (ResourceLoader::proxy_autoconfig_url().has_value()) {
         dbgln("FIXME: Evaluate the PAC file to find the proxy for {}; failing the WebSocket connection", url_record);

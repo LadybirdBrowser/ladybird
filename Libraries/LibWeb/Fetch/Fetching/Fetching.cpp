@@ -63,6 +63,7 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Loader/LoadRequest.h>
+#include <LibWeb/Loader/LoaderConfig.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/MixedContent/AbstractOperations.h>
 #include <LibWeb/Page/Page.h>
@@ -305,7 +306,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
     //    process early hints response is processEarlyHintsResponse, process response is processResponse, process
     //    response consume body is processResponseConsumeBody, process response end-of-body is processResponseEndOfBody,
     //    task destination is taskDestination, and cross-origin isolated capability is crossOriginIsolatedCapability.
-    auto fetch_params = Infrastructure::FetchParams::create(request, algorithms, timing_info);
+    auto fetch_params = Infrastructure::FetchParams::create(request, algorithms, timing_info, current_loader_config());
     fetch_params->set_task_destination(task_destination);
     fetch_params->set_cross_origin_isolated_capability(cross_origin_isolated_capability);
     fetch_params->set_has_response_body_transfer_lease(create_response_body_transfer_lease == CreateResponseBodyTransferLease::Yes);
@@ -432,10 +433,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
     //     (`Accept-Language, an appropriate header value) to request’s header list.
     if (!request.header_list()->contains("Accept-Language"sv)) {
         StringBuilder accept_language;
-        if (ResourceLoader::is_initialized())
-            accept_language.join(","sv, ResourceLoader::the().preferred_languages());
-        else
-            accept_language.append("en-US"sv);
+        accept_language.join(","sv, fetch_params->loader_config().preferred_languages);
 
         auto header = HTTP::Header::isomorphic_encode("Accept-Language"sv, accept_language.string_view());
         request.header_list()->append(move(header));
@@ -2119,10 +2117,15 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         // 14. FIXME: If httpRequest’s initiator is "prefetch", then set a structured field value
         //     given (`Sec-Purpose`, the token prefetch) in httpRequest’s header list.
 
-        // 15. If httpRequest’s header list does not contain `User-Agent`, then user agents should append
-        //     (`User-Agent`, default `User-Agent` value) to httpRequest’s header list.
-        if (!http_request->header_list()->contains("User-Agent"sv))
-            http_request->header_list()->append({ "User-Agent"sv, Infrastructure::default_user_agent_value(http_request->current_url()) });
+        // 15. If httpRequest’s header list does not contain `User-Agent`, then user agents should:
+        if (!http_request->header_list()->contains("User-Agent"sv)) {
+            // 1. Let userAgent be httpRequest’s client’s environment default `User-Agent` value.
+            // FIXME: Honor WebDriver BiDi emulated User-Agent.
+            auto user_agent = Infrastructure::default_user_agent_value(fetch_params.loader_config(), http_request->current_url());
+
+            // 2. Append (`User-Agent`, userAgent) to httpRequest’s header list.
+            http_request->header_list()->append({ "User-Agent"sv, move(user_agent) });
+        }
 
         // 16. If httpRequest’s cache mode is "default" and httpRequest’s header list contains `If-Modified-Since`,
         //     `If-None-Match`, `If-Unmodified-Since`, `If-Match`, or `If-Range`, then set httpRequest’s cache mode to
@@ -2184,7 +2187,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         //       more details.
         //
         // https://w3c.github.io/gpc/#the-sec-gpc-header-field-for-http-requests
-        if (ResourceLoader::is_initialized() && ResourceLoader::the().enable_global_privacy_control() && !http_request->header_list()->contains("Sec-GPC"sv))
+        if (fetch_params.loader_config().enable_global_privacy_control && !http_request->header_list()->contains("Sec-GPC"sv))
             http_request->header_list()->append({ "Sec-GPC"sv, "1"sv });
 
         append_user_agent_client_hints_for_request(*http_request);
@@ -2895,7 +2898,7 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
     // 6. Let response be the result of running HTTP-network-or-cache fetch given a new fetch params whose request is preflight.
     // FIXME: The spec doesn't say anything about timing_info here, but FetchParams requires a non-null FetchTimingInfo object.
     auto timing_info = Infrastructure::FetchTimingInfo::create();
-    auto preflight_fetch_params = Infrastructure::FetchParams::create(preflight, Infrastructure::FetchAlgorithms::create(Infrastructure::FetchAlgorithms::Input { Engine::BodyIntent::DrainAndDiscard }), timing_info);
+    auto preflight_fetch_params = Infrastructure::FetchParams::create(preflight, Infrastructure::FetchAlgorithms::create(Infrastructure::FetchAlgorithms::Input { Engine::BodyIntent::DrainAndDiscard }), timing_info, fetch_params.loader_config_snapshot());
 
     auto returned_pending_response = PendingResponse::create(fetch_params);
 
