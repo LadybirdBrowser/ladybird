@@ -303,12 +303,10 @@ public:
     void clear_pending_navigations();
     void prepare_to_populate_reconstructed_history_entry(Utf16String navigation_api_key);
 
-    bool record_display_list_and_scroll_state(PaintConfig);
-    // Records what brings the compositor context up to date: a new display list, or what changed for the one it has.
-    // A recording that `blocker` does not block flies beside the event loop instead, which finishes its frame once it
-    // takes the recording in.
-    Optional<Compositor::SealedFrame> record_compositor_frame(PaintConfig, Layout::RustFFI::FfiFlightBlocker = Layout::RustFFI::FfiFlightBlocker::NotInRenderingUpdate);
-    void paint_next_frame(Layout::RustFFI::FfiFlightBlocker = Layout::RustFFI::FfiFlightBlocker::NotInRenderingUpdate);
+    // Commits the frame that brings the compositor context up to date to the render owner, which presents it beside the
+    // event loop: a new display list, or what changed for the one it has. Answers whether it committed one.
+    bool commit_frame(PaintConfig);
+    void paint_next_frame();
     enum class LayOutFirst : bool {
         No,
         Yes,
@@ -448,13 +446,11 @@ private:
     // A rendering update's recording that flies beside the event loop, with what its frame is finished with.
     struct RecordingInFlight;
 
-    Layout::RustFFI::FfiFlightBlocker recording_flight_blocker(DOM::UpdateLayoutReason);
     PaintConfig stamp_paint_config(PaintConfig) const;
     Compositor::SealedPresentation seal_presentation(DOM::Document&, PaintConfig const&, bool records_display_list);
     void unseal_presentation(DOM::Document&, Compositor::SealedPresentation const&);
     Optional<Compositor::SealedFrame> finish_recording(Layout::BegunRead const&, DOM::Document&, Compositor::SealedPresentation, Painting::DisplayListRecording const&, Painting::HitTestListStands = Painting::HitTestListStands::Yes);
     Optional<Compositor::SealedFrame> finish_recording_in_flight(RecordingInFlight&, Layout::RustFFI::FfiRecordingLanding, Layout::RustFFI::FfiPresentation);
-    void submit_painted_frame(Compositor::SealedFrame);
     Gfx::IntRect present_viewport_rect() const;
 
     enum class PendingNavigationBehavior {

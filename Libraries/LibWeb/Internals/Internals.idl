@@ -232,12 +232,11 @@ interface Internals {
     // yet, "idle" otherwise.
     DOMString frameSchedulerState();
     // Keeps the next recording that flies in flight, before it reads its frame, until releaseHeldFrame(), or until a
-    // read waits for it. With "before-present", the recording also leaves its frame for the host to present once it
-    // lands. With "layout", only the next rendering update's layout that flies, or recording, is held, before it reads
-    // anything.
+    // read waits for it. With "layout", only the next rendering update's layout that flies, or recording, is held,
+    // before it reads anything.
     undefined holdNextFrame(optional DOMString hold = "");
-    // What presented the last frame of the document's navigable: "main", "flight" for the recording that flew, or "clock"
-    // for a tick of the document's clock lease.
+    // What presented the last frame of the document's navigable: "main", "commit" for a frame a rendering update
+    // committed, or "clock" for a tick of the document's clock lease.
     DOMString lastFramePresentedBy(Document document);
     // Whether the last frame of the page handed the compositor the keyboard scroll state the page holds now.
     boolean lastFrameKeyboardScrollStateIsCurrent();

@@ -11,7 +11,8 @@
 //! handed to it, so frames reach the compositor in the order their jobs were handed out, and code that runs anywhere
 //! else cannot present a frame: it has no [`Presenting`] to present with.
 
-use crate::stage_thread::{Relay, Riding, StageThread, StopWord};
+use crate::render_state::SampledFrame;
+use crate::stage_thread::{Relay, Riding, StageThread};
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::marker::PhantomData;
@@ -114,21 +115,25 @@ impl Presenting<'_> {
     }
 }
 
-/// Hands `job` to the Paint thread, which runs it after the jobs handed to it before, beside whoever holds the ride, and
-/// lends it what it presents with.
-pub(crate) fn ride_presenting<R: Send + 'static>(job: impl FnOnce(&mut Presenting) -> R + Send + 'static) -> Riding<R> {
-    paint_thread().ride(move || Presenting::lend(job))
+/// Hands `job` to the Paint thread with `frame`, which the render owner sampled: the Paint thread runs it after the jobs
+/// handed to it before, beside whoever holds the ride, and lends it what it presents with. A job that presents is only
+/// ever handed a sampled frame, so the Paint thread presents frames in the order the render owner sampled them.
+pub(crate) fn ride_presenting<T: Send + 'static, R: Send + 'static>(
+    frame: SampledFrame<T>,
+    job: impl FnOnce(SampledFrame<T>, &mut Presenting) -> R + Send + 'static,
+) -> Riding<R> {
+    paint_thread().ride(move || Presenting::lend(|presenting| job(frame, presenting)))
 }
 
-/// Hands `job` on to the Paint thread with `relay`, the relay of a job submitted to the render owner, which lands what
-/// it answers: the Paint thread runs it after the jobs handed to it before, beside the host, and lends it what it
-/// presents with.
-pub(crate) fn relay_presenting<R: Send + 'static>(
+/// Hands `job` on to the Paint thread with `frame`, which the render owner sampled, and `relay`, the relay of the job
+/// submitted to the render owner that sampled it, which lands what `job` answers (see [`ride_presenting`]).
+pub(crate) fn relay_presenting<T: Send + 'static, R: Send + 'static>(
     relay: Relay<R>,
-    job: impl FnOnce(&mut Presenting, &StopWord) -> R + Send + 'static,
+    frame: SampledFrame<T>,
+    job: impl FnOnce(SampledFrame<T>, &mut Presenting) -> R + Send + 'static,
 ) {
-    relay.hand_on(paint_thread(), move |stop| {
-        Presenting::lend(|presenting| job(presenting, stop))
+    relay.hand_on(paint_thread(), move |_| {
+        Presenting::lend(|presenting| job(frame, presenting))
     });
 }
 

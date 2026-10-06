@@ -535,7 +535,28 @@ void take_recording_trace_if_pending(Layout::BegunRead const& read, DOM::Documen
         document.paint_state().append_recording_trace(MUST(context.trace.to_string()));
 }
 
-Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRead const& read, DOM::Document& document, Compositing::AccumulatedVisualContextTree visual_context_tree, NonnullRefPtr<Compositing::DisplayList> placeholder_display_list, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs, Layout::RustFFI::FfiFlightBlocker blocker, Optional<Compositor::FlightPresentation>* flight)
+// The time of the document's timeline its rendering update sampled the animations at: the frames sampled after the
+// update's never show them before it.
+static double rendering_update_timestamp(DOM::Document& document)
+{
+    if (auto time = document.timeline()->current_time(); time.has_value() && time->type == Animations::TimeValue::Type::Milliseconds)
+        return time->value;
+    return -AK::Infinity<double>;
+}
+
+// Hands the render owner `presentation` and its seal, which the host gives up.
+static Layout::RustFFI::FfiPresentation give_up(Compositor::FlightPresentation presentation)
+{
+    return { .presenter = presentation.presenter.leak_ptr(), .sealed = presentation.sealed.leak_ptr() };
+}
+
+void commit_unrecorded_frame(Layout::BegunRead const& read, DOM::Document& document, Compositor::FlightPresentation presentation)
+{
+    bool const sends_visual_context_tree = presentation.sealed->sends_visual_context_tree;
+    Layout::RustFFI::render_state_commit_unrecorded_frame(document_host(document), &read, sends_visual_context_tree, rendering_update_timestamp(document), give_up(move(presentation)));
+}
+
+Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRead const& read, DOM::Document& document, Compositing::AccumulatedVisualContextTree visual_context_tree, NonnullRefPtr<Compositing::DisplayList> placeholder_display_list, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs, Optional<Compositor::FlightPresentation> committed)
 {
     auto* host = document_host(document);
     auto device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel();
@@ -670,27 +691,17 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
         .async_scrolling_metadata = async_scrolling_metadata,
         .paint_command_cache_source = document.paint_state().display_list_used_as_paint_command_cache_source(),
     };
-    // A recording that flies takes the presentation it presents its frame with, which the landing gives back.
-    Layout::RustFFI::FfiPresentation ffi_presentation {};
-    if (flight && flight->has_value()) {
-        (*flight)->sealed->recording = recording;
-        ffi_presentation = { .presenter = (*flight)->presenter.ptr(), .sealed = (*flight)->sealed.ptr() };
-    }
-    // The frames sampled after a rendering update's never show the document's animations before the time it sampled them
-    // at.
-    double timestamp = -AK::Infinity<double>;
-    if (auto time = document.timeline()->current_time(); time.has_value() && time->type == Animations::TimeValue::Type::Milliseconds)
-        timestamp = time->value;
     // The recording copies what it reads of the overlay arrays and buffers, which live until here.
-    auto start = Layout::RustFFI::render_state_record_display_list(host, &read, viewport_row_slot(read, document), inputs, blocker, timestamp, &ffi_presentation);
-    if (flight && flight->has_value() && !ffi_presentation.presenter) {
-        auto taken = flight->release_value();
-        (void)taken.presenter.leak_ptr();
-        (void)taken.sealed.leak_ptr();
+    auto viewport = viewport_row_slot(read, document);
+    // A committed frame takes the presentation it presents with, which the landing gives back.
+    if (committed.has_value()) {
+        committed->sealed->recording = recording;
+        recording.in_flight = true;
+        Layout::RustFFI::render_state_commit_recorded_frame(host, &read, viewport, inputs, rendering_update_timestamp(document), give_up(committed.release_value()));
+        return recording;
     }
-    if (start == Layout::RustFFI::FfiRecordingStart::NothingToRecord)
+    if (Layout::RustFFI::render_state_record_display_list(host, &read, viewport, inputs) == Layout::RustFFI::FfiRecordingStart::NothingToRecord)
         return {};
-    recording.in_flight = start == Layout::RustFFI::FfiRecordingStart::InFlight;
     return recording;
 }
 

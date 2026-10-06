@@ -1722,8 +1722,6 @@ void Internals::hold_next_frame(Utf16String const& hold)
     if (hold == "layout"sv)
         return;
     HTML::main_thread_event_loop().hold_next_frame_for_testing();
-    if (hold == "before-present"sv)
-        HTML::main_thread_event_loop().hold_next_frame_before_present_for_testing();
 }
 
 bool Internals::last_frame_keyboard_scroll_state_is_current()

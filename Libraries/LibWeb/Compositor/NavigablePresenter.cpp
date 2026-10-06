@@ -25,6 +25,13 @@ struct PresenterFFI {
         if (sink)
             sink->submit(move(frame));
     }
+
+    static void present_unrecorded(NavigablePresenter& presenter, SealedPresentation const& sealed, CompositorFrameSink* sink)
+    {
+        auto frame = presenter.build_frame(sealed, {});
+        if (sink)
+            sink->submit(move(frame));
+    }
 };
 
 void NavigablePresenter::forget_compositor_display_list()
@@ -60,7 +67,7 @@ CompositorFrame NavigablePresenter::build_frame(SealedPresentation const& sealed
     async_scrolling_metadata.keyboard_scroll_state = keyboard_scroll_state;
     display_list.set_async_scrolling_metadata(move(async_scrolling_metadata));
 
-    m_last_frame_presented_by = PresentedBy::Main;
+    m_last_frame_presented_by = sealed.presented_by;
     CompositorFrame frame;
     frame.context_id = sealed.context_id;
     frame.present_viewport_rect = sealed.present_viewport_rect;
@@ -121,7 +128,6 @@ CompositorFrame NavigablePresenter::build_frame_beside_event_loop(SealedPresenta
         sealed.recording->paint_command_cache_source = published.display_list;
     }
     sealed.published = move(published);
-    m_last_frame_presented_by = sealed.presented_by;
     return frame;
 }
 
@@ -142,11 +148,14 @@ extern "C" WEB_API void web_sealed_presentation_take_visual_context_tree(void* s
     auto& sealed = *static_cast<Web::Compositor::SealedPresentation*>(sealed_pointer);
     auto visual_context_tree = Compositing::AccumulatedVisualContextTree::adopt_rust_handle(tree);
     // A tree of another structure takes the scroll offsets of its own nodes, and a new display list recorded against it.
+    // A frame that records nothing seals no tree, and takes the render state's: the compositor's display list was cut
+    // from a tree of its structure.
     if (restructured_scroll_offsets)
         sealed.scroll_state_snapshot.assign_device_offsets({ restructured_scroll_offsets, scroll_offset_count });
-    else
+    else if (sealed.visual_context_tree.has_value())
         VERIFY(visual_context_tree.structural_epoch() == sealed.visual_context_tree->structural_epoch());
-    sealed.recording->visual_context_tree = visual_context_tree;
+    if (sealed.recording.has_value())
+        sealed.recording->visual_context_tree = visual_context_tree;
     sealed.visual_context_tree = move(visual_context_tree);
     // A frame whose display list is the one the compositor has takes the tree on its own.
     sealed.sends_visual_context_tree = true;
@@ -175,6 +184,12 @@ extern "C" WEB_API void web_navigable_presenter_add_video_sink(void* presenter, 
 // Declared here, not in a header, so that no C++ presents a frame through them.
 extern "C" WEB_API void web_navigable_presenter_present(void* presenter, void* sealed, Web::Layout::RustFFI::FfiPresentedRecording const* presented, void* sink);
 extern "C" WEB_API void web_navigable_presenter_present_sealed_frame(void* presenter, void* sealed_frame, void* sink);
+extern "C" WEB_API void web_navigable_presenter_present_unrecorded(void* presenter, void* sealed, void* sink);
+
+extern "C" WEB_API void web_navigable_presenter_present_unrecorded(void* presenter, void* sealed, void* sink)
+{
+    Web::Compositor::PresenterFFI::present_unrecorded(*static_cast<Web::Compositor::NavigablePresenter*>(presenter), *static_cast<Web::Compositor::SealedPresentation*>(sealed), static_cast<Web::Compositor::CompositorFrameSink*>(sink));
+}
 
 extern "C" WEB_API void web_navigable_presenter_present_sealed_frame(void* presenter, void* sealed_frame, void* sink)
 {

@@ -382,7 +382,7 @@ void time_rust_recordings(DocumentShape shape, StringView label)
         Web::Painting::InspectorOverlayInputs overlay_inputs;
         Web::Layout::ForcedReadScope read { document };
         auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-        auto recording = Web::Painting::start_rust_display_list_recording(read, document, visual_context_tree, placeholder_display_list, Web::Painting::PaintCommandCacheMode::ReadWrite, benchmark_paint_config(), overlay_inputs, Web::Layout::RustFFI::FfiFlightBlocker::NotInRenderingUpdate);
+        auto recording = Web::Painting::start_rust_display_list_recording(read, document, visual_context_tree, placeholder_display_list, Web::Painting::PaintCommandCacheMode::ReadWrite, benchmark_paint_config(), overlay_inputs);
         VERIFY(recording.has_value());
         auto display_list = Web::Painting::finish_rust_display_list_recording(read, document, *recording, loaded_page.display_list_resource_storage);
         samples.microseconds.append(timer.elapsed_time().to_microseconds());

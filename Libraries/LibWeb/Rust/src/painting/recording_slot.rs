@@ -54,7 +54,8 @@ pub(crate) struct RecordingAnswer {
 }
 
 /// What a recording made of what it recorded: nothing, where the document's viewport had no box to
-/// record, a recording for the host to publish and present, or one it published and presented itself.
+/// record, a recording for the host to publish and present, one it published and presented itself, or
+/// nothing, for a committed frame that keeps the display list the compositor has, which it presented.
 #[expect(
     clippy::large_enum_variant,
     reason = "a recording answers once a frame, and moves what it recorded to the host without an allocation"
@@ -66,6 +67,7 @@ enum Recorded {
         output: RecordingOutput,
         publishes_recording: bool,
     },
+    PresentedUnrecorded,
 }
 
 // The host waits for a recording only where it needs the recorder back.
@@ -90,6 +92,18 @@ impl RecordingAnswer {
             rows_version: RowsVersion::default(),
             trace: None,
             presentation,
+        }
+    }
+
+    /// The answer of a committed frame that records nothing, which it presented, and gives back the recorder state and
+    /// presentation the commit took.
+    pub(crate) fn presented_unrecorded(recorder: RecorderState, presentation: Presentation) -> Self {
+        Self {
+            recorder,
+            recorded: Recorded::PresentedUnrecorded,
+            rows_version: RowsVersion::default(),
+            trace: None,
+            presentation: Some(presentation),
         }
     }
 }
@@ -123,19 +137,14 @@ impl RecordingJob {
     }
 
     /// Records the frame with `inputs` on the Paint thread beside the host, and presents it with the job's
-    /// presentation, if any, unless the host waits for the recording by then and so `stop` is said.
-    pub(crate) fn run_beside_host(
-        self,
-        inputs: RecordingInputs,
-        stop: &StopWord,
-        presenting: &mut Presenting,
-    ) -> RecordingAnswer {
-        self.run(inputs, Some((stop, presenting)))
+    /// presentation, if any.
+    pub(crate) fn run_beside_host(self, inputs: RecordingInputs, presenting: &mut Presenting) -> RecordingAnswer {
+        self.run(inputs, Some(presenting))
     }
 
-    /// Records the frame with `inputs`, and presents it where the job has a presentation, runs beside the host
-    /// with `presenting`, and `stop` is not said. It takes no main thread token, so nothing it calls can reach the host.
-    fn run(self, inputs: RecordingInputs, beside_host: Option<(&StopWord, &mut Presenting)>) -> RecordingAnswer {
+    /// Records the frame with `inputs`, and presents it where the job has a presentation and runs beside the host
+    /// with `presenting`. It takes no main thread token, so nothing it calls can reach the host.
+    fn run(self, inputs: RecordingInputs, presenting: Option<&mut Presenting>) -> RecordingAnswer {
         let Self {
             frame,
             rows_version,
@@ -145,11 +154,10 @@ impl RecordingJob {
             mut presentation,
         } = self;
         let (pending, trace) = record_frame(frame, &mut recorder, viewport, trace_recordings, inputs);
-        // A recording that renders an SVG image, or that the host waits for by now, leaves its frame
-        // for the host to present.
-        let recorded = match (presentation.as_mut(), beside_host) {
-            (Some(presentation), Some((stop, presenting)))
-                if !stop.is_said() && !crate::painting::record::publish::renders_vector_images(&pending) =>
+        // A recording that renders an SVG image leaves its frame for the host to present.
+        let recorded = match (presentation.as_mut(), presenting) {
+            (Some(presentation), Some(presenting))
+                if !crate::painting::record::publish::renders_vector_images(&pending) =>
             {
                 let publishes_recording = pending.publishes_recording;
                 Recorded::Presented {
@@ -423,6 +431,9 @@ pub(crate) enum RecordingLanding {
     /// The recording found the document's viewport had no box to record, and gives back the presentation
     /// it was handed, if any.
     NothingRecorded(Option<Presentation>),
+    /// The committed frame recorded nothing, and presented the display list the compositor has; it gives
+    /// back the presentation it was handed.
+    PresentedUnrecorded(Option<Presentation>),
     /// The recording landed after the host wrote the document's rows. What it recorded stands as
     /// the compositor's frame, whether it presented it or the host does, but not its hit-test list,
     /// which names boxes that may be gone: the document keeps none.
@@ -544,7 +555,7 @@ impl RecordingSlot {
         } = answer;
         self.pending_recording_trace = trace;
         match recorded {
-            Recorded::Nothing => {}
+            Recorded::Nothing | Recorded::PresentedUnrecorded => {}
             Recorded::Pending(pending) => self.pending_recording = Some(PendingPublication { pending, behind_rows }),
             Recorded::Presented {
                 output,
@@ -607,9 +618,8 @@ impl RecordingSlot {
         }
     }
 
-    /// Waits for the recording in flight and takes it in (see [`Self::take_finished_recording_in`]).
-    /// It hears the stop word first, so it presents nothing it has not presented yet: the host
-    /// presents what it recorded.
+    /// Waits for the recording in flight, and the frame it presents, and takes it in (see
+    /// [`Self::take_finished_recording_in`]).
     pub(crate) fn join_recording_in_flight(
         &mut self,
         rows_stand: impl FnOnce(RowsVersion) -> bool,
@@ -629,8 +639,12 @@ impl RecordingSlot {
         rows_stand: impl FnOnce(RowsVersion) -> bool,
         take_in: TakeInPresented<'_>,
     ) -> RecordingLanding {
-        if matches!(answer.recorded, Recorded::Nothing) {
-            return RecordingLanding::NothingRecorded(self.land(answer, false, take_in));
+        match answer.recorded {
+            Recorded::Nothing => return RecordingLanding::NothingRecorded(self.land(answer, false, take_in)),
+            Recorded::PresentedUnrecorded => {
+                return RecordingLanding::PresentedUnrecorded(self.land(answer, false, take_in));
+            }
+            Recorded::Pending(_) | Recorded::Presented { .. } => {}
         }
         let rows_stand = rows_stand(answer.rows_version);
         let presentation = self.land(answer, !rows_stand, take_in);
