@@ -296,6 +296,15 @@ void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector<GC::Ro
             auto focused_before_dispatch = currently_focused_area();
             fire_a_focus_event(focus_event_target, related_focus_target, HTML::EventNames::focus, false);
 
+            // AD-HOC: A focus handler moved focus; the nested update owns the designation and has fired the
+            //         events for the new area. See above. Stop before the focusin too: a focusin at the entry
+            //         focus just left, with the newly focused element as its relatedTarget, tells a focusin
+            //         listener that focus arrived here from there, when it went the other way. The spec's steps
+            //         don't account for a handler moving focus at all:
+            //         https://github.com/whatwg/html/issues/12329
+            if (currently_focused_area() != focused_before_dispatch)
+                return;
+
             // AD-HOC: dispatch focusin
             fire_a_focus_event(focus_event_target, related_focus_target, HTML::EventNames::focusin, true);
 

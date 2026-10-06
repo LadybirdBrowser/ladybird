@@ -1,0 +1,12 @@
+focus target=#a relatedTarget=null
+focusin target=#a relatedTarget=null
+after a.focus(): activeElement=#a
+blur target=#a relatedTarget=#b
+focusout target=#a relatedTarget=#b
+focus target=#b relatedTarget=#a
+blur target=#b relatedTarget=#c
+focusout target=#b relatedTarget=#c
+focus target=#c relatedTarget=#b
+focusin target=#c relatedTarget=#b
+after b.focus(): activeElement=#c
+list :focus-within: false
