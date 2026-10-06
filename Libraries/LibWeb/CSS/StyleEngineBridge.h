@@ -98,7 +98,7 @@ void style_engine_unpin_style_record(DocumentHost const*, u64 style_record);
 void style_engine_begin_style_record_view_epoch(DocumentHost const*);
 void style_engine_end_style_record_view_epoch(DocumentHost const*);
 void style_engine_set_tree_scope_uses_document_sheets(DocumentHost const*, TreeScopeID tree_scope);
-void style_engine_set_attribute_value_text(DocumentHost const*, StyleAtomID value, ReadonlySpan<u16> text);
+void style_engine_set_attribute_value_text(DocumentHost const*, StyleAtomID name, StyleAtomID value, ReadonlySpan<u16> text);
 void style_engine_set_element_custom_property_names(DocumentHost const*, StyleNodeID node, ReadonlySpan<StyleAtomID> name_atoms, bool uses_unnamed, bool uses_custom_functions);
 void style_engine_set_element_animation_names(DocumentHost const*, StyleNodeID node, ReadonlySpan<StyleAtomID> name_atoms);
 void style_engine_set_element_recomputes_on_environment_move(DocumentHost const*, StyleNodeID node, bool recomputes);
@@ -305,8 +305,8 @@ public:
     // boundary again merely to recover an already published name.
     StyleAtomID intern_attribute_name(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_uri);
 
-    // Interns an attribute value and records what it spells when a selector or an attr() can read
-    // this name. Values repeat heavily, so demanded text crosses once per distinct value.
+    // Interns an attribute value and hands the engine what it spells unless the host knows that no selector and no
+    // attr() reads this name. The engine keeps the text only where something reads it.
     StyleAtomID intern_attribute_value(StyleAtomID name, Utf16String const& value);
     // Demand expansion already has every value identity. Check the name before interning the text
     // so attributes nothing reads as text do not pay another string hash.
@@ -495,8 +495,8 @@ private:
     void apply_transaction(InputTransaction const&);
     void submit_recorded_input();
     bool refresh_attribute_value_text_requirements(Layout::BegunRead const& read);
-    [[nodiscard]] bool attribute_name_requires_value_text(StyleAtomID);
-    void publish_attribute_value_text(StyleAtomID, Utf16View);
+    [[nodiscard]] bool attribute_value_text_is_known_unread(StyleAtomID name);
+    void publish_attribute_value_text(StyleAtomID name, StyleAtomID value, Utf16View);
 
     Optional<StyleSheetResourceContexts> m_style_sheet_resource_contexts;
 
@@ -518,7 +518,7 @@ private:
         Vector<u16> substitution_name {};
     };
     HashMap<StyleAtomID, AttributeNameForms> m_attribute_name_forms;
-    HashMap<StyleAtomID, bool> m_attribute_names_requiring_value_text;
+    HashTable<StyleAtomID> m_attribute_names_with_unread_value_text;
     u64 m_atom_generation { 1 };
     u64 m_attribute_value_text_requirements_version { 0 };
     HashTable<StyleNodeID> m_nodes_with_pending_initial_features;

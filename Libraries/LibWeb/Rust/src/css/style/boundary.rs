@@ -283,8 +283,10 @@ style_boundary! {
         begin_style_record_view_epoch => BeginStyleRecordViewEpoch;
         end_style_record_view_epoch => EndStyleRecordViewEpoch;
         set_tree_scope_uses_document_sheets => SetTreeScopeUsesDocumentSheets { tree_scope: TreeScopeID };
-        set_attribute_value_text => SetAttributeValueText { value: StyleAtomID, text: Box<[u16]> } =>
-            engine.set_attribute_value_text(value, &text);
+        set_attribute_value_text => SetAttributeValueText { name: StyleAtomID, value: StyleAtomID, text: Box<[u16]> } =>
+            if engine.attribute_name_requires_value_text(name) {
+                engine.set_attribute_value_text(value, &text);
+            };
         set_element_custom_property_names => SetElementCustomPropertyNames {
             node: StyleNodeID, name_atoms: Box<[StyleAtomID]>, uses_unnamed: bool, uses_custom_functions: bool
         } => engine.set_element_custom_property_names(node, &name_atoms, uses_unnamed, uses_custom_functions);

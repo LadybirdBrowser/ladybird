@@ -1265,19 +1265,19 @@ pub unsafe extern "C" fn style_engine_attribute_value_text_requirements_version(
     }
 }
 
-/// Whether the host records what the values of the attribute name `name` spell, which answers to the other forms the host
-/// published with it, and which an `attr()` reads by `local_name` if it has one. The host knows where it queued no rule
-/// since its last job: it holds the names the engine's selectors read the value text of, and what `attr()`s read is
-/// the process's.
+/// Whether the host knows that nothing reads what the values of the attribute name `name` spell: no selector of the
+/// engine, by `name` or the other forms the host published with it, and no `attr()`, by `local_name` if it has one.
+/// The host knows what the selectors read where it queued no rule since its last job; what `attr()`s read is the
+/// process's. Where it does not know, the host hands the engine each value's text, which the engine keeps only where
+/// something reads it.
 ///
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread, and `local_name` null or `local_name_length` code
 /// units.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_attribute_name_requires_value_text(
+pub unsafe extern "C" fn style_engine_attribute_value_text_is_known_unread(
     host: &DocumentHost,
-    read: &BegunRead,
     name: u32,
     any_namespace: u32,
     folded_name: u32,
@@ -1285,20 +1285,13 @@ pub unsafe extern "C" fn style_engine_attribute_name_requires_value_text(
     local_name: *const u16,
     local_name_length: usize,
 ) -> bool {
+    let attr_may_read = !local_name.is_null()
+        // SAFETY: Guaranteed by the caller.
+        && crate::css::parser::arbitrary_substitution::attr_may_read_name(unsafe {
+            std::slice::from_raw_parts(local_name, local_name_length)
+        });
     let keys = [name, any_namespace, folded_name, folded_local].map(StyleAtomID);
-    match host.known_selectors_read_value_text_of(&keys) {
-        Some(selectors_read) => {
-            selectors_read
-                || (!local_name.is_null()
-                    // SAFETY: Guaranteed by the caller.
-                    && crate::css::parser::arbitrary_substitution::attr_may_read_name(unsafe {
-                        std::slice::from_raw_parts(local_name, local_name_length)
-                    }))
-        }
-        None => with_engine(read, host, |engine| {
-            engine.attribute_name_requires_value_text(StyleAtomID(name))
-        }),
-    }
+    !attr_may_read && host.known_selectors_read_value_text_of(&keys) == Some(false)
 }
 
 /// Folds the style input `node` owes into the reaction the host is about to apply to it, where the reaction covers it,
