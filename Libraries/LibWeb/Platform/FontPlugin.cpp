@@ -14,7 +14,6 @@
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
 #include <LibGfx/Font/Typeface.h>
-#include <LibGfx/Font/TypefaceSkia.h>
 #include <LibWeb/Platform/FontPlugin.h>
 
 namespace Web::Platform {
