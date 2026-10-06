@@ -17,7 +17,6 @@
 #include <core/SkPath.h>
 #include <core/SkPathBuilder.h>
 #include <core/SkPathMeasure.h>
-#include <pathops/SkPathOps.h>
 #include <utils/SkParsePath.h>
 
 template<>
@@ -208,13 +207,6 @@ void PathImplSkia::glyph_run(GlyphRun const& glyph_run)
     update_state_from_path(sk_path());
 }
 
-void PathImplSkia::offset(Gfx::FloatPoint const& offset)
-{
-    sk_path_builder().offset(offset.x(), offset.y());
-    if (m_has_current_point)
-        m_last_move_to.translate_by(offset);
-}
-
 NonnullOwnPtr<PathImpl> PathImplSkia::place_glyph_runs_along(ReadonlySpan<NonnullRefPtr<GlyphRun>> glyph_runs, float offset) const
 {
     SkPathMeasure path_measure(sk_path(), false);
@@ -266,13 +258,6 @@ void PathImplSkia::append_path(Gfx::Path const& other)
         m_has_current_point = true;
         m_last_move_to = other_impl.m_last_move_to;
     }
-}
-
-void PathImplSkia::intersect(Gfx::Path const& other)
-{
-    auto result = Op(sk_path(), static_cast<PathImplSkia const&>(other.impl()).sk_path(), SkPathOp::kIntersect_SkPathOp);
-    if (result.has_value())
-        set_path(*result);
 }
 
 Vector<u8> PathImplSkia::serialize_to_bytes() const
