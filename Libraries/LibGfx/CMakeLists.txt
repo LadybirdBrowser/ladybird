@@ -104,8 +104,7 @@ if (NOT ANDROID)
 endif()
 
 if (APPLE)
-    target_link_libraries(LibCore PUBLIC "-framework Metal")
-    target_link_libraries(LibCore PUBLIC "-framework Accelerate")
+    target_link_libraries(LibGfx PRIVATE "-framework Metal" "-framework Accelerate")
 endif()
 
 if (HAS_DIRECTX)
@@ -113,8 +112,9 @@ if (HAS_DIRECTX)
 endif()
 
 if (HAS_VULKAN)
-    target_link_libraries(LibCore PUBLIC Vulkan::Vulkan Vulkan::Headers)
-    target_link_libraries(LibGfx PRIVATE GPUOpen::VulkanMemoryAllocator)
+    # Public LibGfx headers include <vulkan/vulkan.h>. Only LibGfx calls the Vulkan loader.
+    target_link_libraries(LibGfx PUBLIC Vulkan::Headers)
+    target_link_libraries(LibGfx PRIVATE Vulkan::Vulkan GPUOpen::VulkanMemoryAllocator)
 
     if (USE_VULKAN_DMABUF_IMAGES)
         pkg_check_modules(LibDRM REQUIRED libdrm)
