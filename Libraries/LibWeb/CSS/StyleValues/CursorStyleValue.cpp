@@ -5,15 +5,13 @@
  */
 
 #include "CursorStyleValue.h"
-#include <LibCompositing/DisplayList/DisplayListPlayerSkia.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/Painter.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Layout/Node.h>
@@ -76,10 +74,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         m_cached_bitmap_color = current_color;
         m_cached_bitmap_color_scheme = current_color_scheme;
 
-        // Clear whatever was in the bitmap before.
         auto& bitmap = *m_cached_bitmap->bitmap();
-        auto painter = Gfx::Painter::create(bitmap);
-        painter->clear_rect(bitmap.rect().to_type<float>(), Color::Transparent);
 
         // Paint the cursor into a bitmap.
         Compositing::DisplayListResourceStorage resource_storage;
@@ -95,12 +90,17 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
             .resource_storage = resource_storage,
         };
         auto image_paint = decoded_image_data ? decoded_image_data->image_paint(request) : image.image_paint(request);
+        bool painted = false;
         if (image_paint.has_value()) {
             auto cursor_display_list = Painting::record_image_paint_display_list(*image_paint, request, document.page().client().device_pixels_per_css_pixel());
-            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
-            Compositing::DisplayListPlayerSkia display_list_player;
-            display_list_player.execute(*cursor_display_list.display_list, cursor_display_list.visual_context_tree, resource_storage, {}, painting_surface);
-            display_list_player.flush(*painting_surface);
+            // The compositor replaces every pixel of the bitmap.
+            if (auto* compositor_host = document.page().client().compositor_host())
+                painted = compositor_host->rasterize_display_list(cursor_display_list, resource_storage, bitmap);
+        }
+        if (!painted) {
+            // Clear whatever was in the bitmap before, and paint again on the next update.
+            memset(bitmap.scanline_u8(0), 0, bitmap.size_in_bytes());
+            m_cached_bitmap_color = {};
         }
     }
 
