@@ -421,7 +421,7 @@ sk_sp<SkImageFilter> to_skia_image_filter(Gfx::Filter const& filter)
 
 sk_sp<SkImage> sk_image_from_bitmap(Bitmap const& bitmap, ColorSpace const& color_space)
 {
-    auto info = SkImageInfo::Make(bitmap.width(), bitmap.height(), to_skia_color_type(bitmap.format()), to_skia_alpha_type(bitmap.format(), bitmap.alpha_type()), color_space.color_space<sk_sp<SkColorSpace>>());
+    auto info = SkImageInfo::Make(bitmap.width(), bitmap.height(), to_skia_color_type(bitmap.format()), to_skia_alpha_type(bitmap.format(), bitmap.alpha_type()), to_skia_color_space(color_space));
     SkBitmap sk_bitmap;
     sk_bitmap.installPixels(info, const_cast<void*>(static_cast<void const*>(bitmap.scanline(0))), bitmap.pitch());
     sk_bitmap.setImmutable();
@@ -430,7 +430,7 @@ sk_sp<SkImage> sk_image_from_bitmap(Bitmap const& bitmap, ColorSpace const& colo
 
 sk_sp<SkImage> sk_image_adopting_bitmap(NonnullRefPtr<Bitmap> bitmap, ColorSpace const& color_space)
 {
-    auto info = SkImageInfo::Make(bitmap->width(), bitmap->height(), to_skia_color_type(bitmap->format()), to_skia_alpha_type(bitmap->format(), bitmap->alpha_type()), color_space.color_space<sk_sp<SkColorSpace>>());
+    auto info = SkImageInfo::Make(bitmap->width(), bitmap->height(), to_skia_color_type(bitmap->format()), to_skia_alpha_type(bitmap->format(), bitmap->alpha_type()), to_skia_color_space(color_space));
     auto row_bytes = bitmap->pitch();
     auto byte_count = bitmap->size_in_bytes();
     auto* pixels = bitmap->scanline_u8(0);

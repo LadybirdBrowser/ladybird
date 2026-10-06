@@ -19,6 +19,7 @@
 #include <LibGfx/WindingRule.h>
 #include <core/SkBlender.h>
 #include <core/SkColor.h>
+#include <core/SkColorSpace.h>
 #include <core/SkColorType.h>
 #include <core/SkImage.h>
 #include <core/SkImageFilter.h>
@@ -147,6 +148,9 @@ sk_sp<SkBlender> to_skia_blender(Gfx::CompositingAndBlendingOperator compositing
 
 // The returned SkImage references the source bitmap's pixels without copying; the caller
 // must keep `bitmap` alive for as long as the SkImage (or anything derived from it) is in use.
+// Returns null for sRGB, which Skia assumes for an image without a color space.
+sk_sp<SkColorSpace> to_skia_color_space(ColorSpace const&);
+
 sk_sp<SkImage> sk_image_from_bitmap(Bitmap const& bitmap, ColorSpace const& color_space);
 
 // Hands the source bitmap's pixel storage to the returned SkImage without copying: the image
