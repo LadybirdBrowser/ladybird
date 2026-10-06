@@ -1304,6 +1304,11 @@ impl TreeBuildJob {
         }
     }
 
+    /// Whether the build may build the viewport, whose style is the document's, which it was not handed.
+    pub(crate) fn lacks_document_style(&self, arena: &LayoutNodeArena) -> bool {
+        self.document_style_record.is_none() && arena.tree_build_may_create_viewport(self.document_style_node)
+    }
+
     /// Runs the build over the arena of `state`. The host calls the walk owes go into `work`, as the
     /// walk, holding no main thread token, can only queue them; what the host hears of the boxes
     /// nodes gain and lose must be queued already.
