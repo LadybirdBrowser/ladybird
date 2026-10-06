@@ -1744,7 +1744,11 @@ void Element::set_needs_layout_tree_rebuild(Layout::BegunRead const& read, SetNe
     auto* layout_node = unsafe_layout_node(read);
     // An element that just left the top layer keeps its box as a viewport child until the
     // pending membership change is processed, so the parent must not be rebuilt for it either.
-    bool element_box_is_placed_in_top_layer = layout_node && layout_node->topmost_layout_node_of_top_layer_placement();
+    // Only the document element's box and the boxes placed in the top layer are viewport children,
+    // which spares every other element the walk up its box's ancestors.
+    bool element_box_is_placed_in_top_layer = layout_node
+        && (document().may_have_boxes_placed_in_top_layer() || document().document_element() == this)
+        && layout_node->topmost_layout_node_of_top_layer_placement();
     if (rendered_in_top_layer() || element_box_is_placed_in_top_layer) {
         // An attached box is replaced in its viewport slot, keeping top layer order; a fresh
         // insert of a detached member appends out of order, so it needs a zone rebuild.
