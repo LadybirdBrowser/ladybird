@@ -15,6 +15,7 @@ use crate::paint_stage::Presenting;
 use crate::painting::ffi::{FfiPresentation, FfiPresentedRecording};
 use crate::painting::paint_passes::ClockTickVisualContexts;
 use crate::painting::record::publish::RecordingResourceSink;
+use crate::painting::visual_context::VisualContextTree;
 use libgfx_rust::FloatPoint;
 use std::ffi::c_void;
 use std::ptr::NonNull;
@@ -39,6 +40,7 @@ unsafe extern "C" {
         presented: *const FfiPresentedRecording,
         sink: *mut c_void,
     );
+    fn web_navigable_presenter_present_unrecorded(presenter: *mut c_void, sealed: *mut c_void, sink: *mut c_void);
 }
 
 /// A `Web::Compositor::NavigablePresenter`, owned.
@@ -146,6 +148,29 @@ impl Presentation {
         unsafe { web_sealed_presentation_note_visual_context_tree_changed(self.sealed.0.as_ptr()) };
     }
 
+    /// Presents the sealed frame without a recording: the display list the compositor has stands, with
+    /// `visual_context_tree`, the render state's tree, where the seal sends one.
+    pub(crate) fn present_unrecorded(
+        &mut self,
+        visual_context_tree: Option<Arc<VisualContextTree>>,
+        presenting: &mut Presenting,
+    ) {
+        if let Some(tree) = visual_context_tree {
+            self.take_visual_context_tree(ClockTickVisualContexts {
+                tree,
+                restructured_scroll_offsets: None,
+            });
+        }
+        // SAFETY: The presentation owns both objects, and the stage holds the sink.
+        unsafe {
+            web_navigable_presenter_present_unrecorded(
+                self.presenter.0.as_ptr(),
+                self.sealed.0.as_ptr(),
+                presenting.sink(),
+            );
+        }
+    }
+
     /// Presents the sealed frame with the recording `presented` describes, whose resources the presenter took already.
     pub(crate) fn present(&mut self, presented: &FfiPresentedRecording, presenting: &mut Presenting) {
         // SAFETY: The presentation owns both objects, the recording's display list is live for the call, and the stage
@@ -201,4 +226,7 @@ mod ffi_test_stubs {
         _: *mut c_void,
     ) {
     }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn web_navigable_presenter_present_unrecorded(_: *mut c_void, _: *mut c_void, _: *mut c_void) {}
 }

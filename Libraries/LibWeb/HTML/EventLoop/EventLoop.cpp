@@ -1178,7 +1178,6 @@ void EventLoop::lease_clocks_for_task()
 void EventLoop::release_held_frames_for_testing()
 {
     m_holds_next_frame_for_testing = false;
-    m_holds_next_frame_before_present_for_testing = false;
     if (m_rendering_update_in_flight)
         m_rendering_update_in_flight->held_for_testing = false;
     schedule();

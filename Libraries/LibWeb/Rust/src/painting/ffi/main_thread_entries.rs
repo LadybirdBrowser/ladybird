@@ -639,29 +639,12 @@ pub unsafe extern "C" fn render_state_for_each_subtree_fragment_rect(
     }
 }
 
-/// Records `host`'s document's viewport with `inputs` on the Paint thread: in step with the host, or, where `blocker` is
-/// none, as the frame of the rendering update the host commits, which the render owner samples beside the event loop at
-/// `timestamp`, the time of the document's timeline the update sampled its animations at, and which flies until the
-/// host takes it in. A committed frame takes the presentation `presentation` names, if any, to present the frame with,
-/// and nulls it there; a recording in step leaves it with the host. Answers how the recording started, which a
-/// recording in step does not where the viewport has no box to record.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread. Input arrays and byte buffers must be valid and
-/// immutable for this call; fonts for enabled overlays must be live `Gfx::Font`s. `presentation` must be valid for
-/// reads and writes, and name a presentation the host gives up where the recording takes it, or none.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_record_display_list(
+/// The recorder state of `host`'s document, for a recording to take, once the clock lease that may have it ended and the
+/// last recording was published.
+fn take_recorder_for_recording(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
-    viewport: NodeSlotId,
-    inputs: crate::painting::host::FfiRecordingInputs,
-    blocker: FfiFlightBlocker,
-    timestamp: f64,
-    presentation: *mut crate::painting::ffi::FfiPresentation,
-) -> FfiRecordingStart {
-    // The recording takes the recorder state, which a clock lease brings back.
+) -> crate::painting::record::recorder_state::RecorderState {
     host.end_clock_lease_waiting(read);
     let mut recording = host.recording();
     debug_assert!(
@@ -669,8 +652,17 @@ pub unsafe extern "C" fn render_state_record_display_list(
         "a recording must be published before the next one starts"
     );
     recording.discard_pending_recording();
-    let recorder = recording.take_recorder();
-    let frame_inputs = crate::painting::recording_slot::FrameInputs {
+    recording.take_recorder()
+}
+
+/// What freezing the frame of `host`'s document's `viewport` for a recording with `inputs` reads.
+fn frame_inputs(
+    host: &crate::render_state::DocumentHost,
+    viewport: NodeSlotId,
+    inputs: &crate::painting::host::FfiRecordingInputs,
+    recorder: &crate::painting::record::recorder_state::RecorderState,
+) -> crate::painting::recording_slot::FrameInputs {
+    crate::painting::recording_slot::FrameInputs {
         viewport,
         css_viewport_rect: inputs.css_viewport_rect.into(),
         publishes_recording: inputs.publishes_recording,
@@ -678,24 +670,29 @@ pub unsafe extern "C" fn render_state_record_display_list(
             .published_recording
             .as_ref()
             .map(|recording| recording.root_background_canvas_rect),
-        hit_test_item_capacity_hint: recording.hit_test_item_capacity_hint(),
-    };
+        hit_test_item_capacity_hint: host.recording().hit_test_item_capacity_hint(),
+    }
+}
+
+/// Records `host`'s document's viewport with `inputs` on the Paint thread, in step with the host, which publishes the
+/// recording and presents nothing. Answers whether the viewport had a box to record.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread. Input arrays and byte buffers must be valid and
+/// immutable for this call; fonts for enabled overlays must be live `Gfx::Font`s.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_record_display_list(
+    host: &crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
+    viewport: NodeSlotId,
+    inputs: crate::painting::host::FfiRecordingInputs,
+) -> FfiRecordingStart {
+    let recorder = take_recorder_for_recording(host, read);
+    let frame_inputs = frame_inputs(host, viewport, &inputs, &recorder);
     // SAFETY: The host lends the input arrays and buffers for this call, and the inputs copy what they read of them.
     let inputs = unsafe { inputs.recording_inputs() };
-    if let Some(license) = crate::painting::recording_slot::FlightLicense::for_blocker(blocker) {
-        let commit = crate::render_state::CommittedFrame {
-            frame_inputs,
-            inputs,
-            recorder,
-            // SAFETY: Guaranteed by the caller.
-            presentation: unsafe { crate::painting::presentation::Presentation::take(&mut *presentation) },
-            timestamp,
-            held_for_testing: crate::painting::recording_slot::take_recording_hold_for_testing(),
-        };
-        recording.fly(host.commit_rendering_update(read, commit, license));
-        return FfiRecordingStart::InFlight;
-    }
-    // SAFETY: As above.
+    // SAFETY: Guaranteed by the caller.
     let Some(frame) = (unsafe {
         read_arena(
             host,
@@ -704,14 +701,92 @@ pub unsafe extern "C" fn render_state_record_display_list(
             crate::painting::recording_slot::freeze_recording_frame,
         )
     }) else {
-        recording.give_back_recorder(recorder);
+        host.recording().give_back_recorder(recorder);
         return FfiRecordingStart::NothingToRecord;
     };
     let inputs = inputs.for_frame(frame.tree_inputs, frame.root_background_source);
     let answer =
         crate::painting::recording_slot::RecordingJob::new(frame, recorder, viewport, None).run_on_paint_thread(inputs);
-    recording.accept_recording_answer(answer);
+    host.recording().accept_recording_answer(answer);
     FfiRecordingStart::Recorded
+}
+
+/// Commits the frame of `host`'s document as the rendering update leaves it to the render owner, with `recorder`, which
+/// samples it beside the event loop at `timestamp`, the time of the document's timeline the update sampled its
+/// animations at, and hands it to the Paint thread, which presents it with `presentation`. The frame flies until the
+/// host takes it in.
+///
+/// # Safety
+///
+/// `presentation` must name a presentation the host gives up.
+unsafe fn commit_frame(
+    host: &crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
+    recorder: crate::painting::record::recorder_state::RecorderState,
+    content: crate::render_state::CommittedContent,
+    held_for_testing: bool,
+    timestamp: f64,
+    presentation: crate::painting::ffi::FfiPresentation,
+) {
+    let commit = crate::render_state::CommittedFrame {
+        content,
+        recorder,
+        // SAFETY: Guaranteed by the caller.
+        presentation: unsafe { crate::painting::presentation::Presentation::adopt(presentation) }
+            .expect("a committed frame is presented"),
+        timestamp,
+        held_for_testing,
+    };
+    let flight = host.commit_rendering_update(read, commit);
+    host.recording().fly(flight);
+}
+
+/// Commits the frame of `host`'s document as a recording of its viewport with `inputs` (see [`commit_frame`]).
+///
+/// # Safety
+///
+/// As for [`render_state_record_display_list`]. `presentation` must name a presentation the host gives up.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_commit_recorded_frame(
+    host: &crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
+    viewport: NodeSlotId,
+    inputs: crate::painting::host::FfiRecordingInputs,
+    timestamp: f64,
+    presentation: crate::painting::ffi::FfiPresentation,
+) {
+    let recorder = take_recorder_for_recording(host, read);
+    let content = crate::render_state::CommittedContent::Recording {
+        frame_inputs: frame_inputs(host, viewport, &inputs, &recorder),
+        // SAFETY: The host lends the input arrays and buffers for this call, and the inputs copy what they read of them.
+        inputs: unsafe { inputs.recording_inputs() },
+    };
+    let held_for_testing = crate::painting::recording_slot::take_recording_hold_for_testing();
+    // SAFETY: Guaranteed by the caller.
+    unsafe { commit_frame(host, read, recorder, content, held_for_testing, timestamp, presentation) };
+}
+
+/// Commits the frame of `host`'s document as one that keeps the display list the compositor has, and sends the render
+/// state's visual context tree where `sends_visual_context_tree` says it changed (see [`commit_frame`]).
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread. `presentation` must name a presentation the host
+/// gives up.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_commit_unrecorded_frame(
+    host: &crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
+    sends_visual_context_tree: bool,
+    timestamp: f64,
+    presentation: crate::painting::ffi::FfiPresentation,
+) {
+    let recorder = take_recorder_for_recording(host, read);
+    let content = crate::render_state::CommittedContent::Unrecorded {
+        sends_visual_context_tree,
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { commit_frame(host, read, recorder, content, false, timestamp, presentation) };
 }
 
 /// Holds the next recording that flies before it reads its frame, until the test releases it or the host waits for it.
@@ -816,6 +891,11 @@ unsafe fn recording_landing(
             // SAFETY: Guaranteed by the caller.
             unsafe { give_back(given_back, presentation) };
             FfiRecordingLanding::NothingRecorded
+        }
+        RecordingLanding::PresentedUnrecorded(given_back) => {
+            // SAFETY: Guaranteed by the caller.
+            unsafe { give_back(given_back, presentation) };
+            FfiRecordingLanding::PresentedUnrecorded
         }
     }
 }

@@ -466,8 +466,6 @@ pub enum FfiRecordingStart {
     NothingToRecord,
     /// The recording is done, and pending for the host to publish.
     Recorded,
-    /// The recording of the rendering update's committed frame flies beside the event loop.
-    InFlight,
 }
 
 /// Why a rendering update's frame (its style transaction, or its recording) may not fly beside the
@@ -507,6 +505,8 @@ pub enum FfiRecordingLanding {
     LandedBehindRows,
     /// The recording found the document's viewport had no box to record.
     NothingRecorded,
+    /// The committed frame recorded nothing, and presented the display list the compositor has.
+    PresentedUnrecorded,
 }
 
 /// A navigable's presenter and the seal of the frame it presents next (`Web::Compositor::NavigablePresenter` and

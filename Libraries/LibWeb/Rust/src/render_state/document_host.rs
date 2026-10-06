@@ -28,7 +28,7 @@ use crate::layout::{FlownRound, HostTables, LayoutRoundAnswer, RowsVersion, Seal
 use crate::painting::paint_read::PaintSource;
 use crate::painting::presentation::Presentation;
 use crate::painting::record::recorder_state::AbsoluteRectMemo;
-use crate::painting::recording_slot::{FlightLicense, RecordingAnswer, RecordingSlot};
+use crate::painting::recording_slot::{RecordingAnswer, RecordingSlot};
 use crate::painting::visual_animation::VisualAnimation;
 use crate::render_state::TaskBoundary;
 use crate::stage_thread::InFlight;
@@ -264,13 +264,11 @@ impl DocumentHost {
 
     /// Commits the rendering update's frame to the render owner, spending `read`, and goes on: the owner applies the
     /// writes the host queued, samples the frame as `commit` says, and hands it to the Paint thread, which records and
-    /// presents it beside the host. Answers the flight the recording's answer lands in. Only a rendering update whose
-    /// frame `_license` lets fly commits it.
+    /// presents it beside the host. Answers the flight the recording's answer lands in.
     pub(crate) fn commit_rendering_update(
         &self,
         read: &BegunRead,
         commit: CommittedFrame,
-        _license: FlightLicense,
     ) -> InFlight<RecordingAnswer> {
         self.take_frame_in(read);
         // Writes the host may not stream beside its task the owner applies in a job first, which the frame reads as a

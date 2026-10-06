@@ -10259,13 +10259,23 @@ RefPtr<Compositing::DisplayList> Document::record_display_list(Layout::BegunRead
         if (cache_mode == Painting::PaintCommandCacheMode::ReadWrite)
             (void)navigable->presenter();
     }
-    auto recording = start_display_list_recording(read, config, cache_mode, Layout::RustFFI::FfiFlightBlocker::NotInRenderingUpdate);
+    auto recording = start_display_list_recording(read, config, cache_mode);
     if (!recording.has_value())
         return nullptr;
     return finish_display_list_recording(read, *recording, resource_storage);
 }
 
-Optional<Painting::DisplayListRecording> Document::start_display_list_recording(Layout::BegunRead const& read, HTML::PaintConfig config, Painting::PaintCommandCacheMode cache_mode, Layout::RustFFI::FfiFlightBlocker blocker, Optional<Compositor::FlightPresentation>* flight)
+Optional<Painting::DisplayListRecording> Document::start_display_list_recording(Layout::BegunRead const& read, HTML::PaintConfig config, Painting::PaintCommandCacheMode cache_mode)
+{
+    return start_recording(read, config, cache_mode, {});
+}
+
+Painting::DisplayListRecording Document::commit_display_list_recording(Layout::BegunRead const& read, HTML::PaintConfig config, Compositor::FlightPresentation&& presentation)
+{
+    return start_recording(read, config, Painting::PaintCommandCacheMode::ReadWrite, move(presentation)).release_value();
+}
+
+Optional<Painting::DisplayListRecording> Document::start_recording(Layout::BegunRead const& read, HTML::PaintConfig config, Painting::PaintCommandCacheMode cache_mode, Optional<Compositor::FlightPresentation>&& committed)
 {
     update_paint_and_hit_testing_properties_if_needed();
     VERIFY(has_committed_viewport_box());
@@ -10305,7 +10315,7 @@ Optional<Painting::DisplayListRecording> Document::start_display_list_recording(
     if (config.should_show_caret_hit_test_debug_overlay)
         overlay_inputs.caret_debug_rect = m_caret_hit_test_debug_rect;
 
-    return Painting::start_rust_display_list_recording(read, *this, move(visual_context_tree), move(placeholder_display_list), cache_mode, config, overlay_inputs, blocker, flight);
+    return Painting::start_rust_display_list_recording(read, *this, move(visual_context_tree), move(placeholder_display_list), cache_mode, config, overlay_inputs, move(committed));
 }
 
 RefPtr<Compositing::DisplayList> Document::finish_display_list_recording(Layout::BegunRead const& read, Painting::DisplayListRecording const& recording, Compositing::DisplayListResourceStorage& resource_storage, Painting::HitTestListStands hit_test_list_stands)

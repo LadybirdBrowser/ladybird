@@ -678,10 +678,8 @@ struct LocalNavigable::RecordingInFlight {
     AK_ALLOC_WITH_KMALLOC;
 
     GC::Ref<DOM::Document> document;
-    // The seal of the frame the host presents once the recording lands, or none where the recording took it, with the
-    // navigable's presenter, to present the frame itself.
-    Optional<Compositor::SealedPresentation> sealed;
-    Painting::DisplayListRecording recording;
+    // What the frame records, unless it keeps the display list the compositor has.
+    Optional<Painting::DisplayListRecording> recording;
 };
 
 LocalNavigable::LocalNavigable(
@@ -6900,19 +6898,20 @@ bool LocalNavigable::force_dark_applies_to_active_document() const
     return m_force_dark_enabled && !active_document_opts_out_of_force_dark();
 }
 
-Optional<Compositor::SealedFrame> LocalNavigable::record_compositor_frame(PaintConfig paint_config, Layout::RustFFI::FfiFlightBlocker blocker)
+bool LocalNavigable::commit_frame(PaintConfig paint_config)
 {
-    // The recording in flight has the document's recorder state, and its frame goes to the compositor before this one.
+    // The frame committed before has the presenter and the document's recorder state, and goes to the compositor before
+    // this one.
     take_recording_in_flight_in(TakeIn::Wait);
 
     paint_config = stamp_paint_config(paint_config);
 
     if (!has_compositor_context())
-        return {};
+        return false;
 
     auto document = active_document();
     if (!document)
-        return {};
+        return false;
 
     Layout::ForcedReadScope read { *document };
     adopt_pending_async_scroll_offsets();
@@ -6924,52 +6923,39 @@ Optional<Compositor::SealedFrame> LocalNavigable::record_compositor_frame(PaintC
     if (is_local_root() && !paint_config.canvas_fill_rect.has_value())
         paint_config.canvas_fill_rect = Gfx::IntRect { {}, page().css_to_device_rect(viewport_rect()).size().to_type<int>() };
 
+    // A frame is left to the next rendering update while the compositor cannot be reached.
+    if (!compositor_context().ready_for_frame())
+        return false;
+
     auto const& compositor_display_list_paint_config = presenter().compositor_display_list_paint_config();
     auto should_record_display_list = m_needs_to_record_display_list
         || !compositor_display_list_paint_config.has_value()
         || !(compositor_display_list_paint_config.value() == paint_config);
-    auto sealed = seal_presentation(*document, paint_config, should_record_display_list);
-    if (!should_record_display_list)
-        return Compositor::SealedFrame { move(sealed), {} };
+    auto sealed = make<Compositor::SealedPresentation>(seal_presentation(*document, paint_config, should_record_display_list));
+    sealed->context_id = compositor_context().id();
+    sealed->present_viewport_rect = present_viewport_rect();
+    Compositor::FlightPresentation presentation {
+        .presenter = move(m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>()),
+        .sealed = move(sealed),
+    };
+    m_presenter_slot = GC::Ref { *document };
 
     main_thread_event_loop().ensure_frame_completion_registered();
-    // The rendering update commits its frame to the render owner, which samples it and has the Paint thread record and
-    // present it beside the event loop, holding the navigable's presenter until the recording lands. One whose navigable
-    // hosts navigables leaves its frame to the presentation queue, as their frames go along with it.
-    Optional<Compositor::FlightPresentation> flight;
-    if (blocker == Layout::RustFFI::FfiFlightBlocker::None && !main_thread_event_loop().takes_next_frame_presentation_for_testing()
-        && !any_of(all_local_navigables(), [&](auto navigable) { return navigable->parent().ptr() == this; })) {
-        if (compositor_context().ready_for_frame()) {
-            sealed.context_id = compositor_context().id();
-            sealed.present_viewport_rect = present_viewport_rect();
-            flight = Compositor::FlightPresentation {
-                .presenter = move(m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>()),
-                .sealed = make<Compositor::SealedPresentation>(move(sealed)),
-            };
-            m_presenter_slot = GC::Ref { *document };
-        }
+    // The frame goes to the render owner, which samples it, and has the Paint thread record it where it records, and
+    // present it beside the event loop, in the order of the frames the render clock samples. The presenter comes back
+    // once the event loop takes the frame in.
+    if (!should_record_display_list) {
+        Painting::commit_unrecorded_frame(read, *document, move(presentation));
+        m_recording_in_flight = make<RecordingInFlight>(*document, OptionalNone {});
+        main_thread_event_loop().presentation_queue().enqueue_recording_in_flight(*this);
+        return true;
     }
-    bool const offers_presentation = flight.has_value();
-    auto recording = document->start_display_list_recording(read, paint_config, Painting::PaintCommandCacheMode::ReadWrite, blocker, &flight);
-    // A recording that took the presentation presents its frame itself; otherwise the host keeps the seal.
-    bool const recording_presents = offers_presentation && !flight.has_value();
-    if (flight.has_value()) {
-        m_presenter_slot = move(flight->presenter);
-        sealed = move(*flight->sealed);
-    }
-    if (!recording.has_value()) {
-        unseal_presentation(*document, sealed);
-        return {};
-    }
-    // What asks for another recording once this one has started asks for the next one, even where the host presents
-    // this one's frame after the ask.
+    auto recording = document->commit_display_list_recording(read, paint_config, move(presentation));
+    // What asks for another recording once this one has started asks for the next one.
     m_needs_to_record_display_list = false;
-    if (recording->in_flight) {
-        m_recording_in_flight = make<RecordingInFlight>(*document, recording_presents ? Optional<Compositor::SealedPresentation> {} : move(sealed), recording.release_value());
-        main_thread_event_loop().did_let_recording_fly(*this);
-        return {};
-    }
-    return finish_recording(read, *document, move(sealed), *recording);
+    m_recording_in_flight = make<RecordingInFlight>(*document, move(recording));
+    main_thread_event_loop().did_let_recording_fly(*this);
+    return true;
 }
 
 // Stamps the per-navigable state onto `paint_config`, here rather than where it is built, so no call site (the headless
@@ -7059,8 +7045,9 @@ Compositor::SealedPresentation LocalNavigable::seal_presentation(DOM::Document& 
     VERIFY(document.has_committed_viewport_box());
     auto& paint_state = document.paint_state();
     bool const sends_visual_context_tree = paint_state.visual_context_tree_needs_compositor_update();
+    // A frame that records nothing takes the render state's tree as it is sampled.
     Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree;
-    if (records_display_list || sends_visual_context_tree)
+    if (records_display_list)
         visual_context_tree = paint_state.visual_context_tree(document);
     paint_state.did_update_visual_context_tree_in_compositor();
     Compositing::ScrollStateSnapshot scroll_state_snapshot { paint_state.scroll_state_snapshot() };
@@ -7122,22 +7109,22 @@ bool LocalNavigable::take_recording_in_flight_in(TakeIn take_in)
     return true;
 }
 
-// Takes in a recording in flight that has landed, and answers the frame the host presents in its place: none where the
-// recording presented its own, or where what it made does not go to this navigable's active document.
+// Takes in a frame in flight that has landed, with the presenter it gives back, and answers the frame the host presents
+// in its place: none but where its recording renders an SVG image, which only the host renders, and still goes to this
+// navigable's active document.
 Optional<Compositor::SealedFrame> LocalNavigable::finish_recording_in_flight(RecordingInFlight& in_flight, Layout::RustFFI::FfiRecordingLanding landing, Layout::RustFFI::FfiPresentation given_back)
 {
     GC::Ref<DOM::Document> document = in_flight.document;
-    auto sealed = move(in_flight.sealed);
-    if (given_back.presenter) {
-        m_presenter_slot = adopt_own(*static_cast<Compositor::NavigablePresenter*>(given_back.presenter));
-        sealed = move(*adopt_own(*static_cast<Compositor::SealedPresentation*>(given_back.sealed)));
-    }
+    VERIFY(given_back.presenter);
+    m_presenter_slot = adopt_own(*static_cast<Compositor::NavigablePresenter*>(given_back.presenter));
+    auto sealed = adopt_own(*static_cast<Compositor::SealedPresentation*>(given_back.sealed));
     // A frame the render owner found no box to record of presents nothing.
     if (landing == Layout::RustFFI::FfiRecordingLanding::NothingRecorded) {
-        if (sealed.has_value())
-            unseal_presentation(document, *sealed);
+        unseal_presentation(document, *sealed);
         return {};
     }
+    if (landing == Layout::RustFFI::FfiRecordingLanding::PresentedUnrecorded)
+        return {};
 
     Layout::ForcedReadScope read { *document };
     // What the recording made goes to a document this navigable still presents, which still has the boxes it recorded.
@@ -7150,26 +7137,20 @@ Optional<Compositor::SealedFrame> LocalNavigable::finish_recording_in_flight(Rec
     // A recording that presented its frame itself leaves the document to take in what it published.
     if (sealed->published.has_value()) {
         Painting::take_recording_trace_if_pending(read, *document);
-        document->adopt_published_recording(Painting::hit_test_list_read(read, hit_test_list_stands), in_flight.recording, sealed->published->display_list, presenter().display_list_resource_storage());
+        document->adopt_published_recording(Painting::hit_test_list_read(read, hit_test_list_stands), *in_flight.recording, sealed->published->display_list, presenter().display_list_resource_storage());
         return {};
     }
-    // Otherwise the host presents what it recorded, as it would have presented it in step.
-    auto frame = finish_recording(read, *document, sealed.release_value(), in_flight.recording, hit_test_list_stands);
-    if (frame.has_value())
+    // FIXME: Only the render owner should sample the frames the Paint thread presents. The host presents a frame that
+    //        renders an SVG image.
+    auto frame = finish_recording(read, *document, move(*sealed), *in_flight.recording, hit_test_list_stands);
+    if (frame.has_value()) {
         frame->sealed.present_viewport_rect = present_viewport_rect();
+        frame->sealed.presented_by = Compositor::PresentedBy::Main;
+    }
     return frame;
 }
 
-bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_config)
-{
-    auto frame = record_compositor_frame(move(paint_config));
-    if (!frame.has_value())
-        return false;
-    main_thread_event_loop().presentation_queue().submit(*this, frame.release_value());
-    return true;
-}
-
-void LocalNavigable::paint_next_frame(Layout::RustFFI::FfiFlightBlocker blocker)
+void LocalNavigable::paint_next_frame()
 {
     if (has_been_destroyed())
         return;
@@ -7187,30 +7168,12 @@ void LocalNavigable::paint_next_frame(Layout::RustFFI::FfiFlightBlocker blocker)
     }
 
     m_needs_repaint = false;
-
-    auto frame = record_compositor_frame(paint_config, blocker);
-    if (!frame.has_value())
-        return;
-    submit_painted_frame(frame.release_value());
-}
-
-void LocalNavigable::submit_painted_frame(Compositor::SealedFrame frame)
-{
-    frame.sealed.present_viewport_rect = present_viewport_rect();
-    main_thread_event_loop().presentation_queue().submit(*this, move(frame));
+    (void)commit_frame(paint_config);
 }
 
 Gfx::IntRect LocalNavigable::present_viewport_rect() const
 {
     return page().css_to_device_rect(viewport_rect()).to_type<int>();
-}
-
-// Whether the rendering update's recording of the active document may fly beside the event loop, or what blocks it.
-Layout::RustFFI::FfiFlightBlocker LocalNavigable::recording_flight_blocker(DOM::UpdateLayoutReason layout_reason)
-{
-    if (layout_reason != DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate || main_thread_event_loop().running_synchronous_rendering_update())
-        return Layout::RustFFI::FfiFlightBlocker::NotInRenderingUpdate;
-    return Layout::RustFFI::FfiFlightBlocker::None;
 }
 
 bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_reason, LayOutFirst lay_out_first)
@@ -7234,7 +7197,7 @@ bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_r
         if (document->font_computer().should_defer_initial_paint())
             return false;
     }
-    paint_next_frame(recording_flight_blocker(layout_reason));
+    paint_next_frame();
     return true;
 }
 
@@ -7254,11 +7217,11 @@ void LocalNavigable::render_screenshot(Gfx::PaintingSurface& painting_surface, P
             navigable->paint_next_frame_if_needed(DOM::UpdateLayoutReason::ProcessScreenshot);
     }
 
-    if (!record_display_list_and_scroll_state(paint_config)) {
+    if (!commit_frame(paint_config)) {
         callback();
         return;
     }
-    // The screenshot is of what the compositor composes, so every frame painted before it is presented first.
+    // The screenshot is of what the compositor composes, so every frame committed before it is presented first.
     main_thread_event_loop().presentation_queue().present_all();
     compositor_context().request_screenshot(painting_surface, move(callback));
 }

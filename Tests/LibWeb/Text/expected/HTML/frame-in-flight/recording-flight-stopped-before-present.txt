@@ -1,3 +1,0 @@
-state in the next task: in-flight
-hit test finds the box: true
-presented by: main

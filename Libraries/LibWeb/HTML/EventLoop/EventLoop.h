@@ -172,9 +172,6 @@ public:
     // tasks of any document do, and an update with intersection observations to update holds every task.
     bool holds_tasks_of(DOM::Document const*) const;
     void hold_next_frame_for_testing() { m_holds_next_frame_for_testing = true; }
-    // Has the next recording that flies leave its frame for the host to present once it lands.
-    void hold_next_frame_before_present_for_testing() { m_holds_next_frame_before_present_for_testing = true; }
-    bool takes_next_frame_presentation_for_testing() { return exchange(m_holds_next_frame_before_present_for_testing, false); }
     void release_held_frames_for_testing();
 
     RenderingSchedulerCounters const& rendering_scheduler_counters() const { return m_rendering_scheduler_counters; }
@@ -260,7 +257,6 @@ private:
     bool m_render_clock_is_manual_for_testing { false };
     bool m_frame_completion_registered { false };
     bool m_holds_next_frame_for_testing { false };
-    bool m_holds_next_frame_before_present_for_testing { false };
 
     struct RenderingUpdateInFlight;
     OwnPtr<RenderingUpdateInFlight> m_rendering_update_in_flight;

@@ -44,6 +44,7 @@ use crate::painting::recording_slot::{
     FrameInputs, FrozenFrame, RecordingAnswer, RecordingJob, freeze_recording_frame, present, record_frame,
     wait_while_recording_is_held_for_testing,
 };
+use crate::painting::visual_context::VisualContextTree;
 use crate::stage_thread::{InFlight, Relay, Riding, StopWord, Ticker};
 use smallvec::SmallVec;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
@@ -313,57 +314,85 @@ impl SampleClock {
     }
 }
 
-/// A frame of a document the render clock sampled, frozen for the Paint thread to record and present.
-pub(crate) struct SampledFrame {
+/// A frame of a document the render owner sampled, for the Paint thread to present. Only a [`SamplingTurn`] makes one,
+/// and the Paint thread presents nothing else (see [`crate::paint_stage`]).
+pub(crate) struct SampledFrame<T>(T);
+
+impl<T> SampledFrame<T> {
+    fn new(_: &SamplingTurn, frame: T) -> Self {
+        Self(frame)
+    }
+}
+
+/// A frame frozen for a recording, with what it is recorded with, and the visual contexts a tick prepared for it.
+pub(crate) struct RecordedFrame {
     frozen: FrozenFrame,
     viewport: NodeSlotId,
     inputs: RecordingInputs,
     visual_contexts: Option<ClockTickVisualContexts>,
 }
 
-impl SampledFrame {
-    fn new(
-        _: &SamplingTurn,
-        frozen: FrozenFrame,
-        viewport: NodeSlotId,
-        inputs: RecordingInputs,
-        visual_contexts: Option<ClockTickVisualContexts>,
-    ) -> Self {
-        Self {
-            frozen,
-            viewport,
-            inputs,
-            visual_contexts,
-        }
-    }
+/// What a rendering update's frame presents: a recording, or the display list the compositor has, with the visual
+/// context tree of the render state where the host says it changed.
+#[expect(
+    clippy::large_enum_variant,
+    reason = "a document commits one frame at a time, which moves to the Paint thread without an allocation"
+)]
+pub(crate) enum CommittedSample {
+    Recorded(RecordedFrame),
+    Unrecorded {
+        visual_context_tree: Option<Arc<VisualContextTree>>,
+    },
+}
 
-    /// Records the frame, which a rendering update committed, with `recorder`, and presents it with `presentation`,
-    /// unless the host waits for the recording by then.
-    fn record_committed(
+impl SampledFrame<CommittedSample> {
+    /// Records the frame, which a rendering update committed, with `recorder`, where it records, and presents it with
+    /// `presentation`.
+    fn present_committed(
         self,
         recorder: RecorderState,
-        presentation: Option<Presentation>,
-        stop: &StopWord,
+        mut presentation: Presentation,
         presenting: &mut Presenting,
     ) -> RecordingAnswer {
-        let Self {
-            frozen,
-            viewport,
-            inputs,
-            visual_contexts: _,
-        } = self;
-        RecordingJob::new(frozen, recorder, viewport, presentation).run_beside_host(inputs, stop, presenting)
+        match self.0 {
+            CommittedSample::Recorded(RecordedFrame {
+                frozen,
+                viewport,
+                inputs,
+                visual_contexts: _,
+            }) => RecordingJob::new(frozen, recorder, viewport, Some(presentation)).run_beside_host(inputs, presenting),
+            CommittedSample::Unrecorded { visual_context_tree } => {
+                presentation.present_unrecorded(visual_context_tree, presenting);
+                RecordingAnswer::presented_unrecorded(recorder, presentation)
+            }
+        }
     }
 }
 
-/// A rendering update's frame, which the host commits to the render owner: what freezing it reads, the inputs it is
-/// recorded with but for what the frame decides, the recorder state it is recorded with, the presentation that presents
-/// it, the time the update sampled the document's animations at, and whether a test holds its recording.
+/// What a rendering update's frame shows: a new recording of the document, with what freezing it reads and the inputs
+/// it is recorded with but for what the frame decides, or the display list the compositor has, with the render state's
+/// visual context tree where the host says the tree changed.
+#[expect(
+    clippy::large_enum_variant,
+    reason = "a document commits one frame at a time, which moves to the render owner without an allocation"
+)]
+pub(crate) enum CommittedContent {
+    Recording {
+        frame_inputs: FrameInputs,
+        inputs: UnframedRecordingInputs,
+    },
+    Unrecorded {
+        sends_visual_context_tree: bool,
+    },
+}
+
+/// A rendering update's frame, which the host commits to the render owner: what it shows, the recorder state it is
+/// recorded with, the presentation that presents it, the time the update sampled the document's animations at, and
+/// whether a test holds its recording.
 pub(crate) struct CommittedFrame {
-    pub(crate) frame_inputs: FrameInputs,
-    pub(crate) inputs: UnframedRecordingInputs,
+    pub(crate) content: CommittedContent,
     pub(crate) recorder: RecorderState,
-    pub(crate) presentation: Option<Presentation>,
+    pub(crate) presentation: Presentation,
     pub(crate) timestamp: f64,
     pub(crate) held_for_testing: bool,
 }
@@ -374,26 +403,47 @@ impl CommittedFrame {
     pub(super) fn sample(self, state: &mut RenderState, relay: Relay<RecordingAnswer>) {
         let turn = SamplingTurn(());
         let Self {
-            frame_inputs,
-            inputs,
+            content,
             recorder,
             presentation,
             timestamp,
             held_for_testing,
         } = self;
-        let viewport = frame_inputs.viewport;
-        let Some(frozen) = freeze_recording_frame(state.arena_mut(), frame_inputs) else {
-            relay.land(RecordingAnswer::nothing_recorded(recorder, presentation));
-            return;
+        let frame = match content {
+            CommittedContent::Recording { frame_inputs, inputs } => {
+                let viewport = frame_inputs.viewport;
+                let Some(frozen) = freeze_recording_frame(state.arena_mut(), frame_inputs) else {
+                    relay.land(RecordingAnswer::nothing_recorded(recorder, Some(presentation)));
+                    return;
+                };
+                let inputs = inputs.for_frame(frozen.tree_inputs, frozen.root_background_source);
+                SampledFrame::new(
+                    &turn,
+                    CommittedSample::Recorded(RecordedFrame {
+                        frozen,
+                        viewport,
+                        inputs,
+                        visual_contexts: None,
+                    }),
+                )
+            }
+            CommittedContent::Unrecorded {
+                sends_visual_context_tree,
+            } => SampledFrame::new(
+                &turn,
+                CommittedSample::Unrecorded {
+                    visual_context_tree: sends_visual_context_tree
+                        .then(|| state.arena_mut().paint_state().borrow().visual_context.tree.clone())
+                        .flatten(),
+                },
+            ),
         };
         state.sample_clock.next(timestamp);
-        let inputs = inputs.for_frame(frozen.tree_inputs, frozen.root_background_source);
-        let frame = SampledFrame::new(&turn, frozen, viewport, inputs, None);
-        crate::paint_stage::relay_presenting(relay, move |presenting, stop| {
+        crate::paint_stage::relay_presenting(relay, frame, move |frame, presenting| {
             if held_for_testing {
                 wait_while_recording_is_held_for_testing();
             }
-            frame.record_committed(recorder, presentation, stop, presenting)
+            frame.present_committed(recorder, presentation, presenting)
         });
     }
 }
@@ -816,8 +866,16 @@ impl LeaseLanding {
         let arena = state.arena.arena_mut();
         match freeze_tick_frame(arena, &mut clock_recorder) {
             Ok((frozen, inputs, visual_contexts)) => {
-                let frame = SampledFrame::new(turn, frozen, arena.layout_root(), inputs, visual_contexts);
-                self.recording = TickRecording(crate::paint_stage::ride_presenting(move |presenting| {
+                let frame = SampledFrame::new(
+                    turn,
+                    RecordedFrame {
+                        frozen,
+                        viewport: arena.layout_root(),
+                        inputs,
+                        visual_contexts,
+                    },
+                );
+                self.recording = TickRecording(crate::paint_stage::ride_presenting(frame, move |frame, presenting| {
                     clock_recorder.record(frame, presenting)
                 }));
             }
@@ -888,18 +946,18 @@ fn freeze_tick_frame(
 impl ClockRecorder {
     /// Records `frame`, which a tick sampled, and presents it with the visual contexts the tick prepared for it, on the
     /// Paint thread. Only the host renders an SVG image.
-    fn record(mut self, frame: SampledFrame, presenting: &mut Presenting) -> Self {
+    fn record(mut self, frame: SampledFrame<RecordedFrame>, presenting: &mut Presenting) -> Self {
         let Self {
             recorder,
             presentation,
             presented,
         } = &mut self;
-        let SampledFrame {
+        let SampledFrame(RecordedFrame {
             frozen,
             viewport,
             inputs,
             visual_contexts,
-        } = frame;
+        }) = frame;
         let (pending, _) = record_frame(frozen.frame, recorder, viewport, false, inputs);
         // The recording wrote the paint-order tree, which no longer describes the recording published last.
         if renders_vector_images(&pending) {
