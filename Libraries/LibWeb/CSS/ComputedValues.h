@@ -324,68 +324,6 @@ public:
     static PaintOrderList paint_order() { return { PaintOrder::Fill, PaintOrder::Stroke, PaintOrder::Markers }; }
 };
 
-// https://svgwg.org/svg2-draft/painting.html#SpecifyingPaint
-class SVGPaint {
-public:
-    static SVGPaint from_style_value(NonnullRefPtr<StyleValue const> const& style_value, ColorResolutionContext const& color_resolution_context)
-    {
-        if (style_value->has_color())
-            return { style_value->to_color(color_resolution_context).value(), style_value->to_keyword() == Keyword::Currentcolor };
-
-        if (style_value->is_value_list()) {
-            auto const& values = style_value->as_value_list().values();
-
-            VERIFY(values.size() == 2);
-
-            if (values[1]->is_empty_optional())
-                return values[0]->as_url().url();
-
-            return { values[0]->as_url().url(), values[1]->to_color(color_resolution_context), values[1]->to_keyword() == Keyword::Currentcolor };
-        }
-
-        VERIFY_NOT_REACHED();
-    }
-
-    SVGPaint(Color color, bool color_is_currentcolor = false)
-        : m_value(color)
-        , m_color_is_currentcolor(color_is_currentcolor)
-    {
-    }
-    SVGPaint(URL const& url, Optional<Color> fallback_color = {}, bool fallback_color_is_currentcolor = false)
-        : m_value(url)
-        , m_fallback_color(fallback_color)
-        , m_color_is_currentcolor(fallback_color_is_currentcolor)
-    {
-    }
-
-    bool is_color() const { return m_value.has<Color>(); }
-    bool is_url() const { return m_value.has<URL>(); }
-    Color as_color() const { return m_value.get<Color>(); }
-    URL const& as_url() const { return m_value.get<URL>(); }
-    Optional<Color> const& fallback_color() const { return m_fallback_color; }
-    bool color_is_currentcolor() const { return m_color_is_currentcolor; }
-
-private:
-    Variant<URL, Color> m_value;
-    Optional<Color> m_fallback_color;
-    bool m_color_is_currentcolor { false };
-};
-
-// https://drafts.fxtf.org/css-masking-1/#typedef-mask-reference
-class MaskReference {
-public:
-    // TODO: Support other mask types.
-    MaskReference(URL const& url)
-        : m_url(url)
-    {
-    }
-
-    URL const& url() const { return m_url; }
-
-private:
-    URL m_url;
-};
-
 struct BorderData {
 public:
     Color color { Color::Transparent };
@@ -838,9 +776,7 @@ public:
     bool reads_counter_style_environment(bool is_pseudo) const { return ComputedValuesFFI::rust_style_reads_counter_style_environment(m_noninherited.content_data->content.pointer, list_style_type_data(), is_pseudo); }
 
     RefPtr<AbstractImageStyleValue const> mask_image() const { return m_noninherited.mask_data->mask_image_value(); }
-    Optional<MaskReference> mask() const { return m_noninherited.mask_data->mask_value(); }
     Optional<URL> clip_path() const { return m_noninherited.mask_data->clip_path_value(); }
-    Optional<SVGPaint> stroke() const { return m_inherited.svg->stroke_value(); }
     Color flood_color() const { return Gfx::Color::from_bgra(m_noninherited.svg_reset->flood_color); }
     float flood_opacity() const { return m_noninherited.svg_reset->flood_opacity; }
 
@@ -1011,28 +947,18 @@ public:
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedSVGValues);
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::InheritedSVG;
 
-        static Optional<SVGPaint> paint_value(ComputedValuesFFI::ComputedSvgPaint const& paint)
+        // The paint server a fill or stroke names by URL, if it does.
+        static Optional<URL> paint_url_value(ComputedValuesFFI::ComputedSvgPaint const& paint)
         {
-            switch (paint.kind) {
-            case 0:
+            if (paint.kind != 2)
                 return {};
-            case 1:
-                return SVGPaint { Color::from_bgra(paint.color), paint.color_is_currentcolor };
-            case 2: {
-                auto style_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-                    static_cast<StyleValueFFI::StyleValueData const*>(paint.url.pointer)));
-                Optional<Color> fallback_color;
-                if (paint.has_color)
-                    fallback_color = Color::from_bgra(paint.color);
-                return SVGPaint { style_value->as_url().url(), fallback_color, paint.color_is_currentcolor };
-            }
-            default:
-                VERIFY_NOT_REACHED();
-            }
+            auto const* url = static_cast<StyleValueFFI::StyleValueData const*>(paint.url.pointer);
+            VERIFY(url && url->tag == StyleValueFFI::StyleValueData::Tag::Url);
+            return url_from_rust_data(url->url.url, url->url.url_type, url->url.modifiers);
         }
 
-        Optional<SVGPaint> fill_value() const { return paint_value(fill); }
-        Optional<SVGPaint> stroke_value() const { return paint_value(stroke); }
+        Optional<URL> fill_url_value() const { return paint_url_value(fill); }
+        Optional<URL> stroke_url_value() const { return paint_url_value(stroke); }
         StrokeLinecap stroke_linecap_value() const { return static_cast<StrokeLinecap>(stroke_linecap); }
         StrokeLinejoin stroke_linejoin_value() const { return static_cast<StrokeLinejoin>(stroke_linejoin); }
         ColorInterpolation color_interpolation_value() const { return static_cast<ColorInterpolation>(color_interpolation); }
@@ -1240,7 +1166,8 @@ public:
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::MaskValues);
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Mask;
 
-        Optional<MaskReference> mask_value() const;
+        // The mask layer the first mask-image names by URL, if it does.
+        Optional<URL> mask_url_value() const;
         MaskType mask_type_value() const;
         RefPtr<AbstractImageStyleValue const> mask_image_value() const;
         Vector<RefPtr<AbstractImageStyleValue const>> mask_images_value() const;

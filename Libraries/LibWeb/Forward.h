@@ -377,7 +377,6 @@ class StyleSheetImport;
 class StyleSheetList;
 class StyleValue;
 class StyleValueList;
-class SVGPaint;
 class Time;
 class TimePercentage;
 class TimeStyleValue;

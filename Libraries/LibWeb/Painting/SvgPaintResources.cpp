@@ -31,7 +31,10 @@ static void push_svg_paint_server_description(Layout::NodeWithStyle const& layou
     auto const* graphics_element = as_if<SVG::SVGGraphicsElement>(layout_node.dom_node());
     if (!graphics_element)
         return;
-    auto paint_server_element = graphics_element->paint_server_element(is_stroke ? layout_node.stroke() : layout_node.fill());
+    auto url = is_stroke ? layout_node.stroke_url() : layout_node.fill_url();
+    if (!url.has_value())
+        return;
+    auto paint_server_element = graphics_element->resolve_url_to_element(*url);
     if (auto const* gradient = as_if<SVG::SVGGradientElement>(paint_server_element.ptr()))
         gradient->push_paint_server_description(sink);
     else if (auto const* pattern = as_if<SVG::SVGPatternElement>(paint_server_element.ptr()))

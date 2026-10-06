@@ -52,12 +52,10 @@ public:
         return {};
     }
 
-    GC::Ptr<DOM::Element> paint_server_element(Optional<CSS::SVGPaint> const&) const;
+    GC::Ptr<DOM::Element> resolve_url_to_element(CSS::URL const& url) const;
 
 protected:
     SVGGraphicsElement(DOM::Document&, DOM::QualifiedName);
-
-    GC::Ptr<DOM::Element> resolve_url_to_element(CSS::URL const& url) const;
 
 private:
     virtual bool is_svg_graphics_element() const final { return true; }
