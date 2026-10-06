@@ -1159,8 +1159,8 @@ pub(crate) struct LayoutNodeArena {
     /// Every box must be recreated by the next layout tree build; set when the tree is torn down
     /// or a build finds a box it cannot place among rebuilt roots, cleared by the full pass.
     needs_full_layout_tree_update: Cell<bool>,
-    /// Whether a pass that could not ask the host resolved a container-relative length without its container.
-    unresolved_container_lengths: Cell<bool>,
+    /// The nodes whose container-relative lengths a pass that could not ask the host resolved without their container.
+    unresolved_container_lengths: RefCell<Vec<NodeSlotId>>,
     partial_layout_count: Cell<u64>,
     full_layout_count: Cell<u64>,
     layout_tree_build_stats: Cell<FfiLayoutTreeBuildStats>,
@@ -1277,7 +1277,7 @@ impl LayoutNodeArena {
             pending_rebuilt_subtree_roots: RefCell::new(Vec::new()),
             pending_layout_tree_update_escaped_rebuild_roots: Cell::new(false),
             needs_full_layout_tree_update: Cell::new(false),
-            unresolved_container_lengths: Cell::new(false),
+            unresolved_container_lengths: RefCell::new(Vec::new()),
             partial_layout_count: Cell::new(0),
             full_layout_count: Cell::new(0),
             layout_tree_build_stats: Cell::new(FfiLayoutTreeBuildStats::default()),
@@ -2664,14 +2664,24 @@ impl LayoutNodeArena {
         self.needs_full_layout_tree_update.get()
     }
 
-    /// Notes that a pass that could not ask the host resolved a container-relative length without its container.
-    pub(crate) fn note_unresolved_container_lengths(&self) {
-        self.unresolved_container_lengths.set(true);
+    /// Notes that a pass that could not ask the host resolved a container-relative length of `node` without its
+    /// container.
+    pub(crate) fn note_unresolved_container_lengths(&self, node: NodeSlotId) {
+        let mut nodes = self.unresolved_container_lengths.borrow_mut();
+        if nodes.last() != Some(&node) {
+            nodes.push(node);
+        }
     }
 
-    /// Whether a pass resolved a container-relative length without its container since this was asked last.
-    pub(crate) fn take_unresolved_container_lengths(&self) -> bool {
-        self.unresolved_container_lengths.take()
+    /// Marks the nodes whose container-relative lengths a pass resolved without their container since this was asked
+    /// last for a layout update, ancestors included, so that the next layout lays them out again rather than reusing
+    /// what the pass laid out. Answers whether there were any.
+    pub(crate) fn mark_unresolved_container_lengths_for_layout(&self) -> bool {
+        let nodes = self.unresolved_container_lengths.take();
+        for &node in &nodes {
+            self.set_needs_layout_update(node, true);
+        }
+        !nodes.is_empty()
     }
 
     pub(crate) fn set_needs_full_layout_tree_update(&self, value: bool) {
