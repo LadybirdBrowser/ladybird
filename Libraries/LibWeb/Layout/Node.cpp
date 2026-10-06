@@ -178,13 +178,6 @@ Node* Node::topmost_layout_node_of_top_layer_placement()
     return direct_viewport_child_candidate;
 }
 
-// The flag is set on the box a pseudo-element is bound to and cleared when that binding moves, so
-// it answers without resolving the generator on the DOM side.
-bool Node::is_pseudo_element_principal_box() const
-{
-    return has_flag(RustFFI::NodeFlag::IsPseudoElementPrincipalBox);
-}
-
 bool NodeWithStyle::establishes_an_absolute_positioning_containing_block() const
 {
     return RustFFI::layout_row_establishes_an_absolute_positioning_containing_block(document_host(), Node::slot_id(this));
