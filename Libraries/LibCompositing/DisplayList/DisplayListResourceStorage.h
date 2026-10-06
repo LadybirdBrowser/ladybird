@@ -135,11 +135,17 @@ public:
     DisplayListResourceTransaction create_transaction(DisplayListResourceSet const& previous, DisplayListResourceSet const& current) const;
     DisplayListResourceSet collect_referenced_resources(DisplayList const&) const;
     DisplayListResourceSet collect_referenced_resources(AccumulatedVisualContextTree const&) const;
+    // Carries everything the list and its tree refer to, for a receiver that holds none of it yet.
+    ErrorOr<DisplayListResourceTransaction> create_self_contained_transaction(DisplayList const&, AccumulatedVisualContextTree const&) const;
+    // Checks that the list, and each list nested in it, can replay against what this storage holds, and that no nested
+    // list reaches itself.
+    ErrorOr<void> validate_for_replay(DisplayList const&, AccumulatedVisualContextTree const&) const;
     void retain_only(DisplayListResourceSet const&);
     bool has_resources_added_since_last_retain() const { return m_has_resources_added_since_last_retain; }
     void set_video_sink(VideoSinkResourceId, RefPtr<Media::VideoSink>);
 
     bool has_font(FontResourceId id) const { return m_fonts.contains(id.value()); }
+    bool has_image_frame(ImageFrameResourceId id) const { return m_image_frames.contains(id.value()); }
     Gfx::Font const& font(FontResourceId id) const { return *m_fonts.get(id.value()).value(); }
     Gfx::DecodedImageFrame const& image_frame(ImageFrameResourceId) const;
     // Whether force-dark should invert this image, worked out once and cached.
