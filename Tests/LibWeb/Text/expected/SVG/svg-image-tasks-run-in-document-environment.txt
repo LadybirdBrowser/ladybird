@@ -1,0 +1,2 @@
+Red image: 255,0,0,255
+Blue image: 0,0,255,255

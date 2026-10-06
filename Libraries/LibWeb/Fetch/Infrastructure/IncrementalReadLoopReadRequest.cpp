@@ -81,8 +81,7 @@ void IncrementalReadLoopReadRequest::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_body);
     visitor.visit(m_reader);
-    if (auto* task_destination_object = m_task_destination.get_pointer<GC::Ref<JS::Object>>(); task_destination_object)
-        visitor.visit(*task_destination_object);
+    visitor.visit(m_task_destination);
     visitor.visit(m_process_body_chunk);
     visitor.visit(m_process_end_of_body);
     visitor.visit(m_process_body_error);

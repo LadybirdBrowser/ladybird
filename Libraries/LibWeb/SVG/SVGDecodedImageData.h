@@ -199,6 +199,8 @@ public:
     ScopedSVGImageDocument(ScopedSVGImageDocument&&);
     ~ScopedSVGImageDocument();
 
+    [[nodiscard]] static Optional<ScopedSVGImageDocument> create_if_needed(GC::Ptr<DOM::Document const>, FrameRequests);
+
 private:
     GC::Ref<SVGDecodedImageData::SVGPageClient> m_page_client;
     GC::Ref<HTML::LocalNavigable> m_navigable;
