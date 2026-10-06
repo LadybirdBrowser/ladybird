@@ -410,34 +410,16 @@ static NonnullRefPtr<StyleValue const> resolve_filter_style_value(NonnullRefPtr<
     return StyleValueList::create(move(filters), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
 }
 
-// The canonical serialization of the computed touch-action flags; notably, allowing exactly
-// panning and pinch-zoom serializes as `manipulation`, whatever form specified it.
-static NonnullRefPtr<StyleValue const> style_value_for_touch_action(TouchActionData const& action)
+// Allowing exactly panning and pinch-zoom serializes as `manipulation`, whatever form specified it. The parser
+// orders a list as horizontal, vertical, pinch-zoom, with at most one of each.
+static NonnullRefPtr<StyleValue const> resolve_touch_action_style_value(NonnullRefPtr<StyleValue const> value)
 {
-    if (action.allow_left && action.allow_right && action.allow_up && action.allow_down && action.allow_pinch_zoom) {
-        if (action.allow_other)
-            return KeywordStyleValue::create(Keyword::Auto);
-        return KeywordStyleValue::create(Keyword::Manipulation);
+    if (value->is_value_list()) {
+        auto const& values = value->as_value_list().values();
+        if (values.size() == 3 && values[0]->to_keyword() == Keyword::PanX && values[1]->to_keyword() == Keyword::PanY)
+            return KeywordStyleValue::create(Keyword::Manipulation);
     }
-    if (!action.allow_left && !action.allow_right && !action.allow_up && !action.allow_down && !action.allow_pinch_zoom)
-        return KeywordStyleValue::create(Keyword::None);
-
-    StyleValueVector values;
-    if (action.allow_left && action.allow_right)
-        values.append(KeywordStyleValue::create(Keyword::PanX));
-    else if (action.allow_left)
-        values.append(KeywordStyleValue::create(Keyword::PanLeft));
-    else if (action.allow_right)
-        values.append(KeywordStyleValue::create(Keyword::PanRight));
-    if (action.allow_up && action.allow_down)
-        values.append(KeywordStyleValue::create(Keyword::PanY));
-    else if (action.allow_up)
-        values.append(KeywordStyleValue::create(Keyword::PanUp));
-    else if (action.allow_down)
-        values.append(KeywordStyleValue::create(Keyword::PanDown));
-    if (action.allow_pinch_zoom)
-        values.append(KeywordStyleValue::create(Keyword::PinchZoom));
-    return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    return value;
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
@@ -914,7 +896,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                 case PropertyID::Filter:
                     return resolve_filter_style_value(move(computed_value), computed_values->color());
                 case PropertyID::TouchAction:
-                    return style_value_for_touch_action(computed_values->touch_action());
+                    return resolve_touch_action_style_value(move(computed_value));
                 case PropertyID::TransformOrigin:
                     return style_value_for_transform_origin(computed_values->transform_origin(), {});
                 default:
@@ -1186,7 +1168,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     case PropertyID::Filter:
         return resolve_filter_style_value(*get_computed_value(property_id), layout_node.color());
     case PropertyID::TouchAction:
-        return style_value_for_touch_action(layout_node.style_group<ComputedValues::MiscResetValues>().touch_action_value());
+        return resolve_touch_action_style_value(get_computed_value(property_id));
 
         // -> line-height
         //    The resolved value is normal if the computed value is normal, or the used value otherwise.
