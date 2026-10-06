@@ -17,6 +17,8 @@
         check("array-deep", "[".repeat(100000) + "1" + "]".repeat(100000));
         check("block-deep", "{".repeat(100000) + "}".repeat(100000));
         check("binding-deep", "var " + "[".repeat(100000) + "a" + "]".repeat(100000) + "=0");
+        // Input left over at the limit must not be chained into an ever deeper expression.
+        check("unclosed-parens-huge", "(".repeat(4000000) + "1");
 
         // A shallow expression must still parse successfully.
         check("shallow", "!".repeat(50) + "1");

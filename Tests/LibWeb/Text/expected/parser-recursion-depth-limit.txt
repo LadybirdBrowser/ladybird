@@ -3,4 +3,5 @@ parens-deep: SyntaxError
 array-deep: SyntaxError
 block-deep: SyntaxError
 binding-deep: SyntaxError
+unclosed-parens-huge: SyntaxError
 shallow: parsed
