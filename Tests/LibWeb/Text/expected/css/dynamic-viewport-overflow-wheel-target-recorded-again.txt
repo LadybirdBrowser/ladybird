@@ -1,0 +1,2 @@
+Wheel target while the viewport scrolls: viewport
+Wheel target after the viewport stops scrolling: none

@@ -298,13 +298,18 @@ pub(crate) fn update_accumulated_visual_contexts(
             let box_values = style.box_values();
             (box_values.overflow_x, box_values.overflow_y)
         });
+    let viewport_overflow_changed =
+        std::mem::replace(&mut state.last_viewport_overflow, viewport_overflow) != viewport_overflow;
+    if viewport_overflow_changed {
+        // The wheel targets of every hit-test item end at the viewport where it scrolls, which no box capture of the
+        // last recording knows: none of its scroll metadata stands.
+        arena.push_scroll_metadata_damage_everywhere();
+    }
     if state.last_tree_inputs.is_some_and(|last| {
-        last.device_pixels_per_css_pixel != inputs.device_pixels_per_css_pixel
-            || state.last_viewport_overflow != viewport_overflow
+        last.device_pixels_per_css_pixel != inputs.device_pixels_per_css_pixel || viewport_overflow_changed
     }) {
         scope = scope.max(VisualContextUpdateScope::EveryBox);
     }
-    state.last_viewport_overflow = viewport_overflow;
     if state.tree.as_deref().is_some_and(|tree| tree.should_compact()) {
         scope = VisualContextUpdateScope::FreshTree;
     }
