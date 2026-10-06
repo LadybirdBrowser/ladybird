@@ -345,7 +345,7 @@ pub unsafe extern "C" fn render_state_prepare_for_rendering(
     // SAFETY: Guaranteed by the caller.
     let inputs = unsafe { inputs_of(document) };
     let prepared = run_paint_pass(read, host, PassEffect::RewritesRows, move |arena| {
-        pending.prepare(arena, visual_context_update_pending, &inputs)
+        pending.prepare(arena, (!visual_context_update_pending).then_some(&inputs))
     });
     if !prepared.clamped_scroll_offsets.is_empty() {
         // SAFETY: Guaranteed by the caller.

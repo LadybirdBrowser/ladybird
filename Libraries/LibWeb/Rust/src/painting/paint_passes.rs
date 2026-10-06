@@ -155,19 +155,14 @@ pub(crate) struct PendingPreparation {
 }
 
 impl PendingPreparation {
-    /// Settles the scrollable overflow left unmeasured, and with it the root background and the sticky constraints.
+    /// Settles the scrollable overflow left unmeasured, and with it the root background and, with `sticky_inputs`, the
+    /// sticky constraints.
     pub(crate) fn prepare(
         self,
         arena: &LayoutNodeArena,
-        visual_context_update_pending: bool,
-        inputs: &FfiVisualContextTreeInputs,
+        sticky_inputs: Option<&FfiVisualContextTreeInputs>,
     ) -> RenderingPreparation {
-        prepare_for_rendering(
-            arena,
-            self.root_background_source,
-            visual_context_update_pending,
-            inputs,
-        )
+        prepare_for_rendering(arena, self.root_background_source, sticky_inputs)
     }
 }
 
@@ -196,11 +191,12 @@ pub(crate) fn pending_preparation(read: &BegunRead, host: &DocumentHost) -> Opti
     host.ask(read, |state| rendering_preparation_pending(state.arena_mut()))
 }
 
+/// Prepares `arena` for rendering. The sticky constraints the new overflow moved are refreshed with `sticky_inputs`, the
+/// inputs of the visual context tree, unless there are none: a visual context update is pending, which refreshes them.
 pub(crate) fn prepare_for_rendering(
     arena: &LayoutNodeArena,
     root_background_source: RootBackgroundSource,
-    visual_context_update_pending: bool,
-    inputs: &FfiVisualContextTreeInputs,
+    sticky_inputs: Option<&FfiVisualContextTreeInputs>,
 ) -> RenderingPreparation {
     let background_source_changed = arena
         .paint_state()
@@ -213,7 +209,7 @@ pub(crate) fn prepare_for_rendering(
     let changed = arena.scrollable_overflow.geometry_changed.replace(false);
     let flipped = arena.scrollable_overflow.scrollability_changed.replace(false);
     let mut visual_context_values_changed = false;
-    if changed && !flipped && !visual_context_update_pending {
+    if let Some(inputs) = sticky_inputs.filter(|_| changed && !flipped) {
         let rows = arena.paintable_rows();
         let mut state = arena.paint_state().borrow_mut();
         let state = &mut state.visual_context;
