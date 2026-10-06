@@ -436,9 +436,10 @@ impl RetainedState {
             }
             // What the record is derived from: the element's inherited style, display and
             // environment, and the element's record itself only when the state inherits a
-            // non-inherited property from it. A record whose winners read beyond its environment
-            // is the originating element's alone, as is one declaring registered custom
-            // properties, which its own font decides.
+            // non-inherited property from it, or when the element's animations sampled values
+            // into its inherited style. A record whose winners read beyond its environment is
+            // the originating element's alone, as is one declaring registered custom properties,
+            // which its own font decides.
             let key = self
                 .computed_group_sets
                 .node_inherited_groups_identity(node)
@@ -449,6 +450,7 @@ impl RetainedState {
                     parent_record: if pseudo_kind::is_highlight(kind)
                         || kind == BACKDROP
                         || state.is_some_and(|state| self.state_explicitly_inherits_non_inherited_property(node, state))
+                        || !self.computed_group_sets.record_inherits_as_its_base(new_element_record)
                     {
                         new_element_record.raw()
                     } else {

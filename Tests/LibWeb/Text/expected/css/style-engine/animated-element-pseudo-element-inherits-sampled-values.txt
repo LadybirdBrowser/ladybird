@@ -1,0 +1,3 @@
+::before color: rgb(0, 0, 0)
+::before color: rgb(100, 0, 0)
+::before color: rgb(0, 0, 0)
