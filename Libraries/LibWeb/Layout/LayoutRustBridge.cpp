@@ -451,39 +451,6 @@ void register_layout_host(NodeArena& arena, DOM::Document& document)
 
 }
 
-extern "C" WEB_API u8 ladybird_layout_text_type_for_code_point(u32 code_point)
-{
-    return static_cast<u8>(to_underlying(Web::Layout::text_type_for_code_point(code_point)));
-}
-
-extern "C" WEB_API bool ladybird_layout_code_point_has_break_all_line_break_class(u32 code_point)
-{
-    return first_is_one_of(Unicode::line_break_class(code_point),
-        Unicode::LineBreakClass::Alphabetic,
-        Unicode::LineBreakClass::Numeric,
-        Unicode::LineBreakClass::ComplexContext,
-        Unicode::LineBreakClass::Ideographic);
-}
-
-extern "C" WEB_API bool ladybird_layout_code_point_has_keep_all_line_break_class(u32 code_point)
-{
-    return first_is_one_of(Unicode::line_break_class(code_point),
-        Unicode::LineBreakClass::Alphabetic,
-        Unicode::LineBreakClass::Numeric,
-        Unicode::LineBreakClass::Ambiguous,
-        Unicode::LineBreakClass::Ideographic);
-}
-
-extern "C" WEB_API bool ladybird_layout_code_point_has_combining_mark_line_break_class(u32 code_point)
-{
-    return Unicode::line_break_class(code_point) == Unicode::LineBreakClass::CombiningMark;
-}
-
-extern "C" WEB_API bool ladybird_layout_code_point_has_emoji_property(u32 code_point)
-{
-    return Unicode::code_point_has_emoji_property(code_point);
-}
-
 extern "C" WEB_API Web::Layout::RustFFI::FfiCodePointCategoryFacts ladybird_layout_code_point_category_facts(u32 code_point)
 {
     static auto const ps = Unicode::general_category_from_string("Ps"sv).value();

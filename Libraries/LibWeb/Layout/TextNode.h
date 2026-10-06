@@ -11,7 +11,6 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
-#include <LibGfx/TextLayout.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Layout/Box.h>
@@ -54,11 +53,6 @@ public:
 private:
     Utf16String m_text;
 };
-
-// Classifies a code point for direction-run splitting during text chunking:
-// strong LTR/RTL, direction-neutral Common, or ContextDependent (resolved
-// from surrounding runs).
-Gfx::GlyphRun::TextType text_type_for_code_point(u32 code_point);
 
 template<>
 inline bool Node::fast_is<TextNode>() const { return is_text_node(); }
