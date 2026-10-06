@@ -732,8 +732,7 @@ fn absolutize_color_mix(value: &StyleValueData, context: &AbsolutizationContext)
 }
 
 /// The gradient absolutizers recurse their Rust-owned children and rebuild the retained stop
-/// list in place. The C++ linear gradient absolutization leaves the direction untouched, so this
-/// does too.
+/// list in place.
 fn absolutize_gradient(value: &StyleValueData, context: &AbsolutizationContext) -> Option<Absolutized> {
     let mut changed = false;
     let absolutize_stops = |color_stop_list: &crate::css::style_value::RetainedColorStopList,
@@ -768,13 +767,13 @@ fn absolutize_gradient(value: &StyleValueData, context: &AbsolutizationContext) 
             color_interpolation_method,
             color_syntax,
         } => {
-            // The C++ recursion deliberately leaves the direction untouched.
+            let direction_value = absolutize_child(direction_value, context, &mut changed)?;
             let color_stop_list = absolutize_stops(color_stop_list, &mut changed)?;
             let color_interpolation_method = absolutize_child(color_interpolation_method, context, &mut changed)?;
             if changed {
                 Some(Absolutized::Changed(retain_new(StyleValueData::LinearGradient {
                     has_direction_value: *has_direction_value,
-                    direction_value: direction_value.clone_retained(),
+                    direction_value,
                     side_or_corner: *side_or_corner,
                     color_stop_list,
                     gradient_type: *gradient_type,
