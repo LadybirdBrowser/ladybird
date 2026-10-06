@@ -1640,7 +1640,7 @@ private:
     Layout::RustFFI::FfiLayoutUpdateHostCallbacks layout_update_host_callbacks();
 
     void process_pending_list_item_renumbers();
-    bool reconcile_stale_list_item_counters_after_tree_build(Layout::BegunRead const& read);
+    bool reconcile_stale_list_item_counters_after_tree_build(ReadonlySpan<Layout::RustFFI::FfiNodeIdentity> rebuilt_roots);
     enum class LayoutTreeChanged : u8 {
         No,
         Yes,

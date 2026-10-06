@@ -2241,7 +2241,7 @@ void Document::did_render_list_item_counter_value(Element& element)
     }
 }
 
-bool Document::reconcile_stale_list_item_counters_after_tree_build(Layout::BegunRead const& read)
+bool Document::reconcile_stale_list_item_counters_after_tree_build(ReadonlySpan<Layout::RustFFI::FfiNodeIdentity> rebuilt_roots)
 {
     if (m_list_owners_with_stale_item_counters.is_empty()) {
         m_stale_list_item_counter_rendered = false;
@@ -2250,22 +2250,16 @@ bool Document::reconcile_stale_list_item_counters_after_tree_build(Layout::Begun
 
     // A rebuilt subtree has re-resolved the counters sets of any stale owner inside it, and an owner that has left
     // the document renders nothing.
-    struct RebuiltRoots {
-        GC::Ref<Document> document;
-        HashTable<GC::Ptr<Node const>> dom_roots;
-    } rebuilt_roots { *this, {} };
-    Layout::RustFFI::render_state_for_each_pending_rebuilt_subtree_root(
-        layout_node_arena().host(), &read, &rebuilt_roots,
-        [](void* context, Layout::RustFFI::FfiNodeIdentity root) {
-            auto& rebuilt_roots = *static_cast<RebuiltRoots*>(context);
-            if (auto dom_node = Painting::node_identity_of(root).resolve(*rebuilt_roots.document))
-                rebuilt_roots.dom_roots.set(dom_node);
-        });
+    HashTable<GC::Ptr<Node const>> rebuilt_dom_roots;
+    for (auto root : rebuilt_roots) {
+        if (auto dom_node = Painting::node_identity_of(root).resolve(*this))
+            rebuilt_dom_roots.set(dom_node);
+    }
     m_list_owners_with_stale_item_counters.remove_all_matching([&](GC::Ref<Element> const& list_owner) {
         if (!list_owner->is_connected())
             return true;
         for (Node const* node = list_owner.ptr(); node; node = node->parent()) {
-            if (rebuilt_roots.dom_roots.contains(node))
+            if (rebuilt_dom_roots.contains(node))
                 return true;
         }
         return false;
