@@ -235,7 +235,6 @@ class AngleStyleValue;
 class BackgroundSizeStyleValue;
 class BlurFilterStyleValue;
 class BorderImageSliceStyleValue;
-class BorderRadiusStyleValue;
 class CalculatedStyleValue;
 class CustomPropertyData;
 class ColorFilterStyleValue;
@@ -363,7 +362,6 @@ class Selector;
 class ShadowStyleValue;
 class ShorthandStyleValue;
 class Size;
-class ScrollbarColorStyleValue;
 class StringStyleValue;
 class StyleComputer;
 class StylePropertyMap;
@@ -378,7 +376,6 @@ class Time;
 class TimePercentage;
 class TimeStyleValue;
 class TransformationStyleValue;
-class TupleStyleValue;
 class UnicodeRangeStyleValue;
 class UnresolvedStyleValue;
 class URL;
@@ -459,7 +456,6 @@ struct RequiredInvalidationAfterStyleChange;
 using CSSNumberish = Variant<double, GC::Ref<CSSNumericValue>>;
 using PaintOrderList = Array<PaintOrder, 3>;
 using StyleValueVector = Vector<ValueComparingNonnullRefPtr<StyleValue const>>;
-using StyleValueTuple = Vector<ValueComparingRefPtr<StyleValue const>>;
 
 }
 

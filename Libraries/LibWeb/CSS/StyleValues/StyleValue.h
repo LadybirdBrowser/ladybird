@@ -44,7 +44,7 @@ WEB_API Utf16FlyString css_string_from_rust(void const*);
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(BackgroundSize, background_size, BackgroundSizeStyleValue)                \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(BasicShape, basic_shape, StyleValue)                                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(BorderImageSlice, border_image_slice, BorderImageSliceStyleValue)         \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(BorderRadius, border_radius, BorderRadiusStyleValue)                      \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(BorderRadius, border_radius, StyleValue)                                  \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(BorderRadiusRect, border_radius_rect, StyleValue)                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Calculated, calculated, CalculatedStyleValue)                             \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(ColorInterpolationMethod, color_interpolation_method, StyleValue)         \
@@ -93,7 +93,7 @@ WEB_API Utf16FlyString css_string_from_rust(void const*);
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Rect, rect, StyleValue)                                                   \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(RepeatStyle, repeat_style, RepeatStyleStyleValue)                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Resolution, resolution, ResolutionStyleValue)                             \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(ScrollbarColor, scrollbar_color, ScrollbarColorStyleValue)                \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(ScrollbarColor, scrollbar_color, StyleValue)                              \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(ScrollbarGutter, scrollbar_gutter, StyleValue)                            \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Shadow, shadow, ShadowStyleValue)                                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Shorthand, shorthand, ShorthandStyleValue)                                \
@@ -104,7 +104,7 @@ WEB_API Utf16FlyString css_string_from_rust(void const*);
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Time, time, TimeStyleValue)                                               \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Transformation, transformation, TransformationStyleValue)                 \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(TreeCountingFunction, tree_counting_function, StyleValue)                 \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Tuple, tuple, TupleStyleValue)                                            \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Tuple, tuple, StyleValue)                                                 \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(UnicodeRange, unicode_range, UnicodeRangeStyleValue)                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Unresolved, unresolved, UnresolvedStyleValue)                             \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(URL, url, URLStyleValue)                                                  \
