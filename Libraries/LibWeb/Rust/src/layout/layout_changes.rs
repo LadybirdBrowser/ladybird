@@ -198,6 +198,7 @@ impl LayoutChange {
         match self {
             Self::MarkBox { marks, .. } => marks.may_lay_out(),
             Self::SetIdentityInFocusedTextControl { .. }
+            | Self::InvalidateSearchableText
             | Self::PinBoundBoxStyleRecordForDetachment { .. }
             | Self::PinNodeStyleRecordForHost { .. }
             | Self::ReleaseNodeStyleRecordPinForHost { .. }
