@@ -385,14 +385,7 @@ pub(crate) fn place_child_in_containing_block(
             (!containing_block.is_invalid()).then_some(containing_block),
             used,
             containing_block_is_sealed,
-            resolve_containing_line_box_index(
-                records,
-                callbacks,
-                node,
-                containing_block,
-                containing_line_box_fragment,
-                offset,
-            ),
+            resolve_containing_line_box_index(records, callbacks, node, containing_block, containing_line_box_fragment),
             point_add(
                 offset,
                 committed_offset_delta_at_placement(purpose, records, callbacks, node, containing_block, used),
@@ -410,26 +403,24 @@ fn resolve_containing_line_box_index(
     node: Node,
     containing_block: Node,
     coordinate: Option<used_values::LineBoxFragmentCoordinate>,
-    placed_offset: FfiCssPixelPoint,
 ) -> Option<usize> {
     let coordinate = coordinate?;
-    let facts = NodeFacts::new(callbacks, node);
-    if !facts.is_non_fragmented_box() {
+    if !NodeFacts::new(callbacks, node).is_non_fragmented_box() {
         return None;
     }
     assert!(!containing_block.is_invalid());
     let containing_block_used = records.used_values(containing_block);
     let data = containing_block_used.line_data_ref()?;
     let line = data.building().line_boxes.get(coordinate.line_box_index)?;
-    if let Some(fragment) = line.fragments.get(coordinate.fragment_index) {
-        let (x, y) = fragment.offset();
-        debug_assert_eq!(
-            FfiCssPixelPoint { x, y },
-            placed_offset,
-            "stored line fragment offset diverged from the placed offset (is_block_outside={})",
-            facts.display().is_block_outside()
-        );
-    }
+    // The placed offset is not the fragment's offset: atomic inlines are placed shifted by their inline ancestors'
+    // relative insets, which the line data only folds in after placement. An interrupting block is placed before
+    // its line gets its fragment.
+    debug_assert!(
+        line.fragments
+            .get(coordinate.fragment_index)
+            .is_none_or(|fragment| fragment.layout_node == node),
+        "a line box fragment coordinate must name the placed box's own fragment"
+    );
     Some(coordinate.line_box_index)
 }
 
