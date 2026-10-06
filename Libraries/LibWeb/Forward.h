@@ -349,7 +349,6 @@ class NumberStyleValue;
 class NumericType;
 class OpacityValueStyleValue;
 class OpenTypeTaggedStyleValue;
-class ParsedFontFace;
 class PendingSubstitutionStyleValue;
 class Percentage;
 class PercentageStyleValue;

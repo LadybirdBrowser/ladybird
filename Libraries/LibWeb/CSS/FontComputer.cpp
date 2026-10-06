@@ -718,22 +718,20 @@ void FontComputer::synchronize_font_face_order(Vector<NonnullRefPtr<FontFaceStat
     }
 }
 
-GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face, RefPtr<StyleSheetState> parent_style_sheet, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load)
+GC::Ptr<FontLoader> FontComputer::load_font_face(ReadonlySpan<FontLoader::Source> sources, RefPtr<StyleSheetState> parent_style_sheet, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load)
 {
-    if (font_face.sources().is_empty()) {
+    if (sources.is_empty()) {
         if (on_load)
             on_load->function()({});
         return {};
     }
 
-    Vector<FontLoader::Source> sources;
     StringBuilder key_builder;
-    for (auto const& source : font_face.sources()) {
-        sources.append(source.local_or_url);
-        auto value = source.local_or_url.has<URL>()
-            ? source.local_or_url.get<URL>().to_string()
-            : MUST(source.local_or_url.get<Utf16FlyString>().view().to_utf8());
-        key_builder.appendff("{}{}:{}", source.local_or_url.has<URL>() ? 'u' : 'l', value.bytes_as_string_view().length(), value);
+    for (auto const& source : sources) {
+        auto value = source.has<URL>()
+            ? source.get<URL>().to_string()
+            : MUST(source.get<Utf16FlyString>().view().to_utf8());
+        key_builder.appendff("{}{}:{}", source.has<URL>() ? 'u' : 'l', value.bytes_as_string_view().length(), value);
     }
 
     RuleOrDeclaration rule_or_declaration {
@@ -752,7 +750,7 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
         return it->value;
     }
 
-    auto loader = GC::Heap::the().allocate<FontLoader>(*this, rule_or_declaration, move(sources), move(on_load));
+    auto loader = GC::Heap::the().allocate<FontLoader>(*this, rule_or_declaration, Vector<FontLoader::Source> { sources }, move(on_load));
     m_loaders_by_source.set(move(key), loader);
     return loader;
 }

@@ -28,15 +28,6 @@ public:
             return {};
         return css_string_from_rust(&m_value->font_source.format);
     }
-    Vector<FontTech> tech() const
-    {
-        auto const& list = m_value->font_source.tech;
-        Vector<FontTech> tech;
-        tech.ensure_capacity(list.length);
-        for (size_t i = 0; i < list.length; ++i)
-            tech.unchecked_append(static_cast<FontTech>(list.pointer[i]));
-        return tech;
-    }
 
 private:
     friend class StyleValue;

@@ -204,7 +204,7 @@ public:
     void unregister_font_face(NonnullRefPtr<FontFaceState>);
     void synchronize_font_face_order(Vector<NonnullRefPtr<FontFaceState>> const&);
 
-    GC::Ptr<FontLoader> load_font_face(ParsedFontFace const&, RefPtr<StyleSheetState>, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load = {});
+    GC::Ptr<FontLoader> load_font_face(ReadonlySpan<FontLoader::Source>, RefPtr<StyleSheetState>, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load = {});
 
     void load_fonts_from_sheet(StyleSheetState&);
     void unload_fonts_from_sheet(StyleSheetState&);
