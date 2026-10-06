@@ -12,61 +12,6 @@
 
 namespace Web::CSS {
 
-// https://drafts.csswg.org/css-easing/#linear-easing-function-output
-double LinearEasingFunction::evaluate_at(double input_progress, bool before_flag) const
-{
-    Vector<Compositing::RustFFI::FfiLinearEasingPoint> points;
-    points.ensure_capacity(control_points.size());
-    for (auto const& point : control_points)
-        points.unchecked_append({ .input = point.input, .output = point.output });
-    Compositing::RustFFI::FfiEasingDescriptor descriptor {
-        .kind = Compositing::RustFFI::FfiEasingKind::Linear,
-        .linear_points = points.data(),
-        .linear_point_count = points.size(),
-        .x1 = 0,
-        .y1 = 0,
-        .x2 = 0,
-        .y2 = 0,
-        .interval_count = 0,
-        .step_position = 0,
-    };
-    return StyleValueFFI::rust_evaluate_easing(&descriptor, input_progress, before_flag);
-}
-
-// https://www.w3.org/TR/css-easing-1/#cubic-bezier-algo
-double CubicBezierEasingFunction::evaluate_at(double input_progress, bool before_flag) const
-{
-    Compositing::RustFFI::FfiEasingDescriptor descriptor {
-        .kind = Compositing::RustFFI::FfiEasingKind::CubicBezier,
-        .linear_points = nullptr,
-        .linear_point_count = 0,
-        .x1 = x1,
-        .y1 = y1,
-        .x2 = x2,
-        .y2 = y2,
-        .interval_count = 0,
-        .step_position = 0,
-    };
-    return StyleValueFFI::rust_evaluate_easing(&descriptor, input_progress, before_flag);
-}
-
-// https://www.w3.org/TR/css-easing-1/#step-easing-algo
-double StepsEasingFunction::evaluate_at(double input_progress, bool before_flag) const
-{
-    Compositing::RustFFI::FfiEasingDescriptor descriptor {
-        .kind = Compositing::RustFFI::FfiEasingKind::Steps,
-        .linear_points = nullptr,
-        .linear_point_count = 0,
-        .x1 = 0,
-        .y1 = 0,
-        .x2 = 0,
-        .y2 = 0,
-        .interval_count = interval_count,
-        .step_position = to_underlying(position),
-    };
-    return StyleValueFFI::rust_evaluate_easing(&descriptor, input_progress, before_flag);
-}
-
 // https://drafts.csswg.org/css-easing-2/#linear-easing-function
 EasingFunction EasingFunction::linear()
 {
@@ -172,10 +117,9 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
 
 double EasingFunction::evaluate_at(double input_progress, bool before_flag) const
 {
-    return visit(
-        [&](auto const& function) {
-            return function.evaluate_at(input_progress, before_flag);
-        });
+    Vector<Compositing::RustFFI::FfiLinearEasingPoint> linear_points;
+    auto descriptor = to_ffi_easing_descriptor<Compositing::RustFFI::FfiEasingDescriptor>(*this, linear_points);
+    return StyleValueFFI::rust_evaluate_easing(&descriptor, input_progress, before_flag);
 }
 
 Utf16String const& EasingFunction::to_utf16_string() const
