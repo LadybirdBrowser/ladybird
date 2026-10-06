@@ -148,7 +148,6 @@ impl RenderState {
                     .is_some(),
                 may_have_auto_content_visibility: arena.may_have_auto_content_visibility(),
             },
-            owes_image_resources: arena.owes_image_resources_to_host(),
             selector_attribute_value_text_requirements_version: engine
                 .selector_attribute_value_text_requirements_version(),
         };
@@ -259,9 +258,6 @@ pub(crate) struct StateFacts {
     pub(crate) rows_version: crate::layout::RowsVersion,
     pub(crate) engine: EngineFacts,
     pub(crate) arena: ArenaFacts,
-    /// Whether the layout tree builds owe the host image resources, which no write moves (see
-    /// [`DocumentHost::known_owed_image_resources`]).
-    pub(crate) owes_image_resources: bool,
     /// Where the engine's selectors' requirements of attribute value text are.
     pub(crate) selector_attribute_value_text_requirements_version: u64,
 }

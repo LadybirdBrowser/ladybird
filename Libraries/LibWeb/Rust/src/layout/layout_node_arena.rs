@@ -773,6 +773,18 @@ pub(crate) enum OwedImageResources {
     },
 }
 
+impl OwedImageResources {
+    /// Whether the box owns the provider of the image it shows.
+    pub(crate) fn owns_provider(self) -> bool {
+        match self {
+            Self::StyleResources {
+                owns_content_replacement_image,
+            } => owns_content_replacement_image,
+            Self::GeneratedImage { .. } => true,
+        }
+    }
+}
+
 /// Where an image box that owns the provider of the image it shows stands with it.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum OwnedImageProvider {
@@ -5059,13 +5071,7 @@ impl LayoutNodeArena {
     /// Owes the host `id`'s image resources once the layout update the running build is part of
     /// is over. An image box that owns its image's provider has no image until then.
     pub(crate) fn owe_image_resources(&self, id: NodeSlotId, owed: OwedImageResources) {
-        let owns_provider = match owed {
-            OwedImageResources::StyleResources {
-                owns_content_replacement_image,
-            } => owns_content_replacement_image,
-            OwedImageResources::GeneratedImage { .. } => true,
-        };
-        if owns_provider {
+        if owed.owns_provider() {
             self.owned_image_providers
                 .borrow_mut()
                 .insert(id, OwnedImageProvider::Awaited);
@@ -5077,28 +5083,6 @@ impl LayoutNodeArena {
     /// A later build can free a row, so whoever pays them asks whether it is live first.
     pub(crate) fn take_image_resources_owed_to_host(&self) -> Vec<(NodeSlotId, OwedImageResources)> {
         self.image_resources_owed_to_host.take()
-    }
-
-    /// Whether the finished builds owe the host any image resource.
-    pub(crate) fn owes_image_resources_to_host(&self) -> bool {
-        !self.image_resources_owed_to_host.borrow().is_empty()
-    }
-
-    /// Whether the finished builds owe the host an image a box shows: one whose provider the box owns, or one its style
-    /// names that the host loads. A box whose style names none, or only gradients, paints nothing the host attaches.
-    pub(crate) fn owes_shown_image_resources_to_host(&self) -> bool {
-        let owed = self.image_resources_owed_to_host.borrow();
-        owed.iter().any(|&(row, ref owed)| match *owed {
-            OwedImageResources::StyleResources {
-                owns_content_replacement_image,
-            } => {
-                owns_content_replacement_image
-                    || self
-                        .node_style_if_live(row)
-                        .is_some_and(|style| style.names_loaded_images())
-            }
-            OwedImageResources::GeneratedImage { .. } => true,
-        })
     }
 
     /// Where `id` stands with the provider of its image, if it is an image box that owns one.
