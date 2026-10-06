@@ -121,6 +121,7 @@ public:
     double current_time() const;
     void set_current_time(double);
     void fast_seek(double);
+    void seek_from_media_controls(double);
 
     double current_playback_position() const;
     void set_official_playback_position(double);
@@ -357,6 +358,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-seeking
     bool m_seeking { false };
+    bool m_prevent_next_loop_while_paused { false };
 
     // The current playback position as of the last possible-change check; empty until the first check
     // for each media resource.

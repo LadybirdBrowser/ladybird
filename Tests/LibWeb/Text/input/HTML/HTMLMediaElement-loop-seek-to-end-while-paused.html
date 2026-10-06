@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<audio id="audio" src="../../../Assets/test-webm-audio.ogg" loop></audio>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const audio = document.getElementById("audio");
+        if (audio.readyState < HTMLMediaElement.HAVE_METADATA)
+            await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        for (const name of ["seeking", "seeked", "ended", "play", "pause"])
+            audio.addEventListener(name, () => println(`${name}: paused=${audio.paused} ended=${audio.ended}`));
+
+        // Reaching the end while looping seeks to the start, even when paused.
+        audio.currentTime = audio.duration;
+        for (let i = 0; i < 2; i++)
+            await new Promise(resolve => audio.addEventListener("seeked", resolve, { once: true }));
+        println(`currentTime=${audio.currentTime}`);
+        done();
+    });
+</script>

@@ -472,7 +472,7 @@ void MediaControls::toggle_playback()
 
 void MediaControls::set_current_time(double time)
 {
-    m_media_element->set_current_time(time);
+    m_media_element->seek_from_media_controls(time);
     update_timeline();
     update_timestamp();
     show_controls();
