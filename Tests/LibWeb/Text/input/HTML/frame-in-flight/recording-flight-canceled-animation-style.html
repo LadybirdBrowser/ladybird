@@ -24,6 +24,8 @@
         const retiredOverlays = () => internals.styleEngineCounters().retiredAnimationOverlayRecords;
         const keptBeside = await whileRecordingInFlight(() => {
             animation.currentTime = 10000;
+            // Laid out here, so that what the rendering update lets fly is its recording.
+            box.offsetWidth;
         }, () => {
             animation.cancel();
             box.offsetWidth;

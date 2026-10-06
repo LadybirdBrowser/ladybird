@@ -502,7 +502,8 @@ struct EventLoop::RenderingUpdateInFlight {
     bool held_for_testing { false };
     // Whose tasks wait for the whole of the update rather than run beside it.
     HeldTasks held_tasks { HeldTasks::None };
-    // Whether the first round of the doc's layout flew after the transaction, once the event loop took it in.
+    // Whether the first round of the doc's layout flew: after the transaction, once the event loop took it in, or in its
+    // place, where the update had no style to change.
     bool layout_flew { false };
 };
 
@@ -716,18 +717,26 @@ void EventLoop::update_the_rendering()
     for (size_t document_index = 0; document_index < docs.size(); ++document_index) {
         // AD-HOC: The style transaction of the last doc of docs flies beside the event loop where nothing keeps it in
         //         step, and the update ends its task here: it goes on with the doc's style and layout once the event
-        //         loop takes the transaction in, between two tasks. Every doc before it, its container's included, is
-        //         laid out in step first, so that no doc's step waits for another doc's frame to land.
+        //         loop takes the transaction in, between two tasks. A styled doc with no style to change lets the
+        //         first round of its layout fly the same way. Every doc before it, its container's included, is laid
+        //         out in step first, so that no doc's step waits for another doc's frame to land.
         auto& document = *docs[document_index];
         if (document_index == docs.size() - 1) {
             if (auto blocker = style_flight_blocker(document); blocker == Layout::RustFFI::FfiFlightBlocker::None) {
                 ensure_frame_completion_registered();
-                if (document.let_style_update_fly(blocker)) {
+                auto style_taken_in = StyleTakenIn::No;
+                bool flies = document.let_style_update_fly(blocker);
+                // A doc's first style and layout, as it loads, stay in step with the event loop.
+                if (!flies && document.has_completed_style_update()) {
+                    style_taken_in = StyleTakenIn::Yes;
+                    flies = document.let_layout_fly(blocker);
+                }
+                if (flies) {
                     // The rendering task ends here: a rendering opportunity meanwhile queues the next one, which keeps
                     // its place in the queue until this update has finished.
                     m_running_rendering_task = false;
-                    auto held_tasks = tasks_rendering_update_holds(docs, StyleTakenIn::No);
-                    m_rendering_update_in_flight = make<RenderingUpdateInFlight>(move(docs), frame_timestamp, exchange(m_holds_next_frame_for_testing, false), held_tasks);
+                    auto held_tasks = tasks_rendering_update_holds(docs, style_taken_in);
+                    m_rendering_update_in_flight = make<RenderingUpdateInFlight>(move(docs), frame_timestamp, exchange(m_holds_next_frame_for_testing, false), held_tasks, style_taken_in == StyleTakenIn::Yes);
                     // The next rendering opportunity is asked for now, so that the next update can begin as soon as
                     // this one has run, or has ended.
                     finish_rendering_update(update_start_time);

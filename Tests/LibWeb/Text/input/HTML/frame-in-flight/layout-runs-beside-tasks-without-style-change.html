@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<span id="box">short</span>
+<script>
+    // A rendering update with no style to change, only text to lay out again, lets its layout run beside the event
+    // loop right away: the tasks after the update run while the layout does. Nothing here reads the layout until it is
+    // taken in, which a read would wait for, and no rendering update runs to take it in.
+    asyncTest(async done => {
+        await twoFrames();
+        requestAnimationFrame(() => {
+            internals.holdNextFrame("layout");
+            internals.setManualRenderingOpportunities(true);
+            box.firstChild.data = "a much longer text";
+        });
+        await nextFrame();
+        await nextTask();
+        println(`state in the next task: ${internals.frameSchedulerState()}`);
+        internals.releaseHeldFrame();
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        println(`width grew: ${box.offsetWidth > 50}`);
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>

@@ -79,6 +79,12 @@ Optional<TimeValue> AnimationTimeline::current_time_for_observation()
     return m_observed_current_time;
 }
 
+bool AnimationTimeline::was_observed_ahead_in_current_task() const
+{
+    return m_observed_current_time != m_current_time
+        && m_last_current_time_update_task_generation == associated_document()->relevant_settings_object().responsible_event_loop().task_generation();
+}
+
 void AnimationTimeline::set_current_time(Optional<TimeValue> value)
 {
     if (m_is_monotonically_increasing && m_current_time.has_value() && (!value.has_value() || *value < *m_current_time)) {

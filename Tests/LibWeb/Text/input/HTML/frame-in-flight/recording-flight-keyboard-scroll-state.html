@@ -11,6 +11,8 @@
     asyncTest(async done => {
         const afterFlight = await whileRecordingInFlight(() => {
             box.firstChild.data = "second";
+            // Laid out here, so that what the rendering update lets fly is its recording.
+            box.offsetWidth;
         }, async () => {
             document.addEventListener("keydown", () => {});
             internals.releaseHeldFrame();
