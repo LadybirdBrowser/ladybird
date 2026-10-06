@@ -324,6 +324,22 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(!manifest_field(manifest, "description"sv).has_value());
     VERIFY(!manifest_field(manifest, "url"sv).has_value());
 
+    // A report on its way keeps going when the screen that showed its review goes away, along with the store it was
+    // given.
+    server.requests.clear();
+    name = write_report(reports_directory, "2026-10-01T14-00-00Z-Compositor-abc123.txt"sv);
+    {
+        WebView::CrashReportStore departing_store { reports_directory };
+        WebView::CrashReportReview departing_review { departing_store };
+        MUST(departing_review.open(name));
+        server.respond_with(challenge("fourth"sv));
+        server.respond_with({ 200, R"({"receipt":"receipt-3"})", {} });
+        VERIFY(!departing_review.send(""_string, {}).has_value());
+    }
+    Core::EventLoop::current().spin_until([&] { return server.has_answered_everything() && !FileSystem::exists(LexicalPath::join(reports_directory, "Seen"sv, name).string()); });
+    VERIFY(server.requests.size() == 2);
+    VERIFY(server.requests[1].path == "/api/v1/reports"sv);
+
     outln("PASS: Crash reports reach the report server in the format it expects");
     return 0;
 }

@@ -13,6 +13,7 @@
 #include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <AK/Weakable.h>
 #include <LibWebView/CrashReportStore.h>
 #include <LibWebView/CrashReportSubmission.h>
 #include <LibWebView/Forward.h>
@@ -20,7 +21,7 @@
 namespace WebView {
 
 // Shows one saved crash report at a time and sends it once the user chooses to.
-class WEBVIEW_API CrashReportReview {
+class WEBVIEW_API CrashReportReview : public Weakable<CrashReportReview> {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
@@ -54,7 +55,8 @@ public:
     // A message for the user when these choices cannot be sent.
     static Optional<String> validate(StringView description, Optional<StringView> url);
 
-    // Returns why nothing was sent, or nothing when the report is on its way.
+    // Returns why nothing was sent, or nothing when the report is on its way. A report on its way keeps being sent if
+    // the review is destroyed, which then only stops hearing about it.
     Optional<String> send(String const& description, Optional<String> const& url);
     bool is_sending() const { return m_submission; }
 
