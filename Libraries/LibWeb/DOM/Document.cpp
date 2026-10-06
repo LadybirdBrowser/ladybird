@@ -2318,6 +2318,20 @@ bool Document::layout_is_up_to_date() const
     return Layout::RustFFI::render_state_layout_is_up_to_date(m_layout_node_arena->host(), style_node_id().value());
 }
 
+// Whether the document's layout is not up to date, as far as the host knows without reading the render state.
+bool Document::layout_is_known_stale() const
+{
+    if (!navigable() || navigable()->active_document().ptr() != this)
+        return false;
+    if (m_reads_layout_as_it_flew)
+        return false;
+    if (has_flown_style_transaction() || (m_layout_node_arena && m_layout_node_arena->render_document().waits_for_frame()))
+        return true;
+    if (!m_layout_node_arena)
+        return true;
+    return Layout::RustFFI::render_state_layout_is_known_stale(m_layout_node_arena->host(), style_node_id().value());
+}
+
 void Document::update_style_computer_viewport_rect()
 {
     // A viewport unit is resolved against this.

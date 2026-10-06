@@ -158,10 +158,12 @@ pub(crate) enum LayoutChange {
 
 impl LayoutChange {
     /// How far the change may write the rows. Most write what a row holds alone, but for its style record: installing a
-    /// style changes none of the flags that say what a row stands for.
+    /// style changes none of the flags that say what a row stands for. Mapping the text find in page searches again
+    /// writes no row.
     pub(crate) fn row_write(&self) -> crate::render_state::RowWrite {
         use crate::render_state::RowWrite;
         match self {
+            Self::InvalidateSearchableText => RowWrite::None,
             Self::StyleNodeChanged { .. } => RowWrite::Identities,
             Self::SetNodeFlag { flag, .. } if *flag as u32 & NodeFlag::IDENTITY != 0 => RowWrite::Identities,
             Self::SetNodeStyle { .. } => RowWrite::NamedStyles,
@@ -182,7 +184,6 @@ impl LayoutChange {
             | Self::SetNodeFlag { .. }
             | Self::HandOverOwnedProvider { .. }
             | Self::SetOwnedImageNaturalSize { .. }
-            | Self::InvalidateSearchableText
             | Self::RestampTableSpans { .. }
             | Self::SetNodeNeedsCompositorAnimationFrame { .. }
             | Self::PinBoundBoxStyleRecordForDetachment { .. }

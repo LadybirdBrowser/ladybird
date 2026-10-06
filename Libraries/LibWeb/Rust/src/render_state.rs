@@ -392,7 +392,7 @@ impl ArenaChange {
     fn row_write(&self) -> RowWrite {
         match self {
             Self::Layout(change) => change.row_write(),
-            Self::Paint(_) => RowWrite::Rows,
+            Self::Paint(change) => change.row_write(),
             Self::DetachForRemoval(_) | Self::RemoveBox(_) => RowWrite::Identities,
             Self::ReinheritAnonymousDescendants(_) => RowWrite::NamedStyles,
             Self::Style(_) | Self::Engine(_) | Self::Rule(_) => RowWrite::None,

@@ -657,11 +657,13 @@ impl DocumentHost {
     /// Whether the document's layout is up to date as of every write the host made, unless its layout tree update marks
     /// ask for a build of it, where the host knows: a write only ever leaves layout staler, and only a layout round, or
     /// a frame's, lays it out, so stale layout stays stale until one runs, and fresh layout stays fresh until the host
-    /// writes the rows.
+    /// writes the rows with a write that may move the arena's facts. Writes of the paint state alone leave it fresh, as
+    /// the commit of a layout makes them.
     pub(crate) fn known_layout_up_to_date_unless_built(&self) -> Option<bool> {
         let facts = self.facts_where(|_| true)?;
         let up_to_date = facts.arena.layout_is_up_to_date_unless_built;
-        (!up_to_date || self.changes.moves().rows == RowWrite::None).then_some(up_to_date)
+        let moves = self.changes.moves();
+        (!up_to_date || moves.rows == RowWrite::None || !moves.arena_facts).then_some(up_to_date)
     }
 
     /// Where the engine's selectors' requirements of attribute value text are, where the host knows: none runs, and it
@@ -1504,6 +1506,56 @@ mod tests {
             !host.streamed.get(),
             "the next job brings back what the streamed writes owe"
         );
+    }
+
+    /// A host whose last job left the document's layout up to date.
+    fn host_with_fresh_layout() -> (DocumentHost, crate::layout::node_data::NodeSlotId) {
+        let host = DocumentHost::for_test();
+        // SAFETY: The test writes the arena on its own thread, which is the render owner of a test.
+        let arena = unsafe { &mut *host.arena_for_test() };
+        let viewport = arena.allocate_unbound();
+        arena.set_layout_root(viewport);
+        arena.reset_layout_update_flags_in_subtree(viewport);
+        host.ask(ScriptForcedRead::for_test(), |_| ());
+        assert_eq!(host.known_layout_up_to_date_unless_built(), Some(true));
+        (host, viewport)
+    }
+
+    #[test]
+    fn writes_of_the_paint_state_alone_leave_fresh_layout_known() {
+        use crate::layout::layout_changes::LayoutChange;
+        use crate::painting::paint_changes::PaintChange;
+        let (host, viewport) = host_with_fresh_layout();
+        host.queue_change(ArenaChange::Layout(LayoutChange::InvalidateSearchableText));
+        host.queue_change(ArenaChange::Paint(PaintChange::NoteVisualContextBoxDirty {
+            node: viewport,
+            kind: crate::painting::visual_context::dirty::VisualContextBoxDirtyKind::StyleValueChange,
+        }));
+        assert_eq!(host.known_layout_up_to_date_unless_built(), Some(true));
+        assert_eq!(host.changes.moves().rows, RowWrite::None);
+
+        host.queue_change(ArenaChange::Layout(LayoutChange::SetNeedsLayoutUpdate {
+            node: viewport,
+            propagate_through_ancestors: false,
+        }));
+        assert_eq!(host.known_layout_up_to_date_unless_built(), None);
+    }
+
+    #[test]
+    fn clearing_paint_facts_the_rows_never_held_queues_nothing() {
+        let (host, viewport) = host_with_fresh_layout();
+        // SAFETY: The host is live, on its document's thread.
+        unsafe {
+            crate::painting::paint_changes::render_state_set_layer_image_paint_facts(
+                &host,
+                viewport,
+                std::ptr::null(),
+                0,
+            );
+            crate::painting::paint_changes::render_state_clear_search_text(&host);
+        }
+        assert!(host.changes.is_empty());
+        assert_eq!(host.known_layout_up_to_date_unless_built(), Some(true));
     }
 
     #[test]
