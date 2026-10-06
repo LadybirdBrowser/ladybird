@@ -4,10 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Writes the layout file that flapc compiles the interpreter against, the Rust counterpart of
-//! Libraries/LibJS/Interpreter/GenerateLayout.cpp, which it mirrors line for line. Every offset and size it prints is
-//! also written out as a static assertion that the crate compiles, since the offsets are computed here with
-//! stand-ins for the types outside the layout module.
+//! Writes the layout file that flapc compiles the interpreter against. Every offset and size it prints is also written
+//! out as a static assertion that the crate compiles, since the offsets are computed here with stand-ins for the types
+//! outside the layout module.
 
 use std::fmt::Write;
 

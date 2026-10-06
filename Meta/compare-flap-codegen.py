@@ -20,7 +20,7 @@ from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_SOURCE = REPOSITORY_ROOT / "Libraries/LibJS/Interpreter/interpreter.flap"
-DEFAULT_LAYOUT = REPOSITORY_ROOT / "Build/release/Libraries/LibJS/Interpreter/layout.conf"
+DEFAULT_LAYOUT = REPOSITORY_ROOT / "Libraries/LibJS/Flap/tests/interpreter-layout.conf"
 ARCHITECTURES = ("x86_64", "aarch64")
 ELF_SECTION_TYPE_REL = 9
 ELF_SECTION_TYPE_RELA = 4
