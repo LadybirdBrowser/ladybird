@@ -250,7 +250,6 @@ class ContainerQuery;
 class ContentStyleValue;
 class CounterDefinitionsStyleValue;
 class CounterStyleStyleValue;
-class CounterStyleSystemStyleValue;
 class CSSAnimation;
 class CSSConditionRule;
 class CSSContainerRule;

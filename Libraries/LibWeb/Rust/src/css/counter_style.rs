@@ -148,6 +148,28 @@ fn list(value: &StyleValueData) -> &[RetainedStyleValueData] {
     }
 }
 
+/// How many symbols the `symbols` and the `additive-symbols` descriptor each need for a rule with
+/// this `system` to define a counter style; the one its system does not read needs none. None for
+/// `extends`, which must have neither.
+/// https://drafts.csswg.org/css-counter-styles-3/#counter-style-symbols
+fn symbol_counts_needed(system: Option<&StyleValueData>) -> Option<(usize, usize)> {
+    match system {
+        Some(StyleValueData::CounterStyleSystem { kind: 2, .. }) => None,
+        Some(StyleValueData::CounterStyleSystem {
+            kind: 0,
+            system: counter_style_system::ADDITIVE,
+            ..
+        }) => Some((0, 1)),
+        Some(StyleValueData::CounterStyleSystem {
+            kind: 0,
+            system: counter_style_system::ALPHABETIC | counter_style_system::NUMERIC,
+            ..
+        }) => Some((2, 0)),
+        // Cyclic, symbolic and fixed systems need one symbol, and the initial system is symbolic.
+        _ => Some((1, 0)),
+    }
+}
+
 impl Definition {
     /// None when the rule does not define a counter style, though it is still a valid rule.
     fn from_descriptors(
@@ -171,12 +193,13 @@ impl Definition {
         // cyclic, numeric, alphabetic, symbolic, or fixed, or a valid additive-symbols descriptor if
         // the counter system is additive; otherwise, the @counter-style does not define a counter
         // style (but is still a valid at-rule).
-        let symbols = |minimum: usize| {
+        let (symbols_needed, additive_symbols_needed) = symbol_counts_needed(descriptor("system")).unwrap_or_default();
+        let symbols = || {
             let symbols = list(descriptor("symbols")?)
                 .iter()
                 .map(|symbol| text(symbol.data()))
                 .collect::<Option<Vec<_>>>()?;
-            (symbols.len() >= minimum).then_some(symbols)
+            (symbols.len() >= symbols_needed).then_some(symbols)
         };
         let system = match descriptor("system") {
             Some(StyleValueData::CounterStyleSystem { kind: 2, name, .. }) => System::Extends(name.units().into()),
@@ -189,10 +212,9 @@ impl Definition {
                     Some(_) => integer(first_symbol)?,
                     None => 1,
                 },
-                symbols: symbols(1)?,
+                symbols: symbols()?,
             }),
             // https://drafts.csswg.org/css-counter-styles-3/#additive-system
-            // The additive-symbols descriptor must contain at least one additive tuple.
             Some(StyleValueData::CounterStyleSystem {
                 system: counter_style_system::ADDITIVE,
                 ..
@@ -201,7 +223,7 @@ impl Definition {
                     .iter()
                     .map(|tuple| pair(tuple.data()))
                     .collect::<Option<Vec<_>>>()
-                    .filter(|tuples| !tuples.is_empty())?,
+                    .filter(|tuples| tuples.len() >= additive_symbols_needed)?,
             )),
             // The initial value of system is symbolic.
             system => {
@@ -209,17 +231,15 @@ impl Definition {
                     Some(StyleValueData::CounterStyleSystem { system, .. }) => *system,
                     _ => counter_style_system::SYMBOLIC,
                 };
-                // Cyclic and symbolic systems need at least one symbol, alphabetic and numeric
-                // ones at least two.
-                let (system, minimum) = match system {
-                    counter_style_system::CYCLIC => (GenericSystem::Cyclic, 1),
-                    counter_style_system::NUMERIC => (GenericSystem::Numeric, 2),
-                    counter_style_system::ALPHABETIC => (GenericSystem::Alphabetic, 2),
-                    _ => (GenericSystem::Symbolic, 1),
+                let system = match system {
+                    counter_style_system::CYCLIC => GenericSystem::Cyclic,
+                    counter_style_system::NUMERIC => GenericSystem::Numeric,
+                    counter_style_system::ALPHABETIC => GenericSystem::Alphabetic,
+                    _ => GenericSystem::Symbolic,
                 };
                 System::Algorithm(Algorithm::Generic {
                     system,
-                    symbols: symbols(minimum)?,
+                    symbols: symbols()?,
                 })
             }
         };
@@ -516,4 +536,66 @@ pub unsafe extern "C" fn rust_counter_styles_resolve(
         return unsafe { crate::css::counter_representation::rust_counter_styles_retain(previous) };
     }
     Arc::into_raw(Arc::new(registered))
+}
+
+// https://drafts.csswg.org/css-counter-styles-3/#the-csscounterstylerule-interface
+// What a CSSCounterStyleRule setter checks before it sets a descriptor.
+
+/// Whether a rule whose `system` is `system`, null when it has none, still defines a counter style
+/// once its `symbols` descriptor, or its `additive-symbols` one when `additive`, lists `count`
+/// entries.
+///
+/// # Safety
+///
+/// `system` must be null or point to a live style value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_counter_style_system_accepts_symbols(
+    system: *const c_void,
+    additive: bool,
+    count: usize,
+) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    let system = unsafe { system.cast::<StyleValueData>().as_ref() };
+    symbol_counts_needed(system)
+        .is_some_and(|(symbols, additive_symbols)| count >= if additive { additive_symbols } else { symbols })
+}
+
+/// Whether setting a rule's `system` from `current` to `new` changes the algorithm it uses: the
+/// system itself, the first symbol of a fixed one or the style an extending one extends.
+///
+/// # Safety
+///
+/// `current` and `new` must point to live style values.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_counter_style_system_changes_algorithm(
+    current: *const c_void,
+    new: *const c_void,
+) -> bool {
+    use StyleValueData::CounterStyleSystem;
+    // SAFETY: Guaranteed by the caller.
+    let (current, new) = unsafe { (&*current.cast::<StyleValueData>(), &*new.cast::<StyleValueData>()) };
+    match (current, new) {
+        (
+            CounterStyleSystem { kind: 0, system, .. },
+            CounterStyleSystem {
+                kind: 0, system: new, ..
+            },
+        ) => system != new,
+        (
+            CounterStyleSystem {
+                kind: 1, first_symbol, ..
+            },
+            CounterStyleSystem {
+                kind: 1,
+                first_symbol: new,
+                ..
+            },
+        ) => {
+            // An omitted first symbol is 1.
+            let one = StyleValueData::Integer { value: 1 };
+            first_symbol.optional_data().unwrap_or(&one) != new.optional_data().unwrap_or(&one)
+        }
+        (CounterStyleSystem { kind: 2, name, .. }, CounterStyleSystem { kind: 2, name: new, .. }) => name != new,
+        _ => true,
+    }
 }

@@ -235,7 +235,6 @@ set(SOURCES
     CSS/StyleValues/ColorStyleValue.cpp
     CSS/StyleValues/ContentStyleValue.cpp
     CSS/StyleValues/CounterDefinitionsStyleValue.cpp
-    CSS/StyleValues/CounterStyleSystemStyleValue.cpp
     CSS/StyleValues/CursorStyleValue.cpp
     CSS/StyleValues/CustomIdentStyleValue.cpp
     CSS/StyleValues/DimensionStyleValue.cpp

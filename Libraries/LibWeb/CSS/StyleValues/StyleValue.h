@@ -55,7 +55,7 @@ WEB_API Utf16FlyString css_string_from_rust(void const*);
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Counter, counter, StyleValue)                                             \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(CounterStyle, counter_style, CounterStyleStyleValue)                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(CounterDefinitions, counter_definitions, CounterDefinitionsStyleValue)    \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(CounterStyleSystem, counter_style_system, CounterStyleSystemStyleValue)   \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(CounterStyleSystem, counter_style_system, StyleValue)                     \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Cursor, cursor, CursorStyleValue)                                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(CustomIdent, custom_ident, CustomIdentStyleValue)                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Display, display, DisplayStyleValue)                                      \
