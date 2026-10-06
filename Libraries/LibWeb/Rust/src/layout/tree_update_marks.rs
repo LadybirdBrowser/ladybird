@@ -553,6 +553,37 @@ impl FfiBoxMarks {
             || self.has_editing_facts
     }
 
+    pub(crate) fn is_empty(&self) -> bool {
+        let Self {
+            layout_update,
+            layout_update_through_ancestors: _,
+            repaint,
+            repaint_hit_testing,
+            repaint_subtree,
+            repaint_backdrop,
+            propagated_text_decorations,
+            has_dom_paint_facts,
+            dom_paint_facts: _,
+            text_data_changed,
+            image_data_changed,
+            language_changed,
+            has_editing_facts,
+            is_editing_host: _,
+            produces_line_box_fragment_when_empty: _,
+        } = *self;
+        !(layout_update
+            || repaint
+            || repaint_hit_testing
+            || repaint_subtree
+            || repaint_backdrop
+            || propagated_text_decorations
+            || has_dom_paint_facts
+            || text_data_changed
+            || image_data_changed
+            || language_changed
+            || has_editing_facts)
+    }
+
     pub(crate) fn apply(self, arena: &mut LayoutNodeArena, target: MarkedBox) {
         let row = target.row(arena);
         let Some(kind) = arena.node_kind_if_live(row) else {
@@ -675,6 +706,17 @@ fn repaint(arena: &mut LayoutNodeArena, row: NodeSlotId, includes_hit_testing: b
     }
 }
 
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+unsafe fn queue_marks(host: &DocumentHost, target: MarkedBox, marks: FfiBoxMarks) {
+    if marks.is_empty() {
+        return;
+    }
+    // SAFETY: Guaranteed by the caller.
+    unsafe { super::layout_changes::queue(host, super::layout_changes::LayoutChange::MarkBox { target, marks }) };
+}
+
 /// Marks the box bound to the node with `style_node`, or the document's for 0.
 ///
 /// # Safety
@@ -684,7 +726,7 @@ fn repaint(arena: &mut LayoutNodeArena, row: NodeSlotId, includes_hit_testing: b
 pub unsafe extern "C" fn render_state_mark_node_box(host: &DocumentHost, style_node: u32, marks: FfiBoxMarks) {
     let target = MarkedBox::Node(StyleNodeID::from_raw(style_node));
     // SAFETY: Guaranteed by the caller.
-    unsafe { super::layout_changes::queue(host, super::layout_changes::LayoutChange::MarkBox { target, marks }) };
+    unsafe { queue_marks(host, target, marks) };
 }
 
 /// Marks the box bound to the pseudo-element of kind `generated_for` on the element with `generator`.
@@ -707,7 +749,7 @@ pub unsafe extern "C" fn render_state_mark_pseudo_element_box(
         generated_for,
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe { super::layout_changes::queue(host, super::layout_changes::LayoutChange::MarkBox { target, marks }) };
+    unsafe { queue_marks(host, target, marks) };
 }
 
 /// Marks the box of the row `row`.
@@ -719,7 +761,7 @@ pub unsafe extern "C" fn render_state_mark_pseudo_element_box(
 pub unsafe extern "C" fn render_state_mark_row_box(host: &DocumentHost, row: NodeSlotId, marks: FfiBoxMarks) {
     let target = MarkedBox::Row(row);
     // SAFETY: Guaranteed by the caller.
-    unsafe { super::layout_changes::queue(host, super::layout_changes::LayoutChange::MarkBox { target, marks }) };
+    unsafe { queue_marks(host, target, marks) };
 }
 
 #[cfg(test)]

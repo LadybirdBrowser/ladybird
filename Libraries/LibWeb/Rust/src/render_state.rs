@@ -991,6 +991,22 @@ mod tests {
     }
 
     #[test]
+    fn a_mark_that_asks_nothing_of_the_box_leaves_the_paint_preparation_current() {
+        use crate::layout::tree_update_marks::{FfiBoxMarks, render_state_mark_node_box};
+        use document_host::{
+            document_host_note_paint_preparation_is_current, document_host_paint_preparation_is_current,
+        };
+        let test_host = TestHost::new();
+        let host = test_host.host();
+        // SAFETY: The host is live, on this thread.
+        unsafe {
+            document_host_note_paint_preparation_is_current(host);
+            render_state_mark_node_box(host, 1, FfiBoxMarks::default());
+        }
+        assert!(unsafe { document_host_paint_preparation_is_current(host) });
+    }
+
+    #[test]
     fn a_style_write_leaves_what_the_rows_are_to_read_from_the_rows_the_host_has() {
         use crate::layout::node_data::{NodeFlag, NodeKind, StylePayloadsRef};
         let pointer = document_host::document_host_create();
