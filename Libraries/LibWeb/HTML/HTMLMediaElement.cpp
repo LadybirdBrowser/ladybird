@@ -3318,23 +3318,33 @@ void HTMLMediaElement::reached_end_of_media_playback()
     // 2. As defined above, the ended IDL attribute starts returning true once the event loop returns to step 1.
 
     // 3. Queue a media element task given the media element and the following steps:
+    // AD-HOC: Queue each step in its own task, so that loading a new resource in the timeupdate or pause handlers
+    //         removes the remaining tasks instead of firing ended at the new resource.
+
     queue_a_media_element_task([](HTMLMediaElement& self) {
         // 1. Fire an event named timeupdate at the media element.
         self.dispatch_time_update_event();
+    });
 
+    queue_a_media_element_task([](HTMLMediaElement& self) {
         // 2. If the media element has ended playback, the direction of playback is forwards, and paused is false, then:
         if (self.has_ended_playback(IgnoreLoopAttribute::No) && self.direction_of_playback() == PlaybackDirection::Forwards && !self.paused()) {
             // 1. Set the paused attribute to true.
             self.set_paused(true);
 
+            // AD-HOC: Take the pending play promises before firing pause, so that play() calls in the pause handler
+            //         are not rejected.
+            auto promises = self.take_pending_play_promises();
+
             // 2. Fire an event named pause at the media element.
             self.dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::pause));
 
             // 3. Take pending play promises and reject pending play promises with the result and an "AbortError" DOMException.
-            auto promises = self.take_pending_play_promises();
             self.reject_pending_play_promises<WebIDL::AbortError>(promises, "Media playback has ended"_utf16);
         }
+    });
 
+    queue_a_media_element_task([](HTMLMediaElement& self) {
         // 3. Fire an event named ended at the media element.
         self.dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::ended));
     });
