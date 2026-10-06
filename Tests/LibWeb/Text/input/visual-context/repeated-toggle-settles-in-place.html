@@ -7,7 +7,7 @@
 <div id="box"></div>
 <script>
     test(() => {
-        const settle = () => document.elementFromPoint(0, 0);
+        const settle = () => internals.recordDisplayListForTesting();
         const box = document.getElementById("box");
         settle();
         const initialCapacity = internals.visualContextTreeNodeCapacity();

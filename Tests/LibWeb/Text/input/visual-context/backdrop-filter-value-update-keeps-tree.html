@@ -4,10 +4,14 @@
      only marks the region and needs no new recording. -->
 <div id="box" style="width: 100px; height: 100px; backdrop-filter: invert(1)"></div>
 <script>
-    test(() => {
-        const settle = () => document.elementFromPoint(0, 0);
+    promiseTest(async () => {
+        const settle = () => internals.recordDisplayListForTesting();
         const box = document.getElementById("box");
         settle();
+        // Only a frame takes back the request for a recording.
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        while (internals.frameSchedulerState() !== "idle")
+            await new Promise(resolve => setTimeout(resolve, 0));
         const liveNodes = internals.visualContextTreeNodeCount();
         const capacity = internals.visualContextTreeNodeCapacity();
         const epoch = internals.visualContextTreeStructuralEpoch();

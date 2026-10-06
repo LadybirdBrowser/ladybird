@@ -10240,9 +10240,10 @@ RefPtr<Compositing::DisplayList> Document::record_display_list(Layout::BegunRead
     // state.
     if (auto navigable = this->navigable()) {
         navigable->take_recording_in_flight_in(HTML::LocalNavigable::TakeIn::Wait);
-        // What a clock lease's ticks published, the recording copies from, which the document takes in with the
-        // presenter.
-        (void)navigable->presenter();
+        // What a clock lease's ticks published, a recording that publishes copies from, which the document takes in with
+        // the presenter.
+        if (cache_mode == Painting::PaintCommandCacheMode::ReadWrite)
+            (void)navigable->presenter();
     }
     auto recording = start_display_list_recording(read, config, cache_mode, Layout::RustFFI::FfiFlightBlocker::NotInRenderingUpdate);
     if (!recording.has_value())
@@ -10332,20 +10333,12 @@ Optional<Painting::HitTestQuery> Document::prepare_hit_test_query(Layout::BegunR
     if (!has_committed_viewport_box())
         return {};
 
+    // A hit test only reads a recording of the document as it is now: it presents nothing, so the compositor never
+    // shows a frame a hit test made in place of one the render clock sampled later. The next frame records again.
     auto rebuild_hit_test_display_list = [&] {
         set_needs_to_record_display_list();
-        HTML::PaintConfig paint_config { .paint_overlay = true };
-        if (auto navigable = this->navigable()) {
-            // A frame of the render clock shows the animations ahead of the last rendering update, which this recording
-            // shows them at. Presenting it would move them back in time until the next rendering update presents.
-            if (navigable->presenter().last_frame_presented_by() != Compositor::PresentedBy::Clock
-                && navigable->record_display_list_and_scroll_state(paint_config))
-                return;
-            (void)record_display_list(read, paint_config, navigable->display_list_resource_storage(), Painting::PaintCommandCacheMode::ReadWrite);
-            return;
-        }
         Compositing::DisplayListResourceStorage throwaway_resource_storage_for_hit_test_only_recording;
-        (void)record_display_list(read, paint_config, throwaway_resource_storage_for_hit_test_only_recording, Painting::PaintCommandCacheMode::ReadOnly);
+        (void)record_display_list(read, HTML::PaintConfig { .paint_overlay = true }, throwaway_resource_storage_for_hit_test_only_recording, Painting::PaintCommandCacheMode::ReadOnly);
     };
 
     // The paint properties were prepared above, and a query reads them as they were left there: preparing them again
