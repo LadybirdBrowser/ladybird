@@ -211,20 +211,6 @@ StyleAtomID StyleEngine::intern_qualified_atom(StyleAtomID namespace_atom, Style
     return StyleAtomID { StyleEngineFFI::document_host_intern_qualified_atom(host(), namespace_atom.value(), name.value()) };
 }
 
-void StyleEngine::note_custom_property_name(StyleAtomID atom, Utf16FlyString const& name)
-{
-    if (m_published_custom_property_names.contains(atom))
-        return;
-    m_published_custom_property_names.set(atom);
-    auto const view = name.view();
-    Vector<u16> code_units;
-    code_units.ensure_capacity(view.length_in_code_units());
-    for (size_t i = 0; i < view.length_in_code_units(); ++i)
-        code_units.unchecked_append(view.code_unit_at(i));
-    // The write carries this reference across to the engine, which retains the fly string itself.
-    StyleEngineFFI::style_engine_note_custom_property_name(host(), atom.value(), name.to_raw_leaked(), code_units.data(), code_units.size());
-}
-
 StyleRecordID StyleEngine::republish_record_environment(Layout::BegunRead const& read, StyleNodeID node, u64 environment, void const* store)
 {
     return StyleRecordID { StyleEngineFFI::style_engine_republish_record_environment(host(), &read, node.value(), environment, store) };
@@ -888,7 +874,6 @@ StyleEngine::PublishedStyleTransaction StyleEngine::publish_style_transaction_vi
             auto atom_id = StyleAtomID { reclaimed.atom };
             reclaimed_atoms.set(atom_id);
             m_published_language_atoms.remove(atom_id);
-            m_published_custom_property_names.remove(atom_id);
             m_attribute_names_with_unread_value_text.remove(atom_id);
             if (reclaimed.raw == 0)
                 continue;

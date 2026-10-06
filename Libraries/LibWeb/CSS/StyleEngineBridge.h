@@ -233,9 +233,6 @@ public:
     StyleAtomID intern_atom(Utf16FlyString const&);
     // The process-global atom of `name` qualified by `namespace_atom`, retained by this document.
     StyleAtomID intern_qualified_atom(StyleAtomID namespace_atom, StyleAtomID name);
-    // The engine keeps what a custom property's name spells, once per name, for the environments
-    // it computes.
-    void note_custom_property_name(StyleAtomID, Utf16FlyString const&);
     // Moves a node's record to the environment its inherited custom-property data was refreshed
     // to; the new record's identity, or zero when nothing moved.
     [[nodiscard]] StyleRecordID republish_record_environment(Layout::BegunRead const&, StyleNodeID, u64 environment, void const* store);
@@ -460,7 +457,6 @@ private:
 
     HashMap<FlatPtr, StyleAtomID> m_atoms;
     HashTable<StyleAtomID> m_published_language_atoms;
-    HashTable<StyleAtomID> m_published_custom_property_names;
     HashMap<StyleAtomID, HashMap<StyleAtomID, StyleAtomID>> m_attribute_name_atoms;
     // The other names an attribute name answers to, and the local name an attr() reads it by, empty unless it is in no
     // namespace.

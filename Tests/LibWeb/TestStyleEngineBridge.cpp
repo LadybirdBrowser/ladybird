@@ -96,36 +96,6 @@ TEST_CASE(reclaimed_language_atoms_republish_their_text)
     EXPECT_EQ(counter_value(engine, "languageTextsPublished"sv), 2ull);
 }
 
-TEST_CASE(reclaimed_custom_property_atoms_republish_their_names)
-{
-    Web::CSS::StyleEngine engine;
-    auto root = engine.mint_style_node();
-    Web::Layout::ForcedReadScope read { engine.render_document() };
-    engine.intern_atom(Utf16FlyString::from_utf8_without_validation("style-engine-custom-property-spare"sv));
-    auto old_name = Utf16FlyString::from_utf8_without_validation("--reclaimed-custom-property"sv);
-    auto old_atom = engine.intern_atom(old_name);
-    engine.note_custom_property_name(old_atom, old_name);
-    for (size_t index = 0; index < 254; ++index) {
-        auto name = MUST(String::formatted("style-engine-custom-property-sweep-{}", index));
-        engine.intern_atom(Utf16FlyString::from_utf8_without_validation(name));
-    }
-    EXPECT_EQ(counter_value(engine, "customPropertyNamesPublished"sv), 1ull);
-
-    engine.flush();
-    (void)engine.take_style_transaction(read, root);
-    auto new_name = Utf16FlyString::from_utf8_without_validation("--new-custom-property"sv);
-    auto new_atom = engine.intern_atom(new_name);
-    // NB: Other reclaimed atoms can be recycled first. Keep allocating until the original ID is reused.
-    for (size_t index = 0; new_atom != old_atom && index < 256; ++index) {
-        new_name = Utf16FlyString::from_utf8_without_validation(MUST(String::formatted("--new-custom-property-{}", index)));
-        new_atom = engine.intern_atom(new_name);
-    }
-    EXPECT_EQ(new_atom, old_atom);
-    engine.note_custom_property_name(new_atom, new_name);
-
-    EXPECT_EQ(counter_value(engine, "customPropertyNamesPublished"sv), 2ull);
-}
-
 TEST_CASE(inline_custom_declaration_names_survive_without_computed_environments)
 {
     Web::CSS::StyleEngine engine;
