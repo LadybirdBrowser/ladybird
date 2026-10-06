@@ -1,0 +1,5 @@
+seeking: paused=true ended=false
+seeked: paused=true ended=false
+seeking: paused=true ended=false
+seeked: paused=true ended=false
+currentTime=0

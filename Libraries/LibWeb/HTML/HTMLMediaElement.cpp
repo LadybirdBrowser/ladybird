@@ -552,6 +552,12 @@ void HTMLMediaElement::fast_seek(double time)
     seek_element(time, MediaSeekMode::ApproximateForSpeed);
 }
 
+void HTMLMediaElement::seek_from_media_controls(double time)
+{
+    set_current_time(time);
+    m_prevent_next_loop_while_paused = true;
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#current-playback-position
 double HTMLMediaElement::current_playback_position() const
 {
@@ -2823,13 +2829,6 @@ void HTMLMediaElement::play_element()
         //    notify about playing for the element.
         else {
             notify_about_playing();
-
-            // AD-HOC: If the official playback position is at the end of the media data here, that means that we haven't
-            //         run the reached the end of media playback steps. This can happen if we seeked to the end while paused
-            //         and looping.
-            //         See https://github.com/whatwg/html/issues/11774
-            if (m_official_playback_position == m_duration)
-                reached_end_of_media_playback();
         }
     }
 
@@ -2882,6 +2881,8 @@ void HTMLMediaElement::pause_element()
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-seek
 void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek_mode)
 {
+    m_prevent_next_loop_while_paused = false;
+
     // 1. Set the media element's show poster flag to false.
     set_show_poster(false);
 
@@ -3302,10 +3303,15 @@ void HTMLMediaElement::reached_end_of_media_playback()
     // 1. If the media element has a loop attribute specified,
     if (has_attribute(HTML::AttributeNames::loop)) {
         // then seek to the earliest possible position of the media resource and return.
-        // AD-HOC: We don't want to loop back to the start if we're paused.
-        //         See https://github.com/whatwg/html/issues/11774
-        if (!paused())
-            seek_element(0);
+
+        // AD-HOC: Don't seek back to the start while scrubbing from the media controls. Playing will restart it.
+        if (m_prevent_next_loop_while_paused) {
+            if (paused())
+                return;
+            m_prevent_next_loop_while_paused = false;
+        }
+
+        seek_element(0);
         // FIXME: Tell PlaybackManager that we're looping to allow data providers to decode frames ahead when looping
         //        and remove any delay in displaying the first frame again.
         return;
