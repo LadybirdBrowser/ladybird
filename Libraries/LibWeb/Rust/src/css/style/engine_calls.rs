@@ -13,9 +13,8 @@
 use super::StyleEngine;
 use super::atoms::{AtomKey, AtomLease};
 use super::bridge::{
-    FfiDemandedPseudoElement, FfiElementArrival, FfiElementDeclarationDelta, FfiElementStyleInput,
-    FfiLocalFeatureDelta, FfiPseudoElementRecordDemand, FfiRecordDemand, FfiRecordDemandAnswer, FfiStateDelta,
-    FfiStyleInputTransaction, FfiTreeDelta, borrow,
+    FfiDemandedPseudoElement, FfiElementArrival, FfiElementDeclarationDelta, FfiLocalFeatureDelta,
+    FfiPseudoElementRecordDemand, FfiRecordDemand, FfiRecordDemandAnswer, FfiStateDelta, FfiTreeDelta, borrow,
 };
 use super::font_resolution::{FontResolverHost, PublishedFontFaces};
 use super::inputs::RetainedCustomPropertyData;
@@ -54,8 +53,8 @@ pub(crate) enum EngineWrite {
     },
     /// The host minted these identities, which the engine makes live ahead of anything recorded about them.
     MintStyleNodes(Box<[u32]>),
-    /// The host's input transaction: the tree, feature, state and declaration deltas it recorded.
-    ApplyTransaction(Box<InputTransaction>),
+    /// The tree, arrival, feature, state and declaration deltas the host staged, as one batch.
+    ApplyTransaction(Box<StagedInput>),
     /// The parts an element exposes, each with the shadow host it is exposed to.
     ElementParts { node: StyleNodeID, pairs: ElementParts },
     /// The characters a text node holds.
@@ -129,15 +128,27 @@ pub(crate) enum EngineWrite {
     },
 }
 
-/// An input transaction the host recorded, owned.
-pub(crate) struct InputTransaction {
-    tree: Box<[FfiTreeDelta]>,
-    arrivals: Box<[FfiElementArrival]>,
-    arrival_custom_state_atoms: Box<[u32]>,
-    features: Box<[FfiLocalFeatureDelta]>,
-    states: Box<[FfiStateDelta]>,
-    declarations: Box<[FfiElementDeclarationDelta]>,
-    element_style_inputs: Box<[FfiElementStyleInput]>,
+/// The tree, arrival, feature, state and declaration deltas the host recorded since it last submitted them, which reach
+/// the engine as one batch.
+#[derive(Default)]
+pub(crate) struct StagedInput {
+    tree: Vec<FfiTreeDelta>,
+    arrivals: Vec<FfiElementArrival>,
+    /// The custom states of every arrival, which each names by its offset and count.
+    arrival_custom_state_atoms: Vec<u32>,
+    features: Vec<FfiLocalFeatureDelta>,
+    states: Vec<FfiStateDelta>,
+    declarations: Vec<FfiElementDeclarationDelta>,
+}
+
+impl StagedInput {
+    fn is_empty(&self) -> bool {
+        self.tree.is_empty()
+            && self.arrivals.is_empty()
+            && self.features.is_empty()
+            && self.states.is_empty()
+            && self.declarations.is_empty()
+    }
 }
 
 impl EngineWrite {
@@ -180,13 +191,13 @@ impl EngineWrite {
                 identity,
             } => engine.set_pseudo_element_custom_property_data(node, pseudo, data, identity),
             Self::MintStyleNodes(nodes) => engine.mint_style_nodes(&nodes),
-            Self::ApplyTransaction(transaction) => engine.apply_transaction_batch(
-                &transaction.tree,
-                (&transaction.arrivals, &transaction.arrival_custom_state_atoms),
-                &transaction.features,
-                &transaction.states,
-                &transaction.declarations,
-                &transaction.element_style_inputs,
+            Self::ApplyTransaction(input) => engine.apply_transaction_batch(
+                &input.tree,
+                (&input.arrivals, &input.arrival_custom_state_atoms),
+                &input.features,
+                &input.states,
+                &input.declarations,
+                &[],
             ),
             Self::ElementParts { node, pairs } => engine.set_element_parts(node, &pairs),
             Self::TextData { node, data } => {
@@ -299,31 +310,6 @@ impl EngineWrite {
                     "the engine folds a style input as the host did"
                 );
             }
-        }
-    }
-}
-
-/// A copy of the input transaction `transaction` describes.
-///
-/// # Safety
-/// Each pointer of `transaction` must cover its stated count.
-unsafe fn input_transaction(transaction: &FfiStyleInputTransaction) -> InputTransaction {
-    // SAFETY: Guaranteed by the caller.
-    unsafe {
-        InputTransaction {
-            tree: owned(transaction.tree_deltas, transaction.tree_delta_count),
-            arrivals: owned(transaction.element_arrivals, transaction.element_arrival_count),
-            arrival_custom_state_atoms: owned(
-                transaction.arrival_custom_state_atoms,
-                transaction.arrival_custom_state_atom_count,
-            ),
-            features: owned(transaction.local_feature_deltas, transaction.local_feature_delta_count),
-            states: owned(transaction.state_deltas, transaction.state_delta_count),
-            declarations: owned(
-                transaction.element_declaration_deltas,
-                transaction.element_declaration_delta_count,
-            ),
-            element_style_inputs: owned(transaction.element_style_inputs, transaction.element_style_input_count),
         }
     }
 }
@@ -467,15 +453,89 @@ pub unsafe extern "C" fn style_engine_mint_style_nodes(host: &DocumentHost, node
     host.queue_change(ArenaChange::Engine(EngineWrite::MintStyleNodes(nodes)));
 }
 
-/// Applies the host's input transaction.
+/// Stages the tree delta `delta` for the input the host submits next.
 ///
 /// # Safety
-/// `host` must be a live document host, and each pointer of `transaction` must cover its stated count.
+/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_apply_transaction(host: &DocumentHost, transaction: &FfiStyleInputTransaction) {
+pub unsafe extern "C" fn style_engine_stage_tree_delta(host: &DocumentHost, delta: &FfiTreeDelta) {
+    host.engine_memo().staged_input.borrow_mut().tree.push(*delta);
+}
+
+/// Stages the arrival of an element with the custom states at `custom_states` for the input the host submits next.
+///
+/// # Safety
+/// `host` must be a live document host, on its document's thread, and `custom_states` must point at
+/// `custom_state_count` readable atoms.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_stage_element_arrival(
+    host: &DocumentHost,
+    arrival: &FfiElementArrival,
+    custom_states: *const u32,
+    custom_state_count: usize,
+) {
+    let mut staged = host.engine_memo().staged_input.borrow_mut();
+    let mut arrival = *arrival;
+    arrival.custom_state_offset =
+        u32::try_from(staged.arrival_custom_state_atoms.len()).expect("an input stages fewer than 2^32 custom states");
+    arrival.custom_state_count =
+        u32::try_from(custom_state_count).expect("an element has fewer than 2^32 custom states");
     // SAFETY: Guaranteed by the caller.
-    let write = EngineWrite::ApplyTransaction(Box::new(unsafe { input_transaction(transaction) }));
-    host.queue_change(ArenaChange::Engine(write));
+    staged
+        .arrival_custom_state_atoms
+        .extend_from_slice(unsafe { borrow(custom_states, custom_state_count) });
+    staged.arrivals.push(arrival);
+}
+
+/// Stages the local feature delta `delta` for the input the host submits next.
+///
+/// # Safety
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_stage_local_feature_delta(host: &DocumentHost, delta: &FfiLocalFeatureDelta) {
+    host.engine_memo().staged_input.borrow_mut().features.push(*delta);
+}
+
+/// Stages the state delta `delta` for the input the host submits next.
+///
+/// # Safety
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_stage_state_delta(host: &DocumentHost, delta: &FfiStateDelta) {
+    host.engine_memo().staged_input.borrow_mut().states.push(*delta);
+}
+
+/// Stages the element declaration delta `delta` for the input the host submits next.
+///
+/// # Safety
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_stage_element_declaration_delta(
+    host: &DocumentHost,
+    delta: &FfiElementDeclarationDelta,
+) {
+    host.engine_memo().staged_input.borrow_mut().declarations.push(*delta);
+}
+
+/// Whether the host staged deltas it has not submitted yet.
+///
+/// # Safety
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_has_staged_input(host: &DocumentHost) -> bool {
+    !host.engine_memo().staged_input.borrow().is_empty()
+}
+
+/// Submits the deltas the host staged as one batch, which the engine applies in order with the host's other writes.
+///
+/// # Safety
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_submit_staged_input(host: &DocumentHost) {
+    let staged = std::mem::take(&mut *host.engine_memo().staged_input.borrow_mut());
+    if !staged.is_empty() {
+        host.queue_change(ArenaChange::Engine(EngineWrite::ApplyTransaction(Box::new(staged))));
+    }
 }
 
 /// Records the parts the element exposes, each with the shadow host at `hosts` it is exposed to.
@@ -790,6 +850,8 @@ pub(crate) struct EngineMemo {
     pub(crate) baselines: std::cell::RefCell<super::TransitionBaselines>,
     /// The atoms the host interned for the engine.
     pub(crate) atoms: std::cell::RefCell<super::host_atoms::HostAtoms>,
+    /// The deltas the host recorded since it last submitted them.
+    pub(crate) staged_input: std::cell::RefCell<StagedInput>,
 }
 
 impl EngineMemo {
@@ -815,6 +877,7 @@ impl Default for EngineMemo {
             described: Default::default(),
             baselines: Default::default(),
             atoms: Default::default(),
+            staged_input: Default::default(),
         }
     }
 }

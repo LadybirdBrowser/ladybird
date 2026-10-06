@@ -904,26 +904,6 @@ pub struct FfiElementStyleInput {
     pub inherited_style_groups: u8,
 }
 
-/// One flat style input transaction. Every array is borrowed for the duration of the call.
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiStyleInputTransaction {
-    pub tree_deltas: *const FfiTreeDelta,
-    pub tree_delta_count: usize,
-    pub element_arrivals: *const FfiElementArrival,
-    pub element_arrival_count: usize,
-    pub arrival_custom_state_atoms: *const u32,
-    pub arrival_custom_state_atom_count: usize,
-    pub local_feature_deltas: *const FfiLocalFeatureDelta,
-    pub local_feature_delta_count: usize,
-    pub state_deltas: *const FfiStateDelta,
-    pub state_delta_count: usize,
-    pub element_declaration_deltas: *const FfiElementDeclarationDelta,
-    pub element_declaration_delta_count: usize,
-    pub element_style_inputs: *const FfiElementStyleInput,
-    pub element_style_input_count: usize,
-}
-
 /// Cascade origin of a sheet, as the boundary names it.
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
