@@ -157,6 +157,7 @@ interface Internals {
 
     undefined setBrowserZoom(double factor);
     undefined setDevicePixelRatio(double ratio);
+    undefined resizeWindow(long width, long height);
 
     readonly attribute boolean headless;
     readonly attribute boolean screenWakeLockActive;
