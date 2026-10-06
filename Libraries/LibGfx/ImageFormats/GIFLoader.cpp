@@ -13,7 +13,6 @@
 #include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibGfx/ImageFormats/GIFLoader.h>
-#include <LibGfx/Painter.h>
 
 #define WUFFS_IMPLEMENTATION
 
@@ -159,9 +158,12 @@ static ErrorOr<void> decode_next_frame(GIFLoadingContext& context)
 {
     if (context.frames_decoded > 0) {
         switch (context.current_frame_disposal) {
-        case WUFFS_BASE__ANIMATION_DISPOSAL__RESTORE_BACKGROUND:
-            Painter::create(*context.canvas)->clear_rect(context.current_frame_rect.to_type<float>(), Color::Transparent);
+        case WUFFS_BASE__ANIMATION_DISPOSAL__RESTORE_BACKGROUND: {
+            auto rect = context.current_frame_rect.intersected(context.canvas->rect());
+            for (int y = rect.top(); y < rect.bottom(); ++y)
+                memset(context.canvas->scanline_u8(y) + rect.left() * 4, 0, rect.width() * 4);
             break;
+        }
         case WUFFS_BASE__ANIMATION_DISPOSAL__RESTORE_PREVIOUS:
             memcpy(context.canvas->scanline_u8(0), context.saved_canvas->scanline_u8(0), context.canvas->size_in_bytes());
             break;
