@@ -368,8 +368,7 @@ impl StyleEngine {
                 .set_node_answer_incomplete(node, !complete);
             self.retained
                 .published_match_answers
-                .push(answer, &mut self.retained.memory, &self.retained.counters);
-            self.retained.published_match_answers.sort();
+                .publish(answer, &mut self.retained.memory, &self.retained.counters);
         }
         complete
     }

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    :root { --unused: 1px; }
+    @keyframes tint {
+        from { color: rgb(0, 0, 0); }
+        to { color: rgb(200, 0, 0); }
+    }
+    #host { animation: tint 1000s linear paused; }
+    #host::before { content: "x"; }
+</style>
+<div id="host"></div>
+<script>
+    // A shadow host's selector answer is not kept between style updates. One that only samples its
+    // animation matches the host again to settle its pseudo-elements beside the record the host
+    // composed, and they read that answer's rules for their custom properties.
+    test(() => {
+        const host = document.getElementById("host");
+        host.attachShadow({ mode: "open" }).innerHTML = "<slot></slot>";
+        internals.updateStyle();
+        const before = Object.assign({}, internals.styleEngineCounters());
+        host.getAnimations()[0].currentTime = 500000;
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+        println(`environment refusals: ${after.engineCustomPropertyEnvironmentBails - before.engineCustomPropertyEnvironmentBails}`);
+        println(`::before color: ${getComputedStyle(host, "::before").color}`);
+    });
+</script>

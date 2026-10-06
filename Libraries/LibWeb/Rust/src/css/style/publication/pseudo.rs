@@ -1226,13 +1226,13 @@ impl RetainedState {
         // verdicts the installed record moved by making the element a container, which the
         // pseudo-elements' conditions ask about first.
         let republished = if !self.holds_pseudo_match_answer(node) || !self.pseudo_winners_are_complete(node) {
-            self.republish_winners_from_answer(node, republication).is_some()
+            self.republish_winners_beside_host_record(node, republication).is_some()
         } else {
             !self.container_verdicts_moved(node)
                 || self
                     .republish_pseudo_winners_from_retained_answer(node, republication)
                     .is_some()
-                || self.republish_winners_from_answer(node, republication).is_some()
+                || self.republish_winners_beside_host_record(node, republication).is_some()
         };
         // Matching the element again only fails for want of facts the host publishes before it
         // styles the element.
