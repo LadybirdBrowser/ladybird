@@ -28,6 +28,7 @@
 #include <LibWeb/Bindings/MessagePort.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
@@ -66,6 +67,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/NavigationTiming/PerformanceNavigationTiming.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
 #include <LibWeb/PerformanceTimeline/EventNames.h>
 #include <LibWeb/PerformanceTimeline/PerformanceObserver.h>
@@ -258,8 +260,33 @@ WebIDL::ExceptionOr<JS::Value> WindowOrWorkerGlobalScopeMixin::structured_clone(
     return deserialized.deserialized;
 }
 
+static Compositor::CompositorHost* compositor_host_for(JS::Object& global_object)
+{
+    Page* page = nullptr;
+    if (auto* window = window_from_global_object(global_object))
+        page = &window->page();
+    else if (auto* worker = Bindings::worker_global_scope_from_global_object(global_object))
+        page = worker->page();
+    if (!page || !page->has_compositor_host())
+        return nullptr;
+    return &page->compositor_host();
+}
+
+static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> scale_bitmap(Compositor::CompositorHost const* compositor_host, Gfx::Bitmap const& input, Gfx::IntSize size, Gfx::ScalingMode scaling_mode)
+{
+    if (!compositor_host)
+        return Error::from_string_literal("No compositor to scale the bitmap");
+
+    auto output = TRY(Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size));
+    Compositing::DisplayListResourceStorage resource_storage;
+    auto display_list = Painting::record_image_frame_display_list(Gfx::DecodedImageFrame { input }, output->rect().to_type<float>(), scaling_mode, resource_storage);
+    if (!compositor_host->rasterize_display_list(display_list, resource_storage, output))
+        return Error::from_string_literal("Unable to scale the bitmap");
+    return output;
+}
+
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#cropped-to-the-source-rectangle-with-formatting
-static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> crop_to_the_source_rectangle_with_formatting(RefPtr<Gfx::Bitmap const> input, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, ImageBitmapOptions const& options)
+static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> crop_to_the_source_rectangle_with_formatting(Compositor::CompositorHost const* compositor_host, RefPtr<Gfx::Bitmap const> input, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, ImageBitmapOptions const& options)
 {
     // 1. Let input be the bitmap data being transformed.
 
@@ -343,7 +370,7 @@ static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> crop_to_the_source_rectangle_with_for
     };
     Vector<ScalingPass> scaling_passes;
     switch (options.resize_quality) {
-        // NOTE: The spec mentions Bicubic or Lanczos scaling as higher quality options; however, Skia does not implement the latter, so for now we will use SkCubicResampler::Mitchell() for both medium and high
+        // NOTE: The spec mentions Bicubic or Lanczos scaling as higher quality options. For now, medium and high both use bilinear filtering with mipmaps.
     case ResizeQuality::High:
         // The "high" value indicates a preference for a high level of image interpolation quality. High-quality image interpolation may be more computationally expensive than lower settings.
     case ResizeQuality::Medium:
@@ -375,7 +402,11 @@ static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> crop_to_the_source_rectangle_with_for
     } break;
     }
     for (ScalingPass& scaling_pass : scaling_passes) {
-        output = TRY(output->scaled(scaling_pass.width, scaling_pass.height, scaling_pass.mode));
+        Gfx::IntSize size { scaling_pass.width, scaling_pass.height };
+        // Scaling to the same size keeps every pixel as it is.
+        if (output->size() == size)
+            continue;
+        output = TRY(scale_bitmap(compositor_host, *output, size, scaling_pass.mode));
     }
 
     // FIXME: 8. If the value of the imageOrientation member of options is "flipY", output must be flipped vertically,
@@ -463,7 +494,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                     // If this is an animated image, imageBitmap's bitmap data must only be taken from the default image
                     // of the animation (the one that the format defines is to be used when animation is not supported
                     // or is disabled), or, if there is no such image, the first frame of the animation.
-                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(result.frames.take_first().bitmap, sx, sy, sw, sh, options);
+                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(compositor_host_for(WebIDL::promise_realm(*p).global_object()), result.frames.take_first().bitmap, sx, sy, sw, sh, options);
                     // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
                     // Spec issue: https://github.com/whatwg/html/issues/3323
                     if (cropped_bitmap_or_error.is_error()) {
@@ -509,7 +540,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
             }
 
             // 3. Set imageBitmap's bitmap data to image's image data, cropped to the source rectangle with formatting.
-            auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(bitmap_or_error.release_value(), sx, sy, sw, sh, options);
+            auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(compositor_host_for(realm.global_object()), bitmap_or_error.release_value(), sx, sy, sw, sh, options);
             // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
             // Spec issue: https://github.com/whatwg/html/issues/3323
             if (cropped_bitmap_or_error.is_error()) {
@@ -538,7 +569,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                         WebIDL::reject_promise(*p, WebIDL::InvalidStateError::create("Image size is invalid"_utf16));
                         return;
                     }
-                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(canvas_bitmap, sx, sy, sw, sh, options);
+                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(compositor_host_for(realm.global_object()), canvas_bitmap, sx, sy, sw, sh, options);
                     // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
                     // Spec issue: https://github.com/whatwg/html/issues/3323
                     if (cropped_bitmap_or_error.is_error()) {
@@ -559,7 +590,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                 // -> ImageBitmap
                 [&](GC::Ref<ImageBitmap> source_image_bitmap) {
                     // 1. Set imageBitmap's bitmap data to a copy of image's bitmap data, cropped to the source rectangle with formatting.
-                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(source_image_bitmap->bitmap(), sx, sy, sw, sh, options);
+                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(compositor_host_for(realm.global_object()), source_image_bitmap->bitmap(), sx, sy, sw, sh, options);
                     // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
                     // Spec issue: https://github.com/whatwg/html/issues/3323
                     if (cropped_bitmap_or_error.is_error()) {
@@ -615,7 +646,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                         WebIDL::reject_promise(*p, WebIDL::InvalidStateError::create("Image could not be rendered"_utf16));
                         return;
                     }
-                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(decoded_frame->bitmap(), sx, sy, sw, sh, options);
+                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(compositor_host_for(realm.global_object()), decoded_frame->bitmap(), sx, sy, sw, sh, options);
                     // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
                     // Spec issue: https://github.com/whatwg/html/issues/3323
                     if (cropped_bitmap_or_error.is_error()) {
