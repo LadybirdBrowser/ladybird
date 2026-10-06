@@ -818,8 +818,10 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> Canvas2DContextBase::get_image_data(int 
     VERIFY(snapshot.bitmap().alpha_type() == Gfx::AlphaType::Premultiplied);
     VERIFY(image_data_bitmap->alpha_type() == Gfx::AlphaType::Unpremultiplied);
 
+    // The snapshot only covers the part of the source rectangle that is inside the output bitmap.
+    auto destination_rect = Gfx::IntRect { source_rect_intersected.location() - source_rect.location(), snapshot.size() };
     auto painter = Gfx::Painter::create(*image_data_bitmap);
-    painter->draw_bitmap(image_data_bitmap->rect().to_type<float>(), snapshot, snapshot.rect(), Gfx::ScalingMode::NearestNeighbor, {}, 1, Gfx::CompositingAndBlendingOperator::SourceOver);
+    painter->draw_bitmap(destination_rect.to_type<float>(), snapshot, snapshot.rect(), Gfx::ScalingMode::NearestNeighbor, {}, 1, Gfx::CompositingAndBlendingOperator::SourceOver);
 
     // 7. Set the pixels values of imageData for areas of the source rectangle that are outside of the output bitmap to transparent black.
     // NOTE: No-op, already done during creation.
