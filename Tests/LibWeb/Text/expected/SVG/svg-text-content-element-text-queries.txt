@@ -7,6 +7,9 @@ nested: 10 chars, equals 5 + 5
 nested: length is the sum of its tspans: true
 anchored: same length as plain: true
 hidden: 0 chars, length 0
+space: 1 chars, length > 0: true
+preserved: 13 chars, plain plus two spaces: true
+collapsed: 11 chars, same length as plain: true
 pair: 4 chars
 pair: the second code unit of the surrogate pair adds no length: true
 pair: getSubStringLength(1, 2) equals getSubStringLength(1, 1): true

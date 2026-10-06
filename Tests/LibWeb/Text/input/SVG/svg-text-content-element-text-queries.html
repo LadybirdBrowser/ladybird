@@ -5,6 +5,10 @@
     <text id="nested" x="10" y="60"><tspan id="first">Hello</tspan><tspan id="second">World</tspan></text>
     <text id="anchored" x="300" y="90" text-anchor="middle">Hello world</text>
     <text id="hidden" x="10" y="120" style="display: none">Hello world</text>
+    <text id="preserved" x="10" y="150" style="white-space: pre"> Hello world </text>
+    <text id="space" x="10" y="180" style="white-space: pre"> </text>
+    <text id="collapsed" x="10" y="210">  Hello
+        world  </text>
     <text id="pair" x="10" y="240">a&#x1F600;b</text>
     <text id="offset" x="10" y="270"><tspan id="moved" x="100">Hi</tspan></text>
     <path id="curve" d="M 10 330 L 400 330" />
@@ -34,6 +38,14 @@
 
         const hidden = byId("hidden");
         println(`hidden: ${hidden.getNumberOfChars()} chars, length ${hidden.getComputedTextLength()}`);
+
+        const preserved = byId("preserved");
+        const space = byId("space");
+        println(`space: ${space.getNumberOfChars()} chars, length > 0: ${space.getComputedTextLength() > 0}`);
+        println(`preserved: ${preserved.getNumberOfChars()} chars, plain plus two spaces: ${near(preserved.getComputedTextLength(), plain.getComputedTextLength() + 2 * space.getComputedTextLength())}`);
+
+        const collapsed = byId("collapsed");
+        println(`collapsed: ${collapsed.getNumberOfChars()} chars, same length as plain: ${near(collapsed.getComputedTextLength(), plain.getComputedTextLength())}`);
 
         const pair = byId("pair");
         println(`pair: ${pair.getNumberOfChars()} chars`);
