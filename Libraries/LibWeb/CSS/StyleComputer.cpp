@@ -1135,8 +1135,10 @@ RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_inst
     } else if (auto animated_properties = new_style->animated_properties_snapshot(); !animated_properties || animated_properties->is_empty()) {
         return {};
     }
-    auto publication = publish_sampled_animation_overlay(read, abstract_element, *new_style);
-    element.refresh_computed_style(pseudo_element, publication.publication.new_style_record);
+    SampledAnimationOverlay const overlay { abstract_element, *new_style };
+    StyleEngineFFI::FfiAnimationOverlayPublication publication;
+    publish_sampled_animation_overlays(read, { &overlay, 1 }, { &publication, 1 });
+    element.refresh_computed_style(pseudo_element, StyleRecordID { publication.publication.new_style_record });
     if (auto* svg_element = as_if<SVG::SVGElement>(element); svg_element && !pseudo_element.has_value())
         svg_element->note_svg_paint_resource_description_may_have_changed();
     return decode_style_invalidation(publication.invalidation.invalidation);
@@ -2241,49 +2243,57 @@ static bool computed_style_depends_on_counter_style_environment(ComputedValues c
             && (is_pseudo || !base.list_style_type_uses_non_overridable_counter_style()));
 }
 
-StyleComputer::SampledAnimationOverlayPublication StyleComputer::publish_sampled_animation_overlay(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ComputedStyleWorkingSet& style, Function<void(StyleEngineFFI::FfiAnimationInvalidation const&)> const& before_publication) const
+void StyleComputer::publish_sampled_animation_overlays(Layout::BegunRead const& read, ReadonlySpan<SampledAnimationOverlay> overlays, Span<StyleEngineFFI::FfiAnimationOverlayPublication> publications) const
 {
-    // The engine composes the overlay over the record the element installed, rebuilding only the groups the overlay
+    // The engine composes each overlay over the record the element installed, rebuilding only the groups the overlay
     // writes, compares it with that record, and publishes it, answering the view of the record it published. The
     // animated platform font is the one thing it asks for.
-    auto& element = abstract_element.element();
+    VERIFY(overlays.size() == publications.size());
     struct OverlayFont {
         ComputedStyleWorkingSet const& style;
         GC::Ref<DOM::Document const> document;
         TreeScopeID tree_scope;
-    } overlay_font { style, document(), abstract_element.style_scope().style_engine_tree_scope() };
-    auto animated_properties = style.animated_properties_snapshot();
-    bool const publishes_overlay = animated_properties && !animated_properties->is_empty();
-    auto custom_property_data = abstract_element.custom_property_data();
-    StyleEngineFFI::FfiAnimationOverlayPublicationInput const input {
-        .style_node = element.style_node_id().value(),
-        .pseudo_kind = pseudo_element_to_ffi(abstract_element.pseudo_element()),
-        .style_record = abstract_element.style_record_identity().value(),
-        .longhand_table = style.computed_longhand_table(),
-        .animated_overlay = style.animated_overlay(),
-        .animation_overlay_identity = publishes_overlay ? animated_properties->identity() : 0,
-        .used_color_scheme = static_cast<u8>(to_underlying(style.color_scheme(document().page().preferred_color_scheme(), document().supported_color_schemes()))),
-        .display_before_box_type_transformation_raw = bit_cast<u32>(style.display_before_box_type_transformation()),
-        .is_document_element = !abstract_element.pseudo_element().has_value() && element.is_document_element(),
-        .inherited_group_count = ComputedValues::inherited_style_group_count,
-        .custom_property_environment = custom_property_data ? custom_property_data->identity() : 0,
-        .custom_property_store = custom_property_data ? custom_property_data->rust_store() : nullptr,
-        .callback_context = &overlay_font,
-        .font_group_inputs = [](void* context, void* inputs) {
-            auto const& font = *static_cast<OverlayFont const*>(context);
-            *static_cast<ComputedValuesFFI::FfiFontGroupBuildInputs*>(inputs) = font.style.font_group_build_inputs(*font.document, font.tree_scope);
-        },
     };
-    auto const published = StyleEngineFFI::style_engine_publish_sampled_animation_overlay(m_style_engine.host(), &read, &input);
-    VERIFY(published.view.present);
+    Vector<OverlayFont, 1> fonts;
+    Vector<StyleEngineFFI::FfiAnimationOverlayPublicationInput, 1> inputs;
+    fonts.ensure_capacity(overlays.size());
+    inputs.ensure_capacity(overlays.size());
+    auto const used_color_scheme_preference = document().page().preferred_color_scheme();
+    for (auto const& [abstract_element, style] : overlays) {
+        auto& element = abstract_element.element();
+        fonts.unchecked_append({ style, document(), abstract_element.style_scope().style_engine_tree_scope() });
+        auto animated_properties = style.animated_properties_snapshot();
+        bool const publishes_overlay = animated_properties && !animated_properties->is_empty();
+        auto custom_property_data = abstract_element.custom_property_data();
+        inputs.unchecked_append({
+            .style_node = element.style_node_id().value(),
+            .pseudo_kind = pseudo_element_to_ffi(abstract_element.pseudo_element()),
+            .style_record = abstract_element.style_record_identity().value(),
+            .longhand_table = style.computed_longhand_table(),
+            .animated_overlay = style.animated_overlay(),
+            .animation_overlay_identity = publishes_overlay ? animated_properties->identity() : 0,
+            .used_color_scheme = static_cast<u8>(to_underlying(style.color_scheme(used_color_scheme_preference, document().supported_color_schemes()))),
+            .display_before_box_type_transformation_raw = bit_cast<u32>(style.display_before_box_type_transformation()),
+            .is_document_element = !abstract_element.pseudo_element().has_value() && element.is_document_element(),
+            .inherited_group_count = ComputedValues::inherited_style_group_count,
+            .custom_property_environment = custom_property_data ? custom_property_data->identity() : 0,
+            .custom_property_store = custom_property_data ? custom_property_data->rust_store() : nullptr,
+            .callback_context = &fonts.last(),
+            .font_group_inputs = [](void* context, void* inputs) {
+                auto const& font = *static_cast<OverlayFont const*>(context);
+                *static_cast<ComputedValuesFFI::FfiFontGroupBuildInputs*>(inputs) = font.style.font_group_build_inputs(*font.document, font.tree_scope);
+            },
+        });
+    }
+    StyleEngineFFI::style_engine_publish_sampled_animation_overlays(m_style_engine.host(), &read, inputs.data(), inputs.size(), publications.data());
     auto& counters = document().style_invalidation_counters();
-    if (published.rebuilt_every_group)
-        counters.animated_style_full_builds++;
-    else
-        counters.animated_style_overlay_builds++;
-    if (before_publication)
-        before_publication(published.invalidation);
-    return { published.invalidation, { StyleRecordID { published.publication.old_style_record }, StyleRecordID { published.publication.new_style_record } } };
+    for (auto const& published : publications) {
+        VERIFY(published.view.present);
+        if (published.rebuilt_every_group)
+            counters.animated_style_full_builds++;
+        else
+            counters.animated_style_overlay_builds++;
+    }
 }
 
 StyleRecordID StyleComputer::intern_computed_style_inputs(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ComputedValues const& values) const
