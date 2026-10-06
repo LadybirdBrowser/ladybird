@@ -58,12 +58,11 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/PseudoElements.json"
     )
 
-    invoke_py_generator(
-        "TransformFunctions.cpp"
+    invoke_py_header_generator(
+        "TransformFunctions.h"
         "generate_libweb_css_transform_functions.py"
         "${LIBWEB_INPUT_FOLDER}/CSS/TransformFunctions.json"
         "CSS/TransformFunctions.h"
-        "CSS/TransformFunctions.cpp"
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/TransformFunctions.json"
     )
 

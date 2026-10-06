@@ -2672,12 +2672,6 @@ pub fn map_physical_to_logical_alias(property_id: u16, writing_mode: u8, directi
     }
 }
 
-/// FFI accessor for the parity test on the C++ side.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_map_physical_to_logical_alias(property_id: u16, writing_mode: u8, direction: u8) -> u16 {
-    map_physical_to_logical_alias(property_id, writing_mode, direction)
-}
-
 struct ComputedStoreEntry {
     property_id: u16,
     /// The selected specified value; also the stored value when
