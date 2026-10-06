@@ -851,20 +851,14 @@ pub(crate) struct EngineMemo {
 }
 
 impl EngineMemo {
-    /// Follows `change`, a write the host queued for the engine.
+    /// Follows `change`, a write the host queued for the engine, as the host makes it.
     pub(crate) fn follow(&self, change: &super::boundary::StyleChange) {
-        self.deferred.borrow_mut().follow(change);
         self.baselines.borrow_mut().follow(change);
     }
 
-    /// Follows `change`, a held style write, except for what the engine defers. No job applies the write until the
-    /// drain ends.
-    pub(crate) fn follow_held(&self, change: &super::boundary::StyleChange) {
-        self.baselines.borrow_mut().follow(change);
-    }
-
-    pub(crate) fn follow_held_as_queued(&self, change: &super::boundary::StyleChange) {
-        self.deferred.borrow_mut().follow(change);
+    /// Follows `queued`, a write the host queued for the engine, as it joins the writes the engine applies next.
+    pub(crate) fn follow_queued(&self, queued: crate::render_state::QueuedStyleChange<'_>) {
+        self.deferred.borrow_mut().follow(queued);
     }
 }
 
@@ -1023,11 +1017,12 @@ impl DeferredInputs {
         Some(u32::from(reaction | owed_reaction) | (u32::from(inherited_style_groups | owed_groups) << 8))
     }
 
-    /// Follows `change`, which the host queues for the engine.
-    pub(crate) fn follow(&mut self, change: &super::boundary::StyleChange) {
+    /// Follows `queued`, in the order the engine applies the writes the host queues: a write held behind the drain of a
+    /// style transaction's reactions reaches the engine after the drain's.
+    fn follow(&mut self, queued: crate::render_state::QueuedStyleChange<'_>) {
         use super::boundary::StyleChange;
         use super::transaction::{STYLE_REACTION_PUBLISHED_STYLE, STYLE_REACTION_RECOMPUTE_STYLE};
-        let (node, reaction, groups) = match *change {
+        let (node, reaction, groups) = match *queued.change() {
             StyleChange::RecordDerivedElementStyleInput {
                 node,
                 reaction,
@@ -1326,8 +1321,9 @@ pub unsafe extern "C" fn style_engine_absorb_element_style_input(
     let Some(style_node) = StyleNodeID::from_raw(node) else {
         return 0;
     };
-    // A job of the engine, or a frame in flight, moves what it defers beside what the host knows.
-    let known = host.knows_engine_between_jobs().then(|| {
+    // A job of the engine, or a frame in flight, moves what it defers beside what the host knows, and a fold held
+    // behind the drain of a style transaction's reactions reaches the engine after the drain's writes.
+    let known = (host.knows_engine_between_jobs() && !host.holds_style_writes()).then(|| {
         host.engine_memo()
             .deferred
             .borrow_mut()

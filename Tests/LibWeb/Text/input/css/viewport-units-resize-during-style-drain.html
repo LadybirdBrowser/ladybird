@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="box" style="height: 100vh"></div>
+<script>
+    function nextFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+    function nextTask() {
+        return new Promise(resolve => setTimeout(resolve, 0));
+    }
+    asyncTest(async done => {
+        const sizes = [[500, 700], [800, 600], [640, 480], [800, 600]];
+        for (let i = 0; i < 24; ++i) {
+            internals.resizeWindow(...sizes[i % sizes.length]);
+            await (i % 2 ? nextFrame() : nextTask());
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await nextFrame();
+        println(`box fills the viewport: ${box.offsetHeight === window.innerHeight}`);
+        done();
+    });
+</script>

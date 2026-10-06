@@ -434,6 +434,17 @@ struct ChangeQueue {
     set_aside: RefCell<Vec<ArenaChange>>,
 }
 
+/// A style write as it joins the writes the render state applies next, in the order it applies them: one the host
+/// queues beside a style transaction that flew joins them only behind the drain of its reactions. Only the change queue
+/// makes one, so what follows the engine as it applies the host's writes cannot follow them as the host makes them.
+pub(crate) struct QueuedStyleChange<'a>(&'a crate::css::style::boundary::StyleChange);
+
+impl QueuedStyleChange<'_> {
+    pub(crate) fn change(&self) -> &crate::css::style::boundary::StyleChange {
+        self.0
+    }
+}
+
 /// What writes may move of what the host knows of the render state (see [`StateFacts`]).
 #[derive(Clone, Copy, Default)]
 struct Moves {
@@ -451,10 +462,6 @@ impl ChangeQueue {
     /// Whether no write waits, queued or set aside, not counting the held style writes.
     fn is_empty(&self) -> bool {
         self.queued.borrow().is_empty() && self.set_aside.borrow().is_empty()
-    }
-
-    fn holds(&self, change: &ArenaChange) -> bool {
-        self.holds_style.get() && change.writes_style()
     }
 
     fn moves(&self) -> Moves {
@@ -479,14 +486,27 @@ impl ChangeQueue {
         });
     }
 
-    fn push(&self, change: ArenaChange) {
+    /// Notes `change` as it joins the writes the render state applies next, handing a style write to `follow`.
+    fn enqueue(&self, change: &ArenaChange, follow: impl FnOnce(QueuedStyleChange<'_>)) {
+        self.note(change);
+        if let ArenaChange::Style(change) = change {
+            follow(QueuedStyleChange(change));
+        }
+    }
+
+    /// Whether `change`, queued now, is held behind the drain of the reactions of the style transaction that flew.
+    fn holds(&self, change: &ArenaChange) -> bool {
+        self.holds_style.get() && change.writes_style()
+    }
+
+    fn push(&self, change: ArenaChange, follow: impl FnOnce(QueuedStyleChange<'_>)) {
         use crate::css::style::boundary::StyleChange;
         use crate::layout::layout_changes::LayoutChange;
         use crate::painting::paint_changes::PaintChange;
         let mut queued = if self.holds(&change) {
             self.held_style.borrow_mut()
         } else {
-            self.note(&change);
+            self.enqueue(&change, follow);
             self.queued.borrow_mut()
         };
         // An epoch of style record views that ends before anything else is queued or applied in it views nothing.
@@ -597,12 +617,9 @@ impl ChangeQueue {
     }
 
     /// Queues the style writes held beside the transaction that flew behind the writes queued meanwhile.
-    fn queue_held_style(&self, mut follow: impl FnMut(&ArenaChange)) {
+    fn queue_held_style(&self, mut follow: impl FnMut(QueuedStyleChange<'_>)) {
         let mut held = self.held_style.borrow_mut();
-        held.iter().for_each(|change| {
-            self.note(change);
-            follow(change);
-        });
+        held.iter().for_each(|change| self.enqueue(change, &mut follow));
         self.queued.borrow_mut().append(&mut held);
     }
 
@@ -750,17 +767,17 @@ mod tests {
         let mut buffers = [std::ptr::null(); 4];
         for buffer in &mut buffers {
             for _ in 0..8 {
-                queue.push(write());
+                queue.push(write(), |_| {});
             }
             *buffer = queue.queued.borrow().as_ptr();
             queue.drain(|changes| assert_eq!(changes.count(), 8));
         }
         assert_eq!(buffers[0], buffers[2]);
         assert_eq!(buffers[1], buffers[3]);
-        queue.push(write());
+        queue.push(write(), |_| {});
         queue.drain(|changes| {
             assert_eq!(changes.count(), 1);
-            queue.push(write());
+            queue.push(write(), |_| {});
         });
         assert_eq!(
             queue.queued.borrow().len(),
@@ -788,7 +805,12 @@ mod tests {
         };
         let form_control = || ReplacedPaintFacts::FormControl(Default::default());
         let queue = ChangeQueue::default();
-        let push = |target, facts| queue.push(ArenaChange::Paint(PaintChange::SetReplacedPaintFacts { target, facts }));
+        let push = |target, facts| {
+            queue.push(
+                ArenaChange::Paint(PaintChange::SetReplacedPaintFacts { target, facts }),
+                |_| {},
+            )
+        };
         let queued_facts = || -> Vec<ReplacedPaintFacts> {
             queue
                 .queued
@@ -813,7 +835,7 @@ mod tests {
         queue.drain(|_| {});
         push(element, canvas(4));
         assert_eq!(queued_facts(), [canvas(4)], "facts applied before are not replaced");
-        queue.push(ArenaChange::DetachForRemoval(Box::new([1])));
+        queue.push(ArenaChange::DetachForRemoval(Box::new([1])), |_| {});
         push(element, canvas(5));
         assert_eq!(
             queued_facts(),

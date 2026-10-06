@@ -1214,6 +1214,11 @@ void Internals::set_device_pixel_ratio(double ratio)
     page().client().page_did_set_device_pixel_ratio_for_testing(ratio);
 }
 
+void Internals::resize_window(i32 width, i32 height)
+{
+    page().client().page_did_request_resize_window({ width, height }, 0);
+}
+
 bool Internals::headless()
 {
     return page().client().is_headless();

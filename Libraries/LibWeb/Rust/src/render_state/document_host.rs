@@ -222,18 +222,21 @@ impl DocumentHost {
     /// applies it ahead of the host's next job. A write never reaches the render state as the host makes it.
     pub(crate) fn queue_change(&self, change: ArenaChange) {
         match &change {
-            ArenaChange::Style(style_change) if style_change.only_keeps_records_alive() => {}
-            ArenaChange::Style(style_change) => {
+            ArenaChange::Style(change) if change.only_keeps_records_alive() => {}
+            ArenaChange::Style(change) => {
                 self.note_render_state_write();
-                if self.changes.holds(&change) {
-                    self.engine_memo.follow_held(style_change);
-                } else {
-                    self.engine_memo.follow(style_change);
-                }
+                self.engine_memo.follow(change);
             }
             _ => self.note_render_state_write(),
         }
-        self.changes.push(change);
+        self.changes
+            .push(change, |queued| self.engine_memo.follow_queued(queued));
+    }
+
+    /// Whether a write the host queues now waits behind the drain of the reactions of a style transaction that flew,
+    /// beside the writes the drain queues meanwhile.
+    pub(crate) fn holds_style_writes(&self) -> bool {
+        self.changes.holds_style.get()
     }
 
     /// Notes that the document's render state is written, which leaves the paint and hit testing properties prepared
@@ -779,11 +782,8 @@ impl DocumentHost {
         let Some(FlownStyle::Draining(_)) = self.flown_style.borrow_mut().take() else {
             panic!("the host ends the drain it began");
         };
-        self.changes.queue_held_style(|change| {
-            if let ArenaChange::Style(change) = change {
-                self.engine_memo.follow_held_as_queued(change);
-            }
-        });
+        self.changes
+            .queue_held_style(|queued| self.engine_memo.follow_queued(queued));
     }
 
     /// What the host's scopes of a read lend the entries they call.

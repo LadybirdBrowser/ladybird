@@ -174,6 +174,7 @@ public:
 
     void set_browser_zoom(double factor);
     void set_device_pixel_ratio(double ratio);
+    void resize_window(i32 width, i32 height);
 
     bool headless();
     bool screen_wake_lock_active();
