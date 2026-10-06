@@ -10350,7 +10350,10 @@ Optional<Painting::HitTestQuery> Document::prepare_hit_test_query(Layout::BegunR
         set_needs_to_record_display_list();
         HTML::PaintConfig paint_config { .paint_overlay = true };
         if (auto navigable = this->navigable()) {
-            if (navigable->record_display_list_and_scroll_state(paint_config))
+            // A frame of the render clock shows the animations ahead of the last rendering update, which this recording
+            // shows them at. Presenting it would move them back in time until the next rendering update presents.
+            if (navigable->presenter().last_frame_presented_by() != Compositor::PresentedBy::Clock
+                && navigable->record_display_list_and_scroll_state(paint_config))
                 return;
             (void)record_display_list(read, paint_config, navigable->display_list_resource_storage(), Painting::PaintCommandCacheMode::ReadWrite);
             return;

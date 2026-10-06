@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 10px; height: 0px; background: green"></div>
+<div style="height: 3000px"></div>
+<script>
+    // The compositor shows the frame a tick of the render clock presented, which is ahead of the document's last
+    // rendering update. The hit test for a wheel event after the ticks records the document again, as of that update:
+    // presenting that recording would show the animation back in time until the next rendering update.
+    asyncTest(async done => {
+        const result = await whileClockLeased(() => {
+            return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
+        }, frameTime => {
+            internals.injectClockTick(frameTime + 1000);
+            internals.injectClockTick(frameTime + 2000);
+            const afterTicks = internals.lastFramePresentedBy(document);
+            internals.wheel(5, 5, 0, 20);
+            return { afterTicks, afterWheel: internals.lastFramePresentedBy(document) };
+        });
+        println(`last frame presented by, after the ticks: ${result.afterTicks}`);
+        println(`last frame presented by, after the wheel event: ${result.afterWheel}`);
+        done();
+    });
+</script>
