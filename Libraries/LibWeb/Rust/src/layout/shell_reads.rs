@@ -89,15 +89,6 @@ pub unsafe extern "C" fn layout_row_identity_flags(host: &DocumentHost, id: Node
     unsafe { identities(host, node_read()) }.identity_flags(id)
 }
 
-/// # Safety
-///
-/// As for [`layout_row_flags`].
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_row_link_slot(host: &DocumentHost, id: NodeSlotId, link: FfiNodeLink) -> NodeSlotId {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { rows(host, node_read()) }.link(id, link)
-}
-
 /// The layout node of the row `id` links to, made if nothing has asked for it yet, or null.
 ///
 /// # Safety
