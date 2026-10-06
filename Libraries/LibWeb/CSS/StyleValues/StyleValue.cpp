@@ -28,7 +28,6 @@
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -170,7 +169,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::CounterStyle:
         return adopt_ref(*new (nothrow) CounterStyleStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::CounterStyleSystem:
-        return adopt_ref(*new (nothrow) CounterStyleSystemStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::CounterStyleSystem, data));
     case StyleValueFFI::StyleValueData::Tag::CounterDefinitions:
         return adopt_ref(*new (nothrow) CounterDefinitionsStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Counter:

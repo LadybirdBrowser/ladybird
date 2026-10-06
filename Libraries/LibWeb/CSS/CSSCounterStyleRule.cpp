@@ -11,7 +11,6 @@
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetState.h>
-#include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 
 namespace Web::CSS {
@@ -92,7 +91,7 @@ void CSSCounterStyleRule::set_system(Utf16String const& system)
     //    these steps.
     // Note: It’s okay to change an aspect of the algorithm, like the first symbol value of a fixed system.
     auto current_system = system_style_value();
-    if (!current_system || current_system->as_counter_style_system().algorithm_differs_from(value->as_counter_style_system()))
+    if (!current_system || Parser::ValueParserFFI::rust_counter_style_system_changes_algorithm(current_system->rust_style_value_data(), value->rust_style_value_data()))
         return;
 
     // 4. Set the descriptor to the value.
@@ -210,7 +209,7 @@ void CSSCounterStyleRule::set_symbols(Utf16String const& symbols)
     //    to not define a counter style, do nothing and abort these steps. (For example, some systems require the
     //    symbols descriptor to contain two values.)
     auto current_system = system_style_value();
-    if (!value || (current_system && !current_system->as_counter_style_system().is_valid_symbol_count(value->as_value_list().size())))
+    if (!value || (current_system && !Parser::ValueParserFFI::rust_counter_style_system_accepts_symbols(current_system->rust_style_value_data(), false, value->as_value_list().size())))
         return;
 
     // 3. If the attribute being set is system, and the new value would change the algorithm used, do nothing and abort
@@ -241,7 +240,7 @@ void CSSCounterStyleRule::set_additive_symbols(Utf16String const& additive_symbo
     //    to not define a counter style, do nothing and abort these steps. (For example, some systems require the
     //    symbols descriptor to contain two values.)
     auto current_system = system_style_value();
-    if (!value || (current_system && !current_system->as_counter_style_system().is_valid_additive_symbol_count(value->as_value_list().size())))
+    if (!value || (current_system && !Parser::ValueParserFFI::rust_counter_style_system_accepts_symbols(current_system->rust_style_value_data(), true, value->as_value_list().size())))
         return;
 
     // 3. If the attribute being set is system, and the new value would change the algorithm used, do nothing and abort
