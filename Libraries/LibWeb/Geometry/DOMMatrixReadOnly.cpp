@@ -16,7 +16,7 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
-#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
+#include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Geometry/DOMMatrixReadOnly.h>
 #include <LibWeb/Geometry/DOMPoint.h>
@@ -942,42 +942,23 @@ WebIDL::ExceptionOr<ParsedMatrix> parse_dom_matrix_init_string(StringView transf
     auto transform_style_value = parse_css_value(parsing_params, transform_list, CSS::PropertyID::Transform);
     if (!transform_style_value || (transform_style_value->is_keyword() && transform_style_value->to_keyword() != CSS::Keyword::None) || transform_style_value->is_unresolved())
         return WebIDL::SyntaxError::create("Failed to parse CSS transform string."_utf16);
-    auto parsed_value = CSS::transformations_for_style_value(*transform_style_value);
-
-    // NB: Check that no <length> values with non-absolute length units were used
-    if (!all_of(parsed_value, [](auto& transform) { return transform->can_be_converted_to_matrix_without_reference_box(); }))
-        return WebIDL::SyntaxError::create("Failed to parse CSS transform string."_utf16);
 
     // 3. If parsedValue is none, set parsedValue to a <transform-list> containing a single identity matrix.
-    // NOTE: parsed_value is empty on none so for loop in 6 won't modify matrix
-    auto matrix = Gfx::FloatMatrix4x4::identity();
-
     // 4. Let 2dTransform track the 2D/3D dimension status of parsedValue.
-    // -> If parsedValue consists of any three-dimensional transform functions, set 2dTransform to false.
-    // -> Otherwise, set 2dTransform to true.
-    bool is_2d_transform = true;
-    for (auto const& transform : parsed_value) {
-        // https://www.w3.org/TR/css-transforms-1/#two-d-transform-functions
-        if (!first_is_one_of(transform->as_transformation().transform_function(),
-                CSS::TransformFunction::Matrix,
-                CSS::TransformFunction::Translate, CSS::TransformFunction::TranslateX, CSS::TransformFunction::TranslateY,
-                CSS::TransformFunction::Scale, CSS::TransformFunction::ScaleX, CSS::TransformFunction::ScaleY,
-                CSS::TransformFunction::Rotate,
-                CSS::TransformFunction::Skew, CSS::TransformFunction::SkewX, CSS::TransformFunction::SkewY))
-            is_2d_transform = false;
-    }
-
     // 5. Transform all <transform-function>s to 4x4 abstract matrices by following the “Mathematical Description of Transform Functions”. [CSS3-TRANSFORMS]
     // 6. Let matrix be a 4x4 abstract matrix as shown in the initial figure of this section. Post-multiply all matrices from left to right and set matrix to this product.
-    for (auto const& transform : parsed_value)
-        matrix = matrix * transform->as_transformation().to_matrix({});
+    // NB: A <length> without an absolute unit is a failure as well, which Rust reports when it cannot resolve a function.
+    Array<float, 16> matrix;
+    bool is_2d_transform = true;
+    if (!CSS::ComputedValuesFFI::rust_transform_list_to_abstract_matrix(transform_style_value->rust_style_value_data(), matrix.data(), &is_2d_transform))
+        return WebIDL::SyntaxError::create("Failed to parse CSS transform string."_utf16);
 
     // 7. Return matrix and 2dTransform.
     Gfx::DoubleMatrix4x4 double_matrix {
-        static_cast<double>(matrix[0, 0]), static_cast<double>(matrix[0, 1]), static_cast<double>(matrix[0, 2]), static_cast<double>(matrix[0, 3]),
-        static_cast<double>(matrix[1, 0]), static_cast<double>(matrix[1, 1]), static_cast<double>(matrix[1, 2]), static_cast<double>(matrix[1, 3]),
-        static_cast<double>(matrix[2, 0]), static_cast<double>(matrix[2, 1]), static_cast<double>(matrix[2, 2]), static_cast<double>(matrix[2, 3]),
-        static_cast<double>(matrix[3, 0]), static_cast<double>(matrix[3, 1]), static_cast<double>(matrix[3, 2]), static_cast<double>(matrix[3, 3])
+        matrix[0], matrix[1], matrix[2], matrix[3],
+        matrix[4], matrix[5], matrix[6], matrix[7],
+        matrix[8], matrix[9], matrix[10], matrix[11],
+        matrix[12], matrix[13], matrix[14], matrix[15]
     };
     return ParsedMatrix { double_matrix, is_2d_transform };
 }

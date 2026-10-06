@@ -1307,9 +1307,14 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         auto transform = FloatMatrix4x4::identity();
 
         // 2. Post-multiply all <transform-function>s in <transform-list> to transform.
+        //    NB: The resolved transforms start with those of the translate, rotate and scale properties.
         VERIFY(Painting::has_committed_box(layout_node));
-        layout_node.for_each_transformation([&](auto const& transformation) {
-            transform = transform * transformation.to_matrix(&layout_node);
+        auto reference_box = Painting::transform_reference_box(layout_node);
+        size_t individual_transform_count = layout_node.has_translate() + layout_node.has_rotate() + layout_node.has_scale();
+        size_t index = 0;
+        layout_node.for_each_resolved_transform([&](auto const& resolved_transform) {
+            if (index++ >= individual_transform_count)
+                transform = transform * resolved_transform.to_matrix(reference_box.width(), reference_box.height());
         });
 
         // https://drafts.csswg.org/css-transforms-1/#2d-matrix

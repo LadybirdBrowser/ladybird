@@ -7639,14 +7639,9 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
             return false;
 
         auto matrix = Gfx::FloatMatrix4x4::identity();
-        if (auto translate = layout_node.translate())
-            matrix = matrix * translate->to_matrix(&layout_node);
-        if (auto rotate = layout_node.rotate())
-            matrix = matrix * rotate->to_matrix(&layout_node);
-        if (auto scale = layout_node.scale())
-            matrix = matrix * scale->to_matrix(&layout_node);
-        layout_node.for_each_transformation([&](auto const& transformation) {
-            matrix = matrix * transformation.to_matrix(&layout_node);
+        auto reference_box = Painting::transform_reference_box(layout_node);
+        layout_node.for_each_resolved_transform([&](auto const& transform) {
+            matrix = matrix * transform.to_matrix(reference_box.width(), reference_box.height());
         });
 
         constexpr auto epsilon = AK::NumericLimits<float>::epsilon();

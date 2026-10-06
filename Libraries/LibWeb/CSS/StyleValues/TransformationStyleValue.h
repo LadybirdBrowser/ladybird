@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include <LibGfx/Matrix4x4.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/TransformFunctions.h>
 
@@ -35,9 +34,6 @@ public:
         }
         return result;
     }
-
-    bool can_be_converted_to_matrix_without_reference_box() const;
-    FloatMatrix4x4 to_matrix(Layout::Node const*) const;
 
     GC::Ptr<CSSTransformComponent> reify_a_transform_function() const;
 

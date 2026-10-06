@@ -713,11 +713,6 @@ public:
     LengthPercentage const& y() const { return LengthPercentage::view(m_noninherited.svg_reset->y); }
 
     bool has_transformations() const { return m_noninherited.transform->has_transformations(); }
-    template<typename Callback>
-    void for_each_transformation(Callback callback) const
-    {
-        m_noninherited.transform->for_each_transformation(callback);
-    }
     TransformOrigin transform_origin() const { return m_noninherited.transform->transform_origin_value(); }
     TransformStyle transform_style() const { return m_noninherited.transform->transform_style_value(); }
     BackfaceVisibility backface_visibility() const { return m_noninherited.transform->backface_visibility_value(); }

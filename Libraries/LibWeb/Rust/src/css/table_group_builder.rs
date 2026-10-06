@@ -915,9 +915,9 @@ fn matrix_rotation(axis: [f32; 3], angle: f32) -> [f32; 16] {
     std::array::from_fn(|index| rows[index / 4][index % 4])
 }
 
-/// The TransformationStyleValue::to_matrix port for computed values, which
-/// never carry reference-box percentages here: the translate family's
-/// percentage-bearing values lower into per-axis slots instead.
+/// The matrix of one transform function whose values resolve without a box: computed values,
+/// whose percentage-bearing translate values lower into per-axis slots instead, or the absolute
+/// values DOMMatrix accepts.
 pub(crate) fn transformation_to_matrix(
     function: u8,
     values: &[crate::css::style_value::RetainedStyleValueData],
@@ -1091,9 +1091,102 @@ pub(crate) fn transformation_to_matrix(
         }
         _ => {}
     }
-    // The C++ to_matrix logs and falls back to the identity for unhandled
-    // function and argument-count combinations.
+    // An unhandled function and argument-count combination is the identity.
     matrix_identity()
+}
+
+/// The abstract matrix of a parsed `transform` value or of one transform function, as DOMMatrix
+/// parses a string into one: the product of the functions' matrices, and whether every function is
+/// two-dimensional. False when a function needs a box or a font to resolve: a relative length, a
+/// percentage of a length, a calculation that does not simplify, or a tree-counting function.
+/// https://drafts.fxtf.org/geometry/#parse-a-string-into-an-abstract-matrix
+///
+/// # Safety
+/// `value` must be a live style value, and `out_matrix` must point at 16 writable floats, row by
+/// row.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_transform_list_to_abstract_matrix(
+    value: *const c_void,
+    out_matrix: *mut f32,
+    out_is_2d: *mut bool,
+) -> bool {
+    use crate::css::serialize::transform_function as functions;
+
+    let value = unsafe { &*value.cast::<StyleValueData>() };
+    // The keyword none is no function at all.
+    let transform_list = match value {
+        StyleValueData::ValueList { values, .. } => values.as_slice(),
+        _ => &[],
+    };
+    let single_function = matches!(value, StyleValueData::Transformation { .. }).then_some(value);
+    let mut matrix = libgfx_rust::FloatMatrix4x4::identity();
+    let mut is_2d = true;
+    for function in transform_list
+        .iter()
+        .map(|function| function.data())
+        .chain(single_function)
+    {
+        let StyleValueData::Transformation {
+            transform_function,
+            values,
+            ..
+        } = function
+        else {
+            return false;
+        };
+        let values = values.as_slice();
+        let parameters = crate::css::serialize::TRANSFORM_FUNCTION_PARAMETER_TYPES[*transform_function as usize];
+        if !values
+            .iter()
+            .zip(parameters)
+            .all(|(value, &parameter)| resolves_without_a_box(parameter, value.data()))
+        {
+            return false;
+        }
+        // https://drafts.csswg.org/css-transforms-1/#two-d-transform-functions
+        is_2d &= matches!(
+            *transform_function,
+            functions::MATRIX
+                | functions::TRANSLATE
+                | functions::TRANSLATE_X
+                | functions::TRANSLATE_Y
+                | functions::SCALE
+                | functions::SCALE_X
+                | functions::SCALE_Y
+                | functions::ROTATE
+                | functions::SKEW
+                | functions::SKEW_X
+                | functions::SKEW_Y
+        );
+        let function_matrix = transformation_to_matrix(*transform_function, values);
+        matrix = matrix.multiplied(libgfx_rust::FloatMatrix4x4 {
+            elements: std::array::from_fn(|row| std::array::from_fn(|column| function_matrix[row * 4 + column])),
+        });
+    }
+    // SAFETY: The caller provides room for the 16 elements and the flag.
+    unsafe {
+        std::ptr::copy_nonoverlapping(matrix.elements.as_flattened().as_ptr(), out_matrix, 16);
+        *out_is_2d = is_2d;
+    }
+    true
+}
+
+fn resolves_without_a_box(parameter: u8, value: &StyleValueData) -> bool {
+    match value {
+        StyleValueData::Length { value, unit } => {
+            crate::css::style_compute::absolute_length_to_px(*value, *unit).is_some()
+        }
+        StyleValueData::Percentage { .. } => parameter != TRANSFORM_PARAMETER_LENGTH_PERCENTAGE,
+        StyleValueData::Calculated { .. } => {
+            crate::css::calc::resolve_calculated_canonically(value, None).is_some()
+                && !(parameter == TRANSFORM_PARAMETER_LENGTH_PERCENTAGE && value_contains_percentage(value))
+        }
+        StyleValueData::TreeCountingFunction { .. } => !matches!(
+            parameter,
+            TRANSFORM_PARAMETER_NUMBER | TRANSFORM_PARAMETER_NUMBER_PERCENTAGE
+        ),
+        _ => true,
+    }
 }
 
 fn baked_matrix_entry(matrix: [f32; 16]) -> ComputedResolvedTransform {
