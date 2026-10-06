@@ -10,6 +10,7 @@
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/MetalContext.h>
 #include <LibGfx/SkiaBackendContext.h>
+#include <LibGfx/SkiaUtils.h>
 #include <LibGfx/VideoSurfaceImage.h>
 #include <LibGfx/YUVData.h>
 
@@ -88,7 +89,7 @@ sk_sp<SkImage> sk_image_from_video_surface(Core::IOSurfaceHandle const& io_surfa
         color_space = color_space_result.release_value();
 
     GrYUVABackendTextures yuva_textures { yuva_info, plane_textures, kTopLeft_GrSurfaceOrigin };
-    return SkImages::TextureFromYUVATextures(gr_context, yuva_textures, color_space.color_space<sk_sp<SkColorSpace>>());
+    return SkImages::TextureFromYUVATextures(gr_context, yuva_textures, to_skia_color_space(color_space));
 }
 
 ErrorOr<NonnullRefPtr<Bitmap>> bitmap_from_video_surface(Core::IOSurfaceHandle const& io_surface, Media::CodingIndependentCodePoints cicp)

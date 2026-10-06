@@ -372,7 +372,7 @@ sk_sp<SkImage> DisplayListResourceStorage::skia_image_for_video_sink(VideoSinkRe
             yuv_data->make_pixmaps(),
             skgpu::Mipmapped::kNo,
             false,
-            color_space.color_space<sk_sp<SkColorSpace>>());
+            Gfx::to_skia_color_space(color_space));
     }
 
     if (!image) {

@@ -6,49 +6,50 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/Error.h>
-#include <AK/Noncopyable.h>
-#include <AK/NonnullOwnPtr.h>
+#include <AK/Variant.h>
 #include <LibIPC/Forward.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
 
 namespace Gfx {
 
-namespace Details {
-
-struct ColorSpaceImpl;
-
-}
-
+// The color space of an image, as plain data. The painter builds its own color space object from it when it draws.
 class ColorSpace {
 public:
-    ColorSpace();
-    ColorSpace(ColorSpace const&);
-    ColorSpace(ColorSpace&&);
-    ColorSpace& operator=(ColorSpace const&);
-    ColorSpace& operator=(ColorSpace&&);
-    ~ColorSpace();
+    // The parts of a coding-independent code point that set the color space of RGB pixels.
+    struct CICP {
+        Media::ColorPrimaries color_primaries { Media::ColorPrimaries::Unspecified };
+        Media::TransferCharacteristics transfer_characteristics { Media::TransferCharacteristics::Unspecified };
+    };
+
+    // A transfer function with the parameters g, a, b, c, d, e and f, and a row-major matrix from linear RGB to XYZ
+    // with a D50 white point.
+    struct Parametric {
+        Array<float, 7> transfer_function {};
+        Array<float, 9> to_xyz_d50 {};
+    };
+
+    // Without data, the color space is sRGB.
+    using Data = Variant<Empty, CICP, Parametric>;
+
+    ColorSpace() = default;
 
     static ErrorOr<ColorSpace> from_cicp(Media::CodingIndependentCodePoints);
     static ErrorOr<ColorSpace> load_from_icc_bytes(ReadonlyBytes);
 
-    // In order to keep this file free of Skia types, this function can't return
-    // a sk_sp<ColorSpace>. To work around that issue, we define a template here
-    // and only provide a specialization for sk_sp<SkColorSpace>.
-    template<typename T>
-    T& color_space();
-    template<typename T>
-    T const& color_space() const;
+    Data const& data() const { return m_data; }
 
 private:
     template<typename T>
-    friend ErrorOr<void> IPC::encode(IPC::Encoder&, T const&);
-    template<typename T>
     friend ErrorOr<T> IPC::decode(IPC::Decoder&);
 
-    explicit ColorSpace(NonnullOwnPtr<Details::ColorSpaceImpl>&&);
+    explicit ColorSpace(Data data)
+        : m_data(move(data))
+    {
+    }
 
-    NonnullOwnPtr<Details::ColorSpaceImpl> m_color_space;
+    Data m_data;
 };
 
 }
