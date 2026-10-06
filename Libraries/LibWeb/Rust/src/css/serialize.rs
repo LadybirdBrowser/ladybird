@@ -1080,7 +1080,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
         }
         StyleValueData::PendingSubstitution { .. } => true,
         StyleValueData::TreeCountingFunction { function, .. } => {
-            // TreeCountingFunctionStyleValue::TreeCountingFunction: SiblingCount is 0.
+            // The parser numbers sibling-count() 0 and sibling-index() 1.
             sink.push_ascii(if *function == 0 {
                 "sibling-count()"
             } else {
@@ -1684,8 +1684,8 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             color_interpolation_method,
             color_syntax,
         } => {
-            // LinearGradientStyleValue::GradientType: Standard is 0, WebKit is 1; SideOrCorner:
-            // Top, Bottom, Left, Right, TopLeft, TopRight, BottomLeft, BottomRight.
+            // The parser numbers the gradient type Standard 0 and WebKit 1, and the side or corner Top, Bottom,
+            // Left, Right, TopLeft, TopRight, BottomLeft, BottomRight.
             let is_webkit = *gradient_type == 1;
             let default_side = if is_webkit { 0 } else { 1 };
             let has_direction = *has_direction_value || *side_or_corner != default_side;

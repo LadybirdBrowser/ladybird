@@ -547,22 +547,6 @@ impl RetainedStyleValueDataList {
         let pointer = Box::into_raw(slice) as *mut RetainedStyleValueData;
         Self { pointer, length }
     }
-
-    /// Takes ownership of one strong reference to each non-null value.
-    ///
-    /// # Safety
-    /// Every non-null entry in `values` must be a strong reference returned by
-    /// `rust_style_value_retain`.
-    unsafe fn from_retained_optional_pointers(values: *const *const StyleValueData, length: usize) -> Self {
-        let slice: Box<[RetainedStyleValueData]> = (0..length)
-            .map(|i| RetainedStyleValueData {
-                pointer: unsafe { *values.add(i) }.cast(),
-            })
-            .collect();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedStyleValueData;
-        Self { pointer, length }
-    }
 }
 
 impl Clone for RetainedStyleValueDataList {
@@ -825,14 +809,6 @@ pub struct FfiCounterDefinition {
     value: RetainedStyleValueData,
 }
 
-#[repr(C)]
-pub struct FfiImageSetOption {
-    image: RetainedStyleValueData,
-    resolution: RetainedStyleValueData,
-    has_type: bool,
-    type_string: usize,
-}
-
 impl RetainedRequestUrlModifier {
     pub(crate) fn from_enum(modifier_type: u8, enum_value: u8) -> Self {
         Self {
@@ -1022,23 +998,6 @@ pub struct RetainedImageSetOptionList {
     length: usize,
 }
 
-impl RetainedImageSetOptionList {
-    unsafe fn from_raw(elements: *const FfiImageSetOption, length: usize) -> Self {
-        let elements = (0..length)
-            .map(|i| {
-                let element = unsafe { &*elements.add(i) };
-                RetainedImageSetOption {
-                    image: unsafe { std::ptr::read(&raw const element.image) },
-                    resolution: unsafe { std::ptr::read(&raw const element.resolution) },
-                    has_type: element.has_type,
-                    type_string: unsafe { CssString::from_leaked_raw(element.type_string) },
-                }
-            })
-            .collect();
-        Self::from_retained_elements(elements)
-    }
-}
-
 retained_list_drop!(RetainedImageSetOptionList);
 
 impl Clone for RetainedImageSetOptionList {
@@ -1065,7 +1024,7 @@ pub struct RetainedColorStopList {
     length: usize,
 }
 
-retained_list!(RetainedColorStopList, RetainedColorStop);
+retained_list!(RetainedColorStopList, RetainedColorStop, native);
 
 impl RetainedCounterDefinition {
     pub(crate) fn value(&self) -> &RetainedStyleValueData {
@@ -1706,8 +1665,7 @@ impl Drop for OwnedBasicShapeData {
     }
 }
 
-/// The `function` of `StyleValueData::Counter`, as the C++ `CounterStyleValue::CounterFunction`
-/// enum numbers it.
+/// The `function` of `StyleValueData::Counter`.
 pub(crate) const COUNTER_FUNCTION_COUNTER: u8 = 0;
 pub(crate) const COUNTER_FUNCTION_COUNTERS: u8 = 1;
 
@@ -3005,46 +2963,9 @@ pub unsafe extern "C" fn rust_style_value_create_ratio(
     }))
 }
 
-/// Takes ownership of one strong reference to the value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_opacity_value(value: *const StyleValueData) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::OpacityValue {
-        value: unsafe { RetainedStyleValueData::from_retained_pointer(value) },
-    }))
-}
-
-/// Takes ownership of one strong reference to the offset data if it is non-null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_edge(
-    has_edge: bool,
-    edge: u8,
-    offset: *const StyleValueData,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::Edge {
-        has_edge,
-        edge,
-        offset: unsafe { RetainedStyleValueData::from_retained_optional_pointer(offset) },
-    }))
-}
-
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_value_create_guaranteed_invalid() -> *const StyleValueData {
     Arc::into_raw(Arc::new(StyleValueData::GuaranteedInvalid))
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_create_empty_optional() -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::EmptyOptional))
-}
-
-/// Takes ownership of one strong reference to the parameter data.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_superellipse(
-    parameter: *const StyleValueData,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::Superellipse {
-        parameter: unsafe { RetainedStyleValueData::from_retained_pointer(parameter) },
-    }))
 }
 
 /// Takes ownership of one strong reference to the original shorthand value.
@@ -3054,34 +2975,6 @@ pub unsafe extern "C" fn rust_style_value_create_pending_substitution(
 ) -> *const StyleValueData {
     Arc::into_raw(Arc::new(StyleValueData::PendingSubstitution {
         original_shorthand_value: unsafe { RetainedStyleValueData::from_retained_pointer(original_shorthand_value) },
-    }))
-}
-
-/// Takes ownership of one strong reference to each color.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_scrollbar_color(
-    thumb_color: *const StyleValueData,
-    track_color: *const StyleValueData,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::ScrollbarColor {
-        thumb_color: unsafe { RetainedStyleValueData::from_retained_pointer(thumb_color) },
-        track_color: unsafe { RetainedStyleValueData::from_retained_pointer(track_color) },
-    }))
-}
-
-/// Takes ownership of one strong reference to each edge data allocation.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_rect(
-    top: *const StyleValueData,
-    right: *const StyleValueData,
-    bottom: *const StyleValueData,
-    left: *const StyleValueData,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::Rect {
-        top: unsafe { RetainedStyleValueData::from_retained_pointer(top) },
-        right: unsafe { RetainedStyleValueData::from_retained_pointer(right) },
-        bottom: unsafe { RetainedStyleValueData::from_retained_pointer(bottom) },
-        left: unsafe { RetainedStyleValueData::from_retained_pointer(left) },
     }))
 }
 
@@ -3096,48 +2989,6 @@ pub unsafe extern "C" fn rust_style_value_create_filter(
         kind,
         color_operation,
         value: unsafe { RetainedStyleValueData::from_retained_pointer(value) },
-    }))
-}
-
-/// Takes ownership of one strong reference to each radius data allocation.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_border_radius(
-    is_elliptical: bool,
-    horizontal_radius: *const StyleValueData,
-    vertical_radius: *const StyleValueData,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::BorderRadius {
-        is_elliptical,
-        horizontal_radius: unsafe { RetainedStyleValueData::from_retained_pointer(horizontal_radius) },
-        vertical_radius: unsafe { RetainedStyleValueData::from_retained_pointer(vertical_radius) },
-    }))
-}
-
-/// Takes ownership of one strong reference to each corner radius data allocation.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_border_radius_rect(
-    top_left: *const StyleValueData,
-    top_right: *const StyleValueData,
-    bottom_right: *const StyleValueData,
-    bottom_left: *const StyleValueData,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::BorderRadiusRect {
-        top_left: unsafe { RetainedStyleValueData::from_retained_pointer(top_left) },
-        top_right: unsafe { RetainedStyleValueData::from_retained_pointer(top_right) },
-        bottom_right: unsafe { RetainedStyleValueData::from_retained_pointer(bottom_right) },
-        bottom_left: unsafe { RetainedStyleValueData::from_retained_pointer(bottom_left) },
-    }))
-}
-
-/// Takes ownership of one leaked reference to the string.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_create_string(
-    string: usize,
-    is_valid_animation_name_custom_ident: bool,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::String {
-        string: unsafe { CssString::from_leaked_raw(string) },
-        is_valid_animation_name_custom_ident,
     }))
 }
 
@@ -3161,22 +3012,6 @@ pub unsafe extern "C" fn rust_style_value_create_function(
     }))
 }
 
-/// Takes ownership of one leaked reference to the tag and one strong reference to the value data.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_open_type_tagged(
-    mode: u8,
-    tag: usize,
-    packed_tag: u32,
-    value: *const StyleValueData,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::OpenTypeTagged {
-        mode,
-        tag_name: unsafe { CssString::from_leaked_raw(tag) },
-        packed_tag,
-        value: unsafe { RetainedStyleValueData::from_retained_pointer(value) },
-    }))
-}
-
 /// Takes ownership of one strong reference to the angle value data if it is non-null.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_font_style(
@@ -3186,76 +3021,6 @@ pub unsafe extern "C" fn rust_style_value_create_font_style(
     Arc::into_raw(Arc::new(StyleValueData::FontStyle {
         font_style,
         angle_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(angle_value) },
-    }))
-}
-
-/// Takes ownership of one strong reference to the length-percentage.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_text_indent(
-    length_percentage: *const StyleValueData,
-    hanging: bool,
-    each_line: bool,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::TextIndent {
-        length_percentage: unsafe { RetainedStyleValueData::from_retained_pointer(length_percentage) },
-        hanging,
-        each_line,
-    }))
-}
-
-/// Takes ownership of one strong reference to the offset data.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_overflow_clip_margin(
-    has_visual_box: bool,
-    visual_box: u8,
-    offset: *const StyleValueData,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::OverflowClipMargin {
-        has_visual_box,
-        visual_box,
-        offset: unsafe { RetainedStyleValueData::from_retained_pointer(offset) },
-    }))
-}
-
-/// Takes ownership of one strong reference to each size.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_background_size(
-    size_x: *const StyleValueData,
-    size_y: *const StyleValueData,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::BackgroundSize {
-        size_x: unsafe { RetainedStyleValueData::from_retained_pointer(size_x) },
-        size_y: unsafe { RetainedStyleValueData::from_retained_pointer(size_y) },
-    }))
-}
-
-/// Takes ownership of one strong reference to each offset data allocation.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_border_image_slice(
-    top: *const StyleValueData,
-    right: *const StyleValueData,
-    bottom: *const StyleValueData,
-    left: *const StyleValueData,
-    fill: bool,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::BorderImageSlice {
-        top: unsafe { RetainedStyleValueData::from_retained_pointer(top) },
-        right: unsafe { RetainedStyleValueData::from_retained_pointer(right) },
-        bottom: unsafe { RetainedStyleValueData::from_retained_pointer(bottom) },
-        left: unsafe { RetainedStyleValueData::from_retained_pointer(left) },
-        fill,
-    }))
-}
-
-/// Takes ownership of one strong reference to each edge data allocation.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_position(
-    edge_x: *const StyleValueData,
-    edge_y: *const StyleValueData,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::Position {
-        edge_x: unsafe { RetainedStyleValueData::from_retained_pointer(edge_x) },
-        edge_y: unsafe { RetainedStyleValueData::from_retained_pointer(edge_y) },
     }))
 }
 
@@ -3281,55 +3046,6 @@ pub unsafe extern "C" fn rust_style_value_create_shadow(
     }))
 }
 
-/// Takes ownership of one strong reference to the content list and, when non-null, the
-/// alt-text list.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_content(
-    content: *const StyleValueData,
-    alt_text: *const StyleValueData,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::Content {
-        content: unsafe { RetainedStyleValueData::from_retained_pointer(content) },
-        alt_text: unsafe { RetainedStyleValueData::from_retained_optional_pointer(alt_text) },
-    }))
-}
-
-/// Takes ownership of one leaked reference to each string and one strong reference to the
-/// counter style.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_counter(
-    function: u8,
-    counter_name: usize,
-    counter_style: *const StyleValueData,
-    join_string: usize,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::Counter {
-        function,
-        counter_name: unsafe { CssString::from_leaked_raw(counter_name) },
-        counter_style: unsafe { RetainedStyleValueData::from_retained_pointer(counter_style) },
-        join_string: unsafe { CssString::from_leaked_raw(join_string) },
-    }))
-}
-
-/// Takes ownership of one strong reference to the fixed value and one leaked reference to the
-/// name when they are present.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_random_value_sharing(
-    fixed_value: *const StyleValueData,
-    is_auto: bool,
-    has_name: bool,
-    name: usize,
-    element_shared: bool,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::RandomValueSharing {
-        fixed_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(fixed_value) },
-        is_auto,
-        has_name,
-        name: unsafe { CssString::from_leaked_raw(name) },
-        element_shared,
-    }))
-}
-
 /// Takes ownership of one strong reference to each of the `length` values.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_value_list(
@@ -3342,17 +3058,6 @@ pub unsafe extern "C" fn rust_style_value_create_value_list(
         values: unsafe { RetainedStyleValueDataList::from_retained_pointers(values, length) },
         separator,
         collapsible,
-    }))
-}
-
-/// Takes ownership of one strong reference to each non-null value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_tuple(
-    values: *const *const StyleValueData,
-    length: usize,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::Tuple {
-        values: unsafe { RetainedStyleValueDataList::from_retained_optional_pointers(values, length) },
     }))
 }
 
@@ -3390,28 +3095,6 @@ pub unsafe extern "C" fn rust_style_value_create_shorthand(
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_value_create_display(raw: u32) -> *const StyleValueData {
     Arc::into_raw(Arc::new(StyleValueData::Display { raw }))
-}
-
-/// Takes ownership of one strong reference to each non-null component value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_radial_size(
-    component_count: u8,
-    is_extent_0: bool,
-    extent_0: u8,
-    value_0: *const StyleValueData,
-    is_extent_1: bool,
-    extent_1: u8,
-    value_1: *const StyleValueData,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::RadialSize {
-        component_count,
-        is_extent_0,
-        extent_0,
-        value_0: unsafe { RetainedStyleValueData::from_retained_optional_pointer(value_0) },
-        is_extent_1,
-        extent_1,
-        value_1: unsafe { RetainedStyleValueData::from_retained_optional_pointer(value_1) },
-    }))
 }
 
 /// Creates an unresolved value from borrowed token source. Rust derives the source and comparison
@@ -3553,20 +3236,6 @@ pub unsafe extern "C" fn rust_style_value_create_counter_style(
     }))
 }
 
-/// Takes ownership of one strong reference to the image and to each non-null coordinate.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_cursor(
-    image: *const StyleValueData,
-    x: *const StyleValueData,
-    y: *const StyleValueData,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::Cursor {
-        image: unsafe { RetainedStyleValueData::from_retained_pointer(image) },
-        x: unsafe { RetainedStyleValueData::from_retained_optional_pointer(x) },
-        y: unsafe { RetainedStyleValueData::from_retained_optional_pointer(y) },
-    }))
-}
-
 /// Takes ownership of one strong reference to each non-null value and one leaked reference to
 /// the name when present.
 #[unsafe(no_mangle)]
@@ -3595,95 +3264,6 @@ pub unsafe extern "C" fn rust_style_value_create_color_function(
         has_name,
         name: unsafe { CssString::from_leaked_raw(name) },
         origin_color: unsafe { RetainedStyleValueData::from_retained_optional_pointer(origin_color) },
-    }))
-}
-
-/// Takes ownership of the options' retained values and strings.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_image_set(
-    options: *const FfiImageSetOption,
-    length: usize,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::ImageSet {
-        options: unsafe { RetainedImageSetOptionList::from_raw(options, length) },
-    }))
-}
-
-/// Takes ownership of one strong reference to each non-null value and of the stops' retained
-/// values.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_linear_gradient(
-    has_direction_value: bool,
-    direction_value: *const StyleValueData,
-    side_or_corner: u8,
-    stops: *const RetainedColorStop,
-    stop_count: usize,
-    gradient_type: u8,
-    repeating: bool,
-    color_interpolation_method: *const StyleValueData,
-    color_syntax: u8,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::LinearGradient {
-        has_direction_value,
-        direction_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(direction_value) },
-        side_or_corner,
-        color_stop_list: unsafe { RetainedColorStopList::from_raw(stops, stop_count) },
-        gradient_type,
-        repeating,
-        color_interpolation_method: unsafe {
-            RetainedStyleValueData::from_retained_optional_pointer(color_interpolation_method)
-        },
-        color_syntax,
-    }))
-}
-
-/// Takes ownership of one strong reference to each non-null value and of the stops' retained
-/// values.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_conic_gradient(
-    from_angle: *const StyleValueData,
-    position: *const StyleValueData,
-    stops: *const RetainedColorStop,
-    stop_count: usize,
-    repeating: bool,
-    color_interpolation_method: *const StyleValueData,
-    color_syntax: u8,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::ConicGradient {
-        from_angle: unsafe { RetainedStyleValueData::from_retained_optional_pointer(from_angle) },
-        position: unsafe { RetainedStyleValueData::from_retained_pointer(position) },
-        color_stop_list: unsafe { RetainedColorStopList::from_raw(stops, stop_count) },
-        repeating,
-        color_interpolation_method: unsafe {
-            RetainedStyleValueData::from_retained_optional_pointer(color_interpolation_method)
-        },
-        color_syntax,
-    }))
-}
-
-/// Takes ownership of one strong reference to each non-null value and of the stops' retained
-/// values.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_radial_gradient(
-    ending_shape: u8,
-    size: *const StyleValueData,
-    position: *const StyleValueData,
-    stops: *const RetainedColorStop,
-    stop_count: usize,
-    repeating: bool,
-    color_interpolation_method: *const StyleValueData,
-    color_syntax: u8,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::RadialGradient {
-        ending_shape,
-        size: unsafe { RetainedStyleValueData::from_retained_pointer(size) },
-        position: unsafe { RetainedStyleValueData::from_retained_pointer(position) },
-        color_stop_list: unsafe { RetainedColorStopList::from_raw(stops, stop_count) },
-        repeating,
-        color_interpolation_method: unsafe {
-            RetainedStyleValueData::from_retained_optional_pointer(color_interpolation_method)
-        },
-        color_syntax,
     }))
 }
 

@@ -13,6 +13,14 @@
 
 namespace Web::CSS {
 
+// A symbols() function's type crosses the style value FFI as a raw code, which the Rust counter style resolution
+// reads too.
+static_assert(to_underlying(SymbolsType::Cyclic) == 0);
+static_assert(to_underlying(SymbolsType::Numeric) == 1);
+static_assert(to_underlying(SymbolsType::Alphabetic) == 2);
+static_assert(to_underlying(SymbolsType::Symbolic) == 3);
+static_assert(to_underlying(SymbolsType::Fixed) == 4);
+
 RefPtr<CounterStyle const> CounterStyleStyleValue::resolve_counter_style(StyleScope const& style_scope) const
 {
     Layout::ForcedReadScope read { style_scope.document() };

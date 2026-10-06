@@ -19,34 +19,6 @@
 
 namespace Web::CSS {
 
-StyleValueFFI::StyleValueData const* ImageSetStyleValue::make_image_set_data(Vector<Option> const& options)
-{
-    // The Rust allocation takes ownership of one strong reference to each value and one leaked
-    // reference to each type string.
-    Vector<StyleValueFFI::FfiImageSetOption> ffi_options;
-    ffi_options.ensure_capacity(options.size());
-    for (auto const& option : options) {
-        ffi_options.unchecked_append({
-            { StyleValueFFI::rust_style_value_retain(option.image->rust_style_value_data()) },
-            { StyleValueFFI::rust_style_value_retain(option.resolution->rust_style_value_data()) },
-            option.type.has_value(),
-            option.type.has_value() ? option.type->to_raw_leaked() : 0,
-        });
-    }
-    return StyleValueFFI::rust_style_value_create_image_set(ffi_options.data(), ffi_options.size());
-}
-
-ValueComparingNonnullRefPtr<ImageSetStyleValue const> ImageSetStyleValue::create(Vector<Option> options)
-{
-    return adopt_ref(*new (nothrow) ImageSetStyleValue(move(options)));
-}
-
-ImageSetStyleValue::ImageSetStyleValue(Vector<Option> options)
-    : AbstractImageStyleValue(Type::ImageSet, make_image_set_data(options))
-    , m_options(move(options))
-{
-}
-
 ImageSetStyleValue::ImageSetStyleValue(StyleValueFFI::StyleValueData const* data)
     : AbstractImageStyleValue(Type::ImageSet, data)
 {

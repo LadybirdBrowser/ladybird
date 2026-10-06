@@ -18,25 +18,16 @@ namespace Web::CSS {
 
 class WEB_API PositionStyleValue final : public StyleValueWithDefaultOperators<PositionStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<PositionStyleValue const> create(ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x, ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y);
-    static ValueComparingNonnullRefPtr<PositionStyleValue const> create_center();
     virtual ~PositionStyleValue() override = default;
 
     ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x() const { return wrap_rust_child(m_value->position.edge_x)->as_edge(); }
     ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y() const { return wrap_rust_child(m_value->position.edge_y)->as_edge(); }
-    bool is_center(SerializationMode) const;
-    CSSPixelPoint resolved(CSSPixelRect const&) const;
 
 private:
     friend class StyleValue;
 
     explicit PositionStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::Position, data)
-    {
-    }
-
-    PositionStyleValue(ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x, ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y)
-        : StyleValueWithDefaultOperators(Type::Position, StyleValueFFI::rust_style_value_create_position(StyleValueFFI::rust_style_value_retain(edge_x->rust_style_value_data()), StyleValueFFI::rust_style_value_retain(edge_y->rust_style_value_data())))
     {
     }
 };

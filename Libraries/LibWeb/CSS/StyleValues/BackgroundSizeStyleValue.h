@@ -16,11 +16,7 @@ namespace Web::CSS {
 // NOTE: This is not used for identifier sizes, like `cover` and `contain`.
 class BackgroundSizeStyleValue final : public StyleValueWithDefaultOperators<BackgroundSizeStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<BackgroundSizeStyleValue const> create(ValueComparingNonnullRefPtr<StyleValue const> size_x, ValueComparingNonnullRefPtr<StyleValue const> size_y)
-    {
-        return adopt_ref(*new (nothrow) BackgroundSizeStyleValue(move(size_x), move(size_y)));
-    }
-    virtual ~BackgroundSizeStyleValue() override;
+    virtual ~BackgroundSizeStyleValue() override = default;
 
     ValueComparingNonnullRefPtr<StyleValue const> size_x() const { return wrap_rust_child(m_value->background_size.size_x); }
     ValueComparingNonnullRefPtr<StyleValue const> size_y() const { return wrap_rust_child(m_value->background_size.size_y); }
@@ -32,8 +28,6 @@ private:
         : StyleValueWithDefaultOperators(Type::BackgroundSize, data)
     {
     }
-
-    BackgroundSizeStyleValue(ValueComparingNonnullRefPtr<StyleValue const> size_x, ValueComparingNonnullRefPtr<StyleValue const> size_y);
 };
 
 }

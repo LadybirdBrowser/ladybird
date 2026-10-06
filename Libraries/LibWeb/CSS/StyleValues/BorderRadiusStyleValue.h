@@ -17,10 +17,6 @@ namespace Web::CSS {
 
 class BorderRadiusStyleValue final : public StyleValueWithDefaultOperators<BorderRadiusStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<BorderRadiusStyleValue const> create(ValueComparingNonnullRefPtr<StyleValue const> const& horizontal_radius, ValueComparingNonnullRefPtr<StyleValue const> const& vertical_radius)
-    {
-        return adopt_ref(*new (nothrow) BorderRadiusStyleValue(horizontal_radius, vertical_radius));
-    }
     virtual ~BorderRadiusStyleValue() override = default;
 
     ValueComparingNonnullRefPtr<StyleValue const> horizontal_radius() const { return wrap_rust_child(m_value->border_radius.horizontal_radius); }
@@ -30,11 +26,6 @@ public:
 private:
     explicit BorderRadiusStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::BorderRadius, data)
-    {
-    }
-
-    BorderRadiusStyleValue(ValueComparingNonnullRefPtr<StyleValue const> const& horizontal_radius, ValueComparingNonnullRefPtr<StyleValue const> const& vertical_radius)
-        : StyleValueWithDefaultOperators(Type::BorderRadius, StyleValueFFI::rust_style_value_create_border_radius(horizontal_radius != vertical_radius, StyleValueFFI::rust_style_value_retain(horizontal_radius->rust_style_value_data()), StyleValueFFI::rust_style_value_retain(vertical_radius->rust_style_value_data())))
     {
     }
 
