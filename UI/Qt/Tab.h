@@ -38,7 +38,7 @@ class BrowserWindow;
 enum class ChromeIcon;
 class DownloadsPopover;
 class JavaScriptDialog;
-class PrivateSessionPopover;
+class MessagePopover;
 class WindowControlButton;
 
 class HyperlinkLabel final : public QLabel {
@@ -164,7 +164,7 @@ private:
     QToolButton* m_hamburger_button { nullptr };
     QToolButton* m_downloads_button { nullptr };
     QPointer<DownloadsPopover> m_downloads_popover;
-    QPointer<PrivateSessionPopover> m_private_session_popover;
+    QPointer<MessagePopover> m_private_session_popover;
     LocationEdit* m_location_edit { nullptr };
     WebContentView* m_view { nullptr };
     FindInPageWidget* m_find_in_page { nullptr };
