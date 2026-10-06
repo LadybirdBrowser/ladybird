@@ -1,0 +1,8 @@
+after ending: ended=true
+after remove: ended=true, readyState=HAVE_METADATA
+after setting currentTime: ended=true
+after play(): ended=true
+seeking: ended=true
+play: ended=true
+waiting: ended=true
+playing: ended=false

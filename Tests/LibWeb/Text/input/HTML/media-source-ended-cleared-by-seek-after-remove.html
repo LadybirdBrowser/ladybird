@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
+<script>
+    // Mirrors a player reusing a MediaSource after its media ended: remove all data, seek back, and play before new
+    // data arrives. Nothing is buffered, so readyState stays at HAVE_METADATA throughout the seek.
+    asyncTest(done => {
+        function fail(name, error) {
+            println(`FAIL: ${name}: ${error}`);
+            done();
+        }
+
+        function waitForUpdateEnd(sourceBuffer) {
+            return new Promise((resolve, reject) => {
+                sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                sourceBuffer.addEventListener("error", () => reject(new Error("error event on SourceBuffer")), { once: true });
+            });
+        }
+
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        mediaSource.addEventListener("sourceopen", async () => {
+            try {
+                const sourceBuffer = mediaSource.addSourceBuffer('video/webm;codecs="vp9"');
+                const response = await fetch("../../../Assets/vp9-frame-rate-change.webm");
+                if (!response.ok) {
+                    fail("fetch media", `HTTP ${response.status}`);
+                    return;
+                }
+                const data = new Uint8Array(await response.arrayBuffer());
+
+                sourceBuffer.appendBuffer(data);
+                await waitForUpdateEnd(sourceBuffer);
+                mediaSource.endOfStream();
+
+                video.currentTime = video.duration - 0.3;
+                await new Promise(resolve => video.addEventListener("seeked", resolve, { once: true }));
+                await video.play();
+                await new Promise(resolve => video.addEventListener("ended", resolve, { once: true }));
+                await new Promise(resolve => setTimeout(resolve, 0));
+                println(`after ending: ended=${video.ended}`);
+
+                sourceBuffer.remove(0, Infinity);
+                await waitForUpdateEnd(sourceBuffer);
+                println(`after remove: ended=${video.ended}, readyState=${readyStateName(video.readyState)}`);
+
+                video.currentTime = 0;
+                println(`after setting currentTime: ended=${video.ended}`);
+                video.play().catch(() => {});
+                println(`after play(): ended=${video.ended}`);
+                for (const type of ["seeking", "play", "waiting"])
+                    video.addEventListener(type, () => println(`${type}: ended=${video.ended}`), { once: true });
+
+                await new Promise(resolve => setTimeout(resolve, 100));
+                sourceBuffer.appendBuffer(data);
+                await new Promise(resolve => video.addEventListener("playing", resolve, { once: true }));
+                println(`playing: ended=${video.ended}`);
+                done();
+            } catch (e) {
+                fail("sourceopen handler", e);
+            }
+        }, { once: true });
+    });
+</script>

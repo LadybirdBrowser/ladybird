@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<audio id="audio" src="../../../Assets/test-webm-audio.ogg"></audio>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<script>
+    asyncTest(async done => {
+        const audio = document.getElementById("audio");
+        if (audio.readyState < HTMLMediaElement.HAVE_METADATA)
+            await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        audio.currentTime = audio.duration - 0.3;
+        await new Promise(resolve => audio.addEventListener("seeked", resolve, { once: true }));
+        await audio.play();
+        await new Promise(resolve => audio.addEventListener("ended", resolve, { once: true }));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        println(`after ending: ended=${audio.ended}`);
+
+        // Seeking moves the current playback position away from the end, so ended must be false by the time the
+        // event loop runs the task that fires seeking.
+        audio.currentTime = 0;
+        println(`after setting currentTime: ended=${audio.ended}`);
+        audio.addEventListener("seeking", () => println(`seeking: ended=${audio.ended}`), { once: true });
+        await new Promise(resolve => audio.addEventListener("seeked", resolve, { once: true }));
+        println(`seeked: ended=${audio.ended}`);
+        done();
+    });
+</script>

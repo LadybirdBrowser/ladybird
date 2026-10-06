@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<video id="video" src="../../../Assets/solid-blue-160x120.webm"></video>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<script>
+    asyncTest(async done => {
+        const video = document.getElementById("video");
+        if (video.readyState < HTMLMediaElement.HAVE_METADATA)
+            await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        // The ended attribute starts returning true once the event loop returns to step 1, which is before the task
+        // that fires pause and ended runs.
+        video.addEventListener("pause", () => println(`pause: ended=${video.ended}`), { once: true });
+        await video.play();
+        await new Promise(resolve => video.addEventListener("ended", resolve, { once: true }));
+        println(`ended: ended=${video.ended}`);
+        done();
+    });
+</script>
