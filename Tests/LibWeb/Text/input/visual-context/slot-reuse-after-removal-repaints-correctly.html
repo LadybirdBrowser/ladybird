@@ -17,7 +17,7 @@
 <div id="parent"></div>
 <script>
     test(() => {
-        const settle = () => document.elementFromPoint(0, 0);
+        const settle = () => internals.recordDisplayListForTesting();
         const parent = document.getElementById("parent");
         settle();
         const first = document.createElement("div");
