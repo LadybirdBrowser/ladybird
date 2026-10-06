@@ -13,7 +13,11 @@
 #    include <LibCore/IOSurface.h>
 #    include <LibGfx/Forward.h>
 #    include <LibMedia/Color/CodingIndependentCodePoints.h>
-#    include <core/SkImage.h>
+
+class SkImage;
+
+template<typename T>
+class sk_sp;
 
 namespace Gfx {
 
