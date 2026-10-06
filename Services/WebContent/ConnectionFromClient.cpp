@@ -80,6 +80,7 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
+#include <LibWeb/Loader/LoaderConfig.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Loader/SourceHighlighter.h>
 #include <LibWeb/Namespace.h>
@@ -527,7 +528,7 @@ void ConnectionFromClient::set_site_compatibility_data(JsonValue data)
         warnln("Ignoring invalid site compatibility data: {}", parsed_data.error());
         return;
     }
-    Web::ResourceLoader::the().set_site_compatibility_data(parsed_data.release_value());
+    Web::set_site_compatibility_data(parsed_data.release_value());
 }
 
 void ConnectionFromClient::update_screen_rects(Web::PageId page_id, Vector<Web::DevicePixelRect> rects, Vector<Web::DevicePixelRect> available_rects, u32 main_screen)
@@ -1156,7 +1157,7 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
     }
 
     if (request == "spoof-user-agent") {
-        Web::ResourceLoader::the().set_user_agent(MUST(String::from_byte_string(argument)));
+        Web::update_loader_config([&](auto& config) { config.user_agent = MUST(String::from_byte_string(argument)); });
         return;
     }
 
@@ -3187,7 +3188,7 @@ void ConnectionFromClient::set_preferred_languages(Web::PageId, Vector<String> p
     // object global return a new set of language tags, the user agent must queue a global task on the DOM manipulation
     // task source given global to fire an event named languagechange at global, and wait until that task begins to be
     // executed before actually returning a new value.
-    Web::ResourceLoader::the().set_preferred_languages(move(preferred_languages));
+    Web::update_loader_config([&](auto& config) { config.preferred_languages = move(preferred_languages); });
 }
 
 void ConnectionFromClient::set_browsing_behavior(Web::PageId page_id, WebView::BrowsingBehavior browsing_behavior)
@@ -3206,7 +3207,7 @@ void ConnectionFromClient::consume_user_activation(Web::PageId page_id, Web::HTM
 
 void ConnectionFromClient::set_enable_global_privacy_control(Web::PageId, bool enable)
 {
-    Web::ResourceLoader::the().set_enable_global_privacy_control(enable);
+    Web::update_loader_config([&](auto& config) { config.enable_global_privacy_control = enable; });
 }
 
 void ConnectionFromClient::set_geolocation_emulated_position(Web::PageId page_id, WebView::GeolocationPositionData position, Optional<u16> error_code)

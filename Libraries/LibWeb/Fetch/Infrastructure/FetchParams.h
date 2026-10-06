@@ -17,6 +17,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
+#include <LibWebCommon/Loader/LoaderConfigSnapshot.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -29,13 +30,15 @@ public:
     struct PreloadedResponseCandidatePendingTag { };
     using PreloadedResponseCandidate = Variant<Empty, PreloadedResponseCandidatePendingTag, GC::Ref<Response>>;
 
-    [[nodiscard]] static GC::Ref<FetchParams> create(NonnullRefPtr<Request>, GC::Ref<FetchAlgorithms const>, NonnullRefPtr<FetchTimingInfo>);
+    [[nodiscard]] static GC::Ref<FetchParams> create(NonnullRefPtr<Request>, GC::Ref<FetchAlgorithms const>, NonnullRefPtr<FetchTimingInfo>, NonnullRefPtr<LoaderConfigSnapshot const>);
     [[nodiscard]] static GC::Ref<FetchParams> copy(FetchParams const&);
 
     [[nodiscard]] NonnullRefPtr<Request> request() const { return m_request; }
     void set_request(NonnullRefPtr<Request> request) { m_request = move(request); }
     [[nodiscard]] GC::Ref<FetchController> controller() const { return m_controller; }
     [[nodiscard]] NonnullRefPtr<FetchTimingInfo> timing_info() const { return m_timing_info; }
+    [[nodiscard]] LoaderConfig const& loader_config() const { return m_loader_config->config; }
+    [[nodiscard]] NonnullRefPtr<LoaderConfigSnapshot const> const& loader_config_snapshot() const { return m_loader_config; }
 
     [[nodiscard]] GC::Ref<FetchAlgorithms const> algorithms() const { return m_algorithms; }
     void set_algorithms(GC::Ref<FetchAlgorithms const> algorithms) { m_algorithms = algorithms; }
@@ -64,7 +67,7 @@ public:
     void set_blob_url_entry(Optional<FileAPI::SerializedBlobURLEntry> blob_url_entry) { m_blob_url_entry = move(blob_url_entry); }
 
 private:
-    FetchParams(NonnullRefPtr<Request>, GC::Ref<FetchAlgorithms const>, GC::Ref<FetchController>, NonnullRefPtr<FetchTimingInfo>);
+    FetchParams(NonnullRefPtr<Request>, GC::Ref<FetchAlgorithms const>, GC::Ref<FetchController>, NonnullRefPtr<FetchTimingInfo>, NonnullRefPtr<LoaderConfigSnapshot const>);
     FetchParams(FetchParams const&);
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
@@ -122,6 +125,9 @@ private:
 
     // The blob URL entry of the request's URL, when that is a blob: URL, as it was when the fetch started.
     Optional<FileAPI::SerializedBlobURLEntry> m_blob_url_entry;
+
+    // The loader configuration as it was when the fetch started.
+    NonnullRefPtr<LoaderConfigSnapshot const> m_loader_config;
 };
 
 }

@@ -10,9 +10,10 @@
 #include <AK/Forward.h>
 #include <LibURL/Forward.h>
 #include <LibWebCommon/Fetch/Infrastructure/RedirectTaint.h>
+#include <LibWebCommon/Forward.h>
 
 namespace Web::Fetch::Infrastructure {
 
-[[nodiscard]] ByteString default_user_agent_value(URL::URL const&);
+[[nodiscard]] ByteString default_user_agent_value(LoaderConfig const&, URL::URL const&);
 
 }

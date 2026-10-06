@@ -18,7 +18,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/Viewport.h>
-#include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/Loader/LoaderConfig.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -102,7 +102,8 @@ static bool system_language_evaluates_to_true(Utf16View value)
     // preferences is a case-insensitive prefix of one of the language tags given in the value of this parameter such
     // that the first tag character following the prefix is "-".
     auto language_tags = SVGStringList::parse(value, SVGStringList::Separator::Comma);
-    for (auto const& preferred_language : ResourceLoader::the().preferred_languages()) {
+    auto loader_config = current_loader_config();
+    for (auto const& preferred_language : loader_config->config.preferred_languages) {
         auto preferred_tag = Utf16String::from_utf8(preferred_language);
         for (auto const& language_tag : language_tags) {
             if (language_tag.equals_ignoring_ascii_case(preferred_tag))
