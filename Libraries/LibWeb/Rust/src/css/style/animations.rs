@@ -97,33 +97,26 @@ pub(crate) struct CssDefinedAnimations {
 }
 
 impl CssDefinedAnimations {
-    /// Replace one list from the names and applied definitions the host publishes: the names
-    /// packed into one buffer of code units with a length each, and a definition per animation.
-    /// An empty list drops it, so an element that stops animating stops costing anything.
+    /// Replace one list from the names and applied definitions the host publishes, a definition per
+    /// animation. An empty list drops it, so an element that stops animating stops costing anything.
     pub(crate) fn set(
         &mut self,
         node: StyleNodeID,
         slot: AnimationSlot,
-        name_lengths: &[u32],
-        name_units: &[u16],
+        names: Box<[CssString]>,
         definitions: &[FfiAppliedAnimationDefinition],
     ) {
         debug_assert_eq!(
             definitions.len(),
-            name_lengths.len(),
+            names.len(),
             "every published animation name comes with its applied definition"
         );
-        let mut offset = 0;
-        let animations: Box<[CssDefinedAnimation]> = name_lengths
-            .iter()
+        let animations: Box<[CssDefinedAnimation]> = names
+            .into_iter()
             .zip(definitions)
-            .map(|(&length, &applied_definition)| {
-                let units = &name_units[offset..offset + length as usize];
-                offset += length as usize;
-                CssDefinedAnimation {
-                    name: CssString::from_utf16(units),
-                    applied_definition,
-                }
+            .map(|(name, &applied_definition)| CssDefinedAnimation {
+                name,
+                applied_definition,
             })
             .collect();
         let lists = self.rows.entry(node).or_default();
@@ -562,8 +555,6 @@ mod tests {
     /// Publish a list of animations of the given names, each with an applied definition no plan
     /// has described.
     fn set(animations: &mut CssDefinedAnimations, node: StyleNodeID, slot: AnimationSlot, names: &[&str]) {
-        let lengths: Vec<u32> = names.iter().map(|name| name.encode_utf16().count() as u32).collect();
-        let units: Vec<u16> = names.iter().flat_map(|name| name.encode_utf16()).collect();
         let undescribed = FfiAppliedAnimationDefinition {
             values: FfiAppliedAnimationValues {
                 duration_is_auto: false,
@@ -581,7 +572,7 @@ mod tests {
             keyframe_set: std::ptr::null(),
             timing_function: std::ptr::null(),
         };
-        animations.set(node, slot, &lengths, &units, &vec![undescribed; names.len()]);
+        animations.set(node, slot, self::names(names), &vec![undescribed; names.len()]);
     }
 
     fn list_names(animations: &CssDefinedAnimations, node: StyleNodeID, slot: AnimationSlot) -> Vec<CssString> {

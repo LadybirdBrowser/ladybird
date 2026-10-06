@@ -100,7 +100,7 @@ void style_engine_evaluate_size_containers_needing_evaluation_after_layout(Docum
 void style_engine_set_element_associated_pseudo_kind(DocumentHost const*, StyleNodeID node, u8 pseudo_kind_plus_one);
 void style_engine_set_counter_style_environment_identity(DocumentHost const*, TreeScopeID tree_scope, u64 identity);
 void style_engine_set_held_style_record(DocumentHost const*, StyleNodeID node, u64 style_record);
-void style_engine_set_element_css_defined_animations(DocumentHost const*, StyleNodeID node, u8 slot, ReadonlySpan<u32> name_lengths, ReadonlySpan<u16> name_units, ReadonlySpan<FfiAppliedAnimationDefinition> definitions);
+void style_engine_set_element_css_defined_animations(DocumentHost const*, StyleNodeID node, u8 slot, ReadonlySpan<FlatPtr> names, ReadonlySpan<FfiAppliedAnimationDefinition> definitions);
 void style_engine_set_tree_scope_root(DocumentHost const*, TreeScopeID tree_scope, StyleNodeID root);
 void style_engine_set_sheet_conditions_hold(DocumentHost const*, SheetID sheet, bool conditions_hold);
 u32 style_engine_connected_element_count(DocumentHost const*, BegunRead const*);
