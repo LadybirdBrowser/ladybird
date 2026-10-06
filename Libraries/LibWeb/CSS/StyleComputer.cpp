@@ -700,7 +700,7 @@ NonnullOwnPtr<StyleComputer::AnimationSample> StyleComputer::begin_animation_sam
             .identity = effect->animation_preparation_identity(),
             .generation = effect->animation_preparation_generation(),
             .timing = timing,
-            .easing = CSS::to_ffi_easing_descriptor<Compositing::RustFFI::FfiEasingDescriptor>(effect->timing_function(), easing_points.last()),
+            .easing = effect->timing_function().descriptor_with_points_in(easing_points.last()),
             .current_key = current_key,
         });
     }

@@ -1295,16 +1295,6 @@ pub(crate) fn canonicalize_linear_easing(value: &StyleValueData) -> RetainedStyl
     }
 }
 
-/// Canonicalizes a `linear()` easing function's control points for C++. Returns one strong
-/// reference.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_linear_easing_canonicalize(value: &StyleValueData) -> *const StyleValueData {
-    let canonical = canonicalize_linear_easing(value);
-    let pointer = canonical.pointer();
-    core::mem::forget(canonical);
-    pointer
-}
-
 fn canonicalized_dimension(value: f64, unit: u8, ratios: &[f64]) -> Option<(f64, u8)> {
     let canonical = ratios.iter().position(|&ratio| ratio == 1.0)? as u8;
     if unit == canonical {

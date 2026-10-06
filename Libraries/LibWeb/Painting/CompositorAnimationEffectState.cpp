@@ -83,7 +83,7 @@ CompositorAnimationKeyframes::CompositorAnimationKeyframes(Animations::KeyframeE
         m_data->linear_easing_points.unchecked_append({});
         auto& linear_easing_points = m_data->linear_easing_points.last();
         auto describe_easing = [&](CSS::EasingFunction const& easing) {
-            return CSS::to_ffi_easing_descriptor<Compositing::RustFFI::FfiEasingDescriptor>(easing, linear_easing_points);
+            return easing.descriptor_with_points_in(linear_easing_points);
         };
         keyframe.easing_is_supported = entry.easing.visit(
             [&](Empty) {
@@ -281,7 +281,7 @@ CompositorAnimationEffectState::BuildOutcome CompositorAnimationEffectState::bui
     request.timing.fill_mode = first_is_one_of(effect.fill_mode(), Bindings::FillMode::Backwards, Bindings::FillMode::Both)
         ? Compositing::RustFFI::FfiVisualAnimationFillMode::Backwards
         : Compositing::RustFFI::FfiVisualAnimationFillMode::None;
-    request.timing.easing = CSS::to_ffi_easing_descriptor<Compositing::RustFFI::FfiEasingDescriptor>(effect.timing_function(), effect_easing_points);
+    request.timing.easing = effect.timing_function().descriptor_with_points_in(effect_easing_points);
 
     CompositorAnimationBuild lent { data, read };
     auto host = compositor_animation_host(lent);
