@@ -23,6 +23,8 @@ namespace Web::Compositor {
 // What a navigable hands its compositor context for one frame. The frame owns everything its messages carry, so it
 // can be handed to the compositor from any thread.
 struct CompositorFrame {
+    AK_ALLOC_WITH_KMALLOC;
+
     // A newly recorded display list, with the visual context tree, resources and scroll state it paints with.
     struct DisplayListUpdate {
         NonnullRefPtr<Compositing::DisplayList> display_list;
@@ -54,6 +56,7 @@ struct CompositorFrame {
 
 class CompositorConnection;
 class NavigablePresenter;
+struct FrameSinkFFI;
 
 // Hands finished frames to the compositor. Unlike the rest of a compositor connection, which belongs to the thread that
 // made it, a frame sink takes frames from any thread. The messages of one frame reach the compositor together, and
@@ -63,10 +66,11 @@ public:
     virtual ~CompositorFrameSink() = default;
 
 private:
-    // FIXME: Only the Paint thread should present frames. These still present from the main thread, or with a sink the
-    //        main thread hands out.
-    friend class CompositorConnection;
+    // The Paint thread presents through these.
+    friend struct FrameSinkFFI;
     friend class NavigablePresenter;
+    // Only for a test of the transport.
+    friend class CompositorConnection;
 
     // Returns false once the compositor can no longer be reached.
     virtual bool submit(CompositorFrame&&) = 0;

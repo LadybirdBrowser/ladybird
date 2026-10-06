@@ -98,7 +98,7 @@ impl RecordingJob {
             return self.run(inputs, None);
         }
         release_held_recording_for_testing();
-        crate::stage_thread::paint_thread().run(|| self.run(inputs, None))
+        crate::paint_stage::paint_thread().run(|| self.run(inputs, None))
     }
 
     /// Records the frame with `inputs` on the Paint thread beside the host, which `_license` shows nothing needs
@@ -713,7 +713,7 @@ mod tests {
     /// A flight of the slot's recorder state that answers it back with `recorded`.
     fn flight_of(slot: &mut RecordingSlot, recorded: Recorded) -> InFlight<RecordingAnswer> {
         let recorder = slot.take_recorder();
-        crate::stage_thread::paint_thread().submit(move |_| answer(recorder, recorded))
+        crate::paint_stage::paint_thread().submit(move |_| answer(recorder, recorded))
     }
 
     fn take_in_nothing(_: Arc<RecordingOutput>, _: bool, _: bool) {
@@ -766,7 +766,7 @@ mod tests {
                     taken_in = Some((output, publishes_recording));
                 },
             ) {
-                RecordingLanding::StillInFlight => crate::stage_thread::paint_thread().run(|| ()),
+                RecordingLanding::StillInFlight => crate::paint_stage::paint_thread().run(|| ()),
                 landing => break landing,
             }
         };

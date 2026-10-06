@@ -6939,8 +6939,7 @@ Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(Pa
     Optional<Compositor::FlightPresentation> flight;
     if (blocker == Layout::RustFFI::FfiFlightBlocker::None && !main_thread_event_loop().takes_next_frame_presentation_for_testing()
         && !any_of(all_local_navigables(), [&](auto navigable) { return navigable->parent().ptr() == this; })) {
-        if (auto sink = compositor_context().frame_sink()) {
-            sealed.sink = move(sink);
+        if (compositor_context().ready_for_frame()) {
             sealed.context_id = compositor_context().id();
             sealed.present_viewport_rect = present_viewport_rect();
             flight = Compositor::FlightPresentation {
@@ -7004,8 +7003,7 @@ void LocalNavigable::lease_clock_for_task()
     // A task since the update that changed what the document lays out leaves the rest to the next update.
     if (!document->layout_is_up_to_date())
         return;
-    auto sink = compositor_context().frame_sink();
-    if (!sink)
+    if (!compositor_context().ready_for_frame())
         return;
     // A tick records the document again as the recording it published last did, which the compositor shows.
     auto& presenter = this->presenter();
@@ -7024,7 +7022,6 @@ void LocalNavigable::lease_clock_for_task()
     };
     if (auto color = compositor_display_list->surface_clear_color(); color.has_value())
         sealed->recording->placeholder_display_list->set_surface_clear_color(*color);
-    sealed->sink = move(sink);
     sealed->context_id = compositor_context().id();
     sealed->present_viewport_rect = page().css_to_device_rect(viewport_rect()).to_type<int>();
     sealed->presented_by = Compositor::PresentedBy::Clock;
@@ -7080,7 +7077,6 @@ Compositor::SealedPresentation LocalNavigable::seal_presentation(DOM::Document& 
         .paint_command_cache_source = paint_state.display_list_used_as_paint_command_cache_source(),
         .paint_command_cache_source_resources = paint_state.paint_command_cache_source_referenced_resources(),
         .recording = {},
-        .sink = {},
         .context_id = {},
         .present_viewport_rect = {},
         .published = {},

@@ -37,6 +37,7 @@ unsafe extern "C" {
         presenter: *mut c_void,
         sealed: *mut c_void,
         presented: *const FfiPresentedRecording,
+        sink: *mut c_void,
     );
 }
 
@@ -146,9 +147,17 @@ impl Presentation {
     }
 
     /// Presents the sealed frame with the recording `presented` describes, whose resources the presenter took already.
-    pub(crate) fn present(&mut self, presented: &FfiPresentedRecording, _: &mut Presenting) {
-        // SAFETY: The presentation owns both objects, and the recording's display list is live for the call.
-        unsafe { web_navigable_presenter_present(self.presenter.0.as_ptr(), self.sealed.0.as_ptr(), presented) };
+    pub(crate) fn present(&mut self, presented: &FfiPresentedRecording, presenting: &mut Presenting) {
+        // SAFETY: The presentation owns both objects, the recording's display list is live for the call, and the stage
+        // holds the sink.
+        unsafe {
+            web_navigable_presenter_present(
+                self.presenter.0.as_ptr(),
+                self.sealed.0.as_ptr(),
+                presented,
+                presenting.sink(),
+            );
+        }
     }
 }
 
@@ -185,5 +194,11 @@ mod ffi_test_stubs {
     extern "C" fn web_navigable_presenter_add_video_sink(_: *mut c_void, _: u64, _: u64) {}
 
     #[unsafe(no_mangle)]
-    extern "C" fn web_navigable_presenter_present(_: *mut c_void, _: *mut c_void, _: *const FfiPresentedRecording) {}
+    extern "C" fn web_navigable_presenter_present(
+        _: *mut c_void,
+        _: *mut c_void,
+        _: *const FfiPresentedRecording,
+        _: *mut c_void,
+    ) {
+    }
 }

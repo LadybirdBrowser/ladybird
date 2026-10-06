@@ -80,8 +80,8 @@ public:
 
 private:
     friend class CompositorHost;
-    // FIXME: Only the Paint thread should present frames. These still present from the main thread, or hand out the
-    //        sink frames are presented with.
+    // FIXME: Only the Paint thread should present frames. These still hand it frames the main thread built, or seal
+    //        frames for it.
     friend class HTML::LocalNavigable;
     friend class HTML::PresentationQueue;
 
@@ -89,9 +89,8 @@ private:
 
     // Brings the context up to date with one frame, whose messages reach the compositor in order.
     void submit_frame(PresentationTurn, CompositorFrame&&);
-    // What takes this context's frames from any thread, while the compositor can be reached, once the canvas commands
-    // a frame may sample have reached the compositor.
-    RefPtr<CompositorFrameSink> frame_sink();
+    // Sends the canvas commands a frame may sample ahead of it, and answers whether the compositor can be reached.
+    bool ready_for_frame();
 
     CompositorHost& m_host;
     Web::CompositorContextId m_context_id;
@@ -150,8 +149,6 @@ private:
     friend class CompositorContextHandle;
 
     void submit_frame(PresentationTurn, CompositorFrame&&);
-    // What takes the frames of this host's contexts from any thread, while the compositor can be reached.
-    RefPtr<CompositorFrameSink> frame_sink();
 
     // Drains the stream, but only when the message can actually be delivered.
     void send_canvas_2d_stream(Compositing::Canvas2DCommandStream&);
