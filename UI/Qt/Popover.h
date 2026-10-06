@@ -9,11 +9,26 @@
 #include <AK/Function.h>
 #include <AK/kmalloc.h>
 
-#include <QFrame>
+#include <QWidget>
+
+class QFrame;
 
 namespace Ladybird {
 
-class MessagePopover final : public QFrame {
+class Popover : public QWidget {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    QFrame& card() { return *m_card; }
+
+protected:
+    explicit Popover(QWidget* parent);
+
+private:
+    QFrame* m_card { nullptr };
+};
+
+class MessagePopover final : public Popover {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
@@ -24,6 +39,6 @@ public:
     Function<void()> on_accept;
 };
 
-void move_popover_below(QWidget& popover, QWidget& anchor);
+void move_popover_below(Popover&, QWidget& anchor);
 
 }
