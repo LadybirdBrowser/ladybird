@@ -10,8 +10,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/Matrix4x4.h>
-#include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/CSSMatrixComponent.h>
 #include <LibWeb/CSS/CSSPerspective.h>
 #include <LibWeb/CSS/CSSRotate.h>
@@ -29,205 +27,10 @@
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
+#include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
-#include <LibWeb/Painting/BoxViews.h>
 
 namespace Web::CSS {
-
-bool TransformationStyleValue::can_be_converted_to_matrix_without_reference_box() const
-{
-    auto function_metadata = transform_function_metadata(transform_function());
-    auto values = this->values();
-
-    for (size_t i = 0; i < values.size(); i++) {
-        auto const& value = values[i];
-
-        if (value->is_length() && !value->as_length().length().is_absolute())
-            return false;
-
-        // NB: At time of writing the only calculated values that can't be fully simplified are those which either
-        //     contain relative lengths or length-percentage mixes, both of which are disallowed. This may change
-        //     in the future if transform functions support other dimension percentage mixes (i.e. AnglePercentage).
-        if (value->is_calculated() && !value->as_calculated().is_fully_simplified())
-            return false;
-
-        auto value_type = function_metadata.parameters[i].type;
-
-        if (value_type == CSS::TransformFunctionParameterType::LengthPercentage) {
-            if (value->is_percentage())
-                return false;
-
-            if (value->is_calculated() && value->as_calculated().contains_percentage())
-                return false;
-        }
-
-        if (first_is_one_of(value_type, CSS::TransformFunctionParameterType::Number, CSS::TransformFunctionParameterType::NumberPercentage)) {
-            if (value->is_tree_counting_function())
-                return false;
-        }
-    }
-
-    return true;
-}
-
-FloatMatrix4x4 TransformationStyleValue::to_matrix(Layout::Node const* layout_node) const
-{
-    auto values = this->values();
-    auto count = values.size();
-    auto function_metadata = transform_function_metadata(transform_function());
-
-    auto get_value = [&](size_t argument_index, Optional<CSSPixels> reference_length = {}) -> float {
-        auto const& transformation_value = *values[argument_index];
-
-        switch (function_metadata.parameters[argument_index].type) {
-        case TransformFunctionParameterType::Angle:
-            return Angle::from_style_value(transformation_value, {}).to_radians();
-        case TransformFunctionParameterType::Length:
-        case TransformFunctionParameterType::LengthNone:
-        case TransformFunctionParameterType::LengthPercentage:
-            return Length::from_style_value(transformation_value, reference_length.map([](CSSPixels px) { return Length::make_px(px); })).absolute_length_to_px().to_float();
-        case TransformFunctionParameterType::Number:
-        case TransformFunctionParameterType::NumberPercentage:
-            return number_from_style_value(transformation_value, 1);
-        }
-
-        VERIFY_NOT_REACHED();
-    };
-
-    Optional<CSSPixels> width;
-    Optional<CSSPixels> height;
-    if (layout_node) {
-        auto reference_box = Painting::transform_reference_box(*layout_node);
-        width = reference_box.width();
-        height = reference_box.height();
-    }
-
-    switch (transform_function()) {
-    case TransformFunction::Perspective:
-        // https://drafts.csswg.org/css-transforms-2/#perspective
-        if (count == 1) {
-            if (values.first()->to_keyword() == Keyword::None)
-                return FloatMatrix4x4::identity();
-
-            // FIXME: Add support for the 'perspective-origin' CSS property.
-            auto distance = get_value(0);
-            // If the depth value is less than '1px', it must be treated as '1px' for the purpose of rendering, for
-            // computing the resolved value of 'transform', and when used as the endpoint of interpolation.
-            // Note: The intent of the above rules on values less than '1px' is that they cover the cases where
-            // the 'perspective()' function needs to be converted into a matrix.
-            return Gfx::perspective_matrix(max(distance, 1));
-        }
-        break;
-    case TransformFunction::Matrix:
-        if (count == 6)
-            return FloatMatrix4x4(get_value(0), get_value(2), 0, get_value(4),
-                get_value(1), get_value(3), 0, get_value(5),
-                0, 0, 1, 0,
-                0, 0, 0, 1);
-        break;
-    case TransformFunction::Matrix3d:
-        if (count == 16)
-            return FloatMatrix4x4(get_value(0), get_value(4), get_value(8), get_value(12),
-                get_value(1), get_value(5), get_value(9), get_value(13),
-                get_value(2), get_value(6), get_value(10), get_value(14),
-                get_value(3), get_value(7), get_value(11), get_value(15));
-        break;
-    case TransformFunction::Translate:
-        if (count == 1)
-            return Gfx::translation_matrix(Vector3 { get_value(0, width), 0.f, 0.f });
-        if (count == 2)
-            return Gfx::translation_matrix(Vector3 { get_value(0, width), get_value(1, height), 0.f });
-        break;
-    case TransformFunction::Translate3d:
-        return Gfx::translation_matrix(Vector3 { get_value(0, width), get_value(1, height), get_value(2) });
-    case TransformFunction::TranslateX:
-        if (count == 1)
-            return Gfx::translation_matrix(Vector3 { get_value(0, width), 0.f, 0.f });
-        break;
-    case TransformFunction::TranslateY:
-        if (count == 1)
-            return Gfx::translation_matrix(Vector3 { 0.f, get_value(0, height), 0.f });
-        break;
-    case TransformFunction::TranslateZ:
-        if (count == 1)
-            return Gfx::translation_matrix(Vector3 { 0.f, 0.f, get_value(0) });
-        break;
-    case TransformFunction::Scale:
-        if (count == 1) {
-            auto scale = get_value(0);
-            return Gfx::scale_matrix(Vector3 { scale, scale, 1.f });
-        }
-        if (count == 2)
-            return Gfx::scale_matrix(Vector3 { get_value(0), get_value(1), 1.f });
-        break;
-    case TransformFunction::Scale3d:
-        if (count == 3)
-            return Gfx::scale_matrix(Vector3 { get_value(0), get_value(1), get_value(2) });
-        break;
-    case TransformFunction::ScaleX:
-        if (count == 1)
-            return Gfx::scale_matrix(Vector3 { get_value(0), 1.f, 1.f });
-        break;
-    case TransformFunction::ScaleY:
-        if (count == 1)
-            return Gfx::scale_matrix(Vector3 { 1.f, get_value(0), 1.f });
-        break;
-    case TransformFunction::ScaleZ:
-        if (count == 1)
-            return Gfx::scale_matrix(Vector3 { 1.f, 1.f, get_value(0) });
-        break;
-    case TransformFunction::Rotate3d:
-        if (count == 4) {
-            auto axis = FloatVector3 { get_value(0), get_value(1), get_value(2) };
-            auto epsilon = 1e-5f;
-            if (axis.length() < epsilon)
-                return FloatMatrix4x4::identity();
-            return Gfx::rotation_matrix(axis.normalized(), get_value(3));
-        }
-        break;
-    case TransformFunction::RotateX:
-        if (count == 1)
-            return Gfx::rotation_matrix({ 1.f, 0.f, 0.f }, get_value(0));
-        break;
-    case TransformFunction::RotateY:
-        if (count == 1)
-            return Gfx::rotation_matrix({ 0.f, 1.f, 0.f }, get_value(0));
-        break;
-    case TransformFunction::Rotate:
-    case TransformFunction::RotateZ:
-        if (count == 1)
-            return Gfx::rotation_matrix({ 0.f, 0.f, 1.f }, get_value(0));
-        break;
-    case TransformFunction::Skew:
-        if (count == 1)
-            return FloatMatrix4x4(1, tanf(get_value(0)), 0, 0,
-                0, 1, 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1);
-        if (count == 2)
-            return FloatMatrix4x4(1, tanf(get_value(0)), 0, 0,
-                tanf(get_value(1)), 1, 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1);
-        break;
-    case TransformFunction::SkewX:
-        if (count == 1)
-            return FloatMatrix4x4(1, tanf(get_value(0)), 0, 0,
-                0, 1, 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1);
-        break;
-    case TransformFunction::SkewY:
-        if (count == 1)
-            return FloatMatrix4x4(1, 0, 0, 0,
-                tanf(get_value(0)), 1, 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1);
-        break;
-    }
-    dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Unhandled transformation function {} with {} arguments", CSS::to_string(transform_function()), values.size());
-    return FloatMatrix4x4::identity();
-}
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-transform-function
 GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_function() const
@@ -250,27 +53,28 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
     //       same information as func, and whose is2D internal slot is true if func is matrix(), and false otherwise.
     case TransformFunction::Matrix:
     case TransformFunction::Matrix3d: {
-        if (!can_be_converted_to_matrix_without_reference_box())
+        Array<float, 16> transform_as_matrix;
+        bool is_2d_matrix = true;
+        if (!ComputedValuesFFI::rust_transform_list_to_abstract_matrix(rust_style_value_data(), transform_as_matrix.data(), &is_2d_matrix))
             return nullptr;
 
-        auto transform_as_matrix = to_matrix({});
         auto matrix = Geometry::DOMMatrix::create();
-        matrix->set_m11(transform_as_matrix[0, 0]);
-        matrix->set_m12(transform_as_matrix[1, 0]);
-        matrix->set_m13(transform_as_matrix[2, 0]);
-        matrix->set_m14(transform_as_matrix[3, 0]);
-        matrix->set_m21(transform_as_matrix[0, 1]);
-        matrix->set_m22(transform_as_matrix[1, 1]);
-        matrix->set_m23(transform_as_matrix[2, 1]);
-        matrix->set_m24(transform_as_matrix[3, 1]);
-        matrix->set_m31(transform_as_matrix[0, 2]);
-        matrix->set_m32(transform_as_matrix[1, 2]);
-        matrix->set_m33(transform_as_matrix[2, 2]);
-        matrix->set_m34(transform_as_matrix[3, 2]);
-        matrix->set_m41(transform_as_matrix[0, 3]);
-        matrix->set_m42(transform_as_matrix[1, 3]);
-        matrix->set_m43(transform_as_matrix[2, 3]);
-        matrix->set_m44(transform_as_matrix[3, 3]);
+        matrix->set_m11(transform_as_matrix[0]);
+        matrix->set_m12(transform_as_matrix[4]);
+        matrix->set_m13(transform_as_matrix[8]);
+        matrix->set_m14(transform_as_matrix[12]);
+        matrix->set_m21(transform_as_matrix[1]);
+        matrix->set_m22(transform_as_matrix[5]);
+        matrix->set_m23(transform_as_matrix[9]);
+        matrix->set_m24(transform_as_matrix[13]);
+        matrix->set_m31(transform_as_matrix[2]);
+        matrix->set_m32(transform_as_matrix[6]);
+        matrix->set_m33(transform_as_matrix[10]);
+        matrix->set_m34(transform_as_matrix[14]);
+        matrix->set_m41(transform_as_matrix[3]);
+        matrix->set_m42(transform_as_matrix[7]);
+        matrix->set_m43(transform_as_matrix[11]);
+        matrix->set_m44(transform_as_matrix[15]);
 
         auto is_2d = transform_function() == TransformFunction::Matrix ? CSSTransformComponent::Is2D::Yes : CSSTransformComponent::Is2D::No;
         return CSSMatrixComponent::create(is_2d, matrix);
