@@ -17,6 +17,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/HTML/CustomElements/CustomElementAlgorithms.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -121,11 +122,11 @@ void Wrappable::clear_cached_main_world_wrapper(JS::HostObject const& wrapper)
 
 // Until cache_global_object_wrapper() runs for its realm, a new realm is reachable only through the realm execution
 // context that creating it returned, which the GC does not see once it is off the execution context stack. Its global
-// object wrapper keeps it alive through the wrapper's shape, so the wrapper stays rooted until then.
-static Vector<GC::Root<JS::HostObject>>& global_object_wrappers_of_realms_being_set_up()
+// object wrapper keeps it alive through the wrapper's shape, so the wrapper stays rooted until then. The realm's agent
+// holds the root, so that a realm whose setup never finishes does not leave a root behind that outlives its VM's heap.
+static Vector<GC::Root<JS::HostObject>>& global_object_wrappers_of_realms_being_set_up(JS::Realm& realm)
 {
-    static NeverDestroyed<Vector<GC::Root<JS::HostObject>>> wrappers;
-    return *wrappers;
+    return static_cast<HTML::Agent&>(*realm.vm().agent()).global_object_wrappers_of_realms_being_set_up;
 }
 
 GC::Ref<JS::HostObject> create_global_object_wrapper(JS::Realm& wrapper_realm, GC::Ref<Wrappable> wrappable)
@@ -136,7 +137,7 @@ GC::Ref<JS::HostObject> create_global_object_wrapper(JS::Realm& wrapper_realm, G
     // after the caller installs HostDefined/intrinsics for the new realm.
     VERIFY(!wrapper_realm.host_defined());
     auto wrapper = wrappable->create_wrapper(wrapper_realm);
-    global_object_wrappers_of_realms_being_set_up().append(GC::make_root(wrapper));
+    global_object_wrappers_of_realms_being_set_up(wrapper_realm).append(GC::make_root(wrapper));
     return wrapper;
 }
 
@@ -328,7 +329,7 @@ void cache_global_object_wrapper(JS::Realm& realm)
 
     host_defined_wrapper_world(realm).set_wrapper(*wrappable, *platform_object);
 
-    global_object_wrappers_of_realms_being_set_up().remove_all_matching([&](auto const& wrapper) {
+    global_object_wrappers_of_realms_being_set_up(realm).remove_all_matching([&](auto const& wrapper) {
         return wrapper.ptr() == platform_object;
     });
 }
