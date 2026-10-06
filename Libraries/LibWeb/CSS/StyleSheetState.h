@@ -13,6 +13,7 @@
 #include <AK/Function.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Utf16View.h>
 #include <AK/Weakable.h>
@@ -41,7 +42,7 @@ namespace Web::CSS {
 class SharedCompiledStyleSheet;
 class StyleSheetImport;
 class StyleScope;
-struct StyleCache;
+struct StyleRuleCache;
 
 using CSSStyleSheetOptions = Bindings::CSSStyleSheetInit;
 
@@ -112,11 +113,8 @@ public:
     GC::Ptr<DOM::Document> owning_document() const;
     void set_disabled(bool);
     void for_each_owning_style_scope(Function<void(StyleScope&)> const&) const;
-    NonnullRefPtr<StyleCache> shared_single_constructed_sheet_style_cache();
-
-    // Bumped whenever state that shared style caches derive from changes (rule mutations, media match-state flips).
-    // Lets sheet-set style cache registry entries detect staleness at lookup time.
-    u64 shared_style_cache_generation() const { return m_shared_style_cache_generation; }
+    // What this constructed sheet's rules define, collected once for every scope that adopts it.
+    StyleRuleCache const& rule_cache();
 
     Optional<Utf16FlyString> default_namespace() const;
     RustNamespaceContext declared_namespaces() const;
@@ -202,7 +200,6 @@ private:
 
     void recalculate_rule_caches();
     void set_rules(RustRuleList);
-    void invalidate_shared_style_cache();
     bool has_document_owner() const;
     void forget_font_feature_values();
 
@@ -242,8 +239,7 @@ private:
     Optional<::URL::URL> m_base_url;
     GC::Ptr<DOM::Document const> m_constructor_document;
     HashTable<GC::Ptr<DOM::Node>> m_owning_documents_or_shadow_roots;
-    RefPtr<StyleCache> m_shared_single_constructed_sheet_style_cache;
-    u64 m_shared_style_cache_generation { 0 };
+    OwnPtr<StyleRuleCache> m_rule_cache;
 
     Vector<StyleSheetImport&> m_critical_subresources;
 

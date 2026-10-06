@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    @keyframes fade { from { opacity: 0.5; } to { opacity: 0.5; } }
+</style>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync("@keyframes fade { from { opacity: 0.25; } to { opacity: 0.25; } }");
+        const later = new CSSStyleSheet();
+        later.replaceSync("@keyframes other { from { opacity: 0.1; } to { opacity: 0.1; } }");
+
+        const spans = [];
+        for (const adopted of [[sheet], [sheet], [sheet, later]]) {
+            const host = makeElement("div");
+            const shadowRoot = host.attachShadow({ mode: "open" });
+            shadowRoot.adoptedStyleSheets = adopted;
+            const span = makeElement("span", { text: "x" });
+            span.style.animation = "fade 1s paused";
+            shadowRoot.appendChild(span);
+            document.body.appendChild(host);
+            spans.push(span);
+        }
+        const report = (label) => println(`${label}: ${spans.map(span => getComputedStyle(span).opacity).join(" ")}`);
+
+        report("adopted");
+
+        sheet.replaceSync("@keyframes fade { from { opacity: 0.75; } to { opacity: 0.75; } }");
+        report("after replaceSync");
+
+        sheet.insertRule("@keyframes fade { from { opacity: 0.125; } to { opacity: 0.125; } }", 1);
+        report("after inserting a later @keyframes");
+
+        sheet.cssRules[1].deleteRule("from");
+        sheet.cssRules[1].appendRule("from { opacity: 0.375; }");
+        report("after changing a keyframe");
+
+        later.insertRule("@keyframes fade { from { opacity: 0.625; } to { opacity: 0.625; } }");
+        report("after a later sheet defines it too");
+
+        sheet.media.mediaText = "print";
+        report("after the sheet stops matching");
+
+        sheet.media.mediaText = "";
+        sheet.deleteRule(1);
+        report("after deleting the later @keyframes");
+
+        for (const span of spans)
+            span.getRootNode().host.remove();
+    });
+</script>

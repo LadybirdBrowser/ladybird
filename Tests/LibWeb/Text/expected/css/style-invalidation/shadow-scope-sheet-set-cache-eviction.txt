@@ -1,2 +1,0 @@
-PASS: in-use sheet set survives another scope cycling | scopeRuleCacheBuilds=2
-PASS: abandoned sheet set gets evicted on insert | scopeRuleCacheBuilds=3

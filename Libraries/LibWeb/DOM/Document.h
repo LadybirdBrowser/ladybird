@@ -1162,8 +1162,6 @@ public:
 
     void set_needs_animated_style_update(Animations::KeyframeEffect&);
 
-    CSS::SheetSetStyleCacheRegistry& sheet_set_style_cache_registry() { return m_sheet_set_style_cache_registry; }
-
     // Test-only counters for observing style invalidation and recomputation work. See Internals.idl.
     struct StyleInvalidationCounters {
         // A run consumes one non-empty semantic reaction batch. The element count includes derived
@@ -1224,7 +1222,6 @@ public:
         u64 committed_transitions_started { 0 };
         u64 media_rule_evaluations { 0 };
         u64 registered_properties_cache_rebuilds { 0 };
-        u64 scope_rule_cache_builds { 0 };
         u64 style_query_container_scans { 0 };
         u64 style_engine_transaction_setups { 0 };
         u64 style_engine_transaction_setup_microseconds { 0 };
@@ -2093,7 +2090,6 @@ private:
     HashTable<GC::Ref<Element>> m_list_owners_pending_item_renumber;
     HashTable<GC::Ref<Element>> m_list_owners_with_stale_item_counters;
     bool m_stale_list_item_counter_rendered { false };
-    CSS::SheetSetStyleCacheRegistry m_sheet_set_style_cache_registry;
     RefPtr<Painting::HitTestDisplayList> m_hit_test_display_list;
     // The previous recording's list, retained so cached per-paintable item ranges can be spliced into
     // the next recording. Rotated only by cache-read-write recordings; survives display list invalidation.
