@@ -1176,40 +1176,64 @@ static bool embedding_document_chain_has_no_pending_style_or_layout_work(DOM::Do
     return true;
 }
 
+// The elements an element inherits its style through, from the element itself up to the root. Pseudo-element styles are
+// refreshed when the originating element is recomputed, so the chain of a pseudo-element starts at that.
+static Optional<DOM::AbstractElement> first_element_of_inheritance_chain(DOM::AbstractElement const& abstract_element)
+{
+    if (abstract_element.pseudo_element().has_value())
+        return abstract_element.element_to_inherit_style_from();
+    return abstract_element;
+}
+
+// What an inheritance chain holds, by depth from its first element.
+struct InheritanceChainScan {
+    // The topmost element that has to compute its style: it has none, or it owes a style input.
+    Optional<size_t> topmost_requiring_style;
+    Optional<size_t> topmost_display_none;
+    Optional<size_t> nearest_display_none;
+
+    bool display_none_above_every_element_requiring_style() const
+    {
+        return topmost_display_none.has_value() && (!topmost_requiring_style.has_value() || *topmost_display_none > *topmost_requiring_style);
+    }
+};
+
+static InheritanceChainScan scan_inheritance_chain(Layout::BegunRead const& read, DOM::AbstractElement const& abstract_element, bool may_owe_style_inputs)
+{
+    auto const& style_engine = abstract_element.document().style_computer().style_engine();
+    InheritanceChainScan scan;
+    size_t depth = 0;
+    for (auto cursor = first_element_of_inheritance_chain(abstract_element); cursor.has_value(); cursor = cursor->element_to_inherit_style_from(), ++depth) {
+        auto const& element = cursor->element();
+        if (!element.has_style()
+            || (may_owe_style_inputs && StyleEngineFFI::style_engine_has_deferred_element_style_input(style_engine.host(), &read, element.style_node_id().value())))
+            scan.topmost_requiring_style = depth;
+        if (auto const* box_values = element.style_group<ComputedValues::BoxValues>(); box_values && display_from_ffi_display(box_values->display).is_none()) {
+            scan.topmost_display_none = depth;
+            if (!scan.nearest_display_none.has_value())
+                scan.nearest_display_none = depth;
+        }
+    }
+    return scan;
+}
+
 static bool update_style_for_element(Layout::BegunRead const& read, DOM::Document& document, DOM::AbstractElement const& abstract_element, StyleUpdateMode mode)
 {
     if (!abstract_element.element().is_connected())
         return false;
     document.ensure_style_engine_tracks_tree();
 
-    // OPTIMIZATION: When nothing style-related is pending anywhere that could affect this document, the only question
-    // left is, if the element's inheritance chain already has style. If it does, the walk below would conclude there's
-    // nothing to recompute. So answer that directly — without constructing a style record view for every ancestor.
-    // Stopping at display:none, the walk also answers no as soon as it meets a display:none element above every
-    // element that has no style yet, so that is answered directly too.
-    if ((mode == StyleUpdateMode::OnlyIfNeeded || mode == StyleUpdateMode::StopAtDisplayNone)
+    // OPTIMIZATION: When nothing style-related is pending anywhere that could affect this document, nothing below
+    //               runs a style update, and the scan of the inheritance chain answers the read directly where the
+    //               chain has style throughout, or a display:none element stops the read above every element without.
+    if (mode != StyleUpdateMode::Normal
         && !abstract_element.pseudo_element().has_value()
         && document_has_no_pending_style_work(read, document)
         && embedding_document_chain_has_no_pending_style_or_layout_work(document)) {
-        Optional<size_t> topmost_element_without_style;
-        Optional<size_t> topmost_display_none_element;
-        size_t depth = 0;
-        for (Optional<DOM::AbstractElement> cursor = abstract_element; cursor.has_value(); cursor = cursor->element_to_inherit_style_from(), ++depth) {
-            auto const& element = cursor->element();
-            if (!element.has_style()) {
-                topmost_element_without_style = depth;
-                continue;
-            }
-            if (mode != StyleUpdateMode::StopAtDisplayNone)
-                continue;
-            auto const* box_values = element.style_group<ComputedValues::BoxValues>();
-            if (box_values && display_from_ffi_display(box_values->display).is_none())
-                topmost_display_none_element = depth;
-        }
-        if (topmost_display_none_element.has_value()
-            && (!topmost_element_without_style.has_value() || *topmost_display_none_element > *topmost_element_without_style))
+        auto scan = scan_inheritance_chain(read, abstract_element, false);
+        if (mode == StyleUpdateMode::StopAtDisplayNone && scan.display_none_above_every_element_requiring_style())
             return false;
-        if (!topmost_element_without_style.has_value())
+        if (!scan.topmost_requiring_style.has_value())
             return true;
     }
 
@@ -1217,8 +1241,7 @@ static bool update_style_for_element(Layout::BegunRead const& read, DOM::Documen
     StyleUpdateScope style_update_scope { document.style_computer() };
     // Refresh computed properties for an abstract element. An ordinary read first consumes the complete exact
     // reaction batch. A reentrant layout read leaves that transaction untouched and walks the flat-tree inheritance
-    // chain, re-cascading from the rootmost stale element on the path back down to the target. Normal mode also
-    // re-cascades the target path under display:none ancestors.
+    // chain, re-cascading from the rootmost stale element on the path back down to the target.
 
     bool embedding_document_layout_was_stale = false;
     // OPTIMIZATION: An embedding chain with no style or layout work anywhere has nothing to bring up to date, and a
@@ -1294,48 +1317,22 @@ static bool update_style_for_element(Layout::BegunRead const& read, DOM::Documen
             return true;
     }
 
-    // Single walk up the inheritance chain: collect each ancestor and remember the index of the topmost display:none
-    // entry seen. Pseudo-element styles are refreshed when the originating element is recomputed, so don't put the pseudo
-    // on the path.
-    GC::RootVector<GC::Ref<DOM::Element>> inheritance_chain;
-    if (!abstract_element.pseudo_element().has_value())
-        inheritance_chain.append(const_cast<DOM::Element&>(abstract_element.element()));
-
-    Optional<size_t> topmost_display_none_index;
-    Optional<size_t> topmost_element_requiring_style;
-    for (auto cursor = abstract_element.element_to_inherit_style_from(); cursor.has_value(); cursor = cursor->element_to_inherit_style_from()) {
-        auto& ancestor = const_cast<DOM::Element&>(cursor->element());
-        inheritance_chain.append(ancestor);
-    }
-
-    for (size_t i = inheritance_chain.size(); i > 0; --i) {
-        auto& ancestor = inheritance_chain[i - 1];
-        if (!topmost_element_requiring_style.has_value()
-            && (StyleEngineFFI::style_engine_has_deferred_element_style_input(document.style_computer().style_engine().host(), &read, ancestor->style_node_id().value())
-                || !ancestor->has_style())) {
-            topmost_element_requiring_style = i - 1;
-        }
-
-        auto const* box_values = ancestor->style_group<ComputedValues::BoxValues>();
-        if (box_values && display_from_ffi_display(box_values->display).is_none()) {
-            topmost_display_none_index = i - 1;
-            if (mode == StyleUpdateMode::StopAtDisplayNone && !topmost_element_requiring_style.has_value())
-                return false;
-        }
-    }
-
-    Optional<size_t> topmost_element_to_recompute = topmost_element_requiring_style;
-    if (mode == StyleUpdateMode::Normal && topmost_display_none_index.has_value()) {
-        if (!topmost_element_to_recompute.has_value() && *topmost_display_none_index > 0)
-            topmost_element_to_recompute = *topmost_display_none_index - 1;
-    }
-
+    auto scan = scan_inheritance_chain(read, abstract_element, true);
+    if (mode == StyleUpdateMode::StopAtDisplayNone && scan.display_none_above_every_element_requiring_style())
+        return false;
+    // Normal mode also re-cascades the target path under its display:none ancestors.
+    auto topmost_element_to_recompute = scan.topmost_requiring_style;
+    if (mode == StyleUpdateMode::Normal && !topmost_element_to_recompute.has_value() && scan.nearest_display_none.value_or(0) > 0)
+        topmost_element_to_recompute = *scan.nearest_display_none - 1;
     if (!topmost_element_to_recompute.has_value()) {
-        if ((mode == StyleUpdateMode::Normal || embedding_document_layout_was_stale) && !inheritance_chain.is_empty())
-            topmost_element_to_recompute = 0;
-        else
+        if (mode != StyleUpdateMode::Normal && !embedding_document_layout_was_stale)
             return abstract_element.has_style();
+        topmost_element_to_recompute = 0;
     }
+
+    GC::RootVector<GC::Ref<DOM::Element>> inheritance_chain;
+    for (auto cursor = first_element_of_inheritance_chain(abstract_element); inheritance_chain.size() <= *topmost_element_to_recompute; cursor = cursor->element_to_inherit_style_from())
+        inheritance_chain.append(const_cast<DOM::Element&>(cursor->element()));
 
     bool descendant_style_recompute_needed = false;
     for (size_t i = *topmost_element_to_recompute + 1; i > 0; --i) {
