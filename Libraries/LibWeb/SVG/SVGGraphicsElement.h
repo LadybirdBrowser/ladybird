@@ -45,13 +45,6 @@ public:
     GC::Ptr<Geometry::DOMMatrix> get_ctm();
     GC::Ptr<Geometry::DOMMatrix> get_screen_ctm();
 
-    // The transform property carries the transform attribute through the cascade; this is the
-    // extra transformation some elements apply beyond it, such as the x/y translation of <use>.
-    virtual Gfx::AffineTransform additional_element_transform() const
-    {
-        return {};
-    }
-
     GC::Ptr<DOM::Element> resolve_url_to_element(CSS::URL const& url) const;
 
 protected:

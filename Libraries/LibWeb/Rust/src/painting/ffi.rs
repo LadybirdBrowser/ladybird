@@ -289,6 +289,28 @@ pub unsafe extern "C" fn render_state_paintable_svg_viewport_transform(
     }
 }
 
+/// The transform an SVG element's box was laid out with: its own CSS transform reduced to 2D, with a <use> element's
+/// x/y translation multiplied in.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_paintable_svg_element_transform(
+    host: &DocumentHost,
+    slot: NodeSlotId,
+) -> svg_formatting_context::FfiAffineTransform {
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        read_arena(host, node_read(), slot, |arena, slot| {
+            if !arena.paintable_row_is_populated(slot) {
+                return svg_formatting_context::FfiAffineTransform::default();
+            }
+            crate::painting::paintable_geometry::committed_svg_element_transform(arena, slot).unwrap_or_default()
+        })
+    }
+}
+
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.

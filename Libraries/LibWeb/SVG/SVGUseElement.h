@@ -48,8 +48,6 @@ public:
 
     GC::Ptr<SVGElement> instance_root() const;
 
-    virtual Gfx::AffineTransform additional_element_transform() const override;
-
 private:
     SVGUseElement(DOM::Document&, DOM::QualifiedName);
 

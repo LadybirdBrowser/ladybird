@@ -474,23 +474,6 @@ bool Node::is_fragmented_inline() const
     return RustFFI::layout_row_is_fragmented_inline(document_host(), slot_id(this));
 }
 
-// https://drafts.csswg.org/css-transforms-1/#transformable-element
-// The used transform of an SVG element in its own user space, for bounding box computation:
-// style transforms in property-application order plus the element's additional transform, without
-// transform-origin conjugation. Percentages resolve against an empty reference box because the
-// box is not available at layout time, so such transforms under-report the bounding box.
-Gfx::AffineTransform NodeWithStyle::used_svg_element_transform() const
-{
-    auto matrix = Gfx::FloatMatrix4x4::identity();
-    for_each_resolved_transform([&](auto const& transform) {
-        matrix = matrix * transform.to_matrix({}, {});
-    });
-    auto transform = Gfx::extract_2d_affine_transform(matrix);
-    if (auto const* graphics_element = as_if<SVG::SVGGraphicsElement>(dom_node()))
-        transform.multiply(graphics_element->additional_element_transform());
-    return transform;
-}
-
 void NodeWithStyle::set_computed_values(Layout::BegunRead const& read, NonnullRefPtr<CSS::ComputedValues const> computed_values)
 {
     VERIFY(!RustFFI::render_state_layout_pass_is_running(document_host()));
