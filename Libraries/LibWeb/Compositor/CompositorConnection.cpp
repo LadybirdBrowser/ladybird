@@ -338,12 +338,12 @@ void CompositorConnection::destroy_canvas_context(Compositing::CanvasId canvas_i
     async_destroy_canvas_context(canvas_id);
 }
 
-Gfx::ShareableBitmap CompositorConnection::get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect)
+Gfx::ShareableBitmap CompositorConnection::get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type)
 {
     if (!can_send_message_to_compositor())
         return {};
 
-    auto response = send_sync<Messages::CompositorWebContentServer::GetCanvasPixels>(canvas_id, rect);
+    auto response = send_sync<Messages::CompositorWebContentServer::GetCanvasPixels>(canvas_id, rect, alpha_type);
     return response->take_pixels();
 }
 

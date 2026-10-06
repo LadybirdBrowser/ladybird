@@ -266,9 +266,13 @@ void ConnectionFromWebContent::destroy_canvas_context(Compositing::CanvasId canv
     m_canvas_host.destroy_context(canvas_id);
 }
 
-Messages::CompositorWebContentServer::GetCanvasPixelsResponse ConnectionFromWebContent::get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect)
+Messages::CompositorWebContentServer::GetCanvasPixelsResponse ConnectionFromWebContent::get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type)
 {
-    return m_canvas_host.read_back_pixels(canvas_id, rect);
+    if (!Gfx::is_valid_alpha_type(to_underlying(alpha_type))) {
+        did_misbehave("WebContent asked for canvas pixels with an invalid alpha type");
+        return Gfx::ShareableBitmap {};
+    }
+    return m_canvas_host.read_back_pixels(canvas_id, rect, alpha_type);
 }
 
 Messages::CompositorWebContentServer::RasterizeDisplayListResponse ConnectionFromWebContent::rasterize_display_list(Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties display_list_properties, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, Gfx::ShareableBitmap target_bitmap)

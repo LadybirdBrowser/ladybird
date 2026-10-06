@@ -130,7 +130,7 @@ public:
 
     Optional<Compositing::CanvasId> canvas_id() const;
 
-    RefPtr<Gfx::Bitmap> read_pixels(Gfx::IntRect const&);
+    RefPtr<Gfx::Bitmap> read_pixels(Gfx::IntRect const&, Gfx::AlphaType = Gfx::AlphaType::Premultiplied);
 
 protected:
     Canvas2DContextBase(JS::Realm&, Gfx::IntSize initial_size, Bindings::CanvasRenderingContext2DSettings);

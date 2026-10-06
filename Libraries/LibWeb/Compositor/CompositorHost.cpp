@@ -276,11 +276,11 @@ private:
         m_connection->update_canvas_2d_stream(*m_stream);
     }
 
-    virtual RefPtr<Gfx::Bitmap> read_back_pixels(Gfx::IntRect const& rect) override
+    virtual RefPtr<Gfx::Bitmap> read_back_pixels(Gfx::IntRect const& rect, Gfx::AlphaType alpha_type) override
     {
         if (!m_canvas_id.has_value())
             return nullptr;
-        auto shareable_bitmap = m_connection->get_canvas_pixels(*m_canvas_id, rect);
+        auto shareable_bitmap = m_connection->get_canvas_pixels(*m_canvas_id, rect, alpha_type);
         if (!shareable_bitmap.is_valid())
             return nullptr;
         return shareable_bitmap.bitmap();

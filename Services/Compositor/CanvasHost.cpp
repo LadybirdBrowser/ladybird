@@ -248,13 +248,16 @@ void CanvasHost::clear_webgl_drawing_buffer(Compositing::CanvasId canvas_id)
     as_webgl(*context).clear_drawing_buffer();
 }
 
-Gfx::ShareableBitmap CanvasHost::read_back_surface(Gfx::PaintingSurface& surface, Gfx::IntRect rect)
+Gfx::ShareableBitmap CanvasHost::read_back_surface(Gfx::PaintingSurface& surface, Gfx::IntRect rect, Gfx::AlphaType alpha_type)
 {
     auto clipped_rect = rect.intersected(surface.rect());
     if (clipped_rect.is_empty())
         return {};
 
-    auto bitmap_or_error = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, clipped_rect.size());
+    // Unpremultiplied pixels are for ImageData, which stores them as RGBA8888. Reading into that format lets the
+    // surface do the conversion.
+    auto format = alpha_type == Gfx::AlphaType::Unpremultiplied ? Gfx::BitmapFormat::RGBA8888 : Gfx::BitmapFormat::BGRA8888;
+    auto bitmap_or_error = Gfx::Bitmap::create_shareable(format, alpha_type, clipped_rect.size());
     if (bitmap_or_error.is_error())
         return {};
 
@@ -279,17 +282,19 @@ RefPtr<Gfx::PaintingSurface> CanvasHost::presented_surface(Compositing::CanvasId
         });
 }
 
-Gfx::ShareableBitmap CanvasHost::read_back_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect)
+Gfx::ShareableBitmap CanvasHost::read_back_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type)
 {
     auto* context = this->context(canvas_id);
     if (!context)
         return {};
 
     return context->visit(
-        [rect](Canvas2DContext& canvas_context) {
-            return read_back_surface(canvas_context.command_player->surface(), rect);
+        [rect, alpha_type](Canvas2DContext& canvas_context) {
+            return read_back_surface(canvas_context.command_player->surface(), rect, alpha_type);
         },
-        [rect](WebGLContext& webgl_context) {
+        [rect, alpha_type](WebGLContext& webgl_context) -> Gfx::ShareableBitmap {
+            if (alpha_type != Gfx::AlphaType::Premultiplied)
+                return {};
             return webgl_context->read_back_drawing_buffer(rect);
         });
 }
