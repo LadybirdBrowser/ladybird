@@ -223,7 +223,7 @@ void Animatable::associate_with_animation(GC::Ref<Animation> animation)
     impl.associated_animations.append(animation);
     impl.is_sorted_by_composite_order = false;
     // The style engine computes no record for an element whose animations compose its style.
-    CSS::record_element_adjustment_facts(as<DOM::Element>(*this));
+    CSS::record_element_animations_changed(as<DOM::Element>(*this));
 
     as<DOM::Element>(*this).change_associated_animation_count_in_subtree(1);
 
@@ -236,7 +236,7 @@ void Animatable::disassociate_with_animation(GC::Ref<Animation> animation)
     auto& impl = *m_impl;
     auto was_associated = impl.associated_animations.remove_first_matching([&](auto element) { return animation == element; });
     impl.is_sorted_by_composite_order = false;
-    CSS::record_element_adjustment_facts(as<DOM::Element>(*this));
+    CSS::record_element_animations_changed(as<DOM::Element>(*this));
 
     if (was_associated)
         as<DOM::Element>(*this).change_associated_animation_count_in_subtree(-1);

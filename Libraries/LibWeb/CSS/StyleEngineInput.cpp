@@ -872,6 +872,13 @@ void record_element_adjustment_facts(DOM::Element& element)
     StyleEngineFFI::style_engine_set_element_associated_pseudo_kind(style_engine->host(), element.style_node_id(), associated_pseudo_kind_plus_one(element));
 }
 
+void record_element_animations_changed(DOM::Element& element)
+{
+    record_element_adjustment_facts(element);
+    if (auto* style_engine = style_engine_for(element); style_engine && element.style_node_id() != no_style_node)
+        style_engine->note_animations_changed(element.style_node_id());
+}
+
 void record_element_box_kind(DOM::Element& element)
 {
     auto* style_engine = style_engine_for(element);
