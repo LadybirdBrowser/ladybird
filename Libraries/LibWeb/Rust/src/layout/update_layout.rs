@@ -367,10 +367,7 @@ impl SealedRound {
             return None;
         }
         let answer = self.job.run_owing(state, work);
-        let arena = state.arena();
-        if arena.take_unresolved_container_lengths() && !arena.layout_root().is_invalid() {
-            arena.set_needs_layout_update(arena.layout_root(), false);
-        }
+        state.arena().mark_unresolved_container_lengths_for_layout();
         Some(FlownRound {
             answer,
             rebuilds_tree: self.rebuilds_tree,
@@ -441,7 +438,7 @@ impl ClockRound {
         let declined =
             matches!(answer.end, LayoutRoundEnd::Built { .. }) || state.arena().owes_shown_image_resources_to_host();
         owed.push(answer);
-        match state.arena().take_unresolved_container_lengths() || declined {
+        match state.arena().mark_unresolved_container_lengths_for_layout() || declined {
             true => Err(ClockRoundDeclined),
             false => Ok(owed.last()),
         }

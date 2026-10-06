@@ -1917,7 +1917,7 @@ fn length_resolution_context(
     let viewport_height = callbacks.initial_containing_block_block_size.to_double();
     // A container unit resolves against the nearest size query container on its axis, or the small viewport size
     // without one. Finding that container is style's business, so it is asked only for a length that needs it. A pass
-    // that cannot ask resolves it against the viewport, and leaves the layout to the host to lay out again.
+    // that cannot ask resolves it to zero, and leaves the node for the host to lay out again.
     let container_bases = if crate::css::style_compute::length_unit_is_container_relative(unit) {
         let element = callbacks
             .arena()
@@ -1925,7 +1925,7 @@ fn length_resolution_context(
             .expect("an SVG element's attribute length is resolved for the element's own box");
         let bases = callbacks.container_length_bases.bases(element);
         if bases.is_none() {
-            callbacks.arena().note_unresolved_container_lengths();
+            callbacks.arena().note_unresolved_container_lengths(node);
         }
         bases
     } else {

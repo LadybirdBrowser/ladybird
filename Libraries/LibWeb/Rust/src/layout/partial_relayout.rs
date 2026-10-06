@@ -1089,4 +1089,21 @@ mod tests {
         assert_eq!(arena.take_partial_relayout_boundary_roots(), vec![child.slot]);
         free_node(&mut arena, &parent);
     }
+
+    #[test]
+    fn a_length_resolved_without_its_container_marks_its_node_and_ancestors_for_layout_once() {
+        let mut arena = LayoutNodeArena::new();
+        let parent = allocate_box_with_a_dummy_shell(&mut arena);
+        let child = allocate_box_with_a_dummy_shell(&mut arena);
+        arena.insert_child(parent.slot, child.slot, NodeSlotId::INVALID);
+
+        arena.note_unresolved_container_lengths(child.slot);
+        arena.note_unresolved_container_lengths(child.slot);
+
+        assert!(arena.mark_unresolved_container_lengths_for_layout());
+        assert!(node_is_dirty(&arena, &child));
+        assert!(node_is_dirty(&arena, &parent));
+        assert!(!arena.mark_unresolved_container_lengths_for_layout());
+        free_node(&mut arena, &parent);
+    }
 }
