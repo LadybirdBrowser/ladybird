@@ -20,7 +20,6 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
-#include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
@@ -52,7 +51,6 @@
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ScrollbarColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
@@ -60,7 +58,6 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
-#include <LibWeb/CSS/StyleValues/TupleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
@@ -143,7 +140,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::BasicShape:
         return adopt_ref(*new (nothrow) StyleValue(Type::BasicShape, data));
     case StyleValueFFI::StyleValueData::Tag::BorderRadius:
-        return adopt_ref(*new (nothrow) BorderRadiusStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::BorderRadius, data));
     case StyleValueFFI::StyleValueData::Tag::BorderRadiusRect:
         return adopt_ref(*new (nothrow) StyleValue(Type::BorderRadiusRect, data));
     case StyleValueFFI::StyleValueData::Tag::BorderImageSlice:
@@ -266,7 +263,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::RadialGradient:
         return adopt_ref(*new (nothrow) AbstractImageStyleValue(Type::RadialGradient, data));
     case StyleValueFFI::StyleValueData::Tag::ScrollbarColor:
-        return adopt_ref(*new (nothrow) ScrollbarColorStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::ScrollbarColor, data));
     case StyleValueFFI::StyleValueData::Tag::ScrollbarGutter:
         return adopt_ref(*new (nothrow) StyleValue(Type::ScrollbarGutter, data));
     case StyleValueFFI::StyleValueData::Tag::Shadow:
@@ -288,7 +285,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::ValueList:
         return adopt_ref(*new (nothrow) StyleValueList(data));
     case StyleValueFFI::StyleValueData::Tag::Tuple:
-        return adopt_ref(*new (nothrow) TupleStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::Tuple, data));
     case StyleValueFFI::StyleValueData::Tag::UnicodeRange:
         return adopt_ref(*new (nothrow) UnicodeRangeStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Unresolved:
