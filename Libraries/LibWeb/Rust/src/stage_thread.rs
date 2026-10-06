@@ -99,7 +99,7 @@ const STAGE_THREAD_STACK_SIZE: usize = 64 * 1024 * 1024;
 
 impl StageThread {
     /// Spawns a thread named `name`, which lives as long as the process.
-    fn spawn(name: &str) -> Self {
+    pub(crate) fn spawn(name: &str) -> Self {
         let shared: &'static Shared = Box::leak(Box::new(Shared {
             handed: AtomicPtr::new(std::ptr::null_mut()),
             tsan_key: AtomicBool::new(false),
@@ -633,12 +633,6 @@ static STYLE_LAYOUT_THREAD: OnceLock<StageThread> = OnceLock::new();
 /// The StyleLayout thread, which every document's render state lives on.
 pub(crate) fn style_layout_thread() -> &'static StageThread {
     STYLE_LAYOUT_THREAD.get_or_init(|| StageThread::spawn("StyleLayout"))
-}
-
-/// The Paint thread, which records display lists from the frames the render states publish.
-pub(crate) fn paint_thread() -> &'static StageThread {
-    static PAINT_THREAD: OnceLock<StageThread> = OnceLock::new();
-    PAINT_THREAD.get_or_init(|| StageThread::spawn("Paint"))
 }
 
 #[cfg(test)]

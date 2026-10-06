@@ -970,7 +970,7 @@ pub unsafe extern "C" fn document_host_inject_clock_tick(
         let scroll_offsets = unsafe { scroll_offset.as_ref() }.map_or(&[][..], std::slice::from_ref);
         ticks.tick(frame_time_nanoseconds, scroll_offsets);
         crate::stage_thread::style_layout_thread().run(|| ());
-        crate::stage_thread::paint_thread().run(|| ());
+        crate::paint_stage::paint_thread().run(|| ());
     }
 }
 

@@ -69,7 +69,6 @@ struct SealedPresentation {
     // they go and the rect they are presented in, what presents them, and, once one is presented, the display list it
     // published. A clock lease presents a frame from the seal at each tick that records one.
     Optional<Painting::DisplayListRecording> recording;
-    RefPtr<CompositorFrameSink> sink;
     Web::CompositorContextId context_id;
     Optional<Gfx::IntRect> present_viewport_rect;
     PresentedBy presented_by { PresentedBy::Flight };
@@ -116,9 +115,9 @@ private:
     CompositorFrame build_frame(SealedPresentation const&, Optional<PublishedDisplayList>);
 
     // Presents the frame `sealed` sealed, with `display_list`, the display list its recording published, beside the event
-    // loop: through the seal's sink, keeping what it published in the seal, which the next frame from the seal copies
-    // paint commands from.
-    void present_beside_event_loop(SealedPresentation&, NonnullRefPtr<Compositing::DisplayList>);
+    // loop: through `sink`, if the compositor can be reached, keeping what it published in the seal, which the next frame
+    // from the seal copies paint commands from.
+    void present_beside_event_loop(SealedPresentation&, NonnullRefPtr<Compositing::DisplayList>, CompositorFrameSink*);
 
     Compositing::DisplayListResourceStorage m_resource_storage;
     Optional<HTML::PaintConfig> m_compositor_display_list_paint_config;

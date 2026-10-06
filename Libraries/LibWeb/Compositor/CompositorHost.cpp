@@ -50,10 +50,10 @@ void CompositorContextHandle::submit_frame(PresentationTurn turn, CompositorFram
     m_host.submit_frame(turn, move(frame));
 }
 
-RefPtr<CompositorFrameSink> CompositorContextHandle::frame_sink()
+bool CompositorContextHandle::ready_for_frame()
 {
     m_host.flush_canvas_2d_stream();
-    return m_host.frame_sink();
+    return m_host.compositor_connection();
 }
 
 void CompositorContextHandle::set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool should_tick)
@@ -370,13 +370,6 @@ void CompositorHost::submit_frame(PresentationTurn, CompositorFrame&& frame)
 {
     if (auto* connection = compositor_connection())
         connection->submit_frame(move(frame));
-}
-
-RefPtr<CompositorFrameSink> CompositorHost::frame_sink()
-{
-    if (auto* connection = compositor_connection())
-        return connection->frame_sink();
-    return nullptr;
 }
 
 void CompositorHost::add_video_sink(Media::VideoSinkHandle video_sink_handle)

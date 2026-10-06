@@ -50,6 +50,8 @@ public:
     void destroy_context(Web::CompositorContextId);
     // Hands a frame straight to the compositor, for a test of the transport that has no Paint thread.
     void submit_frame_for_testing(CompositorFrame&&);
+    // Has the Paint thread present frames through this connection from now on.
+    void hand_frame_sink_to_paint_thread();
     void add_video_sink(Media::VideoSinkHandle);
     void remove_video_sink(Media::VideoSinkHandle);
     void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick);
@@ -94,8 +96,7 @@ private:
     // FIXME: Only the Paint thread should present frames.
     friend class CompositorHost;
 
-    // Takes the frames of this connection's contexts from any thread.
-    NonnullRefPtr<CompositorFrameSink> frame_sink() const;
+    // Has the Paint thread present a frame the main thread built, after the frames handed to it before.
     void submit_frame(CompositorFrame&&);
 
     struct PendingScreenshot {
