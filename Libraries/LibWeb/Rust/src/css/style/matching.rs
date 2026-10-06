@@ -2011,7 +2011,7 @@ impl RetainedState {
                 })
                 .filter(|&entry| dispatch.prefixes().contains_entry(entry));
             for node in candidates {
-                if !self.node_is_within_subject_position(node, position) {
+                if !self.node_is_within_subject_position(node, position, TransactionFactSide::After) {
                     continue;
                 }
                 let mut carries_required = true;
