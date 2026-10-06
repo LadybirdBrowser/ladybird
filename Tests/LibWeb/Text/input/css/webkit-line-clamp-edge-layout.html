@@ -217,11 +217,11 @@ Line 3</div></div>
             assertEquals(dimensions(id), expected, id);
         }
         const element = id => document.getElementById(id);
-        assertEquals(`${element("wide-float").scrollWidth}x${element("wide-float").scrollHeight}`, "250x120");
-        assertEquals(`${element("discarded-atomic").scrollWidth}x${element("discarded-atomic").scrollHeight}`, "100x20");
-        assertEquals(`${element("displaced-overflow").scrollWidth}x${element("displaced-overflow").scrollHeight}`, "100x20");
+        assertEquals(`${element("wide-float").scrollWidth}x${element("wide-float").scrollHeight}`, "250x170");
+        assertEquals(`${element("discarded-atomic").scrollWidth}x${element("discarded-atomic").scrollHeight}`, "200x195");
+        assertEquals(`${element("displaced-overflow").scrollWidth}x${element("displaced-overflow").scrollHeight}`, "214x40");
         assertEquals(element("abspos-overflow").scrollHeight, 100, "absolute overflow height");
-        assertEquals(element("padded-overflow").scrollHeight, 60, "padded overflow height");
+        assertEquals(element("padded-overflow").scrollHeight, 80, "padded overflow height");
         assertEquals(element("automatic-clamp-exact").scrollHeight, 40, "automatic clamp scroll height");
         assertEquals(element("automatic-clamp-between").scrollHeight, 40, "automatic clamp between lines scroll height");
         assertEquals(element("automatic-clamp-before-first").scrollHeight, 0, "automatic clamp before first line");

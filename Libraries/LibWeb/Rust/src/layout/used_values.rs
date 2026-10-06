@@ -145,6 +145,7 @@ impl<T: Copy> SealableCell<T> {
 pub(crate) struct LineData {
     pub(crate) line_boxes: Vec<line_box::LineBoxData>,
     pub(crate) inline_box_pieces: Vec<inline_formatting_context::InlineBoxPieceData>,
+    pub(crate) lines_after_clamp_point_rect: Option<Box<FfiCssPixelRect>>,
 }
 
 #[derive(Default)]
@@ -330,6 +331,7 @@ pub(crate) struct UsedValues {
     pub is_collapsed_borders_table_box: Cell<bool>,
     pub has_line_clamp_point: Cell<bool>,
     pub is_invisible_for_line_clamp: Cell<bool>,
+    pub clamped_content_is_scrollable_overflow: Cell<bool>,
 
     // For table cells and table-column(-group) boxes: the first grid column the box occupies and the number of grid
     // columns it spans, so painting can find the cells that originate in a column (CSS 2.2 §17.5.1).
@@ -392,6 +394,7 @@ impl Default for UsedValues {
             is_collapsed_borders_table_box: Cell::new(false),
             has_line_clamp_point: Cell::new(false),
             is_invisible_for_line_clamp: Cell::new(false),
+            clamped_content_is_scrollable_overflow: Cell::new(false),
             table_column_index: Cell::new(0),
             table_column_span: Cell::new(0),
             hidden_by_collapsed_columns: Cell::new(false),
@@ -591,6 +594,7 @@ used_values_cell_state! {
     is_collapsed_borders_table_box: bool,
     has_line_clamp_point: bool,
     is_invisible_for_line_clamp: bool,
+    clamped_content_is_scrollable_overflow: bool,
     table_column_index: u32,
     table_column_span: u32,
     hidden_by_collapsed_columns: bool,

@@ -1,7 +1,7 @@
 display: flow-root
 line clamp: "3"
 height: 60
-scroll height: 60
+scroll height: 100
 height after copying computed display: 100
 opacity while animating: 0.5
 height after changing to four lines: 80

@@ -1,0 +1,11 @@
+wrapped-text: client 100x40, scroll 100x80
+nested-block: client 100x40, scroll 100x80
+float: client 100x40, scroll 100x120
+overflowing-inline-block: client 100x40, scroll 200x240
+relatively-positioned-text: client 100x40, scroll 209x178
+clearing-line-break: client 100x40, scroll 100x140
+clearing-block: client 100x40, scroll 100x160
+block-inside-inline: client 100x40, scroll 250x180
+trailing-whitespace: client 100x40, scroll 100x80
+trailing-newline: client 100x40, scroll 100x60
+standard: client 100x40, scroll 100x40

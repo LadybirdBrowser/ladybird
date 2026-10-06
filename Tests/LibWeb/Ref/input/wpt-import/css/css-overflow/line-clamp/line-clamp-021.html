@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Overflow: line-clamp hidden content is treated as ink overflow</title>
+<link rel="author" title="Andreu Botella" href="mailto:abotella@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-4/#line-clamp">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-overflow/line-clamp/reference/line-clamp-021-ref.html">
+<meta name="assert" content="Any overflowing content hidden from paint by line-clamp is treated as ink overflow and therefore doesn't cause the scrollable overflow rectangle to grow.">
+<style>
+#scrollContainer {
+  overflow: scroll;
+  font: 16px / 32px serif;
+  height: 3lh;
+  border: 1px solid black;
+}
+.clamp {
+  line-clamp: 4;
+  padding: 4px;
+  background-color: yellow;
+}
+.pre {
+  white-space: pre;
+}
+</style>
+
+<div id="scrollContainer">
+
+  <div class="clamp">
+    <div class="pre">Line 1
+Line 2
+Line 3
+Line 4
+Line 5
+Line 6</div>
+
+    <div>Another div</div>
+
+    <table>
+      <tr>
+        <td>A</td>
+        <td>B</td>
+      </tr>
+      <tr>
+        <td>C</td>
+        <td>D</td>
+      </tr>
+    </table>
+  </div>
+
+</div>
+
+<script>
+  window.addEventListener("load", () => {
+    const scrollContainer = document.getElementById("scrollContainer");
+    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+  });
+</script>
