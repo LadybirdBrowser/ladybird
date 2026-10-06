@@ -282,6 +282,8 @@ pub struct Parser<'a> {
     /// Current expression-parser recursion depth, used to guard against native
     /// stack exhaustion from pathologically-nested expressions (see #5749).
     recursion_depth: u32,
+    /// Native stack address at the outermost recursion level.
+    recursion_stack_base: usize,
     /// Set once the recursion-depth limit is hit — so parsing loops stop
     /// spinning on unconsumed input after a placeholder node is returned.
     recursion_limit_reached: bool,
@@ -361,6 +363,7 @@ impl<'a> Parser<'a> {
             class_has_super_class: false,
             class_scope_depth: 0,
             recursion_depth: 0,
+            recursion_stack_base: 0,
             recursion_limit_reached: false,
             has_default_export_name: false,
             referenced_private_names_stack: Vec::new(),
@@ -689,13 +692,25 @@ impl<'a> Parser<'a> {
     /// process on pathologically-nested input (see #5749).
     const MAX_RECURSION_DEPTH: u32 = 2000;
 
+    /// Maximum native stack the parser's recursion may use. A level takes under
+    /// 1 KiB of stack in optimized builds but up to 7 KiB in unoptimized ones, where
+    /// MAX_RECURSION_DEPTH levels would overflow the 8 MiB stacks scripts are parsed on.
+    const MAX_RECURSION_STACK_BYTES: usize = 4 * 1024 * 1024;
+
     /// Enters a nested-parse recursion level. Returns false if the maximum depth
-    /// would be exceeded — in which case a syntax error is recorded, and the caller
-    /// must return a placeholder node instead of recursing further.
+    /// or stack use would be exceeded — in which case a syntax error is recorded,
+    /// and the caller must return a placeholder node instead of recursing further.
     #[must_use]
     fn enter_recursion(&mut self) -> bool {
+        let stack_marker = 0u8;
+        let stack_address = std::hint::black_box(&stack_marker) as *const u8 as usize;
+        if self.recursion_depth == 0 {
+            self.recursion_stack_base = stack_address;
+        }
         self.recursion_depth += 1;
-        if self.recursion_depth > Self::MAX_RECURSION_DEPTH {
+        if self.recursion_depth > Self::MAX_RECURSION_DEPTH
+            || self.recursion_stack_base.abs_diff(stack_address) > Self::MAX_RECURSION_STACK_BYTES
+        {
             self.recursion_depth -= 1;
             self.recursion_limit_reached = true;
             self.syntax_error("Maximum parser recursion depth exceeded");
