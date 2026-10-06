@@ -217,17 +217,6 @@ Optional<Angle> CalculatedStyleValue::resolve_angle(CalculationResolutionContext
     return {};
 }
 
-Optional<Flex> CalculatedStyleValue::resolve_flex(CalculationResolutionContext const& context) const
-{
-    auto calculation_context = this->calculation_context();
-    auto result = resolve_value(context);
-
-    if (result.has_value() && result->type.has_value() && result->type->matches_flex(calculation_context.percentages_resolve_as))
-        return Flex::make_fr(result->value);
-
-    return {};
-}
-
 Optional<Length> CalculatedStyleValue::resolve_length(CalculationResolutionContext const& context) const
 {
     auto calculation_context = this->calculation_context();
@@ -235,17 +224,6 @@ Optional<Length> CalculatedStyleValue::resolve_length(CalculationResolutionConte
 
     if (result.has_value() && result->type.has_value() && result->type->matches_length(calculation_context.percentages_resolve_as))
         return Length::make_px(result->value);
-
-    return {};
-}
-
-Optional<double> CalculatedStyleValue::resolve_raw_length(CalculationResolutionContext const& context) const
-{
-    auto calculation_context = this->calculation_context();
-    auto result = resolve_value(context, false);
-
-    if (result.has_value() && result->type.has_value() && result->type->matches_length(calculation_context.percentages_resolve_as))
-        return result->value;
 
     return {};
 }
@@ -300,36 +278,6 @@ Optional<i32> CalculatedStyleValue::resolve_integer(CalculationResolutionContext
 
     if (result.has_value() && result->type.has_value() && result->type->matches_number(calculation_context.percentages_resolve_as))
         return round_to_nearest_integer(result->value);
-
-    return {};
-}
-
-RefPtr<StyleValue const> CalculatedStyleValue::resolve_as_style_value(CalculationResolutionContext const& context) const
-{
-    auto calculation_context = this->calculation_context();
-    auto result = resolve_value(context);
-    if (!result.has_value() || !result->type.has_value())
-        return {};
-
-    if (result->type->matches_number(calculation_context.percentages_resolve_as)) {
-        if (calculation_context.resolve_numbers_as_integers)
-            return IntegerStyleValue::create(round_to_nearest_integer(result->value));
-        return NumberStyleValue::create(result->value);
-    }
-    if (result->type->matches_angle(calculation_context.percentages_resolve_as))
-        return AngleStyleValue::create(Angle::make_degrees(result->value));
-    if (result->type->matches_flex(calculation_context.percentages_resolve_as))
-        return FlexStyleValue::create(Flex::make_fr(result->value));
-    if (result->type->matches_frequency(calculation_context.percentages_resolve_as))
-        return FrequencyStyleValue::create(Frequency::make_hertz(result->value));
-    if (result->type->matches_length(calculation_context.percentages_resolve_as))
-        return LengthStyleValue::create(Length::make_px(result->value));
-    if (result->type->matches_percentage())
-        return PercentageStyleValue::create(Percentage { result->value });
-    if (result->type->matches_resolution(calculation_context.percentages_resolve_as))
-        return ResolutionStyleValue::create(Resolution::make_dots_per_pixel(result->value));
-    if (result->type->matches_time(calculation_context.percentages_resolve_as))
-        return TimeStyleValue::create(Time::make_seconds(result->value));
 
     return {};
 }
@@ -440,11 +388,6 @@ static GC::Ptr<CSSNumericValue> reify_rust_calculation(void const* calculated_da
     return reified_nodes.last();
 }
 
-bool CalculatedStyleValue::contains_anchor_function() const
-{
-    return StyleValueFFI::rust_calc_contains_anchor(m_value.operator->());
-}
-
 GC::Ref<CSSStyleValue> CalculatedStyleValue::reify(Utf16FlyString const& associated_property) const
 {
     // NB: This spec algorithm is incomplete and assumes we do not already have a calculation tree.
@@ -498,37 +441,6 @@ CalcNodeRef CalcNodeRef::clamp(CalcNodeRef minimum, CalcNodeRef center, CalcNode
     return adopt(StyleValueFFI::rust_calc_node_create_clamp(minimum_handle, center_handle, maximum.release()));
 }
 
-CalcNodeRef CalcNodeRef::non_math_function(StyleValue const& function, Optional<NumericType> const& numeric_type)
-{
-    auto ffi_numeric_type = to_ffi_numeric_type(numeric_type);
-    return adopt(StyleValueFFI::rust_calc_node_create_non_math_function(
-        StyleValueFFI::rust_style_value_retain(function.rust_style_value_data()), &ffi_numeric_type));
-}
-
-CalcNodeRef CalcNodeRef::from_style_value(StyleValue const& style_value)
-{
-    switch (style_value.type()) {
-    case StyleValue::Type::Angle:
-        return numeric(style_value.as_angle().angle());
-    case StyleValue::Type::Frequency:
-        return numeric(style_value.as_frequency().frequency());
-    case StyleValue::Type::Integer:
-        return numeric(Number { Number::Type::Number, static_cast<double>(style_value.as_integer().integer()) });
-    case StyleValue::Type::Length:
-        return numeric(style_value.as_length().length());
-    case StyleValue::Type::Number:
-        return numeric(Number { Number::Type::Number, style_value.as_number().number() });
-    case StyleValue::Type::Percentage:
-        return numeric(style_value.as_percentage().percentage());
-    case StyleValue::Type::Time:
-        return numeric(style_value.as_time().time());
-    case StyleValue::Type::Calculated:
-        return retain(style_value.as_calculated().rust_calculation_root());
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
 Optional<NumericType> CalcNodeRef::determine_type(CalculationContext const& context) const
 {
     auto resolve_as_base = context.percentages_resolve_as.has_value()
@@ -536,23 +448,6 @@ Optional<NumericType> CalcNodeRef::determine_type(CalculationContext const& cont
         : OptionalNone {};
     return from_ffi_numeric_type(StyleValueFFI::rust_calc_node_determine_type(
         m_node,
-        context.percentages_resolve_as.has_value(),
-        context.percentages_resolve_as == ValueType::Number,
-        resolve_as_base.has_value() ? to_underlying(*resolve_as_base) : 0));
-}
-
-// https://drafts.csswg.org/css-values-4/#calc-simplification
-CalcNodeRef simplify_a_calculation_tree(CalcNodeRef const& root, CalculationContext const& context, CalculationResolutionContext const& resolution_context)
-{
-    CalcResolutionSnapshot resolution_snapshot { resolution_context };
-
-    auto resolve_as_base = context.percentages_resolve_as.has_value()
-        ? NumericType::base_type_from_value_type(*context.percentages_resolve_as)
-        : OptionalNone {};
-
-    return CalcNodeRef::adopt(StyleValueFFI::rust_calc_simplify_tree(
-        root.node(),
-        &resolution_snapshot.ffi_context,
         context.percentages_resolve_as.has_value(),
         context.percentages_resolve_as == ValueType::Number,
         resolve_as_base.has_value() ? to_underlying(*resolve_as_base) : 0));

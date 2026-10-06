@@ -20,8 +20,6 @@ public:
 
     Utf16String to_string() const;
 
-    void dump(StringBuilder&, int indent_levels = 0) const;
-
 private:
     explicit ContainerQuery(RustQueryHandle);
 

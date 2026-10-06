@@ -11,23 +11,6 @@
 
 namespace Web::CSS {
 
-// https://drafts.csswg.org/css-counter-styles-3/#disc
-NonnullRefPtr<CounterStyle const> CounterStyle::disc()
-{
-    static auto const& disc_counter_style = CounterStyle::create(
-        "disc"_utf16_fly_string,
-        GenericCounterStyleAlgorithm { CounterStyleSystem::Cyclic, { "•"_utf16_fly_string } },
-        CounterStyleNegativeSign { .prefix = ""_utf16_fly_string, .suffix = " "_utf16_fly_string },
-        ""_utf16_fly_string,
-        " "_utf16_fly_string,
-        { { NumericLimits<i32>::min(), NumericLimits<i32>::max() } },
-        "decimal"_utf16_fly_string,
-        CounterStylePad { .minimum_length = 0, .symbol = ""_utf16_fly_string })
-                                                .leak_ref();
-
-    return disc_counter_style;
-}
-
 NonnullRefPtr<CounterStyle const> CounterStyle::from_counter_style_definition(Layout::BegunRead const& read, CounterStyleDefinition const& definition, StyleScope const& style_scope)
 {
     return definition.algorithm().visit(

@@ -37,7 +37,6 @@ public:
     Value const& value() const { return m_value; }
     String to_string() const;
     Utf16String to_utf16_string() const;
-    bool operator==(RequestURLModifier const&) const;
 
 private:
     RequestURLModifier(Type, Value);
@@ -64,7 +63,6 @@ public:
 
     String to_string() const;
     Utf16String to_utf16_string() const;
-    bool operator==(URL const&) const;
 
 private:
     Type m_type;

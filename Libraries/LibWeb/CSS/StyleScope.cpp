@@ -517,16 +517,6 @@ void StyleScope::for_each_user_agent_stylesheet(bool include_quirks_mode_stylesh
     }
 }
 
-Optional<StyleSheetIdentifier> StyleScope::user_agent_style_sheet_identifier(CSS::StyleSheetState const& style_sheet)
-{
-    Optional<StyleSheetIdentifier> identifier;
-    for_each_user_agent_stylesheet(true, true, [&](auto& user_agent_style_sheet, auto const& user_agent_style_sheet_identifier) {
-        if (&style_sheet == &user_agent_style_sheet)
-            identifier = user_agent_style_sheet_identifier;
-    });
-    return identifier;
-}
-
 void StyleScope::for_each_stylesheet(CascadeOrigin cascade_origin, Function<void(CSS::StyleSheetState&)> const& callback) const
 {
     if (cascade_origin == CascadeOrigin::UserAgent) {

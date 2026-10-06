@@ -643,17 +643,6 @@ pub unsafe extern "C" fn rust_selector_destroy(selector: *mut RustSelector) {
     }
 }
 
-/// # Safety
-/// `selector` must point to a live selector handle.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_target_pseudo_element(selector: *const RustSelector) -> u8 {
-    assert!(!selector.is_null());
-    // SAFETY: The caller guarantees that `selector` points to a live selector handle.
-    unsafe { &(*selector).selector }
-        .target_pseudo_element
-        .map_or(u8::MAX, |pseudo_element| pseudo_element as u8)
-}
-
 /// Returns the selector's specificity in the packed representation used by the DevTools protocol.
 ///
 /// # Safety

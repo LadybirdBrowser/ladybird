@@ -18,13 +18,7 @@ namespace Web::CSS {
 class Flex {
 public:
     Flex(double value, FlexUnit unit);
-    static Flex make_fr(double);
-    static Flex from_style_value(NonnullRefPtr<StyleValue const> const&);
 
-    Flex percentage_of(Percentage const&) const;
-
-    void serialize(StringBuilder&, SerializationMode = SerializationMode::Normal) const;
-    String to_string(SerializationMode = SerializationMode::Normal) const;
     double to_fr() const;
 
     double raw_value() const { return m_value; }
@@ -54,11 +48,3 @@ private:
 };
 
 }
-
-template<>
-struct AK::Formatter<Web::CSS::Flex> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::Flex const& flex)
-    {
-        return Formatter<StringView>::format(builder, flex.to_string());
-    }
-};

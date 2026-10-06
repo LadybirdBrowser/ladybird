@@ -282,13 +282,6 @@ CSSPixels Length::to_px(ResolutionContext const& context) const
     return CSSPixels::nearest_value_for(to_px_without_rounding(context));
 }
 
-CSSPixels Length::to_px_slow_case(Layout::NodeWithStyle const& layout_node) const
-{
-    if (!layout_node.document().browsing_context())
-        return 0;
-    return to_px(ResolutionContext::for_layout_node(layout_node));
-}
-
 void Length::serialize(StringBuilder& builder, SerializationMode serialization_mode) const
 {
     // https://drafts.csswg.org/cssom/#serialize-a-css-value
@@ -325,13 +318,6 @@ void Length::serialize(Utf16StringBuilder& builder, SerializationMode serializat
     builder.append(unit_name());
 }
 
-String Length::to_string(SerializationMode serialization_mode) const
-{
-    StringBuilder builder;
-    serialize(builder, serialization_mode);
-    return builder.to_string_without_validation();
-}
-
 Length Length::from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<Length> percentage_basis)
 {
     if (style_value->is_length())
@@ -354,13 +340,6 @@ Length Length::from_style_value(NonnullRefPtr<StyleValue const> const& style_val
     }
 
     VERIFY_NOT_REACHED();
-}
-
-LengthOrAuto LengthOrAuto::from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<Length> percentage_basis)
-{
-    if (style_value->has_auto())
-        return make_auto();
-    return LengthOrAuto { Length::from_style_value(style_value, percentage_basis) };
 }
 
 double ratio_between_font_relative_unit_and_px(LengthUnit font_relative_unit, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics)

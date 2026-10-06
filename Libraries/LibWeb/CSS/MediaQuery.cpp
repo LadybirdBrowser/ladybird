@@ -55,12 +55,6 @@ bool MediaQuery::evaluate(DOM::Document const& document)
     return evaluate(MediaEnvironmentSnapshot { document });
 }
 
-void MediaQuery::dump(StringBuilder& builder, int indent_levels) const
-{
-    dump_indent(builder, indent_levels);
-    builder.appendff("Media query: `{}` (matches = {})\n", to_string(), m_matches);
-}
-
 // https://www.w3.org/TR/cssom-1/#serialize-a-media-query-list
 Utf16String serialize_a_media_query_list(Vector<NonnullRefPtr<MediaQuery>> const& media_queries)
 {

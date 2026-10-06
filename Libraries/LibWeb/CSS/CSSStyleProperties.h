@@ -55,17 +55,6 @@ public:
     u64 identity() const { return m_declarations.identity(); }
     u64 revision() const { return m_declarations.revision(); }
 
-    // Every custom property a var() in this block's values refers to, and whether each reference
-    // names its property with a plain identifier. A reference that substitutes its name can read
-    // anything, so no list of names stands for it.
-    struct CustomPropertyReferences {
-        AK_ALLOC_WITH_KMALLOC;
-
-        Vector<Utf16FlyString> names;
-        bool all_references_visible { true };
-    };
-    CustomPropertyReferences const& custom_property_references() const;
-
     virtual bool has_property(PropertyNameAndID const&) const override;
     bool has_property(PropertyID) const;
 
@@ -101,8 +90,6 @@ private:
     void invalidate_owners();
 
     RustDeclarationBlock m_declarations;
-    mutable OwnPtr<CustomPropertyReferences> m_custom_property_references;
-    mutable u64 m_custom_property_references_revision { 0 };
 };
 
 #undef ENUMERATE_GENERATED_CSS_STYLE_PROPERTIES

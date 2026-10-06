@@ -112,8 +112,7 @@ impl LengthPercentageRef<'_> {
     }
 
     pub(crate) fn contains_anchor_function(self) -> bool {
-        // SAFETY: The calculated style value outlives this borrowed view.
-        self.is_calculated() && unsafe { calc::rust_calc_contains_anchor(self.calculated_pointer()) }
+        matches!(self.value, StyleValueData::Calculated { rust_calculation, .. } if rust_calculation.node().contains_anchor_function())
     }
 
     pub(crate) fn to_px(self, reference: CssPixels) -> CssPixels {

@@ -897,7 +897,7 @@ fn custom_property_components(inputs: &[FfiUnresolvedStyleValue]) -> (Vec<Vec<u3
         }
         if all_references_visible {
             for reference in references {
-                if let Some(target) = indices.get(&reference) {
+                if let Some(target) = indices.get(reference) {
                     edges[index].push(*target);
                     has_own_reference |= inputs[*target as usize].resolve_substitutions;
                 }

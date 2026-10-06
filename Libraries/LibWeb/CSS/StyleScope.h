@@ -139,7 +139,6 @@ public:
 
     void for_each_stylesheet(CascadeOrigin, Function<void(CSS::StyleSheetState&)> const&) const;
     static WEB_API void for_each_user_agent_stylesheet(bool include_quirks_mode_stylesheet, bool include_mathml_and_svg_stylesheets, Function<void(CSS::StyleSheetState&, StyleSheetIdentifier const&)> const&);
-    static Optional<StyleSheetIdentifier> user_agent_style_sheet_identifier(CSS::StyleSheetState const&);
     void build_user_style_sheet_if_needed();
 
     void make_rule_cache_for_cascade_origin(CascadeOrigin, StyleRuleCache&);

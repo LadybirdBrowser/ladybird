@@ -194,11 +194,9 @@ fn visit_reified_unresolved_segments(
     }
 }
 
-fn scan_custom_property_references(
-    values: &[ComponentValue],
-    context: *mut c_void,
-    visit: unsafe extern "C" fn(*mut c_void, *const u16, usize),
-) -> bool {
+// Appends the name of every custom property a `var()` or `inherit()` in `values` refers to, and returns whether every
+// reference names its property with a plain identifier.
+fn scan_custom_property_references<'a>(values: &'a [ComponentValue], references: &mut Vec<&'a [u16]>) -> bool {
     let mut all_references_visible = true;
     for value in values {
         let ComponentKind::Function {
@@ -207,7 +205,7 @@ fn scan_custom_property_references(
         } = &value.kind
         else {
             if let ComponentKind::SimpleBlock { values, .. } = &value.kind {
-                all_references_visible &= scan_custom_property_references(values, context, visit);
+                all_references_visible &= scan_custom_property_references(values, references);
             }
             continue;
         };
@@ -221,27 +219,22 @@ fn scan_custom_property_references(
                 && name[0] == u16::from(b'-')
                 && name[1] == u16::from(b'-')
             {
-                unsafe { visit(context, name.as_ptr(), name.len()) };
+                references.push(name);
             } else {
                 all_references_visible = false;
             }
         }
-        all_references_visible &= scan_custom_property_references(function_values, context, visit);
+        all_references_visible &= scan_custom_property_references(function_values, references);
     }
     all_references_visible
 }
 
-pub(crate) fn custom_property_references(value: &StyleValueData) -> Option<(Vec<Vec<u16>>, bool)> {
+pub(crate) fn custom_property_references(value: &StyleValueData) -> Option<(Vec<&[u16]>, bool)> {
     let StyleValueData::Unresolved { components, .. } = value else {
         return None;
     };
     let mut references = Vec::new();
-    unsafe extern "C" fn collect(context: *mut c_void, name: *const u16, name_length: usize) {
-        let references = unsafe { &mut *context.cast::<Vec<Vec<u16>>>() };
-        references.push(unsafe { std::slice::from_raw_parts(name, name_length) }.to_vec());
-    }
-    let all_references_visible =
-        scan_custom_property_references(components.as_slice(), (&raw mut references).cast(), collect);
+    let all_references_visible = scan_custom_property_references(components.as_slice(), &mut references);
     Some((references, all_references_visible))
 }
 
@@ -262,25 +255,6 @@ pub unsafe extern "C" fn rust_unresolved_style_value_visit_reification(
     };
     let segments = reify_unresolved_segments(components.as_slice());
     visit_reified_unresolved_segments(&segments, context, visit);
-}
-
-/// Visits the name of every custom property a `var()` in an unresolved value refers to, fallbacks
-/// and nested functions included. Returns whether every reference names its property with a plain
-/// identifier; a reference that substitutes its name can read anything.
-///
-/// # Safety
-/// `value` must point at live unresolved style value data, and `visit` must remain callable for
-/// the duration of this function.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_unresolved_style_value_visit_custom_property_references(
-    value: *const c_void,
-    context: *mut c_void,
-    visit: unsafe extern "C" fn(*mut c_void, *const u16, usize),
-) -> bool {
-    let StyleValueData::Unresolved { components, .. } = (unsafe { &*value.cast::<StyleValueData>() }) else {
-        return false;
-    };
-    scan_custom_property_references(components.as_slice(), context, visit)
 }
 
 #[cfg(test)]
@@ -319,16 +293,11 @@ mod unresolved_component_tests {
             && after == &")".encode_utf16().collect::<Vec<_>>()));
     }
 
-    unsafe extern "C" fn collect_reference(context: *mut c_void, name: *const u16, name_length: usize) {
-        let names = unsafe { &mut *context.cast::<Vec<Vec<u16>>>() };
-        names.push(unsafe { std::slice::from_raw_parts(name, name_length) }.to_vec());
-    }
-
     #[test]
     fn reference_scan_reports_dynamic_names() {
         let values = components("var(--one) [inherit(--two)] var(var(--dynamic))");
-        let mut names: Vec<Vec<u16>> = Vec::new();
-        let all_visible = scan_custom_property_references(&values, (&raw mut names).cast(), collect_reference);
+        let mut names = Vec::new();
+        let all_visible = scan_custom_property_references(&values, &mut names);
         assert!(!all_visible);
         assert_eq!(
             names,

@@ -18,61 +18,9 @@ Time::Time(double value, TimeUnit unit)
 {
 }
 
-Time Time::from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<Time> percentage_basis)
-{
-    if (style_value->is_time())
-        return style_value->as_time().time();
-
-    if (style_value->is_calculated()) {
-        CalculationResolutionContext::PercentageBasis resolved_percentage_basis;
-
-        if (percentage_basis.has_value()) {
-            resolved_percentage_basis = percentage_basis.value();
-        }
-
-        return style_value->as_calculated().resolve_time({ .percentage_basis = resolved_percentage_basis }).value();
-    }
-
-    if (style_value->is_percentage()) {
-        VERIFY(percentage_basis.has_value());
-
-        return percentage_basis.value().percentage_of(style_value->as_percentage().percentage());
-    }
-
-    VERIFY_NOT_REACHED();
-}
-
 Time Time::make_seconds(double value)
 {
     return { value, TimeUnit::S };
-}
-
-Time Time::percentage_of(Percentage const& percentage) const
-{
-    return Time { percentage.as_fraction() * m_value, m_unit };
-}
-
-void Time::serialize(StringBuilder& builder, SerializationMode serialization_mode) const
-{
-    // https://drafts.csswg.org/cssom/#serialize-a-css-value
-    // -> <time>
-    // The time in seconds serialized as per <number> followed by the literal string "s".
-    // AD-HOC: WPT expects us to serialize using the actual unit, like for other dimensions.
-    //         https://github.com/w3c/csswg-drafts/issues/12616
-    if (serialization_mode == SerializationMode::ResolvedValue) {
-        serialize_a_number(builder, to_seconds());
-        builder.append("s"sv);
-        return;
-    }
-    serialize_a_number(builder, raw_value());
-    builder.append(unit_name());
-}
-
-String Time::to_string(SerializationMode serialization_mode) const
-{
-    StringBuilder builder;
-    serialize(builder, serialization_mode);
-    return builder.to_string_without_validation();
 }
 
 double Time::to_seconds() const

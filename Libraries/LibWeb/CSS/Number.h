@@ -75,7 +75,6 @@ public:
     }
 
     void serialize(StringBuilder&, SerializationMode = SerializationMode::Normal) const;
-    String to_string(SerializationMode = SerializationMode::Normal) const;
 
     bool operator==(Number const& other) const
     {
@@ -97,11 +96,3 @@ private:
 };
 
 }
-
-template<>
-struct AK::Formatter<Web::CSS::Number> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::Number const& number)
-    {
-        return Formatter<StringView>::format(builder, number.to_string());
-    }
-};

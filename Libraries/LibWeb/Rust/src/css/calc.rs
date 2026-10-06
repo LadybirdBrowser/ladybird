@@ -1153,19 +1153,6 @@ pub unsafe extern "C" fn rust_calc_node_create_clamp(
 }
 
 /// # Safety
-/// `value` must be a transferred strong style value data handle.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_create_non_math_function(
-    value: *const std::ffi::c_void,
-    numeric_type: *const FfiNumericType,
-) -> *const CalcNode {
-    handle(CalcNode::NonMathFunction {
-        value: unsafe { RetainedStyleValueData::from_retained_pointer(value.cast()) },
-        numeric_type: unsafe { &*numeric_type }.to_calc(),
-    })
-}
-
-/// # Safety
 /// `node` must be a valid transferred handle; this releases it.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_release(node: *const CalcNode) {
@@ -4485,7 +4472,7 @@ impl CalcNode {
         }
     }
 
-    fn contains_anchor_function(&self) -> bool {
+    pub(crate) fn contains_anchor_function(&self) -> bool {
         if let CalcNode::NonMathFunction { value, .. } = self
             && matches!(value.data(), crate::css::style_value::StyleValueData::Anchor { .. })
         {
@@ -4514,20 +4501,6 @@ pub unsafe extern "C" fn rust_calc_equals(first: *const std::ffi::c_void, second
     let first_tree = tree_of(first);
     let second_tree = tree_of(second);
     first_tree.structurally_equals(&second_tree)
-}
-
-/// Whether a calculated style value contains an anchor() function.
-///
-/// # Safety
-/// `calculated` must point at Calculated style value data.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_contains_anchor(calculated: *const std::ffi::c_void) -> bool {
-    let crate::css::style_value::StyleValueData::Calculated { rust_calculation, .. } =
-        (unsafe { &*(calculated as *const crate::css::style_value::StyleValueData) })
-    else {
-        unreachable!("rust_calc_contains_anchor requires calculated value data");
-    };
-    rust_calculation.node().contains_anchor_function()
 }
 
 /// The node kind codes exposed to C++ in a stable documented order.
@@ -4709,35 +4682,4 @@ pub unsafe extern "C" fn rust_calc_reification_release(storage: *mut std::ffi::c
     if !storage.is_null() {
         drop(unsafe { Box::from_raw(storage.cast::<CalcReificationStorage>()) });
     }
-}
-
-/// Simplifies a free-standing calculation tree: the css-values-4 algorithm
-/// over a borrowed root, returning the simplified tree as a transferred
-/// handle. This backs the C++ simplify_a_calculation_tree entry, whose
-/// callers simplify trees that are not (yet) owned by a calculated style
-/// value: parse-time math functions, interpolation sums, flipped edge
-/// offsets, and anchor fallbacks.
-///
-/// # Safety
-/// `root` must be a valid calculation node pointer and `context` a valid
-/// resolution context.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_simplify_tree(
-    root: *const CalcNode,
-    context: *const FfiCalcResolutionContext,
-    has_percentages_resolve_as: bool,
-    resolve_as_is_number: bool,
-    resolve_as_base: u8,
-) -> *const CalcNode {
-    let context = unsafe { &*context };
-    unsafe { Arc::increment_strong_count(root) };
-    let root = unsafe { Arc::from_raw(root) };
-    let resolve_as = resolve_as_from_fields(has_percentages_resolve_as, resolve_as_is_number, resolve_as_base);
-    let externals = prepare_external_resolutions(&root, context);
-    with_ffi_evaluation(
-        resolve_as,
-        context,
-        &externals.resolutions,
-        |evaluation_context, callbacks| Arc::into_raw(root.simplify(evaluation_context, callbacks)),
-    )
 }

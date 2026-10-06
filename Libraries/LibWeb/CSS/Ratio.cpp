@@ -15,11 +15,4 @@ Ratio::Ratio(double first, double second)
 {
 }
 
-// https://www.w3.org/TR/css-values-4/#degenerate-ratio
-bool Ratio::is_degenerate() const
-{
-    return !isfinite(m_first_value) || m_first_value == 0
-        || !isfinite(m_second_value) || m_second_value == 0;
-}
-
 }

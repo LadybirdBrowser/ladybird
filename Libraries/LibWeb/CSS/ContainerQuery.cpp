@@ -68,10 +68,4 @@ Utf16String ContainerQuery::to_string() const
     return serialized;
 }
 
-void ContainerQuery::dump(StringBuilder& builder, int indent_levels) const
-{
-    dump_indent(builder, indent_levels);
-    builder.appendff("Container query: `{}`\n", to_string());
-}
-
 }

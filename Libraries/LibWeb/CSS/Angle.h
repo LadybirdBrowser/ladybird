@@ -20,9 +20,6 @@ public:
     static Angle make_degrees(double);
     Angle percentage_of(Percentage const&) const;
 
-    void serialize(StringBuilder&, SerializationMode = SerializationMode::Normal) const;
-    String to_string(SerializationMode = SerializationMode::Normal) const;
-
     double to_degrees() const;
     double to_radians() const;
 
@@ -55,11 +52,3 @@ private:
 };
 
 }
-
-template<>
-struct AK::Formatter<Web::CSS::Angle> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::Angle const& angle)
-    {
-        return Formatter<StringView>::format(builder, angle.to_string());
-    }
-};

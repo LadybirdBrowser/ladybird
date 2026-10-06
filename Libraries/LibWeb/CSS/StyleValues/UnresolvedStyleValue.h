@@ -29,7 +29,6 @@ public:
     static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_attr_tainted_with_parsed_value(Utf16String token_source, Parser::SubstitutionFunctionsPresence, Optional<Utf16String> original_source_text, SourceTextMode, NonnullRefPtr<StyleValue const> parsed_value);
     virtual ~UnresolvedStyleValue() override = default;
 
-    Utf16String serialized_components() const;
     Utf16String token_source() const;
     bool contains_arbitrary_substitution_function() const
     {

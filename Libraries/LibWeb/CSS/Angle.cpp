@@ -30,28 +30,6 @@ Angle Angle::percentage_of(Percentage const& percentage) const
     return Angle { percentage.as_fraction() * m_value, m_unit };
 }
 
-void Angle::serialize(StringBuilder& builder, SerializationMode serialization_mode) const
-{
-    // https://drafts.csswg.org/cssom/#serialize-a-css-value
-    // -> <angle>
-    // The <number> component serialized as per <number> followed by the unit in canonical form as defined in its
-    // respective specification.
-    if (serialization_mode == SerializationMode::ResolvedValue) {
-        serialize_a_number(builder, to_degrees());
-        builder.append("deg"sv);
-        return;
-    }
-    serialize_a_number(builder, raw_value());
-    builder.append(unit_name());
-}
-
-String Angle::to_string(SerializationMode serialization_mode) const
-{
-    StringBuilder builder;
-    serialize(builder, serialization_mode);
-    return builder.to_string_without_validation();
-}
-
 double Angle::to_degrees() const
 {
     return ratio_between_units(m_unit, AngleUnit::Deg) * m_value;
