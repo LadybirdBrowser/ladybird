@@ -792,6 +792,54 @@ DisplayListResourceSet DisplayListResourceStorage::collect_referenced_resources(
     return referenced_resources;
 }
 
+static ErrorOr<void> validate_display_list_against_visual_context_tree(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree)
+{
+    if (display_list.compatible_visual_context_tree_structural_epoch() != visual_context_tree.structural_epoch())
+        return Error::from_string_literal("Display list was recorded against another visual context tree");
+    return validate_display_list_references_live_visual_context_nodes(display_list, visual_context_tree);
+}
+
+static ErrorOr<void> validate_resources_are_present(DisplayListResourceStorage const& storage, DisplayListResourceSet const& resources)
+{
+    for (auto id : resources.fonts) {
+        if (!storage.has_font(id))
+            return Error::from_string_literal("Display list refers to a font that is not present");
+    }
+    for (auto id : resources.image_frames) {
+        if (!storage.has_image_frame(id))
+            return Error::from_string_literal("Display list refers to an image frame that is not present");
+    }
+    for (auto id : resources.display_lists) {
+        if (!storage.has_display_list(id))
+            return Error::from_string_literal("Display list refers to a nested display list that is not present");
+    }
+    return {};
+}
+
+ErrorOr<DisplayListResourceTransaction> DisplayListResourceStorage::create_self_contained_transaction(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree) const
+{
+    auto resources = collect_referenced_resources(display_list);
+    resources.include(collect_referenced_resources(visual_context_tree));
+    TRY(validate_resources_are_present(*this, resources));
+    return create_transaction({}, resources);
+}
+
+ErrorOr<void> DisplayListResourceStorage::validate_for_replay(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree) const
+{
+    TRY(validate_display_list_against_visual_context_tree(display_list, visual_context_tree));
+    auto resources = collect_referenced_resources(display_list);
+    resources.include(collect_referenced_resources(visual_context_tree));
+    TRY(validate_resources_are_present(*this, resources));
+    for (auto id : resources.display_lists) {
+        auto const& nested_display_list = this->display_list(id);
+        TRY(validate_display_list_against_visual_context_tree(nested_display_list, display_list_visual_context_tree(id)));
+        // Replay follows nested lists with no depth limit, so a list must not reach itself.
+        if (collect_referenced_resources(nested_display_list).display_lists.contains(id))
+            return Error::from_string_literal("Nested display list refers to itself");
+    }
+    return {};
+}
+
 DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
     DisplayListResourceSet const& previous,
     DisplayListResourceSet const& current) const
