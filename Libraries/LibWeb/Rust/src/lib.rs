@@ -20,6 +20,7 @@ pub(crate) use libcompositing_rust::fast_hash;
 
 pub(crate) mod css;
 pub(crate) mod layout;
+pub(crate) mod paint_stage;
 pub(crate) mod painting;
 pub(crate) mod render_state;
 pub(crate) mod stage;

@@ -30,6 +30,7 @@ use crate::layout::tree_update_marks::{
 };
 use crate::layout::used_values::FfiCssPixelRect;
 use crate::layout::{ClockRound, ClockRoundDeclined, HostStyle, LayoutNodeArena, LayoutRoundAnswer, build_keeps_box};
+use crate::paint_stage::Presenting;
 use crate::painting::ffi::FfiPresentation;
 use crate::painting::paint_passes::{ClockTickVisualContexts, VisualContextsNeedHost, prepare_for_clock_tick};
 use crate::painting::paintable_geometry::absolute_border_box_rect;
@@ -690,10 +691,9 @@ impl LeaseLanding {
         match freeze_tick_frame(arena, &mut clock_recorder) {
             Ok((frozen, inputs, visual_contexts)) => {
                 let viewport = arena.layout_root();
-                self.recording = TickRecording(
-                    crate::stage_thread::paint_thread()
-                        .ride(move || clock_recorder.record(frozen, viewport, inputs, visual_contexts)),
-                );
+                self.recording = TickRecording(crate::paint_stage::ride_presenting(move |presenting| {
+                    clock_recorder.record(frozen, viewport, inputs, visual_contexts, presenting)
+                }));
             }
             Err(park) => {
                 self.recording = TickRecording(Riding::landed(clock_recorder));
@@ -768,6 +768,7 @@ impl ClockRecorder {
         viewport: NodeSlotId,
         inputs: RecordingInputs,
         visual_contexts: Option<ClockTickVisualContexts>,
+        presenting: &mut Presenting,
     ) -> Self {
         let Self {
             recorder,
@@ -784,7 +785,7 @@ impl ClockRecorder {
         if let Some(visual_contexts) = visual_contexts {
             presentation.take_visual_context_tree(visual_contexts);
         }
-        let output = present(presentation, pending, recorder);
+        let output = present(presentation, pending, recorder, presenting);
         take_in_published_output(recorder, &mut None, output, true, |output, hit_test_list_changed| {
             *presented = TickPresented::Frame {
                 output,

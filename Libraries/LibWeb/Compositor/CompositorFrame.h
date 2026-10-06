@@ -52,12 +52,21 @@ struct CompositorFrame {
     Optional<Gfx::IntRect> present_viewport_rect;
 };
 
+class CompositorConnection;
+class NavigablePresenter;
+
 // Hands finished frames to the compositor. Unlike the rest of a compositor connection, which belongs to the thread that
 // made it, a frame sink takes frames from any thread. The messages of one frame reach the compositor together, and
-// frames reach it in the order they were submitted.
+// frames reach it in the order they were submitted. Only what presents frames submits them.
 class WEB_API CompositorFrameSink : public AtomicRefCounted<CompositorFrameSink> {
 public:
     virtual ~CompositorFrameSink() = default;
+
+private:
+    // FIXME: Only the Paint thread should present frames. These still present from the main thread, or with a sink the
+    //        main thread hands out.
+    friend class CompositorConnection;
+    friend class NavigablePresenter;
 
     // Returns false once the compositor can no longer be reached.
     virtual bool submit(CompositorFrame&&) = 0;
