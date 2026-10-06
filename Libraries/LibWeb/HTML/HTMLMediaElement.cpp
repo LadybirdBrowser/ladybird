@@ -279,6 +279,10 @@ void HTMLMediaElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
             create_controls();
         else
             destroy_controls();
+    } else if (name == HTML::AttributeNames::loop) {
+        // AD-HOC: Other browsers reflect the loop attribute in the ended attribute immediately, rather than once the
+        //         event loop reaches step 1.
+        update_ended_attribute();
     } else if (name == HTML::AttributeNames::preload || name == HTML::AttributeNames::autoplay) {
         if (m_waiting_for_an_implementation_defined_event_to_fetch_the_resource
             && !should_wait_for_an_implementation_defined_event_before_fetching_the_resource()) {
@@ -2786,7 +2790,10 @@ void HTMLMediaElement::play_element()
 
     // 2. If the playback has ended and the direction of playback is forwards, seek to the earliest possible position
     //    of the media resource.
-    if (has_ended_playback() && direction_of_playback() == PlaybackDirection::Forwards)
+    // AD-HOC: Ignore the loop attribute here, so that playback restarts from the beginning if it was specified after
+    //         playback ended.
+    //         See https://github.com/whatwg/html/issues/4487
+    if (has_ended_playback(IgnoreLoopAttribute::Yes) && direction_of_playback() == PlaybackDirection::Forwards)
         seek_element(0);
 
     // 3. If the media element's paused attribute is true, then:
@@ -3233,7 +3240,7 @@ HTMLMediaElement::PlaybackDirection HTMLMediaElement::direction_of_playback() co
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#ended-playback
-bool HTMLMediaElement::has_ended_playback() const
+bool HTMLMediaElement::has_ended_playback(IgnoreLoopAttribute ignore_loop_attribute) const
 {
     // A media element is said to have ended playback when:
 
@@ -3253,11 +3260,7 @@ bool HTMLMediaElement::has_ended_playback() const
         direction_of_playback() == PlaybackDirection::Forwards &&
 
         // The media element does not have a loop attribute specified.
-        // AD-HOC: Use the value of the loop attribute from the last time we reached end of playback.
-        //         Without this change, the ended attribute changes when enabling the loop attribute after
-        //         playback has ended, and playback will not restart when playing the element.
-        //         See https://github.com/whatwg/html/issues/11775
-        !m_loop_was_specified_when_reaching_end_of_media_resource) {
+        (ignore_loop_attribute == IgnoreLoopAttribute::Yes || !has_attribute(HTML::AttributeNames::loop))) {
         return true;
     }
 
@@ -3290,15 +3293,14 @@ void HTMLMediaElement::update_ended_attribute()
         set_ended(false);
         return;
     }
-    set_ended(has_ended_playback() && direction_of_playback() == PlaybackDirection::Forwards);
+    set_ended(has_ended_playback(IgnoreLoopAttribute::No) && direction_of_playback() == PlaybackDirection::Forwards);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#reaches-the-end
 void HTMLMediaElement::reached_end_of_media_playback()
 {
     // 1. If the media element has a loop attribute specified,
-    m_loop_was_specified_when_reaching_end_of_media_resource = has_attribute(HTML::AttributeNames::loop);
-    if (m_loop_was_specified_when_reaching_end_of_media_resource) {
+    if (has_attribute(HTML::AttributeNames::loop)) {
         // then seek to the earliest possible position of the media resource and return.
         // AD-HOC: We don't want to loop back to the start if we're paused.
         //         See https://github.com/whatwg/html/issues/11774
@@ -3317,7 +3319,7 @@ void HTMLMediaElement::reached_end_of_media_playback()
         self.dispatch_time_update_event();
 
         // 2. If the media element has ended playback, the direction of playback is forwards, and paused is false, then:
-        if (self.has_ended_playback() && self.direction_of_playback() == PlaybackDirection::Forwards && !self.paused()) {
+        if (self.has_ended_playback(IgnoreLoopAttribute::No) && self.direction_of_playback() == PlaybackDirection::Forwards && !self.paused()) {
             // 1. Set the paused attribute to true.
             self.set_paused(true);
 
