@@ -392,7 +392,7 @@ void record_text_data_changed(DOM::Text& text)
     auto* style_engine = style_engine_for(text);
     if (!style_engine || text.style_node_id() == no_style_node)
         return;
-    style_engine->set_text_data(text.style_node_id(), text.data());
+    StyleEngineFFI::style_engine_set_text_data(style_engine->host(), text.style_node_id().value(), text.data().to_raw_leaked());
     StyleEngineFFI::style_engine_set_text_is_ascii_whitespace(style_engine->host(), text.style_node_id(), text.data().is_ascii_whitespace());
 }
 
@@ -479,7 +479,7 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<GC::Re
             StyleEngineFFI::style_engine_set_text_is_ascii_whitespace(style_engine.host(), identities[i], text_arrivals[i]->data().is_ascii_whitespace());
             StyleEngineFFI::style_engine_set_text_is_in_user_agent_shadow_tree(style_engine.host(), identities[i], text_is_in_user_agent_shadow_tree(*text_arrivals[i]));
             StyleEngineFFI::style_engine_set_text_is_password_input(style_engine.host(), identities[i], text_arrivals[i]->is_password_input());
-            style_engine.set_text_data(identities[i], text_arrivals[i]->data());
+            StyleEngineFFI::style_engine_set_text_data(style_engine.host(), identities[i].value(), text_arrivals[i]->data().to_raw_leaked());
         }
     }
 
@@ -2045,7 +2045,7 @@ static void detach_shared_compiled_style_sheet(SharedCompiledStyleSheet& sheet, 
     if (sheet.has_attachments())
         return;
 
-    style_engine.begin_sheet_rules_replacement(sheet.sheet_id());
+    StyleEngineFFI::style_engine_begin_sheet_rules_replacement(style_engine.host(), sheet.sheet_id().value());
     style_engine.finish_sheet_rules_replacement(sheet.sheet_id());
     auto& shared_compiled_style_sheets = style_computer.shared_compiled_style_sheets();
     shared_compiled_style_sheets.remove(sheet.key());
@@ -2240,7 +2240,7 @@ void record_stylesheet_rules_replaced(StyleSheetState& sheet)
         if (sheet_id == 0)
             return;
         auto& style_engine = style_computer.style_engine();
-        style_engine.begin_sheet_rules_replacement(sheet_id);
+        StyleEngineFFI::style_engine_begin_sheet_rules_replacement(style_engine.host(), sheet_id.value());
         RuleCompilationContext context { style_engine, sheet_id, 0, document, style_computer };
         compile_rules_into(context, sheet);
         style_engine.finish_sheet_rules_replacement(sheet_id);
