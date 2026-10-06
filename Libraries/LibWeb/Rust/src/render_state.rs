@@ -46,6 +46,8 @@ pub(crate) struct RenderState {
     /// The layout tree update marks the writes the host streamed since its last job made, apart from the marks the host
     /// holds, which the host's next job folds into those it is lent.
     streamed_marks: Option<crate::layout::tree_update_marks::LayoutTreeUpdateMarks>,
+    /// The times the document's frames are sampled at.
+    sample_clock: clock::SampleClock,
 }
 
 impl RenderState {
@@ -67,6 +69,7 @@ impl RenderState {
             engine,
             owed: Vec::new(),
             streamed_marks: None,
+            sample_clock: clock::SampleClock::default(),
         }
     }
 
