@@ -29,7 +29,6 @@
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/CSS/SharedCompiledStyleSheet.h>
-#include <LibWeb/CSS/StyleGroupPayloadPins.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/Export.h>
@@ -38,15 +37,6 @@
 #include <LibWeb/CSS/StyleEngineBridge.h>
 
 namespace Web::CSS {
-
-// Matching an originating element answers both its own cascade and every
-// pseudo-element cascade. A caller that computes those cascades as one batch
-// can keep this result between them.
-struct StyleEngineMatchResult {
-    StyleNodeID node;
-    Optional<Vector<StyleEngine::RuleMatch>> matches;
-    Optional<u32> signature;
-};
 
 class WEB_API StyleComputer final : public GC::Cell {
     GC_CELL(StyleComputer, GC::Cell);
@@ -268,17 +258,6 @@ private:
     u64 m_viewport_environment_version { 0 };
     // The environments the style engine resolved, by the identity it minted, materialized once.
     mutable HashMap<u64, NonnullRefPtr<CustomPropertyData const>> m_engine_custom_property_environments;
-
-    // What one final value parses to against one registration's syntax: a pure function of the
-    // value, the syntax, and the registration generation, unlike the computed-value step after it,
-    // which resolves font-relative units against the reading element and runs per read.
-    struct RegisteredCustomPropertyParse {
-        NonnullRefPtr<StyleValue const> value;
-        void const* syntax_identity { nullptr };
-        u64 registration_generation { 0 };
-        NonnullRefPtr<StyleValue const> parsed;
-    };
-    mutable HashMap<void const*, Vector<RegisteredCustomPropertyParse>> m_registered_custom_property_parses;
 
     enum class ProvisionalTransitionAction : u8 {
         None,
