@@ -176,6 +176,8 @@ WEB_API u32 element_construction_facts(DOM::Element const&);
 WEB_API u32 element_style_adjustment_facts(DOM::Element const&);
 WEB_API u32 element_box_type_adjustment_facts(DOM::Element const&);
 WEB_API void record_element_adjustment_facts(DOM::Element&);
+// The element's animations changed: an element with animations has its style composed by the host.
+void record_element_animations_changed(DOM::Element&);
 WEB_API void record_element_construction_facts(DOM::Element&);
 // Called where which box an element asks for may have moved without its type or an attribute's presence moving.
 WEB_API void record_element_box_kind(DOM::Element&);

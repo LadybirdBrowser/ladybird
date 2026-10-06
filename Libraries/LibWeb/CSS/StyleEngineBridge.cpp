@@ -896,6 +896,7 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_flown_style_transaction
 void StyleEngine::end_flown_style_drain()
 {
     m_style_nodes_beside_flown_transaction.clear();
+    m_style_nodes_with_animations_changed_beside_flown_transaction.clear();
     StyleEngineFFI::style_engine_end_flown_style_drain(m_render_document->host());
     // Behind the writes made beside the transaction, the children it counted whose siblings changed beside it are
     // counted again.
@@ -926,6 +927,12 @@ void StyleEngine::note_style_node_arrived_or_retired(StyleNodeID style_node)
 {
     if (has_flown_style_transaction())
         m_style_nodes_beside_flown_transaction.set(style_node);
+}
+
+void StyleEngine::note_animations_changed(StyleNodeID style_node)
+{
+    if (has_flown_style_transaction())
+        m_style_nodes_with_animations_changed_beside_flown_transaction.set(style_node);
 }
 
 StyleEngine::PublishedStyleTransaction StyleEngine::publish_style_transaction_view(StyleEngineFFI::FfiStyleTransactionView const& view, MonotonicTime submission_started_at, MonotonicTime bridge_started_at)

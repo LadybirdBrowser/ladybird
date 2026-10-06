@@ -424,13 +424,18 @@ static RequiredInvalidationAfterStyleChange install_engine_computed_records(Layo
     // The record answers any style input the element owes, as the C++ computation it equals would: nothing is left for
     // a later transaction to plan.
     StyleEngineFFI::style_engine_consume_element_style_input(style_engine.host(), reaction.style_node);
+    // The engine decided whether the host composes the row from the animations the element had as its transaction was
+    // sealed. The pseudo-element records installed beside the element's can start animations of their own, which their
+    // installation composes.
+    [[maybe_unused]] bool const had_animations = (element.has_relevant_animations() || element.has_associated_animations())
+        && !style_engine.animations_changed_beside_flown_transaction(StyleNodeID { reaction.style_node });
     auto invalidation = element.apply_engine_computed_style_record(read, StyleRecordID { reaction.new_style_record }, pseudo_element_records, reaction.uses_substitution, reaction.record_reads, reaction.explicitly_inherited_groups, did_change_custom_properties, DOM::Element::DisplayNoneChange::LeftToCaller, &engine_record_damages);
     if (acknowledge)
         StyleEngineFFI::style_engine_acknowledge_engine_computed_record(style_engine.host(), StyleNodeID { reaction.style_node });
     // The engine asks for the element's children only after the host composed the record. Which rows the host composes
     // is the engine's to say, since it settles the pseudo-elements of every other row beside the record, and every
     // element with animations is among them.
-    ASSERT(reaction.composed_by_the_host || !(element.has_relevant_animations() || element.has_associated_animations()));
+    ASSERT(reaction.composed_by_the_host || !had_animations);
     if (reaction.composed_by_the_host) {
         DOM::AbstractElement abstract_element { element };
         if (reaction.owes_an_animation_plan)

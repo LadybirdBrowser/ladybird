@@ -417,6 +417,10 @@ public:
     // leaves its change, and what inherits from it, to the next transaction.
     void note_style_node_arrived_or_retired(StyleNodeID);
     [[nodiscard]] bool style_node_arrived_or_retired_beside_flown_transaction(StyleNodeID style_node) const { return m_style_nodes_beside_flown_transaction.contains(style_node); }
+    // The transaction that flew decided which of its rows the host composes from the animations each element had as it
+    // was sealed: an element whose animations changed beside it holds them composed from the next transaction on.
+    void note_animations_changed(StyleNodeID);
+    [[nodiscard]] bool animations_changed_beside_flown_transaction(StyleNodeID style_node) const { return m_style_nodes_with_animations_changed_beside_flown_transaction.contains(style_node); }
     // Has the engine recompute the children of `parent` whose style reads their place among their siblings, where some
     // child's does.
     void restyle_children_reading_sibling_position(DOM::Element& parent);
@@ -524,6 +528,7 @@ private:
     size_t m_element_match_capacity { 64 };
 
     HashTable<StyleNodeID> m_style_nodes_beside_flown_transaction;
+    HashTable<StyleNodeID> m_style_nodes_with_animations_changed_beside_flown_transaction;
     HashTable<StyleNodeID> m_parents_whose_children_changed_beside_flown_transaction;
     Vector<StyleEngineFFI::FfiTreeDelta> m_tree_deltas;
     Vector<StyleEngineFFI::FfiElementArrival> m_element_arrivals;
