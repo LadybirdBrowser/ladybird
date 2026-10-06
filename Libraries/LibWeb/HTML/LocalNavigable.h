@@ -328,7 +328,8 @@ public:
     bool take_recording_in_flight_in(TakeIn);
     bool has_recording_in_flight() const { return m_recording_in_flight; }
 
-    void render_screenshot(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);
+    // Paints into the target, which must be a shareable bitmap, then calls the callback.
+    void render_screenshot(NonnullRefPtr<Gfx::Bitmap> target, PaintConfig, Function<void()>&& callback);
     Compositing::DisplayListResourceStorage& display_list_resource_storage() { return presenter().display_list_resource_storage(); }
 
     // Leases the active document's render state to the render clock as a task begins, where the last rendering update

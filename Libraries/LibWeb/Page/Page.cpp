@@ -10,7 +10,6 @@
 #include <LibGC/Heap.h>
 #include <LibGC/HeapVector.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWeb/Bindings/CSS.h>
@@ -233,15 +232,14 @@ void Page::process_screenshot_requests()
                 continue;
             }
             auto rect = enclosing_device_rect(Painting::absolute_border_box_rect(*layout_node));
-            auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>());
+            auto bitmap_or_error = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, rect.size().to_type<int>());
             if (bitmap_or_error.is_error()) {
                 client.page_did_take_screenshot({});
                 continue;
             }
             auto bitmap = bitmap_or_error.release_value();
-            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
             HTML::PaintConfig paint_config { .canvas_fill_rect = rect.to_type<int>() };
-            navigable->render_screenshot(painting_surface, paint_config, [bitmap, &client] {
+            navigable->render_screenshot(bitmap, paint_config, [bitmap, &client] {
                 client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
             });
         } else {
@@ -251,15 +249,14 @@ void Page::process_screenshot_requests()
             VERIFY(layout_node && Painting::has_committed_box(*layout_node));
             auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(*layout_node);
             auto rect = enclosing_device_rect(scrollable_overflow_rect.value());
-            auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>());
+            auto bitmap_or_error = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, rect.size().to_type<int>());
             if (bitmap_or_error.is_error()) {
                 client.page_did_take_screenshot({});
                 continue;
             }
             auto bitmap = bitmap_or_error.release_value();
-            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
             HTML::PaintConfig paint_config { .paint_overlay = true, .canvas_fill_rect = rect.to_type<int>() };
-            navigable->render_screenshot(painting_surface, paint_config, [bitmap, &client] {
+            navigable->render_screenshot(bitmap, paint_config, [bitmap, &client] {
                 client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
             });
         }

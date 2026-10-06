@@ -5,7 +5,6 @@
  */
 
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -65,10 +64,9 @@ void draw_bounding_box_from_the_framebuffer(HTML::BrowsingContext& browsing_cont
     //    - Height: paint height
     Gfx::IntRect paint_rect { rect.x(), rect.y(), paint_width, paint_height };
 
-    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, Gfx::IntSize { paint_width, paint_height }));
-    auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
+    auto bitmap = MUST(Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, Gfx::IntSize { paint_width, paint_height }));
     HTML::PaintConfig paint_config { .canvas_fill_rect = paint_rect };
-    browsing_context.active_document()->navigable()->render_screenshot(painting_surface, paint_config, [bitmap, element = GC::make_root(element), canvas = GC::make_root(canvas), callback = move(callback)] mutable {
+    browsing_context.active_document()->navigable()->render_screenshot(bitmap, paint_config, [bitmap, element = GC::make_root(element), canvas = GC::make_root(canvas), callback = move(callback)] mutable {
         HTML::TemporaryExecutionContext execution_context { element->document().relevant_settings_object() };
 
         auto image_bitmap = HTML::ImageBitmap::create();
