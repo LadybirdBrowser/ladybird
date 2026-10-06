@@ -257,13 +257,6 @@ struct ScrollSnapType {
     bool operator==(ScrollSnapType const&) const = default;
 };
 
-struct ScrollSnapAlignData {
-    ScrollSnapAlign block_alignment { ScrollSnapAlign::None };
-    ScrollSnapAlign inline_alignment { ScrollSnapAlign::None };
-
-    bool operator==(ScrollSnapAlignData const&) const = default;
-};
-
 struct TextIndentData {
     LengthPercentage length_percentage;
     bool each_line { false };
@@ -304,22 +297,6 @@ private:
     }
 
     Vector<WillChangeEntry> m_value;
-};
-
-struct OverflowClipMarginSide {
-    Optional<BackgroundBox> visual_box {};
-    CSSPixels offset { 0 };
-
-    bool operator==(OverflowClipMarginSide const&) const = default;
-};
-
-struct OverflowClipMarginData {
-    OverflowClipMarginSide left;
-    OverflowClipMarginSide top;
-    OverflowClipMarginSide right;
-    OverflowClipMarginSide bottom;
-
-    bool operator==(OverflowClipMarginData const&) const = default;
 };
 
 struct ListStyleSymbols {
@@ -758,17 +735,7 @@ public:
     };
 
     static NonnullRefPtr<ComputedValues const> create(ComputedStyleWorkingSet const&, DOM::Document const&, StyleScope const&, ColorResolutionContext, ComputedValues const* inherit_parent = nullptr);
-
-    // Build only the named groups; every other group keeps `base`'s payload untouched. The caller
-    // warrants that every property outside `groups_to_apply` computes to the same value in the
-    // given style as it did when `base` was built.
     static constexpr u32 all_style_groups = (1u << to_underlying(StyleGroupIndex::Count)) - 1;
-    static NonnullRefPtr<ComputedValues const> create_over_base(ComputedStyleWorkingSet const&, DOM::Document const&, StyleScope const&, ColorResolutionContext, ComputedValues const& base, u32 groups_to_apply);
-
-    // The style group a longhand's computed value lives in, derived from the field descriptors the
-    // group payloads build from, plus explicit bindings for the bespoke-built groups. A longhand
-    // without a binding has no single known group and must be treated conservatively.
-    static Optional<StyleGroupIndex> style_group_of_property(PropertyID);
 
     RefPtr<StyleValue const> computed_style_value(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
 
@@ -782,7 +749,6 @@ public:
                                                                                                                         : *this; }
     bool has_animated_values() const { return m_borrowed_base_values || m_base_values; }
     AnimatedProperties const* animated_properties() const { return m_animated_properties.ptr(); }
-    RefPtr<AnimatedProperties const> animated_properties_snapshot() const;
 
     // Animated values live outside the group payloads, so every group-based fast path or
     // group-based diff must fall back to the slow path when either side carries them.
@@ -797,12 +763,6 @@ public:
     };
     static Statistics const& statistics() { return s_statistics; }
 
-    // Shares group payloads with `previous` wherever the values compare equal. This changes no
-    // observable value, only the identity of the backing payloads, so it is safe on an otherwise
-    // immutable ComputedValues. It makes pointer-based diffing hit on the next restyle and lets a
-    // restyled element keep sharing storage across style generations. Returns true when every
-    // group ends up sharing its payload with `previous`.
-    bool adopt_identical_group_payloads(ComputedValues const& previous) const;
     // The same question answered straight from two style records' group payload arrays, so a caller
     // that only wants the answer does not have to materialize a ComputedValues for either record.
     static bool layout_affecting_group_payloads_differ(void const* const* a, void const* const* b);
@@ -829,12 +789,6 @@ public:
     ReadonlyBytes property_importance_bitmap() const LIFETIME_BOUND { return m_property_important.bytes(); }
     ReadonlyBytes property_inheritance_bitmap() const LIFETIME_BOUND { return m_property_inherited.bytes(); }
 
-    // True when every inherited longhand took its value by inheritance and no other longhand did:
-    // the element's cascade declared nothing that survives into its inherited half, and nothing
-    // explicitly inherited a property that does not inherit on its own. Such an element's inherited
-    // half is, by construction, exactly what its parent's inherited half was when this style was
-    // computed.
-    bool property_inheritance_is_standard() const;
     bool depends_on_viewport_metrics() const { return m_depends_on_viewport_metrics; }
     bool font_metrics_depend_on_viewport_metrics() const { return m_font_metrics_depend_on_viewport_metrics; }
     bool in_display_none_subtree() const { return m_in_display_none_subtree; }
@@ -843,7 +797,6 @@ public:
     bool has_pseudo_element_style(PseudoElement pseudo_element) const { return m_pseudo_element_styles & (1ull << to_underlying(pseudo_element)); }
     u64 pseudo_element_style_mask() const { return m_pseudo_element_styles; }
     ReadonlySpan<ComputedValuesFFI::FfiTableInheritanceDependentValue const> inheritance_dependent_specified_values() const { return m_inheritance_dependent_specified_values; }
-    RefPtr<StyleValue const> raw_cascaded_font_size() const;
 
     // The drive's frozen computed longhand table (a Rust ComputedLonghandTable), or null when
     // this style holds only a borrowed span or no table at all.
@@ -856,8 +809,6 @@ public:
     ~ComputedValues();
 
 private:
-    static NonnullRefPtr<ComputedValues const> create_internal(ComputedStyleWorkingSet const&, DOM::Document const&, StyleScope const&, ColorResolutionContext, ComputedValues const* inherit_parent, ComputedValues const* base, u32 groups_to_apply);
-
 public:
     ReadonlySpan<Utf16FlyString> anchor_names() const { return m_noninherited.anchor->anchor_names_span(); }
     PositionAnchor position_anchor_value() const { return m_noninherited.anchor->position_anchor_value(); }
@@ -1434,12 +1385,6 @@ public:
         Vector<CounterData, 0> counter_increment_value() const;
         Vector<CounterData, 0> counter_reset_value() const;
         Vector<CounterData, 0> counter_set_value() const;
-        // True when the property is the `none` keyword, which is the only form that yields no counters.
-        bool counter_increment_is_none() const;
-        bool counter_reset_is_none() const;
-        bool counter_set_is_none() const;
-        bool counter_reset_has_reversed_counter() const;
-        bool counter_increment_names_list_item() const;
 
         bool operator==(ContentValues const& other) const
         {
@@ -1596,7 +1541,6 @@ public:
 
         Optional<Utf16FlyString> view_transition_name_value() const;
         TouchActionData touch_action_value() const;
-        ScrollSnapAlignData scroll_snap_align_value() const;
         ScrollSnapType scroll_snap_type_value() const;
         WillChange will_change_value() const;
 

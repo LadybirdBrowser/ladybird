@@ -81,18 +81,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_long
     return adopt_ref(*new ComputedStyleWorkingSet(longhand_table));
 }
 
-NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_base_values_from(ComputedStyleWorkingSet const& style)
-{
-    auto working_set = create();
-    working_set->m_mint_cache->wrappers = style.m_mint_cache->wrappers;
-    // The table copy carries the importance, inheritance and evaluation flags and the recorded
-    // inheritance-dependent specified values along with the value slots.
-    ComputedValuesFFI::rust_computed_longhand_table_copy_from(working_set->m_computed_longhand_table, style.m_computed_longhand_table);
-    if (style.m_animated_properties)
-        working_set->m_animated_properties = adopt_ref(*new AnimatedProperties(*style.m_animated_properties));
-    return working_set;
-}
-
 NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_base_values_from(ComputedValues const& style)
 {
     auto working_set = create();
@@ -124,7 +112,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_base
     if (base.font_metrics_depend_on_viewport_metrics())
         working_set->set_font_metrics_depend_on_viewport_metrics();
     if (base.in_display_none_subtree())
-        working_set->set_in_display_none_subtree();
+        working_set->metadata().in_display_none_subtree = true;
     return working_set;
 }
 
@@ -265,21 +253,6 @@ void AnimatedProperties::set_property(PropertyID id, NonnullRefPtr<StyleValue co
     m_wrapper_cache.set(id, move(value));
 }
 
-bool ComputedStyleWorkingSet::is_property_important(PropertyID property_id) const
-{
-    return ComputedValuesFFI::rust_computed_longhand_table_is_important(m_computed_longhand_table, to_underlying(property_id));
-}
-
-void ComputedStyleWorkingSet::set_property_important(PropertyID property_id, Important important)
-{
-    ComputedValuesFFI::rust_computed_longhand_table_set_important(m_computed_longhand_table, to_underlying(property_id), important == Important::Yes);
-}
-
-bool ComputedStyleWorkingSet::is_property_inherited(PropertyID property_id) const
-{
-    return ComputedValuesFFI::rust_computed_longhand_table_is_inherited(m_computed_longhand_table, to_underlying(property_id));
-}
-
 ReadonlyBytes ComputedStyleWorkingSet::property_importance_bitmap() const
 {
     return { ComputedValuesFFI::rust_computed_longhand_table_importance_bits(m_computed_longhand_table), (number_of_longhand_properties + 7) / 8 };
@@ -319,11 +292,6 @@ void ComputedStyleWorkingSet::set_has_pseudo_element_styles(u64 pseudo_element_s
     metadata().pseudo_element_styles |= pseudo_element_styles;
 }
 
-void ComputedStyleWorkingSet::set_property_inherited(PropertyID property_id, Inherited inherited)
-{
-    ComputedValuesFFI::rust_computed_longhand_table_set_inherited(m_computed_longhand_table, to_underlying(property_id), inherited == Inherited::Yes);
-}
-
 void ComputedStyleWorkingSet::set_depends_on_viewport_metrics()
 {
     metadata().dependency_flags |= to_underlying(StyleRecordDependencyFlag::DependsOnViewportMetrics);
@@ -334,43 +302,9 @@ void ComputedStyleWorkingSet::set_font_metrics_depend_on_viewport_metrics()
     metadata().dependency_flags |= to_underlying(StyleRecordDependencyFlag::FontMetricsDependOnViewportMetrics);
 }
 
-void ComputedStyleWorkingSet::set_in_display_none_subtree()
-{
-    metadata().in_display_none_subtree = true;
-}
-
-void ComputedStyleWorkingSet::set_property(PropertyID id, NonnullRefPtr<StyleValue const> value, Inherited inherited, Important important)
-{
-    VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
-
-    set_property_without_modifying_flags(id, move(value));
-    set_property_important(id, important);
-    set_property_inherited(id, inherited);
-}
-
 static bool property_affects_computed_font_list(PropertyID id)
 {
     return first_is_one_of(id, PropertyID::FontFamily, PropertyID::FontSize, PropertyID::FontStyle, PropertyID::FontWeight, PropertyID::FontWidth, PropertyID::FontVariationSettings);
-}
-
-void ComputedStyleWorkingSet::set_property_without_modifying_flags(PropertyID id, NonnullRefPtr<StyleValue const> value)
-{
-    VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
-
-    ComputedValuesFFI::rust_computed_longhand_table_set(m_computed_longhand_table, to_underlying(id), value->rust_style_value_data(), -1);
-    m_mint_cache->wrappers.set(id, move(value));
-
-    if (property_affects_computed_font_list(id))
-        clear_computed_font_list_cache();
-}
-
-void ComputedStyleWorkingSet::did_store_property_data_from_drive(PropertyID id)
-{
-    VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
-    m_mint_cache->wrappers.remove(id);
-
-    if (property_affects_computed_font_list(id))
-        clear_computed_font_list_cache();
 }
 
 Display ComputedStyleWorkingSet::display_before_box_type_transformation() const
@@ -575,164 +509,16 @@ CSSPixels ComputedStyleWorkingSet::line_height(FontComputer const& font_computer
     VERIFY_NOT_REACHED();
 }
 
-float ComputedStyleWorkingSet::stop_opacity() const
-{
-    return property(PropertyID::StopOpacity).as_opacity_value().resolved();
-}
-
-float ComputedStyleWorkingSet::flood_opacity() const
-{
-    return property(PropertyID::FloodOpacity).as_opacity_value().resolved();
-}
-
-ImageRendering ComputedStyleWorkingSet::image_rendering() const
-{
-    auto const& value = property(PropertyID::ImageRendering);
-    return keyword_to_image_rendering(value.to_keyword()).release_value();
-}
-
-CSSPixels ComputedStyleWorkingSet::border_spacing_horizontal() const
-{
-    auto const& style_value = property(PropertyID::BorderSpacing);
-
-    if (style_value.is_value_list()) {
-        auto const& list = style_value.as_value_list();
-        VERIFY(list.size() > 0);
-        return Length::from_style_value(list.value_at(0, false), {}).absolute_length_to_px();
-    }
-
-    return Length::from_style_value(style_value, {}).absolute_length_to_px();
-}
-
-CSSPixels ComputedStyleWorkingSet::border_spacing_vertical() const
-{
-    auto const& style_value = property(PropertyID::BorderSpacing);
-
-    if (style_value.is_value_list()) {
-        auto const& list = style_value.as_value_list();
-        VERIFY(list.size() > 1);
-        return Length::from_style_value(list.value_at(1, false), {}).absolute_length_to_px();
-    }
-
-    return Length::from_style_value(style_value, {}).absolute_length_to_px();
-}
-
-CaptionSide ComputedStyleWorkingSet::caption_side() const
-{
-    auto const& value = property(PropertyID::CaptionSide);
-    return keyword_to_caption_side(value.to_keyword()).release_value();
-}
-
-Color ComputedStyleWorkingSet::accent_color(ColorResolutionContext const& color_resolution_context) const
-{
-    auto const& value = property(PropertyID::AccentColor);
-
-    if (value.to_keyword() == Keyword::Auto)
-        return CSS::SystemColor::accent_color(color_resolution_context.color_scheme.value());
-
-    return value.to_color(color_resolution_context).value();
-}
-
 TextRendering ComputedStyleWorkingSet::text_rendering() const
 {
     auto const& value = property(PropertyID::TextRendering);
     return keyword_to_text_rendering(value.to_keyword()).release_value();
 }
 
-CSSPixels ComputedStyleWorkingSet::text_underline_offset() const
-{
-    auto const& computed_text_underline_offset = property(PropertyID::TextUnderlineOffset);
-
-    // auto
-    if (computed_text_underline_offset.to_keyword() == Keyword::Auto)
-        return InitialValues::text_underline_offset();
-
-    // <length>
-    // <percentage>
-    return Length::from_style_value(computed_text_underline_offset, Length::make_px(font_size())).absolute_length_to_px();
-}
-
-CSSPixels ComputedStyleWorkingSet::word_spacing() const
-{
-    auto const& value = property(PropertyID::WordSpacing);
-    if (value.is_keyword() && value.to_keyword() == Keyword::Normal)
-        return 0;
-
-    return Length::from_style_value(value, Length::make_px(font_size())).absolute_length_to_px();
-}
-
-CSSPixels ComputedStyleWorkingSet::letter_spacing() const
-{
-    auto const& value = property(PropertyID::LetterSpacing);
-    if (value.is_keyword() && value.to_keyword() == Keyword::Normal)
-        return 0;
-
-    return Length::from_style_value(value, Length::make_px(font_size())).absolute_length_to_px();
-}
-
-Color ComputedStyleWorkingSet::caret_color(ColorResolutionContext const& color_resolution_context) const
-{
-    auto const& value = property(PropertyID::CaretColor);
-    if (value.is_keyword() && value.to_keyword() == Keyword::Auto)
-        return color_resolution_context.current_color.value_or(InitialValues::color());
-
-    if (value.has_color())
-        return value.to_color(color_resolution_context).value();
-
-    return InitialValues::caret_color();
-}
-
-ContentVisibility ComputedStyleWorkingSet::content_visibility() const
-{
-    auto const& value = property(PropertyID::ContentVisibility);
-    return keyword_to_content_visibility(value.to_keyword()).release_value();
-}
-
-Visibility ComputedStyleWorkingSet::visibility() const
-{
-    auto const& value = property(PropertyID::Visibility);
-    if (!value.is_keyword())
-        return {};
-    return keyword_to_visibility(value.to_keyword()).release_value();
-}
-
-Display ComputedStyleWorkingSet::display() const
-{
-    auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(effective_property_data(PropertyID::Display));
-    VERIFY(value->tag == StyleValueFFI::StyleValueData::Tag::Display);
-    return bit_cast<Display>(value->display.raw);
-}
-
-ListStyleType ComputedStyleWorkingSet::list_style_type(StyleScope const& style_scope) const
-{
-    auto const& value = property(PropertyID::ListStyleType);
-
-    if (value.to_keyword() == Keyword::None)
-        return Empty {};
-
-    if (value.is_string())
-        return value.as_string().string_value().to_utf16_string();
-
-    auto counter_style = value.as_counter_style().resolve_counter_style(style_scope);
-    if (counter_style)
-        return counter_style;
-
-    VERIFY(value.as_counter_style().value().has<Utf16FlyString>());
-    return UnresolvedCounterStyleName { value.as_counter_style().value().get<Utf16FlyString>() };
-}
-
 FontKerning ComputedStyleWorkingSet::font_kerning() const
 {
     auto const& value = property(PropertyID::FontKerning);
     return keyword_to_font_kerning(value.to_keyword()).release_value();
-}
-
-Optional<Utf16FlyString> ComputedStyleWorkingSet::font_language_override() const
-{
-    auto const& value = property(PropertyID::FontLanguageOverride);
-    if (value.is_string())
-        return value.as_string().string_value();
-    return {};
 }
 
 FontFeatureData ComputedStyleWorkingSet::font_feature_data() const
@@ -942,50 +728,6 @@ HashMap<Utf16FlyString, double> font_variation_settings_from_style_value(StyleVa
             result.set(axis_tag.tag(), number_from_style_value(axis_tag.value(), {}));
         }
         return result;
-    }
-
-    return {};
-}
-
-BorderCollapse ComputedStyleWorkingSet::border_collapse() const
-{
-    auto const& value = property(PropertyID::BorderCollapse);
-    return keyword_to_border_collapse(value.to_keyword()).release_value();
-}
-
-EmptyCells ComputedStyleWorkingSet::empty_cells() const
-{
-    auto const& value = property(PropertyID::EmptyCells);
-    return keyword_to_empty_cells(value.to_keyword()).release_value();
-}
-
-Direction ComputedStyleWorkingSet::direction() const
-{
-    auto const& value = property(PropertyID::Direction);
-    return keyword_to_direction(value.to_keyword()).release_value();
-}
-
-WritingMode ComputedStyleWorkingSet::writing_mode() const
-{
-    auto const& value = property(PropertyID::WritingMode);
-    return keyword_to_writing_mode(value.to_keyword()).release_value();
-}
-
-ScrollbarColorData ComputedStyleWorkingSet::scrollbar_color(ColorResolutionContext const& color_resolution_context) const
-{
-    auto const& value = property(PropertyID::ScrollbarColor);
-    if (value.is_keyword() && value.as_keyword().keyword() == Keyword::Auto)
-        return InitialValues::scrollbar_color();
-
-    if (value.is_scrollbar_color()) {
-        auto& scrollbar_color_value = value.as_scrollbar_color();
-        auto thumb_color = scrollbar_color_value.thumb_color()->to_color(color_resolution_context).value();
-        auto track_color = scrollbar_color_value.track_color()->to_color(color_resolution_context).value();
-        return {
-            .thumb_color = thumb_color,
-            .track_color = track_color,
-            .is_auto = false,
-        };
     }
 
     return {};

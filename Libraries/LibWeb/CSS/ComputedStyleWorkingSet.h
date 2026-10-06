@@ -59,7 +59,6 @@ public:
 
     static NonnullRefPtr<ComputedStyleWorkingSet> create();
     static NonnullRefPtr<ComputedStyleWorkingSet> create_with_longhand_table(ComputedValuesFFI::ComputedLonghandTable*);
-    static NonnullRefPtr<ComputedStyleWorkingSet> create_with_base_values_from(ComputedStyleWorkingSet const&);
     static NonnullRefPtr<ComputedStyleWorkingSet> create_with_base_values_from(ComputedValues const&);
     static NonnullRefPtr<ComputedStyleWorkingSet> create_for_animation_update(ComputedValuesFFI::ComputedLonghandTable const*, ComputedValuesFFI::AnimatedOverlay const*);
     ~ComputedStyleWorkingSet();
@@ -73,17 +72,10 @@ public:
     NonnullRefPtr<ComputedStyleWorkingSet> copy_without_animations() const;
 
     void set_has_pseudo_element_styles(u64);
-    void set_property_important(PropertyID, Important);
-    void set_property_inherited(PropertyID, Inherited);
     void set_depends_on_viewport_metrics();
     void set_font_metrics_depend_on_viewport_metrics();
-    void set_in_display_none_subtree();
 
-    void set_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No, Important = Important::No);
     // The wrapper-carrying store funnel: dual-writes the Rust table and the wrapper cache.
-    void set_property_without_modifying_flags(PropertyID, NonnullRefPtr<StyleValue const> value);
-    // Invalidates C++ sidecars after the Rust driver stores a value directly in the table.
-    void did_store_property_data_from_drive(PropertyID);
     void set_display_before_box_type_transformation(Display);
 
     bool has_effective_color_scheme() const { return metadata().effective_color_scheme >= 0; }
@@ -92,8 +84,6 @@ public:
     RefPtr<AnimatedProperties const> animated_properties_snapshot() const;
     ComputedValuesFFI::AnimatedOverlay const* animated_overlay() const;
     bool has_animated_property(PropertyID property_id) const;
-    bool is_property_important(PropertyID property_id) const;
-    bool is_property_inherited(PropertyID property_id) const;
     bool depends_on_viewport_metrics() const { return metadata().dependency_flags & to_underlying(StyleRecordDependencyFlag::DependsOnViewportMetrics); }
     bool font_metrics_depend_on_viewport_metrics() const { return metadata().dependency_flags & to_underlying(StyleRecordDependencyFlag::FontMetricsDependOnViewportMetrics); }
     // Whether the element this style was computed for has computed display none, or is a descendant of one that does.
@@ -119,39 +109,12 @@ public:
     Color color(PropertyID, ColorResolutionContext) const;
     PreferredColorScheme color_scheme(PreferredColorScheme, Optional<Vector<Utf16FlyString> const&> document_supported_schemes) const;
     TextRendering text_rendering() const;
-    CSSPixels text_underline_offset() const;
-    CSSPixels border_spacing_horizontal() const;
-    CSSPixels border_spacing_vertical() const;
-    CaptionSide caption_side() const;
-    Display display() const;
-    Color caret_color(ColorResolutionContext const&) const;
-    ContentVisibility content_visibility() const;
-    CSSPixels word_spacing() const;
-    CSSPixels letter_spacing() const;
-    ListStyleType list_style_type(StyleScope const&) const;
-    Color accent_color(ColorResolutionContext const&) const;
-    Visibility visibility() const;
-    ImageRendering image_rendering() const;
     FontFeatureData font_feature_data() const;
-    Optional<FontVariantAlternates> font_variant_alternates() const;
     FontVariantCaps font_variant_caps() const;
-    Optional<FontVariantEastAsian> font_variant_east_asian() const;
     FontVariantEmoji font_variant_emoji() const;
-    Optional<FontVariantLigatures> font_variant_ligatures() const;
-    Optional<FontVariantNumeric> font_variant_numeric() const;
     FontVariantPosition font_variant_position() const;
     FontKerning font_kerning() const;
-    Optional<Utf16FlyString> font_language_override() const;
-    HashMap<Utf16FlyString, u8> font_feature_settings() const;
-    HashMap<Utf16FlyString, double> font_variation_settings() const;
-    BorderCollapse border_collapse() const;
-    CSS::EmptyCells empty_cells() const;
-    Direction direction() const;
-    WritingMode writing_mode() const;
     Display display_before_box_type_transformation() const;
-
-    float stop_opacity() const;
-    float flood_opacity() const;
 
     // The font list for text in the given tree scope, whose @font-feature-values font-variant-alternates reads.
     ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> computed_font_list(FontComputer const&, TreeScopeID) const;
@@ -159,16 +122,10 @@ public:
     ComputedValuesFFI::FfiFontGroupBuildInputs font_group_build_inputs(DOM::Document const&, TreeScopeID) const;
     ValueComparingNonnullRefPtr<Gfx::Font const> first_available_computed_font(FontComputer const&) const;
 
-    int math_depth() const;
     [[nodiscard]] CSSPixels line_height(FontComputer const&) const;
     [[nodiscard]] CSSPixels font_size() const;
     Vector<ComputedFontFamily> computed_font_families() const;
-    double font_weight() const;
-    Percentage font_width() const;
-    int font_slope() const;
     FontOpticalSizing font_optical_sizing() const;
-
-    ScrollbarColorData scrollbar_color(ColorResolutionContext const&) const;
 
     // Whole-bitmap views over the table's importance and inheritance flags, in FixedBitmap
     // byte layout; valid while the table is.
@@ -199,6 +156,17 @@ private:
 
     AnimatedProperties const& animated_properties() const;
     AnimatedProperties& mutable_animated_properties();
+
+    Optional<FontVariantAlternates> font_variant_alternates() const;
+    Optional<FontVariantEastAsian> font_variant_east_asian() const;
+    Optional<FontVariantLigatures> font_variant_ligatures() const;
+    Optional<FontVariantNumeric> font_variant_numeric() const;
+    HashMap<Utf16FlyString, u8> font_feature_settings() const;
+    HashMap<Utf16FlyString, double> font_variation_settings() const;
+    int math_depth() const;
+    double font_weight() const;
+    Percentage font_width() const;
+    int font_slope() const;
     ComputedValuesFFI::FfiComputedStyleMetadata& metadata()
     {
         ensure_mutable_computed_longhand_table();

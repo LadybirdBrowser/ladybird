@@ -2023,7 +2023,6 @@ RefPtr<CustomPropertyData const> StyleComputer::engine_custom_property_environme
 // thing keeping it - and its parent chain - alive.
 void StyleComputer::sweep_custom_property_environments() const
 {
-    m_registered_custom_property_parses.clear();
     m_engine_custom_property_environments.remove_all_matching([](auto&, NonnullRefPtr<CustomPropertyData const> const& data) { return data->ref_count() == 1; });
 }
 

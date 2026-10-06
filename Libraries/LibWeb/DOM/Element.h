@@ -50,12 +50,6 @@ class KeyframeEffect;
 
 }
 
-namespace Web::CSS {
-
-struct StyleEngineMatchResult;
-
-}
-
 namespace Web::DOM {
 
 class Element;

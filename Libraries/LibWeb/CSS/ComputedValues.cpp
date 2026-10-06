@@ -12,7 +12,6 @@
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/InstalledStyle.h>
 #include <LibWeb/CSS/StyleComputer.h>
-#include <LibWeb/CSS/StyleGroupPayloadPins.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
@@ -51,29 +50,6 @@
 #include <LibWeb/Page/Page.h>
 
 namespace Web::CSS {
-
-StyleGroupPayloadPins::~StyleGroupPayloadPins()
-{
-    clear();
-}
-
-void StyleGroupPayloadPins::set(ReadonlySpan<void const*> payloads)
-{
-    clear();
-    if (payloads.is_empty())
-        return;
-    m_payloads.ensure_capacity(payloads.size());
-    ComputedValuesFFI::rust_style_groups_retain(payloads.data(), payloads.size());
-    for (auto const* payload : payloads)
-        m_payloads.unchecked_append(payload);
-}
-
-void StyleGroupPayloadPins::clear()
-{
-    if (!m_payloads.is_empty())
-        ComputedValuesFFI::rust_style_groups_release(m_payloads.data(), m_payloads.size());
-    m_payloads.clear_with_capacity();
-}
 
 template<typename T>
 static consteval ComputedValuesFFI::StyleGroupLifecycle style_group_lifecycle_of()
@@ -552,13 +528,6 @@ static void register_style_group_field_descriptors()
 #endif
 }
 
-Optional<StyleGroupIndex> ComputedValues::style_group_of_property(PropertyID property_id)
-{
-    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
-    register_style_groups();
-    return style_group_by_property()[to_underlying(property_id) - to_underlying(first_longhand_property_id)];
-}
-
 // Groups whose layout is defined in Rust must not change size or alignment when the C++
 // side layers initial values and accessors on top of the mirrored layout.
 static_assert(sizeof(ComputedValues::InheritedBoxValues) == sizeof(ComputedValuesFFI::InheritedBoxValues));
@@ -683,42 +652,6 @@ void register_style_groups()
 void const* style_group_default_payload(size_t group_index)
 {
     return registered_default_payloads()[group_index];
-}
-
-bool ComputedValues::property_inheritance_is_standard() const
-{
-    static auto const standard_inheritance_bitmap = [] {
-        AK::FixedBitmap<number_of_longhand_properties> bitmap { false };
-        for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
-            auto property_id = static_cast<PropertyID>(i);
-            if (is_inherited_property(property_id))
-                bitmap.set(property_bitmap_index(property_id), true);
-        }
-        return bitmap;
-    }();
-    return m_property_inherited == standard_inheritance_bitmap;
-}
-
-bool ComputedValues::adopt_identical_group_payloads(ComputedValues const& previous) const
-{
-    bool all_shared = true;
-    auto adopt = [&]<typename T>(StyleStructRef<T> const& mine, StyleStructRef<T> const& theirs) {
-        if (mine.ptr_equals(theirs))
-            return;
-        if (mine == theirs) {
-            // StyleEngine retains the previously published payload independently, so adopting an
-            // equal canonical payload changes this projection without moving the shared record.
-            const_cast<StyleStructRef<T>&>(mine) = theirs;
-            return;
-        }
-        all_shared = false;
-    };
-#define LIBWEB_ADOPT_STYLE_GROUP(name, path, sharing_name, affects_layout) adopt(path, previous.path);
-    LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(LIBWEB_ADOPT_STYLE_GROUP)
-#undef LIBWEB_ADOPT_STYLE_GROUP
-    if (all_shared)
-        adopt_identical_computed_longhand_table(previous);
-    return all_shared;
 }
 
 // The same canonicalization for the computed longhand table: when this style's table names
@@ -965,14 +898,6 @@ TouchActionData ComputedValues::MiscResetValues::touch_action_value() const
     };
 }
 
-ScrollSnapAlignData ComputedValues::MiscResetValues::scroll_snap_align_value() const
-{
-    return {
-        .block_alignment = static_cast<ScrollSnapAlign>(scroll_snap_align_block),
-        .inline_alignment = static_cast<ScrollSnapAlign>(scroll_snap_align_inline),
-    };
-}
-
 ScrollSnapType ComputedValues::MiscResetValues::scroll_snap_type_value() const
 {
     return {
@@ -1183,42 +1108,6 @@ static Vector<CounterData, 0> counter_data_from_handle(ComputedValuesFFI::Comput
         result.unchecked_append({ definition.name, definition.is_reversed, counter_value });
     }
     return result;
-}
-
-static bool counter_handle_is_none(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
-{
-    return animation_style_value(handle)->is_keyword();
-}
-
-bool ComputedValues::ContentValues::counter_increment_is_none() const
-{
-    return counter_handle_is_none(counter_increment);
-}
-
-bool ComputedValues::ContentValues::counter_reset_is_none() const
-{
-    return counter_handle_is_none(counter_reset);
-}
-
-bool ComputedValues::ContentValues::counter_set_is_none() const
-{
-    return counter_handle_is_none(counter_set);
-}
-
-bool ComputedValues::ContentValues::counter_reset_has_reversed_counter() const
-{
-    auto value = animation_style_value(counter_reset);
-    if (value->is_keyword())
-        return false;
-    return any_of(value->as_counter_definitions().counter_definitions(), [](auto const& definition) { return definition.is_reversed; });
-}
-
-bool ComputedValues::ContentValues::counter_increment_names_list_item() const
-{
-    auto value = animation_style_value(counter_increment);
-    if (value->is_keyword())
-        return false;
-    return any_of(value->as_counter_definitions().counter_definitions(), [](auto const& definition) { return definition.name == list_item_counter_name(); });
 }
 
 Vector<CounterData, 0> ComputedValues::ContentValues::counter_increment_value() const
@@ -1493,27 +1382,7 @@ Vector<ComputedAnimationName> ComputedValues::AnimationValues::animation_names_v
 
 NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedStyleWorkingSet const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const* inherit_parent)
 {
-    return create_internal(computed_style, document, style_scope, move(color_resolution_context), inherit_parent, nullptr, all_style_groups);
-}
-
-NonnullRefPtr<ComputedValues const> ComputedValues::create_over_base(ComputedStyleWorkingSet const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const& base, u32 groups_to_apply)
-{
-    return create_internal(computed_style, document, style_scope, move(color_resolution_context), nullptr, &base, groups_to_apply);
-}
-
-NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedStyleWorkingSet const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const* inherit_parent, ComputedValues const* base, u32 groups_to_apply)
-{
-    // A group outside `groups_to_apply` keeps the base's payload: its build is skipped and it counts
-    // as adopted, so the guarded setters below leave it alone. The caller warrants that every
-    // property in a skipped group computes to the same value in `computed_style` as it did when
-    // `base` was built. Unguarded setters still run, and their value-equality checks are what keeps
-    // a skipped group's payload shared rather than cloned.
-    // The Rust surround payload duplicates position-anchor for layout, so rebuilding the anchor
-    // group must also refresh that payload.
-    if ((groups_to_apply >> to_underlying(StyleGroupIndex::AnchorValues)) & 1u)
-        groups_to_apply |= 1u << to_underlying(StyleGroupIndex::SurroundValues);
-    auto applies = [&](StyleGroupIndex group) { return ((groups_to_apply >> to_underlying(group)) & 1u) != 0; };
-    auto builder = base ? Builder { *base } : Builder {};
+    Builder builder;
     auto& computed_values = *builder.operator->();
 
     // NOTE: color-scheme must resolve first to ensure system colors can be resolved correctly,
@@ -1531,15 +1400,13 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedStyl
     auto animated_properties = computed_style.animated_properties_snapshot();
     Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_context_storage;
     auto ffi_color_input = make_rust_color_resolution_input(color_resolution_context, length_context_storage);
-    Optional<ComputedValuesFFI::FfiFontGroupBuildInputs> font_group_inputs;
-    if (applies(StyleGroupIndex::FontValues))
-        font_group_inputs = computed_style.font_group_build_inputs(document, style_scope.style_engine_tree_scope());
+    auto font_group_inputs = computed_style.font_group_build_inputs(document, style_scope.style_engine_tree_scope());
     ComputedValuesFFI::FfiTableGroupBuildInputs table_build_inputs {
         .color_input = &ffi_color_input,
         .used_color_scheme = static_cast<u8>(to_underlying(color_scheme)),
         .animated_overlay = animated_properties ? animated_properties->overlay() : nullptr,
         .box_display_before_transformation_raw = bit_cast<u32>(computed_style.display_before_box_type_transformation()),
-        .font = font_group_inputs.has_value() ? &font_group_inputs.value() : nullptr,
+        .font = &font_group_inputs,
     };
     Array<void const*, to_underlying(StyleGroupIndex::Count)> parent_group_payloads {};
     if (inherit_parent) {
@@ -1547,7 +1414,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedStyl
             parent_group_payloads[group] = inherit_parent->style_group_payload(static_cast<StyleGroupIndex>(group));
     }
     Array<void const*, to_underlying(StyleGroupIndex::Count)> table_group_payloads {};
-    ComputedValuesFFI::rust_build_group_payloads_from_table(longhand_table, groups_to_apply, parent_group_payloads.data(), &table_build_inputs, table_group_payloads.data(), table_group_payloads.size());
+    ComputedValuesFFI::rust_build_group_payloads_from_table(longhand_table, all_style_groups, parent_group_payloads.data(), &table_build_inputs, table_group_payloads.data(), table_group_payloads.size());
     computed_values.adopt_style_group_payloads(table_group_payloads);
     computed_values.set_property_flag_bitmaps(computed_style.property_importance_bitmap(), computed_style.property_inheritance_bitmap());
     computed_values.set_depends_on_viewport_metrics(computed_style.depends_on_viewport_metrics());
@@ -1649,11 +1516,6 @@ void ComputedValues::Mutator::set_animated_properties(AnimatedProperties const* 
     m_values.m_animated_properties = value;
 }
 
-RefPtr<AnimatedProperties const> ComputedValues::animated_properties_snapshot() const
-{
-    return m_animated_properties;
-}
-
 RefPtr<StyleValue const> ComputedValues::style_value_from_handle(PropertyID property_id, RustStyleValueHandle const& handle) const
 {
     if (!handle) {
@@ -1738,17 +1600,6 @@ RefPtr<StyleValue const> ComputedValues::color_style_value() const
         return style_value_from_handle(PropertyID::Color, handle);
     }
     return computed_style_value(PropertyID::Color);
-}
-
-RefPtr<StyleValue const> ComputedValues::raw_cascaded_font_size() const
-{
-    if (!m_computed_longhand_table)
-        return {};
-    auto const* data = ComputedValuesFFI::rust_computed_longhand_table_raw_cascaded_font_size(
-        static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(m_computed_longhand_table));
-    if (!data)
-        return {};
-    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data)));
 }
 
 RefPtr<StyleValue const> ComputedValues::background_color_style_value() const

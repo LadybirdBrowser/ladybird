@@ -1846,40 +1846,6 @@ pub(crate) unsafe fn clone_group_payload(group_index: usize, source: *const c_vo
     payload
 }
 
-/// Retains one reference to each style-group payload in `payloads`.
-///
-/// # Safety
-/// `payloads` must point at `group_count` valid payloads in style group index
-/// order.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_groups_retain(payloads: *const *const c_void, group_count: usize) {
-    unsafe {
-        assert!(!payloads.is_null(), "style group payload array is null");
-        for group_index in 0..group_count {
-            let payload = *payloads.add(group_index);
-            assert!(!payload.is_null(), "style group payload is null");
-            retain_group_payload(group_index, payload);
-        }
-    };
-}
-
-/// Releases one reference to each style-group payload in `payloads`.
-///
-/// # Safety
-/// `payloads` must point at `group_count` valid payloads in style group index
-/// order, each with an outstanding reference.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_groups_release(payloads: *const *const c_void, group_count: usize) {
-    unsafe {
-        assert!(!payloads.is_null(), "style group payload array is null");
-        for group_index in 0..group_count {
-            let payload = *payloads.add(group_index);
-            assert!(!payload.is_null(), "style group payload is null");
-            release_group_payload(group_index, payload);
-        }
-    };
-}
-
 /// Destroys and deallocates a payload whose reference count has reached zero.
 ///
 /// # Safety

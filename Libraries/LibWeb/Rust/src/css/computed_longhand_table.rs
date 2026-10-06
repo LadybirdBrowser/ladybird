@@ -1519,16 +1519,6 @@ pub unsafe extern "C" fn rust_computed_longhand_table_is_important(
     unsafe { &*table }.is_important(property_id)
 }
 
-/// # Safety
-/// `table` must be a valid table.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_is_inherited(
-    table: *const ComputedLonghandTable,
-    property_id: u16,
-) -> bool {
-    unsafe { &*table }.is_inherited(property_id)
-}
-
 /// The importance bitmap, in the C++ `FixedBitmap` byte layout. The pointer
 /// stays valid while the caller's table reference is live.
 ///
