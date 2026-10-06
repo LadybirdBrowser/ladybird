@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box">first</div>
+<img id="image" width="20" height="20" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect width='20' height='20' fill='green'/%3E%3C/svg%3E">
+<script>
+    // A frame whose recording renders an SVG image waits on the Paint thread for the main thread to render the image,
+    // and is still presented as the frame the rendering update committed.
+    asyncTest(async done => {
+        await new Promise(resolve => image.complete ? resolve() : image.addEventListener("load", resolve));
+        await whileRecordingInFlight(() => {
+            box.firstChild.data = "second";
+        }, () => {});
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        println(`presented by: ${internals.lastFramePresentedBy(document)}`);
+        println(`text: ${box.textContent}`);
+        done();
+    });
+</script>

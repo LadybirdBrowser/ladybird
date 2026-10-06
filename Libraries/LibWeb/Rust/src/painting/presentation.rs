@@ -41,6 +41,13 @@ unsafe extern "C" {
         sink: *mut c_void,
     );
     fn web_navigable_presenter_present_unrecorded(presenter: *mut c_void, sealed: *mut c_void, sink: *mut c_void);
+    fn web_vector_image_resources_destroy(resources: *mut c_void);
+    fn web_navigable_presenter_take_vector_image_resources(
+        presenter: *mut c_void,
+        resources: *mut c_void,
+        display_list_ids: *const u64,
+        display_list_id_count: usize,
+    );
 }
 
 /// A `Web::Compositor::NavigablePresenter`, owned.
@@ -82,6 +89,44 @@ impl RecordingResourceSink for PresenterBox {
     fn add_video_sink(&mut self, resource_id: u64, sink_handle: u64) {
         // SAFETY: As above.
         unsafe { web_navigable_presenter_add_video_sink(self.0.as_ptr(), resource_id, sink_handle) };
+    }
+}
+
+/// The SVG images a frame renders, which the host rendered for it: a `Web::Compositor::VectorImageResources`, owned.
+pub(crate) struct VectorImageResources(NonNull<c_void>);
+
+// SAFETY: The box owns its object, which reaches nothing of the thread that made it.
+unsafe impl Send for VectorImageResources {}
+
+impl VectorImageResources {
+    /// Takes over what `resources` names, which the host gives up.
+    ///
+    /// # Safety
+    /// `resources` must be a `Web::Compositor::VectorImageResources` the host gives up.
+    pub(crate) unsafe fn adopt(resources: NonNull<c_void>) -> Self {
+        Self(resources)
+    }
+}
+
+impl Drop for VectorImageResources {
+    fn drop(&mut self) {
+        // SAFETY: The box owns the resources.
+        unsafe { web_vector_image_resources_destroy(self.0.as_ptr()) };
+    }
+}
+
+impl PresenterBox {
+    /// Takes over the display lists `display_list_ids` names in `resources`, with what they reference.
+    pub(crate) fn take_vector_image_resources(&mut self, resources: VectorImageResources, display_list_ids: &[u64]) {
+        // SAFETY: The box owns the presenter, and `resources` the storage the presenter copies from.
+        unsafe {
+            web_navigable_presenter_take_vector_image_resources(
+                self.0.as_ptr(),
+                resources.0.as_ptr(),
+                display_list_ids.as_ptr(),
+                display_list_ids.len(),
+            );
+        }
     }
 }
 
@@ -229,4 +274,16 @@ mod ffi_test_stubs {
 
     #[unsafe(no_mangle)]
     extern "C" fn web_navigable_presenter_present_unrecorded(_: *mut c_void, _: *mut c_void, _: *mut c_void) {}
+
+    #[unsafe(no_mangle)]
+    extern "C" fn web_vector_image_resources_destroy(_: *mut c_void) {}
+
+    #[unsafe(no_mangle)]
+    extern "C" fn web_navigable_presenter_take_vector_image_resources(
+        _: *mut c_void,
+        _: *mut c_void,
+        _: *const u64,
+        _: usize,
+    ) {
+    }
 }

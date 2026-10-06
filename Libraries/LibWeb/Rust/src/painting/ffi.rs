@@ -507,6 +507,9 @@ pub enum FfiRecordingLanding {
     NothingRecorded,
     /// The committed frame recorded nothing, and presented the display list the compositor has.
     PresentedUnrecorded,
+    /// The committed frame's recording renders SVG images, which the host renders for it with
+    /// `render_state_render_vector_images`, and flies again.
+    NeedsVectorImages,
 }
 
 /// A navigable's presenter and the seal of the frame it presents next (`Web::Compositor::NavigablePresenter` and

@@ -322,6 +322,14 @@ impl<T> SampledFrame<T> {
     fn new(_: &SamplingTurn, frame: T) -> Self {
         Self(frame)
     }
+
+    pub(crate) fn get(&self) -> &T {
+        &self.0
+    }
+
+    pub(crate) fn into_inner(self) -> T {
+        self.0
+    }
 }
 
 /// A frame frozen for a recording, with what it is recorded with, and the visual contexts a tick prepared for it.
@@ -360,7 +368,9 @@ impl SampledFrame<CommittedSample> {
                 viewport,
                 inputs,
                 visual_contexts: _,
-            }) => RecordingJob::new(frozen, recorder, viewport, Some(presentation)).run_beside_host(inputs, presenting),
+            }) => RecordingJob::new(frozen, recorder, viewport, Some(presentation))
+                .run_beside_host(inputs, presenting)
+                .hold_vector_images(SampledFrame),
             CommittedSample::Unrecorded { visual_context_tree } => {
                 presentation.present_unrecorded(visual_context_tree, presenting);
                 RecordingAnswer::presented_unrecorded(recorder, presentation)

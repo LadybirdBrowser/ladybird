@@ -12,7 +12,7 @@
 //! else cannot present a frame: it has no [`Presenting`] to present with.
 
 use crate::render_state::SampledFrame;
-use crate::stage_thread::{Relay, Riding, StageThread};
+use crate::stage_thread::{InFlight, Relay, Riding, StageThread};
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::marker::PhantomData;
@@ -23,11 +23,6 @@ unsafe extern "C" {
     fn web_frame_sink_release(sink: *mut c_void);
     fn web_frame_sink_submit(sink: *mut c_void, frame: *mut c_void);
     fn web_compositor_frame_destroy(frame: *mut c_void);
-    fn web_navigable_presenter_present_sealed_frame(
-        presenter: *mut c_void,
-        sealed_frame: *mut c_void,
-        sink: *mut c_void,
-    );
 }
 
 /// The Paint thread, which records display lists from the frames the render states publish, and presents frames.
@@ -137,6 +132,15 @@ pub(crate) fn relay_presenting<T: Send + 'static, R: Send + 'static>(
     });
 }
 
+/// Submits `job` to the Paint thread with `frame`, which the render owner sampled (see [`ride_presenting`]), and answers
+/// the flight of what it answers.
+pub(crate) fn submit_presenting<T: Send + 'static, R: Send + 'static>(
+    frame: SampledFrame<T>,
+    job: impl FnOnce(SampledFrame<T>, &mut Presenting) -> R + Send + 'static,
+) -> InFlight<R> {
+    paint_thread().submit(move |_| Presenting::lend(|presenting| job(frame, presenting)))
+}
+
 /// Has the Paint stage present frames through `sink`, a reference to the frame sink of a new connection to the
 /// compositor, which the stage takes over, from the frames handed to the Paint thread after this on. Only the
 /// connection calls this, which declares it.
@@ -188,47 +192,6 @@ pub unsafe extern "C" fn paint_stage_present_frame_from_main_thread(frame: NonNu
     });
 }
 
-/// A navigable's presenter, and a frame the main thread sealed, which the main thread lends the Paint thread while it
-/// waits for the frame to be presented.
-struct LentSealedFrame {
-    presenter: NonNull<c_void>,
-    sealed_frame: NonNull<c_void>,
-}
-
-// SAFETY: The main thread lends both while it waits, and nothing else reaches them meanwhile.
-unsafe impl Send for LentSealedFrame {}
-
-impl LentSealedFrame {
-    fn present(self, presenting: &mut Presenting) {
-        // SAFETY: The main thread lends both while it waits, and the stage holds the sink.
-        unsafe {
-            web_navigable_presenter_present_sealed_frame(
-                self.presenter.as_ptr(),
-                self.sealed_frame.as_ptr(),
-                presenting.sink(),
-            );
-        }
-    }
-}
-
-/// Builds the frame `sealed_frame` names, which the main thread sealed, with `presenter`, and presents it after the
-/// frames handed to the Paint thread before it, while the caller waits. Only the compositor context calls this, which
-/// declares it.
-///
-/// # Safety
-///
-/// `presenter` must be a `Web::Compositor::NavigablePresenter` and `sealed_frame` a `Web::Compositor::SealedFrame`,
-/// which nothing else reaches until this returns.
-// FIXME: Only the render owner should sample the frames the Paint thread presents.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn paint_stage_present_sealed_frame(presenter: NonNull<c_void>, sealed_frame: NonNull<c_void>) {
-    let lent = LentSealedFrame {
-        presenter,
-        sealed_frame,
-    };
-    paint_thread().run(move || Presenting::lend(|presenting| lent.present(presenting)));
-}
-
 #[cfg(test)]
 mod ffi_test_stubs {
     use std::ffi::c_void;
@@ -241,7 +204,4 @@ mod ffi_test_stubs {
 
     #[unsafe(no_mangle)]
     extern "C" fn web_compositor_frame_destroy(_: *mut c_void) {}
-
-    #[unsafe(no_mangle)]
-    extern "C" fn web_navigable_presenter_present_sealed_frame(_: *mut c_void, _: *mut c_void, _: *mut c_void) {}
 }

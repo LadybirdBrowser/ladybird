@@ -19,13 +19,6 @@ struct PresenterFFI {
             sink->submit(move(frame));
     }
 
-    static void present_sealed_frame(NavigablePresenter& presenter, SealedFrame& sealed_frame, CompositorFrameSink* sink)
-    {
-        auto frame = presenter.build_frame(sealed_frame.sealed, move(sealed_frame.published));
-        if (sink)
-            sink->submit(move(frame));
-    }
-
     static void present_unrecorded(NavigablePresenter& presenter, SealedPresentation const& sealed, CompositorFrameSink* sink)
     {
         auto frame = presenter.build_frame(sealed, {});
@@ -176,6 +169,24 @@ extern "C" WEB_API void web_navigable_presenter_add_image_frame(void* presenter,
     static_cast<Web::Compositor::NavigablePresenter*>(presenter)->display_list_resource_storage().add_image_frame(*static_cast<Gfx::DecodedImageFrame const*>(frame));
 }
 
+extern "C" WEB_API void web_vector_image_resources_destroy(void* resources)
+{
+    delete static_cast<Web::Compositor::VectorImageResources*>(resources);
+}
+
+extern "C" WEB_API void web_navigable_presenter_take_vector_image_resources(void* presenter, void* resources_pointer, u64 const* display_list_ids, size_t display_list_id_count)
+{
+    auto& storage = static_cast<Web::Compositor::VectorImageResources*>(resources_pointer)->storage;
+    Compositing::DisplayListResourceSet resources;
+    for (auto raw_id : ReadonlySpan<u64> { display_list_ids, display_list_id_count }) {
+        Compositing::DisplayListResourceId id { raw_id };
+        resources.display_lists.set(id);
+        resources.include(storage.collect_referenced_resources(storage.display_list(id)));
+        resources.include(storage.collect_referenced_resources(storage.display_list_visual_context_tree(id)));
+    }
+    static_cast<Web::Compositor::NavigablePresenter*>(presenter)->display_list_resource_storage().apply_transaction(storage.create_transaction({}, resources));
+}
+
 extern "C" WEB_API void web_navigable_presenter_add_video_sink(void* presenter, u64 resource_id, u64 sink_handle)
 {
     static_cast<Web::Compositor::NavigablePresenter*>(presenter)->display_list_resource_storage().add_video_sink(Compositing::VideoSinkResourceId { resource_id }, Media::VideoSinkHandle { sink_handle });
@@ -183,17 +194,11 @@ extern "C" WEB_API void web_navigable_presenter_add_video_sink(void* presenter, 
 
 // Declared here, not in a header, so that no C++ presents a frame through them.
 extern "C" WEB_API void web_navigable_presenter_present(void* presenter, void* sealed, Web::Layout::RustFFI::FfiPresentedRecording const* presented, void* sink);
-extern "C" WEB_API void web_navigable_presenter_present_sealed_frame(void* presenter, void* sealed_frame, void* sink);
 extern "C" WEB_API void web_navigable_presenter_present_unrecorded(void* presenter, void* sealed, void* sink);
 
 extern "C" WEB_API void web_navigable_presenter_present_unrecorded(void* presenter, void* sealed, void* sink)
 {
     Web::Compositor::PresenterFFI::present_unrecorded(*static_cast<Web::Compositor::NavigablePresenter*>(presenter), *static_cast<Web::Compositor::SealedPresentation*>(sealed), static_cast<Web::Compositor::CompositorFrameSink*>(sink));
-}
-
-extern "C" WEB_API void web_navigable_presenter_present_sealed_frame(void* presenter, void* sealed_frame, void* sink)
-{
-    Web::Compositor::PresenterFFI::present_sealed_frame(*static_cast<Web::Compositor::NavigablePresenter*>(presenter), *static_cast<Web::Compositor::SealedFrame*>(sealed_frame), static_cast<Web::Compositor::CompositorFrameSink*>(sink));
 }
 
 extern "C" WEB_API void web_navigable_presenter_present(void* presenter, void* sealed_pointer, Web::Layout::RustFFI::FfiPresentedRecording const* presented, void* sink)

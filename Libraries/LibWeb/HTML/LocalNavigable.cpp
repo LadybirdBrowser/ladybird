@@ -7079,40 +7079,38 @@ void LocalNavigable::unseal_presentation(DOM::Document& document, Compositor::Se
         document.paint_state().did_update_visual_context_values();
 }
 
-// Publishes `recording`, which has landed, and answers the frame that presents what it recorded.
-Optional<Compositor::SealedFrame> LocalNavigable::finish_recording(Layout::BegunRead const& read, DOM::Document& document, Compositor::SealedPresentation sealed, Painting::DisplayListRecording const& recording, Painting::HitTestListStands hit_test_list_stands)
-{
-    auto display_list = document.finish_display_list_recording(read, recording, presenter().display_list_resource_storage(), hit_test_list_stands);
-    if (!display_list) {
-        unseal_presentation(document, sealed);
-        return {};
-    }
-    bool const replaces_paint_command_cache_source = recording.cache_mode == Painting::PaintCommandCacheMode::ReadWrite
-        && display_list != sealed.paint_command_cache_source;
-    return Compositor::SealedFrame { move(sealed), Compositor::PublishedDisplayList { display_list.release_nonnull(), replaces_paint_command_cache_source } };
-}
-
 bool LocalNavigable::take_recording_in_flight_in(TakeIn take_in)
 {
     if (!m_recording_in_flight)
         return true;
-    auto* host = m_recording_in_flight->document->layout_node_arena().host();
+    GC::Ref<DOM::Document> document = m_recording_in_flight->document;
+    auto* host = document->layout_node_arena().host();
     Layout::RustFFI::FfiPresentation given_back {};
-    auto landing = take_in == TakeIn::Wait
-        ? Layout::RustFFI::render_state_join_recording_in_flight(host, &given_back)
-        : Layout::RustFFI::render_state_take_finished_recording_in(host, &given_back);
+    auto take_landing = [&] {
+        return take_in == TakeIn::Wait
+            ? Layout::RustFFI::render_state_join_recording_in_flight(host, &given_back)
+            : Layout::RustFFI::render_state_take_finished_recording_in(host, &given_back);
+    };
+    auto landing = take_landing();
+    // A frame whose recording renders SVG images waits for the main thread to render them, and flies again with them.
+    while (landing == Layout::RustFFI::FfiRecordingLanding::NeedsVectorImages) {
+        {
+            Layout::ForcedReadScope read { *document };
+            Painting::render_vector_images(read, *document, *m_recording_in_flight->recording);
+        }
+        landing = take_landing();
+    }
     if (landing == Layout::RustFFI::FfiRecordingLanding::StillInFlight)
         return false;
     auto in_flight = m_recording_in_flight.release_nonnull();
-    // The frame the host presents in the recording's place, if any, takes that place in the presentation queue.
-    main_thread_event_loop().presentation_queue().recording_landed(*this, finish_recording_in_flight(*in_flight, landing, given_back));
+    main_thread_event_loop().presentation_queue().recording_landed(*this);
+    finish_recording_in_flight(*in_flight, landing, given_back);
     return true;
 }
 
-// Takes in a frame in flight that has landed, with the presenter it gives back, and answers the frame the host presents
-// in its place: none but where its recording renders an SVG image, which only the host renders, and still goes to this
-// navigable's active document.
-Optional<Compositor::SealedFrame> LocalNavigable::finish_recording_in_flight(RecordingInFlight& in_flight, Layout::RustFFI::FfiRecordingLanding landing, Layout::RustFFI::FfiPresentation given_back)
+// Takes in a frame in flight that has landed, with the presenter it gives back, and what its recording published, where
+// it still goes to this navigable's active document.
+void LocalNavigable::finish_recording_in_flight(RecordingInFlight& in_flight, Layout::RustFFI::FfiRecordingLanding landing, Layout::RustFFI::FfiPresentation given_back)
 {
     GC::Ref<DOM::Document> document = in_flight.document;
     VERIFY(given_back.presenter);
@@ -7121,33 +7119,20 @@ Optional<Compositor::SealedFrame> LocalNavigable::finish_recording_in_flight(Rec
     // A frame the render owner found no box to record of presents nothing.
     if (landing == Layout::RustFFI::FfiRecordingLanding::NothingRecorded) {
         unseal_presentation(document, *sealed);
-        return {};
+        return;
     }
     if (landing == Layout::RustFFI::FfiRecordingLanding::PresentedUnrecorded)
-        return {};
+        return;
 
     Layout::ForcedReadScope read { *document };
     // What the recording made goes to a document this navigable still presents, which still has the boxes it recorded.
-    // Otherwise it stays pending, for the document's next recording to drop.
     if (has_been_destroyed() || !has_compositor_context() || active_document().ptr() != document.ptr() || !document->has_committed_viewport_box())
-        return {};
+        return;
     // What the recording made stands as the compositor's frame. One that landed after the host wrote the document's rows
     // leaves no hit-test list, as the boxes it names may be gone.
     auto const hit_test_list_stands = landing == Layout::RustFFI::FfiRecordingLanding::LandedBehindRows ? Painting::HitTestListStands::No : Painting::HitTestListStands::Yes;
-    // A recording that presented its frame itself leaves the document to take in what it published.
-    if (sealed->published.has_value()) {
-        Painting::take_recording_trace_if_pending(read, *document);
-        document->adopt_published_recording(Painting::hit_test_list_read(read, hit_test_list_stands), *in_flight.recording, sealed->published->display_list, presenter().display_list_resource_storage());
-        return {};
-    }
-    // FIXME: Only the render owner should sample the frames the Paint thread presents. The host presents a frame that
-    //        renders an SVG image.
-    auto frame = finish_recording(read, *document, move(*sealed), *in_flight.recording, hit_test_list_stands);
-    if (frame.has_value()) {
-        frame->sealed.present_viewport_rect = present_viewport_rect();
-        frame->sealed.presented_by = Compositor::PresentedBy::Main;
-    }
-    return frame;
+    Painting::take_recording_trace_if_pending(read, *document);
+    document->adopt_published_recording(Painting::hit_test_list_read(read, hit_test_list_stands), *in_flight.recording, sealed->published->display_list, presenter().display_list_resource_storage());
 }
 
 void LocalNavigable::paint_next_frame()
