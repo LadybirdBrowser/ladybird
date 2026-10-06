@@ -220,13 +220,6 @@ pub unsafe extern "C" fn paint_stage_present_sealed_frame(presenter: NonNull<c_v
     paint_thread().run(move || Presenting::lend(|presenting| lent.present(presenting)));
 }
 
-/// Waits until the Paint thread has presented the frames handed to it before. Only the connection calls this, which
-/// declares it.
-#[unsafe(no_mangle)]
-pub extern "C" fn paint_stage_wait_for_presented_frames() {
-    paint_thread().run(|| ());
-}
-
 #[cfg(test)]
 mod ffi_test_stubs {
     use std::ffi::c_void;

@@ -27,7 +27,6 @@
 extern "C" {
 void paint_stage_adopt_frame_sink(void* sink);
 void paint_stage_present_frame_from_main_thread(void* frame);
-void paint_stage_wait_for_presented_frames();
 }
 
 namespace Web::Compositor {
@@ -235,6 +234,11 @@ bool CompositorConnectionFrameSink::submit(CompositorFrame&& frame)
     }
     if (frame.present_viewport_rect.has_value()) {
         auto encoded_message = MUST(Messages::CompositorWebContentServer::PresentFrame::static_encode(context_id, *frame.present_viewport_rect));
+        if (!post(encoded_message))
+            return false;
+    }
+    if (auto& request = frame.screenshot_request; request.has_value()) {
+        auto encoded_message = MUST(Messages::CompositorWebContentServer::RequestScreenshot::static_encode(context_id, request->id, request->target));
         return post(encoded_message);
     }
     return true;
@@ -644,9 +648,11 @@ void CompositorConnection::request_screenshot(Web::CompositorContextId context_i
     auto shareable_bitmap = Gfx::ShareableBitmap { target_bitmap, Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap };
     auto request_id = Compositing::ScreenshotRequestId { m_next_screenshot_request_id++ };
     m_screenshots.set(request_id, PendingScreenshot { move(target_surface), move(target_bitmap), move(callback) });
-    // The screenshot is of what the compositor composes, so the frames the Paint thread presents go first.
-    paint_stage_wait_for_presented_frames();
-    async_request_screenshot(context_id, request_id, move(shareable_bitmap));
+    // The screenshot is of what the compositor composes, so it goes after the frames handed to the Paint thread before.
+    CompositorFrame frame;
+    frame.context_id = context_id;
+    frame.screenshot_request = CompositorFrame::ScreenshotRequest { request_id, move(shareable_bitmap) };
+    submit_frame(move(frame));
 }
 
 void CompositorConnection::key_event(u64 page_id, Web::KeyEvent event)

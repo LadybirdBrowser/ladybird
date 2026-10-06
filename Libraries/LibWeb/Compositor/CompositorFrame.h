@@ -15,6 +15,7 @@
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Types.h>
 #include <LibGfx/Rect.h>
+#include <LibGfx/ShareableBitmap.h>
 #include <LibWeb/Export.h>
 #include <LibWebCommon/Page/CompositorContextId.h>
 
@@ -52,6 +53,13 @@ struct CompositorFrame {
     Optional<ScrollStateUpdate> scroll_state_update;
     // Set when the frame is presented once the compositor has applied it.
     Optional<Gfx::IntRect> present_viewport_rect;
+
+    // A screenshot the compositor takes of the context once it has applied the frame, and of every frame before it.
+    struct ScreenshotRequest {
+        Compositing::ScreenshotRequestId id;
+        Gfx::ShareableBitmap target;
+    };
+    Optional<ScreenshotRequest> screenshot_request;
 };
 
 class CompositorConnection;
