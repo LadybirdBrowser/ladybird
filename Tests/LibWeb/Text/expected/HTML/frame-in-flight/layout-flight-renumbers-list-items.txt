@@ -1,0 +1,2 @@
+state in the next task: laying-out
+items: 3, height grew: true

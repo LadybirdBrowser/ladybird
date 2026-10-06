@@ -624,11 +624,7 @@ impl LayoutRoundAnswer {
     ///
     /// The host's callbacks must answer synchronously from its live document.
     pub(crate) unsafe fn pay(&mut self, main_thread: &MainThread, document_host: &DocumentHost, read: &BegunRead) {
-        let host = document_host
-            .host_tables()
-            .layout_update_host
-            .get()
-            .expect("the document has no layout update host");
+        let host = layout_update_host(document_host);
         let layout_host = FfiLayoutHostCallbacks::of(main_thread);
         // SAFETY (for every call below): Guaranteed by the caller.
         std::mem::take(&mut self.work).pay(main_thread);
@@ -701,6 +697,15 @@ fn next_round(
     }
 }
 
+/// The host that `document_host`'s document lays out through.
+fn layout_update_host(document_host: &DocumentHost) -> FfiLayoutUpdateHostCallbacks {
+    document_host
+        .host_tables()
+        .layout_update_host
+        .get()
+        .expect("the document has no layout update host")
+}
+
 /// The first round of a rendering update's layout of `document_host`'s document, sealed for a frame to run beside the
 /// host, where the document is active and `needs_round` says the round has something to do as of its facts.
 ///
@@ -714,11 +719,7 @@ unsafe fn sealed_first_round(
     inputs: &FfiLayoutUpdateInputs,
     needs_round: impl FnOnce(&FfiLayoutUpdateDocumentFacts) -> bool,
 ) -> Option<SealedRound> {
-    let host = document_host
-        .host_tables()
-        .layout_update_host
-        .get()
-        .expect("the document has no layout update host");
+    let host = layout_update_host(document_host);
     let facts = host.document_facts(main_thread, read);
     if !facts.document_is_active || inputs.is_template_contents_document || !needs_round(&facts) {
         return None;
@@ -767,6 +768,11 @@ unsafe fn fly_first_round(
     if document_host.has_flown_round() {
         return false;
     }
+    // Otherwise the round goes on from the style as the layout update's first round would: list items that wait to be
+    // renumbered, and top layer changes, are the host's to take in first.
+    let host = layout_update_host(document_host);
+    host.process_pending_list_item_renumbers(main_thread, read);
+    host.process_pending_top_layer_layout_changes(main_thread, read);
     // SAFETY: Guaranteed by the caller.
     let round = unsafe {
         sealed_first_round(main_thread, document_host, read, inputs, |facts| {
@@ -788,11 +794,7 @@ unsafe fn fly_first_round(
 ///
 /// As for [`update_layout`].
 unsafe fn take_flown_layout_in(main_thread: &MainThread, document_host: &DocumentHost, read: &BegunRead) -> bool {
-    let host = document_host
-        .host_tables()
-        .layout_update_host
-        .get()
-        .expect("the document has no layout update host");
+    let host = layout_update_host(document_host);
     document_host.take_frame_in_with(read);
     // SAFETY (for every pay below): Guaranteed by the caller.
     document_host.pay_clock_rounds(|mut answer| unsafe { answer.pay(main_thread, document_host, read) });
@@ -830,11 +832,7 @@ unsafe fn update_layout(
     read: &BegunRead,
     inputs: &FfiLayoutUpdateInputs,
 ) {
-    let host = document_host
-        .host_tables()
-        .layout_update_host
-        .get()
-        .expect("the document has no layout update host");
+    let host = layout_update_host(document_host);
     let layout_host = FfiLayoutHostCallbacks::of(main_thread);
     assert!(
         document_host.host_tables().update_layout_running.get(),
