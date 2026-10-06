@@ -147,21 +147,6 @@ static_assert(to_underlying(MathShift::Compact) == 1);
 static_assert(to_underlying(MathStyle::Normal) == 0);
 static_assert(to_underlying(MathStyle::Compact) == 1);
 
-// The same canonicalization for the computed longhand table: when this style's table names
-// value-equal data throughout, take the previous style's table so the next publication interns
-// the same pointers and keeps the style-record identity, exactly like adopted group payloads do.
-void ComputedValues::adopt_identical_computed_longhand_table(ComputedValues const& previous) const
-{
-    if (m_is_style_record_view)
-        return;
-    auto const* table = static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(m_computed_longhand_table);
-    auto const* previous_table = static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(previous.m_computed_longhand_table);
-    if (!table || !previous_table || table == previous_table)
-        return;
-    if (ComputedValuesFFI::rust_computed_longhand_tables_equal_for_publication(table, previous_table))
-        const_cast<ComputedValues&>(*this).copy_computed_longhand_table_from(previous);
-}
-
 bool ComputedValues::layout_affecting_group_payloads_differ(void const* const* a, void const* const* b)
 {
     auto differs = [&]<typename T>() {
@@ -341,10 +326,6 @@ static_assert(to_underlying(StyleValueList::Separator::Space) == 0);
 static_assert(to_underlying(StyleValueList::Separator::Comma) == 1);
 static_assert(to_underlying(TimeUnit::Ms) == 0);
 static_assert(to_underlying(TimeUnit::S) == 1);
-static_assert(to_underlying(PositionAnchor::Type::Normal) == 0);
-static_assert(to_underlying(PositionAnchor::Type::None) == 1);
-static_assert(to_underlying(PositionAnchor::Type::Auto) == 2);
-static_assert(to_underlying(PositionAnchor::Type::Name) == 3);
 static_assert(to_underlying(PaintOrder::Fill) == 0);
 static_assert(to_underlying(PaintOrder::Stroke) == 1);
 static_assert(to_underlying(PaintOrder::Markers) == 2);
@@ -376,33 +357,6 @@ Optional<Utf16FlyString> ComputedValues::MiscResetValues::view_transition_name_v
     return css_string_from_rust(&value->custom_ident.custom_ident);
 }
 
-WillChange ComputedValues::MiscResetValues::will_change_value() const
-{
-    auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(will_change.pointer);
-    VERIFY(value);
-    if (value->tag == StyleValueFFI::StyleValueData::Tag::Keyword) {
-        VERIFY(static_cast<Keyword>(value->keyword.keyword) == Keyword::Auto);
-        return WillChange::make_auto();
-    }
-    VERIFY(value->tag == StyleValueFFI::StyleValueData::Tag::ValueList);
-    Vector<WillChange::WillChangeEntry> entries;
-    entries.ensure_capacity(value->value_list.values.length);
-    for (size_t i = 0; i < value->value_list.values.length; ++i) {
-        auto const* item = static_cast<StyleValueFFI::StyleValueData const*>(value->value_list.values.pointer[i].pointer);
-        VERIFY(item);
-        if (item->tag == StyleValueFFI::StyleValueData::Tag::Keyword && static_cast<Keyword>(item->keyword.keyword) == Keyword::Contents) {
-            entries.append(WillChange::Type::Contents);
-        } else if (item->tag == StyleValueFFI::StyleValueData::Tag::Keyword && static_cast<Keyword>(item->keyword.keyword) == Keyword::ScrollPosition) {
-            entries.append(WillChange::Type::ScrollPosition);
-        } else if (item->tag == StyleValueFFI::StyleValueData::Tag::CustomIdent) {
-            auto custom_ident = css_string_from_rust(&item->custom_ident.custom_ident);
-            if (auto property_id = property_id_from_string(custom_ident); property_id.has_value())
-                entries.append(property_id.release_value());
-        }
-    }
-    return WillChange(move(entries));
-}
-
 static StyleValueFFI::StyleValueData const* first_animation_item_data(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
 {
     auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(handle.pointer);
@@ -426,11 +380,6 @@ static RefPtr<AbstractImageStyleValue const> abstract_image_value(StyleValueFFI:
             StyleValueFFI::StyleValueData::Tag::RadialGradient))
         return nullptr;
     return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(image_data))->as_abstract_image();
-}
-
-static RefPtr<AbstractImageStyleValue const> first_abstract_image_value(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
-{
-    return abstract_image_value(first_animation_item_data(handle));
 }
 
 // One entry per layer of a comma-separated image list, null where the layer has no image.
@@ -547,11 +496,6 @@ Optional<URL> ComputedValues::MaskValues::mask_url_value() const
 MaskType ComputedValues::MaskValues::mask_type_value() const
 {
     return keyword_to_mask_type(animation_style_value(mask_type)->to_keyword()).release_value();
-}
-
-RefPtr<AbstractImageStyleValue const> ComputedValues::MaskValues::mask_image_value() const
-{
-    return first_abstract_image_value(mask_image);
 }
 
 Optional<URL> ComputedValues::MaskValues::clip_path_value() const

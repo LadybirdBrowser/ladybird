@@ -48,8 +48,6 @@ namespace Web::CSS {
         out.write(f"    {title_casify_transform_function(name)},\n")
     out.write("};\n")
 
-    out.write("Optional<TransformFunction> transform_function_from_string(StringView);\n")
-    out.write("Optional<TransformFunction> transform_function_from_string(Utf16View);\n")
     out.write("StringView to_string(TransformFunction);\n")
 
     out.write("""
@@ -82,32 +80,6 @@ def write_implementation_file(out: TextIO, transforms_data: dict) -> None:
 #include <AK/Assertions.h>
 
 namespace Web::CSS {
-
-Optional<TransformFunction> transform_function_from_string(StringView name)
-{
-""")
-    for name in transforms_data:
-        out.write(f"""
-    if (name.equals_ignoring_ascii_case("{name}"sv))
-        return TransformFunction::{title_casify_transform_function(name)};
-""")
-
-    out.write("""
-    return {};
-}
-
-Optional<TransformFunction> transform_function_from_string(Utf16View name)
-{
-""")
-    for name in transforms_data:
-        out.write(f"""
-    if (name.equals_ignoring_ascii_case("{name}"sv))
-        return TransformFunction::{title_casify_transform_function(name)};
-""")
-
-    out.write("""
-    return {};
-}
 
 StringView to_string(TransformFunction transform_function)
 {

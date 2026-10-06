@@ -105,7 +105,6 @@ public:
 
     // The shared payload's address, which is the group's identity: two references to the same
     // payload are the same group, and interning a style record is interning that tuple of addresses.
-    void const* payload_identity() const { return m_payload; }
     bool is_default() const { return m_payload == default_payload(); }
 
     static T const& default_value() { return *static_cast<T const*>(default_payload()); }

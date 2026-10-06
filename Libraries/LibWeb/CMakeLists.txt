@@ -87,7 +87,6 @@ set(SOURCES
     Crypto/SubtleCrypto.cpp
     CSS/Angle.cpp
     CSS/AnimationEvent.cpp
-    CSS/Clip.cpp
     CSS/ComputedStyleWorkingSet.cpp
     CSS/ComputedValues.cpp
     CSS/RustDeclarationBlock.cpp
@@ -162,7 +161,6 @@ set(SOURCES
     CSS/Descriptor.cpp
     CSS/Display.cpp
     CSS/EasingFunction.cpp
-    CSS/EdgeRect.cpp
     CSS/Fetch.cpp
     CSS/Flex.cpp
     CSS/FontComputer.cpp

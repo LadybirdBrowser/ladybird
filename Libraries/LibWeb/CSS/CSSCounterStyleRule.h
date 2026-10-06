@@ -55,17 +55,6 @@ public:
 
     Utf16String speak_as() const;
     void set_speak_as(Utf16String const& speak_as);
-    // https://drafts.csswg.org/css-counter-styles-3/#non-overridable-counter-style-names
-    static bool matches_non_overridable_counter_style_name(Utf16View name)
-    {
-        // The non-overridable counter-style names are the keywords decimal, disc, square, circle, disclosure-open, and disclosure-closed.
-        return name.equals_ignoring_ascii_case("decimal"sv)
-            || name.equals_ignoring_ascii_case("disc"sv)
-            || name.equals_ignoring_ascii_case("square"sv)
-            || name.equals_ignoring_ascii_case("circle"sv)
-            || name.equals_ignoring_ascii_case("disclosure-open"sv)
-            || name.equals_ignoring_ascii_case("disclosure-closed"sv);
-    }
 
     virtual void clear_caches() override;
 

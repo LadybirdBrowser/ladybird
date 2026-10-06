@@ -288,11 +288,6 @@ bool CalculatedStyleValue::contains_percentage() const
     return StyleValueFFI::rust_calc_node_contains_percentage(m_value->calculated.rust_calculation.node);
 }
 
-bool CalculatedStyleValue::is_fully_simplified() const
-{
-    return resolve_value({}).has_value();
-}
-
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-math-expression
 static GC::Ptr<CSSNumericValue> reify_rust_calculation(void const* calculated_data)
 {

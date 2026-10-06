@@ -93,7 +93,6 @@ namespace Web::CSS {
 
 WEB_API StringView pseudo_element_name(PseudoElement);
 
-bool is_tree_abiding_pseudo_element(PseudoElement);
 bool is_pseudo_element_root(PseudoElement);
 bool is_highlight_pseudo_element(PseudoElement);
 inline bool is_synthetic_pseudo_element(PseudoElement pseudo_element) { return pseudo_element >= first_synthetic_pseudo_element && pseudo_element <= last_synthetic_pseudo_element; }
@@ -128,27 +127,6 @@ StringView pseudo_element_name(PseudoElement pseudo_element)
         VERIFY_NOT_REACHED();
     }
     VERIFY_NOT_REACHED();
-}
-
-bool is_tree_abiding_pseudo_element(PseudoElement pseudo_element)
-{
-    switch (pseudo_element) {
-""")
-
-    for name, pseudo_element in pseudo_elements_data.items():
-        if is_alias(pseudo_element):
-            continue
-        if not pseudo_element.get("is-tree-abiding", False) and not pseudo_element.get("is-element-backed", False):
-            continue
-        out.write(f"""
-    case PseudoElement::{title_casify(name)}:
-        return true;
-""")
-
-    out.write("""
-    default:
-        return false;
-    }
 }
 
 bool is_pseudo_element_root(PseudoElement pseudo_element)

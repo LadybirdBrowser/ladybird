@@ -66,10 +66,6 @@ public:
     // animated overlay and the dependency flags stay mutable for the refresh paths.
     void freeze_computed_longhand_table();
 
-    // A working set sharing this one's frozen table and mint cache, without the animated
-    // overlay: the base half of an animated style build.
-    NonnullRefPtr<ComputedStyleWorkingSet> copy_without_animations() const;
-
     void set_has_pseudo_element_styles(u64);
     void set_depends_on_viewport_metrics();
     void set_font_metrics_depend_on_viewport_metrics();
@@ -132,21 +128,8 @@ public:
     ComputedValuesFFI::ComputedLonghandTable const* computed_longhand_table() const { return m_computed_longhand_table; }
 
 private:
-    // The sparse per-longhand mint cache over the effective values: an entry holds the
-    // wrapper a store funnel carried or the one property() minted on demand, and is replaced
-    // or invalidated when the drive stores new table data for the longhand. Overlay values
-    // are never cached here; their wrappers live on AnimatedProperties. Shared with the
-    // without-animations copy so both halves of an animated style build mint each wrapper
-    // once, preserving wrapper identity for values with side effects (image loads).
-    struct WrapperMintCache final : public RefCounted<WrapperMintCache> {
-        HashMap<PropertyID, NonnullRefPtr<StyleValue const>> wrappers;
-    };
-
     ComputedStyleWorkingSet();
     explicit ComputedStyleWorkingSet(ComputedValuesFFI::ComputedLonghandTable*);
-    // The without-animations copy: shares the frozen table and the mint cache.
-    struct ShareFrozenTable { };
-    ComputedStyleWorkingSet(ShareFrozenTable, ComputedStyleWorkingSet const&);
 
     AnimatedProperties const& animated_properties() const;
     AnimatedProperties& mutable_animated_properties();
@@ -175,7 +158,11 @@ private:
     // written by the store funnels and the flag setters and frozen when the drive completes.
     ComputedValuesFFI::ComputedLonghandTable* m_computed_longhand_table { nullptr };
     bool m_computed_longhand_table_is_shared { false };
-    NonnullRefPtr<WrapperMintCache> m_mint_cache;
+    // The sparse per-longhand mint cache over the effective values: an entry holds the
+    // wrapper a store funnel carried or the one property() minted on demand, and is replaced
+    // or invalidated when the drive stores new table data for the longhand. Overlay values
+    // are never cached here; their wrappers live on AnimatedProperties.
+    mutable HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_minted_wrappers;
     RefPtr<AnimatedProperties> m_animated_properties;
     bool m_had_animated_post_compute_adjustment_property { false };
     OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> m_animated_custom_properties;

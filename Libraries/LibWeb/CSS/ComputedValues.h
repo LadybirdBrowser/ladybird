@@ -19,7 +19,6 @@
 #include <LibGfx/InterpolationColorSpace.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibWeb/CSS/Angle.h>
-#include <LibWeb/CSS/Clip.h>
 #include <LibWeb/CSS/ColumnCount.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Display.h>
@@ -154,20 +153,6 @@ struct Position {
     }
 };
 
-struct PositionAnchor {
-    enum class Type : u8 {
-        Normal,
-        None,
-        Auto,
-        Name,
-    };
-
-    Type type { Type::Normal };
-    Optional<Utf16FlyString> name;
-
-    bool operator==(PositionAnchor const&) const = default;
-};
-
 // https://drafts.csswg.org/css-contain-2/#containment-types
 struct Containment {
     bool size_containment : 1 { false };
@@ -212,33 +197,6 @@ struct TextUnderlinePosition {
     TextUnderlinePositionVertical vertical { TextUnderlinePositionVertical::Auto };
 
     bool operator==(TextUnderlinePosition const&) const = default;
-};
-
-struct WillChange {
-    enum class Type : u8 {
-        Contents,
-        ScrollPosition,
-    };
-    using WillChangeEntry = Variant<Type, PropertyID>;
-
-    WillChange(Vector<WillChangeEntry> values)
-        : m_value(move(values))
-    {
-    }
-
-    static WillChange make_auto() { return WillChange(); }
-
-    bool is_auto() const { return m_value.is_empty(); }
-    bool operator==(WillChange const&) const = default;
-    bool has_property(PropertyID property_id) const { return m_value.contains_slow(property_id); }
-    Vector<WillChangeEntry> const& entries() const { return m_value; }
-
-private:
-    WillChange()
-    {
-    }
-
-    Vector<WillChangeEntry> m_value;
 };
 
 class InitialValues {
@@ -304,29 +262,6 @@ struct CounterData {
     Optional<CounterValue> value;
 
     bool operator==(CounterData const&) const = default;
-};
-
-struct TextDecorationThickness {
-    struct Auto {
-        bool operator==(Auto const&) const = default;
-    };
-    struct FromFont {
-        bool operator==(FromFont const&) const = default;
-    };
-    Variant<Auto, FromFont, LengthPercentage> value;
-
-    bool operator==(TextDecorationThickness const&) const = default;
-};
-
-struct TextUnderlineOffset {
-    struct Auto {
-        bool operator==(Auto const&) const = default;
-    };
-
-    Variant<Auto, LengthPercentage> computed_value { Auto {} };
-    CSSPixels used_value { 2 };
-
-    bool operator==(TextUnderlineOffset const&) const = default;
 };
 
 // FIXME: Find a better place for this helper.
@@ -476,14 +411,6 @@ inline Display display_from_ffi_display(ComputedValuesFFI::FfiDisplay const& dis
     }
     VERIFY_NOT_REACHED();
 }
-inline ComputedValuesFFI::ComputedVerticalAlign to_ffi_vertical_align(Variant<VerticalAlign, LengthPercentage> const& value)
-{
-    if (value.has<VerticalAlign>())
-        return { .is_keyword = true, .keyword = to_underlying(value.get<VerticalAlign>()), .value = { nullptr } };
-    auto retained = value.get<LengthPercentage>();
-    return { .is_keyword = false, .keyword = 0, .value = { retained.leak_data() } };
-}
-
 class WEB_API ComputedValues final : public RefCounted<ComputedValues> {
     AK_MAKE_NONCOPYABLE(ComputedValues);
     AK_MAKE_NONMOVABLE(ComputedValues);
@@ -513,13 +440,6 @@ public:
     bool has_animated_values() const { return m_borrowed_base_values || m_base_values; }
     AnimatedProperties const* animated_properties() const { return m_animated_properties.ptr(); }
 
-    // Animated values live outside the group payloads, so every group-based fast path or
-    // group-based diff must fall back to the slow path when either side carries them.
-    static bool either_carries_animated_overlay(ComputedValues const& a, ComputedValues const& b)
-    {
-        return a.has_animated_values() || b.has_animated_values() || a.animated_properties() || b.animated_properties();
-    }
-
     struct Statistics {
         u64 live_instance_count { 0 };
         u64 total_instances_created { 0 };
@@ -548,7 +468,6 @@ public:
     }
 
     bool is_property_important(PropertyID property_id) const { return m_property_important.get(property_bitmap_index(property_id)); }
-    bool is_property_inherited(PropertyID property_id) const { return m_property_inherited.get(property_bitmap_index(property_id)); }
     ReadonlyBytes property_importance_bitmap() const LIFETIME_BOUND { return m_property_important.bytes(); }
     ReadonlyBytes property_inheritance_bitmap() const LIFETIME_BOUND { return m_property_inherited.bytes(); }
 
@@ -574,14 +493,12 @@ public:
 private:
 public:
     ReadonlySpan<Utf16FlyString> anchor_names() const { return m_noninherited.anchor->anchor_names_span(); }
-    PositionAnchor position_anchor_value() const { return m_noninherited.anchor->position_anchor_value(); }
     // The animation-name entries other than none.
     Vector<Utf16FlyString> animation_names() const { return m_noninherited.animation->animation_names_value(); }
 
     Float float_() const { return static_cast<Float>(m_noninherited.box->float_); }
     Clear clear() const { return static_cast<Clear>(m_noninherited.box->clear); }
     Color caret_color() const { return m_inherited.ui->caret_color_value(); }
-    Clip clip() const { return m_noninherited.effects->clip_value(); }
     ColorInterpolation color_interpolation() const { return m_inherited.svg->color_interpolation_value(); }
     PreferredColorScheme color_scheme() const { return m_inherited.ui->color_scheme_value(); }
     ContentVisibility content_visibility() const { return static_cast<ContentVisibility>(m_inherited.box->content_visibility); }
@@ -601,13 +518,10 @@ public:
         return m_noninherited.box->z_index;
     }
     TextAlign text_align() const { return m_inherited.text->text_align_value(); }
-    ReadonlySpan<TextDecorationLine> text_decoration_line() const { return m_noninherited.text_reset->decoration_lines(); }
-    TextDecorationThickness text_decoration_thickness() const { return m_noninherited.text_reset->decoration_thickness(); }
     TextDecorationStyle text_decoration_style() const { return static_cast<TextDecorationStyle>(m_noninherited.text_reset->text_decoration_style); }
     Color text_decoration_color() const { return Color::from_bgra(m_noninherited.text_reset->text_decoration_color); }
     ReadonlySpan<ShadowData> text_shadow() const { return m_inherited.text->text_shadow_span(); }
     Positioning position() const { return static_cast<Positioning>(m_noninherited.box->position); }
-    bool transition_delay_and_duration_are_single_zero() const { return m_noninherited.animation->transition_delay_and_duration_are_single_zero_value(); }
     WhiteSpaceCollapse white_space_collapse() const { return m_inherited.text->white_space_collapse_value(); }
     FlexDirection flex_direction() const { return static_cast<FlexDirection>(m_noninherited.alignment->flex_direction); }
     AlignSelf align_self() const { return static_cast<AlignSelf>(m_noninherited.alignment->align_self); }
@@ -657,11 +571,6 @@ public:
     Optional<Utf16FlyString> view_transition_name() const { return m_noninherited.misc->view_transition_name_value(); }
 
     LengthBox inset() const { return length_box(m_noninherited.surround->inset); }
-    bool has_anchor_inset(PropertyID property_id) const
-    {
-        auto const* handle = anchor_inset_handle(property_id);
-        return handle && handle->pointer != nullptr;
-    }
     RefPtr<StyleValue const> anchor_inset(PropertyID property_id) const
     {
         auto const* handle = anchor_inset_handle(property_id);
@@ -693,7 +602,6 @@ public:
     // counter style.
     bool reads_counter_style_environment(bool is_pseudo) const { return ComputedValuesFFI::rust_style_reads_counter_style_environment(m_noninherited.content_data->content.pointer, list_style_type_data(), is_pseudo); }
 
-    RefPtr<AbstractImageStyleValue const> mask_image() const { return m_noninherited.mask_data->mask_image_value(); }
     Optional<URL> clip_path() const { return m_noninherited.mask_data->clip_path_value(); }
     Color flood_color() const { return Gfx::Color::from_bgra(m_noninherited.svg_reset->flood_color); }
     float flood_opacity() const { return m_noninherited.svg_reset->flood_opacity; }
@@ -736,8 +644,6 @@ public:
 
     MathStyle math_style() const { return static_cast<MathStyle>(m_inherited.font->math_style); }
     int math_depth() const { return m_inherited.font->math_depth; }
-
-    WillChange will_change() const { return m_noninherited.misc->will_change_value(); }
 
 private:
     friend class ComputedStyleRecordView;
@@ -823,12 +729,6 @@ public:
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedUIValues);
 
         Color caret_color_value() const { return Color::from_bgra(caret_color.used_color); }
-        Optional<Color> accent_color_value() const
-        {
-            if (accent_color.is_auto)
-                return {};
-            return Color::from_bgra(accent_color.used_color);
-        }
         ReadonlySpan<ComputedValuesFFI::ComputedCursor> cursor_span() const { return { cursor.pointer, cursor.length }; }
         static RefPtr<CursorStyleValue const> cursor_style_value(ComputedValuesFFI::ComputedCursor const& value)
         {
@@ -873,9 +773,6 @@ public:
         ColorInterpolation color_interpolation_value() const { return static_cast<ColorInterpolation>(color_interpolation); }
         ColorInterpolation color_interpolation_filters_value() const { return static_cast<ColorInterpolation>(color_interpolation_filters); }
         TextAnchor text_anchor_value() const { return static_cast<TextAnchor>(text_anchor); }
-        ReadonlySpan<ComputedValuesFFI::ComputedSvgDash> stroke_dasharray_span() const { return { stroke_dasharray.pointer, stroke_dasharray.length }; }
-        LengthPercentage const& stroke_dashoffset_value() const { return LengthPercentage::view(stroke_dashoffset); }
-        LengthPercentage const& stroke_width_value() const { return LengthPercentage::view(stroke_width); }
         PaintOrderList paint_order_value() const
         {
             return {
@@ -883,12 +780,6 @@ public:
                 static_cast<PaintOrder>(paint_order[1]),
                 static_cast<PaintOrder>(paint_order[2]),
             };
-        }
-        Optional<BaselineMetric> dominant_baseline_value() const
-        {
-            if (!has_dominant_baseline)
-                return {};
-            return static_cast<BaselineMetric>(dominant_baseline);
         }
 
         bool operator==(InheritedSVGValues const& other) const
@@ -971,7 +862,6 @@ public:
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::AnimationValues);
 
         Vector<Utf16FlyString> animation_names_value() const;
-        bool transition_delay_and_duration_are_single_zero_value() const { return transition_delay_and_duration_are_single_zero; }
 
         bool operator==(AnimationValues const& other) const
         {
@@ -1002,16 +892,6 @@ public:
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::AnchorValues);
 
         ReadonlySpan<Utf16FlyString> anchor_names_span() const { return fly_strings(anchor_names); }
-        PositionAnchor position_anchor_value() const
-        {
-            PositionAnchor value {
-                .type = static_cast<PositionAnchor::Type>(position_anchor_type),
-                .name = {},
-            };
-            if (value.type == PositionAnchor::Type::Name)
-                value.name = Utf16FlyString::from_raw(position_anchor_name.raw);
-            return value;
-        }
 
         bool operator==(AnchorValues const& other) const
         {
@@ -1040,22 +920,6 @@ public:
             static_assert(alignof(ShadowData) == alignof(ComputedValuesFFI::ComputedShadow));
             return { reinterpret_cast<ShadowData const*>(box_shadows.pointer), box_shadows.length };
         }
-        Clip clip_value() const
-        {
-            if (!clip_is_rect)
-                return Clip::make_auto();
-            auto edge = [](ComputedValuesFFI::ComputedClipEdge const& value) {
-                if (value.is_auto)
-                    return LengthOrAuto::make_auto();
-                return LengthOrAuto { Length { value.value, static_cast<LengthUnit>(value.unit) } };
-            };
-            return Clip { EdgeRect {
-                edge(clip_edges[0]),
-                edge(clip_edges[1]),
-                edge(clip_edges[2]),
-                edge(clip_edges[3]),
-            } };
-        }
 
         bool operator==(EffectsValues const& other) const
         {
@@ -1069,7 +933,6 @@ public:
         // The mask layer the first mask-image names by URL, if it does.
         Optional<URL> mask_url_value() const;
         MaskType mask_type_value() const;
-        RefPtr<AbstractImageStyleValue const> mask_image_value() const;
         Vector<RefPtr<AbstractImageStyleValue const>> mask_images_value() const;
         // https://drafts.fxtf.org/css-masking/#the-clip-path
         // TODO: Support basic shapes and geometry boxes.
@@ -1083,21 +946,6 @@ public:
 
     struct TextResetValues : ComputedValuesFFI::TextResetValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::TextResetValues);
-
-        ReadonlySpan<TextDecorationLine> decoration_lines() const
-        {
-            static_assert(sizeof(TextDecorationLine) == sizeof(u8));
-            return { reinterpret_cast<TextDecorationLine const*>(text_decoration_lines.pointer), text_decoration_lines.length };
-        }
-
-        TextDecorationThickness decoration_thickness() const
-        {
-            if (text_decoration_thickness_kind == 0)
-                return TextDecorationThickness { TextDecorationThickness::Auto {} };
-            if (text_decoration_thickness_kind == 1)
-                return TextDecorationThickness { TextDecorationThickness::FromFont {} };
-            return TextDecorationThickness { LengthPercentage::view(text_decoration_thickness) };
-        }
 
         bool operator==(TextResetValues const& other) const
         {
@@ -1265,7 +1113,6 @@ public:
 
         Optional<Utf16FlyString> view_transition_name_value() const;
         ScrollSnapStrictness scroll_snap_strictness_value() const { return static_cast<ScrollSnapStrictness>(scroll_snap_strictness); }
-        WillChange will_change_value() const;
 
         bool operator==(MiscResetValues const& other) const
         {
@@ -1300,7 +1147,6 @@ public:
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::BoxValues);
 
         Display display_value() const { return display_from_ffi_display(display); }
-        Display display_before_box_type_transformation_value() const { return display_from_ffi_display(display_before_box_type_transformation); }
         Float float_value() const { return static_cast<Float>(float_); }
         Clear clear_value() const { return static_cast<Clear>(clear); }
         Positioning position_value() const { return static_cast<Positioning>(position); }
@@ -1336,7 +1182,6 @@ private:
     void refresh_computed_longhand_table_views();
     // Takes `previous`'s table when every slot and the inheritance inventory hold equal values,
     // so the next publication interns the same pointers and keeps the style-record identity.
-    void adopt_identical_computed_longhand_table(ComputedValues const& previous) const;
     void clear_computed_longhand_table();
     // Takes `other`'s table by reference count, or materializes an owned table from `other`'s
     // borrowed record span, so the copy never outlives its source's storage.
@@ -1420,8 +1265,6 @@ private:
     }
 
 public:
-    void set_property_important(PropertyID property_id, bool value) { m_values.m_property_important.set(ComputedValues::property_bitmap_index(property_id), value); }
-    void set_property_inherited(PropertyID property_id, bool value) { m_values.m_property_inherited.set(ComputedValues::property_bitmap_index(property_id), value); }
     void set_property_flag_bitmaps(ReadonlyBytes importance, ReadonlyBytes inheritance)
     {
         m_values.m_property_important.copy_from(importance);
@@ -1434,11 +1277,6 @@ public:
     void set_highlight_color_is_current_color(bool value) { m_values.m_highlight_color_is_current_color = value; }
     void set_pseudo_element_styles(u64 value) { m_values.m_pseudo_element_styles = value; }
     void set_computed_longhand_table(void const* table) { m_values.adopt_computed_longhand_table(table); }
-    void set_base_values(NonnullRefPtr<ComputedValues const> value)
-    {
-        m_values.m_base_values = move(value);
-        m_values.m_borrowed_base_values = nullptr;
-    }
     void set_animated_properties(AnimatedProperties const*);
 
     // Rust-built payloads arrive in StyleGroupIndex order carrying this reference.

@@ -47,17 +47,14 @@ public:
     NumericType inverted() const;
 
     bool matches_angle(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Angle, percentages_resolve_as); }
-    bool matches_angle_percentage(Optional<ValueType> percentages_resolve_as) const { return matches_dimension_percentage(BaseType::Angle, percentages_resolve_as); }
     bool matches_flex(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Flex, percentages_resolve_as); }
     bool matches_frequency(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Frequency, percentages_resolve_as); }
-    bool matches_frequency_percentage(Optional<ValueType> percentages_resolve_as) const { return matches_dimension_percentage(BaseType::Frequency, percentages_resolve_as); }
     bool matches_length(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Length, percentages_resolve_as); }
     bool matches_length_percentage(Optional<ValueType> percentages_resolve_as) const { return matches_dimension_percentage(BaseType::Length, percentages_resolve_as); }
     bool matches_number(Optional<ValueType> percentages_resolve_as) const;
     bool matches_percentage() const;
     bool matches_resolution(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Resolution, percentages_resolve_as); }
     bool matches_time(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Time, percentages_resolve_as); }
-    bool matches_time_percentage(Optional<ValueType> percentages_resolve_as) const { return matches_dimension_percentage(BaseType::Time, percentages_resolve_as); }
 
     Optional<i32> const& exponent(BaseType type) const { return m_type_exponents[to_underlying(type)]; }
     void set_exponent(BaseType type, i32 exponent) { m_type_exponents[to_underlying(type)] = exponent; }
