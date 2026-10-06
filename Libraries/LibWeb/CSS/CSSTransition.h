@@ -18,12 +18,8 @@ class CSSTransition : public Animations::Animation {
     GC_DECLARE_ALLOCATOR(CSSTransition);
 
 public:
-    enum class Publication {
-        Committed,
-        Provisional,
-    };
-
-    static GC::Ref<CSSTransition> start_a_transition(
+    // A transition is started provisionally, and associated with its target only once committed.
+    static GC::Ref<CSSTransition> start_a_provisional_transition(
         DOM::AbstractElement,
         PropertyID,
         size_t transition_generation,
@@ -34,8 +30,7 @@ public:
         NonnullRefPtr<StyleValue const> end_value,
         NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
         double reversing_shortening_factor,
-        EasingFunction timing_function,
-        Publication = Publication::Committed);
+        EasingFunction timing_function);
 
     void commit_provisional_transition();
     void discard_provisional_transition();
@@ -77,8 +72,7 @@ private:
         NonnullRefPtr<StyleValue const> end_value,
         NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
         double reversing_shortening_factor,
-        EasingFunction timing_function,
-        Publication);
+        EasingFunction timing_function);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -111,7 +105,7 @@ private:
 
     GC::Ptr<CSS::CSSStyleDeclaration const> m_cached_declaration;
 
-    bool m_is_provisional { false };
+    bool m_is_provisional { true };
 
     Phase m_previous_phase { Phase::Idle };
 };
