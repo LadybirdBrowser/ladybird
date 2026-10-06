@@ -202,6 +202,46 @@ pub unsafe extern "C" fn layout_row_scroll_snap_axes(
     }
 }
 
+/// The box a scroll brings the caret at `offset` in the text of `text` into view in, which it scrolls to `*offset_out`, or
+/// an invalid slot for none.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_scroll_target_for_text_position(
+    host: &crate::render_state::DocumentHost,
+    text: NodeSlotId,
+    offset: usize,
+    affinity_is_downstream: bool,
+    scroll_block_axis: bool,
+    offset_out: &mut FfiCssPixelPoint,
+) -> NodeSlotId {
+    // SAFETY: Guaranteed by the caller.
+    let target = unsafe {
+        read_arena(
+            host,
+            super::node_read(),
+            (text, offset, affinity_is_downstream, scroll_block_axis),
+            |arena, (text, offset, affinity_is_downstream, scroll_block_axis)| {
+                arena.measure_scrollable_overflow();
+                crate::painting::scroll_chain::scroll_target_for_text_position(
+                    &arena.paintable_rows(),
+                    text,
+                    offset,
+                    affinity_is_downstream,
+                    scroll_block_axis,
+                )
+            },
+        )
+    };
+    let Some((container, scroll_offset)) = target else {
+        return NodeSlotId::INVALID;
+    };
+    *offset_out = scroll_offset.into();
+    container
+}
+
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.
