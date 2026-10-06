@@ -54,6 +54,9 @@ pub(crate) struct HostTables {
     pub(crate) shells: RefCell<HashMap<NodeSlotId, NonNull<c_void>>>,
     /// Whether the document runs a layout update, which it does one at a time.
     pub(crate) update_layout_running: Cell<bool>,
+    /// The image resources the tree builds of the rounds the host was paid for owe the rows they stamped, which the
+    /// host attaches once its layout update is over.
+    pub(super) owed_images: RefCell<Vec<super::update_layout::OwedImage>>,
 }
 
 impl HostTables {

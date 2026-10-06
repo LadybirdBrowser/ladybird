@@ -100,6 +100,10 @@ pub(crate) enum LayoutChange {
         flag: NodeFlag,
         value: bool,
     },
+    /// The host hands the image box the provider of the image it shows, which the box waited for.
+    HandOverOwnedProvider {
+        node: NodeSlotId,
+    },
     /// The image the image box's own provider shows is of this natural size now.
     SetOwnedImageNaturalSize {
         node: NodeSlotId,
@@ -176,6 +180,7 @@ impl LayoutChange {
             | Self::SvgStyleReferences { .. }
             | Self::SetDocumentIsDecodedSvg(_)
             | Self::SetNodeFlag { .. }
+            | Self::HandOverOwnedProvider { .. }
             | Self::SetOwnedImageNaturalSize { .. }
             | Self::InvalidateSearchableText
             | Self::RestampTableSpans { .. }
@@ -278,6 +283,7 @@ impl LayoutChange {
                     arena.set_node_flag(node, flag, value);
                 }
             }
+            Self::HandOverOwnedProvider { node } => arena.note_owned_provider_handed_over(node),
             Self::SetOwnedImageNaturalSize { node, natural_size } => {
                 if arena.slot_is_live(node) {
                     arena.set_owned_image_natural_size(node, natural_size);

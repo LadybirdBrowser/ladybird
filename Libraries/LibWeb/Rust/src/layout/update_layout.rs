@@ -10,6 +10,7 @@
 
 use super::commit::CommitNotifications;
 use super::formatting_context::{FfiLayoutHostCallbacks, LayoutStageFacts, lay_out_boundary, lay_out_root};
+use super::layout_changes::LayoutChange;
 use super::layout_node_arena::{OwedImageResources, sync_enrolled_content_for_layout};
 use super::node_data::NodeSlotId;
 use super::node_facts;
@@ -22,7 +23,7 @@ use crate::css::css_pixels::CssPixelPoint;
 use crate::css::style::tree::StyleNodeID;
 use crate::painting::host::FfiNodeIdentity;
 use crate::painting::recording_slot::FlightLicense;
-use crate::render_state::{BegunRead, DocumentHost};
+use crate::render_state::{ArenaChange, BegunRead, DocumentHost};
 use crate::stage::MainThread;
 use std::ffi::c_void;
 
@@ -35,11 +36,17 @@ pub(crate) use main_thread_entries::MainThreadFfiEntry;
 fn run_layout_round_job(host: &DocumentHost, read: &BegunRead, job: LayoutRoundJob) -> LayoutRoundAnswer {
     host.let_go_of_rows();
     // The host keeps what the job's inputs name until it has the answer.
-    host.run(read, true, move |state| {
+    let (answer, rows) = host.run(read, true, move |state| {
         let mut answer = job.run(state.arena_handle_mut());
         answer.prepare_committed_layout_for_rendering(state.arena_mut());
-        answer
-    })
+        // The host reads what each box owed an image is from rows published with the answer.
+        let rows = (!answer.owed_images.is_empty()).then(|| state.arena_mut().publish_row_snapshot(false));
+        (answer, rows)
+    });
+    if let Some(rows) = rows {
+        host.keep_rows(rows);
+    }
+    answer
 }
 
 /// Answers `answer` from the render state of `host`'s document and `args`, in `read`: the host's layout update reads it
@@ -222,30 +229,19 @@ impl FfiLayoutUpdateHostCallbacks {
     /// in the order the builds came to owe them. Until now a box that owns its image's provider
     /// had no image; one handed a provider whose image is already there lays out again.
     fn attach_owed_image_resources(&self, _: &MainThread, host: &DocumentHost, read: &BegunRead) {
-        if host.known_owed_image_resources() == Some(false) {
+        let owed = host.host_tables().owed_images.take();
+        if owed.is_empty() {
             return;
         }
-        // Each box reads whether its style holds image values, which the engine answers with the rows rather than
-        // once per box, and what its row is, which the rows published with them answer.
-        let (owed, rows) = read_arena(host, read, (), |arena, ()| {
-            let owed = arena.take_image_resources_owed_to_host();
-            let owed = arena.with_style_engine(|engine| {
-                owed.into_iter()
-                    // A later build of the update may have freed the row.
-                    .filter(|&(row, _)| arena.slot_is_live(row))
-                    .map(|(row, owed)| {
-                        arena.note_owned_provider_handed_over(row);
-                        (row, owed, FfiStyleImageFacts::of(engine, arena.node_style_record(row)))
-                    })
-                    .collect::<Vec<_>>()
-            });
-            let rows = (!owed.is_empty()).then(|| arena.publish_row_snapshot(false));
-            (owed, rows)
-        });
-        if let Some(rows) = rows {
-            host.keep_rows(rows);
-        }
-        for (row, owed, images) in owed {
+        // A later build of the update, or a write of the host, may have freed the row.
+        let identities = host.row_identities(read);
+        for OwedImage { row, owed, images } in owed {
+            if identities.shell_facts(row).is_none() {
+                continue;
+            }
+            if owed.owns_provider() {
+                host.queue_change(ArenaChange::Layout(LayoutChange::HandOverOwnedProvider { node: row }));
+            }
             match owed {
                 OwedImageResources::StyleResources {
                     owns_content_replacement_image,
@@ -380,9 +376,50 @@ pub(crate) struct LayoutRoundAnswer {
     /// The DOM nodes whose subtrees the round's build rebuilt, where the document has stale list item counters to
     /// reconcile with them.
     rebuilt_roots: Vec<FfiNodeIdentity>,
+    /// The image resources the round's build owes the rows it stamped, which the host attaches once its layout update
+    /// is over.
+    owed_images: Vec<OwedImage>,
     /// The scroll offsets the new overflow moved out of range, each clamped into it, where the round prepared the layout
     /// it committed for rendering, for the host to store.
     clamped_scroll_offsets: Vec<(NodeSlotId, CssPixelPoint)>,
+}
+
+/// An image resource a tree build owes the host for a row it stamped, with what the row's style held as the round that
+/// built it ended.
+pub(crate) struct OwedImage {
+    row: NodeSlotId,
+    owed: OwedImageResources,
+    images: FfiStyleImageFacts,
+}
+
+impl OwedImage {
+    /// Takes the image resources the builds that ran on `arena` owe the rows they stamped and left live.
+    fn take_from(arena: &LayoutNodeArena) -> Vec<Self> {
+        let owed = arena.take_image_resources_owed_to_host();
+        if owed.is_empty() {
+            return Vec::new();
+        }
+        arena.with_style_engine(|engine| {
+            owed.into_iter()
+                .filter(|&(row, _)| arena.slot_is_live(row))
+                .map(|(row, owed)| Self {
+                    row,
+                    owed,
+                    images: FfiStyleImageFacts::of(engine, arena.node_style_record(row)),
+                })
+                .collect()
+        })
+    }
+
+    /// Whether the box shows the image: one whose provider it owns, or one its style names that the host loads. A box
+    /// whose style names none, or only gradients, paints nothing the host attaches.
+    fn is_shown(&self, arena: &LayoutNodeArena) -> bool {
+        use crate::painting::paint_read::PaintRead;
+        self.owed.owns_provider()
+            || arena
+                .node_style_if_live(self.row)
+                .is_some_and(|style| style.names_loaded_images())
+    }
 }
 
 /// The first round of a rendering update's layout, sealed on the host's thread with the facts it read there, to run in
@@ -469,10 +506,11 @@ impl ClockRound {
         }
         .run(state);
         // A box the build gave an image has none until the host attaches it.
+        let arena = state.arena();
         let declined = matches!(
             answer.end,
             LayoutRoundEnd::Built { .. } | LayoutRoundEnd::NeedsDocumentStyle
-        ) || state.arena().owes_shown_image_resources_to_host();
+        ) || answer.owed_images.iter().any(|image| image.is_shown(arena));
         owed.push(answer);
         match state.arena().mark_unresolved_container_lengths_for_layout() || declined {
             true => Err(ClockRoundDeclined),
@@ -511,6 +549,7 @@ impl LayoutRoundJob {
     fn run_owing(self, state: &mut ArenaHandle, work: OwedHostWork) -> LayoutRoundAnswer {
         let mut answer = self.run_with(state, &work);
         answer.work = work.resolve(state.arena());
+        answer.owed_images = OwedImage::take_from(state.arena());
         answer
     }
 
@@ -522,6 +561,7 @@ impl LayoutRoundJob {
             commits: Vec::new(),
             end: LayoutRoundEnd::FullLayout,
             rebuilt_roots: Vec::new(),
+            owed_images: Vec::new(),
             clamped_scroll_offsets: Vec::new(),
         };
         let stage = LayoutStageFacts {
@@ -683,6 +723,11 @@ impl LayoutRoundAnswer {
     pub(crate) unsafe fn pay(&mut self, main_thread: &MainThread, document_host: &DocumentHost, read: &BegunRead) {
         let host = layout_update_host(document_host);
         let layout_host = FfiLayoutHostCallbacks::of(main_thread);
+        document_host
+            .host_tables()
+            .owed_images
+            .borrow_mut()
+            .append(&mut self.owed_images);
         // SAFETY (for every call below): Guaranteed by the caller.
         std::mem::take(&mut self.work).pay(main_thread);
         if let Some((replaced_viewport, built)) = self.build.take() {
@@ -1120,6 +1165,7 @@ mod tests {
             commits: Vec::new(),
             end,
             rebuilt_roots: Vec::new(),
+            owed_images: Vec::new(),
             clamped_scroll_offsets: Vec::new(),
         };
         let mut arena = LayoutNodeArena::new();
