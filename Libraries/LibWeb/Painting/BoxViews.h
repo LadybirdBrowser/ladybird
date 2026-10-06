@@ -66,6 +66,7 @@ WEB_API Compositing::ContextRef accumulated_visual_context_for_descendants(Layou
 WEB_API Compositing::SpatialNodeIndex own_scroll_node_index(Layout::Node const&);
 
 WEB_API Gfx::Path const* committed_svg_path(Layout::Node const&);
+WEB_API Vector<Layout::RustFFI::FfiSvgTextCharacterCell> svg_text_character_cells(Layout::Node const&);
 WEB_API CSSPixelSize svg_viewport_size(Layout::Node const&);
 WEB_API Optional<Gfx::AffineTransform> svg_viewport_transform(Layout::Node const&);
 WEB_API Gfx::AffineTransform svg_element_transform(Layout::Node const&);

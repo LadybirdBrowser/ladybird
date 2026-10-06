@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg width="600" height="400" font-family="sans-serif" font-size="20">
+    <text id="plain" x="10" y="30">Hello world</text>
+    <text id="nested" x="10" y="60"><tspan id="first">Hello</tspan><tspan id="second">World</tspan></text>
+    <text id="anchored" x="300" y="90" text-anchor="middle">Hello world</text>
+    <text id="hidden" x="10" y="120" style="display: none">Hello world</text>
+    <text id="pair" x="10" y="240">a&#x1F600;b</text>
+    <text id="offset" x="10" y="270"><tspan id="moved" x="100">Hi</tspan></text>
+    <path id="curve" d="M 10 330 L 400 330" />
+    <text id="on-path"><textPath id="text-path" href="#curve">On a path</textPath></text>
+</svg>
+<canvas id="canvas" width="10" height="10"></canvas>
+<script>
+    test(() => {
+        const near = (a, b) => Math.abs(a - b) < 0.01;
+        const byId = id => document.getElementById(id);
+        const plain = byId("plain");
+
+        println(`plain: ${plain.getNumberOfChars()} chars, length > 0: ${plain.getComputedTextLength() > 0}`);
+        println(`plain: getSubStringLength(0, 11) equals getComputedTextLength(): ${near(plain.getSubStringLength(0, 11), plain.getComputedTextLength())}`);
+        println(`plain: getSubStringLength(0, 5) + getSubStringLength(5, 6) equals the whole: ${near(plain.getSubStringLength(0, 5) + plain.getSubStringLength(5, 6), plain.getComputedTextLength())}`);
+        println(`plain: nchars past the end is clamped: ${near(plain.getSubStringLength(10, 5), plain.getSubStringLength(10, 1))}`);
+
+        const context = byId("canvas").getContext("2d");
+        context.font = "20px sans-serif";
+        println(`plain: matches canvas measureText: ${Math.abs(context.measureText("Hello world").width - plain.getComputedTextLength()) < 0.5}`);
+
+        const nested = byId("nested");
+        println(`nested: ${nested.getNumberOfChars()} chars, equals ${byId("first").getNumberOfChars()} + ${byId("second").getNumberOfChars()}`);
+        println(`nested: length is the sum of its tspans: ${near(nested.getComputedTextLength(), byId("first").getComputedTextLength() + byId("second").getComputedTextLength())}`);
+
+        println(`anchored: same length as plain: ${near(byId("anchored").getComputedTextLength(), plain.getComputedTextLength())}`);
+
+        const hidden = byId("hidden");
+        println(`hidden: ${hidden.getNumberOfChars()} chars, length ${hidden.getComputedTextLength()}`);
+
+        const pair = byId("pair");
+        println(`pair: ${pair.getNumberOfChars()} chars`);
+        println(`pair: the second code unit of the surrogate pair adds no length: ${pair.getSubStringLength(1, 1) > 0 && pair.getSubStringLength(2, 1) === 0}`);
+        println(`pair: getSubStringLength(1, 2) equals getSubStringLength(1, 1): ${near(pair.getSubStringLength(1, 2), pair.getSubStringLength(1, 1))}`);
+        const emoji = pair.getExtentOfChar(1);
+        const trailing = pair.getExtentOfChar(2);
+        println(`pair: both code units of the pair share one extent: ${emoji.x === trailing.x && emoji.width === trailing.width && emoji.width > 0}`);
+
+        const extent = plain.getExtentOfChar(0);
+        println(`plain: extent of the first character starts at x=${extent.x}, width equals its advance: ${near(extent.width, plain.getSubStringLength(0, 1))}`);
+        println(`plain: extent spans the baseline: ${extent.y < 30 && extent.y + extent.height > 30}`);
+        const last = plain.getExtentOfChar(10);
+        println(`plain: extents end at the text's length: ${near(last.x + last.width, 10 + plain.getComputedTextLength())}`);
+
+        const moved = byId("moved").getExtentOfChar(0);
+        println(`moved: tspan with x=100 starts its extent at x=${moved.x}`);
+
+        const onPath = byId("on-path");
+        const textPath = byId("text-path");
+        println(`on-path: ${onPath.getNumberOfChars()} chars, textPath ${textPath.getNumberOfChars()} chars, equal lengths > 0: ${onPath.getComputedTextLength() > 0 && near(onPath.getComputedTextLength(), textPath.getComputedTextLength())}`);
+
+        for (const [name, call] of [
+            ["getSubStringLength(11, 1)", () => plain.getSubStringLength(11, 1)],
+            ["getExtentOfChar(11)", () => plain.getExtentOfChar(11)],
+            ["hidden.getSubStringLength(0, 1)", () => hidden.getSubStringLength(0, 1)],
+            ["hidden.getExtentOfChar(0)", () => hidden.getExtentOfChar(0)],
+        ]) {
+            try {
+                call();
+                println(`${name}: no exception`);
+            } catch (e) {
+                println(`${name}: ${e.name}`);
+            }
+        }
+    });
+</script>

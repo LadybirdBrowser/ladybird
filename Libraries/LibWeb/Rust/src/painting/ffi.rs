@@ -792,6 +792,45 @@ pub unsafe extern "C" fn render_state_paintable_computed_svg_path(
     }
 }
 
+/// The glyph cells a text content element's box committed for its own characters, one per code
+/// unit. The cells belong to the committed fragment, so they are read before the next commit.
+#[repr(C)]
+pub struct FfiSvgTextCharacterCells {
+    pub cells: *const svg_formatting_context::FfiSvgTextCharacterCell,
+    pub count: usize,
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread. The cells the result points at
+/// belong to the committed fragment, so the caller reads them before the next commit.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_paintable_svg_text_character_cells(
+    host: &DocumentHost,
+    paintable: NodeSlotId,
+) -> FfiSvgTextCharacterCells {
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        read_arena(host, node_read(), paintable, |arena, paintable| {
+            let none = FfiSvgTextCharacterCells {
+                cells: std::ptr::null(),
+                count: 0,
+            };
+            let paintable_rows = arena.paintable_rows();
+            if !paintable_rows.paintable_row_is_populated(paintable) {
+                return none;
+            }
+            match crate::painting::paintable_geometry::committed_svg_text_character_cells(&paintable_rows, paintable) {
+                Some(cells) => FfiSvgTextCharacterCells {
+                    cells: cells.as_ptr(),
+                    count: cells.len(),
+                },
+                None => none,
+            }
+        })
+    }
+}
+
 #[repr(C)]
 pub struct FfiCaretRectResult {
     pub found: bool,

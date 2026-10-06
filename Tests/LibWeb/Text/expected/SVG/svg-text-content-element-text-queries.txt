@@ -1,0 +1,22 @@
+plain: 11 chars, length > 0: true
+plain: getSubStringLength(0, 11) equals getComputedTextLength(): true
+plain: getSubStringLength(0, 5) + getSubStringLength(5, 6) equals the whole: true
+plain: nchars past the end is clamped: true
+plain: matches canvas measureText: true
+nested: 10 chars, equals 5 + 5
+nested: length is the sum of its tspans: true
+anchored: same length as plain: true
+hidden: 0 chars, length 0
+pair: 4 chars
+pair: the second code unit of the surrogate pair adds no length: true
+pair: getSubStringLength(1, 2) equals getSubStringLength(1, 1): true
+pair: both code units of the pair share one extent: true
+plain: extent of the first character starts at x=10, width equals its advance: true
+plain: extent spans the baseline: true
+plain: extents end at the text's length: true
+moved: tspan with x=100 starts its extent at x=100
+on-path: 9 chars, textPath 9 chars, equal lengths > 0: true
+getSubStringLength(11, 1): IndexSizeError
+getExtentOfChar(11): IndexSizeError
+hidden.getSubStringLength(0, 1): IndexSizeError
+hidden.getExtentOfChar(0): IndexSizeError

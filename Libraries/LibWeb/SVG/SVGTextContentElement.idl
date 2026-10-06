@@ -11,11 +11,11 @@ interface SVGTextContentElement : SVGGraphicsElement {
     [FIXME, SameObject] readonly attribute SVGAnimatedEnumeration lengthAdjust;
 
     long getNumberOfChars();
-    [FIXME] float getComputedTextLength();
-    [FIXME] float getSubStringLength(unsigned long charnum, unsigned long nchars);
+    float getComputedTextLength();
+    float getSubStringLength(unsigned long charnum, unsigned long nchars);
     DOMPoint getStartPositionOfChar(unsigned long charnum);
     [FIXME] DOMPoint getEndPositionOfChar(unsigned long charnum);
-    [FIXME] DOMRect getExtentOfChar(unsigned long charnum);
+    DOMRect getExtentOfChar(unsigned long charnum);
     [FIXME] float getRotationOfChar(unsigned long charnum);
     [FIXME] long getCharNumAtPosition(optional DOMPointInit point = {});
     [FIXME] undefined selectSubString(unsigned long charnum, unsigned long nchars);
