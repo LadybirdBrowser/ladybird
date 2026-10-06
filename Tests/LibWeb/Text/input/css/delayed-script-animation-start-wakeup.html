@@ -22,9 +22,12 @@
         return promise;
     }
 
+    // The rendering update may go on beside the tasks after it, so it is waited for until it has run.
     async function renderAt(frameTime) {
         internals.injectRenderingOpportunity(frameTime);
-        await nextTask();
+        do
+            await nextTask();
+        while (internals.frameSchedulerState() !== "idle");
     }
 
     asyncTest(async done => {

@@ -12,6 +12,8 @@
         const result = await whileRecordingInFlight(() => {
             internals.holdNextFrame("before-present");
             box.firstChild.data = "a much longer text";
+            // Laid out here, so that what the rendering update lets fly is its recording.
+            box.offsetWidth;
         }, state => {
             // The text moved, so hit testing reads the hit-test list of the recording in flight, and waits for it.
             const hit = document.elementFromPoint(5, 5);

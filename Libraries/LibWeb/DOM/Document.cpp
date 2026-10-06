@@ -2464,13 +2464,16 @@ void Document::sample_animation_effects_needing_style_update()
         return static_cast<Animations::KeyframeEffect&>(*animation->effect()).observation_sample_requested();
     });
 
+    // A timeline script observed ahead of its current time in this task is sampled at that time too, so that a style
+    // read agrees with the time script read, however many reads the task makes.
     GC::RootVector<GC::Ref<Animations::AnimationTimeline>> timelines_with_current_time_override;
-    if (m_force_throttled_animation_style_update || has_requested_observation_sample) {
-        for (auto& timeline : m_associated_animation_timelines)
+    bool const samples_at_observed_time = m_force_throttled_animation_style_update || has_requested_observation_sample;
+    for (auto& timeline : m_associated_animation_timelines) {
+        if (samples_at_observed_time || timeline->was_observed_ahead_in_current_task())
             timelines_with_current_time_override.append(timeline);
-        for (auto& timeline : timelines_with_current_time_override)
-            timeline->set_current_time_override_for_style_sampling(timeline->current_time_for_observation());
     }
+    for (auto& timeline : timelines_with_current_time_override)
+        timeline->set_current_time_override_for_style_sampling(timeline->current_time_for_observation());
     ScopeGuard clear_current_time_overrides = [&] {
         for (auto& timeline : timelines_with_current_time_override)
             timeline->clear_current_time_override_for_style_sampling();
