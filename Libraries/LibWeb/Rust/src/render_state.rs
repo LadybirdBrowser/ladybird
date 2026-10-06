@@ -356,11 +356,17 @@ impl ArenaChange {
     }
 
     /// Whether the change writes what the document's style engine computes from. A mint of style node identities does
-    /// not: it makes them live, in the order the host minted them.
+    /// not: it makes them live, in the order the host minted them. Nor does a note of what an attribute name's forms
+    /// are, or what an `attr()` reads it as: what the name is, which no style transaction can answer differently, so it
+    /// need not wait for the drain of one that flew.
     fn writes_style(&self) -> bool {
+        use crate::css::style::engine_calls::EngineWrite;
         match self {
-            Self::Style(change) => !change.notes_attribute_name(),
-            Self::Engine(write) => !matches!(write, crate::css::style::engine_calls::EngineWrite::MintStyleNodes(_)),
+            Self::Style(_) => true,
+            Self::Engine(write) => !matches!(
+                write,
+                EngineWrite::MintStyleNodes(_) | EngineWrite::AttributeNameForms { .. }
+            ),
             Self::Rule(_) => true,
             Self::Layout(_)
             | Self::Paint(_)

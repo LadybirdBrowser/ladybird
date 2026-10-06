@@ -75,6 +75,19 @@ pub(crate) enum EngineWrite {
     },
     /// A name the host interned, which the engine adopts as the atom the host's lease holds.
     AdoptAtom(AtomLease),
+    /// The other names the attribute name `name` answers to, and the local name an `attr()` reads it by where it is in
+    /// no namespace.
+    AttributeNameForms {
+        name: StyleAtomID,
+        forms: super::index::AttributeNameForms,
+        substitution_name: Option<Box<[u16]>>,
+    },
+    /// What a value of the attribute name `name` spells, which the engine keeps where something reads it.
+    AttributeValueText {
+        name: StyleAtomID,
+        value: StyleAtomID,
+        text: crate::css::retained_fly_string::RetainedUtf16FlyString,
+    },
     /// An element loses its style node, and keeps the random base values of the keys that name it in `slot`.
     ParkRandomBaseValues { node: StyleNodeID, slot: ParkedBaseValues },
     /// An element's new style node takes back the random base values the element kept in `slot`.
@@ -128,10 +141,13 @@ pub(crate) struct InputTransaction {
 }
 
 impl EngineWrite {
-    /// Whether the write may move a fact the host knows of the render state. What a text spells never does: it stages
-    /// no style input and touches no layout box.
+    /// Whether the write may move a fact the host knows of the render state. What a text, an attribute name or an
+    /// attribute value spells never does: it stages no style input and touches no layout box.
     pub(crate) fn may_move_facts(&self) -> bool {
-        !matches!(self, Self::TextData { .. })
+        !matches!(
+            self,
+            Self::TextData { .. } | Self::AttributeNameForms { .. } | Self::AttributeValueText { .. }
+        )
     }
 
     pub(crate) fn apply(self, engine: &mut StyleEngine) {
@@ -222,6 +238,21 @@ impl EngineWrite {
                 };
                 // The engine took a reference of its own, so the global atom stays the one the lease held.
                 assert_eq!(atom, lease.atom().0, "a document adopts the atom its host interned");
+            }
+            Self::AttributeNameForms {
+                name,
+                forms,
+                substitution_name,
+            } => {
+                engine.note_attribute_name_forms(name, forms);
+                if let Some(local_name) = substitution_name {
+                    engine.note_attribute_substitution_name(name, &local_name);
+                }
+            }
+            Self::AttributeValueText { name, value, text } => {
+                if engine.attribute_name_requires_value_text(name) {
+                    engine.set_attribute_value_text(value, &text.to_utf16());
+                }
             }
             Self::ParkRandomBaseValues { node, slot } => {
                 *slot.lock().expect("a parked row is never poisoned") =
@@ -423,15 +454,6 @@ pub unsafe extern "C" fn style_engine_set_pseudo_element_custom_property_data(
         identity,
     };
     host.queue_change(ArenaChange::Engine(write));
-}
-
-/// Interns `name` qualified by `namespace` for the document, as the host interns a name.
-///
-/// # Safety
-/// `host` must be a live document host.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_intern_qualified_atom(host: &DocumentHost, namespace: u32, name: u32) -> u32 {
-    super::host_atoms::intern_qualified(host, StyleAtomID(namespace), StyleAtomID(name)).0
 }
 
 /// Makes the `count` identities at `nodes`, which the host minted, live.
@@ -1167,52 +1189,6 @@ pub unsafe extern "C" fn style_engine_has_size_containers_needing_evaluation_aft
             engine.has_size_containers_needing_evaluation_after_layout()
         }),
     }
-}
-
-/// Where the engine's requirements of attribute value text are, which the host knows without asking where it queued no
-/// rule since its last job.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_attribute_value_text_requirements_version(
-    host: &DocumentHost,
-    read: &BegunRead,
-) -> u64 {
-    match host.known_selector_attribute_value_text_requirements_version() {
-        Some(version) => super::inputs::with_attr_names_read(version),
-        None => with_engine(read, host, |engine| engine.attribute_value_text_requirements_version()),
-    }
-}
-
-/// Whether the host knows that nothing reads what the values of the attribute name `name` spell: no selector of the
-/// engine, by `name` or the other forms the host published with it, and no `attr()`, by `local_name` if it has one.
-/// The host knows what the selectors read where it queued no rule since its last job; what `attr()`s read is the
-/// process's. Where it does not know, the host hands the engine each value's text, which the engine keeps only where
-/// something reads it.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, and `local_name` null or `local_name_length` code
-/// units.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_attribute_value_text_is_known_unread(
-    host: &DocumentHost,
-    name: u32,
-    any_namespace: u32,
-    folded_name: u32,
-    folded_local: u32,
-    local_name: *const u16,
-    local_name_length: usize,
-) -> bool {
-    let attr_may_read = !local_name.is_null()
-        // SAFETY: Guaranteed by the caller.
-        && crate::css::parser::arbitrary_substitution::attr_may_read_name(unsafe {
-            std::slice::from_raw_parts(local_name, local_name_length)
-        });
-    let keys = [name, any_namespace, folded_name, folded_local].map(StyleAtomID);
-    !attr_may_read && host.known_selectors_read_value_text_of(&keys) == Some(false)
 }
 
 /// Folds the style input `node` owes into the reaction the host is about to apply to it, where the reaction covers it,

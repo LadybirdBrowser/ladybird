@@ -176,11 +176,6 @@ StyleEngine::StyleRecordDelta StyleEngine::remove_computed_pseudo(Layout::BegunR
     return { StyleRecordID { delta.old_style_record }, StyleRecordID { delta.new_style_record } };
 }
 
-StyleAtomID StyleEngine::intern_qualified_atom(StyleAtomID namespace_atom, StyleAtomID name)
-{
-    return StyleAtomID { StyleEngineFFI::document_host_intern_qualified_atom(host(), namespace_atom.value(), name.value()) };
-}
-
 StyleRecordID StyleEngine::republish_record_environment(Layout::BegunRead const& read, StyleNodeID node, u64 environment, void const* store)
 {
     return StyleRecordID { StyleEngineFFI::style_engine_republish_record_environment(host(), &read, node.value(), environment, store) };
@@ -253,105 +248,16 @@ void StyleEngine::publish_html_element_namespace(StyleAtomID namespace_atom)
         StyleEngineFFI::style_engine_set_html_element_namespace(host(), namespace_atom);
 }
 
-// The name an attribute is published under, and the any-namespace name it shares.
-//
-// Three selectors ask three different questions of an attribute called `x`. `[ns|x]` reaches only
-// the one in that namespace, `[x]` reaches only the one in no namespace - which is what the bare
-// local name is - and `[*|x]` reaches whichever of them the element carries. The first two name
-// exactly one of an element's attributes, so they are the key: an element can hold `x` in several
-// namespaces at once, and each is a fact with its own value. `[*|x]` asks about all of them
-// together, so the shared form is published as an identity of the name rather than as a fact of its
-// own, and one entry per attribute answers all three.
-StyleAtomID StyleEngine::intern_attribute_name(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_uri)
-{
-    auto local = intern_atom(local_name);
-    auto namespace_atom = !namespace_uri.has_value() || namespace_uri->is_empty()
-        ? StyleAtomID {}
-        : intern_case_sensitive_text_atom(namespace_uri->view());
-    auto& names_by_namespace = m_attribute_name_atoms.ensure(local, [] { return HashMap<StyleAtomID, StyleAtomID> {}; });
-    if (auto name = names_by_namespace.get(namespace_atom); name.has_value())
-        return name.release_value();
-
-    auto in_namespace = [&](StyleAtomID name) {
-        if (namespace_atom == 0)
-            return name;
-        return intern_qualified_atom(namespace_atom, name);
-    };
-    auto any_namespace = intern_qualified_atom(StyleEngine::any_namespace, local);
-    auto name = in_namespace(local);
-
-    StyleAtomID folded_name;
-    StyleAtomID folded_local;
-    if (auto folded = local_name.to_ascii_lowercase(); folded != local_name) {
-        auto folded_atom = intern_atom(folded);
-        folded_name = in_namespace(folded_atom);
-        folded_local = intern_qualified_atom(StyleEngine::any_namespace, folded_atom);
-    }
-
-    StyleEngineFFI::style_engine_note_attribute_name_forms(host(), name, any_namespace, folded_name, folded_local);
-    AttributeNameForms forms { .any_namespace = any_namespace, .folded_name = folded_name, .folded_local = folded_local };
-    // An attr() reads an attribute in no namespace by its local name.
-    if (namespace_atom == 0) {
-        auto local_name_view = local_name.view();
-        StyleEngineFFI::style_engine_note_attribute_substitution_name(host(), name, StyleEngineFFI::ffi_utf16_view(local_name_view));
-        forms.substitution_name.ensure_capacity(local_name_view.length_in_code_units());
-        for (size_t i = 0; i < local_name_view.length_in_code_units(); ++i)
-            forms.substitution_name.unchecked_append(local_name_view.code_unit_at(i));
-    }
-    m_attribute_name_forms.set(name, move(forms));
-    names_by_namespace.set(namespace_atom, name);
-    return name;
-}
-
-StyleAtomID StyleEngine::intern_attribute_value(StyleAtomID name, Utf16String const& value)
-{
-    auto atom = intern_atom(Utf16FlyString { value });
-    if (!attribute_value_text_is_known_unread(name))
-        publish_attribute_value_text(name, atom, value);
-    return atom;
-}
-
 void StyleEngine::backfill_attribute_value_text_if_required(StyleAtomID name, Utf16String const& value)
 {
-    if (attribute_value_text_is_known_unread(name))
-        return;
-
-    auto atom = intern_atom(Utf16FlyString { value });
-    publish_attribute_value_text(name, atom, value);
+    if (!StyleEngineFFI::document_host_attribute_value_text_is_known_unread(host(), name.value()))
+        (void)intern_attribute_value(name, value);
 }
 
-void StyleEngine::publish_attribute_value_text(StyleAtomID name, StyleAtomID atom, Utf16View value)
+void StyleEngine::publish_attribute_value_texts_if_requirements_moved(Layout::BegunRead const& read)
 {
-    // The engine holds one copy of the text per currently used value that something reads, and keeps the one it holds
-    // where it still has it, so the host hands the text over without asking whether it survived reclamation, or
-    // whether anything reads the name.
-    StyleEngineFFI::style_engine_set_attribute_value_text(host(), name, atom, StyleEngineFFI::ffi_utf16_view(value));
-}
-
-bool StyleEngine::refresh_attribute_value_text_requirements(Layout::BegunRead const& read)
-{
-    auto version = StyleEngineFFI::style_engine_attribute_value_text_requirements_version(m_render_document->host(), &read);
-    if (version == m_attribute_value_text_requirements_version)
-        return false;
-    m_attribute_value_text_requirements_version = version;
-    m_attribute_names_with_unread_value_text.clear();
-    return true;
-}
-
-bool StyleEngine::attribute_value_text_is_known_unread(StyleAtomID name)
-{
-    if (m_attribute_names_with_unread_value_text.contains(name))
-        return true;
-    // The host interned every name it asks about, with its forms.
-    auto it = m_attribute_name_forms.find(name);
-    VERIFY(it != m_attribute_name_forms.end());
-    auto const& forms = it->value;
-    if (!StyleEngineFFI::style_engine_attribute_value_text_is_known_unread(host(), name.value(), forms.any_namespace.value(),
-            forms.folded_name.value(), forms.folded_local.value(),
-            forms.substitution_name.is_empty() ? nullptr : forms.substitution_name.data(), forms.substitution_name.size()))
-        return false;
-    m_attribute_names_with_unread_value_text.set(name);
-    return true;
+    if (StyleEngineFFI::document_host_refresh_attribute_value_text_requirements(host(), &read) && m_style_computer)
+        publish_required_attribute_value_texts(*this, *m_style_computer);
 }
 
 // Recording input gives the next rendering update style work to do, but touches no layout tree
@@ -499,8 +405,7 @@ void StyleEngine::submit_recorded_input()
         publish_pending_element_features(*this, *m_style_computer);
     }
     if (!has_recorded_input()) {
-        if (refresh_attribute_value_text_requirements(read) && m_style_computer)
-            publish_required_attribute_value_texts(*this, *m_style_computer);
+        publish_attribute_value_texts_if_requirements_moved(read);
         return;
     }
 
@@ -531,8 +436,7 @@ void StyleEngine::submit_recorded_input()
 
     // Selector demand can arrive while the program change and element facts are still staged.
     // Refresh after applying the fact batch, then backfill values before matching observes it.
-    if (refresh_attribute_value_text_requirements(read) && m_style_computer)
-        publish_required_attribute_value_texts(*this, *m_style_computer);
+    publish_attribute_value_texts_if_requirements_moved(read);
 }
 
 void StyleEngine::flush()
@@ -822,26 +726,6 @@ void StyleEngine::note_animations_changed(StyleNodeID style_node)
 StyleEngine::PublishedStyleTransaction StyleEngine::publish_style_transaction_view(StyleEngineFFI::FfiStyleTransactionView const& view, MonotonicTime submission_started_at, MonotonicTime bridge_started_at)
 {
     auto bridge_microseconds = (MonotonicTime::now() - bridge_started_at).to_truncated_microseconds();
-    if (view.reclaimed_style_atom_count != 0) {
-        HashTable<StyleAtomID> reclaimed_atoms;
-        reclaimed_atoms.ensure_capacity(view.reclaimed_style_atom_count);
-        for (auto const& reclaimed : ReadonlySpan<StyleEngineFFI::FfiReclaimedStyleAtom> { view.reclaimed_style_atoms, view.reclaimed_style_atom_count }) {
-            auto atom_id = StyleAtomID { reclaimed.atom };
-            reclaimed_atoms.set(atom_id);
-            m_attribute_names_with_unread_value_text.remove(atom_id);
-        }
-        m_attribute_name_atoms.remove_all_matching([&](StyleAtomID local, auto& names_by_namespace) {
-            if (reclaimed_atoms.contains(local))
-                return true;
-            names_by_namespace.remove_all_matching([&](StyleAtomID namespace_atom, StyleAtomID name) {
-                return reclaimed_atoms.contains(namespace_atom) || reclaimed_atoms.contains(name);
-            });
-            return names_by_namespace.is_empty();
-        });
-        m_attribute_name_forms.remove_all_matching([&](StyleAtomID name, auto const&) {
-            return reclaimed_atoms.contains(name);
-        });
-    }
     return {
         .version = { view.transaction_version, view.program_version },
         .reactions = { view.answers, view.count },

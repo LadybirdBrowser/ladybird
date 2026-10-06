@@ -16,11 +16,10 @@ use super::ReplacedContentInput;
 use super::StyleEngine;
 use super::bridge::{ElementBoxKind, FfiAppliedAnimationDefinition, borrow};
 use super::engine_calls::with_engine;
-use super::index::{AttributeNameForms, StyleAtomID};
+use super::index::StyleAtomID;
 use super::program::{CascadeLayerID, SheetID};
 use super::tree::{StyleNodeID, TableSpans, TreeScopeID};
 use crate::abort_on_panic;
-use crate::css::ffi_support::FfiUtf16View;
 use crate::render_state::{ArenaChange, BegunRead, DocumentHost};
 
 /// An array the host lends an entry for the call, as C++ passes an AK `Span`.
@@ -81,8 +80,6 @@ carried! {
     Option<SheetID>: u32 as "SheetID" = |sheet| sheet.checked_sub(1).map(SheetID);
     [u32; 4]: *const [u32; 4] as "u32 const*" = |values| unsafe { *values };
     Box<[u16]>: FfiSpan<u16> as "ReadonlySpan<u16>" = |span| unsafe { borrow(span.data, span.size) }.into();
-    // What a string spells, which the host lends as a view of the string's own ASCII or UTF-16 storage.
-    Vec<u16>: FfiUtf16View as "FfiUtf16View" = |view| unsafe { view.to_utf16() }.unwrap_or_default();
     Box<[u32]>: FfiSpan<u32> as "ReadonlySpan<u32>" = |span| unsafe { borrow(span.data, span.size) }.into();
     Box<[u64]>: FfiSpan<u64> as "ReadonlySpan<u64>" = |span| unsafe { borrow(span.data, span.size) }.into();
     Box<[StyleAtomID]>: FfiSpan<u32> as "ReadonlySpan<StyleAtomID>" =
@@ -228,12 +225,6 @@ style_boundary! {
             });
         set_element_id_name => SetElementIdName { node: StyleNodeID, name: StyleAtomID };
         set_shadow_root => SetShadowRoot { shadow_host: StyleNodeID, shadow_root: StyleNodeID };
-        note_attribute_substitution_name => NoteAttributeSubstitutionName {
-            name: StyleAtomID, local_name: Vec<u16>
-        } => engine.note_attribute_substitution_name(name, &local_name);
-        note_attribute_name_forms => NoteAttributeNameForms {
-            name: StyleAtomID, local: StyleAtomID, folded_name: StyleAtomID, folded_local: StyleAtomID
-        } => engine.note_attribute_name_forms(name, AttributeNameForms { local, folded_name, folded_local });
         record_environment_change => RecordEnvironmentChange;
         record_custom_property_registration_change => RecordCustomPropertyRegistrationChange { name: StyleAtomID };
         flush => Flush => engine.flush_without_document_root();
@@ -289,10 +280,6 @@ style_boundary! {
         begin_style_record_view_epoch => BeginStyleRecordViewEpoch;
         end_style_record_view_epoch => EndStyleRecordViewEpoch;
         set_tree_scope_uses_document_sheets => SetTreeScopeUsesDocumentSheets { tree_scope: TreeScopeID };
-        set_attribute_value_text => SetAttributeValueText { name: StyleAtomID, value: StyleAtomID, text: Vec<u16> } =>
-            if engine.attribute_name_requires_value_text(name) {
-                engine.set_attribute_value_text(value, &text);
-            };
         set_element_custom_property_names => SetElementCustomPropertyNames {
             node: StyleNodeID, name_atoms: Box<[StyleAtomID]>, uses_unnamed: bool, uses_custom_functions: bool
         } => engine.set_element_custom_property_names(node, &name_atoms, uses_unnamed, uses_custom_functions);
@@ -358,15 +345,6 @@ style_boundary! {
 }
 
 impl StyleChange {
-    /// Whether the change notes what an attribute name's forms are, or what an `attr()` reads it as: what the name is,
-    /// which no style transaction can answer differently, so it need not wait for the drain of one that flew.
-    pub(crate) fn notes_attribute_name(&self) -> bool {
-        matches!(
-            self,
-            Self::NoteAttributeNameForms { .. } | Self::NoteAttributeSubstitutionName { .. }
-        )
-    }
-
     /// Whether the change only keeps the engine from reclaiming records: it pins or unpins one, or begins or ends an
     /// epoch of style record views. It changes nothing the paint properties are prepared from.
     pub(crate) fn only_keeps_records_alive(&self) -> bool {
@@ -380,15 +358,13 @@ impl StyleChange {
     }
 
     /// Whether the change may move a fact the host knows of the render state. One that keeps records alive, notes what
-    /// an attribute name is or what a value or a text spells, picks the pseudo-element whose style is deferred, or
-    /// begins or ends a cold matching batch never does: none of them stages a style input or touches a layout box.
+    /// a text spells, picks the pseudo-element whose style is deferred, or begins or ends a cold matching batch never
+    /// does: none of them stages a style input or touches a layout box.
     pub(crate) fn may_move_facts(&self) -> bool {
         !self.only_keeps_records_alive()
-            && !self.notes_attribute_name()
             && !matches!(
                 self,
-                Self::SetAttributeValueText { .. }
-                    | Self::SetTextIsAsciiWhitespace { .. }
+                Self::SetTextIsAsciiWhitespace { .. }
                     | Self::SetPseudoElementStyleDeferred { .. }
                     | Self::BeginColdMatchingBatch { .. }
                     | Self::BeginAdaptiveColdMatchingBatch { .. }
