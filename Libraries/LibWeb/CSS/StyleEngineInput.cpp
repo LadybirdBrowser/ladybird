@@ -1776,25 +1776,12 @@ void record_element_declarations_changed(DOM::Element& element, ElementDeclarati
     if (!had_declarations && !has_declarations)
         return;
 
-    auto ffi_kind = StyleEngineFFI::FfiElementDeclarationKind::InlineStyle;
-    switch (kind) {
-    case ElementDeclarationKind::InlineStyle:
-        ffi_kind = StyleEngineFFI::FfiElementDeclarationKind::InlineStyle;
-        break;
-    case ElementDeclarationKind::PresentationalHint:
-        ffi_kind = StyleEngineFFI::FfiElementDeclarationKind::PresentationalHint;
-        break;
-    case ElementDeclarationKind::SvgPresentationAttribute:
-        ffi_kind = StyleEngineFFI::FfiElementDeclarationKind::SvgPresentationAttribute;
-        break;
-    }
-
     // The block's contents moved even where the CSSOM object did not, so the identity that makes
     // this a change is a version rather than the object's address. The engine mints it as it
     // applies the delta.
     style_engine->record_element_declaration_delta({
         .node = element.style_node_id().value(),
-        .kind = ffi_kind,
+        .kind = kind,
         .old_block = had_declarations ? 1u : 0u,
         .new_block = has_declarations ? 1u : 0u,
     });

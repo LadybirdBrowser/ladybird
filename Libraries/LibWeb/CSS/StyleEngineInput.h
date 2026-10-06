@@ -15,6 +15,7 @@
 namespace Web::CSS::StyleEngineFFI {
 
 struct FfiAppliedAnimationDefinition;
+enum class FfiElementDeclarationKind : u8;
 
 }
 
@@ -184,11 +185,7 @@ WEB_API void record_element_attribute_changed(DOM::Element&, Utf16FlyString cons
 // Called when a declaration block the element itself sources has changed: its inline style, its
 // presentational hints, or its SVG presentation attributes. What that changes is which declaration
 // wins on this element, never which elements match, so it reaches the element and nothing else.
-enum class ElementDeclarationKind : u8 {
-    InlineStyle,
-    PresentationalHint,
-    SvgPresentationAttribute,
-};
+using ElementDeclarationKind = StyleEngineFFI::FfiElementDeclarationKind;
 WEB_API void record_element_declarations_changed(DOM::Element&, ElementDeclarationKind, bool had_declarations, bool has_declarations);
 
 }
