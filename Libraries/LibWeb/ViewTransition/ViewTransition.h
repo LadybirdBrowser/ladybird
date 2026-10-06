@@ -11,7 +11,6 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/CSS/Filter.h>
 #include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/DOM/PseudoElement.h>
 #include <LibWeb/Export.h>
@@ -64,7 +63,7 @@ struct CapturedElement : public JS::Cell {
     Optional<CSS::Direction> old_direction {};
     // FIXME: old_text_orientation
     Optional<CSS::MixBlendMode> old_mix_blend_mode {};
-    CSS::Filter old_backdrop_filter {};
+    CSS::RustStyleValueHandle old_backdrop_filter {};
     Optional<CSS::PreferredColorScheme> old_color_scheme {};
     GC::Ptr<DOM::Element> new_element {};
 

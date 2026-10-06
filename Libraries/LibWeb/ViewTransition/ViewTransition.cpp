@@ -342,7 +342,7 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
         capture->old_mix_blend_mode = element.layout_node(read)->mix_blend_mode();
 
         // 11. Set capture’s old backdrop-filter to the computed value of backdrop-filter on element.
-        capture->old_backdrop_filter = element.layout_node(read)->backdrop_filter().materialize();
+        capture->old_backdrop_filter = element.layout_node(read)->backdrop_filter().filter_list();
 
         // 12. Set capture’s old color-scheme to the computed value of color-scheme on element.
         capture->old_color_scheme = element.layout_node(read)->color_scheme();
@@ -840,7 +840,7 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
         Optional<CSS::Direction> direction = {};
         // FIXME: Implement this once we have text-orientation.
         Optional<CSS::MixBlendMode> mix_blend_mode = {};
-        Optional<CSS::Filter> backdrop_filter = {};
+        CSS::RustStyleValueHandle backdrop_filter;
         Optional<CSS::PreferredColorScheme> color_scheme = {};
 
         // 2. If capturedElement’s new element is null, then:
@@ -927,7 +927,7 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
             mix_blend_mode = captured_element->new_element->layout_node(read)->mix_blend_mode();
 
             // 10. Set backdropFilter to the computed value of backdrop-filter on capturedElement’s new element.
-            backdrop_filter = captured_element->new_element->layout_node(read)->backdrop_filter().materialize();
+            backdrop_filter = captured_element->new_element->layout_node(read)->backdrop_filter().filter_list();
 
             // 11. Set colorScheme to the computed value of color-scheme on capturedElement’s new element.
             color_scheme = captured_element->new_element->layout_node(read)->color_scheme();
