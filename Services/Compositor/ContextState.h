@@ -15,6 +15,7 @@
 #include <AK/Span.h>
 #include <AK/Vector.h>
 #include <Compositor/BackingStoreManager.h>
+#include <Compositor/DisplayListRasterCache.h>
 #include <Compositor/Forward.h>
 #include <Compositor/FramePacer.h>
 #include <Compositor/ScrollSnapController.h>
@@ -324,6 +325,7 @@ private:
     bool m_has_active_visual_animations { false };
     Optional<bool> m_animated_content_may_affect_viewport;
     Compositing::DisplayListResourceStorage m_display_list_resource_storage;
+    DisplayListRasterCache m_raster_cache;
     Compositing::ScrollStateSnapshot m_scroll_state_snapshot;
     BackingStoreManager m_backing_store_manager;
     RefPtr<Gfx::PaintingSurface> m_latest_rendered_surface;

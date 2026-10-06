@@ -10,6 +10,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
+#include <Compositor/Forward.h>
 #include <LibCompositing/DisplayList/CompositedContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
@@ -17,6 +18,7 @@
 
 class GrDirectContext;
 class SkColorFilter;
+class SkImage;
 class SkImageFilter;
 class SkPaint;
 template<typename T>
@@ -36,11 +38,11 @@ public:
     explicit DisplayListPlayerSkia(RefPtr<Gfx::SkiaBackendContext>);
     ~DisplayListPlayerSkia();
 
-    using Compositing::DisplayListPlayer::execute;
     void execute(
         Compositing::DisplayList const&,
         Compositing::AccumulatedVisualContextTree const&,
         Compositing::DisplayListResourceStorage const&,
+        DisplayListRasterCache&,
         Compositing::ScrollStateSnapshot const&,
         RefPtr<Gfx::PaintingSurface>,
         Compositing::CanvasSurfaceRegistry const*,
@@ -81,6 +83,8 @@ private:
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     Compositing::CompositedContextResolver const* m_composited_context_resolver { nullptr };
+    DisplayListRasterCache* m_raster_cache { nullptr };
+    DisplayListRasterCache& raster_cache() const { return *m_raster_cache; }
 
     // Layer filters are built from their bytes once per frame node and kept until the visual
     // context tree's structure changes, so a replayed frame does not rebuild them.

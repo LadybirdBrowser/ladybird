@@ -12,5 +12,6 @@ class ConnectionFromClient;
 class ConnectionFromWebContent;
 class CompositorState;
 class DisplayListPlayerSkia;
+class DisplayListRasterCache;
 
 }

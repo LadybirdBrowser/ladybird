@@ -4,6 +4,7 @@ set(SOURCES
     CompositorState.cpp
     ContextState.cpp
     DisplayListPlayerSkia.cpp
+    DisplayListRasterCache.cpp
     ConnectionFromClient.cpp
     ConnectionFromWebContent.cpp
     FramePacer.cpp

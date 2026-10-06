@@ -177,7 +177,7 @@ void ContextState::set_parent_context(Optional<Web::CompositorContextId> parent_
 
 void ContextState::apply_display_list_resource_transaction(Compositing::DisplayListResourceTransaction&& resource_transaction)
 {
-    m_display_list_resource_storage.apply_transaction(move(resource_transaction));
+    m_raster_cache.evict(m_display_list_resource_storage.apply_transaction(move(resource_transaction)));
 }
 
 void ContextState::install_display_list_update(
@@ -2049,6 +2049,7 @@ void ContextState::paint_current_display_list(DisplayListPlayerSkia& display_lis
             *m_display_list,
             visual_context_tree_for_compositing(),
             m_display_list_resource_storage,
+            m_raster_cache,
             m_scroll_state_snapshot,
             target_surface,
             &m_canvas_surface_registry,
