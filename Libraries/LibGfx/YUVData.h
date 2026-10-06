@@ -14,12 +14,7 @@
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
 #include <LibMedia/Subsampling.h>
 
-class SkYUVAPixmaps;
-enum SkYUVColorSpace : int;
-
 namespace Gfx {
-
-SkYUVColorSpace skia_yuv_color_space(Media::CodingIndependentCodePoints);
 
 // A non-owning view of planar YUV data with the metadata needed for conversion to RGB.
 // The plane memory's lifetime is guaranteed by the object handing out the view
@@ -50,8 +45,6 @@ public:
     ReadonlyBytes v_data() const { return m_v_data; }
 
     ErrorOr<NonnullRefPtr<Bitmap>> to_bitmap() const;
-
-    SkYUVAPixmaps make_pixmaps() const;
 
 private:
     YUVData(IntSize size, u8 bit_depth, Media::Subsampling, Media::CodingIndependentCodePoints, Bytes y_data, Bytes u_data, Bytes v_data);

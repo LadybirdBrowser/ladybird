@@ -7,6 +7,7 @@
 #include <AK/BitCast.h>
 #include <AK/ByteBuffer.h>
 #include <Compositor/DisplayListRasterCache.h>
+#include <Compositor/VideoFrameSkia.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGfx/Bitmap.h>
@@ -217,7 +218,7 @@ sk_sp<SkImage> DisplayListRasterCache::image_for_video_sink(DisplayListResourceS
 
 #ifdef AK_OS_MACOS
     if (surface != nullptr && skia_backend_context)
-        image = Gfx::sk_image_from_video_surface(surface->io_surface(), frame->cicp(), *skia_backend_context);
+        image = sk_image_from_video_surface(surface->io_surface(), frame->cicp(), *skia_backend_context);
 #endif
 
     auto yuv_data = image ? Optional<Gfx::YUVData> {} : frame->yuv_data();
@@ -231,7 +232,7 @@ sk_sp<SkImage> DisplayListRasterCache::image_for_video_sink(DisplayListResourceS
     if (!image && gr_context && yuv_data.has_value()) {
         image = SkImages::TextureFromYUVAPixmaps(
             gr_context,
-            yuv_data->make_pixmaps(),
+            make_yuva_pixmaps(*yuv_data),
             skgpu::Mipmapped::kNo,
             false,
             Gfx::to_skia_color_space(color_space));

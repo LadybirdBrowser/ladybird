@@ -6,6 +6,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Math.h>
+#include <Compositor/VideoFrameSkia.h>
 #include <LibCore/IOSurface.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Color.h>
@@ -138,7 +139,7 @@ sk_sp<SkImage> reference_image_from_planes(Sample sample, GrDirectContext* gr_co
 
     auto yuv_data = MUST(Gfx::YUVData::create({ TEST_WIDTH, TEST_HEIGHT }, 8, Media::Subsampling::yuv420(), {},
         luma_plane.bytes(), blue_chroma_plane.bytes(), red_chroma_plane.bytes()));
-    return SkImages::TextureFromYUVAPixmaps(gr_context, yuv_data.make_pixmaps(), skgpu::Mipmapped::kNo, false, SkColorSpace::MakeSRGB());
+    return SkImages::TextureFromYUVAPixmaps(gr_context, Compositor::make_yuva_pixmaps(yuv_data), skgpu::Mipmapped::kNo, false, SkColorSpace::MakeSRGB());
 }
 
 NonnullRefPtr<Gfx::Bitmap> reference_bitmap_from_planes(Sample sample)
@@ -199,7 +200,7 @@ TEST_CASE(imports_an_eight_bit_surface_as_a_gpu_image)
     auto surface = create_decoder_shaped_surface(64, 48, kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange);
     VERIFY(surface.has_value());
 
-    auto image = Gfx::sk_image_from_video_surface(*surface, {}, *context);
+    auto image = Compositor::sk_image_from_video_surface(*surface, {}, *context);
     EXPECT(image != nullptr);
     EXPECT_EQ(image->width(), 64);
     EXPECT_EQ(image->height(), 48);
@@ -216,7 +217,7 @@ TEST_CASE(imports_a_ten_bit_surface_as_a_gpu_image)
     auto surface = create_decoder_shaped_surface(64, 48, kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange);
     VERIFY(surface.has_value());
 
-    auto image = Gfx::sk_image_from_video_surface(*surface, {}, *context);
+    auto image = Compositor::sk_image_from_video_surface(*surface, {}, *context);
     EXPECT(image != nullptr);
     EXPECT_EQ(image->width(), 64);
     EXPECT_EQ(image->height(), 48);
@@ -231,7 +232,7 @@ TEST_CASE(refuses_a_surface_that_holds_no_video_planes)
     }
 
     auto surface = Core::IOSurfaceHandle::create(16, 16);
-    EXPECT(Gfx::sk_image_from_video_surface(surface, {}, *context) == nullptr);
+    EXPECT(Compositor::sk_image_from_video_surface(surface, {}, *context) == nullptr);
 }
 
 TEST_CASE(a_surface_and_separate_planes_of_the_same_samples_render_alike)
@@ -247,7 +248,7 @@ TEST_CASE(a_surface_and_separate_planes_of_the_same_samples_render_alike)
     VERIFY(surface.has_value());
     fill_biplanar_surface(*surface, TEST_SAMPLE);
 
-    auto surface_image = Gfx::sk_image_from_video_surface(*surface, {}, *context);
+    auto surface_image = Compositor::sk_image_from_video_surface(*surface, {}, *context);
     VERIFY(surface_image != nullptr);
     auto surface_color = center_pixel_of(surface_image, gr_context);
     VERIFY(surface_color.has_value());
