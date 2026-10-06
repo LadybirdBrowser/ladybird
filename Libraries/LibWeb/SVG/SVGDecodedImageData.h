@@ -58,7 +58,8 @@ private:
     SVGDecodedImageData(GC::Ref<Page>, GC::Ref<SVGPageClient>, GC::Ref<DOM::Document>, GC::Ref<SVG::SVGSVGElement>);
 
     CSS::SizeWithAspectRatio const& natural_size() const;
-    RefPtr<Gfx::PaintingSurface> render_to_surface(Gfx::IntSize) const;
+    Compositor::CompositorHost* host_compositor() const;
+    RefPtr<Gfx::Bitmap> render_frame(Gfx::IntSize) const;
     void prune_cached_display_list_resources() const;
     void append_cached_display_list_resources(Compositing::DisplayListResourceSet&) const;
     void append_paint_command_cache_source_resources(Compositing::DisplayListResourceSet&) const;
@@ -66,11 +67,9 @@ private:
     void invalidate_cached_rendering();
     static u64 next_vector_content_identity();
 
-    // FIXME: Remove this once everything is using surfaces instead.
     mutable HashMap<Gfx::IntSize, Gfx::DecodedImageFrame> m_cached_rendered_frames;
 
     mutable CSS::PreferredColorScheme m_color_scheme { CSS::PreferredColorScheme::Auto };
-    mutable HashMap<Gfx::IntSize, NonnullRefPtr<Gfx::PaintingSurface>> m_cached_rendered_surfaces;
 
     struct CachedDisplayList {
         NonnullRefPtr<Compositing::DisplayList> display_list;

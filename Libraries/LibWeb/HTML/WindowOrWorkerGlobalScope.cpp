@@ -611,6 +611,10 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                     } else {
                         decoded_frame = image_element->default_image_frame(Gfx::IntSize { *options.resize_width, *options.resize_height });
                     }
+                    if (!decoded_frame.has_value()) {
+                        WebIDL::reject_promise(*p, WebIDL::InvalidStateError::create("Image could not be rendered"_utf16));
+                        return;
+                    }
                     auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(decoded_frame->bitmap(), sx, sy, sw, sh, options);
                     // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
                     // Spec issue: https://github.com/whatwg/html/issues/3323
