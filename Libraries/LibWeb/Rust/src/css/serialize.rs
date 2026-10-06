@@ -441,8 +441,9 @@ fn format_double_with_precision(sink: &mut TextSink, mut value: f64, precision: 
         value = -value;
     }
 
-    let mut integer_value = value as u64;
-    value -= (value as i64) as f64;
+    // A double past 2^53 has no fraction, and past 2^64 no integer type holds it.
+    let mut integer_part = value.trunc();
+    value -= integer_part;
 
     debug_assert!(precision <= 6);
     let mut fraction_digits: [u8; 6] = [0; 6];
@@ -480,7 +481,7 @@ fn format_double_with_precision(sink: &mut TextSink, mut value: f64, precision: 
             *digit = b'0';
         }
         if carried {
-            integer_value += 1;
+            integer_part += 1.0;
         }
     }
 
@@ -493,7 +494,7 @@ fn format_double_with_precision(sink: &mut TextSink, mut value: f64, precision: 
     } else if sign_always {
         sink.push_ascii("+");
     }
-    sink.push_ascii(&integer_value.to_string());
+    sink.push_ascii(&format!("{integer_part:.0}"));
     if fraction_length > 0 {
         sink.push_ascii(".");
         for &digit in &fraction_digits[..fraction_length] {
@@ -3803,6 +3804,15 @@ mod tests {
         assert_eq!(number_to_string(0.1), "0.1");
         assert_eq!(number_to_string(16.0 / 9.0), "1.777778");
         assert_eq!(number_to_string(1.0 / 3.0), "0.333333");
+    }
+
+    #[test]
+    fn number_serialization_holds_integer_parts_past_u64() {
+        assert_eq!(number_to_string(18446744073709551616.0), "18446744073709551616");
+        assert_eq!(number_to_string(-18446744073709551616.0), "-18446744073709551616");
+        assert_eq!(number_to_string(1e21), "1000000000000000000000");
+        assert_eq!(number_to_string(9007199254740993.0), "9007199254740992");
+        assert_eq!(number_to_string(1234567.9999999), "1234568");
     }
 
     #[test]
