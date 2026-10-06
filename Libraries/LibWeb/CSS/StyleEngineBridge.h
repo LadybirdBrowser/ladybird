@@ -279,10 +279,10 @@ public:
     // so attributes nothing reads as text do not pay another string hash.
     void backfill_attribute_value_text_if_required(StyleAtomID name, Utf16String const& value);
 
-    // Deltas accumulate here and cross in one flat batch per style flush, never one call per
+    // The document host stages deltas, which cross to the engine in one batch per style flush, never one write per
     // element.
     void record_tree_delta(StyleEngineFFI::FfiTreeDelta const&);
-    void record_element_arrival(StyleEngineFFI::FfiElementArrival, ReadonlySpan<StyleAtomID> custom_states);
+    void record_element_arrival(StyleEngineFFI::FfiElementArrival const&, ReadonlySpan<StyleAtomID> custom_states);
     void record_local_feature_delta(StyleEngineFFI::FfiLocalFeatureDelta const&);
     void record_state_delta(StyleEngineFFI::FfiStateDelta const&);
     void record_element_declaration_delta(StyleEngineFFI::FfiElementDeclarationDelta const&);
@@ -440,8 +440,6 @@ public:
     [[nodiscard]] Layout::RustFFI::DocumentHost* host() const { return m_render_document->host(); }
 
 private:
-    using InputTransaction = StyleEngineFFI::FfiStyleInputTransaction;
-
     struct LentComputationInputs;
     void gather_computation_inputs(LentComputationInputs&);
     PublishedStyleTransaction publish_style_transaction_view(StyleEngineFFI::FfiStyleTransactionView const&, MonotonicTime submission_started_at, MonotonicTime bridge_started_at);
@@ -465,12 +463,6 @@ private:
     HashTable<StyleNodeID> m_style_nodes_beside_flown_transaction;
     HashTable<StyleNodeID> m_style_nodes_with_animations_changed_beside_flown_transaction;
     HashTable<StyleNodeID> m_parents_whose_children_changed_beside_flown_transaction;
-    Vector<StyleEngineFFI::FfiTreeDelta> m_tree_deltas;
-    Vector<StyleEngineFFI::FfiElementArrival> m_element_arrivals;
-    Vector<u32> m_arrival_custom_state_atoms;
-    Vector<StyleEngineFFI::FfiLocalFeatureDelta> m_local_feature_deltas;
-    Vector<StyleEngineFFI::FfiStateDelta> m_state_deltas;
-    Vector<StyleEngineFFI::FfiElementDeclarationDelta> m_element_declaration_deltas;
     size_t m_pending_arrival_count { 0 };
     bool m_css_transitions_may_observe_style_changes { false };
     mutable bool m_geometry_read_deferred_transaction { false };

@@ -293,41 +293,34 @@ void StyleEngine::record_tree_delta(StyleEngineFFI::FfiTreeDelta const& delta)
 {
     flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
     request_frame_for_first_recorded_input(*this, m_style_computer);
-    m_tree_deltas.append(delta);
+    StyleEngineFFI::style_engine_stage_tree_delta(host(), &delta);
 }
 
-void StyleEngine::record_element_arrival(StyleEngineFFI::FfiElementArrival arrival, ReadonlySpan<StyleAtomID> custom_states)
+void StyleEngine::record_element_arrival(StyleEngineFFI::FfiElementArrival const& arrival, ReadonlySpan<StyleAtomID> custom_states)
 {
     flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
     request_frame_for_first_recorded_input(*this, m_style_computer);
-    VERIFY(m_arrival_custom_state_atoms.size() <= NumericLimits<u32>::max());
-    VERIFY(custom_states.size() <= NumericLimits<u32>::max());
-    VERIFY(m_arrival_custom_state_atoms.size() + custom_states.size() <= NumericLimits<u32>::max());
-    arrival.custom_state_offset = static_cast<u32>(m_arrival_custom_state_atoms.size());
-    arrival.custom_state_count = static_cast<u32>(custom_states.size());
-    for (auto state : custom_states)
-        m_arrival_custom_state_atoms.append(state.value());
-    m_element_arrivals.append(arrival);
+    StyleEngineFFI::style_engine_stage_element_arrival(host(), &arrival, reinterpret_cast<u32 const*>(custom_states.data()), custom_states.size());
     note_style_node_arrived_or_retired(StyleNodeID { arrival.node });
 }
 
 void StyleEngine::record_local_feature_delta(StyleEngineFFI::FfiLocalFeatureDelta const& delta)
 {
     request_frame_for_first_recorded_input(*this, m_style_computer);
-    m_local_feature_deltas.append(delta);
+    StyleEngineFFI::style_engine_stage_local_feature_delta(host(), &delta);
 }
 
 void StyleEngine::record_state_delta(StyleEngineFFI::FfiStateDelta const& delta)
 {
     request_frame_for_first_recorded_input(*this, m_style_computer);
-    m_state_deltas.append(delta);
+    StyleEngineFFI::style_engine_stage_state_delta(host(), &delta);
 }
 
 void StyleEngine::record_element_declaration_delta(StyleEngineFFI::FfiElementDeclarationDelta const& delta)
 {
     flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
     request_frame_for_first_recorded_input(*this, m_style_computer);
-    m_element_declaration_deltas.append(delta);
+    StyleEngineFFI::style_engine_stage_element_declaration_delta(host(), &delta);
 }
 
 void StyleEngine::record_derived_element_style_input_change(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups)
@@ -389,12 +382,7 @@ Vector<StyleNodeID> StyleEngine::viewport_dependent_style_nodes(Layout::BegunRea
 
 bool StyleEngine::has_recorded_input() const
 {
-    return m_pending_arrival_count > 0
-        || !m_tree_deltas.is_empty()
-        || !m_element_arrivals.is_empty()
-        || !m_local_feature_deltas.is_empty()
-        || !m_state_deltas.is_empty()
-        || !m_element_declaration_deltas.is_empty();
+    return m_pending_arrival_count > 0 || StyleEngineFFI::style_engine_has_staged_input(host());
 }
 
 void StyleEngine::submit_recorded_input()
@@ -404,35 +392,7 @@ void StyleEngine::submit_recorded_input()
         take_in_pending_style_arrivals(m_style_computer->document());
         publish_pending_element_features(*this, *m_style_computer);
     }
-    if (!has_recorded_input()) {
-        publish_attribute_value_texts_if_requirements_moved(read);
-        return;
-    }
-
-    InputTransaction transaction {
-        .tree_deltas = m_tree_deltas.data(),
-        .tree_delta_count = m_tree_deltas.size(),
-        .element_arrivals = m_element_arrivals.data(),
-        .element_arrival_count = m_element_arrivals.size(),
-        .arrival_custom_state_atoms = m_arrival_custom_state_atoms.data(),
-        .arrival_custom_state_atom_count = m_arrival_custom_state_atoms.size(),
-        .local_feature_deltas = m_local_feature_deltas.data(),
-        .local_feature_delta_count = m_local_feature_deltas.size(),
-        .state_deltas = m_state_deltas.data(),
-        .state_delta_count = m_state_deltas.size(),
-        .element_declaration_deltas = m_element_declaration_deltas.data(),
-        .element_declaration_delta_count = m_element_declaration_deltas.size(),
-        .element_style_inputs = nullptr,
-        .element_style_input_count = 0,
-    };
-    StyleEngineFFI::style_engine_apply_transaction(host(), &transaction);
-
-    m_tree_deltas.clear_with_capacity();
-    m_element_arrivals.clear_with_capacity();
-    m_arrival_custom_state_atoms.clear_with_capacity();
-    m_local_feature_deltas.clear_with_capacity();
-    m_state_deltas.clear_with_capacity();
-    m_element_declaration_deltas.clear_with_capacity();
+    StyleEngineFFI::style_engine_submit_staged_input(host());
 
     // Selector demand can arrive while the program change and element facts are still staged.
     // Refresh after applying the fact batch, then backfill values before matching observes it.
