@@ -307,9 +307,8 @@ static RefPtr<CustomPropertyData const> custom_property_environment_base(DOM::El
     return data;
 }
 
-// An element that has to compute again is recorded with a recompute reaction alone: its descendants
-// are the move's, or that computation's, to reach. (The engine fans an inherited custom-properties
-// reaction out to every child of an applied reaction.)
+// An element that has to compute again is recorded with a recompute reaction alone: its descendants are the move's, or
+// that computation's, to reach.
 static void record_environment_move_recompute(StyleEngine& style_engine, DOM::Element& element)
 {
     style_engine.record_derived_element_style_input_change(element.style_node_id(), StyleEngine::RecomputeStyle);
@@ -336,16 +335,59 @@ static void move_pseudo_element_environments(Layout::BegunRead const& read, DOM:
     }
 }
 
-static void move_custom_property_environment_below(Layout::BegunRead const&, DOM::Document&, DOM::Element&, RefPtr<CustomPropertyData const> const& old_base, RefPtr<CustomPropertyData const> const& new_base);
-
-// An element declaring custom properties of its own over the environment it inherits, whose
-// declared values stand because it reads nothing that changed: they are built again over the moved
-// environment, and the move goes on below the element.
-static void rebuild_custom_property_environment(Layout::BegunRead const& read, DOM::Document& document, DOM::Element& element, RefPtr<CustomPropertyData const> const& new_parent_inheritable)
+// An element's custom properties moved from `old_base` to `new_base`: the style engine moves what the element's
+// descendants inherit, and calls back for what the move leaves the host.
+static void move_custom_property_environment_below(StyleReactionApplication& application, DOM::Element& element, RefPtr<CustomPropertyData const> const& old_base, RefPtr<CustomPropertyData const> const& new_base)
 {
-    auto existing_base = custom_property_environment_base(element, element.custom_property_data({}));
+    auto const& read = application.read;
+    auto& document = *application.document;
+    auto old_inheritable = old_base ? old_base->inheritable(read, document) : nullptr;
+    auto new_inheritable = new_base ? new_base->inheritable(read, document) : nullptr;
+    StyleEngineFFI::FfiEnvironmentMove const moved {
+        .old_inheritable = old_inheritable ? old_inheritable->identity() : 0,
+        .new_inheritable = { .identity = new_inheritable ? new_inheritable->identity() : 0, .store = new_inheritable ? new_inheritable->rust_store() : nullptr },
+        .new_inheritable_data = new_inheritable.ptr(),
+        .new_inheritable_declares = new_inheritable && new_inheritable->declared_count() > 0,
+    };
+    StyleEngineFFI::style_engine_move_custom_property_environment(document.style_computer().style_engine().host(), &read, &application, element.style_node_id().value(), moved);
+}
+
+// The element took the moved environment, as did its synthetic pseudo-elements: its element-backed pseudo-elements that
+// held the environment it replaced take the moved one too, and it installs its record republished over the moved one.
+void StyleEngineFFI::web_css_republish_moved_environment(StyleReactionApplication* application, u32 style_node, u64 style_record, u64 replaced, void const* new_inheritable_data)
+{
+    auto& style_engine = application->document->style_computer().style_engine();
+    auto element = application->document->style_computer().element_for_style_node(style_node);
+    VERIFY(element);
+    RefPtr new_inheritable = static_cast<CustomPropertyData const*>(new_inheritable_data);
+    for (auto kind = 0; kind < to_underlying(PseudoElement::KnownPseudoElementCount); ++kind) {
+        auto pseudo_element = static_cast<PseudoElement>(kind);
+        if (is_synthetic_pseudo_element(pseudo_element))
+            continue;
+        auto pseudo_data = element->custom_property_data(pseudo_element);
+        if (!pseudo_data)
+            continue;
+        if (pseudo_data->identity() == replaced)
+            element->set_custom_property_data(pseudo_element, new_inheritable);
+        else
+            record_environment_move_recompute(style_engine, *element);
+    }
+    if (style_record != element->style_record_identity().value())
+        element->refresh_computed_style({}, StyleRecordID { style_record });
+}
+
+// An element declaring custom properties of its own over the environment it inherits, whose declared values stand
+// because it reads nothing that changed: they are built again over the moved environment, and the move goes on below the
+// element.
+void StyleEngineFFI::web_css_rebuild_custom_property_environment(StyleReactionApplication* application, u32 style_node, void const* new_parent_inheritable_data)
+{
+    auto const& read = application->read;
+    auto& document = *application->document;
+    auto element = document.style_computer().element_for_style_node(style_node);
+    VERIFY(element);
+    auto existing_base = custom_property_environment_base(*element, element->custom_property_data({}));
     VERIFY(existing_base && existing_base->declared_count() > 0);
-    if (existing_base->parent().ptr() == new_parent_inheritable.ptr())
+    if (existing_base->parent().ptr() == new_parent_inheritable_data)
         return;
     OrderedHashMap<Utf16FlyString, StyleProperty> own_values;
     size_t declared = 0;
@@ -354,78 +396,22 @@ static void rebuild_custom_property_environment(Layout::BegunRead const& read, D
             break;
         own_values.set(name, property);
     }
-    RefPtr<CustomPropertyData const> moved = CustomPropertyData::create(move(own_values), new_parent_inheritable);
+    RefPtr<CustomPropertyData const> moved = CustomPropertyData::create(move(own_values), static_cast<CustomPropertyData const*>(new_parent_inheritable_data));
     auto existing_inheritable = existing_base->inheritable(read, document);
-    move_pseudo_element_environments(read, document, element, existing_base.ptr(), existing_inheritable.ptr(), moved);
-    element.set_custom_property_data({}, moved);
-    element.republish_style_record_environment(read);
-    move_custom_property_environment_below(read, document, element, existing_base, moved);
+    move_pseudo_element_environments(read, document, *element, existing_base.ptr(), existing_inheritable.ptr(), moved);
+    element->set_custom_property_data({}, moved);
+    element->republish_style_record_environment(read);
+    move_custom_property_environment_below(*application, *element, existing_base, moved);
 }
 
-// An element's custom properties moved. Every styled descendant holds the environment it inherits
-// by identity, and the style engine keeps what each holds: it hands the moved environment to the
-// descendants that hold the one the element handed down before, with their records, and answers
-// what is left here. That is installing those records, the environments of element-backed
-// pseudo-elements, which the engine does not keep, and the custom properties a descendant declares
-// itself, built again over the moved environment. A descendant whose style reads the environment
-// computes again.
-static void move_custom_property_environment_below(Layout::BegunRead const& read, DOM::Document& document, DOM::Element& element, RefPtr<CustomPropertyData const> const& old_base, RefPtr<CustomPropertyData const> const& new_base)
-{
-    auto& style_computer = document.style_computer();
-    auto& style_engine = style_computer.style_engine();
-    auto old_inheritable = old_base ? old_base->inheritable(read, document) : nullptr;
-    auto new_inheritable = new_base ? new_base->inheritable(read, document) : nullptr;
-    auto named = [](CustomPropertyData const* data) -> StyleEngineFFI::FfiNamedEnvironment {
-        return { .identity = data ? data->identity() : 0, .store = data ? data->rust_store() : nullptr };
-    };
-    StyleEngineFFI::FfiEnvironmentMove const moved {
-        .old_inheritable = old_inheritable ? old_inheritable->identity() : 0,
-        .new_inheritable = named(new_inheritable.ptr()),
-        .new_inheritable_data = new_inheritable.ptr(),
-        .new_inheritable_declares = new_inheritable && new_inheritable->declared_count() > 0,
-    };
-    auto answer = StyleEngineFFI::style_engine_move_custom_property_environment(style_engine.host(), &read, element.style_node_id().value(), moved);
-    // The answer lives until the engine is next called, which acting on it does.
-    Vector<StyleEngineFFI::FfiEnvironmentMoveAction> actions;
-    actions.append(answer.actions, answer.count);
-    for (auto const& action : actions) {
-        auto descendant = style_computer.element_for_style_node(StyleNodeID { action.node });
-        VERIFY(descendant);
-        switch (action.kind) {
-        case StyleEngineFFI::FfiEnvironmentMoveActionKind::Republish:
-            for (auto kind = 0; kind < to_underlying(PseudoElement::KnownPseudoElementCount); ++kind) {
-                auto pseudo_element = static_cast<PseudoElement>(kind);
-                if (is_synthetic_pseudo_element(pseudo_element))
-                    continue;
-                auto pseudo_data = descendant->custom_property_data(pseudo_element);
-                if (!pseudo_data)
-                    continue;
-                if (pseudo_data->identity() == action.replaced)
-                    descendant->set_custom_property_data(pseudo_element, new_inheritable);
-                else
-                    record_environment_move_recompute(style_engine, *descendant);
-            }
-            if (action.style_record != descendant->style_record_identity().value())
-                descendant->refresh_computed_style({}, StyleRecordID { action.style_record });
-            break;
-        case StyleEngineFFI::FfiEnvironmentMoveActionKind::Rebuild:
-            rebuild_custom_property_environment(read, document, *descendant, new_inheritable);
-            break;
-        case StyleEngineFFI::FfiEnvironmentMoveActionKind::Recompute:
-            record_environment_move_recompute(style_engine, *descendant);
-            break;
-        }
-    }
-}
-
-static void propagate_custom_property_environment_move(Layout::BegunRead const& read, DOM::Document& document, DOM::Element& origin, RefPtr<CustomPropertyData const> old_origin_data)
+static void propagate_custom_property_environment_move(StyleReactionApplication& application, DOM::Element& origin, RefPtr<CustomPropertyData const> old_origin_data)
 {
     // Nothing inherits from an element with nothing below it in the flat tree.
     if (!origin.first_element_child() && !origin.shadow_root() && !is<HTML::HTMLSlotElement>(origin))
         return;
     auto old_origin_base = custom_property_environment_base(origin, move(old_origin_data));
     auto new_origin_base = custom_property_environment_base(origin, origin.custom_property_data({}));
-    move_custom_property_environment_below(read, document, origin, old_origin_base, new_origin_base);
+    move_custom_property_environment_below(application, origin, old_origin_base, new_origin_base);
 }
 
 // Install the record the engine settled for a row, and the pseudo-element records beside it. A C++ computation applied
@@ -564,7 +550,7 @@ void StyleEngineFFI::web_css_apply_style_reaction(StyleReactionApplication* appl
     // The environment moved: the element's descendants take it here, and the ones that read a moved name are recorded
     // for their own computation. The engine derives no reactions for the move.
     if (did_change_custom_properties)
-        propagate_custom_property_environment_move(read, *application.document, element, old_custom_property_data);
+        propagate_custom_property_environment_move(application, element, old_custom_property_data);
     note_style_reaction_applied(element, reaction, before, invalidation);
 }
 
