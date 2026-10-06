@@ -293,6 +293,12 @@ Optional<Gfx::AffineTransform> svg_viewport_transform(Layout::Node const& node)
     return Gfx::AffineTransform { transform.a, transform.b, transform.c, transform.d, transform.e, transform.f };
 }
 
+Gfx::AffineTransform svg_element_transform(Layout::Node const& node)
+{
+    auto transform = Layout::RustFFI::render_state_paintable_svg_element_transform(node.document_host(), committed_row_slot(node));
+    return { transform.a, transform.b, transform.c, transform.d, transform.e, transform.f };
+}
+
 CSS::RustStyleValueHandle used_value_for_grid_template(Layout::Node const& node, CSS::PropertyID property)
 {
     VERIFY(property == CSS::PropertyID::GridTemplateColumns || property == CSS::PropertyID::GridTemplateRows);

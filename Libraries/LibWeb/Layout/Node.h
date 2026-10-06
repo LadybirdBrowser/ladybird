@@ -543,7 +543,6 @@ public:
     Optional<CSSPixels> perspective() const { return style_group<CSS::ComputedValues::TransformValues>().perspective_value(); }
     Optional<CSS::URL> fill_url() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().fill_url_value(); }
     Optional<CSS::URL> stroke_url() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().stroke_url_value(); }
-    Gfx::AffineTransform used_svg_element_transform() const;
 
     bool is_positioned() const;
     bool is_absolutely_positioned() const;

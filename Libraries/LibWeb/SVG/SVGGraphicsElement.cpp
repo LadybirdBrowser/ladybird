@@ -7,7 +7,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/Matrix4x4.h>
 #include <LibWeb/Bindings/SVGGraphicsElement.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/DOM/Document.h>
@@ -134,7 +133,7 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Bi
             }
             if (!Painting::has_committed_box(*child))
                 continue;
-            auto child_rect = as<Layout::NodeWithStyle>(*child).used_svg_element_transform().map(Painting::absolute_rect(*child).to_type<float>());
+            auto child_rect = Painting::svg_element_transform(*child).map(Painting::absolute_rect(*child).to_type<float>());
             united_rect.unite(child_rect);
         }
         if (united_rect.is_empty())

@@ -16,7 +16,6 @@
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
-#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/FragmentIdentifier.h>
@@ -205,27 +204,6 @@ void SVGUseElement::process_the_url(Optional<Utf16String> const& href)
 bool SVGUseElement::is_referenced_element_same_document() const
 {
     return m_href->equals(document().base_url(), URL::ExcludeFragment::Yes);
-}
-
-Gfx::AffineTransform SVGUseElement::additional_element_transform() const
-{
-    CSSPixelSize viewport_size;
-    if (auto* svg_svg_element = first_flat_tree_ancestor_of_type<SVGSVGElement>()) {
-        if (auto view_box = svg_svg_element->active_view_box(); view_box.has_value())
-            viewport_size = { CSSPixels::nearest_value_for(view_box->width), CSSPixels::nearest_value_for(view_box->height) };
-        else if (Layout::ForcedReadScope read { document() }; auto svg_svg_layout_node = svg_svg_element->unsafe_layout_node(read))
-            viewport_size = { svg_svg_layout_node->width().to_px(0), svg_svg_layout_node->height().to_px(0) };
-    }
-
-    auto computed_values = this->computed_style();
-    VERIFY(computed_values);
-
-    auto x = computed_values->x().to_px(viewport_size.width()).to_float();
-    auto y = computed_values->y().to_px(viewport_size.height()).to_float();
-
-    // The x and y properties define an additional transformation (translate(x,y), where x and y represent the computed value of the corresponding property)
-    // to be applied to the ‘use’ element, after any transformations specified with other properties
-    return Gfx::AffineTransform {}.translate(x, y);
 }
 
 void SVGUseElement::svg_element_changed(SVGElement& svg_element)
