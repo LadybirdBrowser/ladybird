@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<input id="a">
+<input id="b">
+<script src="../include.js"></script>
+<script>
+    // Focus events the user agent fires are trusted, like every other event it dispatches; only
+    // dispatchEvent() hands a page an untrusted one.
+    test(() => {
+        const a = document.getElementById("a");
+        const b = document.getElementById("b");
+
+        const log = event => println(`${event.type} target=#${event.target.id} isTrusted=${event.isTrusted}`);
+        for (const type of ["focus", "blur", "focusin", "focusout"])
+            document.addEventListener(type, log, true);
+
+        a.focus();
+        b.focus();
+        a.dispatchEvent(new FocusEvent("focus"));
+    });
+</script>

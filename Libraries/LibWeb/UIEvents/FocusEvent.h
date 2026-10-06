@@ -24,6 +24,8 @@ class FocusEvent final : public UIEvent {
 public:
     [[nodiscard]] static GC::Ref<FocusEvent> create(FlyString const& event_name, FocusEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
     [[nodiscard]] static GC::Ref<FocusEvent> create(Utf16String const& event_name, FocusEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<FocusEvent> create_for_constructor(FlyString const& event_name, FocusEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<FocusEvent> create_for_constructor(Utf16String const& event_name, FocusEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~FocusEvent() override;
 
