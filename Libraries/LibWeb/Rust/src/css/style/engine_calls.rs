@@ -14,8 +14,7 @@ use super::StyleEngine;
 use super::atoms::{AtomKey, AtomLease};
 use super::bridge::{
     FfiDemandedPseudoElement, FfiElementArrival, FfiElementDeclarationDelta, FfiLocalFeatureDelta,
-    FfiPseudoElementRecordDemand, FfiRecordDemand, FfiRecordDemandAnswer, FfiStateDelta, FfiStyleDelta, FfiTreeDelta,
-    borrow,
+    FfiPseudoElementRecordDemand, FfiRecordDemand, FfiRecordDemandAnswer, FfiStateDelta, FfiTreeDelta, borrow,
 };
 use super::font_resolution::{FontResolverHost, PublishedFontFaces};
 use super::inputs::RetainedCustomPropertyData;
@@ -856,8 +855,6 @@ pub(crate) struct EngineMemo {
     /// The elements that arrived, moved or retired beside the style transaction that flew, which knows nothing of
     /// them, until the drain of its reactions ends.
     pub(crate) beside_flown_transaction: std::cell::RefCell<super::HashSet<StyleNodeID>>,
-    /// The reactions the host applies next, where closing them over the elements they inherit through changed them.
-    pub(crate) closed_reactions: std::cell::RefCell<Vec<FfiStyleDelta>>,
     /// While a batch's reactions are applied, a host's own style application may rewrite the declarations of an
     /// element in its shadow tree, after the engine computed that element's record from the ones it had. These name
     /// the elements whose declarations changed that way, while `applying_reactions` counts the batches being applied.
@@ -918,7 +915,6 @@ impl Default for EngineMemo {
             atoms: Default::default(),
             staged_input: Default::default(),
             beside_flown_transaction: Default::default(),
-            closed_reactions: Default::default(),
             declarations_changed_during_apply: Default::default(),
             applying_reactions: Default::default(),
         }

@@ -12,6 +12,7 @@
 //! element's children.
 
 use super::StyleNodeID;
+use super::boundary::StyleChange;
 use super::bridge::{
     FfiEngineComputedRecord, FfiRecordDemand, FfiStyleDelta, FfiStyleDeltaDamage, FfiStyleDeltaGap,
     FfiStyleInvalidationField, PSEUDO_RECORD_SLOTS,
@@ -22,7 +23,7 @@ use super::transaction::{
     STYLE_REACTION_ANCESTOR_BECAME_VISIBLE, STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES, STYLE_REACTION_INHERITED_STYLE,
     STYLE_REACTION_PUBLISHED_STYLE, STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES, STYLE_REACTION_RECOMPUTE_STYLE,
 };
-use crate::render_state::{BegunRead, DocumentHost};
+use crate::render_state::{ArenaChange, BegunRead, DocumentHost};
 
 /// A `Web::DOM::Element`, which Rust names by pointer only.
 #[repr(C)]
@@ -92,16 +93,44 @@ pub struct FfiRecordInstallation {
     pub pseudo_damages: [FfiPseudoRecordDamage; PSEUDO_RECORD_SLOTS],
 }
 
-/// How many of the reactions of a batch the host applied did what, for its timing counters.
+/// What the reaction passes of a style update did, for the host's counters.
 #[derive(Clone, Copy, Default)]
 #[repr(C)]
 pub struct FfiStyleReactionCounts {
+    /// Whether the update had reactions to apply at all.
+    pub had_reactions: bool,
+    pub batch_runs: u32,
+    pub reaction_elements: u32,
     pub published_reactions: u32,
     pub materialized_gaps: u32,
     pub record_deltas_applied: u32,
+    pub pass_guard_hits: u32,
+    pub apply_microseconds: u64,
+}
+
+/// A style transaction the host took, whose reactions live until the host takes the next one.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiTakenStyleTransaction {
+    pub reactions: *const FfiStyleDelta,
+    pub count: usize,
+    pub scoped: bool,
+    /// The transaction planned nothing but the child reactions the engine derived from the reactions the host applied
+    /// last: one more generation of the same style change, not a new one.
+    pub only_derived_child_reactions: bool,
+    /// The elements connected to the document as the transaction was taken.
+    pub connected_element_count: u32,
 }
 
 unsafe extern "C" {
+    fn web_css_take_style_transaction(
+        application: *mut HostStyleReactionApplication,
+        flown: bool,
+    ) -> FfiTakenStyleTransaction;
+    fn web_css_has_pending_style_transaction(application: *mut HostStyleReactionApplication) -> bool;
+    fn web_css_note_style_update_has_reactions(application: *mut HostStyleReactionApplication);
+    fn web_css_sample_animations_for_style_update(application: *mut HostStyleReactionApplication);
+    fn web_css_begin_style_update_pass(application: *mut HostStyleReactionApplication, first: bool);
     fn web_css_style_reaction_element(application: *mut HostStyleReactionApplication, node: u32) -> FfiReactionElement;
     fn web_css_parent_style_has_animated_values(element: *mut HostElement) -> bool;
     fn web_css_engine_record_environment_is_installable(
@@ -162,9 +191,10 @@ impl Application<'_> {
             return None;
         }
         if !self.record_environment_is_installable(element, answer.style_record) {
-            self.host.queue_change(crate::render_state::ArenaChange::Style(
-                super::boundary::StyleChange::AbandonDemandedRecords { node: Some(node) },
-            ));
+            self.host
+                .queue_change(ArenaChange::Style(StyleChange::AbandonDemandedRecords {
+                    node: Some(node),
+                }));
             return None;
         }
         Some(answer)
@@ -307,19 +337,13 @@ impl FfiRecordInstallation {
 /// Applies `reactions` in preorder, so every element's inheritance inputs are ready when it is applied. What an
 /// applied element's change means for its (flat-tree) children is the engine's to derive: it reads each application
 /// and plans the children as the next transaction of this style update.
-pub(crate) fn apply_style_reactions(
-    host: &DocumentHost,
-    read: &BegunRead,
-    host_application: *mut HostStyleReactionApplication,
+fn apply_style_reactions(
+    application: Application<'_>,
     reactions: &[FfiStyleDelta],
-) -> FfiStyleReactionCounts {
-    let application = Application {
-        host,
-        read,
-        host_application,
-    };
+    counts: &mut FfiStyleReactionCounts,
+) {
+    let Application { host, read, .. } = application;
     let _noting = host.engine_memo().note_declaration_changes_during_apply();
-    let mut counts = FfiStyleReactionCounts::default();
     for (index, published) in reactions.iter().enumerate() {
         // A pseudo-element record installs with its element's, which leads it. An element the engine answered as
         // hidden needs no style until a read or its subtree's reveal asks for one.
@@ -472,27 +496,181 @@ pub(crate) fn apply_style_reactions(
         };
         application.apply(&element, row.reaction, installation.as_ref());
     }
+}
+
+/// A style update applies at most this many passes of reactions that publish new style, beyond which it stops: a
+/// style change that keeps feeding back into itself would never settle.
+const MAX_STYLE_UPDATE_PASSES: u32 = 8;
+
+impl Application<'_> {
+    /// Takes the next style transaction of the update, the one that flew first where the update drains it, and
+    /// answers the reactions naming an element into `reactions`, and whether the batch is dense enough to match
+    /// broadly.
+    fn take_transaction(self, flown: bool, reactions: &mut Vec<FfiStyleDelta>) -> (bool, bool) {
+        // SAFETY: The host lends its application for the call that updates the style.
+        let taken = unsafe { web_css_take_style_transaction(self.host_application, flown) };
+        // SAFETY: The host's transaction lives until it takes the next one.
+        let taken_reactions = unsafe { super::bridge::borrow(taken.reactions, taken.count) };
+        reactions.clear();
+        for reaction in taken_reactions {
+            // The complete answer remains in the engine's transaction scratch under this node, which the reaction
+            // names. An element removed beside the transaction that flew has no style to install: its removal is the
+            // next transaction's.
+            if self.element(reaction.style_node).element.is_null() {
+                let node = StyleNodeID::from_raw(reaction.style_node).expect("a style reaction names an element");
+                assert!(
+                    self.host
+                        .engine_memo()
+                        .beside_flown_transaction
+                        .borrow()
+                        .contains(&node)
+                );
+                continue;
+            }
+            reactions.push(*reaction);
+        }
+        // A reaction batch covering more than one sixteenth of the connected elements is dense enough that packing
+        // the scope once is cheaper than repeatedly reconstructing cold facts while matching the planned elements.
+        let prefers_broad_matching_batch =
+            !taken.scoped || reactions.len() * 16 > taken.connected_element_count as usize;
+        (prefers_broad_matching_batch, taken.only_derived_child_reactions)
+    }
+
+    fn has_pending_transaction(self) -> bool {
+        // SAFETY: As above.
+        unsafe { web_css_has_pending_style_transaction(self.host_application) }
+    }
+}
+
+/// Applies the reactions of the style transactions of one style update, from the first, which flew where the update
+/// drains it, until the reactions they feed back settle. Each pass applies one transaction's reactions, closed over
+/// the elements they inherit through, and the consequences produced while applying them become the next transaction.
+fn update_style(
+    application: Application<'_>,
+    drains_flown_transaction: bool,
+    root: Option<StyleNodeID>,
+) -> FfiStyleReactionCounts {
+    let Application { host, read, .. } = application;
+    let mut counts = FfiStyleReactionCounts::default();
+    let mut reactions = Vec::new();
+    let (mut prefers_broad_matching_batch, mut only_derived_child_reactions) =
+        application.take_transaction(drains_flown_transaction, &mut reactions);
+    // SAFETY: The host lends its application for the call that updates the style.
+    unsafe {
+        if !reactions.is_empty() {
+            web_css_note_style_update_has_reactions(application.host_application);
+        }
+        web_css_sample_animations_for_style_update(application.host_application);
+    }
+    if reactions.is_empty() && application.has_pending_transaction() {
+        (prefers_broad_matching_batch, only_derived_child_reactions) =
+            application.take_transaction(false, &mut reactions);
+    }
+    // SAFETY: As above.
+    unsafe { web_css_begin_style_update_pass(application.host_application, true) };
+    if reactions.is_empty() {
+        return counts;
+    }
+    counts.had_reactions = true;
+
+    let cold_matching_batch = root.map(|root| {
+        host.queue_change(ArenaChange::Style(if prefers_broad_matching_batch {
+            StyleChange::BeginColdMatchingBatch { root: Some(root) }
+        } else {
+            StyleChange::BeginAdaptiveColdMatchingBatch { root: Some(root) }
+        }));
+    });
+
+    let mut closed = Vec::new();
+    let mut batch = Vec::new();
+    let mut style_update_passes = 0;
+    let mut first_pass = true;
+    while !reactions.is_empty() {
+        let apply_started_at = std::time::Instant::now();
+        // One more tree generation of the same style change is not a new pass of it.
+        if !std::mem::take(&mut first_pass) && !only_derived_child_reactions {
+            // SAFETY: As above.
+            unsafe { web_css_begin_style_update_pass(application.host_application, false) };
+        }
+        let published_reactions = reactions
+            .iter()
+            .filter(|reaction| reaction.reaction & STYLE_REACTION_PUBLISHED_STYLE != 0)
+            .count() as u32;
+        if published_reactions > 0 && !only_derived_child_reactions {
+            style_update_passes += 1;
+            if style_update_passes > MAX_STYLE_UPDATE_PASSES {
+                counts.pass_guard_hits += 1;
+                counts.apply_microseconds += apply_started_at.elapsed().as_micros() as u64;
+                break;
+            }
+        }
+
+        // A reaction can name an element created by editing after its new inheritance parent was inserted, and an
+        // element between a reaction and an ancestor that reacts too needs a row for the reactions the ancestor
+        // derives to reach the reaction. The engine closes the batch over both, and orders it for application in
+        // preorder: every parent is ready before its descendants, and a parent's derived reaction can merge into an
+        // unconsumed child reaction in the same batch.
+        let changed = {
+            let beside_flown_transaction = host.engine_memo().beside_flown_transaction.borrow();
+            let beside_flown_transaction = drains_flown_transaction.then_some(&*beside_flown_transaction);
+            with_engine(read, host, |engine| {
+                super::bridge::close_style_reactions_over_inheritance(
+                    engine,
+                    &reactions,
+                    beside_flown_transaction,
+                    &mut closed,
+                )
+            })
+        };
+        batch.clear();
+        batch.extend(
+            (if changed { &closed } else { &reactions })
+                .iter()
+                .filter(|reaction| application.element(reaction.style_node).connected),
+        );
+        reactions.clear();
+        if !batch.is_empty() {
+            if published_reactions > 0 {
+                counts.batch_runs += 1;
+                counts.reaction_elements += published_reactions;
+            }
+            apply_style_reactions(application, &batch, &mut counts);
+        }
+        counts.apply_microseconds += apply_started_at.elapsed().as_micros() as u64;
+
+        // Exact consequences produced while recomputing become the next transaction in this stabilization epoch. Take
+        // it only after consuming the current published answers, since a new transaction retires their scratch.
+        if application.has_pending_transaction() {
+            (_, only_derived_child_reactions) = application.take_transaction(false, &mut reactions);
+        }
+    }
+    if cold_matching_batch.is_some() {
+        host.queue_change(ArenaChange::Style(StyleChange::EndColdMatchingBatch));
+    }
     counts
 }
 
-/// Applies the `count` reactions at `reactions` to the elements of the host's document, through `host_application`,
-/// the host's state for applying them, and answers what they did for its counters.
+/// Applies the reactions of the style transactions of a style update of the host's document, from the one that flew
+/// where `drains_flown_transaction`, through `host_application`, the host's state for applying them, and answers what
+/// they did for its counters. `root` is the document element's style node, or zero.
 ///
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread, `reactions` must name `count` entries, and
-/// `host_application` must be live for the call.
+/// `host` must be a live document host, on its document's thread, and `host_application` must be live for the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_apply_style_reactions(
+pub unsafe extern "C" fn style_engine_update_style(
     host: &DocumentHost,
     read: &BegunRead,
     host_application: *mut HostStyleReactionApplication,
-    reactions: *const FfiStyleDelta,
-    count: usize,
+    drains_flown_transaction: bool,
+    root: u32,
 ) -> FfiStyleReactionCounts {
-    // SAFETY: Guaranteed by the caller.
-    let reactions = unsafe { super::bridge::borrow(reactions, count) };
-    apply_style_reactions(host, read, host_application, reactions)
+    let application = Application {
+        host,
+        read,
+        host_application,
+    };
+    update_style(application, drains_flown_transaction, StyleNodeID::from_raw(root))
 }
 
 /// Demands the element's record for a targeted update of it, and answers the installation of the record into
