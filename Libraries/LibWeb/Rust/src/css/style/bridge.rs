@@ -1679,7 +1679,8 @@ fn collect_native_custom_declarations(
         .map(|property| {
             let name = property.name.to_fly_string();
             let atom = engine.atoms.intern_raw(name.raw());
-            unsafe { note_native_custom_property_name(engine, atom, name.raw(), property.name.units()) };
+            // SAFETY: The fly string is live for the call, and the engine takes a reference of its own.
+            unsafe { engine.note_custom_property_name(atom, name.raw(), property.name.units()) };
             let declaration = &property.declaration;
             // Custom properties retain their authored values, without normal-property
             // canonicalization. Their token spelling is observable after substitution.
@@ -2800,16 +2801,6 @@ pub unsafe extern "C" fn style_engine_borrow_engine_custom_property_environment(
         }
         store
     })
-}
-
-// The raw identity must remain a live Utf16FlyString for the native engine to retain it.
-pub(super) unsafe fn note_native_custom_property_name(
-    engine: &mut StyleEngine,
-    name: StyleAtomID,
-    raw: usize,
-    text: &[u16],
-) {
-    unsafe { engine.note_custom_property_name(name, raw, text) };
 }
 
 #[repr(C)]

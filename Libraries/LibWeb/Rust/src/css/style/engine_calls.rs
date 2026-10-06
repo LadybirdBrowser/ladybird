@@ -96,12 +96,6 @@ pub(crate) enum EngineWrite {
         absorbs_any: bool,
         absorbed: u32,
     },
-    /// What a custom property's name atom spells, and the fly string it is.
-    NoteCustomPropertyName {
-        name: StyleAtomID,
-        string: ak::Utf16FlyString,
-        text: Box<[u16]>,
-    },
     /// The `@keyframes` row of one style scope, named by the shadow root's pointer identity as well where it is one.
     AnimationKeyframes {
         tree_scope: TreeScopeID,
@@ -273,10 +267,6 @@ impl EngineWrite {
                             && engine_absorbed == u32::from(reaction) | (u32::from(inherited_style_groups) << 8)),
                     "the engine folds a style input as the host did"
                 );
-            }
-            Self::NoteCustomPropertyName { name, string, text } => {
-                // SAFETY: The write owns a reference to the fly string.
-                unsafe { super::bridge::note_native_custom_property_name(engine, name, string.raw_identity(), &text) };
             }
         }
     }
@@ -470,33 +460,6 @@ fn adopt(host: &DocumentHost, lease: AtomLease) -> u32 {
     let atom = lease.atom().0;
     host.queue_change(ArenaChange::Engine(EngineWrite::AdoptAtom(lease)));
     atom
-}
-
-/// Records what a custom property's name atom spells, and the fly string it is, which the engine retains.
-///
-/// # Safety
-/// `host` must be a live document host, `raw` a live `AK::Utf16FlyString` raw representation, and `text` must name
-/// `length` code units.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_note_custom_property_name(
-    host: &DocumentHost,
-    name: u32,
-    raw: usize,
-    text: *const u16,
-    length: usize,
-) {
-    // SAFETY: Guaranteed by the caller, which hands the write a reference of its own.
-    let string = unsafe { ak::Utf16FlyString::from_raw_owned(raw) };
-    if name == 0 {
-        return;
-    }
-    let write = EngineWrite::NoteCustomPropertyName {
-        name: StyleAtomID(name),
-        string,
-        // SAFETY: Guaranteed by the caller.
-        text: unsafe { owned(text, length) },
-    };
-    host.queue_change(ArenaChange::Engine(write));
 }
 
 /// Makes the `count` identities at `nodes`, which the host minted, live.
