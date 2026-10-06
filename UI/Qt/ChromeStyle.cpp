@@ -1238,7 +1238,7 @@ QProgressBar#LadybirdDownloadProgress::chunk {{
         surface, recessed_surface, hover_surface, border, text, muted_text, accent);
 }
 
-QString private_session_popover_style_sheet(QPalette const& palette)
+QString message_popover_style_sheet(QPalette const& palette)
 {
     auto text = ChromeStyle::style_sheet_color(ChromeStyle::chrome_text(palette));
     auto surface = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface(palette));
@@ -1254,23 +1254,23 @@ QString private_session_popover_style_sheet(QPalette const& palette)
     auto accent_pressed = ChromeStyle::style_sheet_color(ChromeStyle::mix(accent, QColor(Qt::black), 0.22));
 
     return qformatted(R"(
-QFrame#LadybirdPrivateSessionPopover {{
+QFrame#LadybirdMessagePopover {{
     color: {0};
     background: {1};
     border: 1px solid {2};
     border-radius: 8px;
 }}
 
-QLabel#LadybirdPrivateSessionPopoverTitle {{
+QLabel#LadybirdMessagePopoverTitle {{
     color: {0};
     font-weight: 600;
 }}
 
-QLabel#LadybirdPrivateSessionPopoverBody {{
+QLabel#LadybirdMessagePopoverBody {{
     color: {3};
 }}
 
-QPushButton#LadybirdPrivateSessionCancelButton {{
+QPushButton#LadybirdMessagePopoverDismissButton {{
     color: {0};
     background: {1};
     border: 1px solid {4};
@@ -1278,15 +1278,15 @@ QPushButton#LadybirdPrivateSessionCancelButton {{
     padding: 5px 12px;
 }}
 
-QPushButton#LadybirdPrivateSessionCancelButton:hover {{
+QPushButton#LadybirdMessagePopoverDismissButton:hover {{
     background: {5};
 }}
 
-QPushButton#LadybirdPrivateSessionCancelButton:pressed {{
+QPushButton#LadybirdMessagePopoverDismissButton:pressed {{
     background: {6};
 }}
 
-QPushButton#LadybirdPrivateSessionRestartButton {{
+QPushButton#LadybirdMessagePopoverAcceptButton {{
     color: #ffffff;
     background: {7};
     border: 1px solid {7};
@@ -1295,12 +1295,12 @@ QPushButton#LadybirdPrivateSessionRestartButton {{
     font-weight: 600;
 }}
 
-QPushButton#LadybirdPrivateSessionRestartButton:hover {{
+QPushButton#LadybirdMessagePopoverAcceptButton:hover {{
     background: {8};
     border-color: {8};
 }}
 
-QPushButton#LadybirdPrivateSessionRestartButton:pressed {{
+QPushButton#LadybirdMessagePopoverAcceptButton:pressed {{
     background: {9};
     border-color: {9};
 }}
