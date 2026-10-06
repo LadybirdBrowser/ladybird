@@ -2685,6 +2685,36 @@ impl ComputedGroupSets {
         }))
     }
 
+    /// Whether what a record gives its element's pseudo-elements to inherit is the inherited groups
+    /// of its base record: always for a base record, and for an animation overlay whose sampled
+    /// values left those groups as they were.
+    #[must_use]
+    pub(super) fn record_inherits_as_its_base(&self, record: FinalStyleRecordID) -> bool {
+        if record.base_record().is_some() {
+            return true;
+        }
+        let Some(overlay) = self
+            .animation_overlay_slots_by_record
+            .get(&record)
+            .and_then(|&slot| self.animation_overlay_slots.get(slot))
+        else {
+            return false;
+        };
+        let Some(base) = self.style_records.get_index(overlay.base_style_record.index()) else {
+            return false;
+        };
+        let base_groups = &self.sets[base.groups].payloads;
+        (0..ENGINE_INHERITED_GROUP_COUNT).all(|group| {
+            let sampled = overlay.payloads[group];
+            sampled == base_groups[group]
+                || crate::css::computed_values::style_group_payloads_equal(
+                    group,
+                    sampled.as_ptr(),
+                    base_groups[group].as_ptr(),
+                )
+        })
+    }
+
     /// Whether a record's inherited groups, past the ones in `own_groups` that its own
     /// declarations rebuild, are the node's own inherited groups: what a record derived under the
     /// node as its parent must hold, whatever identities the two were keyed by when the record

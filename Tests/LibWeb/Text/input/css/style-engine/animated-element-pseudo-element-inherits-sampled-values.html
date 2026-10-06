@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes tint {
+        from { color: rgb(0, 0, 0); }
+        to { color: rgb(200, 0, 0); }
+    }
+    #target { animation: tint 1000s linear paused; }
+    #target::before { content: "x"; }
+</style>
+<div id="target"></div>
+<script>
+    // Moving the animation samples new values into the element's inherited style. Its ::before
+    // inherits them, though the element's base style stays as it was.
+    test(() => {
+        const target = document.getElementById("target");
+        const animation = target.getAnimations()[0];
+        println(`::before color: ${getComputedStyle(target, "::before").color}`);
+        animation.currentTime = 500000;
+        println(`::before color: ${getComputedStyle(target, "::before").color}`);
+        animation.currentTime = 0;
+        println(`::before color: ${getComputedStyle(target, "::before").color}`);
+    });
+</script>
