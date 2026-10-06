@@ -2543,6 +2543,7 @@ static void create_navigation_params_by_fetching(
     //    referrer: entry's document state's request referrer
     //    referrer policy: entry's document state's request referrer policy
     //    policy container: sourceSnapshotParams's source policy container
+    //    traversable for user prompts: navigable's top-level traversable
     auto request = Fetch::Infrastructure::Request::create();
     request->set_url(entry.url);
     if (source_snapshot_params->fetch_client)
@@ -2558,6 +2559,7 @@ static void create_navigation_params_by_fetching(
     request->set_referrer(document_state.request_referrer);
     request->set_referrer_policy(document_state.request_referrer_policy);
     request->set_policy_container(source_snapshot_params->source_policy_container);
+    request->set_traversable_for_user_prompts(navigable->top_level_traversable()->id());
     request->set_text_directive_user_activation(source_snapshot_params->text_directive_user_activation);
     request->set_browsing_context_group_has_multiple_contexts(source_snapshot_params->browsing_context_group_has_multiple_contexts);
     active_document.set_text_directive_user_activation(false);

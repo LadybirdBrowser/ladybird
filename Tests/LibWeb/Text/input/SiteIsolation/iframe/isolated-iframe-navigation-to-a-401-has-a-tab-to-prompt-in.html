@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // An isolated iframe navigates a sibling that another process hosts to a response asking for credentials. The
+    // navigation's request has the sibling's tab to prompt in, so the response does not load as a document.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = uniqueID();
+        const targetHostname = uniqueLocalhostHostname("prompt-target");
+
+        const echo = async (path, status, headers, body, hostname) => {
+            const url = new URL(
+                await httpServer.createEcho("GET", path, {
+                    status,
+                    headers: { "Content-Type": "text/html", ...headers },
+                    body,
+                })
+            );
+            url.hostname = hostname;
+            return url;
+        };
+
+        const targetFirstUrl = await echo(`/prompt-target-first-${runId}`, 200, {}, "<!DOCTYPE html>first", targetHostname);
+        const unauthorizedUrl = await echo(
+            `/prompt-unauthorized-${runId}`,
+            401,
+            { "WWW-Authenticate": 'Basic realm="test"' },
+            `<!DOCTYPE html><script>top.postMessage("the 401 response loaded as a document", "*");<\/script>`,
+            targetHostname
+        );
+        const sourceUrl = await echo(
+            `/prompt-source-${runId}`,
+            200,
+            {},
+            `<!DOCTYPE html><a id="link" target="target" href="${unauthorizedUrl.href}">link</a>
+            <script>document.getElementById("link").click();<\/script>`,
+            uniqueLocalhostHostname("prompt-source")
+        );
+
+        const target = document.createElement("iframe");
+        target.name = "target";
+        target.src = targetFirstUrl;
+        document.body.appendChild(target);
+        await new Promise(resolve => (target.onload = resolve));
+
+        const messages = [];
+        addEventListener("message", event => messages.push(event.data));
+        const navigated = new Promise(resolve => target.addEventListener("load", resolve, { once: true }));
+
+        const source = document.createElement("iframe");
+        source.src = sourceUrl;
+        document.body.appendChild(source);
+        await navigated;
+        await timeout(0);
+
+        println(`messages: ${messages.length ? messages.join(", ") : "none"}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>
