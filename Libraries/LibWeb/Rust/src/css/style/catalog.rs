@@ -1873,6 +1873,24 @@ impl PublishedMatchAnswers {
         self.memory.grow_required(memory, added_bytes);
     }
 
+    /// Publish `entry` in its node's place, outside a batch, in place of any answer published for
+    /// the node before.
+    pub(super) fn publish(&mut self, entry: PublishedMatchAnswer, memory: &mut MemoryController, counters: &Counters) {
+        let index = match self
+            .entries
+            .binary_search_by_key(&entry.node, |published| published.node)
+        {
+            Ok(index) => {
+                self.entries.remove(index);
+                self.memory.resize_required_to(memory, self.recompute_capacity_bytes());
+                index
+            }
+            Err(index) => index,
+        };
+        self.push(entry, memory, counters);
+        self.entries[index..].rotate_right(1);
+    }
+
     pub(super) fn append_pending(&mut self, mut pending: Self, memory: &mut MemoryController) {
         if pending.entries.is_empty() {
             return;

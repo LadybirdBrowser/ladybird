@@ -4029,6 +4029,7 @@ impl RetainedState {
         let matches = self.matches_to_republish(node);
         debug_assert!(matches.is_some(), "a driven row without the facts to match it");
         self.republish_winners_from_matches(node, matches.unwrap_or_default(), republication)
+            .0
     }
 
     /// Publish new winners from the retained selector answer, matching from published facts when
@@ -4040,7 +4041,35 @@ impl RetainedState {
         republication: publication::WinnerRepublication,
     ) -> Option<bool> {
         let matches = self.matches_to_republish(node)?;
-        Some(self.republish_winners_from_matches(node, matches, republication))
+        Some(self.republish_winners_from_matches(node, matches, republication).0)
+    }
+
+    /// What `republish_winners_from_answer` does beside the record the host styled the node with,
+    /// outside any batch. Nothing retains the answer of a shadow host, or of a node slotted or
+    /// exposed into a shadow tree, so the matches its winners came from are published as this
+    /// update's answer for it, as a flush publishes its rows': what is settled beside the record
+    /// reads that answer.
+    pub(super) fn republish_winners_beside_host_record(
+        &mut self,
+        node: StyleNodeID,
+        republication: publication::WinnerRepublication,
+    ) -> Option<bool> {
+        let matches = self.matches_to_republish(node)?;
+        let (complete, matches) = self.republish_winners_from_matches(node, matches, republication);
+        if !self.match_answer_is_retainable(node) {
+            self.published_match_answers.publish(
+                PublishedMatchAnswer {
+                    node,
+                    cascade_input: None,
+                    matches: Some(matches.into_boxed_slice()),
+                    cascade_winners_are_complete: complete,
+                    observed: false,
+                },
+                &mut self.memory,
+                &self.counters,
+            );
+        }
+        Some(complete)
     }
 
     /// Publish the pseudo-element winners again from the retained answer once the element's own
@@ -4078,7 +4107,7 @@ impl RetainedState {
         republication: publication::WinnerRepublication,
     ) -> bool {
         let matches = self.match_element_for_cascade(node).unwrap_or_default();
-        self.republish_winners_from_matches(node, matches, republication)
+        self.republish_winners_from_matches(node, matches, republication).0
     }
 
     fn matches_to_republish(&mut self, node: StyleNodeID) -> Option<Vec<RuleMatch>> {
@@ -4097,12 +4126,14 @@ impl RetainedState {
         }
     }
 
+    /// Whether the winners are complete, and the matches they were published from, compacted for
+    /// the cascade.
     fn republish_winners_from_matches(
         &mut self,
         node: StyleNodeID,
         matches: Vec<RuleMatch>,
         republication: publication::WinnerRepublication,
-    ) -> bool {
+    ) -> (bool, Vec<RuleMatch>) {
         // Winners published on their own decide the node's gated rules over its containers as
         // they stand, which the record loop checks again once the node's ancestors are settled.
         self.container_gates_unheld.remove(&node);
@@ -4150,7 +4181,7 @@ impl RetainedState {
         let answer_is_incomplete = !complete && !self.cascade_winners_are_complete_but_for_custom_properties(node);
         self.computed_group_sets
             .set_node_answer_incomplete(node, answer_is_incomplete);
-        complete
+        (complete, compact)
     }
 
     pub(super) fn current_answer_identity(&self, node: StyleNodeID) -> Option<MatchAnswerID> {
