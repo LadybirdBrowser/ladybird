@@ -476,12 +476,15 @@ fn outline_style_to_line_style(style: u8) -> u8 {
     }
 }
 
+// `auto` lets us do whatever we want for the outline. 2px of the accent color seems reasonable.
+pub(crate) fn auto_outline_width() -> CssPixels {
+    CssPixels::from_integer(2)
+}
+
 pub(crate) fn outline_geometry(style: ComputedValuesView<'_>) -> Option<OutlineGeometry> {
     let misc = style.misc_reset();
     let (line_style, width) = if misc.outline_style == outline_style::AUTO {
-        // `auto` lets us do whatever we want for the outline. 2px of the accent
-        // colour seems reasonable.
-        (line_style::SOLID, CssPixels::from_integer(2))
+        (line_style::SOLID, auto_outline_width())
     } else {
         (outline_style_to_line_style(misc.outline_style), misc.outline_width)
     };

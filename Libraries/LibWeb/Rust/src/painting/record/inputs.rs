@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
+use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::UniqueNodeId;
 use crate::painting::ffi::FfiChromeMetrics;
@@ -101,8 +101,6 @@ pub(crate) struct FocusedTextControlSelection {
 pub(crate) struct FocusedAreaOutline {
     pub image: NodeSlotId,
     pub path_bytes: Box<[u8]>,
-    pub color: Color,
-    pub width: CssPixels,
 }
 
 #[derive(Clone)]

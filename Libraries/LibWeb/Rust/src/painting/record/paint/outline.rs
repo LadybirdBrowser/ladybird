@@ -126,6 +126,11 @@ fn paint_focused_area_outline<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
     // inert.
     // NB: Focused area elements have no paintable of their own, so the image whose rendering makes the area's shape a
     // focusable area paints the focus outline along that shape.
+    // AD-HOC: Only the user agent focus ring is painted, as an `outline: auto` would paint it. Other engines do not let
+    //         author outline values style the focus indicator of an image map area.
+    if !recorder.inputs.window_is_focused {
+        return;
+    }
     let Some(outline) = &recorder.inputs.focused_area_outline else {
         return;
     };
@@ -136,11 +141,10 @@ fn paint_focused_area_outline<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
     let converter = recorder.converter;
     let image_rect = paintable_geometry::absolute_rect(recorder.source, paintable);
     let scale = recorder.inputs.device_pixels_per_css_pixel as f32;
+    let color = recorder.inputs.outline_auto_color;
     let device_origin = converter.rounded_device_point(image_rect.location());
     let transformed = path.copy_transformed([scale, 0.0, 0.0, scale, device_origin.x as f32, device_origin.y as f32]);
 
-    // AD-HOC: Only the user agent focus ring is painted. Other engines do not let author outline values style the
-    // focus indicator of an image map area.
     recorder
         .recorder
         .record_clipped_to(converter.enclosing_device_rect(image_rect), |recorder| {
@@ -154,8 +158,8 @@ fn paint_focused_area_outline<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
                 dash_offset: 0.0,
                 path: &transformed,
                 opacity: 1.0,
-                paint_style_or_color: PaintStyleOrColor::Color(outline.color),
-                thickness: outline.width.to_double() as f32 * scale,
+                paint_style_or_color: PaintStyleOrColor::Color(color),
+                thickness: crate::painting::style_queries::auto_outline_width().to_double() as f32 * scale,
                 should_anti_alias: ShouldAntiAlias::Yes,
             });
         });
