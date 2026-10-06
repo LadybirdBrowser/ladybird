@@ -2743,23 +2743,24 @@ void HTMLMediaElement::note_frame_captured() const
 
 void HTMLMediaElement::on_playback_manager_state_change()
 {
-    VERIFY(m_playback_manager);
-    auto state = m_playback_manager->state();
-    if (seeking() && state != Media::PlaybackState::Seeking)
-        finish_seeking_element();
-    if (state == Media::PlaybackState::Ended && !m_error) {
-        upon_current_playback_position_possibly_changed();
-        reached_end_of_media_playback();
-    }
-
-    start_or_stop_playback_position_update_timer();
-
     // NB: Queue the readyState update as a task so that it will never run before the durationchange and loadedmetadata
     //     events are fired. This ensures that readyState has a deterministic value in those events.
     queue_a_media_element_task([](HTMLMediaElement& self) {
         if (self.m_ready_state >= ReadyState::HaveMetadata)
             self.update_ready_state();
     });
+
+    VERIFY(m_playback_manager);
+    auto state = m_playback_manager->state();
+    if (seeking() && state != Media::PlaybackState::Seeking)
+        finish_seeking_element();
+
+    start_or_stop_playback_position_update_timer();
+
+    if (state == Media::PlaybackState::Ended && !m_error) {
+        upon_current_playback_position_possibly_changed();
+        reached_end_of_media_playback();
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#internal-play-steps
