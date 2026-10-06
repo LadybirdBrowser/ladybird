@@ -16,7 +16,6 @@
 #include <LibGC/CellAllocator.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibWeb/CSS/Fetch.h>
-#include <LibWeb/CSS/FontFeatureData.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleEngineIdentifiers.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -25,6 +24,12 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/PixelUnits.h>
+
+namespace Web::CSS::Parser::ValueParserFFI {
+
+enum class FontFeatureValuesRuleKind : uint8_t;
+
+}
 
 namespace Web::CSS {
 
@@ -78,6 +83,11 @@ struct ComputedFontFamilyName {
 
 using ComputedFontFamily = Variant<GenericFontFamily, ComputedFontFamilyName>;
 
+// The computed values a font resolution reads beside the family, by StyleEngineFFI::FontResolutionFeatureInput; a null
+// one has its property's initial value. They select the OpenType features and the variations of the fonts.
+static constexpr size_t font_resolution_feature_input_count = 11;
+using FontResolutionFeatureValues = Array<ValueComparingRefPtr<StyleValue const>, font_resolution_feature_input_count>;
+
 struct ComputedFontCacheKey {
     Vector<ComputedFontFamily> font_families;
     FontOpticalSizing font_optical_sizing;
@@ -85,14 +95,29 @@ struct ComputedFontCacheKey {
     int font_slope;
     double font_weight;
     Percentage font_width;
-    HashMap<Utf16FlyString, double> font_variation_settings;
-    FontFeatureData font_feature_data;
+    FontResolutionFeatureValues feature_values;
     // The tree scope whose @font-feature-values the request reads, or the document's when its
     // font-variant-alternates name no feature values, so that alike requests share one answer.
     TreeScopeID font_feature_values_scope;
 
     [[nodiscard]] bool operator==(ComputedFontCacheKey const& other) const = default;
 };
+
+struct FontFeatureValueKey {
+    Parser::ValueParserFFI::FontFeatureValuesRuleKind kind;
+    Utf16FlyString name;
+
+    bool operator==(FontFeatureValueKey const&) const = default;
+};
+
+}
+
+template<>
+struct AK::Traits<Web::CSS::FontFeatureValueKey> : public AK::DefaultTraits<Web::CSS::FontFeatureValueKey> {
+    static unsigned hash(Web::CSS::FontFeatureValueKey const& key) { return pair_int_hash(to_underlying(key.kind), key.name.hash()); }
+};
+
+namespace Web::CSS {
 
 using FontFeatureValues = HashMap<FontFeatureValueKey, Vector<u32>>;
 

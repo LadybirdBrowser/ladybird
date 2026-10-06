@@ -18,7 +18,6 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/FontComputer.h>
-#include <LibWeb/CSS/FontFeatureData.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleProperty.h>
@@ -108,12 +107,7 @@ public:
 
     Color color(PropertyID, ColorResolutionContext) const;
     PreferredColorScheme color_scheme(PreferredColorScheme, Optional<Vector<Utf16FlyString> const&> document_supported_schemes) const;
-    TextRendering text_rendering() const;
-    FontFeatureData font_feature_data() const;
-    FontVariantCaps font_variant_caps() const;
     FontVariantEmoji font_variant_emoji() const;
-    FontVariantPosition font_variant_position() const;
-    FontKerning font_kerning() const;
     Display display_before_box_type_transformation() const;
 
     // The font list for text in the given tree scope, whose @font-feature-values font-variant-alternates reads.
@@ -157,12 +151,7 @@ private:
     AnimatedProperties const& animated_properties() const;
     AnimatedProperties& mutable_animated_properties();
 
-    Optional<FontVariantAlternates> font_variant_alternates() const;
-    Optional<FontVariantEastAsian> font_variant_east_asian() const;
-    Optional<FontVariantLigatures> font_variant_ligatures() const;
-    Optional<FontVariantNumeric> font_variant_numeric() const;
-    HashMap<Utf16FlyString, u8> font_feature_settings() const;
-    HashMap<Utf16FlyString, double> font_variation_settings() const;
+    FontResolutionFeatureValues font_resolution_feature_values() const;
     int math_depth() const;
     double font_weight() const;
     Percentage font_width() const;
@@ -235,15 +224,6 @@ NonnullRefPtr<StyleValue const> wrap_computed_longhand_slot(void const* value_da
 
 // https://drafts.csswg.org/css-inline-3/#valdef-line-height-normal
 [[nodiscard]] CSSPixels normal_line_height(Gfx::FontPixelMetrics const&);
-
-// The computed values the font resolver reads beside the family. The style engine resolves a font without a working
-// set to read them from, so each converter below is reachable on its own.
-[[nodiscard]] Optional<FontVariantAlternates> font_variant_alternates_from_style_value(StyleValue const&);
-[[nodiscard]] Optional<FontVariantEastAsian> font_variant_east_asian_from_style_value(StyleValue const&);
-[[nodiscard]] Optional<FontVariantLigatures> font_variant_ligatures_from_style_value(StyleValue const&);
-[[nodiscard]] Optional<FontVariantNumeric> font_variant_numeric_from_style_value(StyleValue const&);
-[[nodiscard]] HashMap<Utf16FlyString, u8> font_feature_settings_from_style_value(StyleValue const&);
-[[nodiscard]] HashMap<Utf16FlyString, double> font_variation_settings_from_style_value(StyleValue const&);
 
 // How many C++ longhand wrappers have been minted process-wide, counting the on-demand mints
 // property() performs and the specified-value wrappers the drive's side effects still need.
