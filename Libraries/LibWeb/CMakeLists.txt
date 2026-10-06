@@ -193,7 +193,6 @@ set(SOURCES
     CSS/MediaQueryListEvent.cpp
     CSS/Number.cpp
     CSS/NumericType.cpp
-    CSS/ParsedFontFace.cpp
     CSS/Parser/ErrorReporter.cpp
     CSS/Parser/Helpers.cpp
     CSS/Parser/Parser.cpp

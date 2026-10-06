@@ -33,6 +33,7 @@
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
@@ -49,16 +50,34 @@
 
 namespace Web::CSS {
 
-// In order to avoid conflicts with the old WinIE style of @font-face, if there is no format specified,
-// we check to see if the URL ends with .eot. We will not try to load those.
-// This matches the behavior of other engines (Blink, WebKit).
-static bool is_unsupported_source(ParsedFontFace::Source const& source)
+// The sources of a src value a font can load from.
+static Vector<FontLoader::Source> loadable_sources_from_style_value(StyleValue const& value)
 {
-    if (!source.local_or_url.has<URL>())
-        return false;
-    if (source.format.has_value())
-        return !font_format_is_supported(source.format.value());
-    return Utf16View { source.local_or_url.get<URL>().url() }.ends_with(".eot"sv);
+    Vector<FontLoader::Source> sources;
+    auto add_source = [&](StyleValue const& source_value) {
+        auto const& font_source = source_value.as_font_source();
+        font_source.source().visit(
+            [&](FontSourceStyleValue::Local const& local) {
+                sources.append(string_from_style_value(local.name));
+            },
+            [&](URL const& url) {
+                // In order to avoid conflicts with the old WinIE style of @font-face, if there is no format specified,
+                // we check to see if the URL ends with .eot. We will not try to load those.
+                // This matches the behavior of other engines (Blink, WebKit).
+                auto format = font_source.format();
+                if (format.has_value() ? !font_format_is_supported(*format) : Utf16View { url.url() }.ends_with(".eot"sv))
+                    return;
+                sources.append(url);
+            });
+    };
+
+    if (value.is_font_source()) {
+        add_source(value);
+    } else if (value.is_value_list()) {
+        for (auto const& source : value.as_value_list().values())
+            add_source(source);
+    }
+    return sources;
 }
 
 static Utf16String serialize_style_value_to_utf16(StyleValue const& value)
@@ -234,8 +253,7 @@ GC::Ref<FontFace> FontFaceState::create_for_constructor(JS::Object& relevant_glo
     // 2. If the source argument was a CSSOMString, set font face’s internal [[Urls]] slot to the string.
     //    If the source argument was a BinaryData, set font face’s internal [[Data]] slot to the passed argument.
     if (source.has<Utf16String>()) {
-        font_face->m_urls = ParsedFontFace::sources_from_style_value(*parsed_source);
-        font_face->m_urls.remove_all_matching(is_unsupported_source);
+        font_face->m_urls = loadable_sources_from_style_value(*parsed_source);
     } else {
         auto maybe_buffer = WebIDL::get_buffer_source_copy(source.downcast<WebIDL::BufferSourceVariant>());
         if (maybe_buffer.is_error()) {
@@ -350,10 +368,9 @@ NonnullRefPtr<FontFaceState> FontFaceState::create_css_connected(JS::Realm& real
     font_face->m_source_style_sheet = &sheet;
     font_face->reparse_connected_css_font_face_rule_descriptors();
 
-    if (auto src_value = font_face->connected_descriptors().descriptor(DescriptorNameAndID::from_id(DescriptorID::Src))) {
-        font_face->m_urls = ParsedFontFace::sources_from_style_value(*src_value);
-        font_face->m_urls.remove_all_matching(is_unsupported_source);
-    }
+    // NB: A change to the rule's src connects a new FontFace, so the sources stay the rule's for this one's lifetime.
+    if (auto src_value = font_face->connected_descriptors().descriptor(DescriptorNameAndID::from_id(DescriptorID::Src)))
+        font_face->m_urls = loadable_sources_from_style_value(*src_value);
 
     sheet.set_css_connected_font_face(rule_identity, font_face);
 
@@ -375,30 +392,6 @@ void FontFaceState::reparse_connected_css_font_face_rule_descriptors()
     set_ascent_override_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::AscentOverride)));
     set_descent_override_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::DescentOverride)));
     set_line_gap_override_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::LineGapOverride)));
-}
-
-ParsedFontFace FontFaceState::parsed_font_face() const
-{
-    if (m_css_font_face_rule_identity.has_value())
-        return ParsedFontFace::from_descriptors(connected_descriptors(), *m_source_style_sheet->owning_document());
-
-    // FIXME: The ParsedFontFace is kind of expensive to create. We should be using a shared sub-object for the data
-    return ParsedFontFace {
-        m_family,
-        m_cached_weight_range,
-        m_cached_slope,
-        m_cached_width,
-        m_urls,
-        m_unicode_ranges,
-        {}, // FIXME: ascent_override
-        {}, // FIXME: descent_override
-        {}, // FIXME: line_gap_override
-        m_font_display,
-        {}, // font-named-instance doesn't exist in FontFace
-        {}, // font-language-override doesn't exist in FontFace
-        {}, // FIXME: feature_settings
-        {}, // FIXME: variation_settings
-    };
 }
 
 static HashMap<u64, FontFaceState*>& font_faces_by_id()
@@ -1176,7 +1169,7 @@ void FontFaceState::load_for_style()
     if (auto document = m_environment->responsible_document()) {
         auto& font_computer = document->font_computer();
 
-        if (auto loader = font_computer.load_font_face(parsed_font_face(), m_source_style_sheet, move(on_load))) {
+        if (auto loader = font_computer.load_font_face(m_urls, m_source_style_sheet, move(on_load))) {
             m_font_loader = loader;
             loader->start_loading_next_source();
         }

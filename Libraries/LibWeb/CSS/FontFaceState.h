@@ -20,8 +20,8 @@
 #include <LibGfx/FontCascadeList.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/FontFace.h>
+#include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFaceSnapshot.h>
-#include <LibWeb/CSS/ParsedFontFace.h>
 #include <LibWeb/CSS/RustDescriptorBlock.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -99,8 +99,6 @@ public:
     void disconnect_from_css_rule();
     void reparse_connected_css_font_face_rule_descriptors();
 
-    ParsedFontFace parsed_font_face() const;
-
     RefPtr<Gfx::Typeface const> typeface() const { return m_parsed_font; }
 
     // The number this face is known by in the process. A style update that must not mutate the face names it by this
@@ -119,9 +117,6 @@ public:
         };
     }
 
-    FontWeightRange declared_weight_range() const { return m_cached_weight_range; }
-    int declared_slope() const { return m_cached_slope; }
-    int declared_width() const { return m_cached_width; }
     bool should_be_registered_with_font_computer() const;
 
     // What the face renders with right now, published for a cascade on any thread: its typeface while its font-display
@@ -213,7 +208,7 @@ private:
     FontFaceLoadStatus m_status;
 
     mutable GC::Ptr<WebIDL::Promise> m_font_status_promise; // [[FontStatusPromise]]
-    Vector<ParsedFontFace::Source> m_urls;                  // [[Urls]]
+    Vector<FontLoader::Source> m_urls;                      // [[Urls]]
     ByteBuffer m_binary_data {};                            // [[Data]]
 
     RefPtr<Gfx::Typeface const> m_parsed_font;
