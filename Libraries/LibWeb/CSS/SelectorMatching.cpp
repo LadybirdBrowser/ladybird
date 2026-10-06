@@ -124,6 +124,52 @@ static bool element_is_modal(DOM::Element const& element)
     return dialog_element && dialog_element->is_modal();
 }
 
+static bool element_popover_is_open(DOM::Element const& element)
+{
+    auto const* html_element = as_if<HTML::HTMLElement>(element);
+    return html_element && html_element->has_attribute(HTML::AttributeNames::popover)
+        && html_element->popover_visibility_state() == HTML::HTMLElement::PopoverVisibilityState::Showing;
+}
+
+// The states that are one question each, asked of the element itself, a media element, or a meter.
+// Both element_states() and element_matches_state() are generated from these lists, so the two
+// cannot disagree; the states that share a question are written out once in each.
+#define ENUMERATE_ELEMENT_STATES(X)                                          \
+    X(Active, element.is_being_activated())                                  \
+    X(Checked, element.matches_checked_pseudo_class())                       \
+    X(Defined, element.is_defined())                                         \
+    X(Disabled, element.matches_disabled_pseudo_class())                     \
+    X(Enabled, element.matches_enabled_pseudo_class())                       \
+    X(Focus, element.is_focused())                                           \
+    X(FocusVisible, element.is_focused() && element.should_indicate_focus()) \
+    X(FocusWithin, element.matches_focus_within_pseudo_class())              \
+    X(Fullscreen, element.is_fullscreen_element())                           \
+    X(Hover, matches_hover_pseudo_class(element))                            \
+    X(Indeterminate, matches_indeterminate_pseudo_class(element))            \
+    X(Modal, element_is_modal(element))                                      \
+    X(Open, matches_open_state_pseudo_class(element))                        \
+    X(PlaceholderShown, element.matches_placeholder_shown_pseudo_class())    \
+    X(PopoverOpen, element_popover_is_open(element))                         \
+    X(Target, element.is_target())                                           \
+    X(Unchecked, element.matches_unchecked_pseudo_class())
+
+// :playing tracks the paused attribute alone: it flips synchronously on play() and load(), and
+// does not require a playable media resource.
+#define ENUMERATE_MEDIA_ELEMENT_STATES(X) \
+    X(Buffering, media->blocked())        \
+    X(Muted, media->muted())              \
+    X(Paused, media->paused())            \
+    X(Playing, !media->paused())          \
+    X(Seeking, media->seeking())          \
+    X(Stalled, media->stalled())
+
+#define ENUMERATE_METER_STATES(X)                                                                  \
+    X(EvenLessGoodValue, meter->value_state() == HTML::HTMLMeterElement::ValueState::EvenLessGood) \
+    X(HighValue, meter->value() > meter->high())                                                   \
+    X(LowValue, meter->value() < meter->low())                                                     \
+    X(OptimalValue, meter->value_state() == HTML::HTMLMeterElement::ValueState::Optimal)           \
+    X(SuboptimalValue, meter->value_state() == HTML::HTMLMeterElement::ValueState::Suboptimal)
+
 CSS::PseudoClassBitmap element_states(DOM::Element const& element)
 {
     CSS::PseudoClassBitmap states;
@@ -131,19 +177,9 @@ CSS::PseudoClassBitmap element_states(DOM::Element const& element)
         if (holds)
             states.set(pseudo_class, true);
     };
+#define __SET_STATE(name, holds) set(CSS::PseudoClass::name, holds);
 
-    // The states every element can be in, whatever it is.
-    set(CSS::PseudoClass::Active, element.is_being_activated());
-    set(CSS::PseudoClass::Defined, element.is_defined());
-    set(CSS::PseudoClass::Focus, element.is_focused());
-    set(CSS::PseudoClass::FocusVisible, element.is_focused() && element.should_indicate_focus());
-    set(CSS::PseudoClass::FocusWithin, element.matches_focus_within_pseudo_class());
-    set(CSS::PseudoClass::Fullscreen, element.is_fullscreen_element());
-    set(CSS::PseudoClass::Hover, matches_hover_pseudo_class(element));
-    set(CSS::PseudoClass::Target, element.is_target());
-    set(CSS::PseudoClass::Open, matches_open_state_pseudo_class(element));
-    set(CSS::PseudoClass::Modal, element_is_modal(element));
-    set(CSS::PseudoClass::PopoverOpen, element_matches_state(element, CSS::PseudoClass::PopoverOpen));
+    ENUMERATE_ELEMENT_STATES(__SET_STATE)
 
     // Read-write is what the editing hosts answer, so it is asked of everything too.
     auto read_write = matches_read_write_pseudo_class(element);
@@ -161,13 +197,6 @@ CSS::PseudoClassBitmap element_states(DOM::Element const& element)
 
     // The rest belong to kinds of element, and asking a `<div>` about them costs one type check
     // rather than one call each.
-    set(CSS::PseudoClass::Checked, element.matches_checked_pseudo_class());
-    set(CSS::PseudoClass::Unchecked, element.matches_unchecked_pseudo_class());
-    set(CSS::PseudoClass::Disabled, element.matches_disabled_pseudo_class());
-    set(CSS::PseudoClass::Enabled, element.matches_enabled_pseudo_class());
-    set(CSS::PseudoClass::PlaceholderShown, element.matches_placeholder_shown_pseudo_class());
-    set(CSS::PseudoClass::Indeterminate, matches_indeterminate_pseudo_class(element));
-
     auto const* form_associated_element = as_form_associated_element(element);
     if (form_associated_element || is<HTML::HTMLOptionElement>(element))
         set(CSS::PseudoClass::Default, element_is_default(element));
@@ -188,122 +217,61 @@ CSS::PseudoClassBitmap element_states(DOM::Element const& element)
         set(CSS::PseudoClass::Invalid, validity == ValidityState::Invalid);
     }
 
-    if (auto const* media_element = as_if<HTML::HTMLMediaElement>(element)) {
-        auto blocked = media_element->blocked();
-        auto paused = media_element->paused();
-        set(CSS::PseudoClass::Buffering, blocked);
-        set(CSS::PseudoClass::Muted, media_element->muted());
-        set(CSS::PseudoClass::Paused, paused);
-        // :playing tracks the paused attribute alone: it flips synchronously on play() and
-        // load(), and does not require a playable media resource.
-        set(CSS::PseudoClass::Playing, !paused);
-        set(CSS::PseudoClass::Seeking, media_element->seeking());
-        set(CSS::PseudoClass::Stalled, media_element->stalled());
+    if (auto const* media = as_if<HTML::HTMLMediaElement>(element)) {
+        ENUMERATE_MEDIA_ELEMENT_STATES(__SET_STATE)
     }
 
     if (auto const* meter = as_if<HTML::HTMLMeterElement>(element)) {
-        auto value_state = meter->value_state();
-        set(CSS::PseudoClass::EvenLessGoodValue, value_state == HTML::HTMLMeterElement::ValueState::EvenLessGood);
-        set(CSS::PseudoClass::SuboptimalValue, value_state == HTML::HTMLMeterElement::ValueState::Suboptimal);
-        set(CSS::PseudoClass::OptimalValue, value_state == HTML::HTMLMeterElement::ValueState::Optimal);
-        set(CSS::PseudoClass::HighValue, meter->value() > meter->high());
-        set(CSS::PseudoClass::LowValue, meter->value() < meter->low());
+        ENUMERATE_METER_STATES(__SET_STATE)
     }
+#undef __SET_STATE
 
     return states;
 }
 
 bool element_matches_state(DOM::Element const& element, CSS::PseudoClass pseudo_class)
 {
-    auto const* media_element = as_if<HTML::HTMLMediaElement>(element);
-    auto const* meter = as_if<HTML::HTMLMeterElement>(element);
-    auto meter_value_state = [&](HTML::HTMLMeterElement::ValueState state) {
-        return meter && meter->value_state() == state;
-    };
-
     switch (pseudo_class) {
-    case CSS::PseudoClass::Active:
-        return element.is_being_activated();
+#define __ELEMENT_STATE_CASE(name, holds) \
+    case CSS::PseudoClass::name:          \
+        return holds;
+        ENUMERATE_ELEMENT_STATES(__ELEMENT_STATE_CASE)
+#undef __ELEMENT_STATE_CASE
+
+#define __MEDIA_ELEMENT_STATE_CASE(name, holds)                     \
+    case CSS::PseudoClass::name: {                                  \
+        auto const* media = as_if<HTML::HTMLMediaElement>(element); \
+        return media && (holds);                                    \
+    }
+        ENUMERATE_MEDIA_ELEMENT_STATES(__MEDIA_ELEMENT_STATE_CASE)
+#undef __MEDIA_ELEMENT_STATE_CASE
+
+#define __METER_STATE_CASE(name, holds)                             \
+    case CSS::PseudoClass::name: {                                  \
+        auto const* meter = as_if<HTML::HTMLMeterElement>(element); \
+        return meter && (holds);                                    \
+    }
+        ENUMERATE_METER_STATES(__METER_STATE_CASE)
+#undef __METER_STATE_CASE
+
     case CSS::PseudoClass::AnyLink:
         return element.matches_link_pseudo_class() || element.matches_visited_pseudo_class();
-    case CSS::PseudoClass::Autofill:
-        // FIXME: Nothing autofills yet, so no element is ever in this state.
-        return false;
-    case CSS::PseudoClass::Buffering:
-        return media_element && media_element->blocked();
-    case CSS::PseudoClass::Checked:
-        return element.matches_checked_pseudo_class();
     case CSS::PseudoClass::Default:
         return element_is_default(element);
-    case CSS::PseudoClass::Defined:
-        return element.is_defined();
-    case CSS::PseudoClass::Disabled:
-        return element.matches_disabled_pseudo_class();
-    case CSS::PseudoClass::Enabled:
-        return element.matches_enabled_pseudo_class();
-    case CSS::PseudoClass::EvenLessGoodValue:
-        return meter_value_state(HTML::HTMLMeterElement::ValueState::EvenLessGood);
-    case CSS::PseudoClass::Focus:
-        return element.is_focused();
-    case CSS::PseudoClass::FocusVisible:
-        return element.is_focused() && element.should_indicate_focus();
-    case CSS::PseudoClass::FocusWithin:
-        return element.matches_focus_within_pseudo_class();
-    case CSS::PseudoClass::Fullscreen:
-        return element.is_fullscreen_element();
-    case CSS::PseudoClass::HighValue:
-        return meter && meter->value() > meter->high();
-    case CSS::PseudoClass::Hover:
-        return matches_hover_pseudo_class(element);
-    case CSS::PseudoClass::Indeterminate:
-        return matches_indeterminate_pseudo_class(element);
     case CSS::PseudoClass::Invalid:
         return element_validity_state(element) == ValidityState::Invalid;
     case CSS::PseudoClass::Link:
         return element.matches_link_pseudo_class();
     case CSS::PseudoClass::LocalLink:
         return element.matches_local_link_pseudo_class();
-    case CSS::PseudoClass::LowValue:
-        return meter && meter->value() < meter->low();
-    case CSS::PseudoClass::Modal:
-        return element_is_modal(element);
-    case CSS::PseudoClass::Muted:
-        return media_element && media_element->muted();
-    case CSS::PseudoClass::Open:
-        return matches_open_state_pseudo_class(element);
-    case CSS::PseudoClass::OptimalValue:
-        return meter_value_state(HTML::HTMLMeterElement::ValueState::Optimal);
     case CSS::PseudoClass::Optional:
         return element_required_state(element) == RequiredState::Optional;
-    case CSS::PseudoClass::Paused:
-        return media_element && media_element->paused();
-    case CSS::PseudoClass::PlaceholderShown:
-        return element.matches_placeholder_shown_pseudo_class();
-    case CSS::PseudoClass::Playing:
-        // :playing tracks the paused attribute alone, as element_states() publishes it.
-        return media_element && !media_element->paused();
-    case CSS::PseudoClass::PopoverOpen:
-        return element.has_attribute(HTML::AttributeNames::popover)
-            && [&] {
-                   auto const* html_element = as_if<HTML::HTMLElement>(element);
-                   return html_element && html_element->popover_visibility_state() == HTML::HTMLElement::PopoverVisibilityState::Showing;
-               }();
     case CSS::PseudoClass::ReadOnly:
         return !matches_read_write_pseudo_class(element);
     case CSS::PseudoClass::ReadWrite:
         return matches_read_write_pseudo_class(element);
     case CSS::PseudoClass::Required:
         return element_required_state(element) == RequiredState::Required;
-    case CSS::PseudoClass::Seeking:
-        return media_element && media_element->seeking();
-    case CSS::PseudoClass::Stalled:
-        return media_element && media_element->stalled();
-    case CSS::PseudoClass::SuboptimalValue:
-        return meter_value_state(HTML::HTMLMeterElement::ValueState::Suboptimal);
-    case CSS::PseudoClass::Target:
-        return element.is_target();
-    case CSS::PseudoClass::Unchecked:
-        return element.matches_unchecked_pseudo_class();
     case CSS::PseudoClass::UserInvalid:
         return element_user_validity_state(element) == ValidityState::Invalid;
     case CSS::PseudoClass::UserValid:
@@ -312,8 +280,10 @@ bool element_matches_state(DOM::Element const& element, CSS::PseudoClass pseudo_
         return element_validity_state(element) == ValidityState::Valid;
     case CSS::PseudoClass::Visited:
         return element.matches_visited_pseudo_class();
+
+    // FIXME: Nothing autofills yet, and volume is never locked, so no element is ever in these states.
+    case CSS::PseudoClass::Autofill:
     case CSS::PseudoClass::VolumeLocked:
-        // FIXME: Volume is never locked, so no element is ever in this state.
         return false;
 
     // The rest are operators over other selectors, positions, or the tree rather than facts the
