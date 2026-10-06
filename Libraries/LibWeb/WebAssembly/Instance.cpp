@@ -132,16 +132,20 @@ static InstanceExportsCache& instance_exports_cache_for(WebAssembly::Instance& i
 
 static GC::Ref<JS::FunctionObject> create_native_function_for_instance_realm(JS::Realm& realm, Wasm::FunctionAddress address, GC::Ref<WebAssembly::Instance> instance)
 {
-    Optional<Wasm::FunctionType> type;
-    auto* function = instance->cache().abstract_machine().store().get(address);
+    auto& store = instance->cache().abstract_machine().store();
+    auto* function = store.get(address);
     VERIFY(function);
-    function->visit([&](auto const& value) { type = value.type(); });
+    auto type = function->visit([](auto const& value) { return value.type(); });
+
+    // NB: The length is read before the call below, whose capture moves the type out of this scope. The order in which
+    // a call's arguments are evaluated is unspecified, and GCC on x86_64 evaluates them right to left.
+    auto length = type.parameters().size();
 
     return WebAssembly::Detail::create_exported_function(
         realm,
-        WebAssembly::Detail::name_of_webassembly_function(instance->cache().abstract_machine().store(), address),
-        type->parameters().size(),
-        [address, type = type.release_value(), instance, realm = GC::Ref(realm)](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+        WebAssembly::Detail::name_of_webassembly_function(store, address),
+        length,
+        [address, type = move(type), instance, realm = GC::Ref(realm)](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
             Vector<Wasm::Value, Wasm::ArgumentsStaticSize> values;
             values.ensure_capacity(type.parameters().size());
 
