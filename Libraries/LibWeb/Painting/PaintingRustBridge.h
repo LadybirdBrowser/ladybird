@@ -70,6 +70,9 @@ WEB_API Optional<DisplayListRecording> start_rust_display_list_recording(Layout:
 // Commits the navigable's next frame, which keeps the display list the compositor has, to the render owner, which
 // presents it with `presentation` beside the event loop.
 WEB_API void commit_unrecorded_frame(Layout::BegunRead const&, DOM::Document&, Compositor::FlightPresentation presentation);
+// Renders the SVG images of the committed frame of `recording` that waits for them, which only the main thread renders,
+// into a resource storage of their own, and hands the frame back to the Paint thread, which presents it with them.
+WEB_API void render_vector_images(Layout::BegunRead const&, DOM::Document&, DisplayListRecording const& recording);
 // Publishes the recording, which has landed and stands, and makes its display list from what was sealed where it began.
 WEB_API RefPtr<Compositing::DisplayList> finish_rust_display_list_recording(Layout::BegunRead const&, DOM::Document&, DisplayListRecording const&, Compositing::DisplayListResourceStorage&);
 // Hands the document the trace the recording it took in last left, if it left one.

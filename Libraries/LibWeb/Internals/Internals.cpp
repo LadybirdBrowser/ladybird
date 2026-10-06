@@ -1737,9 +1737,10 @@ Utf16String Internals::last_frame_presented_by(DOM::Document& document)
     auto* navigable = as_if<HTML::LocalNavigable>(document.navigable().ptr());
     if (!navigable)
         return {};
-    switch (navigable->presenter().last_frame_presented_by()) {
-    case Compositor::PresentedBy::Main:
-        return "main"_utf16;
+    auto presented_by = navigable->presenter().last_frame_presented_by();
+    if (!presented_by.has_value())
+        return "none"_utf16;
+    switch (*presented_by) {
     case Compositor::PresentedBy::Commit:
         return "commit"_utf16;
     case Compositor::PresentedBy::Clock:

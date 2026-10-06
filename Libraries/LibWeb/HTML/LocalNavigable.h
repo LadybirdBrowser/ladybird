@@ -321,8 +321,7 @@ public:
         // Where the recording is needed now: waits for it to finish.
         Wait,
     };
-    // Takes the recording in flight in, and hands the presentation queue its frame where the recording did not present
-    // it. Answers whether no recording is in flight any more.
+    // Takes the frame in flight in. Answers whether none is in flight any more.
     bool take_recording_in_flight_in(TakeIn);
     bool has_recording_in_flight() const { return m_recording_in_flight; }
 
@@ -449,8 +448,7 @@ private:
     PaintConfig stamp_paint_config(PaintConfig) const;
     Compositor::SealedPresentation seal_presentation(DOM::Document&, PaintConfig const&, bool records_display_list);
     void unseal_presentation(DOM::Document&, Compositor::SealedPresentation const&);
-    Optional<Compositor::SealedFrame> finish_recording(Layout::BegunRead const&, DOM::Document&, Compositor::SealedPresentation, Painting::DisplayListRecording const&, Painting::HitTestListStands = Painting::HitTestListStands::Yes);
-    Optional<Compositor::SealedFrame> finish_recording_in_flight(RecordingInFlight&, Layout::RustFFI::FfiRecordingLanding, Layout::RustFFI::FfiPresentation);
+    void finish_recording_in_flight(RecordingInFlight&, Layout::RustFFI::FfiRecordingLanding, Layout::RustFFI::FfiPresentation);
     Gfx::IntRect present_viewport_rect() const;
 
     enum class PendingNavigationBehavior {

@@ -705,6 +705,13 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
     return recording;
 }
 
+void render_vector_images(Layout::BegunRead const& read, DOM::Document& document, DisplayListRecording const& recording)
+{
+    auto resources = make<Compositor::VectorImageResources>();
+    RecordingPublishContext publish_context { resources->storage, document_host(document), read, recording.visual_context_tree };
+    Layout::RustFFI::render_state_render_vector_images(publish_context.host, recording_publish_callbacks(publish_context), resources.leak_ptr());
+}
+
 RefPtr<Compositing::DisplayList> finish_rust_display_list_recording(Layout::BegunRead const& read, DOM::Document& document, DisplayListRecording const& recording, Compositing::DisplayListResourceStorage& resource_storage)
 {
     RecordingPublishContext publish_context { resource_storage, document_host(document), read, recording.visual_context_tree };

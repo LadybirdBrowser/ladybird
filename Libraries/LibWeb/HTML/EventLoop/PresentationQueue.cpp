@@ -10,13 +10,6 @@
 
 namespace Web::HTML {
 
-void PresentationQueue::submit(LocalNavigable& navigable, Compositor::SealedFrame frame)
-{
-    // A navigable that was destroyed since it painted the frame has no compositor context to present it to.
-    if (navigable.has_compositor_context())
-        navigable.compositor_context().present_sealed_frame(Compositor::PresentationTurn {}, navigable.presenter(), move(frame));
-}
-
 void PresentationQueue::submit(LocalNavigable& navigable, Compositor::CompositorFrame frame)
 {
     if (navigable.has_compositor_context())
@@ -28,13 +21,11 @@ void PresentationQueue::enqueue_recording_in_flight(LocalNavigable& navigable)
     m_recordings_in_flight.append(navigable);
 }
 
-void PresentationQueue::recording_landed(LocalNavigable& navigable, Optional<Compositor::SealedFrame> frame)
+void PresentationQueue::recording_landed(LocalNavigable& navigable)
 {
     auto index = m_recordings_in_flight.find_first_index_if([&](auto const& entry) { return entry.ptr() == &navigable; });
     VERIFY(index.has_value());
     m_recordings_in_flight.remove(*index);
-    if (frame.has_value())
-        submit(navigable, frame.release_value());
 }
 
 void PresentationQueue::present_landed_frames()

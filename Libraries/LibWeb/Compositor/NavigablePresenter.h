@@ -36,10 +36,9 @@ struct PublishedDisplayList {
     bool replaces_paint_command_cache_source { false };
 };
 
-// What presented a navigable's last frame: the main thread, or what presents beside it: the recording of a frame a
-// rendering update committed, or a tick of a clock lease.
+// What presented a navigable's last frame: the recording of a frame a rendering update committed, or a tick of a clock
+// lease.
 enum class PresentedBy : u8 {
-    Main,
     Commit,
     Clock,
 };
@@ -78,11 +77,12 @@ struct SealedPresentation {
     bool visual_context_tree_changed { false };
 };
 
-// A frame a navigable sealed on the main thread, with the display list its recording published, if any, which the Paint
-// thread builds and presents.
-struct SealedFrame {
-    SealedPresentation sealed;
-    Optional<PublishedDisplayList> published;
+// The display lists of the SVG images a frame renders, which the main thread renders for the frame into a resource
+// storage of their own, with what they reference: the Paint thread hands them to the frame's presenter.
+struct VectorImageResources {
+    AK_ALLOC_WITH_KMALLOC;
+
+    Compositing::DisplayListResourceStorage storage;
 };
 
 // What a navigable presents to its compositor context from: the resource storage its recordings add to, and the
@@ -106,7 +106,7 @@ public:
     // Forgets what the compositor context holds: a new compositor process holds nothing.
     void forget_compositor_display_list();
 
-    PresentedBy last_frame_presented_by() const { return m_last_frame_presented_by; }
+    Optional<PresentedBy> last_frame_presented_by() const { return m_last_frame_presented_by; }
     // The generation of the keyboard scroll state the last frame handed the compositor, if it handed one.
     Optional<u64> last_keyboard_scroll_state_generation() const { return m_last_keyboard_scroll_state_generation; }
 
@@ -129,7 +129,7 @@ private:
     u64 m_compositor_display_list_visual_context_tree_structural_epoch { 0 };
     Compositing::DisplayListResourceSet m_compositor_display_list_resources;
     Compositing::DisplayListResourceSet m_compositor_display_list_command_resources;
-    PresentedBy m_last_frame_presented_by { PresentedBy::Main };
+    Optional<PresentedBy> m_last_frame_presented_by;
     Optional<u64> m_last_keyboard_scroll_state_generation;
 };
 
@@ -151,4 +151,6 @@ WEB_API void web_sealed_presentation_note_visual_context_tree_changed(void* seal
 WEB_API void web_navigable_presenter_add_font(void* presenter, void const* font);
 WEB_API void web_navigable_presenter_add_image_frame(void* presenter, void const* frame);
 WEB_API void web_navigable_presenter_add_video_sink(void* presenter, u64 resource_id, u64 sink_handle);
+WEB_API void web_vector_image_resources_destroy(void* resources);
+WEB_API void web_navigable_presenter_take_vector_image_resources(void* presenter, void* resources, u64 const* display_list_ids, size_t display_list_id_count);
 }

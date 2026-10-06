@@ -789,6 +789,39 @@ pub unsafe extern "C" fn render_state_commit_unrecorded_frame(
     unsafe { commit_frame(host, read, recorder, content, false, timestamp, presentation) };
 }
 
+/// Renders the SVG images of the committed frame of `host`'s document that waits for them, with the callbacks in
+/// `publish`, into `resources`, and hands the frame back to the Paint thread, which presents it with them. The frame
+/// flies again until the host takes it in.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, whose committed frame landed as
+/// [`FfiRecordingLanding::NeedsVectorImages`]; the callbacks in `publish` are called synchronously with their context,
+/// which adds what they render to `resources`, a `Web::Compositor::VectorImageResources` the host gives up.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_render_vector_images(
+    host: &crate::render_state::DocumentHost,
+    publish: crate::painting::host::FfiRecordingPublishCallbacks,
+    resources: std::ptr::NonNull<c_void>,
+) {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { main_thread(host) };
+    // SAFETY: Guaranteed by the caller.
+    let resources = unsafe { crate::painting::presentation::VectorImageResources::adopt(resources) };
+    let (frame, recorder) = host
+        .recording()
+        .take_vector_image_frame()
+        .expect("a committed frame waits for its SVG images");
+    let display_list_ids =
+        crate::painting::record::publish::render_vector_images(frame.get().requests(), &main_thread, &publish);
+    let flight = crate::paint_stage::submit_presenting(frame, move |frame, presenting| {
+        frame
+            .into_inner()
+            .present(recorder, &display_list_ids, resources, presenting)
+    });
+    host.recording().fly(flight);
+}
+
 /// Holds the next recording that flies before it reads its frame, until the test releases it or the host waits for it.
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_hold_next_recording_for_testing() {
@@ -897,6 +930,7 @@ unsafe fn recording_landing(
             unsafe { give_back(given_back, presentation) };
             FfiRecordingLanding::PresentedUnrecorded
         }
+        RecordingLanding::NeedsVectorImages => FfiRecordingLanding::NeedsVectorImages,
     }
 }
 

@@ -24,10 +24,12 @@ use crate::painting::hit_test::HitTestList;
 use crate::painting::paint_read::PaintSource;
 use crate::painting::paint_state::{PendingRecording, PendingRecordingTrace};
 use crate::painting::presentation::Presentation;
+use crate::painting::presentation::VectorImageResources;
 use crate::painting::published_frame::PublishedFrame;
 use crate::painting::record::recorder_state::RecorderState;
+use crate::painting::record::vector_images::VectorImageRenderRequest;
 use crate::painting::record::{RecordingInputs, RecordingOutput};
-use crate::render_state::{LockstepProof, TaskBoundary};
+use crate::render_state::{LockstepProof, SampledFrame, TaskBoundary};
 use crate::stage_thread::{InFlight, ParkedJob, StopWord};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 
@@ -54,12 +56,9 @@ pub(crate) struct RecordingAnswer {
 }
 
 /// What a recording made of what it recorded: nothing, where the document's viewport had no box to
-/// record, a recording for the host to publish and present, one it published and presented itself, or
-/// nothing, for a committed frame that keeps the display list the compositor has, which it presented.
-#[expect(
-    clippy::large_enum_variant,
-    reason = "a recording answers once a frame, and moves what it recorded to the host without an allocation"
-)]
+/// record, a recording for the host to publish, one it published and presented itself, nothing, for a
+/// committed frame that keeps the display list the compositor has, which it presented, or a committed
+/// frame that waits for its SVG images.
 enum Recorded {
     Nothing,
     Pending(PendingRecording),
@@ -68,6 +67,62 @@ enum Recorded {
         publishes_recording: bool,
     },
     PresentedUnrecorded,
+    /// A recording of a committed frame that renders SVG images, which only the host renders: the frame waits for
+    /// them, with the presentation.
+    NeedsVectorImages(SampledFrame<VectorImageFrame>),
+}
+
+/// A committed frame whose recording renders SVG images, with the presentation that presents it once the host has
+/// rendered them, and the rows version its frame was frozen at.
+pub(crate) struct VectorImageFrame {
+    pending: PendingRecording,
+    presentation: Presentation,
+    rows_version: RowsVersion,
+}
+
+impl VectorImageFrame {
+    /// The SVG images the frame renders.
+    pub(crate) fn requests(&self) -> &[VectorImageRenderRequest] {
+        &self.pending.recording.resources.vector_image_render_requests
+    }
+
+    /// Presents the frame, recorded with `recorder`, with `resources`, the SVG images the host rendered, whose display
+    /// lists are `display_list_ids`, one for each of the frame's requests, beside the event loop.
+    pub(crate) fn present(
+        self,
+        recorder: RecorderState,
+        display_list_ids: &[u64],
+        resources: VectorImageResources,
+        presenting: &mut Presenting,
+    ) -> RecordingAnswer {
+        let Self {
+            pending,
+            mut presentation,
+            rows_version,
+        } = self;
+        presentation
+            .presenter
+            .take_vector_image_resources(resources, display_list_ids);
+        let publishes_recording = pending.publishes_recording;
+        let output = crate::painting::record::publish::publish_with_vector_images(
+            pending,
+            &recorder,
+            &mut presentation.presenter,
+            display_list_ids,
+        );
+        presentation.present(&FfiPresentedRecording::of_output(&output), presenting);
+        let recorded = Recorded::Presented {
+            output,
+            publishes_recording,
+        };
+        RecordingAnswer {
+            recorder,
+            recorded,
+            rows_version,
+            trace: None,
+            presentation: Some(presentation),
+        }
+    }
 }
 
 // The host waits for a recording only where it needs the recorder back.
@@ -91,6 +146,40 @@ impl RecordingAnswer {
             recorded: Recorded::Nothing,
             rows_version: RowsVersion::default(),
             trace: None,
+            presentation,
+        }
+    }
+
+    /// Holds a recording of a committed frame that renders SVG images on the Paint thread, as `sampled`, the frame the
+    /// render owner sampled, until the host has rendered them: the answer gives back the recorder state alone.
+    pub(crate) fn hold_vector_images(
+        self,
+        sampled: impl FnOnce(VectorImageFrame) -> SampledFrame<VectorImageFrame>,
+    ) -> Self {
+        let Self {
+            recorder,
+            recorded,
+            rows_version,
+            trace,
+            presentation,
+        } = self;
+        // A recording handed a presentation presented its frame, unless it renders SVG images.
+        let (recorded, presentation) = match (recorded, presentation) {
+            (Recorded::Pending(pending), Some(presentation)) => (
+                Recorded::NeedsVectorImages(sampled(VectorImageFrame {
+                    pending,
+                    presentation,
+                    rows_version,
+                })),
+                None,
+            ),
+            unchanged => unchanged,
+        };
+        Self {
+            recorder,
+            recorded,
+            rows_version,
+            trace,
             presentation,
         }
     }
@@ -434,6 +523,9 @@ pub(crate) enum RecordingLanding {
     /// The committed frame recorded nothing, and presented the display list the compositor has; it gives
     /// back the presentation it was handed.
     PresentedUnrecorded(Option<Presentation>),
+    /// The committed frame's recording renders SVG images, which the host renders for the frame (see
+    /// [`RecordingSlot::take_vector_image_frame`]); it keeps the presentation.
+    NeedsVectorImages,
     /// The recording landed after the host wrote the document's rows. What it recorded stands as
     /// the compositor's frame, whether it presented it or the host does, but not its hit-test list,
     /// which names boxes that may be gone: the document keeps none.
@@ -466,6 +558,8 @@ struct PendingPublication {
 #[derive(Default)]
 pub(crate) struct RecordingSlot {
     pending_recording: Option<PendingPublication>,
+    /// The committed frame that waits for the host to render its SVG images.
+    vector_image_frame: Option<SampledFrame<VectorImageFrame>>,
     pending_recording_trace: Option<PendingRecordingTrace>,
     recorder: Recorder,
     hit_test_list: Option<HitTestList>,
@@ -556,6 +650,7 @@ impl RecordingSlot {
         self.pending_recording_trace = trace;
         match recorded {
             Recorded::Nothing | Recorded::PresentedUnrecorded => {}
+            Recorded::NeedsVectorImages(frame) => self.vector_image_frame = Some(frame),
             Recorded::Pending(pending) => self.pending_recording = Some(PendingPublication { pending, behind_rows }),
             Recorded::Presented {
                 output,
@@ -644,6 +739,11 @@ impl RecordingSlot {
             Recorded::PresentedUnrecorded => {
                 return RecordingLanding::PresentedUnrecorded(self.land(answer, false, take_in));
             }
+            Recorded::NeedsVectorImages(_) => {
+                let presentation = self.land(answer, false, take_in);
+                debug_assert!(presentation.is_none(), "the frame keeps the presentation");
+                return RecordingLanding::NeedsVectorImages;
+            }
             Recorded::Pending(_) | Recorded::Presented { .. } => {}
         }
         let rows_stand = rows_stand(answer.rows_version);
@@ -653,6 +753,13 @@ impl RecordingSlot {
         } else {
             RecordingLanding::LandedBehindRows(presentation)
         }
+    }
+
+    /// The committed frame that waits for the host to render its SVG images, with the recorder state, which goes with
+    /// it to the Paint thread again: the host hands the frame back to the slot to fly with.
+    pub(crate) fn take_vector_image_frame(&mut self) -> Option<(SampledFrame<VectorImageFrame>, RecorderState)> {
+        let frame = self.vector_image_frame.take()?;
+        Some((frame, self.take_recorder()))
     }
 
     /// Drops the pending recording unpublished. A recording that publishes wrote the retained

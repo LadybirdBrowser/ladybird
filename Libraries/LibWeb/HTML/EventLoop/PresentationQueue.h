@@ -29,14 +29,12 @@ class PresentationQueue {
 public:
     PresentationQueue() = default;
 
-    // A frame sealed in step.
-    void submit(LocalNavigable&, Compositor::SealedFrame);
     // A frame built by hand, for a test.
     void submit(LocalNavigable&, Compositor::CompositorFrame);
     // A recording that flies beside the event loop, whose frame is presented in its place once it lands.
     void enqueue_recording_in_flight(LocalNavigable&);
-    // The recording in flight of the navigable has landed, with the frame it sealed where it still stands.
-    void recording_landed(LocalNavigable&, Optional<Compositor::SealedFrame>);
+    // The recording in flight of the navigable has landed.
+    void recording_landed(LocalNavigable&);
 
     // Between two tasks: takes in the recordings that have landed.
     void present_landed_frames();

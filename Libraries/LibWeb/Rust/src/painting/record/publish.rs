@@ -28,10 +28,24 @@ fn resolve_vector_image_placeholders(
     if requests.is_empty() {
         return;
     }
-    let resolved_ids: Vec<u64> = requests
+    let resolved_ids = render_vector_images(requests, main_thread, publish);
+    patch_vector_image_placeholders(output, &resolved_ids);
+}
+
+/// Has the host render the SVG images of `requests`, and answers the ids of their display lists, one for each request.
+pub(crate) fn render_vector_images(
+    requests: &[VectorImageRenderRequest],
+    main_thread: &MainThread,
+    publish: &FfiRecordingPublishCallbacks,
+) -> Vec<u64> {
+    requests
         .iter()
         .map(|request| publish.resolve_vector_image_display_list(main_thread, &request.to_ffi()))
-        .collect();
+        .collect()
+}
+
+/// Patches the placeholders of SVG images in `output` with `resolved_ids`, the ids of their display lists.
+fn patch_vector_image_placeholders(output: &mut RecordingOutput, resolved_ids: &[u64]) {
     let display_list = std::sync::Arc::make_mut(&mut output.display_list);
     let id_field_offset = std::mem::offset_of!(PaintNestedDisplayList, display_list_id);
     let mut patch_offsets = Vec::new();
@@ -153,6 +167,19 @@ pub(crate) fn publish_to_presenter(
 ) -> RecordingOutput {
     debug_assert!(!renders_vector_images(&pending), "only the host renders an SVG image");
     publish_resources(pending, recorder, presenter, |_, _| {})
+}
+
+/// Hands the resources of a recording that renders SVG images to `presenter` and makes its output, beside the event
+/// loop, with `display_list_ids`, the ids of the display lists the host rendered them as, which the presenter has.
+pub(crate) fn publish_with_vector_images(
+    pending: PendingRecording,
+    recorder: &RecorderState,
+    presenter: &mut crate::painting::presentation::PresenterBox,
+    display_list_ids: &[u64],
+) -> RecordingOutput {
+    publish_resources(pending, recorder, presenter, |output, _| {
+        patch_vector_image_placeholders(output, display_list_ids);
+    })
 }
 
 /// Hands a recording's resources to `sink`, has `resolve_vector_images` patch in the SVG images it renders, and makes
