@@ -26,7 +26,11 @@ enum class FfiFlightBlocker : uint8_t;
 
 namespace Web::HTML {
 
-class PresentationQueue;
+// Whether a committed frame records the document, rather than keep the display list the compositor has.
+enum class CommittedFrameRecords : bool {
+    No,
+    Yes,
+};
 
 class WEB_API EventLoop : public JS::Cell {
     GC_CELL(EventLoop, JS::Cell);
@@ -145,12 +149,13 @@ public:
 
     bool running_rendering_task() const { return m_running_rendering_task; }
 
-    // A rendering update's style transaction and its recording fly beside the event loop until the event loop takes them
-    // in between two tasks. A rendering update whose style transaction flies runs its steps from its style and layout
-    // on once the transaction is taken in.
-    void did_let_recording_fly(LocalNavigable&);
-    // The frames of the navigables this event loop renders, in the order the compositor presents them.
-    PresentationQueue& presentation_queue() { return *m_presentation_queue; }
+    // A rendering update's style transaction and its frame fly beside the event loop until the event loop takes them in
+    // between two tasks. A rendering update whose style transaction flies runs its steps from its style and layout on
+    // once the transaction is taken in.
+    void did_commit_frame(LocalNavigable&, CommittedFrameRecords);
+    void did_take_frame_in(LocalNavigable&);
+    // Waits for every frame the navigables committed to be presented, and takes it in.
+    void take_committed_frames_in();
     // A test that injects its rendering opportunities injects its render clock's ticks as well.
     void set_render_clock_is_manual_for_testing(bool manual) { m_render_clock_is_manual_for_testing = manual; }
     bool render_clock_is_manual_for_testing() const { return m_render_clock_is_manual_for_testing; }
@@ -251,7 +256,8 @@ private:
 
     GC::Ptr<GC::Function<void()>> m_rendering_task_function;
 
-    NonnullOwnPtr<PresentationQueue> m_presentation_queue;
+    // The navigables whose committed frame flies beside the event loop, which has not taken it in yet.
+    Vector<GC::Ref<LocalNavigable>> m_navigables_with_frames_in_flight;
     // The navigables whose active document the last rendering update left a plan for a clock lease, which a task takes.
     Vector<GC::Ref<LocalNavigable>> m_navigables_with_clock_plans;
     bool m_render_clock_is_manual_for_testing { false };

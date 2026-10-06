@@ -23,12 +23,6 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
-namespace Web::HTML {
-
-class PresentationQueue;
-
-}
-
 namespace Web::Compositor {
 
 class CompositorFrameSink;

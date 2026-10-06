@@ -62,7 +62,6 @@ struct CompositorFrame {
     Optional<ScreenshotRequest> screenshot_request;
 };
 
-class CompositorConnection;
 struct FrameSinkFFI;
 struct PresenterFFI;
 
@@ -74,11 +73,9 @@ public:
     virtual ~CompositorFrameSink() = default;
 
 private:
-    // The Paint thread presents through these.
+    // Only the Paint thread presents, through these.
     friend struct FrameSinkFFI;
     friend struct PresenterFFI;
-    // Only for a test of the transport.
-    friend class CompositorConnection;
 
     // Returns false once the compositor can no longer be reached.
     virtual bool submit(CompositorFrame&&) = 0;

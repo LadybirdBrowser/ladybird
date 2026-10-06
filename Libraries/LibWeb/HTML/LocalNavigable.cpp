@@ -50,7 +50,6 @@
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/DragDataStore.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
-#include <LibWeb/HTML/EventLoop/PresentationQueue.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
@@ -6940,7 +6939,7 @@ bool LocalNavigable::commit_frame(PaintConfig paint_config)
     // What asks for another recording once this one has started asks for the next one.
     m_needs_to_record_display_list = false;
     m_recording_in_flight = make<RecordingInFlight>(*document, move(recording));
-    main_thread_event_loop().did_let_recording_fly(*this);
+    main_thread_event_loop().did_commit_frame(*this, CommittedFrameRecords::Yes);
     return true;
 }
 
@@ -6964,7 +6963,7 @@ void LocalNavigable::commit_unrecorded_frame(Layout::BegunRead const& read, DOM:
 {
     Painting::commit_unrecorded_frame(read, document, take_presentation(document, move(sealed)));
     m_recording_in_flight = make<RecordingInFlight>(document, OptionalNone {});
-    main_thread_event_loop().presentation_queue().enqueue_recording_in_flight(*this);
+    main_thread_event_loop().did_commit_frame(*this, CommittedFrameRecords::No);
 }
 
 void LocalNavigable::commit_mismatched_visual_context_tree_for_testing()
@@ -7128,7 +7127,7 @@ bool LocalNavigable::take_recording_in_flight_in(TakeIn take_in)
     if (landing == Layout::RustFFI::FfiRecordingLanding::StillInFlight)
         return false;
     auto in_flight = m_recording_in_flight.release_nonnull();
-    main_thread_event_loop().presentation_queue().recording_landed(*this);
+    main_thread_event_loop().did_take_frame_in(*this);
     finish_recording_in_flight(*in_flight, landing, given_back);
     return true;
 }
@@ -7232,7 +7231,7 @@ void LocalNavigable::render_screenshot(Gfx::PaintingSurface& painting_surface, P
         return;
     }
     // The screenshot is of what the compositor composes, so every frame committed before it is presented first.
-    main_thread_event_loop().presentation_queue().present_all();
+    main_thread_event_loop().take_committed_frames_in();
     compositor_context().request_screenshot(painting_surface, move(callback));
 }
 

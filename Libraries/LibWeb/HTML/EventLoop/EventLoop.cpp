@@ -22,7 +22,6 @@
 #include <LibWeb/HTML/EventLoop/ClockPlan.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventLoop/FrameCompletion.h>
-#include <LibWeb/HTML/EventLoop/PresentationQueue.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
@@ -49,7 +48,6 @@ GC_DEFINE_ALLOCATOR(EventLoop);
 
 EventLoop::EventLoop(Type type)
     : m_type(type)
-    , m_presentation_queue(make<PresentationQueue>())
 {
     if (m_type == Type::Window) {
         // The threads a window's rendering runs on only read what the host lends them and never touch the heap
@@ -86,7 +84,7 @@ void EventLoop::visit_edges(Visitor& visitor)
     visitor.visit(m_rendering_task_function);
     visitor.visit(m_system_event_loop_timer);
     visitor.visit(m_idle_period_timer);
-    m_presentation_queue->visit_edges(visitor);
+    visitor.visit(m_navigables_with_frames_in_flight);
     visitor.visit(m_navigables_with_clock_plans);
 }
 
@@ -1087,11 +1085,24 @@ void EventLoop::finish_rendering_update_in_flight()
         resume_rendering_update_in_flight();
 }
 
-void EventLoop::did_let_recording_fly(LocalNavigable& navigable)
+void EventLoop::did_commit_frame(LocalNavigable& navigable, CommittedFrameRecords records)
 {
-    // A test holds the recording itself, on the Paint thread; it only spends the hold the next style flight would take.
-    m_holds_next_frame_for_testing = false;
-    m_presentation_queue->enqueue_recording_in_flight(navigable);
+    // A test holds a recording itself, on the Paint thread; it only spends the hold the next style flight would take.
+    if (records == CommittedFrameRecords::Yes)
+        m_holds_next_frame_for_testing = false;
+    m_navigables_with_frames_in_flight.append(navigable);
+}
+
+void EventLoop::did_take_frame_in(LocalNavigable& navigable)
+{
+    auto removed = m_navigables_with_frames_in_flight.remove_first_matching([&](auto const& entry) { return entry.ptr() == &navigable; });
+    VERIFY(removed);
+}
+
+void EventLoop::take_committed_frames_in()
+{
+    while (!m_navigables_with_frames_in_flight.is_empty())
+        (void)m_navigables_with_frames_in_flight.last()->take_recording_in_flight_in(LocalNavigable::TakeIn::Wait);
 }
 
 void EventLoop::ensure_frame_completion_registered()
@@ -1109,7 +1120,7 @@ bool EventLoop::has_frame_in_flight() const
 {
     if (m_rendering_update_in_flight && m_rendering_update_in_flight->document().style_computer().style_engine().render_document().frame_flies())
         return true;
-    return m_presentation_queue->has_recording_in_flight();
+    return !m_navigables_with_frames_in_flight.is_empty();
 }
 
 bool EventLoop::lays_out_rendering_update_in_flight() const
@@ -1163,7 +1174,9 @@ void EventLoop::take_finished_frames_in()
         && (m_rendering_update_in_flight->layout_flew || !let_layout_of_rendering_update_fly()))
         resume_rendering_update_in_flight();
 
-    m_presentation_queue->present_landed_frames();
+    // A frame that was taken in leaves the list as it is, which moves only the entries after it.
+    for (size_t index = m_navigables_with_frames_in_flight.size(); index-- > 0;)
+        (void)m_navigables_with_frames_in_flight[index]->take_recording_in_flight_in(LocalNavigable::TakeIn::IfFinished);
 }
 
 void EventLoop::lease_clocks_for_task()

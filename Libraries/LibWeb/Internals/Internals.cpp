@@ -65,7 +65,6 @@
 #include <LibWeb/HTML/AutoplaySettings.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
-#include <LibWeb/HTML/EventLoop/PresentationQueue.h>
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
