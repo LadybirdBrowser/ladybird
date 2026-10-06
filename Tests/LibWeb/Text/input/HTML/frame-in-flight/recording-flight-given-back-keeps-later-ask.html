@@ -20,6 +20,10 @@
             internals.injectRenderingOpportunity(performance.now());
         });
         await twoFrames();
+        // The next recording may still fly as an animation frame runs: reading it before it lands would take it in
+        // and present it from here.
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
         println(`presented by: ${internals.lastFramePresentedBy(document)}`);
         println(`opacity: ${getComputedStyle(box).opacity}`);
         done();
