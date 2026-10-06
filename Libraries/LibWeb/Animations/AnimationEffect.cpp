@@ -869,12 +869,11 @@ void AnimationUpdateContext::publish()
         samples.append({ element, it.value, move(effects_to_collect) });
     }
 
-    // An element whose overlay the update publishes, which pins the record it installed across the publication where
-    // that record may become its transition baseline.
+    // An element whose overlay the update publishes, and whether the record it installed may become its transition
+    // baseline.
     struct Publication {
         Sample& sample;
         bool may_record_baseline { false };
-        bool pins_installed_record { false };
     };
     Vector<Publication> publications;
     Vector<CSS::StyleComputer::SampledAnimationOverlay> overlays;
@@ -902,15 +901,16 @@ void AnimationUpdateContext::publish()
             if (sample.element.style_record_identity() != sample.data.style_record_before_update
                 || !sample.element.installed_style().animation_overlay_changed(style.animated_overlay()))
                 continue;
-            // The record the element installed may become a transition baseline once the publication is compared with
-            // it, which the publication can release: an element holds its record until it installs the published one,
-            // but a pseudo-element holds it nowhere, so the update pins it across the publication.
+            // The publication can release the record a pseudo-element installed, which the update still reads: as a
+            // transition baseline once the publication is compared with it, and from its originating element, whose
+            // entry may install first and recompute its pseudo-element styles. An element holds its record until it
+            // installs the published one, but a pseudo-element holds it nowhere, so the update pins it until its own
+            // entry.
             bool const may_record_baseline = style.animated_overlay() && !animated_overlay_entries(style.animated_overlay()).is_empty()
                 && document.is_in_style_stabilization_epoch();
-            bool const pins_installed_record = may_record_baseline && sample.element.pseudo_element().has_value();
-            if (pins_installed_record)
+            if (sample.element.pseudo_element().has_value())
                 CSS::StyleEngineFFI::style_engine_pin_style_record(style_computer.style_engine().host(), sample.data.style_record_before_update.value());
-            publications.append({ sample, may_record_baseline, pins_installed_record });
+            publications.append({ sample, may_record_baseline });
             overlays.append({ sample.element, style });
         }
         published.resize(overlays.size());
@@ -918,7 +918,7 @@ void AnimationUpdateContext::publish()
         first = end;
 
         for (size_t i = 0; i < publications.size(); ++i) {
-            auto const& [sample, may_record_baseline, pins_installed_record] = publications[i];
+            auto const& [sample, may_record_baseline] = publications[i];
             auto const& animated_property_invalidation = published[i].invalidation;
             auto& element = sample.element;
             auto const& data = sample.data;
@@ -927,7 +927,7 @@ void AnimationUpdateContext::publish()
             bool const republished = element.style_record_identity() != data.style_record_before_update;
             if (!republished && may_record_baseline && (document.style_stabilization_has_style_reactions() || animated_property_invalidation.requires_base_style_recomputation))
                 style_computer.record_transition_stabilization_baseline(element, data.style_record_before_update);
-            if (pins_installed_record)
+            if (element.pseudo_element().has_value())
                 CSS::StyleEngineFFI::style_engine_unpin_style_record(style_computer.style_engine().host(), data.style_record_before_update.value());
             if (republished)
                 continue;
