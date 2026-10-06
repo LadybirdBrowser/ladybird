@@ -65,6 +65,8 @@ static void record_heading_levels_in_subtree(DOM::Element&);
 static void republish_assigned_slot_of(DOM::Node&);
 static Optional<StyleEngineFFI::FfiStateFact> state_fact_for(PseudoClass);
 static StyleAtomID intern_id_or_class_atom(StyleEngine&, DOM::Element const&, Utf16FlyString const&);
+static u32 element_construction_facts(DOM::Element const&);
+static u32 element_style_adjustment_facts(DOM::Element const&);
 
 static constexpr StyleNodeID no_style_node;
 // Shadow trees get their own scopes with the shadow surface; today everything names the document.
@@ -763,6 +765,68 @@ static bool element_has_presentational_hints_to_publish(DOM::Element const& elem
     return has_presentational_hint;
 }
 
+// The element facts the style computation's box-type transformation and element style adjustments
+// read of the DOM. Mirrors Rust `element_adjustment_fact`.
+enum ElementStyleAdjustmentFact : u32 {
+    IsBr = 1 << 0,
+    IsWbr = 1 << 1,
+    DisallowDisplayContents = 1 << 2,
+    RewriteInlineFlow = 1 << 3,
+    IsButton = 1 << 4,
+    ForceLineHeightNormal = 1 << 5,
+    CheckInputLineHeight = 1 << 6,
+    HideAudioWithoutControls = 1 << 7,
+    IsTable = 1 << 8,
+    ForcePositionStatic = 1 << 9,
+    ForceSymbolDisplayInline = 1 << 10,
+    IsMathML = 1 << 11,
+    IsMathMLMtable = 1 << 12,
+    IsMathMLMtr = 1 << 13,
+    IsMathMLMtd = 1 << 14,
+    IsTh = 1 << 15,
+    IsDocumentElement = 1 << 16,
+    HasAnimations = 1 << 17,
+    // An SVG graphics element folds its own transform into its SVG container's layout, which the
+    // style engine's damage for the element's record moves reads.
+    IsSvgGraphicsElement = 1 << 18,
+    // The element stands for an element-reference pseudo-element of its shadow host, whose style
+    // it takes.
+    IsShadowHostPseudoElement = 1 << 19,
+    // An HTML <body>. The first one among an HTML <html> root's children propagates its style to the
+    // viewport, which layout and the style engine's damage for the element's record moves read.
+    IsHtmlBodyElement = 1 << 20,
+    // The element types layout tree construction branches on. An element's type is fixed when it is
+    // created, so the store holds these rather than the tree builder asking the DOM for them.
+    IsSvgElement = 1 << 21,
+    IsSvgSwitchElement = 1 << 22,
+    IsSvgContainer = 1 << 23,
+    RequiresSvgContainer = 1 << 24,
+    IsSvgForeignObjectElement = 1 << 25,
+    IsSvgMaskElement = 1 << 26,
+    IsSvgClipPathElement = 1 << 27,
+    IsSvgPatternElement = 1 << 28,
+    // Whether the element is rendered in the top layer. Unlike the type facts above it moves during
+    // the element's lifetime, and every move is recorded where the element's flag is set.
+    RenderedInTopLayer = 1 << 29,
+    // An HTML <html>, whose first <body> child propagates its overflow to the viewport when it is
+    // the root.
+    IsHtmlHtmlElement = 1 << 30,
+    // An HTML <frameset>, which is the document's body in place of a <body>.
+    IsHtmlFramesetElement = 1u << 31,
+};
+// What a layout row records about the element it is built for at the moment it is allocated, published so that the
+// tree build can read it out of the mirror rather than off the DOM node. Mirrors Rust `element_construction_fact`.
+enum ElementConstructionFact : u32 {
+    IsHtmlInputElement = 1 << 0,
+    // This and ConstructedAsDocumentElement are also ElementStyleAdjustmentFacts. A row is built out of this word
+    // alone, so they are published into both rather than read across two.
+    ConstructedAsHtmlHtmlElement = 1 << 1,
+    IsInUserAgentShadowTree = 1 << 2,
+    UsesButtonLayout = 1 << 3,
+    IsEditingHost = 1 << 4,
+    IsBody = 1 << 5,
+    ConstructedAsDocumentElement = 1 << 6,
+};
 u32 element_box_type_adjustment_facts(DOM::Element const& element)
 {
     bool is_html_element = element.namespace_uri() == Namespace::HTML;
@@ -859,7 +923,7 @@ u32 element_box_type_adjustment_facts(DOM::Element const& element)
     return facts;
 }
 
-u32 element_construction_facts(DOM::Element const& element)
+static u32 element_construction_facts(DOM::Element const& element)
 {
     u32 facts = 0;
     auto set = [&](bool condition, ElementConstructionFact fact) {
@@ -878,7 +942,7 @@ u32 element_construction_facts(DOM::Element const& element)
     return facts;
 }
 
-u32 element_style_adjustment_facts(DOM::Element const& element)
+static u32 element_style_adjustment_facts(DOM::Element const& element)
 {
     auto facts = element_box_type_adjustment_facts(element);
     auto set = [&](bool condition, ElementStyleAdjustmentFact fact) {
@@ -1318,10 +1382,21 @@ void record_element_css_defined_animations(DOM::Element& element, u8 slot, Reado
     StyleEngineFFI::style_engine_set_element_css_defined_animations(style_engine->host(), element.style_node_id(), slot, lengths, units, definitions);
 }
 
-// A keyframe's composite operation as a published keyframe spells it.
-static StyleValueFFI::FfiCompositeOperation published_composite_operation(Bindings::CompositeOperation operation)
+// A keyframe's composite operation as a published keyframe spells it: the keyframe's own, or its effect's where the
+// keyframe's is auto.
+static StyleValueFFI::FfiCompositeOperation published_composite_operation(Bindings::CompositeOperationOrAuto keyframe, Bindings::CompositeOperation effect)
 {
-    switch (operation) {
+    switch (keyframe) {
+    case Bindings::CompositeOperationOrAuto::Replace:
+        return StyleValueFFI::FfiCompositeOperation::Replace;
+    case Bindings::CompositeOperationOrAuto::Add:
+        return StyleValueFFI::FfiCompositeOperation::Add;
+    case Bindings::CompositeOperationOrAuto::Accumulate:
+        return StyleValueFFI::FfiCompositeOperation::Accumulate;
+    case Bindings::CompositeOperationOrAuto::Auto:
+        break;
+    }
+    switch (effect) {
     case Bindings::CompositeOperation::Replace:
         return StyleValueFFI::FfiCompositeOperation::Replace;
     case Bindings::CompositeOperation::Add:
@@ -1417,19 +1492,7 @@ void record_element_animation_effect_descriptions(DOM::Element& element, u8 slot
                     return default_easing;
                 });
             describe_easing(easing, keyframe, ffi_points);
-            keyframe.composite = published_composite_operation([&] {
-                switch (it->composite) {
-                case Bindings::CompositeOperationOrAuto::Accumulate:
-                    return Bindings::CompositeOperation::Accumulate;
-                case Bindings::CompositeOperationOrAuto::Add:
-                    return Bindings::CompositeOperation::Add;
-                case Bindings::CompositeOperationOrAuto::Replace:
-                    return Bindings::CompositeOperation::Replace;
-                case Bindings::CompositeOperationOrAuto::Auto:
-                    return effect->composite();
-                }
-                VERIFY_NOT_REACHED();
-            }());
+            keyframe.composite = published_composite_operation(it->composite, effect->composite());
             keyframe.first_declaration = static_cast<u32>(ffi_declarations.size());
             keyframe.first_custom_declaration = static_cast<u32>(ffi_custom_declarations.size());
             for (auto const& [property, value] : it->properties) {
@@ -1517,19 +1580,6 @@ void record_element_custom_property_names(DOM::Element& element, CustomPropertyD
         merge_names(reference_atoms);
     }
     StyleEngineFFI::style_engine_set_element_custom_property_names(style_engine->host(), element.style_node_id(), published, uses_unnamed, uses_custom_functions);
-}
-
-void record_element_custom_property_names(DOM::Element& element, ReadonlySpan<Utf16FlyString> names, bool uses_unnamed, bool uses_custom_functions)
-{
-    auto* style_engine = style_engine_for_identified(element);
-    if (!style_engine)
-        return;
-
-    Vector<StyleAtomID> atoms;
-    atoms.ensure_capacity(names.size());
-    for (auto const& name : names)
-        atoms.unchecked_append(style_engine->intern_atom(name));
-    StyleEngineFFI::style_engine_set_element_custom_property_names(style_engine->host(), element.style_node_id(), atoms, uses_unnamed, uses_custom_functions);
 }
 
 // An element's heading level, which `:heading()` tests. It follows from what the element is plus
@@ -2390,27 +2440,9 @@ void record_non_author_stylesheets(DOM::Document& document)
     }
 }
 
-static StyleSheetState* owning_engine_sheet(StyleSheetState& sheet)
-{
-    // A constructed sheet is always its own engine sheet; its per-document ids make the raw member 0
-    // without its rules living in any other sheet's program.
-    if (sheet.constructed())
-        return &sheet;
-    auto* engine_sheet = &sheet;
-    while (engine_sheet->style_engine_sheet_id() == 0) {
-        auto* owner = engine_sheet->owner_import();
-        if (!owner)
-            return nullptr;
-        engine_sheet = owner->parent_style_sheet();
-        if (!engine_sheet)
-            return nullptr;
-    }
-    return engine_sheet;
-}
-
 void record_stylesheet_rule_conditions(StyleSheetState& sheet)
 {
-    auto* engine_sheet = owning_engine_sheet(sheet);
+    auto* engine_sheet = owning_compiled_sheet(&sheet);
     if (!engine_sheet)
         return;
     for_each_document_with_engine_copy(*engine_sheet, [&](DOM::Document& document) {
@@ -2420,7 +2452,7 @@ void record_stylesheet_rule_conditions(StyleSheetState& sheet)
 
 void record_stylesheet_rule_conditions(StyleSheetState& sheet, DOM::Document& document)
 {
-    auto* engine_sheet = sheet.owner_import() ? owning_engine_sheet(sheet) : &sheet;
+    auto* engine_sheet = sheet.owner_import() ? owning_compiled_sheet(&sheet) : &sheet;
     if (!engine_sheet)
         return;
     document.flush_deferred_style_change_event();
@@ -2435,7 +2467,7 @@ void record_stylesheet_rule_conditions(StyleSheetState& sheet, DOM::Document& do
 void record_stylesheet_conditions(StyleSheetState& sheet, DOM::Node& document_or_shadow_root, bool conditions_hold)
 {
     document_or_shadow_root.document().flush_deferred_style_change_event();
-    auto* engine_sheet = owning_engine_sheet(sheet);
+    auto* engine_sheet = owning_compiled_sheet(&sheet);
     if (!engine_sheet)
         return;
     // An imported sheet gates only its own rules, not the entire enclosing engine sheet.
