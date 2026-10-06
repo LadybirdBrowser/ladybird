@@ -7,6 +7,7 @@
 #include <AK/Debug.h>
 #include <AK/Math.h>
 #include <Compositor/ConnectionFromWebContent.h>
+#include <Compositor/RasterizeDisplayList.h>
 #include <LibCompositing/WebGL/WebGLSharedCommandBuffer.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/Environment.h>
@@ -268,6 +269,23 @@ void ConnectionFromWebContent::destroy_canvas_context(Compositing::CanvasId canv
 Messages::CompositorWebContentServer::GetCanvasPixelsResponse ConnectionFromWebContent::get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect)
 {
     return m_canvas_host.read_back_pixels(canvas_id, rect);
+}
+
+Messages::CompositorWebContentServer::RasterizeDisplayListResponse ConnectionFromWebContent::rasterize_display_list(Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties display_list_properties, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, Gfx::ShareableBitmap target_bitmap)
+{
+    auto display_list = Compositing::DisplayList::create_from_shared_buffer(move(display_list_properties), move(display_list_buffer), tape_size, run_count);
+    if (display_list.is_error()) {
+        dbgln("Compositor: Rejecting display list to rasterize from WebContent: {}", display_list.error());
+        did_misbehave("WebContent asked to rasterize a display list its shared buffer does not hold");
+        return false;
+    }
+    if (!target_bitmap.is_valid())
+        return false;
+    if (auto result = Compositor::rasterize_display_list(*display_list.value(), visual_context_tree, move(resource_transaction), *target_bitmap.bitmap()); result.is_error()) {
+        dbgln("Compositor: Not rasterizing display list from WebContent: {}", result.error());
+        return false;
+    }
+    return true;
 }
 
 Messages::CompositorWebContentServer::AllocatePlaceholderCanvasResponse ConnectionFromWebContent::allocate_placeholder_canvas()

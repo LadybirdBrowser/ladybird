@@ -59,6 +59,7 @@ private:
     virtual void release_placeholder_canvas(Compositing::CanvasId) override;
     virtual void commit_placeholder_canvas(Compositing::CanvasId, u64 secret, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize, bool origin_clean) override;
     virtual Messages::CompositorWebContentServer::GetPlaceholderCanvasPixelsResponse get_placeholder_canvas_pixels(Compositing::CanvasId, Gfx::IntRect) override;
+    virtual Messages::CompositorWebContentServer::RasterizeDisplayListResponse rasterize_display_list(Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction, Gfx::ShareableBitmap target_bitmap) override;
 
     virtual Messages::CompositorWebContentServer::CreateWebglContextResponse create_webgl_context(Compositing::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias) override;
     virtual void webgl_set_command_buffer(Compositing::CanvasId canvas_id, Core::AnonymousBuffer command_buffer) override;

@@ -100,6 +100,10 @@ public:
     void commit_placeholder_canvas(PlaceholderCanvasLink, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize, bool origin_clean);
     PlaceholderCanvasPixels read_placeholder_canvas_pixels(Compositing::CanvasId, Gfx::IntRect);
 
+    // Has the compositor draw a display list that belongs to no compositor context into the target, which must be a
+    // shareable BGRA8888 bitmap with premultiplied alpha. Returns false if nothing was drawn.
+    bool rasterize_display_list(Compositing::DisplayListResource const&, Compositing::DisplayListResourceStorage const&, NonnullRefPtr<Gfx::Bitmap> target) const;
+
     void destroy_context(Web::CompositorContextId);
     void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId>);
     void stop_presenting_to_client(Web::CompositorContextId);

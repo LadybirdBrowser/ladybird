@@ -337,6 +337,19 @@ void CompositorHost::send_canvas_2d_stream(Compositing::Canvas2DCommandStream& s
         connection->update_canvas_2d_stream(stream);
 }
 
+bool CompositorHost::rasterize_display_list(Compositing::DisplayListResource const& display_list, Compositing::DisplayListResourceStorage const& resource_storage, NonnullRefPtr<Gfx::Bitmap> target) const
+{
+    auto* connection = compositor_connection();
+    if (!connection)
+        return false;
+    auto resource_transaction = resource_storage.create_self_contained_transaction(*display_list.display_list, display_list.visual_context_tree);
+    if (resource_transaction.is_error()) {
+        dbgln("WebContent: Not rasterizing a display list: {}", resource_transaction.error());
+        return false;
+    }
+    return connection->rasterize_display_list(*display_list.display_list, display_list.visual_context_tree, resource_transaction.release_value(), move(target));
+}
+
 void CompositorHost::destroy_context(Web::CompositorContextId context_id)
 {
     if (auto* connection = compositor_connection())
