@@ -92,8 +92,10 @@ pub extern "C" fn stage_thread_set_flight_finished(finished: extern "C" fn()) {
     let _ = FLIGHT_FINISHED.set(finished);
 }
 
-// The size Linux and macOS give a process's main thread, where style, layout and recording ran before.
-const STAGE_THREAD_STACK_SIZE: usize = 8 * 1024 * 1024;
+// Building and laying out boxes recurse once per tree level. The 8 MiB Linux and macOS give a process's main thread
+// overflowed at about 5700 nested elements in release builds and fewer in debug builds. A thread stack is reserved,
+// not committed, so the larger size costs address space only.
+const STAGE_THREAD_STACK_SIZE: usize = 64 * 1024 * 1024;
 
 impl StageThread {
     /// Spawns a thread named `name`, which lives as long as the process.
