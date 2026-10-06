@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+@keyframes fade {
+    from { color: black; }
+    to { color: blue; }
+}
+@keyframes grow {
+    from { width: 10px; }
+    to { width: 110px; }
+}
+.target {
+    animation: fade 10s linear paused;
+}
+.target::before {
+    content: "x";
+    display: inline-block;
+    animation: grow 10s linear paused;
+}
+</style>
+<script>
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    addEventListener("load", async () => {
+        for (let i = 0; i < 10; ++i) {
+            const target = document.createElement("div");
+            target.className = "target";
+            target.textContent = "x";
+            document.body.appendChild(target);
+        }
+        await nextFrame();
+        await nextFrame();
+        const animations = document.getAnimations();
+        for (let round = 0; round < 5; ++round) {
+            for (const [index, animation] of animations.entries())
+                animation.currentTime = 1000 * ((index + round) % 10);
+            document.body.offsetWidth;
+            for (const [index, animation] of animations.entries())
+                animation.currentTime = 1000 * ((index + round + 5) % 10);
+            await nextFrame();
+            await nextFrame();
+        }
+        document.documentElement.classList.remove("test-wait");
+    });
+</script>
+</html>
