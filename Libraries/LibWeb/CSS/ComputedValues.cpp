@@ -1093,37 +1093,29 @@ Vector<RefPtr<AbstractImageStyleValue const>> ComputedValues::MaskValues::mask_i
     return abstract_image_items(mask_image);
 }
 
-Vector<ComputedAnimationName> ComputedValues::AnimationValues::animation_names_value() const
+Vector<Utf16FlyString> ComputedValues::AnimationValues::animation_names_value() const
 {
     auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(animation_name.pointer);
     VERIFY(value && value->tag == StyleValueFFI::StyleValueData::Tag::ValueList);
     auto const& items = value->value_list.values;
-    Vector<ComputedAnimationName> result;
-    result.ensure_capacity(items.length);
+    Vector<Utf16FlyString> names;
     for (size_t i = 0; i < items.length; ++i) {
         auto const* item = static_cast<StyleValueFFI::StyleValueData const*>(items.pointer[i].pointer);
         switch (item->tag) {
         case StyleValueFFI::StyleValueData::Tag::Keyword:
             VERIFY(static_cast<Keyword>(item->keyword.keyword) == Keyword::None);
-            result.unchecked_append({});
             break;
         case StyleValueFFI::StyleValueData::Tag::String:
-            result.unchecked_append({
-                .name = css_string_from_rust(&item->string.string),
-                .syntax = ComputedAnimationNameSyntax::String,
-            });
+            names.append(css_string_from_rust(&item->string.string));
             break;
         case StyleValueFFI::StyleValueData::Tag::CustomIdent:
-            result.unchecked_append({
-                .name = css_string_from_rust(&item->custom_ident.custom_ident),
-                .syntax = ComputedAnimationNameSyntax::CustomIdent,
-            });
+            names.append(css_string_from_rust(&item->custom_ident.custom_ident));
             break;
         default:
             VERIFY_NOT_REACHED();
         }
     }
-    return result;
+    return names;
 }
 
 NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedStyleWorkingSet const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const* inherit_parent)
