@@ -2401,39 +2401,6 @@ unsafe fn build_misc_reset_group(
         ComputedStyleValueHandle::retained(offset.pointer())
     };
 
-    // touch-action, with the extractor's keyword fan-out.
-    let mut allow = [true; 6];
-    match values.value(property_id::TOUCH_ACTION) {
-        Some(StyleValueData::Keyword { keyword: code }) => match *code {
-            keyword::AUTO => {}
-            keyword::NONE => allow = [false; 6],
-            keyword::MANIPULATION => allow[5] = false,
-            _ => unreachable!("a computed single-keyword touch-action is auto, none or manipulation"),
-        },
-        Some(StyleValueData::ValueList { values: list, .. }) => {
-            allow = [false, false, false, false, false, false];
-            for item in list.as_slice() {
-                match keyword_of(item.data()).expect("a computed touch-action item is a keyword") {
-                    keyword::PAN_X => {
-                        allow[0] = true;
-                        allow[1] = true;
-                    }
-                    keyword::PAN_LEFT => allow[0] = true,
-                    keyword::PAN_RIGHT => allow[1] = true,
-                    keyword::PAN_Y => {
-                        allow[2] = true;
-                        allow[3] = true;
-                    }
-                    keyword::PAN_UP => allow[2] = true,
-                    keyword::PAN_DOWN => allow[3] = true,
-                    keyword::PINCH_ZOOM => allow[4] = true,
-                    _ => unreachable!("the touch-action keywords cover every list item"),
-                }
-            }
-        }
-        _ => {}
-    }
-
     let Some(StyleValueData::ScrollbarGutter {
         value: scrollbar_gutter,
     }) = values.value(property_id::SCROLLBAR_GUTTER)
@@ -2539,12 +2506,6 @@ unsafe fn build_misc_reset_group(
                 payload.object_position_x = position_offset(edge_x);
                 payload.object_position_y = position_offset(edge_y);
                 payload.view_transition_name = retained(property_id::VIEW_TRANSITION_NAME);
-                payload.touch_action_allow_left = allow[0];
-                payload.touch_action_allow_right = allow[1];
-                payload.touch_action_allow_up = allow[2];
-                payload.touch_action_allow_down = allow[3];
-                payload.touch_action_allow_pinch_zoom = allow[4];
-                payload.touch_action_allow_other = allow[5];
                 payload.scroll_snap_align_block = scroll_snap_align_block;
                 payload.scroll_snap_align_inline = scroll_snap_align_inline;
                 payload.scroll_snap_axis = scroll_snap_axis;

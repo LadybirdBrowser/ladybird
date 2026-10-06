@@ -881,18 +881,6 @@ Optional<Utf16FlyString> ComputedValues::MiscResetValues::view_transition_name_v
     return css_string_from_rust(&value->custom_ident.custom_ident);
 }
 
-TouchActionData ComputedValues::MiscResetValues::touch_action_value() const
-{
-    return {
-        .allow_left = touch_action_allow_left,
-        .allow_right = touch_action_allow_right,
-        .allow_up = touch_action_allow_up,
-        .allow_down = touch_action_allow_down,
-        .allow_pinch_zoom = touch_action_allow_pinch_zoom,
-        .allow_other = touch_action_allow_other,
-    };
-}
-
 ScrollSnapType ComputedValues::MiscResetValues::scroll_snap_type_value() const
 {
     return {

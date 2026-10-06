@@ -284,31 +284,6 @@ public:
     bool operator==(BorderData const&) const = default;
 };
 
-struct TouchActionData {
-    bool allow_left : 1 { true };
-    bool allow_right : 1 { true };
-    bool allow_up : 1 { true };
-    bool allow_down : 1 { true };
-    bool allow_pinch_zoom : 1 { true };
-
-    // Other touch interactions which aren't pan or pinch to zoom. E.g.: Double tap to zoom.
-    bool allow_other : 1 { true };
-
-    bool operator==(TouchActionData const&) const = default;
-
-    static TouchActionData none()
-    {
-        return TouchActionData {
-            .allow_left = false,
-            .allow_right = false,
-            .allow_up = false,
-            .allow_down = false,
-            .allow_pinch_zoom = false,
-            .allow_other = false,
-        };
-    }
-};
-
 struct TransformOrigin {
     LengthPercentage x { Percentage(50) };
     LengthPercentage y { Percentage(50) };
@@ -687,7 +662,6 @@ public:
     }
     MixBlendMode mix_blend_mode() const { return m_noninherited.effects->mix_blend_mode_value(); }
     Optional<Utf16FlyString> view_transition_name() const { return m_noninherited.misc->view_transition_name_value(); }
-    TouchActionData touch_action() const { return m_noninherited.misc->touch_action_value(); }
 
     LengthBox inset() const { return length_box(m_noninherited.surround->inset); }
     bool has_anchor_inset(PropertyID property_id) const
@@ -1322,7 +1296,6 @@ public:
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::MiscReset;
 
         Optional<Utf16FlyString> view_transition_name_value() const;
-        TouchActionData touch_action_value() const;
         ScrollSnapType scroll_snap_type_value() const;
         WillChange will_change_value() const;
 
