@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #other { display: none; height: 10px; }
+    #other.shown { display: block; }
+</style>
+<div id="box" style="width: 10px; height: 0px; background: green"></div>
+<div id="other"></div>
+<script>
+    // A task that begins while the last rendering update's layout is still being computed beside the event loop runs
+    // the page's animations: the update's last steps, which leave the plan for them, run before the task, rather than
+    // leave the animations still until a later task. Showing #other builds a box, which the update lays out beside the
+    // event loop only once its style has been computed.
+    asyncTest(async done => {
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        const animation = box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
+        let frameTime = performance.now();
+        internals.injectRenderingOpportunity(frameTime);
+        await nextTask();
+        while (animation.pending) {
+            frameTime += 16;
+            internals.injectRenderingOpportunity(frameTime);
+            await nextTask();
+        }
+        requestAnimationFrame(() => {
+            internals.holdNextFrame("layout");
+            other.classList.add("shown");
+        });
+        frameTime += 16;
+        internals.injectRenderingOpportunity(frameTime);
+        await nextTask();
+        println(`clock in the first task after the update: ${internals.clockLeaseState(document)}`);
+        internals.injectClockTick(frameTime + 1000);
+        println(`last frame presented by: ${internals.lastFramePresentedBy(document)}`);
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>
