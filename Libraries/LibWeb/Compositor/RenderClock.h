@@ -16,6 +16,7 @@
 #include <LibIPC/TransportHandle.h>
 #include <LibThreading/Forward.h>
 #include <LibWeb/Export.h>
+#include <LibWebCommon/Page/AsyncScrollNodeStableID.h>
 #include <LibWebCommon/Page/CompositorContextId.h>
 
 namespace Web::Layout::RustFFI {
@@ -63,9 +64,10 @@ class WEB_API RenderClock {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    // Runs on the clock thread, for each tick delivered to the context it was armed for, and answers whether the context
-    // wants the next tick: one that does not is disarmed.
-    using OnTick = Function<bool(i64 frame_time_nanoseconds)>;
+    // Runs on the clock thread, for each tick delivered to the context it was armed for, with where the Compositor had
+    // scrolled the context's scroll nodes to then, and answers whether the context wants the next tick: one that does
+    // not is disarmed.
+    using OnTick = Function<bool(i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset>)>;
 
     // The process's render clock, made the first time it is asked for.
     static RenderClock& the();
@@ -94,7 +96,7 @@ private:
     ErrorOr<IPC::TransportHandle> replace_channel();
     void drop_channel();
     void request_clock_tick(Web::CompositorContextId, double maximum_frames_per_second);
-    void did_receive_clock_tick(Web::CompositorContextId, i64 frame_time_nanoseconds);
+    void did_receive_clock_tick(Web::CompositorContextId, i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset>);
     void did_lose_channel();
 
     NonnullRefPtr<Threading::Thread> m_thread;

@@ -7050,7 +7050,7 @@ void LocalNavigable::lease_clock_for_task()
     // last one until a tick presents.
     (void)Layout::RustFFI::clock_ticks_tick(ticks, static_cast<i64>(HighResolutionTime::unsafe_shared_current_time() * 1'000'000.0));
     Compositor::RenderClock::the().arm(compositor_context().id(), page().client().maximum_frames_per_second(),
-        [ticks = Compositor::ClockTicksHandle { ticks }](i64 frame_time_nanoseconds) {
+        [ticks = Compositor::ClockTicksHandle { ticks }](i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset>) {
             return ticks.tick(frame_time_nanoseconds);
         });
 }
