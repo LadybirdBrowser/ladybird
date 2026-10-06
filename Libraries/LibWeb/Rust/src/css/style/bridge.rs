@@ -159,6 +159,30 @@ pub struct FfiStyleDelta {
     pub composed_by_the_host: bool,
 }
 
+impl FfiStyleDelta {
+    /// A row the engine leaves for the host to answer from the element's record demand.
+    pub(super) fn unsettled(element: StyleNodeID, reaction: u8) -> Self {
+        Self {
+            style_node: element.raw(),
+            match_answer: 0,
+            old_style_record: 0,
+            new_style_record: 0,
+            damage: FfiStyleDeltaDamage::None,
+            reaction,
+            inherited_style_groups: 0,
+            pseudo_kind: u8::MAX,
+            gap: FfiStyleDeltaGap::Materialize,
+            uses_substitution: false,
+            record_reads: 0,
+            explicitly_inherited_groups: 0,
+            record_damage: 0,
+            owes_an_animation_plan: false,
+            owes_a_transition_step: false,
+            composed_by_the_host: false,
+        }
+    }
+}
+
 /// An engine record a demand settled and the metadata needed to install it.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
@@ -3015,24 +3039,6 @@ pub(super) fn close_style_reactions_over_inheritance(
     if unstyled_ancestors.is_empty() && gaps.is_empty() && left_to_next_transaction.is_empty() {
         return false;
     }
-    let materialize = |element: StyleNodeID, reaction: u8| FfiStyleDelta {
-        style_node: element.raw(),
-        match_answer: 0,
-        old_style_record: 0,
-        new_style_record: 0,
-        damage: FfiStyleDeltaDamage::None,
-        reaction,
-        inherited_style_groups: 0,
-        pseudo_kind: u8::MAX,
-        gap: FfiStyleDeltaGap::Materialize,
-        uses_substitution: false,
-        record_reads: 0,
-        explicitly_inherited_groups: 0,
-        record_damage: 0,
-        owes_an_animation_plan: false,
-        owes_a_transition_step: false,
-        composed_by_the_host: false,
-    };
     closed.clear();
     closed.extend(
         reactions
@@ -3042,9 +3048,9 @@ pub(super) fn close_style_reactions_over_inheritance(
     closed.extend(
         unstyled_ancestors
             .iter()
-            .map(|&element| materialize(element, super::transaction::STYLE_REACTION_RECOMPUTE_STYLE)),
+            .map(|&element| FfiStyleDelta::unsettled(element, super::transaction::STYLE_REACTION_RECOMPUTE_STYLE)),
     );
-    closed.extend(gaps.iter().map(|&element| materialize(element, 0)));
+    closed.extend(gaps.iter().map(|&element| FfiStyleDelta::unsettled(element, 0)));
     unstyled_ancestors.extend(gaps);
     if !unstyled_ancestors.is_empty() {
         assert!(

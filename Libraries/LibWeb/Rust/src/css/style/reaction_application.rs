@@ -122,11 +122,11 @@ pub struct FfiPseudoRecordDamage {
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiRecordInstallation {
-    /// The element's row, holding the record and what it says about the installation.
-    pub row: FfiStyleDelta,
+    /// The element's reaction, holding the record and what it says about the installation.
+    pub delta: FfiStyleDelta,
     /// Whether the host acknowledges the record to the engine once it holds it.
     pub acknowledge: bool,
-    /// What moving the element from the row's old record to its new one damages, where the engine answered it: an
+    /// What moving the element from the reaction's old record to its new one damages, where the engine answered it: an
     /// `FfiStyleInvalidationField` word with `EngineComputed` set, or zero.
     pub damage: u32,
     /// The synthetic pseudo-element kinds whose records install beside the element's, as a bit per kind; a present
@@ -158,7 +158,7 @@ pub struct FfiTakenStyleTransaction {
     pub reactions: *const FfiStyleDelta,
     pub count: usize,
     pub scoped: bool,
-    /// The transaction planned nothing but the child reactions the engine derived from the reactions the host applied
+    /// The transaction holds nothing but the child reactions the engine derived from the reactions the host applied
     /// last: one more generation of the same style change, not a new one.
     pub only_derived_child_reactions: bool,
     /// The elements connected to the document as the transaction was taken.
@@ -265,10 +265,10 @@ impl Application<'_> {
         Some(answer)
     }
 
-    /// The engine declined the row. Nothing else computes styles: the element keeps the record it holds. The engine
-    /// answers no demand below an ancestor that owes a style input, such as one whose custom-property animations
-    /// published new values as an earlier row of the batch installed its record. That ancestor's style moves in the
-    /// next transaction, so the row is owed to it too, which plans the row after the ancestor's.
+    /// The engine declined the reaction. Nothing else computes styles: the element keeps the record it holds. The
+    /// engine answers no demand below an ancestor that owes a style input, such as one whose custom-property animations
+    /// published new values as an earlier reaction of the batch installed its record. That ancestor's style moves in
+    /// the next transaction, so the reaction is owed to it too, which orders it after the ancestor's.
     fn refuse(self, node: StyleNodeID, reaction: u8, inherited_style_groups: u8) {
         let ancestor_owes_style_input = with_engine(self.read, self.host, |engine| {
             std::iter::successors(engine.retained.tree.inheritance_parent(node), |&ancestor| {
@@ -288,14 +288,15 @@ impl Application<'_> {
             }
             return;
         }
-        self.host.queue_change(crate::render_state::ArenaChange::Style(
-            super::boundary::StyleChange::ConsumeElementStyleInput { node: Some(node) },
-        ));
+        self.host
+            .queue_change(ArenaChange::Style(StyleChange::ConsumeElementStyleInput {
+                node: Some(node),
+            }));
     }
 
-    /// A row the engine did not settle in its transaction, or a targeted update: the record the engine demands for
-    /// the element now, which installs as one the engine computed, moving the element from the record it holds. A
-    /// refused demand refuses the row.
+    /// A reaction the engine did not settle in its transaction, or a targeted update: the record the engine demands
+    /// for the element now, which installs as one the engine computed, moving the element from the record it holds. A
+    /// refused demand refuses the reaction.
     fn demand(
         self,
         element: &FfiReactionElement,
@@ -307,45 +308,23 @@ impl Application<'_> {
             self.refuse(node, reaction, inherited_style_groups);
             return None;
         };
-        let mut row = unsettled_row(node.raw(), 0);
-        row.old_style_record = element.style_record;
-        let mut installation = FfiRecordInstallation::new(row, true);
+        let mut delta = FfiStyleDelta::unsettled(node, 0);
+        delta.old_style_record = element.style_record;
+        let mut installation = FfiRecordInstallation::new(delta, true);
         installation.settle(&answer);
         Some(installation)
     }
 }
 
-/// A row the engine left for the host to answer from the element's record demand.
-fn unsettled_row(style_node: u32, reaction: u8) -> FfiStyleDelta {
-    FfiStyleDelta {
-        style_node,
-        match_answer: 0,
-        old_style_record: 0,
-        new_style_record: 0,
-        damage: FfiStyleDeltaDamage::None,
-        reaction,
-        inherited_style_groups: 0,
-        pseudo_kind: u8::MAX,
-        gap: FfiStyleDeltaGap::Materialize,
-        uses_substitution: false,
-        record_reads: 0,
-        explicitly_inherited_groups: 0,
-        record_damage: 0,
-        owes_an_animation_plan: false,
-        owes_a_transition_step: false,
-        composed_by_the_host: false,
-    }
-}
-
 impl FfiStyleDelta {
-    /// Leaves the row to the host to answer from the element's record demand.
+    /// Leaves the reaction to the host to answer from the element's record demand.
     fn unsettle(&mut self) {
         self.gap = FfiStyleDeltaGap::Materialize;
         self.new_style_record = 0;
         self.damage = FfiStyleDeltaDamage::None;
     }
 
-    /// What moving to the row's record damages, where the engine answered it.
+    /// What moving to the reaction's record damages, where the engine answered it.
     fn answered_damage(&self) -> u32 {
         if self.record_damage & FfiStyleInvalidationField::EngineComputed as u32 != 0 {
             self.record_damage
@@ -356,10 +335,10 @@ impl FfiStyleDelta {
 }
 
 impl FfiRecordInstallation {
-    fn new(row: FfiStyleDelta, acknowledge: bool) -> Self {
+    fn new(delta: FfiStyleDelta, acknowledge: bool) -> Self {
         Self {
-            damage: row.answered_damage(),
-            row,
+            damage: delta.answered_damage(),
+            delta,
             acknowledge,
             pseudo_records_present: 0,
             pseudo_records: [0; PSEUDO_RECORD_SLOTS],
@@ -367,41 +346,41 @@ impl FfiRecordInstallation {
         }
     }
 
-    /// Installs the record the engine settled for the row by a demand, with the pseudo-element records it settled
+    /// Installs the record the engine settled for the reaction by a demand, with the pseudo-element records it settled
     /// beside it.
     fn settle(&mut self, record: &FfiEngineComputedRecord) {
-        let row = &mut self.row;
-        row.new_style_record = record.style_record;
-        row.uses_substitution = record.uses_substitution;
-        row.record_reads = record.record_reads;
-        row.explicitly_inherited_groups = record.explicitly_inherited_groups;
-        row.owes_an_animation_plan = record.owes_an_animation_plan;
-        row.owes_a_transition_step = record.owes_a_transition_step;
-        row.composed_by_the_host = record.composed_by_the_host;
-        row.damage = FfiStyleDeltaDamage::Full;
-        row.gap = FfiStyleDeltaGap::Computed;
-        row.record_damage = 0;
+        let delta = &mut self.delta;
+        delta.new_style_record = record.style_record;
+        delta.uses_substitution = record.uses_substitution;
+        delta.record_reads = record.record_reads;
+        delta.explicitly_inherited_groups = record.explicitly_inherited_groups;
+        delta.owes_an_animation_plan = record.owes_an_animation_plan;
+        delta.owes_a_transition_step = record.owes_a_transition_step;
+        delta.composed_by_the_host = record.composed_by_the_host;
+        delta.damage = FfiStyleDeltaDamage::Full;
+        delta.gap = FfiStyleDeltaGap::Computed;
+        delta.record_damage = 0;
         self.damage = 0;
         self.pseudo_records_present = record.pseudo_records_present;
         self.pseudo_records = record.pseudo_records;
     }
 
-    /// Installs the record of a pseudo-element row the batch published beside the element's.
-    fn add_pseudo_element_row(&mut self, row: &FfiStyleDelta) {
-        let kind = usize::from(row.pseudo_kind);
+    /// Installs the record of a pseudo-element reaction the batch published beside the element's.
+    fn add_pseudo_element_delta(&mut self, delta: &FfiStyleDelta) {
+        let kind = usize::from(delta.pseudo_kind);
         self.pseudo_records_present |= 1 << kind;
-        self.pseudo_records[kind] = row.new_style_record;
+        self.pseudo_records[kind] = delta.new_style_record;
         self.pseudo_damages[kind] = FfiPseudoRecordDamage {
-            old_style_record: row.old_style_record,
-            new_style_record: row.new_style_record,
-            damage: row.answered_damage(),
+            old_style_record: delta.old_style_record,
+            new_style_record: delta.new_style_record,
+            damage: delta.answered_damage(),
         };
     }
 }
 
 /// Applies `reactions` in preorder, so every element's inheritance inputs are ready when it is applied. What an
 /// applied element's change means for its (flat-tree) children is the engine's to derive: it reads each application
-/// and plans the children as the next transaction of this style update.
+/// and derives the children's reactions as the next transaction of this style update.
 fn apply_style_reactions(
     application: Application<'_>,
     reactions: &[FfiStyleDelta],
@@ -420,21 +399,22 @@ fn apply_style_reactions(
             continue;
         }
         let node = StyleNodeID::from_raw(published.style_node).expect("a style reaction names an element");
-        let mut row = *published;
+        let mut delta = *published;
 
-        // A host that rewrote the element's declarations while an earlier row was applied (a form control restyling
-        // its shadow tree as its own style moves) leaves the record the engine computed from the old ones: the row is
-        // answered from its demand, over the declarations as they are now.
-        if row.gap == FfiStyleDeltaGap::Computed && host.engine_memo().declarations_changed_during_apply(node) {
-            row.unsettle();
-            row.reaction |= STYLE_REACTION_RECOMPUTE_STYLE;
+        // A host that rewrote the element's declarations while an earlier reaction was applied (a form control
+        // restyling its shadow tree as its own style moves) leaves the record the engine computed from the old ones:
+        // it is answered from its demand, over the declarations as they are now.
+        if delta.gap == FfiStyleDeltaGap::Computed && host.engine_memo().declarations_changed_during_apply(node) {
+            delta.unsettle();
+            delta.reaction |= STYLE_REACTION_RECOMPUTE_STYLE;
         }
 
-        // NB: An earlier row's environment move can republish the record an element holds over the moved environment.
-        //     A swap of its inherited groups planned over the record it held before would undo the move: the row is
+        // NB: An earlier reaction's environment move can republish the record an element holds over the moved
+        //     environment. A swap of its inherited groups computed over the record it held before would undo the move:
+        //     the reaction is
         //     answered from its demand, over the record the element holds now.
-        if row.gap == FfiStyleDeltaGap::None && element.has_style && row.old_style_record != element.style_record {
-            row.unsettle();
+        if delta.gap == FfiStyleDeltaGap::None && element.has_style && delta.old_style_record != element.style_record {
+            delta.unsettle();
         }
 
         // A reaction the engine derived for this element while applying an earlier one in this batch joins the
@@ -443,33 +423,35 @@ fn apply_style_reactions(
             host,
             read,
             node,
-            row.reaction,
-            row.inherited_style_groups,
-            row.gap == FfiStyleDeltaGap::Materialize,
+            delta.reaction,
+            delta.inherited_style_groups,
+            delta.gap == FfiStyleDeltaGap::Materialize,
         );
         if absorbed != 0 {
-            row.reaction = absorbed as u8;
-            row.inherited_style_groups = (absorbed >> 8) as u8;
+            delta.reaction = absorbed as u8;
+            delta.inherited_style_groups = (absorbed >> 8) as u8;
         }
 
         // An engine-computed record installs on an element without style as a first record does, its style cleared on
         // entry to display:none included; other record deltas assume the style they move.
-        // NB: An inheritance scheduling row carries no computation of its own. If an earlier display:none reaction
-        //     cleared its style and no derived input reached it, leave it unstyled until a read or reveal.
+        // NB: A reaction that only lets an ancestor's reactions reach its descendants computes nothing of its own. If
+        //     an earlier display:none reaction cleared its style and no derived input reached it, leave it unstyled
+        //     until a read or reveal.
         if !element.has_style
-            && (row.gap == FfiStyleDeltaGap::None || (row.gap == FfiStyleDeltaGap::Materialize && row.reaction == 0))
+            && (delta.gap == FfiStyleDeltaGap::None
+                || (delta.gap == FfiStyleDeltaGap::Materialize && delta.reaction == 0))
         {
             continue;
         }
 
-        let needs_regular_style_recompute = row.reaction
+        let needs_regular_style_recompute = delta.reaction
             & (STYLE_REACTION_PUBLISHED_STYLE
                 | STYLE_REACTION_RECOMPUTE_STYLE
                 | STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES
                 | STYLE_REACTION_ANCESTOR_BECAME_VISIBLE)
             != 0;
-        let needs_custom_property_recompute = row.reaction & STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES != 0;
-        let needs_inherited_style_recompute = row.reaction & STYLE_REACTION_INHERITED_STYLE != 0;
+        let needs_custom_property_recompute = delta.reaction & STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES != 0;
+        let needs_inherited_style_recompute = delta.reaction & STYLE_REACTION_INHERITED_STYLE != 0;
         // An element declaring custom properties of its own layers them over the environment it inherits, which its
         // cascade decides.
         let computes_style = needs_regular_style_recompute
@@ -478,38 +460,38 @@ fn apply_style_reactions(
                 && (element.reads_environment
                     || with_engine(read, host, |engine| engine.node_declares_custom_properties(node))));
 
-        // A row the engine did not settle in its transaction, and that computes the element's style, is answered from
-        // its record demand, as a targeted update of the element is: the record installs as one the engine computed,
-        // moving the element from the record it holds.
+        // A reaction the engine did not settle in its transaction, and that computes the element's style, is answered
+        // from its record demand, as a targeted update of the element is: the record installs as one the engine
+        // computed, moving the element from the record it holds.
         let mut installation = None;
-        if row.gap == FfiStyleDeltaGap::Materialize
+        if delta.gap == FfiStyleDeltaGap::Materialize
             && computes_style
             && let Some(answer) = application.answer_record_demand(&element, node)
         {
-            row.old_style_record = element.style_record;
-            let mut demanded = FfiRecordInstallation::new(row, true);
+            delta.old_style_record = element.style_record;
+            let mut demanded = FfiRecordInstallation::new(delta, true);
             demanded.settle(&answer);
-            row = demanded.row;
+            delta = demanded.delta;
             installation = Some(demanded);
         }
 
-        if row.reaction & STYLE_REACTION_PUBLISHED_STYLE != 0 {
+        if delta.reaction & STYLE_REACTION_PUBLISHED_STYLE != 0 {
             counts.published_reactions += 1;
         }
-        if row.gap == FfiStyleDeltaGap::Materialize {
-            if row.reaction & STYLE_REACTION_PUBLISHED_STYLE != 0 {
+        if delta.gap == FfiStyleDeltaGap::Materialize {
+            if delta.reaction & STYLE_REACTION_PUBLISHED_STYLE != 0 {
                 counts.materialized_gaps += 1;
             }
-            assert!(row.new_style_record == 0 && row.damage == FfiStyleDeltaDamage::None);
+            assert!(delta.new_style_record == 0 && delta.damage == FfiStyleDeltaDamage::None);
         } else {
             counts.record_deltas_applied += 1;
             // An engine-computed record is the engine's current answer for the element, which may have skipped a
             // delta the host never installed; it is applied against whatever the element holds now.
-            assert!(row.gap == FfiStyleDeltaGap::Computed || row.old_style_record == element.style_record);
-            assert!(row.new_style_record != 0 && row.damage == FfiStyleDeltaDamage::Full);
+            assert!(delta.gap == FfiStyleDeltaGap::Computed || delta.old_style_record == element.style_record);
+            assert!(delta.new_style_record != 0 && delta.damage == FfiStyleDeltaDamage::Full);
         }
 
-        let installation = match row.gap {
+        let installation = match delta.gap {
             FfiStyleDeltaGap::None => {
                 assert!(!needs_regular_style_recompute && needs_inherited_style_recompute);
                 assert!(!needs_custom_property_recompute);
@@ -517,12 +499,12 @@ fn apply_style_reactions(
                 // engine record. The engine refuses the swap to an element that animates, declares transitions, or
                 // inherits from an animating parent. A parent this batch installed may have taken animated values
                 // from its own ancestors since the engine swapped, which the element inherits in place of the base
-                // ones: the row is answered from its demand.
+                // ones: the reaction is answered from its demand.
                 // SAFETY: The element is live while its reaction is applied.
                 if unsafe { web_css_parent_style_has_animated_values(element.element.0) } {
-                    application.demand(&element, node, row.reaction, row.inherited_style_groups)
+                    application.demand(&element, node, delta.reaction, delta.inherited_style_groups)
                 } else {
-                    Some(FfiRecordInstallation::new(row, false))
+                    Some(FfiRecordInstallation::new(delta, false))
                 }
             }
             FfiStyleDeltaGap::Computed => {
@@ -531,35 +513,35 @@ fn apply_style_reactions(
                 assert!(
                     needs_regular_style_recompute || needs_inherited_style_recompute || needs_custom_property_recompute
                 );
-                // A demand settled the pseudo-elements beside the element's record; the rows the batch published
+                // A demand settled the pseudo-elements beside the element's record; the reactions the batch published
                 // beside the element's moved from a record the demand replaced.
                 let installation = installation.unwrap_or_else(|| {
-                    let mut installation = FfiRecordInstallation::new(row, true);
+                    let mut installation = FfiRecordInstallation::new(delta, true);
                     reactions[index + 1..]
                         .iter()
-                        .take_while(|next| next.style_node == row.style_node && next.pseudo_kind != u8::MAX)
-                        .for_each(|pseudo_row| installation.add_pseudo_element_row(pseudo_row));
+                        .take_while(|next| next.style_node == delta.style_node && next.pseudo_kind != u8::MAX)
+                        .for_each(|pseudo_delta| installation.add_pseudo_element_delta(pseudo_delta));
                     installation
                 });
-                if application.record_environment_is_installable(&element, row.new_style_record) {
+                if application.record_environment_is_installable(&element, delta.new_style_record) {
                     Some(installation)
                 } else {
-                    // The engine resolved the record's environment over the parent's own, which an earlier row of the
-                    // batch moved: the row is answered from a fresh demand.
-                    application.demand(&element, node, row.reaction, row.inherited_style_groups)
+                    // The engine resolved the record's environment over the parent's own, which an earlier reaction of
+                    // the batch moved: the reaction is answered from a fresh demand.
+                    application.demand(&element, node, delta.reaction, delta.inherited_style_groups)
                 }
             }
-            // The engine declined the row's demand above.
+            // The engine declined the reaction's demand above.
             _ if computes_style => {
-                application.refuse(node, row.reaction, row.inherited_style_groups);
+                application.refuse(node, delta.reaction, delta.inherited_style_groups);
                 None
             }
-            // A row that owes only a moved inherited environment on an element whose style reads none has nothing
+            // A reaction that owes only a moved inherited environment on an element whose style reads none has nothing
             // left for the host: the engine moved the element's environment, and the record over it, when its
             // parent's moved.
             _ => None,
         };
-        application.apply(&element, row.reaction, installation.as_ref());
+        application.apply(&element, delta.reaction, installation.as_ref());
     }
 }
 
@@ -568,7 +550,8 @@ fn apply_style_reactions(
 const MAX_STYLE_UPDATE_PASSES: u32 = 8;
 
 impl Application<'_> {
-    /// Takes the next style transaction of the update, the one that flew first where the update drains it, and
+    /// Takes the next style transaction of the update, the one computed beside the event loop first where the update
+    /// drains it, and
     /// answers the reactions naming an element into `reactions`, and whether the batch is dense enough to match
     /// broadly.
     fn take_transaction(self, flown: bool, reactions: &mut Vec<FfiStyleDelta>) -> (bool, bool) {
@@ -579,8 +562,8 @@ impl Application<'_> {
         reactions.clear();
         for reaction in taken_reactions {
             // The complete answer remains in the engine's transaction scratch under this node, which the reaction
-            // names. An element removed beside the transaction that flew has no style to install: its removal is the
-            // next transaction's.
+            // names. An element removed while the transaction was computed beside the event loop has no style to
+            // install: its removal is the next transaction's.
             if self.element(reaction.style_node).element.is_null() {
                 let node = StyleNodeID::from_raw(reaction.style_node).expect("a style reaction names an element");
                 assert!(
@@ -595,7 +578,7 @@ impl Application<'_> {
             reactions.push(*reaction);
         }
         // A reaction batch covering more than one sixteenth of the connected elements is dense enough that packing
-        // the scope once is cheaper than repeatedly reconstructing cold facts while matching the planned elements.
+        // the scope once is cheaper than repeatedly reconstructing cold element state while matching its elements.
         let prefers_broad_matching_batch =
             !taken.scoped || reactions.len() * 16 > taken.connected_element_count as usize;
         (prefers_broad_matching_batch, taken.only_derived_child_reactions)
@@ -607,7 +590,8 @@ impl Application<'_> {
     }
 }
 
-/// Applies the reactions of the style transactions of one style update, from the first, which flew where the update
+/// Applies the reactions of the style transactions of one style update, from the first, computed beside the event
+/// loop where the update
 /// drains it, until the reactions they feed back settle. Each pass applies one transaction's reactions, closed over
 /// the elements they inherit through, and the consequences produced while applying them become the next transaction.
 fn update_style(
@@ -671,9 +655,9 @@ fn update_style(
         }
 
         // A reaction can name an element created by editing after its new inheritance parent was inserted, and an
-        // element between a reaction and an ancestor that reacts too needs a row for the reactions the ancestor
-        // derives to reach the reaction. The engine closes the batch over both, and orders it for application in
-        // preorder: every parent is ready before its descendants, and a parent's derived reaction can merge into an
+        // element between a reaction and an ancestor that reacts too needs a reaction of its own for the reactions the
+        // ancestor derives to reach the reaction. The engine closes the batch over both, and orders it for application
+        // in preorder: every parent is ready before its descendants, and a parent's derived reaction can merge into an
         // unconsumed child reaction in the same batch.
         let changed = {
             let beside_flown_transaction = host.engine_memo().beside_flown_transaction.borrow();
@@ -715,7 +699,8 @@ fn update_style(
     counts
 }
 
-/// Applies the reactions of the style transactions of a style update of the host's document, from the one that flew
+/// Applies the reactions of the style transactions of a style update of the host's document, from the one computed
+/// beside the event loop
 /// where `drains_flown_transaction`, through `host_application`, the host's state for applying them, and answers what
 /// they did for its counters. `root` is the document element's style node, or zero.
 ///
