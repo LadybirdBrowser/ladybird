@@ -29,9 +29,13 @@
 <script>
     promiseTest(async () => {
         const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+        // NB: An animation frame can run while the last frame is still being recorded. A mutation made before that
+        //     recording lands drops the hit-test list it brings, so wait until it has landed.
         const settle = async () => {
             await nextFrame();
             await nextFrame();
+            while (internals.frameSchedulerState() !== "idle")
+                await timeout(0);
         };
         const targetAt = (x, y) => {
             const element = document.elementFromPoint(x, y);
