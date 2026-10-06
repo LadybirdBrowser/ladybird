@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<title>play() with loop set to true after playback ended</title>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script src="../../../../../common/media.js"></script>
+<video></video>
+<script>
+// Seek towards end of video (for faster testing).
+// Play video to end with "loop" set to false.
+// Once ended, set "loop" to true. Call play.
+// Verify that "seeked" event fires, seeking back to the beginning.
+// Pause video and end test.
+// Chromium bug: https://crbug.com/364442
+// Spec issue: https://github.com/whatwg/html/issues/4487
+async_test(function(t) {
+    var video = document.querySelector("video");
+
+    video.onloadedmetadata = t.step_func(function() {
+        // Video is initially paused and "loop" unset.
+        assert_true(video.paused, "paused initially ");
+        assert_false(video.loop, "loop initially");
+        // Seek to just before the end of the video and play.
+        video.currentTime = video.duration - 0.5;
+        video.onended = t.step_func(function() {
+            // Verify played to end and stopped.
+            assert_true(video.ended, "ended at ended event");
+            assert_true(video.paused, "paused at ended event");
+            assert_equals(video.currentTime, video.duration, "currentTime at ended event");
+
+            // With playback ended, set "loop" attribute. This will cause ended == false.
+            // looping video cannot be "ended", only paused.
+            assert_false(video.loop, "loop at ended event");
+            video.loop = true;
+            assert_true(video.loop, "loop after seek");
+            assert_false(video.ended, "ended after seek");
+            assert_true(video.paused, "paused after seek");
+
+            video.onseeked = t.step_func_done(function() {
+                // Observed seek. Verify current time decreased and still playing.
+                assert_true(video.loop, "loop at seeked event")
+                assert_false(video.paused, "paused at seeked event");
+                assert_false(video.ended, "ended at seeked event");
+                assert_less_than(video.currentTime, video.duration, "currentTime at seeked event");
+                // Pausing now that test is over to prevent additional unwanted looping.
+                video.pause();
+            });
+
+            // Play video with "loop" set. Expect seek back to start.
+            video.play();
+        });
+
+        video.play();
+    });
+
+    video.src = getVideoURI("../../../../../media/movie_5");
+});
+</script>

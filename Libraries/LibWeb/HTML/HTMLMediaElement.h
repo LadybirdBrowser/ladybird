@@ -298,7 +298,11 @@ private:
     };
     PlaybackDirection direction_of_playback() const;
 
-    bool has_ended_playback() const;
+    enum class IgnoreLoopAttribute : u8 {
+        No,
+        Yes,
+    };
+    bool has_ended_playback(IgnoreLoopAttribute) const;
     void upon_has_ended_playback_possibly_changed();
     void reached_end_of_media_playback();
 
@@ -435,8 +439,6 @@ private:
     mutable bool m_video_frame_was_recently_captured { false };
     mutable RefPtr<Core::Timer> m_video_frame_capture_keepalive_timer;
     Optional<ScreenWakeLockHandle> m_screen_wake_lock;
-
-    bool m_loop_was_specified_when_reaching_end_of_media_resource { false };
 
     Optional<MediaControls> m_controls;
 
