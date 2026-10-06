@@ -107,14 +107,14 @@ public:
         bool any_computed_value_changed { false };
     };
 
-    // Has the engine compose a sampled overlay over the record the element installed, which it was sampled on, compare
-    // it with that record and publish it. `before_publication` sees the comparison before the element installs the
-    // published record.
-    struct SampledAnimationOverlayPublication {
-        StyleEngineFFI::FfiAnimationInvalidation invalidation;
-        StyleEngine::StyleRecordDelta publication;
+    // Has the engine compose each element's sampled overlay over the record the element installed, which it was sampled
+    // on, compare it with that record and publish it, in one call of the engine, answering each at the same index of
+    // `publications`.
+    struct SampledAnimationOverlay {
+        DOM::AbstractElement element;
+        ComputedStyleWorkingSet const& style;
     };
-    [[nodiscard]] SampledAnimationOverlayPublication publish_sampled_animation_overlay(Layout::BegunRead const& read, DOM::AbstractElement, ComputedStyleWorkingSet& style, Function<void(StyleEngineFFI::FfiAnimationInvalidation const&)> const& before_publication = {}) const;
+    void publish_sampled_animation_overlays(Layout::BegunRead const& read, ReadonlySpan<SampledAnimationOverlay>, Span<StyleEngineFFI::FfiAnimationOverlayPublication> publications) const;
     // Give a layout-only variant of an element or pseudo-element style an authoritative record
     // without replacing the StyleEngine assignment of its DOM target.
     [[nodiscard]] StyleRecordID intern_computed_style_inputs(Layout::BegunRead const& read, DOM::AbstractElement, ComputedValues const&) const;

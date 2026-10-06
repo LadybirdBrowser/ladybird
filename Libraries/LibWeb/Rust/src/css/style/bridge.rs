@@ -2136,58 +2136,67 @@ impl FfiAnimationOverlayPublication {
     }
 }
 
-/// Composes an element's sampled animation overlay over the record it installed, rebuilding only the groups the overlay
-/// writes (see `RetainedState::build_animation_overlay_payloads`), compares it with that record, and publishes it as
-/// the target's record, in one call of the engine. A second call is made only where the overlay rebuilds the font group: resolving the animated font may
-/// read the engine, so the host resolves it between the two. The host keeps the view of the record it answers, which it
-/// installs next.
+/// Composes each element's sampled animation overlay over the record it installed, rebuilding only the groups the
+/// overlay writes (see `RetainedState::build_animation_overlay_payloads`), compares it with that record, and publishes
+/// it as the target's record, writing what it answers to the same index of `out`: every element in one call of the
+/// engine. An element whose overlay rebuilds the font group is published again in a call of its own: resolving the
+/// animated font may read the engine, so the host resolves it between the two. The host keeps the view of each record
+/// it answers, which it installs next.
 ///
 /// # Safety
-/// `host` must be a live document host, on its document's thread, and everything `input` points to must be live for
-/// the call, its table non-null.
+/// `host` must be a live document host, on its document's thread, `inputs` and `out` must point to `count` entries, and
+/// everything an input points to must be live for the call, its table non-null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_publish_sampled_animation_overlay(
+pub unsafe extern "C" fn style_engine_publish_sampled_animation_overlays(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
-    input: &FfiAnimationOverlayPublicationInput,
-) -> FfiAnimationOverlayPublication {
+    inputs: *const FfiAnimationOverlayPublicationInput,
+    count: usize,
+    out: *mut FfiAnimationOverlayPublication,
+) {
     use crate::css::table_group_builder::FfiFontGroupBuildInputs;
 
     // SAFETY: Guaranteed by the caller.
-    let publish = |font: Option<&FfiFontGroupBuildInputs>| {
-        // SAFETY: Guaranteed by the caller.
-        with_engine(read, host, |engine| unsafe {
-            publish_sampled_animation_overlay(engine, input, font)
-        })
+    let (inputs, out) = unsafe {
+        (
+            std::slice::from_raw_parts(inputs, count),
+            std::slice::from_raw_parts_mut(out, count),
+        )
     };
-    let published = match publish(None) {
-        Err(super::engine_sample::NeedsHostFont) => {
+    with_engine(read, host, |engine| {
+        for (input, out) in inputs.iter().zip(out.iter_mut()) {
+            // SAFETY: Guaranteed by the caller.
+            *out = unsafe { publish_sampled_animation_overlay(engine, input, None) }
+                .unwrap_or_else(|super::engine_sample::NeedsHostFont| FfiAnimationOverlayPublication::missing());
+        }
+    });
+    for (input, out) in inputs.iter().zip(out.iter_mut()) {
+        if !out.view.present {
+            // A publication the first call could not make, for want of the font or of a record, is tried again with
+            // the font.
             let mut font = std::mem::MaybeUninit::<FfiFontGroupBuildInputs>::uninit();
             // SAFETY: Guaranteed by the caller. The host writes the whole font.
             let font = unsafe {
                 (input.font_group_inputs)(input.callback_context, font.as_mut_ptr().cast());
                 font.assume_init()
             };
-            publish(Some(&font))
+            // SAFETY: Guaranteed by the caller.
+            *out = with_engine(read, host, |engine| unsafe {
+                publish_sampled_animation_overlay(engine, input, Some(&font))
+            })
+            .unwrap_or_else(|super::engine_sample::NeedsHostFont| FfiAnimationOverlayPublication::missing());
         }
-        published => published,
-    };
-    let Ok(published) = published else {
-        return FfiAnimationOverlayPublication::missing();
-    };
-    if published.view.present {
-        host.engine_memo()
-            .views
-            .set(published.publication.new_style_record, published.view);
+        if out.view.present {
+            host.engine_memo().views.set(out.publication.new_style_record, out.view);
+        }
     }
-    published
 }
 
-/// [`style_engine_publish_sampled_animation_overlay`]'s one call of `engine`, which answers `Err` where it needs the
-/// animated font, `font`, it was not given.
+/// [`style_engine_publish_sampled_animation_overlays`]'s call of `engine` for one element, which answers `Err` where it
+/// needs the animated font, `font`, it was not given.
 ///
 /// # Safety
-/// As for [`style_engine_publish_sampled_animation_overlay`].
+/// As for [`style_engine_publish_sampled_animation_overlays`], for one input.
 unsafe fn publish_sampled_animation_overlay(
     engine: &mut StyleEngine,
     input: &FfiAnimationOverlayPublicationInput,
