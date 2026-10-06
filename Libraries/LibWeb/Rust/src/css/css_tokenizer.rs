@@ -890,6 +890,10 @@ struct Tokenizer<'a> {
 
 impl<'a> Tokenizer<'a> {
     fn new(input: TokenizerInput<'a>) -> Self {
+        // Checked once here, not per code point: that made debug builds quadratic in the input length.
+        if let TokenizerInput::Ascii(units) = input {
+            debug_assert!(units.is_ascii(), "an ASCII tokenizer input holds only ASCII bytes");
+        }
         Self {
             input,
             index: 0,
@@ -960,10 +964,7 @@ impl<'a> Tokenizer<'a> {
 
     fn code_point_at(&self, index: usize) -> Option<(u32, usize)> {
         match self.input {
-            TokenizerInput::Ascii(units) => {
-                debug_assert!(units.is_ascii());
-                units.get(index).map(|unit| (u32::from(*unit), 1))
-            }
+            TokenizerInput::Ascii(units) => units.get(index).map(|unit| (u32::from(*unit), 1)),
             TokenizerInput::Utf16(units) => {
                 let first = *units.get(index)?;
                 if (0xD800..=0xDBFF).contains(&first)
