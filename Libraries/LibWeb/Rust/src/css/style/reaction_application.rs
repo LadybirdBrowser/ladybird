@@ -1,0 +1,531 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+//! Applying the reactions of a style transaction to the elements they name.
+//!
+//! The engine decides what each reaction installs: the record it settled, a record it demands now, or nothing, where
+//! it refuses the reaction. The host installs a record on its element, runs the element's animations and transitions,
+//! invalidates its layout, and reports what the installation did, from which the engine derives the reactions of the
+//! element's children.
+
+use super::StyleNodeID;
+use super::bridge::{
+    FfiEngineComputedRecord, FfiRecordDemand, FfiStyleDelta, FfiStyleDeltaDamage, FfiStyleDeltaGap,
+    FfiStyleInvalidationField, PSEUDO_RECORD_SLOTS,
+};
+use super::engine_calls::{absorb_element_style_input, with_engine};
+use super::publication::RecordDemand;
+use super::transaction::{
+    STYLE_REACTION_ANCESTOR_BECAME_VISIBLE, STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES, STYLE_REACTION_INHERITED_STYLE,
+    STYLE_REACTION_PUBLISHED_STYLE, STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES, STYLE_REACTION_RECOMPUTE_STYLE,
+};
+use crate::render_state::{BegunRead, DocumentHost};
+
+/// A `Web::DOM::Element`, which Rust names by pointer only.
+#[repr(C)]
+pub struct HostElement {
+    _opaque: [u8; 0],
+    _not_send_or_sync: std::marker::PhantomData<*const ()>,
+}
+
+/// The host's application of style reactions to its document's elements, which Rust names by pointer only.
+#[repr(C)]
+pub struct HostStyleReactionApplication {
+    _opaque: [u8; 0],
+    _not_send_or_sync: std::marker::PhantomData<*const ()>,
+}
+
+/// The host's element held in a struct, which C++ sees as an opaque pointer: the GC plugin rejects a raw cell pointer
+/// field, and a `GC::Ptr` is no C type.
+#[derive(Clone, Copy)]
+#[repr(transparent)]
+pub struct HostElementPtr(pub *mut HostElement);
+
+impl HostElementPtr {
+    fn is_null(self) -> bool {
+        self.0.is_null()
+    }
+}
+
+/// The element a style node names, as the host holds it while it applies a reaction to it.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiReactionElement {
+    /// The host's element, or null where no element has the style node.
+    pub element: HostElementPtr,
+    /// Whether the element is connected to the document whose reactions are applied.
+    pub connected: bool,
+    pub has_style: bool,
+    pub style_record: u64,
+    /// Whether the element's style reads its custom-property environment through `var()` or `inherit()`.
+    pub reads_environment: bool,
+}
+
+/// What moving a pseudo-element from one record to another damages, where the engine answered it.
+#[derive(Clone, Copy, Default)]
+#[repr(C)]
+pub struct FfiPseudoRecordDamage {
+    pub old_style_record: u64,
+    pub new_style_record: u64,
+    /// An `FfiStyleInvalidationField` word with `EngineComputed` set, or zero where the engine answered nothing.
+    pub damage: u32,
+}
+
+/// A record the host installs on an element, as one the engine computed, with the pseudo-element records beside it.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiRecordInstallation {
+    /// The element's row, holding the record and what it says about the installation.
+    pub row: FfiStyleDelta,
+    /// Whether the host acknowledges the record to the engine once it holds it.
+    pub acknowledge: bool,
+    /// What moving the element from the row's old record to its new one damages, where the engine answered it: an
+    /// `FfiStyleInvalidationField` word with `EngineComputed` set, or zero.
+    pub damage: u32,
+    /// The synthetic pseudo-element kinds whose records install beside the element's, as a bit per kind; a present
+    /// slot holding zero is a removal.
+    pub pseudo_records_present: u16,
+    pub pseudo_records: [u64; PSEUDO_RECORD_SLOTS],
+    pub pseudo_damages: [FfiPseudoRecordDamage; PSEUDO_RECORD_SLOTS],
+}
+
+/// How many of the reactions of a batch the host applied did what, for its timing counters.
+#[derive(Clone, Copy, Default)]
+#[repr(C)]
+pub struct FfiStyleReactionCounts {
+    pub published_reactions: u32,
+    pub materialized_gaps: u32,
+    pub record_deltas_applied: u32,
+}
+
+unsafe extern "C" {
+    fn web_css_style_reaction_element(application: *mut HostStyleReactionApplication, node: u32) -> FfiReactionElement;
+    fn web_css_parent_style_has_animated_values(element: *mut HostElement) -> bool;
+    fn web_css_engine_record_environment_is_installable(
+        application: *mut HostStyleReactionApplication,
+        element: *mut HostElement,
+        style_record: u64,
+    ) -> bool;
+    fn web_css_record_derived_element_style_input(
+        application: *mut HostStyleReactionApplication,
+        node: u32,
+        reaction: u8,
+        groups: u8,
+    );
+    fn web_css_apply_style_reaction(
+        application: *mut HostStyleReactionApplication,
+        element: *mut HostElement,
+        reaction: u8,
+        installation: *const FfiRecordInstallation,
+    );
+}
+
+/// The host's application of a batch of reactions to its document's elements, which the host names by pointer.
+#[derive(Clone, Copy)]
+struct Application<'a> {
+    host: &'a DocumentHost,
+    read: &'a BegunRead,
+    host_application: *mut HostStyleReactionApplication,
+}
+
+impl Application<'_> {
+    fn element(self, node: u32) -> FfiReactionElement {
+        // SAFETY: The host lends its application for the call that applies the batch.
+        unsafe { web_css_style_reaction_element(self.host_application, node) }
+    }
+
+    fn record_environment_is_installable(self, element: &FfiReactionElement, style_record: u64) -> bool {
+        // SAFETY: As above, and the element is live while its reaction is applied.
+        unsafe {
+            web_css_engine_record_environment_is_installable(self.host_application, element.element.0, style_record)
+        }
+    }
+
+    fn apply(self, element: &FfiReactionElement, reaction: u8, installation: Option<&FfiRecordInstallation>) {
+        let installation = installation.map_or(std::ptr::null(), std::ptr::from_ref);
+        // SAFETY: As above.
+        unsafe { web_css_apply_style_reaction(self.host_application, element.element.0, reaction, installation) };
+    }
+
+    /// The engine's answer to a targeted demand for the element's record, where the host can install it. The engine
+    /// resolved the record's environment over the parent's own; where the parent's inheritable environment differs,
+    /// it takes back what the demand derived.
+    fn answer_record_demand(self, element: &FfiReactionElement, node: StyleNodeID) -> Option<FfiEngineComputedRecord> {
+        let answer = with_engine(self.read, self.host, |engine| {
+            super::bridge::answer_record_demand(engine, node, RecordDemand::Element(FfiRecordDemand::TargetedElement))
+        })
+        .record;
+        if answer.style_record == 0 {
+            return None;
+        }
+        if !self.record_environment_is_installable(element, answer.style_record) {
+            self.host.queue_change(crate::render_state::ArenaChange::Style(
+                super::boundary::StyleChange::AbandonDemandedRecords { node: Some(node) },
+            ));
+            return None;
+        }
+        Some(answer)
+    }
+
+    /// The engine declined the row. Nothing else computes styles: the element keeps the record it holds. The engine
+    /// answers no demand below an ancestor that owes a style input, such as one whose custom-property animations
+    /// published new values as an earlier row of the batch installed its record. That ancestor's style moves in the
+    /// next transaction, so the row is owed to it too, which plans the row after the ancestor's.
+    fn refuse(self, node: StyleNodeID, reaction: u8, inherited_style_groups: u8) {
+        let ancestor_owes_style_input = with_engine(self.read, self.host, |engine| {
+            std::iter::successors(engine.retained.tree.inheritance_parent(node), |&ancestor| {
+                engine.retained.tree.inheritance_parent(ancestor)
+            })
+            .any(|ancestor| engine.has_deferred_element_style_input(ancestor))
+        });
+        if ancestor_owes_style_input {
+            // SAFETY: The host lends its application for the call that applies the batch.
+            unsafe {
+                web_css_record_derived_element_style_input(
+                    self.host_application,
+                    node.raw(),
+                    reaction,
+                    inherited_style_groups,
+                );
+            }
+            return;
+        }
+        self.host.queue_change(crate::render_state::ArenaChange::Style(
+            super::boundary::StyleChange::ConsumeElementStyleInput { node: Some(node) },
+        ));
+    }
+
+    /// A row the engine did not settle in its transaction, or a targeted update: the record the engine demands for
+    /// the element now, which installs as one the engine computed, moving the element from the record it holds. A
+    /// refused demand refuses the row.
+    fn demand(
+        self,
+        element: &FfiReactionElement,
+        node: StyleNodeID,
+        reaction: u8,
+        inherited_style_groups: u8,
+    ) -> Option<FfiRecordInstallation> {
+        let Some(answer) = self.answer_record_demand(element, node) else {
+            self.refuse(node, reaction, inherited_style_groups);
+            return None;
+        };
+        let mut row = unsettled_row(node.raw(), 0);
+        row.old_style_record = element.style_record;
+        let mut installation = FfiRecordInstallation::new(row, true);
+        installation.settle(&answer);
+        Some(installation)
+    }
+}
+
+/// A row the engine left for the host to answer from the element's record demand.
+fn unsettled_row(style_node: u32, reaction: u8) -> FfiStyleDelta {
+    FfiStyleDelta {
+        style_node,
+        match_answer: 0,
+        old_style_record: 0,
+        new_style_record: 0,
+        damage: FfiStyleDeltaDamage::None,
+        reaction,
+        inherited_style_groups: 0,
+        pseudo_kind: u8::MAX,
+        gap: FfiStyleDeltaGap::Materialize,
+        uses_substitution: false,
+        record_reads: 0,
+        explicitly_inherited_groups: 0,
+        record_damage: 0,
+        owes_an_animation_plan: false,
+        owes_a_transition_step: false,
+        composed_by_the_host: false,
+    }
+}
+
+impl FfiStyleDelta {
+    /// Leaves the row to the host to answer from the element's record demand.
+    fn unsettle(&mut self) {
+        self.gap = FfiStyleDeltaGap::Materialize;
+        self.new_style_record = 0;
+        self.damage = FfiStyleDeltaDamage::None;
+    }
+
+    /// What moving to the row's record damages, where the engine answered it.
+    fn answered_damage(&self) -> u32 {
+        if self.record_damage & FfiStyleInvalidationField::EngineComputed as u32 != 0 {
+            self.record_damage
+        } else {
+            0
+        }
+    }
+}
+
+impl FfiRecordInstallation {
+    fn new(row: FfiStyleDelta, acknowledge: bool) -> Self {
+        Self {
+            damage: row.answered_damage(),
+            row,
+            acknowledge,
+            pseudo_records_present: 0,
+            pseudo_records: [0; PSEUDO_RECORD_SLOTS],
+            pseudo_damages: [FfiPseudoRecordDamage::default(); PSEUDO_RECORD_SLOTS],
+        }
+    }
+
+    /// Installs the record the engine settled for the row by a demand, with the pseudo-element records it settled
+    /// beside it.
+    fn settle(&mut self, record: &FfiEngineComputedRecord) {
+        let row = &mut self.row;
+        row.new_style_record = record.style_record;
+        row.uses_substitution = record.uses_substitution;
+        row.record_reads = record.record_reads;
+        row.explicitly_inherited_groups = record.explicitly_inherited_groups;
+        row.owes_an_animation_plan = record.owes_an_animation_plan;
+        row.owes_a_transition_step = record.owes_a_transition_step;
+        row.composed_by_the_host = record.composed_by_the_host;
+        row.damage = FfiStyleDeltaDamage::Full;
+        row.gap = FfiStyleDeltaGap::Computed;
+        row.record_damage = 0;
+        self.damage = 0;
+        self.pseudo_records_present = record.pseudo_records_present;
+        self.pseudo_records = record.pseudo_records;
+    }
+
+    /// Installs the record of a pseudo-element row the batch published beside the element's.
+    fn add_pseudo_element_row(&mut self, row: &FfiStyleDelta) {
+        let kind = usize::from(row.pseudo_kind);
+        self.pseudo_records_present |= 1 << kind;
+        self.pseudo_records[kind] = row.new_style_record;
+        self.pseudo_damages[kind] = FfiPseudoRecordDamage {
+            old_style_record: row.old_style_record,
+            new_style_record: row.new_style_record,
+            damage: row.answered_damage(),
+        };
+    }
+}
+
+/// Applies `reactions` in preorder, so every element's inheritance inputs are ready when it is applied. What an
+/// applied element's change means for its (flat-tree) children is the engine's to derive: it reads each application
+/// and plans the children as the next transaction of this style update.
+pub(crate) fn apply_style_reactions(
+    host: &DocumentHost,
+    read: &BegunRead,
+    host_application: *mut HostStyleReactionApplication,
+    reactions: &[FfiStyleDelta],
+) -> FfiStyleReactionCounts {
+    let application = Application {
+        host,
+        read,
+        host_application,
+    };
+    let _noting = host.engine_memo().note_declaration_changes_during_apply();
+    let mut counts = FfiStyleReactionCounts::default();
+    for (index, published) in reactions.iter().enumerate() {
+        // A pseudo-element record installs with its element's, which leads it. An element the engine answered as
+        // hidden needs no style until a read or its subtree's reveal asks for one.
+        if published.pseudo_kind != u8::MAX || published.gap == FfiStyleDeltaGap::Hidden {
+            continue;
+        }
+        let element = application.element(published.style_node);
+        if element.element.is_null() {
+            continue;
+        }
+        let node = StyleNodeID::from_raw(published.style_node).expect("a style reaction names an element");
+        let mut row = *published;
+
+        // A host that rewrote the element's declarations while an earlier row was applied (a form control restyling
+        // its shadow tree as its own style moves) leaves the record the engine computed from the old ones: the row is
+        // answered from its demand, over the declarations as they are now.
+        if row.gap == FfiStyleDeltaGap::Computed && host.engine_memo().declarations_changed_during_apply(node) {
+            row.unsettle();
+            row.reaction |= STYLE_REACTION_RECOMPUTE_STYLE;
+        }
+
+        // NB: An earlier row's environment move can republish the record an element holds over the moved environment.
+        //     A swap of its inherited groups planned over the record it held before would undo the move: the row is
+        //     answered from its demand, over the record the element holds now.
+        if row.gap == FfiStyleDeltaGap::None && element.has_style && row.old_style_record != element.style_record {
+            row.unsettle();
+        }
+
+        // A reaction the engine derived for this element while applying an earlier one in this batch joins the
+        // element's own reaction where it covers it, which a demand for the element's record always does.
+        let absorbed = absorb_element_style_input(
+            host,
+            read,
+            node,
+            row.reaction,
+            row.inherited_style_groups,
+            row.gap == FfiStyleDeltaGap::Materialize,
+        );
+        if absorbed != 0 {
+            row.reaction = absorbed as u8;
+            row.inherited_style_groups = (absorbed >> 8) as u8;
+        }
+
+        // An engine-computed record installs on an element without style as a first record does, its style cleared on
+        // entry to display:none included; other record deltas assume the style they move.
+        // NB: An inheritance scheduling row carries no computation of its own. If an earlier display:none reaction
+        //     cleared its style and no derived input reached it, leave it unstyled until a read or reveal.
+        if !element.has_style
+            && (row.gap == FfiStyleDeltaGap::None || (row.gap == FfiStyleDeltaGap::Materialize && row.reaction == 0))
+        {
+            continue;
+        }
+
+        let needs_regular_style_recompute = row.reaction
+            & (STYLE_REACTION_PUBLISHED_STYLE
+                | STYLE_REACTION_RECOMPUTE_STYLE
+                | STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES
+                | STYLE_REACTION_ANCESTOR_BECAME_VISIBLE)
+            != 0;
+        let needs_custom_property_recompute = row.reaction & STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES != 0;
+        let needs_inherited_style_recompute = row.reaction & STYLE_REACTION_INHERITED_STYLE != 0;
+        // An element declaring custom properties of its own layers them over the environment it inherits, which its
+        // cascade decides.
+        let computes_style = needs_regular_style_recompute
+            || needs_inherited_style_recompute
+            || (needs_custom_property_recompute
+                && (element.reads_environment
+                    || with_engine(read, host, |engine| engine.node_declares_custom_properties(node))));
+
+        // A row the engine did not settle in its transaction, and that computes the element's style, is answered from
+        // its record demand, as a targeted update of the element is: the record installs as one the engine computed,
+        // moving the element from the record it holds.
+        let mut installation = None;
+        if row.gap == FfiStyleDeltaGap::Materialize
+            && computes_style
+            && let Some(answer) = application.answer_record_demand(&element, node)
+        {
+            row.old_style_record = element.style_record;
+            let mut demanded = FfiRecordInstallation::new(row, true);
+            demanded.settle(&answer);
+            row = demanded.row;
+            installation = Some(demanded);
+        }
+
+        if row.reaction & STYLE_REACTION_PUBLISHED_STYLE != 0 {
+            counts.published_reactions += 1;
+        }
+        if row.gap == FfiStyleDeltaGap::Materialize {
+            if row.reaction & STYLE_REACTION_PUBLISHED_STYLE != 0 {
+                counts.materialized_gaps += 1;
+            }
+            assert!(row.new_style_record == 0 && row.damage == FfiStyleDeltaDamage::None);
+        } else {
+            counts.record_deltas_applied += 1;
+            // An engine-computed record is the engine's current answer for the element, which may have skipped a
+            // delta the host never installed; it is applied against whatever the element holds now.
+            assert!(row.gap == FfiStyleDeltaGap::Computed || row.old_style_record == element.style_record);
+            assert!(row.new_style_record != 0 && row.damage == FfiStyleDeltaDamage::Full);
+        }
+
+        let installation = match row.gap {
+            FfiStyleDeltaGap::None => {
+                assert!(!needs_regular_style_recompute && needs_inherited_style_recompute);
+                assert!(!needs_custom_property_recompute);
+                // The engine swapped the element's inherited groups for its parent's: the record installs as an
+                // engine record. The engine refuses the swap to an element that animates, declares transitions, or
+                // inherits from an animating parent. A parent this batch installed may have taken animated values
+                // from its own ancestors since the engine swapped, which the element inherits in place of the base
+                // ones: the row is answered from its demand.
+                // SAFETY: The element is live while its reaction is applied.
+                if unsafe { web_css_parent_style_has_animated_values(element.element.0) } {
+                    application.demand(&element, node, row.reaction, row.inherited_style_groups)
+                } else {
+                    Some(FfiRecordInstallation::new(row, false))
+                }
+            }
+            FfiStyleDeltaGap::Computed => {
+                // The engine computed the new record from this element's moved cascade winners, from its parent's
+                // moved inherited style or display, or from its moved inherited custom-property environment.
+                assert!(
+                    needs_regular_style_recompute || needs_inherited_style_recompute || needs_custom_property_recompute
+                );
+                // A demand settled the pseudo-elements beside the element's record; the rows the batch published
+                // beside the element's moved from a record the demand replaced.
+                let installation = installation.unwrap_or_else(|| {
+                    let mut installation = FfiRecordInstallation::new(row, true);
+                    reactions[index + 1..]
+                        .iter()
+                        .take_while(|next| next.style_node == row.style_node && next.pseudo_kind != u8::MAX)
+                        .for_each(|pseudo_row| installation.add_pseudo_element_row(pseudo_row));
+                    installation
+                });
+                if application.record_environment_is_installable(&element, row.new_style_record) {
+                    Some(installation)
+                } else {
+                    // The engine resolved the record's environment over the parent's own, which an earlier row of the
+                    // batch moved: the row is answered from a fresh demand.
+                    application.demand(&element, node, row.reaction, row.inherited_style_groups)
+                }
+            }
+            // The engine declined the row's demand above.
+            _ if computes_style => {
+                application.refuse(node, row.reaction, row.inherited_style_groups);
+                None
+            }
+            // A row that owes only a moved inherited environment on an element whose style reads none has nothing
+            // left for the host: the engine moved the element's environment, and the record over it, when its
+            // parent's moved.
+            _ => None,
+        };
+        application.apply(&element, row.reaction, installation.as_ref());
+    }
+    counts
+}
+
+/// Applies the `count` reactions at `reactions` to the elements of the host's document, through `host_application`,
+/// the host's state for applying them, and answers what they did for its counters.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, `reactions` must name `count` entries, and
+/// `host_application` must be live for the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_apply_style_reactions(
+    host: &DocumentHost,
+    read: &BegunRead,
+    host_application: *mut HostStyleReactionApplication,
+    reactions: *const FfiStyleDelta,
+    count: usize,
+) -> FfiStyleReactionCounts {
+    // SAFETY: Guaranteed by the caller.
+    let reactions = unsafe { super::bridge::borrow(reactions, count) };
+    apply_style_reactions(host, read, host_application, reactions)
+}
+
+/// Demands the element's record for a targeted update of it, and answers the installation of the record into
+/// `installation`, or false where the engine refused the demand.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, `host_application` must be live for the call, and
+/// `installation` must be writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_demand_record_installation(
+    host: &DocumentHost,
+    read: &BegunRead,
+    host_application: *mut HostStyleReactionApplication,
+    node: u32,
+    installation: *mut FfiRecordInstallation,
+) -> bool {
+    let application = Application {
+        host,
+        read,
+        host_application,
+    };
+    let element = application.element(node);
+    let node = StyleNodeID::from_raw(node).expect("a targeted update names an element");
+    let Some(demanded) = application.demand(
+        &element,
+        node,
+        STYLE_REACTION_PUBLISHED_STYLE | STYLE_REACTION_RECOMPUTE_STYLE,
+        0,
+    ) else {
+        return false;
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { installation.write(demanded) };
+    true
+}

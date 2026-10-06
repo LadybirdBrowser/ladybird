@@ -7085,6 +7085,45 @@ pub(crate) mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn web_css_custom_property_data_unreference(_data: *const c_void) {}
     #[unsafe(no_mangle)]
+    extern "C" fn web_css_style_reaction_element(
+        _application: *mut crate::css::style::reaction_application::HostStyleReactionApplication,
+        _node: u32,
+    ) -> crate::css::style::reaction_application::FfiReactionElement {
+        unreachable!("no unit test applies style reactions");
+    }
+    #[unsafe(no_mangle)]
+    extern "C" fn web_css_parent_style_has_animated_values(
+        _element: *mut crate::css::style::reaction_application::HostElement,
+    ) -> bool {
+        unreachable!("no unit test applies style reactions");
+    }
+    #[unsafe(no_mangle)]
+    extern "C" fn web_css_engine_record_environment_is_installable(
+        _application: *mut crate::css::style::reaction_application::HostStyleReactionApplication,
+        _element: *mut crate::css::style::reaction_application::HostElement,
+        _style_record: u64,
+    ) -> bool {
+        unreachable!("no unit test applies style reactions");
+    }
+    #[unsafe(no_mangle)]
+    extern "C" fn web_css_record_derived_element_style_input(
+        _application: *mut crate::css::style::reaction_application::HostStyleReactionApplication,
+        _node: u32,
+        _reaction: u8,
+        _groups: u8,
+    ) {
+        unreachable!("no unit test applies style reactions");
+    }
+    #[unsafe(no_mangle)]
+    extern "C" fn web_css_apply_style_reaction(
+        _application: *mut crate::css::style::reaction_application::HostStyleReactionApplication,
+        _element: *mut crate::css::style::reaction_application::HostElement,
+        _reaction: u8,
+        _installation: *const crate::css::style::reaction_application::FfiRecordInstallation,
+    ) {
+        unreachable!("no unit test applies style reactions");
+    }
+    #[unsafe(no_mangle)]
     extern "C" fn ladybird_utf16_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_utf16_string_create_uninitialized(_length: usize, _has_ascii_storage: bool) -> usize {

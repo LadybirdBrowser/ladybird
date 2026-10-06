@@ -1413,7 +1413,7 @@ mod tests {
     use super::*;
     use crate::css::style::boundary::StyleChange;
     use crate::css::style::engine_calls::{
-        EngineWrite, style_engine_absorb_element_style_input, style_engine_has_deferred_element_style_input,
+        EngineWrite, absorb_element_style_input, style_engine_has_deferred_element_style_input,
     };
     use crate::css::style::transaction::STYLE_REACTION_INHERITED_STYLE;
     use crate::render_state::ScriptForcedRead;
@@ -1448,17 +1448,14 @@ mod tests {
     }
 
     fn absorb_input(host: &DocumentHost, node: StyleNodeID) -> u32 {
-        // SAFETY: The host is live, on this thread.
-        unsafe {
-            style_engine_absorb_element_style_input(
-                host,
-                host.read_for_test(),
-                node.raw(),
-                STYLE_REACTION_INHERITED_STYLE,
-                INHERITED_STYLE_GROUPS,
-                false,
-            )
-        }
+        absorb_element_style_input(
+            host,
+            host.read_for_test(),
+            node,
+            STYLE_REACTION_INHERITED_STYLE,
+            INHERITED_STYLE_GROUPS,
+            false,
+        )
     }
 
     fn host_has_deferred_input(host: &DocumentHost, node: StyleNodeID) -> bool {

@@ -117,6 +117,7 @@ pub mod program;
 mod program_updates;
 mod publication;
 mod random_bases;
+pub mod reaction_application;
 mod resource_contexts;
 mod routing;
 pub(crate) mod rule_writes;

@@ -3321,7 +3321,7 @@ fn sort_style_deltas_for_direct_application(engine: &StyleEngine, deltas: &mut [
     });
 }
 
-pub(super) unsafe fn borrow<'a, T>(pointer: *const T, count: usize) -> &'a [T] {
+pub(crate) unsafe fn borrow<'a, T>(pointer: *const T, count: usize) -> &'a [T] {
     if count == 0 {
         return &[];
     }
