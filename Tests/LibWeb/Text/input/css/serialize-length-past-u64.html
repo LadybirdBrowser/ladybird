@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target">x</div>
+<script>
+    test(() => {
+        target.style.left = "18446744073709551616px";
+        target.offsetWidth;
+        println(`specified: ${target.style.left}`);
+        target.style.left = "-18446744073709551616px";
+        target.offsetWidth;
+        println(`negative: ${target.style.left}`);
+    });
+</script>
