@@ -1,2 +1,2 @@
-cursor over #moves: IBeam
-cursor over #handled: IBeam
+cursor over #moves: Move
+cursor over #handled: Hand

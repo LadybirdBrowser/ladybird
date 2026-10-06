@@ -65,6 +65,9 @@ public:
     bool select_word_for_dictionary_lookup(CSSPixelPoint visual_viewport_position);
 #endif
     void update_hover_after_scroll();
+    // Shows the cursor of what is under the pointer again, where a move resolved it before it hovered that, once a
+    // rendering update has applied the style of the hover.
+    void update_cursor_after_rendering_update();
     GC::Ptr<DOM::Node> target_node_for_mouse_position(CSSPixelPoint);
 
     EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action = false);
@@ -231,6 +234,8 @@ private:
 
     Optional<CSSPixelPoint> m_mousemove_previous_screen_position;
     Optional<CSSPixelPoint> m_last_known_mouse_visual_viewport_position;
+    // Whether a move resolved the cursor before it hovered what is under the pointer, since the last rendering update.
+    bool m_cursor_resolved_before_hover { false };
     CSSPixelPoint m_last_known_mouse_screen_position;
     unsigned m_last_known_mouse_buttons { 0 };
     unsigned m_last_known_mouse_modifiers { 0 };
