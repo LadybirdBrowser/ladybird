@@ -2626,7 +2626,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         "BoxValues".to_string(),
         "ComputedVerticalAlign".to_string(),
         "GridValues".to_string(),
-        "StyleGroupVTable".to_string(),
         "STYLE_GROUP_STATIC_REFCOUNT".to_string(),
         "GRID_NO_INDEX".to_string(),
         "ComputedGridTrackEntryKind".to_string(),

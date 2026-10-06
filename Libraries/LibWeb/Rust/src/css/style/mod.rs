@@ -906,9 +906,6 @@ pub struct RetainedState {
     /// What each element that has replaced content gives its natural size, which layout resolves
     /// against the style of the element's box.
     replaced_content_inputs: HashMap<StyleNodeID, inputs::ReplacedContentInput>,
-    /// The computed style groups each longhand reaches, which the host registers before it creates
-    /// the engine.
-    style_groups: &'static crate::css::computed_values::StyleGroupMasks,
     /// The before-change style each transition target's transitions are decided against for the
     /// rest of the style stabilization epoch, pinned until the epoch commits.
     transition_baselines: transition_baselines::TransitionBaselines,

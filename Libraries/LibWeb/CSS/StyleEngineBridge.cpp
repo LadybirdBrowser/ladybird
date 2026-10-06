@@ -32,15 +32,8 @@ static_assert(StyleEngineFFI::LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND == to_u
 static_assert(!IsMoveConstructible<StyleEngine>);
 static_assert(!IsMoveAssignable<StyleEngine>);
 
-static NonnullRefPtr<Layout::RenderDocument> create_render_document()
-{
-    // The engine the render state creates holds the style groups each longhand reaches from its creation on.
-    register_style_groups();
-    return Layout::RenderDocument::create();
-}
-
 StyleEngine::StyleEngine(StyleComputer* style_computer)
-    : m_render_document(create_render_document())
+    : m_render_document(Layout::RenderDocument::create())
     , m_style_node_ids(StyleEngineFFI::style_node_id_allocator_create())
     , m_style_computer(style_computer)
 {

@@ -906,7 +906,7 @@ impl RetainedState {
                 self.counters.bump(Counter::EngineComputedRecordBailProperty);
                 return Err(Unanswered::Refused);
             }
-            groups_to_rebuild |= moved_longhand_groups(self.style_groups, property);
+            groups_to_rebuild |= moved_longhand_groups(property);
             select(property);
             let bits = crate::css::style_compute::table_row_bits(property);
             let counterpart = if bits & crate::css::style_compute::LOGICAL_ALIAS_BIT != 0 {
@@ -917,7 +917,7 @@ impl RetainedState {
                 property
             };
             if counterpart != property {
-                groups_to_rebuild |= moved_longhand_groups(self.style_groups, counterpart);
+                groups_to_rebuild |= moved_longhand_groups(counterpart);
                 select(counterpart);
             }
         }
@@ -2143,7 +2143,7 @@ impl RetainedState {
             if property_starts_animation(property) {
                 return None;
             }
-            groups_to_rebuild |= moved_longhand_groups(self.style_groups, property);
+            groups_to_rebuild |= moved_longhand_groups(property);
             select(property);
             let bits = crate::css::style_compute::table_row_bits(property);
             let counterpart = if bits & crate::css::style_compute::LOGICAL_ALIAS_BIT != 0 {
@@ -2162,7 +2162,7 @@ impl RetainedState {
                 property
             };
             if counterpart != property {
-                groups_to_rebuild |= moved_longhand_groups(self.style_groups, counterpart);
+                groups_to_rebuild |= moved_longhand_groups(counterpart);
                 select(counterpart);
             }
         }
@@ -4777,9 +4777,9 @@ fn font_resolution_selects_by(property: u16) -> bool {
 /// The computed style groups a moved longhand reaches. One the font group carries feeds no group of
 /// its own and reaches every value the font feeds, through the font group: a delta moving it is
 /// driven in full, as is one moving a longhand no registered group names.
-fn moved_longhand_groups(style_groups: &StyleGroupMasks, property: u16) -> u32 {
+fn moved_longhand_groups(property: u16) -> u32 {
     use crate::css::computed_value_types::STYLE_GROUP_INDEX_FONT;
-    match style_groups.dependencies(property) {
+    match StyleGroupMasks::get().dependencies(property) {
         0 if font_group_carries_longhand(property) => 1 << STYLE_GROUP_INDEX_FONT,
         0 => (1 << crate::css::table_group_builder::group_index::COUNT) - 1,
         groups => groups,

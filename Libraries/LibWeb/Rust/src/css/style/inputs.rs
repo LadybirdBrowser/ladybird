@@ -1872,7 +1872,6 @@ impl StyleEngine {
                 held_root_font_inputs: None,
                 random_base_values: Default::default(),
                 replaced_content_inputs: HashMap::default(),
-                style_groups: crate::css::computed_values::StyleGroupMasks::registered_or_none(),
                 transition_baselines: Default::default(),
                 custom_property_registrations_changed: false,
                 engine_computed_records_pending: HashMap::default(),
@@ -3163,7 +3162,6 @@ impl RetainedState {
             held_root_font_inputs: _,
             random_base_values,
             replaced_content_inputs,
-            style_groups: _,
             transition_baselines,
             custom_property_registrations_changed: _,
             // Settled or reverted when the transaction's outputs are discarded, before identities are

@@ -11,7 +11,6 @@
 #include <AK/StdLibExtras.h>
 #include <AK/Types.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
-#include <LibWeb/Export.h>
 #include <stdlib.h>
 
 namespace Web::CSS {
@@ -19,20 +18,11 @@ namespace Web::CSS {
 // NB: Must match STYLE_GROUP_STATIC_REFCOUNT in computed_values.rs.
 static constexpr size_t style_group_static_refcount = NumericLimits<size_t>::max();
 
-// Registers every style group with the Rust side: its vtable and default payload, its fields, and the
-// groups each longhand reaches. Runs once; every later call returns at once.
-// Defined in ComputedValues.cpp, where the group types are visible.
-WEB_API void register_style_groups();
-
-// Returns the intentionally leaked default payload for the given style group.
-WEB_API void const* style_group_default_payload(size_t group_index);
-
 // A copy-on-write reference to a style value group struct.
 //
-// The payloads are owned by the Rust side of LibWeb (see computed_values.rs):
-// Rust-native groups use their Rust layout and lifecycle directly, while groups
-// containing C++ field types use registered lifecycle callbacks. Rust places an
-// atomic reference count in a header immediately before each payload. Reading a
+// The payloads are owned by the Rust side of LibWeb (see computed_values.rs),
+// which defines each group's layout and lifecycle. Rust places an atomic
+// reference count in a header immediately before each payload. Reading a
 // group is an inline field access and sharing one is an inline atomic operation;
 // only cloning for mutation and destroying the last reference cross the FFI
 // boundary.
@@ -160,7 +150,7 @@ private:
 
     static void const* default_payload()
     {
-        static void const* payload = style_group_default_payload(T::style_group_index);
+        static void const* payload = ComputedValuesFFI::rust_style_group_default_payload(T::style_group_index);
         return payload;
     }
 

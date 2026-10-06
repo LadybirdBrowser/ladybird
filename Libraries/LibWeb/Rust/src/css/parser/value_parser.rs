@@ -3706,6 +3706,47 @@ fn parse_positional_value_list_shorthand(
     }))
 }
 
+/// A longhand's initial value from Properties.json, parsed as a value of that property outside any
+/// document.
+pub(crate) fn parse_initial_value(property: u16) -> Option<Arc<StyleValueData>> {
+    let property_context = FfiValueParsingContext {
+        kind: FfiValueParsingContextKind::Property,
+        value: property,
+        secondary_value: 0,
+        name: FfiUtf16View {
+            ascii: std::ptr::null(),
+            utf16: std::ptr::null(),
+            length: 0,
+        },
+    };
+    let context = ParseContext {
+        in_quirks_mode: false,
+        is_svg_presentation_attribute: false,
+        is_substituted_value: false,
+        contains_attr_tainted_values: false,
+        is_ua_style_sheet: false,
+        value_contexts: &raw const property_context,
+        value_context_count: 1,
+        declared_namespaces: std::ptr::null(),
+        document_url: std::ptr::null(),
+        document_url_length: 0,
+        document_base_url: std::ptr::null(),
+        document_base_url_length: 0,
+        length_resolution_context: std::ptr::null(),
+        random_function_index: std::ptr::null_mut(),
+    };
+    let values = component_values_from_source(property_initial_value(property).as_bytes()).ok()?;
+    let presence = SubstitutionFunctionsPresence::default();
+    match parse_css_value_after_substitution_scan(&context, property, &values, &[], &[], presence) {
+        // A keyword is the shared value of that keyword, which C++ keyword values hold too.
+        ParseOutcome::Parsed(value) => match *value {
+            StyleValueData::Keyword { keyword } => Some(shared_style_value(StyleValueData::Keyword { keyword })),
+            _ => Some(value),
+        },
+        ParseOutcome::Invalid | ParseOutcome::NotHandled => None,
+    }
+}
+
 fn parse_initial_longhand(context: &ParseContext, property: u16) -> Option<StyleValueData> {
     let initial = property_initial_value(property);
     let values = consume_a_list_of_component_values(tokenize_for_parser(initial.as_bytes())).ok()?;

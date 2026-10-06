@@ -117,19 +117,18 @@ RENDER_STATE_ALLOWED = {
     **render_state_entries(
         BUILT_ONCE,
         [
-            "css/computed_values.rs:FIELD_DESCRIPTORS",
-            "css/computed_values.rs:PROPERTY_DEPENDENCY_MASKS",
-            "css/computed_values.rs:REGISTRY",
+            "css/computed_values.rs:DEFAULTS",
+            "css/computed_values.rs:MASKS",
             "css/counter_representation.rs:DECIMAL",
             "css/css_string.rs:EMPTY",
             "css/custom_properties.rs:EMPTY",
             "css/parser/stylesheet_cache.rs:HASHER",
             "css/style/publication.rs:REMAINING",
-            "css/style_compute.rs:INITIAL_VALUE_TABLE",
             "css/style_compute.rs:KINDS",
             "css/style_compute.rs:LONGHANDS",
             "css/style_compute.rs:PHASE_BOUNDARIES",
             "css/style_compute.rs:PX",
+            "css/style_compute.rs:TABLE",
         ],
     ),
     **render_state_entries(
@@ -145,7 +144,6 @@ RENDER_STATE_ALLOWED = {
     **render_state_entries(
         TEST_ONLY,
         [
-            "css/computed_values.rs:GROUPS",
             "css/declaration_block.rs:DECLARATION_OWNER_ALLOCATIONS",
             "css/descriptor_block.rs:DESCRIPTOR_OWNER_ALLOCATIONS",
             "css/rule.rs:RULE_OWNER_ALLOCATIONS",
