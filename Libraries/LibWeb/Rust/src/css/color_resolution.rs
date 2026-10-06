@@ -1254,6 +1254,97 @@ pub(crate) fn resolve_relative_form(value: &StyleValueData, input: &ColorResolut
     })
 }
 
+/// The computed value form of an absolute rgb(), hsl() or hwb() function: the same color as
+/// color(srgb ...). Other color functions compute to themselves.
+// https://drafts.csswg.org/css-color-4/#resolving-sRGB-values
+fn computed_value_form(value: StyleValueData) -> StyleValueData {
+    use color_conversion as ct;
+    let StyleValueData::ColorFunction {
+        color_base,
+        channel_0,
+        channel_1,
+        channel_2,
+        alpha,
+        ..
+    } = &value
+    else {
+        return value;
+    };
+    let color_type = color_base.color_type;
+    if !matches!(color_type, ct::RGB | ct::HSL | ct::HWB) {
+        return value;
+    }
+    let number = |channel: &RetainedStyleValueData| match channel.optional_data() {
+        Some(StyleValueData::Number { value }) => Some(*value),
+        _ => None,
+    };
+    let none = || StyleValueData::Keyword { keyword: keyword::NONE };
+    let alpha = match alpha.optional_data() {
+        None => StyleValueData::Number { value: 1.0 },
+        Some(alpha) if is_none_keyword(alpha) => none(),
+        Some(_) => StyleValueData::Number {
+            value: number(alpha).unwrap_or(0.0),
+        },
+    };
+    let channels = if color_type == ct::RGB {
+        [channel_0, channel_1, channel_2].map(|channel| match number(channel) {
+            Some(value) => StyleValueData::Number { value: value / 255.0 },
+            None => none(),
+        })
+    } else {
+        let native = [
+            number(channel_0).unwrap_or(0.0) as f32,
+            (number(channel_1).unwrap_or(0.0) / 100.0) as f32,
+            (number(channel_2).unwrap_or(0.0) / 100.0) as f32,
+            1.0,
+        ];
+        let srgb = if color_type == ct::HSL {
+            ct::hsl_to_srgb(native)
+        } else {
+            ct::hwb_to_srgb(native)
+        };
+        [0, 1, 2].map(|index| StyleValueData::Number {
+            value: f64::from(srgb[index]),
+        })
+    };
+    let [channel_0, channel_1, channel_2] = channels;
+    StyleValueData::ColorFunction {
+        color_base: ColorBase {
+            has_color_type: true,
+            color_type: ct::SRGB,
+            color_syntax: crate::css::value_codes::COLOR_SYNTAX_MODERN,
+        },
+        channel_0: retained_value(channel_0),
+        channel_1: retained_value(channel_1),
+        channel_2: retained_value(channel_2),
+        alpha: retained_value(alpha),
+        has_name: false,
+        name: CssString::none(),
+        origin_color: retained_null(),
+    }
+}
+
+/// The resolved value of a relative color function: its relative form in its computed value
+/// form. Returns one strong reference, or null when the origin color does not resolve.
+///
+/// # Safety
+/// `value` must point at live style value data and `input` at a valid resolution input whose
+/// pointers outlive the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_relative_color_resolved_value(
+    value: *const core::ffi::c_void,
+    input: *const FfiColorResolutionInput,
+) -> *const StyleValueData {
+    let value = unsafe { &*value.cast::<StyleValueData>() };
+    let input = unsafe { &*input };
+    // SAFETY: The caller warrants the input's pointers outlive the call.
+    let resolution_input = unsafe { resolution_input_from_ffi(input) };
+    match resolve_relative_form(value, &resolution_input) {
+        Some(resolved) => Arc::into_raw(Arc::new(computed_value_form(resolved))),
+        None => core::ptr::null(),
+    }
+}
+
 /// Port of ColorStyleValue::extract_channels_in_color_space().
 ///
 /// NB: The C++ code computes linear sRGB with the direct transfer function; that function is
@@ -2106,9 +2197,6 @@ pub struct FfiColorResolutionInput {
     pub current_color_value: *const core::ffi::c_void,
     /// Length resolution context, or null.
     pub length: *const core::ffi::c_void,
-    pub channels_present: [bool; 13],
-    pub channels: [f64; 13],
-    pub has_channels: bool,
 }
 
 /// A resolved color handed back to C++; `resolved` is false when the Rust resolution
@@ -2119,33 +2207,12 @@ pub struct FfiResolvedColorValue {
     pub rgba: [u8; 4],
 }
 
-/// Decodes an FFI input's relative-color channel values into the borrowable
-/// storage `resolution_input_from_ffi` takes.
-pub(crate) fn relative_color_context_from_ffi(input: &FfiColorResolutionInput) -> RelativeColorContext {
-    let mut channels: RelativeColorContext = [None; 13];
-    if input.has_channels {
-        for (slot, (&present, &channel)) in channels
-            .iter_mut()
-            .zip(input.channels_present.iter().zip(input.channels.iter()))
-        {
-            if present {
-                *slot = Some(channel);
-            }
-        }
-    }
-    channels
-}
-
-/// Borrows a marshalled FFI resolution input as the resolver's input type;
-/// `channels` is the decoded storage from `relative_color_context_from_ffi`.
+/// Borrows a marshalled FFI resolution input as the resolver's input type.
 ///
 /// # Safety
 /// The input's current-color value and length-context pointers must stay live
 /// for the returned borrow's lifetime.
-pub(crate) unsafe fn resolution_input_from_ffi<'a>(
-    input: &'a FfiColorResolutionInput,
-    channels: &'a RelativeColorContext,
-) -> ColorResolutionInput<'a> {
+pub(crate) unsafe fn resolution_input_from_ffi(input: &FfiColorResolutionInput) -> ColorResolutionInput<'_> {
     let current_color_value = unsafe {
         input
             .current_color_value
@@ -2168,7 +2235,7 @@ pub(crate) unsafe fn resolution_input_from_ffi<'a>(
         }),
         current_color_value,
         length,
-        channels: input.has_channels.then_some(channels),
+        channels: None,
     }
 }
 
@@ -2184,9 +2251,8 @@ pub unsafe extern "C" fn rust_style_value_to_color(
 ) -> FfiResolvedColorValue {
     let value = unsafe { &*value.cast::<crate::css::style_value::StyleValueData>() };
     let input = unsafe { &*input };
-    let channels = relative_color_context_from_ffi(input);
     // SAFETY: The caller warrants the input's pointers outlive the call.
-    let resolution_input = unsafe { resolution_input_from_ffi(input, &channels) };
+    let resolution_input = unsafe { resolution_input_from_ffi(input) };
     match to_color(value, &resolution_input) {
         Some(color) => FfiResolvedColorValue {
             resolved: true,

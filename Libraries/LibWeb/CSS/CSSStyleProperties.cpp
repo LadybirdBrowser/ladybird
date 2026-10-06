@@ -1048,11 +1048,12 @@ static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& styl
     if (color_resolution_context && style_value.is_color_function()) {
         auto const& color_function = as<ColorFunctionStyleValue>(style_value);
         if (color_function.origin_color() && color_function.color_type().has_value()) {
-            auto resolved = color_function.resolve_relative_form(*color_resolution_context);
+            Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_storage;
+            auto input = make_rust_color_resolution_input(*color_resolution_context, length_storage);
+            auto const* resolved = StyleValueFFI::rust_relative_color_resolved_value(style_value.rust_style_value_data(), &input);
             if (!resolved)
                 return style_value;
-
-            return as<ColorFunctionStyleValue>(*resolved).computed_value_form();
+            return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(resolved));
         }
     }
 

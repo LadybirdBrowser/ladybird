@@ -192,14 +192,6 @@ struct CalcResolutionSnapshot {
                     resolution.resolved_node = resolved->release();
                 break;
             }
-            case StyleValueFFI::FfiCalcExternalResolutionKind::Channel:
-                if (resolution_context.relative_color.has_value()) {
-                    if (auto value = resolution_context.relative_color->get(static_cast<ChannelKeyword>(resolution.unit_or_channel)); value.has_value()) {
-                        resolution.has_number = true;
-                        resolution.number = value.value();
-                    }
-                }
-                break;
             case StyleValueFFI::FfiCalcExternalResolutionKind::RandomSharing: {
                 auto sharing = wrap_borrowed_style_value_data(resolution.source);
                 // When we are in the absolutization process we should absolutize the sharing options.

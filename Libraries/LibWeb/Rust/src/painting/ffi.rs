@@ -674,9 +674,7 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
     context: *mut c_void,
     consume: unsafe extern "C" fn(*mut c_void, *const c_void, *const c_void),
 ) {
-    use crate::css::color_resolution::{
-        FfiColorResolutionInput, relative_color_context_from_ffi, resolution_input_from_ffi,
-    };
+    use crate::css::color_resolution::{FfiColorResolutionInput, resolution_input_from_ffi};
     use crate::painting::display_list::commands::{DisplayListResourceId, ImageFrameResourceId};
     use crate::painting::display_list::device_pixels::DevicePixelConverter;
     use crate::painting::display_list::recorder::DisplayListRecorder;
@@ -727,9 +725,8 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
                         .cast::<FfiColorResolutionInput>(),
                 )
             };
-            let relative_color_channels = relative_color_context_from_ffi(color_resolution_input);
             // SAFETY: the borrowed input outlives the resolution below.
-            let color_input = unsafe { resolution_input_from_ffi(color_resolution_input, &relative_color_channels) };
+            let color_input = unsafe { resolution_input_from_ffi(color_resolution_input) };
             let resolved =
                 resolve_gradient_paint_with_input(gradient_style_value, inputs.gradient_tile_size.into(), &color_input);
             record_resolved_gradient_fill(

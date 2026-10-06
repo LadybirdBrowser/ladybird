@@ -218,7 +218,7 @@ fn rectangular_to_polar(color: Components) -> Components {
 }
 
 // Algorithm from https://drafts.csswg.org/css-color-3/#hsl-color
-fn hsl_to_srgb(color: Components) -> Components {
+pub(crate) fn hsl_to_srgb(color: Components) -> Components {
     let mut hue = color[0] % 360.0;
     if hue < 0.0 {
         hue += 360.0;
@@ -232,7 +232,7 @@ fn hsl_to_srgb(color: Components) -> Components {
 }
 
 // https://drafts.csswg.org/css-color-4/#hwb-to-rgb
-fn hwb_to_srgb(color: Components) -> Components {
+pub(crate) fn hwb_to_srgb(color: Components) -> Components {
     if color[1] + color[2] >= 1.0 {
         let gray = color[1] / (color[1] + color[2]);
         return [gray, gray, gray, color[3]];
