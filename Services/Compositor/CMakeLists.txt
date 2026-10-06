@@ -9,6 +9,7 @@ set(SOURCES
     HostWebGLContext.cpp
     OpenGLContext.cpp
     PausedDebuggerOverlay.cpp
+    RasterizeDisplayList.cpp
     RenderClockConnection.cpp
     ScrollSnapController.cpp
     ScrollbarController.cpp

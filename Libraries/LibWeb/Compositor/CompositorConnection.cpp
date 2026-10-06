@@ -380,6 +380,29 @@ Web::Compositor::PlaceholderCanvasPixels CompositorConnection::get_placeholder_c
     return { pixels.is_valid() ? pixels.bitmap() : nullptr, response->origin_clean() };
 }
 
+bool CompositorConnection::rasterize_display_list(Compositing::DisplayList const& display_list, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, NonnullRefPtr<Gfx::Bitmap> target)
+{
+    if (!can_send_message_to_compositor())
+        return false;
+
+    // The compositor draws straight into the target, so it has to be memory both processes can map.
+    VERIFY(target->anonymous_buffer().is_valid());
+    auto shared_tape_buffer = display_list.copy_to_shared_buffer();
+    if (shared_tape_buffer.is_error()) {
+        dbgln("WebContent: Could not place a {} byte display list to rasterize in shared memory: {}", display_list.command_bytes().size(), shared_tape_buffer.error());
+        return false;
+    }
+    auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::RasterizeDisplayList>(
+        shared_tape_buffer.release_value(),
+        display_list.command_bytes().size(),
+        display_list.command_runs().size(),
+        display_list.properties(),
+        visual_context_tree,
+        move(resource_transaction),
+        Gfx::ShareableBitmap { move(target), Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap });
+    return response && response->success();
+}
+
 void CompositorConnection::invalidate_keyboard_scroll_state(Web::CompositorContextId context_id, u64 generation)
 {
     if (!can_send_message_to_compositor())

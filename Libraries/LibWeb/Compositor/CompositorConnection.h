@@ -64,6 +64,7 @@ public:
     void release_placeholder_canvas(Compositing::CanvasId);
     void commit_placeholder_canvas(Web::Compositor::PlaceholderCanvasLink, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize, bool origin_clean);
     Web::Compositor::PlaceholderCanvasPixels get_placeholder_canvas_pixels(Compositing::CanvasId, Gfx::IntRect);
+    bool rasterize_display_list(Compositing::DisplayList const&, Compositing::AccumulatedVisualContextTree const&, Compositing::DisplayListResourceTransaction, NonnullRefPtr<Gfx::Bitmap> target);
     void invalidate_wheel_event_listener_state(Web::CompositorContextId, u64 generation);
     void invalidate_keyboard_scroll_state(Web::CompositorContextId, u64 generation);
     Compositing::AsyncScrollEnqueueResult async_scroll_by(Web::CompositorContextId, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, u32 modifiers, Compositing::AsyncScrollOperationTracking);
