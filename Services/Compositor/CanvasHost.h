@@ -64,10 +64,10 @@ public:
 
     void present_webgl_canvas(Compositing::CanvasId, bool preserve_drawing_buffer);
     void clear_webgl_drawing_buffer(Compositing::CanvasId);
-    Gfx::ShareableBitmap read_back_pixels(Compositing::CanvasId, Gfx::IntRect);
+    Gfx::ShareableBitmap read_back_pixels(Compositing::CanvasId, Gfx::IntRect, Gfx::AlphaType);
     RefPtr<Gfx::PaintingSurface> presented_surface(Compositing::CanvasId);
 
-    static Gfx::ShareableBitmap read_back_surface(Gfx::PaintingSurface&, Gfx::IntRect);
+    static Gfx::ShareableBitmap read_back_surface(Gfx::PaintingSurface&, Gfx::IntRect, Gfx::AlphaType = Gfx::AlphaType::Premultiplied);
 
 private:
     struct Canvas2DContext {

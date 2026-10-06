@@ -27,7 +27,8 @@ public:
     virtual Compositing::Canvas2DCommandStream& shared_stream() = 0;
     virtual void flush_shared_stream() = 0;
 
-    virtual RefPtr<Gfx::Bitmap> read_back_pixels(Gfx::IntRect const&) = 0;
+    // Unpremultiplied pixels come back as RGBA8888 and premultiplied pixels as BGRA8888.
+    virtual RefPtr<Gfx::Bitmap> read_back_pixels(Gfx::IntRect const&, Gfx::AlphaType) = 0;
 };
 
 }

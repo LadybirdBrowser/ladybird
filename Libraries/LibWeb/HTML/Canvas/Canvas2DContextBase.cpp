@@ -18,8 +18,6 @@
 #include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/Painter.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Rect.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -332,18 +330,18 @@ bool Canvas2DContextBase::ensure_remote_canvas_context()
     return true;
 }
 
-RefPtr<Gfx::Bitmap> Canvas2DContextBase::read_pixels(Gfx::IntRect const& rect)
+RefPtr<Gfx::Bitmap> Canvas2DContextBase::read_pixels(Gfx::IntRect const& rect, Gfx::AlphaType alpha_type)
 {
     if (!has_backing_storage())
         return nullptr;
 
     // OPTIMIZATION: A remote readback requires a synchronous compositor IPC.
     // Reuse the snapshot while no drawing command has changed its pixels.
-    if (m_cached_readback && m_cached_readback_rect == rect)
+    if (m_cached_readback && m_cached_readback_rect == rect && m_cached_readback->alpha_type() == alpha_type)
         return m_cached_readback;
 
     m_transport->flush_shared_stream();
-    auto pixels = m_transport->read_back_pixels(rect);
+    auto pixels = m_transport->read_back_pixels(rect, alpha_type);
     if (pixels) {
         m_cached_readback = pixels;
         m_cached_readback_rect = rect;
@@ -805,23 +803,25 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> Canvas2DContextBase::get_image_data(int 
 
     // NOTE: If reading back from the Compositor fails (no backing storage or no connection),
     //       it's like copying only transparent black pixels (which is a no-op).
-    auto pixels = read_pixels(source_rect_intersected);
-    if (!pixels)
-        return image_data;
-    auto const snapshot = Gfx::DecodedImageFrame { *pixels };
-
-    // 6. Set the pixel values of imageData to be the pixels of this's output bitmap in the area specified by the source rectangle in the bitmap's coordinate space units, converted from this's color space to imageData's colorSpace using 'relative-colorimetric' rendering intent.
     // NOTE: Internally we must use premultiplied alpha, but ImageData should hold unpremultiplied alpha. This conversion
     //       might result in a loss of precision, but is according to spec.
     //       See: https://html.spec.whatwg.org/multipage/canvas.html#premultiplied-alpha-and-the-2d-rendering-context
-    auto image_data_bitmap = TRY_OR_THROW_OOM(realm().vm(), image_data->bitmap());
-    VERIFY(snapshot.bitmap().alpha_type() == Gfx::AlphaType::Premultiplied);
-    VERIFY(image_data_bitmap->alpha_type() == Gfx::AlphaType::Unpremultiplied);
+    auto pixels = read_pixels(source_rect_intersected, Gfx::AlphaType::Unpremultiplied);
+    if (!pixels)
+        return image_data;
 
-    // The snapshot only covers the part of the source rectangle that is inside the output bitmap.
-    auto destination_rect = Gfx::IntRect { source_rect_intersected.location() - source_rect.location(), snapshot.size() };
-    auto painter = Gfx::Painter::create(*image_data_bitmap);
-    painter->draw_bitmap(destination_rect.to_type<float>(), snapshot, snapshot.rect(), Gfx::ScalingMode::NearestNeighbor, {}, 1, Gfx::CompositingAndBlendingOperator::SourceOver);
+    // 6. Set the pixel values of imageData to be the pixels of this's output bitmap in the area specified by the source rectangle in the bitmap's coordinate space units, converted from this's color space to imageData's colorSpace using 'relative-colorimetric' rendering intent.
+    auto image_data_bitmap = TRY_OR_THROW_OOM(realm().vm(), image_data->bitmap());
+    if (pixels->format() != image_data_bitmap->format() || pixels->alpha_type() != image_data_bitmap->alpha_type() || pixels->size() != source_rect_intersected.size())
+        return image_data;
+
+    // The readback only covers the part of the source rectangle that is inside the output bitmap.
+    auto destination_location = source_rect_intersected.location() - source_rect.location();
+    auto row_size = static_cast<size_t>(pixels->width()) * sizeof(u32);
+    for (int y = 0; y < pixels->height(); ++y) {
+        auto* destination_row = image_data_bitmap->scanline_u8(destination_location.y() + y) + destination_location.x() * sizeof(u32);
+        memcpy(destination_row, pixels->scanline_u8(y), row_size);
+    }
 
     // 7. Set the pixels values of imageData for areas of the source rectangle that are outside of the output bitmap to transparent black.
     // NOTE: No-op, already done during creation.
