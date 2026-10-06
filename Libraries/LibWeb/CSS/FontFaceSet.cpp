@@ -322,7 +322,7 @@ static WebIDL::ExceptionOr<GC::Ref<GC::HeapVector<NonnullRefPtr<FontFaceState>>>
         auto font_family_name = string_from_style_value(font_family);
 
         for (auto font_face : font_face_set.font_faces()) {
-            if (font_face->family() != font_family_name)
+            if (font_face->family_name() != font_family_name)
                 continue;
 
             if (!matched_font_faces->elements().contains_slow(font_face))

@@ -46,50 +46,12 @@ public:
     GC::Ref<GC::HeapVector<NonnullRefPtr<FontFaceState>>> keep_alive_during_load();
     void load_for_style();
 
-    Utf16String family() const { return m_family.to_utf16_string(); }
     Utf16FlyString const& family_name() const { return m_family; }
-    WebIDL::ExceptionOr<void> set_family(Utf16View);
-    void set_family_impl(NonnullRefPtr<StyleValue const> const& value);
 
-    Utf16String const& style() const { return m_style; }
-    WebIDL::ExceptionOr<void> set_style(Utf16View);
-    void set_style_impl(NonnullRefPtr<StyleValue const> const& value);
-
-    Utf16String const& weight() const { return m_weight; }
-    WebIDL::ExceptionOr<void> set_weight(Utf16View);
-    void set_weight_impl(NonnullRefPtr<StyleValue const> const& value);
-
-    Utf16String const& stretch() const { return m_stretch; }
-    WebIDL::ExceptionOr<void> set_stretch(Utf16View);
-    void set_stretch_impl(NonnullRefPtr<StyleValue const> const& value);
-
-    Utf16String const& unicode_range() const { return m_unicode_range; }
-    WebIDL::ExceptionOr<void> set_unicode_range(Utf16View);
-    void set_unicode_range_impl(NonnullRefPtr<StyleValue const> const& value);
-
-    Utf16String const& feature_settings() const { return m_feature_settings; }
-    WebIDL::ExceptionOr<void> set_feature_settings(Utf16View);
-    void set_feature_settings_impl(NonnullRefPtr<StyleValue const> const& value);
-
-    Utf16String const& variation_settings() const { return m_variation_settings; }
-    WebIDL::ExceptionOr<void> set_variation_settings(Utf16View);
-    void set_variation_settings_impl(NonnullRefPtr<StyleValue const> const& value);
-
-    Utf16String const& display() const { return m_display; }
-    WebIDL::ExceptionOr<void> set_display(Utf16View);
-    void set_display_impl(NonnullRefPtr<StyleValue const> const& value);
-
-    Utf16String const& ascent_override() const { return m_ascent_override; }
-    WebIDL::ExceptionOr<void> set_ascent_override(Utf16View);
-    void set_ascent_override_impl(NonnullRefPtr<StyleValue const> const& value);
-
-    Utf16String const& descent_override() const { return m_descent_override; }
-    WebIDL::ExceptionOr<void> set_descent_override(Utf16View);
-    void set_descent_override_impl(NonnullRefPtr<StyleValue const> const& value);
-
-    Utf16String const& line_gap_override() const { return m_line_gap_override; }
-    WebIDL::ExceptionOr<void> set_line_gap_override(Utf16View);
-    void set_line_gap_override_impl(NonnullRefPtr<StyleValue const> const& value);
+    // The serialization of the @font-face descriptor a FontFace attribute reflects.
+    Utf16String const& descriptor_text(DescriptorID) const;
+    WebIDL::ExceptionOr<void> set_descriptor(DescriptorID, Utf16View);
+    static constexpr size_t attribute_count = 11;
 
     bool is_css_connected() const { return m_css_font_face_rule_identity.has_value(); }
     Optional<u64> css_rule_identity() const
@@ -167,22 +129,13 @@ private:
     RustDescriptorBlock connected_descriptors() const;
 
     [[nodiscard]] Optional<ComputationContext> computation_context() const;
+    void apply_descriptor(DescriptorID, StyleValue const&);
 
-    // FIXME: Should we be storing StyleValues instead?
     u64 m_id { 0 };
 
     Utf16FlyString m_family;
-    Utf16String m_style;
-    Utf16String m_weight;
-    Utf16String m_stretch;
-    Utf16String m_unicode_range;
+    Array<Utf16String, attribute_count> m_descriptor_texts;
     Vector<Gfx::UnicodeRange> m_unicode_ranges;
-    Utf16String m_feature_settings;
-    Utf16String m_variation_settings;
-    Utf16String m_display;
-    Utf16String m_ascent_override;
-    Utf16String m_descent_override;
-    Utf16String m_line_gap_override;
 
     FontWeightRange m_cached_weight_range { 400, 400 };
     int m_cached_slope { 0 };
