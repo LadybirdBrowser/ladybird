@@ -6,7 +6,6 @@
 
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/GeneratedContent.h>
-#include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 
@@ -14,12 +13,7 @@ namespace Web::CSS {
 
 static bool style_affects_generated_content_state(ComputedValues const& style)
 {
-    if (!style.counter_increment().is_empty() || !style.counter_reset().is_empty() || !style.counter_set().is_empty())
-        return true;
-    auto content = style.computed_content();
-    return content->is_content() && any_of(content->as_content().content().values(), [](auto const& item) {
-        return item->is_keyword() && first_is_one_of(item->to_keyword(), Keyword::OpenQuote, Keyword::CloseQuote, Keyword::NoOpenQuote, Keyword::NoCloseQuote);
-    });
+    return style.generated_content_facts() & (ComputedValuesFFI::GENERATED_CONTENT_DEFINES_COUNTERS | ComputedValuesFFI::GENERATED_CONTENT_HAS_QUOTES);
 }
 
 bool subtree_affects_generated_content_state(DOM::Node const& node)

@@ -256,14 +256,6 @@ struct ShadowData {
     bool operator==(ShadowData const&) const = default;
 };
 
-struct CounterData {
-    Utf16FlyString name;
-    bool is_reversed;
-    Optional<CounterValue> value;
-
-    bool operator==(CounterData const&) const = default;
-};
-
 // FIXME: Find a better place for this helper.
 inline Gfx::ScalingMode to_gfx_scaling_mode(ImageRendering css_value, Gfx::IntSize source, Gfx::IntSize target)
 {
@@ -505,10 +497,9 @@ public:
     ReadonlySpan<ComputedValuesFFI::ComputedCursor> cursor() const { return m_inherited.ui->cursor_span(); }
     NonnullRefPtr<StyleValue const> computed_content() const { return m_noninherited.content_data->computed_content_value(); }
     bool content_is_normal() const { return m_noninherited.content_data->content_is_normal(); }
-    bool content_uses_list_item_counter() const { return m_noninherited.content_data->content_uses_list_item_counter(); }
-    Vector<CounterData, 0> counter_increment() const { return m_noninherited.content_data->counter_increment_value(); }
-    Vector<CounterData, 0> counter_reset() const { return m_noninherited.content_data->counter_reset_value(); }
-    Vector<CounterData, 0> counter_set() const { return m_noninherited.content_data->counter_set_value(); }
+    // The ComputedValuesFFI::GENERATED_CONTENT_* facts of the content and counter properties.
+    u8 generated_content_facts() const { return ComputedValuesFFI::rust_content_group_generated_content_facts(&*m_noninherited.content_data); }
+    bool content_uses_list_item_counter() const { return generated_content_facts() & ComputedValuesFFI::GENERATED_CONTENT_SHOWS_LIST_ITEM_COUNTER; }
     Display display() const { return display_from_ffi_display(m_noninherited.box->display); }
     Display display_before_box_type_transformation() const { return display_from_ffi_display(m_noninherited.box->display_before_box_type_transformation); }
     Optional<int> z_index() const
@@ -958,10 +949,6 @@ public:
 
         NonnullRefPtr<StyleValue const> computed_content_value() const;
         bool content_is_normal() const;
-        bool content_uses_list_item_counter() const;
-        Vector<CounterData, 0> counter_increment_value() const;
-        Vector<CounterData, 0> counter_reset_value() const;
-        Vector<CounterData, 0> counter_set_value() const;
 
         bool operator==(ContentValues const& other) const
         {

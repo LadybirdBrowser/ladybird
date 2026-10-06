@@ -5718,16 +5718,8 @@ void Element::schedule_list_item_renumber_for_list_owner()
 bool Element::after_pseudo_element_style_depends_on_list_item_counter() const
 {
     auto style_depends_on_list_item_counter = [](CSS::ComputedValues const& style) {
-        auto definitions_contain_list_item_counter = [](auto const& definitions) {
-            return any_of(definitions, [](auto const& definition) {
-                return definition.name == CSS::list_item_counter_name();
-            });
-        };
         return style.display().is_list_item()
-            || style.content_uses_list_item_counter()
-            || definitions_contain_list_item_counter(style.counter_increment())
-            || definitions_contain_list_item_counter(style.counter_reset())
-            || definitions_contain_list_item_counter(style.counter_set());
+            || (style.generated_content_facts() & (CSS::ComputedValuesFFI::GENERATED_CONTENT_SHOWS_LIST_ITEM_COUNTER | CSS::ComputedValuesFFI::GENERATED_CONTENT_DEFINES_LIST_ITEM_COUNTER));
     };
 
     auto style = computed_style(CSS::PseudoElement::After);
