@@ -18,7 +18,7 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSTransition);
 
-GC::Ref<CSSTransition> CSSTransition::start_a_transition(
+GC::Ref<CSSTransition> CSSTransition::start_a_provisional_transition(
     DOM::AbstractElement abstract_element,
     PropertyID property_id,
     size_t transition_generation,
@@ -29,11 +29,10 @@ GC::Ref<CSSTransition> CSSTransition::start_a_transition(
     NonnullRefPtr<StyleValue const> end_value,
     NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
     double reversing_shortening_factor,
-    EasingFunction timing_function,
-    Publication publication)
+    EasingFunction timing_function)
 {
     auto& environment = abstract_element.document().relevant_settings_object();
-    return GC::Heap::the().allocate<CSSTransition>(environment, abstract_element, property_id, transition_generation, delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor, move(timing_function), publication);
+    return GC::Heap::the().allocate<CSSTransition>(environment, abstract_element, property_id, transition_generation, delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor, move(timing_function));
 }
 
 Utf16FlyString const& CSSTransition::transition_property() const
@@ -100,8 +99,7 @@ CSSTransition::CSSTransition(
     NonnullRefPtr<StyleValue const> end_value,
     NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
     double reversing_shortening_factor,
-    EasingFunction timing_function,
-    Publication publication)
+    EasingFunction timing_function)
     : Animations::Animation(environment)
     , m_transition_property(property_id)
     , m_transition_generation(transition_generation)
@@ -112,7 +110,6 @@ CSSTransition::CSSTransition(
     , m_reversing_adjusted_start_value(move(reversing_adjusted_start_value))
     , m_reversing_shortening_factor(reversing_shortening_factor)
     , m_keyframe_effect(Animations::KeyframeEffect::create())
-    , m_is_provisional(publication == Publication::Provisional)
 {
     // FIXME:
     // Transitions generated using the markup defined in this specification are not added to the global animation list
@@ -149,12 +146,7 @@ CSSTransition::CSSTransition(
     m_keyframe_effect->set_key_frame_set(key_frame_set);
     set_timeline(abstract_element.document().timeline());
     set_owning_element(abstract_element);
-    if (m_is_provisional) {
-        set_provisional_effect(m_keyframe_effect);
-    } else {
-        set_effect(m_keyframe_effect, Animations::Animation::ShouldInvalidate::No);
-        abstract_element.element().set_transition(abstract_element.pseudo_element(), m_transition_property, *this);
-    }
+    set_provisional_effect(m_keyframe_effect);
 
     HTML::TemporaryExecutionContext context(environment);
     play(Animations::Animation::ShouldInvalidate::No).release_value_but_fixme_should_propagate_errors();

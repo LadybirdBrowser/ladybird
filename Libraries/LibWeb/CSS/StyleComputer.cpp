@@ -1227,10 +1227,10 @@ void StyleComputer::start_needed_transitions(Layout::BegunRead const& read, Comp
             }
             if (!action.start_value)
                 continue;
-            auto transition = CSSTransition::start_a_transition(abstract_element, property_id, document().transition_generation(),
+            auto transition = CSSTransition::start_a_provisional_transition(abstract_element, property_id, document().transition_generation(),
                 action.delay, style_change_event_time, style_change_event_time + action.active_duration,
                 adopt(action.start_value), adopt(action.end_value), adopt(action.reversing_adjusted_start_value),
-                action.reversing_shortening_factor, EasingFunction::from_style_value(adopt(action.timing_function)), CSSTransition::Publication::Provisional);
+                action.reversing_shortening_factor, EasingFunction::from_style_value(adopt(action.timing_function)));
             state.proposed_transition = transition;
             newly_started_transition_effects.append(as<Animations::KeyframeEffect>(*transition->effect()));
         }
