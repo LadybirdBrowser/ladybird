@@ -209,14 +209,6 @@ pub fn property_computation_order() -> &'static [u16] {
 
 /// FFI accessors for the parity test on the C++ side.
 ///
-/// # Safety
-/// `out_length` must be a valid pointer.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_property_metadata_computation_order(out_length: *mut usize) -> *const u16 {
-    unsafe { *out_length = PROPERTY_COMPUTATION_ORDER.len() };
-    PROPERTY_COMPUTATION_ORDER.as_ptr()
-}
-
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_property_metadata_is_inherited(property_id: u16) -> bool {
     property_is_inherited(property_id)

@@ -1159,7 +1159,7 @@ set(GENERATED_SOURCES
     CSS/PseudoClass.h
     CSS/PseudoElement.cpp
     CSS/QuirksModeStyleSheetSource.cpp
-    CSS/TransformFunctions.cpp
+    CSS/TransformFunctions.h
     CSS/Units.cpp
     MathML/MathMLStyleSheetSource.cpp
     SVG/SVGStyleSheetSource.cpp

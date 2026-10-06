@@ -867,10 +867,11 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
     // UnknownWebKit follows the known pseudo-elements and accepts all properties.
     pseudo_property_whitelist_rows.push("    None,".to_string());
 
-    // NB: Must match manually_specified_computation_order in
-    //     Meta/Generators/generate_libweb_css_property_id.py; the parity test enforces it.
+    // The longhands other longhands' computation reads, which are computed first.
     let manual_order = [
+        // math-depth is required to compute font-size.
         "math-depth",
+        // Font properties are required to absolutize font-relative units used in other properties, including line-height.
         "font-family",
         "font-feature-settings",
         "font-kerning",
@@ -888,9 +889,13 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         "font-weight",
         "font-width",
         "text-rendering",
+        // line-height is required to absolutize `lh` units used in other properties.
         "line-height",
+        // color-scheme is required to compute light-dark() colors.
         "color-scheme",
+        // background-image is required to compute the other background-* properties.
         "background-image",
+        // direction and writing-mode are required to map logical properties to their physical counterparts.
         "direction",
         "writing-mode",
     ];
@@ -1468,8 +1473,8 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         .collect();
     let expanded_longhand_counts: Vec<usize> = expanded_shorthand_longhands.iter().map(Vec::len).collect();
 
-    // Accepted property keywords and legacy aliases mirror property_accepts_keyword()
-    // and resolve_legacy_value_alias() in generate_libweb_css_property_id.py.
+    // Accepted property keywords mirror property_accepts_keyword() in
+    // generate_libweb_css_property_id.py.
     let mut accepted_keyword_rows = Vec::new();
     let mut accepted_value_type_rows = Vec::new();
     let mut custom_ident_blacklist_rows = Vec::new();
@@ -1940,8 +1945,7 @@ fn generate_transform_functions(manifest_dir: &Path, out_dir: &Path) -> Result<(
     }
     output.push_str("}\n\n");
 
-    // Parameter types per function, mirroring the C++
-    // TransformFunctionParameterType codes: angle 0, length 1, length-none 2,
+    // Parameter types per function, as codes: angle 0, length 1, length-none 2,
     // length-percentage 3, number 4, number-percentage 5.
     let parameter_type_code = |name: &str| -> Result<u8, Box<dyn Error>> {
         Ok(match name {

@@ -317,7 +317,6 @@ bool property_is_list_valued(PropertyID);
 bool property_accepts_type(PropertyID, ValueType);
 WEB_API NumericRangesByValueType property_accepted_ranges_by_value_type(PropertyID);
 bool property_accepts_keyword(PropertyID, Keyword);
-Optional<Keyword> resolve_legacy_value_alias(PropertyID, Keyword);
 Optional<ValueType> property_resolves_percentages_relative_to(PropertyID);
 
 // These perform range-checking, but are also safe to call with properties that don't accept that type. (They'll just return false.)
@@ -337,11 +336,7 @@ WEB_API Vector<PropertyID> const& longhands_for_shorthand(PropertyID);
 Vector<PropertyID> const& expanded_longhands_for_shorthand(PropertyID);
 bool property_maps_to_shorthand(PropertyID);
 Vector<PropertyID> const& shorthands_for_longhand(PropertyID);
-WEB_API Vector<PropertyID> const& property_computation_order();
 bool property_is_positional_value_list_shorthand(PropertyID);
-
-
-size_t property_maximum_value_count(PropertyID);
 
 bool property_needs_layout_for_getcomputedstyle(PropertyID);
 bool property_needs_layout_node_for_resolved_value(PropertyID);
@@ -361,7 +356,6 @@ struct LogicalAliasMappingContext {{
 }};
 WEB_API bool property_is_logical_alias(PropertyID);
 WEB_API PropertyID map_logical_alias_to_physical_property(PropertyID logical_property_id, LogicalAliasMappingContext const&);
-WEB_API PropertyID map_physical_property_to_logical_alias(PropertyID physical_property_id, LogicalAliasMappingContext const&);
 
 enum class LogicalPropertyGroup : {logical_property_group_underlying_type} {{
 """)
@@ -776,45 +770,6 @@ bool property_accepts_keyword(PropertyID property_id, Keyword keyword)
     }
 }
 
-Optional<Keyword> resolve_legacy_value_alias(PropertyID property_id, Keyword keyword)
-{
-    switch (property_id) {
-""")
-
-    for name, value in properties.items():
-        if is_legacy_alias(value):
-            continue
-        valid_identifiers = value.get("valid-identifiers")
-        if not valid_identifiers:
-            continue
-        has_any_legacy_value_aliases = any(">" in k for k in valid_identifiers)
-        if not has_any_legacy_value_aliases:
-            continue
-
-        out.write(f"""
-    case PropertyID::{title_casify(name)}:
-        switch (keyword) {{""")
-        for keyword_string in valid_identifiers:
-            if ">" not in keyword_string:
-                continue
-            parts = keyword_string.split(">", 1)
-            out.write(f"""
-        case Keyword::{title_casify(parts[0])}:
-            return Keyword::{title_casify(parts[1])};""")
-        out.write("""
-        default:
-            break;
-        }
-        break;
-""")
-
-    out.write("""
-    default:
-        break;
-    }
-    return {};
-}
-
 Optional<ValueType> property_resolves_percentages_relative_to(PropertyID property_id)
 {
     switch (property_id) {
@@ -836,27 +791,7 @@ Optional<ValueType> property_resolves_percentages_relative_to(PropertyID propert
         return {};
     }
 }
-
-size_t property_maximum_value_count(PropertyID property_id)
-{
-    switch (property_id) {
 """)
-
-    for name, value in properties.items():
-        if is_legacy_alias(value):
-            continue
-        if "max-values" in value:
-            max_values = value["max-values"]
-            out.write(f"""
-    case PropertyID::{title_casify(name)}:
-        return {max_values};
-""")
-
-    out.write("""
-    default:
-        return 1;
-    }
-}""")
 
     generate_bounds_checking_function(out, properties, "angle", "Angle", "value.raw_value()")
     generate_bounds_checking_function(out, properties, "flex", "Flex", "value.raw_value()")
@@ -1045,59 +980,7 @@ Vector<PropertyID> const& shorthands_for_longhand(PropertyID property_id)
 }
 """)
 
-    manually_specified_computation_order = [
-        # math-depth is required to compute font-size
-        "MathDepth",
-        # Font properties are required to absolutize font-relative units used in other properties, including line-height.
-        "FontFamily",
-        "FontFeatureSettings",
-        "FontKerning",
-        "FontOpticalSizing",
-        "FontSize",
-        "FontStyle",
-        "FontVariantAlternates",
-        "FontVariantCaps",
-        "FontVariantEastAsian",
-        "FontVariantEmoji",
-        "FontVariantLigatures",
-        "FontVariantNumeric",
-        "FontVariantPosition",
-        "FontVariationSettings",
-        "FontWeight",
-        "FontWidth",
-        "TextRendering",
-        # line-height is required to absolutize `lh` units used in other properties.
-        "LineHeight",
-        # color-scheme is included in the generic computation context in order to compute light-dark() color functions
-        "ColorScheme",
-        # background-image is required to compute the other background-* properties
-        "BackgroundImage",
-        # text direction and writing mode properties are required to map logical properties to their physical counterparts
-        "Direction",
-        "WritingMode",
-    ]
-
     out.write("""
-Vector<PropertyID> const& property_computation_order() {
-    static auto const& order = *new Vector<PropertyID> {
-""")
-    out.writelines(f"        PropertyID::{property_name},\n" for property_name in manually_specified_computation_order)
-
-    for name, value in properties.items():
-        if is_legacy_alias(value):
-            continue
-        if "longhands" in value:
-            continue
-        if title_casify(name) in manually_specified_computation_order:
-            continue
-        out.write(f"        PropertyID::{title_casify(name)},\n")
-
-    out.write("""
-    };
-
-    return order;
-}
-
 bool property_is_positional_value_list_shorthand(PropertyID property_id)
 {
     switch (property_id)
@@ -1355,33 +1238,6 @@ PropertyID map_logical_alias_to_physical_property(PropertyID property_id, Logica
     default:
         VERIFY(!property_is_logical_alias(property_id));
         return property_id;
-    }
-}
-
-PropertyID map_physical_property_to_logical_alias(PropertyID property_id, LogicalAliasMappingContext const& mapping_context)
-{
-    switch (property_id) {
-""")
-
-    for group in logical_property_groups.values():
-        physical_properties = group["physical"]
-        logical_properties = group["logical"]
-
-        for physical_property_name in physical_properties.values():
-            out.write(f"        case PropertyID::{title_casify(physical_property_name)}:\n")
-            out.writelines(
-                f"""
-            if (map_logical_alias_to_physical_property(PropertyID::{title_casify(logical_property_name)}, mapping_context) == property_id)
-                return PropertyID::{title_casify(logical_property_name)};
-"""
-                for logical_property_name in logical_properties.values()
-            )
-            out.write("            VERIFY_NOT_REACHED();\n")
-
-    out.write("""
-        default:
-            VERIFY(!logical_property_group_for_property(property_id).has_value() || property_is_logical_alias(property_id));
-            return property_id;
     }
 }
 
