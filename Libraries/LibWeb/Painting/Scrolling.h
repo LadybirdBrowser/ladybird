@@ -42,14 +42,6 @@ CSSPixelPoint maximum_scroll_offset(Layout::Node const&);
 CSSPixelPoint clamp_scroll_offset(Layout::Node const&, CSSPixelPoint);
 CSSPixelRect scroll_snapport_rect(Layout::Node const&);
 CSSPixelRect scroll_snapport_rect(Layout::Node const&, CSSPixelRect scrollport);
-// The overflow the viewport applies to a wheel, in both axes. Both axes come from the same
-// element - the root's, or the body's where the root defers to it - so they are resolved together.
-struct ViewportWheelOverflow {
-    CSS::Overflow x { CSS::Overflow::Auto };
-    CSS::Overflow y { CSS::Overflow::Auto };
-};
-
-ViewportWheelOverflow overflow_values_applied_to_viewport_for_wheel_scrolling(DOM::Document const&);
 struct WheelScrollableAxes {
     bool horizontal { false };
     bool vertical { false };

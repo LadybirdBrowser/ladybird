@@ -27,19 +27,13 @@ pub(crate) struct ResolvedStickyInsets {
 fn nearest_wheel_scrollable_ancestor_along_containing_blocks(
     layout_arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
-    tree_inputs: &FfiVisualContextTreeInputs,
 ) -> Option<NodeSlotId> {
     let mut block = layout_arena.paintable_data(slot).containing_block;
     while !block.is_invalid() {
         if !layout_arena.paintable_row_is_populated(block) {
             return None;
         }
-        let axes = chrome_geometry::wheel_scrollable_axes(
-            layout_arena,
-            block,
-            tree_inputs.viewport_wheel_overflow_x,
-            tree_inputs.viewport_wheel_overflow_y,
-        );
+        let axes = chrome_geometry::wheel_scrollable_axes(layout_arena, block);
         if axes.horizontal || axes.vertical {
             return Some(block);
         }
@@ -55,12 +49,11 @@ fn nearest_wheel_scrollable_ancestor_along_containing_blocks(
 pub(crate) fn resolve_sticky_insets_in_css_pixels(
     layout_arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
-    tree_inputs: &FfiVisualContextTreeInputs,
 ) -> ResolvedStickyInsets {
     let Some(style) = layout_arena.node_style_if_live(slot) else {
         return ResolvedStickyInsets::default();
     };
-    let scrollport_size = nearest_wheel_scrollable_ancestor_along_containing_blocks(layout_arena, slot, tree_inputs)
+    let scrollport_size = nearest_wheel_scrollable_ancestor_along_containing_blocks(layout_arena, slot)
         .map_or(CssPixelSize::default(), |scroller| {
             paintable_geometry::absolute_rect(layout_arena, scroller).size()
         });
@@ -133,7 +126,7 @@ pub(crate) fn compute_sticky_data(
         height: size.height.to_float() * scale,
     };
     let device_inset = |inset: Option<CssPixels>| inset.map(|inset| inset.to_float() * scale);
-    let insets = resolve_sticky_insets_in_css_pixels(layout_arena, paintable, tree_inputs);
+    let insets = resolve_sticky_insets_in_css_pixels(layout_arena, paintable);
     let region_location = device_point(containing_block_region.location());
     let region_size = device_size(containing_block_region.size());
 

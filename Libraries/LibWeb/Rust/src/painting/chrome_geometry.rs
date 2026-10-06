@@ -133,27 +133,17 @@ pub(crate) fn has_resizer(arena: &impl PaintRead, slot: NodeSlotId) -> bool {
     axes.horizontal || axes.vertical
 }
 
-pub(crate) fn wheel_scrollable_axes(
-    arena: &impl PaintRead,
-    slot: NodeSlotId,
-    viewport_wheel_overflow_x: u8,
-    viewport_wheel_overflow_y: u8,
-) -> PhysicalAxes {
+// NB: The viewport's own overflow is the one the layout pass propagated to it, as applied to the viewport.
+pub(crate) fn wheel_scrollable_axes(arena: &impl PaintRead, slot: NodeSlotId) -> PhysicalAxes {
     let Some(style) = arena.node_style_if_live(slot) else {
         return PhysicalAxes::default();
     };
     let box_values = style.box_values();
-    let is_viewport = arena.node_kind_if_live(slot) == Some(NodeKind::Viewport);
-    let (overflow_x, overflow_y) = if is_viewport {
-        (viewport_wheel_overflow_x, viewport_wheel_overflow_y)
-    } else {
-        (box_values.overflow_x, box_values.overflow_y)
-    };
     let allows_wheel_scrolling =
         |overflow| overflow == css_enums::overflow::AUTO || overflow == css_enums::overflow::SCROLL;
     let mut axes = PhysicalAxes {
-        horizontal: allows_wheel_scrolling(overflow_x),
-        vertical: allows_wheel_scrolling(overflow_y),
+        horizontal: allows_wheel_scrolling(box_values.overflow_x),
+        vertical: allows_wheel_scrolling(box_values.overflow_y),
     };
     if !axes.horizontal && !axes.vertical {
         return axes;
@@ -202,8 +192,6 @@ pub(crate) fn scrollbar_is_enlarged(arena: &impl PaintRead, slot: NodeSlotId, di
 pub(crate) struct ChromeGeometry<'a, Arena: PaintRead> {
     pub(crate) arena: &'a Arena,
     pub(crate) metrics: FfiChromeMetrics,
-    pub(crate) viewport_wheel_overflow_x: u8,
-    pub(crate) viewport_wheel_overflow_y: u8,
 }
 
 impl<'a, Arena: PaintRead> ChromeGeometry<'a, Arena> {
@@ -211,8 +199,6 @@ impl<'a, Arena: PaintRead> ChromeGeometry<'a, Arena> {
         Self {
             arena,
             metrics: inputs.uncaptured.chrome_metrics,
-            viewport_wheel_overflow_x: inputs.uncaptured.viewport_wheel_overflow_x,
-            viewport_wheel_overflow_y: inputs.uncaptured.viewport_wheel_overflow_y,
         }
     }
 
@@ -220,18 +206,11 @@ impl<'a, Arena: PaintRead> ChromeGeometry<'a, Arena> {
         Self {
             arena,
             metrics: callbacks.chrome_metrics,
-            viewport_wheel_overflow_x: callbacks.viewport_wheel_overflow_x,
-            viewport_wheel_overflow_y: callbacks.viewport_wheel_overflow_y,
         }
     }
 
     fn wheel_scrollable_axes(&self, slot: NodeSlotId) -> PhysicalAxes {
-        wheel_scrollable_axes(
-            self.arena,
-            slot,
-            self.viewport_wheel_overflow_x,
-            self.viewport_wheel_overflow_y,
-        )
+        wheel_scrollable_axes(self.arena, slot)
     }
 
     pub(crate) fn absolute_resizer_rect(&self, slot: NodeSlotId) -> Option<CssPixelRect> {

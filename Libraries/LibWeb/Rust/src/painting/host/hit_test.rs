@@ -18,8 +18,6 @@ pub struct FfiHitTestQueryCallbacks {
     pub scroll_offsets_len: usize,
     pub has_chrome_metrics: bool,
     pub chrome_metrics: crate::painting::ffi::FfiChromeMetrics,
-    pub viewport_wheel_overflow_x: u8,
-    pub viewport_wheel_overflow_y: u8,
     /// Private: reached only through the method below, which takes the main thread token.
     node_in_scope: unsafe extern "C" fn(*mut c_void, FfiNodeIdentity) -> bool,
 }

@@ -47,23 +47,14 @@ pub(crate) struct HitTestFacts {
     pub(crate) svg_path_winding_rule: WindingRule,
 }
 
-pub(crate) fn hit_test_facts(
-    arena: &impl PaintRead,
-    paintable: NodeSlotId,
-    inputs: &crate::painting::record::RecordingInputs,
-) -> HitTestFacts {
+pub(crate) fn hit_test_facts(arena: &impl PaintRead, paintable: NodeSlotId) -> HitTestFacts {
     let Some(row) = arena.node(paintable) else {
         return HitTestFacts::default();
     };
     let Some(style) = row.style() else {
         return HitTestFacts::default();
     };
-    let wheel_axes = crate::painting::chrome_geometry::wheel_scrollable_axes(
-        arena,
-        paintable,
-        inputs.uncaptured.viewport_wheel_overflow_x,
-        inputs.uncaptured.viewport_wheel_overflow_y,
-    );
+    let wheel_axes = crate::painting::chrome_geometry::wheel_scrollable_axes(arena, paintable);
     let svg_path = node_painting::is_svg_path(row.kind());
     let svg = style.inherited_svg();
     HitTestFacts {

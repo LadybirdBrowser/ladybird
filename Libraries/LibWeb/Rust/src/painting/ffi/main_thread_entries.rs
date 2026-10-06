@@ -57,8 +57,6 @@ pub unsafe extern "C" fn layout_row_paintable_compute_scrollbar_data(
     slot: NodeSlotId,
     direction: ScrollDirection,
     metrics: FfiChromeMetrics,
-    viewport_overflow_x: u8,
-    viewport_overflow_y: u8,
     enlarged: bool,
     has_device_scroll_offset: bool,
     device_scroll_offset: f32,
@@ -67,13 +65,7 @@ pub unsafe extern "C" fn layout_row_paintable_compute_scrollbar_data(
     // SAFETY: Guaranteed by the caller.
     let data = unsafe {
         read_measured_rows(host, super::node_read(), |rows| {
-            crate::painting::chrome_geometry::ChromeGeometry {
-                arena: rows,
-                metrics,
-                viewport_wheel_overflow_x: viewport_overflow_x,
-                viewport_wheel_overflow_y: viewport_overflow_y,
-            }
-            .compute_scrollbar_data(
+            crate::painting::chrome_geometry::ChromeGeometry { arena: rows, metrics }.compute_scrollbar_data(
                 slot,
                 direction,
                 enlarged,
@@ -139,18 +131,11 @@ pub unsafe extern "C" fn layout_row_paintable_maximum_scroll_offset(
 pub unsafe extern "C" fn layout_row_paintable_wheel_scrollable_axes(
     host: &crate::render_state::DocumentHost,
     slot: NodeSlotId,
-    viewport_overflow_x: u8,
-    viewport_overflow_y: u8,
 ) -> FfiPhysicalResizeAxes {
     // SAFETY: Guaranteed by the caller.
     let axes = unsafe {
         read_measured_rows(host, super::node_read(), |rows| {
-            crate::painting::chrome_geometry::wheel_scrollable_axes(
-                rows,
-                slot,
-                viewport_overflow_x,
-                viewport_overflow_y,
-            )
+            crate::painting::chrome_geometry::wheel_scrollable_axes(rows, slot)
         })
     };
     FfiPhysicalResizeAxes {
@@ -225,27 +210,20 @@ pub unsafe extern "C" fn render_state_scrolling_box_for_scroll_step(
     target: NodeSlotId,
     viewport: NodeSlotId,
     delta: FfiCssPixelPoint,
-    viewport_wheel_overflow_x: u8,
-    viewport_wheel_overflow_y: u8,
 ) -> NodeSlotId {
-    let overflow = ViewportWheelOverflow {
-        x: viewport_wheel_overflow_x,
-        y: viewport_wheel_overflow_y,
-    };
     // SAFETY: Guaranteed by the caller.
     unsafe {
         read_arena(
             host,
             super::node_read(),
-            (target, viewport, delta, overflow),
-            |arena, (target, viewport, delta, overflow)| {
+            (target, viewport, delta),
+            |arena, (target, viewport, delta)| {
                 arena.measure_scrollable_overflow();
                 crate::painting::scroll_chain::scrolling_box_for_scroll_step(
                     &arena.paintable_rows(),
                     target,
                     viewport,
                     delta.into(),
-                    overflow,
                 )
             },
         )
@@ -261,22 +239,16 @@ pub unsafe extern "C" fn render_state_for_each_wheel_scrollable_box_in_containin
     start: NodeSlotId,
     wheel_delta_x: f64,
     wheel_delta_y: f64,
-    viewport_wheel_overflow_x: u8,
-    viewport_wheel_overflow_y: u8,
     context: *mut c_void,
     push_scrollable_box: unsafe extern "C" fn(*mut c_void, NodeSlotId, f64, f64),
 ) {
-    let overflow = ViewportWheelOverflow {
-        x: viewport_wheel_overflow_x,
-        y: viewport_wheel_overflow_y,
-    };
     // SAFETY: Guaranteed by the caller.
     let boxes = unsafe {
         read_arena(
             host,
             super::node_read(),
-            (start, wheel_delta_x, wheel_delta_y, overflow),
-            |arena, (start, wheel_delta_x, wheel_delta_y, overflow)| {
+            (start, wheel_delta_x, wheel_delta_y),
+            |arena, (start, wheel_delta_x, wheel_delta_y)| {
                 arena.measure_scrollable_overflow();
                 let mut boxes = Vec::new();
                 crate::painting::scroll_chain::for_each_wheel_scrollable_box_in_containing_block_chain(
@@ -284,7 +256,6 @@ pub unsafe extern "C" fn render_state_for_each_wheel_scrollable_box_in_containin
                     start,
                     wheel_delta_x,
                     wheel_delta_y,
-                    overflow,
                     |node, accepted_delta_x, accepted_delta_y| boxes.push((node, accepted_delta_x, accepted_delta_y)),
                 );
                 boxes
@@ -304,21 +275,14 @@ pub unsafe extern "C" fn render_state_for_each_wheel_scrollable_box_in_containin
 pub unsafe extern "C" fn render_state_first_wheel_scrollable_box_in_containing_block_chain(
     host: &crate::render_state::DocumentHost,
     start: NodeSlotId,
-    viewport_wheel_overflow_x: u8,
-    viewport_wheel_overflow_y: u8,
 ) -> NodeSlotId {
-    let overflow = ViewportWheelOverflow {
-        x: viewport_wheel_overflow_x,
-        y: viewport_wheel_overflow_y,
-    };
     // SAFETY: Guaranteed by the caller.
     unsafe {
-        read_arena(host, node_read(), (start, overflow), |arena, (start, overflow)| {
+        read_arena(host, node_read(), start, |arena, start| {
             arena.measure_scrollable_overflow();
             crate::painting::scroll_chain::first_wheel_scrollable_box_in_containing_block_chain(
                 &arena.paintable_rows(),
                 start,
-                overflow,
             )
         })
     }

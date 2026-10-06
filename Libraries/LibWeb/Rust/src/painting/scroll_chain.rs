@@ -9,27 +9,8 @@ use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::chrome_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
 
-#[derive(Clone, Copy)]
-pub(crate) struct ViewportWheelOverflow {
-    pub x: u8,
-    pub y: u8,
-}
-
-fn wheel_scrollable_axes(
-    arena: &impl PaintableRowsRead,
-    node: NodeSlotId,
-    viewport_wheel_overflow: ViewportWheelOverflow,
-) -> chrome_geometry::PhysicalAxes {
-    chrome_geometry::wheel_scrollable_axes(arena, node, viewport_wheel_overflow.x, viewport_wheel_overflow.y)
-}
-
-fn accepted_wheel_delta(
-    arena: &impl PaintableRowsRead,
-    node: NodeSlotId,
-    viewport_wheel_overflow: ViewportWheelOverflow,
-    delta: CssPixelPoint,
-) -> CssPixelPoint {
-    let axes = wheel_scrollable_axes(arena, node, viewport_wheel_overflow);
+fn accepted_wheel_delta(arena: &impl PaintableRowsRead, node: NodeSlotId, delta: CssPixelPoint) -> CssPixelPoint {
+    let axes = chrome_geometry::wheel_scrollable_axes(arena, node);
     let zero = CssPixels::from_raw(0);
     CssPixelPoint::new(
         if axes.horizontal { delta.x } else { zero },
@@ -57,10 +38,9 @@ pub(crate) fn scrolling_box_for_scroll_step(
     target: NodeSlotId,
     viewport: NodeSlotId,
     delta: CssPixelPoint,
-    viewport_wheel_overflow: ViewportWheelOverflow,
 ) -> NodeSlotId {
     let scroll_step_moves = |node: NodeSlotId| {
-        let accepted_delta = accepted_wheel_delta(arena, node, viewport_wheel_overflow, delta);
+        let accepted_delta = accepted_wheel_delta(arena, node, delta);
         accepted_delta != CssPixelPoint::default() && scrolling_box_moved_by(arena, node, accepted_delta)
     };
 
@@ -86,13 +66,12 @@ pub(crate) fn for_each_wheel_scrollable_box_in_containing_block_chain(
     start: NodeSlotId,
     wheel_delta_x: f64,
     wheel_delta_y: f64,
-    viewport_wheel_overflow: ViewportWheelOverflow,
     mut push_scrollable_box: impl FnMut(NodeSlotId, f64, f64),
 ) {
     let mut node = start;
     while let Some(data) = arena.node_data_if_live(node) {
         if data.kind.get() != NodeKind::Viewport {
-            let axes = wheel_scrollable_axes(arena, node, viewport_wheel_overflow);
+            let axes = chrome_geometry::wheel_scrollable_axes(arena, node);
             let accepted_delta_x = if axes.horizontal { wheel_delta_x } else { 0.0 };
             let accepted_delta_y = if axes.vertical { wheel_delta_y } else { 0.0 };
             if accepted_delta_x != 0.0 || accepted_delta_y != 0.0 {
@@ -113,13 +92,12 @@ pub(crate) fn for_each_wheel_scrollable_box_in_containing_block_chain(
 pub(crate) fn first_wheel_scrollable_box_in_containing_block_chain(
     arena: &impl PaintableRowsRead,
     start: NodeSlotId,
-    viewport_wheel_overflow: ViewportWheelOverflow,
 ) -> NodeSlotId {
     let mut node = start;
     while let Some(data) = arena.node_data_if_live(node) {
         let backed_by_element_or_viewport = data.kind.get() == NodeKind::Viewport || arena.node_is_element_backed(node);
         if backed_by_element_or_viewport && arena.paintable_row_is_populated(node) {
-            let axes = wheel_scrollable_axes(arena, node, viewport_wheel_overflow);
+            let axes = chrome_geometry::wheel_scrollable_axes(arena, node);
             if axes.horizontal || axes.vertical {
                 return node;
             }
