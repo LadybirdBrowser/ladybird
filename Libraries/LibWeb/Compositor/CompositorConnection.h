@@ -93,12 +93,6 @@ public:
     Function<void()> on_compositor_lost;
 
 private:
-    // FIXME: Only the Paint thread should present frames.
-    friend class CompositorHost;
-
-    // Has the Paint thread present a frame the main thread built, after the frames handed to it before.
-    void submit_frame(CompositorFrame&&);
-
     struct PendingScreenshot {
         NonnullRefPtr<Gfx::PaintingSurface> target_surface;
         NonnullRefPtr<Gfx::Bitmap> target_bitmap;

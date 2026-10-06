@@ -41,16 +41,6 @@ void CompositorContextHandle::stop_presenting_to_client()
     m_host.stop_presenting_to_client(m_context_id);
 }
 
-void CompositorContextHandle::submit_frame(PresentationTurn turn, CompositorFrame&& frame)
-{
-    frame.context_id = m_context_id;
-    // Pending canvas commands (and present markers) must reach the Compositor
-    // before a display list that samples the presented canvas surfaces.
-    if (frame.display_list_update.has_value() || frame.present_viewport_rect.has_value())
-        m_host.flush_canvas_2d_stream();
-    m_host.submit_frame(turn, move(frame));
-}
-
 bool CompositorContextHandle::ready_for_frame()
 {
     m_host.flush_canvas_2d_stream();
@@ -365,12 +355,6 @@ void CompositorHost::stop_presenting_to_client(Web::CompositorContextId context_
 {
     if (auto* connection = compositor_connection())
         connection->stop_presenting_to_client(context_id);
-}
-
-void CompositorHost::submit_frame(PresentationTurn, CompositorFrame&& frame)
-{
-    if (auto* connection = compositor_connection())
-        connection->submit_frame(move(frame));
 }
 
 void CompositorHost::add_video_sink(Media::VideoSinkHandle video_sink_handle)

@@ -302,21 +302,15 @@ void Internals::send_mismatched_visual_context_tree_update_to_compositor()
         return;
     if (!document.has_committed_viewport_box() || !document.paint_state().has_visual_context_tree(read))
         return;
-    auto& document_paint_state = document.paint_state();
 
     // Force a fresh, incompatible rebuild — so the tree is minted with a new structural epoch that the Compositor's installed
     // display list was never recorded against.
     document.schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope::FreshTree);
     document.update_paint_and_hit_testing_properties_if_needed();
 
-    // Send a bare visual-context-tree update carrying that new structural epoch *without* re-recording the display list —
+    // Send a visual-context-tree update carrying that new structural epoch *without* re-recording the display list —
     // deliberately reproducing the peer inconsistency behind issue #10368.
-    Compositor::CompositorFrame frame;
-    frame.visual_context_tree_update = Compositor::CompositorFrame::VisualContextTreeUpdate {
-        .visual_context_tree = document_paint_state.visual_context_tree(document),
-        .resource_transaction = {},
-    };
-    HTML::main_thread_event_loop().presentation_queue().submit(*navigable, move(frame));
+    navigable->commit_mismatched_visual_context_tree_for_testing();
 }
 
 // https://web-platform-tests.org/writing-tests/reftests.html#components-of-a-reftest

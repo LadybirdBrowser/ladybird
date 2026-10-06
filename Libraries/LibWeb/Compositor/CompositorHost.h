@@ -36,13 +36,6 @@ class CompositorHost;
 class NavigablePresenter;
 struct CompositorFrame;
 
-// A frame's turn to be presented. Only the event loop's presentation queue hands one out, so that the main thread hands
-// the Paint thread its frames through the queue alone.
-class PresentationTurn {
-    friend class HTML::PresentationQueue;
-    PresentationTurn() = default;
-};
-
 struct PlaceholderCanvasLink {
     Compositing::CanvasId canvas_id;
     u64 secret { 0 };
@@ -78,20 +71,13 @@ public:
     bool request_rendering_opportunity(double maximum_frames_per_second);
     void hurry_rendering_opportunity();
     void request_screenshot(NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback);
+    // Sends the canvas commands a frame may sample ahead of it, and answers whether the compositor can be reached.
+    bool ready_for_frame();
 
 private:
     friend class CompositorHost;
-    // FIXME: Only the Paint thread should present frames. These still hand it frames the main thread built, or seal
-    //        frames for it.
-    friend class HTML::LocalNavigable;
-    friend class HTML::PresentationQueue;
 
     CompositorContextHandle(CompositorHost&, Web::CompositorContextId);
-
-    // Brings the context up to date with one frame, whose messages reach the compositor in order.
-    void submit_frame(PresentationTurn, CompositorFrame&&);
-    // Sends the canvas commands a frame may sample ahead of it, and answers whether the compositor can be reached.
-    bool ready_for_frame();
 
     CompositorHost& m_host;
     Web::CompositorContextId m_context_id;
@@ -148,8 +134,6 @@ protected:
 
 private:
     friend class CompositorContextHandle;
-
-    void submit_frame(PresentationTurn, CompositorFrame&&);
 
     // Drains the stream, but only when the message can actually be delivered.
     void send_canvas_2d_stream(Compositing::Canvas2DCommandStream&);

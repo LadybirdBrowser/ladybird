@@ -307,6 +307,9 @@ public:
     // event loop: a new display list, or what changed for the one it has. Answers whether it committed one.
     bool commit_frame(PaintConfig);
     void paint_next_frame();
+    // Commits a frame that sends the compositor the render state's visual context tree, whose structure the display
+    // list the compositor has was not recorded against, for a test of the compositor.
+    void commit_mismatched_visual_context_tree_for_testing();
     enum class LayOutFirst : bool {
         No,
         Yes,
@@ -446,6 +449,8 @@ private:
     struct RecordingInFlight;
 
     PaintConfig stamp_paint_config(PaintConfig) const;
+    Compositor::FlightPresentation take_presentation(DOM::Document&, Compositor::SealedPresentation);
+    void commit_unrecorded_frame(Layout::BegunRead const&, DOM::Document&, Compositor::SealedPresentation);
     Compositor::SealedPresentation seal_presentation(DOM::Document&, PaintConfig const&, bool records_display_list);
     void unseal_presentation(DOM::Document&, Compositor::SealedPresentation const&);
     void finish_recording_in_flight(RecordingInFlight&, Layout::RustFFI::FfiRecordingLanding, Layout::RustFFI::FfiPresentation);

@@ -75,6 +75,8 @@ struct SealedPresentation {
     // Whether a tick of a clock lease changed the document's visual context tree, which the host records again where no
     // tick published a frame.
     bool visual_context_tree_changed { false };
+    // Whether the frame sends a visual context tree the compositor's display list was not recorded against, for a test.
+    bool visual_context_tree_mismatches_for_testing { false };
 };
 
 // The display lists of the SVG images a frame renders, which the main thread renders for the frame into a resource

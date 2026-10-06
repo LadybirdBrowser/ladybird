@@ -93,7 +93,7 @@ CompositorFrame NavigablePresenter::build_frame(SealedPresentation const& sealed
     }
     if (sealed.sends_visual_context_tree) {
         auto const& visual_context_tree = sealed.visual_context_tree.value();
-        VERIFY(visual_context_tree.structural_epoch() == m_compositor_display_list_visual_context_tree_structural_epoch);
+        VERIFY(sealed.visual_context_tree_mismatches_for_testing || visual_context_tree.structural_epoch() == m_compositor_display_list_visual_context_tree_structural_epoch);
         auto resources = resources_with(m_compositor_display_list_command_resources, visual_context_tree);
         frame.visual_context_tree_update = CompositorFrame::VisualContextTreeUpdate {
             .visual_context_tree = visual_context_tree,

@@ -18,9 +18,8 @@
 
 namespace Web::HTML {
 
-// The frames the event loop's navigables seal, on their way to the Paint thread, which builds and presents each after
-// the frames handed to it before, and the recordings that fly beside the event loop, which present their frames there
-// themselves. Only the queue hands a frame its turn (Compositor::PresentationTurn).
+// The frames the event loop's navigables committed, which the Paint thread presents beside the event loop, until the
+// event loop takes them in.
 class PresentationQueue {
     AK_ALLOC_WITH_KMALLOC;
     AK_MAKE_NONCOPYABLE(PresentationQueue);
@@ -29,8 +28,6 @@ class PresentationQueue {
 public:
     PresentationQueue() = default;
 
-    // A frame built by hand, for a test.
-    void submit(LocalNavigable&, Compositor::CompositorFrame);
     // A recording that flies beside the event loop, whose frame is presented in its place once it lands.
     void enqueue_recording_in_flight(LocalNavigable&);
     // The recording in flight of the navigable has landed.
