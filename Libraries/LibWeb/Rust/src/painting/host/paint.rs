@@ -190,8 +190,6 @@ impl FfiRecordingInputs {
             focused_area_outline: (!outline_path.is_empty()).then(|| FocusedAreaOutline {
                 image: self.focused_area_outline.image,
                 path_bytes: outline_path.into(),
-                color: self.focused_area_outline.color,
-                width: self.focused_area_outline.width,
             }),
         }
     }
@@ -241,8 +239,6 @@ pub struct FfiFocusedAreaOutline {
     /// A serialised `Gfx::Path` in the image's own coordinate space, live for the recording call.
     pub path_bytes: *const u8,
     pub path_byte_count: usize,
-    pub color: Color,
-    pub width: crate::css::css_pixels::CssPixels,
 }
 
 /// The platform default font at an overlay label's CSS size and at that size in device pixels.
