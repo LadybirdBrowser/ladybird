@@ -19,13 +19,19 @@ pub struct FfiHitTestQueryCallbacks {
     pub has_chrome_metrics: bool,
     pub chrome_metrics: crate::painting::ffi::FfiChromeMetrics,
     /// Private: reached only through the method below, which takes the main thread token.
-    node_in_scope: unsafe extern "C" fn(*mut c_void, FfiNodeIdentity) -> bool,
+    contains: unsafe extern "C" fn(*mut c_void, FfiNodeIdentity, FfiNodeIdentity) -> bool,
 }
 
 impl FfiHitTestQueryCallbacks {
-    pub(crate) fn node_in_scope(&self, _: &crate::stage::MainThread, node: FfiNodeIdentity) -> bool {
+    /// Whether `node` is `ancestor` or one of its descendants in the DOM.
+    pub(crate) fn contains(
+        &self,
+        _: &crate::stage::MainThread,
+        ancestor: FfiNodeIdentity,
+        node: FfiNodeIdentity,
+    ) -> bool {
         // SAFETY: The C++ host answers synchronously.
-        unsafe { (self.node_in_scope)(self.context, node) }
+        unsafe { (self.contains)(self.context, ancestor, node) }
     }
     pub(crate) fn scroll_offsets(&self) -> &[libgfx_rust::FloatPoint] {
         if self.scroll_offsets.is_null() {
@@ -104,51 +110,6 @@ pub struct FfiTopmostItem {
     pub local: used_values::FfiCssPixelPoint,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiTopmostItemsForCaret {
-    pub caret_item: FfiTopmostItem,
-    pub hit_item: FfiTopmostItem,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiClosestLine {
-    pub has_index: bool,
-    pub index: usize,
-    pub local_x: i32,
-    pub local_y: i32,
-    pub block_distance: i32,
-    pub block_start_distance: i32,
-    pub inline_distance: i32,
-    pub is_before_point: bool,
-    pub contains_point_in_block_axis: bool,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiCaretItemForLine {
-    pub has_item: bool,
-    pub item_index: usize,
-    pub position_type: u8,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiAdjacentLine {
-    pub has_line: bool,
-    pub line_index: usize,
-    pub point_x: i32,
-    pub point_y: i32,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiCaretLineForPosition {
-    pub has_line: bool,
-    pub line_index: usize,
-}
-
 pub use crate::layout::node_data::FfiNodeIdentity;
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -185,6 +146,23 @@ pub struct FfiResolvedCaret {
     pub debug_rect: used_values::FfiCssPixelRect,
 }
 
+/// A caret position a query resolved, and the paintable of the item it resolved on.
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiCaretAt {
+    pub paintable: NodeSlotId,
+    pub caret: FfiResolvedCaret,
+}
+
+impl FfiCaretAt {
+    pub(crate) fn none() -> Self {
+        Self {
+            paintable: NodeSlotId::INVALID,
+            caret: FfiResolvedCaret::default(),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiHitTestItemExport {
@@ -194,13 +172,4 @@ pub struct FfiHitTestItemExport {
     pub chrome_widget_kind: u8,
     pub caret_rect: used_values::FfiCssPixelRect,
     pub context: ContextRef,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiCaretLineExport {
-    pub rect: used_values::FfiCssPixelRect,
-    pub context: ContextRef,
-    pub first_caret_item_index: usize,
-    pub last_caret_item_index: usize,
 }

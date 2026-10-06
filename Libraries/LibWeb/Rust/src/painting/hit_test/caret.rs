@@ -5,9 +5,14 @@
  */
 
 use super::*;
-use crate::painting::host::{FfiCaretPositionQuery, FfiHitTestQueryCallbacks};
+use crate::painting::host::{
+    FfiCaretAt, FfiCaretBoundaryKind, FfiCaretPositionQuery, FfiHitTestQueryCallbacks, FfiNodeIdentity,
+    FfiResolvedCaret,
+};
 use crate::painting::paint_read::PaintRead;
+use crate::painting::rect_to_viewport_transform::RectToViewportTransform;
 use crate::painting::text_fragment::CaretMatch;
+use crate::painting::visual_context::{IncludeVisualViewportTransform, SpatialNodeIndex};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -434,11 +439,12 @@ impl HitTestList {
         arena: &impl PaintRead,
         callbacks: &FfiHitTestQueryCallbacks,
         line_index: usize,
+        scope: FfiNodeIdentity,
     ) -> bool {
         let line = &self.caret_lines[line_index];
         for caret_item_index in line.first_caret_item_index..=line.last_caret_item_index {
             let node = self.item_target(arena, self.caret_item_indices[caret_item_index]);
-            if !node.is_none() && callbacks.node_in_scope(main_thread, node) {
+            if !node.is_none() && callbacks.contains(main_thread, scope, node) {
                 return true;
             }
         }
@@ -454,7 +460,7 @@ impl HitTestList {
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
         mode: CaretPositionMode,
-        scoped: bool,
+        scope: FfiNodeIdentity,
         respect_clip: bool,
     ) -> ClosestLine {
         debug_assert!(self.caret_lines_built);
@@ -480,7 +486,7 @@ impl HitTestList {
         };
 
         for line_index in 0..self.caret_lines.len() {
-            if scoped && !self.line_in_scope(main_thread, arena, callbacks, line_index) {
+            if !scope.is_none() && !self.line_in_scope(main_thread, arena, callbacks, line_index, scope) {
                 continue;
             }
             let line = self.caret_lines[line_index].clone();
@@ -601,6 +607,7 @@ impl HitTestList {
         closest_line
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn adjacent_line(
         &self,
         main_thread: &crate::stage::MainThread,
@@ -609,6 +616,7 @@ impl HitTestList {
         current_line_index: usize,
         direction: CaretLineDirection,
         inline_coordinate: CssPixels,
+        scope: FfiNodeIdentity,
     ) -> Option<(usize, CssPixelPoint)> {
         // INTEROP: Vertical caret movement in Chromium, WebKit, and Gecko follows rendered line geometry rather than
         // DOM tree order. Rank candidates in the requested logical block direction, prefer the current line-producing
@@ -633,7 +641,8 @@ impl HitTestList {
             let line = &self.caret_lines[line_index];
             // INTEROP: Keyboard navigation follows layout geometry across clips, effects, and transforms.
             //          Separate paint contexts inside one editing host must not isolate its editable lines.
-            if line_index == current_line_index || !self.line_in_scope(main_thread, arena, callbacks, line_index) {
+            if line_index == current_line_index || !self.line_in_scope(main_thread, arena, callbacks, line_index, scope)
+            {
                 continue;
             }
             let candidate_block_coordinate = line_block_middle(line.rect, writing_mode);
@@ -673,5 +682,249 @@ impl HitTestList {
             CssPixelPoint::new(block_coordinate, inline_coordinate)
         };
         Some((closest_line_index, point))
+    }
+}
+
+impl FfiCaretAt {
+    // Moves the debug rect from the local space of `spatial` into the viewport.
+    fn with_debug_rect_in_viewport(
+        mut self,
+        tree: &VisualContextTree,
+        callbacks: &FfiHitTestQueryCallbacks,
+        spatial: SpatialNodeIndex,
+    ) -> Self {
+        if self.caret.has_debug_rect {
+            let transform = RectToViewportTransform {
+                visual_context_tree: tree,
+                scroll_offsets: callbacks.scroll_offsets(),
+                device_pixels_per_css_pixel: callbacks.device_pixels_per_css_pixel as f32,
+            };
+            self.caret.debug_rect = transform
+                .transform_rect_in_space(
+                    spatial,
+                    self.caret.debug_rect.into(),
+                    IncludeVisualViewportTransform::Yes,
+                )
+                .into();
+        }
+        self
+    }
+}
+
+impl HitTestList {
+    fn item_is_direct_caret_target(&self, arena: &impl PaintRead, item_index: usize) -> bool {
+        let target = self.item_target(arena, item_index);
+        !target.is_none() && target == self.item_dispatch_target(arena, item_index)
+    }
+
+    fn caret_at_item(
+        &self,
+        arena: &impl PaintRead,
+        item_index: usize,
+        local_point: CssPixelPoint,
+        position_type: CaretPositionType,
+    ) -> Option<FfiCaretAt> {
+        let caret = self.resolve_caret(arena, item_index, local_point, position_type);
+        caret.has_position.then_some(FfiCaretAt {
+            paintable: self.items[item_index].paintable,
+            caret,
+        })
+    }
+
+    fn caret_at_line(
+        &self,
+        arena: &impl PaintRead,
+        line_index: usize,
+        local_point: CssPixelPoint,
+        mode: CaretPositionMode,
+    ) -> Option<FfiCaretAt> {
+        let (item_index, position_type) = self.caret_item_for_line(arena, line_index, local_point, mode)?;
+        self.caret_at_item(arena, item_index, local_point, position_type)
+    }
+
+    // The start of the node the item stands for, for a hit on an item that produces no caret position itself.
+    fn caret_at_hit_container(&self, arena: &impl PaintRead, item_index: usize) -> Option<FfiCaretAt> {
+        let node = self.item_target(arena, item_index);
+        if node.is_none() {
+            return None;
+        }
+        let item = &self.items[item_index];
+        Some(FfiCaretAt {
+            paintable: item.paintable,
+            caret: FfiResolvedCaret {
+                has_position: true,
+                node,
+                has_debug_rect: true,
+                debug_rect: item.caret_rect.into(),
+                ..Default::default()
+            },
+        })
+    }
+
+    // Whether the node of the caret's boundary is `ancestor` or one of its descendants. A boundary beside a node is
+    // inside that node's parent.
+    fn caret_boundary_is_inside(
+        main_thread: &crate::stage::MainThread,
+        callbacks: &FfiHitTestQueryCallbacks,
+        ancestor: FfiNodeIdentity,
+        caret: &FfiResolvedCaret,
+    ) -> bool {
+        let boundary_is_beside_node = caret.boundary != FfiCaretBoundaryKind::Offset;
+        (!boundary_is_beside_node || ancestor != caret.node) && callbacks.contains(main_thread, ancestor, caret.node)
+    }
+
+    /// The caret position at `point`. When `constraint_scope` names a node, the position is constrained to lines inside
+    /// it, and points outside it resolve to the closest position within it.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn caret_position_from_point(
+        &self,
+        main_thread: &crate::stage::MainThread,
+        arena: &impl PaintRead,
+        tree: &VisualContextTree,
+        callbacks: &FfiHitTestQueryCallbacks,
+        point: CssPixelPoint,
+        mode: CaretPositionMode,
+        constraint_scope: FfiNodeIdentity,
+    ) -> Option<FfiCaretAt> {
+        let constrained = !constraint_scope.is_none();
+        // First find both the topmost hit-test item and the topmost item that can directly produce a caret.
+        // Non-caret items are still needed to keep later line fallback scoped to the hit content.
+        // FIXME: Caret placement compares items by record order alone, ignoring the depth-sorted paint order of
+        //        planes inside 3D rendering contexts.
+        let (mut topmost_item, topmost_hit_item) = self.find_topmost_items_for_caret(arena, tree, callbacks, point);
+
+        // A constrained search only accepts direct hits inside the constraint scope.
+        if constrained && let Some(item) = topmost_item {
+            let node = self.item_target(arena, item.index);
+            if node.is_none() || !callbacks.contains(main_thread, constraint_scope, node) {
+                topmost_item = None;
+            }
+        }
+
+        // Direct caret hits win unless another non-caret item is visibly on top of them.
+        if let Some(item) = topmost_item {
+            let matches_hit_item = topmost_hit_item
+                .is_some_and(|hit| hit.index == item.index && self.item_is_direct_caret_target(arena, item.index));
+            if (constrained || topmost_hit_item.is_none() || matches_hit_item)
+                && let Some(caret) = self.caret_at_item(arena, item.index, item.local_point, CaretPositionType::Closest)
+            {
+                return Some(caret.with_debug_rect_in_viewport(
+                    tree,
+                    callbacks,
+                    self.items[item.index].context.spatial,
+                ));
+            }
+        }
+
+        // If the point is over a non-caret item, only consider caret lines inside that item's event-dispatch node first.
+        // This prevents overlays or side content from snapping the caret to unrelated nearby text.
+        let line_scope = match topmost_hit_item {
+            _ if constrained => constraint_scope,
+            Some(hit)
+                if !self.items[hit.index].can_produce_caret_position
+                    || !self.item_is_direct_caret_target(arena, hit.index) =>
+            {
+                self.item_dispatch_target(arena, hit.index)
+            }
+            _ => FfiNodeIdentity::default(),
+        };
+
+        // A constrained search must find a line even when the point is outside the scope's clipped area (e.g. dragging
+        // a selection outside a textarea), so it transforms points without rejecting them against clips.
+        let respect_clip = !constrained;
+        let find_closest_line =
+            |scope| self.find_closest_line(main_thread, arena, tree, callbacks, point, mode, scope, respect_clip);
+        let mut closest_line = find_closest_line(line_scope);
+        if !line_scope.is_none() && !constrained {
+            // The scoped search is only a guard against unrelated nearby content. If there is a plainly closer line
+            // outside the scope, use it instead.
+            let unscoped_closest_line = find_closest_line(FfiNodeIdentity::default());
+            if closest_line.index.is_none()
+                || (unscoped_closest_line.index.is_some()
+                    && unscoped_closest_line.block_distance < closest_line.block_distance)
+            {
+                closest_line = unscoped_closest_line;
+            }
+        }
+
+        let Some(line_index) = closest_line.index else {
+            let hit = topmost_hit_item.filter(|_| !constrained)?;
+            return self.caret_at_hit_container(arena, hit.index).map(|caret| {
+                caret.with_debug_rect_in_viewport(tree, callbacks, self.items[hit.index].context.spatial)
+            });
+        };
+        let caret = self
+            .caret_at_line(arena, line_index, closest_line.local_point, mode)?
+            .with_debug_rect_in_viewport(tree, callbacks, self.caret_lines[line_index].context.spatial);
+
+        if !constrained && let Some(hit) = topmost_hit_item {
+            let hit_target = self.item_dispatch_target(arena, hit.index);
+            if !hit_target.is_none()
+                && !caret.caret.node.is_none()
+                && !Self::caret_boundary_is_inside(main_thread, callbacks, hit_target, &caret.caret)
+            {
+                if self.items[hit.index].can_produce_caret_position
+                    && self.item_is_direct_caret_target(arena, hit.index)
+                {
+                    return self
+                        .caret_at_item(arena, hit.index, hit.local_point, CaretPositionType::Closest)
+                        .map(|caret| {
+                            caret.with_debug_rect_in_viewport(tree, callbacks, self.items[hit.index].context.spatial)
+                        });
+                }
+                return self
+                    .item_is_inline_adjacent_to_line(hit.index, line_index)
+                    .then_some(caret);
+            }
+        }
+        Some(caret)
+    }
+
+    /// The caret position at the start or end of the painted line holding the position. A visual line can span several
+    /// DOM nodes and atomic inline boxes, so a text-node or block-element boundary is not necessarily a line boundary.
+    pub(crate) fn caret_at_line_edge(
+        &self,
+        arena: &impl PaintRead,
+        query: &FfiCaretPositionQuery,
+        offset: usize,
+        affinity_is_downstream: bool,
+        edge: CaretPositionType,
+    ) -> Option<FfiCaretAt> {
+        let line_index = self.caret_line_for_position(arena, query, offset, affinity_is_downstream)?;
+        self.caret_at_item(
+            arena,
+            self.item_at_line_edge(line_index, edge),
+            CssPixelPoint::default(),
+            edge,
+        )
+    }
+
+    /// The caret position on the visually adjacent line within `scope`, preserving the requested inline coordinate.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn caret_on_adjacent_line(
+        &self,
+        main_thread: &crate::stage::MainThread,
+        arena: &impl PaintRead,
+        callbacks: &FfiHitTestQueryCallbacks,
+        query: &FfiCaretPositionQuery,
+        offset: usize,
+        affinity_is_downstream: bool,
+        direction: CaretLineDirection,
+        inline_coordinate: CssPixels,
+        scope: FfiNodeIdentity,
+    ) -> Option<FfiCaretAt> {
+        let line_index = self.caret_line_for_position(arena, query, offset, affinity_is_downstream)?;
+        let (adjacent_line_index, point) = self.adjacent_line(
+            main_thread,
+            arena,
+            callbacks,
+            line_index,
+            direction,
+            inline_coordinate,
+            scope,
+        )?;
+        // Reuse point-to-caret resolution after choosing the line so text, atomic boxes, and empty lines share one rule
+        // for selecting the position closest to the preferred inline coordinate.
+        self.caret_at_line(arena, adjacent_line_index, point, CaretPositionMode::Normal)
     }
 }
