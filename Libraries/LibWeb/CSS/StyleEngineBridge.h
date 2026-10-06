@@ -84,7 +84,6 @@ void style_engine_set_element_heading_level(DocumentHost const*, StyleNodeID nod
 void style_engine_acknowledge_engine_computed_record(DocumentHost const*, StyleNodeID node);
 void style_engine_abandon_demanded_records(DocumentHost const*, StyleNodeID node);
 void style_engine_record_transition_baseline(DocumentHost const*, StyleNodeID node, u8 pseudo_kind, u64 style_record);
-void style_engine_begin_transition_baselines(DocumentHost const*);
 void style_engine_release_transition_baselines(DocumentHost const*);
 void style_engine_pin_style_record(DocumentHost const*, u64 style_record);
 void style_engine_unpin_style_record(DocumentHost const*, u64 style_record);
