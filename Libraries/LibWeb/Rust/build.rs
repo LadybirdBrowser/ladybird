@@ -2530,6 +2530,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/layer_names.rs"),
             manifest_dir.join("src/css/container_conditions.rs"),
             manifest_dir.join("src/css/font_feature_values.rs"),
+            manifest_dir.join("src/css/font_matching.rs"),
             manifest_dir.join("src/css/keyframes.rs"),
             manifest_dir.join("src/css/style_rule.rs"),
             manifest_dir.join("src/css/scope_selectors.rs"),

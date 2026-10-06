@@ -42,7 +42,6 @@ struct FontWeightRange {
     int max { 0 };
     [[nodiscard]] u32 hash() const { return pair_int_hash(min, max); }
     [[nodiscard]] bool operator==(FontWeightRange const&) const = default;
-    [[nodiscard]] bool contains_inclusive(int weight) const { return min <= weight && weight <= max; }
 };
 
 struct FontFaceKey {
