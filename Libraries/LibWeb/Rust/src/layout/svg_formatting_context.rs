@@ -531,16 +531,83 @@ impl Default for SvgTextChunkMeasurement {
     }
 }
 
-/// Strips the ASCII whitespace AK's Utf16String::trim_ascii_whitespace() strips from both ends.
-fn trim_ascii_whitespace(text: &mut Vec<u16>) {
-    let is_whitespace = |unit: &u16| matches!(unit, 0x09..=0x0d | 0x20);
-    let end = text
-        .iter()
-        .rposition(|unit| !is_whitespace(unit))
-        .map_or(0, |last| last + 1);
-    text.truncate(end);
-    let start = text.iter().position(|unit| !is_whitespace(unit)).unwrap_or(end);
-    text.drain(..start);
+/// Processes the white space in an SVG text content element's character data, as the element's
+/// 'white-space-collapse' value directs.
+/// https://svgwg.org/svg2-draft/text.html#WhiteSpace
+/// Rendering of white space in SVG 2 is controlled by the white-space property. [...] Values and
+/// their meanings are defined in CSS Text Module Level 3.
+/// NB: SVG text is laid out as one line, so both phases of CSS Text's white space processing
+///     happen here, on the characters themselves, before they are shaped.
+fn process_svg_text_white_space(text: &mut Vec<u16>, white_space_collapse: u8) {
+    const SPACE: u16 = b' ' as u16;
+    const TAB: u16 = b'\t' as u16;
+    const LINE_FEED: u16 = b'\n' as u16;
+    const CARRIAGE_RETURN: u16 = b'\r' as u16;
+    // A segment break is a line feed; the parser has already normalized every other newline into
+    // one. A carriage return that script wrote into the DOM never went through that
+    // normalization, so it counts as a segment break here too.
+    let is_segment_break = |unit: u16| unit == LINE_FEED || unit == CARRIAGE_RETURN;
+    let is_white_space = |unit: u16| unit == SPACE || unit == TAB || is_segment_break(unit);
+
+    match white_space_collapse {
+        // https://drafts.csswg.org/css-text-4/#valdef-white-space-collapse-discard
+        // This value directs user agents to "discard" all white space in the element.
+        white_space_collapse::DISCARD => text.retain(|&unit| !is_white_space(unit)),
+        // https://drafts.csswg.org/css-text-4/#white-space-phase-1
+        // If white-space-collapse is set to collapse or preserve-breaks, white space characters are
+        // considered collapsible and are processed by performing the following steps:
+        // 1. Any sequence of collapsible spaces and tabs immediately preceding or following a
+        //    segment break is removed.
+        // 2. Collapsible segment breaks are transformed for rendering according to the segment
+        //    break transformation rules.
+        // 3. Every collapsible tab is converted to a collapsible space (U+0020).
+        // 4. Any collapsible space immediately following another collapsible space [...] is
+        //    collapsed to have zero advance width.
+        // https://drafts.csswg.org/css-text-4/#white-space-phase-2
+        // 1. A sequence of collapsible spaces at the beginning of a line is removed.
+        // 3. A sequence of collapsible spaces at the end of a line is removed [...]
+        // Together, those steps turn every run of collapsible white space into a single space, and
+        // drop the runs at either end of the one line SVG text renders as.
+        // https://drafts.csswg.org/css-text-4/#line-break-transform
+        // Then any remaining segment break is either transformed into a space (U+0020) or removed
+        // depending on the context before and after the break. The rules for this operation are
+        // UA-defined in this level.
+        // We transform every remaining segment break into a space.
+        // AD-HOC: preserve-breaks keeps segment breaks as forced line breaks, but SVG text has no
+        //         line breaking here, so its segment breaks collapse like collapse's do.
+        white_space_collapse::COLLAPSE | white_space_collapse::PRESERVE_BREAKS => {
+            let mut processed = Vec::with_capacity(text.len());
+            let mut after_white_space = false;
+            for &unit in text.iter() {
+                if is_white_space(unit) {
+                    after_white_space = true;
+                    continue;
+                }
+                if after_white_space && !processed.is_empty() {
+                    processed.push(SPACE);
+                }
+                after_white_space = false;
+                processed.push(unit);
+            }
+            *text = processed;
+        }
+        // https://drafts.csswg.org/css-text-4/#white-space-phase-1
+        // If white-space-collapse is set to preserve-spaces, each tab and segment break is
+        // converted to a space.
+        // https://drafts.csswg.org/css-text-4/#valdef-white-space-collapse-preserve
+        // preserve: This value prevents user agents from collapsing sequences of white space.
+        // Segment breaks such as line feeds are preserved as forced line breaks.
+        // AD-HOC: SVG text has no line breaking here, so preserve and break-spaces render each
+        //         segment break as a space too, rather than as a forced line break. Likewise a
+        //         preserved tab renders as a space rather than as a shift to the next tab stop.
+        _ => {
+            for unit in text.iter_mut() {
+                if *unit == TAB || is_segment_break(*unit) {
+                    *unit = SPACE;
+                }
+            }
+        }
+    }
 }
 
 fn code_point_length_at(text: &[u16], offset: usize) -> usize {
@@ -963,9 +1030,10 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
     }
 
-    /// The character data an SVG text content element renders: its direct child text, as written.
-    /// SVG shapes the element's own characters, not the white-space-collapsed text a line box
-    /// would lay out, so this reads the source text the row kept beside its rendering.
+    /// The character data an SVG text content element renders: its direct child text, with its
+    /// white space processed as the element's 'white-space-collapse' directs. SVG shapes the
+    /// element's own characters, not the text a line box would lay out, so this reads the source
+    /// text the row kept beside its rendering.
     fn svg_text_contents(&self, node: Node) -> Vec<u16> {
         let mut text: Vec<u16> = Vec::new();
         for child in self.run.callbacks.children(node) {
@@ -973,12 +1041,18 @@ impl<'pass> SvgFormattingContext<'pass> {
                 self.append_svg_source_text(child, &mut text);
             }
         }
-        trim_ascii_whitespace(&mut text);
+        // FIXME: White space is processed per element, so a collapsible space at an element
+        //        boundary (<text>a <tspan>b</tspan></text>) collapses away instead of surviving as
+        //        the one space between the runs. Collapsing across the whole <text> subtree needs
+        //        its text walked in document order.
+        process_svg_text_white_space(&mut text, self.style(node).white_space_collapse());
         text
     }
 
     /// The character data text on a path renders: the source text of every text node in its
     /// subtree whose parent has a box, rather than of its direct children alone.
+    /// AD-HOC: The subtree's text is processed as one run, with the <textPath>'s own
+    ///         'white-space-collapse', rather than each child's text with that child's value.
     fn rendered_svg_text_contents(&self, root: Node) -> Vec<u16> {
         let mut text: Vec<u16> = Vec::new();
         let mut current = root;
@@ -993,7 +1067,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             }
             loop {
                 if current == root {
-                    trim_ascii_whitespace(&mut text);
+                    process_svg_text_white_space(&mut text, self.style(root).white_space_collapse());
                     return text;
                 }
                 let sibling = self.next_sibling(current);

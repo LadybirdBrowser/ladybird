@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml">
+  <title>SVG Test: Behavior of xml:space="preserve"</title>
+  <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/styling.html#UAStyleSheet"/>
+  <h:link rel="match" href="../../../../../expected/wpt-import/svg/text/reftests/text-xml-space-001-ref.svg"/>
+  <g xml:space="preserve">
+    <text x="50" y="50" font-family="monospace">Some  Text</text>
+  </g>
+</svg>
