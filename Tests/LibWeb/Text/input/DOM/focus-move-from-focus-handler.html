@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<div id="list">
+    <input id="a">
+    <input id="b" onfocus="c.focus()">
+</div>
+<input id="c">
+<script src="../include.js"></script>
+<script>
+    // A focus handler that moves focus re-enters the focus update steps. Once the nested update has
+    // designated the new area and fired its events, the outer update is done: it must not go on to
+    // fire a focusin at the element its own focus handler just moved focus away from.
+    test(() => {
+        const list = document.getElementById("list");
+        const a = document.getElementById("a");
+        const b = document.getElementById("b");
+
+        const describe = node => node ? `#${node.id}` : "null";
+        const log = event => println(`${event.type} target=${describe(event.target)} relatedTarget=${describe(event.relatedTarget)}`);
+        for (const type of ["focus", "blur", "focusin", "focusout"])
+            document.addEventListener(type, log, true);
+
+        a.focus();
+        println("after a.focus(): activeElement=" + describe(document.activeElement));
+
+        b.focus();
+        println("after b.focus(): activeElement=" + describe(document.activeElement));
+        println("list :focus-within: " + list.matches(":focus-within"));
+    });
+</script>
