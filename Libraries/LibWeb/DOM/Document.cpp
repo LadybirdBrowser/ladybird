@@ -2074,6 +2074,9 @@ void Document::end_style_stabilization_epoch()
 void Document::after_layout_commit(Layout::BegunRead const& read, LayoutTreeChanged layout_tree_changed)
 {
     // NB: Called during layout update.
+    // Read before anything below writes the render state, while the main thread knows it from the round.
+    bool const collects_boxes_with_auto_content_visibility = layout_tree_changed == LayoutTreeChanged::Yes
+        && Layout::RustFFI::render_state_may_have_auto_content_visibility(layout_node_arena().host(), &read);
     Layout::RustFFI::render_state_invalidate_searchable_text(layout_node_arena().host());
 
     set_needs_to_record_display_list();
@@ -2092,7 +2095,7 @@ void Document::after_layout_commit(Layout::BegunRead const& read, LayoutTreeChan
         // Broadcast the current viewport rect to any new committed boxes, so they know whether
         // they're visible or not. If necessary, re-collect the content-visibility:auto set.
         inform_all_viewport_clients_about_the_current_viewport_rect();
-        if (Layout::RustFFI::render_state_may_have_auto_content_visibility(layout_node_arena().host(), &read))
+        if (collects_boxes_with_auto_content_visibility)
             collect_boxes_with_auto_content_visibility(read);
     }
 

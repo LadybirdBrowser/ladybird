@@ -813,7 +813,7 @@ pub(crate) unsafe fn rect_to_viewport_transform_from_ffi(
 }
 
 /// Whether a row has ever been given a style with `content-visibility: auto`, which is when a
-/// layout commit collects the boxes with it.
+/// layout commit collects the boxes with it. The host knows without asking right after the round that committed it.
 ///
 /// # Safety
 ///
@@ -823,6 +823,9 @@ pub unsafe extern "C" fn render_state_may_have_auto_content_visibility(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
 ) -> bool {
+    if let Some(facts) = host.known_arena_facts() {
+        return facts.may_have_auto_content_visibility;
+    }
     // SAFETY: Guaranteed by the caller.
     unsafe { read_arena(host, read, (), |arena, ()| arena.may_have_auto_content_visibility()) }
 }

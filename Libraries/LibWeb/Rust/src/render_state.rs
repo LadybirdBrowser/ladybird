@@ -127,6 +127,7 @@ impl RenderState {
                 layout_is_up_to_date_unless_built: arena.layout_is_up_to_date(false),
                 rendering_preparation_pending: crate::painting::paint_passes::rendering_preparation_pending(arena)
                     .is_some(),
+                may_have_auto_content_visibility: arena.may_have_auto_content_visibility(),
             },
             owes_image_resources: arena.owes_image_resources_to_host(),
             selector_attribute_value_text_requirements_version: engine
@@ -263,6 +264,8 @@ pub(crate) struct ArenaFacts {
     pub(crate) layout_is_up_to_date_unless_built: bool,
     /// Whether preparing the document for rendering has something to do.
     pub(crate) rendering_preparation_pending: bool,
+    /// Whether a row has ever been given a style with `content-visibility: auto`.
+    pub(crate) may_have_auto_content_visibility: bool,
 }
 
 // Every write the host makes is moved through its queue and into the render state, so a variant that carries a large
