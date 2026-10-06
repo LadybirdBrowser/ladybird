@@ -70,16 +70,25 @@ static constexpr StyleNodeID no_style_node;
 // Shadow trees get their own scopes with the shadow surface; today everything names the document.
 static constexpr TreeScopeID document_tree_scope;
 
-static bool has_pending_initial_features(DOM::Element const& element)
-{
-    return element.document().style_computer().style_engine().has_deferred_element_initial_features(element.style_node_id());
-}
-
 static StyleEngine* style_engine_for(DOM::Node& node)
 {
     if (!node.is_connected() || !node.document().style_engine_tracks_tree())
         return nullptr;
     return &node.document().style_computer().style_engine();
+}
+
+// The engine a fact of the element is recorded into, once the element has taken its style node identity.
+static StyleEngine* style_engine_for_identified(DOM::Element& element)
+{
+    auto* style_engine = style_engine_for(element);
+    return style_engine && element.style_node_id() != no_style_node ? style_engine : nullptr;
+}
+
+// The same, once the element's initial features are published too. Until they are, they will say what it is.
+static StyleEngine* style_engine_for_published(DOM::Element& element)
+{
+    auto* style_engine = style_engine_for_identified(element);
+    return style_engine && !style_engine->has_deferred_element_initial_features(element.style_node_id()) ? style_engine : nullptr;
 }
 
 // A relation is only nameable if the element on its other end already has an identity. Naming a
@@ -679,8 +688,8 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
 // link colours for a link, an input entering or leaving the Image Button state. Publish them again.
 void republish_presentational_hints(DOM::Element& element)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    auto* style_engine = style_engine_for_identified(element);
+    if (!style_engine)
         return;
     StyleComputer::collect_presentational_hint_properties({ element });
     // The hints moved, and so does the style they are cascaded into.
@@ -863,8 +872,8 @@ u32 element_style_adjustment_facts(DOM::Element const& element)
 
 void record_element_adjustment_facts(DOM::Element& element)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    auto* style_engine = style_engine_for_identified(element);
+    if (!style_engine)
         return;
     StyleEngineFFI::style_engine_set_element_adjustment_facts(style_engine->host(), element.style_node_id(), element_style_adjustment_facts(element));
     StyleEngineFFI::style_engine_set_element_construction_facts(style_engine->host(), element.style_node_id(), element_construction_facts(element));
@@ -875,14 +884,14 @@ void record_element_adjustment_facts(DOM::Element& element)
 void record_element_animations_changed(DOM::Element& element)
 {
     record_element_adjustment_facts(element);
-    if (auto* style_engine = style_engine_for(element); style_engine && element.style_node_id() != no_style_node)
+    if (auto* style_engine = style_engine_for_identified(element))
         style_engine->note_animations_changed(element.style_node_id());
 }
 
 void record_element_box_kind(DOM::Element& element)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    auto* style_engine = style_engine_for_identified(element);
+    if (!style_engine)
         return;
     StyleEngineFFI::style_engine_set_element_box_kind(style_engine->host(), element.style_node_id(), to_underlying(element.box_kind()));
 }
@@ -929,8 +938,8 @@ static void set_image_natural_size_input(StyleEngine& style_engine, StyleNodeID 
 void record_element_replaced_content_input(DOM::Element& element)
 {
     using Kind = StyleEngineFFI::FfiReplacedContentInputKind;
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    auto* style_engine = style_engine_for_identified(element);
+    if (!style_engine)
         return;
     auto node = element.style_node_id();
     if (auto const* text_area = as_if<HTML::HTMLTextAreaElement>(element)) {
@@ -996,8 +1005,8 @@ void record_element_replaced_content_input(DOM::Element& element)
 
 void record_element_construction_facts(DOM::Element& element)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    auto* style_engine = style_engine_for_identified(element);
+    if (!style_engine)
         return;
     StyleEngineFFI::style_engine_set_element_construction_facts(style_engine->host(), element.style_node_id(), element_construction_facts(element));
 }
@@ -1029,8 +1038,8 @@ static Optional<StyleEngineFFI::FfiStateFact> state_fact_for(PseudoClass);
 
 static void record_element_initial_features(DOM::Element& element)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    auto* style_engine = style_engine_for_identified(element);
+    if (!style_engine)
         return;
 
     publish_element_selector_features(*style_engine, element, element.style_node_id(), [&](auto kind, auto name_atom, auto value_kind, auto value_atom) { style_engine->record_local_feature_delta({
@@ -1077,8 +1086,8 @@ void record_node_moved_in_dom_order(DOM::Node& node, DOM::Node const& old_parent
 
 void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Element* old_previous_sibling, DOM::Element* old_next_sibling)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    auto* style_engine = style_engine_for_identified(element);
+    if (!style_engine)
         return;
 
     auto relations = relations_of(element, *style_engine);
@@ -1156,8 +1165,8 @@ void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Ele
 
 void record_element_assigned_slot_changed(DOM::Element& element, DOM::Element* old_slot)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    auto* style_engine = style_engine_for_identified(element);
+    if (!style_engine)
         return;
 
     auto relations = relations_of(element, *style_engine);
@@ -1227,12 +1236,10 @@ static void republish_assigned_slot_of(DOM::Node& node)
 
 static void record_element_disconnecting(DOM::Element& element, TreeScopeID tree_scope)
 {
-    auto* style_engine = style_engine_for(element);
+    auto* style_engine = style_engine_for_identified(element);
     if (!style_engine)
         return;
     auto node = element.style_node_id();
-    if (node == no_style_node)
-        return;
 
     // Removing a slot can leave its slottables with no replacement. Publish their departure while
     // the slot still has an identity; assignment runs after the disconnect walk and cannot name the
@@ -1278,8 +1285,8 @@ static void record_element_disconnecting(DOM::Element& element, TreeScopeID tree
 // about selector matching can say.
 void record_element_animation_names(DOM::Element& element, ReadonlySpan<Utf16FlyString> names)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    auto* style_engine = style_engine_for_identified(element);
+    if (!style_engine)
         return;
 
     Vector<StyleAtomID> atoms;
@@ -1296,8 +1303,8 @@ void record_element_animation_names(DOM::Element& element, ReadonlySpan<Utf16Fly
 // against the animations the element already has, and this is what it matches them against.
 void record_element_css_defined_animations(DOM::Element& element, u8 slot, ReadonlySpan<Utf16FlyString> names, ReadonlySpan<StyleEngineFFI::FfiAppliedAnimationDefinition> definitions)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    auto* style_engine = style_engine_for_identified(element);
+    if (!style_engine)
         return;
 
     // The names travel as one buffer of code units with a length each, since a list is almost
@@ -1356,8 +1363,8 @@ static void describe_easing(EasingFunction const& easing, StyleEngineFFI::FfiPub
 // does, a value or an easing still to be substituted against the element, travels as written.
 void record_element_animation_effect_descriptions(DOM::Element& element, u8 slot, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    auto* style_engine = style_engine_for_identified(element);
+    if (!style_engine)
         return;
 
     Vector<StyleEngineFFI::FfiAnimationEffectVersion, 4> versions;
@@ -1472,8 +1479,8 @@ void record_element_animation_effect_descriptions(DOM::Element& element, u8 slot
 // element's own recomputation can say that.
 void record_element_custom_property_names(DOM::Element& element, CustomPropertyData const* data, ReadonlySpan<RefPtr<CustomPropertyData const>> pseudo_element_data, ReadonlySpan<Utf16FlyString> references, bool uses_unnamed, bool uses_custom_functions)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    auto* style_engine = style_engine_for_identified(element);
+    if (!style_engine)
         return;
 
     // OPTIMIZATION: Each environment hands out its declared names sorted and deduplicated, so they are merged
@@ -1518,8 +1525,8 @@ void record_element_custom_property_names(DOM::Element& element, CustomPropertyD
 
 void record_element_custom_property_names(DOM::Element& element, ReadonlySpan<Utf16FlyString> names, bool uses_unnamed, bool uses_custom_functions)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    auto* style_engine = style_engine_for_identified(element);
+    if (!style_engine)
         return;
 
     Vector<StyleAtomID> atoms;
@@ -1534,8 +1541,8 @@ void record_element_custom_property_names(DOM::Element& element, ReadonlySpan<Ut
 // attributes changes - not with anything the element itself publishes.
 static void record_element_heading_level(DOM::Element& element)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
+    auto* style_engine = style_engine_for_published(element);
+    if (!style_engine)
         return;
 
     auto const* heading = as_if<HTML::HTMLHeadingElement>(element);
@@ -1557,8 +1564,8 @@ static void record_heading_levels_in_subtree(DOM::Element& element)
 
 void record_element_language_and_directionality(DOM::Element& element)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
+    auto* style_engine = style_engine_for_published(element);
+    if (!style_engine)
         return;
 
     auto const language = element.lang_view();
@@ -1581,8 +1588,8 @@ void record_element_language_and_directionality(DOM::Element& element)
 
 void record_element_directionality(DOM::Element& element)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
+    auto* style_engine = style_engine_for_published(element);
+    if (!style_engine)
         return;
 
     auto const directionality = element.directionality() == DOM::Element::Directionality::Rtl ? "rtl"sv : "ltr"sv;
@@ -1591,8 +1598,8 @@ void record_element_directionality(DOM::Element& element)
 
 void record_element_custom_states_changed(DOM::Element& element)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
+    auto* style_engine = style_engine_for_published(element);
+    if (!style_engine)
         return;
 
     Vector<StyleAtomID> atoms;
@@ -1649,8 +1656,8 @@ static StyleNodeID collect_part_exposure(DOM::Element const& element, Vector<Utf
 
 void record_element_parts_changed(DOM::Element& element)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
+    auto* style_engine = style_engine_for_published(element);
+    if (!style_engine)
         return;
 
     // A rule naming a forwarded part names the element under the forwarded name, so the names it
@@ -1671,8 +1678,8 @@ void record_element_parts_changed(DOM::Element& element)
 
 void record_element_emptiness_changed(DOM::Element& element, DOM::Node const& changing_child, bool counted_before, bool counts_after)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    auto* style_engine = style_engine_for_identified(element);
+    if (!style_engine)
         return;
 
     // Whether the element is empty either side of the change is decided by the child that moved
@@ -1693,8 +1700,8 @@ void record_element_emptiness_changed(DOM::Element& element, DOM::Node const& ch
 // well as when the block is edited.
 static void record_element_inline_style_properties(DOM::Element& element)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
+    auto* style_engine = style_engine_for_published(element);
+    if (!style_engine)
         return;
     auto const inline_style = element.inline_style();
     style_engine->set_element_inline_style_properties(element.style_node_id(), inline_style ? &inline_style->declaration_block() : nullptr);
@@ -1704,8 +1711,8 @@ static void record_element_inline_style_properties(DOM::Element& element)
 // from moves, and from where the cascade collects them.
 bool record_element_presentational_hint_properties(DOM::Element& element, ReadonlySpan<StyleProperty> hints)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
+    auto* style_engine = style_engine_for_published(element);
+    if (!style_engine)
         return false;
     // NB: The SvgPresentationAttribute kind is the one whose declarations the engine takes as
     //     current: every element's hints are published where they move.
@@ -1718,8 +1725,8 @@ void record_element_declarations_changed(DOM::Element& element, ElementDeclarati
     if (element.style_node_id() != no_style_node)
         element.document().style_computer().style_engine().note_element_declarations_changed(element.style_node_id());
     element.document().flush_deferred_style_change_event();
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
+    auto* style_engine = style_engine_for_published(element);
+    if (!style_engine)
         return;
     if (!had_declarations && !has_declarations)
         return;
@@ -2477,29 +2484,20 @@ void record_stylesheet_detached(StyleSheetState& sheet, DOM::Node& document_or_s
 
 bool can_record_element_state_change(DOM::Element& element)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine)
-        return false;
-    auto node = element.style_node_id();
-    if (node == no_style_node || has_pending_initial_features(element))
-        return false;
-    return true;
+    return style_engine_for_published(element);
 }
 
 void record_element_state_changed(DOM::Element& element, PseudoClass pseudo_class, bool new_value)
 {
-    auto* style_engine = style_engine_for(element);
+    auto* style_engine = style_engine_for_published(element);
     if (!style_engine)
-        return;
-    auto node = element.style_node_id();
-    if (node == no_style_node || has_pending_initial_features(element))
         return;
     auto fact = state_fact_for(pseudo_class);
     if (!fact.has_value())
         return;
 
     style_engine->record_state_delta({
-        .node = node.value(),
+        .node = element.style_node_id().value(),
         .fact = *fact,
         .new_value = new_value,
     });
@@ -2514,16 +2512,13 @@ static void record_feature(
     StyleEngineFFI::FfiFeatureValueKind new_kind,
     StyleAtomID new_atom)
 {
-    auto* style_engine = style_engine_for(element);
+    auto* style_engine = style_engine_for_published(element);
     if (!style_engine)
-        return;
-    auto node = element.style_node_id();
-    if (node == no_style_node || has_pending_initial_features(element))
         return;
 
     style_engine->record_local_feature_delta(
         {
-            .node = node.value(),
+            .node = element.style_node_id().value(),
             .feature_kind = kind,
             .name_atom = name_atom.value(),
             .old_kind = old_kind,
@@ -2535,8 +2530,8 @@ static void record_feature(
 
 void record_element_id_changed(DOM::Element& element, Optional<Utf16FlyString> const& old_value, Optional<Utf16FlyString> const& new_value)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    auto* style_engine = style_engine_for_identified(element);
+    if (!style_engine)
         return;
 
     auto atom_of = [&](Optional<Utf16FlyString> const& value) -> StyleAtomID {
@@ -2555,8 +2550,8 @@ void record_element_id_changed(DOM::Element& element, Optional<Utf16FlyString> c
 
 void record_element_class_list_changed(DOM::Element& element, ReadonlySpan<Utf16FlyString> old_classes, ReadonlySpan<Utf16FlyString> new_classes)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    auto* style_engine = style_engine_for_identified(element);
+    if (!style_engine)
         return;
 
     // One class delta per class that actually gained or lost membership. A class present on both
@@ -2595,8 +2590,8 @@ void record_element_class_list_changed(DOM::Element& element, ReadonlySpan<Utf16
 
 void record_element_attribute_changed(DOM::Element& element, Utf16FlyString const& name, Optional<Utf16FlyString> const& namespace_uri, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    auto* style_engine = style_engine_for_identified(element);
+    if (!style_engine)
         return;
     if (!old_value.has_value() && !new_value.has_value())
         return;
