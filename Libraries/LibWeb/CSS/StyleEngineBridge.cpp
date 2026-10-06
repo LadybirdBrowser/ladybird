@@ -156,15 +156,6 @@ StyleEngine::StyleRecordView StyleEngine::style_record_view(Layout::BegunRead co
     return StyleEngineFFI::style_engine_style_record_view(host(), &read, style_record.value());
 }
 
-double StyleEngine::ensure_random_base_value(Layout::BegunRead const& read, StyleNodeID node, Utf16View name, bool element_shared)
-{
-    Vector<u16, 32> code_units;
-    code_units.ensure_capacity(name.length_in_code_units());
-    for (size_t i = 0; i < name.length_in_code_units(); ++i)
-        code_units.unchecked_append(name.code_unit_at(i));
-    return bit_cast<double>(StyleEngineFFI::style_engine_ensure_random_base_value(host(), &read, node, code_units, element_shared));
-}
-
 ParkedRandomBaseValues StyleEngine::park_element_random_base_values(StyleNodeID node)
 {
     return ParkedRandomBaseValues { StyleEngineFFI::style_engine_park_element_random_base_values(host(), node.value()) };
@@ -256,14 +247,8 @@ StyleAtomID StyleEngine::intern_text_atom(Utf16View text)
 StyleAtomID StyleEngine::intern_language_atom(Utf16View text)
 {
     auto atom = intern_text_atom(text);
-    if (atom == 0 || text.is_empty() || m_published_language_atoms.set(atom) != AK::HashSetResult::InsertedNewEntry)
-        return atom;
-
-    Vector<u16> code_units;
-    code_units.ensure_capacity(text.length_in_code_units());
-    for (size_t i = 0; i < text.length_in_code_units(); ++i)
-        code_units.unchecked_append(text.code_unit_at(i));
-    StyleEngineFFI::style_engine_set_element_language(m_render_document->host(), 0, atom.value(), code_units.data(), code_units.size());
+    if (atom != 0 && !text.is_empty() && m_published_language_atoms.set(atom) == AK::HashSetResult::InsertedNewEntry)
+        StyleEngineFFI::style_engine_set_element_language(host(), 0, atom.value(), StyleEngineFFI::ffi_utf16_view(text));
     return atom;
 }
 
@@ -319,12 +304,10 @@ StyleAtomID StyleEngine::intern_attribute_name(Utf16FlyString const& local_name,
     // An attr() reads an attribute in no namespace by its local name.
     if (namespace_atom == 0) {
         auto local_name_view = local_name.view();
-        Vector<u16> local_name_code_units;
-        local_name_code_units.ensure_capacity(local_name_view.length_in_code_units());
+        StyleEngineFFI::style_engine_note_attribute_substitution_name(host(), name, StyleEngineFFI::ffi_utf16_view(local_name_view));
+        forms.substitution_name.ensure_capacity(local_name_view.length_in_code_units());
         for (size_t i = 0; i < local_name_view.length_in_code_units(); ++i)
-            local_name_code_units.unchecked_append(local_name_view.code_unit_at(i));
-        StyleEngineFFI::style_engine_note_attribute_substitution_name(host(), name, local_name_code_units);
-        forms.substitution_name = move(local_name_code_units);
+            forms.substitution_name.unchecked_append(local_name_view.code_unit_at(i));
     }
     m_attribute_name_forms.set(name, move(forms));
     names_by_namespace.set(namespace_atom, name);
@@ -353,11 +336,7 @@ void StyleEngine::publish_attribute_value_text(StyleAtomID name, StyleAtomID ato
     // The engine holds one copy of the text per currently used value that something reads, and keeps the one it holds
     // where it still has it, so the host hands the text over without asking whether it survived reclamation, or
     // whether anything reads the name.
-    Vector<u16> code_units;
-    code_units.ensure_capacity(value.length_in_code_units());
-    for (size_t i = 0; i < value.length_in_code_units(); ++i)
-        code_units.unchecked_append(value.code_unit_at(i));
-    StyleEngineFFI::style_engine_set_attribute_value_text(host(), name, atom, code_units);
+    StyleEngineFFI::style_engine_set_attribute_value_text(host(), name, atom, StyleEngineFFI::ffi_utf16_view(value));
 }
 
 bool StyleEngine::refresh_attribute_value_text_requirements(Layout::BegunRead const& read)
@@ -390,13 +369,8 @@ void StyleEngine::set_element_language(StyleNodeID node, StyleAtomID language, U
 {
     // A language range is not a name, so `:lang()` compares against the tag itself rather than
     // against the atom. The text is recorded once per language, not once per element.
-    Vector<u16> code_units;
-    if (language != 0 && !tag.is_empty() && m_published_language_atoms.set(language) == AK::HashSetResult::InsertedNewEntry) {
-        code_units.ensure_capacity(tag.length_in_code_units());
-        for (size_t i = 0; i < tag.length_in_code_units(); ++i)
-            code_units.unchecked_append(tag.code_unit_at(i));
-    }
-    StyleEngineFFI::style_engine_set_element_language(m_render_document->host(), node.value(), language.value(), code_units.data(), code_units.size());
+    bool const first_of_language = language != 0 && !tag.is_empty() && m_published_language_atoms.set(language) == AK::HashSetResult::InsertedNewEntry;
+    StyleEngineFFI::style_engine_set_element_language(host(), node.value(), language.value(), StyleEngineFFI::ffi_utf16_view(first_of_language ? tag : Utf16View {}));
 }
 
 // Recording input gives the next rendering update style work to do, but touches no layout tree

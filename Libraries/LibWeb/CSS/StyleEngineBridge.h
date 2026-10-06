@@ -52,7 +52,7 @@ void style_engine_set_element_unique_node_id(DocumentHost const*, StyleNodeID no
 void style_engine_set_element_table_spans(DocumentHost const*, StyleNodeID node, u32 column_span, u32 row_span, u32 raw_column_span);
 void style_engine_set_element_id_name(DocumentHost const*, StyleNodeID node, StyleAtomID name);
 void style_engine_set_shadow_root(DocumentHost const*, StyleNodeID shadow_host, StyleNodeID shadow_root);
-void style_engine_note_attribute_substitution_name(DocumentHost const*, StyleAtomID name, ReadonlySpan<u16> local_name);
+void style_engine_note_attribute_substitution_name(DocumentHost const*, StyleAtomID name, FfiUtf16View local_name);
 void style_engine_note_attribute_name_forms(DocumentHost const*, StyleAtomID name, StyleAtomID local, StyleAtomID folded_name, StyleAtomID folded_local);
 void style_engine_record_environment_change(DocumentHost const*);
 void style_engine_record_custom_property_registration_change(DocumentHost const*, StyleAtomID name);
@@ -91,7 +91,7 @@ void style_engine_unpin_style_record(DocumentHost const*, u64 style_record);
 void style_engine_begin_style_record_view_epoch(DocumentHost const*);
 void style_engine_end_style_record_view_epoch(DocumentHost const*);
 void style_engine_set_tree_scope_uses_document_sheets(DocumentHost const*, TreeScopeID tree_scope);
-void style_engine_set_attribute_value_text(DocumentHost const*, StyleAtomID name, StyleAtomID value, ReadonlySpan<u16> text);
+void style_engine_set_attribute_value_text(DocumentHost const*, StyleAtomID name, StyleAtomID value, FfiUtf16View text);
 void style_engine_set_element_custom_property_names(DocumentHost const*, StyleNodeID node, ReadonlySpan<StyleAtomID> name_atoms, bool uses_unnamed, bool uses_custom_functions);
 void style_engine_set_element_animation_names(DocumentHost const*, StyleNodeID node, ReadonlySpan<StyleAtomID> name_atoms);
 void style_engine_set_element_recomputes_on_environment_move(DocumentHost const*, StyleNodeID node, bool recomputes);
@@ -118,6 +118,14 @@ bool style_engine_node_declares_custom_properties(DocumentHost const*, BegunRead
 u64 style_engine_size_query_container_scan_visits(DocumentHost const*, BegunRead const*, bool reset);
 bool style_engine_complete_published_match_answers_for_closure(DocumentHost const*, BegunRead const*, ReadonlySpan<StyleNodeID> nodes);
 u64 style_engine_ensure_random_base_value(DocumentHost const*, BegunRead const*, StyleNodeID node, ReadonlySpan<u16> name, bool element_shared);
+}
+
+// A view of the code units of a string, ASCII or UTF-16 as it stores them, which the engine copies if it keeps them.
+inline FfiUtf16View ffi_utf16_view(Utf16View view)
+{
+    if (view.has_ascii_storage())
+        return { .ascii = reinterpret_cast<u8 const*>(view.ascii_span().data()), .utf16 = nullptr, .length = view.length_in_code_units() };
+    return { .ascii = nullptr, .utf16 = reinterpret_cast<u16 const*>(view.utf16_span().data()), .length = view.length_in_code_units() };
 }
 
 }
@@ -169,9 +177,6 @@ public:
 
     void visit_edges(GC::Cell::Visitor&);
 
-    // https://drafts.csswg.org/css-values-5/#random-caching
-    // The random base value of a random caching key: the name, and the element unless the sharing is element-shared.
-    [[nodiscard]] double ensure_random_base_value(Layout::BegunRead const& read, StyleNodeID, Utf16View name, bool element_shared);
     // The random base values of the keys that name an element whose style node this was, which the element keeps while
     // it has none, and gives to the style node it gets next.
     [[nodiscard]] ParkedRandomBaseValues park_element_random_base_values(StyleNodeID);
