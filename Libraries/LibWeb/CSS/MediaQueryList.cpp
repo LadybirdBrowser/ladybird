@@ -19,12 +19,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(MediaQueryList);
 
-GC::Ref<MediaQueryList> MediaQueryList::create(DOM::Document& document, Vector<NonnullRefPtr<MediaQuery>>&& media)
+GC::Ref<MediaQueryList> MediaQueryList::create(DOM::Document& document, RustMediaList media)
 {
     return GC::Heap::the().allocate<MediaQueryList>(document, move(media));
 }
 
-MediaQueryList::MediaQueryList(DOM::Document& document, Vector<NonnullRefPtr<MediaQuery>>&& media)
+MediaQueryList::MediaQueryList(DOM::Document& document, RustMediaList media)
     : DOM::EventTarget()
     , m_document(document)
     , m_media(move(media))
@@ -46,38 +46,22 @@ void MediaQueryList::visit_edges(Cell::Visitor& visitor)
 // https://drafts.csswg.org/cssom-view/#dom-mediaquerylist-media
 Utf16String MediaQueryList::media() const
 {
-    return serialize_a_media_query_list(m_media);
+    return m_media.media_text();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-mediaquerylist-matches
 bool MediaQueryList::matches() const
 {
-    if (m_media.is_empty())
-        return true;
-
-    bool did_match = false;
-    for (auto const& media : m_media) {
-        if (media->matches()) {
-            did_match = true;
-            break;
-        }
-    }
+    bool did_match = m_media.matches();
 
     // NOTE: If our document is inside a frame, we need to update layout
     //       since that may cause our frame (and thus viewport) to resize.
     if (auto container_document = m_document->container_document()) {
         container_document->update_layout(DOM::UpdateLayoutReason::MediaQueryListMatches);
-        const_cast<MediaQueryList*>(this)->evaluate();
+        m_media.evaluate(m_document);
     }
 
-    bool now_matches = false;
-    for (auto& media : m_media) {
-        if (media->matches()) {
-            now_matches = true;
-            break;
-        }
-    }
-
+    bool now_matches = m_media.matches();
     if (did_match != now_matches)
         m_has_changed_state = true;
 
@@ -86,17 +70,7 @@ bool MediaQueryList::matches() const
 
 bool MediaQueryList::evaluate()
 {
-    if (m_media.is_empty())
-        return true;
-
-    MediaEnvironmentSnapshot environment { m_document };
-    bool now_matches = false;
-    for (auto& media : m_media) {
-        auto matches = media->evaluate(environment);
-        now_matches = now_matches || matches;
-    }
-
-    return now_matches;
+    return m_media.evaluate(m_document);
 }
 
 // https://www.w3.org/TR/cssom-view/#dom-mediaquerylist-addlistener

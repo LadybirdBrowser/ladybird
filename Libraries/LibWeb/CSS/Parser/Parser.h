@@ -15,7 +15,6 @@
 #include <LibWeb/CSS/Descriptor.h>
 #include <LibWeb/CSS/DescriptorID.h>
 #include <LibWeb/CSS/Enums.h>
-#include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/CSS/Parser/RuleContext.h>
 #include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
 #include <LibWeb/CSS/Parser/RustSyntaxParsing.h>
@@ -184,8 +183,6 @@ RefPtr<CSS::StyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams co
 Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const&, Utf16View);
 Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const&, Utf16View);
 Optional<CSS::RustRule> parse_css_rule(CSS::Parser::ParsingParams const&, Utf16View, bool nested = false);
-RefPtr<CSS::MediaQuery> parse_media_query(Utf16View);
-Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(Utf16View);
 Optional<CSS::RustQueryHandle> parse_css_supports(CSS::Parser::ParsingParams const&, Utf16View);
 WEB_API ErrorOr<Utf16String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<StringView> mime_type_charset, ReadonlyBytes encoded_string);
 bool is_valid_animation_name_custom_ident(Utf16View);

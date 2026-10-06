@@ -24,8 +24,8 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/InstalledStyle.h>
-#include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/CSS/RustDeclarationBlock.h>
+#include <LibWeb/CSS/RustMediaList.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/CSS/SharedCompiledStyleSheet.h>

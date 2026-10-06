@@ -6,10 +6,35 @@
 
 #pragma once
 
-#include <LibWeb/CSS/MediaQuery.h>
+#include <AK/Array.h>
+#include <AK/Optional.h>
+#include <AK/Utf16String.h>
+#include <LibWeb/CSS/MediaFeatureID.h>
+#include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
+#include <LibWeb/ValueParserRustFFI.h>
 
 namespace Web::CSS {
+
+class MediaEnvironmentSnapshot {
+public:
+    explicit MediaEnvironmentSnapshot(DOM::Document const&);
+
+    Parser::ValueParserFFI::FfiMediaEnvironment ffi_environment() const
+    {
+        return {
+            .values = m_values.data(),
+            .value_count = m_values.size(),
+            .length_resolution_context = m_length_resolution_context.has_value() ? &*m_length_resolution_context : nullptr,
+        };
+    }
+
+private:
+    static_assert(media_feature_count == to_underlying(MediaFeatureID::Width) + 1);
+    Array<Parser::ValueParserFFI::FfiMediaFeatureValue, media_feature_count> m_values {};
+    Optional<ComputedValuesFFI::FfiLengthResolutionContext> m_length_resolution_context;
+};
 
 class RustMediaList {
     AK_MAKE_NONCOPYABLE(RustMediaList);
@@ -47,6 +72,14 @@ public:
         if (m_ownership == Ownership::Adopt)
             Parser::ValueParserFFI::rust_media_list_free(const_cast<Parser::ValueParserFFI::MediaList*>(m_list));
     }
+    // https://drafts.csswg.org/mediaqueries-4/#parse-a-media-query-list
+    static RustMediaList parse(Utf16View text)
+    {
+        RustMediaList list;
+        list.set_text(text);
+        return list;
+    }
+
     RustMediaList retain() const { return RustMediaList { Parser::ValueParserFFI::rust_media_list_retain(m_list) }; }
     RustMediaList share() const { return RustMediaList { Parser::ValueParserFFI::rust_media_list_share(m_list) }; }
     size_t length() const { return Parser::ValueParserFFI::rust_media_list_length(m_list); }

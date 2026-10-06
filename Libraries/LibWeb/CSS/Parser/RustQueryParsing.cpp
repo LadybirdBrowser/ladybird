@@ -7,35 +7,6 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/ValueParserRustFFI.h>
 
-namespace Web {
-
-Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(Utf16View source)
-{
-    using namespace CSS;
-    using namespace CSS::Parser;
-    using namespace ValueParserFFI;
-    Vector<NonnullRefPtr<MediaQuery>> queries;
-    auto visit = [](void* context, FfiQueryHandle const* handle) {
-        auto& queries = *static_cast<Vector<NonnullRefPtr<MediaQuery>>*>(context);
-        queries.append(MediaQuery::create(RustQueryHandle::retained(handle)));
-    };
-    if (!rust_visit_media_query_list(ffi_utf16_view(source), &queries, visit))
-        return { MediaQuery::create_not_all() };
-    return queries;
-}
-
-RefPtr<CSS::MediaQuery> parse_media_query(Utf16View source)
-{
-    auto media_query_list = parse_media_query_list(source);
-    if (media_query_list.is_empty())
-        return CSS::MediaQuery::create_not_all();
-    if (media_query_list.size() == 1)
-        return media_query_list.first();
-    return nullptr;
-}
-
-}
-
 namespace Web::CSS::Parser {
 
 using namespace ValueParserFFI;

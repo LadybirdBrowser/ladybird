@@ -2818,8 +2818,7 @@ void Document::obtain_theme_color(Layout::BegunRead const& read)
             auto context = CSS::Parser::ParsingParams { document() };
             auto media = element.attribute(HTML::AttributeNames::media);
             if (media.has_value()) {
-                auto query = parse_media_query(media.value());
-                if (query.is_null() || !query->evaluate(*this))
+                if (!CSS::RustMediaList::parse(media.value()).evaluate(*this))
                     return TraversalDecision::Continue;
             }
 

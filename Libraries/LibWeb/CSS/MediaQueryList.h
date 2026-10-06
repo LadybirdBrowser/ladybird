@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Forward.h>
-#include <LibWeb/CSS/MediaQuery.h>
+#include <LibWeb/CSS/RustMediaList.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Export.h>
 
@@ -19,7 +19,7 @@ class MediaQueryList final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(MediaQueryList);
 
 public:
-    [[nodiscard]] static GC::Ref<MediaQueryList> create(DOM::Document&, Vector<NonnullRefPtr<MediaQuery>>&&);
+    [[nodiscard]] static GC::Ref<MediaQueryList> create(DOM::Document&, RustMediaList);
 
     virtual ~MediaQueryList() override = default;
 
@@ -37,12 +37,12 @@ public:
     void set_has_changed_state(bool has_changed_state) { m_has_changed_state = has_changed_state; }
 
 private:
-    MediaQueryList(DOM::Document&, Vector<NonnullRefPtr<MediaQuery>>&&);
+    MediaQueryList(DOM::Document&, RustMediaList);
     virtual void visit_edges(Cell::Visitor&) override;
     virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
 
     GC::Ref<DOM::Document> m_document;
-    Vector<NonnullRefPtr<MediaQuery>> m_media;
+    RustMediaList m_media;
 
     mutable Optional<bool> m_has_changed_state { false };
 };

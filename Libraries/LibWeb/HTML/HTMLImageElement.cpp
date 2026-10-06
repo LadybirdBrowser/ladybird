@@ -1519,10 +1519,8 @@ static void update_the_source_set(DOM::Element& element)
 
         // 6. If child has a media attribute, and its value does not match the environment, continue to the next child.
         if (child->has_attribute(HTML::AttributeNames::media)) {
-            auto media_query = parse_media_query(child->attribute(HTML::AttributeNames::media).value_or({}));
-            if (!media_query || !media_query->evaluate(element.document())) {
+            if (!CSS::RustMediaList::parse(child->attribute(HTML::AttributeNames::media).value_or({})).evaluate(element.document()))
                 continue;
-            }
         }
 
         // 7. Parse child's sizes attribute with img, and let source set's source size be the returned value.

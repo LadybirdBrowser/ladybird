@@ -2664,8 +2664,6 @@ fn evaluate_media_query(
     result
 }
 
-type VisitQueryHandle = unsafe extern "C" fn(*mut c_void, *const FfiQueryHandle);
-
 pub(crate) type VisitQuerySerialization = unsafe extern "C" fn(*mut c_void, *const u16, usize);
 
 enum SourceSizeValue {
@@ -2827,32 +2825,6 @@ pub(crate) unsafe fn declared_namespaces_from_context(context: &ParseContext) ->
         .collect()
 }
 
-/// Parses a media-query list and visits each resulting retained query tree.
-///
-/// # Safety
-/// The source pointers must identify readable storage for the duration of the call. The callback
-/// must be valid and may retain a query handle with `css_query_ref`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_visit_media_query_list(
-    source: FfiUtf16View,
-    context: *mut c_void,
-    visit: VisitQueryHandle,
-) -> bool {
-    let Some(source) = (unsafe { source.units() }) else {
-        return false;
-    };
-    let Some(queries) = parse_media_query_list(source, &resolve_query_feature) else {
-        return false;
-    };
-    for query in queries {
-        let handle = Arc::new(FfiQueryHandle {
-            tree: QueryTree::MediaQuery(query),
-        });
-        unsafe { visit(context, Arc::as_ptr(&handle)) };
-    }
-    true
-}
-
 fn create_expression_handle(expression: Expression, kind: QueryKind) -> *const FfiQueryHandle {
     Arc::into_raw(Arc::new(FfiQueryHandle {
         tree: QueryTree::Expression { expression, kind },
@@ -2902,48 +2874,6 @@ pub unsafe extern "C" fn css_query_unref(handle: *const FfiQueryHandle) {
     if !handle.is_null() {
         unsafe { Arc::decrement_strong_count(handle) };
     }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn css_query_create_not_all() -> *const FfiQueryHandle {
-    Arc::into_raw(Arc::new(FfiQueryHandle {
-        tree: QueryTree::MediaQuery(invalid_media_query()),
-    }))
-}
-
-/// Serializes a retained media query without changing its UTF-16 representation.
-///
-/// # Safety
-/// `handle` must point to a live media-query handle. The callback must be valid and may only
-/// retain a copy of the borrowed UTF-16 slice.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn css_query_serialize_media_query(
-    handle: *const FfiQueryHandle,
-    context: *mut c_void,
-    visit: VisitQuerySerialization,
-) -> bool {
-    let Some(handle) = (unsafe { handle.as_ref() }) else {
-        return false;
-    };
-    let QueryTree::MediaQuery(query) = &handle.tree else {
-        return false;
-    };
-    let serialized = serialize_media_query(query);
-    unsafe { visit(context, serialized.as_ptr(), serialized.len()) };
-    true
-}
-
-/// Evaluates a retained media query against an immutable feature snapshot.
-///
-/// # Safety
-/// `handle` must point to a live media-query handle. The environment slices and optional length
-/// resolution context must remain readable for the duration of this call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn css_query_evaluate_media(
-    handle: *const FfiQueryHandle,
-    environment: FfiMediaEnvironment,
-) -> bool {
-    unsafe { handle.as_ref() }.is_some_and(|handle| handle.matches_media(unsafe { environment.borrow() }))
 }
 
 /// Evaluates a retained supports condition whose feature results were captured while parsing.

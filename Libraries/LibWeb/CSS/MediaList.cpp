@@ -8,10 +8,13 @@
 #include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/MediaList.h>
+#include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/CSS/StyleSheetState.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Dump.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -115,6 +118,18 @@ WebIDL::ExceptionOr<void> MediaList::delete_medium(Utf16View medium)
     invalidate_owners_for_media_change();
 
     return {};
+}
+
+MediaEnvironmentSnapshot::MediaEnvironmentSnapshot(DOM::Document const& document)
+{
+    if (!document.window())
+        return;
+
+    m_length_resolution_context = to_ffi_length_resolution_context_with_container_bases(
+        Length::ResolutionContext::for_document(document), all_container_relative_length_units_mask);
+
+    for (size_t index = 0; index < m_values.size(); ++index)
+        m_values[index] = document.window()->query_media_feature(static_cast<MediaFeatureID>(index));
 }
 
 void RustMediaList::dump(StringBuilder& builder, int indent_levels) const
