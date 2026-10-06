@@ -1216,21 +1216,9 @@ pub unsafe extern "C" fn style_engine_has_deferred_element_style_inputs(host: &D
     }
 }
 
-/// Whether the engine defers a style input for `node`, which the host knows without asking where no job runs and the
-/// writes it queued since its last job name every input they defer.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_has_deferred_element_style_input(
-    host: &DocumentHost,
-    read: &BegunRead,
-    node: u32,
-) -> bool {
-    let Some(style_node) = StyleNodeID::from_raw(node) else {
-        return false;
-    };
+/// Whether `style_node` owes a style input the engine defers, which the host knows without asking where no input it
+/// cannot name may be owed.
+pub(crate) fn has_deferred_element_style_input(host: &DocumentHost, read: &BegunRead, style_node: StyleNodeID) -> bool {
     if host.knows_engine_between_jobs() {
         let deferred = host.engine_memo().deferred.borrow();
         if !deferred.may_owe_unnamed() {

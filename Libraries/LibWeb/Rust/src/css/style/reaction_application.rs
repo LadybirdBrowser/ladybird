@@ -17,7 +17,7 @@ use super::bridge::{
     FfiEngineComputedRecord, FfiRecordDemand, FfiStyleDelta, FfiStyleDeltaDamage, FfiStyleDeltaGap,
     FfiStyleInvalidationField, PSEUDO_RECORD_SLOTS,
 };
-use super::engine_calls::{absorb_element_style_input, with_engine};
+use super::engine_calls::{absorb_element_style_input, has_deferred_element_style_input, with_engine};
 use super::publication::RecordDemand;
 use super::transaction::{
     STYLE_REACTION_ANCESTOR_BECAME_VISIBLE, STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES, STYLE_REACTION_INHERITED_STYLE,
@@ -57,12 +57,55 @@ impl HostElementPtr {
 pub struct FfiReactionElement {
     /// The host's element, or null where no element has the style node.
     pub element: HostElementPtr,
+    pub style_node: u32,
     /// Whether the element is connected to the document whose reactions are applied.
     pub connected: bool,
     pub has_style: bool,
     pub style_record: u64,
     /// Whether the element's style reads its custom-property environment through `var()` or `inherit()`.
     pub reads_environment: bool,
+    /// Whether the style the element holds has display:none.
+    pub display_none: bool,
+}
+
+/// How a targeted style update of an element reads its style.
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiStyleUpdateMode {
+    /// Every element the element inherits through computes the style it owes, under display:none ancestors too.
+    Normal,
+    /// Only an element without style, or one that owes a style input, computes its style.
+    #[expect(
+        dead_code,
+        reason = "only the host asks for this mode, which the engine reads by elimination"
+    )]
+    OnlyIfNeeded,
+    /// As `OnlyIfNeeded`, but a display:none ancestor stops the update: the element has no style to read.
+    StopAtDisplayNone,
+}
+
+/// What a targeted style update answers a read of an element's style.
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiTargetedStyleAnswer {
+    /// The element has no style to read.
+    Unstyled,
+    /// The element has the style it reads.
+    Styled,
+    /// The element has the style it holds, if any.
+    HeldStyle,
+    /// The style the element reads needs a style update of its document first.
+    NeedsStyleUpdate,
+}
+
+/// What a targeted update of an element in an inheritance chain did, for the elements below it.
+#[derive(Clone, Copy, Default)]
+#[repr(C)]
+pub struct FfiTargetedStyleReaction {
+    /// The update moved what the element's descendants inherit or how their boxes are built.
+    pub descendants_need_recompute: bool,
+    /// The update asks for the element's descendants to compute their styles again.
+    pub recompute_descendant_styles: bool,
 }
 
 /// What moving a pseudo-element from one record to another damages, where the engine answered it.
@@ -123,6 +166,16 @@ pub struct FfiTakenStyleTransaction {
 }
 
 unsafe extern "C" {
+    fn web_css_style_inheritance_parent(
+        application: *mut HostStyleReactionApplication,
+        element: *mut HostElement,
+    ) -> FfiReactionElement;
+    fn web_css_apply_targeted_style_reaction(
+        application: *mut HostStyleReactionApplication,
+        element: *mut HostElement,
+        installation: *const FfiRecordInstallation,
+        descendant_style_recompute_needed: bool,
+    ) -> FfiTargetedStyleReaction;
     fn web_css_take_style_transaction(
         application: *mut HostStyleReactionApplication,
         flown: bool,
@@ -673,37 +726,186 @@ pub unsafe extern "C" fn style_engine_update_style(
     update_style(application, drains_flown_transaction, StyleNodeID::from_raw(root))
 }
 
-/// Demands the element's record for a targeted update of it, and answers the installation of the record into
-/// `installation`, or false where the engine refused the demand.
+/// What an inheritance chain holds, by depth from its first element.
+#[derive(Default)]
+struct InheritanceChainScan {
+    /// The topmost element that has to compute its style: it has none, or it owes a style input.
+    topmost_requiring_style: Option<usize>,
+    topmost_display_none: Option<usize>,
+    nearest_display_none: Option<usize>,
+}
+
+impl InheritanceChainScan {
+    fn display_none_above_every_element_requiring_style(&self) -> bool {
+        self.topmost_display_none.is_some_and(|display_none| {
+            self.topmost_requiring_style
+                .is_none_or(|requiring| display_none > requiring)
+        })
+    }
+}
+
+impl Application<'_> {
+    /// The elements an element inherits its style through, from `first` up to the root.
+    fn inheritance_chain(self, first: FfiReactionElement) -> impl Iterator<Item = FfiReactionElement> {
+        let present = |element: FfiReactionElement| (!element.element.is_null()).then_some(element);
+        std::iter::successors(present(first), move |element| {
+            // SAFETY: The host lends its application for the call, and the element is live while it is read.
+            present(unsafe { web_css_style_inheritance_parent(self.host_application, element.element.0) })
+        })
+    }
+
+    /// Scans the chain an element inherits its style through, from `first`, where every element may owe a style
+    /// input unless `may_owe_style_inputs` is false.
+    fn scan_inheritance_chain(self, first: FfiReactionElement, may_owe_style_inputs: bool) -> InheritanceChainScan {
+        let mut scan = InheritanceChainScan::default();
+        for (depth, element) in self.inheritance_chain(first).enumerate() {
+            if !element.has_style
+                || (may_owe_style_inputs
+                    && StyleNodeID::from_raw(element.style_node)
+                        .is_some_and(|node| has_deferred_element_style_input(self.host, self.read, node)))
+            {
+                scan.topmost_requiring_style = Some(depth);
+            }
+            if element.display_none {
+                scan.topmost_display_none = Some(depth);
+                scan.nearest_display_none.get_or_insert(depth);
+            }
+        }
+        scan
+    }
+
+    /// Answers a read of an element's style, whose chain of elements it inherits through starts at `first`, from the
+    /// styles they hold, where neither its document nor an embedding one has style work pending.
+    fn read_settled_inheritance_chain(
+        self,
+        first: FfiReactionElement,
+        mode: FfiStyleUpdateMode,
+    ) -> FfiTargetedStyleAnswer {
+        let scan = self.scan_inheritance_chain(first, false);
+        if mode == FfiStyleUpdateMode::StopAtDisplayNone && scan.display_none_above_every_element_requiring_style() {
+            FfiTargetedStyleAnswer::Unstyled
+        } else if scan.topmost_requiring_style.is_none() {
+            FfiTargetedStyleAnswer::Styled
+        } else {
+            FfiTargetedStyleAnswer::NeedsStyleUpdate
+        }
+    }
+
+    /// Updates the style of the chain of elements an element inherits through, from `first`: re-cascades from the
+    /// rootmost element on the chain that has to compute its style back down to the element.
+    fn update_style_for_inheritance_chain(
+        self,
+        first: FfiReactionElement,
+        mode: FfiStyleUpdateMode,
+        embedding_document_layout_was_stale: bool,
+    ) -> FfiTargetedStyleAnswer {
+        let scan = self.scan_inheritance_chain(first, true);
+        if mode == FfiStyleUpdateMode::StopAtDisplayNone && scan.display_none_above_every_element_requiring_style() {
+            return FfiTargetedStyleAnswer::Unstyled;
+        }
+        // Normal mode also re-cascades the target path under its display:none ancestors.
+        let mut topmost_element_to_recompute = scan.topmost_requiring_style;
+        if mode == FfiStyleUpdateMode::Normal && topmost_element_to_recompute.is_none() {
+            topmost_element_to_recompute = scan.nearest_display_none.and_then(|depth| depth.checked_sub(1));
+        }
+        let topmost_element_to_recompute = match topmost_element_to_recompute {
+            Some(depth) => depth,
+            None if mode != FfiStyleUpdateMode::Normal && !embedding_document_layout_was_stale => {
+                return FfiTargetedStyleAnswer::HeldStyle;
+            }
+            None => 0,
+        };
+
+        // The chain is named by style node: an element it names is looked up again as the walk reaches it.
+        let chain: smallvec::SmallVec<[u32; 32]> = self
+            .inheritance_chain(first)
+            .take(topmost_element_to_recompute + 1)
+            .map(|element| element.style_node)
+            .collect();
+        let mut descendant_style_recompute_needed = false;
+        for &style_node in chain.iter().rev() {
+            let element = self.element(style_node);
+            let Some(node) = StyleNodeID::from_raw(style_node).filter(|_| !element.element.is_null()) else {
+                return FfiTargetedStyleAnswer::HeldStyle;
+            };
+            let installation = self.demand(
+                &element,
+                node,
+                STYLE_REACTION_PUBLISHED_STYLE | STYLE_REACTION_RECOMPUTE_STYLE,
+                0,
+            );
+            let installation = installation.as_ref().map_or(std::ptr::null(), std::ptr::from_ref);
+            // SAFETY: The host lends its application for the call, and the element is live while it is updated.
+            let applied = unsafe {
+                web_css_apply_targeted_style_reaction(
+                    self.host_application,
+                    element.element.0,
+                    installation,
+                    descendant_style_recompute_needed,
+                )
+            };
+            descendant_style_recompute_needed |= applied.recompute_descendant_styles;
+
+            // The engine can refuse a first style, which leaves the rest of the chain nothing to inherit from.
+            let element = self.element(style_node);
+            if !element.has_style {
+                return FfiTargetedStyleAnswer::HeldStyle;
+            }
+            if element.display_none {
+                if mode == FfiStyleUpdateMode::StopAtDisplayNone {
+                    return FfiTargetedStyleAnswer::Unstyled;
+                }
+                descendant_style_recompute_needed = false;
+            }
+            descendant_style_recompute_needed |= applied.descendants_need_recompute;
+        }
+        FfiTargetedStyleAnswer::HeldStyle
+    }
+}
+
+/// Answers a read of an element's style from the styles held by the chain of elements it inherits through, from
+/// `first`, where neither its document nor an embedding one has style work pending, or that it needs a style update.
 ///
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread, `host_application` must be live for the call, and
-/// `installation` must be writable.
+/// `host` must be a live document host, on its document's thread, and `host_application` and the element `first`
+/// names must be live for the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_demand_record_installation(
+pub unsafe extern "C" fn style_engine_read_settled_inheritance_chain(
     host: &DocumentHost,
     read: &BegunRead,
     host_application: *mut HostStyleReactionApplication,
-    node: u32,
-    installation: *mut FfiRecordInstallation,
-) -> bool {
+    first: FfiReactionElement,
+    mode: FfiStyleUpdateMode,
+) -> FfiTargetedStyleAnswer {
     let application = Application {
         host,
         read,
         host_application,
     };
-    let element = application.element(node);
-    let node = StyleNodeID::from_raw(node).expect("a targeted update names an element");
-    let Some(demanded) = application.demand(
-        &element,
-        node,
-        STYLE_REACTION_PUBLISHED_STYLE | STYLE_REACTION_RECOMPUTE_STYLE,
-        0,
-    ) else {
-        return false;
+    application.read_settled_inheritance_chain(first, mode)
+}
+
+/// Updates the style of the chain of elements an element inherits through, from `first`, for a read of the element's
+/// style, and answers the read.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, and `host_application` and the element `first`
+/// names must be live for the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_update_style_for_inheritance_chain(
+    host: &DocumentHost,
+    read: &BegunRead,
+    host_application: *mut HostStyleReactionApplication,
+    first: FfiReactionElement,
+    mode: FfiStyleUpdateMode,
+    embedding_document_layout_was_stale: bool,
+) -> FfiTargetedStyleAnswer {
+    let application = Application {
+        host,
+        read,
+        host_application,
     };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { installation.write(demanded) };
-    true
+    application.update_style_for_inheritance_chain(first, mode, embedding_document_layout_was_stale)
 }

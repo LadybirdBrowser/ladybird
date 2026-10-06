@@ -7058,6 +7058,8 @@ pub(crate) mod ffi_test_stubs {
     use std::cell::Cell;
     use std::ffi::c_void;
 
+    use crate::css::style::reaction_application::{HostElement, HostStyleReactionApplication};
+
     thread_local! {
         static FONT_CASCADE_LIST_UNREFS: Cell<usize> = const { Cell::new(0) };
     }
@@ -7086,28 +7088,26 @@ pub(crate) mod ffi_test_stubs {
     extern "C" fn web_css_custom_property_data_unreference(_data: *const c_void) {}
     #[unsafe(no_mangle)]
     extern "C" fn web_css_style_reaction_element(
-        _application: *mut crate::css::style::reaction_application::HostStyleReactionApplication,
+        _application: *mut HostStyleReactionApplication,
         _node: u32,
     ) -> crate::css::style::reaction_application::FfiReactionElement {
         unreachable!("no unit test applies style reactions");
     }
     #[unsafe(no_mangle)]
-    extern "C" fn web_css_parent_style_has_animated_values(
-        _element: *mut crate::css::style::reaction_application::HostElement,
-    ) -> bool {
+    extern "C" fn web_css_parent_style_has_animated_values(_element: *mut HostElement) -> bool {
         unreachable!("no unit test applies style reactions");
     }
     #[unsafe(no_mangle)]
     extern "C" fn web_css_engine_record_environment_is_installable(
-        _application: *mut crate::css::style::reaction_application::HostStyleReactionApplication,
-        _element: *mut crate::css::style::reaction_application::HostElement,
+        _application: *mut HostStyleReactionApplication,
+        _element: *mut HostElement,
         _style_record: u64,
     ) -> bool {
         unreachable!("no unit test applies style reactions");
     }
     #[unsafe(no_mangle)]
     extern "C" fn web_css_record_derived_element_style_input(
-        _application: *mut crate::css::style::reaction_application::HostStyleReactionApplication,
+        _application: *mut HostStyleReactionApplication,
         _node: u32,
         _reaction: u8,
         _groups: u8,
@@ -7115,9 +7115,48 @@ pub(crate) mod ffi_test_stubs {
         unreachable!("no unit test applies style reactions");
     }
     #[unsafe(no_mangle)]
+    extern "C" fn web_css_take_style_transaction(
+        _application: *mut HostStyleReactionApplication,
+        _flown: bool,
+    ) -> crate::css::style::reaction_application::FfiTakenStyleTransaction {
+        unreachable!("no unit test applies style reactions");
+    }
+    #[unsafe(no_mangle)]
+    extern "C" fn web_css_has_pending_style_transaction(_application: *mut HostStyleReactionApplication) -> bool {
+        unreachable!("no unit test applies style reactions");
+    }
+    #[unsafe(no_mangle)]
+    extern "C" fn web_css_note_style_update_has_reactions(_application: *mut HostStyleReactionApplication) {
+        unreachable!("no unit test applies style reactions");
+    }
+    #[unsafe(no_mangle)]
+    extern "C" fn web_css_sample_animations_for_style_update(_application: *mut HostStyleReactionApplication) {
+        unreachable!("no unit test applies style reactions");
+    }
+    #[unsafe(no_mangle)]
+    extern "C" fn web_css_begin_style_update_pass(_application: *mut HostStyleReactionApplication, _first: bool) {
+        unreachable!("no unit test applies style reactions");
+    }
+    #[unsafe(no_mangle)]
+    extern "C" fn web_css_style_inheritance_parent(
+        _application: *mut HostStyleReactionApplication,
+        _element: *mut HostElement,
+    ) -> crate::css::style::reaction_application::FfiReactionElement {
+        unreachable!("no unit test applies style reactions");
+    }
+    #[unsafe(no_mangle)]
+    extern "C" fn web_css_apply_targeted_style_reaction(
+        _application: *mut HostStyleReactionApplication,
+        _element: *mut HostElement,
+        _installation: *const crate::css::style::reaction_application::FfiRecordInstallation,
+        _descendant_style_recompute_needed: bool,
+    ) -> crate::css::style::reaction_application::FfiTargetedStyleReaction {
+        unreachable!("no unit test applies style reactions");
+    }
+    #[unsafe(no_mangle)]
     extern "C" fn web_css_apply_style_reaction(
-        _application: *mut crate::css::style::reaction_application::HostStyleReactionApplication,
-        _element: *mut crate::css::style::reaction_application::HostElement,
+        _application: *mut HostStyleReactionApplication,
+        _element: *mut HostElement,
         _reaction: u8,
         _installation: *const crate::css::style::reaction_application::FfiRecordInstallation,
     ) {
