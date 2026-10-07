@@ -35,6 +35,7 @@
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TreeBuilderRustFFI.h>
+#include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
@@ -174,6 +175,11 @@ void EventLoop::process()
     for (auto& reached_step_1_task : reached_step_1_tasks)
         reached_step_1_task->function()();
 
+    // AD-HOC: An idle event loop leases the render clock as soon as the last rendering update's frame has landed, which
+    //         wakes it, so that the pointer hovers beside it.
+    if (!m_task_queue->has_runnable_tasks())
+        lease_clocks(ClockAnimations::Hold);
+
     // 2. If the event loop has a task queue with at least one runnable task, then:
     if (m_task_queue->has_runnable_tasks()) {
         // 1. Let taskQueue be one such task queue, chosen in an implementation-defined manner.
@@ -189,7 +195,7 @@ void EventLoop::process()
 
         // AD-HOC: While a task runs, the render clock may tick the animations the last rendering update planned for.
         if (oldest_task->source() != Task::Source::Rendering)
-            lease_clocks_for_task();
+            lease_clocks(ClockAnimations::Run);
 
         // 5. Set the event loop's currently running task to oldestTask.
         m_currently_running_task = oldest_task.ptr();
@@ -595,22 +601,62 @@ void EventLoop::update_the_rendering()
         && !let_layout_of_rendering_update_fly())
         finish_rendering_update_in_flight();
 
-    process_input_events();
-
     // AD-HOC: A clock lease presents frames of a document's animations beside the tasks since the last update, at
     //         display ticks later than the opportunity this update renders for, which reached the event loop only after
-    //         those tasks. An update after a lease renders at the time it runs, so no animation moves back from where a
-    //         tick showed it.
-    bool clock_was_leased = false;
+    //         those tasks. An update after a lease whose tick presented a frame renders at the time it runs, so nothing
+    //         moves back from where the tick showed it.
+    //         A pointer move the lease's next tick would hover hovers first, so that the screen shows it before the
+    //         update's steps run the document's script. The update keeps the hover a lease moved what the screen shows
+    //         to: the move is the document's from now on, ahead of the input events that hover what is under the pointer
+    //         as the host sees it.
+    bool tick_presented = false;
     for (auto& navigable : all_local_navigables()) {
         auto document = navigable->active_document();
         if (!document)
             continue;
-        if (auto* arena = document->layout_node_arena_if_created())
-            clock_was_leased |= Layout::RustFFI::document_host_end_clock_lease_for_rendering_update(arena->host());
+        auto* arena = document->layout_node_arena_if_created();
+        if (!arena)
+            continue;
+        tick_presented |= Layout::RustFFI::document_host_end_clock_lease_for_rendering_update(arena->host(), static_cast<i64>(HighResolutionTime::unsafe_shared_current_time() * 1'000'000.0));
+        // A lease that ticked on a fork of the document's render state presented frames the host's state never held:
+        // the update presents the host's frame again.
+        if (Layout::RustFFI::document_host_take_fork_presented(arena->host()))
+            navigable->set_needs_repaint();
     }
-    if (clock_was_leased)
+    if (tick_presented)
         m_last_render_opportunity_time = max(m_last_render_opportunity_time, HighResolutionTime::unsafe_shared_current_time());
+
+    process_input_events();
+
+    // AD-HOC: A hover a lease moved, which the update kept, owes the boundary events of the move where the update heard
+    //         of no mouse move: they fire now, from which on script reads the hover, as they would for a mouse move.
+    struct HoverEventsOwed {
+        GC::Root<LocalNavigable> navigable;
+        Optional<DevicePixelPoint> pointer;
+    };
+    Vector<HoverEventsOwed> hover_events_owed;
+    for (auto& navigable : all_local_navigables()) {
+        auto document = navigable->active_document();
+        auto* arena = document ? document->layout_node_arena_if_created() : nullptr;
+        bool has_pointer = false;
+        float pointer_x = 0;
+        float pointer_y = 0;
+        if (!arena || !Layout::RustFFI::document_host_take_hover_events_owed(arena->host(), &has_pointer, &pointer_x, &pointer_y))
+            continue;
+        Optional<DevicePixelPoint> pointer;
+        if (has_pointer)
+            pointer = DevicePixelPoint { static_cast<i32>(pointer_x), static_cast<i32>(pointer_y) };
+        hover_events_owed.append({ navigable, pointer });
+    }
+    for (auto& owed : hover_events_owed) {
+        auto document = owed.navigable->active_document();
+        if (!document || !document->is_fully_active() || owed.navigable->has_been_destroyed())
+            continue;
+        if (owed.pointer.has_value())
+            owed.navigable->event_handler().update_hover_at(owed.navigable->page().device_to_css_point(*owed.pointer));
+        else
+            owed.navigable->event_handler().handle_mouseleave();
+    }
 
     // 1. Let frameTimestamp be eventLoop's last render opportunity time.
     auto frame_timestamp = m_last_render_opportunity_time;
@@ -1007,13 +1053,15 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
     }
 
     // AD-HOC: The tasks after the update may let the render clock tick the document's running animations, until the
-    //         next of their events, which the main thread sends. Only a rendering update leaves a plan for that, and
-    //         each one leaves every document it renders its own, or none, in place of the last.
-    bool const may_plan = !m_running_synchronous_rendering_update && m_spin_depth == 0 && docs.size() == 1 && taken_layout == TakenLayout::UpToDate;
+    //         next of their events, which the main thread sends, and hover what is under the pointer. Only a rendering
+    //         update leaves a plan for that, and each one leaves every document it renders its own, or none, in place of
+    //         the last. The plan of a document whose update rendered others beside it only hovers.
+    bool const may_plan = !m_running_synchronous_rendering_update && m_spin_depth == 0 && taken_layout == TakenLayout::UpToDate;
+    bool const may_animate = may_plan && docs.size() == 1;
     for (auto& document : docs) {
         auto* navigable = as_if<LocalNavigable>(document->navigable().ptr());
         bool const plans = may_plan && navigable && navigable->is_local_root() && navigable->active_document().ptr() == document.ptr();
-        if (seal_clock_plan(*document, plans) && !m_navigables_with_clock_plans.contains_slow(GC::Ref { *navigable }))
+        if (seal_clock_plan(*document, plans, may_animate) && !m_navigables_with_clock_plans.contains_slow(GC::Ref { *navigable }))
             m_navigables_with_clock_plans.append(*navigable);
     }
 }
@@ -1182,20 +1230,26 @@ void EventLoop::take_finished_frames_in()
         (void)m_navigables_with_frames_in_flight[index]->take_recording_in_flight_in(LocalNavigable::TakeIn::IfFinished);
 }
 
-void EventLoop::lease_clocks_for_task()
+// AD-HOC: The render clock holds a document's render state whenever the main thread does not, from the rendering update
+//         that left a plan for it on: it hovers what is under the pointer whenever the pointer moves, and samples the
+//         document's running animations while a task runs. An idle event loop's rendering updates run the animations.
+void EventLoop::lease_clocks(ClockAnimations animations)
 {
     // A rendering update that returned while its layout is still running on the StyleLayout thread leaves the clock
-    // plan for its document's animations only in its remaining steps. If the document has running animations that the
-    // compositor does not run, finish those steps before the task, which would otherwise find no clock plan, or the
-    // frame still in flight, and leave the animations frozen for the whole task.
-    if (m_rendering_update_in_flight && m_rendering_update_in_flight->ended() && !m_rendering_update_in_flight->held_for_testing
-        && runs_animations_for_clock_plan(m_rendering_update_in_flight->document()))
-        finish_rendering_update_in_flight();
-    if (m_navigables_with_clock_plans.is_empty())
-        return;
-    for (auto const& navigable : m_navigables_with_clock_plans)
-        navigable->lease_clock_for_task();
-    m_navigables_with_clock_plans.clear();
+    // plan for its document's animations and hover only in its remaining steps. If the document has running animations
+    // that the compositor does not run, or the pointer is moving over it, finish those steps before the task, which
+    // would otherwise find no clock plan, or the frame still in flight, and leave the animations frozen and the hover
+    // where it was for the whole task.
+    if (animations == ClockAnimations::Run && m_rendering_update_in_flight && m_rendering_update_in_flight->ended()
+        && !m_rendering_update_in_flight->held_for_testing) {
+        auto& document = m_rendering_update_in_flight->document();
+        auto* arena = document.layout_node_arena_if_created();
+        if (runs_animations_for_clock_plan(document) || (arena && Layout::RustFFI::document_host_pointer_is_active(arena->host())))
+            finish_rendering_update_in_flight();
+    }
+    m_navigables_with_clock_plans.remove_all_matching([&](auto const& navigable) {
+        return !navigable->lease_clock(animations);
+    });
 }
 
 void EventLoop::release_held_frames_for_testing()

@@ -139,6 +139,9 @@ pub(crate) struct StagedInput {
     features: Vec<FfiLocalFeatureDelta>,
     states: Vec<FfiStateDelta>,
     declarations: Vec<FfiElementDeclarationDelta>,
+    /// The element the hover moves to once the rest is in place, or none for a move off the document, where the input
+    /// moves it.
+    hover: Option<Option<StyleNodeID>>,
 }
 
 impl StagedInput {
@@ -148,6 +151,12 @@ impl StagedInput {
             && self.features.is_empty()
             && self.states.is_empty()
             && self.declarations.is_empty()
+            && self.hover.is_none()
+    }
+
+    /// Stages the move of the hover to `target`, or off the document for none.
+    pub(crate) fn stage_hover(&mut self, target: Option<StyleNodeID>) {
+        self.hover = Some(target);
     }
 }
 
@@ -191,14 +200,23 @@ impl EngineWrite {
                 identity,
             } => engine.set_pseudo_element_custom_property_data(node, pseudo, data, identity),
             Self::MintStyleNodes(nodes) => engine.mint_style_nodes(&nodes),
-            Self::ApplyTransaction(input) => engine.apply_transaction_batch(
-                &input.tree,
-                (&input.arrivals, &input.arrival_custom_state_atoms),
-                &input.features,
-                &input.states,
-                &input.declarations,
-                &[],
-            ),
+            Self::ApplyTransaction(input) => {
+                engine.apply_transaction_batch(
+                    &input.tree,
+                    (&input.arrivals, &input.arrival_custom_state_atoms),
+                    &input.features,
+                    &input.states,
+                    &input.declarations,
+                    &[],
+                );
+                // The hover moves where the host asks, and its chain follows the tree where the tree moved under it.
+                let hover = input
+                    .hover
+                    .or_else(|| (!input.tree.is_empty()).then(|| engine.hover_target()));
+                if let Some(target) = hover {
+                    engine.set_hover(target);
+                }
+            }
             Self::ElementParts { node, pairs } => engine.set_element_parts(node, &pairs),
             Self::TextData { node, data } => {
                 if let Some(node) = StyleNodeID::from_raw(node) {
@@ -830,6 +848,28 @@ pub unsafe extern "C" fn style_engine_style_record_custom_property_environment(
     };
     memo.set(style_record, environment);
     environment
+}
+
+/// The style record the engine assigns the element `node` names, or 0.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_assigned_style_record(
+    host: &DocumentHost,
+    read: &crate::render_state::BegunRead,
+    node: u32,
+) -> u64 {
+    let Some(node) = super::StyleNodeID::from_raw(node) else {
+        return 0;
+    };
+    with_engine(read, host, |engine| {
+        engine
+            .computed_group_sets
+            .assigned_style_record(node)
+            .map_or(0, |record| record.raw())
+    })
 }
 
 /// What the host knows of its document's style engine, which answers the host's reads without asking the render owner.

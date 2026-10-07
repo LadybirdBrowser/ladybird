@@ -1,8 +1,16 @@
 #include <LibWebCommon/Page/AsyncScrollNodeStableID.h>
 #include <LibWebCommon/Page/CompositorContextId.h>
+#include <LibWebCommon/PixelUnits.h>
 
 endpoint RenderClockClient
 {
     // With where the compositor has scrolled the context's scroll nodes to at the tick.
     clock_tick(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds, Vector<Web::CompositorScrollOffset> scroll_offsets) =|
+
+    // The pointer moved to `position`, in the context's device pixels, beside the mouse event the main thread takes.
+    // `buttons` are the buttons held, and `scrolled_since_frame` says whether the compositor scrolled the context since
+    // the last frame WebContent presented, whose scroll offsets a hit test there would not know.
+    pointer_moved(Web::CompositorContextId context_id, Web::DevicePixelPoint position, u32 buttons, bool scrolled_since_frame) =|
+    // The pointer left the context.
+    pointer_left(Web::CompositorContextId context_id) =|
 }

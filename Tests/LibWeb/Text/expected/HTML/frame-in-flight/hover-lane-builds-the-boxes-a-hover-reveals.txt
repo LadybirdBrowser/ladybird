@@ -1,0 +1,3 @@
+after on screen at y: 150
+menu display: block
+after at y: 150

@@ -1643,6 +1643,79 @@ pub(crate) fn style_group_payloads_hold_image_values(payloads: &[*const c_void])
     })
 }
 
+/// Whether the group payloads `old` and `new`, of two records, hold different `<image>` values in the properties whose
+/// images a layout node loads and observes, by identity. Where they hold the same ones, a box that moves from one
+/// record to the other keeps the images it loads and the facts it paints them with.
+pub(crate) fn style_group_payloads_move_image_values(old: &[*const c_void], new: &[*const c_void]) -> bool {
+    old.iter()
+        .zip(new)
+        .enumerate()
+        .any(|(group_index, (&old_payload, &new_payload))| {
+            if old_payload == new_payload {
+                return false;
+            }
+            let group = style_group(group_index);
+            if old_payload.is_null() || new_payload.is_null() {
+                // SAFETY: As in `style_group_payloads_hold_image_values`.
+                return [old_payload, new_payload]
+                    .into_iter()
+                    .any(|payload| !payload.is_null() && unsafe { payload_holds_image_values(group, payload) });
+            }
+            // SAFETY: As in `style_group_payloads_hold_image_values`.
+            unsafe { payload_image_values_differ(group, old_payload, new_payload) }
+        })
+}
+
+/// Whether `old` and `new`, two payloads of `group`, hold different images, by identity.
+unsafe fn payload_image_values_differ(group: StyleGroup, old: *const c_void, new: *const c_void) -> bool {
+    fn handles_differ(
+        old: &ComputedStyleValueHandle,
+        new: &ComputedStyleValueHandle,
+        holds_image: fn(&ComputedStyleValueHandle) -> bool,
+    ) -> bool {
+        old.pointer != new.pointer && (holds_image(old) || holds_image(new))
+    }
+    fn holds_image(handle: &ComputedStyleValueHandle) -> bool {
+        handle.data().is_some_and(StyleValueData::is_image)
+    }
+    match group {
+        StyleGroup::Background => unsafe {
+            handles_differ(
+                &(*(old as *const BackgroundValues)).background_image,
+                &(*(new as *const BackgroundValues)).background_image,
+                layer_values_hold_image,
+            )
+        },
+        StyleGroup::Mask => unsafe {
+            handles_differ(
+                &(*(old as *const MaskValues)).mask_image,
+                &(*(new as *const MaskValues)).mask_image,
+                layer_values_hold_image,
+            )
+        },
+        StyleGroup::Border => unsafe {
+            handles_differ(
+                &(*(old as *const BorderValues)).border_image_source,
+                &(*(new as *const BorderValues)).border_image_source,
+                holds_image,
+            )
+        },
+        StyleGroup::InheritedList => unsafe {
+            handles_differ(
+                &(*(old as *const InheritedListValues)).list_style_image,
+                &(*(new as *const InheritedListValues)).list_style_image,
+                holds_image,
+            )
+        },
+        StyleGroup::InheritedUI => unsafe {
+            let [old_cursors, new_cursors] = [old, new].map(|payload| &(*(payload as *const InheritedUIValues)).cursor);
+            (old_cursors.pointer != new_cursors.pointer || old_cursors.length != new_cursors.length)
+                && (payload_holds_image_values(group, old) || payload_holds_image_values(group, new))
+        },
+        _ => false,
+    }
+}
+
 /// The intentionally leaked per-group default payloads, for building groups without allocating when
 /// every field holds its initial value.
 struct DefaultPayloads([*const c_void; group_index::COUNT]);

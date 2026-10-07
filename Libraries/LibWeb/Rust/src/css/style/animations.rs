@@ -413,6 +413,24 @@ impl EffectTiming {
             .unwrap_or(Some(host_key))
     }
 
+    /// The local time of the effect with its timeline at `samples`, or none where it is unresolved or the engine cannot
+    /// decide the timing.
+    /// https://www.w3.org/TR/web-animations-1/#local-time
+    #[must_use]
+    pub(crate) fn local_time_at(&self, samples: AnimationTimelineSamples) -> Option<f64> {
+        let timing = &self.timing;
+        if !timing.decidable {
+            return None;
+        }
+        match (timing.has_hold_time, samples.timeline_time(timing)?) {
+            (true, _) => Some(timing.hold_time),
+            (false, Some(timeline_time)) if timing.has_start_time => {
+                Some((timeline_time - timing.start_time) * timing.playback_rate)
+            }
+            (false, _) => None,
+        }
+    }
+
     /// The key the effect's keyframes are sampled at with its timeline at `samples`, which is
     /// `AnimationEffect::transformed_progress()` scaled the way the host scales it. The outer `None` is
     /// a timing the engine cannot decide; the inner one is an unresolved progress, which samples nothing.

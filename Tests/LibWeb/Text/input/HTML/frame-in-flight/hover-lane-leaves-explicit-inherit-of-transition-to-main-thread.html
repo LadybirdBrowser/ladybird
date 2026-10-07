@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    a { display: block; width: 200px; height: 40px; color: rgb(0, 0, 255); background-color: rgb(255, 255, 255); transition: background-color 100s linear; }
+    a:hover { color: rgb(255, 0, 0); background-color: rgb(0, 128, 0); }
+    span { background-color: inherit; }
+</style>
+<a id="link" href="#"><span id="label">Link</span></a>
+<script>
+    // A child that inherits what its parent's transition animates explicitly reads the transition's composition, which
+    // the main thread makes: the hover beside the task leaves the move to it.
+    asyncTest(async done => {
+        const presentedBy = await whileHoverLeased(() => {
+            internals.injectHoverPointer(150, 20);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`a tick presented the last frame: ${presentedBy === "clock"}`);
+        await nextFrame();
+        println(`link matches :hover: ${link.matches(":hover")}`);
+        println(`label color: ${getComputedStyle(label).color}`);
+        done();
+    });
+</script>

@@ -7090,6 +7090,14 @@ pub(crate) mod ffi_test_stubs {
         crate::css::style::bridge::FfiResolvedFont::default()
     }
     #[unsafe(no_mangle)]
+    extern "C" fn web_css_resolve_font_for_fork(
+        _memo: *const c_void,
+        _snapshot: *const c_void,
+        _request: crate::css::style::bridge::FfiFontResolutionRequest,
+    ) -> crate::css::style::bridge::FfiResolvedFont {
+        crate::css::style::bridge::FfiResolvedFont::default()
+    }
+    #[unsafe(no_mangle)]
     extern "C" fn web_css_custom_property_data_unreference(_data: *const c_void) {}
     #[unsafe(no_mangle)]
     extern "C" fn web_css_style_reaction_element(

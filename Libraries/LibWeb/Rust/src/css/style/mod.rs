@@ -96,6 +96,7 @@ mod engine_handle;
 mod flush;
 mod fnv;
 mod font_resolution;
+pub(crate) mod hover_lane;
 pub mod identities;
 pub mod impact;
 pub mod index;
@@ -123,6 +124,7 @@ mod routing;
 pub(crate) mod rule_writes;
 mod sorted_merge;
 mod style_invalidation;
+pub(crate) use style_invalidation::SampleBounds;
 mod transition_baselines;
 mod user_agent_selectors;
 pub(crate) use computed::{ENGINE_INHERITED_GROUP_COUNT, StyleRecordLease};
@@ -765,6 +767,8 @@ pub struct RetainedState {
     admission: AdmissionFacts,
     deferred_pseudo_elements: u64,
     tree: crate::fork::ForkShared<StyleNodeTree>,
+    /// Where the hover is.
+    hover: hover_lane::Hover,
     program: crate::fork::ForkShared<StyleSheetProgram>,
     native_rules: crate::fork::ForkShared<native_rules::NativeRuleRegistry>,
     /// The last declaration block version minted, by the engine or by its document's host, which mints without it.

@@ -4535,6 +4535,12 @@ impl FromIterator<Option<u16>> for FlippedRules {
 }
 
 impl EngineComputedRecordScratch {
+    /// Takes `node` as an element whose composition its children need not wait for: what the host composes over its
+    /// record moves nothing they inherit.
+    pub(super) fn forget_composed_by_the_host(&mut self, node: StyleNodeID) {
+        self.nodes_composed_by_the_host.remove(&node);
+    }
+
     pub(super) fn capacity_bytes(&self) -> u64 {
         capacity::capacity_bytes! {
             shallow [self.computability.states, self.cohorts, self.derived_child_inputs, self.cold_cohorts, self.stores,

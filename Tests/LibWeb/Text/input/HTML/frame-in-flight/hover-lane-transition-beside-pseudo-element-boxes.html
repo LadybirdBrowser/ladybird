@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); transition: width 100s linear; }
+    #box:hover { width: 200px; }
+    #box::before { content: "before"; }
+    #box::after { content: "after"; }
+</style>
+<div id="box"></div>
+<script>
+    // A hover beside the task whose style change starts a transition on an element with ::before and ::after boxes runs
+    // the transition beside the task, where the pseudo-elements take nothing it animates from the element, and the main
+    // thread runs it on from when it started beside the task.
+    asyncTest(async done => {
+        let leaseFrameTime;
+        const halfway = await whileHoverLeased(frameTime => {
+            leaseFrameTime = frameTime;
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            internals.injectClockTick(frameTime + 16 + 50000);
+            return internals.presentedBorderBox(box)?.width;
+        });
+        println(`width halfway through: ${halfway}`);
+        await nextFrame();
+        println(`transitions once the main thread took over: ${box.getAnimations().length}`);
+        println(`transition start time after the frame time: ${Math.round(box.getAnimations()[0]?.startTime - leaseFrameTime)}`);
+        done();
+    });
+</script>

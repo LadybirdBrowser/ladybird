@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    .box { width: 100px; height: 100px; background: rgb(0, 0, 255); outline: 1px solid rgb(0, 0, 255); }
+    .box:hover { width: 150px; background: rgb(0, 128, 0); outline-color: rgb(0, 128, 0); }
+    #b { transition: outline-color 100s linear; }
+</style>
+<div class="box" id="a"></div>
+<div class="box" id="b"></div>
+<script>
+    // A hover beside the task shows on screen at once, but script reads the hover move only once the main thread
+    // handles the mouse move and fires its events: until then, `:hover`, computed styles and transitions read as they
+    // were before the move.
+    asyncTest(async done => {
+        const boxes = [a, b];
+        const hovered = () => boxes.filter(box => box.matches(":hover")).map(box => box.id).join(",") || "none";
+        const styled = () => boxes.map(box => `${box.id}=${getComputedStyle(box).backgroundColor}`).join(" ");
+        for (const box of boxes) {
+            for (const type of ["mouseover", "mouseout"])
+                box.addEventListener(type, () => println(`${type} ${box.id}: hovered ${hovered()}; ${styled()}; b transitions ${b.getAnimations().length}`));
+        }
+        internals.mouseMove(50, 50);
+        await nextFrame();
+        const result = await whileHoverLeased(frameTime => {
+            internals.injectHoverPointer(50, 150, frameTime + 16);
+            const states = [`hovered beside the task: ${hovered()}`];
+            states.push(`b width on screen: ${internals.presentedBorderBox(b).width}`);
+            states.push(`b width beside the task: ${b.getBoundingClientRect().width}`);
+            states.push(`styles beside the task: ${styled()}`);
+            states.push(`b transitions beside the task: ${b.getAnimations().length}`);
+            return states;
+        });
+        for (const state of result)
+            println(state);
+        println("-- the main thread handles the move");
+        internals.mouseMove(50, 150);
+        println(`after: hovered ${hovered()}; b transitions ${b.getAnimations().length}`);
+        done();
+    });
+</script>

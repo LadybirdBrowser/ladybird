@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    *, ::before, ::after { box-sizing: border-box; }
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); transition: width 100s linear; }
+    #box:hover { width: 200px; }
+</style>
+<div id="box"></div>
+<script>
+    // A rule for every element's ::before and ::after that gives them no content generates no boxes, so a hover beside
+    // the task still shows the transition its style change starts.
+    asyncTest(async done => {
+        const result = await whileHoverLeased(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            internals.injectClockTick(frameTime + 16 + 50000);
+            return {
+                halfway: internals.presentedBorderBox(box).width,
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`width halfway through: ${result.halfway}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        await nextFrame();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        done();
+    });
+</script>

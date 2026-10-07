@@ -83,6 +83,7 @@
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Internals/InternalGamepad.h>
 #include <LibWeb/Internals/Internals.h>
 #include <LibWeb/Layout/NodeArena.h>
@@ -587,6 +588,19 @@ void Internals::click_through_ui_process(double x, double y)
         event.click_count = 1;
         page.client().page_did_request_webdriver_mouse_event(local_root_id, move(event), GC::create_function(heap(), [] { }));
     }
+}
+
+// A mouse move the UI process routes, as it would a user's, through the compositor, which tells the render clock of it
+// too.
+void Internals::mouse_move_through_ui_process(double x, double y)
+{
+    auto& page = this->page();
+    auto position = page.css_to_device_point(window().navigable()->to_page_position({ x, y }));
+    Web::MouseEvent event;
+    event.type = Web::MouseEvent::Type::MouseMove;
+    event.position = position;
+    event.screen_position = position;
+    page.client().page_did_request_webdriver_mouse_event(window().navigable()->local_root()->id(), move(event), GC::create_function(heap(), [] { }));
 }
 
 void Internals::wheel_through_ui_process(double x, double y, double delta_x, double delta_y)
@@ -1663,6 +1677,21 @@ void Internals::inject_clock_tick(double frame_time_ms, Optional<double> viewpor
     Layout::RustFFI::document_host_inject_clock_tick(document.layout_node_arena().host(), static_cast<i64>(frame_time * 1'000'000.0), scroll_offset.has_value() ? &*scroll_offset : nullptr);
 }
 
+void Internals::inject_hover_pointer(double x, double y, Optional<double> frame_time_ms)
+{
+    auto& document = window().associated_document();
+    auto device_pixels_per_css_pixel = page().client().device_pixels_per_css_pixel();
+    auto frame_time = frame_time_ms.has_value() ? document.relevant_settings_object().time_origin() + *frame_time_ms : HighResolutionTime::unsafe_shared_current_time();
+    Layout::RustFFI::document_host_inject_pointer(document.layout_node_arena().host(), static_cast<float>(x * device_pixels_per_css_pixel), static_cast<float>(y * device_pixels_per_css_pixel), static_cast<i64>(frame_time * 1'000'000.0));
+}
+
+void Internals::move_hover_pointer(double x, double y)
+{
+    auto& document = window().associated_document();
+    auto device_pixels_per_css_pixel = page().client().device_pixels_per_css_pixel();
+    Layout::RustFFI::document_host_move_pointer(document.layout_node_arena().host(), static_cast<float>(x * device_pixels_per_css_pixel), static_cast<float>(y * device_pixels_per_css_pixel));
+}
+
 Utf16String Internals::clock_lease_state(DOM::Document& document)
 {
     switch (Layout::RustFFI::document_host_clock_lease_state(document.layout_node_arena().host())) {
@@ -1672,6 +1701,8 @@ Utf16String Internals::clock_lease_state(DOM::Document& document)
         return "ticking"_utf16;
     case Layout::RustFFI::FfiClockLeaseState::Parked:
         return "parked"_utf16;
+    case Layout::RustFFI::FfiClockLeaseState::Hovering:
+        return "hovering"_utf16;
     }
     VERIFY_NOT_REACHED();
 }
@@ -1682,6 +1713,14 @@ GC::Ptr<Geometry::DOMRect> Internals::presented_border_box(DOM::Element& element
     if (!element.style_node_id() || !Layout::RustFFI::document_host_presented_border_box(element.document().layout_node_arena().host(), element.style_node_id().value(), &rect))
         return nullptr;
     return Geometry::DOMRect::create(rect.x().to_double(), rect.y().to_double(), rect.width().to_double(), rect.height().to_double());
+}
+
+Optional<String> Internals::presented_color(DOM::Element& element)
+{
+    u32 argb = 0;
+    if (!element.style_node_id() || !Layout::RustFFI::document_host_presented_color(element.document().layout_node_arena().host(), element.style_node_id().value(), &argb))
+        return {};
+    return Color::from_bgra(argb).serialize_a_srgb_value();
 }
 
 void Internals::set_manual_rendering_opportunities(bool enabled)

@@ -72,6 +72,10 @@ public:
 
     // NB: A memo of a pure function, so filling it does not change what it answers.
     [[nodiscard]] NonnullRefPtr<Gfx::FontCascadeList const> resolve(FontFaceSnapshot const&, ComputedFontCacheKey const&, FontFeatureValuesProvider const&) const;
+    // Resolves as resolve() does for a fork of a document's render state, which holds a reference to every cascade it
+    // names: an answer against an older table than the memo's is the fork's alone, which neither the retired cascades
+    // nor the bookkeeping of answers against older tables take in.
+    [[nodiscard]] NonnullRefPtr<Gfx::FontCascadeList const> resolve_for_fork(FontFaceSnapshot const&, ComputedFontCacheKey const&, FontFeatureValuesProvider const&) const;
     // NB: Only under a font environment generation newer than any resolved against: the style engine names the memo's
     //     cascades without holding a reference to them for as long as a generation stands, so the forgotten ones are
     //     retired, not released, as a style transaction that flew may still name them.

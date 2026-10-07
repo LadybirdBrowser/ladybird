@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; outline: 1px solid rgb(0, 0, 255); transition: outline-color 100s linear; }
+    #box:hover { width: 150px; outline-color: rgb(0, 128, 0); }
+</style>
+<div id="box"></div>
+<script>
+    // A hover beside the task that moves the pointer off every element onto the empty space of the viewport hovers the
+    // root element, as the main thread does: the box loses its hover on screen.
+    asyncTest(async done => {
+        internals.mouseMove(50, 50);
+        await nextFrame();
+        const width = await whileHoverLeased(frameTime => {
+            internals.injectHoverPointer(50, 400, frameTime + 16);
+            return internals.presentedBorderBox(box)?.width;
+        });
+        println(`box width on screen: ${width}`);
+        await nextFrame();
+        println(`root matches :hover: ${document.documentElement.matches(":hover")}`);
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        done();
+    });
+</script>

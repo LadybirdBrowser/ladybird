@@ -1,0 +1,3 @@
+after on screen at y: 50
+after read beside the task at y: 150
+menu display read beside the task: block

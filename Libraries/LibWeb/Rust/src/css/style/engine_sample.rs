@@ -389,7 +389,6 @@ impl super::StyleEngine {
         }
 
         let view = self.computed_group_sets.style_record_view(record).ok_or(NeedsHost)?;
-        let table = view.longhand_table;
         // SAFETY: The record holds its table and overlay, and the host's install pins the record.
         let mut overlay = unsafe { view.animated_overlay.as_ref() }.cloned().unwrap_or_default();
         for &property in ended_properties
@@ -398,16 +397,59 @@ impl super::StyleEngine {
         {
             overlay.remove_animated(property);
         }
+        self.sample_composed_over_record(
+            node,
+            record,
+            overlay,
+            None,
+            composed,
+            transform_reference_box,
+            super::style_invalidation::SampleBounds::Box,
+        )
+    }
+
+    /// Samples `composed`, the effects of the element `node` names, or those `fresh` describes, onto `overlay` over
+    /// `record`, and composes the sample into a record no element holds, pinned for a box, as [`Self::sample_at`] does,
+    /// where the sample changes no more than `bounds` lets it.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn sample_composed_over_record(
+        &mut self,
+        node: StyleNodeID,
+        record: u64,
+        mut overlay: AnimatedOverlay,
+        fresh: Option<&[super::effect_descriptions::PublishedEffect]>,
+        composed: crate::css::style_compute::SampledEffects,
+        transform_reference_box: Option<crate::css::css_pixels::CssPixelRect>,
+        bounds: super::style_invalidation::SampleBounds,
+    ) -> Result<super::layout_style::DerivedStyleRecord, NeedsHost> {
         let outcome = self
-            .sample_over_record(node, record, &mut overlay, None, composed, transform_reference_box)?
+            .sample_over_record(node, record, &mut overlay, fresh, composed, transform_reference_box)?
             .outcome;
         if outcome == crate::css::style_compute::FfiHostAnimationSampleOutcome::Cleared {
             overlay = AnimatedOverlay::default();
         }
+        self.compose_overlay_over_record(node, record, &overlay, bounds)
+    }
 
+    /// Composes `overlay`, the values of animations of the element `node` names, or those it inherits from an
+    /// ancestor's, over `record` into a record no element holds, pinned for a box, where the composition changes no more
+    /// than `bounds` lets it.
+    pub(crate) fn compose_overlay_over_record(
+        &mut self,
+        node: StyleNodeID,
+        record: u64,
+        overlay: &AnimatedOverlay,
+        bounds: super::style_invalidation::SampleBounds,
+    ) -> Result<super::layout_style::DerivedStyleRecord, NeedsHost> {
+        let table = self
+            .computed_group_sets
+            .style_record_view(record)
+            .ok_or(NeedsHost)?
+            .longhand_table;
         // What the host adjusts after it samples, an animated color scheme, and an inherited value the
-        // element's children hold as of the host's sample, are the host's to compose.
-        let has_children = self.tree.first_element_child(node).is_some();
+        // element's children hold as of the host's sample, are the host's to compose, unless the caller composes what
+        // the children inherit itself.
+        let has_children = self.tree.first_element_child(node).is_some() && !bounds.children_follow();
         let facts = self.computed_group_sets.adjustment_facts(node);
         if overlay.entries().iter().any(|entry| {
             entry.post_compute_adjustment
@@ -428,7 +470,7 @@ impl super::StyleEngine {
                     crate::css::cascaded_properties::NO_PSEUDO_ELEMENT,
                     record,
                     table,
-                    Some(&overlay),
+                    Some(overlay),
                     used_color_scheme,
                     table.display_before_box_type_transformation(),
                     font,
@@ -439,17 +481,20 @@ impl super::StyleEngine {
         // A sample that moves the font asks the document's font resolver for it, as the host's sample does.
         let rebuilt = match build(self, None)? {
             Err(NeedsHostFont) => {
-                let font = self
-                    .animated_font_group_inputs(node, table, &overlay)
-                    .ok_or(NeedsHost)?;
+                let font = self.animated_font_group_inputs(node, table, overlay).ok_or(NeedsHost)?;
                 build(self, Some(&font))?.map_err(|NeedsHostFont| NeedsHost)?
             }
             Ok(rebuilt) => rebuilt,
         };
         // What the sample changes beyond its box is the host's to show: the visual contexts above all, which the
         // compositor has from the host's frames.
-        if !self.animation_sample_stays_in_its_box(node, record, &overlay, SharedPayload::from_pointer_slice(&payloads))
-        {
+        if !self.animation_sample_stays_in_its_box(
+            node,
+            record,
+            overlay,
+            SharedPayload::from_pointer_slice(&payloads),
+            bounds,
+        ) {
             release_rebuilt_overlay_payloads(&payloads, rebuilt.groups);
             return Err(NeedsHost);
         }
@@ -610,7 +655,7 @@ impl super::StyleEngine {
             if !self.record_generates_a_box(restyled) {
                 return self.take_box_away(node, restyled);
             }
-            let moved = self.show_built_boxes(node, ShownBoxes::Built, restyled, &record)?;
+            let moved = self.show_built_boxes(node, ShownBoxes::Built, restyled, &record, Transitions::Refused)?;
             return Ok(if moved {
                 DependentRestyle::BuiltBoxesMove
             } else {
@@ -622,7 +667,7 @@ impl super::StyleEngine {
                 return Ok(DependentRestyle::Unmoved);
             }
             let parent = self.box_rebuild_parent(node).ok_or(NeedsHost)?;
-            self.show_built_boxes(node, ShownBoxes::Built, restyled, &record)?;
+            self.show_built_boxes(node, ShownBoxes::Built, restyled, &record, Transitions::Refused)?;
             return Ok(DependentRestyle::GainsABox { parent });
         }
         let element_moves = restyled != host_record;
@@ -672,6 +717,46 @@ impl super::StyleEngine {
         }
     }
 
+    /// Shows the clock frame's build the records the boxes a hover's move of `node` builds again take: where the element
+    /// gains a box or its boxes move, its own and those of the elements below it, which compute against it, and where it
+    /// loses its box, its own, which generates none. The host builds what only it can.
+    pub(crate) fn show_boxes_a_hover_builds(
+        &mut self,
+        node: StyleNodeID,
+        rebuild: super::hover_lane::HoverBoxRebuild,
+    ) -> Result<(), NeedsHost> {
+        // The element's own move is the hover's, whose step the hover decided: its record is the one the hover installed,
+        // with the pseudo-element records beside it.
+        let element = self.computed_group_sets.assigned_style_record(node).ok_or(NeedsHost)?;
+        let mut record = super::publication::DemandedEngineRecord {
+            style_record: element.raw(),
+            explicitly_inherited_groups: 0,
+            owes_an_animation_plan: false,
+            owes_a_transition_step: false,
+            composed_by_the_host: false,
+            pseudo_records_present: 0,
+            pseudo_records: [0; bridge::PSEUDO_RECORD_SLOTS],
+        };
+        for kind in 0..bridge::PSEUDO_RECORD_SLOTS {
+            if let Some(pseudo) = self.computed_group_sets.pseudo_style_record(node, kind as u8) {
+                record.pseudo_records_present |= 1 << kind;
+                record.pseudo_records[kind] = pseudo.raw();
+            }
+        }
+        // NB: An element that gains a box comes out of display: none with everything below it, which starts no
+        //     transition, as the host's step decides.
+        let transitions = match rebuild {
+            super::hover_lane::HoverBoxRebuild::LosesItsBox { .. } => {
+                self.retained.show_for_tick(node, ShownRecords::hidden(element));
+                return Ok(());
+            }
+            super::hover_lane::HoverBoxRebuild::GainsABox { .. } => Transitions::StartNone,
+            super::hover_lane::HoverBoxRebuild::BoxesMove => Transitions::Refused,
+        };
+        self.show_built_boxes(node, ShownBoxes::Built, element, &record, transitions)
+            .map(|_| ())
+    }
+
     /// Shows `restyled`, which generates no box, for `node`, whose box the clock frame takes away.
     fn take_box_away(
         &mut self,
@@ -692,8 +777,9 @@ impl super::StyleEngine {
         boxes: ShownBoxes,
         element: super::computed::FinalStyleRecordID,
         record: &super::publication::DemandedEngineRecord,
+        transitions: Transitions,
     ) -> Result<bool, NeedsHost> {
-        self.check_builds_plainly(node, element, record)?;
+        self.check_builds_plainly(node, element, record, transitions)?;
         let shown = ShownRecords {
             boxes,
             element,
@@ -719,7 +805,7 @@ impl super::StyleEngine {
                 .assign_engine_computed_record(node, host, element);
             Some(replaced.ok_or(NeedsHost)?)
         };
-        let below = self.show_built_children(node);
+        let below = self.show_built_children(node, transitions);
         if let Some(replaced) = replaced {
             self.computed_group_sets
                 .revert_engine_computed_record(node, element, replaced);
@@ -729,14 +815,14 @@ impl super::StyleEngine {
 
     /// Shows the records the element children of `parent` compute to against the one assigned to it, in the boxes a
     /// clock frame builds for them. Answers whether any moved from what the clock showed.
-    fn show_built_children(&mut self, parent: StyleNodeID) -> Result<bool, NeedsHost> {
+    fn show_built_children(&mut self, parent: StyleNodeID, transitions: Transitions) -> Result<bool, NeedsHost> {
         let mut moved = false;
         let mut child = self.tree.first_element_child(parent);
         while let Some(node) = child {
             child = self.tree.next_element_sibling(node);
             let record = self.derive_record(node, bridge::FfiRecordDemand::ElementReadAgainstParent)?;
             let element = super::computed::FinalStyleRecordID::from_raw(record.style_record).ok_or(NeedsHost)?;
-            moved |= self.show_built_boxes(node, ShownBoxes::BuiltBelow, element, &record)?;
+            moved |= self.show_built_boxes(node, ShownBoxes::BuiltBelow, element, &record, transitions)?;
         }
         Ok(moved)
     }
@@ -750,6 +836,7 @@ impl super::StyleEngine {
         node: StyleNodeID,
         element: super::computed::FinalStyleRecordID,
         record: &super::publication::DemandedEngineRecord,
+        transitions: Transitions,
     ) -> Result<(), NeedsHost> {
         use super::publication::pseudo_kind::{AFTER, BACKDROP, BEFORE, FIRST_LETTER, FIRST_LINE, MARKER};
         use element_adjustment_fact::{
@@ -789,7 +876,7 @@ impl super::StyleEngine {
             && !values.display().is_contents()
             && !values.affects_generated_content_state()
             && !generates_pseudo_boxes
-            && !self.record_declares_transitions(element)
+            && (transitions == Transitions::StartNone || !self.record_declares_transitions(element))
             && !self.record_declares_animations(element.raw());
         plain.then_some(()).ok_or(NeedsHost)
     }
@@ -843,7 +930,7 @@ impl super::StyleEngine {
     /// places `node`'s box among its children wherever the host's record gives it one. None where the host places the
     /// box otherwise: the root, the body, an SVG element and a top layer member, and a box that is not its parent's
     /// child alone, that of a slotted element or of a child of a shadow root or a shadow host.
-    fn box_rebuild_parent(&self, node: StyleNodeID) -> Option<StyleNodeID> {
+    pub(super) fn box_rebuild_parent(&self, node: StyleNodeID) -> Option<StyleNodeID> {
         use element_adjustment_fact::{
             IS_DOCUMENT_ELEMENT, IS_HTML_BODY_ELEMENT, IS_SVG_ELEMENT, RENDERED_IN_TOP_LAYER,
         };
@@ -911,7 +998,7 @@ impl super::StyleEngine {
 
     /// Whether an element with `record` generates a box: it is neither under a `display: none` ancestor nor itself
     /// `display: none` or `display: contents`.
-    fn record_generates_a_box(&self, record: super::computed::FinalStyleRecordID) -> bool {
+    pub(super) fn record_generates_a_box(&self, record: super::computed::FinalStyleRecordID) -> bool {
         let Some(view) = self.computed_group_sets.style_record_view(record.raw()) else {
             return true;
         };
@@ -975,6 +1062,14 @@ pub(crate) enum DependentRestyle {
     /// Records that move the boxes a clock frame built for the element and below it, which the frame builds again
     /// from them.
     BuiltBoxesMove,
+}
+
+/// Whether the boxes a clock frame builds may hold elements that declare transitions: none where the move starts none,
+/// as one out of display: none, and refused otherwise, as only the host starts them.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Transitions {
+    Refused,
+    StartNone,
 }
 
 /// The records the render clock's frames show in place of the ones the host installed, for the elements whose boxes

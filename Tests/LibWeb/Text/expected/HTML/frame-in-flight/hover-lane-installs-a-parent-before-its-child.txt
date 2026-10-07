@@ -1,0 +1,6 @@
+card matches :hover: true
+child color: rgb(255, 0, 0)
+last frame presented by: clock
+card, child hovered: false false
+child color: rgb(0, 0, 255)
+child background: rgba(0, 0, 0, 0)

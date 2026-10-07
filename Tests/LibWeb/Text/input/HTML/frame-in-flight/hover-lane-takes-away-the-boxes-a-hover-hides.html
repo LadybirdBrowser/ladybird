@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    .item { width: 200px; background: rgb(0, 0, 255); }
+    .label { height: 50px; }
+    .menu { display: none; height: 100px; }
+    .item:hover .menu { display: block; }
+    @keyframes grow { from { width: 50px; } to { width: 60px; } }
+    #after { width: 50px; height: 50px; animation: grow 100s linear infinite; }
+</style>
+<div class="item" id="item"><div class="label"></div><div class="menu" id="menu"><span>first</span> <span>second</span></div></div>
+<div id="after"></div>
+<script>
+    // A hover beside the task that leaves a menu hides it, which takes the menu's boxes away beside the task, and the
+    // element after it moves up on screen. Script reads the menu as it was until the events of the move: a layout read
+    // beside the task takes the move back.
+    asyncTest(async done => {
+        internals.mouseMove(100, 25);
+        await nextFrame();
+        const result = await whileHoverLeased(frameTime => {
+            internals.injectHoverPointer(100, 400, frameTime + 16);
+            const y = internals.presentedBorderBox(after)?.y;
+            return { onScreen: y, read: after.getBoundingClientRect().y, display: getComputedStyle(menu).display };
+        });
+        println(`after on screen at y: ${result.onScreen}`);
+        println(`after read beside the task at y: ${result.read}`);
+        println(`menu display read beside the task: ${result.display}`);
+        done();
+    });
+</script>

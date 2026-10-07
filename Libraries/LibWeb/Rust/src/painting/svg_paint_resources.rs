@@ -238,6 +238,11 @@ impl SvgPaintResources {
         self.enrolled = flag;
     }
 
+    /// Gives a fork a flag of its own, holding what the shared one holds now.
+    pub(crate) fn detach_enrolled_flag_for_fork(&mut self) {
+        self.enrolled = Arc::new(AtomicBool::new(self.enrolled.load(Ordering::Relaxed)));
+    }
+
     pub(crate) fn has_enrolled_entries(&self) -> bool {
         !self.rows.borrow().is_empty()
     }

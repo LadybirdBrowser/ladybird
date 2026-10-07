@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; font: 20px SerenitySans, sans-serif; line-height: 40px; }
+    div { height: 40px; }
+    a:hover { color: rgb(0, 128, 0); }
+    #moves:hover { cursor: move; }
+    #unselectable { user-select: none; }
+    #button { cursor: pointer; user-select: none; }
+</style>
+<div id="empty"></div>
+<div><a href="#">link text</a></div>
+<div>plain text</div>
+<div id="moves">moves on hover</div>
+<div id="unselectable">unselectable text</div>
+<div contenteditable>editable text</div>
+<div><span id="button">button label</span></div>
+<script>
+    // A tick of the render clock that hovers what is under the pointer while the task runs also shows the cursor of what
+    // it hovers, as the main thread shows it as it handles a move there: the arrow over an empty box, the hand over a
+    // link, the text cursor over selectable text, the cursor a :hover rule gives, the arrow over text that cannot be
+    // selected, the text cursor over editable text, and the cursor of an element over its unselectable text. The
+    // rendering update after the task keeps the cursor the last tick showed. The main thread shows the same cursors over
+    // the same rows once a rendering update applied the style of each move.
+    asyncTest(async done => {
+        const rows = [...document.querySelectorAll("body > div")].map(div => div.getBoundingClientRect().top + 20);
+        const cursors = await whileHoverLeased(() => {
+            const cursors = [];
+            for (const y of rows) {
+                internals.injectHoverPointer(10, y);
+                cursors.push(internals.currentCursor());
+            }
+            return cursors;
+        });
+        println(`cursors while the task ran: ${cursors.join(", ")}`);
+        await nextFrame();
+        println(`cursor after the task: ${internals.currentCursor()}`);
+        const mainThreadCursors = [];
+        for (const y of rows) {
+            internals.mouseMove(10, y);
+            await twoFrames();
+            mainThreadCursors.push(internals.currentCursor());
+        }
+        println(`main thread cursors: ${mainThreadCursors.join(", ")}`);
+        done();
+    });
+</script>

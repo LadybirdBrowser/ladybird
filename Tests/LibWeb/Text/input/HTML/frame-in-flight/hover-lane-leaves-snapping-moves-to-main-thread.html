@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    html { scroll-snap-type: y mandatory; }
+    body { margin: 0; }
+    .page { height: 100px; scroll-snap-align: start; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); }
+    #box:hover { transform: translateY(20px); }
+</style>
+<div class="page"><div id="box"></div></div>
+<div class="page"></div>
+<script>
+    // A hover whose style change moves what a snapping scroll container snaps to is the main thread's to finish: the
+    // hover beside the task moves the hover facts, and the main thread snaps again as it lays out the move.
+    asyncTest(async done => {
+        const presentedBy = await whileHoverLeased(() => {
+            internals.injectHoverPointer(50, 50);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`a tick presented the last frame: ${presentedBy === "clock"}`);
+        await nextFrame();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        done();
+    });
+</script>

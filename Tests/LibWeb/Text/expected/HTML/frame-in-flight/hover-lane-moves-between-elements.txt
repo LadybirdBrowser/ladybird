@@ -1,0 +1,3 @@
+last frame presented by: clock
+a, b hovered: false true
+a: rgb(0, 0, 255), b: rgb(0, 128, 0)

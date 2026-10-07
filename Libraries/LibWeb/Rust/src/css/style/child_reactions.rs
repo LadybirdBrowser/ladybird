@@ -159,6 +159,21 @@ impl StyleEngine {
         damages: impl IntoIterator<Item = u32>,
         sink: impl FnMut(DerivedChildReaction),
     ) {
+        let (inherited_style_groups_changed, facts) =
+            self.engine_row_child_reaction_facts(node, old_style_record, new_style_record, damages);
+        self.derive_child_reactions(node, reaction, inherited_style_groups_changed, facts, sink);
+    }
+
+    /// What the host's application of a row the engine settled for `node`, moving the element from `old_style_record` to
+    /// `new_style_record` with `damages`, reports of it: the inherited style groups it moved, and the facts of
+    /// [`Self::note_style_reaction_applied`].
+    pub(super) fn engine_row_child_reaction_facts(
+        &self,
+        node: StyleNodeID,
+        old_style_record: u64,
+        new_style_record: u64,
+        damages: impl IntoIterator<Item = u32>,
+    ) -> (u8, u32) {
         let (inherited_style_groups_changed, mut facts) = child_reaction_facts_of_damage(damages);
         if old_style_record == 0 {
             // A first style is a full invalidation.
@@ -183,7 +198,7 @@ impl StyleEngine {
         {
             facts |= fact::SHADOW_CHILDREN_EXPLICITLY_INHERIT;
         }
-        self.derive_child_reactions(node, reaction, inherited_style_groups_changed, facts, sink);
+        (inherited_style_groups_changed, facts)
     }
 
     /// The reactions a reaction applied to `node` derives for its children, given to `sink`.

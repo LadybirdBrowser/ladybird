@@ -59,7 +59,7 @@ pub(crate) struct RenderingPreparation {
 
 /// What a clock tick's round changed that only the host settles: a root background, scrollability or SVG paint
 /// resource, a visual context tree built anew, or a compositor animation whose node went away.
-pub(crate) struct VisualContextsNeedHost;
+pub(crate) struct VisualContextsNeedHost(pub(crate) &'static str);
 
 /// The visual context tree a clock tick's frame takes to the compositor, with the scroll offsets of its nodes where its
 /// structure is not the one the compositor has.
@@ -86,16 +86,18 @@ pub(crate) fn prepare_for_clock_tick(
         || arena.paint_state().borrow().root_background_source
             != Some(crate::layout::viewport_propagation::root_background_source(arena))
     {
-        return Err(VisualContextsNeedHost);
+        return Err(VisualContextsNeedHost(
+            "SVG paint resources or the root background moved",
+        ));
     }
     let (inputs, compositor_animations) = {
         let paint_state = arena.paint_state().borrow();
         let state = &paint_state.visual_context;
         let (Some(inputs), Some(tree)) = (state.last_tree_inputs, state.tree.as_deref()) else {
-            return Err(VisualContextsNeedHost);
+            return Err(VisualContextsNeedHost("no visual context tree"));
         };
         if state.dirty_boxes.scope.rebuilds_every_box() {
-            return Err(VisualContextsNeedHost);
+            return Err(VisualContextsNeedHost("every box rebuilds its visual contexts"));
         }
         if state.dirty_boxes.boxes.is_empty() && state.dirty_boxes.removed.is_empty() {
             return Ok(None);
@@ -105,7 +107,7 @@ pub(crate) fn prepare_for_clock_tick(
     let outcome = update_accumulated_visual_contexts(arena, viewport, inputs);
     presentation.note_visual_context_tree_changed();
     if outcome.performed_full_build {
-        return Err(VisualContextsNeedHost);
+        return Err(VisualContextsNeedHost("a full visual context tree build"));
     }
     let paintable_rows = arena.paintable_rows();
     let mut paint_state = arena.paint_state().borrow_mut();
@@ -120,7 +122,7 @@ pub(crate) fn prepare_for_clock_tick(
     // The update dropped the animations, which name nodes of the old structure: the host publishes them again in its
     // rendering update, and an animation whose node went away needs it to.
     if !Arc::make_mut(tree).carry_visual_animations_over(compositor_animations) {
-        return Err(VisualContextsNeedHost);
+        return Err(VisualContextsNeedHost("animations of a node that went away"));
     }
     let tree = tree.clone();
     // The host refreshes its own copy of the scroll state still.

@@ -1,0 +1,4 @@
+box width on screen: 150
+last frame presented by: clock
+box matches :hover: true
+icon matches :hover: false

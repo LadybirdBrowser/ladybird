@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #link { display: block; width: 200px; height: 40px; color: rgb(0, 0, 255); transition: color 100s linear; }
+    #link:hover { color: rgb(255, 0, 0); }
+    #icon { display: inline-block; width: 10px; height: 10px; border: 1px solid currentcolor; }
+</style>
+<a id="link" href="#"><span id="label">Link</span><span id="icon"></span></a>
+<script>
+    // A hover beside the task shows a color transition of an element whose children inherit its color, in the
+    // children too, as the render clock ticks.
+    asyncTest(async done => {
+        const result = await whileHoverLeased(frameTime => {
+            internals.injectHoverPointer(150, 20, frameTime + 16);
+            internals.injectClockTick(frameTime + 16 + 50000);
+            return {
+                linkColor: internals.presentedColor(link),
+                labelColor: internals.presentedColor(label),
+                iconColor: internals.presentedColor(icon),
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`link color halfway through: ${result.linkColor}`);
+        println(`label color halfway through: ${result.labelColor}`);
+        println(`icon color halfway through: ${result.iconColor}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        await nextFrame();
+        println(`link matches :hover: ${link.matches(":hover")}`);
+        println(`transitions once the main thread took over: ${link.getAnimations().length}`);
+        done();
+    });
+</script>

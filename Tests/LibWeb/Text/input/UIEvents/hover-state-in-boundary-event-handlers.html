@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .box { width: 100px; height: 100px; background: rgb(0, 0, 255); }
+    .box:hover { background: rgb(0, 128, 0); }
+</style>
+<div class="box" id="a"></div>
+<div class="box" id="b"><div class="box" id="inner"></div></div>
+<script>
+    // The hover moves before the boundary events of a mouse move fire: each handler sees the elements the move left as
+    // no longer hovered, and those it reached as hovered, both by selector matching and by computed style.
+    test(() => {
+        const boxes = [a, b, inner];
+        const hovered = () => boxes.filter(box => box.matches(":hover")).map(box => box.id).join(",") || "none";
+        const styled = () => boxes.map(box => `${box.id}=${getComputedStyle(box).backgroundColor}`).join(" ");
+        const types = ["pointerover", "pointerenter", "pointerout", "pointerleave", "mouseover", "mouseenter", "mouseout", "mouseleave"];
+        for (const box of boxes) {
+            for (const type of types) {
+                box.addEventListener(type, event => {
+                    if (event.currentTarget !== event.target)
+                        return;
+                    println(`${type} ${box.id}: hovered ${hovered()}; ${styled()}`);
+                });
+            }
+        }
+        internals.mouseMove(50, 50);
+        println("-- to inner");
+        internals.mouseMove(50, 150);
+        println("-- to a");
+        internals.mouseMove(50, 50);
+        println("-- out of the document");
+        internals.mouseLeave();
+        println(`after: hovered ${hovered()}`);
+    });
+</script>

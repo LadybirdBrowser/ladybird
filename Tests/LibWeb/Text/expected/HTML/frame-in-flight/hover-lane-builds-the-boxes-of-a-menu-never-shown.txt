@@ -1,0 +1,4 @@
+after on screen at y: 150
+menu display: block
+after at y: 150
+span color: rgb(0, 0, 0)

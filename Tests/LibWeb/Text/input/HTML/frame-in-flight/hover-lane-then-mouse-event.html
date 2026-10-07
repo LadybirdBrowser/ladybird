@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    .box { width: 100px; height: 100px; background: rgb(0, 0, 255); }
+    .box:hover { background: rgb(0, 128, 0); }
+</style>
+<div class="box" id="a"></div>
+<div class="box" id="b"></div>
+<div class="box" id="c"></div>
+<script>
+    // Script reads the hover beside the task only once the events of a move reach it: the task handles the mouse moves
+    // once it is free, and the events fire for the elements the moves reach.
+    asyncTest(async done => {
+        const events = [];
+        for (const box of [a, b, c])
+            box.addEventListener("mouseover", () => events.push(`mouseover ${box.id}`));
+        internals.mouseMove(50, 50);
+        await nextFrame();
+        const hovered = () => [a, b, c].filter(box => box.matches(":hover")).map(box => box.id).join(",");
+        const result = await whileHoverLeased(() => {
+            internals.injectHoverPointer(50, 150);
+            return hovered();
+        });
+        println(`hovered beside the task: ${result}`);
+        internals.mouseMove(50, 250);
+        println(`hovered once the task handled a move to c: ${hovered()}`);
+        println(`b: ${getComputedStyle(b).backgroundColor}, c: ${getComputedStyle(c).backgroundColor}`);
+        internals.mouseMove(50, 150);
+        println(`hovered once the task handled a move to b: ${hovered()}`);
+        println(`events: ${events.join(", ")}`);
+        done();
+    });
+</script>

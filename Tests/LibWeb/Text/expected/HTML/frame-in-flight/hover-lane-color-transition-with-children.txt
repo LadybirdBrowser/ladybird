@@ -1,0 +1,6 @@
+link color halfway through: rgb(128, 0, 128)
+label color halfway through: rgb(128, 0, 128)
+icon color halfway through: rgb(128, 0, 128)
+last frame presented by: clock
+link matches :hover: true
+transitions once the main thread took over: 1

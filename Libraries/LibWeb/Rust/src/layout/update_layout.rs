@@ -488,7 +488,7 @@ impl ClockRound {
     ) -> Result<Option<&'a LayoutRoundAnswer>, ClockRoundDeclined> {
         let arena = state.arena();
         if arena.layout_root().is_invalid() || arena.needs_full_layout_tree_update() {
-            return Err(ClockRoundDeclined);
+            return Err(ClockRoundDeclined("the layout tree needs the host's update"));
         }
         let build = arena
             .document_style_node()
@@ -507,21 +507,29 @@ impl ClockRound {
         .run(state);
         // A box the build gave an image has none until the host attaches it.
         let arena = state.arena();
-        let declined = matches!(
-            answer.end,
-            LayoutRoundEnd::Built { .. } | LayoutRoundEnd::NeedsDocumentStyle
-        ) || answer.owed_images.iter().any(|image| image.is_shown(arena));
+        let declined = if matches!(answer.end, LayoutRoundEnd::Built { .. }) {
+            Some("a build that asks for another pass")
+        } else if matches!(answer.end, LayoutRoundEnd::NeedsDocumentStyle) {
+            Some("a build that needs the document's style")
+        } else if answer.owed_images.iter().any(|image| image.is_shown(arena)) {
+            Some("a box the build owes an image")
+        } else {
+            None
+        };
         owed.push(answer);
-        match state.arena().mark_unresolved_container_lengths_for_layout() || declined {
-            true => Err(ClockRoundDeclined),
-            false => Ok(owed.last()),
+        if state.arena().mark_unresolved_container_lengths_for_layout() {
+            return Err(ClockRoundDeclined("a length only the host resolves"));
+        }
+        match declined {
+            Some(reason) => Err(ClockRoundDeclined(reason)),
+            None => Ok(owed.last()),
         }
     }
 }
 
 /// A clock round whose tree build or layout needs the host: a build that asks for another pass, reconciles list item
 /// counters or owes the host image resources, or a length only the host resolves.
-pub(crate) struct ClockRoundDeclined;
+pub(crate) struct ClockRoundDeclined(pub(crate) &'static str);
 
 /// Seals the round the ticks of a clock lease of `document_host`'s document run, where its layout is up to date in
 /// `read`.

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255) url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==) no-repeat 10px 10px; }
+    #box:hover { background-color: rgb(0, 128, 0); background-position: 20px 20px; }
+</style>
+<div id="box"></div>
+<script>
+    // A hover beside the task moves a box between records that hold the same background image, which the box keeps
+    // painting as it repaints the rest.
+    asyncTest(async done => {
+        const presentedBy = await whileHoverLeased(() => {
+            internals.injectHoverPointer(50, 50);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`last frame presented by: ${presentedBy}`);
+        await nextFrame();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        println(`background once the main thread took over: ${getComputedStyle(box).backgroundColor} at ${getComputedStyle(box).backgroundPosition}`);
+        done();
+    });
+</script>

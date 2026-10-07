@@ -22,6 +22,11 @@ unsafe extern "C" {
         snapshot: *const c_void,
         request: FfiFontResolutionRequest,
     ) -> FfiResolvedFont;
+    fn web_css_resolve_font_for_fork(
+        memo: *const c_void,
+        snapshot: *const c_void,
+        request: FfiFontResolutionRequest,
+    ) -> FfiResolvedFont;
     fn web_css_font_face_snapshot_reference(snapshot: *const c_void);
     fn web_css_font_face_snapshot_unreference(snapshot: *const c_void);
     fn web_css_font_cascade_memo_reference(memo: *const c_void);
@@ -86,7 +91,18 @@ struct ResolvedFont {
     _font_family: RetainedStyleValueData,
     _font_feature_values: [Option<RetainedStyleValueData>; FONT_RESOLUTION_FEATURE_INPUT_COUNT],
     ffi: FfiResolvedFont,
+    /// The reference a fork's cache holds to the cascade, which the host's memo frees once the generation changes.
+    _font_cascade_list: Option<HeldFontCascadeList>,
 }
+
+/// A reference to a cascade, which a cache only holds.
+#[derive(Clone)]
+struct HeldFontCascadeList(#[allow(dead_code)] libgfx_rust::font::FontCascadeListHandle);
+
+// SAFETY: A `Gfx::FontCascadeList` counts its references atomically, and the holder never reads it: the reference only
+// keeps it alive, and is taken and given up on any thread.
+unsafe impl Send for HeldFontCascadeList {}
+unsafe impl Sync for HeldFontCascadeList {}
 
 /// The resolutions this document has already been given, keyed by content and scoped to one
 /// font-environment generation. This is retained engine state: an evaluation step reads it and
@@ -97,10 +113,14 @@ struct ResolvedFont {
 /// changes, and a lookup answers only for the generation the cache was filled at. So the engine
 /// never gives up the last reference to a `Gfx::FontCascadeList`, whose destructor releases fonts
 /// into host caches, and nothing in the cache stops it from moving to another thread.
+///
+/// A fork of the render state sees no generation change, so its cache holds a reference to each
+/// cascade it names instead. See [`Self::start_over_for_fork`].
 #[derive(Clone, Default)]
 pub(super) struct FontResolutionCache {
     generation: Option<u64>,
     cache: HashMap<FontResolutionKey, ResolvedFont>,
+    holds_cascades: bool,
     /// The shadow tree scopes whose own `@font-feature-values` the published table carries.
     feature_values_shadow_scopes: Box<[TreeScopeID]>,
 }
@@ -112,6 +132,15 @@ impl FontResolutionCache {
 
     pub fn feature_values_shadow_scopes(&self) -> &[TreeScopeID] {
         &self.feature_values_shadow_scopes
+    }
+
+    /// Empties the cache of a fork of the render state, which holds a reference to each cascade it names from here on:
+    /// the host frees the cascades the copied entries name once the generation it resolves at changes, which the fork
+    /// never sees.
+    pub fn start_over_for_fork(&mut self) {
+        self.generation = None;
+        self.cache.clear();
+        self.holds_cascades = true;
     }
 
     pub fn prepare(&mut self, generation: u64) {
@@ -130,7 +159,7 @@ impl FontResolutionCache {
             .map(|resolved| resolved.ffi)
     }
 
-    fn insert(&mut self, request: FontRequest, ffi: FfiResolvedFont) {
+    fn insert(&mut self, request: FontRequest, ffi: FfiResolvedFont, font_cascade_list: Option<HeldFontCascadeList>) {
         // The host resolves every request, to the fallback font where nothing else matches, so the
         // resolution always names a list.
         debug_assert!(!ffi.font_cascade_list.is_none());
@@ -140,6 +169,7 @@ impl FontResolutionCache {
                 _font_family: request.family,
                 _font_feature_values: request.feature_values,
                 ffi,
+                _font_cascade_list: font_cascade_list,
             },
         );
     }
@@ -254,16 +284,26 @@ impl PublishedFontFaces {
 #[derive(Clone)]
 pub(super) struct FontResolverHost {
     resolve: ResolveFontCallback,
+    /// Resolves for a fork's cache, handing over a reference to the cascade.
+    resolve_for_fork: ResolveFontCallback,
     font_faces: PublishedFontFaces,
 }
 
 impl FontResolverHost {
     pub(super) fn new(font_faces: PublishedFontFaces) -> Self {
-        Self::with_callback(web_css_resolve_font, font_faces)
+        Self::with_callbacks(web_css_resolve_font, web_css_resolve_font_for_fork, font_faces)
     }
 
-    fn with_callback(resolve: ResolveFontCallback, font_faces: PublishedFontFaces) -> Self {
-        Self { resolve, font_faces }
+    fn with_callbacks(
+        resolve: ResolveFontCallback,
+        resolve_for_fork: ResolveFontCallback,
+        font_faces: PublishedFontFaces,
+    ) -> Self {
+        Self {
+            resolve,
+            resolve_for_fork,
+            font_faces,
+        }
     }
 
     /// The table the document published last, which every later resolution reads.
@@ -276,14 +316,25 @@ impl FontResolverHost {
     /// in the returned cascade and retain the host's rendering-triggered loading behavior.
     pub fn refill(&self, cache: &mut FontResolutionCache, request: FontRequest) {
         cache.prepare(request.ffi.font_environment_generation);
+        let resolve = if cache.holds_cascades {
+            self.resolve_for_fork
+        } else {
+            self.resolve
+        };
         let ffi = unsafe {
-            (self.resolve)(
+            resolve(
                 self.font_faces.memo.as_ptr(),
                 self.font_faces.snapshot.as_ptr(),
                 request.ffi,
             )
         };
-        cache.insert(request, ffi);
+        // SAFETY: A fork's resolution hands over a reference to the cascade it names.
+        let font_cascade_list = cache.holds_cascades.then(|| {
+            HeldFontCascadeList(unsafe {
+                libgfx_rust::font::FontCascadeListHandle::adopt(ffi.font_cascade_list.as_pointer())
+            })
+        });
+        cache.insert(request, ffi, font_cascade_list);
     }
 }
 
@@ -314,7 +365,7 @@ mod tests {
         RESOLVES.store(0, Ordering::Relaxed);
         let unrefs_before = font_cascade_list_unref_count();
         let family = RetainedStyleValueData::from_owned(StyleValueData::Keyword { keyword: 1 });
-        let host = FontResolverHost::with_callback(resolve_font, unsafe {
+        let host = FontResolverHost::with_callbacks(resolve_font, resolve_font, unsafe {
             PublishedFontFaces::adopt(std::ptr::dangling(), std::ptr::dangling())
         });
         let mut resolver = FontResolutionCache::default();
@@ -356,5 +407,53 @@ mod tests {
         // gives up a reference.
         drop(resolver);
         assert_eq!(font_cascade_list_unref_count(), unrefs_before);
+    }
+
+    unsafe extern "C" fn resolve_font_uncounted(
+        _memo: *const c_void,
+        _snapshot: *const c_void,
+        _request: FfiFontResolutionRequest,
+    ) -> FfiResolvedFont {
+        FfiResolvedFont {
+            first_available_font: crate::css::style::bridge::FfiHostHandle::from_pointer(std::ptr::dangling()),
+            font_cascade_list: crate::css::style::bridge::FfiHostHandle::from_pointer(std::ptr::dangling()),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_forks_cache_resolves_its_own_cascades_and_holds_them() {
+        let unrefs_before = font_cascade_list_unref_count();
+        let family = RetainedStyleValueData::from_owned(StyleValueData::Keyword { keyword: 2 });
+        let host = FontResolverHost::with_callbacks(resolve_font_uncounted, resolve_font_uncounted, unsafe {
+            PublishedFontFaces::adopt(std::ptr::dangling(), std::ptr::dangling())
+        });
+        let mut resolver = FontResolutionCache::default();
+        let request = FfiFontResolutionRequest {
+            font_family: crate::css::style::bridge::FfiHostHandle::from_pointer(family.pointer().cast()),
+            font_feature_values: [crate::css::style::bridge::FfiHostHandle::from_pointer(std::ptr::null());
+                FONT_RESOLUTION_FEATURE_INPUT_COUNT],
+            font_size_raw: 2048,
+            font_slope: 0,
+            font_weight: 700.0,
+            font_width: 100.0,
+            font_optical_sizing: 0,
+            font_feature_values_scope: 0,
+            font_environment_generation: 1,
+        };
+        host.refill(&mut resolver, FontRequest::new(request));
+        assert!(resolver.lookup(request).is_some());
+
+        // The fork names none of the host's cascades, which the host frees once its generation changes.
+        let mut fork = resolver.clone();
+        fork.start_over_for_fork();
+        assert!(fork.lookup(request).is_none());
+        host.refill(&mut fork, FontRequest::new(request));
+        assert!(fork.lookup(request).is_some());
+        assert_eq!(font_cascade_list_unref_count(), unrefs_before);
+        drop(fork);
+        assert_eq!(font_cascade_list_unref_count(), unrefs_before + 1);
+        drop(resolver);
+        assert_eq!(font_cascade_list_unref_count(), unrefs_before + 1);
     }
 }

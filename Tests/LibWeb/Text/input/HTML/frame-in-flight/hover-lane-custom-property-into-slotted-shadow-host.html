@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #post { display: block; width: 300px; height: 60px; --accent: rgb(0, 0, 255); }
+    #post:hover { --accent: rgb(255, 0, 0); }
+</style>
+<my-post id="post"><my-share id="share" slot="share"></my-share></my-post>
+<div id="other" style="height: 100px"></div>
+<script>
+    post.attachShadow({ mode: "open" }).innerHTML = `<div class="actions"><slot name="share"></slot></div>`;
+    share.attachShadow({ mode: "open" }).innerHTML = `<style>
+        #dropdown { display: block; color: var(--accent); }
+    </style><my-dropdown id="dropdown">Share</my-dropdown>`;
+    // Hovers beside the task move a custom property, back and forth, that reaches a reader in the shadow tree of a
+    // slotted shadow host that reads none itself.
+    asyncTest(async done => {
+        const dropdown = share.shadowRoot.getElementById("dropdown");
+        const presentedBy = await whileHoverLeased(() => {
+            internals.injectHoverPointer(100, 10);
+            internals.injectHoverPointer(100, 100);
+            internals.injectHoverPointer(100, 10);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`last frame presented by: ${presentedBy}`);
+        await nextFrame();
+        println(`post matches :hover: ${post.matches(":hover")}`);
+        println(`dropdown color: ${getComputedStyle(dropdown).color}`);
+        println(`share --accent: ${getComputedStyle(share).getPropertyValue("--accent")}`);
+        done();
+    });
+</script>

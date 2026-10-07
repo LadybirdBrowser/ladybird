@@ -76,6 +76,18 @@ void ConnectionFromWebContent::clock_tick(Web::CompositorContextId context_id, i
         m_render_clock_connection->async_clock_tick(context_id, frame_time_nanoseconds, frame_interval_milliseconds, scroll_offsets);
 }
 
+void ConnectionFromWebContent::pointer_moved(Web::CompositorContextId context_id, Web::DevicePixelPoint position, u32 buttons, bool scrolled_since_frame)
+{
+    if (m_render_clock_connection)
+        m_render_clock_connection->async_pointer_moved(context_id, position, buttons, scrolled_since_frame);
+}
+
+void ConnectionFromWebContent::pointer_left(Web::CompositorContextId context_id)
+{
+    if (m_render_clock_connection)
+        m_render_clock_connection->async_pointer_left(context_id);
+}
+
 void ConnectionFromWebContent::add_video_sink(Media::VideoSinkHandle video_sink_handle)
 {
     m_compositor_state->add_video_sink(*this, video_sink_handle);

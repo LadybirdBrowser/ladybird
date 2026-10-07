@@ -1,0 +1,10 @@
+mouseover a: hovered a; a=rgb(0, 128, 0) b=rgb(0, 0, 255); b transitions 0
+hovered beside the task: a
+b width on screen: 150
+b width beside the task: 100
+styles beside the task: a=rgb(0, 128, 0) b=rgb(0, 0, 255)
+b transitions beside the task: 0
+-- the main thread handles the move
+mouseout a: hovered b; a=rgb(0, 0, 255) b=rgb(0, 128, 0); b transitions 1
+mouseover b: hovered b; a=rgb(0, 0, 255) b=rgb(0, 128, 0); b transitions 1
+after: hovered b; b transitions 1

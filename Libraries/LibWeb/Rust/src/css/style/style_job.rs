@@ -28,7 +28,7 @@ use std::sync::Arc;
 /// Takes the pending style transaction under `root`, with the document computation inputs the host sealed for it.
 pub(crate) struct StyleJob {
     root: StyleNodeID,
-    computation_inputs: SealedStyleInputs,
+    computation_inputs: Arc<SealedStyleInputs>,
     /// Whether the transaction flies beside the host, which leaves its atom sweep to a later transaction: the host may
     /// name an atom meanwhile that the sweep would reclaim before the host hears of it.
     flies: bool,
@@ -57,6 +57,15 @@ pub(crate) struct SealedStyleInputs {
 // SAFETY: Every pointer the sealed inputs hold names one of their own buffers, a custom function they hold a
 // reference to, or the registry they hold one to, none of which the host writes.
 unsafe impl Send for SealedStyleInputs {}
+// SAFETY: As above; nothing writes them once sealed, so threads that share them only read.
+unsafe impl Sync for SealedStyleInputs {}
+
+impl SealedStyleInputs {
+    /// The inputs, which name the buffers they own, for as long as they live.
+    pub(crate) fn inputs(&self) -> FfiDocumentStyleComputationInputs {
+        self.inputs
+    }
+}
 
 /// The `count` values at `values`, or none.
 ///
@@ -349,10 +358,11 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
     let job = StyleJob {
         root,
         // SAFETY: Guaranteed by the caller.
-        computation_inputs: unsafe { SealedStyleInputs::seal(computation_inputs) },
+        computation_inputs: Arc::new(unsafe { SealedStyleInputs::seal(computation_inputs) }),
         flies: false,
         closes_beside: host.engine_memo().closes_taken_transaction_beside(),
     };
+    host.keep_style_inputs(root, Arc::clone(&job.computation_inputs));
     let answer = host.run(read, true, move |state| job.run(state.engine_mut()));
     host.keep_style_transaction(answer).output.view()
 }
@@ -383,10 +393,11 @@ pub unsafe extern "C" fn style_engine_let_style_transaction_fly(
     let job = StyleJob {
         root,
         // SAFETY: Guaranteed by the caller.
-        computation_inputs: unsafe { SealedStyleInputs::seal(computation_inputs) },
+        computation_inputs: Arc::new(unsafe { SealedStyleInputs::seal(computation_inputs) }),
         flies: true,
         closes_beside: None,
     };
+    host.keep_style_inputs(root, Arc::clone(&job.computation_inputs));
     fly(host, Some(job), round, &license);
     true
 }

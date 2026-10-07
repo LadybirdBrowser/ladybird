@@ -16,6 +16,10 @@
 //! state and presentation, which the recording beside it brings back once the host needs them.
 //! What a tick showed never becomes visible to script: the boxes take back the styles the host installed before any
 //! job of the host reads them, so the animations' timeline moves only in a rendering update.
+//!
+//! A lease may also follow the pointer, which the render clock hears of from the compositor: a tick hovers what is under
+//! it, for real, as the host would as it handles the move (see [`hover`]). A lease of a document with no running
+//! animations only does that.
 
 use super::owner::{self, DocumentId};
 use super::wait::TaskStart;
@@ -47,8 +51,11 @@ use crate::painting::recording_slot::{
 use crate::painting::visual_context::VisualContextTree;
 use crate::stage_thread::{InFlight, Relay, Riding, StopWord, Ticker};
 use smallvec::SmallVec;
-use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+
+pub(crate) mod hover;
+pub(crate) use hover::PendingPointer;
 
 /// What the ticks of a clock lease sample, sealed at the end of a rendering update.
 pub(crate) struct ClockPlan {
@@ -64,6 +71,8 @@ pub(crate) struct ClockPlan {
     /// The scroll timelines a tick samples where the compositor has scrolled their scrollers to.
     scroll_timelines: Vec<FfiPlannedScrollTimeline>,
     round: ClockRound,
+    /// What a tick hovers the element under the pointer with, where the lease follows the pointer.
+    hover: Option<hover::HoverPlan>,
 }
 
 /// A scroll timeline whose animations the ticks of a clock lease sample, as a rendering update sealed it.
@@ -101,6 +110,7 @@ impl ClockPlan {
         last_end: f64,
         scroll_timelines: Vec<FfiPlannedScrollTimeline>,
         round: ClockRound,
+        hover: Option<hover::HoverPlan>,
     ) -> Self {
         Self {
             elements,
@@ -109,6 +119,7 @@ impl ClockPlan {
             last_end,
             scroll_timelines,
             round,
+            hover,
         }
     }
 
@@ -126,7 +137,7 @@ impl ClockPlan {
                         position / timeline.max_scroll_offset * 100.0
                     });
                 if !(timeline.progress_start..timeline.progress_end).contains(&progress) {
-                    return Err(Park);
+                    return Err(Park("scrolled outside a scroll timeline's range"));
                 }
                 Ok(ScrollProgress {
                     scroller: timeline.scroller,
@@ -135,6 +146,21 @@ impl ClockPlan {
                 })
             })
             .collect()
+    }
+
+    /// Whether a tick samples running animations.
+    pub(crate) fn animates(&self) -> bool {
+        !self.elements.is_empty()
+    }
+
+    /// Whether the plan follows the pointer.
+    pub(crate) fn follows_pointer(&self) -> bool {
+        self.hover.is_some()
+    }
+
+    /// Has the lease's ticks follow no pointer.
+    pub(crate) fn drop_hover(&mut self) {
+        self.hover = None;
     }
 }
 
@@ -145,13 +171,16 @@ impl ClockPlan {
 pub(crate) struct LeaseLanding {
     document: DocumentId,
     pub(super) recording: TickRecording,
-    plan: ClockPlan,
+    pub(super) plan: ClockPlan,
     pub(super) ticked: Vec<(NodeSlotId, HostStyle)>,
     pub(super) built: TickBuilt,
     pub(super) owed: Vec<LayoutRoundAnswer>,
-    /// The border boxes of the plan's elements in the last frame a tick presented.
+    /// The border boxes of the plan's elements, and of those the hover restyled, in the last frame a tick presented.
     pub(super) presented_border_boxes: Vec<(StyleNodeID, CssPixelRect)>,
-    /// Where the compositor had scrolled to at the latest tick that said so.
+    /// The color each box the hover's transitions restyled showed in that frame, as `0xAARRGGBB`. For a test.
+    pub(super) presented_colors: Vec<(StyleNodeID, u32)>,
+    /// Where the compositor had scrolled to at the latest tick that said so, which the plan's scroll timelines follow,
+    /// and the hit tests of its hover.
     scroll_offsets: Vec<FfiScrollOffset>,
     /// The timestamp at which the last frame presented shows the animations of the document timeline, or negative
     /// infinity for the host's frame, and the progress at which it shows the plan's scroll timelines.
@@ -160,6 +189,25 @@ pub(crate) struct LeaseLanding {
     /// Whether a tick found the lease could sample no more: past the deadline or the animations' ends, or something only
     /// the host computes.
     parked: bool,
+    /// Whether a tick presented a frame.
+    pub(super) presented: bool,
+    /// What the lease's hover moved, which the host takes in as it lands.
+    pub(super) hovered: hover::LeaseHover,
+    /// The fork of the render state the lease ticks on, where it took one: the host's state is then the host's alone,
+    /// and nothing the lease does lands in it. See [`crate::fork`].
+    pub(super) fork: Option<super::RenderFork>,
+    /// The recorder state the host lent the lease, which it gets back as it was where the lease forked: the lease's ticks
+    /// record with a fork of it.
+    pub(super) host_recorder: Option<RecorderState>,
+    /// Whether the lease records with the recorder state the host lent it, rather than a fork of it the host gave it.
+    holds_host_recorder: bool,
+    /// How many pointer moves the lease's hover took, whether it hovered them or left them to the host.
+    pub(super) hover_moves: u64,
+    /// Where the pointer was at the last move the hover took, or none where it left the context.
+    pub(super) last_pointer: Option<Option<libgfx_rust::FloatPoint>>,
+    /// What the lease and the host tell each other: beside an idle event loop the lease leaves a move to the host, which
+    /// hovers it in its next rendering update as soon.
+    activity: Arc<HostActivity>,
 }
 
 // A lease runs on the StyleLayout thread, and what it brings back crosses back to the host's.
@@ -226,18 +274,89 @@ pub(crate) struct ClockLease {
 }
 
 impl ClockLease {
-    /// Leases the render state of `document`, with `recorder` and `presentation`, to the render clock as a task begins,
-    /// to tick `plan`. Answers the lease, and the ticks the render clock hands it.
+    /// Leases the render state of `document`, with `recorder` and `presentation`, to the render clock as the event loop
+    /// begins a task or goes idle, to tick `plan`. A lease that `holds_animations` samples none until a task begins.
+    /// Answers the lease, and the ticks the render clock hands it.
     pub(super) fn begin(
+        start: &TaskStart,
+        document: DocumentId,
+        recorder: RecorderState,
+        presentation: Presentation,
+        plan: ClockPlan,
+        holds_animations: bool,
+        activity: Arc<HostActivity>,
+    ) -> (Self, Arc<ClockTicks>) {
+        let follows_scrolling = !plan.scroll_timelines.is_empty() || plan.hover.is_some();
+        let animates = plan.animates();
+        let follows_pointer = plan.follows_pointer();
+        // The pointer moving over the document is what a hover follows: a lease that may hover beside the host's tasks
+        // forks the render state before the host first writes it, as the state then is the one the screen shows.
+        let forks = follows_pointer && activity.pointer_is_active();
+        let (flight, ticker) = Self::landing(
+            start,
+            document,
+            recorder,
+            presentation,
+            plan,
+            true,
+            Arc::clone(&activity),
+        );
+        let ticks = Arc::new(ClockTicks {
+            ticker: Mutex::new(ticker),
+            latest: AtomicI64::new(i64::MIN),
+            follows_scrolling,
+            scroll_offsets: Mutex::default(),
+            queued: AtomicBool::new(false),
+            parked: AtomicBool::new(!animates),
+            animations_held: AtomicBool::new(animates && holds_animations),
+            paused: AtomicBool::new(false),
+            pointer: std::sync::Mutex::new(hover::PointerState::new(follows_pointer)),
+            animates,
+            forked: AtomicBool::new(false),
+            forks_on_host_write: forks,
+            activity,
+            hover_moves_taken_in: AtomicU64::new(0),
+            report: Mutex::default(),
+        });
+        (
+            Self {
+                flight,
+                ticks: Arc::clone(&ticks),
+            },
+            ticks,
+        )
+    }
+
+    /// Leases the render state again to the render clock, with the ticks of the lease the host ended last, which the
+    /// render clock kept handing the pointer: `plan` is that lease's, which samples no animations.
+    pub(super) fn resume(
+        start: &TaskStart,
+        document: DocumentId,
+        recorder: RecorderState,
+        presentation: Presentation,
+        plan: ClockPlan,
+        ticks: Arc<ClockTicks>,
+    ) -> Self {
+        debug_assert!(!plan.animates());
+        let activity = Arc::clone(&ticks.activity);
+        let (flight, ticker) = Self::landing(start, document, recorder, presentation, plan, true, activity);
+        *ticks.ticker.lock().expect("clock ticks ticker") = ticker;
+        ticks.paused.store(false, Ordering::Relaxed);
+        Self { flight, ticks }
+    }
+
+    fn landing(
         _: &TaskStart,
         document: DocumentId,
         recorder: RecorderState,
         presentation: Presentation,
         plan: ClockPlan,
-    ) -> (Self, Arc<ClockTicks>) {
-        let follows_scrolling = !plan.scroll_timelines.is_empty();
+        holds_host_recorder: bool,
+        activity: Arc<HostActivity>,
+    ) -> (InFlight<LeaseLanding>, Ticker<LeaseLanding>) {
         let shown_scroll_progress = plan.scroll_progress(&[]).unwrap_or_default();
-        let (flight, ticker) = crate::stage_thread::style_layout_thread().lease(LeaseLanding {
+        let parked = !plan.animates();
+        crate::stage_thread::style_layout_thread().lease(LeaseLanding {
             document,
             recording: TickRecording(Riding::landed(ClockRecorder {
                 recorder,
@@ -249,32 +368,65 @@ impl ClockLease {
             built: TickBuilt::default(),
             owed: Vec::new(),
             presented_border_boxes: Vec::new(),
+            presented_colors: Vec::new(),
             scroll_offsets: Vec::new(),
             shown_at: f64::NEG_INFINITY,
             shown_scroll_progress,
-            parked: false,
-        });
-        let ticks = Arc::new(ClockTicks {
-            ticker,
-            latest: AtomicI64::new(i64::MIN),
-            follows_scrolling,
-            scroll_offsets: Mutex::default(),
-            queued: AtomicBool::new(false),
-            parked: AtomicBool::new(false),
-        });
-        (
-            Self {
-                flight,
-                ticks: Arc::clone(&ticks),
-            },
-            ticks,
-        )
+            parked,
+            presented: false,
+            hovered: hover::LeaseHover::default(),
+            fork: None,
+            host_recorder: None,
+            holds_host_recorder,
+            hover_moves: 0,
+            last_pointer: None,
+            activity,
+        })
     }
 
     /// Ends the lease: says the stop word, and waits for the tick that runs, if one does. The host's document module
     /// ends a lease only where the host waits for its render state.
     pub(super) fn end(self) -> LeaseLanding {
         self.flight.join(EndsLease(()))
+    }
+
+    /// Forks the render state for the lease before the host first writes it, where the lease forks then and wrote
+    /// nothing of the host's state yet, waiting for the tick that runs. Answers whether the lease ticks on a fork.
+    pub(super) fn fork_before_host_write(&self) -> bool {
+        if self.ticks.is_forked() {
+            return true;
+        }
+        if !self.ticks.forks_on_host_write {
+            return false;
+        }
+        let ticks = Arc::clone(&self.ticks);
+        self.ticks
+            .ticker
+            .lock()
+            .expect("clock ticks ticker")
+            .run(move |landing, _| {
+                if landing.fork.is_none() && !landing.writes_host_state() {
+                    landing.fork();
+                }
+                if landing.fork.is_some() {
+                    ticks.forked.store(true, Ordering::Relaxed);
+                }
+            });
+        crate::stage_thread::style_layout_thread().run(|| ());
+        self.ticks.is_forked()
+    }
+
+    /// Takes back the recorder state the host lent a lease that forked as it ticked, waiting for the tick that runs.
+    pub(super) fn take_host_recorder(&self) -> Option<RecorderState> {
+        let taken = Arc::new(Mutex::new(None));
+        let into = Arc::clone(&taken);
+        self.ticks
+            .ticker
+            .lock()
+            .expect("clock ticks ticker")
+            .run(move |landing, _| *into.lock().expect("taken recorder") = landing.host_recorder.take());
+        crate::stage_thread::style_layout_thread().run(|| ());
+        taken.lock().expect("taken recorder").take()
     }
 
     /// The ticks the render clock hands the lease.
@@ -294,6 +446,7 @@ pub(crate) struct SamplingTurn(());
 pub(crate) struct SampleTime(f64);
 
 /// What hands out the times a document's frames are sampled at, on the render owner, across clock leases.
+#[derive(Clone)]
 pub(crate) struct SampleClock {
     last: f64,
 }
@@ -460,49 +613,155 @@ impl CommittedFrame {
 
 /// The display ticks the render clock hands a lease, folded into one queued tick, which runs at the latest of their times.
 pub struct ClockTicks {
-    ticker: Ticker<LeaseLanding>,
+    /// What the ticks run on: the lease that runs, or the one that ended last, until the host takes it up again.
+    ticker: Mutex<Ticker<LeaseLanding>>,
     /// The latest frame time of the ticks handed to the lease, in nanoseconds of the monotonic clock. It only grows, so
     /// a tick handed an earlier time than one before it, as a display tick behind the immediate first one is, never
     /// samples the animations back in time.
     latest: AtomicI64,
-    /// Whether the lease samples scroll timelines, for which it keeps where the compositor had scrolled to at the latest
-    /// tick handed to it, until the tick that runs next takes it.
+    /// Whether the lease samples scroll timelines or follows the pointer, for which it keeps where the compositor had
+    /// scrolled to at the latest tick handed to it, until the tick that runs next takes it.
     follows_scrolling: bool,
     scroll_offsets: Mutex<Option<Vec<FfiScrollOffset>>>,
     /// Whether a tick is queued.
     queued: AtomicBool,
     /// Whether a tick parked the lease, which then samples nothing more.
     parked: AtomicBool,
+    /// Whether the lease samples no animations until a task begins: an idle event loop's rendering updates run them.
+    animations_held: AtomicBool,
+    /// Whether the lease ended, and the host may take it up again with these ticks: until it does, a pointer move waits
+    /// for the lease, and the render clock goes on handing it the pointer.
+    paused: AtomicBool,
+    /// Where the render clock heard the pointer went, until a tick hovers what is there.
+    pointer: std::sync::Mutex<hover::PointerState>,
+    /// Whether the plan the lease began with samples running animations.
+    animates: bool,
+    /// Whether the lease ticks on a fork of the render state, which the host's waits for its own state leave running.
+    forked: AtomicBool,
+    /// Whether the lease forks the render state before the host first writes it, where the pointer moves over the
+    /// document: the host's write would leave nothing of the state the screen shows for the lease to hover.
+    forks_on_host_write: bool,
+    /// What the lease and the document's host tell each other of the pointer and the event loop.
+    activity: Arc<HostActivity>,
+    /// How many of the hover's moves the host took in.
+    hover_moves_taken_in: AtomicU64,
+    /// What the hover of a forked lease did so far, which the host reads as a rendering update begins beside it.
+    report: Mutex<LaneReport>,
+}
+
+/// What the hover of a forked lease did so far. See [`ClockTicks::report`].
+#[derive(Clone, Default)]
+pub(crate) struct LaneReport {
+    /// Where the pointer was at the last move the hover took, or none where it left the context; nothing where it took
+    /// none.
+    pub(crate) hovered_pointer: Option<Option<libgfx_rust::FloatPoint>>,
+    /// The elements whose transitions the hover started, and when, in the document's milliseconds.
+    pub(crate) transition_starts: Vec<(StyleNodeID, f64)>,
+    /// Whether a tick presented a frame.
+    pub(crate) presented: bool,
+    /// How many pointer moves the hover took, which tells the host whether it took one since the host last read the
+    /// report.
+    pub(crate) hover_moves: u64,
 }
 
 impl ClockTicks {
     /// Hands the lease a tick at `frame_time_nanoseconds`, at which the compositor had scrolled to `scroll_offsets`: the
     /// tick already queued runs at the latest time and offsets, or a tick is queued. Answers whether the lease wants the
-    /// next tick, which it does until it ends or parks.
+    /// next tick, which it does until it ends or parks, or while a pointer move waits for a tick to hover it.
     pub(super) fn tick(self: &Arc<Self>, frame_time_nanoseconds: i64, scroll_offsets: &[FfiScrollOffset]) -> bool {
-        if self.parked.load(Ordering::Relaxed) || !self.ticker.is_live() {
+        let ticker = self.ticker.lock().expect("clock ticks ticker");
+        if !ticker.is_live() {
             return false;
         }
-        self.latest.fetch_max(frame_time_nanoseconds, Ordering::AcqRel);
+        // A tick that runs nothing still says where the compositor scrolled to, which a pointer move it hovers later
+        // is hit tested at.
         if self.follows_scrolling && !scroll_offsets.is_empty() {
             *self.scroll_offsets.lock().expect("clock tick scroll offsets") = Some(scroll_offsets.to_vec());
         }
+        let animates = !self.parked.load(Ordering::Relaxed) && !self.animations_held.load(Ordering::Relaxed);
+        if !animates && !self.pointer_state().waits() {
+            return false;
+        }
+        self.latest.fetch_max(frame_time_nanoseconds, Ordering::AcqRel);
         if self.queued.swap(true, Ordering::AcqRel) {
             return true;
         }
         let ticks = Arc::clone(self);
-        self.ticker.run(move |landing, stop| {
+        ticker.run(move |landing, stop| {
             // A tick handed after the flag drops queues another run, and one handed before it is in `latest`.
             ticks.queued.swap(false, Ordering::AcqRel);
             if let Some(scroll_offsets) = ticks.scroll_offsets.lock().expect("clock tick scroll offsets").take() {
                 landing.scroll_offsets = scroll_offsets;
             }
-            landing.tick(ticks.latest.load(Ordering::Acquire), stop);
-            if landing.parked {
-                ticks.parked.store(true, Ordering::Relaxed);
+            let pointer = ticks.pointer_state().take();
+            let samples_animations = !ticks.animations_held.load(Ordering::Relaxed);
+            landing.tick(ticks.latest.load(Ordering::Acquire), pointer, samples_animations, stop);
+            if landing.fork.is_some() {
+                ticks.forked.store(true, Ordering::Relaxed);
+                *ticks.report.lock().expect("clock lease report") = landing.report();
+            }
+            // A transition a hover started keeps the ticks coming until it ends.
+            ticks.parked.store(
+                landing.parked && !landing.hovered.has_running_transitions(),
+                Ordering::Relaxed,
+            );
+            if landing.hovered.is_parked() {
+                ticks.pointer_state().park();
             }
         });
         true
+    }
+
+    /// Lets the lease sample the animations it held, as a task begins, and answers whether it should tick at once.
+    pub(super) fn run_animations(&self) -> bool {
+        self.animations_held.swap(false, Ordering::Relaxed) && !self.parked.load(Ordering::Relaxed)
+    }
+
+    /// Hands the lease where the pointer went, which the next tick hovers, and answers what the lease wants next.
+    pub(super) fn pointer_moved(&self, pointer: PendingPointer) -> hover::PointerAnswer {
+        self.activity.note_pointer_move();
+        if !self.paused.load(Ordering::Relaxed) && !self.ticker.lock().expect("clock ticks ticker").is_live() {
+            return hover::PointerAnswer::Disarm;
+        }
+        self.pointer_state().moved(pointer)
+    }
+
+    /// Keeps a pointer move for a lease the host may take up again with these ticks, or, with `paused` false, lets the
+    /// render clock disarm them at the next one.
+    pub(super) fn set_paused(&self, paused: bool) {
+        self.paused.store(paused, Ordering::Relaxed);
+    }
+
+    /// Whether a pointer move waits for a tick to hover it.
+    pub(super) fn pointer_waits(&self) -> bool {
+        self.pointer_state().waits()
+    }
+
+    /// Hands the lease a pointer move, and ticks it at `frame_time_nanoseconds`. For a test.
+    pub(super) fn inject_pointer(self: &Arc<Self>, pointer: PendingPointer, frame_time_nanoseconds: i64) {
+        let _ = self.pointer_state().moved(pointer);
+        self.tick(frame_time_nanoseconds, &[]);
+    }
+
+    fn pointer_state(&self) -> std::sync::MutexGuard<'_, hover::PointerState> {
+        self.pointer.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    /// What the hover of the lease did so far, where it ticks on a fork of the render state.
+    pub(super) fn report(&self) -> LaneReport {
+        self.report.lock().expect("clock lease report").clone()
+    }
+
+    /// Notes that the host took in `report`, and answers whether the hover moved since the host last did.
+    pub(super) fn take_in_hover_moves(&self, report: &LaneReport) -> bool {
+        self.hover_moves_taken_in
+            .fetch_max(report.hover_moves, Ordering::Relaxed)
+            < report.hover_moves
+    }
+
+    /// Whether the lease ticks on a fork of the render state.
+    pub(super) fn is_forked(&self) -> bool {
+        self.forked.load(Ordering::Relaxed)
     }
 
     /// Whether a tick parked the lease.
@@ -511,24 +770,24 @@ impl ClockTicks {
     }
 }
 
-/// What parks a lease: something of a tick only the host computes.
-struct Park;
+/// What parks a lease: something of a tick only the host computes, and what, for a developer.
+struct Park(&'static str);
 
 impl From<NeedsHost> for Park {
     fn from(_: NeedsHost) -> Self {
-        Self
+        Self("a sample the host computes")
     }
 }
 
 impl From<ClockRoundDeclined> for Park {
-    fn from(_: ClockRoundDeclined) -> Self {
-        Self
+    fn from(ClockRoundDeclined(reason): ClockRoundDeclined) -> Self {
+        Self(reason)
     }
 }
 
 impl From<VisualContextsNeedHost> for Park {
-    fn from(_: VisualContextsNeedHost) -> Self {
-        Self
+    fn from(VisualContextsNeedHost(reason): VisualContextsNeedHost) -> Self {
+        Self(reason)
     }
 }
 
@@ -609,7 +868,7 @@ fn restyle_size_query_dependents(
             }
             seen.push(dependent);
             if animated.contains(&dependent) {
-                return Err(Park);
+                return Err(Park("a size query dependent animates"));
             }
             let row = state.arena.arena().bound_row(dependent);
             let restyled = match state
@@ -717,7 +976,7 @@ fn sampled_boxes_in(
         std::iter::successors(live(inner), |&box_| live(arena.data(box_).parent.get())).any(|box_| box_ == root)
     };
     if animated.iter().any(|&element| holds(arena.bound_row(element))) {
-        return Err(Park);
+        return Err(Park("a rebuilt box holds an animated element"));
     }
     Ok(ticked.extract_if(.., |(box_, _)| holds(*box_)).collect())
 }
@@ -747,7 +1006,7 @@ fn mark_region_for_tree_build(
         || crate::layout::node_facts::has_flag(arena.data(parent), crate::layout::node_data::NodeFlag::Anonymous)
         || arena.element_adjustment_facts(Some(root)) & placed_otherwise != 0
     {
-        return Err(Park);
+        return Err(Park("a rebuilt box the host places"));
     }
     let sampled = sampled_boxes_in(arena, row, animated, ticked)?;
     let samples: smallvec::SmallVec<[(StyleNodeID, u64); 8]> = sampled
@@ -769,45 +1028,160 @@ impl LeaseLanding {
     /// Samples the plan's animations at the timestamp of `frame_time_nanoseconds` and where the compositor has scrolled
     /// to, shows the samples, lays out what they moved and presents the frame, unless the host said the stop word: the
     /// host waits for the lease. A tick at or past the deadline, or one that needs the host, parks the lease, and so
-    /// does the tick that shows the ends of the animations where no scroll moves anything after them.
-    fn tick(&mut self, frame_time_nanoseconds: i64, stop: &StopWord) {
-        if self.parked || stop.is_said() {
+    /// does the tick that shows the ends of the animations where no scroll moves anything after them. A tick handed
+    /// `pointer`, where the pointer moved since the last tick, hovers what is under it first (see [`hover`]).
+    fn tick(
+        &mut self,
+        frame_time_nanoseconds: i64,
+        pointer: Option<PendingPointer>,
+        samples_animations: bool,
+        stop: &StopWord,
+    ) {
+        if stop.is_said() {
             return;
         }
         let timestamp = frame_time_nanoseconds as f64 / 1_000_000.0 - self.plan.time_origin;
-        self.parked = self.tick_at(timestamp, &SamplingTurn(())).is_err();
-    }
-
-    fn tick_at(&mut self, timestamp: f64, turn: &SamplingTurn) -> Result<(), Park> {
-        let scroll_progress = self.plan.scroll_progress(&self.scroll_offsets)?;
+        let mut hovers = pointer.filter(|_| !self.hovered.is_parked());
+        let transitions = self.hovered.has_running_transitions();
+        let samples_animations = samples_animations && !self.parked;
+        if !samples_animations && hovers.is_none() && !transitions {
+            return;
+        }
+        // A hover runs on a fork of the render state, which the host's state never sees. A lease that wrote the host's
+        // state already leaves the move to the host, and so does one beside an idle event loop, which hovers it in its
+        // next rendering update as soon.
+        if hovers.is_some() && self.fork.is_none() {
+            match !self.writes_host_state() && self.activity.runs_task() {
+                true => self.fork(),
+                false => hovers = None,
+            }
+        }
+        if !samples_animations && hovers.is_none() && !transitions {
+            return;
+        }
+        let turn = SamplingTurn(());
         // The tick runs on the render owner, the one thread that reaches the state. It shows the records the frames
         // before it showed, and takes them back as it ends.
-        let Some(sampled_at) = owner::with_state(self.document, None, |state| {
+        let document = self.document;
+        let mut fork = self.fork.take();
+        let tick = |landing: &mut Self, state: &mut RenderState| {
             let sampled_at = state.sample_clock.next(timestamp);
-            if sampled_at.0 >= self.plan.deadline {
-                return Err(Park);
-            }
-            // Once a frame shows the document timeline's animations ended, a frame where nothing scrolled shows nothing
-            // new.
-            if self.shown_at >= self.plan.last_end && scroll_progress == self.shown_scroll_progress {
-                return Ok(None);
+            // What the plan's animations show at the tick, where the lease still samples them.
+            let progress = match samples_animations {
+                false => None,
+                true => landing.sample_progress(sampled_at).unwrap_or_else(|_| {
+                    landing.parked = true;
+                    None
+                }),
+            };
+            if progress.is_none() && hovers.is_none() && !transitions {
+                return;
             }
             state
                 .engine_mut()
-                .lend_tick_shown(std::mem::take(&mut self.built.shown));
-            let sampled = self.sample(state, sampled_at, &scroll_progress, turn);
-            self.built.shown = state.engine_mut().take_tick_shown();
-            sampled.map(|()| Some(sampled_at))
-        })?
-        else {
-            return Ok(());
+                .lend_tick_shown(std::mem::take(&mut landing.built.shown));
+            let mut moved = false;
+            if transitions {
+                moved |= landing.sample_hover_transitions(state, sampled_at.0);
+            }
+            if let Some(pointer) = hovers {
+                landing.hover_moves += 1;
+                landing.last_pointer = Some(pointer.position);
+                moved |= landing.hover(state, pointer, sampled_at.0);
+            }
+            if let Some(progress) = progress {
+                match landing.sample(state, sampled_at, &progress) {
+                    Ok(()) => {
+                        moved = true;
+                        landing.shown_at = sampled_at.0;
+                        landing.shown_scroll_progress = progress;
+                    }
+                    Err(_) => landing.parked = true,
+                }
+                if sampled_at.0 >= landing.plan.last_end && landing.plan.scroll_timelines.is_empty() {
+                    landing.parked = true;
+                }
+            }
+            if moved {
+                match landing.lay_out_and_present(state, &turn) {
+                    Ok(()) => {
+                        if hover::logs_hover() {
+                            eprintln!("hover lane: tick presented a frame");
+                        }
+                        landing.presented = true;
+                    }
+                    Err(Park(reason)) => {
+                        if hover::logs_hover() {
+                            eprintln!("hover lane: frame left to the host: {reason}");
+                        }
+                        landing.parked = true;
+                        landing.hovered.park();
+                    }
+                }
+            }
+            landing.built.shown = state.engine_mut().take_tick_shown();
         };
-        self.shown_at = sampled_at.0;
-        self.shown_scroll_progress = scroll_progress;
-        match sampled_at.0 >= self.plan.last_end && self.plan.scroll_timelines.is_empty() {
-            true => Err(Park),
-            false => Ok(()),
+        match &mut fork {
+            Some(fork) => tick(self, fork),
+            None => owner::with_state(document, None, |state| tick(self, state)),
         }
+        self.fork = fork;
+    }
+
+    /// What the lease's hover did so far.
+    fn report(&self) -> LaneReport {
+        LaneReport {
+            hovered_pointer: self.last_pointer,
+            transition_starts: self
+                .hovered
+                .transitions
+                .iter()
+                .map(|started| (started.transitions.node, started.start_time))
+                .collect(),
+            presented: self.presented,
+            hover_moves: self.hover_moves,
+        }
+    }
+
+    /// Whether a tick of the lease wrote the host's state, which only the lease's landing takes back.
+    fn writes_host_state(&self) -> bool {
+        self.presented || !self.ticked.is_empty() || !self.built.shown.is_empty() || !self.owed.is_empty()
+    }
+
+    /// Forks the render state, as the frame the lease began with left it, for the lease's ticks to write and present: the
+    /// host gets back the recorder state it lent the lease as it is, and the ticks record with a fork of it.
+    fn fork(&mut self) {
+        debug_assert!(self.fork.is_none() && !self.writes_host_state());
+        self.fork = Some(owner::with_state(self.document, None, |state| state.fork()));
+        if !self.holds_host_recorder {
+            return;
+        }
+        self.holds_host_recorder = false;
+        let ClockRecorder {
+            recorder,
+            presentation,
+            presented,
+        } = self.recording.0.take(WaitsForTickRecording(()));
+        self.recording = TickRecording(Riding::landed(ClockRecorder {
+            recorder: recorder.fork(),
+            presentation,
+            presented,
+        }));
+        self.host_recorder = Some(recorder);
+    }
+
+    /// The progress of the scroll timelines a tick sampled at `sampled_at` samples the plan's animations at, or none where
+    /// a frame that showed the document timeline's animations ended shows them already and nothing scrolled since. A tick
+    /// at or past the deadline, or past what the scroll timelines plan for, parks the lease.
+    fn sample_progress(&self, sampled_at: SampleTime) -> Result<Option<SmallVec<[ScrollProgress; 2]>>, Park> {
+        if sampled_at.0 >= self.plan.deadline {
+            return Err(Park("past the deadline"));
+        }
+        let scroll_progress = self.plan.scroll_progress(&self.scroll_offsets)?;
+        if self.shown_at >= self.plan.last_end && scroll_progress == self.shown_scroll_progress {
+            return Ok(None);
+        }
+        Ok(Some(scroll_progress))
     }
 
     fn sample(
@@ -815,21 +1189,20 @@ impl LeaseLanding {
         state: &mut RenderState,
         sampled_at: SampleTime,
         scroll_progress: &[ScrollProgress],
-        turn: &SamplingTurn,
     ) -> Result<(), Park> {
         let Self {
-            plan,
-            ticked,
-            built,
-            owed,
-            ..
+            plan, ticked, hovered, ..
         } = self;
         let samples = AnimationTimelineSamples::at_tick(sampled_at.0, scroll_progress);
         for &element in &plan.elements {
+            // The transitions a hover started in place of those the element ran are the hover's to sample.
+            if hovered.owns_transitions_of(element) {
+                continue;
+            }
             let arena = state.arena.arena();
             let row = arena.bound_row(element);
             if row.is_invalid() {
-                return Err(Park);
+                return Err(Park("an animated element has no box"));
             }
             // Every tick samples over the record the host installed.
             let host_record = ticked
@@ -848,6 +1221,18 @@ impl LeaseLanding {
                 .arena()
                 .push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
         }
+        Ok(())
+    }
+
+    /// Lays out what the tick moved and presents the frame.
+    fn lay_out_and_present(&mut self, state: &mut RenderState, turn: &SamplingTurn) -> Result<(), Park> {
+        let Self {
+            plan,
+            ticked,
+            built,
+            owed,
+            ..
+        } = self;
         // A container the round resized restyles what its size decides, as the host's style update after a layout
         // does, and lays it out again, until the containers stand.
         for _ in 0..SIZE_QUERY_ROUND_LIMIT {
@@ -863,7 +1248,7 @@ impl LeaseLanding {
         // The last restyle may have left nothing to lay out again.
         match state.arena.arena().layout_is_up_to_date(false) {
             true => self.present(state, turn),
-            false => Err(Park),
+            false => Err(Park("size containers did not settle")),
         }
     }
 
@@ -896,12 +1281,40 @@ impl LeaseLanding {
         }
         let rows = arena.paintable_rows();
         self.presented_border_boxes.clear();
-        self.presented_border_boxes
-            .extend(self.plan.elements.iter().filter_map(|&element| {
-                let row = arena.bound_row(element);
-                rows.paintable_row_is_populated(row)
-                    .then(|| (element, absolute_border_box_rect(&rows, row)))
-            }));
+        let installed = self
+            .hovered
+            .installs
+            .iter()
+            .filter_map(|install| StyleNodeID::from_raw(install.element.style_node));
+        self.presented_border_boxes.extend(
+            self.plan
+                .elements
+                .iter()
+                .copied()
+                .chain(installed)
+                .filter_map(|element| {
+                    let row = arena.bound_row(element);
+                    rows.paintable_row_is_populated(row)
+                        .then(|| (element, absolute_border_box_rect(&rows, row)))
+                }),
+        );
+        self.presented_colors.clear();
+        let restyled = self.hovered.transitions.iter().flat_map(|started| {
+            std::iter::once(started.transitions.node)
+                .chain(started.transitions.inheriting.iter().map(|(descendant, _)| *descendant))
+        });
+        // NB: A descendant that inherits what the transitions animate may have no box, as under `display: none`.
+        self.presented_colors.extend(restyled.filter_map(|element| {
+            let row = arena.bound_row(element);
+            if !arena.slot_is_live(row) {
+                return None;
+            }
+            let payloads = arena.style_payloads(row)?;
+            let color = crate::layout::ComputedValuesView::new(&payloads.groups)
+                .inherited_text()
+                .color;
+            Some((element, color))
+        }));
         Ok(())
     }
 }
@@ -925,14 +1338,17 @@ fn freeze_tick_frame(
         } => {
             take_in_recording(arena, output, hit_test_list_changed, true);
         }
-        TickPresented::LeftToHost => return Err(Park),
+        TickPresented::LeftToHost => return Err(Park("the host presents the frame")),
     }
     let viewport = arena.layout_root();
     if arena.paint_state().borrow().trace_recordings {
-        return Err(Park);
+        return Err(Park("a trace reads the recording"));
     }
     let visual_contexts = prepare_for_clock_tick(arena, viewport, presentation)?;
-    let inputs = recorder.published_inputs.take().ok_or(Park)?;
+    let inputs = recorder
+        .published_inputs
+        .take()
+        .ok_or(Park("no published recording inputs"))?;
     let frame_inputs = FrameInputs {
         viewport,
         css_viewport_rect: inputs.css_viewport_rect,
@@ -948,7 +1364,7 @@ fn freeze_tick_frame(
     };
     let Some(frozen) = freeze_recording_frame(arena, frame_inputs) else {
         recorder.published_inputs = Some(inputs);
-        return Err(Park);
+        return Err(Park("the frame does not freeze"));
     };
     Ok((frozen, inputs, visual_contexts))
 }
@@ -1038,6 +1454,17 @@ pub unsafe extern "C" fn document_host_has_clock_plan(host: &DocumentHost) -> bo
     host.has_clock_plan()
 }
 
+/// Whether the plan for a clock lease of `host`'s document that no task has taken yet samples running animations, rather
+/// than only following the pointer.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_clock_plan_animates(host: &DocumentHost) -> bool {
+    host.clock_plan_animates()
+}
+
 /// Drops the plan for a clock lease of `host`'s document, for a rendering update that leaves it none. The plan is the
 /// host's, so this reads nothing of the render state.
 ///
@@ -1064,6 +1491,7 @@ pub unsafe extern "C" fn document_host_drop_clock_plan(host: &DocumentHost) {
 pub unsafe extern "C" fn document_host_lease_clock(
     host: &DocumentHost,
     presentation: *mut FfiPresentation,
+    holds_animations: bool,
 ) -> *const ClockTicks {
     // SAFETY: Guaranteed by the caller.
     let presentation = unsafe { &mut *presentation };
@@ -1072,13 +1500,28 @@ pub unsafe extern "C" fn document_host_lease_clock(
     let Some(taken) = (unsafe { Presentation::take(presentation) }) else {
         return std::ptr::null();
     };
-    match host.lease_clock(&start, taken) {
+    match host.lease_clock(&start, taken, holds_animations) {
         Ok(ticks) => Arc::into_raw(ticks),
         Err(given_back) => {
             *presentation = given_back.into_ffi();
             std::ptr::null()
         }
     }
+}
+
+/// Leases the render state of `host`'s document to the render clock again as a task begins, where the clock lease the
+/// host ended last beside the tasks moved and presented nothing, and the host wrote nothing since: the lease follows the
+/// pointer with what that lease ended with. Answers the ticks the render clock hands the lease, which the caller
+/// releases with `clock_ticks_release`, or null where no lease began.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread, as a task of its
+/// event loop begins.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_resume_clock_lease(host: &DocumentHost) -> *const ClockTicks {
+    let start = TaskStart::at_event_loop_entry(&LEASES_CLOCK_FOR_TASK);
+    host.resume_clock_lease(&start).map_or(std::ptr::null(), Arc::into_raw)
 }
 
 /// Ends the clock lease of `host`'s document, where one runs, for the presenter of its navigable, and writes the
@@ -1108,15 +1551,127 @@ pub unsafe extern "C" fn document_host_end_clock_lease_for_animation(host: &Docu
     host.end_clock_lease_and_plan();
 }
 
-/// Ends the clock lease of `host`'s document, where one runs, as a rendering update begins, and answers whether the
-/// document's state was leased to the render clock since the last rendering update.
+/// Ends the clock lease of `host`'s document, where one runs, as a rendering update begins at `frame_time_nanoseconds`,
+/// and answers whether a tick of a clock lease presented a frame of the document since the last rendering update. A
+/// pointer move the lease's next tick would hover hovers first. The update keeps the hover a lease moved, which owes the
+/// boundary events of the move until the host handles a mouse move.
 ///
 /// # Safety
 ///
 /// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_end_clock_lease_for_rendering_update(host: &DocumentHost) -> bool {
-    host.end_clock_lease_for_rendering_update()
+pub unsafe extern "C" fn document_host_end_clock_lease_for_rendering_update(
+    host: &DocumentHost,
+    frame_time_nanoseconds: i64,
+) -> bool {
+    host.end_clock_lease_for_rendering_update(frame_time_nanoseconds)
+}
+
+/// Notes whether the event loop of `host`'s document runs a task as it leases the document's render state to the render
+/// clock, or goes idle: a lease's hover follows the pointer only beside a task.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_note_event_loop_runs_task(host: &DocumentHost, runs_task: bool) {
+    host.note_event_loop_runs_task(runs_task);
+}
+
+/// Whether the pointer moved over `host`'s document lately, which a hover beside the host's tasks follows: a task waits
+/// for the frame in flight to finish recording before it begins, so that a lease ticks beside it.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_pointer_is_active(host: &DocumentHost) -> bool {
+    host.pointer_is_active()
+}
+
+/// Whether a clock lease of `host`'s document that ticked on a fork of its render state presented a frame since the
+/// host last asked: the screen shows the fork's frame, in place of the host's, until the host presents again.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_take_fork_presented(host: &DocumentHost) -> bool {
+    host.take_fork_presented()
+}
+
+/// Takes the boundary events a hover kept by a rendering update owes, where the host handled no mouse move since, and
+/// answers whether it owes any: `has_pointer` is set with `pointer_x`, `pointer_y` where the pointer was, in the
+/// context's device pixels, and not where it left the context.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread, and the pointers
+/// must be valid for writes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_take_hover_events_owed(
+    host: &DocumentHost,
+    has_pointer: &mut bool,
+    pointer_x: &mut f32,
+    pointer_y: &mut f32,
+) -> bool {
+    let Some(pointer) = host.take_hover_events_owed() else {
+        return false;
+    };
+    *has_pointer = pointer.is_some();
+    if let Some(pointer) = pointer {
+        *pointer_x = pointer.x;
+        *pointer_y = pointer.y;
+    }
+    true
+}
+
+/// Whether the render clock holds a lease of `host`'s document, or the event loop may give it one: from the plan the
+/// last rendering update left, or by taking up the lease the host ended last again.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_may_lease_clock(host: &DocumentHost) -> bool {
+    host.may_lease_clock()
+}
+
+/// Whether the render clock holds a lease of `host`'s document.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_clock_lease_runs(host: &DocumentHost) -> bool {
+    host.clock_ticks().is_some()
+}
+
+/// Lets the clock lease of `host`'s document sample the animations it held while the event loop was idle, as a task
+/// begins. Answers its ticks where it should tick at once, which the caller releases with `clock_ticks_release`, or
+/// null.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_run_clock_animations(host: &DocumentHost) -> *const ClockTicks {
+    host.clock_ticks()
+        .filter(|ticks| ticks.run_animations())
+        .map_or(std::ptr::null(), Arc::into_raw)
+}
+
+/// Whether a pointer move waits for a tick of the clock lease `ticks` belong to to hover it, which the render clock
+/// ticks for at once.
+///
+/// # Safety
+///
+/// `ticks` must come from `document_host_lease_clock` and not be released yet.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn clock_ticks_pointer_waits(ticks: *const ClockTicks) -> bool {
+    // SAFETY: Guaranteed by the caller, whose reference this borrows.
+    let ticks = std::mem::ManuallyDrop::new(unsafe { Arc::from_raw(ticks) });
+    ticks.pointer_state().waits()
 }
 
 /// What a document's clock lease is doing.
@@ -1127,6 +1682,8 @@ pub enum FfiClockLeaseState {
     Ticking,
     /// A tick parked the lease, which samples nothing more.
     Parked,
+    /// The lease samples no animation, and only follows the pointer.
+    Hovering,
 }
 
 /// What the clock lease of `host`'s document is doing.
@@ -1138,6 +1695,7 @@ pub enum FfiClockLeaseState {
 pub unsafe extern "C" fn document_host_clock_lease_state(host: &DocumentHost) -> FfiClockLeaseState {
     match host.clock_ticks() {
         None => FfiClockLeaseState::None,
+        Some(ticks) if !ticks.animates => FfiClockLeaseState::Hovering,
         Some(ticks) if ticks.is_parked() => FfiClockLeaseState::Parked,
         Some(_) => FfiClockLeaseState::Ticking,
     }
@@ -1167,6 +1725,24 @@ pub unsafe extern "C" fn document_host_inject_clock_tick(
     }
 }
 
+/// Writes the color the box of `element` showed in the last frame a tick of a clock lease of `host`'s document
+/// presented to `color`, as `0xAARRGGBB`, ending the lease that runs, and answers whether a hover's transitions
+/// restyled the box in it. For a test.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread, and `color` must be
+/// valid for writes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_presented_color(host: &DocumentHost, element: u32, color: *mut u32) -> bool {
+    let Some(presented) = StyleNodeID::from_raw(element).and_then(|element| host.presented_color(element)) else {
+        return false;
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { color.write(presented) };
+    true
+}
+
 /// Writes the border box of `element` in the last frame a tick of a clock lease of `host`'s document presented to
 /// `rect`, ending the lease that runs, and answers whether a tick presented one. For a test.
 ///
@@ -1186,4 +1762,54 @@ pub unsafe extern "C" fn document_host_presented_border_box(
     // SAFETY: Guaranteed by the caller.
     unsafe { rect.write(presented.into()) };
     true
+}
+
+/// What a document's host and its clock leases tell each other of the pointer and the event loop.
+pub(crate) struct HostActivity {
+    epoch: std::time::Instant,
+    /// How long after `epoch` the pointer last moved over the document, in nanoseconds, or 0 where it never moved.
+    pointer_moved_at: AtomicU64,
+    /// Whether the event loop runs a task, beside which a lease's hover follows the pointer.
+    runs_task: AtomicBool,
+}
+
+impl Default for HostActivity {
+    fn default() -> Self {
+        Self {
+            epoch: std::time::Instant::now(),
+            pointer_moved_at: AtomicU64::new(0),
+            runs_task: AtomicBool::new(false),
+        }
+    }
+}
+
+impl HostActivity {
+    /// How long after the pointer last moved over the document a lease forks the render state as it begins.
+    const POINTER_ACTIVITY: std::time::Duration = std::time::Duration::from_secs(2);
+
+    fn now(&self) -> u64 {
+        u64::try_from(self.epoch.elapsed().as_nanos())
+            .unwrap_or(u64::MAX)
+            .max(1)
+    }
+
+    /// Notes that the pointer moved over the document now.
+    fn note_pointer_move(&self) {
+        self.pointer_moved_at.store(self.now(), Ordering::Relaxed);
+    }
+
+    /// Whether the pointer moved over the document lately. See [`Self::POINTER_ACTIVITY`].
+    pub(crate) fn pointer_is_active(&self) -> bool {
+        let moved_at = self.pointer_moved_at.load(Ordering::Relaxed);
+        moved_at != 0 && u128::from(self.now().saturating_sub(moved_at)) < Self::POINTER_ACTIVITY.as_nanos()
+    }
+
+    /// Notes whether the event loop runs a task.
+    pub(crate) fn set_runs_task(&self, runs_task: bool) {
+        self.runs_task.store(runs_task, Ordering::Relaxed);
+    }
+
+    fn runs_task(&self) -> bool {
+        self.runs_task.load(Ordering::Relaxed)
+    }
 }

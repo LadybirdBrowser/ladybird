@@ -116,6 +116,20 @@ impl RetainedState {
         }
     }
 
+    /// Gives a fork of the engine flags of its own in place of those it shares with the host, holding what they hold
+    /// now.
+    pub(crate) fn detach_host_flags_for_fork(&mut self) {
+        let exist = self.random_base_values.element_rows_exist.load(Ordering::Relaxed);
+        self.random_base_values.element_rows_exist = Arc::new(AtomicBool::new(exist));
+        self.detach_container_effects_held_for_fork();
+        // The prefix caches hold the answers of the engine's own match answer catalog, which the fork copies as either
+        // writes it: the fork starts with caches of its own.
+        self.prefix_caches = Default::default();
+        if let Some(font_resolution) = self.font_resolution.as_mut() {
+            font_resolution.start_over_for_fork();
+        }
+    }
+
     /// Raises `flag`, which the document's host reads, once any element has random base values, rather than a flag
     /// of the engine's own. The engine has none yet.
     pub(crate) fn share_element_random_base_values_exist(&mut self, flag: Arc<AtomicBool>) {

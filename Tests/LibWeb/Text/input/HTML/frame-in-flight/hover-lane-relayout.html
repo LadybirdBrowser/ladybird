@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); }
+    #box:hover { width: 150px; }
+    #after { width: 10px; height: 10px; }
+</style>
+<div id="box"></div>
+<div id="after"></div>
+<script>
+    // A hover beside the task lays out what it moves.
+    asyncTest(async done => {
+        const presentedBy = await whileHoverLeased(() => {
+            internals.injectHoverPointer(50, 50);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`last frame presented by: ${presentedBy}`);
+        await nextFrame();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        println(`box width: ${box.getBoundingClientRect().width}`);
+        done();
+    });
+</script>

@@ -1,0 +1,5 @@
+hovered beside the task: a
+hovered once the task handled a move to c: c
+b: rgb(0, 0, 255), c: rgb(0, 128, 0)
+hovered once the task handled a move to b: b
+events: mouseover a, mouseover c, mouseover b

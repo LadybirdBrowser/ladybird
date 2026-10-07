@@ -1,0 +1,3 @@
+after on screen at y: 150
+menu color: rgb(0, 128, 0)
+menu transitions: 0

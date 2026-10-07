@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); transition: width 100s linear; }
+    #box:hover { width: 200px; }
+</style>
+<div id="box"></div>
+<script>
+    // Runs a rendering update at `frameTime`, and waits until its frame has landed.
+    async function renderAt(frameTime) {
+        requestAnimationFrame(() => {});
+        internals.injectRenderingOpportunity(frameTime);
+        do await nextTask();
+        while (document.timeline.currentTime < frameTime - 1 || internals.frameSchedulerState() !== "idle");
+    }
+
+    // A transition a hover beside the task started lands in the next rendering update, whose style flight starts it on
+    // the main thread from when it started beside the task.
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        internals.setManualRenderingOpportunities(true);
+        try {
+            await nextTask();
+            const frameTime = performance.now();
+            await renderAt(frameTime);
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            await renderAt(frameTime + 16);
+            const transitions = box.getAnimations();
+            println(`transitions once the main thread took over: ${transitions.length}`);
+            for (const transition of transitions)
+                println(`transition starts after the frame time: ${Math.round(transition.startTime - frameTime)}`);
+        } finally {
+            internals.setManualRenderingOpportunities(false);
+        }
+        done();
+    });
+</script>

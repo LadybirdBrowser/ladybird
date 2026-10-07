@@ -149,14 +149,18 @@ impl StyleEngine {
         let holds_images = self
             .style_record_dependency_flags(record)
             .is_none_or(|flags| flags & super::computed::HOLDS_IMAGE_VALUES != 0);
-        holds_images
-            || self.style_record_payloads(record).is_none_or(|payloads| {
-                !ComputedValuesView::new(SharedPayload::as_pointer_slice(payloads))
-                    .anchor()
-                    .anchor_names
-                    .as_slice()
-                    .is_empty()
-            })
+        holds_images || self.record_names_anchors(record)
+    }
+
+    /// Whether `record` names an anchor the host registers, or is gone.
+    pub(super) fn record_names_anchors(&self, record: u64) -> bool {
+        self.style_record_payloads(record).is_none_or(|payloads| {
+            !ComputedValuesView::new(SharedPayload::as_pointer_slice(payloads))
+                .anchor()
+                .anchor_names
+                .as_slice()
+                .is_empty()
+        })
     }
 }
 

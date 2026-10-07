@@ -282,6 +282,9 @@ public:
     void record_element_arrival(StyleEngineFFI::FfiElementArrival const&, ReadonlySpan<StyleAtomID> custom_states);
     void record_local_feature_delta(StyleEngineFFI::FfiLocalFeatureDelta const&);
     void record_state_delta(StyleEngineFFI::FfiStateDelta const&);
+    // The hover moves to `target`, or off the document for none, as the events of a mouse move hover it, once the rest
+    // of the recorded input is in place.
+    void record_hover(Optional<StyleNodeID> target);
     void record_element_declaration_delta(StyleEngineFFI::FfiElementDeclarationDelta const&);
     enum StyleReaction : u8 {
         PublishedStyle = 1 << 0,

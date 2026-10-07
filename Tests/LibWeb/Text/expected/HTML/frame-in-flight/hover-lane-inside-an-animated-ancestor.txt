@@ -1,0 +1,5 @@
+last frame presented by: clock
+link matches :hover: true
+outer matches :hover: true
+link color: rgb(255, 0, 0)
+outer animations: 1

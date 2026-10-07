@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); }
+    #box:hover { background: rgb(0, 128, 0); }
+</style>
+<div id="box"></div>
+<script>
+    // A tick of the render clock that the pointer moved before hovers what is under it while the task runs, and
+    // presents the frame. The next rendering update keeps the hover, though no mouse event reached the task: the box
+    // matches :hover and its style is the hovered one.
+    asyncTest(async done => {
+        const presentedBy = await whileHoverLeased(() => {
+            internals.injectHoverPointer(50, 50);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`last frame presented by: ${presentedBy}`);
+        await nextFrame();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        println(`box background: ${getComputedStyle(box).backgroundColor}`);
+        done();
+    });
+</script>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); transition: width 100s linear; }
+    #box:hover { width: 200px; }
+</style>
+<div id="box"></div>
+<div id="other" style="height: 100px"></div>
+<script>
+    // Runs a rendering update at `frameTime`, and waits until its frame has landed.
+    async function renderAt(frameTime) {
+        requestAnimationFrame(() => {});
+        internals.injectRenderingOpportunity(frameTime);
+        do await nextTask();
+        while (document.timeline.currentTime < frameTime - 1 || internals.frameSchedulerState() !== "idle");
+    }
+
+    // A hover beside the task that leaves a box halfway through the transition its hover started reverses the
+    // transition from where it stands, as the render clock ticks. The main thread hovers off the box in its turn.
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        internals.setManualRenderingOpportunities(true);
+        try {
+            await nextTask();
+            const frameTime = performance.now();
+            await renderAt(frameTime);
+            // The hover beside the task starts the transition, which the main thread runs on from then.
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            await renderAt(frameTime + 16);
+            // The hover beside the next task leaves the box halfway through the transition, by the clock's time.
+            const leftAt = frameTime + 16 + 50000;
+            internals.injectHoverPointer(50, 150, leftAt);
+            internals.injectClockTick(leftAt + 12500);
+            println(`width a quarter into the reversal: ${internals.presentedBorderBox(box).width}`);
+            println(`last frame presented by: ${internals.lastFramePresentedBy(document)}`);
+            // The next rendering update hovers where the screen shows, from which on script reads it.
+            await renderAt(performance.now());
+            println(`box matches :hover: ${box.matches(":hover")}`);
+        } finally {
+            internals.setManualRenderingOpportunities(false);
+        }
+        done();
+    });
+</script>

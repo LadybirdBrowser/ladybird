@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes pulse { from { outline-color: rgb(0, 0, 0); } to { outline-color: rgb(128, 128, 128); } }
+    body { margin: 0; }
+    #outer { padding: 10px; outline: 1px solid; animation: pulse 100s linear infinite; }
+    #link { display: block; width: 200px; height: 40px; color: rgb(0, 0, 255); }
+    #link:hover { color: rgb(255, 0, 0); }
+</style>
+<div id="outer"><a id="link" href="#">Link</a></div>
+<script>
+    // A hover beside the task moves the hover of an ancestor that runs an animation, whose record stays as it was: the
+    // animation the main thread composes over it runs on, and the hovered link restyles beside the task.
+    asyncTest(async done => {
+        const presentedBy = await whileHoverLeased(() => {
+            internals.injectHoverPointer(100, 30);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`last frame presented by: ${presentedBy}`);
+        await nextFrame();
+        println(`link matches :hover: ${link.matches(":hover")}`);
+        println(`outer matches :hover: ${outer.matches(":hover")}`);
+        println(`link color: ${getComputedStyle(link).color}`);
+        println(`outer animations: ${outer.getAnimations().length}`);
+        done();
+    });
+</script>

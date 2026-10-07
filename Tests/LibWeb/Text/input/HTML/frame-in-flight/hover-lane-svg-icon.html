@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    a { display: block; width: 200px; height: 40px; color: rgb(0, 0, 255); }
+    a:hover { color: rgb(255, 0, 0); }
+    svg { width: 20px; height: 20px; }
+</style>
+<a id="link" href="#"><svg viewBox="0 0 10 10"><path id="icon" d="M0 0h10v10H0z" fill="currentColor"/></svg> Link</a>
+<script>
+    // A hover beside the task repaints the SVG icon whose fill follows the hovered link's color.
+    asyncTest(async done => {
+        const presentedBy = await whileHoverLeased(() => {
+            internals.injectHoverPointer(150, 20);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`last frame presented by: ${presentedBy}`);
+        await nextFrame();
+        println(`link matches :hover: ${link.matches(":hover")}`);
+        println(`icon color: ${getComputedStyle(icon).color}`);
+        done();
+    });
+</script>

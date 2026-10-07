@@ -23,6 +23,8 @@ mod owner;
 mod wait;
 
 pub use clock::FfiPlannedScrollTimeline;
+pub use clock::hover::FfiHoverPlanInputs;
+pub(crate) use clock::hover::HoverPlan;
 pub(crate) use clock::{ClockPlan, CommittedContent, CommittedFrame, SampledFrame};
 pub use document_host::DocumentHost;
 pub(crate) use document_host::OwedWorkPayment;
@@ -99,6 +101,22 @@ impl RenderState {
         *self.arena.arena().layout_tree_update_marks().borrow_mut() = streamed;
         self.apply(changes);
         self.streamed_marks = Some(self.arena.arena().layout_tree_update_marks().take());
+    }
+
+    /// A fork of the state, as it is now: a copy of it that the render clock may write and present from while the host
+    /// goes on writing the state, which neither sees the other's writes. See [`crate::fork`].
+    pub(crate) fn fork(&self) -> RenderFork {
+        let mut engine = Box::new(self.engine_ref().clone());
+        engine.detach_host_flags_for_fork();
+        let engine = StyleEngineHandle::create(engine);
+        let arena = Box::new(self.arena.fork(engine));
+        RenderFork(std::mem::ManuallyDrop::new(Self {
+            arena,
+            engine,
+            owed: Vec::new(),
+            streamed_marks: None,
+            sample_clock: self.sample_clock.clone(),
+        }))
     }
 
     /// Drops the state, which must hold no layout node any more.
@@ -1105,5 +1123,33 @@ mod tests {
         );
         // SAFETY: The host is destroyed once, and nothing reaches it after.
         unsafe { document_host::document_host_destroy(pointer) };
+    }
+}
+
+/// A fork of a document's render state. See [`RenderState::fork`]. Nothing the host holds names it, so it drops whatever
+/// it holds.
+pub(crate) struct RenderFork(std::mem::ManuallyDrop<RenderState>);
+
+impl std::ops::Deref for RenderFork {
+    type Target = RenderState;
+
+    fn deref(&self) -> &RenderState {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for RenderFork {
+    fn deref_mut(&mut self) -> &mut RenderState {
+        &mut self.0
+    }
+}
+
+impl Drop for RenderFork {
+    fn drop(&mut self) {
+        // SAFETY: The fork is not used again.
+        let RenderState { arena, engine, .. } = unsafe { std::mem::ManuallyDrop::take(&mut self.0) };
+        drop(arena);
+        // SAFETY: The fork made the handle, and the arena that linked it is gone.
+        drop(unsafe { engine.destroy() });
     }
 }

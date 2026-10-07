@@ -210,6 +210,11 @@ impl ImageMapAreaColumn {
         }
     }
 
+    /// Whether the image whose paintable row is `slot` has an image map.
+    pub(crate) fn has_areas(&self, slot: NodeSlotId) -> bool {
+        self.maps.borrow().contains_key(&slot)
+    }
+
     /// The maps as they are now, for the host to read.
     pub(crate) fn snapshot(&self) -> Arc<ImageMaps> {
         self.maps.borrow().clone()

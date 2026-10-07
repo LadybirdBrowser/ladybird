@@ -85,6 +85,7 @@ public:
     void send_text(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers);
     void send_text_through_ui_process(Utf16String const&);
     void grant_transient_activation();
+    void mouse_move_through_ui_process(double x, double y);
     void click_through_ui_process(double x, double y);
     void wheel_through_ui_process(double x, double y, double delta_x, double delta_y);
     void send_key(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers, WebIDL::UnsignedLong repeat_count);
@@ -233,8 +234,11 @@ public:
     void hold_next_frame(Utf16String const& hold);
     Utf16String last_frame_presented_by(DOM::Document&);
     void inject_clock_tick(double frame_time_ms, Optional<double> viewport_scroll_y);
+    void inject_hover_pointer(double x, double y, Optional<double> frame_time_ms);
+    void move_hover_pointer(double x, double y);
     Utf16String clock_lease_state(DOM::Document&);
     GC::Ptr<Geometry::DOMRect> presented_border_box(DOM::Element&);
+    Optional<String> presented_color(DOM::Element&);
     bool last_frame_keyboard_scroll_state_is_current();
     void release_held_frame();
     void update_compositor_animations();
