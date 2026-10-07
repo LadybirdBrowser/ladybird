@@ -50,6 +50,7 @@ public:
     virtual u16 weight() const override;
     virtual u16 width() const override;
     virtual u8 slope() const override;
+    virtual FaceStyle style_for_variations(ReadonlySpan<FontVariationAxis>) const override;
 
     virtual ReadonlyBytes buffer() const LIFETIME_BOUND override { return m_buffer; }
     virtual u32 ttc_index() const override { return m_ttc_index; }
@@ -80,9 +81,6 @@ private:
 
     ReadonlyBytes m_buffer;
     u32 m_ttc_index { 0 };
-
-    mutable OnceFlag m_family_once;
-    mutable Optional<FlyString> m_family;
 
     // This cache stores information per code point.
     // It's segmented into pages with data about 256 code points each.

@@ -75,8 +75,9 @@ public:
     float point_size() const;
     float pixel_size() const;
     FontPixelMetrics const& pixel_metrics() const { return m_pixel_metrics; }
-    u8 slope() const { return m_typeface->slope(); }
-    u16 weight() const { return m_typeface->weight(); }
+    u8 slope() const { return m_style.slope; }
+    u16 weight() const { return m_style.weight; }
+    u16 width() const { return m_style.width; }
     bool contains_glyph(u32 code_point) const { return m_typeface->glyph_id_for_code_point(code_point) > 0; }
     u32 glyph_id_for_code_point(u32 code_point) const { return m_typeface->glyph_id_for_code_point(code_point); }
     int x_height() const { return m_point_height; } // FIXME: Read from font
@@ -124,6 +125,7 @@ private:
     FontVariationSettings const m_font_variation_settings;
     ShapeFeatures m_shape_features;
     FontPixelMetrics m_pixel_metrics;
+    FaceStyle m_style;
 
     float m_pixel_size { 0.0f };
 };

@@ -87,6 +87,9 @@ ErrorOr<void> FontService::build_catalog()
         auto collect_typeface = [&](String const& path, u32 ttc_index, Gfx::FontFileFormat format, NonnullRefPtr<Gfx::Typeface> typeface) {
             if (callback_error.has_value())
                 return;
+            // A face without a family name cannot be matched.
+            if (typeface->family().is_empty())
+                return;
             auto face_id = next_face_id++;
             auto names = typeface->local_font_names();
             if (names.is_error()) {
