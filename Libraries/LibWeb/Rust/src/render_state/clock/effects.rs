@@ -10,13 +10,13 @@
 
 use super::{Lane, Park};
 use crate::css::animated_overlay::AnimatedOverlay;
-use crate::css::style::StyleEngine;
 use crate::css::style::animations::AnimationTimelineSamples;
 use crate::css::style::bridge::FfiStyleDelta;
 use crate::css::style::engine_sample::NeedsHost;
-use crate::css::style::hover_lane::InheritingDescendants;
+use crate::css::style::hover_lane::{INHERITING_DESCENDANTS_LIMIT, InheritingDescendants};
 use crate::css::style::layout_style::DerivedStyleRecord;
 use crate::css::style::tree::StyleNodeID;
+use crate::css::style::{SampleBounds, StyleEngine};
 use crate::css::transition::HoverTransitions;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{GENERATED_FOR_AFTER, GENERATED_FOR_BEFORE, GENERATED_FOR_MARKER, NodeSlotId};
@@ -26,8 +26,12 @@ use crate::render_state::RenderState;
 /// What the ticks of a lane sample of an element.
 pub(crate) enum ElementEffects {
     /// The animations the host runs on the element, whose timing it published, sampled over the record the host
-    /// installed in the element's box at the timeline times of the tick.
-    Host { node: StyleNodeID },
+    /// installed in the element's box at the timeline times of the tick, with the descendants that inherit what they
+    /// animate once a tick has found them.
+    Host {
+        node: StyleNodeID,
+        inheriting: Option<Inheriting>,
+    },
     /// Transitions the lane's hover started on the element at `start_time`, in the document's milliseconds, sampled over
     /// their after-change style until they end.
     Started {
@@ -40,7 +44,7 @@ pub(crate) enum ElementEffects {
 impl ElementEffects {
     fn node(&self) -> StyleNodeID {
         match self {
-            Self::Host { node } => *node,
+            Self::Host { node, .. } => *node,
             Self::Started { transitions, .. } => transitions.node,
         }
     }
@@ -48,6 +52,13 @@ impl ElementEffects {
     fn runs_started_transitions(&self) -> bool {
         matches!(self, Self::Started { ended: false, .. })
     }
+}
+
+/// The descendants of an element that inherit what its effects animate, which show it with the element, and whether
+/// every styled element in its subtree does.
+pub(crate) struct Inheriting {
+    descendants: InheritingDescendants,
+    covers_subtree: bool,
 }
 
 /// How a sample shows in a box: as one of the host's animations, or as transitions a hover started, which leave the
@@ -61,7 +72,10 @@ enum SampleKind {
 impl Lane {
     /// The effects the ticks sample of the elements the plan animates.
     pub(super) fn host_effects(elements: &[StyleNodeID]) -> Vec<ElementEffects> {
-        elements.iter().map(|&node| ElementEffects::Host { node }).collect()
+        elements
+            .iter()
+            .map(|&node| ElementEffects::Host { node, inheriting: None })
+            .collect()
     }
 
     /// Whether a transition the hover started has yet to end, which the ticks sample until it does, or until a tick
@@ -94,7 +108,7 @@ impl Lane {
     pub(super) fn start_transitions(&mut self, transitions: HoverTransitions, start_time: f64) {
         let node = transitions.node;
         self.effects
-            .retain(|effects| !matches!(effects, ElementEffects::Host { node: animated } if *animated == node));
+            .retain(|effects| !matches!(effects, ElementEffects::Host { node: animated, .. } if *animated == node));
         self.effects.push(ElementEffects::Started {
             transitions,
             start_time,
@@ -112,35 +126,105 @@ impl Lane {
             elements
                 .iter()
                 .filter(|node| !started.contains(node))
-                .map(|&node| ElementEffects::Host { node }),
+                .map(|&node| ElementEffects::Host { node, inheriting: None }),
         );
     }
 
-    /// Samples the animations the host runs at `samples`, and shows them in their elements' boxes. An animated element
-    /// with no box, or a sample only the host computes, parks the lane.
+    /// Samples the animations the host runs at `samples`, and shows them in their elements' boxes and in those of the
+    /// descendants that inherit what they animate. An animated element with no box, more such descendants than a tick
+    /// restyles, or a sample only the host computes, parks the lane.
     pub(super) fn sample_host_animations(
         &mut self,
         state: &mut RenderState,
         samples: AnimationTimelineSamples<'_>,
     ) -> Result<(), Park> {
+        let scroll_snaps = state.arena.arena().may_have_scroll_snap_areas();
         for index in 0..self.effects.len() {
-            let ElementEffects::Host { node } = self.effects[index] else {
+            let ElementEffects::Host {
+                node,
+                ref mut inheriting,
+            } = self.effects[index]
+            else {
                 continue;
             };
             let row = state.arena.arena().bound_row(node);
             if row.is_invalid() {
                 return Err(Park("an animated element has no box"));
             }
+            let inheriting = match inheriting.take() {
+                Some(inheriting) => inheriting,
+                None => Self::find_inheriting(state, node)?,
+            };
             // Every tick samples over the record the host installed.
             let host_record = self.host_record(state, row);
             let arena = state.arena.arena();
             let reference_box = crate::painting::ffi::committed_transform_reference_box(&arena.paintable_rows(), row);
-            let (sample, _) = state
+            let shown = state
                 .engine_mut()
-                .sample_at(node, host_record, samples, reference_box)?;
-            self.show_sample(state, row, node, sample, SampleKind::Animation)?;
+                .sample_at(
+                    node,
+                    host_record,
+                    samples,
+                    reference_box,
+                    SampleBounds {
+                        scroll_snaps,
+                        subtree_follows: inheriting.covers_subtree,
+                    },
+                )
+                .and_then(|(sample, overlay)| {
+                    self.show_sample(state, row, node, sample, SampleKind::Animation)?;
+                    self.show_inherited(
+                        state,
+                        &overlay,
+                        &inheriting.descendants,
+                        SampleKind::Animation,
+                        scroll_snaps,
+                        inheriting.covers_subtree,
+                    )
+                });
+            if let ElementEffects::Host { inheriting: slot, .. } = &mut self.effects[index] {
+                *slot = Some(inheriting);
+            }
+            shown?;
         }
         Ok(())
+    }
+
+    /// The descendants of the element `node` names that inherit what the animations the host runs on it animate.
+    fn find_inheriting(state: &RenderState, node: StyleNodeID) -> Result<Inheriting, Park> {
+        let engine = state.engine_ref();
+        let properties = engine.animated_inherited_properties(node);
+        if properties.is_empty() {
+            return Ok(Inheriting {
+                descendants: Vec::new(),
+                covers_subtree: false,
+            });
+        }
+        let (descendants, covers_subtree) = engine
+            .inheriting_descendants(node, &properties, INHERITING_DESCENDANTS_LIMIT)
+            .ok_or(Park("more descendants inherit an animation than a tick restyles"))?;
+        Ok(Inheriting {
+            descendants,
+            covers_subtree,
+        })
+    }
+
+    /// The elements whose boxes the ticks show samples in: those whose effects they sample, and the descendants found
+    /// to inherit what those animate.
+    pub(super) fn sampled_elements(&self) -> impl Iterator<Item = StyleNodeID> + '_ {
+        self.effects.iter().flat_map(|effects| {
+            let inheriting = match effects {
+                ElementEffects::Host { inheriting, .. } => {
+                    inheriting.as_ref().map(|inheriting| &inheriting.descendants)
+                }
+                ElementEffects::Started { transitions, .. } => Some(&transitions.inheriting),
+            };
+            std::iter::once(effects.node()).chain(
+                inheriting
+                    .into_iter()
+                    .flat_map(|descendants| descendants.iter().map(|(descendant, _)| *descendant)),
+            )
+        })
     }
 
     /// Shows the transitions the hover started at `timestamp`, and the after-change style of those that have ended by
@@ -185,7 +269,15 @@ impl Lane {
             {
                 continue;
             }
-            self.show_inherited(state, &overlay, &inheriting, scroll_snaps, subtree_follows);
+            // NB: A descendant whose box takes no sample keeps the style the host installed in it.
+            let _ = self.show_inherited(
+                state,
+                &overlay,
+                &inheriting,
+                SampleKind::Transition,
+                scroll_snaps,
+                subtree_follows,
+            );
             moved = true;
         }
         moved
@@ -224,16 +316,19 @@ impl Lane {
         Ok(())
     }
 
-    /// Shows what `overlay` animates that each of the `inheriting` descendants inherits in its box, over the record the
-    /// host installed there.
+    /// Shows what `overlay`, a sample of `kind`, animates that each of the `inheriting` descendants inherits in its box,
+    /// over the record the host installed there. A descendant with no box shows nothing; one whose box takes no sample
+    /// fails the whole, after the others show theirs.
     fn show_inherited(
         &mut self,
         state: &mut RenderState,
         overlay: &AnimatedOverlay,
         inheriting: &InheritingDescendants,
+        kind: SampleKind,
         scroll_snaps: bool,
         subtree_follows: bool,
-    ) {
+    ) -> Result<(), NeedsHost> {
+        let mut shown = Ok(());
         for (descendant, properties) in inheriting {
             let row = state.arena.arena().bound_row(*descendant);
             if row.is_invalid() {
@@ -246,20 +341,20 @@ impl Lane {
                     inherited.set_owned(property, entry.clone_value(), true, false);
                 }
             }
-            let Ok(sample) = state.engine_mut().compose_overlay_over_record(
+            let sample = state.engine_mut().compose_overlay_over_record(
                 *descendant,
                 host_record,
                 &inherited,
-                crate::css::style::SampleBounds::BoxAndVisualContexts {
+                SampleBounds {
                     scroll_snaps,
-                    children_follow: true,
                     subtree_follows,
                 },
-            ) else {
-                continue;
-            };
-            let _ = self.show_sample(state, row, *descendant, sample, SampleKind::Transition);
+            );
+            if let Err(needs_host) = sample.and_then(|sample| self.show_sample(state, row, *descendant, sample, kind)) {
+                shown = Err(needs_host);
+            }
         }
+        shown
     }
 
     /// Has the box `row`, and those of the `inheriting` descendants, show the styles the host installed in them again,

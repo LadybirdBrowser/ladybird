@@ -296,12 +296,13 @@ fn hover_row_keeps_a_composed_record(row: &FfiStyleDelta) -> bool {
         && row.old_style_record == row.new_style_record
 }
 
-/// The descendants of an element that inherit what its transitions animate, each with the properties it inherits.
+/// The descendants of an element that inherit what its animations or transitions animate, each with the properties it
+/// inherits.
 pub(crate) type InheritingDescendants = Vec<(StyleNodeID, SmallVec<[u16; 2]>)>;
 
-/// How many descendants of an element whose transitions animate an inherited property the render owner restyles with
-/// them at each tick, beyond which it leaves the transitions to the host.
-const HOVER_INHERITING_LIMIT: usize = 64;
+/// How many descendants of an element whose animations or transitions animate an inherited property the render owner
+/// restyles with them at each tick, beyond which it leaves them to the host.
+pub(crate) const INHERITING_DESCENDANTS_LIMIT: usize = 64;
 
 /// The pseudo-element a row of a hover's transaction styles, as a box's `generated_for`: 0 for the element's own row,
 /// or none for a pseudo-element whose boxes the render owner does not style.
@@ -391,7 +392,7 @@ impl StyleEngine {
                 let inherited = transitions.inherited_properties();
                 if !inherited.is_empty() {
                     (transitions.inheriting, transitions.inheriting_covers_subtree) = self
-                        .hover_inheriting_descendants(transitions.node, &inherited, HOVER_INHERITING_LIMIT)
+                        .inheriting_descendants(transitions.node, &inherited, INHERITING_DESCENDANTS_LIMIT)
                         .ok_or("more descendants inherit a transition than the render owner restyles")?;
                 }
                 let (sample, _) = transitions
@@ -636,7 +637,7 @@ impl StyleEngine {
     /// The flat-tree element descendants of the element `node` names that inherit one of `properties` from it, each with
     /// those it inherits, through descendants that inherit them, and whether every styled element in its subtree does;
     /// none where more than `limit` do.
-    pub(crate) fn hover_inheriting_descendants(
+    pub(crate) fn inheriting_descendants(
         &self,
         node: StyleNodeID,
         properties: &[u16],

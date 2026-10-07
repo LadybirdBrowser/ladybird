@@ -1242,9 +1242,8 @@ impl HoverTransitions {
             transform_reference_box,
             // The render owner records the frames that show the sample, with the visual contexts it moves, and
             // composes the values the descendants inherit over them.
-            crate::css::style::SampleBounds::BoxAndVisualContexts {
+            crate::css::style::SampleBounds {
                 scroll_snaps,
-                children_follow: true,
                 subtree_follows: self.inheriting_covers_subtree,
             },
         )

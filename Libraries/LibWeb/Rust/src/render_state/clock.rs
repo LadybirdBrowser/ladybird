@@ -184,7 +184,7 @@ pub(crate) struct Lane {
     shown: TickShownRecords,
     /// The border boxes of the plan's elements, and of those the hover restyled, in the last frame a tick presented.
     presented_border_boxes: Vec<(StyleNodeID, CssPixelRect)>,
-    /// The color each box the hover's transitions restyled showed in that frame, as `0xAARRGGBB`. For a test.
+    /// The color each box the ticks showed samples in showed in that frame, as `0xAARRGGBB`. For a test.
     presented_colors: Vec<(StyleNodeID, u32)>,
     /// Where the compositor had scrolled to at the latest tick that said so, which the plan's scroll timelines follow,
     /// and the hit tests of its hover.
@@ -720,7 +720,7 @@ impl ClockTicks {
             .find_map(|&(presented, rect)| (presented == element).then_some(rect))
     }
 
-    /// The color the box of `element` showed in the last frame a tick presented, where a hover's transitions restyled it.
+    /// The color the box of `element` showed in the last frame a tick presented, where a tick showed a sample in it.
     pub(super) fn presented_color(&self, element: StyleNodeID) -> Option<u32> {
         let presented = self.presented_boxes.lock().expect("presented boxes");
         presented
@@ -1193,14 +1193,8 @@ impl Lane {
                 }),
         );
         self.presented_colors.clear();
-        let restyled: SmallVec<[StyleNodeID; 4]> = self
-            .started_transitions()
-            .flat_map(|(transitions, _)| {
-                std::iter::once(transitions.node)
-                    .chain(transitions.inheriting.iter().map(|(descendant, _)| *descendant))
-            })
-            .collect();
-        // NB: A descendant that inherits what the transitions animate may have no box, as under `display: none`.
+        let restyled: SmallVec<[StyleNodeID; 4]> = self.sampled_elements().collect();
+        // NB: A descendant that inherits what the effects animate may have no box, as under `display: none`.
         self.presented_colors.extend(restyled.into_iter().filter_map(|element| {
             let row = arena.bound_row(element);
             if !arena.slot_is_live(row) {

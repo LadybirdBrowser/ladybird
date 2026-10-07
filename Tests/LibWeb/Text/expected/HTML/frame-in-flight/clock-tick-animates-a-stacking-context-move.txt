@@ -1,2 +1,2 @@
-lane after the tick: parked
-last frame presented by: commit
+lane after the tick: ticking
+last frame presented by: clock

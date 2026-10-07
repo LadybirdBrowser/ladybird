@@ -5012,6 +5012,11 @@ impl LayoutNodeArena {
         self.may_have_auto_content_visibility.get()
     }
 
+    /// Whether a row has ever been given a style with a scroll snap type, short of which no scroll container snaps.
+    pub(crate) fn may_have_scroll_snap_areas(&self) -> bool {
+        self.may_have_scroll_snap_areas.get()
+    }
+
     pub(crate) fn style_payloads(&self, id: NodeSlotId) -> Option<&FfiStylePayloads> {
         Self::row_style_payloads(self.data(id))
     }
