@@ -2249,6 +2249,9 @@ impl StyleEngine {
         self.retained.facts.forget_atoms(&reclaimable);
         self.retained.custom_property_environments.forget_names(&reclaimable);
         let is_reclaimed = |atom: &StyleAtomID| reclaimable.binary_search(atom).is_ok();
+        if self.retained.tested_attribute_names.iter().any(is_reclaimed) {
+            Arc::make_mut(&mut self.retained.tested_attribute_names).retain(|atom| !is_reclaimed(atom));
+        }
         if self.retained.attribute_value_text_names.iter().any(is_reclaimed) {
             Arc::make_mut(&mut self.retained.attribute_value_text_names).retain(|atom| !is_reclaimed(atom));
             self.retained.attribute_value_text_requirements_version += 1;

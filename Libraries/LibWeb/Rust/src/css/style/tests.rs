@@ -11693,7 +11693,7 @@ fn engine_keeps_handed_attribute_value_text_only_where_a_selector_reads_the_name
     }));
     let compound = builder.push_compound(&[prefix]);
     builder.push_entry(compound);
-    engine.note_attribute_value_text_names(&builder.finish());
+    engine.note_selector_attribute_names(&builder.finish());
     assert!(engine.attribute_name_requires_value_text(name));
 
     hand_over(&mut engine, after_rule);

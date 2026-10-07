@@ -1,0 +1,5 @@
+changed width: 50px
+gained height: 7px
+changed width after it no longer matches: 784px
+changed style attribute: color: purple;
+gained style attribute: color: blue;

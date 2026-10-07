@@ -96,7 +96,9 @@ pub struct DocumentHost {
     /// The facts of the render state as the host's last job or frame left it, which a frame in flight forgets.
     facts: Cell<Option<StateFacts>>,
     /// The attribute names whose value text the engine's selectors read, as the host's last job or frame left them.
-    selector_value_text_names: RefCell<crate::css::style::SelectorValueTextNames>,
+    selector_value_text_names: RefCell<crate::css::style::SelectorAttributeNames>,
+    /// The attribute names the engine's selectors test in any way, as its last job left them.
+    selector_tested_attribute_names: RefCell<crate::css::style::SelectorAttributeNames>,
     /// The ticks the render clock hands the lanes of the document's presented frames.
     ticks: Arc<ClockTicks>,
     /// How many frames the lanes' ticks presented as the host last took in what they did.
@@ -179,6 +181,7 @@ impl DocumentHost {
             engine_memo: Default::default(),
             facts: Cell::new(None),
             selector_value_text_names: RefCell::default(),
+            selector_tested_attribute_names: RefCell::default(),
             ticks: ClockTicks::new(document),
             lane_frames_taken_in: Cell::default(),
             lane_transition_starts: RefCell::default(),
@@ -335,10 +338,12 @@ impl DocumentHost {
             deferred_inputs,
             facts,
             selector_value_text_names,
+            selector_tested_attribute_names,
         }: Owed,
     ) {
         self.facts.set(Some(facts));
         *self.selector_value_text_names.borrow_mut() = selector_value_text_names;
+        *self.selector_tested_attribute_names.borrow_mut() = selector_tested_attribute_names;
         self.engine_memo
             .deferred
             .borrow_mut()
@@ -639,6 +644,17 @@ impl DocumentHost {
     ) -> Option<bool> {
         self.known_selector_attribute_value_text_requirements_version()?;
         let names = self.selector_value_text_names.borrow();
+        Some(keys.iter().any(|key| names.contains(key)))
+    }
+
+    /// Whether the engine's selectors test an attribute that answers to any of `keys`, where the host knows: as it knows
+    /// where their requirements are.
+    pub(crate) fn known_selectors_test_attribute(
+        &self,
+        keys: &[crate::css::style::index::StyleAtomID],
+    ) -> Option<bool> {
+        self.known_selector_attribute_value_text_requirements_version()?;
+        let names = self.selector_tested_attribute_names.borrow();
         Some(keys.iter().any(|key| names.contains(key)))
     }
 

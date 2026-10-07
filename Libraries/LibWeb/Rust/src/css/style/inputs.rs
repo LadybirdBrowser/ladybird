@@ -362,7 +362,7 @@ impl RetainedState {
             scope,
             &self.counters,
         );
-        self.note_attribute_value_text_names(&compiled);
+        self.note_selector_attribute_names(&compiled);
         if let Some(reusable) = reusable
             && self.programs.get(reusable) == &compiled
         {
@@ -374,8 +374,14 @@ impl RetainedState {
         program
     }
 
-    /// Record the attribute names whose values `program` reads as text.
-    pub(super) fn note_attribute_value_text_names(&mut self, program: &SelectorProgram) {
+    /// Record the attribute names `program` tests, and those whose values it reads as text.
+    pub(super) fn note_selector_attribute_names(&mut self, program: &SelectorProgram) {
+        if !program
+            .tested_attribute_names()
+            .all(|name| self.tested_attribute_names.contains(&name))
+        {
+            Arc::make_mut(&mut self.tested_attribute_names).extend(program.tested_attribute_names());
+        }
         if program
             .attribute_value_text_names()
             .all(|name| self.attribute_value_text_names.contains(&name))
@@ -398,8 +404,13 @@ impl RetainedState {
     }
 
     /// The attribute names whose value text a selector here reads.
-    pub(crate) fn selector_attribute_value_text_names(&self) -> &SelectorValueTextNames {
+    pub(crate) fn selector_attribute_value_text_names(&self) -> &SelectorAttributeNames {
         &self.attribute_value_text_names
+    }
+
+    /// The attribute names a selector here tests in any way.
+    pub(crate) fn selector_tested_attribute_names(&self) -> &SelectorAttributeNames {
+        &self.tested_attribute_names
     }
 
     /// Whether the host records what the values of an attribute name spell: for a selector whose
@@ -1944,6 +1955,7 @@ impl StyleEngine {
                 facts: crate::fork::ForkShared::new(ElementFactStore::new()),
                 programs: SelectorPrograms::for_live_engine(),
                 attribute_value_text_names: Arc::default(),
+                tested_attribute_names: Arc::default(),
                 attribute_value_text_requirements_version: 0,
                 selector_programs_need_sweep: false,
                 routing: Arc::new(RoutingRegistry::new()),
@@ -3327,6 +3339,7 @@ impl RetainedState {
             facts: _,
             programs: _,
             attribute_value_text_names: _,
+            tested_attribute_names: _,
             attribute_value_text_requirements_version: _,
             selector_programs_need_sweep: _,
             routing: _,
