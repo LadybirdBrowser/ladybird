@@ -20,7 +20,7 @@ use crate::cow_column::{ColumnSnapshot, CowColumn};
 use crate::css::css_pixels::{CssPixelPoint, FfiCssPixelPoint};
 use crate::css::style::bridge::ElementBoxKind;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
-use crate::css::style::flight_style_rows::{Decline, FlightStyleRow};
+use crate::css::style::flight_style_rows::{Decline, FlightStyleRow, REBUILD_LEVEL, RELAYOUT_LEVEL};
 use crate::css::style::tree::{StyleNodeID, TableSpans};
 use crate::css::style::{
     PublishedBoxFacts, PublishedTextSource, StyleEngine, TextStyleParentFacts,
@@ -2366,8 +2366,7 @@ impl LayoutNodeArena {
     /// element as the host styles them, take a move that only repaints them.
     /// Whether the move of `row` builds boxes again, which the box takes only from a build.
     pub(crate) fn hover_row_builds_boxes_again(&self, row: &crate::css::style::bridge::FfiStyleDelta) -> bool {
-        row.record_damage & crate::css::style::bridge::FfiStyleInvalidationField::LevelMask as u32
-            >= HOVER_REBUILD_LEVEL
+        row.record_damage & crate::css::style::bridge::FfiStyleInvalidationField::LevelMask as u32 >= REBUILD_LEVEL
     }
 
     pub(crate) fn takes_hover_row(&self, row: &crate::css::style::bridge::FfiStyleDelta, generated_for: u8) -> bool {
@@ -2383,7 +2382,7 @@ impl LayoutNodeArena {
     ) -> Option<String> {
         use crate::css::style::bridge::FfiStyleInvalidationField;
         let level = row.record_damage & FfiStyleInvalidationField::LevelMask as u32;
-        if level >= HOVER_REBUILD_LEVEL {
+        if level >= REBUILD_LEVEL {
             return Some("a move that builds boxes again".into());
         }
         let slot = self.hover_row_box(row, generated_for);
@@ -2392,7 +2391,7 @@ impl LayoutNodeArena {
             return None;
         }
         let kind = self.data(slot).kind.get();
-        let repaints_only = level < HOVER_RELAYOUT_LEVEL;
+        let repaints_only = level < RELAYOUT_LEVEL;
         let plain = matches!(kind, NodeKind::Box | NodeKind::BlockContainer | NodeKind::InlineNode)
             || (repaints_only
                 && matches!(
@@ -2467,7 +2466,7 @@ impl LayoutNodeArena {
         }
         self.reinherit_anonymous_descendants(HostCalls(host_calls.0), slot);
         let level = row.record_damage & FfiStyleInvalidationField::LevelMask as u32;
-        if level >= HOVER_RELAYOUT_LEVEL
+        if level >= RELAYOUT_LEVEL
             && let Some(style_node) = self.node_style_node(slot)
         {
             self.mark_row_for_relayout_after_style_change(style_node, slot);
@@ -7250,8 +7249,3 @@ mod tests {
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 }
-
-/// The `InvalidationLevel` of a style move at which its box lays out again, and the one at which the layout tree is
-/// built again.
-const HOVER_RELAYOUT_LEVEL: u32 = 2;
-const HOVER_REBUILD_LEVEL: u32 = 3;

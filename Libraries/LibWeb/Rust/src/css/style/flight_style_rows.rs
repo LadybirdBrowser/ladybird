@@ -57,8 +57,8 @@ pub(crate) enum Decline {
 
 /// The `InvalidationLevel` of a style move at which its box lays out again, and the one at which the layout tree is
 /// built again.
-const RELAYOUT_LEVEL: u32 = 2;
-const REBUILD_LEVEL: u32 = 3;
+pub(crate) const RELAYOUT_LEVEL: u32 = 2;
+pub(crate) const REBUILD_LEVEL: u32 = 3;
 
 impl StyleEngine {
     /// The rows of `answers`, a style transaction's, that a frame applies to the boxes of their elements itself, or why
