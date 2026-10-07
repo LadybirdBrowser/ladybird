@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #run > div { --place: calc(sibling-index() * 1px); width: var(--place); height: calc(sibling-count() * 1px); }
+</style>
+<div id="run"></div>
+<script>
+    // The tree-counting functions read the place of an element in a run of siblings long enough that the style engine
+    // keeps the places, and read them anew as the run changes.
+    test(() => {
+        const run = document.getElementById("run");
+        for (let i = 0; i < 40; ++i)
+            run.appendChild(document.createElement("div"));
+        const probe = run.children[19];
+        const report = label => {
+            const style = getComputedStyle(probe);
+            println(`${label}: index ${style.width}, count ${style.height}`);
+        };
+        report("initially");
+        run.firstElementChild.remove();
+        report("after removing the first child");
+        run.insertBefore(document.createElement("div"), run.firstElementChild);
+        run.insertBefore(document.createElement("div"), run.firstElementChild);
+        report("after inserting two children first");
+        run.appendChild(probe);
+        report("after moving it last");
+        run.insertBefore(document.createTextNode("text"), probe);
+        report("after inserting text before it");
+    });
+</script>

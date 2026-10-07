@@ -982,6 +982,9 @@ pub struct RetainedState {
     /// `None` entry records that the posting's coverage was incomplete, which is a `false`
     /// verdict for every asker.
     route_pruning_states: crate::fork::ForkReset<Mutex<RoutePruningStateCache>>,
+    /// The places of the children of parents with many of them, which sibling-counting functions
+    /// read, kept while the tree's DOM order stands.
+    sibling_positions: crate::fork::ForkReset<Mutex<publication::SiblingPositionCache>>,
     /// Once Tier-3 pressure closes retained-answer admission, the rest of the completion batch
     /// stops asking for exact answers: an exact answer costs more to evaluate, and paying that
     /// premium for an answer the controller cannot retain buys nothing on any later flush.

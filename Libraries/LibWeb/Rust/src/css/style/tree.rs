@@ -694,6 +694,9 @@ pub struct StyleNodeTree {
     top_layer: Vec<StyleNodeID>,
 
     capacity_bytes: u64,
+    /// Counts the changes to the DOM child sequences, to the parents and shadow roots that place a
+    /// node among its siblings, and to which nodes are live. See [`Self::dom_order_version`].
+    dom_order_version: u64,
 
     #[cfg(test)]
     depth_recompute_visits: usize,
@@ -743,6 +746,7 @@ impl StyleNodeTree {
             table_spans: HashMap::default(),
             top_layer: Vec::new(),
             capacity_bytes: 0,
+            dom_order_version: 0,
             #[cfg(test)]
             depth_recompute_visits: 0,
         };
@@ -813,6 +817,7 @@ impl StyleNodeTree {
     /// Make the element identity `node`, which the host minted, live. The host mints past every
     /// identity it minted before, or one this tree released, which no reader can still name.
     pub fn mint_element(&mut self, node: StyleNodeID, memory: &mut MemoryController) {
+        self.dom_order_version += 1;
         let index = node.element_index().expect("mint_element requires an element identity");
         let capacity_before_growth = if (index as usize) < self.parent.len() {
             assert!(
@@ -886,6 +891,7 @@ impl StyleNodeTree {
 
     /// Retire a batch of element identities, accounting once for the capacity they release.
     pub fn retire_elements(&mut self, nodes: &[StyleNodeID], memory: &mut MemoryController) {
+        self.dom_order_version += 1;
         let before = self.retirement_capacity_bytes();
         for &node in nodes {
             let index = node
@@ -957,6 +963,7 @@ impl StyleNodeTree {
     /// Make the text identity `node`, which the host minted, live. Like an element's, it is new or
     /// one this tree released.
     pub fn mint_text(&mut self, node: StyleNodeID, memory: &mut MemoryController) {
+        self.dom_order_version += 1;
         let index = node.text_index().expect("mint_text requires a text identity");
         let before = self.text.capacity_bytes();
         if (index as usize) < self.text.parent.len() {
@@ -992,6 +999,7 @@ impl StyleNodeTree {
     /// it has no relations to stage, and its slot waits for [`Self::release_retired_identities`]
     /// like an element's.
     pub fn retire_texts(&mut self, nodes: impl IntoIterator<Item = StyleNodeID>, memory: &mut MemoryController) {
+        self.dom_order_version += 1;
         let before = self.text.capacity_bytes() + self.shadow_capacity_bytes();
         // Every column is named, so a new one cannot leave a retired identity's value behind for
         // the next text node issued the index.
@@ -1187,6 +1195,7 @@ impl StyleNodeTree {
     /// none. A node with no parent is left unlinked: the document's own children are not a
     /// sequence anything reads.
     pub fn link_in_dom_order(&mut self, node: StyleNodeID, parent: Option<StyleNodeID>, previous: Option<StyleNodeID>) {
+        self.dom_order_version += 1;
         if !self.is_live(node) {
             return;
         }
@@ -1223,6 +1232,7 @@ impl StyleNodeTree {
 
     /// Take `node` out of the child sequence of `parent`, the parent it was linked under.
     pub fn unlink_from_dom_order(&mut self, node: StyleNodeID, parent: Option<StyleNodeID>) {
+        self.dom_order_version += 1;
         if !self.is_live(node) {
             return;
         }
@@ -1252,6 +1262,14 @@ impl StyleNodeTree {
         if let Some(index) = node.text_index() {
             self.text.parent[index as usize] = None;
         }
+    }
+
+    /// A version of what places a node among its siblings: the DOM child sequences, the parents and
+    /// shadow roots, and which nodes are live. Whatever reads none of it since it read the version
+    /// reads the same places again.
+    #[must_use]
+    pub fn dom_order_version(&self) -> u64 {
+        self.dom_order_version
     }
 
     /// The children of `node` in DOM order, text nodes included.
@@ -1302,6 +1320,7 @@ impl StyleNodeTree {
     // -- Relation maintenance ----------------------------------------------------------------
 
     pub fn set_parent(&mut self, node: StyleNodeID, parent: Option<StyleNodeID>) {
+        self.dom_order_version += 1;
         let depth = parent.map_or(0, |parent| {
             self.depth(parent).checked_add(1).expect("style tree depth exhausted")
         });
@@ -1338,6 +1357,7 @@ impl StyleNodeTree {
     }
 
     pub(super) fn set_parent_without_updating_depth(&mut self, node: StyleNodeID, parent: Option<StyleNodeID>) {
+        self.dom_order_version += 1;
         let index = self.live_element_index(node);
         self.parent[index] = parent;
     }
@@ -1521,6 +1541,7 @@ impl StyleNodeTree {
 
     /// Record that `host` hosts `shadow_root`.
     pub fn set_shadow_root(&mut self, host: StyleNodeID, shadow_root: StyleNodeID, memory: &mut MemoryController) {
+        self.dom_order_version += 1;
         let before = self.shadow_capacity_bytes();
         let shadow = self.shadow_mut();
         if let Some(previous_root) = shadow.shadow_root.insert(host, shadow_root)
