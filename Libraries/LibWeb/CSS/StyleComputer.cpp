@@ -2161,15 +2161,7 @@ void StyleComputer::apply_animated_properties_to_reconstruction(ComputedStyleWor
     auto const* animated_properties = computed_values.animated_properties();
     if (!animated_properties)
         return;
-    for (auto const& entry : animated_properties->entries()) {
-        auto property_id = static_cast<PropertyID>(entry.property);
-        style.set_animated_property(
-            Badge<StyleComputer> {}, property_id, animated_properties->property(property_id),
-            // NB: An adjustment wins over an important declaration as a transition's value does, and the working
-            //     set's flag says only that.
-            entry.result_of_transition || entry.post_compute_adjustment ? AnimatedPropertyResultOfTransition::Yes : AnimatedPropertyResultOfTransition::No,
-            entry.inherited ? ComputedStyleWorkingSet::Inherited::Yes : ComputedStyleWorkingSet::Inherited::No);
-    }
+    style.install_animated_overlay(Badge<StyleComputer> {}, animated_properties->overlay());
 }
 
 NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::reconstruct_computed_properties_for_animation(Layout::BegunRead const& read, StyleRecordID style_record) const
