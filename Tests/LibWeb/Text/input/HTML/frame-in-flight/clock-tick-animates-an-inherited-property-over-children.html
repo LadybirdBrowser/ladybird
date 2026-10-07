@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="card" style="color: rgb(0, 0, 0)">Card <span id="label">label</span></div>
+<script>
+    // The render clock samples a running animation of an inherited property beside a task, and shows the values the
+    // children of the element inherit from it, as it does for the transitions a hover starts.
+    asyncTest(async done => {
+        const result = await whileLaneAnimates(() => {
+            return card.animate([{ color: "rgb(0, 0, 0)" }, { color: "rgb(0, 0, 200)" }], { duration: 10000, easing: "linear" });
+        }, frameTime => {
+            internals.injectClockTick(frameTime + 5000);
+            return {
+                lane: internals.clockLaneState(document),
+                card: internals.presentedColor(card),
+                label: internals.presentedColor(label),
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`lane after the tick: ${result.lane}`);
+        println(`the card's presented color moved: ${result.card !== null && result.card !== "rgb(0, 0, 0)"}`);
+        println(`the label shows the card's color: ${result.label !== null && result.label === result.card}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        done();
+    });
+</script>
