@@ -278,7 +278,7 @@ QMenu::item {{
     background: transparent;
     border-radius: 5px;
     min-height: 20px;
-    padding: 5px 14px;
+    padding: 5px 24px 5px 14px;
 }}
 
 QMenu::item:selected {{
@@ -901,6 +901,109 @@ QFrame#LadybirdJavaScriptDialogPanel QScrollBar::sub-page:vertical {{
 }}
 )",
         scrim_color, surface, recessed, hover, pressed, control_border, accent, text, muted);
+}
+
+QString bookmark_dialog_style_sheet(QPalette const& palette)
+{
+    auto surface = style_sheet_color(chrome_surface(palette));
+    auto recessed = style_sheet_color(chrome_surface_recessed(palette));
+    auto hover = style_sheet_color(chrome_control_surface_hover(palette));
+    auto pressed = style_sheet_color(chrome_control_surface_pressed(palette));
+    auto control_border = style_sheet_color(chrome_control_border(palette));
+    auto accent = style_sheet_color(chrome_accent(palette));
+    auto text = style_sheet_color(chrome_text(palette));
+
+    return qformatted(R"(
+QDialog#LadybirdBookmarkDialog {{
+    color: {6};
+    background: {0};
+}}
+
+QDialog#LadybirdBookmarkDialog QLabel {{
+    color: {6};
+    background: transparent;
+    border: 0;
+}}
+
+QDialog#LadybirdBookmarkDialog QLineEdit,
+QDialog#LadybirdBookmarkDialog QComboBox {{
+    color: {6};
+    background: {1};
+    border: 1px solid {4};
+    border-radius: 8px;
+    min-height: 26px;
+    padding: 2px 9px;
+    selection-background-color: {5};
+}}
+
+QDialog#LadybirdBookmarkDialog QLineEdit:focus,
+QDialog#LadybirdBookmarkDialog QComboBox:focus {{
+    border-color: {5};
+}}
+
+QDialog#LadybirdBookmarkDialog QComboBox {{
+    padding-right: 24px;
+    /* Use the list popup so its rows can be styled on macOS. */
+    combobox-popup: 0;
+}}
+
+QDialog#LadybirdBookmarkDialog QComboBox::drop-down {{
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 24px;
+    border: 0;
+}}
+
+QDialog#LadybirdBookmarkDialog QComboBox::down-arrow {{
+    image: none;
+}}
+
+QDialog#LadybirdBookmarkDialog QComboBox QAbstractItemView {{
+    color: {6};
+    background: {0};
+    border: 1px solid {4};
+    border-radius: 8px;
+    padding: 4px;
+    outline: 0;
+}}
+
+QDialog#LadybirdBookmarkDialog QComboBox QAbstractItemView::item {{
+    min-height: 26px;
+    padding: 2px 9px;
+    border-radius: 6px;
+}}
+
+QDialog#LadybirdBookmarkDialog QComboBox QAbstractItemView::item:selected {{
+    color: {6};
+    background: {2};
+}}
+
+QDialog#LadybirdBookmarkDialog QPushButton {{
+    color: {6};
+    background: {1};
+    border: 1px solid {4};
+    border-radius: 7px;
+    min-height: 26px;
+    min-width: 72px;
+    padding: 2px 12px;
+}}
+
+QDialog#LadybirdBookmarkDialog QPushButton:hover {{
+    background: {2};
+    border-color: {4};
+}}
+
+QDialog#LadybirdBookmarkDialog QPushButton:pressed {{
+    background: {3};
+    border-color: {4};
+}}
+
+QDialog#LadybirdBookmarkDialog QPushButton:default,
+QDialog#LadybirdBookmarkDialog QPushButton:focus {{
+    border-color: {5};
+}}
+)",
+        surface, recessed, hover, pressed, control_border, accent, text);
 }
 
 QString crash_report_review_style_sheet(QPalette const& palette)

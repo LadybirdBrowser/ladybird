@@ -41,6 +41,7 @@ QString location_edit_style_sheet(QPalette const&);
 QString bookmarks_bar_style_sheet(QPalette const&);
 QString find_in_page_style_sheet(QPalette const&);
 QString javascript_dialog_style_sheet(QPalette const&);
+QString bookmark_dialog_style_sheet(QPalette const&);
 QString crash_report_review_style_sheet(QPalette const&);
 QColor crash_report_review_placeholder_text(QPalette const&);
 QString devtools_banner_style_sheet(QPalette const&);
