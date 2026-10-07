@@ -1343,7 +1343,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::reduce_right)
         return vm.throw_completion<TypeError>(ErrorType::ReduceNoInitial);
 
     // 6. Let k be len - 1.
-    auto k = static_cast<i32>(length) - 1;
+    auto k = static_cast<i64>(length) - 1;
 
     // 7. Let accumulator be undefined.
     auto accumulator = js_undefined();
@@ -1374,7 +1374,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::reduce_right)
         auto value = MUST(typed_array->get(k));
 
         // c. Set accumulator to ? Call(callbackfn, undefined, « accumulator, kValue, 𝔽(k), O »).
-        accumulator = TRY(call(vm, *callback_function, js_undefined(), accumulator, value, Value { k }, typed_array));
+        accumulator = TRY(call(vm, *callback_function, js_undefined(), accumulator, value, Value { static_cast<double>(k) }, typed_array));
 
         // d. Set k to k - 1.
         --k;
