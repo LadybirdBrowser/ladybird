@@ -128,14 +128,6 @@ thread_local! {
     }) };
 }
 
-pub(super) fn record_base_url_dependency() {
-    ParseDependencies {
-        base_url: true,
-        ..Default::default()
-    }
-    .record();
-}
-
 pub(super) fn record_length_resolution_dependency() {
     ParseDependencies {
         length_resolution: true,

@@ -40,26 +40,19 @@ fn value_list(values: Vec<StyleValueData>) -> StyleValueData {
     }
 }
 
-fn context_bytes(pointer: *const u8, length: usize) -> Option<&'static [u8]> {
-    if pointer.is_null() {
-        return (length == 0).then_some(&[]);
-    }
-    Some(unsafe { std::slice::from_raw_parts(pointer, length) })
-}
-
-fn image_resource_context(context: &ParseContext) -> Option<ImageResourceContext> {
-    super::stylesheet_cache::record_base_url_dependency();
-    let base_url = context_bytes(context.document_base_url, context.document_base_url_length)?;
-    Some(ImageResourceContext {
-        base_url: RetainedString::from_ascii(std::str::from_utf8(base_url).ok()?.to_owned()),
-        has_base_url: !base_url.is_empty(),
+fn image_resource_context() -> ImageResourceContext {
+    // The stylesheet supplies its resource context when the value is computed. Inline images
+    // follow their element's document, which can change after parsing in a template document.
+    ImageResourceContext {
+        base_url: RetainedString::from_ascii(String::new()),
+        has_base_url: false,
         has_parent_style_sheet_origin_clean: false,
         parent_style_sheet_origin_clean: false,
         should_absolutize_url_for_computed_value: false,
-    })
+    }
 }
 
-fn image_from_url(context: &ParseContext, url: StyleValueData) -> Option<StyleValueData> {
+fn image_from_url(url: StyleValueData) -> Option<StyleValueData> {
     let StyleValueData::Url {
         url,
         url_type,
@@ -72,16 +65,16 @@ fn image_from_url(context: &ParseContext, url: StyleValueData) -> Option<StyleVa
         url,
         url_type,
         url_modifiers: modifiers,
-        resource_context: image_resource_context(context)?,
+        resource_context: image_resource_context(),
     })
 }
 
-fn image_from_string(context: &ParseContext, string: &[u16]) -> Option<StyleValueData> {
+fn image_from_string(string: &[u16]) -> Option<StyleValueData> {
     Some(StyleValueData::Image {
         url: RetainedString::from_utf16(string)?,
         url_type: 0,
         url_modifiers: RetainedRequestUrlModifierList::from_retained_modifiers(Vec::new()),
-        resource_context: image_resource_context(context)?,
+        resource_context: image_resource_context(),
     })
 }
 
@@ -107,7 +100,7 @@ fn parse_image_set(context: &ParseContext, property: u16, arguments: &[Component
         let mut tokens = TokenStream::new(option);
         tokens.discard_whitespace();
         let image = if let Some(string) = tokens.next_token().string() {
-            let image = image_from_string(context, string)?;
+            let image = image_from_string(string)?;
             tokens.discard_a_token();
             image
         } else {
@@ -636,7 +629,7 @@ pub(crate) fn parse_image_value(
         let is_fragment = matches!(&url, StyleValueData::Url { url, .. } if url.is_fragment());
         if !is_fragment {
             tokens.discard_a_token();
-            return image_from_url(context, url);
+            return image_from_url(url);
         }
     }
     if allow_image_set
