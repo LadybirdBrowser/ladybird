@@ -197,6 +197,11 @@ QColor chrome_border(QPalette const& palette)
     return mix(dark ? chrome_surface(palette) : chrome_background(palette), material_color_anchors(dark).border, 0.22);
 }
 
+QColor chrome_separator(QPalette const& palette)
+{
+    return mix(chrome_surface(palette), chrome_border(palette), is_dark(palette) ? 0.42 : 0.54);
+}
+
 QColor chrome_window_outline(QPalette const& palette)
 {
     auto dark = is_dark(palette);
@@ -260,7 +265,7 @@ QString application_style_sheet(QPalette const& palette)
     auto hover = style_sheet_color(chrome_control_surface_hover(palette));
     auto pressed = style_sheet_color(chrome_control_surface_pressed(palette));
     auto border = style_sheet_color(chrome_border(palette));
-    auto separator = style_sheet_color(mix(chrome_surface(palette), chrome_border(palette), is_dark(palette) ? 0.42 : 0.54));
+    auto separator = style_sheet_color(chrome_separator(palette));
     auto text = style_sheet_color(text_color);
     auto disabled_text = style_sheet_color(mix(text_color, surface_color, is_dark(palette) ? 0.58 : 0.48));
 
