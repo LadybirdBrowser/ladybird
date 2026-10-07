@@ -51,6 +51,7 @@ target_sources(ladybird PRIVATE
     TabBar.cpp
     WebContentView.cpp
     WindowControlButton.cpp
+    WindowScreenObserver.cpp
     ladybird.qrc
 )
 if (NOT APPLE AND NOT WIN32 AND NOT ANDROID)
