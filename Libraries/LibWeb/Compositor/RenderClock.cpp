@@ -207,6 +207,14 @@ void RenderClock::arm_lane(Web::CompositorContextId context_id, double maximum_f
     });
 }
 
+void RenderClock::forget_context(Web::CompositorContextId context_id)
+{
+    (void)invoke_on_clock_thread([this, context_id] {
+        m_armed_contexts.remove(context_id);
+        m_pointer_lanes.remove(context_id);
+    });
+}
+
 void RenderClock::did_receive_pointer_move(Web::CompositorContextId context_id, Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame)
 {
     auto it = m_pointer_lanes.find(context_id);

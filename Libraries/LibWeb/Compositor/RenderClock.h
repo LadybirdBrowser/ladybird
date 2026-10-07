@@ -98,6 +98,9 @@ public:
     // `tick_now_at`, ticks them at once at that frame time, where no display tick drives them already.
     void arm_lane(Web::CompositorContextId, double maximum_frames_per_second, NonnullRefPtr<ClockTicksHandle> ticks, Optional<i64> tick_now_at);
 
+    // Asynchronous. Disarms the context, which is destroyed, and lets go of the ticks its pointer moves went to.
+    void forget_context(Web::CompositorContextId);
+
 private:
     struct ArmedContext {
         double maximum_frames_per_second { 60.0 };
