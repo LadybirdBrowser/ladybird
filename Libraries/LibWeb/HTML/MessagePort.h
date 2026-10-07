@@ -104,6 +104,7 @@ private:
     void post_port_message(SerializedTransferRecord const&);
     ErrorOr<void> send_message_on_transport(SerializedTransferRecord const&);
     void read_from_transport();
+    void update_keep_alive();
 
     // The HTML spec implies(!) that this is MessagePort.[[RemotePort]]
     GC::Ptr<MessagePort> m_remote_port;
@@ -123,6 +124,7 @@ private:
     u64 m_message_task_generation { 0 };
     bool m_should_shutdown_on_enable { false };
     bool m_enabled { false };
+    GC::Root<MessagePort> m_keep_alive;
 };
 
 }
