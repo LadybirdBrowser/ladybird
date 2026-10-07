@@ -173,10 +173,10 @@ with tempfile.TemporaryDirectory() as directory:
                 {
                     "script": """
                     const toggle = document.querySelector('#filter-list-updates');
-                    const style = getComputedStyle(toggle.parentElement);
+                    const label = document.querySelector('label[for="filter-list-updates"]');
                     return toggle.disabled === !arguments[0]
-                        && style.opacity === (arguments[0] ? '1' : '0.5')
-                        && (arguments[0] || style.filter === 'grayscale(1)');
+                        && getComputedStyle(label).opacity === (arguments[0] ? '1' : '0.5')
+                        && getComputedStyle(toggle).opacity === '1';
                 """,
                     "args": [enabled],
                 },
