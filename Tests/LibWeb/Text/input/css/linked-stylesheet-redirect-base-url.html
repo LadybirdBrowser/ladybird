@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="subject"></div>
+<script>
+    // A linked stylesheet's relative URLs resolve against the URL the sheet was fetched from, after redirects: the
+    // sheet redirects from one directory to another, and its url() names a file in the directory it ended up in. The
+    // sheet's location stays the URL it was linked at, as HTML has it: "location: response's URL list[0]".
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const sheet = await server.createEcho("GET", "/stylesheet-redirect/target/sheet.css", {
+            status: 200,
+            headers: { "Content-Type": "text/css" },
+            body: "#subject { background-image: url(img.png); }",
+        });
+        const start = await server.createEcho("GET", "/stylesheet-redirect/start/sheet.css", {
+            status: 302,
+            headers: { "Location": sheet },
+        });
+
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = start;
+        await new Promise(resolve => {
+            link.onload = resolve;
+            document.head.appendChild(link);
+        });
+
+        const image = getComputedStyle(document.getElementById("subject")).backgroundImage;
+        const url = new URL(image.slice(image.indexOf("(") + 1, image.lastIndexOf(")")).replace(/^"|"$/g, ""));
+        const tail = pathname => pathname.slice(pathname.indexOf("/stylesheet-redirect/"));
+        println(`sheet location: ${tail(new URL(document.styleSheets[0].href).pathname)}`);
+        println(`background image: ${tail(url.pathname)}`);
+        done();
+    });
+</script>

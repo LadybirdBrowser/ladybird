@@ -1,0 +1,2 @@
+sheet location: /stylesheet-redirect/start/sheet.css
+background image: /stylesheet-redirect/target/img.png
