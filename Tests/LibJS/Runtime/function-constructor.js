@@ -24,6 +24,20 @@ test("dynamic function with arguments object", () => {
     expect(f(1, 2, 3)).toBe(3);
 });
 
+test("dynamic function with arguments object through eval, arrows and mapped parameters", () => {
+    expect(new Function("a", "return eval('arguments[1]');")(1, 2)).toBe(2);
+    expect(new Function("a", "return (() => arguments[1])();")(1, 7)).toBe(7);
+    expect(new Function("a", "a = 5; return arguments[0];")(1)).toBe(5);
+    expect(new Function("a", "var inner = function () { return arguments[0]; }; return inner(a + 1);")(1)).toBe(2);
+});
+
+test("dynamic function without arguments object has no arguments binding", () => {
+    var f = new Function("a", "return typeof a;");
+    expect(f(1)).toBe("number");
+    var g = new Function("a", "var inner = function () { return a; }; return inner();");
+    expect(g(4)).toBe(4);
+});
+
 test("dynamic generator function can access global variables", () => {
     globalThis.__genCalls = 0;
     var GeneratorFunction = function* () {}.constructor;

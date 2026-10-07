@@ -1445,7 +1445,7 @@ fn take_parser_errors(parser: &mut Parser) -> Result<(), Vec<ParseError>> {
 }
 
 impl ParsedDynamicFunction {
-    /// Describes the function the source defines, which always gets an arguments object.
+    /// Describes the function the source defines.
     pub fn into_description(mut self) -> Result<SharedFunctionDescription, Vec<ParseError>> {
         // The program is a single ExpressionStatement wrapping a FunctionExpression.
         let function_id = if let StatementKind::Program(ref data) = self.program.inner {
@@ -1471,8 +1471,7 @@ impl ParsedDynamicFunction {
             }]);
         };
 
-        let mut function_data = self.function_table.take(function_id);
-        function_data.parsing_insights.might_need_arguments_object = true;
+        let function_data = self.function_table.take(function_id);
 
         let is_strict = function_data.is_strict_mode;
         let subtable = self
