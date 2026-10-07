@@ -21,6 +21,7 @@ set(SOURCES
     Font/PathFontProvider.cpp
     Font/SharedFontProvider.cpp
     Font/SystemFallbackFonts.cpp
+    Font/SystemFontMatcher.cpp
     Font/Typeface.cpp
     Font/TypefaceSkia.cpp
     Font/WOFF/Loader.cpp
@@ -73,7 +74,9 @@ if (HAS_VULKAN)
 endif()
 
 if (HAS_FONTCONFIG)
-    list(APPEND SOURCES Font/GlobalFontConfig.cpp)
+    list(APPEND SOURCES Font/GlobalFontConfig.cpp Font/SystemFontMatcherFontconfig.cpp)
+else()
+    list(APPEND SOURCES Font/SystemFontMatcherSkia.cpp)
 endif()
 
 compile_ipc(Point.ipc PointCodecs.h)
