@@ -1006,6 +1006,10 @@ impl Object {
 
     // 7.3.13 HasOwnProperty ( O, P ), https://tc39.es/ecma262/#sec-hasownproperty
     pub fn has_own_property(&self, vm: &Vm, property_key: &PropertyKey) -> ThrowCompletionOr<bool> {
+        // OPTIMIZATION: For most objects, an own property with a string key is a property of their shape.
+        if property_key.is_string() && self.own_string_keyed_properties_are_in_shape() {
+            return Ok(self.shape().lookup(property_key).is_some());
+        }
         // OPTIMIZATION: Whether the ordinary [[GetOwnProperty]] finds a property only depends on the object's storage,
         //               so ask the storage without building the descriptor.
         if core::ptr::fn_addr_eq(
@@ -1946,6 +1950,16 @@ impl Object {
 
     pub fn eligible_for_own_property_enumeration_fast_path(&self) -> bool {
         (self.methods().eligible_for_own_property_enumeration_fast_path)(self)
+    }
+
+    /// Whether this object's own string-keyed properties are exactly the properties of its shape, in the shape's
+    /// insertion order, with the shape's attributes: no exotic [[GetOwnProperty]] or [[OwnPropertyKeys]] for string
+    /// keys, no magical length and no lazily materialized properties.
+    pub fn own_string_keyed_properties_are_in_shape(&self) -> bool {
+        self.eligible_for_own_property_enumeration_fast_path()
+            && !self.is_ecmascript_function_object()
+            && !self.has_magical_length_property()
+            && !self.has_parameter_map()
     }
 
     pub fn initialize(&self, vm: &Vm, realm: Gc<Realm>) {

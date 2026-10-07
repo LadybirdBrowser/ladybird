@@ -17,6 +17,25 @@ test("basic functionality", () => {
     expect(o.hasOwnProperty(Symbol("fake"))).toBeFalse();
 });
 
+test("objects with exotic own properties", () => {
+    expect([1, 2].hasOwnProperty("length")).toBeTrue();
+    expect([1, 2].hasOwnProperty("1")).toBeTrue();
+    expect(new String("ab").hasOwnProperty("1")).toBeTrue();
+    expect(new Uint8Array(2).hasOwnProperty("1")).toBeTrue();
+    expect(function () {}.hasOwnProperty("prototype")).toBeTrue();
+    expect(
+        (function () {
+            return arguments.hasOwnProperty("length");
+        })()
+    ).toBeTrue();
+    expect(
+        new Proxy({}, { getOwnPropertyDescriptor: () => ({ value: 1, configurable: true }) }).hasOwnProperty("x")
+    ).toBeTrue();
+    const object = { a: 1 };
+    delete object.a;
+    expect(object.hasOwnProperty("a")).toBeFalse();
+});
+
 test("objects with their own [[GetOwnProperty]]", () => {
     const array = [1, , 3];
     expect(array.hasOwnProperty(0)).toBeTrue();
