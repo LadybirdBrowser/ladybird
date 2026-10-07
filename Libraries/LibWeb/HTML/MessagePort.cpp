@@ -54,9 +54,25 @@ MessagePort::MessagePort(GC::Ref<DOM::EventTarget> relevant_global_event_target)
 
 MessagePort::~MessagePort() = default;
 
-// Entangled ports are retained by the transport read hook while they can
-// receive messages. Same-agent entanglement also keeps the remote port visible
-// through m_remote_port for ordinary GC edge traversal.
+// https://html.spec.whatwg.org/multipage/web-messaging.html#ports-and-garbage-collection
+// When a MessagePort object o is entangled, user agents must either act as if o's entangled MessagePort object has a
+// strong reference to o, or as if o's relevant global object has a strong reference to o.
+// NB: Same-agent entanglement does the former, through the m_remote_port edges ordinary GC traversal visits.
+// AD-HOC: A port entangled over a transport has no edge to the port it's entangled with, so it isn't kept alive as if
+//         its relevant global object referenced it: It's kept alive only while its port message queue is enabled,
+//         since no message ever reaches script through a port whose queue isn't. So once script drops such a port,
+//         collecting it is unobservable, and disentangling it then closes its transport, which lets the port at the
+//         other end of the channel go too. Keeping every such port alive would keep the transport, and its IO thread,
+//         of every channel that script ever transferred and dropped without close() for the life of the process.
+void MessagePort::update_keep_alive()
+{
+    if (m_transport && m_enabled) {
+        if (!m_keep_alive)
+            m_keep_alive = GC::make_root(*this);
+        return;
+    }
+    m_keep_alive = nullptr;
+}
 
 JS::Object& MessagePort::relevant_global_object() const
 {
@@ -157,12 +173,15 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_steps(JS::Realm& realm, HTML::Tr
         remote_port->m_remote_port = nullptr;
         m_remote_port = nullptr;
 
-        remote_port->m_transport->set_up_read_hook([remote_port = GC::make_root(remote_port)]() {
-            remote_port->read_from_transport();
+        remote_port->m_transport->set_up_read_hook([weak_remote_port = GC::Weak { *remote_port }]() {
+            if (auto remote_port = weak_remote_port.ptr())
+                remote_port->read_from_transport();
         });
+        remote_port->update_keep_alive();
         remote_port->flush_pending_outgoing_messages();
     } else if (has_remote_port_handle) {
         m_transport.clear();
+        update_keep_alive();
     }
 
     m_pending_incoming_messages.clear();
@@ -192,9 +211,11 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_receiving_steps(JS::Realm& realm
         m_transport = MUST(handle.create_transport());
         m_has_ever_been_entangled = true;
 
-        m_transport->set_up_read_hook([strong_this = GC::make_root(this)]() {
-            strong_this->read_from_transport();
+        m_transport->set_up_read_hook([weak_this = GC::Weak { *this }]() {
+            if (auto port = weak_this.ptr())
+                port->read_from_transport();
         });
+        update_keep_alive();
 
         flush_pending_outgoing_messages();
     } else if (fd_tag != 0) {
@@ -221,6 +242,7 @@ void MessagePort::disentangle()
     m_pending_outgoing_messages.clear();
     m_should_shutdown_on_enable = false;
     m_worker_event_target = nullptr;
+    update_keep_alive();
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#entangle
@@ -469,6 +491,7 @@ void MessagePort::enable()
 {
     if (!m_enabled) {
         m_enabled = true;
+        update_keep_alive();
         if (m_transport) {
             read_from_transport();
         } else {
