@@ -536,15 +536,76 @@ pub(crate) struct LanePublication {
     pub(super) report: LaneReport,
 }
 
+/// Transitions the hover of a lane started on an element.
+#[derive(Clone)]
+pub(crate) struct LaneTransitionStart {
+    pub(crate) node: StyleNodeID,
+    /// The properties the transitions animate.
+    pub(crate) properties: SmallVec<[u16; 2]>,
+    /// When the hover started them, in the document's milliseconds.
+    pub(crate) start_time: f64,
+}
+
+impl LaneTransitionStart {
+    /// Whether `other` reports the same start.
+    fn same_start_as(&self, other: &Self) -> bool {
+        self.node == other.node && self.start_time == other.start_time
+    }
+}
+
+/// The transitions the hover of the lane that follows the presented frame started, as the host takes in what the lanes
+/// report: those the host's own hover starts of the same properties of the same elements run from then, and those it
+/// started its own of stay its own however long the lane still reports them.
+#[derive(Default)]
+pub(crate) struct LaneTransitionStarts {
+    /// The starts the host has yet to start its own transitions of, each with whether a transition the host starts
+    /// runs from it since the host last forgot the ones it started.
+    pending: Vec<(LaneTransitionStart, bool)>,
+    /// The starts the lane still reports that the host started its own transitions of.
+    taken: Vec<LaneTransitionStart>,
+}
+
+impl LaneTransitionStarts {
+    /// Takes in `reported`, the starts the lanes report now, in place of those they reported before.
+    pub(crate) fn take_in(&mut self, reported: Vec<LaneTransitionStart>) {
+        self.taken
+            .retain(|taken| reported.iter().any(|start| start.same_start_as(taken)));
+        self.pending = reported
+            .into_iter()
+            .filter(|start| !self.taken.iter().any(|taken| taken.same_start_as(start)))
+            .map(|start| (start, false))
+            .collect();
+    }
+
+    /// When the hover started a transition of `property` of the element `node` names that the host has yet to start its
+    /// own of, which the host's transition runs from.
+    pub(crate) fn start_of(&mut self, node: StyleNodeID, property: u16) -> Option<f64> {
+        let (start, runs_a_host_transition) = self
+            .pending
+            .iter_mut()
+            .find(|(start, _)| start.node == node && start.properties.contains(&property))?;
+        *runs_a_host_transition = true;
+        Some(start.start_time)
+    }
+
+    /// Notes that the host started its own transitions of the starts its transitions ran from.
+    pub(crate) fn forget(&mut self) {
+        let (taken, pending): (Vec<_>, Vec<_>) = std::mem::take(&mut self.pending)
+            .into_iter()
+            .partition(|(_, runs_a_host_transition)| *runs_a_host_transition);
+        self.pending = pending;
+        self.taken.extend(taken.into_iter().map(|(start, _)| start));
+    }
+}
+
 /// What the lanes' hover did so far. See [`ClockTicks::report`].
 #[derive(Clone, Default)]
 pub(crate) struct LaneReport {
     /// Where the pointer was at the last move the hover took, or none where it left the context; nothing where it took
     /// none.
     pub(crate) hovered_pointer: Option<Option<libgfx_rust::FloatPoint>>,
-    /// The elements whose transitions the hover of the lane that follows the presented frame started, and when, in the
-    /// document's milliseconds.
-    pub(crate) transition_starts: Vec<(StyleNodeID, f64)>,
+    /// The transitions the hover of the lane that follows the presented frame started.
+    pub(crate) transition_starts: Vec<LaneTransitionStart>,
     /// How many frames the ticks presented, which tells the host whether one did since it last read the report.
     pub(crate) presented_frames: u64,
     /// How many pointer moves the hover took that the host has to hover, which tells the host whether it took one since
@@ -1520,4 +1581,67 @@ pub unsafe extern "C" fn document_host_presented_border_box(
     // SAFETY: Guaranteed by the caller.
     unsafe { rect.write(presented.into()) };
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{LaneTransitionStart, LaneTransitionStarts};
+    use crate::css::style::tree::StyleNodeID;
+
+    const COLOR: u16 = 1;
+    const WIDTH: u16 = 2;
+
+    fn start(node: u32, properties: &[u16], start_time: f64) -> LaneTransitionStart {
+        LaneTransitionStart {
+            node: StyleNodeID::from_raw(node).unwrap(),
+            properties: properties.iter().copied().collect(),
+            start_time,
+        }
+    }
+
+    fn node(raw: u32) -> StyleNodeID {
+        StyleNodeID::from_raw(raw).unwrap()
+    }
+
+    #[test]
+    fn a_lane_start_backdates_only_the_properties_it_started() {
+        let mut starts = LaneTransitionStarts::default();
+        starts.take_in(vec![start(1, &[COLOR], 1000.0)]);
+        assert_eq!(starts.start_of(node(1), COLOR), Some(1000.0));
+        assert_eq!(starts.start_of(node(1), WIDTH), None);
+        assert_eq!(starts.start_of(node(2), COLOR), None);
+    }
+
+    #[test]
+    fn a_lane_start_the_host_took_over_backdates_nothing_after() {
+        let mut starts = LaneTransitionStarts::default();
+        starts.take_in(vec![start(1, &[COLOR], 1000.0)]);
+        assert_eq!(starts.start_of(node(1), COLOR), Some(1000.0));
+        starts.forget();
+        // The lane still reports the start until the frame it follows is replaced.
+        starts.take_in(vec![start(1, &[COLOR], 1000.0)]);
+        assert_eq!(starts.start_of(node(1), COLOR), None);
+        // A later hover of the lane starts the transition again.
+        starts.take_in(vec![start(1, &[COLOR], 1000.0), start(1, &[COLOR], 5000.0)]);
+        assert_eq!(starts.start_of(node(1), COLOR), Some(5000.0));
+    }
+
+    #[test]
+    fn a_lane_start_the_host_did_not_take_over_backdates_later() {
+        let mut starts = LaneTransitionStarts::default();
+        starts.take_in(vec![start(1, &[COLOR], 1000.0), start(2, &[COLOR], 1000.0)]);
+        assert_eq!(starts.start_of(node(1), COLOR), Some(1000.0));
+        starts.forget();
+        starts.take_in(vec![start(1, &[COLOR], 1000.0), start(2, &[COLOR], 1000.0)]);
+        assert_eq!(starts.start_of(node(1), COLOR), None);
+        assert_eq!(starts.start_of(node(2), COLOR), Some(1000.0));
+    }
+
+    #[test]
+    fn a_lane_start_no_lane_reports_backdates_nothing() {
+        let mut starts = LaneTransitionStarts::default();
+        starts.take_in(vec![start(1, &[COLOR], 1000.0)]);
+        starts.take_in(Vec::new());
+        assert_eq!(starts.start_of(node(1), COLOR), None);
+    }
 }

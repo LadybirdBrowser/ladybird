@@ -842,9 +842,9 @@ pub unsafe extern "C" fn style_engine_request_hover(host: &crate::render_state::
     moves
 }
 
-/// Writes when the hover of the clock lane of `host`'s document that follows the presented frame started the transitions
-/// of the element the style node `node` names to `start_time`, in the document's milliseconds, and answers whether it
-/// started any: the transitions the host's own hover starts there run from then.
+/// Writes when the hover of the clock lane of `host`'s document that follows the presented frame started a transition of
+/// `property` of the element the style node `node` names to `start_time`, in the document's milliseconds, and answers
+/// whether it started one the host has yet to start its own of: the host's own transition runs from then.
 ///
 /// # Safety
 ///
@@ -853,9 +853,10 @@ pub unsafe extern "C" fn style_engine_request_hover(host: &crate::render_state::
 pub unsafe extern "C" fn style_engine_lane_transition_start(
     host: &crate::render_state::DocumentHost,
     node: u32,
+    property: u16,
     start_time: &mut f64,
 ) -> bool {
-    let Some(time) = StyleNodeID::from_raw(node).and_then(|node| host.lane_transition_start(node)) else {
+    let Some(time) = StyleNodeID::from_raw(node).and_then(|node| host.lane_transition_start(node, property)) else {
         return false;
     };
     *start_time = time;
