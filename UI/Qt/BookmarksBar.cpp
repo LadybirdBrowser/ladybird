@@ -283,15 +283,15 @@ void BookmarksBar::show_context_menu(QPoint position, Optional<WebView::Bookmark
         m_selected_bookmark_menu_parent_folder_id = parent_folder_id.copy();
 
         if (item->is_bookmark())
-            bookmark_context_menu().exec(position);
+            execute_context_menu(bookmark_context_menu(), position);
         else if (item->is_folder())
-            bookmark_folder_context_menu().exec(position);
+            execute_context_menu(bookmark_folder_context_menu(), position);
     } else {
         m_selected_bookmark_menu_item_id = {};
         m_selected_bookmark_menu_target_folder_id = {};
         m_selected_bookmark_menu_parent_folder_id = {};
 
-        bookmarks_bar_context_menu().exec(position);
+        execute_context_menu(bookmarks_bar_context_menu(), position);
     }
 }
 
@@ -349,6 +349,10 @@ bool BookmarksBar::handle_middle_mouse_click(QMouseEvent* event, QObject* item)
 
 bool BookmarksBar::handle_right_mouse_click(QMouseEvent* event, QObject* item)
 {
+    // FIXME: The exec() calls below should use execute_context_menu() instead to use native context menus on macOS.
+    //        However, more work is needed to ensure that opened bookmark folders do not disappear when the native menu
+    //        is shown.
+
     if (is<BookmarksBar>(item)) {
         m_selected_bookmark_menu_item_id = {};
         m_selected_bookmark_menu_target_folder_id = {};

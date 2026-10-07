@@ -11,6 +11,7 @@
 
 class QAction;
 class QMenu;
+class QPoint;
 class QWidget;
 
 namespace Ladybird {
@@ -38,5 +39,7 @@ QAction* create_application_action(QWidget& parent, WebView::Action&, IncludeAct
 #if defined(AK_OS_MACOS)
 void enable_menu_icons(QMenu&);
 #endif
+
+void execute_context_menu(QMenu&, QPoint const& global_position);
 
 }

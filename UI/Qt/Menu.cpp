@@ -455,7 +455,7 @@ QMenu* create_context_menu(QWidget& parent, WebContentView& view, WebView::Menu&
 
     menu.on_activation = [view = QPointer { &view }, application_menu = QPointer { application_menu }](Gfx::IntPoint position) {
         if (view && application_menu)
-            application_menu->exec(view->map_point_to_global_position(position));
+            execute_context_menu(*application_menu, view->map_point_to_global_position(position));
     };
 
     return application_menu;
@@ -467,5 +467,12 @@ QAction* create_application_action(QWidget& parent, WebView::Action& action, Inc
     initialize_native_control(action, *qaction, parent.palette(), include_action_icon, include_action_shortcut);
     return qaction;
 }
+
+#if !defined(AK_OS_MACOS)
+void execute_context_menu(QMenu& menu, QPoint const& global_position)
+{
+    menu.exec(global_position);
+}
+#endif
 
 }
