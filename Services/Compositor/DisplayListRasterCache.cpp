@@ -24,6 +24,7 @@
 
 #include <core/SkFont.h>
 #include <core/SkImage.h>
+#include <core/SkPath.h>
 #include <core/SkTextBlob.h>
 #include <core/SkYUVAPixmaps.h>
 #include <gpu/ganesh/GrDirectContext.h>
@@ -128,6 +129,17 @@ struct DisplayListRasterCache::TextBlob {
     sk_sp<SkTextBlob> blob;
     size_t byte_size { 0 };
     MonotonicTime last_used;
+};
+
+struct DisplayListRasterCache::ClipPath {
+    AK_ALLOC_WITH_KMALLOC;
+
+    explicit ClipPath(SkPath path)
+        : path(move(path))
+    {
+    }
+
+    SkPath path;
 };
 
 DisplayListRasterCache::DisplayListRasterCache() = default;
@@ -428,6 +440,24 @@ sk_sp<SkTextBlob> DisplayListRasterCache::text_blob(DisplayListResourceStorage c
     m_text_blob_cache_bytes += byte_size;
     m_text_blobs.set(key, make<TextBlob>(MUST(ByteBuffer::copy(glyph_bytes)), blob, byte_size, now));
     return blob;
+}
+
+SkPath DisplayListRasterCache::clip_path(u64 path_identity, Gfx::Path const& path)
+{
+    if (auto it = m_clip_paths.find(path_identity); it != m_clip_paths.end())
+        return it->value->path;
+    auto entry = m_clip_paths_from_last_frame.take(path_identity).value_or_lazy_evaluated([&] {
+        return make<ClipPath>(Gfx::to_skia_path(path));
+    });
+    auto skia_path = entry->path;
+    m_clip_paths.set(path_identity, move(entry));
+    return skia_path;
+}
+
+void DisplayListRasterCache::drop_clip_paths_not_used_since_last_frame()
+{
+    swap(m_clip_paths, m_clip_paths_from_last_frame);
+    m_clip_paths.clear_with_capacity();
 }
 
 }

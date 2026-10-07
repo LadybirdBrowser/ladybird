@@ -94,6 +94,7 @@ void DisplayListPlayerSkia::execute(
 {
     TemporaryChange composited_context_resolver_change { m_composited_context_resolver, composited_context_resolver };
     TemporaryChange scrollbar_controller_change { m_scrollbar_controller, scrollbar_controller };
+    raster_cache.drop_clip_paths_not_used_since_last_frame();
     TemporaryChange raster_cache_change { m_raster_cache, &raster_cache };
     if (m_layer_image_filter_cache->tree_structural_epoch != visual_context_tree.structural_epoch()) {
         m_layer_image_filter_cache->entries_by_tree_structural_epoch_and_effect.clear();
@@ -1527,10 +1528,17 @@ void DisplayListPlayerSkia::push_clip(ReplayClip const& clip)
     clip_to_rounded_rect(canvas, clip.rect, clip.corner_radii, clip.mode == ClipMode::Difference ? SkClipOp::kDifference : SkClipOp::kIntersect);
 }
 
-void DisplayListPlayerSkia::push_clip_path(Gfx::Path const& path, Gfx::WindingRule winding_rule)
+void DisplayListPlayerSkia::push_clip_path(Gfx::Path const& path, u64 path_identity, Gfx::WindingRule winding_rule)
 {
     surface().canvas().save();
-    clip_path(path, winding_rule, true);
+    // A path that stays the same keeps one Skia path, so caches that are keyed on it work.
+    clip_path(raster_cache().clip_path(path_identity, path), winding_rule, true);
+}
+
+void DisplayListPlayerSkia::push_clip_path_bytes(ReadonlyBytes path_bytes, Gfx::WindingRule winding_rule)
+{
+    surface().canvas().save();
+    clip_path(Gfx::to_skia_path(Gfx::Path::from_serialized_bytes(path_bytes)), winding_rule, true);
 }
 
 void DisplayListPlayerSkia::push_transform(Gfx::AffineTransform const& transform)
@@ -1690,7 +1698,7 @@ void DisplayListPlayerSkia::push_device_space_plane_clip(Gfx::Path const& path)
     auto& canvas = surface().canvas();
     canvas.save();
     canvas.setMatrix(SkM44());
-    clip_path(path, Gfx::WindingRule::Nonzero, false);
+    clip_path(Gfx::to_skia_path(path), Gfx::WindingRule::Nonzero, false);
 }
 
 void DisplayListPlayerSkia::set_matrix(Gfx::FloatMatrix4x4 const& matrix)
@@ -1703,12 +1711,10 @@ Gfx::FloatMatrix4x4 DisplayListPlayerSkia::canvas_matrix() const
     return to_gfx_matrix4x4(surface().canvas().getLocalToDevice());
 }
 
-void DisplayListPlayerSkia::clip_path(Gfx::Path const& path, Gfx::WindingRule winding_rule, bool anti_aliased)
+void DisplayListPlayerSkia::clip_path(SkPath path, Gfx::WindingRule winding_rule, bool anti_aliased)
 {
-    auto& canvas = surface().canvas();
-    auto sk_path = to_skia_path(path);
-    sk_path.setFillType(to_skia_path_fill_type(winding_rule));
-    canvas.clipPath(sk_path, anti_aliased);
+    path.setFillType(to_skia_path_fill_type(winding_rule));
+    surface().canvas().clipPath(path, anti_aliased);
 }
 
 bool DisplayListPlayerSkia::would_be_fully_clipped_by_painter(Gfx::IntRect rect) const
