@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    div { position: absolute; top: 0; left: 0; width: 100px; height: 100px; }
+</style>
+<div id="card" style="z-index: 0; background: rgb(0, 0, 255)"></div>
+<div id="cover" style="z-index: 2; background: rgb(0, 128, 0)"></div>
+<script>
+    // The render clock samples a running animation that moves its element's stacking context beside a task, as it does
+    // for the transitions a hover starts, and builds the stacking contexts of the frame again.
+    asyncTest(async done => {
+        const result = await whileLaneAnimates(() => {
+            return card.animate([{ zIndex: 0 }, { zIndex: 10 }], { duration: 10000, easing: "linear" });
+        }, frameTime => {
+            internals.injectClockTick(frameTime + 5000);
+            return {
+                lane: internals.clockLaneState(document),
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`lane after the tick: ${result.lane}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        done();
+    });
+</script>
