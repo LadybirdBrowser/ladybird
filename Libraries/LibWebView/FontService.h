@@ -13,7 +13,7 @@
 #include <AK/String.h>
 #include <LibGfx/Font/FontCatalog.h>
 #include <LibGfx/Font/SharedFontProvider.h>
-#include <LibGfx/Font/TypefaceSkia.h>
+#include <LibGfx/Font/SystemFontMatcher.h>
 #include <LibThreading/Thread.h>
 #include <LibWebView/Export.h>
 
@@ -53,6 +53,15 @@ private:
         String path;
         u32 ttc_index { 0 };
         Gfx::FontFileFormat format { Gfx::FontFileFormat::OpenType };
+
+        bool operator==(FontSource const&) const = default;
+    };
+
+    struct FontSourceTraits : public DefaultTraits<FontSource> {
+        static unsigned hash(FontSource const& source)
+        {
+            return pair_int_hash(pair_int_hash(source.path.hash(), source.ttc_index), to_underlying(source.format));
+        }
     };
 
     using MemoryFontSource = Variant<Gfx::BrokeredFontFile, Gfx::PlatformFontName>;
@@ -61,7 +70,9 @@ private:
     ErrorOr<void> build_empty_catalog();
     ErrorOr<void> wait_until_ready();
     ErrorOr<IPC::File> create_immutable_font_data(ReadonlyBytes);
-    Gfx::BrokeredFont materialize_typeface(NonnullRefPtr<Gfx::TypefaceSkia>, String cache_key);
+    Gfx::BrokeredFont materialize(Gfx::SystemFontMatch, String cache_key);
+    Gfx::BrokeredFont materialize_file(Gfx::SystemFontFile, String cache_key);
+    Gfx::BrokeredFont materialize_typeface(NonnullRefPtr<Gfx::Typeface>, String cache_key);
     Gfx::BrokeredFont open_font_without_lock(u64 generation, u64 face_id);
 
     Vector<String> m_additional_font_directories;
@@ -73,6 +84,7 @@ private:
     u64 m_generation { 1 };
     u64 m_next_dynamic_face_id { 1ull << 63 };
     HashMap<u64, FontSource> m_font_sources;
+    HashMap<FontSource, u64, FontSourceTraits> m_face_id_by_source;
     HashMap<u64, MemoryFontSource> m_memory_font_sources;
     HashMap<String, u64> m_dynamic_match_cache;
 

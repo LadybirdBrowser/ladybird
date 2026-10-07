@@ -30,6 +30,9 @@ struct FontHintingOptions {
     bool force_autohinting { false };
 };
 
+// The FC_SLANT value for a slope of 0 for upright, 1 for italic or 2 for oblique.
+int fontconfig_slant(u8 slope);
+
 class GlobalFontConfig {
 public:
     static GlobalFontConfig& the();
