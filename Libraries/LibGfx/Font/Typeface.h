@@ -29,6 +29,7 @@
 class SkTypeface;
 struct hb_blob_t;
 struct hb_face_t;
+struct hb_font_t;
 
 namespace Gfx {
 
@@ -80,9 +81,9 @@ public:
 
     virtual ~Typeface();
 
-    virtual u32 glyph_count() const = 0;
-    virtual u16 units_per_em() const = 0;
-    virtual u32 glyph_id_for_code_point(u32 code_point) const = 0;
+    u32 glyph_count() const;
+    u16 units_per_em() const;
+    u32 glyph_id_for_code_point(u32 code_point) const;
     virtual FlyString const& family() const = 0;
     virtual u16 weight() const = 0;
     virtual u16 width() const = 0;
@@ -123,6 +124,9 @@ public:
 
     virtual bool is_skia() const { return false; }
 
+    // How many glyph pages the calling thread has filled in, for tests of its glyph page caches.
+    static u64 glyph_pages_populated_on_this_thread();
+
 protected:
     enum class FontDataFormat : u8 {
         RawFontData,
@@ -158,11 +162,29 @@ private:
 
     void clear_font_cache() const;
 
+    // This cache stores information per code point.
+    // It's segmented into pages with data about 256 code points each.
+    struct GlyphPage {
+        AK_ALLOC_WITH_KMALLOC;
+
+        static constexpr size_t glyphs_per_page = 256;
+        u16 glyph_ids[glyphs_per_page];
+    };
+
+    [[nodiscard]] GlyphPage const& glyph_page(size_t page_index) const;
+    void populate_glyph_page(GlyphPage&, size_t page_index) const;
+    hb_font_t* cmap_font() const;
+
+    // Addresses can be reused after destruction, so per-thread caches use a monotonic identity.
+    u64 m_glyph_cache_id { 0 };
+
     mutable Mutex m_fonts_mutex;
     mutable HashMap<FontCacheKey, NonnullRefPtr<Font>> m_fonts;
     mutable OnceFlag m_harfbuzz_face_once;
     mutable hb_blob_t* m_harfbuzz_blob { nullptr };
     mutable hb_face_t* m_harfbuzz_face { nullptr };
+    mutable OnceFlag m_cmap_font_once;
+    mutable hb_font_t* m_cmap_font { nullptr };
     mutable OnceFlag m_description_once;
     mutable Optional<FaceDescription> m_description;
     mutable OnceFlag m_bounding_box_once;

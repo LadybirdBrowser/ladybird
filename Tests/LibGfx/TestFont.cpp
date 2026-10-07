@@ -566,12 +566,12 @@ TEST_CASE(glyph_page_caches_keep_the_typefaces_in_use_once_full)
     auto thread = Threading::Thread::construct("GlyphPageCache"sv, [&typefaces, &pages_populated_in_turns]() {
         for (auto const& typeface : typefaces)
             (void)typeface->glyph_id_for_code_point('A');
-        auto populated_before_turns = Gfx::TypefaceSkia::glyph_pages_populated_on_this_thread();
+        auto populated_before_turns = Gfx::Typeface::glyph_pages_populated_on_this_thread();
         for (size_t turn = 0; turn < 50; ++turn) {
             for (size_t i = 0; i < 8; ++i)
                 (void)typefaces[i * 20]->glyph_id_for_code_point('A');
         }
-        pages_populated_in_turns = Gfx::TypefaceSkia::glyph_pages_populated_on_this_thread() - populated_before_turns;
+        pages_populated_in_turns = Gfx::Typeface::glyph_pages_populated_on_this_thread() - populated_before_turns;
         return 0;
     });
     thread->start();

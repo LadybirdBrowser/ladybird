@@ -47,8 +47,6 @@
 
 namespace Gfx {
 
-static Atomic<u64> s_next_glyph_cache_id { 1 };
-
 static auto& skia_font_manager()
 {
     static NeverDestroyed<sk_sp<SkFontMgr>> font_manager;
@@ -545,109 +543,7 @@ TypefaceSkia::TypefaceSkia(NonnullOwnPtr<Impl> impl, ReadonlyBytes buffer, u32 t
     : m_impl(move(impl))
     , m_buffer(buffer)
     , m_ttc_index(ttc_index)
-    , m_glyph_cache_id(s_next_glyph_cache_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
 {
-    VERIFY(m_glyph_cache_id != 0);
-}
-
-u32 TypefaceSkia::glyph_count() const
-{
-    return impl().skia_typeface->countGlyphs();
-}
-
-u16 TypefaceSkia::units_per_em() const
-{
-    return impl().skia_typeface->getUnitsPerEm();
-}
-
-u32 TypefaceSkia::glyph_id_for_code_point(u32 code_point) const
-{
-    return glyph_page(code_point / GlyphPage::glyphs_per_page).glyph_ids[code_point % GlyphPage::glyphs_per_page];
-}
-
-TypefaceSkia::GlyphPage const& TypefaceSkia::glyph_page(size_t page_index) const
-{
-    struct GlyphPageCache {
-        AK_ALLOC_WITH_KMALLOC;
-
-        u64 last_use { 0 };
-        OwnPtr<GlyphPage> page_zero;
-        HashMap<size_t, NonnullOwnPtr<GlyphPage>> pages;
-    };
-    struct ThreadGlyphPageCaches {
-        u64 last_typeface_id { 0 };
-        GlyphPageCache* last_cache { nullptr };
-        u64 use_clock { 0 };
-        HashMap<u64, NonnullOwnPtr<GlyphPageCache>> caches;
-    };
-    // NB: -Wexit-time-destructors is a Clang-only warning, and GCC rejects the
-    //     unknown option name in the pragma.
-#ifdef AK_COMPILER_CLANG
-    AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local ThreadGlyphPageCaches thread_caches)
-#else
-    static thread_local ThreadGlyphPageCaches thread_caches;
-#endif
-
-    auto& caches = thread_caches.caches;
-    auto* cache = thread_caches.last_cache;
-    if (thread_caches.last_typeface_id != m_glyph_cache_id) {
-        if (auto it = caches.find(m_glyph_cache_id); it != caches.end()) {
-            cache = it->value.ptr();
-        } else {
-            constexpr size_t maximum_cached_typefaces = 128;
-            if (caches.size() >= maximum_cached_typefaces) {
-                // NB: Evict the cache this thread used least recently. The caches of typefaces that are gone go first,
-                //     and the ones a text run alternates between stay: evicting any other would have them evict each
-                //     other at every switch once the caches of a long session filled up.
-                auto least_recently_used = caches.begin();
-                for (auto it = caches.begin(); it != caches.end(); ++it) {
-                    if (it->value->last_use < least_recently_used->value->last_use)
-                        least_recently_used = it;
-                }
-                caches.remove(least_recently_used);
-            }
-            auto new_cache = make<GlyphPageCache>();
-            cache = new_cache.ptr();
-            caches.set(m_glyph_cache_id, move(new_cache));
-        }
-        cache->last_use = ++thread_caches.use_clock;
-        thread_caches.last_typeface_id = m_glyph_cache_id;
-        thread_caches.last_cache = cache;
-    }
-
-    if (page_index == 0) {
-        if (!cache->page_zero) {
-            cache->page_zero = make<GlyphPage>();
-            populate_glyph_page(*cache->page_zero, 0);
-        }
-        return *cache->page_zero;
-    }
-    if (auto it = cache->pages.find(page_index); it != cache->pages.end()) {
-        return *it->value;
-    }
-
-    auto glyph_page = make<GlyphPage>();
-    populate_glyph_page(*glyph_page, page_index);
-    auto const* glyph_page_ptr = glyph_page.ptr();
-    cache->pages.set(page_index, move(glyph_page));
-    return *glyph_page_ptr;
-}
-
-static thread_local u64 s_glyph_pages_populated_on_this_thread = 0;
-
-u64 TypefaceSkia::glyph_pages_populated_on_this_thread()
-{
-    return s_glyph_pages_populated_on_this_thread;
-}
-
-void TypefaceSkia::populate_glyph_page(GlyphPage& glyph_page, size_t page_index) const
-{
-    ++s_glyph_pages_populated_on_this_thread;
-    u32 first_code_point = page_index * GlyphPage::glyphs_per_page;
-    for (size_t i = 0; i < GlyphPage::glyphs_per_page; ++i) {
-        u32 code_point = first_code_point + i;
-        glyph_page.glyph_ids[i] = impl().skia_typeface->unicharToGlyph(code_point);
-    }
 }
 
 FlyString const& TypefaceSkia::family() const
