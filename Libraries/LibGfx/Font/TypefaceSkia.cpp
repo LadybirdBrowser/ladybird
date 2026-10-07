@@ -195,8 +195,23 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::typeface_from_skia_typeface(sk_sp<Sk
         ttc_index });
 }
 
+// Text is shaped with HarfBuzz, so font data is of no use if HarfBuzz cannot read the face in it, even if Skia can
+// draw it. FreeType also reads font formats such as WOFF, which have to be decoded first.
+static bool harfbuzz_can_read_face(ReadonlyBytes buffer, u32 ttc_index)
+{
+    if (buffer.size() > NumericLimits<unsigned>::max())
+        return false;
+    auto* blob = hb_blob_create(reinterpret_cast<char const*>(buffer.data()), buffer.size(), HB_MEMORY_MODE_READONLY, nullptr, nullptr);
+    ScopeGuard destroy_blob = [&] { hb_blob_destroy(blob); };
+    // The upper 16 bits of the index select a named instance of a variable face.
+    return (ttc_index & 0xFFFF) < hb_face_count(blob);
+}
+
 ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, u32 ttc_index, NonnullRefPtr<FontDataBacking> backing)
 {
+    if (!harfbuzz_can_read_face(buffer, ttc_index))
+        return Error::from_string_literal("Font data has no face that HarfBuzz can read");
+
     // NB: Skia can retain the typeface in text blobs and glyph caches after our Typeface is destroyed.
     //     Keep the backing alive through SkData.
     backing->ref();
@@ -210,12 +225,8 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
     if (ttc_index != 0 && !FontDatabase::the().force_freetype_rasterization()) {
         if (buffer.size() > static_cast<size_t>(NumericLimits<CFIndex>::max()))
             return Error::from_string_literal("Font data is too large for CoreText");
-        if (buffer.size() > NumericLimits<unsigned>::max())
-            return Error::from_string_literal("Font data is too large for HarfBuzz");
         auto* blob = hb_blob_create(reinterpret_cast<char const*>(buffer.data()), buffer.size(), HB_MEMORY_MODE_READONLY, nullptr, nullptr);
         ScopeGuard destroy_blob = [&] { hb_blob_destroy(blob); };
-        if (ttc_index >= hb_face_count(blob))
-            return Error::from_string_literal("Font collection index is out of range");
         auto* face = hb_face_create(blob, ttc_index);
         ScopeGuard destroy_face = [&] { hb_face_destroy(face); };
         unsigned entry_count = 0;
