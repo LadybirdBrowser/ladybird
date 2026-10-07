@@ -234,6 +234,8 @@ interface Internals {
     // animations, "parked" once a tick parked it, and "hovering" where it samples no animation and only follows the
     // pointer.
     DOMString clockLaneState(Document document);
+    // Whether the lane of a frame the document sampled after the one it presented last has yet to come together.
+    boolean clockLaneIsComing(Document document);
     // The color, as a CSS color string, that a box a hover's transitions restyled showed in the last frame a tick of
     // a clock lane presented, or null.
     DOMString? presentedColor(Element element);

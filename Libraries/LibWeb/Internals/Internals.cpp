@@ -49,6 +49,7 @@
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/Compositor/CompositorFrame.h>
 #include <LibWeb/Compositor/CompositorHost.h>
+#include <LibWeb/Compositor/RenderClock.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -1707,6 +1708,11 @@ Utf16String Internals::clock_lane_state(DOM::Document& document)
     VERIFY_NOT_REACHED();
 }
 
+bool Internals::clock_lane_is_coming(DOM::Document& document)
+{
+    return Layout::RustFFI::document_host_clock_lane_is_coming(document.layout_node_arena().host());
+}
+
 GC::Ptr<Geometry::DOMRect> Internals::presented_border_box(DOM::Element& element)
 {
     CSSPixelRect rect;
@@ -1729,6 +1735,8 @@ void Internals::set_manual_rendering_opportunities(bool enabled)
     // no more, and the frame in flight reaches the compositor first.
     HTML::main_thread_event_loop().set_render_clock_is_manual_for_testing(enabled);
     if (enabled) {
+        // A lane armed before ticks with the display until it declines a tick, at the compositor's own scroll offsets.
+        Compositor::RenderClock::the().disarm_all_for_testing();
         if (auto* navigable = as_if<HTML::LocalNavigable>(window().associated_document().navigable().ptr()))
             (void)navigable->presenter();
     }

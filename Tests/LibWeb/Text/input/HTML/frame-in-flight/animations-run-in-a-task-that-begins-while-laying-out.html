@@ -24,6 +24,8 @@
             internals.injectRenderingOpportunity(frameTime);
             await nextTask();
         }
+        while (internals.frameSchedulerState() !== "idle" || internals.clockLaneIsComing(document))
+            await nextTask();
         requestAnimationFrame(() => {
             internals.holdNextFrame("layout");
             other.classList.add("shown");

@@ -99,6 +99,10 @@ public:
     // Asynchronous. Disarms the context, which is destroyed, and lets go of the ticks its pointer moves went to.
     void forget_context(Web::CompositorContextId);
 
+    // Synchronous. Disarms every context, whose ticks a test injects itself from now on: no display tick reaches them
+    // after this returns. For a test.
+    void disarm_all_for_testing();
+
 private:
     struct ArmedContext {
         double maximum_frames_per_second { 60.0 };

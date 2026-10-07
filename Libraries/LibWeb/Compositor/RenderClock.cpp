@@ -206,6 +206,26 @@ void RenderClock::forget_context(Web::CompositorContextId context_id)
     });
 }
 
+void RenderClock::disarm_all_for_testing()
+{
+    Mutex done_mutex;
+    ConditionVariable done_condition { done_mutex };
+    bool done = false;
+
+    auto invoked = invoke_on_clock_thread([&] {
+        m_armed_contexts.clear();
+        MutexLocker locker(done_mutex);
+        done = true;
+        done_condition.broadcast();
+    });
+    if (!invoked)
+        return;
+
+    // The clock thread goes away only with this RenderClock, so it runs what was just handed to it.
+    MutexLocker locker(done_mutex);
+    done_condition.wait_while([&] { return !done; });
+}
+
 void RenderClock::did_receive_pointer_move(Web::CompositorContextId context_id, Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame)
 {
     auto it = m_pointer_lanes.find(context_id);
