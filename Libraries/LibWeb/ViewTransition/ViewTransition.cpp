@@ -827,6 +827,8 @@ void ViewTransition::handle_transition_frame()
 ErrorOr<void> ViewTransition::update_pseudo_element_styles()
 {
     Layout::ForcedReadScope read { *m_document };
+    // NB: Ensure layout is up to date before reading the new elements' boxes.
+    m_document->update_layout(DOM::UpdateLayoutReason::ViewTransitionPseudoElementStyles);
     // To update pseudo-element styles for a ViewTransition transition:
 
     // 1. For each transitionName → capturedElement of transition’s named elements:
@@ -877,15 +879,16 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
         else {
             // 1. Return failure if any of the following conditions is true:
 
+            //    - capturedElement’s new element is not rendered.
+            // NB: This is checked first, as ancestors of an element that is not rendered may have no computed style.
+            if (captured_element->new_element->not_rendered(read))
+                return Error::from_string_literal("capturedElement’s new element is not rendered.");
+
             //    - capturedElement’s new element has a flat tree ancestor that skips its contents.
             for (auto ancestor = captured_element->new_element->flat_tree_parent_element(); ancestor; ancestor = ancestor->flat_tree_parent_element()) {
                 if (ancestor->skips_its_contents())
                     return Error::from_string_literal("capturedElement’s new element has a flat tree ancestor that skips its contents.");
             }
-
-            //    - capturedElement’s new element is not rendered.
-            if (captured_element->new_element->not_rendered(read))
-                return Error::from_string_literal("capturedElement’s new element is not rendered.");
 
             //    - capturedElement has more than one box fragment.
             // FIXME: Implement this once we have fragments.
