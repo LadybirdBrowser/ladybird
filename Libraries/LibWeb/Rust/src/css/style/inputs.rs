@@ -1934,6 +1934,7 @@ impl StyleEngine {
                 batch_matching_traversal: None,
                 completion_exactness: CompletionExactness::Exact,
                 route_pruning_states: crate::fork::ForkReset::new(Mutex::new(RoutePruningStateCache::default())),
+                sibling_positions: crate::fork::ForkReset::default(),
                 prefix_caches: std::sync::Arc::default(),
                 #[cfg(test)]
                 force_bounded_prefix_completion: false,
@@ -3311,6 +3312,8 @@ impl RetainedState {
             // Scratch of one traversal.
             batch_matching_traversal: _,
             route_pruning_states: _,
+            // Keyed by the tree's DOM order version.
+            sibling_positions: _,
             completion_exactness: _,
             // Dropped in `forget_departed_elements` when a relation holds a departed element.
             prefix_caches: _,

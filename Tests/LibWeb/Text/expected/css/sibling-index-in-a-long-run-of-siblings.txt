@@ -1,0 +1,5 @@
+initially: index 20px, count 40px
+after removing the first child: index 19px, count 39px
+after inserting two children first: index 21px, count 41px
+after moving it last: index 41px, count 41px
+after inserting text before it: index 41px, count 41px

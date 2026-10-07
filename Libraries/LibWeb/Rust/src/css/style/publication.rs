@@ -3120,18 +3120,31 @@ impl RetainedState {
         else {
             return Some(SiblingPosition { count: 1, index: 1 });
         };
-        let mut position = SiblingPosition::default();
-        for child in self
+        // OPTIMIZATION: Each element of a run of many siblings asks for its place as a style pass reaches it, which
+        //               counting the run every time would make quadratic: the places of a long run are kept until
+        //               the tree's DOM order changes.
+        let mut cache = self
+            .sibling_positions
+            .lock()
+            .expect("the sibling position memo is never held across a panic");
+        cache.forget_unless_at(self.tree.dom_order_version());
+        if let Some(position) = cache.position_of(parent, node) {
+            return Some(position);
+        }
+        let children: Vec<StyleNodeID> = self
             .tree
             .dom_children(parent)
             .filter(|child| child.text_index().is_none())
-        {
-            position.count += 1;
-            if child == node {
-                position.index = position.count;
-            }
+            .collect();
+        let count = u32::try_from(children.len()).expect("sibling count space exhausted");
+        if children.len() >= SiblingPositionCache::MIN_CHILDREN {
+            cache.insert(parent, &children);
         }
-        Some(position)
+        let index = children
+            .iter()
+            .position(|&child| child == node)
+            .map_or(0, |index| index as u32 + 1);
+        Some(SiblingPosition { count, index })
     }
 
     /// Whether any of a state's winners is written with a tree-counting function.
@@ -4125,6 +4138,46 @@ fn cold_record_facts(facts: u32) -> u32 {
 /// The bit a node's own record holds among what its records read of its place among its siblings,
 /// above one bit per synthetic pseudo-element kind.
 const ELEMENT_READS_SIBLING_POSITION: u16 = 1 << pseudo_kind::SYNTHETIC_COUNT;
+
+/// The places of the element children of parents with many of them, as
+/// [`RetainedState::sibling_position`] counts them, at one version of the tree's DOM order.
+#[derive(Default)]
+pub(super) struct SiblingPositionCache {
+    dom_order_version: u64,
+    /// How many element children each parent counted has.
+    counts: super::fast_hash::FastMap<StyleNodeID, u32>,
+    /// The place of each counted child among its parent's element children, counted from one.
+    indices: super::fast_hash::FastMap<StyleNodeID, u32>,
+}
+
+impl SiblingPositionCache {
+    /// How many element children a parent has before their places are kept: fewer are counted again
+    /// as quickly as they are looked up.
+    const MIN_CHILDREN: usize = 32;
+
+    /// Forgets the places counted at a version of the DOM order other than `dom_order_version`.
+    fn forget_unless_at(&mut self, dom_order_version: u64) {
+        if self.dom_order_version != dom_order_version {
+            self.counts.clear();
+            self.indices.clear();
+            self.dom_order_version = dom_order_version;
+        }
+    }
+
+    fn position_of(&self, parent: StyleNodeID, node: StyleNodeID) -> Option<SiblingPosition> {
+        Some(SiblingPosition {
+            count: *self.counts.get(&parent)?,
+            index: *self.indices.get(&node)?,
+        })
+    }
+
+    fn insert(&mut self, parent: StyleNodeID, children: &[StyleNodeID]) {
+        self.counts.insert(parent, children.len() as u32);
+        for (index, &child) in children.iter().enumerate() {
+            self.indices.insert(child, index as u32 + 1);
+        }
+    }
+}
 
 /// Where an element stands among its element siblings, counted from one: what `sibling-count()`
 /// and `sibling-index()` read.
