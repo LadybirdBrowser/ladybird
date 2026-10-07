@@ -1177,6 +1177,16 @@ void EventHandler::update_hover_after_scroll()
     update_hover_after_scroll(*m_last_known_mouse_visual_viewport_position, m_last_known_mouse_screen_position, UIEvents::MouseButton::None, m_last_known_mouse_buttons, m_last_known_mouse_modifiers);
 }
 
+void EventHandler::update_hover_at(CSSPixelPoint visual_viewport_position)
+{
+    // The pointer is where the compositor saw it last, which is as far from where the host last heard of it on screen.
+    auto screen_position = visual_viewport_position;
+    if (m_last_known_mouse_visual_viewport_position.has_value())
+        screen_position = m_last_known_mouse_screen_position + (visual_viewport_position - *m_last_known_mouse_visual_viewport_position);
+    record_last_known_mouse_position(visual_viewport_position, screen_position, m_last_known_mouse_buttons, m_last_known_mouse_modifiers);
+    update_hover_after_scroll(visual_viewport_position, screen_position, UIEvents::MouseButton::None, m_last_known_mouse_buttons, m_last_known_mouse_modifiers);
+}
+
 // AD-HOC: A move resolves the cursor before it hovers what is under the pointer, which the style of the hover (a :hover
 //         rule, or a style a handler of the move's events set) then gives a cursor of its own. Blink resolves the
 //         cursor again on a timer once a style change moved a box's cursor. Here the rendering update after the move

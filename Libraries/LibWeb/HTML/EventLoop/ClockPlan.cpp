@@ -10,6 +10,8 @@
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/Animations/ScrollTimeline.h>
+#include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleEngineBridge.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/EventLoop/ClockPlan.h>
@@ -19,6 +21,7 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 
 namespace Web::HTML {
@@ -163,7 +166,31 @@ bool runs_animations_for_clock_plan(DOM::Document const& document)
     });
 }
 
-bool seal_clock_plan(DOM::Document& document, bool may_plan)
+// Whether the render clock may hover what is under the pointer while a task runs. LIBWEB_HOVER_LANE=0 turns it off.
+bool hover_lane_is_enabled()
+{
+    static bool const enabled = [] {
+        auto value = getenv("LIBWEB_HOVER_LANE");
+        return !value || StringView { value, strlen(value) } != "0"sv;
+    }();
+    return enabled;
+}
+
+// The page's cursor, as a hover of the render clock asks it to show the cursor of what it hovers, on the StyleLayout
+// thread.
+static Layout::RustFFI::FfiPageCursor ffi_page_cursor(PageCursor& cursor)
+{
+    return {
+        .cursor = &cursor,
+        .retain = [](void const* cursor) { static_cast<PageCursor const*>(cursor)->ref(); },
+        .release = [](void const* cursor) { static_cast<PageCursor const*>(cursor)->unref(); },
+        .request = [](void const* cursor, u8 css_cursor) {
+            auto& page_cursor = const_cast<PageCursor&>(*static_cast<PageCursor const*>(cursor));
+            page_cursor.request(css_to_gfx_cursor(static_cast<CSS::CursorPredefined>(css_cursor))); },
+    };
+}
+
+bool seal_clock_plan(DOM::Document& document, bool may_plan, bool may_animate)
 {
     auto* arena = document.layout_node_arena_if_created();
     if (!arena)
@@ -245,9 +272,29 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan)
                 return false;
             return !elements.is_empty() && deadline > timeline_time->value;
         };
-        if (plan()) {
+        bool const animates = may_animate && plan();
+        if (!animates) {
+            elements.clear();
+            deadline = AK::Infinity<double>;
+            last_end = -AK::Infinity<double>;
+        }
+        // The lease's ticks may also follow the pointer, and hover what is under it while a task runs.
+        Optional<Layout::RustFFI::FfiHoverPlanInputs> hover;
+        Span<Gfx::FloatPoint const> scroll_offsets;
+        if (hover_lane_is_enabled() && document.is_fully_active() && !document.hidden() && document.window()) {
+            scroll_offsets = document.scroll_state_snapshot().device_offsets();
+            hover = Layout::RustFFI::FfiHoverPlanInputs {
+                .device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel(),
+                .scroll_offsets = scroll_offsets.data(),
+                .scroll_offset_count = scroll_offsets.size(),
+                .chrome_metrics = document.page().chrome_metrics(),
+                .may_have_scroll_snap_areas = document.may_have_scroll_snap_areas(),
+                .page_cursor = ffi_page_cursor(document.page().cursor()),
+            };
+        }
+        if (animates || hover.has_value()) {
             auto time_origin = document.relevant_settings_object().time_origin();
-            Layout::RustFFI::render_state_seal_clock_plan(arena->host(), read, elements.data(), elements.size(), time_origin, deadline, last_end, scroll_timelines.data(), scroll_timelines.size());
+            Layout::RustFFI::render_state_seal_clock_plan(arena->host(), read, elements.data(), elements.size(), time_origin, deadline, last_end, scroll_timelines.data(), scroll_timelines.size(), hover.has_value() ? &*hover : nullptr);
             return true;
         }
     }

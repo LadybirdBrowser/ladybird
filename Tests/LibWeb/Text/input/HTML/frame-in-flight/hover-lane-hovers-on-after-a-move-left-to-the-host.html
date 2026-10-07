@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    svg { display: block; width: 100px; height: 100px; }
+    svg:hover { width: 150px; }
+    #box { width: 100px; height: 100px; outline: 1px solid rgb(0, 0, 255); }
+    #box:hover { width: 150px; outline-color: rgb(0, 128, 0); }
+</style>
+<svg id="icon"><rect width="100" height="100" fill="blue"></rect></svg>
+<div id="box"></div>
+<script>
+    // A move whose hover only the host can lay out is left to the host, and the hover of the lease goes back to where
+    // it was: the lease hovers the next move, to another element, beside the task.
+    asyncTest(async done => {
+        const result = await whileHoverLeased(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            internals.injectHoverPointer(50, 150, frameTime + 32);
+            return { onScreen: internals.presentedBorderBox(box)?.width, presentedBy: internals.lastFramePresentedBy(document) };
+        });
+        println(`box width on screen: ${result.onScreen}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        await nextFrame();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        println(`icon matches :hover: ${icon.matches(":hover")}`);
+        done();
+    });
+</script>

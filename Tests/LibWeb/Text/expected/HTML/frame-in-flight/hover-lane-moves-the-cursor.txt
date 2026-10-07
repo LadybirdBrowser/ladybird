@@ -1,0 +1,3 @@
+cursors while the task ran: Arrow, Hand, IBeam, Move, Arrow, IBeam, Hand
+cursor after the task: Hand
+main thread cursors: Arrow, Hand, IBeam, Move, Arrow, IBeam, Hand

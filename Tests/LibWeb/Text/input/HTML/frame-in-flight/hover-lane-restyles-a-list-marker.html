@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    ul { margin: 0; padding-left: 40px; }
+    li { width: 100px; height: 40px; color: rgb(0, 0, 255); }
+    li:hover { color: rgb(0, 128, 0); }
+</style>
+<ul><li id="item">Item</li></ul>
+<script>
+    // A tick of the render clock hovers a list item whose marker inherits the color the hover changes, and presents the
+    // frame with the marker restyled.
+    asyncTest(async done => {
+        const presentedBy = await whileHoverLeased(() => {
+            internals.injectHoverPointer(80, 20);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`last frame presented by: ${presentedBy}`);
+        await nextFrame();
+        println(`item matches :hover: ${item.matches(":hover")}`);
+        println(`marker color: ${getComputedStyle(item, "::marker").color}`);
+        done();
+    });
+</script>

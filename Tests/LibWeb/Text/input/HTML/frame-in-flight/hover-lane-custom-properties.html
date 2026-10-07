@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    .card { --accent: rgb(0, 0, 255); --label: rgb(0, 0, 0); width: 200px; height: 100px; background: var(--accent); }
+    .card:hover { --accent: rgb(0, 128, 0); --label: rgb(255, 0, 0); }
+    .icon { color: var(--label); }
+    .badge { --label: rgb(128, 128, 128); color: var(--label); }
+</style>
+<div class="card" id="card"><span class="icon" id="icon">Icon</span> <span class="badge" id="badge">Badge</span></div>
+<script>
+    // A hover beside the task moves the custom properties of the hovered element, and the elements below it that read
+    // them compute again over the moved ones, but for one that declares its own.
+    asyncTest(async done => {
+        const presentedBy = await whileHoverLeased(() => {
+            internals.injectHoverPointer(150, 50);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`last frame presented by: ${presentedBy}`);
+        await nextFrame();
+        println(`card matches :hover: ${card.matches(":hover")}`);
+        println(`card background: ${getComputedStyle(card).backgroundColor}`);
+        println(`icon color: ${getComputedStyle(icon).color}`);
+        println(`badge color: ${getComputedStyle(badge).color}`);
+        println(`icon --label: ${getComputedStyle(icon).getPropertyValue("--label")}`);
+        done();
+    });
+</script>

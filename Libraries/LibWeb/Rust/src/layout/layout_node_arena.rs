@@ -2339,6 +2339,151 @@ impl LayoutNodeArena {
         Ok(applied)
     }
 
+    /// The box of the element or pseudo-element `row` of a hover's style transaction styles, `generated_for` naming the
+    /// pseudo-element, or 0 for the element.
+    fn hover_row_box(&self, row: &crate::css::style::bridge::FfiStyleDelta, generated_for: u8) -> NodeSlotId {
+        let Some(node) = StyleNodeID::from_raw(row.style_node) else {
+            return NodeSlotId::INVALID;
+        };
+        match generated_for {
+            0 => self.bound_row(node),
+            generated_for => self.bound_pseudo_element_row(node, generated_for),
+        }
+    }
+
+    /// Whether the box of the element or pseudo-element `row` of a hover's style transaction moves takes the row's
+    /// record as the host's install of it would, without the host: the move rebuilds no box, and a box it styles is a
+    /// plain one that shows the record the row moves from. List items, images and SVG boxes, which take facts from their
+    /// element as the host styles them, take a move that only repaints them.
+    /// Whether the move of `row` builds boxes again, which the box takes only from a build.
+    pub(crate) fn hover_row_builds_boxes_again(&self, row: &crate::css::style::bridge::FfiStyleDelta) -> bool {
+        row.record_damage & crate::css::style::bridge::FfiStyleInvalidationField::LevelMask as u32
+            >= HOVER_REBUILD_LEVEL
+    }
+
+    pub(crate) fn takes_hover_row(&self, row: &crate::css::style::bridge::FfiStyleDelta, generated_for: u8) -> bool {
+        self.hover_row_box_refusal(row, generated_for).is_none()
+    }
+
+    /// Why the box of the element or pseudo-element `row` of a hover's style transaction moves cannot take the row's
+    /// record without the host, or none where it can (see [`Self::takes_hover_row`]).
+    pub(crate) fn hover_row_box_refusal(
+        &self,
+        row: &crate::css::style::bridge::FfiStyleDelta,
+        generated_for: u8,
+    ) -> Option<String> {
+        use crate::css::style::bridge::FfiStyleInvalidationField;
+        let level = row.record_damage & FfiStyleInvalidationField::LevelMask as u32;
+        if level >= HOVER_REBUILD_LEVEL {
+            return Some("a move that builds boxes again".into());
+        }
+        let slot = self.hover_row_box(row, generated_for);
+        // A row without a new record moves only what its element's children inherit.
+        if slot.is_invalid() || row.old_style_record == row.new_style_record || row.new_style_record == 0 {
+            return None;
+        }
+        let kind = self.data(slot).kind.get();
+        let repaints_only = level < HOVER_RELAYOUT_LEVEL;
+        let plain = matches!(kind, NodeKind::Box | NodeKind::BlockContainer | NodeKind::InlineNode)
+            || (repaints_only
+                && matches!(
+                    kind,
+                    NodeKind::ListItemBox
+                        | NodeKind::ListItemMarkerBox
+                        | NodeKind::ImageBox
+                        | NodeKind::VideoBox
+                        | NodeKind::SVGSVGBox
+                        | NodeKind::SVGGeometryBox
+                        | NodeKind::SVGGraphicsBox
+                        | NodeKind::SVGTextBox
+                ));
+        if !plain {
+            return Some(format!("a {kind:?} box at damage level {level}"));
+        }
+        // A record the host pinned for its own readers stays theirs until the host installs the row, beside the one
+        // the box shows.
+        if self.style_records[slot.slot_index() as usize].get() != row.old_style_record {
+            return Some("a box that shows another record".into());
+        }
+        if self.style_record_pins[slot.slot_index() as usize].get() == ArenaStylePin::Sampled {
+            return Some("a box that shows an animation sample".into());
+        }
+        if self.node_style_record_is_derived(slot) {
+            return Some("a box whose record the arena derived".into());
+        }
+        let parent = self.data(slot).parent.get();
+        (!parent.is_invalid() && self.data(parent).kind.get() == NodeKind::TableWrapper).then(|| "a table box".into())
+    }
+
+    /// Whether the box of the element or pseudo-element `row` of a hover's style transaction styles shows the record the
+    /// row moves to already, or there is no box.
+    pub(crate) fn hover_row_box_shows_its_record(
+        &self,
+        row: &crate::css::style::bridge::FfiStyleDelta,
+        generated_for: u8,
+    ) -> bool {
+        let slot = self.hover_row_box(row, generated_for);
+        slot.is_invalid() || self.style_records[slot.slot_index() as usize].get() == row.new_style_record
+    }
+
+    /// Installs the record `row` of a hover's style transaction moves to in the box of its element or pseudo-element,
+    /// which [`Self::takes_hover_row`] took, as the host's install of the row does: the style, the styles the box's
+    /// anonymous descendants inherit, and the relayout, the visual contexts and the repaint the move asks for.
+    pub(crate) fn install_hover_row(
+        &self,
+        host_calls: HostCalls<'_>,
+        row: &crate::css::style::bridge::FfiStyleDelta,
+        generated_for: u8,
+    ) {
+        use crate::css::style::bridge::FfiStyleInvalidationField;
+        let slot = self.hover_row_box(row, generated_for);
+        if slot.is_invalid() || row.old_style_record == row.new_style_record || row.new_style_record == 0 {
+            return;
+        }
+        let previous_payloads = self.data(slot).style.get();
+        let payloads = self.with_style_engine(|engine| {
+            engine
+                .style_record_payloads(row.new_style_record)
+                .map_or(std::ptr::null(), <[_]>::as_ptr)
+        });
+        let payloads = StylePayloadsRef::new(payloads.cast());
+        if self.set_node_style(slot, row.new_style_record, payloads) {
+            self.refresh_style_flags(slot);
+        }
+        self.publish_new_size_container_geometry(slot);
+        self.enroll_node_for_svg_paint_resources_sync(slot);
+        if !style_payloads_equal_in_layout_affecting_groups(previous_payloads, payloads) {
+            self.bump_fragment_cache_epoch_of_self_and_ancestors(slot);
+            self.reset_cached_intrinsic_sizes_of_self_and_ancestors(slot);
+        }
+        self.reinherit_anonymous_descendants(HostCalls(host_calls.0), slot);
+        let level = row.record_damage & FfiStyleInvalidationField::LevelMask as u32;
+        if level >= HOVER_RELAYOUT_LEVEL
+            && let Some(style_node) = self.node_style_node(slot)
+        {
+            self.mark_row_for_relayout_after_style_change(style_node, slot);
+        }
+        self.note_style_visual_context_moves(slot, row.record_damage);
+        self.push_paint_damage_for_repaint(slot, crate::painting::record::damage::PaintDamage::ALL_PRODUCERS);
+    }
+
+    /// Notes the visual contexts a style move with `damage`, an `FfiStyleInvalidationField` word, moves for `slot`'s
+    /// box, which the next recording builds again.
+    pub(crate) fn note_style_visual_context_moves(&self, slot: NodeSlotId, damage: u32) {
+        use crate::css::style::bridge::FfiStyleInvalidationField;
+        use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
+        let visual_contexts = (damage >> FfiStyleInvalidationField::VisualContextShift as u32)
+            & FfiStyleInvalidationField::LevelMask as u32;
+        if visual_contexts == 0 || !crate::painting::paint_read::GeometryRead::paintable_row_is_populated(self, slot) {
+            return;
+        }
+        let kind = match visual_contexts {
+            1 => VisualContextBoxDirtyKind::StyleValueChange,
+            _ => VisualContextBoxDirtyKind::StyleStructuralChange,
+        };
+        self.note_visual_context_box_dirty(slot, kind);
+    }
+
     /// Shows `sample`, a sample of the animations of the element whose box `row` is, in the box in place of the record the
     /// host installed, with the relayout the move asks for. Answers the host's style where the box held it, or nothing
     /// where it held a sample already, which `sample` replaces. A box the host styles in a way of its own shows no sample,
@@ -2349,6 +2494,26 @@ impl LayoutNodeArena {
         row: NodeSlotId,
         sample: DerivedStyleRecord,
     ) -> Result<Option<HostStyle>, NeedsHost> {
+        self.install_sample(row, sample, false)
+    }
+
+    /// Shows `sample`, a sample of the transitions a hover beside the host started on the element whose box `row` is,
+    /// as [`Self::install_animation_sample`] shows one of its animations. A record the host pinned for its own readers
+    /// stays theirs beside the sample until the host starts the transitions in its turn.
+    pub(crate) fn install_transition_sample(
+        &self,
+        row: NodeSlotId,
+        sample: DerivedStyleRecord,
+    ) -> Result<Option<HostStyle>, NeedsHost> {
+        self.install_sample(row, sample, true)
+    }
+
+    fn install_sample(
+        &self,
+        row: NodeSlotId,
+        sample: DerivedStyleRecord,
+        beside_host_pin: bool,
+    ) -> Result<Option<HostStyle>, NeedsHost> {
         let index = row.slot_index() as usize;
         let pin = self.style_record_pins[index].get();
         let style_node = self.node_style_node(row);
@@ -2356,7 +2521,7 @@ impl LayoutNodeArena {
             self.data(row).kind.get(),
             NodeKind::Box | NodeKind::BlockContainer | NodeKind::InlineNode
         ) || pin == ArenaStylePin::Derived
-            || self.node_style_record_pinned_by_host(row) != 0
+            || (!beside_host_pin && self.node_style_record_pinned_by_host(row) != 0)
             || style_node.is_none()
             || self.sample_moves_anonymous_box_style(row, sample.payloads)
         {
@@ -2499,6 +2664,25 @@ impl LayoutNodeArena {
 
     pub(crate) fn svg_paint_resources(&self) -> &crate::painting::svg_paint_resources::SvgPaintResources {
         &self.svg_paint_resources
+    }
+
+    /// A fork of the arena, linked to `engine`, the fork of its style engine: its chunks have addresses of their own,
+    /// and the flags the arena shares with the host are its own. See [`crate::fork`].
+    pub(crate) fn fork(&self, engine: crate::css::style::StyleEngineHandle) -> Self {
+        let mut fork = self.clone();
+        fork.chunks_by_address = fork
+            .chunks
+            .iter()
+            .enumerate()
+            .map(|(chunk_index, chunk)| ChunkAddress {
+                start: chunk.slots_address(),
+                chunk_index,
+            })
+            .collect();
+        fork.chunks_by_address.sort_unstable_by_key(|address| address.start);
+        fork.style_engine.set(engine);
+        fork.svg_paint_resources.detach_enrolled_flag_for_fork();
+        fork
     }
 
     /// See [`crate::painting::svg_paint_resources::SvgPaintResources::share_enrolled_flag`].
@@ -5543,6 +5727,12 @@ pub unsafe extern "C" fn render_state_layout_is_up_to_date(host: &DocumentHost, 
     let Some(here) = host.layout_waits_for_no_frame() else {
         return false;
     };
+    // A clock lease ends before the host reads the state. One that moved nothing gives back the facts the host knew
+    // before it, which answer without asking; the rounds one laid out are layout the host waits for.
+    host.end_clock_lease_waiting(here);
+    let Some(here) = host.layout_waits_for_no_frame() else {
+        return false;
+    };
     let document = StyleNodeID::from_raw(document_style_node);
     if let Some(up_to_date) = known_layout_is_up_to_date(host, &here, document) {
         return up_to_date;
@@ -7068,3 +7258,8 @@ mod tests {
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 }
+
+/// The `InvalidationLevel` of a style move at which its box lays out again, and the one at which the layout tree is
+/// built again.
+const HOVER_RELAYOUT_LEVEL: u32 = 2;
+const HOVER_REBUILD_LEVEL: u32 = 3;

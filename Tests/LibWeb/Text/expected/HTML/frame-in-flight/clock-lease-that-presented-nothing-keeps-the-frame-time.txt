@@ -1,0 +1,2 @@
+lease as the task begins: hovering
+callback received the opportunity's timestamp: true

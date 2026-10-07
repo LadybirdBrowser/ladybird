@@ -39,6 +39,9 @@ WEB_API void flush_deferred_style_change_events_for_rule(CSSRule&);
 // the document's style node identity, which is the parent every top-level child names.
 WEB_API void record_document_tree_tracked(DOM::Document&);
 
+// The hover moves to the element `node` is, or is inside of, or off the document for none.
+void move_style_hover(DOM::Document&, GC::Ptr<DOM::Node> node);
+
 // Called once a subtree has been linked into a connected tree. Marks it as waiting to arrive: the
 // elements, text nodes and shadow roots in it that have no style node identity yet take one, and
 // the elements record their arrival, only once something observes the style engine.

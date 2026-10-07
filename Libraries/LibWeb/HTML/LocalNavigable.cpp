@@ -6994,31 +6994,52 @@ PaintConfig LocalNavigable::stamp_paint_config(PaintConfig paint_config) const
 // Leases the active document's render state to the render clock as a task begins, with this navigable's presenter and a
 // seal of the frames the clock presents, where the last rendering update left the document a plan for a lease, and arms
 // the render clock to tick it.
-void LocalNavigable::lease_clock_for_task()
+bool LocalNavigable::lease_clock(ClockAnimations animations)
 {
     auto document = active_document();
     if (has_been_destroyed() || !document || !has_compositor_context() || !document->has_committed_viewport_box())
-        return;
+        return false;
     auto* host = document->layout_node_arena().host();
-    if (!Layout::RustFFI::document_host_has_clock_plan(host))
-        return;
-    // Only a recording that still runs keeps the presenter. The clock waits for it to finish rather than leave the plan
-    // to a later task, which may begin only after a long task the animations would have stood still through. A lease
-    // that ended left the presenter with the document, which gives it back below, though no rendering update painted
-    // since.
-    if (m_recording_in_flight)
-        take_recording_in_flight_in(TakeIn::Wait);
-    // A task since the update that changed what the document lays out leaves the rest to the next update.
-    if (!document->layout_is_up_to_date())
-        return;
+    Layout::RustFFI::document_host_note_event_loop_runs_task(host, animations == ClockAnimations::Run);
+    if (Layout::RustFFI::document_host_clock_lease_runs(host)) {
+        if (animations == ClockAnimations::Run) {
+            if (auto const* ticks = Layout::RustFFI::document_host_run_clock_animations(host))
+                arm_clock_lease(ticks, true);
+        }
+        return true;
+    }
     if (!compositor_context().ready_for_frame())
-        return;
+        return Layout::RustFFI::document_host_may_lease_clock(host);
+    // The render clock went on handing a lease taken up again the pointer, and ticks it where a move waits.
+    if (auto const* ticks = Layout::RustFFI::document_host_resume_clock_lease(host)) {
+        if (Layout::RustFFI::clock_ticks_pointer_waits(ticks))
+            arm_clock_lease(ticks, false);
+        else
+            Layout::RustFFI::clock_ticks_release(ticks);
+        return true;
+    }
+    if (!Layout::RustFFI::document_host_has_clock_plan(host))
+        return Layout::RustFFI::document_host_may_lease_clock(host);
+    bool const animates = Layout::RustFFI::document_host_clock_plan_animates(host);
+    bool const runs_animations = animates && animations == ClockAnimations::Run;
+    // Only a recording that still runs keeps the presenter. A task the plan's animations would stand still through,
+    // or that the pointer may move beside, waits for it to finish. Otherwise the lease begins once it has: its finish
+    // wakes the event loop.
+    bool const waits_for_recording = runs_animations || (animations == ClockAnimations::Run && Layout::RustFFI::document_host_pointer_is_active(host));
+    if (m_recording_in_flight && !take_recording_in_flight_in(waits_for_recording ? TakeIn::Wait : TakeIn::IfFinished))
+        return true;
+    // A task since the update that changed what the document lays out leaves the rest to the next update.
+    if (!document->layout_is_up_to_date()) {
+        Layout::RustFFI::document_host_drop_clock_plan(host);
+        return false;
+    }
     // A tick records the document again as the recording it published last did, which the compositor shows.
     auto& presenter = this->presenter();
     auto compositor_display_list = presenter.compositor_display_list();
-    if (!compositor_display_list || compositor_display_list != document->paint_state().display_list_used_as_paint_command_cache_source())
-        return;
-
+    if (!compositor_display_list || compositor_display_list != document->paint_state().display_list_used_as_paint_command_cache_source()) {
+        Layout::RustFFI::document_host_drop_clock_plan(host);
+        return false;
+    }
     auto sealed = make<Compositor::SealedPresentation>(seal_presentation(*document, presenter.compositor_display_list_paint_config().value(), true));
     sealed->recording = Painting::DisplayListRecording {
         .visual_context_tree = sealed->visual_context_tree.value(),
@@ -7036,27 +7057,34 @@ void LocalNavigable::lease_clock_for_task()
 
     auto& leased_presenter = NonnullRefPtr { m_presenter }.leak_ref();
     Layout::RustFFI::FfiPresentation presentation { .presenter = &leased_presenter, .sealed = sealed.ptr() };
-    auto const* ticks = Layout::RustFFI::document_host_lease_clock(host, &presentation);
+    auto const* ticks = Layout::RustFFI::document_host_lease_clock(host, &presentation, animates && !runs_animations);
     if (presentation.presenter) {
         leased_presenter.unref();
         unseal_presentation(*document, *sealed);
-        return;
+        return Layout::RustFFI::document_host_may_lease_clock(host);
     }
     (void)sealed.leak_ptr();
     m_presenting_beside_event_loop = document;
+    arm_clock_lease(ticks, runs_animations);
+    return true;
+}
 
+// Arms the render clock to tick the lease `ticks` belong to, which takes over the reference to them.
+void LocalNavigable::arm_clock_lease(Layout::RustFFI::ClockTicks const* ticks, bool animates)
+{
     // A test injects its ticks itself.
     if (main_thread_event_loop().render_clock_is_manual_for_testing()) {
         Layout::RustFFI::clock_ticks_release(ticks);
         return;
     }
-    // The first tick runs at once, rather than at the next display tick: the frame the rendering update presented is the
-    // last one until a tick presents.
-    (void)Layout::RustFFI::clock_ticks_tick(ticks, static_cast<i64>(HighResolutionTime::unsafe_shared_current_time() * 1'000'000.0), nullptr, 0);
-    Compositor::RenderClock::the().arm(compositor_context().id(), page().client().maximum_frames_per_second(),
-        [ticks = Compositor::ClockTicksHandle { ticks }](i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset> scroll_offsets) {
-            return ticks.tick(frame_time_nanoseconds, scroll_offsets);
-        });
+    // The first tick of a lease that animates runs at once, rather than at the next display tick: the frame the rendering
+    // update presented is the last one until a tick presents. One that only follows the pointer waits for it to move,
+    // unless a move waits already.
+    bool const pointer_waits = Layout::RustFFI::clock_ticks_pointer_waits(ticks);
+    auto handle = adopt_ref(*new Compositor::ClockTicksHandle { ticks });
+    if (animates)
+        (void)handle->tick(static_cast<i64>(HighResolutionTime::unsafe_shared_current_time() * 1'000'000.0), {});
+    Compositor::RenderClock::the().arm_lease(compositor_context().id(), page().client().maximum_frames_per_second(), move(handle), animates || pointer_waits);
 }
 
 // Seals what a frame of `document` reads of the document and this navigable where the frame begins: the frame is built

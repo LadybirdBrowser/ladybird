@@ -184,6 +184,16 @@ pub(crate) struct PublishedEffect {
     custom_declarations: Box<[PublishedCustomDeclaration]>,
     /// The timing the host last sampled the effect with, which moves without the description.
     pub(crate) timing: Option<EffectTiming>,
+    /// What a transition reverses to, and how much shorter a reversing transition runs, where the effect is one.
+    pub(crate) reversing: Option<TransitionReversing>,
+}
+
+/// What a transition that reverses the one an effect belongs to starts from.
+/// https://drafts.csswg.org/css-transitions/#reversing-adjusted-start-value
+#[derive(Clone)]
+pub(crate) struct TransitionReversing {
+    pub(crate) adjusted_start_value: RetainedStyleValueData,
+    pub(crate) shortening_factor: f64,
 }
 
 impl PublishedEffect {
@@ -216,6 +226,7 @@ impl PublishedEffect {
             })),
             custom_declarations: Box::new([]),
             timing: None,
+            reversing: None,
         }
     }
 
@@ -301,6 +312,10 @@ impl PublishedEffectBuffers<'_> {
                     declarations: declarations.into(),
                     custom_declarations: custom_declarations.into(),
                     timing: None,
+                    reversing: (!effect.reversing_adjusted_start_value.is_null()).then(|| TransitionReversing {
+                        adjusted_start_value: unsafe { retained(effect.reversing_adjusted_start_value) },
+                        shortening_factor: effect.reversing_shortening_factor,
+                    }),
                 }
             })
             .collect()
@@ -549,6 +564,8 @@ mod tests {
             keyframe_count: 0,
             base_url_offset: 0,
             base_url_length: 0,
+            reversing_adjusted_start_value: std::ptr::null(),
+            reversing_shortening_factor: 1.0,
         }
     }
 

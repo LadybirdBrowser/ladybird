@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; color: rgb(0, 0, 255); transition: color 100s steps(2, start); }
+    #box:hover { color: rgb(0, 128, 0); }
+    #box::before { content: "x"; }
+</style>
+<div id="box"></div>
+<script>
+    // A hover whose style change starts a transition of a value an element's generated pseudo-element inherits is the
+    // main thread's to finish: the hover beside the task moves the hover facts, and the main thread's next style update
+    // starts the transition, and settles the pseudo-element over it.
+    asyncTest(async done => {
+        const presentedBy = await whileHoverLeased(() => {
+            internals.injectHoverPointer(50, 50);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`a tick presented the last frame: ${presentedBy === "clock"}`);
+        await nextFrame();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        println(`transitions: ${box.getAnimations().length}`);
+        done();
+    });
+</script>

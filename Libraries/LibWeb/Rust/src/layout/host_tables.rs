@@ -159,6 +159,14 @@ impl ArenaHandle {
         &self.arena
     }
 
+    /// A fork of the arena, linked to `engine`, the fork of its style engine. See [`crate::fork`].
+    pub(crate) fn fork(&self, engine: crate::css::style::StyleEngineHandle) -> Self {
+        Self {
+            arena: self.arena.fork(engine),
+            layout_scratch: Default::default(),
+        }
+    }
+
     /// The layout stage's own scratch.
     pub(crate) fn layout_scratch(&self) -> &super::run_records::LayoutScratch {
         &self.layout_scratch

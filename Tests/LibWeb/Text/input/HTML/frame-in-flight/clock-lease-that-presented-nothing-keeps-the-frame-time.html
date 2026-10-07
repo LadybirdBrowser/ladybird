@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div>A document with nothing to animate, whose lease follows the pointer and presents no frame.</div>
+<script>
+    // A rendering update after a clock lease whose ticks presented no frame renders at the time of its opportunity,
+    // however long after it the update runs: no frame a tick presented shows anything later.
+    asyncTest(async done => {
+        const result = await whileHoverLeased(async () => {
+            const leaseState = internals.clockLeaseState(document);
+            let callbackTimestamp = null;
+            const injectedTimestamp = performance.now();
+            // The update runs well after the opportunity.
+            while (performance.now() - injectedTimestamp < 2) { }
+            requestAnimationFrame(timestamp => callbackTimestamp = timestamp);
+            internals.injectRenderingOpportunity(injectedTimestamp);
+            await nextTask();
+            return { leaseState, received: Math.abs(callbackTimestamp - injectedTimestamp) < 0.01 };
+        });
+        println(`lease as the task begins: ${result.leaseState}`);
+        println(`callback received the opportunity's timestamp: ${result.received}`);
+        done();
+    });
+</script>

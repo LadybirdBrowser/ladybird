@@ -1,0 +1,3 @@
+box width on screen: 100
+root matches :hover: true
+box matches :hover: false

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); transition: width 100s linear; }
+    #box:hover { width: 200px; }
+</style>
+<div id="box"></div>
+<script>
+    // A hover beside the task whose style change starts a transition shows the transition as it runs, at each tick of
+    // the render clock, and the main thread runs it on from when it started beside the task.
+    asyncTest(async done => {
+        let leaseFrameTime;
+        const result = await whileHoverLeased(frameTime => {
+            leaseFrameTime = frameTime;
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            internals.injectClockTick(frameTime + 16 + 50000);
+            return {
+                halfway: internals.presentedBorderBox(box).width,
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`width halfway through: ${result.halfway}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        await nextFrame();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        println(`transitions once the main thread took over: ${box.getAnimations().length}`);
+        println(`transition start time after the frame time: ${Math.round(box.getAnimations()[0]?.startTime - leaseFrameTime)}`);
+        done();
+    });
+</script>

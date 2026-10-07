@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #card { width: 200px; height: 60px; --accent: rgb(0, 0, 255); }
+    #card:hover { --accent: rgb(255, 0, 0); }
+    #wrapper { padding: 4px; }
+    #label { color: var(--accent); }
+</style>
+<div id="card"><div id="wrapper"><span id="label">Label</span></div></div>
+<script>
+    // A hover beside the task moves a custom property that an element between the hovered one and the one that reads
+    // it does not read: the element in between moves nothing of its own, and the reader takes the new value.
+    asyncTest(async done => {
+        const presentedBy = await whileHoverLeased(() => {
+            internals.injectHoverPointer(100, 30);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`last frame presented by: ${presentedBy}`);
+        await nextFrame();
+        println(`card matches :hover: ${card.matches(":hover")}`);
+        println(`label color: ${getComputedStyle(label).color}`);
+        println(`wrapper --accent: ${getComputedStyle(wrapper).getPropertyValue("--accent")}`);
+        done();
+    });
+</script>

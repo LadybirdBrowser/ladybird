@@ -311,6 +311,13 @@ void StyleEngine::record_state_delta(StyleEngineFFI::FfiStateDelta const& delta)
     StyleEngineFFI::style_engine_stage_state_delta(host(), &delta);
 }
 
+void StyleEngine::record_hover(Optional<StyleNodeID> target)
+{
+    if (!StyleEngineFFI::style_engine_request_hover(host(), target.value_or(StyleNodeID {}).value()))
+        return;
+    request_frame_for_first_recorded_input(*this, m_style_computer);
+}
+
 void StyleEngine::record_element_declaration_delta(StyleEngineFFI::FfiElementDeclarationDelta const& delta)
 {
     flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);

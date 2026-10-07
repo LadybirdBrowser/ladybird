@@ -17,7 +17,7 @@ namespace Web::CSS::Invalidation {
 
 static bool pseudo_class_propagates_to_ancestors(CSS::PseudoClass pseudo_class)
 {
-    return first_is_one_of(pseudo_class, CSS::PseudoClass::Hover, CSS::PseudoClass::FocusWithin);
+    return pseudo_class == CSS::PseudoClass::FocusWithin;
 }
 
 static AncestorTraversal ancestor_traversal_for_pseudo_class(CSS::PseudoClass pseudo_class)
@@ -95,11 +95,11 @@ struct PropagatingState {
     GC::Ptr<DOM::Node> source;
 };
 
-static Array<PropagatingState, 2> propagating_states(DOM::Document& document)
+// The style engine moves `:hover` with the elements that hold it itself (see `record_subtree_disconnecting()`).
+static Array<PropagatingState, 1> propagating_states(DOM::Document& document)
 {
     return { {
         { CSS::PseudoClass::FocusWithin, document.focused_area() },
-        { CSS::PseudoClass::Hover, document.hovered_node() },
     } };
 }
 
@@ -135,11 +135,7 @@ void invalidate_style_after_subtree_place_changed(DOM::Node& subtree, GC::Ptr<DO
         if (!from)
             return;
         for_each_inclusive_ancestor_element(*from, ancestor_traversal_for_pseudo_class(pseudo_class), [&](DOM::Element& element) {
-            auto* hovered = element.document().hovered_node();
-            auto holds = pseudo_class == CSS::PseudoClass::FocusWithin
-                ? element.matches_focus_within_pseudo_class()
-                : hovered && (&element == hovered || element.is_shadow_including_ancestor_of(*hovered));
-            record_element_state_changed(element, pseudo_class, holds);
+            record_element_state_changed(element, pseudo_class, element.matches_focus_within_pseudo_class());
             return TraversalDecision::Continue;
         });
     };

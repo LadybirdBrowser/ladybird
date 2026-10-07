@@ -148,6 +148,18 @@ void ContextState::dispatch_mouse_event_to_web_content(Web::MouseEvent const& ev
 {
     VERIFY(m_page_id.has_value());
     m_web_content_client.dispatch_mouse_event_to_web_content(*m_page_id, event);
+
+    // The render clock hears where the pointer went too, without waiting for WebContent's main thread, so that hover
+    // can follow the pointer while that thread runs a task.
+    if (event.type == Web::MouseEvent::Type::MouseMove)
+        m_web_content_client.pointer_moved(m_context_id, event.position, to_underlying(event.buttons), scrolled_since_last_frame());
+    else if (event.type == Web::MouseEvent::Type::MouseLeave)
+        m_web_content_client.pointer_left(m_context_id);
+}
+
+bool ContextState::scrolled_since_last_frame() const
+{
+    return has_pending_async_scroll_updates() || !m_unreconciled_async_scroll_offsets.is_empty() || has_active_smooth_scroll_animations() || has_active_scroll_fling();
 }
 
 void ContextState::dispatch_key_event_to_web_content(Web::KeyEvent const& event)

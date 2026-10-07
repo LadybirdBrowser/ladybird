@@ -1,0 +1,2 @@
+transitions once the main thread took over: 1
+transition starts after the frame time: 16

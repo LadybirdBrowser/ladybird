@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    .item { width: 200px; background: rgb(0, 0, 255); }
+    .label { height: 50px; }
+    .menu { display: none; height: 100px; }
+    .item:hover .menu { display: block; }
+    @keyframes grow { from { width: 50px; } to { width: 60px; } }
+    #after { width: 50px; height: 50px; animation: grow 100s linear infinite; }
+</style>
+<div class="item" id="item"><div class="label"></div><div class="menu" id="menu"><span>first</span> <span>second</span></div></div>
+<div id="after"></div>
+<script>
+    // A hover beside the task that reveals a hidden menu, which the main thread showed before, builds the menu's boxes
+    // beside the task too, and lays out what they move: the frame on screen shows the element after the menu moved
+    // down. The main thread builds the boxes again from its own records as it takes the hover in.
+    asyncTest(async done => {
+        internals.mouseMove(100, 25);
+        await nextFrame();
+        internals.mouseMove(100, 400);
+        await nextFrame();
+        const y = await whileHoverLeased(frameTime => {
+            internals.injectHoverPointer(100, 25, frameTime + 16);
+            return internals.presentedBorderBox(after)?.y;
+        });
+        println(`after on screen at y: ${y}`);
+        await nextFrame();
+        println(`menu display: ${getComputedStyle(menu).display}`);
+        println(`after at y: ${after.getBoundingClientRect().y}`);
+        done();
+    });
+</script>

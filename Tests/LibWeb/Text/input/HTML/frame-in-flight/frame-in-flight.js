@@ -76,3 +76,24 @@ async function whileClockLeased(animate, during) {
         internals.setManualRenderingOpportunities(false);
     }
 }
+
+// Leases the document's render state to the render clock for a task, for its ticks to follow the pointer.
+//
+// whileHoverLeased(during) injects rendering opportunities until a rendering update has left the document a plan for a
+// clock lease, then runs `during` in the first task after the update's frame has landed, which the lease begins with.
+// Rendering opportunities stay manual until `during` is done.
+async function whileHoverLeased(during) {
+    if (document.readyState !== "complete")
+        await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+    internals.setManualRenderingOpportunities(true);
+    try {
+        await nextTask();
+        let frameTime = performance.now();
+        internals.injectRenderingOpportunity(frameTime);
+        do await nextTask();
+        while (internals.frameSchedulerState() !== "idle");
+        return await during(frameTime);
+    } finally {
+        internals.setManualRenderingOpportunities(false);
+    }
+}

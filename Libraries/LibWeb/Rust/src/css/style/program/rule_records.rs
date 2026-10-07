@@ -109,7 +109,12 @@ impl RuleRecordTable {
                 *page = found;
                 continue;
             }
-            Arc::get_mut(page).expect("an unpublished page is private").shared_hash = Some(hash);
+            // A clone of the table, as a fork of the style engine, holds the unpublished page too, and publishes a
+            // copy of its own.
+            if Arc::get_mut(page).is_none() {
+                *page = Arc::new(RuleRecordPage::new(page.values.clone(), &mut pool.memory));
+            }
+            Arc::get_mut(page).expect("a private page has one owner").shared_hash = Some(hash);
             pool.insert(hash, page);
         }
         self.needs_sharing = false;
@@ -180,6 +185,21 @@ mod tests {
         drop(second);
         let third = make_program();
         for (left, right) in first.rules.pages.iter().zip(&third.rules.pages) {
+            assert!(Arc::ptr_eq(left, right));
+        }
+    }
+
+    #[test]
+    fn a_clone_shares_the_unpublished_pages_it_holds_with_the_original() {
+        let mut program = StyleSheetProgram::new();
+        let sheet = program.add_sheet(StyleSheetObjectID(0x5ee7), CascadeOrigin::Author);
+        for _ in 0..RULE_RECORDS_PER_PAGE + 1 {
+            program.append_rule(sheet, None, RuleKind::Style);
+        }
+        let mut clone = program.clone();
+        clone.share_rule_storage();
+        program.share_rule_storage();
+        for (left, right) in program.rules.pages.iter().zip(&clone.rules.pages) {
             assert!(Arc::ptr_eq(left, right));
         }
     }

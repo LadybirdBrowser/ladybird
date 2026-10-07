@@ -65,6 +65,9 @@ public:
     bool select_word_for_dictionary_lookup(CSSPixelPoint visual_viewport_position);
 #endif
     void update_hover_after_scroll();
+    // Hovers what is under the pointer at `visual_viewport_position`, where a hover beside the event loop shows it
+    // already: the boundary events of the move fire, with no mouse move event.
+    void update_hover_at(CSSPixelPoint visual_viewport_position);
     // Shows the cursor of what is under the pointer again, where a move resolved it before it hovered that, once a
     // rendering update has applied the style of the hover.
     void update_cursor_after_rendering_update();

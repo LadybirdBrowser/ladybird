@@ -1,0 +1,5 @@
+last frame presented by: clock
+card matches :hover: true
+text color: rgb(255, 0, 0)
+badge background: rgb(255, 255, 0)
+badge color: rgb(255, 0, 0)

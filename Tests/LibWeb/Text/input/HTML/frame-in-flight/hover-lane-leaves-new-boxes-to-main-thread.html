@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #menu { width: 100px; height: 50px; background: rgb(200, 200, 200); }
+    #menu ul { display: none; margin: 0; }
+    #menu:hover ul { display: block; }
+</style>
+<div id="menu">Menu<ul id="list"><li>One</li><li>Two</li></ul></div>
+<script>
+    // A hover that gives a list a box, whose list items only the main thread builds, is the main thread's to finish,
+    // which builds the boxes.
+    asyncTest(async done => {
+        await whileHoverLeased(() => internals.injectHoverPointer(50, 25));
+        await nextFrame();
+        println(`menu matches :hover: ${menu.matches(":hover")}`);
+        println(`list display: ${getComputedStyle(list).display}`);
+        println(`list has a box with height: ${list.getBoundingClientRect().height > 0}`);
+        done();
+    });
+</script>

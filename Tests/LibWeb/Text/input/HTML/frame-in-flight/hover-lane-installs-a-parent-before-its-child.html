@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #card { width: 200px; height: 100px; --accent: rgb(0, 0, 255); }
+    #card:hover { --accent: rgb(255, 0, 0); }
+    #child { width: 100px; height: 50px; color: var(--accent); }
+    #child:hover { background: rgb(0, 128, 0); }
+</style>
+<div id="card"><div id="child">Child</div></div>
+<div id="other" style="height: 100px"></div>
+<script>
+    // Hovers beside the task move the pointer from the parent onto its child, and then out of both: the child's row
+    // lands first, and the parent's move of the environment the child reads only after it. The child installs over the
+    // moved environment all the same.
+    asyncTest(async done => {
+        await whileHoverLeased(() => internals.injectHoverPointer(150, 80));
+        await nextFrame();
+        println(`card matches :hover: ${card.matches(":hover")}`);
+        println(`child color: ${getComputedStyle(child).color}`);
+        const presentedBy = await whileHoverLeased(() => {
+            internals.injectHoverPointer(50, 20);
+            internals.injectHoverPointer(50, 150);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`last frame presented by: ${presentedBy}`);
+        await nextFrame();
+        println(`card, child hovered: ${card.matches(":hover")} ${child.matches(":hover")}`);
+        println(`child color: ${getComputedStyle(child).color}`);
+        println(`child background: ${getComputedStyle(child).backgroundColor}`);
+        done();
+    });
+</script>

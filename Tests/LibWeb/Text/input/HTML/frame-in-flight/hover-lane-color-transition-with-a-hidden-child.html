@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #link { display: block; width: 200px; height: 40px; color: rgb(0, 0, 255); transition: color 100s linear; }
+    #link:hover { color: rgb(255, 0, 0); }
+    #hidden { display: none; }
+</style>
+<a id="link" href="#"><span id="label">Link</span><span id="hidden">Hidden</span></a>
+<script>
+    // A hover beside the task shows a color transition of an element with a child that inherits its color but has no
+    // box, which shows nothing of it.
+    asyncTest(async done => {
+        const result = await whileHoverLeased(frameTime => {
+            internals.injectHoverPointer(150, 20, frameTime + 16);
+            internals.injectClockTick(frameTime + 16 + 50000);
+            return {
+                labelColor: internals.presentedColor(label),
+                hiddenColor: internals.presentedColor(hidden),
+            };
+        });
+        println(`label color halfway through: ${result.labelColor}`);
+        println(`hidden child color: ${result.hiddenColor}`);
+        await nextFrame();
+        println(`link matches :hover: ${link.matches(":hover")}`);
+        done();
+    });
+</script>

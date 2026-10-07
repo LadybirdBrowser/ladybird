@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    .box { width: 100px; height: 100px; background: rgb(0, 0, 255); }
+    .box:hover { background: rgb(0, 128, 0); }
+</style>
+<div class="box" id="a"></div>
+<div class="box" id="b"></div>
+<script>
+    // Ticks of one lease follow the pointer from one element to another, and out of the document.
+    asyncTest(async done => {
+        const presentedBy = await whileHoverLeased(() => {
+            internals.injectHoverPointer(50, 50);
+            internals.injectHoverPointer(50, 150);
+            internals.injectHoverPointer(50, 120);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`last frame presented by: ${presentedBy}`);
+        await nextFrame();
+        println(`a, b hovered: ${a.matches(":hover")} ${b.matches(":hover")}`);
+        println(`a: ${getComputedStyle(a).backgroundColor}, b: ${getComputedStyle(b).backgroundColor}`);
+        done();
+    });
+</script>

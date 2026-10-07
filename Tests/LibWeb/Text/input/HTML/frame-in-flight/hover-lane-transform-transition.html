@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); transition: transform 100s linear; }
+    #box:hover { transform: translateX(50%); }
+</style>
+<div id="box"></div>
+<script>
+    // A hover beside the task shows a transform transition, which interpolates against the box it transforms, as the
+    // render clock ticks.
+    asyncTest(async done => {
+        const presentedBy = await whileHoverLeased(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            internals.injectClockTick(frameTime + 16 + 50000);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`last frame presented by: ${presentedBy}`);
+        await nextFrame();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        println(`transitions once the main thread took over: ${box.getAnimations().length}`);
+        done();
+    });
+</script>

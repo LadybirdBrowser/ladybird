@@ -69,13 +69,15 @@ pub unsafe extern "C" fn render_state_pay_flown_round(host: &DocumentHost, read:
 /// Seals the plan of the clock lease of `host`'s document for the tasks after a rendering update, in `read`: the
 /// elements whose running animations a tick samples, the monotonic time in milliseconds at which the document's
 /// timestamps are zero, the timestamp of the next event of the animations, past which a tick samples nothing, and the
-/// timestamp at which the sampled animations of the document timeline have all ended, and the scroll timelines a tick
-/// samples where the compositor has scrolled to. A document whose layout is not up to date gets no plan.
+/// timestamp at which the sampled animations of the document timeline have all ended, the scroll timelines a tick
+/// samples where the compositor has scrolled to, and what the lease's hover reads, where its ticks follow the pointer.
+/// A document whose layout is not up to date gets no plan.
 ///
 /// # Safety
 ///
 /// As for [`render_state_update_layout`], with no layout update running, and `elements` must hold `count` style nodes
-/// and `scroll_timelines` `scroll_timeline_count` timelines.
+/// and `scroll_timelines` `scroll_timeline_count` timelines. `hover` must be null or point at inputs as
+/// `HoverPlan::from_ffi` takes them.
 #[unsafe(no_mangle)]
 #[allow(clippy::too_many_arguments)]
 pub unsafe extern "C" fn render_state_seal_clock_plan(
@@ -88,6 +90,7 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
     last_end: f64,
     scroll_timelines: *const crate::render_state::FfiPlannedScrollTimeline,
     scroll_timeline_count: usize,
+    hover: *const crate::render_state::FfiHoverPlanInputs,
 ) {
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { main_thread(host) };
@@ -100,6 +103,10 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
             .iter()
             .filter_map(|&element| StyleNodeID::from_raw(element))
             .collect();
+        // SAFETY: Guaranteed by the caller.
+        let hover = unsafe { hover.as_ref() }.map(|inputs| {
+            unsafe { crate::render_state::HoverPlan::from_ffi(inputs) }.with_style_inputs(host.style_inputs())
+        });
         let round = seal_clock_round(&main_thread, host, read);
         host.seal_clock_plan(round.map(|round| {
             crate::render_state::ClockPlan::new(
@@ -109,6 +116,7 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
                 last_end,
                 scroll_timelines.to_vec(),
                 round,
+                hover,
             )
         }));
     });

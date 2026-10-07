@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
+#include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/CSS/Selector.h>
@@ -614,6 +615,16 @@ void take_in_pending_style_arrivals(DOM::Document& document)
         record_subtree_arrivals(document, roots);
 }
 
+// A node that is no element hovers the element it is inside of.
+static DOM::Element const* hovered_element_of(DOM::Node const* node)
+{
+    if (!node)
+        return nullptr;
+    if (auto const* element = as_if<DOM::Element>(*node))
+        return element;
+    return node->parent_element().ptr();
+}
+
 // The element-backed pseudo-element an element in its host's shadow tree stands for, as one plus
 // its kind, or zero.
 static u8 associated_pseudo_kind_plus_one(DOM::Element const& element)
@@ -679,7 +690,8 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
     auto states = SelectorMatching::element_states(element);
     for (size_t index = 0; index < to_underlying(PseudoClass::__Count); ++index) {
         auto pseudo_class = static_cast<PseudoClass>(index);
-        if (!states.get(pseudo_class))
+        // The engine's hover chain holds `:hover`, which the hover follows to an element that arrives hovered.
+        if (pseudo_class == PseudoClass::Hover || !states.get(pseudo_class))
             continue;
         auto fact = state_fact_for(pseudo_class);
         if (fact.has_value())
@@ -719,6 +731,9 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
                                             .construction_facts = element_construction_facts(element),
                                         },
         custom_states);
+    // The hover follows the element the events hover to where it arrives, the place a move took it to.
+    if (&element == hovered_element_of(element.document().hovered_node()))
+        style_engine.record_hover(node);
 }
 
 // An element's hints move when something beside its own attributes that they are mapped from
@@ -1456,6 +1471,12 @@ void record_element_animation_effect_descriptions(DOM::Element& element, u8 slot
         row.first_keyframe = static_cast<u32>(ffi_keyframes.size());
         row.base_url_offset = static_cast<u32>(base_url_bytes.size());
         row.is_transition = animation && animation->is_css_transition();
+        row.reversing_shortening_factor = 1;
+        if (row.is_transition) {
+            auto const& transition = static_cast<CSSTransition const&>(*animation);
+            row.reversing_adjusted_start_value = transition.reversing_adjusted_start_value()->rust_style_value_data();
+            row.reversing_shortening_factor = transition.reversing_shortening_factor();
+        }
         // An effect with no animation, or whose animation runs no keyframes, is described with none, which is
         // all there is to sample of it.
         auto const* key_frame_set = animation ? effect->key_frame_set() : nullptr;
@@ -1811,6 +1832,9 @@ void record_shadow_root_disconnecting(DOM::ShadowRoot& shadow_root)
 void record_subtree_disconnecting(DOM::Node& root)
 {
     auto* style_engine = style_engine_for(root);
+    // A hovered element that leaves the document takes the engine's hover off it, until it arrives again.
+    if (auto const* hovered = style_engine ? hovered_element_of(root.document().hovered_node()) : nullptr; hovered && root.is_shadow_including_inclusive_ancestor_of(*hovered))
+        style_engine->record_hover({});
     // Only the root leaves a child sequence that stays in the tree. Every node below it leaves with the sequence it
     // belongs to.
     if (auto identity = dom_order_identity_of(root); style_engine && identity != no_style_node)
@@ -2495,6 +2519,17 @@ void record_stylesheet_detached(StyleSheetState& sheet, DOM::Node& document_or_s
 bool can_record_element_state_change(DOM::Element& element)
 {
     return style_engine_for_published(element);
+}
+
+void move_style_hover(DOM::Document& document, GC::Ptr<DOM::Node> node)
+{
+    if (!document.layout_node_arena_if_created())
+        return;
+    auto const* element = hovered_element_of(node.ptr());
+    Optional<StyleNodeID> target;
+    if (element && element->style_node_id() != no_style_node)
+        target = element->style_node_id();
+    document.style_computer().style_engine().record_hover(target);
 }
 
 void record_element_state_changed(DOM::Element& element, PseudoClass pseudo_class, bool new_value)

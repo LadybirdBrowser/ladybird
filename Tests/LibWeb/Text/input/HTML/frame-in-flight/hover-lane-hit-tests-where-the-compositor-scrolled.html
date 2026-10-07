@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; height: 3000px; }
+    .box { width: 100px; height: 300px; outline: 1px solid rgb(0, 0, 255); transition: outline-color 100s linear; }
+    .box:hover { width: 150px; outline-color: rgb(0, 128, 0); }
+</style>
+<div class="box" id="a"></div>
+<div class="box" id="b"></div>
+<script>
+    // The compositor scrolls beside a busy task, and the frame it shows has moved since the main thread laid it out. A
+    // hover beside the task hit tests where the compositor scrolled to, as its last tick said: what is under the pointer
+    // on screen.
+    asyncTest(async done => {
+        const result = await whileHoverLeased(frameTime => {
+            internals.injectClockTick(frameTime + 16, 400);
+            internals.injectHoverPointer(50, 50, frameTime + 32);
+            const width = box => internals.presentedBorderBox(box)?.width ?? "not hovered";
+            return { a: width(a), b: width(b) };
+        });
+        println(`a on screen: ${result.a}`);
+        println(`b on screen: ${result.b}`);
+        done();
+    });
+</script>

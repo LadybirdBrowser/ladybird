@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; outline: 1px solid rgb(0, 0, 255); }
+    #box:hover { width: 150px; outline-color: rgb(0, 128, 0); }
+</style>
+<div id="box"></div>
+<script>
+    // A pointer move waits for the next tick for the render clock to hover it, which the lease does not live to see where
+    // a task ends it. The next lease of the document hovers the move at its first tick.
+    asyncTest(async done => {
+        const width = await whileHoverLeased(async frameTime => {
+            internals.moveHoverPointer(50, 50);
+            box.offsetWidth;
+            // Tasks plan for a lease again once per display frame at most.
+            const start = performance.now();
+            while (performance.now() - start < 17) { }
+            await nextTask();
+            internals.injectClockTick(frameTime + 32);
+            return internals.presentedBorderBox(box)?.width;
+        });
+        println(`box width on screen: ${width}`);
+        done();
+    });
+</script>

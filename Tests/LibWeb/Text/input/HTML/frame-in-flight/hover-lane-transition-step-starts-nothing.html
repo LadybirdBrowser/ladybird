@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); opacity: 1; transition: opacity 100s linear; }
+    #box:hover { background: rgb(0, 128, 0); }
+</style>
+<div id="box"></div>
+<script>
+    // A hover beside the task whose style change moves no property the element transitions starts no transition, and
+    // shows the change at once.
+    asyncTest(async done => {
+        const presentedBy = await whileHoverLeased(() => {
+            internals.injectHoverPointer(50, 50);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`last frame presented by: ${presentedBy}`);
+        await nextFrame();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        println(`transitions once the main thread took over: ${box.getAnimations().length}`);
+        println(`background: ${getComputedStyle(box).backgroundColor}`);
+        done();
+    });
+</script>

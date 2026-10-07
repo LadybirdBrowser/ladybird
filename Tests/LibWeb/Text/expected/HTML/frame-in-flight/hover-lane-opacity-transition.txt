@@ -1,0 +1,3 @@
+last frame presented by: clock
+box matches :hover: true
+transitions once the main thread took over: 1

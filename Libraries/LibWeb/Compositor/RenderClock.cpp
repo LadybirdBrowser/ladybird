@@ -43,6 +43,18 @@ private:
             m_clock.did_receive_clock_tick(context_id, frame_time_nanoseconds, scroll_offsets);
     }
 
+    virtual void pointer_moved(Web::CompositorContextId context_id, Web::DevicePixelPoint position, u32 buttons, bool scrolled_since_frame) override
+    {
+        if (!m_detached)
+            m_clock.did_receive_pointer_move(context_id, Gfx::FloatPoint { position.x().value(), position.y().value() }, buttons, scrolled_since_frame);
+    }
+
+    virtual void pointer_left(Web::CompositorContextId context_id) override
+    {
+        if (!m_detached)
+            m_clock.did_receive_pointer_move(context_id, {}, 0, false);
+    }
+
     RenderClock& m_clock;
     bool m_detached { false };
 };
@@ -63,6 +75,12 @@ bool ClockTicksHandle::tick(i64 frame_time_nanoseconds, ReadonlySpan<Web::Compos
         scrollers.append({ scroll_offset.scroll_node.node_id.value(), scroll_offset.offset.x().to_double(), scroll_offset.offset.y().to_double() });
     }
     return Layout::RustFFI::clock_ticks_tick(m_ticks, frame_time_nanoseconds, scrollers.data(), scrollers.size());
+}
+
+PointerAnswer ClockTicksHandle::pointer_moved(Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame) const
+{
+    auto position = device_position.value_or({});
+    return static_cast<PointerAnswer>(Layout::RustFFI::clock_ticks_pointer_moved(m_ticks, device_position.has_value(), position.x(), position.y(), buttons, scrolled_since_frame));
 }
 
 RenderClock& RenderClock::the()
@@ -155,6 +173,7 @@ ErrorOr<IPC::TransportHandle> RenderClock::replace_channel()
 void RenderClock::drop_channel()
 {
     m_armed_contexts.clear();
+    m_pointer_leases.clear();
     if (auto channel = move(m_channel)) {
         channel->detach();
         channel->shutdown();
@@ -168,6 +187,41 @@ void RenderClock::arm(Web::CompositorContextId context_id, double maximum_frames
         m_armed_contexts.set(context_id, ArmedContext { maximum_frames_per_second, move(on_tick) });
         request_clock_tick(context_id, maximum_frames_per_second);
     });
+}
+
+void RenderClock::arm_lease(Web::CompositorContextId context_id, double maximum_frames_per_second, NonnullRefPtr<ClockTicksHandle> ticks, bool tick_now)
+{
+    VERIFY(isfinite(maximum_frames_per_second) && maximum_frames_per_second > 0);
+    (void)invoke_on_clock_thread([this, context_id, maximum_frames_per_second, ticks = move(ticks), tick_now]() mutable {
+        // A tick armed for an earlier lease of the context would hand this one's ticks to the earlier one.
+        m_armed_contexts.remove(context_id);
+        if (tick_now) {
+            m_armed_contexts.set(context_id, ArmedContext { maximum_frames_per_second, [ticks](i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset> scroll_offsets) { return ticks->tick(frame_time_nanoseconds, scroll_offsets); } });
+            request_clock_tick(context_id, maximum_frames_per_second);
+        }
+        m_pointer_leases.set(context_id, PointerLease { maximum_frames_per_second, move(ticks) });
+    });
+}
+
+void RenderClock::did_receive_pointer_move(Web::CompositorContextId context_id, Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame)
+{
+    auto it = m_pointer_leases.find(context_id);
+    if (it == m_pointer_leases.end())
+        return;
+    switch (it->value.ticks->pointer_moved(device_position, buttons, scrolled_since_frame)) {
+    case PointerAnswer::Disarm:
+        m_pointer_leases.remove(it);
+        return;
+    case PointerAnswer::Ticks:
+        break;
+    }
+    // A context armed for ticks already asked for the next one.
+    if (m_armed_contexts.contains(context_id))
+        return;
+    auto ticks = it->value.ticks;
+    auto maximum_frames_per_second = it->value.maximum_frames_per_second;
+    m_armed_contexts.set(context_id, ArmedContext { maximum_frames_per_second, [ticks](i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset> scroll_offsets) { return ticks->tick(frame_time_nanoseconds, scroll_offsets); } });
+    request_clock_tick(context_id, maximum_frames_per_second);
 }
 
 void RenderClock::request_clock_tick(Web::CompositorContextId context_id, double maximum_frames_per_second)
@@ -195,6 +249,7 @@ void RenderClock::did_receive_clock_tick(Web::CompositorContextId context_id, i6
 void RenderClock::did_lose_channel()
 {
     m_armed_contexts.clear();
+    m_pointer_leases.clear();
     // The channel is dying from inside its own handler, which keeps it alive until it returns.
     m_channel = nullptr;
 }

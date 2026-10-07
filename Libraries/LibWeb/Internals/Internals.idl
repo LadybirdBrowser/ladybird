@@ -61,6 +61,7 @@ interface Internals {
     undefined sendTextThroughUIProcess(DOMString text);
     undefined grantTransientActivation();
     undefined clickThroughUIProcess(double x, double y);
+    undefined mouseMoveThroughUIProcess(double x, double y);
     undefined wheelThroughUIProcess(double x, double y, double deltaX, double deltaY);
     undefined sendKey(HTMLElement target, DOMString keyName, optional unsigned short modifiers = 0, optional unsigned long repeatCount = 1);
     undefined paste(HTMLElement target, DOMString text);
@@ -223,8 +224,18 @@ interface Internals {
     // Hands the clock lease of the current document, if one runs, a tick at the given time, and waits until it has run.
     // With a viewport scroll offset, the compositor had scrolled the viewport down to it at the tick.
     undefined injectClockTick(double frameTimeMs, optional double viewportScrollY);
-    // "none" where no clock lease of the document runs, "ticking" while one does, and "parked" once a tick parked it.
+    // Hands the clock lease of the current document, if one runs, a pointer move to the given point in CSS pixels as the
+    // compositor would, and waits until the tick that hovers what is under it has run, at the given frame time, or now.
+    undefined injectHoverPointer(double x, double y, optional double frameTimeMs);
+    // Hands the clock lease of the current document, if one runs, a pointer move to the given point in CSS pixels as the
+    // compositor would, which waits for the tick a test injects to hover what is under it.
+    undefined moveHoverPointer(double x, double y);
+    // "none" where no clock lease of the document runs, "ticking" while one does, "parked" once a tick parked it, and
+    // "hovering" where it samples no animation and only follows the pointer.
     DOMString clockLeaseState(Document document);
+    // The color, as a CSS color string, that a box a hover's transitions restyled showed in the last frame a tick of
+    // a clock lease presented, or null.
+    DOMString? presentedColor(Element element);
     // The border box of the element in the last frame a clock tick presented, which ends the lease that runs.
     DOMRect? presentedBorderBox(Element element);
     // "laying-out" while a rendering update's layout runs beside the event loop, or has and the update has not run its

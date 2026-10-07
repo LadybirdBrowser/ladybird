@@ -2896,6 +2896,14 @@ impl StyleEngine {
         pass.previous_cascade_inputs = previous_cascade_inputs;
     }
 
+    /// Lets the next wave of the suspended style pass settle the children of `node` over the record it holds, as the
+    /// host's composition of it moves nothing they inherit.
+    pub(super) fn settle_children_beside_composition_of(&mut self, node: StyleNodeID) {
+        if let Some(pass) = self.host.suspended_style_pass.as_mut() {
+            pass.scratch.forget_composed_by_the_host(node);
+        }
+    }
+
     /// Give up a pass the host is installing: each row it did not reach is owed again, to the next
     /// transaction, with what moved under it, and is driven there in full.
     pub(super) fn abandon_style_pass(&mut self, pass: StylePass) {

@@ -23,6 +23,28 @@ pub struct FfiHitTestQueryCallbacks {
 }
 
 impl FfiHitTestQueryCallbacks {
+    /// Callbacks for a point query on the render owner, which reaches nothing of the host: the scroll offsets and
+    /// chrome metrics are copies the host sealed, and no caret query, the only one that asks the host about the DOM,
+    /// runs there.
+    pub(crate) fn sealed(
+        device_pixels_per_css_pixel: f64,
+        scroll_offsets: &[libgfx_rust::FloatPoint],
+        chrome_metrics: crate::painting::ffi::FfiChromeMetrics,
+    ) -> Self {
+        unsafe extern "C" fn no_contains(_: *mut c_void, _: FfiNodeIdentity, _: FfiNodeIdentity) -> bool {
+            panic!("a point query on the render owner asks the host nothing of the DOM");
+        }
+        Self {
+            context: std::ptr::null_mut(),
+            device_pixels_per_css_pixel,
+            scroll_offsets: scroll_offsets.as_ptr(),
+            scroll_offsets_len: scroll_offsets.len(),
+            has_chrome_metrics: true,
+            chrome_metrics,
+            contains: no_contains,
+        }
+    }
+
     /// Whether `node` is `ancestor` or one of its descendants in the DOM.
     pub(crate) fn contains(
         &self,

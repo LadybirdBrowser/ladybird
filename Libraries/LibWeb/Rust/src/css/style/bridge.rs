@@ -1311,6 +1311,10 @@ pub struct FfiPublishedAnimationEffect {
     pub keyframe_count: u32,
     pub base_url_offset: u32,
     pub base_url_length: u32,
+    /// A transition's reversing-adjusted start value, or null for any other effect.
+    pub reversing_adjusted_start_value: *const c_void,
+    /// A transition's reversing shortening factor.
+    pub reversing_shortening_factor: f64,
 }
 
 /// The easing function a published keyframe spells out.

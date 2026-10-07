@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    .box { width: 100px; height: 100px; background: rgb(0, 0, 255); outline: 1px solid rgb(0, 0, 255); }
+    .box:hover { background: rgb(0, 128, 0); outline-color: rgb(0, 128, 0); }
+    #b { transition: outline-color 100s linear; }
+</style>
+<div class="box" id="a"></div>
+<div class="box" id="b"></div>
+<script>
+    // A rendering update after a hover beside the task, which the main thread has heard of no mouse move for, keeps
+    // what the screen shows: it fires the events of the move, and script reads the hover from them on. The transition
+    // the hover started runs on from when it started beside the task.
+    asyncTest(async done => {
+        const boxes = [a, b];
+        const hovered = () => boxes.filter(box => box.matches(":hover")).map(box => box.id).join(",") || "none";
+        const styled = () => boxes.map(box => `${box.id}=${getComputedStyle(box).backgroundColor}`).join(" ");
+        for (const box of boxes) {
+            for (const type of ["mouseover", "mouseout"])
+                box.addEventListener(type, () => println(`${type} ${box.id}: hovered ${hovered()}; ${styled()}`));
+        }
+        internals.mouseMove(50, 50);
+        await nextFrame();
+        let leaseFrameTime;
+        const hoveredBesideTheTask = await whileHoverLeased(frameTime => {
+            leaseFrameTime = frameTime;
+            internals.injectHoverPointer(50, 150, frameTime + 16);
+            return hovered();
+        });
+        println(`hovered beside the task: ${hoveredBesideTheTask}`);
+        println("-- a rendering update");
+        await nextFrame();
+        println(`after: hovered ${hovered()}`);
+        for (const transition of b.getAnimations())
+            println(`b transition starts after the lease's frame time: ${Math.round(transition.startTime - leaseFrameTime)}`);
+        done();
+    });
+</script>

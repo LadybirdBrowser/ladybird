@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; outline: 1px solid rgb(0, 0, 255); }
+    #box:hover { width: 150px; outline-color: rgb(0, 128, 0); }
+</style>
+<div id="box"></div>
+<script>
+    // A pointer move that waits for the next tick of the clock lease as a rendering update begins hovers at once, beside
+    // the update, so that the screen shows it before the update's steps run the document's script. The update keeps
+    // the hover, with its events.
+    asyncTest(async done => {
+        await whileHoverLeased(() => internals.moveHoverPointer(50, 50));
+        await nextFrame();
+        println(`box width a tick presented: ${internals.presentedBorderBox(box)?.width}`);
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        done();
+    });
+</script>

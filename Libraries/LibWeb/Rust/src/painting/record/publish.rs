@@ -251,6 +251,7 @@ pub(crate) fn take_in_published_output(
             recorder.published_hit_test_items =
                 Some(std::sync::Arc::new(crate::painting::record::PublishedHitTestItems {
                     items: list.items.clone(),
+                    structural_epoch: output.recorded_structural_epoch,
                 }));
         }
         *hit_test_list = Some(list);

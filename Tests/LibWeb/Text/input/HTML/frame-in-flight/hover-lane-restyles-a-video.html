@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #link { display: block; width: 200px; height: 100px; }
+    video { display: block; width: 200px; height: 100px; outline: 1px solid rgb(0, 0, 255); }
+    #link:hover video { outline-color: rgb(0, 128, 0); }
+</style>
+<a id="link" href="#"><video id="player"></video></a>
+<script>
+    // A tick of the render clock hovers a link around a video whose outline the hover changes, and presents the frame.
+    asyncTest(async done => {
+        const presentedBy = await whileHoverLeased(() => {
+            internals.injectHoverPointer(50, 50);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`last frame presented by: ${presentedBy}`);
+        await nextFrame();
+        println(`link matches :hover: ${link.matches(":hover")}`);
+        println(`video outline color: ${getComputedStyle(player).outlineColor}`);
+        done();
+    });
+</script>

@@ -3081,6 +3081,9 @@ static void mark_mouse_transition_event_as_trusted_if_needed(Event& event, Optio
 void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hover_event_data)
 {
     Layout::ForcedReadScope read { *this };
+    // The style's hover follows the node the events hover. A hover beside the host may have moved it already, while
+    // the hovered node of the events stayed.
+    CSS::move_style_hover(*this, node);
     if (m_hovered_node == node)
         return;
 
@@ -3127,8 +3130,6 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
         for (auto target = node; target && target.ptr() != common_ancestor; target = target->parent_or_shadow_host())
             entered_ancestors.append(make_hover_event_target(*target));
     }
-
-    CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::Hover, old_hovered_node, node);
 
     m_hovered_node = node;
 

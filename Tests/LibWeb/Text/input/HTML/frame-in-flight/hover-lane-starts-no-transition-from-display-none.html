@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    .item { width: 200px; background: rgb(0, 0, 255); }
+    .label { height: 50px; }
+    .menu { display: none; height: 100px; color: rgb(0, 0, 0); transition: color 100s linear; }
+    .item:hover .menu { display: block; color: rgb(0, 128, 0); }
+    @keyframes grow { from { width: 50px; } to { width: 60px; } }
+    #after { width: 50px; height: 50px; animation: grow 100s linear infinite; }
+</style>
+<div class="item" id="item"><div class="label"></div><div class="menu" id="menu">menu</div></div>
+<div id="after"></div>
+<script>
+    // A hover beside the task that reveals a menu whose color transitions starts no transition, as the move of an
+    // element from display: none starts none: the menu shows its hovered color at once, beside the task and once the
+    // main thread takes the hover in.
+    asyncTest(async done => {
+        const y = await whileHoverLeased(frameTime => {
+            internals.injectHoverPointer(100, 25, frameTime + 16);
+            return internals.presentedBorderBox(after)?.y;
+        });
+        println(`after on screen at y: ${y}`);
+        await nextFrame();
+        println(`menu color: ${getComputedStyle(menu).color}`);
+        println(`menu transitions: ${menu.getAnimations().length}`);
+        done();
+    });
+</script>

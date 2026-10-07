@@ -608,6 +608,15 @@ impl RetainedState {
         self.container_effects_for_host.set(node, None)
     }
 
+    /// See [`Self::detach_host_flags_for_fork`].
+    pub(super) fn detach_container_effects_held_for_fork(&mut self) {
+        let held = self
+            .container_effects_for_host
+            .held
+            .load(std::sync::atomic::Ordering::Relaxed);
+        self.container_effects_for_host.held = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(held));
+    }
+
     /// Raises `flag`, which the document's host reads, while the engine keeps any row's container effects for the
     /// host, rather than a flag of the engine's own. The engine keeps none yet.
     pub(crate) fn share_container_effects_held(&mut self, flag: std::sync::Arc<std::sync::atomic::AtomicBool>) {

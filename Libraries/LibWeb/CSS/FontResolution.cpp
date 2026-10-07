@@ -458,6 +458,17 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontCascadeMemo::resolve(FontFaceSnaps
     });
 }
 
+NonnullRefPtr<Gfx::FontCascadeList const> FontCascadeMemo::resolve_for_fork(FontFaceSnapshot const& snapshot, ComputedFontCacheKey const& key, FontFeatureValuesProvider const& font_feature_values_for_family) const
+{
+    MutexLocker locker(m_mutex);
+    if (snapshot.generation() < m_generation)
+        return resolve_font_cascade(snapshot, key, font_feature_values_for_family);
+    m_generation = snapshot.generation();
+    return m_cascades.ensure(key, [&] {
+        return resolve_font_cascade(snapshot, key, font_feature_values_for_family);
+    });
+}
+
 void FontCascadeMemo::forget_matching(u64 environment_generation, Function<bool(ComputedFontCacheKey const&, NonnullRefPtr<Gfx::FontCascadeList const> const&)> const& predicate)
 {
     MutexLocker locker(m_mutex);
@@ -491,12 +502,15 @@ Vector<FontCascadeMemo::ResolutionAgainstOlderTable> FontCascadeMemo::take_resol
 
 }
 
-// The style engine resolves a font through this, with nothing but the table and memo it was given and the request: the
-// request's family is an opaque handle the engine holds, which becomes a value again here.
-extern "C" Web::CSS::StyleEngineFFI::FfiResolvedFont web_css_resolve_font(void const* memo, void const* snapshot, Web::CSS::StyleEngineFFI::FfiFontResolutionRequest request)
+namespace Web::CSS {
+
+enum class ResolvedFor : u8 {
+    Engine,
+    Fork,
+};
+
+static StyleEngineFFI::FfiResolvedFont resolve_font_for_style_engine(void const* memo, void const* snapshot, StyleEngineFFI::FfiFontResolutionRequest request, ResolvedFor resolved_for)
 {
-    using namespace Web;
-    using namespace Web::CSS;
     auto value_of = [](StyleEngineFFI::FfiHostHandle handle) {
         return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(reinterpret_cast<StyleValueFFI::StyleValueData const*>(handle)));
     };
@@ -517,12 +531,19 @@ extern "C" Web::CSS::StyleEngineFFI::FfiResolvedFont web_css_resolve_font(void c
             key.feature_values[index] = value_of(handle);
     }
     auto const& font_faces = *static_cast<FontFaceSnapshot const*>(snapshot);
-    auto font_list = static_cast<FontCascadeMemo const*>(memo)->resolve(font_faces, key, [&](Utf16FlyString const& family) -> FontFeatureValues const& { return font_faces.font_feature_values(key.font_feature_values_scope, family); });
+    auto const& cascade_memo = *static_cast<FontCascadeMemo const*>(memo);
+    FontFeatureValuesProvider font_feature_values_for_family = [&](Utf16FlyString const& family) -> FontFeatureValues const& { return font_faces.font_feature_values(key.font_feature_values_scope, family); };
+    auto font_list = resolved_for == ResolvedFor::Fork
+        ? cascade_memo.resolve_for_fork(font_faces, key, font_feature_values_for_family)
+        : cascade_memo.resolve(font_faces, key, font_feature_values_for_family);
     // The metric probe must not load a face: the first available font answers without one.
     auto const& first_available_font = font_list->first_available_font();
     auto const metrics = first_available_font.pixel_metrics();
     // NB: The engine takes no reference. The memo keeps the cascade alive until the font environment generation
-    //     changes, and the engine's resolver cache answers only for the generation it was filled at.
+    //     changes, and the engine's resolver cache answers only for the generation it was filled at. A fork of the
+    //     render state, which sees no generation change, takes the reference it is handed instead.
+    if (resolved_for == ResolvedFor::Fork)
+        font_list->ref();
     return {
         // Handles, not pointers: the engine names these host objects and hands them back here.
         .first_available_font = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(&first_available_font),
@@ -532,6 +553,23 @@ extern "C" Web::CSS::StyleEngineFFI::FfiResolvedFont web_css_resolve_font(void c
         .x_height = metrics.x_height,
         .zero_advance = metrics.advance_of_ascii_zero,
     };
+}
+
+}
+
+// The style engine resolves a font through this, with nothing but the table and memo it was given and the request: the
+// request's family is an opaque handle the engine holds, which becomes a value again here.
+extern "C" Web::CSS::StyleEngineFFI::FfiResolvedFont web_css_resolve_font(void const* memo, void const* snapshot, Web::CSS::StyleEngineFFI::FfiFontResolutionRequest request)
+{
+    return Web::CSS::resolve_font_for_style_engine(memo, snapshot, request, Web::CSS::ResolvedFor::Engine);
+}
+
+// A fork of the render state resolves a font through this, as the engine does, taking over a reference to the cascade.
+extern "C" WEB_API Web::CSS::StyleEngineFFI::FfiResolvedFont web_css_resolve_font_for_fork(void const* memo, void const* snapshot, Web::CSS::StyleEngineFFI::FfiFontResolutionRequest request);
+
+extern "C" Web::CSS::StyleEngineFFI::FfiResolvedFont web_css_resolve_font_for_fork(void const* memo, void const* snapshot, Web::CSS::StyleEngineFFI::FfiFontResolutionRequest request)
+{
+    return Web::CSS::resolve_font_for_style_engine(memo, snapshot, request, Web::CSS::ResolvedFor::Fork);
 }
 
 // A fork of the render state takes its own reference to the font objects the style engine holds.

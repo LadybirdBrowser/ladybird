@@ -110,7 +110,12 @@ impl RuleVersionTable {
                 *page = found;
                 continue;
             }
-            Arc::get_mut(page).expect("an unpublished page is private").shared_hash = Some(hash);
+            // A clone of the table, as a fork of the style engine, holds the unpublished page too, and publishes a
+            // copy of its own.
+            if Arc::get_mut(page).is_none() {
+                *page = Arc::new(RuleVersionPage::new(page.values, &mut pool.memory));
+            }
+            Arc::get_mut(page).expect("a private page has one owner").shared_hash = Some(hash);
             pool.insert(hash, page);
         }
         self.needs_sharing = false;
@@ -167,6 +172,20 @@ mod tests {
         drop(second);
         let third = make_table();
         for (left, right) in first.pages.iter().zip(&third.pages) {
+            assert!(Arc::ptr_eq(left, right));
+        }
+    }
+
+    #[test]
+    fn a_clone_shares_the_unpublished_pages_it_holds_with_the_original() {
+        let mut table = RuleVersionTable::default();
+        for index in 0..RULE_VERSIONS_PER_PAGE + 1 {
+            table.push(RuleVersion::new(RuleID(0x5ee7_0000 + index as u32), RuleKind::Style));
+        }
+        let mut clone = table.clone();
+        clone.share();
+        table.share();
+        for (left, right) in table.pages.iter().zip(&clone.pages) {
             assert!(Arc::ptr_eq(left, right));
         }
     }

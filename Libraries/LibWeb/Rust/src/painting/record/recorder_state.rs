@@ -33,6 +33,21 @@ pub(crate) struct RecorderState {
     pub(crate) published_inputs: Option<RecordingInputs>,
 }
 
+impl RecorderState {
+    /// A fork of the recorder state, for a fork of the document's render state to record with: it copies clean output
+    /// from the same recording, and keeps no scratch or memo of its own.
+    pub(crate) fn fork(&self) -> Self {
+        Self {
+            published_recording: self.published_recording.clone(),
+            published_hit_test_items: self.published_hit_test_items.clone(),
+            paint_order_tree: self.paint_order_tree.clone(),
+            scratch: Default::default(),
+            absolute_rects: Default::default(),
+            published_inputs: self.published_inputs.clone(),
+        }
+    }
+}
+
 /// Each row's absolute rect, with the geometry epoch of the frame it was computed from.
 #[derive(Default)]
 pub(crate) struct AbsoluteRectMemo {

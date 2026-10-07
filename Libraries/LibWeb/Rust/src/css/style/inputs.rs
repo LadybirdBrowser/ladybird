@@ -1902,6 +1902,7 @@ impl StyleEngine {
                 css_defined_animations: Default::default(),
                 animation_keyframes: Default::default(),
                 animation_effect_descriptions: Default::default(),
+                hover: Default::default(),
                 held_root_font_inputs: None,
                 random_base_values: Default::default(),
                 replaced_content_inputs: HashMap::default(),
@@ -2176,6 +2177,19 @@ impl StyleEngine {
     /// what it already carries and a descendant recompute. The folded input is consumed; one not
     /// covered stays owed to the next transaction. Returns the merged reaction in the low byte and
     /// the merged inherited style groups in the next, or zero when nothing was folded.
+    /// The reaction the element `node` owes as an element style input the engine defers, if it owes one.
+    pub(crate) fn deferred_element_style_reaction(&self, node: StyleNodeID) -> Option<u8> {
+        let index = self
+            .host
+            .deferred_element_style_inputs
+            .binary_search_by_key(&InputKey::ElementStyleInput(node), |pending| pending.key)
+            .ok()?;
+        match self.host.deferred_element_style_inputs[index].new {
+            InputValue::ElementStyleInput { reaction, .. } => Some(reaction),
+            _ => None,
+        }
+    }
+
     pub fn absorb_element_style_input(
         &mut self,
         node: StyleNodeID,
@@ -3209,6 +3223,7 @@ impl RetainedState {
             deferred_pseudo_elements: _,
             // Retires the whole batch at once, in `retire_elements`.
             tree: _,
+            hover,
             program: _,
             native_rules: _,
             declaration_block_version: _,
@@ -3337,6 +3352,7 @@ impl RetainedState {
             #[cfg(test)]
                 diagnostic_plan_capture: _,
         } = self;
+        hover.retire(node);
         winner_groups.remove(node);
         computed_group_sets.remove(node);
         nodes_with_substituted_records.remove(&node);

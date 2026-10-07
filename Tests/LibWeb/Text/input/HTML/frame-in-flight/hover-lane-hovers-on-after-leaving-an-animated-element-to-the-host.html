@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #spinner { width: 100px; height: 100px; animation: pulse 100s linear infinite; }
+    #spinner:hover { animation-duration: 50s; }
+    @keyframes pulse { to { background-color: rgb(0, 0, 255); } }
+    #box { width: 100px; height: 100px; outline: 1px solid rgb(0, 0, 255); }
+    #box:hover { width: 150px; outline-color: rgb(0, 128, 0); }
+</style>
+<div id="spinner"></div>
+<div id="box"></div>
+<script>
+    // A move to an element whose hover changes its animations is left to the host, which plans them, and the hover of
+    // the lease goes back to where it was: the lease hovers the next move, to another element, beside the task.
+    asyncTest(async done => {
+        const result = await whileHoverLeased(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            internals.injectHoverPointer(50, 150, frameTime + 32);
+            return { onScreen: internals.presentedBorderBox(box)?.width, presentedBy: internals.lastFramePresentedBy(document) };
+        });
+        println(`box width on screen: ${result.onScreen}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        await nextFrame();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        println(`spinner matches :hover: ${spinner.matches(":hover")}`);
+        done();
+    });
+</script>
