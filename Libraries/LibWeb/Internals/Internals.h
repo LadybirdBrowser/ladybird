@@ -237,6 +237,7 @@ public:
     void inject_hover_pointer(double x, double y, Optional<double> frame_time_ms);
     void move_hover_pointer(double x, double y);
     Utf16String clock_lane_state(DOM::Document&);
+    bool clock_lane_is_coming(DOM::Document&);
     GC::Ptr<Geometry::DOMRect> presented_border_box(DOM::Element&);
     Optional<String> presented_color(DOM::Element&);
     bool last_frame_keyboard_scroll_state_is_current();

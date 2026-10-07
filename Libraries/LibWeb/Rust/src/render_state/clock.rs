@@ -1492,16 +1492,28 @@ pub unsafe extern "C" fn document_host_release_clock_lane(host: &DocumentHost) {
     host.clock_ticks().release();
 }
 
-/// What the lane of the frame `host`'s document presented last does, once the render owner ran the jobs handed to it
-/// before. For a test.
+/// What the lane of the frame `host`'s document presented last does, once the lane of a frame presented by then has
+/// come together. For a test.
 ///
 /// # Safety
 ///
 /// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn document_host_clock_lane_state(host: &DocumentHost) -> FfiClockLaneState {
-    crate::stage_thread::style_layout_thread().run(|| ());
+    settle_lanes_for_testing();
     host.clock_ticks().lane_state()
+}
+
+/// Whether the lane of a frame `host`'s document sampled after the one it presented last has yet to come together, once
+/// the lane of a frame presented by then has come together. For a test.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_clock_lane_is_coming(host: &DocumentHost) -> bool {
+    settle_lanes_for_testing();
+    host.clock_ticks().published().awaits_lane
 }
 
 /// Hands the lanes of `host`'s document a tick at `frame_time_nanoseconds`, at which the compositor had scrolled to
