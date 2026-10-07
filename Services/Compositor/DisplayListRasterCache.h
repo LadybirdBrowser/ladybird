@@ -21,6 +21,7 @@
 #include <LibGfx/Size.h>
 
 class SkImage;
+class SkPath;
 class SkTextBlob;
 
 template<typename T>
@@ -76,12 +77,19 @@ public:
     sk_sp<SkImage> create_nested_display_list_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_list_space, Function<sk_sp<SkImage>()> const& rasterize);
     sk_sp<SkTextBlob> text_blob(Compositing::DisplayListResourceStorage const&, Compositing::FontResourceId, float scale, ReadonlySpan<Compositing::DisplayListGlyph>, u8 font_smoothing);
 
+    // The Skia path for a path that stays the same for as long as it has this identity. Keeping one Skia path lets
+    // the caches that are keyed on it work.
+    SkPath clip_path(u64 path_identity, Gfx::Path const&);
+    // Drops the clip paths that were not used since the last call.
+    void drop_clip_paths_not_used_since_last_frame();
+
 private:
     struct ImageFrameImage;
     struct VideoSinkImage;
     struct RepeatedTileRaster;
     struct NestedDisplayListRasters;
     struct TextBlob;
+    struct ClipPath;
 
     HashMap<u64, NonnullOwnPtr<ImageFrameImage>> m_image_frame_images;
     HashMap<u64, NonnullOwnPtr<VideoSinkImage>> m_video_sink_images;
@@ -92,6 +100,8 @@ private:
     HashMap<TextBlobCacheKey, NonnullOwnPtr<TextBlob>> m_text_blobs;
     size_t m_text_blob_cache_bytes { 0 };
     MonotonicTime m_text_blob_cache_sweep_time { MonotonicTime::now() };
+    HashMap<u64, NonnullOwnPtr<ClipPath>> m_clip_paths;
+    HashMap<u64, NonnullOwnPtr<ClipPath>> m_clip_paths_from_last_frame;
 };
 
 }

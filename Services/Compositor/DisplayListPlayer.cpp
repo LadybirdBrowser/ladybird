@@ -78,7 +78,7 @@ struct DisplayListPlayer::ReplayCallbacks {
                 return static_cast<DisplayListPlayer*>(context)->would_be_fully_clipped_by_painter(rect);
             },
             .push_clip = [](void* context, ReplayClip const* clip) { static_cast<DisplayListPlayer*>(context)->push_clip(*clip); },
-            .push_clip_path = [](void* context, void const* path, Gfx::WindingRule winding_rule) { static_cast<DisplayListPlayer*>(context)->push_clip_path(*static_cast<Gfx::Path const*>(path), winding_rule); },
+            .push_clip_path = [](void* context, void const* path, u64 path_identity, Gfx::WindingRule winding_rule) { static_cast<DisplayListPlayer*>(context)->push_clip_path(*static_cast<Gfx::Path const*>(path), path_identity, winding_rule); },
             .push_layer = [](void* context, ReplayLayer const* layer) { static_cast<DisplayListPlayer*>(context)->push_layer(*layer); },
             .push_mask = [](void* context, ReplayMask const* mask, ReplayLayer const* backdrop) { static_cast<DisplayListPlayer*>(context)->push_mask(*mask, backdrop); },
             .pop_mask = [](void* context, ReplayMask const* mask, EffectNodeIndex effect) { static_cast<DisplayListPlayer*>(context)->pop_mask(*mask, effect); },
@@ -91,7 +91,7 @@ struct DisplayListPlayer::ReplayCallbacks {
                 path.close();
                 static_cast<DisplayListPlayer*>(context)->push_device_space_plane_clip(path); },
             .push_transform = [](void* context, Gfx::AffineTransform const* transform) { static_cast<DisplayListPlayer*>(context)->push_transform(*transform); },
-            .push_clip_path_bytes = [](void* context, u8 const* path_bytes, size_t path_bytes_size, Gfx::WindingRule winding_rule) { static_cast<DisplayListPlayer*>(context)->push_clip_path(Gfx::Path::from_serialized_bytes({ path_bytes, path_bytes_size }), winding_rule); },
+            .push_clip_path_bytes = [](void* context, u8 const* path_bytes, size_t path_bytes_size, Gfx::WindingRule winding_rule) { static_cast<DisplayListPlayer*>(context)->push_clip_path_bytes({ path_bytes, path_bytes_size }, winding_rule); },
             .play_command = [](void* context, DisplayListCommandType command_type, u8 const* command, u8 const* payload, size_t payload_size) { static_cast<DisplayListPlayer*>(context)->play_command_bytes(command_type, command, { payload, payload_size }); },
         };
     }

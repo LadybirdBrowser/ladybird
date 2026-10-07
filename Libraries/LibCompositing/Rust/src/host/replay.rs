@@ -18,7 +18,8 @@ pub struct FfiDisplayListReplayCallbacks {
     pub set_matrix: unsafe extern "C" fn(*mut c_void, *const FloatMatrix4x4),
     pub would_be_fully_clipped_by_painter: unsafe extern "C" fn(*mut c_void, IntRect) -> bool,
     pub push_clip: unsafe extern "C" fn(*mut c_void, *const ReplayClip),
-    pub push_clip_path: unsafe extern "C" fn(*mut c_void, *const c_void, WindingRule),
+    /// Takes the path, the identity of the path, and the fill rule.
+    pub push_clip_path: unsafe extern "C" fn(*mut c_void, *const c_void, u64, WindingRule),
     pub push_layer: unsafe extern "C" fn(*mut c_void, *const ReplayLayer),
     // Arguments: the mask, and the layer whose backdrop filter the mask's layer starts with, or null.
     pub push_mask: unsafe extern "C" fn(*mut c_void, *const ReplayMask, *const ReplayLayer),
@@ -54,7 +55,7 @@ impl ReplayPainter for FfiDisplayListReplayCallbacks {
 
     fn push_clip_path(&mut self, path: &OwnedPath, winding_rule: WindingRule) {
         // SAFETY: The C++ painter reads the Gfx::Path synchronously; the tree keeps it alive.
-        unsafe { (self.push_clip_path)(self.context, path.as_raw(), winding_rule) };
+        unsafe { (self.push_clip_path)(self.context, path.as_raw(), path.identity(), winding_rule) };
     }
 
     fn push_layer(&mut self, layer: &ReplayLayer) {
