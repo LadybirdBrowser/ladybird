@@ -12,6 +12,12 @@ pub(crate) trait ShallowCapacityBytes {
     fn shallow_capacity_bytes(&self) -> u64;
 }
 
+impl<T: ShallowCapacityBytes + Clone> ShallowCapacityBytes for crate::fork::ForkShared<T> {
+    fn shallow_capacity_bytes(&self) -> u64 {
+        (**self).shallow_capacity_bytes()
+    }
+}
+
 impl<T: ShallowCapacityBytes + ?Sized> ShallowCapacityBytes for &T {
     fn shallow_capacity_bytes(&self) -> u64 {
         (**self).shallow_capacity_bytes()
