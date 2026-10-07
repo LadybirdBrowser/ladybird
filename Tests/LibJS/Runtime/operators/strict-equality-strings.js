@@ -74,3 +74,20 @@ test("constants and keys after garbage collection", () => {
     expect(Object.keys(object)[0] === "a property name that is long").toBeTrue();
     expect(Object.keys(object)[0] === "a property name that is short").toBeFalse();
 });
+
+test("every equality operator on constants and other strings", () => {
+    const built = ["al", "pha"].join("");
+    const compare = kind => [
+        kind === "beta",
+        kind !== "beta",
+        kind == "gamma",
+        kind != "gamma",
+        kind === built,
+        built == kind,
+        typeof kind === "string",
+        typeof kind !== "object",
+    ];
+    expect(compare("alpha")).toEqual([false, true, false, true, true, true, true, true]);
+    expect(compare("beta")).toEqual([true, false, false, true, false, false, true, true]);
+    expect(compare("gamma")).toEqual([false, true, true, false, false, false, true, true]);
+});

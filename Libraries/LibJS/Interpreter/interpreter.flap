@@ -588,7 +588,16 @@ inline fn equality_same_tag(
 
     let string_compare = || {
         guard lhs is not rhs else equal;
-        goto slow;
+        goto different_strings;
+    };
+
+    let different_strings = || @cold {
+        # Two different interned strings never have the same contents.
+        guard let Value<PrimitiveString>(lhs_string) = lhs else slow;
+        guard let Value<PrimitiveString>(rhs_string) = rhs else slow;
+        guard lhs_string.deferred_kind_and_flags has PRIMITIVE_STRING_INTERNED_FLAG else slow;
+        guard rhs_string.deferred_kind_and_flags has PRIMITIVE_STRING_INTERNED_FLAG else slow;
+        goto not_equal;
     };
 
     let fast_compare = || {
