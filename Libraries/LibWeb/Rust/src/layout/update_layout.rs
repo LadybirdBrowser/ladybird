@@ -469,7 +469,7 @@ impl FlownRound {
     }
 }
 
-/// The layout round each tick of a clock lease runs once it has shown the samples of the document's animations: the
+/// The layout round each tick of a clock lane runs once it has shown the samples of the document's animations: the
 /// document's facts, and a container length query that answers nothing, sealed where the clock's plan was, at the end of
 /// a rendering update that left the layout up to date.
 pub(crate) struct ClockRound {
@@ -531,7 +531,7 @@ impl ClockRound {
 /// counters or owes the host image resources, or a length only the host resolves.
 pub(crate) struct ClockRoundDeclined(pub(crate) &'static str);
 
-/// Seals the round the ticks of a clock lease of `document_host`'s document run, where its layout is up to date in
+/// Seals the round the ticks of a clock lane of `document_host`'s document run, where its layout is up to date in
 /// `read`.
 fn seal_clock_round(main_thread: &MainThread, document_host: &DocumentHost, read: &BegunRead) -> Option<ClockRound> {
     let host = document_host.host_tables().layout_update_host.get()?;
@@ -902,8 +902,6 @@ unsafe fn fly_first_round(
 unsafe fn take_flown_layout_in(main_thread: &MainThread, document_host: &DocumentHost, read: &BegunRead) -> bool {
     let host = layout_update_host(document_host);
     document_host.take_frame_in_with(read);
-    // SAFETY (for every pay below): Guaranteed by the caller.
-    document_host.pay_clock_rounds(|mut answer| unsafe { answer.pay(main_thread, document_host, read) });
     let Some(FlownRound {
         mut answer,
         rebuilds_tree,
@@ -911,6 +909,7 @@ unsafe fn take_flown_layout_in(main_thread: &MainThread, document_host: &Documen
     else {
         return false;
     };
+    // SAFETY (for every pay below): Guaranteed by the caller.
     unsafe { answer.pay(main_thread, document_host, read) };
     if rebuilds_tree && host.reconcile_stale_list_item_counters_after_tree_build(main_thread, &answer.rebuilt_roots) {
         return false;
@@ -959,8 +958,6 @@ unsafe fn update_layout(
         layout_pass += 1;
 
         host.update_style(main_thread, read);
-        // What the ticks of a clock lease the update ended laid out, the host pays before anything else of the update.
-        document_host.pay_clock_rounds(|mut answer| unsafe { answer.pay(main_thread, document_host, read) });
         // A round that flew in the frame the update took in is the update's first, which the host pays before
         // anything else of the update reads the layout.
         document_host.take_frame_in_with(read);

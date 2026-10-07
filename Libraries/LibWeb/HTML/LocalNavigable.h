@@ -333,11 +333,10 @@ public:
     void render_screenshot(NonnullRefPtr<Gfx::Bitmap> target, PaintConfig, Function<void()>&& callback);
     Compositing::DisplayListResourceStorage& display_list_resource_storage() { return presenter().display_list_resource_storage(); }
 
-    // Leases the active document's render state to the render clock as a task begins or the event loop goes idle. Where
-    // a lease runs, a task that begins lets it sample the animations it held. Otherwise the lease the host ended last
-    // takes up again, or one begins from the plan the last rendering update left, once the update's frame has landed.
-    // Answers whether the navigable may still lease later.
-    bool lease_clock(ClockAnimations);
+    // Tells the clock lanes of the active document whether a task begins or the event loop goes idle: a task that begins
+    // lets them sample the animations they held, at once. Answers whether the navigable still has lanes to tell.
+    bool note_clock_lane(ClockAnimations);
+    void arm_clock_lane(bool tick_now);
 
     // What this navigable presents to its compositor context from. Only the holder of the presenter presents, so frames
     // reach the compositor in the order they were made: a frame of the active document that holds it is taken in first,
@@ -453,9 +452,8 @@ private:
     struct RecordingInFlight;
 
     PaintConfig stamp_paint_config(PaintConfig) const;
-    Compositor::FlightPresentation take_presentation(DOM::Document&, Compositor::SealedPresentation);
+    Compositor::FlightPresentation take_presentation(Compositor::SealedPresentation);
     void commit_unrecorded_frame(Layout::BegunRead const&, DOM::Document&, Compositor::SealedPresentation);
-    void arm_clock_lease(Layout::RustFFI::ClockTicks const*, bool animates);
     Compositor::SealedPresentation seal_presentation(DOM::Document&, PaintConfig const&, bool records_display_list);
     void unseal_presentation(DOM::Document&, Compositor::SealedPresentation const&);
     void finish_recording_in_flight(RecordingInFlight&, Layout::RustFFI::FfiRecordingLanding, Layout::RustFFI::FfiPresentation);
@@ -622,9 +620,10 @@ private:
     i32 m_force_dark_foreground_threshold { default_force_dark_foreground_threshold };
     i32 m_force_dark_background_threshold { default_force_dark_background_threshold };
     bool m_should_show_caret_hit_test_debug_overlay { false };
-    // The navigable's presenter, and the document whose frame presents with it beside the event loop, if one does.
+    // The navigable's presenter, which what presents a frame of it beside the event loop shares, and how many frames a
+    // rendering update committed with it.
     NonnullRefPtr<Compositor::NavigablePresenter> m_presenter { Compositor::NavigablePresenter::create() };
-    GC::Ptr<DOM::Document> m_presenting_beside_event_loop;
+    u64 m_committed_generation { 0 };
     OwnPtr<Compositor::CompositorContextHandle> m_compositor_context;
     RefPtr<Core::Timer> m_async_scroll_hover_update_timer;
     Vector<PendingUserScrollendTarget> m_pending_user_scrollend_targets;

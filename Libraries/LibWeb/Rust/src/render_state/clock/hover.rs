@@ -4,17 +4,17 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! A clock lease's hover: the element under the pointer, which the render clock hears of from the compositor beside the
-//! mouse event the host takes, matches `:hover` once a tick of the lease finds it there, while the host runs a task.
+//! A clock lane's hover: the element under the pointer, which the render clock hears of from the compositor beside the
+//! mouse event the host takes, matches `:hover` in the frames the lane presents once a tick of the lane finds it there,
+//! while the host runs a task.
 //!
-//! The pointer reaches the lease on the render clock's thread. A tick hit tests where it went in the frame the lease
-//! presented last, with the scroll offsets and metrics the host sealed with the lease's plan, and moves the style
-//! engine's hover facts to the element it finds and its shadow-including ancestors, as the host would as it handles
-//! the move. The host fires the move's events once it handles it, and finds the engine's facts already there.
+//! The pointer reaches the lane on the render clock's thread. A tick hit tests where it went in the frame the lane
+//! presented last, with the scroll offsets and metrics the host sealed with the lane's plan, and moves the hover facts
+//! of the lane's fork of the style engine to the element it finds and its shadow-including ancestors, as the host would
+//! as it handles the move. The host hovers the move in its own state as it handles it, or as the lanes' report says.
 
-use super::{LeaseLanding, RenderState, TickRecording, WaitsForTickRecording};
+use super::{Lane, RenderState, TickRecording, WaitsForTickRecording};
 use crate::css::css_pixels::{CssPixelPoint, CssPixels};
-use crate::css::style::engine_calls::DeferredInput;
 use crate::css::style::hover_lane::{HoverBoxRebuild, HoverInstall, hover_row_generated_for};
 use crate::css::style::style_job::SealedStyleInputs;
 use crate::css::style::tree::StyleNodeID;
@@ -22,7 +22,7 @@ use crate::css::transition::HoverTransitions;
 use crate::layout::node_data::{
     GENERATED_FOR_AFTER, GENERATED_FOR_BEFORE, GENERATED_FOR_MARKER, NodeFlag, NodeKind, NodeSlotId,
 };
-use crate::layout::tree_mutation::{HostCalls, HostWorkDue, OwedHostWork};
+use crate::layout::tree_mutation::{HostCalls, OwedHostWork};
 use crate::painting::ffi::FfiChromeMetrics;
 use crate::painting::hit_test::{HitTestItemKind, HitTestList};
 use crate::painting::host::FfiHitTestQueryCallbacks;
@@ -30,7 +30,7 @@ use crate::stage_thread::Riding;
 use libgfx_rust::FloatPoint;
 use std::sync::Arc;
 
-/// What the host seals for a clock lease's hover with the plan, at the end of a rendering update.
+/// What the host seals for a clock lane's hover with the plan, at the end of a rendering update.
 #[repr(C)]
 pub struct FfiHoverPlanInputs {
     pub device_pixels_per_css_pixel: f64,
@@ -98,7 +98,7 @@ impl Drop for PageCursor {
     }
 }
 
-/// What a lease's ticks hit test and restyle with, sealed with the clock plan at the end of a rendering update.
+/// What a lane's ticks hit test and restyle with, sealed with the clock plan at the end of a rendering update.
 pub(crate) struct HoverPlan {
     device_pixels_per_css_pixel: f64,
     /// The scroll offsets of the frame the rendering update presented, in device pixels, by scroll frame.
@@ -151,64 +151,58 @@ pub(crate) struct PendingPointer {
     pub(crate) position: Option<FloatPoint>,
     /// The mouse buttons held.
     pub(crate) buttons: u32,
-    /// Whether the compositor scrolled since the frame the lease presented last.
+    /// Whether the compositor scrolled since the frame the lane presented last.
     pub(crate) scrolled_since_frame: bool,
 }
 
-/// What a lease wants once it heard where the pointer went, as the render clock reads it.
+/// What the lanes want once they heard where the pointer went, as the render clock reads it.
 #[repr(u8)]
 pub(crate) enum PointerAnswer {
-    /// Nothing more: the lease ended, or follows no pointer.
-    Disarm = 0,
+    /// The moves that follow, but no display tick: no lane hovers the move, which the host does.
+    Moves = 1,
     /// Display ticks, the next of which may hover where the pointer went.
     Ticks = 2,
 }
 
-/// The pointer as the render clock's thread hands it to a lease, until a tick takes it.
+/// The pointer as the render clock's thread hands it to the lanes, until a tick takes it.
+#[derive(Default)]
 pub(crate) struct PointerState {
-    parked: bool,
     pending: Option<PendingPointer>,
+    /// Where the pointer went last, which the next lane hovers as it comes together.
+    last: Option<PendingPointer>,
 }
 
 impl PointerState {
-    pub(crate) fn new(follows: bool) -> Self {
-        Self {
-            parked: !follows,
-            pending: None,
-        }
-    }
-
-    /// Has the next tick hover where the pointer went, and answers what the lease wants next.
-    pub(super) fn moved(&mut self, pointer: PendingPointer) -> PointerAnswer {
-        if self.parked {
-            return PointerAnswer::Disarm;
+    /// Has the next tick hover where the pointer went, where a lane `follows` the pointer, and answers what the lanes
+    /// want next.
+    pub(super) fn moved(&mut self, pointer: PendingPointer, follows: bool) -> PointerAnswer {
+        self.last = Some(pointer);
+        if !follows {
+            return PointerAnswer::Moves;
         }
         self.pending = Some(pointer);
         PointerAnswer::Ticks
     }
 
+    /// Where the pointer went last.
+    pub(super) fn last(&self) -> Option<PendingPointer> {
+        self.last
+    }
+
     /// Takes the move that waits for a tick to hover it.
     pub(super) fn take(&mut self) -> Option<PendingPointer> {
-        if self.parked {
-            return None;
-        }
         self.pending.take()
     }
 
     /// Whether a move waits for a tick to hover it.
     pub(super) fn waits(&self) -> bool {
-        !self.parked && self.pending.is_some()
-    }
-
-    pub(super) fn park(&mut self) {
-        self.parked = true;
-        self.pending = None;
+        self.pending.is_some()
     }
 }
 
-/// What a lease's hover did, which the host takes in as it lands.
+/// What a lane's hover did.
 #[derive(Default)]
-pub(crate) struct LeaseHover {
+pub(crate) struct LaneHover {
     parked: bool,
     /// The element the hover moved the style's hover to, or nothing; none where it moved nothing.
     pub(crate) target: Option<Option<StyleNodeID>>,
@@ -216,22 +210,13 @@ pub(crate) struct LeaseHover {
     /// context.
     pub(crate) pointer: Option<FloatPoint>,
     /// The rows the hover's transactions installed, the last one for each element, in the order the elements were
-    /// first installed, which the host installs on its elements.
+    /// first installed, whose records the engine keeps for the boxes that show them.
     pub(crate) installs: Vec<HoverInstall>,
-    /// What installing the rows in the boxes owes the host.
-    pub(crate) work: Vec<HostWorkDue>,
-    /// The style node identities the ends of the hover's transactions released, which the host mints again.
-    pub(crate) released: Vec<u32>,
-    /// The element style inputs the engine defers as the hover left it, where they moved.
-    pub(crate) deferred: Option<Vec<DeferredInput>>,
     /// The transitions the hover's rows started, which the ticks sample until they end, and which the host starts in
     /// its turn, from the time they started here.
     pub(crate) transitions: Vec<ProvisionalTransitions>,
-    /// The elements whose rows owed the transition step and started no transition, and when, in the document's
-    /// milliseconds, whose step the host runs in its turn.
-    pub(crate) steps: Vec<(StyleNodeID, f64)>,
-    /// The element the pointer moved to last whose hover the lease left to the host, or none for the pointer leaving
-    /// the document: the lease hovers nothing until the pointer moves to another.
+    /// The element the pointer moved to last whose hover the lane left to the host, or none for the pointer leaving
+    /// the document: the lane hovers nothing until the pointer moves to another.
     left_to_host: Option<Option<StyleNodeID>>,
 }
 
@@ -243,7 +228,7 @@ pub(crate) struct ProvisionalTransitions {
     ended: bool,
 }
 
-impl LeaseHover {
+impl LaneHover {
     pub(super) fn is_parked(&self) -> bool {
         self.parked
     }
@@ -310,18 +295,29 @@ struct CursorHit {
     in_text: bool,
 }
 
-/// Why a hover moved nothing the lease presents.
+/// Why a hover moved nothing the lane presents.
 /// Whose style inputs a hover's transaction may take with it.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum HoverInputs {
     /// None but the hover's: the host left nothing pending.
     TheHostsAlone,
-    /// Those a move the lease moved back left pending too.
-    TheLeasesToo,
+    /// Those a move the lane moved back left pending too.
+    TheLanesToo,
+}
+
+/// What a lane's hover made of a pointer move.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum Hovered {
+    /// It moved the hover, which the lane lays out and presents.
+    Moved,
+    /// The pointer stays over the element the hover is on: nothing is anybody's to do.
+    Same,
+    /// It moved nothing the lane presents, and the host hovers what is under the pointer as it handles the move.
+    LeftToHost,
 }
 
 enum HoverDeclined {
-    /// The move needs the host, which hovers it as it handles the move: the lease hovers nothing more.
+    /// The move needs the host, which hovers it as it handles the move: the lane hovers nothing more.
     Park(&'static str),
     /// The move hovers nothing new.
     Unmoved(&'static str),
@@ -329,13 +325,13 @@ enum HoverDeclined {
     Same,
 }
 
-/// Whether a lease's hover tells what it did on the standard error, for a developer: LIBWEB_HOVER_LANE_LOG=1.
+/// Whether a lane's hover tells what it did on the standard error, for a developer: LIBWEB_HOVER_LANE_LOG=1.
 pub(super) fn logs_hover() -> bool {
     static LOGS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *LOGS.get_or_init(|| std::env::var_os("LIBWEB_HOVER_LANE_LOG").is_some_and(|value| value == "1"))
 }
 
-/// The transform reference box of the box of the element `node` names, as the frame the lease presented last laid it
+/// The transform reference box of the box of the element `node` names, as the frame the lane presented last laid it
 /// out, if it has one.
 fn transform_reference_box(
     arena: &crate::layout::LayoutNodeArena,
@@ -348,13 +344,13 @@ fn transform_reference_box(
     crate::painting::ffi::committed_transform_reference_box(&arena.paintable_rows(), row)
 }
 
-impl LeaseLanding {
+impl Lane {
     /// Hovers the element under `pointer`, and answers whether that moved anything to lay out and present.
-    pub(super) fn hover(&mut self, state: &mut RenderState, pointer: PendingPointer, timestamp: f64) -> bool {
+    pub(super) fn hover(&mut self, state: &mut RenderState, pointer: PendingPointer, timestamp: f64) -> Hovered {
         // A scroll the host has not laid out moved what is under the pointer, and a held button drags or selects,
         // which only the host follows.
         let Some(plan) = self.plan.hover.take() else {
-            return false;
+            return Hovered::LeftToHost;
         };
         let started = std::time::Instant::now();
         // A scroll of the compositor's since the frame moved what is under the pointer, which only a tick that said where
@@ -391,11 +387,12 @@ impl LeaseLanding {
             );
         }
         match hovered {
-            Ok(()) => true,
-            Err(HoverDeclined::Unmoved(_) | HoverDeclined::Same) => false,
+            Ok(()) => Hovered::Moved,
+            Err(HoverDeclined::Same) => Hovered::Same,
+            Err(HoverDeclined::Unmoved(_)) => Hovered::LeftToHost,
             Err(HoverDeclined::Park(_)) => {
                 self.hovered.park();
-                false
+                Hovered::LeftToHost
             }
         }
     }
@@ -419,7 +416,7 @@ impl LeaseLanding {
             // The pointer left the document, which the host hovers nothing in once it handles the leave.
             None => None,
         };
-        // A move to the element whose hover the lease left to the host leaves the hover where it is.
+        // A move to the element whose hover the lane left to the host leaves the hover where it is.
         if self.hovered.left_to_host == Some(target) {
             return Err(HoverDeclined::Unmoved("left to the host"));
         }
@@ -440,7 +437,7 @@ impl LeaseLanding {
         ) {
             Err(HoverDeclined::Park(reason)) => {
                 // The move needs the host, which hovers it as it handles the move. Moving the hover back to where it
-                // was leaves the boxes as the screen shows them, and the lease hovers the moves after it.
+                // was leaves the boxes as the screen shows them, and the lane hovers the moves after it.
                 let (engine_target, target_before, pointer_before) = previous;
                 if self
                     .move_hover_to(
@@ -449,7 +446,7 @@ impl LeaseLanding {
                         engine_target,
                         pointer_before,
                         timestamp,
-                        HoverInputs::TheLeasesToo,
+                        HoverInputs::TheLanesToo,
                     )
                     .is_err()
                 {
@@ -468,7 +465,7 @@ impl LeaseLanding {
     }
 
     /// Moves the style's hover to `target`, as the pointer at `position` hovers it, and installs what that moves in the
-    /// boxes. `inputs` says whether the style inputs pending may be the lease's own, which a hover it moved back left.
+    /// boxes. `inputs` says whether the style inputs pending may be the lane's own, which a hover it moved back left.
     fn move_hover_to(
         &mut self,
         state: &mut RenderState,
@@ -579,7 +576,7 @@ impl LeaseLanding {
                 .any(|row| self.hovered.transitions_run_on(row.style_node));
             // A move back to where a hover left to the host found the hover moves each element back to the record the
             // host holds, which its boxes show: nothing is the host's to do, and the boxes stay as they are.
-            let settles_back = inputs == HoverInputs::TheLeasesToo && {
+            let settles_back = inputs == HoverInputs::TheLanesToo && {
                 let (engine, arena) = state.engine_and_arena();
                 wave.element_rows().all(|(row, pseudo_rows)| {
                     (engine.hover_row_returns_to_held_record(&row) || arena.hover_row_box_shows_its_record(&row, 0))
@@ -616,8 +613,7 @@ impl LeaseLanding {
                 }
                 // What the wave answered is the host's to install, as is everything that follows from it: the boxes
                 // show a move half made, which no tick presents until the host has made the rest.
-                let released = state.engine_mut().abandon_hover_wave(&mut wave);
-                self.hovered.released.extend(released);
+                state.engine_mut().abandon_hover_wave(&mut wave);
                 self.parked = true;
                 return Err(HoverDeclined::Park(if wave.installable {
                     "a box the host styles"
@@ -628,7 +624,7 @@ impl LeaseLanding {
             let installs = state.engine_mut().install_hover_wave(&wave);
             let arena = state.arena.arena();
             let work = OwedHostWork::default();
-            // The installs cannot call the host, which hears of the boxes they touched once the lease lands.
+            // The installs cannot call the host, which never hears of the boxes of the lane's fork they touched.
             arena.queue_box_presence();
             for install in installs.iter().filter(|_| !settles_back) {
                 // The build of a box built again takes the record.
@@ -642,7 +638,8 @@ impl LeaseLanding {
                     }
                 }
             }
-            self.hovered.work.push(work.resolve(arena));
+            // NB: What the installs owe is the fork's, which no host pays: resolving it ends the queue of box presence.
+            drop(work.resolve(arena));
             if !settles_back {
                 rebuilt_elements.extend(rebuilds);
             }
@@ -660,23 +657,13 @@ impl LeaseLanding {
                     ended: false,
                 });
             }
-            if !settles_back {
-                self.hovered
-                    .steps
-                    .extend(wave.steps.drain(..).map(|node| (node, timestamp)));
-            }
             let engine = state.engine_mut();
             self.hovered.keep_installs(engine, installs);
             if !engine.has_pending_transaction() {
                 break;
             }
         }
-        let engine = state.engine_mut();
-        let released = engine.end_hover_transaction();
-        self.hovered.released.extend(released);
-        if let Some(deferred) = engine.take_moved_deferred_element_style_inputs() {
-            self.hovered.deferred = Some(deferred);
-        }
+        state.engine_mut().end_hover_transaction();
         // The build of an element built again reads the records the hover moved it and the elements below it to, in
         // place of those the host holds, which the engine derives once the transactions have settled. What only the host
         // builds leaves the move for it to finish, and no tick presents it until then.
@@ -694,18 +681,15 @@ impl LeaseLanding {
                 }
                 Err(_) => Err("boxes only the host builds"),
             };
-            match marked {
-                Ok(landing) => self.built.build_again_on_landing(state.arena.arena(), landing),
-                Err(reason) => {
-                    if logs_hover() {
-                        eprintln!(
-                            "hover lane: boxes of style node {} left to the host: {reason}",
-                            node.raw()
-                        );
-                    }
-                    self.parked = true;
-                    return Err(HoverDeclined::Park("a box the host builds"));
+            if let Err(reason) = marked {
+                if logs_hover() {
+                    eprintln!(
+                        "hover lane: boxes of style node {} left to the host: {reason}",
+                        node.raw()
+                    );
                 }
+                self.parked = true;
+                return Err(HoverDeclined::Park("a box the host builds"));
             }
         }
         if started_transitions {
@@ -826,14 +810,14 @@ impl LeaseLanding {
         }
     }
 
-    /// Hit tests `position`, in device pixels, in the frame the lease presented last.
+    /// Hit tests `position`, in device pixels, in the frame the lane presented last.
     fn hit_test(
         &mut self,
         state: &mut RenderState,
         plan: &HoverPlan,
         position: FloatPoint,
     ) -> Result<HoverTarget, HoverDeclined> {
-        // The hit-test list is the one of the frame the lease presented last, which comes back with its recording.
+        // The hit-test list is the one of the frame the lane presented last, which comes back with its recording.
         let recorder = self.recording.0.take(WaitsForTickRecording(()));
         let published = recorder.recorder.published_hit_test_items.clone();
         self.recording = TickRecording(Riding::landed(recorder));
@@ -1030,8 +1014,8 @@ fn cursor_for_hit(state: &mut RenderState, hit: CursorHit) -> Option<u8> {
     })
 }
 
-/// Hands the clock lease `ticks` belong to where the pointer went: to `x`, `y` in device pixels where `has_position`,
-/// or out of the context, and answers what the lease wants next, as a `PointerAnswer`.
+/// Hands the clock lane `ticks` belong to where the pointer went: to `x`, `y` in device pixels where `has_position`,
+/// or out of the context, and answers what the lane wants next, as a `PointerAnswer`.
 ///
 /// # Safety
 ///
@@ -1054,27 +1038,24 @@ pub unsafe extern "C" fn clock_ticks_pointer_moved(
     }) as u8
 }
 
-/// Hands the clock lease of `host`'s document, where one runs, a pointer move to `x`, `y` in device pixels, as the
-/// compositor would, which the next tick hovers. For a test, whose clock ticks only where it injects them.
+/// Hands the clock lanes of `host`'s document a pointer move to `x`, `y` in device pixels, as the compositor would,
+/// which the next tick hovers. For a test, whose clock ticks only where it injects them.
 ///
 /// # Safety
 ///
 /// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn document_host_move_pointer(host: &crate::render_state::DocumentHost, x: f32, y: f32) {
-    let Some(ticks) = host.clock_ticks() else {
-        return;
-    };
-    let _ = ticks.pointer_moved(PendingPointer {
+    let _ = host.clock_ticks().pointer_moved(PendingPointer {
         position: Some(FloatPoint { x, y }),
         buttons: 0,
         scrolled_since_frame: false,
     });
 }
 
-/// Hands the clock lease of `host`'s document, where one runs, a pointer move to `x`, `y` in device pixels, ticks it at
+/// Hands the clock lanes of `host`'s document a pointer move to `x`, `y` in device pixels, ticks them at
 /// `frame_time_nanoseconds`, and waits until the StyleLayout thread has run the tick and the Paint thread the recording
-/// of the frame it presents, without ending the lease. For a test.
+/// of the frame it presents. For a test.
 ///
 /// # Safety
 ///
@@ -1086,10 +1067,8 @@ pub unsafe extern "C" fn document_host_inject_pointer(
     y: f32,
     frame_time_nanoseconds: i64,
 ) {
-    let Some(ticks) = host.clock_ticks() else {
-        return;
-    };
-    ticks.inject_pointer(
+    super::settle_lanes_for_testing();
+    host.clock_ticks().inject_pointer(
         PendingPointer {
             position: Some(FloatPoint { x, y }),
             buttons: 0,
@@ -1097,6 +1076,5 @@ pub unsafe extern "C" fn document_host_inject_pointer(
         },
         frame_time_nanoseconds,
     );
-    crate::stage_thread::style_layout_thread().run(|| ());
-    crate::paint_stage::paint_thread().run(|| ());
+    super::settle_lanes_for_testing();
 }

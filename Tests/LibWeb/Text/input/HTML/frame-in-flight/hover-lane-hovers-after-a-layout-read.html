@@ -8,26 +8,22 @@
 </style>
 <div id="box"></div>
 <script>
-    // A task that reads the layout of the document ends the lease the last rendering update planned, and writes nothing
-    // the screen does not show. A task after it, a display frame later, leases the render state again, and hovers beside
-    // the task.
+    // A task that reads the layout of the document writes nothing the screen does not show: the lane of the presented
+    // frame goes on following the pointer beside it, and beside the tasks after it, and hovers.
     asyncTest(async done => {
         const result = await whileHoverLeased(async frameTime => {
             const before = internals.clockLeaseState(document);
             const width = box.offsetWidth;
             const afterRead = internals.clockLeaseState(document);
-            // Tasks plan for a lease again once per display frame at most.
-            const start = performance.now();
-            while (performance.now() - start < 17) { }
             await nextTask();
             const nextTaskBegins = internals.clockLeaseState(document);
             internals.injectHoverPointer(50, 50, frameTime + 16);
             return { before, width, afterRead, nextTaskBegins, onScreen: internals.presentedBorderBox(box)?.width };
         });
-        println(`lease as the first task begins: ${result.before}`);
+        println(`lane as the first task begins: ${result.before}`);
         println(`box width read: ${result.width}`);
-        println(`lease after the read: ${result.afterRead}`);
-        println(`lease as the next task begins: ${result.nextTaskBegins}`);
+        println(`lane after the read: ${result.afterRead}`);
+        println(`lane as the next task begins: ${result.nextTaskBegins}`);
         println(`box width on screen: ${result.onScreen}`);
         done();
     });

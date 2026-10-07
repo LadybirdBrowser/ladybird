@@ -155,17 +155,6 @@ static bool runs_on_compositor(Animations::KeyframeEffect const& effect)
     return effect.is_compositor_driven() || effect.is_compositor_replaced();
 }
 
-bool runs_animations_for_clock_plan(DOM::Document const& document)
-{
-    return any_of(document.associated_animation_timelines(), [](auto const& timeline) {
-        bool const on_scroll_timeline = is<Animations::ScrollTimeline>(*timeline);
-        return any_of(timeline->associated_animations(), [&](auto const& animation) {
-            auto const* effect = as_if<Animations::KeyframeEffect>(animation.effect().ptr());
-            return runs_for_clock_plan(animation, on_scroll_timeline) && effect && !runs_on_compositor(*effect);
-        });
-    });
-}
-
 // Whether the render clock may hover what is under the pointer while a task runs. LIBWEB_HOVER_LANE=0 turns it off.
 bool hover_lane_is_enabled()
 {
@@ -223,7 +212,7 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, bool may_animate)
                 if (scroll_timeline && !scroll_timeline->followed_scroller().has_value())
                     return false;
                 // What the compositor runs, or what the main thread does not sample per frame either, a tick does not
-                // sample: the lease only stops at its events.
+                // sample: the lane only stops at its events.
                 bool const tick_samples = !runs_on_compositor(effect) && !effect.can_skip_per_frame_style_update();
                 if (tick_samples && !tick_can_sample(document, effect, target, read))
                     return false;
@@ -278,7 +267,7 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, bool may_animate)
             deadline = AK::Infinity<double>;
             last_end = -AK::Infinity<double>;
         }
-        // The lease's ticks may also follow the pointer, and hover what is under it while a task runs.
+        // The lane's ticks may also follow the pointer, and hover what is under it while a task runs.
         Optional<Layout::RustFFI::FfiHoverPlanInputs> hover;
         Span<Gfx::FloatPoint const> scroll_offsets;
         if (hover_lane_is_enabled() && document.is_fully_active() && !document.hidden() && document.window()) {

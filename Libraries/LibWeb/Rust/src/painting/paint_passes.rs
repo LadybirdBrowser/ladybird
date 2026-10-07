@@ -12,7 +12,6 @@ use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::{FfiVisualContextTreeInputs, FfiVisualContextUpdateOutcome, RootBackgroundSource};
 use crate::painting::paint_read::PaintRead;
-use crate::painting::presentation::Presentation;
 use crate::painting::svg_paint_resources::{PublishedSvgFilter, PublishedSvgPaintServer, SvgPaintResourceKind};
 use crate::painting::visual_context::dirty::VisualContextUpdateScope;
 use crate::painting::visual_context::incremental::{
@@ -71,14 +70,12 @@ pub(crate) struct ClockTickVisualContexts {
 /// Brings the paint state of `arena` up to date with what a clock tick's round laid out, for the tick's frame, as the
 /// host's rendering update does before it records, where the round moved no root background, flipped no scrollability
 /// and asks the host to resolve no SVG paint resource, and the update changes the tree incrementally. Answers the tree
-/// where the update ran, which `presentation` notes at once: the host records the document again where the tick parks
-/// before presenting it. A tree of a new structure takes over the compositor animations the host published for the old
+/// where the update ran. A tree of a new structure takes over the compositor animations the host published for the old
 /// one, whose nodes it holds still. The rest of paint preparation, the scroll offsets new overflow clamps above all, is
-/// the host's, once the lease lands.
+/// the host's, in its next rendering update.
 pub(crate) fn prepare_for_clock_tick(
     arena: &mut LayoutNodeArena,
     viewport: NodeSlotId,
-    presentation: &mut Presentation,
 ) -> Result<Option<ClockTickVisualContexts>, VisualContextsNeedHost> {
     // Recording reads overflow, and measuring it notes a flip in scrollability for the check below.
     arena.measure_scrollable_overflow();
@@ -105,7 +102,6 @@ pub(crate) fn prepare_for_clock_tick(
         (inputs, tree.shared_visual_animations())
     };
     let outcome = update_accumulated_visual_contexts(arena, viewport, inputs);
-    presentation.note_visual_context_tree_changed();
     if outcome.performed_full_build {
         return Err(VisualContextsNeedHost("a full visual context tree build"));
     }

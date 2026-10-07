@@ -69,12 +69,6 @@ pub(crate) struct TaskBoundary {
     not_send_or_sync: PhantomData<*const ()>,
 }
 
-/// The start of a task of the host's event loop, where a clock lease begins: only there, so a lease never begins inside
-/// a task. It stays on the host's thread.
-pub(crate) struct TaskStart {
-    not_send_or_sync: PhantomData<*const ()>,
-}
-
 mod private {
     pub trait ScriptEntry {}
     pub trait LockstepReason {}
@@ -192,15 +186,6 @@ impl TaskBoundary {
     }
 }
 
-impl TaskStart {
-    /// The start of the task at which the event loop calls the entry `_` marks.
-    pub(crate) fn at_event_loop_entry(_: &impl EventLoopEntry) -> Self {
-        Self {
-            not_send_or_sync: PhantomData,
-        }
-    }
-}
-
 /// What a wait for a frame in flight spends: the forced read of a script API call, a read the host began, or the host's
 /// teardown of its document. Only a [`RenderWait`] makes one, but for the teardown.
 pub(crate) struct ForcedRead {
@@ -279,8 +264,6 @@ impl private::EventLoopEntry for crate::painting::ffi::TakesFinishedRecordingIn 
 impl EventLoopEntry for crate::painting::ffi::TakesFinishedRecordingIn {}
 impl private::EventLoopEntry for crate::css::style::style_job::TakesFinishedStyleIn {}
 impl EventLoopEntry for crate::css::style::style_job::TakesFinishedStyleIn {}
-impl private::EventLoopEntry for super::clock::LeasesClockForTask {}
-impl EventLoopEntry for super::clock::LeasesClockForTask {}
 
 #[cfg(test)]
 mod tests {
@@ -307,10 +290,5 @@ mod tests {
     #[test]
     fn a_task_boundary_is_not_send() {
         <TaskBoundary as AmbiguousIfSend<_>>::marker();
-    }
-
-    #[test]
-    fn a_task_start_is_not_send() {
-        <TaskStart as AmbiguousIfSend<_>>::marker();
     }
 }

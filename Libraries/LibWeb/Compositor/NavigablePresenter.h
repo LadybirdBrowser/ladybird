@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
+#include <AK/Mutex.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
@@ -31,14 +32,16 @@ struct FfiPresentedRecording;
 
 namespace Web::Compositor {
 
-// A display list a recording published, and whether the recording made it the next one's paint command cache source.
+// A display list a recording published, whether the recording made it the next one's paint command cache source, and
+// the resources it references, once it is presented.
 struct PublishedDisplayList {
     NonnullRefPtr<Compositing::DisplayList> display_list;
     bool replaces_paint_command_cache_source { false };
+    Compositing::DisplayListResourceSet referenced_resources;
 };
 
-// What presented a navigable's last frame: the recording of a frame a rendering update committed, or a tick of a clock
-// lease.
+// What presented a navigable's last frame: the recording of a frame a rendering update committed, or a tick of the
+// document's clock lane.
 enum class PresentedBy : u8 {
     Commit,
     Clock,
@@ -67,17 +70,17 @@ struct SealedPresentation {
 
     // For frames presented beside the event loop: the recording they publish, sealed where the recording began, where
     // they go and the rect they are presented in, what presents them, and, once one is presented, the display list it
-    // published. A clock lease presents a frame from the seal at each tick that records one.
+    // published. A clock lane presents a frame from the seal at each tick that records one.
     Optional<Painting::DisplayListRecording> recording;
     Web::CompositorContextId context_id;
     Optional<Gfx::IntRect> present_viewport_rect;
     PresentedBy presented_by { PresentedBy::Commit };
     Optional<PublishedDisplayList> published;
-    // Whether a tick of a clock lease changed the document's visual context tree, which the host records again where no
-    // tick published a frame.
-    bool visual_context_tree_changed { false };
     // Whether the frame sends a visual context tree the compositor's display list was not recorded against, for a test.
     bool visual_context_tree_mismatches_for_testing { false };
+    // The frame a rendering update committed, counted per navigable, or the one a clock lane's frames start from: a
+    // lane's frame of an older one than the presenter presented last shows what the screen no longer shows.
+    u64 generation { 0 };
 };
 
 // The display lists of the SVG images a frame renders, which the main thread renders for the frame into a resource
@@ -90,7 +93,9 @@ struct VectorImageResources {
 
 // What a navigable presents to its compositor context from: the resource storage its recordings add to, and the
 // display list the compositor context holds with the resources it holds for it. The navigable and what presents a frame
-// of it beside the event loop share it. The presenter holds no GC pointer.
+// of it beside the event loop share it: the Paint thread presents, and the main thread reads what it presented. Only the
+// Paint thread reaches the resource storage, but for a recording of the main thread's own, which holds the document's
+// clock lane meanwhile. The presenter holds no GC pointer.
 class WEB_API NavigablePresenter : public AtomicRefCounted<NavigablePresenter> {
     AK_MAKE_NONCOPYABLE(NavigablePresenter);
     AK_MAKE_NONMOVABLE(NavigablePresenter);
@@ -104,15 +109,36 @@ public:
     Compositing::DisplayListResourceStorage const& display_list_resource_storage() const { return m_resource_storage; }
 
     // The display list the compositor context holds, and the paint config it was recorded with.
-    RefPtr<Compositing::DisplayList> const& compositor_display_list() const { return m_compositor_display_list; }
-    Optional<HTML::PaintConfig> const& compositor_display_list_paint_config() const { return m_compositor_display_list_paint_config; }
+    RefPtr<Compositing::DisplayList> compositor_display_list() const
+    {
+        MutexLocker locker(m_mutex);
+        return m_compositor_display_list;
+    }
+    Optional<HTML::PaintConfig> compositor_display_list_paint_config() const
+    {
+        MutexLocker locker(m_mutex);
+        return m_compositor_display_list_paint_config;
+    }
 
     // Forgets what the compositor context holds: a new compositor process holds nothing.
     void forget_compositor_display_list();
 
-    Optional<PresentedBy> last_frame_presented_by() const { return m_last_frame_presented_by; }
+    Optional<PresentedBy> last_frame_presented_by() const
+    {
+        MutexLocker locker(m_mutex);
+        return m_last_frame_presented_by;
+    }
     // The generation of the keyboard scroll state the last frame handed the compositor, if it handed one.
-    Optional<u64> last_keyboard_scroll_state_generation() const { return m_last_keyboard_scroll_state_generation; }
+    Optional<u64> last_keyboard_scroll_state_generation() const
+    {
+        MutexLocker locker(m_mutex);
+        return m_last_keyboard_scroll_state_generation;
+    }
+
+    // The seal a clock lane presents its frames with, which start from `committed`, the frame presented last, or none where
+    // the compositor shows another display list than the one that frame records from: the lane's recordings copy paint
+    // commands from it. On the Paint thread.
+    OwnPtr<SealedPresentation> seal_for_clock_lane(SealedPresentation const& committed) const;
 
 private:
     // Only the Paint thread builds and presents frames.
@@ -129,6 +155,8 @@ private:
 
     NavigablePresenter() = default;
 
+    // Guards what the main thread reads of what the Paint thread presented.
+    mutable Mutex m_mutex;
     Compositing::DisplayListResourceStorage m_resource_storage;
     Optional<HTML::PaintConfig> m_compositor_display_list_paint_config;
     RefPtr<Compositing::DisplayList> m_compositor_display_list;
@@ -137,6 +165,13 @@ private:
     Compositing::DisplayListResourceSet m_compositor_display_list_command_resources;
     Optional<PresentedBy> m_last_frame_presented_by;
     Optional<u64> m_last_keyboard_scroll_state_generation;
+    // The visual context tree the compositor's display list goes with, which a clock lane's recordings are cut from.
+    Optional<Compositing::AccumulatedVisualContextTree> m_compositor_visual_context_tree;
+    // The generation of the last frame a rendering update committed that the presenter presented.
+    u64 m_last_committed_generation { 0 };
+    // What the display list of the last frame a rendering update committed references, which the frames of a clock lane
+    // keep beside their own.
+    Compositing::DisplayListResourceSet m_committed_command_resources;
 };
 
 // A navigable's presenter and a frame sealed for it, which what presents the frame beside the event loop holds until it
@@ -151,9 +186,9 @@ struct FlightPresentation {
 // What a recording that presents beside the event loop reaches of its presenter and seal, which it owns meanwhile.
 extern "C" {
 WEB_API void web_navigable_presenter_unref(void* presenter);
+WEB_API void* web_navigable_presenter_seal_for_clock_lane(void* presenter, void const* committed);
 WEB_API void web_sealed_presentation_destroy(void* sealed);
 WEB_API void web_sealed_presentation_take_visual_context_tree(void* sealed, void const* tree, Gfx::FloatPoint const* restructured_scroll_offsets, size_t scroll_offset_count);
-WEB_API void web_sealed_presentation_note_visual_context_tree_changed(void* sealed);
 WEB_API void web_navigable_presenter_add_font(void* presenter, void const* font);
 WEB_API void web_navigable_presenter_add_image_frame(void* presenter, void const* frame);
 WEB_API void web_navigable_presenter_add_video_sink(void* presenter, u64 resource_id, u64 sink_handle);

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    main { display: grid; grid-template-columns: repeat(24, 20px); grid-auto-rows: 20px; gap: 2px; padding: 6px; }
+    .px { border-radius: 2px; background-color: #161a24; transition: background-color 1.6s ease-out, border-radius 1.6s ease-out; }
+    .px:hover { background-color: currentColor; border-radius: 50%; transition: none; }
+</style>
+<main id="canvas"></main>
+<script>
+    // The host's own hover and the lanes' hover take turns over cells whose border radius transitions between a length
+    // and a percentage. A lane the host's next frame replaces keeps the records its ticks sampled until the recording of
+    // its last frame, which reads them, is done.
+    for (let i = 0; i < 24 * 16; ++i) {
+        const cell = document.createElement("div");
+        cell.className = "px";
+        cell.style.color = `hsl(${i * 7}, 90%, 60%)`;
+        canvas.appendChild(cell);
+    }
+    asyncTest(async done => {
+        let seed = 5;
+        const random = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+        let x = 100, y = 100;
+        for (let i = 0; i < 400; ++i) {
+            x = Math.max(10, Math.min(520, x + (random() - 0.5) * 120));
+            y = Math.max(10, Math.min(350, y + (random() - 0.5) * 120));
+            if (random() < 0.5) {
+                internals.mouseMove(x, y);
+            } else {
+                const now = performance.now();
+                internals.injectHoverPointer(x, y, now);
+                internals.injectClockTick(now + 8);
+            }
+            if (random() < 0.5)
+                await new Promise(resolve => requestAnimationFrame(resolve));
+            else
+                await new Promise(resolve => setTimeout(resolve, 0));
+        }
+        println("survived");
+        done();
+    });
+</script>

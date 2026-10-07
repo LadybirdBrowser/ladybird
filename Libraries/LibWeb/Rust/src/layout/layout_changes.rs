@@ -45,11 +45,6 @@ pub(crate) enum LayoutChange {
         mark: super::tree_update_marks::FfiLayoutTreeUpdateMark,
     },
     RecordPartialRelayoutEscape,
-    /// The boxes a clock lease showed samples of their elements' animations in take back the styles the host installed.
-    RestoreHostStyles(Vec<(NodeSlotId, super::HostStyle)>),
-    /// The records the render clock built boxes from in place of the host's while it ran the animations, which the
-    /// host's next layout tree build builds again from its own, are let go of.
-    LetGoOfTickShownRecords(crate::css::style::engine_sample::TickShownRecords),
     /// The DOM node identified by `old` took `new`. Its rows, and those of the pseudo-elements `generated_for` lists,
     /// take the new identity along with their bindings, and the old one leaves every row carrying it. The host clears the
     /// layout tree update marks the new one's previous holder left as it queues the change.
@@ -167,7 +162,6 @@ impl LayoutChange {
             Self::StyleNodeChanged { .. } => RowWrite::Identities,
             Self::SetNodeFlag { flag, .. } if *flag as u32 & NodeFlag::IDENTITY != 0 => RowWrite::Identities,
             Self::SetNodeStyle { .. } => RowWrite::NamedStyles,
-            Self::RestoreHostStyles(_) => RowWrite::Styles,
             Self::SetNeedsLayoutUpdate { .. }
             | Self::SetNeedsFullLayoutTreeUpdate
             | Self::ResetCachedIntrinsicSizesOfSelfAndAncestors { .. }
@@ -189,7 +183,6 @@ impl LayoutChange {
             | Self::PinBoundBoxStyleRecordForDetachment { .. }
             | Self::PinNodeStyleRecordForHost { .. }
             | Self::ReleaseNodeStyleRecordPinForHost { .. }
-            | Self::LetGoOfTickShownRecords(_)
             | Self::SetBoxPresenceHost(_)
             | Self::BeginLayoutTrace
             | Self::NameLayoutTraceOwners(_)
@@ -208,7 +201,6 @@ impl LayoutChange {
             | Self::PinBoundBoxStyleRecordForDetachment { .. }
             | Self::PinNodeStyleRecordForHost { .. }
             | Self::ReleaseNodeStyleRecordPinForHost { .. }
-            | Self::LetGoOfTickShownRecords(_)
             | Self::BeginLayoutTrace
             | Self::NameLayoutTraceOwners(_) => false,
             _ => true,
@@ -237,12 +229,6 @@ impl LayoutChange {
                 }
             }
             Self::SetNeedsFullLayoutTreeUpdate => arena.set_needs_full_layout_tree_update(true),
-            Self::RestoreHostStyles(ticked) => {
-                for (row, host_style) in ticked {
-                    arena.restore_host_style(row, host_style);
-                }
-            }
-            Self::LetGoOfTickShownRecords(shown) => arena.with_style_engine(|engine| engine.release_tick_shown(shown)),
             Self::ResetCachedIntrinsicSizesOfSelfAndAncestors { node } => {
                 if arena.slot_is_live(node) {
                     arena.bump_fragment_cache_epoch_of_self_and_ancestors(node);

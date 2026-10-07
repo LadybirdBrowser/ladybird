@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #spinner { width: 10px; height: 10px; animation: grow 100s linear infinite; }
+    @keyframes grow { to { width: 100px; } }
+    #box { width: 100px; height: 100px; outline: 1px solid rgb(0, 0, 255); }
+    #box:hover { width: 150px; outline-color: rgb(0, 128, 0); }
+</style>
+<div id="spinner"></div>
+<div id="box"></div>
+<script>
+    // While the pointer moves over the document, a lease that samples an animation beside a task does so on a fork of
+    // the render state: the task's layout read leaves the lease running, and it hovers the next move beside the task.
+    asyncTest(async done => {
+        await whileHoverLeased(frameTime => {
+            internals.moveHoverPointer(500, 500);
+            internals.injectClockTick(frameTime + 16);
+        });
+        await nextFrame();
+        const result = await whileHoverLeased(frameTime => {
+            internals.injectClockTick(frameTime + 16);
+            const width = box.offsetWidth;
+            internals.injectHoverPointer(50, 50, frameTime + 32);
+            return { width, onScreen: internals.presentedBorderBox(box)?.width };
+        });
+        println(`box width read: ${result.width}`);
+        println(`box width on screen: ${result.onScreen}`);
+        await nextFrame();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        done();
+    });
+</script>

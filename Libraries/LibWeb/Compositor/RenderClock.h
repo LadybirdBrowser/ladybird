@@ -32,15 +32,16 @@ namespace Web::Compositor {
 
 class RenderClockChannel;
 
-// What a clock lease wants once it heard where the pointer went.
+// What a document's clock lanes want once they heard where the pointer went.
 enum class PointerAnswer : u8 {
-    // Nothing more: the lease has ended.
-    Disarm = 0,
+    // The moves that follow, but no display tick: no lane hovers the move.
+    Moves = 1,
     // Display ticks too, until a tick declines the next one.
     Ticks = 2,
 };
 
-// A reference to the ticks of a document's clock lease, which hands them on to the lease.
+// A reference to the ticks of a document's clock lanes, which hands them on to the lane that follows the frame the
+// document presented last.
 class WEB_API ClockTicksHandle : public RefCounted<ClockTicksHandle> {
     AK_MAKE_NONCOPYABLE(ClockTicksHandle);
 
@@ -51,11 +52,13 @@ public:
     }
     ~ClockTicksHandle();
 
-    // Hands the lease a tick, with where the Compositor had scrolled to then, and answers whether it wants the next one.
+    // Hands the lane a tick, with where the Compositor had scrolled to then, and answers whether it wants the next one.
     bool tick(i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset>) const;
 
-    // Hands the lease where the pointer went, or that it left, and answers what the lease wants next.
+    // Hands the lane where the pointer went, or that it left, and answers what the lanes want next.
     PointerAnswer pointer_moved(Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame) const;
+
+    bool hands_on_to(ClockTicksHandle const& other) const { return m_ticks == other.m_ticks; }
 
 private:
     Layout::RustFFI::ClockTicks const* m_ticks { nullptr };
@@ -90,9 +93,10 @@ public:
     // context that is not armed is dropped. Arming an armed context replaces what it hands ticks to.
     void arm(Web::CompositorContextId, double maximum_frames_per_second, OnTick);
 
-    // Asynchronous. Hands the pointer moves over the context to `ticks` from now on, until it answers Disarm or the
-    // channel is lost, and arms the context's ticks for it where it asks for them; with `tick_now`, at once.
-    void arm_lease(Web::CompositorContextId, double maximum_frames_per_second, NonnullRefPtr<ClockTicksHandle> ticks, bool tick_now);
+    // Asynchronous. Hands the pointer moves over the context to `ticks` from now on, until another document's ticks take
+    // their place or the channel is lost, and arms the context's ticks for them where they ask for them; with
+    // `tick_now`, at once.
+    void arm_lane(Web::CompositorContextId, double maximum_frames_per_second, NonnullRefPtr<ClockTicksHandle> ticks, bool tick_now);
 
 private:
     struct ArmedContext {
@@ -124,11 +128,11 @@ private:
     // Owned by the clock thread.
     RefPtr<RenderClockChannel> m_channel;
     HashMap<Web::CompositorContextId, ArmedContext> m_armed_contexts;
-    struct PointerLease {
+    struct PointerLane {
         double maximum_frames_per_second { 60.0 };
         NonnullRefPtr<ClockTicksHandle> ticks;
     };
-    HashMap<Web::CompositorContextId, PointerLease> m_pointer_leases;
+    HashMap<Web::CompositorContextId, PointerLane> m_pointer_lanes;
 };
 
 }

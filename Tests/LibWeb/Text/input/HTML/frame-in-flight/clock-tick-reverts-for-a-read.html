@@ -4,7 +4,8 @@
 <div id="box" style="width: 10px; height: 0px; background: green"></div>
 <script>
     // A tick of the render clock beside a task samples the running animation at its own time, but a read in the task
-    // answers as of the animation's timeline, which only a rendering update moves.
+    // answers as of the animation's timeline, which only a rendering update moves. The lane goes on ticking beside the
+    // read.
     asyncTest(async done => {
         const heightBefore = { value: 0 };
         const result = await whileClockLeased(() => {

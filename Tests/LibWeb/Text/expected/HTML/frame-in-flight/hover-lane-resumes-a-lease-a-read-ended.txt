@@ -1,3 +1,0 @@
-lease after each read, and as the next task begins: none, hovering, none, hovering, none, hovering
-box width on screen: 150
-lease as a task after a write begins: none

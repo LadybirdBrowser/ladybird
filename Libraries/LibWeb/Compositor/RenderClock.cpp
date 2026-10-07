@@ -173,7 +173,7 @@ ErrorOr<IPC::TransportHandle> RenderClock::replace_channel()
 void RenderClock::drop_channel()
 {
     m_armed_contexts.clear();
-    m_pointer_leases.clear();
+    m_pointer_lanes.clear();
     if (auto channel = move(m_channel)) {
         channel->detach();
         channel->shutdown();
@@ -189,28 +189,29 @@ void RenderClock::arm(Web::CompositorContextId context_id, double maximum_frames
     });
 }
 
-void RenderClock::arm_lease(Web::CompositorContextId context_id, double maximum_frames_per_second, NonnullRefPtr<ClockTicksHandle> ticks, bool tick_now)
+void RenderClock::arm_lane(Web::CompositorContextId context_id, double maximum_frames_per_second, NonnullRefPtr<ClockTicksHandle> ticks, bool tick_now)
 {
     VERIFY(isfinite(maximum_frames_per_second) && maximum_frames_per_second > 0);
     (void)invoke_on_clock_thread([this, context_id, maximum_frames_per_second, ticks = move(ticks), tick_now]() mutable {
-        // A tick armed for an earlier lease of the context would hand this one's ticks to the earlier one.
-        m_armed_contexts.remove(context_id);
-        if (tick_now) {
+        // Another document of the context hears of the pointer no more, and a tick armed for it would hand its ticks to
+        // this one's.
+        if (auto it = m_pointer_lanes.find(context_id); it != m_pointer_lanes.end() && !it->value.ticks->hands_on_to(*ticks))
+            m_armed_contexts.remove(context_id);
+        if (tick_now && !m_armed_contexts.contains(context_id)) {
             m_armed_contexts.set(context_id, ArmedContext { maximum_frames_per_second, [ticks](i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset> scroll_offsets) { return ticks->tick(frame_time_nanoseconds, scroll_offsets); } });
             request_clock_tick(context_id, maximum_frames_per_second);
         }
-        m_pointer_leases.set(context_id, PointerLease { maximum_frames_per_second, move(ticks) });
+        m_pointer_lanes.set(context_id, PointerLane { maximum_frames_per_second, move(ticks) });
     });
 }
 
 void RenderClock::did_receive_pointer_move(Web::CompositorContextId context_id, Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame)
 {
-    auto it = m_pointer_leases.find(context_id);
-    if (it == m_pointer_leases.end())
+    auto it = m_pointer_lanes.find(context_id);
+    if (it == m_pointer_lanes.end())
         return;
     switch (it->value.ticks->pointer_moved(device_position, buttons, scrolled_since_frame)) {
-    case PointerAnswer::Disarm:
-        m_pointer_leases.remove(it);
+    case PointerAnswer::Moves:
         return;
     case PointerAnswer::Ticks:
         break;
@@ -249,7 +250,7 @@ void RenderClock::did_receive_clock_tick(Web::CompositorContextId context_id, i6
 void RenderClock::did_lose_channel()
 {
     m_armed_contexts.clear();
-    m_pointer_leases.clear();
+    m_pointer_lanes.clear();
     // The channel is dying from inside its own handler, which keeps it alive until it returns.
     m_channel = nullptr;
 }

@@ -86,7 +86,7 @@ void EventLoop::visit_edges(Visitor& visitor)
     visitor.visit(m_system_event_loop_timer);
     visitor.visit(m_idle_period_timer);
     visitor.visit(m_navigables_with_frames_in_flight);
-    visitor.visit(m_navigables_with_clock_plans);
+    visitor.visit(m_navigables_with_clock_lanes);
 }
 
 void EventLoop::schedule()
@@ -175,10 +175,10 @@ void EventLoop::process()
     for (auto& reached_step_1_task : reached_step_1_tasks)
         reached_step_1_task->function()();
 
-    // AD-HOC: An idle event loop leases the render clock as soon as the last rendering update's frame has landed, which
-    //         wakes it, so that the pointer hovers beside it.
+    // AD-HOC: Beside an idle event loop, whose rendering updates run a document's animations, the render clock's lanes
+    //         only hover what is under the pointer.
     if (!m_task_queue->has_runnable_tasks())
-        lease_clocks(ClockAnimations::Hold);
+        note_clock_lanes(ClockAnimations::Hold);
 
     // 2. If the event loop has a task queue with at least one runnable task, then:
     if (m_task_queue->has_runnable_tasks()) {
@@ -193,9 +193,9 @@ void EventLoop::process()
 
         // FIXME: 4. If oldestTask's document is not null, then record task start time given taskStartTime and oldestTask's document.
 
-        // AD-HOC: While a task runs, the render clock may tick the animations the last rendering update planned for.
+        // AD-HOC: While a task runs, the render clock's lanes tick the animations the last rendering update planned for.
         if (oldest_task->source() != Task::Source::Rendering)
-            lease_clocks(ClockAnimations::Run);
+            note_clock_lanes(ClockAnimations::Run);
 
         // 5. Set the event loop's currently running task to oldestTask.
         m_currently_running_task = oldest_task.ptr();
@@ -586,6 +586,36 @@ static HeldTasks tasks_rendering_update_holds(Vector<GC::Root<DOM::Document>> co
 static void update_style_and_layout_for_rendering(DOM::Document&);
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering
+// NB: The documents step 3 of update the rendering keeps.
+static bool is_renderable(DOM::Document const& document)
+{
+    if (!document.is_fully_active())
+        return false;
+
+    // doc is render-blocked;
+    if (document.is_render_blocked())
+        return false;
+
+    // doc's visibility state is "hidden";
+    if (document.hidden())
+        return false;
+
+    // doc's rendering is suppressed for view transitions; or
+    if (document.rendering_suppression_for_view_transitions())
+        return false;
+
+    auto navigable = document.navigable();
+    if (!navigable)
+        return false;
+
+    // doc's node navigable doesn't currently have a rendering opportunity.
+    if (!navigable->has_a_rendering_opportunity())
+        return false;
+
+    return true;
+}
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering
 void EventLoop::update_the_rendering()
 {
     VERIFY(!m_running_rendering_task);
@@ -601,34 +631,36 @@ void EventLoop::update_the_rendering()
         && !let_layout_of_rendering_update_fly())
         finish_rendering_update_in_flight();
 
-    // AD-HOC: A clock lease presents frames of a document's animations beside the tasks since the last update, at
-    //         display ticks later than the opportunity this update renders for, which reached the event loop only after
-    //         those tasks. An update after a lease whose tick presented a frame renders at the time it runs, so nothing
-    //         moves back from where the tick showed it.
-    //         A pointer move the lease's next tick would hover hovers first, so that the screen shows it before the
-    //         update's steps run the document's script. The update keeps the hover a lease moved what the screen shows
-    //         to: the move is the document's from now on, ahead of the input events that hover what is under the pointer
-    //         as the host sees it.
+    // AD-HOC: The render clock's lanes present frames of a document's animations and hover beside the tasks since the
+    //         last update, at display ticks later than the opportunity this update renders for, which reached the event
+    //         loop only after those tasks. An update after a lane's tick presented a frame renders at the time it runs,
+    //         so nothing moves back from where the tick showed it.
+    //         A pointer move the next tick would hover hovers first, so that the screen shows it before the update's
+    //         steps run the document's script. The update keeps the hover the lanes moved what the screen shows to: the
+    //         move is the document's from now on, ahead of the input events that hover what is under the pointer as the
+    //         host sees it.
+    //         A lane presents frames of a fork of the document's render state, which the host's state never held: the
+    //         update records and presents the host's frame again.
     bool tick_presented = false;
     for (auto& navigable : all_local_navigables()) {
         auto document = navigable->active_document();
-        if (!document)
+        if (!document || !is_renderable(*document))
             continue;
         auto* arena = document->layout_node_arena_if_created();
         if (!arena)
             continue;
-        tick_presented |= Layout::RustFFI::document_host_end_clock_lease_for_rendering_update(arena->host(), static_cast<i64>(HighResolutionTime::unsafe_shared_current_time() * 1'000'000.0));
-        // A lease that ticked on a fork of the document's render state presented frames the host's state never held:
-        // the update presents the host's frame again.
-        if (Layout::RustFFI::document_host_take_fork_presented(arena->host()))
+        if (Layout::RustFFI::document_host_take_clock_lanes_in(arena->host(), static_cast<i64>(HighResolutionTime::unsafe_shared_current_time() * 1'000'000.0))) {
+            tick_presented = true;
+            navigable->set_needs_to_record_display_list();
             navigable->set_needs_repaint();
+        }
     }
     if (tick_presented)
         m_last_render_opportunity_time = max(m_last_render_opportunity_time, HighResolutionTime::unsafe_shared_current_time());
 
     process_input_events();
 
-    // AD-HOC: A hover a lease moved, which the update kept, owes the boundary events of the move where the update heard
+    // AD-HOC: A hover a lane moved, which the update kept, owes the boundary events of the move where the update heard
     //         of no mouse move: they fire now, from which on script reads the hover, as they would for a mouse move.
     struct HoverEventsOwed {
         GC::Root<LocalNavigable> navigable;
@@ -675,31 +707,7 @@ void EventLoop::update_the_rendering()
     //      of their respective navigable containers in C's node tree.
     // 3. Filter non-renderable documents: Remove from docs any Document object doc for which any of the following are true:
     auto docs = documents_in_this_event_loop_matching([&](auto const& document) {
-        if (!document.is_fully_active())
-            return false;
-
-        // doc is render-blocked;
-        if (document.is_render_blocked()) {
-            return false;
-        }
-
-        // doc's visibility state is "hidden";
-        if (document.hidden())
-            return false;
-
-        // doc's rendering is suppressed for view transitions; or
-        if (document.rendering_suppression_for_view_transitions())
-            return false;
-
-        auto navigable = document.navigable();
-        if (!navigable)
-            return false;
-
-        // doc's node navigable doesn't currently have a rendering opportunity.
-        if (!navigable->has_a_rendering_opportunity())
-            return false;
-
-        return true;
+        return is_renderable(document);
     });
 
     // FIXME: 4. Unnecessary rendering: Remove from docs any Document object doc for which all of the following are true:
@@ -1052,17 +1060,21 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
             || (taken_layout == TakenLayout::UpToDate && !document->layout_is_up_to_date()));
     }
 
-    // AD-HOC: The tasks after the update may let the render clock tick the document's running animations, until the
-    //         next of their events, which the main thread sends, and hover what is under the pointer. Only a rendering
-    //         update leaves a plan for that, and each one leaves every document it renders its own, or none, in place of
-    //         the last. The plan of a document whose update rendered others beside it only hovers.
+    // AD-HOC: The lane of the frame the update presented may tick the document's running animations beside the tasks
+    //         after it, until the next of their events, which the main thread sends, and hover what is under the
+    //         pointer. Only a rendering update leaves a plan for that, and each one leaves every document it renders its
+    //         own, or none, in place of the last. The plan of a document whose update rendered others beside it only
+    //         hovers.
     bool const may_plan = !m_running_synchronous_rendering_update && m_spin_depth == 0 && taken_layout == TakenLayout::UpToDate;
     bool const may_animate = may_plan && docs.size() == 1;
     for (auto& document : docs) {
         auto* navigable = as_if<LocalNavigable>(document->navigable().ptr());
         bool const plans = may_plan && navigable && navigable->is_local_root() && navigable->active_document().ptr() == document.ptr();
-        if (seal_clock_plan(*document, plans, may_animate) && !m_navigables_with_clock_plans.contains_slow(GC::Ref { *navigable }))
-            m_navigables_with_clock_plans.append(*navigable);
+        if (!seal_clock_plan(*document, plans, may_animate))
+            continue;
+        navigable->arm_clock_lane(false);
+        if (!m_navigables_with_clock_lanes.contains_slow(GC::Ref { *navigable }))
+            m_navigables_with_clock_lanes.append(*navigable);
     }
 }
 
@@ -1230,25 +1242,13 @@ void EventLoop::take_finished_frames_in()
         (void)m_navigables_with_frames_in_flight[index]->take_recording_in_flight_in(LocalNavigable::TakeIn::IfFinished);
 }
 
-// AD-HOC: The render clock holds a document's render state whenever the main thread does not, from the rendering update
-//         that left a plan for it on: it hovers what is under the pointer whenever the pointer moves, and samples the
-//         document's running animations while a task runs. An idle event loop's rendering updates run the animations.
-void EventLoop::lease_clocks(ClockAnimations animations)
+// AD-HOC: The render clock's lanes follow the frames a document presents: they hover what is under the pointer whenever
+//         the pointer moves, and sample the document's running animations while a task runs. An idle event loop's
+//         rendering updates run the animations.
+void EventLoop::note_clock_lanes(ClockAnimations animations)
 {
-    // A rendering update that returned while its layout is still running on the StyleLayout thread leaves the clock
-    // plan for its document's animations and hover only in its remaining steps. If the document has running animations
-    // that the compositor does not run, or the pointer is moving over it, finish those steps before the task, which
-    // would otherwise find no clock plan, or the frame still in flight, and leave the animations frozen and the hover
-    // where it was for the whole task.
-    if (animations == ClockAnimations::Run && m_rendering_update_in_flight && m_rendering_update_in_flight->ended()
-        && !m_rendering_update_in_flight->held_for_testing) {
-        auto& document = m_rendering_update_in_flight->document();
-        auto* arena = document.layout_node_arena_if_created();
-        if (runs_animations_for_clock_plan(document) || (arena && Layout::RustFFI::document_host_pointer_is_active(arena->host())))
-            finish_rendering_update_in_flight();
-    }
-    m_navigables_with_clock_plans.remove_all_matching([&](auto const& navigable) {
-        return !navigable->lease_clock(animations);
+    m_navigables_with_clock_lanes.remove_all_matching([&](auto const& navigable) {
+        return !navigable->note_clock_lane(animations);
     });
 }
 

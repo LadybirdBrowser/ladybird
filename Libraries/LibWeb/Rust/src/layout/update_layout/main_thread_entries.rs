@@ -58,19 +58,18 @@ pub unsafe extern "C" fn render_state_pay_flown_round(host: &DocumentHost, read:
     let main_thread = unsafe { main_thread(host) };
     abort_on_panic(|| {
         host.take_frame_in_with(read);
-        // SAFETY (for both pays): Guaranteed by the entry point's contract.
-        host.pay_clock_rounds(|mut answer| unsafe { answer.pay(&main_thread, host, read) });
         if let Some(round) = host.take_flown_round() {
+            // SAFETY: Guaranteed by the entry point's contract.
             unsafe { round.pay(&main_thread, host, read) };
         }
     });
 }
 
-/// Seals the plan of the clock lease of `host`'s document for the tasks after a rendering update, in `read`: the
+/// Seals the plan of the clock lane of `host`'s document for the tasks after a rendering update, in `read`: the
 /// elements whose running animations a tick samples, the monotonic time in milliseconds at which the document's
 /// timestamps are zero, the timestamp of the next event of the animations, past which a tick samples nothing, and the
 /// timestamp at which the sampled animations of the document timeline have all ended, the scroll timelines a tick
-/// samples where the compositor has scrolled to, and what the lease's hover reads, where its ticks follow the pointer.
+/// samples where the compositor has scrolled to, and what the lane's hover reads, where its ticks follow the pointer.
 /// A document whose layout is not up to date gets no plan.
 ///
 /// # Safety

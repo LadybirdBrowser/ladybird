@@ -1414,7 +1414,7 @@ public:
     RefPtr<Compositing::DisplayList> finish_display_list_recording(Layout::BegunRead const& read, Painting::DisplayListRecording const&, Compositing::DisplayListResourceStorage&, Painting::HitTestListStands = Painting::HitTestListStands::Yes);
     // Takes in `display_list`, which `recording` published: the paint command cache source, and the hit-test list it made,
     // read in `hit_test_list_read`, where that still stands for the document's boxes. Where none does, nothing is read.
-    void adopt_published_recording(Optional<Layout::BegunRead const&> hit_test_list_read, Painting::DisplayListRecording const&, NonnullRefPtr<Compositing::DisplayList>, Compositing::DisplayListResourceStorage&);
+    void adopt_published_recording(Optional<Layout::BegunRead const&> hit_test_list_read, Painting::DisplayListRecording const&, NonnullRefPtr<Compositing::DisplayList>, Compositing::DisplayListResourceSet referenced_resources);
     Optional<Painting::HitTestQuery> prepare_hit_test_query(Layout::BegunRead const& read);
     Optional<Painting::HitTestResult> hit_test(Layout::BegunRead const& read, CSSPixelPoint);
     Optional<Painting::CaretPosition> caret_position_from_point(Layout::BegunRead const& read, CSSPixelPoint);

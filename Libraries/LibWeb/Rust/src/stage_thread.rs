@@ -14,10 +14,6 @@
 //! takes the job's answer in from its [`InFlight`] once it has finished. A job it posts with [`StageThread::post`] owns
 //! what it reads too, and nobody takes it in.
 //!
-//! A host can also lease a value to a thread with [`StageThread::lease`]: the value starts landed in a flight the host
-//! takes back like a submitted job's answer, and a [`Ticker`] runs jobs on it in place, one at a time, between which it
-//! stays parked in the flight. Taking it back waits for at most the one job that runs on it.
-//!
 //! A thread waiting on the other side of a hand-off sleeps until that side wakes it: a stage thread for its next job,
 //! a host for the answer of a job it handed out. Nothing spins or polls, so a waiting thread takes no CPU from the
 //! threads that run.
@@ -28,7 +24,7 @@ use std::marker::PhantomData;
 use std::panic::AssertUnwindSafe;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
-use std::sync::{Arc, Mutex, OnceLock, PoisonError, Weak};
+use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 use std::thread::Thread;
 
 // This crate is not instrumented by ThreadSanitizer, so TSan cannot see the ordering the hand-off gives between the
@@ -185,23 +181,6 @@ impl StageThread {
             not_send_or_sync: PhantomData,
         };
         (flight, parked)
-    }
-
-    /// Leases `value` to this thread: it lands at once in the flight the host takes it back from, and the ticker runs
-    /// jobs on it there, on this thread, beside the host.
-    pub(crate) fn lease<R: Send + 'static>(&'static self, value: R) -> (InFlight<R>, Ticker<R>) {
-        let flight = Flight::landed(value);
-        let ticker = Ticker {
-            flight: Arc::downgrade(&flight),
-            thread: self,
-        };
-        (
-            InFlight {
-                flight,
-                not_send_or_sync: PhantomData,
-            },
-            ticker,
-        )
     }
 
     /// Posts `job` to this thread and goes on: the job owns what it reads, runs after the jobs handed to the thread
@@ -392,49 +371,6 @@ impl<F: FnOnce() + Send> PostedJob<F> {
     }
 }
 
-/// What runs jobs on a value a host leased to a stage thread, in place, while the value is parked in the flight the host
-/// takes it back from. It never moves the value out, and it does nothing once the flight is gone.
-pub(crate) struct Ticker<R> {
-    flight: Weak<Flight<R>>,
-    thread: &'static StageThread,
-}
-
-impl<R: Send + 'static> Ticker<R> {
-    /// Whether the flight it runs jobs in is still there.
-    pub(crate) fn is_live(&self) -> bool {
-        self.flight.strong_count() > 0
-    }
-
-    /// Posts `job`, which runs on the leased value on the stage thread, unless the host has said the stop word by then:
-    /// the job takes the value out of the flight, so that taking it back waits for the job, and parks it there again.
-    pub(crate) fn run(&self, job: impl FnOnce(&mut R, &StopWord) + Send + 'static) {
-        let flight = self.flight.clone();
-        self.thread.post(move || {
-            let Some(flight) = flight.upgrade() else {
-                return;
-            };
-            let mut value = {
-                let mut landing = flight.landing();
-                if flight.stop.is_said() {
-                    return;
-                }
-                // A tick that panicked left its panic in place of the value, for the host to take in.
-                let value = match landing.answer.take() {
-                    Some(Ok(value)) => value,
-                    answer => {
-                        landing.answer = answer;
-                        return;
-                    }
-                };
-                flight.finished.store(false, Ordering::Relaxed);
-                value
-            };
-            let ran = std::panic::catch_unwind(AssertUnwindSafe(|| job(&mut value, &flight.stop)));
-            flight.land(ran.map(|()| value));
-        });
-    }
-}
-
 /// What a submitted job shares with the thread that submitted it.
 struct Flight<R> {
     /// Whether the job has finished, and its answer has landed.
@@ -537,8 +473,8 @@ pub(crate) trait Flown {
     type JoinRight;
 }
 
-/// A job a stage thread runs beside the thread that submitted it, or a value it leased to one, until that thread takes its
-/// answer in, which only it does: the flight stays on its thread. The submitting thread never waits for a flight at the
+/// A job a stage thread runs beside the thread that submitted it, until that thread takes its answer in, which only it
+/// does: the flight stays on its thread. The submitting thread never waits for a flight at the
 /// top of its event loop, and waits for one elsewhere only by spending the right to.
 pub(crate) struct InFlight<R> {
     flight: Arc<Flight<R>>,
@@ -637,9 +573,9 @@ fn land_relayed<R>(flight: &Flight<R>, answer: std::thread::Result<R>) {
     }
 }
 
-/// A job a stage thread runs beside a value another thread leased out, which owns it: its answer rides with the value,
-/// and whichever thread holds the value then waits for it, as the recording of the frame a clock tick presents rides
-/// with the lease beside the next tick. The job hears no stop word, and nothing wakes the host's event loop for it.
+/// A job a stage thread runs beside a value another thread holds, which owns it: its answer rides with the value, and
+/// whichever thread holds the value then waits for it, as the recording of the frame a clock tick presents rides with
+/// the lane beside the next tick. The job hears no stop word, and nothing wakes the host's event loop for it.
 pub(crate) struct Riding<R> {
     flight: Arc<Flight<R>>,
 }
@@ -855,57 +791,6 @@ mod tests {
 
     impl Flown for bool {
         type JoinRight = ();
-    }
-
-    #[test]
-    fn a_tick_runs_on_a_leased_value_beside_the_host() {
-        let (lease, ticker) = test_thread().lease(1_u32);
-        ticker.run(|value, _| *value += 1);
-        ticker.run(|value, _| *value *= 10);
-        // A job handed after the ticks runs after them.
-        test_thread().run(|| ());
-        assert!(lease.has_finished(), "the value is parked between ticks");
-        assert_eq!(lease.join(()), 20);
-    }
-
-    #[test]
-    fn taking_a_parked_lease_back_waits_for_nothing() {
-        let (lease, _ticker) = test_thread().lease(7_u32);
-        assert!(lease.has_finished());
-        assert_eq!(lease.join(()), 7);
-    }
-
-    #[test]
-    fn taking_a_lease_back_waits_for_the_tick_that_runs_and_no_other() {
-        let (lease, ticker) = test_thread().lease(0_u32);
-        let (started, wait_for_start) = std::sync::mpsc::channel();
-        let (go, wait_for_go) = std::sync::mpsc::channel::<()>();
-        ticker.run(move |value, _| {
-            started.send(()).ok();
-            wait_for_go.recv().ok();
-            *value += 1;
-        });
-        ticker.run(|value, _| *value += 100);
-        wait_for_start.recv().ok();
-        assert!(!lease.has_finished(), "the running tick has the value");
-        lease.say_stop();
-        go.send(()).ok();
-        assert_eq!(
-            lease.join(()),
-            1,
-            "the tick queued behind the running one hears the stop word"
-        );
-    }
-
-    #[test]
-    fn a_ticker_outliving_its_lease_does_nothing() {
-        let (lease, ticker) = test_thread().lease(0_u32);
-        assert_eq!(lease.join(()), 0);
-        let ran = Arc::new(AtomicBool::new(false));
-        let ran_in_tick = Arc::clone(&ran);
-        ticker.run(move |_, _| ran_in_tick.store(true, Ordering::Relaxed));
-        test_thread().run(|| ());
-        assert!(!ran.load(Ordering::Relaxed));
     }
 
     #[test]

@@ -29,7 +29,7 @@ pub(crate) struct RecorderState {
     /// The absolute rects the recordings computed, which stay valid while the document's geometry
     /// does.
     pub(crate) absolute_rects: RefCell<AbsoluteRectMemo>,
-    /// The inputs the last recording that publishes recorded with, which a clock lease's ticks record again with.
+    /// The inputs the last recording that publishes recorded with, which a clock lane's ticks record again with.
     pub(crate) published_inputs: Option<RecordingInputs>,
 }
 

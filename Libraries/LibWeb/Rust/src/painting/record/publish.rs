@@ -229,6 +229,31 @@ fn publish_resources(
     output
 }
 
+/// The output of a recording that presented itself, shared, and its hit-test list apart: the clock lane of the frame it
+/// presented starts from the same output the host takes in.
+pub(crate) struct PresentedOutput {
+    pub(crate) output: std::sync::Arc<RecordingOutput>,
+    pub(crate) hit_test_list: HitTestList,
+}
+
+impl PresentedOutput {
+    pub(crate) fn of(mut output: RecordingOutput) -> Self {
+        let hit_test_list = std::mem::take(&mut output.hit_test_list);
+        Self {
+            output: std::sync::Arc::new(output),
+            hit_test_list,
+        }
+    }
+
+    /// The hit-test items the output published, as a recording that publishes it leaves them for the next one.
+    pub(crate) fn published_hit_test_items(&self) -> std::sync::Arc<crate::painting::record::PublishedHitTestItems> {
+        std::sync::Arc::new(crate::painting::record::PublishedHitTestItems {
+            items: self.hit_test_list.items.clone(),
+            structural_epoch: self.output.recorded_structural_epoch,
+        })
+    }
+}
+
 /// Takes a published recording's output in: its hit-test list, and for a recording that publishes,
 /// the source the next recording copies from and the damage it consumed. Resource callbacks and
 /// verification have finished, so the new recording may become the source. Returns the generation
@@ -236,11 +261,31 @@ fn publish_resources(
 pub(crate) fn take_in_published_output(
     recorder: &mut RecorderState,
     hit_test_list: &mut Option<HitTestList>,
-    mut output: RecordingOutput,
+    output: RecordingOutput,
     publishes_recording: bool,
     take_in: impl FnOnce(std::sync::Arc<RecordingOutput>, bool),
 ) {
-    let list = std::mem::take(&mut output.hit_test_list);
+    take_in_presented_output(
+        recorder,
+        hit_test_list,
+        PresentedOutput::of(output),
+        publishes_recording,
+        take_in,
+    );
+}
+
+/// Takes the output of a recording that presented itself in, as [`take_in_published_output`] does.
+pub(crate) fn take_in_presented_output(
+    recorder: &mut RecorderState,
+    hit_test_list: &mut Option<HitTestList>,
+    presented: PresentedOutput,
+    publishes_recording: bool,
+    take_in: impl FnOnce(std::sync::Arc<RecordingOutput>, bool),
+) {
+    let PresentedOutput {
+        output,
+        hit_test_list: list,
+    } = presented;
     let previous_list_is_the_source = hit_test_list
         .as_ref()
         .zip(recorder.published_hit_test_items.as_ref())
@@ -256,7 +301,6 @@ pub(crate) fn take_in_published_output(
         }
         *hit_test_list = Some(list);
     }
-    let output = std::sync::Arc::new(output);
     if publishes_recording {
         recorder.published_recording = Some(output.clone());
     }

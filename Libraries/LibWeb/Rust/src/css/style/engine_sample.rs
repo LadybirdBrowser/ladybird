@@ -977,13 +977,6 @@ impl super::StyleEngine {
         std::mem::take(&mut self.retained.tick_shown)
     }
 
-    /// Lets go of the records clock frames showed, whose boxes the host builds again from its own.
-    pub(crate) fn release_tick_shown(&mut self, shown: TickShownRecords) {
-        for (_, shown) in shown.0 {
-            shown.unpin(&mut self.retained.computed_group_sets);
-        }
-    }
-
     /// Whether `record` moves a counter or a quote depth, which the boxes after its own read.
     fn record_affects_generated_content_state(&self, record: super::computed::FinalStyleRecordID) -> bool {
         self.computed_group_sets

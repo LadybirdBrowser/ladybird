@@ -1229,10 +1229,10 @@ void Animation::update()
                 if (auto target = effect.target())
                     target->document().note_throttled_animation_style_update();
             } else if (!pending() && !output_is_constant_before_active_start) {
-                invalidate_effect();
+                invalidate_effect(ChangesPlan::No);
             }
         } else if (m_is_finished != was_finished) {
-            invalidate_effect();
+            invalidate_effect(ChangesPlan::No);
         }
     }
 
@@ -1726,7 +1726,7 @@ GC::Ref<WebIDL::Promise> Animation::current_finished_promise() const
     return *m_current_finished_promise;
 }
 
-void Animation::invalidate_effect()
+void Animation::invalidate_effect(ChangesPlan changes_plan)
 {
     if (!m_effect)
         return;
@@ -1735,9 +1735,9 @@ void Animation::invalidate_effect()
         return;
 
     auto& effect = static_cast<KeyframeEffect&>(*m_effect);
-    // A clock lease ticks the document's animations as the last rendering update planned them.
-    if (auto target = effect.target(); target && target->document().layout_node_arena_if_created())
-        Layout::RustFFI::document_host_end_clock_lease_for_animation(target->document().layout_node_arena_if_created()->host());
+    // The render clock's lanes tick the document's animations as the last rendering update planned them.
+    if (auto target = effect.target(); changes_plan == ChangesPlan::Yes && target && target->document().layout_node_arena_if_created())
+        Layout::RustFFI::document_host_note_animation_change(target->document().layout_node_arena_if_created()->host());
     effect.invalidate_effect();
 }
 
