@@ -4,16 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Base64.h>
 #include <AK/FFIHelpers.h>
 #include <AK/FlyString.h>
 #include <AK/Forward.h>
 #include <AK/String.h>
+#include <AK/StringConversions.h>
 #include <AK/StringView.h>
 #include <AK/Try.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <AK/kmalloc.h>
+
+#include <simdutf.h>
 
 namespace AK {
 
@@ -64,6 +68,81 @@ extern "C" FlatPtr ladybird_utf16_fly_string_from_utf16(u16 const* data, size_t 
 extern "C" void ladybird_utf16_string_unref(FlatPtr raw)
 {
     AK::Utf16String::unref_raw(raw);
+}
+
+extern "C" bool ladybird_utf16_validate(u16 const* data, size_t length)
+{
+    VERIFY(data != nullptr);
+    return AK::Utf16View { reinterpret_cast<char16_t const*>(data), length }.validate();
+}
+
+extern "C" bool ladybird_utf16_validate_prefix(u16 const* data, size_t length, size_t* valid_code_units)
+{
+    VERIFY(data != nullptr);
+    return AK::Utf16View { reinterpret_cast<char16_t const*>(data), length }.validate(*valid_code_units);
+}
+
+extern "C" size_t ladybird_convert_valid_utf16_to_utf8(u16 const* data, size_t length, u8* output)
+{
+    return simdutf::convert_valid_utf16_to_utf8(reinterpret_cast<char16_t const*>(data), length, reinterpret_cast<char*>(output));
+}
+
+extern "C" FlatPtr ladybird_utf16_string_from_utf8(u8 const* data, size_t length)
+{
+    return AK::Utf16String::from_utf8_without_validation(AK::ffi_string_view(data, length)).into_raw();
+}
+
+extern "C" FlatPtr ladybird_utf16_string_to_well_formed(u16 const* data, size_t length)
+{
+    VERIFY(data != nullptr);
+    auto string = AK::Detail::Utf16StringData::to_well_formed({ reinterpret_cast<char16_t const*>(data), length });
+    return reinterpret_cast<FlatPtr>(&string.leak_ref());
+}
+
+extern "C" size_t ladybird_size_required_to_decode_base64(void const* data, size_t length, bool has_ascii_storage)
+{
+    if (has_ascii_storage)
+        return AK::size_required_to_decode_base64(AK::ffi_string_view(static_cast<u8 const*>(data), length));
+    return AK::size_required_to_decode_base64(AK::Utf16View { static_cast<char16_t const*>(data), length });
+}
+
+extern "C" u8 ladybird_decode_base64_into(void const* data, size_t length, bool has_ascii_storage, bool url, u8 last_chunk_handling, u8* output, size_t* output_length, size_t* read)
+{
+    auto handling = static_cast<AK::LastChunkHandling>(last_chunk_handling);
+    Bytes bytes { output, *output_length };
+
+    auto result = [&] {
+        if (has_ascii_storage) {
+            auto input = AK::ffi_string_view(static_cast<u8 const*>(data), length);
+            return url ? AK::decode_base64url_into(input, bytes, handling) : AK::decode_base64_into(input, bytes, handling);
+        }
+        AK::Utf16View input { static_cast<char16_t const*>(data), length };
+        return url ? AK::decode_base64url_into(input, bytes, handling) : AK::decode_base64_into(input, bytes, handling);
+    }();
+
+    *output_length = bytes.size();
+    if (result.is_error()) {
+        *read = result.error().valid_input_bytes;
+        return to_underlying(result.error().decode_error) + 1;
+    }
+    *read = result.value();
+    return 0;
+}
+
+extern "C" FlatPtr ladybird_encode_base64_to_utf16(u8 const* data, size_t length, bool url, bool omit_padding)
+{
+    ReadonlyBytes input { data, length };
+    auto padding = omit_padding ? AK::OmitPadding::Yes : AK::OmitPadding::No;
+    auto string = MUST(url ? AK::encode_base64url_to_utf16(input, padding) : AK::encode_base64_to_utf16(input, padding));
+    return move(string).into_raw();
+}
+
+extern "C" void ladybird_convert_to_decimal_exponential_form(double value, bool* sign, u64* fraction, i32* exponent)
+{
+    auto form = AK::convert_to_decimal_exponential_form(value);
+    *sign = form.sign;
+    *fraction = form.fraction;
+    *exponent = form.exponent;
 }
 
 extern "C" void* ladybird_alloc(size_t size, size_t alignment)

@@ -47,6 +47,11 @@ ErrorOr<size_t, InvalidBase64> decode_base64url_into(StringView, ByteBuffer&, La
 ErrorOr<size_t, InvalidBase64> decode_base64_into(Utf16View, ByteBuffer&, LastChunkHandling = LastChunkHandling::Loose);
 ErrorOr<size_t, InvalidBase64> decode_base64url_into(Utf16View, ByteBuffer&, LastChunkHandling = LastChunkHandling::Loose);
 
+ErrorOr<size_t, InvalidBase64> decode_base64_into(StringView, Bytes&, LastChunkHandling = LastChunkHandling::Loose);
+ErrorOr<size_t, InvalidBase64> decode_base64url_into(StringView, Bytes&, LastChunkHandling = LastChunkHandling::Loose);
+ErrorOr<size_t, InvalidBase64> decode_base64_into(Utf16View, Bytes&, LastChunkHandling = LastChunkHandling::Loose);
+ErrorOr<size_t, InvalidBase64> decode_base64url_into(Utf16View, Bytes&, LastChunkHandling = LastChunkHandling::Loose);
+
 enum class OmitPadding {
     No,
     Yes,
