@@ -15,11 +15,13 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/SkiaUtils.h>
 #include <LibGfx/TextLayout.h>
-#include <core/SkFont.h>
 #include <core/SkPath.h>
 #include <core/SkPathBuilder.h>
 #include <core/SkPathMeasure.h>
+#include <core/SkString.h>
 #include <utils/SkParsePath.h>
+
+#include <harfbuzz/hb.h>
 
 template<>
 constexpr bool AllocatedWithSystemAllocator<SkPath> = true;
@@ -32,6 +34,118 @@ namespace Gfx {
 static FloatPoint to_gfx_point(SkPoint const& point)
 {
     return { point.x(), point.y() };
+}
+
+namespace {
+
+// Maps the coordinates of a glyph outline from font units, with y up, to pixels, with y down. A contour starts only at
+// its first segment that goes somewhere, and segments that stay at one point are left out, so contours of a single
+// point, which fonts use as anchors, add nothing to the path.
+struct GlyphOutline {
+    SkPathBuilder& builder;
+    float units_to_pixels_x;
+    float units_to_pixels_y;
+    bool has_contour { false };
+    float current_x { 0 };
+    float current_y { 0 };
+
+    float x(float units) const { return units * units_to_pixels_x; }
+    // Subtract from 0, so that a point on the baseline gets 0 and not -0.
+    float y(float units) const { return 0.0f - units * units_to_pixels_y; }
+
+    bool is_at(float to_x, float to_y) const { return current_x == to_x && current_y == to_y; }
+
+    void go_to(float to_x, float to_y)
+    {
+        if (!has_contour) {
+            has_contour = true;
+            builder.moveTo(x(current_x), y(current_y));
+        }
+        current_x = to_x;
+        current_y = to_y;
+    }
+
+    void close_contour()
+    {
+        if (!has_contour)
+            return;
+        builder.close();
+        has_contour = false;
+    }
+};
+
+// NOTE: HarfBuzz emits the implicit line that closes each contour as a regular line_to before close_path. The
+//       quadratic callback must be set, otherwise HarfBuzz converts quadratic segments to cubics.
+hb_draw_funcs_t* glyph_outline_draw_funcs()
+{
+    static hb_draw_funcs_t* draw_funcs = [] {
+        auto* funcs = hb_draw_funcs_create();
+        hb_draw_funcs_set_move_to_func(
+            funcs, [](hb_draw_funcs_t*, void* draw_data, hb_draw_state_t*, float to_x, float to_y, void*) {
+                auto& outline = *static_cast<GlyphOutline*>(draw_data);
+                outline.close_contour();
+                outline.current_x = to_x;
+                outline.current_y = to_y;
+            },
+            nullptr, nullptr);
+        hb_draw_funcs_set_line_to_func(
+            funcs, [](hb_draw_funcs_t*, void* draw_data, hb_draw_state_t*, float to_x, float to_y, void*) {
+                auto& outline = *static_cast<GlyphOutline*>(draw_data);
+                if (outline.is_at(to_x, to_y))
+                    return;
+                outline.go_to(to_x, to_y);
+                outline.builder.lineTo(outline.x(to_x), outline.y(to_y));
+            },
+            nullptr, nullptr);
+        hb_draw_funcs_set_quadratic_to_func(
+            funcs, [](hb_draw_funcs_t*, void* draw_data, hb_draw_state_t*, float control_x, float control_y, float to_x, float to_y, void*) {
+                auto& outline = *static_cast<GlyphOutline*>(draw_data);
+                if (outline.is_at(control_x, control_y) && outline.is_at(to_x, to_y))
+                    return;
+                outline.go_to(to_x, to_y);
+                outline.builder.quadTo(outline.x(control_x), outline.y(control_y), outline.x(to_x), outline.y(to_y));
+            },
+            nullptr, nullptr);
+        hb_draw_funcs_set_cubic_to_func(
+            funcs, [](hb_draw_funcs_t*, void* draw_data, hb_draw_state_t*, float control1_x, float control1_y, float control2_x, float control2_y, float to_x, float to_y, void*) {
+                auto& outline = *static_cast<GlyphOutline*>(draw_data);
+                if (outline.is_at(control1_x, control1_y) && outline.is_at(control2_x, control2_y) && outline.is_at(to_x, to_y))
+                    return;
+                outline.go_to(to_x, to_y);
+                outline.builder.cubicTo(outline.x(control1_x), outline.y(control1_y), outline.x(control2_x), outline.y(control2_y), outline.x(to_x), outline.y(to_y));
+            },
+            nullptr, nullptr);
+        hb_draw_funcs_set_close_path_func(
+            funcs, [](hb_draw_funcs_t*, void* draw_data, hb_draw_state_t*, void*) {
+                static_cast<GlyphOutline*>(draw_data)->close_contour();
+            },
+            nullptr, nullptr);
+        hb_draw_funcs_make_immutable(funcs);
+        return funcs;
+    }();
+    return draw_funcs;
+}
+
+}
+
+// The outline of a glyph in pixels, with its origin on the baseline.
+static SkPath glyph_outline(Font const& font, u32 glyph_id)
+{
+    auto* hb_font = font.harfbuzz_font();
+    int x_scale = 0;
+    int y_scale = 0;
+    hb_font_get_scale(hb_font, &x_scale, &y_scale);
+    if (x_scale <= 0 || y_scale <= 0)
+        return {};
+    SkPathBuilder builder;
+    GlyphOutline outline {
+        .builder = builder,
+        .units_to_pixels_x = font.pixel_size() / static_cast<float>(x_scale),
+        .units_to_pixels_y = font.pixel_size() / static_cast<float>(y_scale),
+    };
+    hb_font_draw_glyph(hb_font, glyph_id, glyph_outline_draw_funcs(), &outline);
+    outline.close_contour();
+    return builder.detach();
 }
 
 NonnullOwnPtr<Gfx::PathImplSkia> PathImplSkia::create()
@@ -196,16 +310,11 @@ void PathImplSkia::glyph_run(GlyphRun const& glyph_run)
 {
     if (glyph_run.font().is_invisible())
         return;
-    auto sk_font = glyph_run.font().skia_font(1);
     auto& path_builder = sk_path_builder();
     path_builder.setFillType(SkPathFillType::kWinding);
     auto font_ascent = glyph_run.font().pixel_metrics().ascent;
-    for (auto const& glyph : glyph_run.glyphs()) {
-        auto glyph_path = sk_font.getPath(static_cast<SkGlyphID>(glyph.glyph_id));
-        if (!glyph_path.has_value())
-            continue;
-        path_builder.addPath(*glyph_path, glyph.position.x(), glyph.position.y() + font_ascent);
-    }
+    for (auto const& glyph : glyph_run.glyphs())
+        path_builder.addPath(glyph_outline(glyph_run.font(), glyph.glyph_id), glyph.position.x(), glyph.position.y() + font_ascent);
     update_state_from_path(sk_path());
 }
 
@@ -231,7 +340,6 @@ NonnullOwnPtr<PathImpl> PathImplSkia::place_glyph_runs_along(ReadonlySpan<Nonnul
     for (auto const& glyph_run : glyph_runs) {
         if (glyph_run->font().is_invisible())
             continue;
-        auto sk_font = glyph_run->font().skia_font(1);
         for (auto const& glyph : glyph_run->glyphs()) {
             SkScalar glyph_distance = offset + glyph.position.x();
 
@@ -246,14 +354,10 @@ NonnullOwnPtr<PathImpl> PathImplSkia::place_glyph_runs_along(ReadonlySpan<Nonnul
                 break;
             }
 
-            auto glyph_path = sk_font.getPath(static_cast<SkGlyphID>(glyph.glyph_id));
-            if (!glyph_path.has_value())
-                continue;
-
             SkMatrix matrix;
             matrix.setTranslate(position.x(), position.y());
             matrix.preRotate(SkRadiansToDegrees(std::atan2(tangent.y(), tangent.x())));
-            output_path->sk_path_builder().addPath(*glyph_path, matrix);
+            output_path->sk_path_builder().addPath(glyph_outline(glyph_run->font(), glyph.glyph_id), matrix);
         }
         if (reached_end_of_path)
             break;
