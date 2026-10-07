@@ -2552,12 +2552,15 @@ impl Parser<'_> {
         insights.might_need_arguments_object = self.flags.function_might_need_arguments_object;
         self.flags.function_might_need_arguments_object = saved_might_need_arguments;
 
-        // Class constructors always need a function environment for `this` binding
-        // management (super() binds this in derived constructors, and base constructors
-        // need it for OrdinaryCallBindThis).
+        // Class constructors always bind `this`. Derived constructors need a function
+        // environment for it, since super() binds it there; base constructors bind it like
+        // other functions do (OrdinaryCallBindThis), and only need one if something in them
+        // does.
         if method_kind == MethodKind::Constructor {
             insights.uses_this = true;
-            insights.uses_this_from_environment = true;
+            if self.class_has_super_class {
+                insights.uses_this_from_environment = true;
+            }
         }
 
         let nested_function_ids = self.pop_function_context();

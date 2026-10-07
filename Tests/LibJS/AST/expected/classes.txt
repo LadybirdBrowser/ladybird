@@ -2,7 +2,7 @@ Program (script) @1:1
 ├─ ClassDeclaration @1:1
 │  └─ ClassExpression "Animal" @1:1
 │     ├─ constructor
-│     │  └─ FunctionExpression "" [strict] [uses-this] [uses-this-from-environment] @2:5
+│     │  └─ FunctionExpression "" [strict] [uses-this] @2:5
 │     │     ├─ parameters
 │     │     │  └─ Identifier "name" [argument:0] @2:17
 │     │     └─ body
