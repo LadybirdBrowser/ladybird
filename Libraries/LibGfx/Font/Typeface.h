@@ -47,9 +47,16 @@ struct FontCacheKey {
     Vector<FontVariationAxis> axes;
     Gfx::ShapeFeatures shape_features;
 
+    // Sizes and values compare by their bits, as the hash reads them, so that a key with NaN finds itself.
     bool operator==(FontCacheKey const& other) const
     {
-        return point_size == other.point_size && axes == other.axes && shape_features == other.shape_features;
+        if (bit_cast<u32>(point_size) != bit_cast<u32>(other.point_size) || axes.size() != other.axes.size() || shape_features != other.shape_features)
+            return false;
+        for (size_t index = 0; index < axes.size(); ++index) {
+            if (axes[index].tag != other.axes[index].tag || bit_cast<u32>(axes[index].value) != bit_cast<u32>(other.axes[index].value))
+                return false;
+        }
+        return true;
     }
 
     unsigned hash() const
@@ -93,6 +100,8 @@ public:
     u32 collection_index() const { return ttc_index(); }
 
     [[nodiscard]] NonnullRefPtr<Font> font(float point_size, FontVariationSettings const& variations = {}, Gfx::ShapeFeatures const& shape_features = {}) const;
+    // A font that measures and shapes text like font() but draws nothing. Each call makes a new font.
+    [[nodiscard]] NonnullRefPtr<Font> invisible_font(float point_size, FontVariationSettings const& variations = {}, Gfx::ShapeFeatures const& shape_features = {}) const;
 
     void set_system_font_identifier(SystemFontIdentifier identifier) { m_system_font_identifier = identifier; }
     Optional<SystemFontIdentifier> system_font_identifier() const { return m_system_font_identifier; }
@@ -144,11 +153,10 @@ protected:
     virtual hb_face_t* create_harfbuzz_face() const;
 
     void set_font_data(NonnullRefPtr<FontDataBacking> backing) { m_font_data = move(backing); }
-    void copy_font_data_from(Typeface const&);
     bool has_font_data_backing() const { return !m_font_data.is_null(); }
 
 private:
-    friend class SharedFontProvider;
+    friend class Font;
 
     template<typename T>
     friend ErrorOr<void> IPC::encode(IPC::Encoder&, T const&);
@@ -160,7 +168,8 @@ private:
     Optional<SystemFontIdentifier> m_system_font_identifier;
     Optional<String> m_file_path;
 
-    void clear_font_cache() const;
+    // A font that is being destroyed leaves the cache of its typeface.
+    void forget_font(Font const&) const;
 
     // This cache stores information per code point.
     // It's segmented into pages with data about 256 code points each.
@@ -179,7 +188,8 @@ private:
     u64 m_glyph_cache_id { 0 };
 
     mutable Mutex m_fonts_mutex;
-    mutable HashMap<FontCacheKey, NonnullRefPtr<Font>> m_fonts;
+    // The fonts that are alive. A font does not keep itself here, so it holds its typeface without a reference cycle.
+    mutable HashMap<FontCacheKey, Font*> m_fonts;
     mutable OnceFlag m_harfbuzz_face_once;
     mutable hb_blob_t* m_harfbuzz_blob { nullptr };
     mutable hb_face_t* m_harfbuzz_face { nullptr };

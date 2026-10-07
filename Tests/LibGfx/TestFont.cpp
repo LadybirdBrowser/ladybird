@@ -58,10 +58,7 @@ private:
 static bool font_is_emoji(StringView path)
 {
     auto typeface = MUST(Gfx::Typeface::try_load_from_mapped_file(MUST(Core::MappedFile::map(path)), 0));
-    // Construct the Font directly rather than via Typeface::font() — which would cache it on the
-    // Typeface and form a Typeface<->Font reference cycle that leaks once both leave this scope.
-    auto font = adopt_ref(*new Gfx::Font(typeface, 12, 12, {}, {}));
-    return font->is_emoji_font();
+    return typeface->font(12)->is_emoji_font();
 }
 
 // A COLRv1 color font is recognized.
@@ -606,11 +603,11 @@ TEST_CASE(system_fallback_fonts_can_be_matched_on_several_threads)
     };
     // NB: A machine without a font covering this code point answers null, and null is an answer the
     //     memo keeps like any other, so this test does not depend on what is installed.
-    IGNORE_USE_IN_ESCAPING_LAMBDA Array<Gfx::Font const*, 8> matched {};
+    IGNORE_USE_IN_ESCAPING_LAMBDA Array<RefPtr<Gfx::Font const>, 8> matched {};
     Vector<NonnullRefPtr<Threading::Thread>> threads;
     for (size_t thread_index = 0; thread_index < matched.size(); ++thread_index) {
         auto thread = Threading::Thread::construct("SystemFallbackFont"sv, [&key, &matched, thread_index]() {
-            matched[thread_index] = Gfx::system_fallback_font(key, 12).ptr();
+            matched[thread_index] = Gfx::system_fallback_font(key, 12);
             return 0;
         });
         thread->start();
@@ -620,10 +617,10 @@ TEST_CASE(system_fallback_fonts_can_be_matched_on_several_threads)
         (void)thread->join();
 
     // One key is matched once, so every thread names the same font object, not eight equivalent ones.
-    for (auto const* font : matched)
-        EXPECT_EQ(font, matched[0]);
+    for (auto const& font : matched)
+        EXPECT_EQ(font.ptr(), matched[0].ptr());
     EXPECT_EQ(Gfx::system_fallback_font_cache_size(), 1u);
-    EXPECT_EQ(Gfx::system_fallback_font(key, 12).ptr(), matched[0]);
+    EXPECT_EQ(Gfx::system_fallback_font(key, 12).ptr(), matched[0].ptr());
 
     // Another size picks another font from the same typeface, so it does not grow the memo.
     (void)Gfx::system_fallback_font(key, 13);

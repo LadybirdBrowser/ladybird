@@ -7,8 +7,10 @@
 #include <harfbuzz/hb-ot.h>
 #include <harfbuzz/hb.h>
 
+#include <AK/Array.h>
 #include <AK/Atomic.h>
 #include <AK/Diagnostics.h>
+#include <AK/NeverDestroyed.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/FontTable.h>
@@ -70,36 +72,64 @@ Typeface::~Typeface()
         hb_blob_destroy(m_harfbuzz_blob);
 }
 
-void Typeface::clear_font_cache() const
+namespace {
+
+// The fonts that were made last. Text asks for the same fonts again and again, so a font stays alive for a while after
+// its last holder drops it, and keeps its id and the data of its rasterizer when it comes back.
+struct RecentFonts {
+    static constexpr size_t capacity = 256;
+
+    Mutex mutex;
+    Array<RefPtr<Font const>, capacity> fonts;
+    size_t next_index { 0 };
+};
+
+void keep_recent_font(NonnullRefPtr<Font const> font)
 {
-    MutexLocker locker { m_fonts_mutex };
-    m_fonts.clear();
+    static NeverDestroyed<RecentFonts> recent_fonts;
+    RefPtr<Font const> oldest_font;
+    {
+        MutexLocker locker { recent_fonts->mutex };
+        oldest_font = exchange(recent_fonts->fonts[recent_fonts->next_index], move(font));
+        recent_fonts->next_index = (recent_fonts->next_index + 1) % RecentFonts::capacity;
+    }
+    // NB: The oldest font is released after the lock, because releasing it can destroy the font and its typeface.
+}
+
 }
 
 NonnullRefPtr<Font> Typeface::font(float point_size, FontVariationSettings const& variations, Gfx::ShapeFeatures const& shape_features) const
 {
-    MutexLocker locker { m_fonts_mutex };
-    FontCacheKey key { point_size, variations.to_sorted_list(), shape_features };
+    RefPtr<Font> font;
+    {
+        MutexLocker locker { m_fonts_mutex };
+        FontCacheKey key { point_size, variations.to_sorted_list(), shape_features };
 
-    if (auto it = m_fonts.find(key); it != m_fonts.end())
-        return *it->value;
+        // A font that another thread is destroying cannot be referenced any more, and a new font replaces it.
+        if (auto it = m_fonts.find(key); it != m_fonts.end() && it->value->try_ref())
+            return adopt_ref(*it->value);
 
-    // FIXME: It might be nice to have a global cap on the number of fonts we cache
-    //        instead of doing it at the per-Typeface level like this.
-    constexpr size_t max_cached_font_size_count = 128;
-    if (m_fonts.size() > max_cached_font_size_count)
-        m_fonts.remove(m_fonts.begin());
-
-    RefPtr<Typeface const> used_typeface = const_cast<Typeface*>(this);
-    if (!variations.is_empty()) {
-        if (auto const* skia_typeface = as_if<TypefaceSkia const>(this))
-            if (auto derived = skia_typeface->clone_with_variations(variations.to_sorted_list()))
-                used_typeface = move(derived);
+        font = adopt_ref(*new Font(*this, point_size, point_size, variations, shape_features));
+        m_fonts.set(move(key), font.ptr());
     }
+    keep_recent_font(*font);
+    return font.release_nonnull();
+}
 
-    auto font = adopt_ref(*new Font(*used_typeface, point_size, point_size, variations, shape_features));
-    m_fonts.set(key, font);
+NonnullRefPtr<Font> Typeface::invisible_font(float point_size, FontVariationSettings const& variations, Gfx::ShapeFeatures const& shape_features) const
+{
+    auto font = adopt_ref(*new Font(*this, point_size, point_size, variations, shape_features));
+    font->m_is_invisible = true;
     return font;
+}
+
+void Typeface::forget_font(Font const& font) const
+{
+    MutexLocker locker { m_fonts_mutex };
+    FontCacheKey key { font.point_size(), font.variation_settings().to_sorted_list(), font.features() };
+    // Invisible variants are not in the cache, and a newer font may have replaced this one.
+    if (auto it = m_fonts.find(key); it != m_fonts.end() && it->value == &font)
+        m_fonts.remove(it);
 }
 
 hb_face_t* Typeface::harfbuzz_typeface() const
@@ -305,13 +335,6 @@ void Typeface::encode_font_data_for_ipc(IPC::Encoder& encoder) const
             //     therefore have already been handled above.
             VERIFY_NOT_REACHED();
         });
-}
-
-void Typeface::copy_font_data_from(Typeface const& other)
-{
-    m_font_data = other.m_font_data;
-    m_system_font_identifier = other.m_system_font_identifier;
-    m_file_path = other.m_file_path;
 }
 
 }

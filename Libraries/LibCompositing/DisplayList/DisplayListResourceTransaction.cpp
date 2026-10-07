@@ -56,9 +56,7 @@ ErrorOr<Compositing::DisplayListFontResource> decode(Decoder& decoder)
     auto variations = TRY(decoder.decode<Gfx::FontVariationSettings>());
     auto features = TRY(decoder.decode<Gfx::ShapeFeatures>());
     auto invisible = TRY(decoder.decode<bool>());
-    auto font = typeface->font(point_size, move(variations), move(features));
-    if (invisible)
-        font = font->invisible_variant();
+    auto font = invisible ? typeface->invisible_font(point_size, variations, features) : typeface->font(point_size, variations, features);
 
     return Compositing::DisplayListFontResource {
         .id = id,

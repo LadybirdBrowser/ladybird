@@ -41,8 +41,6 @@ public:
     static ErrorOr<RefPtr<TypefaceSkia>> find_typeface_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji);
     static Optional<FlyString> resolve_generic_family(StringView family_name, u16 weight, u8 slope);
 
-    RefPtr<TypefaceSkia const> clone_with_variations(Vector<FontVariationAxis> const& axes) const;
-
     virtual FlyString const& family() const override;
     virtual u16 weight() const override;
     virtual u16 width() const override;

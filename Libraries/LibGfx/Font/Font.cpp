@@ -85,9 +85,7 @@ float Font::width(Utf16View const& view) const { return measure_text_width(view,
 
 NonnullRefPtr<Font> Font::invisible_variant() const
 {
-    auto font = adopt_ref(*new Font(m_typeface, m_point_width, m_point_height, m_font_variation_settings, m_shape_features));
-    font->m_is_invisible = true;
-    return font;
+    return m_typeface->invisible_font(m_point_height, m_font_variation_settings, m_shape_features);
 }
 
 float Font::pixel_size() const
@@ -98,6 +96,11 @@ float Font::pixel_size() const
 float Font::point_size() const
 {
     return m_point_height;
+}
+
+void Font::will_be_destroyed() const
+{
+    m_typeface->forget_font(*this);
 }
 
 Font::~Font()

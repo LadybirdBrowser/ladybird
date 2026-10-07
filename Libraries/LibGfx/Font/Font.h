@@ -81,6 +81,9 @@ public:
 
     bool is_emoji_font() const;
 
+    // Called by AtomicRefCounted when the last reference goes away.
+    void will_be_destroyed() const;
+
     // What a rasterizer keeps with this font. The first call makes it.
     template<typename T, typename Callback>
     T& rasterizer_data(Callback make) const
@@ -90,6 +93,8 @@ public:
     }
 
 private:
+    friend class Typeface;
+
     bool m_is_invisible { false };
     u64 m_id { 0 };
 
