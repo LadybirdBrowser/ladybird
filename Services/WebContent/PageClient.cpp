@@ -2078,34 +2078,21 @@ void PageClient::page_did_receive_network_response_body(u64 request_id, Readonly
     client().async_did_receive_network_response_body(m_id, request_id, data);
 }
 
-void PageClient::did_connect_devtools_client()
+void PageClient::set_has_devtools_client(bool has_devtools_client)
 {
-    auto was_first_devtools_client = !has_devtools_client();
-    ++m_devtools_client_count;
-
-    if (!was_first_devtools_client)
+    if (m_has_devtools_client == has_devtools_client)
         return;
+    m_has_devtools_client = has_devtools_client;
 
     for (auto& navigable : Web::HTML::all_local_navigables()) {
         if (&navigable->page() != &page())
             continue;
-        if (auto active_document = navigable->active_document())
+        auto active_document = navigable->active_document();
+        if (!active_document)
+            continue;
+        if (has_devtools_client)
             active_document->update_layout(Web::DOM::UpdateLayoutReason::InspectDevToolsLayoutData);
-    }
-}
-
-void PageClient::did_disconnect_devtools_client()
-{
-    VERIFY(m_devtools_client_count > 0);
-    --m_devtools_client_count;
-
-    if (has_devtools_client())
-        return;
-
-    for (auto& navigable : Web::HTML::all_local_navigables()) {
-        if (&navigable->page() != &page())
-            continue;
-        if (auto active_document = navigable->active_document())
+        else
             active_document->clear_devtools_layout_inspection_data();
     }
 }
