@@ -960,6 +960,8 @@ pub unsafe extern "C" fn style_engine_move_custom_property_environment(
         store: environment.store,
     };
     let environment_move = EnvironmentMove {
+        old_environment: named(moved.old_environment),
+        new_environment: named(moved.new_environment),
         old_inheritable: moved.old_inheritable,
         new_inheritable: named(moved.new_inheritable),
         new_inheritable_data: moved.new_inheritable_data,

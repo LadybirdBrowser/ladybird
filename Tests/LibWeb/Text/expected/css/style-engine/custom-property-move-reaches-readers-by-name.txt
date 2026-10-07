@@ -1,0 +1,6 @@
+declarations: 40px
+pseudo-element: 20px
+keyframes: 20px
+element declaring other names: 6px
+its child: 20px
+child of animated element: 5 20

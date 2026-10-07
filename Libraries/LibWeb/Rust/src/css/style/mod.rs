@@ -834,6 +834,10 @@ pub struct RetainedState {
     /// environment they resolve over, as `FfiNodeRecordReads` bits, for the elements whose
     /// declarations read anything: what the host notes beside their records.
     custom_declaration_reads: HashMap<StyleNodeID, u8>,
+    /// The custom properties the custom declarations of an element, or of its pseudo-elements,
+    /// declare or read through `var()`. `None` when they cannot be listed.
+    custom_declaration_custom_property_reads:
+        HashMap<StyleNodeID, Option<custom_property_cascade::CustomPropertyNames>>,
     /// Which of a node's records read its place among its siblings, written or produced by a
     /// substitution: a bit for its own record and one per synthetic pseudo-element kind, which
     /// each record the engine derives, or admits from C++, sets or clears as it is installed. A
@@ -1090,6 +1094,8 @@ pub struct HostState {
     /// Whether the deferred element style inputs are owed to the next transaction, as opposed to
     /// held back by a flush without a document root.
     deferred_element_style_inputs_are_pending: bool,
+    /// The custom properties that changed between pairs of environments during this transaction.
+    environment_move_changed_names: crate::fork::ForkReset<environment_move::ChangedCustomPropertyNames>,
     deferred_element_style_input_memory: MemoryLease,
     /// Whether any tree input batch has crossed into the engine. A first batch consisting entirely
     /// of unique arrivals can install its final relation rows as one bulk load.

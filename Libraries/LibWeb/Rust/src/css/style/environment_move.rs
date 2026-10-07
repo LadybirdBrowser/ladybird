@@ -7,9 +7,13 @@
 //! Moving the custom-property environments below an element whose own environment moved.
 
 use std::ffi::c_void;
+use std::sync::Arc;
 
+use super::custom_property_cascade::{CustomPropertyNames, sorted_custom_property_names};
 use super::inputs::{HeldCustomPropertyEnvironment, RetainedCustomPropertyData};
 use super::*;
+use crate::css::custom_properties::CustomPropertyStore;
+use crate::css::style_value::StyleValueData;
 
 /// An environment the host holds, as a move names it: the identity, the store behind it, null for
 /// the empty environment.
@@ -21,6 +25,9 @@ pub(crate) struct NamedEnvironment {
 
 /// A move of one element's custom-property environment, as the host made it.
 pub(crate) struct EnvironmentMove {
+    /// What the element held before the move and holds now, including what its animations sampled.
+    pub(crate) old_environment: NamedEnvironment,
+    pub(crate) new_environment: NamedEnvironment,
     /// What the element handed its children before the move.
     pub(crate) old_inheritable: u64,
     /// What it hands them now. Every element the move hands the environment it inherits takes
@@ -51,6 +58,88 @@ pub(crate) enum EnvironmentMoveAction {
     Recompute(StyleNodeID),
 }
 
+#[derive(Default)]
+pub(super) struct ChangedCustomPropertyNames {
+    by_stores: HashMap<(usize, usize), Arc<[usize]>>,
+    /// Keeps the stores whose addresses key `by_stores` alive, so that no other store can reuse an address.
+    stores: Vec<Arc<CustomPropertyStore>>,
+}
+
+impl ChangedCustomPropertyNames {
+    pub(super) fn clear(&mut self) {
+        self.by_stores.clear();
+        self.stores.clear();
+    }
+
+    fn between(
+        &mut self,
+        old: Option<&Arc<CustomPropertyStore>>,
+        new: Option<&Arc<CustomPropertyStore>>,
+    ) -> Arc<[usize]> {
+        let key = (
+            old.map_or(0, |store| Arc::as_ptr(store) as usize),
+            new.map_or(0, |store| Arc::as_ptr(store) as usize),
+        );
+        if key.0 == key.1 {
+            return Arc::from([]);
+        }
+        if let Some(names) = self.by_stores.get(&key) {
+            return names.clone();
+        }
+        let inherited = self.between(
+            old.and_then(|store| store.parent()),
+            new.and_then(|store| store.parent()),
+        );
+        let mut seen = HashSet::default();
+        let mut names: Vec<usize> = old
+            .into_iter()
+            .chain(new)
+            .flat_map(|store| store.own_values.keys().copied())
+            .chain(inherited.iter().copied())
+            .filter(|&name| seen.insert(name) && custom_property_value_moved(name, old, new))
+            .collect();
+        names.sort_unstable();
+        let names: Arc<[usize]> = names.into();
+        self.stores.extend(old.cloned());
+        self.stores.extend(new.cloned());
+        self.by_stores.insert(key, names.clone());
+        names
+    }
+}
+
+fn custom_property_value_moved(
+    name: usize,
+    old: Option<&Arc<CustomPropertyStore>>,
+    new: Option<&Arc<CustomPropertyStore>>,
+) -> bool {
+    let old = old.and_then(|store| store.get(name));
+    let new = new.and_then(|store| store.get(name));
+    let (old, new) = match (old, new) {
+        (None, None) => return false,
+        (Some(old), Some(new)) => (old.value.pointer(), new.value.pointer()),
+        _ => return true,
+    };
+    if std::ptr::eq(old, new) {
+        return false;
+    }
+    // SAFETY: Both values are kept alive by the stores that hold them.
+    matches!(unsafe { &*old }, StyleValueData::PendingSubstitution { .. })
+        || !unsafe { crate::css::style_value::rust_style_value_equals(old, new) }
+}
+
+/// # Safety
+/// `store` must be null or a live raw `Arc` pointer to a `CustomPropertyStore`.
+unsafe fn retained_store(store: *const c_void) -> Option<Arc<CustomPropertyStore>> {
+    if store.is_null() {
+        return None;
+    }
+    let store = store.cast::<CustomPropertyStore>();
+    unsafe {
+        Arc::increment_strong_count(store);
+        Some(Arc::from_raw(store))
+    }
+}
+
 impl StyleEngine {
     /// Move the custom-property environments below `origin`, whose own moved as `moved` says, and
     /// answer what the host does for the elements the move reaches, in preorder. An element that
@@ -74,12 +163,13 @@ impl StyleEngine {
                 .custom_property_environments
                 .retain(moved.new_inheritable.identity, moved.new_inheritable.store);
         }
+        let mut changed_names = None;
         let mut pending = Vec::new();
         self.push_flat_tree_element_children(origin, moved.old_inheritable, &mut pending);
         while let Some((element, old_parent_inheritable)) = pending.pop() {
-            if let Some(old_inheritable) =
-                unsafe { self.move_element_environment(element, old_parent_inheritable, moved, &mut act) }
-            {
+            if let Some(old_inheritable) = unsafe {
+                self.move_element_environment(element, old_parent_inheritable, moved, &mut changed_names, &mut act)
+            } {
                 self.push_flat_tree_element_children(element, old_inheritable, &mut pending);
             }
         }
@@ -126,6 +216,7 @@ impl StyleEngine {
         element: StyleNodeID,
         old_parent_inheritable: u64,
         moved: &EnvironmentMove,
+        changed_names: &mut Option<CustomPropertyNames>,
         act: &mut impl FnMut(EnvironmentMoveAction),
     ) -> Option<u64> {
         // An unstyled subtree takes whatever it inherits once it has style.
@@ -150,14 +241,14 @@ impl StyleEngine {
             || (!declares && !self.retained.node_declares_custom_properties(element));
         if !holds_inherited_environment {
             // Its declared values stand while it reads nothing that changed.
-            if existing == 0 || !declares || self.environment_move_needs_recompute(element) {
+            if existing == 0 || !declares || self.environment_move_needs_recompute(element, moved, changed_names) {
                 act(EnvironmentMoveAction::Recompute(element));
             } else {
                 act(EnvironmentMoveAction::Rebuild(element));
             }
             return None;
         }
-        if self.environment_move_needs_recompute(element) {
+        if self.environment_move_needs_recompute(element, moved, changed_names) {
             act(EnvironmentMoveAction::Recompute(element));
             return None;
         }
@@ -225,10 +316,46 @@ impl StyleEngine {
     }
 
     /// Whether a moved environment computes the element again rather than handing it the moved
-    /// one: its style reads the environment other than through `var()`, or reads custom properties.
-    fn environment_move_needs_recompute(&mut self, element: StyleNodeID) -> bool {
-        self.retained.element_recomputes_on_environment_move(element)
-            || self.retained.node_style_reads_custom_properties(element)
+    /// one: its style reads the environment other than through `var()`, or reads a changed custom property.
+    fn environment_move_needs_recompute(
+        &mut self,
+        element: StyleNodeID,
+        moved: &EnvironmentMove,
+        changed_names: &mut Option<CustomPropertyNames>,
+    ) -> bool {
+        if self.retained.element_recomputes_on_environment_move(element) {
+            return true;
+        }
+        let changed = changed_names
+            .get_or_insert_with(|| self.changed_custom_property_names(moved))
+            .clone();
+        self.retained
+            .node_style_reads_any_of_custom_properties(element, &changed)
+    }
+
+    fn changed_custom_property_names(&mut self, moved: &EnvironmentMove) -> CustomPropertyNames {
+        // SAFETY: The move's stores are live for the move.
+        let (old, new) = unsafe {
+            (
+                retained_store(moved.old_environment.store),
+                retained_store(moved.new_environment.store),
+            )
+        };
+        let names = self
+            .host
+            .environment_move_changed_names
+            .between(old.as_ref(), new.as_ref());
+        sorted_custom_property_names(
+            names
+                .iter()
+                .filter_map(|&name| {
+                    old.as_ref()
+                        .and_then(|store| store.get(name))
+                        .or_else(|| new.as_ref().and_then(|store| store.get(name)))
+                })
+                .map(|entry| entry.name.clone())
+                .collect(),
+        )
     }
 }
 
@@ -243,7 +370,13 @@ mod tests {
     }
 
     fn moved(old_inheritable: u64, new_inheritable: u64) -> EnvironmentMove {
+        let empty = NamedEnvironment {
+            identity: 0,
+            store: std::ptr::null(),
+        };
         EnvironmentMove {
+            old_environment: empty,
+            new_environment: empty,
             old_inheritable,
             new_inheritable: NamedEnvironment {
                 identity: new_inheritable,

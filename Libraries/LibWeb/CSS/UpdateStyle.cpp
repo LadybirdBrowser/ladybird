@@ -359,17 +359,22 @@ static void move_pseudo_element_environments(Layout::BegunRead const& read, DOM:
     }
 }
 
-// An element's custom properties moved from `old_base` to `new_base`: the style engine moves what the element's
+// An element's custom properties moved from `old_data` to `new_data`: the style engine moves what the element's
 // descendants inherit, and calls back for what the move leaves the host.
-static void move_custom_property_environment_below(StyleReactionApplication& application, DOM::Element& element, RefPtr<CustomPropertyData const> const& old_base, RefPtr<CustomPropertyData const> const& new_base)
+static void move_custom_property_environment_below(StyleReactionApplication& application, DOM::Element& element, RefPtr<CustomPropertyData const> const& old_data, RefPtr<CustomPropertyData const> const& new_data)
 {
     auto const& read = application.read;
     auto& document = *application.document;
-    auto old_inheritable = old_base ? old_base->inheritable(read, document) : nullptr;
-    auto new_inheritable = new_base ? new_base->inheritable(read, document) : nullptr;
+    auto old_inheritable = old_data ? old_data->inheritable(read, document) : nullptr;
+    auto new_inheritable = new_data ? new_data->inheritable(read, document) : nullptr;
+    auto named = [](CustomPropertyData const* data) -> StyleEngineFFI::FfiNamedEnvironment {
+        return { .identity = data ? data->identity() : 0, .store = data ? data->rust_store() : nullptr };
+    };
     StyleEngineFFI::FfiEnvironmentMove const moved {
+        .old_environment = named(old_data.ptr()),
+        .new_environment = named(new_data.ptr()),
         .old_inheritable = old_inheritable ? old_inheritable->identity() : 0,
-        .new_inheritable = { .identity = new_inheritable ? new_inheritable->identity() : 0, .store = new_inheritable ? new_inheritable->rust_store() : nullptr },
+        .new_inheritable = named(new_inheritable.ptr()),
         .new_inheritable_data = new_inheritable.ptr(),
         .new_inheritable_declares = new_inheritable && new_inheritable->declared_count() > 0,
     };
@@ -433,9 +438,7 @@ static void propagate_custom_property_environment_move(StyleReactionApplication&
     // Nothing inherits from an element with nothing below it in the flat tree.
     if (!origin.first_element_child() && !origin.shadow_root() && !is<HTML::HTMLSlotElement>(origin))
         return;
-    auto old_origin_base = custom_property_environment_base(origin, move(old_origin_data));
-    auto new_origin_base = custom_property_environment_base(origin, origin.custom_property_data({}));
-    move_custom_property_environment_below(application, origin, old_origin_base, new_origin_base);
+    move_custom_property_environment_below(application, origin, old_origin_data, origin.custom_property_data({}));
 }
 
 // Install the record the engine settled for a row, and the pseudo-element records beside it. A C++ computation applied

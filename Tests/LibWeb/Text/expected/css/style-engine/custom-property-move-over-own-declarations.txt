@@ -1,5 +1,5 @@
-records computed: 5
-transactions: 3
+records computed: 3
+transactions: 2
 reader: rgb(0, 0, 255)
 reader: rgb(0, 0, 255)
 scope: blue 4px

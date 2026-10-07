@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @property --glow { syntax: "<number>"; inherits: true; initial-value: 0; }
+    @keyframes grow { from { width: calc(var(--moved) * 1px); } to { width: 0px; } }
+    @keyframes glow { from { --glow: 5; } to { --glow: 7; } }
+    #root { --moved: 10; --stable: 3; }
+    #declares-reader { --own: calc(var(--moved) * 2); width: calc(var(--own) * 1px); }
+    #pseudo-reader::before { content: ""; display: block; width: calc(var(--moved) * 1px); }
+    #keyframes-reader { animation: grow 1s paused; }
+    #declares-other { --own: calc(var(--stable) * 2); width: calc(var(--own) * 1px); }
+    #declares-other-child { width: calc(var(--moved) * 1px); }
+    #animated { animation: glow 1s paused; }
+    #animated-child { --own: 1; }
+</style>
+<div id="root">
+    <div id="declares-reader"></div>
+    <div id="pseudo-reader"></div>
+    <div id="keyframes-reader"></div>
+    <div id="declares-other"><div id="declares-other-child"></div></div>
+    <div id="animated"><div id="animated-child"></div></div>
+</div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        const style = (id, pseudo) => getComputedStyle(document.getElementById(id), pseudo);
+        document.getElementById("root").style.setProperty("--moved", "20");
+        println(`declarations: ${style("declares-reader").width}`);
+        println(`pseudo-element: ${style("pseudo-reader", "::before").width}`);
+        println(`keyframes: ${style("keyframes-reader").width}`);
+        println(`element declaring other names: ${style("declares-other").width}`);
+        println(`its child: ${style("declares-other-child").width}`);
+        // #animated-child declares its own custom property, so it is rebuilt over its parent's animated values.
+        println(`child of animated element: ${style("animated-child").getPropertyValue("--glow")} ${style("animated-child").getPropertyValue("--moved")}`);
+    });
+</script>
