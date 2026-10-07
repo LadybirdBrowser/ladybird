@@ -1871,6 +1871,9 @@ private:
     bool m_style_engine_tracks_tree { false };
     CSS::StyleNodeID m_style_node_id;
     GC::WeakHashSet<Element> m_elements_with_dirty_style_attributes;
+    // Elements whose style attribute a style update left out of sync with their inline style, as nothing of the style
+    // engine read it then.
+    GC::WeakHashSet<Element> m_elements_with_unreported_style_attributes;
     GC::WeakHashSet<Element> m_elements_with_viewport_dependent_style;
     bool m_suppresses_attribute_style_invalidation { false };
     CSS::ScrollStateQueryContainers m_scroll_state_query_containers;

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="changed" style="color: red"></div>
+<div id="gained"></div>
+<script>
+    // Inline style changes that no selector reads as the style updates still reach a selector of the style attribute
+    // that arrives later, and the attribute reads as the declarations say.
+    test(() => {
+        changed.style.color = "green";
+        gained.style.color = "blue";
+        getComputedStyle(changed).color;
+        getComputedStyle(gained).color;
+
+        const sheet = document.createElement("style");
+        sheet.textContent = `[style*="green"] { width: 50px; } [style] { height: 7px; }`;
+        document.head.appendChild(sheet);
+        println(`changed width: ${getComputedStyle(changed).width}`);
+        println(`gained height: ${getComputedStyle(gained).height}`);
+
+        changed.style.color = "purple";
+        println(`changed width after it no longer matches: ${getComputedStyle(changed).width}`);
+        println(`changed style attribute: ${changed.getAttribute("style")}`);
+        println(`gained style attribute: ${gained.getAttribute("style")}`);
+    });
+</script>

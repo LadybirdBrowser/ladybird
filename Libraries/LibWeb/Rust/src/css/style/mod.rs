@@ -159,8 +159,8 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use std::sync::Mutex;
 
-/// The attribute names whose value text a selector reads, which a document's engine shares with its host.
-pub(crate) type SelectorValueTextNames = Arc<HashSet<StyleAtomID>>;
+/// Attribute names a document's selectors read, which its engine shares with its host.
+pub(crate) type SelectorAttributeNames = Arc<HashSet<StyleAtomID>>;
 
 use crate::css::cascaded_properties::CascadeOrigin;
 #[cfg(test)]
@@ -1006,7 +1006,9 @@ pub struct RetainedState {
     facts: crate::fork::ForkShared<ElementFactStore>,
     programs: SelectorPrograms,
     /// The attribute names whose value text a selector reads, which the host holds a copy of between jobs.
-    attribute_value_text_names: SelectorValueTextNames,
+    attribute_value_text_names: SelectorAttributeNames,
+    /// The attribute names a selector tests in any way, which the host holds a copy of between jobs.
+    tested_attribute_names: SelectorAttributeNames,
     attribute_value_text_requirements_version: u64,
     selector_programs_need_sweep: bool,
     routing: Arc<RoutingRegistry>,

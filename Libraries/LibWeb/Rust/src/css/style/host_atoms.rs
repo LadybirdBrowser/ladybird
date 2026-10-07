@@ -307,6 +307,27 @@ fn value_text_is_known_unread(host: &DocumentHost, name: StyleAtomID) -> bool {
     unread
 }
 
+/// Whether the host knows that nothing of the engine reads the attribute name `name`: no selector tests it, by `name` or
+/// the other forms the host published with it, and no `attr()` reads it, by its local name if it has one. Where it does
+/// not know, the host hands the engine each change to the attribute.
+///
+/// # Safety
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_attribute_is_known_unread(host: &DocumentHost, name: u32) -> bool {
+    let atoms = host.engine_memo().atoms.borrow();
+    let Some(PublishedAttributeName {
+        forms,
+        substitution_name,
+    }) = atoms.published_attribute_names.get(&StyleAtomID(name))
+    else {
+        return false;
+    };
+    !substitution_name.as_deref().is_some_and(attr_may_read_name)
+        && host.known_selectors_test_attribute(&[StyleAtomID(name), forms.local, forms.folded_name, forms.folded_local])
+            == Some(false)
+}
+
 /// Whether the engine's requirements of attribute value text moved since the host last asked, which makes the host ask
 /// again about the names it knew nothing read.
 ///

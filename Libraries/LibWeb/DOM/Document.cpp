@@ -668,7 +668,21 @@ void Document::mark_style_attribute_dirty(Element& element)
 
 void Document::synchronize_dirty_style_attributes()
 {
+    // OPTIMIZATION: A style update synchronizes the style attribute of an element whose declarations script changed
+    //               only for the selectors and attr()s of the style engine. Where none reads the attribute, it is
+    //               synchronized as the DOM reads it, which tells the engine then, and the elements left out are
+    //               synchronized at the first style update that something of the engine reads it at.
+    auto& style_engine = style_computer().style_engine();
+    if (style_engine.attribute_is_known_unread(style_engine.intern_attribute_name(HTML::AttributeNames::style, {}))) {
+        for (auto& element : m_elements_with_dirty_style_attributes)
+            m_elements_with_unreported_style_attributes.set(element);
+        m_elements_with_dirty_style_attributes.clear();
+        return;
+    }
     auto elements = move(m_elements_with_dirty_style_attributes);
+    for (auto& element : m_elements_with_unreported_style_attributes)
+        elements.set(element);
+    m_elements_with_unreported_style_attributes.clear();
     for (auto& element : elements) {
         if (element.is_connected() && &element.document() == this)
             element.synchronize_all_attributes();

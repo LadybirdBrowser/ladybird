@@ -785,6 +785,21 @@ impl<A: AtomSpace> SelectorProgram<A> {
         visited
     }
 
+    /// The names of the attributes the program tests, by any operator.
+    pub fn tested_attribute_names(&self) -> impl Iterator<Item = StyleAtomID> + '_ {
+        self.nodes
+            .iter()
+            .filter_map(|node| match node {
+                SelectorOp::Feature(FeatureTest::Attribute(test)) => Some(test),
+                _ => None,
+            })
+            .flat_map(|test| {
+                [Some(test.name), (test.folded != test.name).then_some(test.folded)]
+                    .into_iter()
+                    .flatten()
+            })
+    }
+
     /// Attribute names whose tests cannot be answered from the value atom alone.
     pub fn attribute_value_text_names(&self) -> impl Iterator<Item = StyleAtomID> + '_ {
         self.nodes
