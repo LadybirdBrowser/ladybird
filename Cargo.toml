@@ -6,6 +6,7 @@ members = [
     "Libraries/LibImageDecoders/Rust",
     "Libraries/LibJS/ABI",
     "Libraries/LibJS/Rust",
+    "Libraries/LibJS/Rust/macros",
     "Libraries/LibRegex/Rust",
     "Libraries/LibTextCodec/Rust",
     "Libraries/LibUnicode/Rust",
@@ -18,7 +19,6 @@ members = [
 ]
 exclude = [
     "Libraries/LibJS/Flap",
-    "Libraries/LibJS/Rust/Runtime",
 ]
 resolver = "2"
 

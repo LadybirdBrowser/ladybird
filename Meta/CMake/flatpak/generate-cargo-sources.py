@@ -15,18 +15,16 @@ from typing import Any
 
 script_dir = Path(__file__).parent
 repo_root = script_dir / ".." / ".." / ".."
-lock_paths = [repo_root / "Cargo.lock", repo_root / "Libraries" / "LibJS" / "Rust" / "Runtime" / "Cargo.lock"]
+lock_path = repo_root / "Cargo.lock"
+
+lock = lock_path.read_text()
 
 crates = []
-for lock_path in lock_paths:
-    lock = lock_path.read_text()
-    for m in re.finditer(
-        r'name = "(.+?)"\nversion = "(.+?)"\nsource = "registry.+?"\nchecksum = "(.+?)"',
-        lock,
-    ):
-        crate = (m.group(1), m.group(2), m.group(3))
-        if crate not in crates:
-            crates.append(crate)
+for m in re.finditer(
+    r'name = "(.+?)"\nversion = "(.+?)"\nsource = "registry.+?"\nchecksum = "(.+?)"',
+    lock,
+):
+    crates.append((m.group(1), m.group(2), m.group(3)))
 
 sources: list[dict[str, Any]] = [
     {

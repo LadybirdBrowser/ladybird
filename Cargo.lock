@@ -196,6 +196,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cc"
+version = "1.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f360145194ee8e21db5ee7f3fcd4fe52210864c75c985dae33218202c8bbe040"
+dependencies = [
+ "find-msvc-tools",
+ "shlex",
+]
+
+[[package]]
 name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -437,6 +447,12 @@ name = "fastrand"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a043dc74da1e37d6afe657061213aa6f425f855399a11d3463c6ecccc4dfda1f"
+
+[[package]]
+name = "find-msvc-tools"
+version = "0.1.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aedcfb3409746eddb02b9e19ebda1c3394f759a152e48ee875a0844d1b955484"
 
 [[package]]
 name = "flapc"
@@ -837,17 +853,31 @@ name = "libjs_abi"
 version = "0.1.0"
 
 [[package]]
+name = "libjs_runtime_macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "libjs_rust"
 version = "0.1.0"
 dependencies = [
  "ak",
+ "cbindgen",
+ "cc",
  "fARM64",
  "flapc",
  "foldhash 0.1.5",
  "iced-x86",
  "indexmap",
  "ladybird_allocator",
+ "libc",
  "libjs_abi",
+ "libjs_runtime_macros",
+ "libregex_rust",
  "libunicode_rust",
  "num-bigint",
  "num-integer",
@@ -1290,6 +1320,12 @@ checksum = "6662b5879511e06e8999a8a235d848113e942c9124f211511b16466ee2995f26"
 dependencies = [
  "serde_core",
 ]
+
+[[package]]
+name = "shlex"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 
 [[package]]
 name = "simdutf8"

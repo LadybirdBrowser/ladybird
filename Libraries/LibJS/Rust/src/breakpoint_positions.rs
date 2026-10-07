@@ -7,7 +7,7 @@
 //! The positions in a source that a debugger can stop at: those that the bytecode of the source maps back to.
 
 use crate::ast::ProgramType;
-use crate::bytecode::executable::ExecutableData;
+use crate::bytecode::executable_data::ExecutableData;
 use crate::bytecode::generator::PrecompiledFunction;
 use crate::compile::CompiledProgram;
 use crate::compile::CompiledProgramBytecode;

@@ -14,8 +14,8 @@ use super::instruction::visit_labels_from_bytes;
 use super::native_disassembler::disassemble;
 use super::operand::Operand;
 use super::validator::read_u32;
-use crate::runtime::value::EncodedValue;
-use crate::runtime::value::EncodedValueKind;
+use crate::bytecode::encoded_value::EncodedValue;
+use crate::bytecode::encoded_value::EncodedValueKind;
 
 #[repr(C)]
 pub struct FFIDumpExceptionHandler {

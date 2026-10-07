@@ -7,30 +7,30 @@
 #include <LibJS/ToolEntryPoints.h>
 
 extern "C" {
-int libjs_runtime_rust_js_main(int argc, char** argv, JSLineEditor const* line_editor);
+int libjs_rust_js_main(int argc, char** argv, JSLineEditor const* line_editor);
 #if !defined(AK_OS_WINDOWS)
-int libjs_runtime_rust_test262_runner_main(int argc, char** argv);
+int libjs_rust_test262_runner_main(int argc, char** argv);
 #endif
-int libjs_runtime_rust_test_js_main(int argc, char** argv);
+int libjs_rust_test_js_main(int argc, char** argv);
 }
 
 namespace JS {
 
 int js_main(int argc, char** argv, JSLineEditor const* line_editor)
 {
-    return libjs_runtime_rust_js_main(argc, argv, line_editor);
+    return libjs_rust_js_main(argc, argv, line_editor);
 }
 
 #if !defined(AK_OS_WINDOWS)
 int test262_runner_main(int argc, char** argv)
 {
-    return libjs_runtime_rust_test262_runner_main(argc, argv);
+    return libjs_rust_test262_runner_main(argc, argv);
 }
 #endif
 
 int test_js_runtime_main(int argc, char** argv)
 {
-    return libjs_runtime_rust_test_js_main(argc, argv);
+    return libjs_rust_test_js_main(argc, argv);
 }
 
 }

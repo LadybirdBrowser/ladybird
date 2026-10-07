@@ -8,19 +8,24 @@ crate-type = ["staticlib", "rlib"]
 
 [features]
 allocator = ["dep:ladybird_allocator"]
+address-sanitizer = []
+thread-sanitizer = []
 
 # After changing dependencies, regenerate the Flatpak sources:
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py
 [dependencies]
 ak = { path = "../../../AK/Rust" }
+foldhash = "0.1"
+indexmap = "2"
+ladybird_allocator = { path = "../../RustAllocator", optional = true }
+libc = "0.2"
 libjs_abi = { path = "../ABI" }
+libjs_runtime_macros = { path = "macros" }
+libregex_rust = { path = "../../LibRegex/Rust", default-features = false }
 libunicode_rust = { path = "../../LibUnicode/Rust", default-features = false }
 num-bigint = "0.4"
-num-traits = "0.2"
 num-integer = "0.1"
-indexmap = "2"
-foldhash = "0.1"
-ladybird_allocator = { path = "../../RustAllocator", optional = true }
+num-traits = "0.2"
 rustc-demangle = "0.1"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
@@ -30,7 +35,10 @@ iced-x86 = { version = "1.21", default-features = false, features = ["decoder", 
 farm64 = { package = "fARM64", version = "0.0.2", features = ["alloc"] }
 
 [build-dependencies]
+cbindgen = { version = "0.29", default-features = false }
+cc = "1"
 flapc = { path = "../Flap" }
+libjs_abi = { path = "../ABI" }
 
 [lints]
 workspace = true

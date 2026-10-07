@@ -4,1443 +4,282 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Build script that generates Rust bytecode instruction types from Flap.
-//!
-//! The generated code lives in $OUT_DIR/instruction_generated.rs and is
-//! included! from src/bytecode/instruction.rs.
+//! Builds everything the crate shares with the interpreter: the layout file flapc compiles interpreter.flap against,
+//! computed from the crate's own layout module, the interpreter itself, assembled into the crate's static library,
+//! and the static assertions that keep the crate's types in line with that layout. It also generates the C headers
+//! of the embedding ABI, LibJS/Embedding/ABI.h from src/embedding and LibJS/Embedding/Layout.h from the layout module, and the frontend's
+//! instruction types from interpreter.flap.
 
-use flapc::metadata::Field;
-use flapc::metadata::InstructionDefinition;
-use flapc::metadata::Specialization;
-use flapc::metadata::SpecializationConstraint;
-use flapc::metadata::SpecializedInstruction;
-use flapc::metadata::SpecializedParameterBinding;
-use flapc::metadata::compute_layouts;
-use flapc::metadata::field_type_info;
-use flapc::metadata::user_fields;
 use std::env;
 use std::fs;
-use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-fn rust_field_name(name: &str) -> String {
-    if let Some(stripped) = name.strip_prefix("m_") {
-        stripped.to_string()
-    } else {
-        name.to_string()
-    }
+// The build script only reads the layout, so most of what the crate uses goes unused here.
+#[allow(dead_code)]
+#[path = "src/layout/mod.rs"]
+mod layout;
+
+#[path = "generate/layout_forward.rs"]
+mod layout_forward;
+
+#[path = "src/gc/class_id.rs"]
+mod class_id;
+
+#[path = "generate/abi_header.rs"]
+mod abi_header;
+
+#[path = "generate/c_type_spelling.rs"]
+mod c_type_spelling;
+
+#[path = "generate/fixture.rs"]
+mod fixture;
+
+#[path = "generate/instructions.rs"]
+mod instructions;
+
+#[path = "generate/layout_table.rs"]
+mod layout_table;
+
+#[path = "generate/layout_header.rs"]
+mod layout_header;
+
+#[path = "generate/ops.rs"]
+mod ops;
+
+#[path = "generate/runtime_functions.rs"]
+mod runtime_functions;
+
+const KIB: u64 = 1024;
+const GIB: u64 = 1024 * 1024 * KIB;
+const TIB: u64 = 1024 * GIB;
+
+struct Target {
+    architecture: flapc::Architecture,
+    object_format: flapc::ObjectFormat,
+    is_apple: bool,
 }
 
-fn count_field_name<'a>(op: &'a InstructionDefinition, array_field: &Field) -> &'a str {
-    let array = op.array.as_ref().expect("the parser validates array metadata");
-    assert_eq!(op.fields[array.field_index].name, array_field.name);
-    &op.fields[array.count_field_index].name
-}
-
-fn generate_rust_code(
-    mut w: impl Write,
-    ops: &[InstructionDefinition],
-    specializations: &[Specialization],
-    specialized_ops: &[SpecializedInstruction],
-) -> Result<(), Box<dyn std::error::Error>> {
-    writeln!(w, "// @generated from Libraries/LibJS/Interpreter/interpreter.flap")?;
-    writeln!(w, "// Do not edit manually.")?;
-    writeln!(w)?;
-    writeln!(w, "use super::operand::*;")?;
-    writeln!(w)?;
-
-    generate_opcode_enum(&mut w, ops)?;
-    generate_num_opcodes_const(&mut w, ops)?;
-    generate_instruction_enum(&mut w, ops)?;
-    generate_instruction_impl(&mut w, ops)?;
-    generate_instruction_length_from_bytes(&mut w, ops)?;
-    generate_instruction_name_from_opcode(&mut w, ops)?;
-    generate_instruction_dump_from_bytes(&mut w, ops)?;
-    generate_visit_labels_from_bytes(&mut w, ops)?;
-    generate_instruction_is_terminator_from_opcode(&mut w, ops)?;
-    generate_validate_instruction(&mut w, ops)?;
-    generate_specialization_selector(&mut w, ops, specializations, specialized_ops)?;
-
-    Ok(())
-}
-
-fn generate_specialization_selector(
-    mut w: impl Write,
-    ops: &[InstructionDefinition],
-    specializations: &[Specialization],
-    specialized_ops: &[SpecializedInstruction],
-) -> Result<(), Box<dyn std::error::Error>> {
-    let mut order = (0..specializations.len()).collect::<Vec<_>>();
-    order.sort_by_key(|index| {
-        let specialization = &specializations[*index];
-        let constraint_count = specialization
-            .components
-            .iter()
-            .map(|component| component.parameters.len())
-            .sum::<usize>();
-        std::cmp::Reverse((specialization.components.len(), constraint_count))
-    });
-
-    writeln!(w, "#[allow(unused_variables)]")?;
-    writeln!(w, "#[allow(clippy::clone_on_copy)]")?;
-    writeln!(w, "#[allow(clippy::collapsible_if)]")?;
-    writeln!(w, "#[allow(clippy::redundant_clone)]")?;
-    writeln!(w, "#[allow(clippy::unnecessary_unwrap)]")?;
-    writeln!(
-        w,
-        "pub fn specialize_instruction_sequence<'a>(instructions: impl Iterator<Item = &'a Instruction> + Clone, constants: &[super::generator::ConstantValue]) -> Option<(Instruction, usize)> {{"
-    )?;
-    for index in order {
-        let specialization = &specializations[index];
-        let specialized_op = &specialized_ops[index];
-        let component_count = specialization.components.len();
-        writeln!(w, "    let mut candidate = instructions.clone();")?;
-        writeln!(w, "    if let (")?;
-        for (component_index, component) in specialization.components.iter().enumerate() {
-            let op = &component.bytecode;
-            let base_op = ops
-                .iter()
-                .find(|definition| definition.name == *op)
-                .expect("specialization bytecodes are validated");
-            let bindings = user_fields(base_op)
-                .iter()
-                .map(|field| rust_field_name(&field.name))
-                .map(|name| format!("{name}: c{component_index}_{name}"))
-                .collect::<Vec<_>>();
-            writeln!(w, "        Some(Instruction::{op} {{ {} }}),", bindings.join(", "))?;
-        }
-        writeln!(w, "    ) = (")?;
-        for _ in &specialization.components {
-            writeln!(w, "        candidate.next(),")?;
-        }
-        writeln!(w, "    ) {{")?;
-
-        let mut conditions = Vec::new();
-        let mut extracted_values = Vec::new();
-        for (component_index, component) in specialization.components.iter().enumerate() {
-            for parameter in &component.parameters {
-                let operand = format!("c{component_index}_{}", parameter.name);
-                match &parameter.constraint {
-                    SpecializationConstraint::Int32 => {
-                        let value = format!("specialized_c{component_index}_{}", parameter.name);
-                        writeln!(
-                            w,
-                            "            let {value} = constants.get({operand}.index() as usize).and_then(|constant| match constant {{"
-                        )?;
-                        writeln!(
-                            w,
-                            "                super::generator::ConstantValue::Number(number) if number.fract() == 0.0 && *number >= i32::MIN as f64 && *number <= i32::MAX as f64 && number.to_bits() != (-0.0_f64).to_bits() => Some(*number as i32),"
-                        )?;
-                        writeln!(w, "                _ => None,")?;
-                        writeln!(w, "            }});")?;
-                        conditions.push(format!("{operand}.is_constant() && {value}.is_some()"));
-                        extracted_values.push(value);
-                    }
-                    SpecializationConstraint::Undefined => {
-                        conditions.push(format!(
-                            "{operand}.is_constant() && matches!(constants.get({operand}.index() as usize), Some(super::generator::ConstantValue::Undefined))"
-                        ));
-                    }
-                }
-            }
-        }
-
-        if !conditions.is_empty() {
-            writeln!(w, "            if {} {{", conditions.join(" && "))?;
-        }
-        for value in &extracted_values {
-            writeln!(w, "                let {value} = {value}.unwrap();")?;
-        }
-        writeln!(
-            w,
-            "                return Some((Instruction::{} {{",
-            specialized_op.definition.name
-        )?;
-        for field in &specialized_op.definition.fields {
-            let field_name = rust_field_name(&field.name);
-            let mut source = None;
-            for (component_index, component) in specialized_op.components.iter().enumerate() {
-                for (parameter, binding) in &component.parameters {
-                    if binding == &SpecializedParameterBinding::Field(field_name.clone()) {
-                        source = Some(if field.ty == "i32" {
-                            format!("specialized_c{component_index}_{parameter}")
-                        } else {
-                            format!("(*c{component_index}_{parameter}).clone()")
-                        });
-                        break;
-                    }
-                }
-                if source.is_some() {
-                    break;
-                }
-            }
-            writeln!(
-                w,
-                "                    {field_name}: {},",
-                source.expect("every specialized field has a source")
-            )?;
-        }
-        writeln!(w, "                }}, {component_count}));")?;
-        if !conditions.is_empty() {
-            writeln!(w, "            }}")?;
-        }
-        writeln!(w, "    }}")?;
-    }
-    writeln!(w, "    None")?;
-    writeln!(w, "}}")?;
-    writeln!(w)?;
-    Ok(())
-}
-
-fn generate_instruction_name_from_opcode(
-    mut w: impl Write,
-    ops: &[InstructionDefinition],
-) -> Result<(), Box<dyn std::error::Error>> {
-    writeln!(w, "pub fn instruction_name_from_opcode(opcode: u8) -> &'static str {{")?;
-    writeln!(w, "    match opcode {{")?;
-    for (i, op) in ops.iter().enumerate() {
-        writeln!(w, "        {i} => \"{}\",", op.name)?;
-    }
-    writeln!(w, "        _ => unreachable!(\"unknown bytecode opcode\"),")?;
-    writeln!(w, "    }}")?;
-    writeln!(w, "}}")?;
-    writeln!(w)?;
-    Ok(())
-}
-
-fn generate_instruction_is_terminator_from_opcode(
-    mut w: impl Write,
-    ops: &[InstructionDefinition],
-) -> Result<(), Box<dyn std::error::Error>> {
-    writeln!(w, "pub fn instruction_is_terminator_from_opcode(opcode: u8) -> bool {{")?;
-    let terminators = ops
-        .iter()
-        .enumerate()
-        .filter(|(_, op)| op.is_terminator)
-        .map(|(i, _)| i.to_string())
-        .collect::<Vec<_>>();
-    writeln!(w, "    matches!(opcode, {})", terminators.join(" | "))?;
-    writeln!(w, "}}")?;
-    writeln!(w)?;
-    Ok(())
-}
-
-fn generate_num_opcodes_const(
-    mut w: impl Write,
-    ops: &[InstructionDefinition],
-) -> Result<(), Box<dyn std::error::Error>> {
-    writeln!(w, "/// Number of distinct opcodes (the valid range for the type byte).")?;
-    writeln!(w, "pub const NUM_OPCODES: u32 = {};", ops.len())?;
-    writeln!(w)?;
-    Ok(())
-}
-
-fn generate_instruction_length_from_bytes(
-    mut w: impl Write,
-    ops: &[InstructionDefinition],
-) -> Result<(), Box<dyn std::error::Error>> {
-    writeln!(
-        w,
-        "/// Returns the encoded length in bytes of the instruction at `bytes[at..]`."
-    )?;
-    writeln!(
-        w,
-        "/// Reads `m_length` from the buffer for variable-length instructions; for fixed-"
-    )?;
-    writeln!(w, "/// length instructions, returns the statically-known size.")?;
-    writeln!(
-        w,
-        "pub fn instruction_length_from_bytes(opcode: u8, bytes: &[u8], at: usize) -> Result<usize, super::validator::ValidationErrorKind> {{"
-    )?;
-    writeln!(w, "    use super::validator::ValidationErrorKind;")?;
-    writeln!(w, "    match opcode {{")?;
-
-    for (i, op) in ops.iter().enumerate() {
-        if let Some(final_size) = op.layout.size {
-            let op_name = &op.name;
-            writeln!(w, "        {i} => Ok({final_size}), // {op_name}")?;
-        } else {
-            let minimum_length = op.layout.minimum_size;
-            let m_length_offset = op
-                .layout
-                .m_length_offset
-                .expect("the parser requires m_length for array ops");
-            let op_name = &op.name;
-            writeln!(w, "        {i} => {{ // {op_name} (variable-length)")?;
-            writeln!(w, "            let m_length_end = at + {m_length_offset} + 4;")?;
-            writeln!(w, "            if m_length_end > bytes.len() {{")?;
-            writeln!(
-                w,
-                "                return Err(ValidationErrorKind::TruncatedInstruction);"
-            )?;
-            writeln!(w, "            }}")?;
-            writeln!(
-                w,
-                "            let raw = u32::from_ne_bytes(bytes[at + {m_length_offset}..m_length_end].try_into().unwrap());"
-            )?;
-            writeln!(w, "            if raw < {minimum_length} {{")?;
-            writeln!(w, "                return Err(ValidationErrorKind::InvalidLength);")?;
-            writeln!(w, "            }}")?;
-            writeln!(w, "            Ok(raw as usize)")?;
-            writeln!(w, "        }}")?;
-        }
-    }
-
-    writeln!(w, "        _ => Err(ValidationErrorKind::UnknownOpcode),")?;
-    writeln!(w, "    }}")?;
-    writeln!(w, "}}")?;
-    writeln!(w)?;
-    Ok(())
-}
-
-fn read_expr_for_type(ty: &str, offset: usize) -> String {
-    match ty {
-        "bool" => format!("bytes[at + {offset}] != 0"),
-        "i32" => format!("super::validator::read_u32(bytes, at + {offset}) as i32"),
-        "u32"
-        | "Completion::Type"
-        | "IteratorHint"
-        | "EnvironmentMode"
-        | "PutKind"
-        | "ArgumentsKind"
-        | "FunctionNamePrefix"
-        | "PropertyLookupCacheIndex"
-        | "GlobalVariableCacheIndex"
-        | "EnvironmentCoordinateCacheIndex"
-        | "TemplateObjectCacheIndex"
-        | "ObjectShapeCacheIndex"
-        | "ObjectPropertyIteratorCacheIndex"
-        | "EnvironmentShapeCacheIndex" => {
-            format!("super::validator::read_u32(bytes, at + {offset})")
-        }
-        "u64" | "Value" => format!("super::validator::read_u64(bytes, at + {offset})"),
-        "Operand" => format!("Operand::from_raw(super::validator::read_u32(bytes, at + {offset}))"),
-        "Optional<Operand>" => format!("Operand::optional_from_raw(super::validator::read_u32(bytes, at + {offset}))"),
-        "Label" => format!("Label(super::validator::read_u32(bytes, at + {offset}))"),
-        "Optional<Label>" => {
-            format!(
-                "if bytes[at + {offset} + 4] != 0 {{ Some(Label(super::validator::read_u32(bytes, at + {offset}))) }} else {{ None }}"
-            )
-        }
-        "IdentifierTableIndex" => format!("IdentifierTableIndex(super::validator::read_u32(bytes, at + {offset}))"),
-        "Optional<IdentifierTableIndex>" => {
-            format!("IdentifierTableIndex::optional_from_raw(super::validator::read_u32(bytes, at + {offset}))")
-        }
-        "PropertyKeyTableIndex" => format!("PropertyKeyTableIndex(super::validator::read_u32(bytes, at + {offset}))"),
-        "StringTableIndex" => format!("StringTableIndex(super::validator::read_u32(bytes, at + {offset}))"),
-        "Optional<StringTableIndex>" => {
-            format!("StringTableIndex::optional_from_raw(super::validator::read_u32(bytes, at + {offset}))")
-        }
-        "RegexTableIndex" => format!("RegexTableIndex(super::validator::read_u32(bytes, at + {offset}))"),
-        "EnvironmentCoordinate" => {
-            format!(
-                "EnvironmentCoordinate {{ hops: super::validator::read_u32(bytes, at + {offset}), index: super::validator::read_u32(bytes, at + {offset} + 4) }}"
-            )
-        }
-        "Builtin" => format!("bytes[at + {offset}]"),
-        other => unreachable!("Unknown field type: {other}"),
-    }
-}
-
-fn generate_field_reads(
-    w: &mut impl Write,
-    op: &InstructionDefinition,
-    layouts: &std::collections::HashMap<String, flapc::metadata::OpLayout>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let layout = layouts.get(&op.name).expect("layout missing for op");
-    for f in user_fields(op) {
-        if f.is_array {
-            continue;
-        }
-        let rname = rust_field_name(&f.name);
-        let offset = layout.field_offsets.get(&f.name).expect("field offset missing");
-        let expr = read_expr_for_type(&f.ty, *offset);
-        writeln!(w, "            let {rname} = {expr};")?;
-    }
-    Ok(())
-}
-
-fn generate_array_bounds(
-    w: &mut impl Write,
-    op: &InstructionDefinition,
-    layouts: &std::collections::HashMap<String, flapc::metadata::OpLayout>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let layout = layouts.get(&op.name).expect("layout missing for op");
-    for f in user_fields(op) {
-        if !f.is_array {
-            continue;
-        }
-        let rname = rust_field_name(&f.name);
-        let count_name = rust_field_name(count_field_name(op, f));
-        let offset = layout.field_offsets.get(&f.name).expect("array offset missing");
-        let elem_size = field_type_info(&f.ty).size;
-        writeln!(w, "            let {rname}_offset = at + {offset};")?;
-        writeln!(w, "            let {rname}_count = {count_name} as usize;")?;
-        writeln!(
-            w,
-            "            let {rname}_end = {rname}_offset + {rname}_count * {elem_size};"
-        )?;
-    }
-    Ok(())
-}
-
-fn generate_instruction_dump_from_bytes(
-    mut w: impl Write,
-    ops: &[InstructionDefinition],
-) -> Result<(), Box<dyn std::error::Error>> {
-    let layouts = compute_layouts(ops);
-
-    writeln!(w, "#[allow(unused_variables)]")?;
-    writeln!(
-        w,
-        "pub fn dump_instruction_from_bytes(opcode: u8, bytes: &[u8], at: usize, dumper: &mut super::dump::BytecodeDumper<'_>) {{"
-    )?;
-    writeln!(w, "    match opcode {{")?;
-
-    for (i, op) in ops.iter().enumerate() {
-        if op.name == "Instruction" {
-            continue;
-        }
-        writeln!(w, "        {i} => {{")?;
-        generate_field_reads(&mut w, op, &layouts)?;
-        generate_array_bounds(&mut w, op, &layouts)?;
-        writeln!(w, "            dumper.begin_instruction(\"{}\");", op.name)?;
-
-        let arrays: Vec<&Field> = op.fields.iter().filter(|f| f.is_array).collect();
-        let mut array_to_count = std::collections::HashMap::new();
-        let mut count_fields = std::collections::HashSet::new();
-        for af in arrays {
-            let count_field_name = count_field_name(op, af);
-            count_fields.insert(count_field_name);
-            array_to_count.insert(af.name.clone(), rust_field_name(count_field_name));
-        }
-
-        for f in &op.fields {
-            if f.name == "m_length" || f.name == "m_cache" {
-                continue;
-            }
-
-            let ty = f.ty.trim();
-            let label = rust_field_name(&f.name);
-            let rname = rust_field_name(&f.name);
-
-            if f.is_array {
-                let count_name = array_to_count.get(&f.name).expect("array count missing");
-                match ty {
-                    "Operand" => {
-                        writeln!(w, "            if {count_name} != 0 {{")?;
-                        writeln!(w, "                dumper.append_piece(|dumper| {{")?;
-                        writeln!(
-                            w,
-                            "                    dumper.append_operand_list(\"{label}\", bytes, {rname}_offset, {rname}_count);"
-                        )?;
-                        writeln!(w, "                }});")?;
-                        writeln!(w, "            }}")?;
-                    }
-                    "Optional<Operand>" => {
-                        writeln!(w, "            if {count_name} != 0 {{")?;
-                        writeln!(w, "                dumper.append_piece(|dumper| {{")?;
-                        writeln!(
-                            w,
-                            "                    dumper.append_optional_operand_list(\"{label}\", bytes, {rname}_offset, {rname}_count);"
-                        )?;
-                        writeln!(w, "                }});")?;
-                        writeln!(w, "            }}")?;
-                    }
-                    "Value" => {
-                        writeln!(w, "            if {count_name} != 0 {{")?;
-                        writeln!(w, "                dumper.append_piece(|dumper| {{")?;
-                        writeln!(
-                            w,
-                            "                    dumper.append_value_list(\"{label}\", bytes, {rname}_offset, {rname}_count);"
-                        )?;
-                        writeln!(w, "                }});")?;
-                        writeln!(w, "            }}")?;
-                    }
-                    "Label" => {
-                        writeln!(w, "            if {count_name} != 0 {{")?;
-                        writeln!(w, "                dumper.append_piece(|dumper| {{")?;
-                        writeln!(
-                            w,
-                            "                    dumper.append_label_list(\"{label}\", bytes, {rname}_offset, {rname}_count);"
-                        )?;
-                        writeln!(w, "                }});")?;
-                        writeln!(w, "            }}")?;
-                    }
-                    "Optional<Label>" => {
-                        writeln!(w, "            if {count_name} != 0 {{")?;
-                        writeln!(w, "                dumper.append_piece(|dumper| {{")?;
-                        writeln!(
-                            w,
-                            "                    dumper.append_optional_label_list(\"{label}\", bytes, {rname}_offset, {rname}_count);"
-                        )?;
-                        writeln!(w, "                }});")?;
-                        writeln!(w, "            }}")?;
-                    }
-                    _ => {}
-                }
-                continue;
-            }
-
-            match ty {
-                "Operand" => writeln!(
-                    w,
-                    "            dumper.append_piece(|dumper| dumper.append_operand(\"{label}\", {rname}));"
-                )?,
-                "Optional<Operand>" => {
-                    writeln!(w, "            if let Some({rname}) = {rname} {{")?;
-                    writeln!(
-                        w,
-                        "                dumper.append_piece(|dumper| dumper.append_operand(\"{label}\", {rname}));"
-                    )?;
-                    writeln!(w, "            }}")?;
-                }
-                "Label" => writeln!(
-                    w,
-                    "            dumper.append_piece(|dumper| dumper.append_label(\"{label}\", {rname}.0));"
-                )?,
-                "Optional<Label>" => {
-                    writeln!(w, "            if let Some({rname}) = {rname} {{")?;
-                    writeln!(
-                        w,
-                        "                dumper.append_piece(|dumper| dumper.append_label(\"{label}\", {rname}.0));"
-                    )?;
-                    writeln!(w, "            }}")?;
-                }
-                "PropertyKeyTableIndex" => {
-                    writeln!(
-                        w,
-                        "            dumper.append_piece(|dumper| dumper.append_property_key_quoted({rname}.0));"
-                    )?;
-                }
-                "IdentifierTableIndex" => {
-                    writeln!(
-                        w,
-                        "            dumper.append_piece(|dumper| dumper.append_identifier_quoted({rname}.0));"
-                    )?;
-                }
-                "Optional<IdentifierTableIndex>" => {
-                    let mut property_key_field = None;
-                    let mut property_operand_field = None;
-                    for other in &op.fields {
-                        if other.ty.trim() == "PropertyKeyTableIndex" {
-                            property_key_field = Some(rust_field_name(&other.name));
-                            break;
-                        }
-                        if other.ty.trim() == "Operand" && other.name == "m_property" {
-                            property_operand_field = Some(rust_field_name(&other.name));
-                            break;
-                        }
-                    }
-
-                    writeln!(w, "            if let Some({rname}) = {rname} {{")?;
-                    if let Some(property_key_field) = property_key_field {
-                        writeln!(w, "                dumper.append(\" \\u{{1b}}[37;1m(\");")?;
-                        writeln!(w, "                dumper.append_identifier_plain({rname}.0);")?;
-                        writeln!(w, "                dumper.append(\".\");")?;
-                        writeln!(
-                            w,
-                            "                dumper.append_property_key_plain({property_key_field}.0);"
-                        )?;
-                        writeln!(w, "                dumper.append(\")\\u{{1b}}[0m\");")?;
-                    } else if let Some(property_operand_field) = property_operand_field {
-                        writeln!(w, "                dumper.append(\" \\u{{1b}}[37;1m(\");")?;
-                        writeln!(w, "                dumper.append_identifier_plain({rname}.0);")?;
-                        writeln!(w, "                dumper.append(\"[\\u{{1b}}[0m\");")?;
-                        writeln!(
-                            w,
-                            "                dumper.append_operand(\"\", {property_operand_field});"
-                        )?;
-                        writeln!(w, "                dumper.append(\"\\u{{1b}}[37;1m])\\u{{1b}}[0m\");")?;
-                    } else if op.name == "GetLength" {
-                        writeln!(w, "                dumper.append(\" \\u{{1b}}[37;1m(\");")?;
-                        writeln!(w, "                dumper.append_identifier_plain({rname}.0);")?;
-                        writeln!(w, "                dumper.append(\".length)\\u{{1b}}[0m\");")?;
-                    } else {
-                        writeln!(w, "                dumper.append(\" \\u{{1b}}[37;1m(\");")?;
-                        writeln!(w, "                dumper.append_identifier_plain({rname}.0);")?;
-                        writeln!(w, "                dumper.append(\")\\u{{1b}}[0m\");")?;
-                    }
-                    writeln!(w, "            }}")?;
-                }
-                "StringTableIndex" => writeln!(
-                    w,
-                    "            dumper.append_piece(|dumper| dumper.append_string({rname}.0));"
-                )?,
-                "Optional<StringTableIndex>" => {
-                    writeln!(w, "            if let Some({rname}) = {rname} {{")?;
-                    writeln!(
-                        w,
-                        "                dumper.append_piece(|dumper| dumper.append_string({rname}.0));"
-                    )?;
-                    writeln!(w, "            }}")?;
-                }
-                "bool" => writeln!(
-                    w,
-                    "            dumper.append_piece(|dumper| dumper.append_bool(\"{label}\", {rname}));"
-                )?,
-                "PutKind" => writeln!(
-                    w,
-                    "            dumper.append_piece(|dumper| dumper.append_put_kind(\"{label}\", {rname}));"
-                )?,
-                _ if (ty == "i32" || ty == "u32" || ty == "u64" || ty == "u8")
-                    && !count_fields.contains(f.name.as_str()) =>
-                {
-                    writeln!(
-                        w,
-                        "            dumper.append_piece(|dumper| dumper.append_number(\"{label}\", {rname}));"
-                    )?;
-                }
-                _ => {}
-            }
-        }
-
-        writeln!(w, "        }}")?;
-    }
-
-    writeln!(w, "        _ => unreachable!(\"unknown bytecode opcode\"),")?;
-    writeln!(w, "    }}")?;
-    writeln!(w, "}}")?;
-    writeln!(w)?;
-    Ok(())
-}
-
-fn generate_visit_labels_from_bytes(
-    mut w: impl Write,
-    ops: &[InstructionDefinition],
-) -> Result<(), Box<dyn std::error::Error>> {
-    let layouts = compute_layouts(ops);
-    writeln!(w, "#[allow(unused_variables)]")?;
-    writeln!(
-        w,
-        "pub fn visit_labels_from_bytes(opcode: u8, bytes: &[u8], at: usize, visitor: &mut dyn FnMut(u32)) {{"
-    )?;
-    writeln!(w, "    match opcode {{")?;
-
-    for (i, op) in ops.iter().enumerate() {
-        let label_fields: Vec<&Field> = user_fields(op)
-            .into_iter()
-            .filter(|f| f.ty == "Label" || f.ty == "Optional<Label>")
-            .collect();
-        if label_fields.is_empty() {
-            continue;
-        }
-        writeln!(w, "        {i} => {{")?;
-        generate_field_reads(&mut w, op, &layouts)?;
-        for f in label_fields {
-            let rname = rust_field_name(&f.name);
-            if f.ty == "Label" {
-                writeln!(w, "            visitor({rname}.0);")?;
-            } else {
-                writeln!(
-                    w,
-                    "            if let Some({rname}) = {rname} {{ visitor({rname}.0); }}"
-                )?;
-            }
-        }
-        writeln!(w, "        }}")?;
-    }
-
-    writeln!(w, "        _ => {{}}")?;
-    writeln!(w, "    }}")?;
-    writeln!(w, "}}")?;
-    writeln!(w)?;
-    Ok(())
-}
-
-fn emit_scalar_field_check(
-    mut w: impl Write,
-    field_name: &str,
-    ty: &str,
-    offset: usize,
-) -> Result<(), Box<dyn std::error::Error>> {
-    match ty {
-        "Operand" => writeln!(w, "            validate_operand(read_u32(bytes, at + {offset}), ctx)?;")?,
-        "Optional<Operand>" => writeln!(
-            w,
-            "            validate_optional_operand(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "Label" => writeln!(w, "            validate_label(read_u32(bytes, at + {offset}), ctx)?;")?,
-        "Optional<Label>" => {
-            // Encoded as 8 bytes: u32 value + u8 has_value + 3 bytes pad.
-            writeln!(w, "            if bytes[at + {offset} + 4] != 0 {{")?;
-            writeln!(
-                w,
-                "                validate_label(read_u32(bytes, at + {offset}), ctx)?;"
-            )?;
-            writeln!(w, "            }}")?;
-        }
-        "IdentifierTableIndex" => writeln!(
-            w,
-            "            validate_identifier_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "Optional<IdentifierTableIndex>" => writeln!(
-            w,
-            "            validate_optional_identifier_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "StringTableIndex" => writeln!(
-            w,
-            "            validate_string_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "Optional<StringTableIndex>" => writeln!(
-            w,
-            "            validate_optional_string_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "PropertyKeyTableIndex" => writeln!(
-            w,
-            "            validate_property_key_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "RegexTableIndex" => {
-            // The regex table is not consulted at runtime; skip range-checking.
-        }
-        "PropertyLookupCacheIndex" => writeln!(
-            w,
-            "            validate_property_lookup_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "GlobalVariableCacheIndex" => writeln!(
-            w,
-            "            validate_global_variable_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "EnvironmentCoordinateCacheIndex" => writeln!(
-            w,
-            "            validate_environment_coordinate_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "TemplateObjectCacheIndex" => writeln!(
-            w,
-            "            validate_template_object_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "ObjectShapeCacheIndex" => writeln!(
-            w,
-            "            validate_object_shape_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "ObjectPropertyIteratorCacheIndex" => writeln!(
-            w,
-            "            validate_object_property_iterator_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "EnvironmentShapeCacheIndex" => writeln!(
-            w,
-            "            validate_environment_shape_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "u32" => {
-            // The handler signature gives us no first-class types for SFD,
-            // class-blueprint, or object-shape cache references stored as u32.
-            // Recognize the canonical field names so these still get
-            // range-checked.
-            if field_name == "m_shared_function_data_index" {
-                writeln!(
-                    w,
-                    "            validate_shared_function_data_index(read_u32(bytes, at + {offset}), ctx)?;"
-                )?;
-            } else if field_name == "m_class_blueprint_index" {
-                writeln!(
-                    w,
-                    "            validate_class_blueprint_index(read_u32(bytes, at + {offset}), ctx)?;"
-                )?;
-            } else if field_name == "m_shape_cache_index" {
-                writeln!(
-                    w,
-                    "            validate_object_shape_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
-                )?;
-            }
-        }
-        "Completion::Type" => writeln!(
-            w,
-            "            validate_completion_type(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "IteratorHint" => writeln!(
-            w,
-            "            validate_iterator_hint(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "EnvironmentMode" => writeln!(
-            w,
-            "            validate_environment_mode(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "PutKind" => writeln!(
-            w,
-            "            validate_put_kind(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "ArgumentsKind" => writeln!(
-            w,
-            "            validate_arguments_kind(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        "FunctionNamePrefix" => writeln!(
-            w,
-            "            validate_function_name_prefix(read_u32(bytes, at + {offset}), ctx)?;"
-        )?,
-        // bool, i32, u64, Value, EnvironmentCoordinate, Builtin: no per-field
-        // bound applied here.
-        _ => {}
-    }
-    Ok(())
-}
-
-fn emit_array_elem_check(mut w: impl Write, ty: &str) -> Result<(), Box<dyn std::error::Error>> {
-    match ty {
-        "Operand" => writeln!(w, "                validate_operand(read_u32(bytes, __off), ctx)?;")?,
-        "Optional<Operand>" => writeln!(
-            w,
-            "                validate_optional_operand(read_u32(bytes, __off), ctx)?;"
-        )?,
-        "Value" => {
-            // Trailing Value array (NewPrimitiveArray): no per-element check;
-            // the count was already bounded against the instruction length.
-        }
-        other => panic!("Array element type not supported: {other}"),
-    }
-    Ok(())
-}
-
-fn generate_validate_instruction(
-    mut w: impl Write,
-    ops: &[InstructionDefinition],
-) -> Result<(), Box<dyn std::error::Error>> {
-    let layouts = compute_layouts(ops);
-
-    writeln!(
-        w,
-        "/// Per-opcode field validation, dispatched by Pass 2 of the validator."
-    )?;
-    writeln!(
-        w,
-        "pub fn validate_instruction(opcode: u8, ctx: &super::validator::ValidationContext, at: usize) -> Result<(), super::validator::ValidationErrorKind> {{"
-    )?;
-    writeln!(w, "    use super::validator::*;")?;
-    writeln!(w, "    let bytes = ctx.bytes;")?;
-    writeln!(w, "    match opcode {{")?;
-
-    for (i, op) in ops.iter().enumerate() {
-        let layout = layouts.get(&op.name).expect("layout missing for op");
-        let arrays: Vec<&Field> = op.fields.iter().filter(|f| f.is_array).collect();
-        let has_array = !arrays.is_empty();
-
-        // Map each count field's name to the array it sizes, so we can skip
-        // the count field when emitting scalar checks (it gets read alongside
-        // the array bound below) and avoid duplicate work.
-        let mut count_field_names: std::collections::HashSet<String> = std::collections::HashSet::new();
-        for af in &arrays {
-            count_field_names.insert(count_field_name(op, af).to_string());
-        }
-
-        let op_name = &op.name;
-        writeln!(w, "        {i} => {{ // {op_name}")?;
-
-        for f in &op.fields {
-            if f.is_array {
-                continue;
-            }
-            if f.name == "m_type" || f.name == "m_strict" || f.name == "m_length" {
-                continue;
-            }
-            if count_field_names.contains(&f.name) {
-                continue;
-            }
-            let offset = *layout.field_offsets.get(&f.name).expect("missing field offset");
-            emit_scalar_field_check(&mut w, &f.name, &f.ty, offset)?;
-        }
-
-        if has_array {
-            let m_length_offset = *layout
-                .field_offsets
-                .get("m_length")
-                .expect("variable-length op missing m_length");
-            // All variable-length bytecodes carry exactly one trailing
-            // array; if that ever changes, this loop validates each independently.
-            for af in &arrays {
-                let array_offset = *layout.field_offsets.get(&af.name).expect("missing array offset");
-                let count_field = count_field_name(op, af);
-                let count_offset = *layout
-                    .field_offsets
-                    .get(count_field)
-                    .expect("missing count field offset");
-                let elem_size = field_type_info(&af.ty).size;
-
-                writeln!(
-                    w,
-                    "            let __m_length = read_u32(bytes, at + {m_length_offset}) as usize;"
-                )?;
-                writeln!(
-                    w,
-                    "            let __count = read_u32(bytes, at + {count_offset}) as usize;"
-                )?;
-                writeln!(
-                    w,
-                    "            let __array_bytes = __count.saturating_mul({elem_size});"
-                )?;
-                writeln!(
-                    w,
-                    "            if {array_offset}usize.saturating_add(__array_bytes) > __m_length {{"
-                )?;
-                writeln!(w, "                return Err(ValidationErrorKind::InvalidLength);")?;
-                writeln!(w, "            }}")?;
-                writeln!(w, "            let __array_off = at + {array_offset};")?;
-                writeln!(w, "            for __i in 0..__count {{")?;
-                writeln!(w, "                let __off = __array_off + __i * {elem_size};")?;
-                emit_array_elem_check(&mut w, &af.ty)?;
-                writeln!(w, "            }}")?;
-            }
-        }
-
-        writeln!(w, "        }}")?;
-    }
-
-    writeln!(w, "        _ => {{}}")?;
-    writeln!(w, "    }}")?;
-    writeln!(w, "    Ok(())")?;
-    writeln!(w, "}}")?;
-    writeln!(w)?;
-
-    Ok(())
-}
-
-fn generate_opcode_enum(mut w: impl Write, ops: &[InstructionDefinition]) -> Result<(), Box<dyn std::error::Error>> {
-    writeln!(
-        w,
-        "/// Bytecode opcode (u8), numbered in the order of the instruction definitions."
-    )?;
-    writeln!(w, "#[derive(Debug, Clone, Copy, PartialEq, Eq)]")?;
-    writeln!(w, "#[repr(u8)]")?;
-    writeln!(w, "pub enum OpCode {{")?;
-    for (i, op) in ops.iter().enumerate() {
-        writeln!(w, "    {} = {},", op.name, i)?;
-    }
-    writeln!(w, "}}")?;
-    writeln!(w)?;
-
-    Ok(())
-}
-
-fn generate_instruction_enum(
-    mut w: impl Write,
-    ops: &[InstructionDefinition],
-) -> Result<(), Box<dyn std::error::Error>> {
-    writeln!(w, "/// A bytecode instruction with typed fields.")?;
-    writeln!(w, "///")?;
-    writeln!(w, "/// Each variant corresponds to one instruction definition.")?;
-    writeln!(
-        w,
-        "/// During codegen, instructions are stored as these typed variants."
-    )?;
-    writeln!(
-        w,
-        "/// During flattening, they are serialized to bytes in the instruction's struct layout."
-    )?;
-    writeln!(w, "#[derive(Debug, Clone)]")?;
-    writeln!(w, "pub enum Instruction {{")?;
-    for op in ops {
-        let fields = user_fields(op);
-        if fields.is_empty() {
-            writeln!(w, "    {},", op.name)?;
-        } else {
-            writeln!(w, "    {} {{", op.name)?;
-            for f in &fields {
-                let info = field_type_info(&f.ty);
-                let r_name = rust_field_name(&f.name);
-                if f.is_array {
-                    writeln!(w, "        {}: Vec<{}>,", r_name, info.rust_type)?;
-                } else {
-                    writeln!(w, "        {}: {},", r_name, info.rust_type)?;
-                }
-            }
-            writeln!(w, "    }},")?;
-        }
-    }
-    writeln!(w, "}}")?;
-    writeln!(w)?;
-
-    Ok(())
-}
-
-fn generate_instruction_impl(
-    mut w: impl Write,
-    ops: &[InstructionDefinition],
-) -> Result<(), Box<dyn std::error::Error>> {
-    writeln!(w, "impl Instruction {{").unwrap();
-    generate_opcode_method(&mut w, ops)?;
-    generate_is_terminator_method(&mut w, ops)?;
-    generate_encode_method(&mut w, ops)?;
-    generate_encoded_size_method(&mut w, ops)?;
-    generate_visit_operands_method(&mut w, ops)?;
-    generate_visit_labels_method(&mut w, ops)?;
-    writeln!(w, "    }}")?;
-    Ok(())
-}
-
-fn generate_opcode_method(mut w: impl Write, ops: &[InstructionDefinition]) -> Result<(), Box<dyn std::error::Error>> {
-    writeln!(w, "    pub fn opcode(&self) -> OpCode {{")?;
-    writeln!(w, "        match self {{")?;
-    for op in ops {
-        let fields = user_fields(op);
-        if fields.is_empty() {
-            writeln!(w, "            Instruction::{} => OpCode::{},", op.name, op.name)?;
-        } else {
-            writeln!(
-                w,
-                "            Instruction::{} {{ .. }} => OpCode::{},",
-                op.name, op.name
-            )?;
-        }
-    }
-    writeln!(w, "        }}")?;
-    writeln!(w, "    }}")?;
-    writeln!(w)?;
-
-    Ok(())
-}
-
-fn generate_is_terminator_method(
-    mut w: impl Write,
-    ops: &[InstructionDefinition],
-) -> Result<(), Box<dyn std::error::Error>> {
-    writeln!(w, "    pub fn is_terminator(&self) -> bool {{")?;
-    writeln!(w, "        matches!(self, ")?;
-    let terminators: Vec<&InstructionDefinition> = ops.iter().filter(|op| op.is_terminator).collect();
-    for (i, op) in terminators.iter().enumerate() {
-        let sep = if i + 1 < terminators.len() { " |" } else { "" };
-        let fields = user_fields(op);
-        if fields.is_empty() {
-            writeln!(w, "            Instruction::{}{}", op.name, sep)?;
-        } else {
-            writeln!(w, "            Instruction::{} {{ .. }}{}", op.name, sep)?;
-        }
-    }
-    writeln!(w, "        )")?;
-    writeln!(w, "    }}")?;
-    writeln!(w)?;
-
-    Ok(())
-}
-
-fn generate_encoded_size_method(
-    mut w: impl Write,
-    ops: &[InstructionDefinition],
-) -> Result<(), Box<dyn std::error::Error>> {
-    writeln!(w, "    /// Returns the encoded size of this instruction in bytes.")?;
-    writeln!(w, "    pub fn encoded_size(&self) -> usize {{")?;
-    writeln!(w, "        match self {{")?;
-
-    for op in ops {
-        let fields = user_fields(op);
-
-        if let Some(final_size) = op.layout.size {
-            let pat = if fields.is_empty() {
-                format!("Instruction::{}", op.name)
-            } else {
-                format!("Instruction::{} {{ .. }}", op.name)
-            };
-            writeln!(w, "            {pat} => {final_size},")?;
-        } else {
-            let array = op.array.as_ref().expect("variable op missing array metadata");
-            let array_field = &op.fields[array.field_index];
-            let arr_name = rust_field_name(&array_field.name);
-
-            // Bind only the array field
-            let bindings: Vec<String> = fields
-                .iter()
-                .map(|f| {
-                    let rname = rust_field_name(&f.name);
-                    if rname == arr_name {
-                        rname
-                    } else {
-                        format!("{rname}: _")
-                    }
-                })
-                .collect();
-            writeln!(
-                w,
-                "            Instruction::{} {{ {} }} => {{",
-                op.name,
-                bindings.join(", ")
-            )?;
-            writeln!(
-                w,
-                "                let base = {} + {}.len() * {};",
-                op.layout.minimum_size, arr_name, array.element_size
-            )?;
-            writeln!(w, "                (base + 7) & !7 // round up to 8")?;
-            writeln!(w, "            }}")?;
-        }
-    }
-
-    writeln!(w, "        }}")?;
-    writeln!(w, "    }}")?;
-    writeln!(w)?;
-
-    Ok(())
-}
-
-fn generate_encode_method(mut w: impl Write, ops: &[InstructionDefinition]) -> Result<(), Box<dyn std::error::Error>> {
-    writeln!(
-        w,
-        "    /// Encode this instruction into bytes in the struct layout of its fields."
-    )?;
-    writeln!(w, "    pub fn encode(&self, strict: bool, buf: &mut Vec<u8>) {{")?;
-    writeln!(w, "        let start = buf.len();")?;
-    writeln!(w, "        match self {{")?;
-
-    for op in ops {
-        let fields = user_fields(op);
-
-        // Generate match arm with field bindings
-        if fields.is_empty() {
-            writeln!(w, "            Instruction::{} => {{", op.name)?;
-        } else {
-            let bindings: Vec<String> = fields.iter().map(|f| rust_field_name(&f.name)).collect();
-            writeln!(
-                w,
-                "            Instruction::{} {{ {} }} => {{",
-                op.name,
-                bindings.join(", ")
-            )?;
-        }
-
-        // Write header: opcode (u8) + strict (u8) = 2 bytes
-        writeln!(w, "                buf.push(OpCode::{} as u8);", op.name)?;
-        writeln!(w, "                buf.push(strict as u8);")?;
-
-        // Track offset for the struct layout.
-        // We iterate ALL fields (including m_type, m_strict, m_length) for
-        // accurate alignment but only emit writes for user fields.
-        let mut offset: usize = 2;
-
-        // Iterate all non-array fields in declaration order
-        for f in &op.fields {
-            if f.is_array {
-                continue;
-            }
-            // m_type and m_strict are already written as the header
-            if f.name == "m_type" || f.name == "m_strict" {
-                continue;
-            }
-
-            let info = field_type_info(&f.ty);
-            let field_offset = op.layout.field_offsets[&f.name];
-            assert!(
-                field_offset >= offset,
-                "{}: tracked offset {offset} passed layout offset {field_offset} for {}",
-                op.name,
-                f.name
-            );
-            let pad = field_offset - offset;
-            if pad > 0 {
-                writeln!(w, "                buf.extend_from_slice(&[0u8; {pad}]);")?;
-            }
-            offset = field_offset;
-
-            if f.name == "m_length" {
-                // Write placeholder (patched at end for variable-length instructions)
-                writeln!(
-                    w,
-                    "                buf.extend_from_slice(&[0u8; 4]); // m_length placeholder"
-                )?;
-            } else {
-                let rname = rust_field_name(&f.name);
-                emit_field_write(&mut w, &rname, info.kind, false)?;
-            }
-            offset += info.size;
-        }
-
-        // Write trailing array elements
-        if let Some(array) = &op.array {
-            let field = &op.fields[array.field_index];
-            let info = field_type_info(&field.ty);
-            let rname = rust_field_name(&field.name);
-            assert!(
-                array.offset >= offset,
-                "{}: tracked offset {offset} passed array offset {} for {}",
-                op.name,
-                array.offset,
-                field.name
-            );
-            let pad = array.offset - offset;
-            if pad > 0 {
-                writeln!(w, "                buf.extend_from_slice(&[0u8; {pad}]);")?;
-            }
-
-            writeln!(w, "                for item in {rname} {{")?;
-            emit_field_write(&mut w, "item", info.kind, true)?;
-            writeln!(w, "                }}")?;
-            writeln!(
-                w,
-                "                let target = ({} + {}.len() * {} + 7) & !7;",
-                op.layout.minimum_size, rname, array.element_size
-            )?;
-            writeln!(
-                w,
-                "                while (buf.len() - start) < target {{ buf.push(0); }}"
-            )?;
-
-            let m_length_offset = op
-                .layout
-                .m_length_offset
-                .expect("the parser requires m_length for array ops");
-            writeln!(w, "                let total_len = (buf.len() - start) as u32;")?;
-            writeln!(
-                w,
-                "                buf[start + {}..start + {}].copy_from_slice(&total_len.to_ne_bytes());",
-                m_length_offset,
-                m_length_offset + 4
-            )?;
-        } else {
-            let final_size = op.layout.size.expect("fixed op missing encoded size");
-            assert!(
-                final_size >= offset,
-                "{}: tracked offset {offset} passed final size {final_size}",
-                op.name
-            );
-            let tail_pad = final_size - offset;
-            if tail_pad > 0 {
-                writeln!(w, "                buf.extend_from_slice(&[0u8; {tail_pad}]);")?;
-            }
-        }
-
-        writeln!(w, "            }}")?;
-    }
-
-    writeln!(w, "        }}")?;
-    writeln!(w, "    }}")?;
-    writeln!(w)?;
-    Ok(())
-}
-
-/// Emit code to write a field value into `w`.
-///
-/// All bindings from pattern matching and loop iteration are references (`&T`).
-/// Rust auto-derefs for method calls, but explicit `*` is needed for casts
-/// and direct pushes of Copy types.
-fn emit_field_write(
-    mut w: impl Write,
-    name: &str,
-    kind: &str,
-    is_loop_item: bool,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let prefix = " ".repeat(if is_loop_item { 20 } else { 16 });
-    match kind {
-        "bool" => writeln!(w, "{prefix}buf.push(*{name} as u8);")?,
-        "u8" => writeln!(w, "{prefix}buf.push(*{name});")?,
-        "i32" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.to_ne_bytes());")?,
-        "u32" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.to_ne_bytes());")?,
-        "u64" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.to_ne_bytes());")?,
-        "operand" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.raw().to_ne_bytes());")?,
-        "optional_operand" => {
-            writeln!(w, "{prefix}match {name} {{")?;
-            writeln!(
-                w,
-                "{prefix}    Some(op) => buf.extend_from_slice(&op.raw().to_ne_bytes()),"
-            )?;
-            writeln!(
-                w,
-                "{prefix}    None => buf.extend_from_slice(&Operand::INVALID.to_ne_bytes()),"
-            )?;
-            writeln!(w, "{prefix}}}")?;
-        }
-        "label" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.0.to_ne_bytes());")?,
-        "optional_label" => {
-            // Optional<Label> layout: u32 value, bool has_value, 3 bytes padding = 8 bytes total
-            writeln!(w, "{prefix}match {name} {{")?;
-            writeln!(w, "{prefix}    Some(lbl) => {{")?;
-            writeln!(w, "{prefix}        buf.extend_from_slice(&lbl.0.to_ne_bytes());")?;
-            writeln!(w, "{prefix}        buf.push(1); buf.push(0); buf.push(0); buf.push(0);")?;
-            writeln!(w, "{prefix}    }}")?;
-            writeln!(w, "{prefix}    None => {{")?;
-            writeln!(w, "{prefix}        buf.extend_from_slice(&0u32.to_ne_bytes());")?;
-            writeln!(w, "{prefix}        buf.push(0); buf.push(0); buf.push(0); buf.push(0);")?;
-            writeln!(w, "{prefix}    }}")?;
-            writeln!(w, "{prefix}}}")?;
-        }
-        "u32_newtype" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.0.to_ne_bytes());")?,
-        "optional_u32_newtype" => {
-            writeln!(w, "{prefix}match {name} {{")?;
-            writeln!(
-                w,
-                "{prefix}    Some(idx) => buf.extend_from_slice(&idx.0.to_ne_bytes()),"
-            )?;
-            writeln!(
-                w,
-                "{prefix}    None => buf.extend_from_slice(&0xFFFF_FFFFu32.to_ne_bytes()),"
-            )?;
-            writeln!(w, "{prefix}}}")?;
-        }
-        "env_coord" => {
-            writeln!(w, "{prefix}buf.extend_from_slice(&{name}.hops.to_ne_bytes());")?;
-            writeln!(w, "{prefix}buf.extend_from_slice(&{name}.index.to_ne_bytes());")?;
-        }
-        other => panic!("Unknown encoding kind: {other}"),
-    }
-
-    Ok(())
-}
-
-fn generate_visit_operands_method(
-    mut w: impl Write,
-    ops: &[InstructionDefinition],
-) -> Result<(), Box<dyn std::error::Error>> {
-    writeln!(w, "    /// Visit all `Operand` fields (for operand rewriting).")?;
-    writeln!(
-        w,
-        "    pub fn visit_operands(&mut self, visitor: &mut dyn FnMut(&mut Operand)) {{"
-    )?;
-    writeln!(w, "        match self {{")?;
-
-    for op in ops {
-        let fields = user_fields(op);
-        let operand_fields: Vec<&&Field> = fields
-            .iter()
-            .filter(|f| f.ty == "Operand" || f.ty == "Optional<Operand>")
-            .collect();
-
-        if operand_fields.is_empty() {
-            let pat = if fields.is_empty() {
-                format!("Instruction::{}", op.name)
-            } else {
-                format!("Instruction::{} {{ .. }}", op.name)
-            };
-            writeln!(w, "            {pat} => {{}}")?;
-            continue;
-        }
-
-        // Bind the operand fields
-        let bindings: Vec<String> = fields
-            .iter()
-            .map(|f| {
-                let rname = rust_field_name(&f.name);
-                if f.ty == "Operand" || f.ty == "Optional<Operand>" {
-                    rname
-                } else {
-                    format!("{rname}: _")
-                }
-            })
-            .collect();
-        writeln!(
-            w,
-            "            Instruction::{} {{ {} }} => {{",
-            op.name,
-            bindings.join(", ")
-        )?;
-
-        for f in &operand_fields {
-            let rname = rust_field_name(&f.name);
-            if f.is_array {
-                if f.ty == "Optional<Operand>" {
-                    writeln!(
-                        w,
-                        "                for op in {rname}.iter_mut().flatten() {{ visitor(op); }}"
-                    )?;
-                } else {
-                    writeln!(w, "                for item in {rname}.iter_mut() {{ visitor(item); }}")?;
-                }
-            } else if f.ty == "Optional<Operand>" {
-                writeln!(w, "                if let Some(op) = {rname} {{ visitor(op); }}")?;
-            } else {
-                writeln!(w, "                visitor({rname});")?;
-            }
-        }
-
-        writeln!(w, "            }}")?;
-    }
-
-    writeln!(w, "        }}")?;
-    writeln!(w, "    }}")?;
-    writeln!(w)?;
-
-    Ok(())
-}
-
-fn generate_visit_labels_method(
-    mut w: impl Write,
-    ops: &[InstructionDefinition],
-) -> Result<(), Box<dyn std::error::Error>> {
-    writeln!(w, "    /// Visit all `Label` fields (for label linking).")?;
-    writeln!(
-        w,
-        "    pub fn visit_labels(&mut self, visitor: &mut dyn FnMut(&mut Label)) {{"
-    )?;
-    writeln!(w, "        match self {{")?;
-
-    for op in ops {
-        let fields = user_fields(op);
-        let label_fields: Vec<&&Field> = fields
-            .iter()
-            .filter(|f| f.ty == "Label" || f.ty == "Optional<Label>")
-            .collect();
-
-        if label_fields.is_empty() {
-            let pat = if fields.is_empty() {
-                format!("Instruction::{}", op.name)
-            } else {
-                format!("Instruction::{} {{ .. }}", op.name)
-            };
-            writeln!(w, "            {pat} => {{}}")?;
-            continue;
-        }
-
-        let bindings: Vec<String> = fields
-            .iter()
-            .map(|f| {
-                let rname = rust_field_name(&f.name);
-                if f.ty == "Label" || f.ty == "Optional<Label>" {
-                    rname
-                } else {
-                    format!("{rname}: _")
-                }
-            })
-            .collect();
-        writeln!(
-            w,
-            "            Instruction::{} {{ {} }} => {{",
-            op.name,
-            bindings.join(", ")
-        )?;
-
-        for f in &label_fields {
-            let rname = rust_field_name(&f.name);
-            if f.is_array {
-                if f.ty == "Optional<Label>" {
-                    writeln!(w, "                for item in {rname}.iter_mut() {{")?;
-                    writeln!(w, "                    if let Some(lbl) = item {{ visitor(lbl); }}")?;
-                    writeln!(w, "                }}")?;
-                } else {
-                    writeln!(w, "                for item in {rname}.iter_mut() {{ visitor(item); }}")?;
-                }
-            } else if f.ty == "Optional<Label>" {
-                writeln!(w, "                if let Some(lbl) = {rname} {{ visitor(lbl); }}")?;
-            } else {
-                writeln!(w, "                visitor({rname});")?;
-            }
-        }
-
-        writeln!(w, "            }}")?;
-    }
-
-    writeln!(w, "        }}")?;
-    writeln!(w, "    }}")?;
-    Ok(())
-}
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR")?);
-    let flap_path = manifest_dir.join("../Interpreter/interpreter.flap");
-
-    println!("cargo:rerun-if-changed={}", flap_path.display());
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=src");
-
-    let out_dir = PathBuf::from(env::var("OUT_DIR")?);
-
-    let file = fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true) // empties contents of the file
-        .open(out_dir.join("instruction_generated.rs"))?;
-    let content = fs::read_to_string(&flap_path).expect("Failed to read interpreter.flap");
-    let source_name = flap_path.to_string_lossy();
-    let mut ops = flapc::metadata::parse_flap_metadata(&source_name, &content)?;
-    let specializations = flapc::metadata::parse_specializations(&source_name, &content)?;
-    flapc::validate_specializations(&ops, &specializations)?;
-    let specialized_ops = flapc::metadata::derive_specialized_instructions(&ops, &specializations)?;
-    ops.extend(
-        specialized_ops
-            .iter()
-            .map(|specialization| specialization.definition.clone()),
+fn target() -> Target {
+    let architecture = env::var("CARGO_CFG_TARGET_ARCH").expect("CARGO_CFG_TARGET_ARCH");
+    let os = env::var("CARGO_CFG_TARGET_OS").expect("CARGO_CFG_TARGET_OS");
+    let pointer_width = env::var("CARGO_CFG_TARGET_POINTER_WIDTH").expect("CARGO_CFG_TARGET_POINTER_WIDTH");
+    let endian = env::var("CARGO_CFG_TARGET_ENDIAN").expect("CARGO_CFG_TARGET_ENDIAN");
+    assert!(
+        pointer_width == "64" && endian == "little",
+        "the interpreter supports 64-bit little-endian targets only"
     );
-    generate_rust_code(file, &ops, &specializations, &specialized_ops)
+    // The layout is computed on the build machine, so it has to lay out types the way the target does.
+    const {
+        assert!(
+            cfg!(target_pointer_width = "64") && cfg!(target_endian = "little"),
+            "the build machine must be 64-bit little-endian as well"
+        );
+    }
+
+    let architecture = match architecture.as_str() {
+        "x86_64" => flapc::Architecture::X86_64,
+        "aarch64" => flapc::Architecture::Aarch64,
+        other => panic!("the interpreter does not support {other}"),
+    };
+    let is_apple = os == "macos" || os == "ios";
+    let object_format = match os.as_str() {
+        _ if is_apple => flapc::ObjectFormat::MachO,
+        "windows" => flapc::ObjectFormat::Coff,
+        _ => flapc::ObjectFormat::Elf,
+    };
+    Target {
+        architecture,
+        object_format,
+        is_apple,
+    }
+}
+
+/// Mirrors GC::HEAP_REGION_SIZE in Libraries/LibGC/HeapRegion.h, whose choice depends on the target and on whether
+/// LibGC is built with ThreadSanitizer, which Rust's own cfg cannot see.
+fn heap_region_size(target: &Target, thread_sanitizer: bool) -> u64 {
+    let os = env::var("CARGO_CFG_TARGET_OS").expect("CARGO_CFG_TARGET_OS");
+    let address_space_is_small = matches!(target.architecture, flapc::Architecture::Aarch64) && os != "macos";
+    if address_space_is_small || thread_sanitizer {
+        128 * GIB
+    } else {
+        4 * TIB
+    }
+}
+
+fn main() {
+    let manifest_directory = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
+    let output_directory = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR"));
+    let libjs_directory = manifest_directory.join("..");
+    let interpreter_source = libjs_directory.join("Interpreter/interpreter.flap");
+    let layout_fixture = libjs_directory.join("Flap/tests/interpreter-layout.conf");
+
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=generate");
+    println!("cargo:rerun-if-changed=src/layout");
+    println!("cargo:rerun-if-changed=src/gc/class_id.rs");
+    println!("cargo:rerun-if-changed=src/embedding");
+    println!("cargo:rerun-if-changed={}", interpreter_source.display());
+    println!("cargo:rerun-if-changed={}", layout_fixture.display());
+    println!("cargo:rerun-if-env-changed=MACOSX_DEPLOYMENT_TARGET");
+
+    instructions::generate(&interpreter_source, &output_directory).expect("generate the frontend's instruction types");
+
+    let target = target();
+    let address_sanitizer = env::var_os("CARGO_FEATURE_ADDRESS_SANITIZER").is_some();
+    let thread_sanitizer = env::var_os("CARGO_FEATURE_THREAD_SANITIZER").is_some();
+    let configuration = layout_table::LayoutConfiguration {
+        heap_region_offset_mask: heap_region_size(&target, thread_sanitizer) - 1,
+        // Mirrors GC::PrimitiveStorage::default_cage_size.
+        primitive_storage_cage_offset_mask: 4 * TIB - 1,
+        // Instrumented frames need more room before the stack is considered exhausted.
+        vm_stack_space_limit: if address_sanitizer { 96 * KIB } else { 32 * KIB },
+    };
+    println!(
+        "cargo:rustc-env=LIBJS_RUNTIME_HEAP_REGION_OFFSET_MASK={}",
+        configuration.heap_region_offset_mask
+    );
+    println!(
+        "cargo:rustc-env=LIBJS_RUNTIME_PRIMITIVE_STORAGE_CAGE_OFFSET_MASK={}",
+        configuration.primitive_storage_cage_offset_mask
+    );
+    println!(
+        "cargo:rustc-env=LIBJS_RUNTIME_VM_STACK_SPACE_LIMIT={}",
+        configuration.vm_stack_space_limit
+    );
+
+    let layout = layout_table::generate(&configuration);
+    let generated = fixture::parse(&layout.text);
+    let fixture_text = fs::read_to_string(&layout_fixture).expect("read the interpreter layout fixture");
+    if let Err(problems) = fixture::check_against_fixture(&generated, &fixture::parse(&fixture_text)) {
+        panic!("the Rust interpreter layout does not match the one the interpreter expects:\n{problems}");
+    }
+    write_if_changed(&output_directory.join("layout.conf"), &layout.text);
+    write_if_changed(
+        &output_directory.join("layout_static_assertions.rs"),
+        &layout.static_assertions,
+    );
+
+    let embedding_header_directory = output_directory.join("LibJS/Embedding");
+    fs::create_dir_all(&embedding_header_directory).expect("create the directory of the embedding headers");
+    abi_header::generate(
+        &manifest_directory.join("src/embedding/mod.rs"),
+        &embedding_header_directory.join("ABI.h"),
+    );
+    let layout_header = layout_header::generate();
+    write_if_changed(&embedding_header_directory.join("Layout.h"), &layout_header.text);
+    write_if_changed(
+        &output_directory.join("layout_header_static_assertions.rs"),
+        &layout_header.static_assertions,
+    );
+
+    let interpreter_source_text = fs::read_to_string(&interpreter_source).expect("read interpreter.flap");
+    let interpreter_source_name = interpreter_source.display().to_string();
+    let compiler = interpreter_compiler(&target);
+    let prepared = compiler
+        .prepare(flapc::CompilationUnit {
+            source: flapc::SourceInput {
+                name: &interpreter_source_name,
+                contents: &interpreter_source_text,
+            },
+            constants: Some(flapc::SourceInput {
+                name: "layout.conf",
+                contents: &layout.text,
+            }),
+        })
+        .unwrap_or_else(|error| panic!("flapc failed to compile the interpreter:\n{error}"));
+    let functions = compiler
+        .runtime_functions(&prepared)
+        .unwrap_or_else(|error| panic!("flapc could not list the interpreter's runtime functions:\n{error}"));
+    let assembly = compiler
+        .compile_prepared(&prepared)
+        .unwrap_or_else(|error| panic!("flapc failed to compile the interpreter:\n{error}"));
+
+    let instructions = flapc::metadata::parse_flap_metadata(&interpreter_source_name, &interpreter_source_text)
+        .unwrap_or_else(|error| panic!("parse the interpreter's bytecode definitions: {error}"));
+    let instructions_with_values = functions
+        .iter()
+        .filter_map(|function| match &function.kind {
+            flapc::runtime_interface::RuntimeFunctionKind::SlowPath { op, .. }
+            | flapc::runtime_interface::RuntimeFunctionKind::Try { op, .. } => Some(op.clone()),
+            _ => None,
+        })
+        .collect();
+    write_if_changed(
+        &output_directory.join("bytecode_ops.rs"),
+        &ops::generate(&instructions, &instructions_with_values),
+    );
+    write_if_changed(
+        &output_directory.join("runtime_functions.rs"),
+        &runtime_functions::generate(&functions, &instructions),
+    );
+
+    let assembly_path = output_directory.join("interpreter.S");
+    write_if_changed(&assembly_path, assembly.as_str());
+    assemble_interpreter(&target, &assembly_path);
+}
+
+fn interpreter_compiler(target: &Target) -> flapc::Compiler {
+    flapc::Compiler::new(flapc::CompileOptions {
+        target: flapc::Target {
+            architecture: target.architecture,
+            object_format: target.object_format,
+        },
+        has_jscvt: target.is_apple && matches!(target.architecture, flapc::Architecture::Aarch64),
+        enable_assertions: true,
+    })
+}
+
+/// The minimum macOS version rustc builds the crate's own code for, which the assembled interpreter has to match.
+fn rust_macos_deployment_target() -> Option<String> {
+    if let Ok(target) = env::var("MACOSX_DEPLOYMENT_TARGET") {
+        return Some(target);
+    }
+    let rustc = env::var("RUSTC").unwrap_or_else(|_| "rustc".to_string());
+    let target = env::var("TARGET").ok()?;
+    let output = std::process::Command::new(rustc)
+        .args(["--print", "deployment-target", "--target", &target])
+        .output()
+        .ok()?;
+    String::from_utf8(output.stdout)
+        .ok()?
+        .trim()
+        .strip_prefix("MACOSX_DEPLOYMENT_TARGET=")
+        .map(str::to_string)
+}
+
+fn assemble_interpreter(target: &Target, assembly_path: &Path) {
+    let mut build = cc::Build::new();
+    build.file(assembly_path);
+    if target.is_apple
+        && env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "macos")
+        && let Some(deployment_target) = rust_macos_deployment_target()
+    {
+        build.flag(format!("-mmacosx-version-min={deployment_target}"));
+    }
+    if env::var("CARGO_CFG_TARGET_ENV").is_ok_and(|environment| environment == "msvc") {
+        // flapc writes GNU assembly, which MSVC's cl.exe cannot assemble. Ladybird builds for Windows with clang-cl.
+        if !build
+            .try_get_compiler()
+            .is_ok_and(|compiler| compiler.is_like_clang_cl())
+        {
+            build.compiler("clang-cl");
+        }
+        // Given -Fo, clang-cl writes the preprocessed assembly to the working directory, which cargo makes the source
+        // directory of the crate.
+        let output_directory = assembly_path.parent().expect("the assembly is in the output directory");
+        env::set_current_dir(output_directory)
+            .unwrap_or_else(|error| panic!("enter {}: {error}", output_directory.display()));
+    }
+    if matches!(target.architecture, flapc::Architecture::X86_64) {
+        build.flag_if_supported("-malign-branch-boundary=32");
+        build.flag_if_supported("-malign-branch=fused,jcc");
+    }
+    build.compile("libjs_runtime_interpreter");
+}
+
+fn write_if_changed(path: &Path, contents: &str) {
+    if fs::read_to_string(path).is_ok_and(|existing| existing == contents) {
+        return;
+    }
+    fs::write(path, contents).unwrap_or_else(|error| panic!("write {}: {error}", path.display()));
 }
