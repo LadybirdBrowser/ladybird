@@ -231,8 +231,7 @@ impl Lane {
     /// then. Answers whether that moved anything to lay out and present.
     pub(super) fn sample_started_transitions(&mut self, state: &mut RenderState, timestamp: f64) -> bool {
         let mut moved = false;
-        // A plan the hover took for its own tick leaves the snapping of the document unknown.
-        let scroll_snaps = self.plan.hover.as_ref().is_none_or(|plan| plan.scroll_snaps);
+        let scroll_snaps = state.arena.arena().may_have_scroll_snap_areas();
         for index in 0..self.effects.len() {
             let ElementEffects::Started {
                 transitions,

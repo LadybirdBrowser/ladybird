@@ -277,7 +277,6 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, bool may_animate)
                 .scroll_offsets = scroll_offsets.data(),
                 .scroll_offset_count = scroll_offsets.size(),
                 .chrome_metrics = document.page().chrome_metrics(),
-                .may_have_scroll_snap_areas = document.may_have_scroll_snap_areas(),
                 .page_cursor = ffi_page_cursor(document.page().cursor()),
             };
         }
