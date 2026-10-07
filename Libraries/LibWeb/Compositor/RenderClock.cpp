@@ -189,15 +189,17 @@ void RenderClock::arm(Web::CompositorContextId context_id, double maximum_frames
     });
 }
 
-void RenderClock::arm_lane(Web::CompositorContextId context_id, double maximum_frames_per_second, NonnullRefPtr<ClockTicksHandle> ticks, bool tick_now)
+void RenderClock::arm_lane(Web::CompositorContextId context_id, double maximum_frames_per_second, NonnullRefPtr<ClockTicksHandle> ticks, Optional<i64> tick_now_at)
 {
     VERIFY(isfinite(maximum_frames_per_second) && maximum_frames_per_second > 0);
-    (void)invoke_on_clock_thread([this, context_id, maximum_frames_per_second, ticks = move(ticks), tick_now]() mutable {
+    (void)invoke_on_clock_thread([this, context_id, maximum_frames_per_second, ticks = move(ticks), tick_now_at]() mutable {
         // Another document of the context hears of the pointer no more, and a tick armed for it would hand its ticks to
         // this one's.
         if (auto it = m_pointer_lanes.find(context_id); it != m_pointer_lanes.end() && !it->value.ticks->hands_on_to(*ticks))
             m_armed_contexts.remove(context_id);
-        if (tick_now && !m_armed_contexts.contains(context_id)) {
+        // The display ticks of an armed context drive its ticks at their rate, however many tasks begin meanwhile.
+        if (tick_now_at.has_value() && !m_armed_contexts.contains(context_id)) {
+            (void)ticks->tick(*tick_now_at, {});
             m_armed_contexts.set(context_id, ArmedContext { maximum_frames_per_second, [ticks](i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset> scroll_offsets) { return ticks->tick(frame_time_nanoseconds, scroll_offsets); } });
             request_clock_tick(context_id, maximum_frames_per_second);
         }

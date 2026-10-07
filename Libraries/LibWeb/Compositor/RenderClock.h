@@ -95,8 +95,8 @@ public:
 
     // Asynchronous. Hands the pointer moves over the context to `ticks` from now on, until another document's ticks take
     // their place or the channel is lost, and arms the context's ticks for them where they ask for them; with
-    // `tick_now`, at once.
-    void arm_lane(Web::CompositorContextId, double maximum_frames_per_second, NonnullRefPtr<ClockTicksHandle> ticks, bool tick_now);
+    // `tick_now_at`, ticks them at once at that frame time, where no display tick drives them already.
+    void arm_lane(Web::CompositorContextId, double maximum_frames_per_second, NonnullRefPtr<ClockTicksHandle> ticks, Optional<i64> tick_now_at);
 
 private:
     struct ArmedContext {

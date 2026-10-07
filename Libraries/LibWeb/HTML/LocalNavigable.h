@@ -336,7 +336,11 @@ public:
     // Tells the clock lanes of the active document whether a task begins or the event loop goes idle: a task that begins
     // lets them sample the animations they held, at once. Answers whether the navigable still has lanes to tell.
     bool note_clock_lane(ClockAnimations);
-    void arm_clock_lane(bool tick_now);
+    enum class TickNow : bool {
+        No,
+        Yes,
+    };
+    void arm_clock_lane(TickNow);
 
     // What this navigable presents to its compositor context from. Only the holder of the presenter presents, so frames
     // reach the compositor in the order they were made: a frame of the active document that holds it is taken in first,
