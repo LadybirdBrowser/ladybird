@@ -10,13 +10,16 @@
 
 use super::{Lane, Park};
 use crate::css::animated_overlay::AnimatedOverlay;
+use crate::css::style::StyleEngine;
 use crate::css::style::animations::AnimationTimelineSamples;
+use crate::css::style::bridge::FfiStyleDelta;
 use crate::css::style::engine_sample::NeedsHost;
 use crate::css::style::hover_lane::InheritingDescendants;
 use crate::css::style::layout_style::DerivedStyleRecord;
 use crate::css::style::tree::StyleNodeID;
 use crate::css::transition::HoverTransitions;
-use crate::layout::node_data::NodeSlotId;
+use crate::layout::LayoutNodeArena;
+use crate::layout::node_data::{GENERATED_FOR_AFTER, GENERATED_FOR_BEFORE, GENERATED_FOR_MARKER, NodeSlotId};
 use crate::painting::record::damage::PaintDamage;
 use crate::render_state::RenderState;
 
@@ -283,4 +286,29 @@ impl Lane {
         }
         moved
     }
+}
+
+/// Whether a `::before`, `::after` or `::marker` box of the element `node` names takes any of `properties` from it, or
+/// one of the `inheriting` descendants' any of those it inherits, as their records before `rows` and in them: such a box
+/// shows what the host composes over the element's effects, which no tick shows in it.
+pub(super) fn pseudo_element_boxes_inherit(
+    engine: &StyleEngine,
+    arena: &LayoutNodeArena,
+    node: StyleNodeID,
+    properties: &[u16],
+    inheriting: &InheritingDescendants,
+    rows: &[FfiStyleDelta],
+) -> bool {
+    std::iter::once((node, properties))
+        .chain(
+            inheriting
+                .iter()
+                .map(|(descendant, properties)| (*descendant, &properties[..])),
+        )
+        .any(|(element, properties)| {
+            [GENERATED_FOR_BEFORE, GENERATED_FOR_AFTER, GENERATED_FOR_MARKER]
+                .iter()
+                .any(|&pseudo| !arena.bound_pseudo_element_row(element, pseudo).is_invalid())
+                && engine.box_pseudo_elements_inherit_any_of(element, rows, properties)
+        })
 }
