@@ -888,7 +888,7 @@ fn restyle_size_query_dependents(
                 }
             };
             let arena = state.arena.arena();
-            if let Some(host_style) = arena.install_animation_sample(row, restyled)? {
+            if let Some(host_style) = arena.install_sample(row, restyled, crate::layout::SampleKind::Animation)? {
                 ticked.push((row, host_style));
             }
             arena.push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
@@ -1124,7 +1124,8 @@ impl Lane {
         state.engine_mut().lend_tick_shown(std::mem::take(&mut self.shown));
         let mut moved = false;
         if transitions {
-            moved |= self.sample_started_transitions(state, sampled_at.0);
+            // NB: Transitions a tick left to the host keep what their boxes showed, beside what the others moved.
+            moved |= self.sample_started_transitions(state, sampled_at.0).unwrap_or(true);
         }
         if let Some(pointer) = hovers {
             let hovered = self.hover(state, pointer, sampled_at.0);

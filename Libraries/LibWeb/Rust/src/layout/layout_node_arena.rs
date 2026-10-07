@@ -1131,6 +1131,15 @@ enum ArenaStylePin {
     Sampled,
 }
 
+/// What a sample a clock tick shows in a box samples: the animations the host runs on the box's element, or transitions
+/// a hover beside the host started on it, which leave a record the host pinned for its own readers theirs until the
+/// host starts the transitions in its turn.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SampleKind {
+    Animation,
+    Transition,
+}
+
 /// The style a clock tick took from a box to show a sample of its element's animations in its place:
 /// the record the host installed for the box, and the pin the arena held it by. Only
 /// [`LayoutNodeArena::restore_host_style`] gives it back, so the host never reads a sample.
@@ -2484,51 +2493,35 @@ impl LayoutNodeArena {
         self.note_visual_context_box_dirty(slot, kind);
     }
 
-    /// Shows `sample`, a sample of the animations of the element whose box `row` is, in the box in place of the record the
-    /// host installed, with the relayout the move asks for. Answers the host's style where the box held it, or nothing
-    /// where it held a sample already, which `sample` replaces. A box the host styles in a way of its own shows no sample,
-    /// and neither does one whose sample moves the style of an anonymous box: its layout node would have to hear of a
-    /// style no host reads.
-    pub(crate) fn install_animation_sample(
-        &self,
-        row: NodeSlotId,
-        sample: DerivedStyleRecord,
-    ) -> Result<Option<HostStyle>, NeedsHost> {
-        self.install_sample(row, sample, false)
-    }
-
-    /// Shows `sample`, a sample of the transitions a hover beside the host started on the element whose box `row` is,
-    /// as [`Self::install_animation_sample`] shows one of its animations. A record the host pinned for its own readers
-    /// stays theirs beside the sample until the host starts the transitions in its turn.
-    pub(crate) fn install_transition_sample(
-        &self,
-        row: NodeSlotId,
-        sample: DerivedStyleRecord,
-    ) -> Result<Option<HostStyle>, NeedsHost> {
-        self.install_sample(row, sample, true)
-    }
-
-    fn install_sample(
-        &self,
-        row: NodeSlotId,
-        sample: DerivedStyleRecord,
-        beside_host_pin: bool,
-    ) -> Result<Option<HostStyle>, NeedsHost> {
-        let index = row.slot_index() as usize;
-        let pin = self.style_record_pins[index].get();
-        let style_node = self.node_style_node(row);
-        if !matches!(
+    /// Whether the box `row` shows `sample`, a sample of `kind` of the effects of its element, where
+    /// [`Self::install_sample`] would. A box the host styles in a way of its own shows no sample, and neither does one
+    /// whose sample moves the style of an anonymous box: its layout node would have to hear of a style no host reads.
+    pub(crate) fn takes_sample(&self, row: NodeSlotId, sample: &DerivedStyleRecord, kind: SampleKind) -> bool {
+        matches!(
             self.data(row).kind.get(),
             NodeKind::Box | NodeKind::BlockContainer | NodeKind::InlineNode
-        ) || pin == ArenaStylePin::Derived
-            || (!beside_host_pin && self.node_style_record_pinned_by_host(row) != 0)
-            || style_node.is_none()
-            || self.sample_moves_anonymous_box_style(row, sample.payloads)
-        {
+        ) && self.style_record_pins[row.slot_index() as usize].get() != ArenaStylePin::Derived
+            && (kind == SampleKind::Transition || self.node_style_record_pinned_by_host(row) == 0)
+            && self.node_style_node(row).is_some()
+            && !self.sample_moves_anonymous_box_style(row, sample.payloads)
+    }
+
+    /// Shows `sample`, a sample of `kind` of the effects of the element whose box `row` is, in the box in place of the
+    /// record the host installed, with the relayout the move asks for, where the box takes it (see
+    /// [`Self::takes_sample`]). Answers the host's style where the box held it, or nothing where it held a sample
+    /// already, which `sample` replaces.
+    pub(crate) fn install_sample(
+        &self,
+        row: NodeSlotId,
+        sample: DerivedStyleRecord,
+        kind: SampleKind,
+    ) -> Result<Option<HostStyle>, NeedsHost> {
+        if !self.takes_sample(row, &sample, kind) {
             self.with_style_engine(|engine| engine.unpin_layout_style_record(sample.record));
             return Err(NeedsHost);
         }
-        let host_style = match pin {
+        let index = row.slot_index() as usize;
+        let host_style = match self.style_record_pins[index].get() {
             ArenaStylePin::Sampled => {
                 let previous = self.style_records[index].get();
                 self.with_style_engine(|engine| engine.unpin_layout_style_record(previous));
@@ -2540,7 +2533,7 @@ impl LayoutNodeArena {
             }),
         };
         self.style_record_pins[index].set(ArenaStylePin::Sampled);
-        self.show_style(row, style_node, sample);
+        self.show_style(row, self.node_style_node(row), sample);
         Ok(host_style)
     }
 
