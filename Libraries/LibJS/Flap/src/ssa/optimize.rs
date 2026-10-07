@@ -648,7 +648,7 @@ fn mergeable_successor(
     Some(next)
 }
 
-fn terminator_edges_mut(terminator: &mut Terminator) -> Vec<&mut Edge> {
+pub(super) fn terminator_edges_mut(terminator: &mut Terminator) -> Vec<&mut Edge> {
     match terminator {
         Terminator::Jump(edge) => vec![edge],
         Terminator::Branch {
