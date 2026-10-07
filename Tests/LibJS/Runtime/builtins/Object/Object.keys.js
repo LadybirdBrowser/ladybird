@@ -36,6 +36,71 @@ describe("correct behavior", () => {
     });
 });
 
+describe("objects sharing a shape", () => {
+    test("keys follow property changes of objects with the same shape", () => {
+        const make = () => ({ a: 1, b: 2 });
+        const first = make();
+        const second = make();
+        expect(Object.keys(first)).toEqual(["a", "b"]);
+        second.c = 3;
+        expect(Object.keys(second)).toEqual(["a", "b", "c"]);
+        expect(Object.keys(first)).toEqual(["a", "b"]);
+        delete second.a;
+        expect(Object.keys(second)).toEqual(["b", "c"]);
+        Object.defineProperty(second, "b", { enumerable: false });
+        expect(Object.keys(second)).toEqual(["c"]);
+        expect(Object.getOwnPropertyNames(second)).toEqual(["b", "c"]);
+        expect(Object.keys(make())).toEqual(["a", "b"]);
+    });
+
+    test("returned arrays are fresh", () => {
+        const object = { a: 1 };
+        const keys = Object.keys(object);
+        keys.push("x");
+        expect(Object.keys(object)).toEqual(["a"]);
+    });
+
+    test("dictionary objects", () => {
+        const object = {};
+        const expected = [];
+        for (let i = 0; i < 100; ++i) {
+            object["p" + i] = i;
+            expected.push("p" + i);
+        }
+        expect(Object.keys(object)).toEqual(expected);
+        delete object.p50;
+        expected.splice(50, 1);
+        expect(Object.keys(object)).toEqual(expected);
+        Object.defineProperty(object, "p60", { enumerable: false });
+        expect(Object.keys(object)).not.toContain("p60");
+        expect(Object.getOwnPropertyNames(object)).toContain("p60");
+        object.p50 = 50;
+        expect(Object.keys(object).at(-1)).toBe("p50");
+    });
+
+    test("symbols, functions and accessors", () => {
+        const symbol = Symbol("s");
+        const object = { a: 1, [symbol]: 2, get b() {} };
+        expect(Object.keys(object)).toEqual(["a", "b"]);
+        expect(Object.getOwnPropertyNames(object)).toEqual(["a", "b"]);
+        function f() {}
+        f.x = 1;
+        expect(Object.keys(f)).toEqual(["x"]);
+        expect(Object.getOwnPropertyNames(f)).toContain("prototype");
+        const args = (function (a) {
+            return arguments;
+        })(1);
+        expect(Object.getOwnPropertyNames(args)).toEqual(["0", "length", "callee"]);
+    });
+
+    test("indexed properties come first", () => {
+        const object = { a: 1 };
+        object[1] = 2;
+        object[0] = 3;
+        expect(Object.keys(object)).toEqual(["0", "1", "a"]);
+    });
+});
+
 describe("errors", () => {
     test("null argument value", () => {
         expect(() => {
