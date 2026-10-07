@@ -845,3 +845,44 @@ TEST_CASE(withdrawing_idle_asks_for_data_before_any_arrived)
     stream->add_chunk_at(0, data.bytes());
     MUST(thread->join());
 }
+
+TEST_CASE(a_read_after_idle_is_withdrawn_asks_for_data_when_none_has_arrived)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    stream->set_expected_size(100);
+
+    Vector<Optional<u64>> requests;
+    stream->set_data_request_callback([&](Optional<u64> offset) {
+        requests.append(offset);
+    });
+
+    stream->set_may_idle(true);
+    stream->set_may_idle(false);
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(requests.size(), 1u);
+    EXPECT(!requests[0].has_value());
+
+    auto cursor = stream->create_cursor();
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> read_blocked { false };
+    cursor->set_blocked_change_handler([&](Media::ReadBlocked blocked) {
+        read_blocked = blocked == Media::ReadBlocked::Yes;
+    });
+    auto thread = Threading::Thread::construct("TestReadAfterWithdraw"sv, [cursor]() -> intptr_t {
+        Array<u8, 10> buffer;
+        MUST(cursor->read_into(buffer));
+        return 0;
+    });
+    thread->start();
+    while (!read_blocked.load())
+        ;
+
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(requests.size(), 2u);
+    EXPECT_EQ(requests[1], 0u);
+
+    auto data = make_test_data(100);
+    stream->add_chunk_at(0, data.bytes());
+    MUST(thread->join());
+}
