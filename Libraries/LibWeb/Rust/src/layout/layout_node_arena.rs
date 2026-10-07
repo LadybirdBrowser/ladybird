@@ -495,18 +495,36 @@ struct DefaultScrollShiftAnchorSlot {
     anchor: NodeSlotId,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Copy)]
 struct TextNodeSlot {
     generation: u8,
-    state: Option<Box<TextNodeState>>,
+    /// Where the slot's state is in [`TextSlots::states`], or [`TextNodeSlot::NO_STATE`].
+    state: u32,
+}
+
+impl TextNodeSlot {
+    const NO_STATE: u32 = u32::MAX;
+}
+
+impl Default for TextNodeSlot {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            state: Self::NO_STATE,
+        }
+    }
 }
 
 /// Each text row's state, and what it publishes for the paint side. A slot is written only through
 /// a [`TextStateMut`], which republishes the slot when it drops, or by [`TextSlots::reset`], so
-/// the published column cannot fall behind the slots.
+/// the published column cannot fall behind the slots. The states live side by side rather than
+/// each in an allocation of its own, which keeps a copy of the slots to one allocation.
 #[derive(Clone, Default)]
 struct TextSlots {
     slots: Vec<TextNodeSlot>,
+    states: Vec<TextNodeState>,
+    /// The places in `states` no slot uses.
+    vacant_states: Vec<u32>,
     published: CowColumn<PublishedTextSlot, SLOTS_PER_CHUNK>,
 }
 
@@ -514,8 +532,8 @@ impl TextSlots {
     fn state(&self, id: NodeSlotId) -> Option<&TextNodeState> {
         self.slots
             .get(id.slot_index() as usize)
-            .filter(|slot| slot.generation == id.generation())
-            .and_then(|slot| slot.state.as_deref())
+            .filter(|slot| slot.generation == id.generation() && slot.state != TextNodeSlot::NO_STATE)
+            .map(|slot| &self.states[slot.state as usize])
     }
 
     /// The state of `id`'s slot, for writing. A slot last used by another generation starts over.
@@ -524,22 +542,37 @@ impl TextSlots {
         if self.slots.len() <= index {
             self.slots.resize_with(index + 1, TextNodeSlot::default);
         }
-        let slot = &mut self.slots[index];
-        if slot.generation != id.generation() {
-            *slot = TextNodeSlot {
-                generation: id.generation(),
-                ..TextNodeSlot::default()
+        if self.slots[index].generation != id.generation() {
+            self.release_state(index);
+            self.slots[index].generation = id.generation();
+        }
+        if self.slots[index].state == TextNodeSlot::NO_STATE {
+            self.slots[index].state = match self.vacant_states.pop() {
+                Some(state) => state,
+                None => {
+                    self.states.push(TextNodeState::default());
+                    u32::try_from(self.states.len() - 1).expect("text states fit in u32")
+                }
             };
         }
-        slot.state.get_or_insert_with(Default::default);
         TextStateMut { slots: self, index }
     }
 
     /// Empties the slot at `index`, if there is one.
     fn reset(&mut self, index: usize) {
-        if let Some(slot) = self.slots.get_mut(index) {
-            *slot = TextNodeSlot::default();
+        if index < self.slots.len() {
+            self.release_state(index);
+            self.slots[index] = TextNodeSlot::default();
             self.republish(index);
+        }
+    }
+
+    /// Lets go of the state of the slot at `index`, if it has one.
+    fn release_state(&mut self, index: usize) {
+        let state = std::mem::replace(&mut self.slots[index].state, TextNodeSlot::NO_STATE);
+        if state != TextNodeSlot::NO_STATE {
+            self.states[state as usize] = TextNodeState::default();
+            self.vacant_states.push(state);
         }
     }
 
@@ -548,13 +581,14 @@ impl TextSlots {
         let published = self
             .slots
             .get(index)
-            .and_then(|slot| {
-                let state = slot.state.as_deref()?;
-                Some(PublishedTextSlot {
+            .filter(|slot| slot.state != TextNodeSlot::NO_STATE)
+            .map(|slot| {
+                let state = &self.states[slot.state as usize];
+                PublishedTextSlot {
                     generation: slot.generation,
                     first_letter: state.first_letter,
                     rendered: state.content.as_ref().map(|content| content.rendered().clone()),
-                })
+                }
             })
             .unwrap_or_default();
         if self.published.get(index).is_none() {
@@ -577,19 +611,13 @@ impl Deref for TextStateMut<'_> {
     type Target = TextNodeState;
 
     fn deref(&self) -> &TextNodeState {
-        self.slots.slots[self.index]
-            .state
-            .as_deref()
-            .expect("a written slot has state")
+        &self.slots.states[self.slots.slots[self.index].state as usize]
     }
 }
 
 impl DerefMut for TextStateMut<'_> {
     fn deref_mut(&mut self) -> &mut TextNodeState {
-        self.slots.slots[self.index]
-            .state
-            .as_deref_mut()
-            .expect("a written slot has state")
+        &mut self.slots.states[self.slots.slots[self.index].state as usize]
     }
 }
 
