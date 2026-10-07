@@ -57,7 +57,6 @@ void AudioTimeStretchProcessor::disconnect_input(NonnullRefPtr<AudioProducer> co
 
 void AudioTimeStretchProcessor::seek(AK::Duration timestamp)
 {
-    RefPtr<AudioProducer> input;
     {
         MutexLocker locker { m_mutex };
         VERIFY(m_sample_specification.is_valid());
@@ -67,13 +66,10 @@ void AudioTimeStretchProcessor::seek(AK::Duration timestamp)
         m_pending_block.clear();
         m_stretcher_reached_eos = false;
 
-        input = m_input;
-        timestamp = m_next_emit_media_time;
-    }
-
-    if (input != nullptr) {
-        input->seek(timestamp);
-        return;
+        if (m_input != nullptr) {
+            m_input->seek(m_next_emit_media_time);
+            return;
+        }
     }
 
     dispatch_wake();
