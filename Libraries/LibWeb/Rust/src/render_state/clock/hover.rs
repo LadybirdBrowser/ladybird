@@ -169,7 +169,9 @@ impl PointerState {
     /// want next.
     pub(super) fn moved(&mut self, pointer: PendingPointer, follows: bool) -> PointerAnswer {
         self.last = Some(pointer);
+        // A move no lane follows is the host's, and so is the one an earlier move left waiting.
         if !follows {
+            self.pending = None;
             return PointerAnswer::Moves;
         }
         self.pending = Some(pointer);
@@ -256,7 +258,6 @@ struct CursorHit {
     in_text: bool,
 }
 
-/// Why a hover moved nothing the lane presents.
 /// Whose style inputs a hover's transaction may take with it.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum HoverInputs {
@@ -264,6 +265,15 @@ enum HoverInputs {
     TheHostsAlone,
     /// Those a move the lane moved back left pending too.
     TheLanesToo,
+}
+
+/// What a move of the hover made before it needed the host, if it did.
+#[derive(Default)]
+struct MoveMade {
+    /// Whether it installed anything in the boxes.
+    installed: bool,
+    /// The elements it started transitions on.
+    started: smallvec::SmallVec<[StyleNodeID; 2]>,
 }
 
 /// What a lane's hover made of a pointer move.
@@ -277,6 +287,7 @@ pub(super) enum Hovered {
     LeftToHost,
 }
 
+/// Why a hover moved nothing the lane presents.
 enum HoverDeclined {
     /// The move needs the host, which hovers it as it handles the move: the lane hovers nothing more.
     Park(&'static str),
@@ -396,6 +407,8 @@ impl Lane {
             timestamp,
             HoverInputs::TheHostsAlone,
         ) {
+            // A move half made leaves nothing to move back.
+            Err(HoverDeclined::Park(reason)) if self.frame_left_to_host => Err(HoverDeclined::Park(reason)),
             Err(HoverDeclined::Park(reason)) => {
                 // The move needs the host, which hovers it as it handles the move. Moving the hover back to where it
                 // was leaves the boxes as the screen shows them, and the lane hovers the moves after it.
@@ -427,6 +440,8 @@ impl Lane {
 
     /// Moves the style's hover to `target`, as the pointer at `position` hovers it, and installs what that moves in the
     /// boxes. `inputs` says whether the style inputs pending may be the lane's own, which a hover it moved back left.
+    /// A move that needs the host after it installed something leaves the fork holding a move half made, which no
+    /// frame shows: the lane leaves its frame to the host, and forgets the transitions the move started.
     fn move_hover_to(
         &mut self,
         state: &mut RenderState,
@@ -435,6 +450,26 @@ impl Lane {
         position: Option<FloatPoint>,
         timestamp: f64,
         inputs: HoverInputs,
+    ) -> Result<(), HoverDeclined> {
+        let mut made = MoveMade::default();
+        let moved = self.make_hover_move(state, plan, target, position, timestamp, inputs, &mut made);
+        if matches!(moved, Err(HoverDeclined::Park(_))) && made.installed {
+            self.frame_left_to_host = true;
+            self.forget_transitions_started_at(&made.started, timestamp);
+        }
+        moved
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn make_hover_move(
+        &mut self,
+        state: &mut RenderState,
+        plan: &HoverPlan,
+        target: Option<StyleNodeID>,
+        position: Option<FloatPoint>,
+        timestamp: f64,
+        inputs: HoverInputs,
+        made: &mut MoveMade,
     ) -> Result<(), HoverDeclined> {
         let Some((root, sealed_inputs)) = plan.style.as_ref() else {
             return Err(HoverDeclined::Park("no style inputs"));
@@ -583,6 +618,7 @@ impl Lane {
                 }));
             }
             let installs = state.engine_mut().install_hover_wave(&wave);
+            made.installed |= !settles_back;
             let arena = state.arena.arena();
             let work = OwedHostWork::default();
             // The installs cannot call the host, which never hears of the boxes of the lane's fork they touched.
@@ -612,6 +648,7 @@ impl Lane {
                     continue;
                 }
                 started_transitions = true;
+                made.started.push(transitions.node);
                 self.start_transitions(transitions, timestamp);
             }
             let engine = state.engine_mut();
@@ -649,8 +686,13 @@ impl Lane {
                 return Err(HoverDeclined::Park("a box the host builds"));
             }
         }
-        if started_transitions {
-            self.sample_started_transitions(state, timestamp);
+        // A transition the hover cannot show as it starts is the host's, with the move that starts it.
+        if started_transitions && let Err(super::Park(reason)) = self.sample_started_transitions(state, timestamp) {
+            if logs_hover() {
+                eprintln!("hover lane: transitions left to the host: {reason}");
+            }
+            self.parked = true;
+            return Err(HoverDeclined::Park(reason));
         }
         Ok(())
     }
@@ -717,10 +759,10 @@ impl Lane {
         let resolved = list.resolve_hit(arena, topmost.index, topmost.local_point);
         let identity = if paintable_kind == NodeKind::Viewport {
             // The viewport stands for the document, and a hit that falls through to it hits the root element, the root
-            // of the style transactions the hover takes its own with.
+            // of the style transactions the hover takes its own with. The cursor is the viewport's, as the host's is.
             let &(root, _) = plan.style.as_ref().ok_or(HoverDeclined::Unmoved("no root element"))?;
             return Ok(HoverTarget::Element(CursorHit {
-                hit_node: arena.bound_row(root),
+                hit_node: paintable,
                 element: root,
                 in_text: false,
             }));
