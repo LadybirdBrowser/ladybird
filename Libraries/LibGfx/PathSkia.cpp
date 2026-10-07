@@ -463,10 +463,56 @@ NonnullOwnPtr<PathImpl> PathImplSkia::place_glyph_runs_along(ReadonlySpan<Nonnul
     return output_path;
 }
 
+static SkPathBuilder copy_without_last_verb(SkPathBuilder const& builder)
+{
+    auto const verbs = builder.verbs();
+    auto const points = builder.points();
+    auto const conic_weights = builder.conicWeights();
+    SkPathBuilder copy(builder.fillType());
+    size_t point_index = 0;
+    size_t conic_weight_index = 0;
+    for (size_t verb_index = 0; verb_index + 1 < verbs.size(); ++verb_index) {
+        switch (verbs[verb_index]) {
+        case SkPathVerb::kMove:
+            copy.moveTo(points[point_index]);
+            point_index += 1;
+            break;
+        case SkPathVerb::kLine:
+            copy.lineTo(points[point_index]);
+            point_index += 1;
+            break;
+        case SkPathVerb::kQuad:
+            copy.quadTo(points[point_index], points[point_index + 1]);
+            point_index += 2;
+            break;
+        case SkPathVerb::kConic:
+            copy.conicTo(points[point_index], points[point_index + 1], conic_weights[conic_weight_index++]);
+            point_index += 2;
+            break;
+        case SkPathVerb::kCubic:
+            copy.cubicTo(points[point_index], points[point_index + 1], points[point_index + 2]);
+            point_index += 3;
+            break;
+        case SkPathVerb::kClose:
+            copy.close();
+            break;
+        }
+    }
+    return copy;
+}
+
 void PathImplSkia::append_path(Gfx::Path const& other)
 {
     auto const& other_impl = static_cast<PathImplSkia const&>(other.impl());
-    sk_path_builder().addPath(other_impl.sk_path());
+    auto const other_path = other_impl.sk_path();
+    auto& path_builder = sk_path_builder();
+    // The other path starts with a move. If this path ends with a move, the result has two moves in sequence. That is
+    // not a valid path, and the compositor gets an empty path. Remove the move first. A subpath with one point is not
+    // filled or stroked.
+    auto const verbs = path_builder.verbs();
+    if (!other_path.isEmpty() && verbs.size() > 1 && verbs.back() == SkPathVerb::kMove)
+        path_builder = copy_without_last_verb(path_builder);
+    path_builder.addPath(other_path);
     if (other_impl.m_has_current_point) {
         m_has_current_point = true;
         m_last_move_to = other_impl.m_last_move_to;
