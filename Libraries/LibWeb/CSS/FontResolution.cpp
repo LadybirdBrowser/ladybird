@@ -10,7 +10,9 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/SystemFallbackFonts.h>
-#include <LibGfx/Font/TypefaceSkia.h>
+#ifdef AK_OS_MACOS
+#    include <LibGfx/Font/TypefaceCoreText.h>
+#endif
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/FontFaceState.h>
 #include <LibWeb/CSS/FontResolution.h>
@@ -262,12 +264,12 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
 #ifdef AK_OS_MACOS
     auto find_macos_system_ui_font = [&](Gfx::SystemUIFontKind kind, Utf16FlyString const& family) -> RefPtr<Gfx::FontCascadeList const> {
         auto shape_features = shape_features_for(key, &font_feature_values_for_family(family));
-        auto typeface = Gfx::TypefaceSkia::match_system_ui(kind, font_size_used_value, weight, font_width_bucket_from_percentage(font_width.value()), slope);
-        if (typeface.is_error() || !typeface.value())
+        auto typeface = Gfx::TypefaceCoreText::system_ui({ kind, static_cast<u16>(weight), static_cast<u16>(font_width_bucket_from_percentage(font_width.value())), static_cast<u8>(slope) });
+        if (!typeface)
             return {};
 
         auto font_list = Gfx::FontCascadeList::create();
-        font_list->add(typeface.value()->font(font_size_in_pt, variation, shape_features));
+        font_list->add(typeface->font(font_size_in_pt, variation, shape_features));
         return font_list;
     };
 #endif
