@@ -16,9 +16,10 @@
 namespace Web::Fetch::Infrastructure {
 
 struct WEB_API TaskDestination : public Variant<Empty, GC::Ref<JS::Object>, NonnullRefPtr<HTML::ParallelQueue>> {
-    using Variant::Variant;
     TaskDestination() = default;
+    TaskDestination(Empty);
     TaskDestination(GC::Ref<JS::Object>);
+    TaskDestination(NonnullRefPtr<HTML::ParallelQueue>);
 
     void visit_edges(GC::Cell::Visitor&) const;
 
