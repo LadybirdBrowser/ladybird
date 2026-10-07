@@ -11,6 +11,29 @@ use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::paint_read::PaintRead;
 
+/// The boxes registered as roots of a partial relayout since a layout last took them, in the order they were
+/// registered, each once.
+#[derive(Clone, Default)]
+pub(crate) struct PartialRelayoutBoundaryRoots {
+    roots: Vec<NodeSlotId>,
+    registered: crate::css::style::fast_hash::FastSet<NodeSlotId>,
+    /// How many registered roots were freed since a registration last pruned the freed ones.
+    freed: usize,
+}
+
+impl PartialRelayoutBoundaryRoots {
+    pub(crate) fn roots(&self) -> &[NodeSlotId] {
+        &self.roots
+    }
+
+    /// Notes that the node `node` names is freed, which the next registration prunes where it is a registered root.
+    pub(crate) fn note_freed(&mut self, node: NodeSlotId) {
+        if self.registered.contains(&node) {
+            self.freed += 1;
+        }
+    }
+}
+
 crate::render_state::held_node_entries!();
 
 pub(crate) struct LayoutTreeUpdateClassification {
@@ -181,22 +204,25 @@ impl LayoutNodeArena {
         let kind = self.data(node).kind.get();
         assert!(node_facts::kind_is_box(kind));
         let mut roots = self.partial_relayout_boundary_roots.borrow_mut();
-        roots.retain(|candidate| self.slot_is_live(*candidate));
-        if roots.contains(&node) {
-            return;
+        if roots.freed != 0 {
+            roots.roots.retain(|candidate| self.slot_is_live(*candidate));
+            roots.registered.retain(|candidate| self.slot_is_live(*candidate));
+            roots.freed = 0;
         }
-        roots.push(node);
+        if roots.registered.insert(node) {
+            roots.roots.push(node);
+        }
     }
 
     /// Counts stale entries for freed nodes on purpose: the C++ side treats a nonempty
     /// root set as "layout is not up to date", and a freed boundary still attributes a
     /// pending update, exactly as a nulled-out weak pointer did.
     pub(crate) fn has_partial_relayout_boundary_roots(&self) -> bool {
-        !self.partial_relayout_boundary_roots.borrow().is_empty()
+        !self.partial_relayout_boundary_roots.borrow().roots.is_empty()
     }
 
     pub(crate) fn take_partial_relayout_boundary_roots(&self) -> Vec<NodeSlotId> {
-        std::mem::take(&mut *self.partial_relayout_boundary_roots.borrow_mut())
+        std::mem::take(&mut *self.partial_relayout_boundary_roots.borrow_mut()).roots
     }
 
     pub(crate) fn record_partial_relayout_escape(&self) {
