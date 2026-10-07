@@ -1131,9 +1131,11 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
         } else {
             VERIFY(!response.url_list().is_empty());
             m_stylesheet_processing_pending = true;
+            // The sheet's relative URLs resolve against the URL the sheet was fetched from, after any redirect; its
+            // location stays the URL it was linked at.
             CSS::Parser::Parser::parse_stylesheet_off_thread(
                 CSS::Parser::ParsingParams { document() }, maybe_decoded_string.release_value(),
-                [link = GC::make_root(*this), loaded_document = GC::make_root(document()), fetch_generation = m_current_fetch_generation, location = response.url_list().first(), origin_clean](CSS::Parser::RustStyleSheetParse parsed) mutable {
+                [link = GC::make_root(*this), loaded_document = GC::make_root(document()), fetch_generation = m_current_fetch_generation, location = response.url_list().first(), base_url = response.url_list().last(), origin_clean](CSS::Parser::RustStyleSheetParse parsed) mutable {
                     if (fetch_generation != link->m_current_fetch_generation || !link->m_stylesheet_processing_pending)
                         return;
                     // NB: An inactive document's element tasks cannot run. Release its result here.
@@ -1143,7 +1145,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                         return;
                     }
                     link->queue_an_element_task(Task::Source::Networking,
-                        [link = move(link), loaded_document = move(loaded_document), fetch_generation, location = move(location), parsed = move(parsed), origin_clean] {
+                        [link = move(link), loaded_document = move(loaded_document), fetch_generation, location = move(location), base_url = move(base_url), parsed = move(parsed), origin_clean] {
                             if (fetch_generation != link->m_current_fetch_generation || !link->m_stylesheet_processing_pending)
                                 return;
                             if (&link->document() != loaded_document.ptr() || !loaded_document->is_fully_active()
@@ -1155,6 +1157,8 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
 
                             CSS::Parser::Parser parser { CSS::Parser::ParsingParams { *loaded_document } };
                             auto sheet = parser.create_css_stylesheet(parsed, location);
+                            if (base_url != location)
+                                sheet->set_base_url(move(base_url));
                             link->associate_style_sheet(*sheet, origin_clean);
 
                             // 2. Fire an event named load at el.
