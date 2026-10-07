@@ -2976,11 +2976,10 @@ impl<'pass> FlexFormattingContext<'pass> {
         //    and the chosen flex fraction, then clamp that result by the max main size floored by the min main size.
         let mut sum = CssPixels::default();
         for index in 0..self.flex_items.len() {
-            let desired = self.flex_items[index].desired_flex_fraction;
             let style = self.style(self.flex_items[index].box_);
-            let product = if desired > 0.0 {
+            let product = if chosen > 0.0 {
                 chosen * style.flex_grow()
-            } else if desired < 0.0 {
+            } else if chosen < 0.0 {
                 chosen * self.flex_items[index].scaled_flex_shrink_factor
             } else {
                 0.0
