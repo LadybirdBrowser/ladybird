@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	When transferring a port,
+    outgoing messages sent at each transfer step are received in order by the entangled port.

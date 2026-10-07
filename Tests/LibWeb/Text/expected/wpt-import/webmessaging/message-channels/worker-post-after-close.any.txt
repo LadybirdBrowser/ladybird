@@ -1,0 +1,6 @@
+Harness status: Error
+
+Found 1 tests
+
+1 Pass
+Pass	MessageChannel/MessagePort should not work after a worker self.close()

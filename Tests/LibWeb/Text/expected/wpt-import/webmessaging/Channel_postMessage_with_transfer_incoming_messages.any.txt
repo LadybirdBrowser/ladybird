@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	When transferring a non-enabled port mutiple times,
+    incoming messages sent at various transfer steps are received in order upon enablement.

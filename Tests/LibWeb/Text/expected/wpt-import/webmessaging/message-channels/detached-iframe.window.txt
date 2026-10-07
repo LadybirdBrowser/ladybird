@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	MessageChannel created from a detached iframe should not send messages (remove after create)
+Pass	MessageChannel created from a detached iframe should not send messages (remove before create)

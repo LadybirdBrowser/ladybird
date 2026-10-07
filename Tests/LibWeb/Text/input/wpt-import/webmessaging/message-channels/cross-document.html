@@ -1,0 +1,22 @@
+<!doctype html>
+<title>cross-document channel</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<iframe src=resources/cross-document-1.html></iframe><iframe src=resources/cross-document-2.html></iframe>
+<div id="log"></div>
+<script>
+var t = async_test();
+onload = t.step_func(
+  function() {
+    var channel = new MessageChannel();
+    window[0].postMessage(1, '*', [channel.port1]);
+    window[1].postMessage(2, '*', [channel.port2]);
+    channel = null;
+    window.onmessage = t.step_func(
+      function(e) {
+        assert_equals(e.data, 1);
+        t.done();
+      });
+  }
+);
+</script>

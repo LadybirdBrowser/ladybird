@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Message sent to closed port should not arrive.
+Pass	Message sent from closed port should not arrive.
+Pass	Message sent to closed port from transferred port should not arrive.
+Pass	Inflight messages should be delivered even when sending port is closed afterwards.
+Pass	Close in onmessage should not cancel inflight messages.
+Pass	close() detaches a MessagePort (but not the one its entangled with)
