@@ -19,8 +19,35 @@
 #include <QPainter>
 #include <QStyle>
 #include <QStyleOptionComboBox>
+#include <QStyledItemDelegate>
 
 namespace Ladybird {
+
+static constexpr int BOOKMARK_FOLDER_SEPARATOR_ROLE = Qt::UserRole + 1;
+
+class BookmarkFolderDelegate final : public QStyledItemDelegate {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+    virtual QSize sizeHint(QStyleOptionViewItem const& option, QModelIndex const& index) const override
+    {
+        if (index.data(BOOKMARK_FOLDER_SEPARATOR_ROLE).toBool())
+            return { 0, 11 };
+        return QStyledItemDelegate::sizeHint(option, index);
+    }
+
+    virtual void paint(QPainter* painter, QStyleOptionViewItem const& option, QModelIndex const& index) const override
+    {
+        if (!index.data(BOOKMARK_FOLDER_SEPARATOR_ROLE).toBool()) {
+            QStyledItemDelegate::paint(painter, option, index);
+            return;
+        }
+
+        painter->fillRect(QRect { option.rect.left() + 8, option.rect.center().y(), option.rect.width() - 16, 1 }, ChromeStyle::chrome_separator(option.palette));
+    }
+};
 
 class BookmarkFolderPicker final : public QComboBox {
 public:
@@ -31,6 +58,7 @@ public:
         , m_arrow(create_chrome_icon(ChromeIcon::ChevronDown, palette()))
     {
         view()->window()->setAttribute(Qt::WA_TranslucentBackground);
+        setItemDelegate(new BookmarkFolderDelegate(view()));
     }
 
 protected:
@@ -123,8 +151,12 @@ BookmarkDialog::BookmarkDialog(QWidget* parent, Type type, Optional<URL::URL con
         m_folder_combo = new BookmarkFolderPicker(this);
         m_folder_combo->setMinimumWidth(320);
         m_folder_combo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        m_folder_combo->addItem("Bookmarks", QString {});
+        m_folder_combo->addItem("Bookmarks Bar", QString {});
         add_bookmark_folder_options(*m_folder_combo, folders, {});
+        if (m_folder_combo->count() > 1) {
+            m_folder_combo->insertSeparator(1);
+            m_folder_combo->setItemData(1, true, BOOKMARK_FOLDER_SEPARATOR_ROLE);
+        }
 
         if (selected_folder_id.has_value()) {
             auto index = m_folder_combo->findData(qstring_from_ak_string(*selected_folder_id));
