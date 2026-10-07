@@ -35,6 +35,7 @@
 }
 
 :root {
+    --accent: var(--violet-100);
     --card-radius: 12px;
 }
 
@@ -105,6 +106,13 @@ header img {
 
 .description:empty {
     display: none;
+}
+
+button:focus-visible,
+summary:focus-visible,
+input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 .search-container {
