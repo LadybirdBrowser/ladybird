@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! # LibJS Parser
+//! # LibJS
 //!
-//! A JavaScript parser that produces an AST.
+//! LibJS's frontend and runtime. The frontend parses JavaScript into an AST and compiles it to bytecode, which the
+//! runtime runs in the Flap-generated interpreter, on cells allocated from LibGC.
 //!
 //! ## Architecture
 //!
@@ -55,9 +56,16 @@
 //! - `bytecode_cache.rs` — Serialization of compiled programs for the bytecode cache
 //! - `breakpoint_positions.rs` — Where in a source a debugger can stop
 //! - `scope_collector.rs` — Scope analysis
+//! - `interpreter/`, `runtime/`, `gc/`, `layout/`, `embedding/` — The runtime and its embedding ABI
 
 #[cfg(feature = "allocator")]
 extern crate ladybird_allocator;
+
+#[path = "../../../RustDemangle.rs"]
+mod rust_demangle;
+
+#[path = "../../../RustPanic.rs"]
+mod rust_panic;
 
 /// Compile-time conversion of an ASCII string literal to `&'static [u16]`.
 ///
@@ -86,18 +94,69 @@ macro_rules! utf16 {
 
 pub mod ast;
 pub mod ast_dump;
+#[cfg(not(test))]
+pub mod breakpoint;
 pub mod breakpoint_positions;
+#[cfg(not(test))]
+pub mod build_configuration;
 pub mod bytecode;
 pub mod bytecode_cache;
 pub mod compile;
+#[cfg(not(test))]
+pub mod console;
+#[cfg(not(test))]
+pub mod console_log_level;
+#[cfg(not(test))]
+pub mod contrib;
+#[cfg(not(test))]
+pub mod debugger;
+#[cfg(not(test))]
+pub mod embedding;
 pub mod fast_hash;
+#[cfg(not(test))]
+pub mod frontend_host;
+#[cfg(not(test))]
+pub mod futex;
+#[cfg(not(test))]
+pub mod gc;
+#[cfg(not(test))]
+pub mod hash_table;
 pub mod host;
+#[cfg(not(test))]
+pub mod interpreter;
+#[cfg(not(test))]
+pub mod layout;
+#[cfg(not(test))]
+pub mod layout_forward;
 pub mod lexer;
+#[cfg(not(test))]
+pub mod lexical_path;
 pub mod parser;
+#[cfg(not(test))]
+pub mod parser_error;
+#[cfg(not(test))]
+pub mod random;
+#[cfg(not(test))]
 pub mod runtime;
 pub mod scope_collector;
+#[cfg(not(test))]
+pub mod script;
+#[cfg(not(test))]
+pub mod simdjson;
+#[cfg(not(test))]
+pub mod source_code;
+#[cfg(not(test))]
+pub mod source_range;
+#[cfg(not(test))]
+pub mod standard_output;
 pub mod token;
 pub mod tokenize;
+#[cfg(not(test))]
+pub mod unicode;
+#[cfg(not(test))]
+pub mod utf16;
+#[cfg(not(test))]
+pub mod utilities;
 
 #[cfg(test)]
 mod test_host;
@@ -106,4 +165,9 @@ mod test_host;
 /// Prefer this over `as u32` which silently truncates on 64-bit platforms.
 pub(crate) fn u32_from_usize(value: usize) -> u32 {
     u32::try_from(value).expect("value exceeds u32::MAX")
+}
+
+#[cfg(not(test))]
+mod layout_static_assertions {
+    include!(concat!(env!("OUT_DIR"), "/layout_static_assertions.rs"));
 }

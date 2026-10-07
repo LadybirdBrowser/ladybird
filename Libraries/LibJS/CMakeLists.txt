@@ -2,7 +2,7 @@
 # It links the runtime with the runtime's symbols hidden, so it exports only its own JS_API functions, and every process
 # that links LibJS has exactly one copy of the runtime.
 
-add_subdirectory(Rust/Runtime)
+add_subdirectory(Rust)
 
 set(SOURCES
     Console.cpp
@@ -86,14 +86,14 @@ target_link_libraries(LibJS PUBLIC LibUnicode)
 target_link_libraries(LibJS PUBLIC JSClangPlugin)
 
 if (NOT BUILD_SHARED_LIBS OR WIN32)
-    target_link_libraries(LibJS PRIVATE libjs_runtime_rust)
+    target_link_libraries(LibJS PRIVATE libjs_rust)
 elseif (APPLE)
     set(CMAKE_LINK_LIBRARY_USING_load_hidden "LINKER:-load_hidden,<LIBRARY>")
     set(CMAKE_LINK_LIBRARY_USING_load_hidden_SUPPORTED TRUE)
-    target_link_libraries(LibJS PRIVATE "$<LINK_LIBRARY:load_hidden,libjs_runtime_rust>")
+    target_link_libraries(LibJS PRIVATE "$<LINK_LIBRARY:load_hidden,libjs_rust>")
 else()
-    target_link_libraries(LibJS PRIVATE libjs_runtime_rust)
-    get_target_property(libjs_runtime_rust_archive libjs_runtime_rust IMPORTED_LOCATION)
-    cmake_path(GET libjs_runtime_rust_archive FILENAME libjs_runtime_rust_archive_name)
-    target_link_options(LibJS PRIVATE "LINKER:--exclude-libs,${libjs_runtime_rust_archive_name}")
+    target_link_libraries(LibJS PRIVATE libjs_rust)
+    get_target_property(libjs_rust_archive libjs_rust IMPORTED_LOCATION)
+    cmake_path(GET libjs_rust_archive FILENAME libjs_rust_archive_name)
+    target_link_options(LibJS PRIVATE "LINKER:--exclude-libs,${libjs_rust_archive_name}")
 endif()

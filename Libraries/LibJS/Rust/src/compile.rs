@@ -19,7 +19,7 @@ use crate::ast;
 use crate::ast::StatementKind;
 use crate::ast_dump;
 use crate::bytecode;
-use crate::bytecode::executable::ExecutableData;
+use crate::bytecode::executable_data::ExecutableData;
 use crate::bytecode::generator::PendingSharedFunctionData;
 use crate::parser::ParseError;
 use crate::parser::Parser;
