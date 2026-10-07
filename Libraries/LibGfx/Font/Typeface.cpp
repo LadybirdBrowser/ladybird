@@ -402,16 +402,6 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface const>> decode(Decoder& decoder)
         typeface->set_file_path(move(file_path));
         return typeface;
     }
-    case Gfx::Typeface::FontDataFormat::SystemFont: {
-        auto family_name = TRY(decoder.decode<String>());
-        auto weight = TRY(decoder.decode<u16>());
-        auto width = TRY(decoder.decode<u16>());
-        auto slope = TRY(decoder.decode<u8>());
-        auto typeface = TRY(Gfx::TypefaceSkia::match_family_style(family_name.bytes_as_string_view(), weight, width, slope));
-        if (!typeface)
-            return Error::from_string_literal("Typeface IPC data referred to an unavailable system font");
-        return typeface.release_nonnull();
-    }
     case Gfx::Typeface::FontDataFormat::SystemUIFont: {
         auto style = TRY(decoder.decode<Gfx::SystemUIFontStyle>());
 #ifdef AK_OS_MACOS

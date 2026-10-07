@@ -30,8 +30,7 @@ struct PlatformFontName {
     String postscript_name;
 };
 
-// A platform whose matcher does not give a file or a name gives the typeface itself.
-using SystemFontMatch = Variant<SystemFontFile, PlatformFontName, NonnullRefPtr<Typeface>>;
+using SystemFontMatch = Variant<SystemFontFile, PlatformFontName>;
 
 // Matches installed fonts by the rules of the platform. Each face that a match gives is one that Typeface loads.
 namespace SystemFontMatcher {

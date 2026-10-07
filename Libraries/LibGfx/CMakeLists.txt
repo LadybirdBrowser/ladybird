@@ -77,8 +77,10 @@ if (HAS_FONTCONFIG)
     list(APPEND SOURCES Font/GlobalFontConfig.cpp Font/SystemFontMatcherFontconfig.cpp)
 elseif (APPLE)
     list(APPEND SOURCES Font/SystemFontMatcherCoreText.cpp)
+elseif (WIN32)
+    list(APPEND SOURCES Font/SystemFontMatcherDirectWrite.cpp)
 else()
-    list(APPEND SOURCES Font/SystemFontMatcherSkia.cpp)
+    list(APPEND SOURCES Font/SystemFontMatcherNone.cpp)
 endif()
 
 compile_ipc(Point.ipc PointCodecs.h)
@@ -120,6 +122,10 @@ endif()
 
 if (HAS_DIRECTX)
     target_link_libraries(LibGfx PRIVATE d3d12 dxgi d3dcompiler)
+endif()
+
+if (WIN32)
+    target_link_libraries(LibGfx PRIVATE dwrite)
 endif()
 
 if (HAS_VULKAN)

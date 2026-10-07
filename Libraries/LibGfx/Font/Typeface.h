@@ -162,7 +162,6 @@ protected:
     enum class FontDataFormat : u8 {
         RawFontData,
         MappedFile,
-        SystemFont,
         SystemUIFont,
         SystemFontId,
         PlatformFontName,

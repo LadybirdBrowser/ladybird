@@ -130,9 +130,6 @@ ErrorOr<NonnullRefPtr<Typeface>> load(SystemFontMatch const& match)
             (void)name;
             return Error::from_string_literal("Only CoreText opens fonts by name");
 #endif
-        },
-        [](NonnullRefPtr<Typeface> const& typeface) -> ErrorOr<NonnullRefPtr<Typeface>> {
-            return typeface;
         });
 }
 

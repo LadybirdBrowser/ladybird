@@ -64,8 +64,6 @@ private:
         }
     };
 
-    using MemoryFontSource = Variant<Gfx::BrokeredFontFile, Gfx::PlatformFontName>;
-
     ErrorOr<void> build_catalog();
     ErrorOr<void> build_empty_catalog();
     ErrorOr<void> wait_until_ready();
@@ -73,7 +71,6 @@ private:
     Gfx::BrokeredFont materialize(Gfx::SystemFontMatch, String cache_key);
     Gfx::BrokeredFont materialize_file(Gfx::SystemFontFile, String cache_key);
     Gfx::BrokeredFont materialize_platform_font(Gfx::PlatformFontName, String cache_key);
-    Gfx::BrokeredFont materialize_typeface(NonnullRefPtr<Gfx::Typeface>, String cache_key);
     Gfx::BrokeredFont open_font_without_lock(u64 generation, u64 face_id);
 
     Vector<String> m_additional_font_directories;
@@ -87,7 +84,7 @@ private:
     HashMap<u64, FontSource> m_font_sources;
     HashMap<FontSource, u64, FontSourceTraits> m_face_id_by_source;
     HashMap<String, u64> m_face_id_by_platform_font_name;
-    HashMap<u64, MemoryFontSource> m_memory_font_sources;
+    HashMap<u64, Gfx::PlatformFontName> m_platform_font_names;
     HashMap<String, u64> m_dynamic_match_cache;
 
     // Font requests arrive on the UI process's renderer connections and on the dedicated font connections of the
