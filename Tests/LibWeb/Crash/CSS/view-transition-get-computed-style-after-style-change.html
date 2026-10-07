@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<div id="host"><div><div id="target" style="width: 100px; height: 100px; view-transition-name: target"></div></div></div>
+<script>
+    const transition = document.startViewTransition(() => {});
+    transition.ready.then(() => {
+        target.style.width = "50px";
+        document.getAnimations();
+        getComputedStyle(document.documentElement, "::view-transition-group(target)").width;
+        host.style.display = "none";
+        getComputedStyle(document.documentElement, "::view-transition-group(target)").width;
+        transition.skipTransition();
+        return transition.finished;
+    }).then(() => {
+        document.documentElement.classList.remove("test-wait");
+    });
+</script>
+</html>

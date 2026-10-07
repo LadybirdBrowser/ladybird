@@ -189,6 +189,7 @@ enum class InvalidateLayoutTreeReason {
     X(SVGLengthValue, false)                        \
     X(SVGPathLength, false)                         \
     X(ViewTransitionCapture, false)                 \
+    X(ViewTransitionPseudoElementStyles, false)     \
     X(WindowScroll, false)
 
 enum class UpdateLayoutReason {
