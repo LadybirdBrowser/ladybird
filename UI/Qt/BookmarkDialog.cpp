@@ -86,21 +86,22 @@ private:
     QIcon m_arrow;
 };
 
-static void add_bookmark_folder_options(QComboBox& folder_combo, ReadonlySpan<WebView::BookmarkItem> items, QString const& prefix)
+static void add_bookmark_folder_options(QComboBox& folder_combo, ReadonlySpan<WebView::BookmarkItem> items, QString const& prefix, Optional<String const&> excluded_folder_id)
 {
     for (auto const& item : items) {
-        if (!item.is_folder())
+        // A folder cannot be moved into itself or any of its descendants.
+        if (!item.is_folder() || item.id == excluded_folder_id)
             continue;
 
         auto title = qstring_from_ak_string(item.folder().title.value_or("(no title)"_string));
         auto path = prefix.isEmpty() ? title : QString("%1 / %2").arg(prefix, title);
         folder_combo.addItem(path, qstring_from_ak_string(item.id));
 
-        add_bookmark_folder_options(folder_combo, item.folder().children, path);
+        add_bookmark_folder_options(folder_combo, item.folder().children, path, excluded_folder_id);
     }
 }
 
-BookmarkDialog::BookmarkDialog(QWidget* parent, Type type, Optional<URL::URL const&> current_url, Optional<String const&> current_title, Optional<String const&> selected_folder_id, ReadonlySpan<WebView::BookmarkItem> folders)
+BookmarkDialog::BookmarkDialog(QWidget* parent, Type type, Optional<URL::URL const&> current_url, Optional<String const&> current_title, Optional<String const&> selected_folder_id, ReadonlySpan<WebView::BookmarkItem> folders, Optional<String const&> excluded_folder_id)
     : QDialog(parent)
 {
     setAttribute(Qt::WA_DeleteOnClose);
@@ -147,25 +148,23 @@ BookmarkDialog::BookmarkDialog(QWidget* parent, Type type, Optional<URL::URL con
         m_title_edit->setText(qstring_from_ak_string(*current_title));
     layout->addRow("Title:", m_title_edit);
 
-    if (type == Type::AddBookmark) {
-        m_folder_combo = new BookmarkFolderPicker(this);
-        m_folder_combo->setMinimumWidth(320);
-        m_folder_combo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        m_folder_combo->addItem("Bookmarks Bar", QString {});
-        add_bookmark_folder_options(*m_folder_combo, folders, {});
-        if (m_folder_combo->count() > 1) {
-            m_folder_combo->insertSeparator(1);
-            m_folder_combo->setItemData(1, true, BOOKMARK_FOLDER_SEPARATOR_ROLE);
-        }
-
-        if (selected_folder_id.has_value()) {
-            auto index = m_folder_combo->findData(qstring_from_ak_string(*selected_folder_id));
-            if (index >= 0)
-                m_folder_combo->setCurrentIndex(index);
-        }
-
-        layout->addRow("Folder:", m_folder_combo);
+    m_folder_combo = new BookmarkFolderPicker(this);
+    m_folder_combo->setMinimumWidth(320);
+    m_folder_combo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_folder_combo->addItem("Bookmarks Bar", QString {});
+    add_bookmark_folder_options(*m_folder_combo, folders, {}, excluded_folder_id);
+    if (m_folder_combo->count() > 1) {
+        m_folder_combo->insertSeparator(1);
+        m_folder_combo->setItemData(1, true, BOOKMARK_FOLDER_SEPARATOR_ROLE);
     }
+
+    if (selected_folder_id.has_value()) {
+        auto index = m_folder_combo->findData(qstring_from_ak_string(*selected_folder_id));
+        if (index >= 0)
+            m_folder_combo->setCurrentIndex(index);
+    }
+
+    layout->addRow("Folder:", m_folder_combo);
 
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
@@ -188,7 +187,7 @@ QString BookmarkDialog::title() const
 
 QString BookmarkDialog::selected_folder_id() const
 {
-    return m_folder_combo ? m_folder_combo->currentData().toString() : QString {};
+    return m_folder_combo->currentData().toString();
 }
 
 bool BookmarkDialog::event(QEvent* event)

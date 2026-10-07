@@ -2600,8 +2600,10 @@ void Application::initialize_actions()
 
         auto default_title = MUST(UnixDateTime::now().to_string("Saved Tabs %Y-%m-%d"sv));
         display_add_bookmark_folder_dialog(default_title)
-            ->when_resolved([this, bookmarks = move(bookmarks)](BookmarkItem::Folder folder) mutable {
-                auto folder_id = m_bookmark_store->add_folder(move(folder.title));
+            ->when_resolved([this, bookmarks = move(bookmarks)](BookmarkDialogResult result) mutable {
+                auto& folder = result.data.get<BookmarkItem::Folder>();
+                auto folder_id = m_bookmark_store->add_folder(move(folder.title), result.target_folder_id);
+
                 for (auto& bookmark : bookmarks)
                     m_bookmark_store->add_bookmark(move(bookmark.url), move(bookmark.title), move(bookmark.favicon_hash), folder_id);
             });
@@ -2875,8 +2877,9 @@ void Application::toggle_bookmark_for_view(ViewImplementation& view)
     }
 
     display_add_bookmark_dialog()
-        ->when_resolved([this](AddBookmarkDialogResult result) {
-            m_bookmark_store->add_bookmark(move(result.bookmark.url), move(result.bookmark.title), move(result.bookmark.favicon_hash), move(result.target_folder_id));
+        ->when_resolved([this](BookmarkDialogResult result) {
+            auto& bookmark = result.data.get<BookmarkItem::Bookmark>();
+            m_bookmark_store->add_bookmark(move(bookmark.url), move(bookmark.title), move(bookmark.favicon_hash), result.target_folder_id);
         });
 }
 
@@ -2954,8 +2957,10 @@ void Application::create_bookmark_menu_items(Optional<MenuData> data)
 
                 action->add_property("id"sv, item.id);
                 action->add_property("type"sv, "bookmark"_string);
-                if (target_folder_id.has_value())
+                if (target_folder_id.has_value()) {
                     action->add_property("target_folder_id"sv, *target_folder_id);
+                    action->add_property("parent_folder_id"sv, *target_folder_id);
+                }
 
                 menu.add_action(move(action));
             },
@@ -2973,6 +2978,8 @@ void Application::create_bookmark_menu_items(Optional<MenuData> data)
                 submenu->add_property("id"sv, item.id);
                 submenu->add_property("type"sv, "folder"_string);
                 submenu->add_property("target_folder_id"sv, item.id);
+                if (target_folder_id.has_value())
+                    submenu->add_property("parent_folder_id"sv, *target_folder_id);
 
                 submenu->set_render_group_icon(true);
                 menu.add_submenu(move(submenu));
@@ -3003,24 +3010,24 @@ static NonnullRefPtr<T> create_unsupported_rejection()
     return promise;
 }
 
-NonnullRefPtr<Application::AddBookmarkPromise> Application::display_add_bookmark_dialog(Optional<String const&>) const
-{
-    return create_unsupported_rejection<AddBookmarkPromise>();
-}
-
-NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_dialog(BookmarkItem::Bookmark const&) const
+NonnullRefPtr<Application::BookmarkPromise> Application::display_add_bookmark_dialog(Optional<String const&>) const
 {
     return create_unsupported_rejection<BookmarkPromise>();
 }
 
-NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_add_bookmark_folder_dialog(Optional<String const&>) const
+NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_dialog(BookmarkItem const&, Optional<String const&>) const
 {
-    return create_unsupported_rejection<BookmarkFolderPromise>();
+    return create_unsupported_rejection<BookmarkPromise>();
 }
 
-NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_edit_bookmark_folder_dialog(BookmarkItem::Folder const&) const
+NonnullRefPtr<Application::BookmarkPromise> Application::display_add_bookmark_folder_dialog(Optional<String const&>, Optional<String const&>) const
 {
-    return create_unsupported_rejection<BookmarkFolderPromise>();
+    return create_unsupported_rejection<BookmarkPromise>();
+}
+
+NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_folder_dialog(BookmarkItem const&, Optional<String const&>) const
+{
+    return create_unsupported_rejection<BookmarkPromise>();
 }
 
 ErrorOr<void> Application::toggle_devtools_enabled()
