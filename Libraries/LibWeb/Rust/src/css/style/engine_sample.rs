@@ -355,6 +355,7 @@ impl super::StyleEngine {
         record: u64,
         samples: super::animations::AnimationTimelineSamples<'_>,
         transform_reference_box: Option<crate::css::css_pixels::CssPixelRect>,
+        bounds: super::style_invalidation::SampleBounds,
     ) -> Result<(super::layout_style::DerivedStyleRecord, AnimatedOverlay), NeedsHost> {
         use crate::css::animation as anim;
 
@@ -397,15 +398,25 @@ impl super::StyleEngine {
         {
             overlay.remove_animated(property);
         }
-        self.sample_composed_over_record(
-            node,
-            record,
-            overlay,
-            None,
-            composed,
-            transform_reference_box,
-            super::style_invalidation::SampleBounds::Box,
-        )
+        self.sample_composed_over_record(node, record, overlay, None, composed, transform_reference_box, bounds)
+    }
+
+    /// The inherited properties the animations of the element `node` names animate, which its descendants inherit.
+    pub(crate) fn animated_inherited_properties(&self, node: StyleNodeID) -> smallvec::SmallVec<[u16; 2]> {
+        let mut properties = smallvec::SmallVec::new();
+        for effect in self.element_animation_effects(node, 0) {
+            for declaration in effect
+                .keyframes
+                .iter()
+                .flat_map(|keyframe| effect.declarations_of(keyframe))
+            {
+                let property = declaration.property_id;
+                if crate::css::property_metadata::property_is_inherited(property) && !properties.contains(&property) {
+                    properties.push(property);
+                }
+            }
+        }
+        properties
     }
 
     /// Samples `composed`, the effects of the element `node` names, or those `fresh` describes, onto `overlay` over
@@ -447,16 +458,12 @@ impl super::StyleEngine {
             .style_record_view(record)
             .ok_or(NeedsHost)?
             .longhand_table;
-        // What the host adjusts after it samples, an animated color scheme, and an inherited value the
-        // element's children hold as of the host's sample, are the host's to compose, unless the caller composes what
-        // the children inherit itself.
-        let has_children = self.tree.first_element_child(node).is_some() && !bounds.children_follow();
+        // What the host adjusts after it samples, and an animated color scheme, are the host's to compose.
         let facts = self.computed_group_sets.adjustment_facts(node);
         if overlay.entries().iter().any(|entry| {
             entry.post_compute_adjustment
                 || post_compute_adjusts(entry.property, facts)
                 || entry.property == prop::COLOR_SCHEME
-                || (has_children && crate::css::property_metadata::property_is_inherited(entry.property))
         }) {
             return Err(NeedsHost);
         }

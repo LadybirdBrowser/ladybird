@@ -29,33 +29,15 @@ const REBUILD_ROOT_BOX_PRESENCE_CHANGE: u8 = 3;
 const REBUILD_ROOT_PARENT: u8 = 4;
 const ALL_INHERITED_STYLE_GROUPS: u8 = (1 << 7) - 1;
 
-/// What a sample may change beside the box of its element.
+/// What a sample may change beside the box of its element: the visual contexts the box takes part in, which the render
+/// owner builds again for the frames it records, and where no scroll container of the document snaps, which
+/// `scroll_snaps` says, the scrollable overflow of its scroll container. The values the element's children inherit
+/// follow, as the caller composes them over the children itself, and the text decorations its subtree draws where
+/// `subtree_follows` says the caller repaints every element in it.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SampleBounds {
-    /// Nothing: the visual contexts stay as the host's frames left them.
-    Box,
-    /// The visual contexts the box takes part in, which the render owner builds again for the frames it records, and
-    /// where no scroll container of the document snaps, which it says, the scrollable overflow of its scroll container.
-    /// The values the element's children inherit follow where the caller composes them over the children itself, and
-    /// the text decorations its subtree draws where the caller repaints every element in it.
-    BoxAndVisualContexts {
-        scroll_snaps: bool,
-        children_follow: bool,
-        subtree_follows: bool,
-    },
-}
-
-impl SampleBounds {
-    /// Whether the caller composes the values the element's children inherit from the sample over the children.
-    pub(crate) fn children_follow(self) -> bool {
-        matches!(
-            self,
-            SampleBounds::BoxAndVisualContexts {
-                children_follow: true,
-                ..
-            }
-        )
-    }
+pub(crate) struct SampleBounds {
+    pub scroll_snaps: bool,
+    pub subtree_follows: bool,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -845,22 +827,17 @@ impl RetainedState {
             self.compare_animation_overlay(old_style_record, animated_overlay, payloads, is_document_element)
                 .invalidation,
         );
-        match bounds {
-            SampleBounds::Box => invalidation.stays_in_its_box(),
-            SampleBounds::BoxAndVisualContexts {
-                scroll_snaps,
-                subtree_follows,
-                ..
-            } => {
-                invalidation.stays_in_its_box_and_visual_contexts(scroll_snaps)
-                    || (subtree_follows
-                        && StyleInvalidation {
-                            repaint_text_decorations: false,
-                            ..invalidation
-                        }
-                        .stays_in_its_box_and_visual_contexts(scroll_snaps))
-            }
-        }
+        let SampleBounds {
+            scroll_snaps,
+            subtree_follows,
+        } = bounds;
+        invalidation.stays_in_its_box_and_visual_contexts(scroll_snaps)
+            || (subtree_follows
+                && StyleInvalidation {
+                    repaint_text_decorations: false,
+                    ..invalidation
+                }
+                .stays_in_its_box_and_visual_contexts(scroll_snaps))
     }
 
     /// Whether moving `node` from `old_style_record`, the record the host installed for the element, to

@@ -182,7 +182,7 @@ impl RenderState {
     }
 
     /// The style engine, to read.
-    fn engine_ref(&self) -> &crate::css::style::StyleEngine {
+    pub(crate) fn engine_ref(&self) -> &crate::css::style::StyleEngine {
         // SAFETY: The engine lives as long as the state, and is borrowed mutably only through a mutable borrow of it.
         unsafe { self.engine.get() }
     }
