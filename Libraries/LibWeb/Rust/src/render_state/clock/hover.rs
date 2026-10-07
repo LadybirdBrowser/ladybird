@@ -18,9 +18,7 @@ use crate::css::css_pixels::{CssPixelPoint, CssPixels};
 use crate::css::style::hover_lane::{HoverBoxRebuild, HoverInstall, hover_row_generated_for};
 use crate::css::style::style_job::SealedStyleInputs;
 use crate::css::style::tree::StyleNodeID;
-use crate::layout::node_data::{
-    GENERATED_FOR_AFTER, GENERATED_FOR_BEFORE, GENERATED_FOR_MARKER, NodeFlag, NodeKind, NodeSlotId,
-};
+use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::tree_mutation::{HostCalls, OwedHostWork};
 use crate::painting::ffi::FfiChromeMetrics;
 use crate::painting::hit_test::{HitTestItemKind, HitTestList};
@@ -520,19 +518,19 @@ impl Lane {
                                 .is_some_and(|generated_for| arena.takes_hover_row(pseudo, generated_for))
                         })
                 });
-            // The host settles the `::before` and `::after` of an element over the composition of its transitions, which
-            // their boxes show where they take an animated value from the element.
+            // The host settles the `::before` and `::after` of an element, and of the descendants that inherit from it,
+            // over the composition of its transitions, which their boxes show where they take an animated value.
             let pseudo_elements_take_transitions = {
                 let (engine, arena) = state.engine_and_arena();
                 wave.transitions.iter().any(|(transitions, _)| {
-                    [GENERATED_FOR_BEFORE, GENERATED_FOR_AFTER, GENERATED_FOR_MARKER]
-                        .iter()
-                        .any(|&pseudo| !arena.bound_pseudo_element_row(transitions.node, pseudo).is_invalid())
-                        && engine.box_pseudo_elements_inherit_any_of(
-                            transitions.node,
-                            &wave.rows,
-                            transitions.properties(),
-                        )
+                    super::effects::pseudo_element_boxes_inherit(
+                        engine,
+                        arena,
+                        transitions.node,
+                        transitions.properties(),
+                        &transitions.inheriting,
+                        &wave.rows,
+                    )
                 })
             };
             let boxes_take_wave = boxes_take_wave && !pseudo_elements_take_transitions;
