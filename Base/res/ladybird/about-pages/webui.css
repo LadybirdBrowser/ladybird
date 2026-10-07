@@ -98,6 +98,15 @@ header img {
     border-top: 1px solid var(--border-color);
 }
 
+.description {
+    margin-top: 4px;
+    color: var(--secondary-text-color);
+}
+
+.description:empty {
+    display: none;
+}
+
 .search-container {
     background-color: var(--card-background-color);
 
