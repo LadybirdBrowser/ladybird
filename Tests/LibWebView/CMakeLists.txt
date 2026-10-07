@@ -248,6 +248,11 @@ if (BUILD_TESTING AND NOT WIN32)
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-devtools-client-follows-the-tab.py $<TARGET_FILE:ladybird>
         )
         set_tests_properties(TestDevToolsClientFollowsTheTab PROPERTIES TIMEOUT 120)
+        add_test(
+            NAME TestDevToolsCatchUpLayout
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-devtools-catch-up-layout.py $<TARGET_FILE:ladybird>
+        )
+        set_tests_properties(TestDevToolsCatchUpLayout PROPERTIES TIMEOUT 120)
     endif()
 
     add_test(
