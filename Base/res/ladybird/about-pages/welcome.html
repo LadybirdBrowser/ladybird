@@ -18,7 +18,10 @@ SPDX-License-Identifier: BSD-2-Clause
     <body>
         <header>
             <div class="welcome-title">
-                <img src="resource://icons/128x128/app-browser.png" alt="" />
+                <picture>
+                    <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
+                    <img src="resource://icons/128x128/app-browser-dark.png" alt="" />
+                </picture>
                 <h1>Welcome to Ladybird</h1>
             </div>
             <p>Choose a few basics to get started. You can change these later in Settings.</p>
