@@ -14,12 +14,22 @@
 
 namespace Web::Fetch::Infrastructure {
 
+TaskDestination::TaskDestination(Empty empty)
+    : Variant(empty)
+{
+}
+
 TaskDestination::TaskDestination(GC::Ref<JS::Object> global_object)
     : Variant(global_object)
 {
     // AD-HOC: SVG images share a Window. Track it's document so that it can be made active when executing the task.
     if (auto* window = HTML::window_from_global_object(*global_object); window && window->associated_document().is_decoded_svg())
         document_override = window->associated_document();
+}
+
+TaskDestination::TaskDestination(NonnullRefPtr<HTML::ParallelQueue> parallel_queue)
+    : Variant(move(parallel_queue))
+{
 }
 
 void TaskDestination::visit_edges(GC::Cell::Visitor& visitor) const
