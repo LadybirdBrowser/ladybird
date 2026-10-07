@@ -13,9 +13,9 @@
 <div id="box"></div>
 <script>
     // A move to an element whose hover changes its animations is left to the host, which plans them, and the hover of
-    // the lease goes back to where it was: the lease hovers the next move, to another element, beside the task.
+    // the lane goes back to where it was: the lane hovers the next move, to another element, beside the task.
     asyncTest(async done => {
-        const result = await whileHoverLeased(frameTime => {
+        const result = await whileLaneHovers(frameTime => {
             internals.injectHoverPointer(50, 50, frameTime + 16);
             internals.injectHoverPointer(50, 150, frameTime + 32);
             return { onScreen: internals.presentedBorderBox(box)?.width, presentedBy: internals.lastFramePresentedBy(document) };

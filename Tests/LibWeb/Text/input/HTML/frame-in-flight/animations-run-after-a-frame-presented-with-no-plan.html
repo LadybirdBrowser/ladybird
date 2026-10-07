@@ -24,7 +24,7 @@
         internals.injectRenderingOpportunity(frameTime);
         do await nextTask();
         while (internals.frameSchedulerState() !== "idle");
-        println(`lane in the first task after the updates: ${internals.clockLeaseState(document)}`);
+        println(`lane in the first task after the updates: ${internals.clockLaneState(document)}`);
         internals.injectClockTick(frameTime + 1000);
         println(`last frame presented by: ${internals.lastFramePresentedBy(document)}`);
         internals.setManualRenderingOpportunities(false);

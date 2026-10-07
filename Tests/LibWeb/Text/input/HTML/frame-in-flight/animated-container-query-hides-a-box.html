@@ -30,14 +30,14 @@
     // The render clock takes the box of an element out of its parent's beside a task where a container it lays out
     // crosses a query that hides the element, as the main thread does for the same size.
     asyncTest(async done => {
-        const result = await whileClockLeased(() => {
+        const result = await whileLaneAnimates(() => {
             pane.classList.add("widen");
             return pane.getAnimations()[0];
         }, (frameTime, animation) => {
             internals.injectClockTick(frameTime + 3000);
             internals.injectClockTick(frameTime + 5000);
             return {
-                clock: internals.clockLeaseState(document),
+                clock: internals.clockLaneState(document),
                 presented: internals.presentedBorderBox(pane),
                 presentedBy: internals.lastFramePresentedBy(document),
                 localTime: frameTime + 5000 - animation.startTime,

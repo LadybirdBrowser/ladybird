@@ -12,7 +12,7 @@
     // A child that inherits what its parent's transition animates explicitly reads the transition's composition, which
     // the main thread makes: the hover beside the task leaves the move to it.
     asyncTest(async done => {
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(150, 20);
             return internals.lastFramePresentedBy(document);
         });

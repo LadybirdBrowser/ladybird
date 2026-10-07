@@ -11,10 +11,10 @@
 <svg id="icon"><rect width="100" height="100" fill="blue"></rect></svg>
 <div id="box"></div>
 <script>
-    // A move whose hover only the host can lay out is left to the host, and the hover of the lease goes back to where
-    // it was: the lease hovers the next move, to another element, beside the task.
+    // A move whose hover only the host can lay out is left to the host, and the hover of the lane goes back to where
+    // it was: the lane hovers the next move, to another element, beside the task.
     asyncTest(async done => {
-        const result = await whileHoverLeased(frameTime => {
+        const result = await whileLaneHovers(frameTime => {
             internals.injectHoverPointer(50, 50, frameTime + 16);
             internals.injectHoverPointer(50, 150, frameTime + 32);
             return { onScreen: internals.presentedBorderBox(box)?.width, presentedBy: internals.lastFramePresentedBy(document) };

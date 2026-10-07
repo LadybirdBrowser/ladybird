@@ -4,4 +4,4 @@ hovered beside the task: a
 mouseout a: hovered b; a=rgb(0, 0, 255) b=rgb(0, 128, 0)
 mouseover b: hovered b; a=rgb(0, 0, 255) b=rgb(0, 128, 0)
 after: hovered b
-b transition starts after the lease's frame time: 16
+b transition starts after the lane's frame time: 16

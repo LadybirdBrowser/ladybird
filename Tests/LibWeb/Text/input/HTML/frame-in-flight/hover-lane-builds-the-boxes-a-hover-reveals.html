@@ -21,7 +21,7 @@
         await nextFrame();
         internals.mouseMove(100, 400);
         await nextFrame();
-        const y = await whileHoverLeased(frameTime => {
+        const y = await whileLaneHovers(frameTime => {
             internals.injectHoverPointer(100, 25, frameTime + 16);
             return internals.presentedBorderBox(after)?.y;
         });

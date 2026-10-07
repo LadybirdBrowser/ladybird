@@ -39,7 +39,7 @@
         frameTime += 16;
         internals.injectRenderingOpportunity(frameTime);
         await nextTask();
-        println(`clock in the first task after the update: ${internals.clockLeaseState(document)}`);
+        println(`clock in the first task after the update: ${internals.clockLaneState(document)}`);
         internals.releaseHeldFrame();
         internals.injectClockTick(frameTime + 1000);
         println(`last frame presented by: ${internals.lastFramePresentedBy(document)}`);

@@ -14,9 +14,9 @@
     // the transition beside the task, where the pseudo-elements take nothing it animates from the element, and the main
     // thread runs it on from when it started beside the task.
     asyncTest(async done => {
-        let leaseFrameTime;
-        const halfway = await whileHoverLeased(frameTime => {
-            leaseFrameTime = frameTime;
+        let laneFrameTime;
+        const halfway = await whileLaneHovers(frameTime => {
+            laneFrameTime = frameTime;
             internals.injectHoverPointer(50, 50, frameTime + 16);
             internals.injectClockTick(frameTime + 16 + 50000);
             return internals.presentedBorderBox(box)?.width;
@@ -24,7 +24,7 @@
         println(`width halfway through: ${halfway}`);
         await nextFrame();
         println(`transitions once the main thread took over: ${box.getAnimations().length}`);
-        println(`transition start time after the frame time: ${Math.round(box.getAnimations()[0]?.startTime - leaseFrameTime)}`);
+        println(`transition start time after the frame time: ${Math.round(box.getAnimations()[0]?.startTime - laneFrameTime)}`);
         done();
     });
 </script>

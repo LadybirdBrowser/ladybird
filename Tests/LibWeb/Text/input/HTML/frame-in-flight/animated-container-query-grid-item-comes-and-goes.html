@@ -48,17 +48,17 @@
     // comes and goes beside a task as a container the render clock lays out crosses a query and back: the clock builds
     // the grid's boxes again for it, with the grid's own move, as the main thread builds them for the same sizes.
     asyncTest(async done => {
-        const result = await whileClockLeased(() => {
+        const result = await whileLaneAnimates(() => {
             pane.classList.add("widen");
             return pane.getAnimations()[0];
         }, (frameTime, animation) => {
             internals.injectClockTick(frameTime + 3000);
             internals.injectClockTick(frameTime + 5000);
-            const clockAfterGrowing = internals.clockLeaseState(document);
+            const clockAfterGrowing = internals.clockLaneState(document);
             internals.injectClockTick(frameTime + 17000);
             return {
                 clockAfterGrowing,
-                clock: internals.clockLeaseState(document),
+                clock: internals.clockLaneState(document),
                 presented: internals.presentedBorderBox(pane),
                 presentedBy: internals.lastFramePresentedBy(document),
                 localTime: frameTime + 17000 - animation.startTime,

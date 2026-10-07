@@ -14,7 +14,7 @@
     // A hover whose style change moves what a snapping scroll container snaps to is the main thread's to finish: the
     // hover beside the task moves the hover facts, and the main thread snaps again as it lays out the move.
     asyncTest(async done => {
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(50, 50);
             return internals.lastFramePresentedBy(document);
         });

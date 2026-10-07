@@ -11,7 +11,7 @@
     // A hover whose style change gives the box an image to load is the main thread's to finish: the hover beside the
     // task moves the hover facts, and the main thread's next style update loads the image.
     asyncTest(async done => {
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(50, 50);
             return internals.lastFramePresentedBy(document);
         });

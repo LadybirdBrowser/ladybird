@@ -1,2 +1,2 @@
-lease after a tick that moves a clip: ticking
+lane after a tick that moves a clip: ticking
 last frame presented by the clock: true

@@ -5,16 +5,16 @@
 <script>
     // A tick of the render clock that moves a box owning a clip presents its frame with the clip it moved.
     asyncTest(async done => {
-        const result = await whileClockLeased(() => {
+        const result = await whileLaneAnimates(() => {
             return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
         }, frameTime => {
             internals.injectClockTick(frameTime + 1000);
             return {
-                lease: internals.clockLeaseState(document),
+                lane: internals.clockLaneState(document),
                 presentedByTheClock: internals.lastFramePresentedBy(document) === "clock",
             };
         });
-        println(`lease after a tick that moves a clip: ${result.lease}`);
+        println(`lane after a tick that moves a clip: ${result.lane}`);
         println(`last frame presented by the clock: ${result.presentedByTheClock}`);
         done();
     });

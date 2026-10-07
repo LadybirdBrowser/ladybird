@@ -9,9 +9,9 @@
 <div class="box" id="a"></div>
 <div class="box" id="b"></div>
 <script>
-    // Ticks of one lease follow the pointer from one element to another, and out of the document.
+    // Ticks of one lane follow the pointer from one element to another, and out of the document.
     asyncTest(async done => {
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(50, 50);
             internals.injectHoverPointer(50, 150);
             internals.injectHoverPointer(50, 120);

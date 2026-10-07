@@ -15,11 +15,11 @@
     // lands first, and the parent's move of the environment the child reads only after it. The child installs over the
     // moved environment all the same.
     asyncTest(async done => {
-        await whileHoverLeased(() => internals.injectHoverPointer(150, 80));
+        await whileLaneHovers(() => internals.injectHoverPointer(150, 80));
         await nextFrame();
         println(`card matches :hover: ${card.matches(":hover")}`);
         println(`child color: ${getComputedStyle(child).color}`);
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(50, 20);
             internals.injectHoverPointer(50, 150);
             return internals.lastFramePresentedBy(document);

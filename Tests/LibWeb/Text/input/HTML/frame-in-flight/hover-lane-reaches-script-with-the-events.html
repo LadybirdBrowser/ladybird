@@ -23,7 +23,7 @@
         }
         internals.mouseMove(50, 50);
         await nextFrame();
-        const result = await whileHoverLeased(frameTime => {
+        const result = await whileLaneHovers(frameTime => {
             internals.injectHoverPointer(50, 150, frameTime + 16);
             const states = [`hovered beside the task: ${hovered()}`];
             states.push(`b width on screen: ${internals.presentedBorderBox(b).width}`);

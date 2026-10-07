@@ -11,9 +11,9 @@
     // A hover beside the task whose style change starts a transition shows the transition as it runs, at each tick of
     // the render clock, and the main thread runs it on from when it started beside the task.
     asyncTest(async done => {
-        let leaseFrameTime;
-        const result = await whileHoverLeased(frameTime => {
-            leaseFrameTime = frameTime;
+        let laneFrameTime;
+        const result = await whileLaneHovers(frameTime => {
+            laneFrameTime = frameTime;
             internals.injectHoverPointer(50, 50, frameTime + 16);
             internals.injectClockTick(frameTime + 16 + 50000);
             return {
@@ -26,7 +26,7 @@
         await nextFrame();
         println(`box matches :hover: ${box.matches(":hover")}`);
         println(`transitions once the main thread took over: ${box.getAnimations().length}`);
-        println(`transition start time after the frame time: ${Math.round(box.getAnimations()[0]?.startTime - leaseFrameTime)}`);
+        println(`transition start time after the frame time: ${Math.round(box.getAnimations()[0]?.startTime - laneFrameTime)}`);
         done();
     });
 </script>

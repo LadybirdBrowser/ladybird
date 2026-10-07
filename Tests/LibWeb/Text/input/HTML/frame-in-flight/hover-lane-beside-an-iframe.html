@@ -10,10 +10,10 @@
 <div id="box"></div>
 <iframe srcdoc="<p>An iframe the same event loop renders</p>"></iframe>
 <script>
-    // A rendering update that renders an iframe beside the document leaves the document a lease that hovers.
+    // A rendering update that renders an iframe beside the document leaves the document a lane that hovers.
     asyncTest(async done => {
         await new Promise(resolve => document.querySelector("iframe").addEventListener("load", resolve, { once: true }));
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(50, 50);
             return internals.lastFramePresentedBy(document);
         });

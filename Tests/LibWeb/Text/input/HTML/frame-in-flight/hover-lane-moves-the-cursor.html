@@ -25,7 +25,7 @@
     // the same rows once a rendering update applied the style of each move.
     asyncTest(async done => {
         const rows = [...document.querySelectorAll("body > div")].map(div => div.getBoundingClientRect().top + 20);
-        const cursors = await whileHoverLeased(() => {
+        const cursors = await whileLaneHovers(() => {
             const cursors = [];
             for (const y of rows) {
                 internals.injectHoverPointer(10, y);

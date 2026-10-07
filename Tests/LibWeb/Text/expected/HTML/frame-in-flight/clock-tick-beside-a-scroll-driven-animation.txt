@@ -1,4 +1,4 @@
-lease after the tick: ticking
+lane after the tick: ticking
 the presented height is the animation's at the tick: true
 last frame presented by: clock
 the scroll-driven animation holds at the top: true

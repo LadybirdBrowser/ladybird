@@ -12,7 +12,7 @@
     // A hover that gives a list a box, whose list items only the main thread builds, is the main thread's to finish,
     // which builds the boxes.
     asyncTest(async done => {
-        await whileHoverLeased(() => internals.injectHoverPointer(50, 25));
+        await whileLaneHovers(() => internals.injectHoverPointer(50, 25));
         await nextFrame();
         println(`menu matches :hover: ${menu.matches(":hover")}`);
         println(`list display: ${getComputedStyle(list).display}`);

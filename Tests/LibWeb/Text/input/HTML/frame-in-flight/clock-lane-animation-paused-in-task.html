@@ -6,16 +6,16 @@
     // Script that changes an animation beside the lane of the presented frame parks the lane's animations: the lane ticked
     // them as the last rendering update planned them.
     asyncTest(async done => {
-        const result = await whileClockLeased(() => {
+        const result = await whileLaneAnimates(() => {
             return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
         }, (frameTime, animation) => {
             internals.injectClockTick(frameTime + 500);
-            const before = internals.clockLeaseState(document);
+            const before = internals.clockLaneState(document);
             animation.pause();
-            return { before, after: internals.clockLeaseState(document) };
+            return { before, after: internals.clockLaneState(document) };
         });
-        println(`lease before the pause: ${result.before}`);
-        println(`lease after the pause: ${result.after}`);
+        println(`lane before the pause: ${result.before}`);
+        println(`lane after the pause: ${result.after}`);
         done();
     });
 </script>

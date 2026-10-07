@@ -11,7 +11,7 @@
     // A hover beside the task shows a transform transition, which interpolates against the box it transforms, as the
     // render clock ticks.
     asyncTest(async done => {
-        const presentedBy = await whileHoverLeased(frameTime => {
+        const presentedBy = await whileLaneHovers(frameTime => {
             internals.injectHoverPointer(50, 50, frameTime + 16);
             internals.injectClockTick(frameTime + 16 + 50000);
             return internals.lastFramePresentedBy(document);

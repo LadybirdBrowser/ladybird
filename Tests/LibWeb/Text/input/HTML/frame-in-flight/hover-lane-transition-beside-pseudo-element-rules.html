@@ -12,7 +12,7 @@
     // A rule for every element's ::before and ::after that gives them no content generates no boxes, so a hover beside
     // the task still shows the transition its style change starts.
     asyncTest(async done => {
-        const result = await whileHoverLeased(frameTime => {
+        const result = await whileLaneHovers(frameTime => {
             internals.injectHoverPointer(50, 50, frameTime + 16);
             internals.injectClockTick(frameTime + 16 + 50000);
             return {

@@ -10,7 +10,7 @@
 <script>
     // A hover beside the task shows a transition that makes the box a stacking context, as the render clock ticks.
     asyncTest(async done => {
-        const presentedBy = await whileHoverLeased(frameTime => {
+        const presentedBy = await whileLaneHovers(frameTime => {
             internals.injectHoverPointer(50, 50, frameTime + 16);
             internals.injectClockTick(frameTime + 16 + 50000);
             return internals.lastFramePresentedBy(document);

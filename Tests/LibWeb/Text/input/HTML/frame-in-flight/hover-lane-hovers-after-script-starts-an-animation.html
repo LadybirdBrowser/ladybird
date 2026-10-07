@@ -10,10 +10,10 @@
 <div id="spinner"></div>
 <div id="box"></div>
 <script>
-    // A task that starts an animation stops the animations the clock lease samples, which no longer stand, but not its
-    // hover: the lease hovers the next move beside the task.
+    // A task that starts an animation stops the animations the clock lane samples, which no longer stand, but not its
+    // hover: the lane hovers the next move beside the task.
     asyncTest(async done => {
-        const result = await whileHoverLeased(frameTime => {
+        const result = await whileLaneHovers(frameTime => {
             // The pointer moves over the document.
             internals.moveHoverPointer(500, 500);
             spinner.animate([{ opacity: 1 }, { opacity: 0 }], 100000);

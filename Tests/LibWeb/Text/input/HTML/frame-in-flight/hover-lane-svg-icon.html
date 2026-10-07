@@ -11,7 +11,7 @@
 <script>
     // A hover beside the task repaints the SVG icon whose fill follows the hovered link's color.
     asyncTest(async done => {
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(150, 20);
             return internals.lastFramePresentedBy(document);
         });

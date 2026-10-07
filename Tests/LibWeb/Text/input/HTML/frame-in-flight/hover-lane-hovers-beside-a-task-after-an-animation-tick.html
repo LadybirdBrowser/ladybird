@@ -11,15 +11,15 @@
 <div id="spinner"></div>
 <div id="box"></div>
 <script>
-    // While the pointer moves over the document, a lease that samples an animation beside a task does so on a fork of
-    // the render state: the task's layout read leaves the lease running, and it hovers the next move beside the task.
+    // While the pointer moves over the document, a lane that samples an animation beside a task does so on a fork of
+    // the render state: the task's layout read leaves the lane running, and it hovers the next move beside the task.
     asyncTest(async done => {
-        await whileHoverLeased(frameTime => {
+        await whileLaneHovers(frameTime => {
             internals.moveHoverPointer(500, 500);
             internals.injectClockTick(frameTime + 16);
         });
         await nextFrame();
-        const result = await whileHoverLeased(frameTime => {
+        const result = await whileLaneHovers(frameTime => {
             internals.injectClockTick(frameTime + 16);
             const width = box.offsetWidth;
             internals.injectHoverPointer(50, 50, frameTime + 32);

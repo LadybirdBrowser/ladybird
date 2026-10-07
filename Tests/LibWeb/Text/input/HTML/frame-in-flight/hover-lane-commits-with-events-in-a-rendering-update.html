@@ -23,9 +23,9 @@
         }
         internals.mouseMove(50, 50);
         await nextFrame();
-        let leaseFrameTime;
-        const hoveredBesideTheTask = await whileHoverLeased(frameTime => {
-            leaseFrameTime = frameTime;
+        let laneFrameTime;
+        const hoveredBesideTheTask = await whileLaneHovers(frameTime => {
+            laneFrameTime = frameTime;
             internals.injectHoverPointer(50, 150, frameTime + 16);
             return hovered();
         });
@@ -34,7 +34,7 @@
         await nextFrame();
         println(`after: hovered ${hovered()}`);
         for (const transition of b.getAnimations())
-            println(`b transition starts after the lease's frame time: ${Math.round(transition.startTime - leaseFrameTime)}`);
+            println(`b transition starts after the lane's frame time: ${Math.round(transition.startTime - laneFrameTime)}`);
         done();
     });
 </script>

@@ -13,7 +13,7 @@
     // main thread's to finish: the hover beside the task moves the hover facts, and the main thread's next style update
     // starts the transition, and settles the pseudo-element over it.
     asyncTest(async done => {
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(50, 50);
             return internals.lastFramePresentedBy(document);
         });

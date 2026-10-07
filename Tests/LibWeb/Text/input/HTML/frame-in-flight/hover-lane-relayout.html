@@ -12,7 +12,7 @@
 <script>
     // A hover beside the task lays out what it moves.
     asyncTest(async done => {
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(50, 50);
             return internals.lastFramePresentedBy(document);
         });

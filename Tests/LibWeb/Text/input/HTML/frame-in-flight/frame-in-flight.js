@@ -44,14 +44,14 @@ async function twoFrames() {
     await nextFrame();
 }
 
-// Leases the document's render state to the render clock for a task.
+// Has the clock lane of the document's presented frame sample its animations beside a task.
 //
-// whileClockLeased(animate, during) injects rendering opportunities until the animation `animate` starts is running and
-// a rendering update has left the document a plan for a clock lease, then runs `during` in the first task after the
-// update's frame has landed, which the lease begins with. `during` gets the frame time of the last rendering update,
-// from which it injects the clock's ticks, and the animation's start time, read before the lease: a read of a CSS
-// animation's timing reads its style, which ends the lease. Rendering opportunities stay manual until `during` is done.
-async function whileClockLeased(animate, during) {
+// whileLaneAnimates(animate, during) injects rendering opportunities until the animation `animate` starts is running and
+// a rendering update has left the document a plan for the lane of its frame, then runs `during` in the first task after
+// the update's frame has landed, beside which the lane ticks. `during` gets the frame time of the last rendering update,
+// from which it injects the clock's ticks, and the animation's start time, read before the task. Rendering
+// opportunities stay manual until `during` is done.
+async function whileLaneAnimates(animate, during) {
     if (document.readyState !== "complete")
         await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
     internals.setManualRenderingOpportunities(true);
@@ -77,12 +77,12 @@ async function whileClockLeased(animate, during) {
     }
 }
 
-// Leases the document's render state to the render clock for a task, for its ticks to follow the pointer.
+// Has the clock lane of the document's presented frame follow the pointer beside a task.
 //
-// whileHoverLeased(during) injects rendering opportunities until a rendering update has left the document a plan for a
-// clock lease, then runs `during` in the first task after the update's frame has landed, which the lease begins with.
-// Rendering opportunities stay manual until `during` is done.
-async function whileHoverLeased(during) {
+// whileLaneHovers(during) injects rendering opportunities until a rendering update has left the document a plan for the
+// lane of its frame, then runs `during` in the first task after the update's frame has landed, beside which the lane
+// hovers. Rendering opportunities stay manual until `during` is done.
+async function whileLaneHovers(during) {
     if (document.readyState !== "complete")
         await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
     internals.setManualRenderingOpportunities(true);

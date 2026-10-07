@@ -11,7 +11,7 @@
     // A hover beside the task whose style change moves no property the element transitions starts no transition, and
     // shows the change at once.
     asyncTest(async done => {
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(50, 50);
             return internals.lastFramePresentedBy(document);
         });

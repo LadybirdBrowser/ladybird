@@ -1,4 +1,4 @@
-lease during the animation: ticking
-lease after a tick past its end: parked
+lane during the animation: ticking
+lane after a tick past its end: parked
 last frame presented by: clock
 the presented height is the one after the animation: 20

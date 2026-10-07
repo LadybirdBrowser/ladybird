@@ -3,19 +3,19 @@
 <script src="frame-in-flight.js"></script>
 <div id="box" style="width: 10px; height: 0px; background: green"></div>
 <script>
-    // A garbage collection beside a clock lease finalizes what it finalizes without reaching the leased render state,
-    // and the lease ticks on.
+    // A garbage collection beside a clock lane finalizes what it finalizes without reaching the render state the lane
+    // forked, and the lane ticks on.
     asyncTest(async done => {
-        const result = await whileClockLeased(() => {
+        const result = await whileLaneAnimates(() => {
             return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
         }, frameTime => {
             for (let i = 0; i < 100; ++i)
                 document.createElement("div");
             internals.gc();
             internals.injectClockTick(frameTime + 500);
-            return internals.clockLeaseState(document);
+            return internals.clockLaneState(document);
         });
-        println(`lease after a collection and a tick: ${result}`);
+        println(`lane after a collection and a tick: ${result}`);
         done();
     });
 </script>

@@ -13,7 +13,7 @@
     // A hover beside the task moves a custom property that an element between the hovered one and the one that reads
     // it does not read: the element in between moves nothing of its own, and the reader takes the new value.
     asyncTest(async done => {
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(100, 30);
             return internals.lastFramePresentedBy(document);
         });

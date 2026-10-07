@@ -11,7 +11,7 @@
     // A hover beside the task moves a box between records that hold the same background image, which the box keeps
     // painting as it repaints the rest.
     asyncTest(async done => {
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(50, 50);
             return internals.lastFramePresentedBy(document);
         });

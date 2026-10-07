@@ -8,15 +8,12 @@
 </style>
 <div id="box"></div>
 <script>
-    // A pointer move waits for the next tick for the render clock to hover it, which the lease does not live to see where
-    // a task ends it. The next lease of the document hovers the move at its first tick.
+    // A pointer move waits for the next tick for the render clock to hover it. A task that reads the layout beside it
+    // writes nothing the screen does not show, and the lane hovers the move at its next tick, beside a later task.
     asyncTest(async done => {
-        const width = await whileHoverLeased(async frameTime => {
+        const width = await whileLaneHovers(async frameTime => {
             internals.moveHoverPointer(50, 50);
             box.offsetWidth;
-            // Tasks plan for a lease again once per display frame at most.
-            const start = performance.now();
-            while (performance.now() - start < 17) { }
             await nextTask();
             internals.injectClockTick(frameTime + 32);
             return internals.presentedBorderBox(box)?.width;

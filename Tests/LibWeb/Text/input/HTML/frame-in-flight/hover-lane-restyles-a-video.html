@@ -11,7 +11,7 @@
 <script>
     // A tick of the render clock hovers a link around a video whose outline the hover changes, and presents the frame.
     asyncTest(async done => {
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(50, 50);
             return internals.lastFramePresentedBy(document);
         });

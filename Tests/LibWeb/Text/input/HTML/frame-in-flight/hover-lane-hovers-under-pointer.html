@@ -12,7 +12,7 @@
     // presents the frame. The next rendering update keeps the hover, though no mouse event reached the task: the box
     // matches :hover and its style is the hovered one.
     asyncTest(async done => {
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(50, 50);
             return internals.lastFramePresentedBy(document);
         });

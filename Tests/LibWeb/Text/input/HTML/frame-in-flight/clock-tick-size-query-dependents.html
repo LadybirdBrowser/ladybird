@@ -44,14 +44,14 @@
     // units and rules in container queries, as the main thread styles them for the same size. An element the queries
     // keep hidden stays hidden.
     asyncTest(async done => {
-        const result = await whileClockLeased(() => {
+        const result = await whileLaneAnimates(() => {
             pane.classList.add("widen");
             return pane.getAnimations()[0];
         }, (frameTime, animation) => {
             internals.injectClockTick(frameTime + 3000);
             internals.injectClockTick(frameTime + 5000);
             return {
-                lease: internals.clockLeaseState(document),
+                lane: internals.clockLaneState(document),
                 presented: internals.presentedBorderBox(pane),
                 presentedBy: internals.lastFramePresentedBy(document),
                 localTime: frameTime + 5000 - animation.startTime,
@@ -62,7 +62,7 @@
         result.animation.currentTime = result.localTime;
         const laidOut = pane.getBoundingClientRect();
         const presented = result.presented;
-        println(`lease after the tick: ${result.lease}`);
+        println(`lane after the tick: ${result.lane}`);
         println(`last frame presented by: ${result.presentedBy}`);
         println(`the presented size is the main thread's: ${presented !== null && Math.abs(presented.width - laidOut.width) < 0.02 && Math.abs(presented.height - laidOut.height) < 0.02}`);
         println(`the container grew past its query: ${laidOut.width > 400 && laidOut.height > 70}`);

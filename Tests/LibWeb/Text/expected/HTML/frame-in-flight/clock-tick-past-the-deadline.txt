@@ -1,3 +1,3 @@
-lease after a tick past the deadline: parked
+lane after a tick past the deadline: parked
 a tick presented the box: false
 last frame presented by the clock: false

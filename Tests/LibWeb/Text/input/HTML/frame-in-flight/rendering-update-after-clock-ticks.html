@@ -6,7 +6,7 @@
     // A rendering update after a task beside which the render clock ticked renders no earlier than the last tick, though
     // the rendering opportunity it renders for was queued before the ticks.
     asyncTest(async done => {
-        const result = await whileClockLeased(() => {
+        const result = await whileLaneAnimates(() => {
             return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
         }, async (frameTime, animation, startTime) => {
             internals.injectRenderingOpportunity(frameTime + 16);

@@ -1,4 +1,4 @@
-lease after the tick: ticking
+lane after the tick: ticking
 last frame presented by: clock
 the presented size is the main thread's: true
 the container grew past its query: true
