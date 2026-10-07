@@ -1,0 +1,4 @@
+lane after the tick: parked
+the card's presented color moved: false
+the label shows the card's color: false
+last frame presented by: commit
