@@ -618,9 +618,9 @@ private:
     i32 m_force_dark_foreground_threshold { default_force_dark_foreground_threshold };
     i32 m_force_dark_background_threshold { default_force_dark_background_threshold };
     bool m_should_show_caret_hit_test_debug_overlay { false };
-    // The navigable's presenter, here or held by a frame of the document that presents with it.
-    using PresenterSlot = Variant<NonnullOwnPtr<Compositor::NavigablePresenter>, GC::Ref<DOM::Document>>;
-    PresenterSlot m_presenter_slot { make<Compositor::NavigablePresenter>() };
+    // The navigable's presenter, and the document whose frame presents with it beside the event loop, if one does.
+    NonnullRefPtr<Compositor::NavigablePresenter> m_presenter { Compositor::NavigablePresenter::create() };
+    GC::Ptr<DOM::Document> m_presenting_beside_event_loop;
     OwnPtr<Compositor::CompositorContextHandle> m_compositor_context;
     RefPtr<Core::Timer> m_async_scroll_hover_update_timer;
     Vector<PendingUserScrollendTarget> m_pending_user_scrollend_targets;

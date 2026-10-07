@@ -797,26 +797,25 @@ void LocalNavigable::visit_edges(Cell::Visitor& visitor)
         visitor.visit(entry.target);
     if (m_recording_in_flight)
         visitor.visit(m_recording_in_flight->document);
-    if (auto* document = m_presenter_slot.get_pointer<GC::Ref<DOM::Document>>())
-        visitor.visit(*document);
+    visitor.visit(m_presenting_beside_event_loop);
 }
 
 Compositor::NavigablePresenter& LocalNavigable::presenter()
 {
-    auto* document = m_presenter_slot.get_pointer<GC::Ref<DOM::Document>>();
-    if (!document)
-        return *m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>();
+    if (!m_presenting_beside_event_loop)
+        return *m_presenter;
     if (m_recording_in_flight) {
         take_recording_in_flight_in(TakeIn::Wait);
-        return *m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>();
+        return *m_presenter;
     }
-    // The document's clock lease holds the presenter, or brought it back already.
-    GC::Ref<DOM::Document> holder = *document;
+    // The document's clock lease presents with the presenter, or ended already.
+    GC::Ref<DOM::Document> holder = *m_presenting_beside_event_loop;
+    m_presenting_beside_event_loop = nullptr;
     Layout::RustFFI::FfiPresentation presentation {};
     Layout::RustFFI::document_host_take_back_presentation(holder->layout_node_arena().host(), &presentation);
-    VERIFY(presentation.presenter);
-    m_presenter_slot = adopt_own(*static_cast<Compositor::NavigablePresenter*>(presentation.presenter));
-    auto& presenter = *m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>();
+    VERIFY(presentation.presenter == m_presenter.ptr());
+    static_cast<Compositor::NavigablePresenter*>(presentation.presenter)->unref();
+    auto& presenter = *m_presenter;
     auto sealed = adopt_own(*static_cast<Compositor::SealedPresentation*>(presentation.sealed));
     bool const published = sealed->published.has_value();
     if (!published)
@@ -6950,10 +6949,10 @@ Compositor::FlightPresentation LocalNavigable::take_presentation(DOM::Document& 
     sealed.context_id = compositor_context().id();
     sealed.present_viewport_rect = present_viewport_rect();
     Compositor::FlightPresentation presentation {
-        .presenter = move(m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>()),
+        .presenter = m_presenter,
         .sealed = make<Compositor::SealedPresentation>(move(sealed)),
     };
-    m_presenter_slot = GC::Ref { document };
+    m_presenting_beside_event_loop = document;
     main_thread_event_loop().ensure_frame_completion_registered();
     return presentation;
 }
@@ -7035,17 +7034,16 @@ void LocalNavigable::lease_clock_for_task()
     sealed->present_viewport_rect = page().css_to_device_rect(viewport_rect()).to_type<int>();
     sealed->presented_by = Compositor::PresentedBy::Clock;
 
-    auto leased_presenter = move(m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>());
-    Layout::RustFFI::FfiPresentation presentation { .presenter = leased_presenter.ptr(), .sealed = sealed.ptr() };
+    auto& leased_presenter = NonnullRefPtr { m_presenter }.leak_ref();
+    Layout::RustFFI::FfiPresentation presentation { .presenter = &leased_presenter, .sealed = sealed.ptr() };
     auto const* ticks = Layout::RustFFI::document_host_lease_clock(host, &presentation);
     if (presentation.presenter) {
-        m_presenter_slot = move(leased_presenter);
+        leased_presenter.unref();
         unseal_presentation(*document, *sealed);
         return;
     }
-    (void)leased_presenter.leak_ptr();
     (void)sealed.leak_ptr();
-    m_presenter_slot = GC::Ref { *document };
+    m_presenting_beside_event_loop = document;
 
     // A test injects its ticks itself.
     if (main_thread_event_loop().render_clock_is_manual_for_testing()) {
@@ -7136,8 +7134,9 @@ bool LocalNavigable::take_recording_in_flight_in(TakeIn take_in)
 void LocalNavigable::finish_recording_in_flight(RecordingInFlight& in_flight, Layout::RustFFI::FfiRecordingLanding landing, Layout::RustFFI::FfiPresentation given_back)
 {
     GC::Ref<DOM::Document> document = in_flight.document;
-    VERIFY(given_back.presenter);
-    m_presenter_slot = adopt_own(*static_cast<Compositor::NavigablePresenter*>(given_back.presenter));
+    VERIFY(given_back.presenter == m_presenter.ptr());
+    static_cast<Compositor::NavigablePresenter*>(given_back.presenter)->unref();
+    m_presenting_beside_event_loop = nullptr;
     auto sealed = adopt_own(*static_cast<Compositor::SealedPresentation*>(given_back.sealed));
     // A frame the render owner found no box to record of presents nothing.
     if (landing == Layout::RustFFI::FfiRecordingLanding::NothingRecorded) {
