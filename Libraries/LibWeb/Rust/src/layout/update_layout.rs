@@ -943,6 +943,12 @@ unsafe fn update_layout(
     // Recompute it after each pass because an initial style update can enroll the elements of a
     // freshly parsed document after the layout update has already started. The bound is at least
     // the ordinary limit, so the passes within it do not ask for the count.
+    // A DevTools client that attaches to a document that has already laid out gets one catch-up layout, which collects
+    // the inspection data: the first round the update builds itself, since a round that flew in before the update has
+    // no inspection data to collect. The passes after it settle as ordinary ones do: forcing each of them would never
+    // settle a document whose full layout always leaves style to update, as one does where a container-relative unit
+    // resolves against a container with no box.
+    let mut inspection_round_pending = inputs.reason_is_inspect_devtools_layout_data;
     let mut layout_pass: u64 = 0;
     while layout_pass <= ORDINARY_STABILIZATION_ROUND_LIMIT
         || layout_pass
@@ -964,7 +970,8 @@ unsafe fn update_layout(
 
                 let facts = host.document_facts(main_thread, read);
                 let force_devtools_layout_data_collection =
-                    facts.should_collect_devtools_layout_data && inputs.reason_is_inspect_devtools_layout_data;
+                    inspection_round_pending && facts.should_collect_devtools_layout_data;
+                inspection_round_pending = false;
                 if host_layout_is_up_to_date(document_host, read, &facts) && !force_devtools_layout_data_collection {
                     host.prepare_for_rendering(main_thread, read);
                     return;
@@ -1026,7 +1033,8 @@ unsafe fn update_layout(
             Some(LayoutRoundEnd::PartialLayout) => {
                 // A round that built the tree changed it, whichever of its jobs ran the build.
                 host.after_layout_commit(main_thread, read, rebuilds_tree);
-                if host.needs_style_update_after_layout(main_thread, read)
+                if inspection_round_pending
+                    || host.needs_style_update_after_layout(main_thread, read)
                     || !host_layout_is_up_to_date(document_host, read, &host.document_facts(main_thread, read))
                 {
                     continue;
@@ -1052,7 +1060,7 @@ unsafe fn update_layout(
         }
 
         // Layout-only invalidations still need to be flushed before we can exit.
-        if host_layout_is_up_to_date(document_host, read, &facts) {
+        if host_layout_is_up_to_date(document_host, read, &facts) && !inspection_round_pending {
             break;
         }
     }
