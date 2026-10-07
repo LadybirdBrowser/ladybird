@@ -144,7 +144,7 @@ void dump_backtrace(unsigned frames_to_skip, unsigned max_depth)
     auto* var = getenv("LADYBIRD_BACKTRACE_SNIPPETS");
     bool print_snippets = var && strnlen(var, 1) > 0;
     static NeverDestroyed<cpptrace::formatter> formatter { cpptrace::formatter {}.snippets(print_snippets) };
-    auto string = formatter->format(stacktrace, true);
+    auto string = formatter->format(stacktrace, ak_colorize_output());
     warnln("{}", StringView { string.c_str(), string.length() });
 }
 #elif defined(AK_HAS_BACKTRACE_HEADER)

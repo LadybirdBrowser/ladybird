@@ -1398,8 +1398,12 @@ void vdbg(StringView fmtstr, TypeErasedFormatParams& params, bool newline)
     if (is_rich_debug_enabled) {
         auto process_name = process_name_for_logging();
         if (!process_name.is_empty()) {
+            bool const colorize = ak_colorize_output();
             auto time = MonotonicTime::now_coarse();
-            builder.appendff("{}.{:03} " BOLD_YELLOW_FORMAT "{}", time.truncated_seconds(), time.nanoseconds_within_second() / 1000000, process_name);
+            builder.appendff("{}.{:03} ", time.truncated_seconds(), time.nanoseconds_within_second() / 1000000);
+            if (colorize)
+                builder.append(BOLD_YELLOW_FORMAT ""sv);
+            builder.append(process_name);
             auto process_id = current_process_id();
             builder.appendff("({})", process_id);
             auto thread_id = ThreadID::current();
@@ -1413,7 +1417,9 @@ void vdbg(StringView fmtstr, TypeErasedFormatParams& params, bool newline)
                     builder.append(" Thread"sv);
                 builder.appendff("({})", thread_id);
             }
-            builder.append(DEFAULT_FORMAT ": "sv);
+            if (colorize)
+                builder.append(DEFAULT_FORMAT ""sv);
+            builder.append(": "sv);
         }
     }
 
