@@ -31,6 +31,7 @@ pub(crate) mod intrinsic;
 pub(crate) mod low_ir;
 pub mod metadata;
 pub mod runtime_interface;
+pub mod rust_bytecode;
 pub(crate) mod ssa;
 pub(crate) mod target;
 pub(crate) mod types;
