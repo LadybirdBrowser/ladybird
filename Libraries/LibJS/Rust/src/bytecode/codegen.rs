@@ -4375,11 +4375,13 @@ fn emit_get_by_value(
         }
         return;
     }
+    let cache = generator.next_property_lookup_cache();
     generator.emit(Instruction::GetByValue {
         dst: dst.operand(),
         base: base.operand(),
         property: property.operand(),
         base_identifier,
+        cache,
     });
 }
 
@@ -4441,12 +4443,14 @@ fn emit_put_normal_by_value(
         });
         return;
     }
+    let cache = generator.next_property_lookup_cache();
     generator.emit(Instruction::PutByValue {
         base: base.operand(),
         property: property.operand(),
         src: src.operand(),
         base_identifier,
         kind: PutKind::Normal as u32,
+        cache,
     });
 }
 
@@ -4499,12 +4503,14 @@ fn emit_put_by_value(
         });
         return;
     }
+    let cache = generator.next_property_lookup_cache();
     generator.emit(Instruction::PutByValue {
         base: base.operand(),
         property: property.operand(),
         src: src.operand(),
         base_identifier: None,
         kind: kind as u32,
+        cache,
     });
 }
 
@@ -5663,12 +5669,14 @@ fn emit_object_property_set_by_key(
 ) {
     if is_computed {
         let key_val = generate_expression_or_undefined(key, generator, None);
+        let cache = generator.next_property_lookup_cache();
         generator.emit(Instruction::PutByValue {
             base: object.operand(),
             property: key_val.operand(),
             src: value.operand(),
             base_identifier: None,
             kind: PutKind::Own as u32,
+            cache,
         });
         return;
     }
@@ -5696,23 +5704,27 @@ fn emit_object_property_set_by_key(
         }
         ExpressionKind::NumericLiteral(n) => {
             let key_val = generator.add_constant_number(*n);
+            let cache = generator.next_property_lookup_cache();
             generator.emit(Instruction::PutByValue {
                 base: object.operand(),
                 property: key_val.operand(),
                 src: value.operand(),
                 base_identifier: None,
                 kind: PutKind::Own as u32,
+                cache,
             });
         }
         _ => {
             // Computed key
             let key_val = generate_expression_or_undefined(key, generator, None);
+            let cache = generator.next_property_lookup_cache();
             generator.emit(Instruction::PutByValue {
                 base: object.operand(),
                 property: key_val.operand(),
                 src: value.operand(),
                 base_identifier: None,
                 kind: PutKind::Own as u32,
+                cache,
             });
         }
     }
@@ -5754,20 +5766,24 @@ fn emit_object_accessor_by_key(
     let emit_by_value = |generator: &mut Generator, key: &Expression| {
         let key_val = generate_expression_or_undefined(key, generator, None);
         if is_getter {
+            let cache = generator.next_property_lookup_cache();
             generator.emit(Instruction::PutByValue {
                 base: object.operand(),
                 property: key_val.operand(),
                 src: value.operand(),
                 base_identifier: None,
                 kind: PutKind::Getter as u32,
+                cache,
             });
         } else {
+            let cache = generator.next_property_lookup_cache();
             generator.emit(Instruction::PutByValue {
                 base: object.operand(),
                 property: key_val.operand(),
                 src: value.operand(),
                 base_identifier: None,
                 kind: PutKind::Setter as u32,
+                cache,
             });
         }
     };

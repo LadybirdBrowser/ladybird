@@ -12,7 +12,7 @@ block0:
   [  70] End value:reg5
 
 
-test$7becb49f computed-update-register-order.js:5:9
+test$f7c6cb07 computed-update-register-order.js:5:9
   Registers: 8
   Blocks:    1
   Constants:
@@ -24,10 +24,10 @@ block0:
   [   8] GetByValue dst:reg5, base:arg0, property:Int32(3) (c[Int32(3)])
   [  20] PostfixIncrement dst:reg6, src:reg5
   [  30] PutByValue base:arg0, property:Int32(3), src:reg5, kind:Normal
-  [  48] GetGlobal dst:reg5, `foo`
-  [  58] Mov dst:reg7, src:arg0
-  [  68] Call dst:reg6, callee:reg5, this_value:Undefined, foo, arguments:[reg7]
-  [  90] End value:Undefined
+  [  50] GetGlobal dst:reg5, `foo`
+  [  60] Mov dst:reg7, src:arg0
+  [  70] Call dst:reg6, callee:reg5, this_value:Undefined, foo, arguments:[reg7]
+  [  98] End value:Undefined
 
 
 foo$14c42854 computed-update-register-order.js:2:5

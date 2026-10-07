@@ -11,7 +11,7 @@ block0:
   [  38] End value:reg5
 
 
-test$fd3849e4 numeric-index-object-literal.js:2:5
+test$7912604c numeric-index-object-literal.js:2:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -27,8 +27,8 @@ block0:
   [   8] NewObject dst:reg5
   [  18] ToPrimitiveWithStringHint dst:Int32(100), value:Int32(100)
   [  28] PutByValue base:reg5, property:Int32(100), src:Int32(1), kind:Own
-  [  40] ToPrimitiveWithStringHint dst:Int32(200), value:Int32(200)
-  [  50] PutByValue base:reg5, property:Int32(200), src:Int32(2), kind:Own
-  [  68] ToPrimitiveWithStringHint dst:Int32(300), value:Int32(300)
-  [  78] PutByValue base:reg5, property:Int32(300), src:Int32(3), kind:Own
-  [  90] Return value:reg5
+  [  48] ToPrimitiveWithStringHint dst:Int32(200), value:Int32(200)
+  [  58] PutByValue base:reg5, property:Int32(200), src:Int32(2), kind:Own
+  [  78] ToPrimitiveWithStringHint dst:Int32(300), value:Int32(300)
+  [  88] PutByValue base:reg5, property:Int32(300), src:Int32(3), kind:Own
+  [  a8] Return value:reg5

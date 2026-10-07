@@ -4151,8 +4151,8 @@ asm_handler_PutByValue:
     ldr w2, [x21, #12]
     ldr x2, [x27, x2, lsl #3]
     str x2, [x1, x0, lsl #3]
-    ldrb w9, [x21, #24]
-    add x21, x21, #24
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_PutByValue.ssa_switch_6_after_preferred:
@@ -4173,8 +4173,8 @@ asm_handler_PutByValue:
     ldr w2, [x21, #12]
     ldr x2, [x27, x2, lsl #3]
     str x2, [x1, x0, lsl #3]
-    ldrb w9, [x21, #24]
-    add x21, x21, #24
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_PutByValue.ssa_block_7:
@@ -4215,8 +4215,8 @@ asm_handler_PutByValue:
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
     strb w4, [x0]
-    ldrb w9, [x21, #24]
-    add x21, x21, #24
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_PutByValue.ssa_block_12:
@@ -4224,8 +4224,8 @@ asm_handler_PutByValue:
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
     strh w4, [x0]
-    ldrb w9, [x21, #24]
-    add x21, x21, #24
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_PutByValue.ssa_block_13:
@@ -4236,8 +4236,8 @@ asm_handler_PutByValue:
     mov x4, #0
 .Lasm_PutByValue.ssa_block_19:
     strb w4, [x0]
-    ldrb w9, [x21, #24]
-    add x21, x21, #24
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_PutByValue.ssa_block_18:
@@ -4250,8 +4250,8 @@ asm_handler_PutByValue:
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
     str w4, [x0]
-    ldrb w9, [x21, #24]
-    add x21, x21, #24
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_PutByValue.ssa_block_15:
@@ -4261,8 +4261,8 @@ asm_handler_PutByValue:
     scvtf d0, w4
     fcvt s0, d0
     str s0, [x0]
-    ldrb w9, [x21, #24]
-    add x21, x21, #24
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_PutByValue.ssa_block_16:
@@ -4272,8 +4272,8 @@ asm_handler_PutByValue:
     scvtf d0, w4
     fmov x1, d0
     str x1, [x0]
-    ldrb w9, [x21, #24]
-    add x21, x21, #24
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_PutByValue.ssa_block_4:
@@ -4289,8 +4289,8 @@ asm_handler_PutByValue:
     fmov d0, x4
     fcvt s0, d0
     str s0, [x0]
-    ldrb w9, [x21, #24]
-    add x21, x21, #24
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_PutByValue.ssa_switch_4_after_preferred:
@@ -4315,8 +4315,8 @@ asm_handler_PutByValue:
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
     str x4, [x0]
-    ldrb w9, [x21, #24]
-    add x21, x21, #24
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_PutByValue.ssa_block_24:
@@ -4335,8 +4335,8 @@ asm_handler_PutByValue:
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
     strb w3, [x0]
-    ldrb w9, [x21, #24]
-    add x21, x21, #24
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_PutByValue.ssa_block_25:
@@ -4355,8 +4355,8 @@ asm_handler_PutByValue:
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
     strh w3, [x0]
-    ldrb w9, [x21, #24]
-    add x21, x21, #24
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_PutByValue.ssa_block_26:
@@ -4375,8 +4375,8 @@ asm_handler_PutByValue:
     and x0, x0, #0x3ffffffffff
     adds x1, x1, x0
     str w3, [x1]
-    ldrb w9, [x21, #24]
-    add x21, x21, #24
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
 asm_handler_PutByValue_hot_end:
@@ -11865,8 +11865,8 @@ asm_handler_PutByValue_cold:
     add sp, sp, #32
 .Lasm_PutByValue.values_call_done_1:
     cbnz w0, .Lasm_PutByValue.ssa_block_1
-    ldrb w9, [x21, #24]
-    add x21, x21, #24
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_PutByValue.ssa_block_1:
@@ -11942,8 +11942,8 @@ asm_handler_PutByValue_cold:
     add sp, sp, #32
 .Lasm_PutByValue.values_call_done_11:
     cbnz w0, .Lasm_PutByValue.ssa_block_1
-    ldrb w9, [x21, #24]
-    add x21, x21, #24
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
 asm_handler_PutByValue_cold_end:

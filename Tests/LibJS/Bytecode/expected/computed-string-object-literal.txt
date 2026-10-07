@@ -46,7 +46,7 @@ block0:
   [  58] Return value:reg5
 
 
-dynamic$7e6f1fb9 computed-string-object-literal.js:12:5
+dynamic$fa493621 computed-string-object-literal.js:12:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -58,4 +58,4 @@ block0:
   [  18] Mov dst:reg6, src:arg0
   [  28] ToPrimitiveWithStringHint dst:reg6, value:reg6
   [  38] PutByValue base:reg5, property:reg6, src:Int32(1), kind:Own
-  [  50] Return value:reg5
+  [  58] Return value:reg5

@@ -1,4 +1,4 @@
-$aaec50d4 for-in-object-property-iterator-next.js:8:1
+$a8285fc4 for-in-object-property-iterator-next.js:8:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -15,11 +15,11 @@ block0:
   [  18] NewObject dst:reg7
   [  28] ToPrimitiveWithStringHint dst:Int32(2), value:Int32(2)
   [  38] PutByValue base:reg7, property:Int32(2), src:String("two"), kind:Own
-  [  50] PutById base:reg7, `foo`, src:String("foo"), kind:Own
-  [  70] ToPrimitiveWithStringHint dst:Int32(7), value:Int32(7)
-  [  80] PutByValue base:reg7, property:Int32(7), src:String("seven"), kind:Own
-  [  98] Call dst:reg5, callee:reg6, this_value:Undefined, collect, arguments:[reg7]
-  [  c0] End value:reg5
+  [  58] PutById base:reg7, `foo`, src:String("foo"), kind:Own
+  [  78] ToPrimitiveWithStringHint dst:Int32(7), value:Int32(7)
+  [  88] PutByValue base:reg7, property:Int32(7), src:String("seven"), kind:Own
+  [  a8] Call dst:reg5, callee:reg6, this_value:Undefined, collect, arguments:[reg7]
+  [  d0] End value:reg5
 
 
 collect$d9304438 for-in-object-property-iterator-next.js:2:18
