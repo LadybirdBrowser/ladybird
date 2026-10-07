@@ -12,6 +12,7 @@
 #include <LibGC/CellTypeInfo.h>
 #include <LibGC/Forward.h>
 #include <LibGC/HeapBlock.h>
+#include <LibGC/Ptr.h>
 
 // The default allocator, which isolates different Cell types from being allocated in the same blocks.
 #define GC_DECLARE_ALLOCATOR(ClassName)    \
@@ -73,7 +74,31 @@ public:
     size_t cell_size() const { return m_descriptor.cell_size(); }
     CellTypeInfo const& type_info() const { return m_descriptor.type_info(); }
 
-    Cell* allocate_cell(Heap&);
+    // Cells come from a list of free cells that the allocator took from one
+    // of its blocks (the local block) at once, so allocating is usually just
+    // popping that list.
+    //
+    // Invariants of the local free list:
+    // - Its cells are dead and belong to the local block, which is in the
+    //   full block list while it has a local free list.
+    // - The local block is never pending incremental sweep: the list is filled
+    //   from swept or new blocks only, and handed back to its block whenever a
+    //   collection starts. So cells from it never need marking.
+    // - The list is empty when its head is at the start of a block (or null),
+    //   which is where following the link of the last cell leads (see
+    //   HeapBlock::follow_freelist_link()).
+    ALWAYS_INLINE Cell* allocate_cell(Heap& heap)
+    {
+        if (auto* cell = m_local_free_list.ptr(); !HeapBlock::is_end_of_freelist(cell)) [[likely]] {
+            m_local_free_list = HeapBlock::next_free_cell(cell);
+            ASAN_UNPOISON_MEMORY_REGION(cell, cell_size());
+            return cell;
+        }
+        return allocate_cell_slow(heap);
+    }
+
+    // Hands the local free list back to the local block.
+    void give_back_local_free_list(Badge<Heap>);
 
     template<typename Callback>
     IterationDecision for_each_block(Callback callback)
@@ -105,7 +130,11 @@ public:
 private:
     friend class Heap;
 
+    Cell* allocate_cell_slow(Heap&);
+
     CellAllocatorDescriptorBase& m_descriptor;
+    RawPtr<Cell> m_local_free_list;
+    HeapBlock* m_local_block { nullptr };
 
     BlockAllocator& m_block_allocator;
 
