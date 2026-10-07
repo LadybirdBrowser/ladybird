@@ -86,12 +86,18 @@ SPDX-License-Identifier: BSD-2-Clause
                         </div>
                         <div class="section-controls">
                             <select id="search-engine" aria-labelledby="search-engine-title">
-                                <option value="">Disabled</option>
+                                <option value="">Disable search</option>
                             </select>
-                            <label class="checkbox-option search-suggestions">
-                                <input id="search-suggestions-enabled" type="checkbox" />
+                            <label class="switch-option">
+                                <input
+                                    id="search-suggestions-enabled"
+                                    type="checkbox"
+                                    switch
+                                    aria-describedby="search-suggestions-description"
+                                />
                                 <span>Show search suggestions</span>
                             </label>
+                            <p id="search-suggestions-description" class="description"></p>
                         </div>
                     </section>
                     <section class="card setup-section" aria-labelledby="ad-blocking-title">
@@ -107,7 +113,7 @@ SPDX-License-Identifier: BSD-2-Clause
                             </div>
                         </div>
                         <div class="section-controls">
-                            <label class="blocking-toggle">
+                            <label class="switch-option">
                                 <input id="enable-content-blocking" type="checkbox" switch />
                                 <span>Enable ad blocking</span>
                             </label>
