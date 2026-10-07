@@ -4869,7 +4869,8 @@ asm_handler_GetByValue:
     and rsi, r11
     add rsi, r15
     movzx ecx, BYTE PTR [rsi + 11]
-    cmp rcx, 3
+    and ecx, 3
+    cmp ecx, 3
     jne .Lasm_GetByValue.ssa_block_45
     mov ecx, DWORD PTR [rsi + 12]
     cmp rcx, rax
@@ -4878,7 +4879,7 @@ asm_handler_GetByValue:
     movzx edx, BYTE PTR [rcx + rax]
     jmp .Lasm_GetByValue.ssa_block_46
 .Lasm_GetByValue.ssa_block_45:
-    cmp rcx, 0
+    cmp ecx, 0
     jne .Lasm_GetByValue.ssa_block_1
     mov rcx, QWORD PTR [rsi + 16]
     test rcx, rcx
@@ -4915,7 +4916,7 @@ asm_handler_GetByValue:
     mov r11, rax
     shr r11, 48
     cmp r11w, 65530
-    jne .Lasm_GetByValue.assert_predicate_failure_290
+    jne .Lasm_GetByValue.assert_predicate_failure_292
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 24
@@ -5985,7 +5986,8 @@ asm_handler_CallBuiltinStringPrototypeCharCodeAt:
     and rcx, r11
     add rcx, r15
     movzx edx, BYTE PTR [rcx + 11]
-    cmp rdx, 3
+    and edx, 3
+    cmp edx, 3
     jne .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_10
     mov edx, DWORD PTR [rcx + 12]
     cmp rdx, rax
@@ -5994,7 +5996,7 @@ asm_handler_CallBuiltinStringPrototypeCharCodeAt:
     movzx eax, BYTE PTR [rcx + rax]
     jmp .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_11
 .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_10:
-    cmp rdx, 0
+    cmp edx, 0
     jne .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
     mov rdx, QWORD PTR [rcx + 16]
     test rdx, rdx
@@ -6068,7 +6070,8 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     and rcx, r11
     add rcx, r15
     movzx edx, BYTE PTR [rcx + 11]
-    cmp rdx, 3
+    and edx, 3
+    cmp edx, 3
     jne .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_10
     mov edx, DWORD PTR [rcx + 12]
     cmp rdx, rax
@@ -6077,7 +6080,7 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     movzx edx, BYTE PTR [rcx + rax]
     jmp .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_11
 .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_10:
-    cmp rdx, 0
+    cmp edx, 0
     jne .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
     mov rdx, QWORD PTR [rcx + 16]
     test rdx, rdx
@@ -6114,7 +6117,7 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     mov r11, rax
     shr r11, 48
     cmp r11w, 65530
-    jne .Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_48
+    jne .Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_50
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 24
@@ -19005,7 +19008,7 @@ asm_assertion_failure_traps:
     ud2
 .Lasm_GetByValue.assert_failure_0:
     ud2
-.Lasm_GetByValue.assert_predicate_failure_290:
+.Lasm_GetByValue.assert_predicate_failure_292:
     ud2
 .Lasm_GetByValue.assert_failure_2:
     ud2
@@ -19139,7 +19142,7 @@ asm_assertion_failure_traps:
     ud2
 .Lasm_CallBuiltinStringFromCharCode.assert_predicate_failure_8:
     ud2
-.Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_48:
+.Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_50:
     ud2
 .Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_8:
     ud2

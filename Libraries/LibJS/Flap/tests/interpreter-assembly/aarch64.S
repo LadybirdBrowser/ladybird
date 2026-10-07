@@ -4771,7 +4771,8 @@ asm_handler_GetByValue:
     and x3, x3, #0x3ffffffffff
     add x3, x3, x24
     ldrb w1, [x3, #11]
-    cmp x1, #3
+    and w1, w1, #0x3
+    cmp w1, #3
     b.ne .Lasm_GetByValue.ssa_block_45
     ldr w1, [x3, #12]
     cmp x1, x0
@@ -4780,7 +4781,7 @@ asm_handler_GetByValue:
     ldrb w1, [x1, x0]
     b .Lasm_GetByValue.ssa_block_46
 .Lasm_GetByValue.ssa_block_45:
-    cmp x1, #0
+    cmp w1, #0
     b.ne .Lasm_GetByValue.ssa_block_1
     ldr x1, [x3, #16]
     cbz x1, .Lasm_GetByValue.ssa_block_1
@@ -4812,7 +4813,7 @@ asm_handler_GetByValue:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
-    b.ne .Lasm_GetByValue.assert_predicate_failure_290
+    b.ne .Lasm_GetByValue.assert_predicate_failure_292
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
@@ -5796,7 +5797,8 @@ asm_handler_CallBuiltinStringPrototypeCharCodeAt:
     and x1, x1, #0x3ffffffffff
     add x1, x1, x24
     ldrb w2, [x1, #11]
-    cmp x2, #3
+    and w2, w2, #0x3
+    cmp w2, #3
     b.ne .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_10
     ldr w2, [x1, #12]
     cmp x2, x0
@@ -5805,7 +5807,7 @@ asm_handler_CallBuiltinStringPrototypeCharCodeAt:
     ldrb w0, [x1, x0]
     b .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_11
 .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_10:
-    cmp x2, #0
+    cmp w2, #0
     b.ne .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
     ldr x2, [x1, #16]
     cbz x2, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
@@ -5876,7 +5878,8 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     and x1, x1, #0x3ffffffffff
     add x1, x1, x24
     ldrb w2, [x1, #11]
-    cmp x2, #3
+    and w2, w2, #0x3
+    cmp w2, #3
     b.ne .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_10
     ldr w2, [x1, #12]
     cmp x2, x0
@@ -5885,7 +5888,7 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     ldrb w1, [x1, x0]
     b .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_11
 .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_10:
-    cmp x2, #0
+    cmp w2, #0
     b.ne .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
     ldr x2, [x1, #16]
     cbz x2, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
@@ -5917,7 +5920,7 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
-    b.ne .Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_48
+    b.ne .Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_50
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
@@ -19406,7 +19409,7 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_GetByValue.assert_failure_0:
     brk #0
-.Lasm_GetByValue.assert_predicate_failure_290:
+.Lasm_GetByValue.assert_predicate_failure_292:
     brk #0
 .Lasm_GetByValue.assert_failure_2:
     brk #0
@@ -19540,7 +19543,7 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_CallBuiltinStringFromCharCode.assert_predicate_failure_8:
     brk #0
-.Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_48:
+.Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_50:
     brk #0
 .Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_8:
     brk #0

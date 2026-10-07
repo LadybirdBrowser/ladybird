@@ -464,7 +464,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     field!(w, "GLOBAL_ENVIRONMENT_GLOBAL_THIS_VALUE", "GlobalEnvironment.global_this_value", "Object", GlobalEnvironment, global_this_value, 8, "nullable", "cell");
 
     w.section("PrimitiveString layout");
-    field!(w, "PRIMITIVE_STRING_DEFERRED_KIND", "PrimitiveString.deferred_kind", "u8", PrimitiveString, deferred_kind, 1, "nullable", "scalar");
+    field!(w, "PRIMITIVE_STRING_DEFERRED_KIND_AND_FLAGS", "PrimitiveString.deferred_kind_and_flags", "u8", PrimitiveString, deferred_kind_and_flags, 1, "nullable", "scalar");
     field!(w, "PRIMITIVE_STRING_LENGTH_IN_UTF16_CODE_UNITS", "PrimitiveString.length_in_utf16_code_units", "u32", PrimitiveString, length_in_utf16_code_units, 4, "nullable", "scalar");
     assert_eq!(size_of_field(|string: &PrimitiveString| &string.utf16_string), 8);
     let utf16_string_offset = offset!(w, "PRIMITIVE_STRING_UTF16_STRING", PrimitiveString, utf16_string);
@@ -473,6 +473,8 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.constant("PRIMITIVE_STRING_DEFERRED_KIND_INLINE", DeferredKind::Inline as u8);
     offset!(w, "PRIMITIVE_STRING_INLINE_STRING_STORAGE", InlineString, characters);
     w.line("field PrimitiveString.inline_string_storage Sequence<u8> PRIMITIVE_STRING_INLINE_STRING_STORAGE embedded scalar");
+    w.constant("PRIMITIVE_STRING_DEFERRED_KIND_MASK", DEFERRED_KIND_MASK);
+    w.constant("PRIMITIVE_STRING_INTERNED_FLAG", INTERNED_FLAG);
 
     // A short AK string is stored inline in the string's word: a tag byte holding the flag and the byte count, then
     // the bytes themselves. That puts the tag in the word's lowest byte on the little-endian targets the
