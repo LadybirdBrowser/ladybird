@@ -28,6 +28,7 @@ use super::column::Column;
 use super::column::PagedColumn;
 use super::column::PagedColumnPage;
 use super::column::RemovablePagedColumnPage;
+use super::custom_property_cascade::CustomPropertyNames;
 use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::fast_hasher;
 use super::intern_table::InternIdentity;
@@ -37,6 +38,7 @@ use super::intern_table::content_hash;
 use smallvec::SmallVec;
 use std::hash::Hash;
 use std::hash::Hasher;
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
 
 use crate::css::cascaded_properties::CascadeOrigin;
@@ -1458,6 +1460,8 @@ pub struct WinnerGroups {
     /// Each state's [`StateSummary`], packed, decided the first time it is asked where every winner's written value was
     /// found, and `STATE_SUMMARY_DECIDED` from then on.
     state_summaries: Vec<crate::fork::ForkCopied<AtomicU64>>,
+    /// The custom properties each state's winners read through `var()`. `None` when they cannot be listed.
+    state_custom_property_reads: Vec<OnceLock<Option<CustomPropertyNames>>>,
     groups: InternTable<WinnerGroupID, Box<[SemanticPropertyWinner]>>,
     provenance_groups: InternTable<WinnerProvenanceGroupID, Box<[WinnerProvenance]>>,
     priorities: InternTable<CascadePriorityID, CascadePriority>,
@@ -1526,6 +1530,7 @@ impl Default for WinnerGroups {
             state_winning_rules: Vec::new(),
             state_reads: Vec::new(),
             state_summaries: Vec::new(),
+            state_custom_property_reads: Vec::new(),
             groups: InternTable::default(),
             provenance_groups: InternTable::default(),
             priorities: InternTable::default(),
@@ -1582,6 +1587,7 @@ impl WinnerGroups {
                 .iter()
                 .map(|summary| crate::fork::ForkCopied::new(AtomicU64::new(summary.load(Ordering::Relaxed))))
                 .collect(),
+            state_custom_property_reads: self.state_custom_property_reads.clone(),
             groups: self.groups.clone(),
             provenance_groups: self.provenance_groups.clone(),
             priorities: self.priorities.clone(),
@@ -1792,6 +1798,7 @@ impl WinnerGroups {
         self.state_reads.push(crate::fork::ForkCopied::new(AtomicU8::new(0)));
         self.state_summaries
             .push(crate::fork::ForkCopied::new(AtomicU64::new(0)));
+        self.state_custom_property_reads.push(OnceLock::new());
         id
     }
 
@@ -2092,6 +2099,17 @@ impl WinnerGroups {
                 u64::from(summary.explicitly_inherited_groups) | substitutions | STATE_SUMMARY_DECIDED,
                 Ordering::Relaxed,
             );
+        }
+    }
+
+    pub(super) fn state_custom_property_reads(
+        &self,
+        state: CascadeStateID,
+        decide: impl FnOnce() -> Option<CustomPropertyNames>,
+    ) -> Option<CustomPropertyNames> {
+        match self.state_custom_property_reads.get(state.0 as usize) {
+            Some(slot) => slot.get_or_init(decide).clone(),
+            None => decide(),
         }
     }
 
@@ -2636,6 +2654,7 @@ impl WinnerGroups {
         self.state_winning_rules = Vec::new();
         self.state_reads = Vec::new();
         self.state_summaries = Vec::new();
+        self.state_custom_property_reads = Vec::new();
         self.groups = InternTable::default();
         self.provenance_groups = InternTable::default();
         self.priorities = InternTable::default();

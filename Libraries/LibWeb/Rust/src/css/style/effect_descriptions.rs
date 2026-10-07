@@ -408,6 +408,31 @@ impl AnimationEffectDescriptions {
             .map_or(&[], |(_, effects)| effects)
     }
 
+    pub(crate) fn keyframes_read_any_of_custom_properties(&self, node: StyleNodeID, names: &[Arc<[u16]>]) -> bool {
+        let Some(lists) = self.rows.get(&node) else {
+            return false;
+        };
+        let reads_any = |value: &RetainedStyleValueData| {
+            super::custom_property_cascade::value_reads_any_of_custom_properties(value.data(), names)
+        };
+        lists.iter().flat_map(|(_, effects)| effects.iter()).any(|effect| {
+            effect.keyframes.iter().any(|keyframe| {
+                keyframe.easing_value.as_ref().is_some_and(reads_any)
+                    || effect
+                        .declarations_of(keyframe)
+                        .iter()
+                        .map(|declaration| &declaration.value)
+                        .chain(
+                            effect
+                                .custom_declarations_of(keyframe)
+                                .iter()
+                                .map(|declaration| &declaration.value),
+                        )
+                        .any(|value| matches!(value, PublishedValue::Declared(value) if reads_any(value)))
+            })
+        })
+    }
+
     /// Whether one of an element's lists describes exactly these versions of the effects, in this
     /// order. Every change that moves what a description says moves its effect's generation.
     #[cfg(test)]

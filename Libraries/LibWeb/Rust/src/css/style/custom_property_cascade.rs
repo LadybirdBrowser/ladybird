@@ -31,7 +31,9 @@ use crate::css::custom_properties::{
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
 use crate::css::parser::value_parser::ParseOutcome;
 use crate::css::rule::CompiledFunction;
-use crate::css::style_value::{RetainedStyleValueData, StyleValueData, utf16_equals_ascii_case_insensitive};
+use crate::css::style_value::{
+    RetainedStyleValueData, StyleValueData, custom_property_references, utf16_equals_ascii_case_insensitive,
+};
 use custom_property_environments::{CascadedCustomProperty, CustomPropertyName};
 
 /// The document's media features as the style update a transaction belongs to saw them, which
@@ -382,6 +384,33 @@ fn substituted_tokens(value: &StyleValueData) -> &StyleValueData {
         } => substituted_tokens(original_shorthand_value.data()),
         value => value,
     }
+}
+
+/// Custom property names, sorted and without duplicates.
+pub(crate) type CustomPropertyNames = Arc<[Arc<[u16]>]>;
+
+pub(super) fn append_custom_property_reads(value: &StyleValueData, names: &mut Vec<Arc<[u16]>>) -> bool {
+    let Some((references, all_references_visible)) = custom_property_references(substituted_tokens(value)) else {
+        return true;
+    };
+    names.extend(references.into_iter().map(Arc::from));
+    all_references_visible
+}
+
+pub(super) fn value_reads_any_of_custom_properties(value: &StyleValueData, names: &[Arc<[u16]>]) -> bool {
+    let Some((references, all_references_visible)) = custom_property_references(substituted_tokens(value)) else {
+        return false;
+    };
+    !all_references_visible
+        || references
+            .into_iter()
+            .any(|reference| names.binary_search_by(|name| name.as_ref().cmp(reference)).is_ok())
+}
+
+pub(super) fn sorted_custom_property_names(mut names: Vec<Arc<[u16]>>) -> CustomPropertyNames {
+    names.sort_unstable();
+    names.dedup();
+    names.into()
 }
 
 /// Whether a written value substitutes `attr()`, which reads the element's attributes.
@@ -754,6 +783,34 @@ impl RetainedState {
             return true;
         };
         self.state_has_substitutions(node, state)
+    }
+
+    pub(super) fn node_style_reads_any_of_custom_properties(&self, node: StyleNodeID, names: &[Arc<[u16]>]) -> bool {
+        if names.is_empty() {
+            return false;
+        }
+        let reads_any = |reads: &[Arc<[u16]>]| reads.iter().any(|read| names.binary_search(read).is_ok());
+        let groups = self.current_winner_groups();
+        let Lookup::Known((_, state)) = groups.token_for(WinnerGroupKey::current(node, self.program.version())) else {
+            return true;
+        };
+        let states_read_any = std::iter::once(state)
+            .chain(groups.pseudo_states(node).map(|(_, _, state, _)| state))
+            .any(|state| {
+                self.state_custom_property_reads(node, state)
+                    .is_none_or(|reads| reads_any(&reads))
+            });
+        if states_read_any {
+            return true;
+        }
+        let declarations_read_any = match self.custom_declaration_custom_property_reads.get(&node) {
+            Some(reads) => reads.as_ref().is_none_or(|reads| reads_any(reads)),
+            None => self.node_declares_custom_properties(node),
+        };
+        declarations_read_any
+            || self
+                .animation_effect_descriptions
+                .keyframes_read_any_of_custom_properties(node, names)
     }
 
     /// Whether the node's winner inventory is complete once custom properties are set aside: the
@@ -1262,6 +1319,24 @@ impl RetainedState {
         })
     }
 
+    fn cascaded_custom_property_reads(
+        &self,
+        cascaded: &[(CustomDeclaration, RetainedStyleValueData)],
+    ) -> Option<CustomPropertyNames> {
+        let mut names = Vec::new();
+        for (declared, value) in cascaded {
+            if !matches!(declared.operator, CascadeOperator::Declared | CascadeOperator::Initial)
+                || !append_custom_property_reads(value.data(), &mut names)
+            {
+                return None;
+            }
+            // A declared name counts as a read. An environment leaves out a declared value equal to the
+            // one it inherits.
+            names.push(self.declared_custom_property_name(declared.name)?.text.clone());
+        }
+        Some(sorted_custom_property_names(names))
+    }
+
     /// The name a cascaded custom declaration names, as its store entry keys it. A block's
     /// publication notes every custom property name it declares before the block is set, so a
     /// live declaration's name is always known.
@@ -1316,6 +1391,7 @@ impl RetainedState {
         if !self.any_custom_property_is_declared() {
             if pseudo.is_none() {
                 self.custom_declaration_reads.remove(&node);
+                self.custom_declaration_custom_property_reads.remove(&node);
             }
             return Ok(self.custom_property_environments.inheritable(parent_environment));
         }
@@ -1342,6 +1418,26 @@ impl RetainedState {
         pseudo: Option<u8>,
         cascaded: &[(CustomDeclaration, RetainedStyleValueData)],
     ) {
+        let custom_property_reads = (!cascaded.is_empty()).then(|| self.cascaded_custom_property_reads(cascaded));
+        match (custom_property_reads, pseudo) {
+            (None, None) => {
+                self.custom_declaration_custom_property_reads.remove(&node);
+            }
+            (None, Some(_)) => {}
+            (Some(reads), None) => {
+                self.custom_declaration_custom_property_reads.insert(node, reads);
+            }
+            (Some(reads), Some(_)) => {
+                let merged = match (self.custom_declaration_custom_property_reads.remove(&node), reads) {
+                    (None, reads) => reads,
+                    (Some(Some(existing)), Some(reads)) => Some(sorted_custom_property_names(
+                        existing.iter().chain(reads.iter()).cloned().collect(),
+                    )),
+                    (Some(_), _) => None,
+                };
+                self.custom_declaration_custom_property_reads.insert(node, merged);
+            }
+        }
         let reads = cascaded
             .iter()
             .fold(0, |reads, (_, value)| reads | substitution_reads(value.data()));

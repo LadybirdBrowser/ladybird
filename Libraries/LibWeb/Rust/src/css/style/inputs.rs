@@ -1904,6 +1904,7 @@ impl StyleEngine {
                 custom_property_environments: Default::default(),
                 nodes_with_substituted_records: HashSet::default(),
                 custom_declaration_reads: HashMap::default(),
+                custom_declaration_custom_property_reads: HashMap::default(),
                 nodes_with_tree_counting_records: HashMap::default(),
                 nodes_with_rolled_back_records: HashMap::default(),
                 nodes_with_element_relative_substitutions: HashMap::default(),
@@ -2000,6 +2001,7 @@ impl StyleEngine {
                 deferred_element_style_inputs: Vec::new(),
                 deferred_element_style_inputs_moved: false,
                 deferred_element_style_inputs_are_pending: false,
+                environment_move_changed_names: Default::default(),
                 deferred_element_style_input_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
                 initial_tree_batch_applied: false,
                 initial_tree_bulk_load_is_pending: false,
@@ -3296,6 +3298,7 @@ impl RetainedState {
             custom_property_environments: _,
             nodes_with_substituted_records,
             custom_declaration_reads,
+            custom_declaration_custom_property_reads,
             nodes_with_tree_counting_records,
             nodes_with_rolled_back_records,
             nodes_with_element_relative_substitutions,
@@ -3404,6 +3407,7 @@ impl RetainedState {
         computed_group_sets.remove(node);
         nodes_with_substituted_records.remove(&node);
         custom_declaration_reads.remove(&node);
+        custom_declaration_custom_property_reads.remove(&node);
         nodes_with_tree_counting_records.remove(&node);
         nodes_with_rolled_back_records.remove(&node);
         nodes_with_element_relative_substitutions.remove(&node);

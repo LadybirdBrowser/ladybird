@@ -3158,6 +3158,22 @@ impl RetainedState {
         self.state_summary(node, state).has_substitutions
     }
 
+    pub(super) fn state_custom_property_reads(
+        &self,
+        node: StyleNodeID,
+        state: CascadeStateID,
+    ) -> Option<custom_property_cascade::CustomPropertyNames> {
+        self.winner_groups.state_custom_property_reads(state, || {
+            let mut names = Vec::new();
+            for value in self.state_substitution_values(node, state) {
+                if !custom_property_cascade::append_custom_property_reads(value.data(), &mut names) {
+                    return None;
+                }
+            }
+            Some(custom_property_cascade::sorted_custom_property_names(names))
+        })
+    }
+
     /// What a state's winners read beyond the cascade, as `cascade::STATE_READS_*` bits, decided
     /// once for each state.
     pub(super) fn state_reads(&self, node: StyleNodeID, state: CascadeStateID) -> u8 {

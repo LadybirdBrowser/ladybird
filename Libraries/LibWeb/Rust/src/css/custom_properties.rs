@@ -600,6 +600,10 @@ impl CustomPropertyStore {
         Self::animation_overlay(animated, base)
     }
 
+    pub(crate) fn parent(&self) -> Option<&Arc<CustomPropertyStore>> {
+        self.parent.as_ref()
+    }
+
     pub(crate) fn get(&self, name_raw: usize) -> Option<&CustomPropertyEntry> {
         self.own_values
             .get(&name_raw)

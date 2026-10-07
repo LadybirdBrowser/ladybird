@@ -2484,6 +2484,8 @@ pub struct FfiNamedEnvironment {
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiEnvironmentMove {
+    pub old_environment: FfiNamedEnvironment,
+    pub new_environment: FfiNamedEnvironment,
     pub old_inheritable: u64,
     pub new_inheritable: FfiNamedEnvironment,
     pub new_inheritable_data: *const c_void,
