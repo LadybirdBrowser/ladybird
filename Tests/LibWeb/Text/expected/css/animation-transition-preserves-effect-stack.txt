@@ -1,0 +1,4 @@
+before transition: green
+after transition: green
+child color: rgb(0, 128, 0)
+transition started: true
