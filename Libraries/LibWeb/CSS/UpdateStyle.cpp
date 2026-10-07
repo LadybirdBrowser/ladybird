@@ -430,7 +430,8 @@ void StyleEngineFFI::web_css_rebuild_custom_property_environment(StyleReactionAp
     move_pseudo_element_environments(read, document, *element, existing_base.ptr(), existing_inheritable.ptr(), moved);
     element->set_custom_property_data({}, moved);
     element->republish_style_record_environment(read);
-    move_custom_property_environment_below(*application, *element, existing_base, moved);
+    if (element->first_element_child() || element->shadow_root() || is<HTML::HTMLSlotElement>(*element))
+        move_custom_property_environment_below(*application, *element, existing_base, moved);
 }
 
 static void propagate_custom_property_environment_move(StyleReactionApplication& application, DOM::Element& origin, RefPtr<CustomPropertyData const> old_origin_data)
