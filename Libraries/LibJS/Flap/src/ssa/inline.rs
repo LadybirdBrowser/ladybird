@@ -6,7 +6,7 @@
 
 //! SSA inline expansion.
 
-use super::optimize::{InstructionOrder, rebuild_instruction_arena, rewrite_function_uses};
+use super::optimize::{InstructionOrder, rebuild_instruction_arena, rewrite_function_uses, terminator_edges_mut};
 #[cfg(test)]
 use super::{BinaryOperation, IntegerBinaryOperation};
 use super::{
@@ -222,9 +222,55 @@ fn inline_calls_with_budget(
     if !eliminated.is_empty() {
         rebuild_instruction_arena(function, &eliminated, InstructionOrder::ByBlock);
     }
+    bypass_indirect_jump_trampolines(function);
     function.recompute_machine_state_dependencies();
     function.validate().map_err(|message| inline_error(function, message))?;
     Ok(count)
+}
+
+/// Sends edges that pass a block reference to a trampoline straight to the
+/// referenced block.
+///
+/// A function leaves through a label parameter by jumping to a trampoline: a
+/// block that takes the label as its only parameter and jumps to it
+/// indirectly. Once the function is inlined, the label is a block reference,
+/// for example to a closure that is passed as the `else` label of a checked
+/// call. The control flow graph cannot follow the indirect jump, so without
+/// this the referenced block (and every block only it leads to) is not
+/// reachable in the graph, and values that flow into it from the block making
+/// the reference do not dominate their uses there.
+fn bypass_indirect_jump_trampolines(function: &mut Function) {
+    let is_trampoline = function
+        .blocks
+        .iter()
+        .map(|block| {
+            block.instructions.is_empty()
+                && matches!(
+                    (block.parameters.as_slice(), &block.terminator),
+                    ([parameter], Some(Terminator::IndirectJump { target })) if parameter == target
+                )
+        })
+        .collect::<Vec<_>>();
+    if !is_trampoline.contains(&true) {
+        return;
+    }
+    for block_index in 0..function.blocks.len() {
+        let mut terminator = function.blocks[block_index].terminator.take().unwrap();
+        // NB: A checked operation's failure edge has a fixed shape of its own.
+        if !matches!(terminator, Terminator::CheckedOperation { .. }) {
+            for edge in terminator_edges_mut(&mut terminator) {
+                if !is_trampoline[edge.block.0] {
+                    continue;
+                }
+                if let [label] = edge.arguments.as_slice()
+                    && let Some(target) = block_reference(function, *label)
+                {
+                    *edge = target;
+                }
+            }
+        }
+        function.blocks[block_index].terminator = Some(terminator);
+    }
 }
 
 fn ensure_expansion_budget(
@@ -863,6 +909,61 @@ handler Store(dst: out Operand, value: Value) = store_and_finish(dst, value);
     }
 
     #[test]
+    fn inlines_calls_in_closures_that_no_path_reaches() {
+        let (mut handler, callees) = lower(
+            r#"
+inline fn note() {
+}
+
+handler Unused(dst: out Operand) {
+    let unused = |raw: i32| {
+        note();
+        store(dst, box_i32(raw));
+        dispatch_next;
+    };
+    dispatch_next;
+}
+"#,
+        );
+        assert_eq!(inline_calls(&mut handler, &callees).unwrap(), 1);
+    }
+
+    #[test]
+    fn jumps_directly_to_closures_passed_as_the_failure_label_of_a_checked_call() {
+        let (mut handler, callees) = lower(
+            r#"
+inline fn check(value: i32, else fail: Label) -> i32 {
+    guard value != 0 else fail;
+    value
+}
+
+handler Checked(dst: out Operand, src: in Operand) {
+    let slow = || @cold {
+        exit;
+    };
+    let fallback = |raw: i32| {
+        guard let checked = check(raw) else slow;
+        store(dst, box_i32(checked));
+        dispatch_next;
+    };
+    guard let Value<i32>(value) = load(src) else slow;
+    guard let checked = check(value) else fallback(value);
+    store(dst, box_i32(checked));
+    dispatch_next;
+}
+"#,
+        );
+        assert_eq!(inline_calls(&mut handler, &callees).unwrap(), 2);
+        let cfg = super::super::analysis::ControlFlowGraph::compute(&handler);
+        let fallback = handler
+            .blocks
+            .iter()
+            .position(|block| block.name.as_deref().is_some_and(|name| name.contains("fallback")))
+            .unwrap();
+        assert!(cfg.is_reachable(BlockId(fallback)));
+    }
+
+    #[test]
     fn resolves_inlined_indirect_jumps_to_closure_blocks() {
         let (mut handler, callees) = lower(
             r#"
@@ -893,10 +994,8 @@ handler Choose(condition: u32) {
         let jump_targets = handler
             .blocks
             .iter()
-            .filter_map(|block| match &block.terminator {
-                Some(Terminator::Jump(edge)) => Some(edge.block),
-                _ => None,
-            })
+            .flat_map(|block| block.terminator.as_ref().unwrap().successors())
+            .map(|edge| edge.block)
             .collect::<Vec<_>>();
         assert!(
             jump_targets
