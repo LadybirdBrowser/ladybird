@@ -11,6 +11,7 @@ const setupOptions = document.querySelector("#setup-options");
 const startBrowsing = document.querySelector("#start-browsing");
 const searchEngine = document.querySelector("#search-engine");
 const searchSuggestions = document.querySelector("#search-suggestions-enabled");
+const searchSuggestionsDescription = document.querySelector("#search-suggestions-description");
 const enableContentBlocking = document.querySelector("#enable-content-blocking");
 const blockingOptions = document.querySelector("#blocking-options");
 const contentBlockerLists = document.querySelector("#content-blocker-lists");
@@ -41,7 +42,7 @@ function initialize() {
 
     populateSearchEngineSelect(searchEngine, engines.search, settings.searchEngine);
     searchSuggestions.checked = settings.searchEngine.suggestions;
-    updateSearchSuggestionsControl(searchEngine, searchSuggestions);
+    updateSearchSuggestionsControl(searchEngine, searchSuggestions, searchSuggestionsDescription);
 
     enableContentBlocking.checked = settings.contentBlockers.enabled;
     for (const list of settings.contentBlockerLists) {
@@ -69,7 +70,7 @@ function initialize() {
 
 enableContentBlocking.addEventListener("change", updateBlockingOptions);
 searchEngine.addEventListener("change", () => {
-    updateSearchSuggestionsControl(searchEngine, searchSuggestions);
+    updateSearchSuggestionsControl(searchEngine, searchSuggestions, searchSuggestionsDescription);
 });
 
 for (const input of document.querySelectorAll('input[name="tab-mode"]')) {

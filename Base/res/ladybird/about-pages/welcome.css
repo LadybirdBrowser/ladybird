@@ -214,36 +214,28 @@ select {
     border: 1px solid var(--border-color);
 }
 
-.checkbox-option {
-    display: grid;
-    grid-template-columns: 18px minmax(0, 1fr);
-    align-items: start;
-    gap: 12px;
-    cursor: pointer;
-}
-
-.checkbox-option input {
-    margin-top: 4px;
-}
-
-.checkbox-option:has(input:disabled) {
-    cursor: default;
-    color: var(--secondary-text-color);
-}
-
-.search-suggestions {
-    margin-top: 12px;
-}
-
-.blocking-toggle {
+.switch-option {
     display: flex;
     align-items: center;
     gap: 12px;
     cursor: pointer;
 }
 
-.blocking-toggle input {
+.switch-option:has(input:disabled) {
+    cursor: default;
+    color: var(--secondary-text-color);
+}
+
+.switch-option input {
     flex-shrink: 0;
+}
+
+.switch-option + .description {
+    margin-left: 62px;
+}
+
+select + .switch-option {
+    margin-top: 12px;
 }
 
 #content-blocker-lists {
