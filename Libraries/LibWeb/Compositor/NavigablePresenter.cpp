@@ -12,16 +12,41 @@ namespace Web::Compositor {
 
 // What the Paint thread presents a frame through. Only Rust calls it, from a job that presents.
 struct PresenterFFI {
+    // A clock lane's frame that starts from an older frame than the last one a rendering update committed shows what the
+    // screen no longer shows: it is not presented, and the compositor hears nothing of it.
+    static bool is_stale(NavigablePresenter const& presenter, SealedPresentation const& sealed)
+    {
+        return sealed.presented_by == PresentedBy::Clock && sealed.generation < presenter.m_last_committed_generation;
+    }
+
+    static void note_presented(NavigablePresenter& presenter, SealedPresentation& sealed)
+    {
+        if (sealed.presented_by == PresentedBy::Commit) {
+            presenter.m_last_committed_generation = max(presenter.m_last_committed_generation, sealed.generation);
+            presenter.m_committed_command_resources = presenter.m_compositor_display_list_command_resources;
+        }
+        if (sealed.published.has_value())
+            sealed.published->referenced_resources = presenter.m_compositor_display_list_command_resources;
+    }
+
     static void present(NavigablePresenter& presenter, SealedPresentation& sealed, NonnullRefPtr<Compositing::DisplayList> display_list, CompositorFrameSink* sink)
     {
+        MutexLocker locker(presenter.m_mutex);
+        if (is_stale(presenter, sealed))
+            return;
         auto frame = presenter.build_frame_beside_event_loop(sealed, move(display_list));
+        note_presented(presenter, sealed);
         if (sink)
             sink->submit(move(frame));
     }
 
-    static void present_unrecorded(NavigablePresenter& presenter, SealedPresentation const& sealed, CompositorFrameSink* sink)
+    static void present_unrecorded(NavigablePresenter& presenter, SealedPresentation& sealed, CompositorFrameSink* sink)
     {
+        MutexLocker locker(presenter.m_mutex);
+        if (is_stale(presenter, sealed))
+            return;
         auto frame = presenter.build_frame(sealed, {});
+        note_presented(presenter, sealed);
         if (sink)
             sink->submit(move(frame));
     }
@@ -29,6 +54,8 @@ struct PresenterFFI {
 
 void NavigablePresenter::forget_compositor_display_list()
 {
+    MutexLocker locker(m_mutex);
+    m_compositor_visual_context_tree.clear();
     m_compositor_display_list_paint_config.clear();
     m_compositor_display_list = nullptr;
     m_compositor_display_list_resources = {};
@@ -43,6 +70,10 @@ CompositorFrame NavigablePresenter::build_frame(SealedPresentation const& sealed
     auto resources_with = [&](Compositing::DisplayListResourceSet resources, Compositing::AccumulatedVisualContextTree const& visual_context_tree) {
         if (!published.has_value() || !published->replaces_paint_command_cache_source)
             resources.include(sealed.paint_command_cache_source_resources);
+        // The next frame a rendering update commits copies paint commands from the one it committed last, whatever a
+        // clock lane presented since.
+        if (sealed.presented_by == PresentedBy::Clock)
+            resources.include(m_committed_command_resources);
         resources.include(m_resource_storage.collect_referenced_resources(visual_context_tree));
         return resources;
     };
@@ -78,6 +109,7 @@ CompositorFrame NavigablePresenter::build_frame(SealedPresentation const& sealed
             .scroll_state_snapshot = sealed.scroll_state_snapshot,
         };
         m_compositor_display_list_visual_context_tree_structural_epoch = published->display_list->compatible_visual_context_tree_structural_epoch();
+        m_compositor_visual_context_tree = visual_context_tree;
         m_resource_storage.retain_only(resources);
         m_compositor_display_list = published->display_list;
         m_compositor_display_list_command_resources = move(command_resources);
@@ -101,6 +133,7 @@ CompositorFrame NavigablePresenter::build_frame(SealedPresentation const& sealed
         };
         m_resource_storage.retain_only(resources);
         m_compositor_display_list_resources = move(resources);
+        m_compositor_visual_context_tree = visual_context_tree;
     }
     frame.scroll_state_update = CompositorFrame::ScrollStateUpdate {
         .scroll_state_snapshot = sealed.scroll_state_snapshot,
@@ -113,7 +146,7 @@ CompositorFrame NavigablePresenter::build_frame_beside_event_loop(SealedPresenta
 {
     bool const replaces_paint_command_cache_source = sealed.recording->cache_mode == Painting::PaintCommandCacheMode::ReadWrite
         && display_list != sealed.paint_command_cache_source;
-    PublishedDisplayList published { move(display_list), replaces_paint_command_cache_source };
+    PublishedDisplayList published { move(display_list), replaces_paint_command_cache_source, {} };
     auto frame = build_frame(sealed, published);
     if (replaces_paint_command_cache_source) {
         sealed.paint_command_cache_source = published.display_list;
@@ -124,11 +157,55 @@ CompositorFrame NavigablePresenter::build_frame_beside_event_loop(SealedPresenta
     return frame;
 }
 
+OwnPtr<SealedPresentation> NavigablePresenter::seal_for_clock_lane(SealedPresentation const& committed) const
+{
+    MutexLocker locker(m_mutex);
+    // A lane records the document again as the frame's recording did, or as the one an unrecorded frame keeps, which the
+    // compositor has to show: a clock frame presented before the committed one may have taken its place.
+    RefPtr<Compositing::DisplayList> source = committed.paint_command_cache_source;
+    if (committed.published.has_value())
+        source = committed.published->display_list;
+    if (!source || source != m_compositor_display_list || !m_compositor_visual_context_tree.has_value())
+        return nullptr;
+    auto sealed = make<SealedPresentation>();
+    sealed->paint_config = committed.paint_config;
+    sealed->visual_context_tree = *m_compositor_visual_context_tree;
+    sealed->scroll_state_snapshot = committed.scroll_state_snapshot;
+    sealed->keyboard_scroll_state = committed.keyboard_scroll_state;
+    sealed->paint_command_cache_source = m_compositor_display_list;
+    sealed->paint_command_cache_source_resources = m_compositor_display_list_command_resources;
+    sealed->recording = Painting::DisplayListRecording {
+        .visual_context_tree = *m_compositor_visual_context_tree,
+        .placeholder_display_list = Compositing::DisplayList::create(*m_compositor_visual_context_tree),
+        .cache_mode = Painting::PaintCommandCacheMode::ReadWrite,
+        .in_flight = true,
+        .async_scrolling_metadata = m_compositor_display_list->async_scrolling_metadata(),
+        .paint_command_cache_source = m_compositor_display_list,
+    };
+    if (auto color = m_compositor_display_list->surface_clear_color(); color.has_value())
+        sealed->recording->placeholder_display_list->set_surface_clear_color(*color);
+    sealed->context_id = committed.context_id;
+    sealed->present_viewport_rect = committed.present_viewport_rect;
+    sealed->presented_by = PresentedBy::Clock;
+    sealed->generation = committed.generation;
+    return sealed;
+}
+
 }
 
 extern "C" WEB_API void web_navigable_presenter_unref(void* presenter)
 {
     static_cast<Web::Compositor::NavigablePresenter*>(presenter)->unref();
+}
+
+extern "C" WEB_API void* web_navigable_presenter_seal_for_clock_lane(void* presenter, void const* committed)
+{
+    auto const& navigable_presenter = *static_cast<Web::Compositor::NavigablePresenter const*>(presenter);
+    auto sealed = navigable_presenter.seal_for_clock_lane(*static_cast<Web::Compositor::SealedPresentation const*>(committed));
+    if (!sealed)
+        return nullptr;
+    navigable_presenter.ref();
+    return sealed.leak_ptr();
 }
 
 extern "C" WEB_API void web_sealed_presentation_destroy(void* sealed)
@@ -152,11 +229,6 @@ extern "C" WEB_API void web_sealed_presentation_take_visual_context_tree(void* s
     sealed.visual_context_tree = move(visual_context_tree);
     // A frame whose display list is the one the compositor has takes the tree on its own.
     sealed.sends_visual_context_tree = true;
-}
-
-extern "C" WEB_API void web_sealed_presentation_note_visual_context_tree_changed(void* sealed)
-{
-    static_cast<Web::Compositor::SealedPresentation*>(sealed)->visual_context_tree_changed = true;
 }
 
 extern "C" WEB_API void web_navigable_presenter_add_font(void* presenter, void const* font)

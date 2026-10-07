@@ -679,13 +679,11 @@ pub unsafe extern "C" fn render_state_for_each_subtree_fragment_rect(
     }
 }
 
-/// The recorder state of `host`'s document, for a recording to take, once the clock lease that may have it ended and the
-/// last recording was published.
+/// The recorder state of `host`'s document, for a recording to take, once the last recording was published.
 fn take_recorder_for_recording(
     host: &crate::render_state::DocumentHost,
-    read: &crate::render_state::BegunRead,
+    _: &crate::render_state::BegunRead,
 ) -> crate::painting::record::recorder_state::RecorderState {
-    host.end_clock_lease_waiting(read);
     let mut recording = host.recording();
     debug_assert!(
         !recording.has_pending_recording() && !recording.has_recording_in_flight(),

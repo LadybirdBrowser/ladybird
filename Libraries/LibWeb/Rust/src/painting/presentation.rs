@@ -23,6 +23,7 @@ use std::sync::Arc;
 
 unsafe extern "C" {
     fn web_navigable_presenter_unref(presenter: *mut c_void);
+    fn web_navigable_presenter_seal_for_clock_lane(presenter: *mut c_void, committed: *const c_void) -> *mut c_void;
     fn web_sealed_presentation_destroy(sealed: *mut c_void);
     fn web_sealed_presentation_take_visual_context_tree(
         sealed: *mut c_void,
@@ -30,7 +31,6 @@ unsafe extern "C" {
         scroll_offsets: *const FloatPoint,
         scroll_offset_count: usize,
     );
-    fn web_sealed_presentation_note_visual_context_tree_changed(sealed: *mut c_void);
     fn web_navigable_presenter_add_font(presenter: *mut c_void, font: *const c_void);
     fn web_navigable_presenter_add_image_frame(presenter: *mut c_void, frame: *const c_void);
     fn web_navigable_presenter_add_video_sink(presenter: *mut c_void, resource_id: u64, sink_handle: u64);
@@ -149,13 +149,18 @@ impl Presentation {
         })
     }
 
-    /// Takes over what `ffi` names, which the host gives up, leaving it naming nothing.
-    ///
-    /// # Safety
-    /// See [`Self::adopt`].
-    pub(crate) unsafe fn take(ffi: &mut FfiPresentation) -> Option<Self> {
-        // SAFETY: Guaranteed by the caller.
-        unsafe { Self::adopt(std::mem::take(ffi)) }
+    /// What the clock lane of the frame this presented presents its frames with: the presenter, and a seal of frames
+    /// that start from this one, or none where the compositor shows another display list than this frame records from.
+    /// On the Paint thread, once this presented.
+    pub(crate) fn for_clock_lane(&self) -> Option<Self> {
+        // SAFETY: The presentation owns both objects. A seal the call answers comes with a reference to the presenter.
+        let sealed = NonNull::new(unsafe {
+            web_navigable_presenter_seal_for_clock_lane(self.presenter.0.as_ptr(), self.sealed.0.as_ptr())
+        })?;
+        Some(Self {
+            presenter: PresenterBox(self.presenter.0),
+            sealed: SealedPresentationBox(sealed),
+        })
     }
 
     /// Gives the presenter and the seal back to the host, which takes them over.
@@ -184,13 +189,6 @@ impl Presentation {
                 offsets.map_or(0, <[FloatPoint]>::len),
             );
         }
-    }
-
-    /// Has the host record the document again as it takes the presentation back, for a clock tick that changed the
-    /// document's visual context tree: a tick that parks before presenting takes the tree to no frame.
-    pub(crate) fn note_visual_context_tree_changed(&mut self) {
-        // SAFETY: The presentation owns the seal.
-        unsafe { web_sealed_presentation_note_visual_context_tree_changed(self.sealed.0.as_ptr()) };
     }
 
     /// Presents the sealed frame without a recording: the display list the compositor has stands, with
@@ -240,6 +238,11 @@ mod ffi_test_stubs {
     extern "C" fn web_navigable_presenter_unref(_: *mut c_void) {}
 
     #[unsafe(no_mangle)]
+    extern "C" fn web_navigable_presenter_seal_for_clock_lane(_: *mut c_void, _: *const c_void) -> *mut c_void {
+        std::ptr::null_mut()
+    }
+
+    #[unsafe(no_mangle)]
     extern "C" fn web_sealed_presentation_destroy(_: *mut c_void) {}
 
     #[unsafe(no_mangle)]
@@ -250,9 +253,6 @@ mod ffi_test_stubs {
         _: usize,
     ) {
     }
-
-    #[unsafe(no_mangle)]
-    extern "C" fn web_sealed_presentation_note_visual_context_tree_changed(_: *mut c_void) {}
 
     #[unsafe(no_mangle)]
     extern "C" fn web_navigable_presenter_add_font(_: *mut c_void, _: *const c_void) {}

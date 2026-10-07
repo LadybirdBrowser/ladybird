@@ -207,7 +207,13 @@ private:
     GC::Ref<WebIDL::Promise> current_ready_promise() const;
     GC::Ref<WebIDL::Promise> current_finished_promise() const;
 
-    void invalidate_effect();
+    // Whether an invalidation changes the animation as the last rendering update planned it for the render clock, rather
+    // than move it on in time, as a rendering update does.
+    enum class ChangesPlan : bool {
+        No,
+        Yes,
+    };
+    void invalidate_effect(ChangesPlan = ChangesPlan::Yes);
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-id
     Utf16FlyString m_id;

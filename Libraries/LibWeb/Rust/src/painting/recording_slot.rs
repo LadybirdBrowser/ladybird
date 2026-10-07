@@ -26,6 +26,7 @@ use crate::painting::paint_state::{PendingRecording, PendingRecordingTrace};
 use crate::painting::presentation::Presentation;
 use crate::painting::presentation::VectorImageResources;
 use crate::painting::published_frame::PublishedFrame;
+use crate::painting::record::publish::PresentedOutput;
 use crate::painting::record::recorder_state::RecorderState;
 use crate::painting::record::vector_images::VectorImageRenderRequest;
 use crate::painting::record::{RecordingInputs, RecordingOutput};
@@ -65,7 +66,7 @@ enum Recorded {
     Nothing,
     Pending(PendingRecording),
     Presented {
-        output: RecordingOutput,
+        output: PresentedOutput,
         publishes_recording: bool,
     },
     PresentedUnrecorded,
@@ -80,6 +81,8 @@ pub(crate) struct VectorImageFrame {
     pending: PendingRecording,
     presentation: Presentation,
     rows_version: RowsVersion,
+    /// The clock lane the frame starts once it is presented.
+    lane: Option<crate::render_state::LaneDelivery>,
 }
 
 impl VectorImageFrame {
@@ -101,6 +104,7 @@ impl VectorImageFrame {
             pending,
             mut presentation,
             rows_version,
+            lane,
         } = self;
         presentation
             .presenter
@@ -114,16 +118,20 @@ impl VectorImageFrame {
         );
         presentation.present(&FfiPresentedRecording::of_output(&output), presenting);
         let recorded = Recorded::Presented {
-            output,
+            output: PresentedOutput::of(output),
             publishes_recording,
         };
-        RecordingAnswer {
+        let answer = RecordingAnswer {
             recorder,
             recorded,
             rows_version,
             trace: None,
             presentation: Some(presentation),
+        };
+        if let Some(lane) = lane {
+            lane.deliver(&answer);
         }
+        answer
     }
 }
 
@@ -172,6 +180,7 @@ impl RecordingAnswer {
                     pending,
                     presentation,
                     rows_version,
+                    lane: None,
                 })),
                 None,
             ),
@@ -184,6 +193,39 @@ impl RecordingAnswer {
             trace,
             presentation,
         }
+    }
+
+    /// Hands `lane` the pieces of the clock lane of the committed frame this answers, once it presented: at once, or
+    /// once the frame that waits for its SVG images is.
+    pub(crate) fn start_clock_lane(&mut self, lane: crate::render_state::LaneDelivery) {
+        match &mut self.recorded {
+            Recorded::NeedsVectorImages(frame) => frame.get_mut().lane = Some(lane),
+            _ => lane.deliver(self),
+        }
+    }
+
+    /// What the clock lane of the committed frame this answers records and presents with, once the frame presented: a
+    /// fork of the recorder state as the recording left it, with what it published, a seal of frames that start from
+    /// the frame, and the recording the lane's fork of the render state takes in, if one published. None where the
+    /// frame presented nothing a lane starts from.
+    pub(crate) fn clock_lane_recorder(&self) -> Option<(RecorderState, Presentation, Option<Arc<RecordingOutput>>)> {
+        let fork_after = |published: Option<&PresentedOutput>| {
+            let mut recorder = self.recorder.fork();
+            if let Some(published) = published {
+                recorder.published_hit_test_items = Some(published.published_hit_test_items());
+                recorder.published_recording = Some(published.output.clone());
+            }
+            recorder
+        };
+        let (recorder, output) = match &self.recorded {
+            Recorded::PresentedUnrecorded => (fork_after(None), None),
+            Recorded::Presented {
+                output,
+                publishes_recording: true,
+            } => (fork_after(Some(output)), Some(output.output.clone())),
+            _ => return None,
+        };
+        Some((recorder, self.presentation.as_ref()?.for_clock_lane()?, output))
     }
 
     /// The answer of a committed frame that records nothing, which it presented, and gives back the recorder state and
@@ -252,7 +294,7 @@ impl RecordingJob {
             {
                 let publishes_recording = pending.publishes_recording;
                 Recorded::Presented {
-                    output: present(presentation, pending, &recorder, presenting),
+                    output: PresentedOutput::of(present(presentation, pending, &recorder, presenting)),
                     publishes_recording,
                 }
             }
@@ -287,6 +329,11 @@ static RECORDING_HOLD_RELEASED: Condvar = Condvar::new();
 
 fn recording_hold() -> MutexGuard<'static, RecordingHold> {
     RECORDING_HOLD.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Whether a test holds a recording that flies.
+pub(crate) fn recording_is_held_for_testing() -> bool {
+    matches!(*recording_hold(), RecordingHold::Holding)
 }
 
 /// Whether the recording about to fly is the one the test hold is armed for.
@@ -506,8 +553,6 @@ enum Recorder {
     Here(RecorderState),
     /// With the recording in flight, whose answer brings it back.
     InFlight(InFlight<RecordingAnswer>),
-    /// With the document's clock lease, whose landing brings it back.
-    WithClock,
 }
 
 impl Default for Recorder {
@@ -612,23 +657,11 @@ impl RecordingSlot {
     }
 
     /// The recorder state, for a recording to take until it answers. The host takes a recording in
-    /// flight in, and the presenter it holds back, and ends its clock lease, before it records again.
+    /// flight in before it records again.
     pub(crate) fn take_recorder(&mut self) -> RecorderState {
         match std::mem::take(&mut self.recorder) {
             Recorder::Here(recorder) => recorder,
             Recorder::InFlight(_) => panic!("the host takes its recording in flight in before it records again"),
-            Recorder::WithClock => panic!("the host ends its clock lease before it records again"),
-        }
-    }
-
-    /// The recorder state, for a clock lease to take until it lands, where it is here.
-    pub(crate) fn take_recorder_for_clock(&mut self) -> Option<RecorderState> {
-        match std::mem::replace(&mut self.recorder, Recorder::WithClock) {
-            Recorder::Here(recorder) => Some(recorder),
-            elsewhere => {
-                self.recorder = elsewhere;
-                None
-            }
         }
     }
 
@@ -661,7 +694,7 @@ impl RecordingSlot {
             Recorded::Presented {
                 output,
                 publishes_recording,
-            } => crate::painting::record::publish::take_in_published_output(
+            } => crate::painting::record::publish::take_in_presented_output(
                 &mut recorder,
                 &mut self.hit_test_list,
                 output,
@@ -792,7 +825,7 @@ mod tests {
     fn recorder_of(slot: &mut RecordingSlot) -> Option<&mut RecorderState> {
         match &mut slot.recorder {
             Recorder::Here(recorder) => Some(recorder),
-            Recorder::InFlight(_) | Recorder::WithClock => None,
+            Recorder::InFlight(_) => None,
         }
     }
 
@@ -908,7 +941,7 @@ mod tests {
         let flight = flight_of(
             &mut slot,
             Recorded::Presented {
-                output: RecordingOutput::default(),
+                output: PresentedOutput::of(RecordingOutput::default()),
                 publishes_recording: true,
             },
         );
@@ -943,7 +976,7 @@ mod tests {
         let flight = flight_of(
             &mut slot,
             Recorded::Presented {
-                output: RecordingOutput::default(),
+                output: PresentedOutput::of(RecordingOutput::default()),
                 publishes_recording: false,
             },
         );

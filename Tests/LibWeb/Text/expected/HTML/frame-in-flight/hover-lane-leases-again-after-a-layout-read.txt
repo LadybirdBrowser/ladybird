@@ -1,5 +1,0 @@
-lease as the first task begins: hovering
-box width read: 100
-lease after the read: none
-lease as the next task begins: hovering
-box width on screen: 150

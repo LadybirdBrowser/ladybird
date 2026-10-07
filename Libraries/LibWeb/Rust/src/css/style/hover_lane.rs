@@ -242,8 +242,6 @@ pub(crate) struct HoverWave {
     pub(crate) transitions: Vec<(HoverTransitions, DerivedStyleRecord)>,
     /// Why the render owner leaves the wave to the host where no row of it says, if it does.
     pub(crate) refusal: Option<&'static str>,
-    /// The elements whose rows owe the transition step, which starts no transition.
-    pub(crate) steps: Vec<StyleNodeID>,
 }
 
 impl HoverWave {
@@ -379,7 +377,6 @@ impl StyleEngine {
         // A row that owes its element the transition step starts the transitions the step decides, which the render
         // owner samples itself where nothing but the engine decides them.
         let mut transitions = Vec::new();
-        let mut steps = Vec::new();
         let mut composed = Vec::new();
         for row in rows.iter().filter(|row| row.owes_a_transition_step) {
             if !installable {
@@ -411,7 +408,6 @@ impl StyleEngine {
                 }
                 Ok(None) => {
                     if let Some(node) = StyleNodeID::from_raw(row.style_node) {
-                        steps.push(node);
                         composed.push((node, 0));
                     }
                 }
@@ -426,7 +422,6 @@ impl StyleEngine {
             installable,
             transitions,
             refusal,
-            steps,
         };
         if !wave.installable {
             self.release_hover_transition_samples(&mut wave);
@@ -799,10 +794,11 @@ impl StyleEngine {
 
     /// Leaves the rows of `wave`, which the render owner cannot install, to the host: the transaction's outputs are
     /// discarded, and each element of the wave owes the host the reaction its row answered, which the host's next style
-    /// update takes. Answers the style node identities the end of the transaction released.
-    pub(crate) fn abandon_hover_wave(&mut self, wave: &mut HoverWave) -> Vec<u32> {
+    /// update takes.
+    pub(crate) fn abandon_hover_wave(&mut self, wave: &mut HoverWave) {
         self.release_hover_transition_samples(wave);
-        let released = self.discard_style_transaction_outputs();
+        // NB: The engine is a lane's fork, whose released identities no host mints again.
+        let _ = self.discard_style_transaction_outputs();
         for (row, _) in wave.element_rows() {
             if let Some(node) = StyleNodeID::from_raw(row.style_node) {
                 self.record_derived_element_style_input(
@@ -812,13 +808,12 @@ impl StyleEngine {
                 );
             }
         }
-        released
     }
 
-    /// Ends the style transaction of a hover once its waves are installed, as the host ends one. Answers the style node
-    /// identities its end released.
-    pub(crate) fn end_hover_transaction(&mut self) -> Vec<u32> {
-        self.discard_style_transaction_outputs()
+    /// Ends the style transaction of a hover once its waves are installed, as the host ends one.
+    pub(crate) fn end_hover_transaction(&mut self) {
+        // NB: The engine is a lane's fork, whose released identities no host mints again.
+        let _ = self.discard_style_transaction_outputs();
     }
 
     /// Lets go of the records of `install`, which the host installed, or which a later install replaced.
@@ -846,9 +841,9 @@ pub unsafe extern "C" fn style_engine_request_hover(host: &crate::render_state::
     moves
 }
 
-/// Writes when the hover of the last clock lease of `host`'s document that ticked on a fork of its render state started
-/// the transitions of the element the style node `node` names to `start_time`, in the document's milliseconds, and
-/// answers whether it started any: the transitions the host's own hover starts there run from then.
+/// Writes when the hover of the clock lane of `host`'s document that follows the presented frame started the transitions
+/// of the element the style node `node` names to `start_time`, in the document's milliseconds, and answers whether it
+/// started any: the transitions the host's own hover starts there run from then.
 ///
 /// # Safety
 ///
@@ -866,8 +861,8 @@ pub unsafe extern "C" fn style_engine_lane_transition_start(
     true
 }
 
-/// Forgets when the hover of the last forked clock lease of `host`'s document started transitions, once the host's own
-/// hover started its.
+/// Forgets when the hover of the clock lane of `host`'s document started transitions, once the host's own hover started
+/// its.
 ///
 /// # Safety
 ///

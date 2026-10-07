@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #spinner { width: 100px; height: 20px; }
+    #box { width: 100px; height: 100px; outline: 1px solid rgb(0, 0, 255); }
+    #box:hover { width: 150px; outline-color: rgb(0, 128, 0); }
+</style>
+<div id="spinner"></div>
+<div id="box"></div>
+<script>
+    // A task that starts an animation stops the animations the clock lease samples, which no longer stand, but not its
+    // hover: the lease hovers the next move beside the task.
+    asyncTest(async done => {
+        const result = await whileHoverLeased(frameTime => {
+            // The pointer moves over the document.
+            internals.moveHoverPointer(500, 500);
+            spinner.animate([{ opacity: 1 }, { opacity: 0 }], 100000);
+            internals.injectHoverPointer(50, 60, frameTime + 16);
+            return { onScreen: internals.presentedBorderBox(box)?.width, presentedBy: internals.lastFramePresentedBy(document) };
+        });
+        println(`box width on screen: ${result.onScreen}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        await nextFrame();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        done();
+    });
+</script>

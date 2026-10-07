@@ -2294,9 +2294,9 @@ bool Document::layout_is_up_to_date() const
         return true;
     if (m_reads_layout_as_it_flew)
         return true;
-    // A frame in flight, or a round that flew or a clock lease ran and is not paid yet, brings layout the host waits
-    // for, which the host knows without reading the render state. So does style that flew, which is pending until a read
-    // of the document drains it: a read of a document it embeds asks here, and lays the document out to drain it.
+    // A frame in flight, or a round that flew and is not paid yet, brings layout the host waits for, which the host
+    // knows without reading the render state. So does style that flew, which is pending until a read of the document
+    // drains it: a read of a document it embeds asks here, and lays the document out to drain it.
     if (has_flown_style_transaction() || (m_layout_node_arena && m_layout_node_arena->render_document().waits_for_frame()))
         return false;
     // Without an arena there is no layout root either, so there is a tree to build.
@@ -10304,13 +10304,20 @@ RefPtr<Compositing::DisplayList> Document::record_display_list(Layout::BegunRead
 {
     // The host reads this recording right after it, so a recording in flight is taken in first: it has the recorder
     // state.
+    // The navigable's resource storage is the Paint thread's while the document's clock lane presents: a recording
+    // that adds to it holds the lane meanwhile.
+    auto* host = layout_node_arena().host();
+    bool holds_clock_lane = false;
     if (auto navigable = this->navigable()) {
         navigable->take_recording_in_flight_in(HTML::LocalNavigable::TakeIn::Wait);
-        // What a clock lease's ticks published, a recording that publishes copies from, which the document takes in with
-        // the presenter.
-        if (cache_mode == Painting::PaintCommandCacheMode::ReadWrite)
-            (void)navigable->presenter();
+        holds_clock_lane = &resource_storage == &navigable->display_list_resource_storage();
     }
+    if (holds_clock_lane)
+        Layout::RustFFI::document_host_hold_clock_lane(host);
+    ScopeGuard release_clock_lane = [&] {
+        if (holds_clock_lane)
+            Layout::RustFFI::document_host_release_clock_lane(host);
+    };
     auto recording = start_display_list_recording(read, config, cache_mode);
     if (!recording.has_value())
         return nullptr;
@@ -10375,11 +10382,11 @@ RefPtr<Compositing::DisplayList> Document::finish_display_list_recording(Layout:
     auto display_list = Painting::finish_rust_display_list_recording(read, *this, recording, resource_storage);
     if (!display_list)
         return nullptr;
-    adopt_published_recording(hit_test_list_read(read, hit_test_list_stands), recording, *display_list, resource_storage);
+    adopt_published_recording(hit_test_list_read(read, hit_test_list_stands), recording, *display_list, resource_storage.collect_referenced_resources(*display_list));
     return display_list;
 }
 
-void Document::adopt_published_recording(Optional<Layout::BegunRead const&> hit_test_list_read, Painting::DisplayListRecording const& recording, NonnullRefPtr<Compositing::DisplayList> display_list, Compositing::DisplayListResourceStorage& resource_storage)
+void Document::adopt_published_recording(Optional<Layout::BegunRead const&> hit_test_list_read, Painting::DisplayListRecording const& recording, NonnullRefPtr<Compositing::DisplayList> display_list, Compositing::DisplayListResourceSet referenced_resources)
 {
     auto& document_paint_state = paint_state();
     bool const recording_returned_the_paint_command_cache_source = display_list == document_paint_state.display_list_used_as_paint_command_cache_source();
@@ -10389,7 +10396,7 @@ void Document::adopt_published_recording(Optional<Layout::BegunRead const&> hit_
         m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(*hit_test_list_read, recording.visual_context_tree.structural_epoch(), layout_node_arena(), *m_chrome_widget_registry);
 
     if (recording.cache_mode == Painting::PaintCommandCacheMode::ReadWrite && !recording_returned_the_paint_command_cache_source)
-        document_paint_state.set_display_list_used_as_paint_command_cache_source(display_list, resource_storage.collect_referenced_resources(*display_list));
+        document_paint_state.set_display_list_used_as_paint_command_cache_source(display_list, move(referenced_resources));
 }
 
 void Document::set_caret_hit_test_debug_rect(Optional<CSSPixelRect> rect)

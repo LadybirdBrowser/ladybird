@@ -797,41 +797,14 @@ void LocalNavigable::visit_edges(Cell::Visitor& visitor)
         visitor.visit(entry.target);
     if (m_recording_in_flight)
         visitor.visit(m_recording_in_flight->document);
-    visitor.visit(m_presenting_beside_event_loop);
 }
 
 Compositor::NavigablePresenter& LocalNavigable::presenter()
 {
-    if (!m_presenting_beside_event_loop)
-        return *m_presenter;
-    if (m_recording_in_flight) {
+    // The frame in flight reaches the compositor before anything the caller presents or reads of what was presented.
+    if (m_recording_in_flight)
         take_recording_in_flight_in(TakeIn::Wait);
-        return *m_presenter;
-    }
-    // The document's clock lease presents with the presenter, or ended already.
-    GC::Ref<DOM::Document> holder = *m_presenting_beside_event_loop;
-    m_presenting_beside_event_loop = nullptr;
-    Layout::RustFFI::FfiPresentation presentation {};
-    Layout::RustFFI::document_host_take_back_presentation(holder->layout_node_arena().host(), &presentation);
-    VERIFY(presentation.presenter == m_presenter.ptr());
-    static_cast<Compositor::NavigablePresenter*>(presentation.presenter)->unref();
-    auto& presenter = *m_presenter;
-    auto sealed = adopt_own(*static_cast<Compositor::SealedPresentation*>(presentation.sealed));
-    bool const published = sealed->published.has_value();
-    if (!published)
-        unseal_presentation(holder, *sealed);
-    // A tick that changed the visual context tree and published nothing leaves the tree to the next recording.
-    bool const records_again = published || sealed->visual_context_tree_changed;
-    if (!records_again || has_been_destroyed() || active_document().ptr() != holder.ptr() || !holder->has_committed_viewport_box())
-        return presenter;
-    // The ticks presented frames of boxes that took back the styles the host installed for them: the next recording
-    // copies from what the last tick published, and the document's boxes are recorded again, with their hit-test list.
-    if (published)
-        holder->adopt_published_recording({}, *sealed->recording, sealed->published->display_list, presenter.display_list_resource_storage());
-    m_needs_repaint = true;
-    m_needs_to_record_display_list = true;
-    page().client().request_frame();
-    return presenter;
+    return *m_presenter;
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-closable
@@ -6933,7 +6906,7 @@ bool LocalNavigable::commit_frame(PaintConfig paint_config)
         commit_unrecorded_frame(read, *document, move(sealed));
         return true;
     }
-    auto recording = document->commit_display_list_recording(read, paint_config, take_presentation(*document, move(sealed)));
+    auto recording = document->commit_display_list_recording(read, paint_config, take_presentation(move(sealed)));
     // What asks for another recording once this one has started asks for the next one.
     m_needs_to_record_display_list = false;
     m_recording_in_flight = make<RecordingInFlight>(*document, move(recording));
@@ -6944,22 +6917,22 @@ bool LocalNavigable::commit_frame(PaintConfig paint_config)
 // The frame goes to the render owner, which samples it, and has the Paint thread record it where it records, and present
 // it beside the event loop, in the order of the frames the render clock samples. The presenter goes with the frame, and
 // comes back once the event loop takes the frame in.
-Compositor::FlightPresentation LocalNavigable::take_presentation(DOM::Document& document, Compositor::SealedPresentation sealed)
+Compositor::FlightPresentation LocalNavigable::take_presentation(Compositor::SealedPresentation sealed)
 {
     sealed.context_id = compositor_context().id();
     sealed.present_viewport_rect = present_viewport_rect();
+    sealed.generation = ++m_committed_generation;
     Compositor::FlightPresentation presentation {
         .presenter = m_presenter,
         .sealed = make<Compositor::SealedPresentation>(move(sealed)),
     };
-    m_presenting_beside_event_loop = document;
     main_thread_event_loop().ensure_frame_completion_registered();
     return presentation;
 }
 
 void LocalNavigable::commit_unrecorded_frame(Layout::BegunRead const& read, DOM::Document& document, Compositor::SealedPresentation sealed)
 {
-    Painting::commit_unrecorded_frame(read, document, take_presentation(document, move(sealed)));
+    Painting::commit_unrecorded_frame(read, document, take_presentation(move(sealed)));
     m_recording_in_flight = make<RecordingInFlight>(document, OptionalNone {});
     main_thread_event_loop().did_commit_frame(*this, CommittedFrameRecords::No);
 }
@@ -6991,100 +6964,39 @@ PaintConfig LocalNavigable::stamp_paint_config(PaintConfig paint_config) const
     return paint_config;
 }
 
-// Leases the active document's render state to the render clock as a task begins, with this navigable's presenter and a
-// seal of the frames the clock presents, where the last rendering update left the document a plan for a lease, and arms
-// the render clock to tick it.
-bool LocalNavigable::lease_clock(ClockAnimations animations)
+// Tells the clock lane of the active document whether a task runs, beside which the lane samples the document's
+// running animations, and has it tick at once as a task begins. Answers whether the navigable still has a lane.
+bool LocalNavigable::note_clock_lane(ClockAnimations animations)
 {
     auto document = active_document();
-    if (has_been_destroyed() || !document || !has_compositor_context() || !document->has_committed_viewport_box())
+    if (has_been_destroyed() || !document || !has_compositor_context())
         return false;
-    auto* host = document->layout_node_arena().host();
-    Layout::RustFFI::document_host_note_event_loop_runs_task(host, animations == ClockAnimations::Run);
-    if (Layout::RustFFI::document_host_clock_lease_runs(host)) {
-        if (animations == ClockAnimations::Run) {
-            if (auto const* ticks = Layout::RustFFI::document_host_run_clock_animations(host))
-                arm_clock_lease(ticks, true);
-        }
-        return true;
-    }
-    if (!compositor_context().ready_for_frame())
-        return Layout::RustFFI::document_host_may_lease_clock(host);
-    // The render clock went on handing a lease taken up again the pointer, and ticks it where a move waits.
-    if (auto const* ticks = Layout::RustFFI::document_host_resume_clock_lease(host)) {
-        if (Layout::RustFFI::clock_ticks_pointer_waits(ticks))
-            arm_clock_lease(ticks, false);
-        else
-            Layout::RustFFI::clock_ticks_release(ticks);
-        return true;
-    }
-    if (!Layout::RustFFI::document_host_has_clock_plan(host))
-        return Layout::RustFFI::document_host_may_lease_clock(host);
-    bool const animates = Layout::RustFFI::document_host_clock_plan_animates(host);
-    bool const runs_animations = animates && animations == ClockAnimations::Run;
-    // Only a recording that still runs keeps the presenter. A task the plan's animations would stand still through,
-    // or that the pointer may move beside, waits for it to finish. Otherwise the lease begins once it has: its finish
-    // wakes the event loop.
-    bool const waits_for_recording = runs_animations || (animations == ClockAnimations::Run && Layout::RustFFI::document_host_pointer_is_active(host));
-    if (m_recording_in_flight && !take_recording_in_flight_in(waits_for_recording ? TakeIn::Wait : TakeIn::IfFinished))
-        return true;
-    // A task since the update that changed what the document lays out leaves the rest to the next update.
-    if (!document->layout_is_up_to_date()) {
-        Layout::RustFFI::document_host_drop_clock_plan(host);
+    auto* arena = document->layout_node_arena_if_created();
+    if (!arena)
         return false;
-    }
-    // A tick records the document again as the recording it published last did, which the compositor shows.
-    auto& presenter = this->presenter();
-    auto compositor_display_list = presenter.compositor_display_list();
-    if (!compositor_display_list || compositor_display_list != document->paint_state().display_list_used_as_paint_command_cache_source()) {
-        Layout::RustFFI::document_host_drop_clock_plan(host);
-        return false;
-    }
-    auto sealed = make<Compositor::SealedPresentation>(seal_presentation(*document, presenter.compositor_display_list_paint_config().value(), true));
-    sealed->recording = Painting::DisplayListRecording {
-        .visual_context_tree = sealed->visual_context_tree.value(),
-        .placeholder_display_list = Compositing::DisplayList::create(sealed->visual_context_tree.value()),
-        .cache_mode = Painting::PaintCommandCacheMode::ReadWrite,
-        .in_flight = true,
-        .async_scrolling_metadata = compositor_display_list->async_scrolling_metadata(),
-        .paint_command_cache_source = compositor_display_list,
-    };
-    if (auto color = compositor_display_list->surface_clear_color(); color.has_value())
-        sealed->recording->placeholder_display_list->set_surface_clear_color(*color);
-    sealed->context_id = compositor_context().id();
-    sealed->present_viewport_rect = page().css_to_device_rect(viewport_rect()).to_type<int>();
-    sealed->presented_by = Compositor::PresentedBy::Clock;
-
-    auto& leased_presenter = NonnullRefPtr { m_presenter }.leak_ref();
-    Layout::RustFFI::FfiPresentation presentation { .presenter = &leased_presenter, .sealed = sealed.ptr() };
-    auto const* ticks = Layout::RustFFI::document_host_lease_clock(host, &presentation, animates && !runs_animations);
-    if (presentation.presenter) {
-        leased_presenter.unref();
-        unseal_presentation(*document, *sealed);
-        return Layout::RustFFI::document_host_may_lease_clock(host);
-    }
-    (void)sealed.leak_ptr();
-    m_presenting_beside_event_loop = document;
-    arm_clock_lease(ticks, runs_animations);
+    auto* host = arena->host();
+    if (Layout::RustFFI::document_host_note_event_loop_task(host, animations == ClockAnimations::Run))
+        arm_clock_lane(true);
     return true;
 }
 
-// Arms the render clock to tick the lease `ticks` belong to, which takes over the reference to them.
-void LocalNavigable::arm_clock_lease(Layout::RustFFI::ClockTicks const* ticks, bool animates)
+// Has the render clock hand the clock lanes of the active document the pointer moves over this navigable's compositor
+// context, and the display ticks they ask for, ticking them at once with `tick_now`.
+void LocalNavigable::arm_clock_lane(bool tick_now)
 {
     // A test injects its ticks itself.
-    if (main_thread_event_loop().render_clock_is_manual_for_testing()) {
-        Layout::RustFFI::clock_ticks_release(ticks);
+    if (main_thread_event_loop().render_clock_is_manual_for_testing())
         return;
-    }
-    // The first tick of a lease that animates runs at once, rather than at the next display tick: the frame the rendering
-    // update presented is the last one until a tick presents. One that only follows the pointer waits for it to move,
-    // unless a move waits already.
-    bool const pointer_waits = Layout::RustFFI::clock_ticks_pointer_waits(ticks);
-    auto handle = adopt_ref(*new Compositor::ClockTicksHandle { ticks });
-    if (animates)
+    auto document = active_document();
+    if (!document || !has_compositor_context())
+        return;
+    auto* arena = document->layout_node_arena_if_created();
+    if (!arena)
+        return;
+    auto handle = adopt_ref(*new Compositor::ClockTicksHandle { Layout::RustFFI::document_host_clock_ticks(arena->host()) });
+    if (tick_now)
         (void)handle->tick(static_cast<i64>(HighResolutionTime::unsafe_shared_current_time() * 1'000'000.0), {});
-    Compositor::RenderClock::the().arm_lease(compositor_context().id(), page().client().maximum_frames_per_second(), move(handle), animates || pointer_waits);
+    Compositor::RenderClock::the().arm_lane(compositor_context().id(), page().client().maximum_frames_per_second(), move(handle), tick_now);
 }
 
 // Seals what a frame of `document` reads of the document and this navigable where the frame begins: the frame is built
@@ -7101,8 +7013,9 @@ Compositor::SealedPresentation LocalNavigable::seal_presentation(DOM::Document& 
     paint_state.did_update_visual_context_tree_in_compositor();
     Compositing::ScrollStateSnapshot scroll_state_snapshot { paint_state.scroll_state_snapshot() };
     scroll_state_snapshot.set_adopted_async_scroll_sequence(m_adopted_async_scroll_sequence);
+    // A keyboard scroll reads the layout, which one the host knows is stale leaves to the next frame that lays it out.
     Optional<Compositing::KeyboardScrollState> keyboard_scroll_state;
-    if (is_top_level_traversable())
+    if (is_top_level_traversable() && !document.layout_is_known_stale())
         keyboard_scroll_state = page().take_keyboard_scroll_state_for_compositor(0);
     return Compositor::SealedPresentation {
         .paint_config = paint_config,
@@ -7164,7 +7077,6 @@ void LocalNavigable::finish_recording_in_flight(RecordingInFlight& in_flight, La
     GC::Ref<DOM::Document> document = in_flight.document;
     VERIFY(given_back.presenter == m_presenter.ptr());
     static_cast<Compositor::NavigablePresenter*>(given_back.presenter)->unref();
-    m_presenting_beside_event_loop = nullptr;
     auto sealed = adopt_own(*static_cast<Compositor::SealedPresentation*>(given_back.sealed));
     // A frame the render owner found no box to record of presents nothing.
     if (landing == Layout::RustFFI::FfiRecordingLanding::NothingRecorded) {
@@ -7182,7 +7094,7 @@ void LocalNavigable::finish_recording_in_flight(RecordingInFlight& in_flight, La
     // leaves no hit-test list, as the boxes it names may be gone.
     auto const hit_test_list_stands = landing == Layout::RustFFI::FfiRecordingLanding::LandedBehindRows ? Painting::HitTestListStands::No : Painting::HitTestListStands::Yes;
     Painting::take_recording_trace_if_pending(read, *document);
-    document->adopt_published_recording(Painting::hit_test_list_read(read, hit_test_list_stands), *in_flight.recording, sealed->published->display_list, presenter().display_list_resource_storage());
+    document->adopt_published_recording(Painting::hit_test_list_read(read, hit_test_list_stands), *in_flight.recording, sealed->published->display_list, sealed->published->referenced_resources);
 }
 
 void LocalNavigable::paint_next_frame()

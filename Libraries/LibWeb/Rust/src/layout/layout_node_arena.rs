@@ -5727,12 +5727,6 @@ pub unsafe extern "C" fn render_state_layout_is_up_to_date(host: &DocumentHost, 
     let Some(here) = host.layout_waits_for_no_frame() else {
         return false;
     };
-    // A clock lease ends before the host reads the state. One that moved nothing gives back the facts the host knew
-    // before it, which answer without asking; the rounds one laid out are layout the host waits for.
-    host.end_clock_lease_waiting(here);
-    let Some(here) = host.layout_waits_for_no_frame() else {
-        return false;
-    };
     let document = StyleNodeID::from_raw(document_style_node);
     if let Some(up_to_date) = known_layout_is_up_to_date(host, &here, document) {
         return up_to_date;

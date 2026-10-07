@@ -25,7 +25,7 @@ mod wait;
 pub use clock::FfiPlannedScrollTimeline;
 pub use clock::hover::FfiHoverPlanInputs;
 pub(crate) use clock::hover::HoverPlan;
-pub(crate) use clock::{ClockPlan, CommittedContent, CommittedFrame, SampledFrame};
+pub(crate) use clock::{ClockPlan, CommittedContent, CommittedFrame, LaneDelivery, SampledFrame};
 pub use document_host::DocumentHost;
 pub(crate) use document_host::OwedWorkPayment;
 #[cfg(test)]
@@ -336,6 +336,18 @@ pub(crate) enum ArenaChange {
 }
 
 impl ArenaChange {
+    /// Whether the change leaves the render state showing what the frame sampled last showed: it takes in the recording
+    /// of that frame, which a lane's fork takes in too, or only keeps the engine from reclaiming records.
+    pub(crate) fn keeps_the_presented_frame(&self) -> bool {
+        match self {
+            Self::Paint(crate::painting::paint_changes::PaintChange::TakeInRecording { .. }) => true,
+            Self::Style(change) => change.only_keeps_records_alive(),
+            _ => false,
+        }
+    }
+}
+
+impl ArenaChange {
     /// # Safety
     ///
     /// `engine` must name the live style engine `arena` links, which nothing else borrows meanwhile.
@@ -621,13 +633,6 @@ impl ChangeQueue {
         queued.push(change);
     }
 
-    /// Queues `change` ahead of every write queued before it.
-    fn push_front(&self, change: ArenaChange) {
-        self.note(&change);
-        self.replaced_paint_facts_positions.borrow_mut().clear();
-        self.queued.borrow_mut().insert(0, change);
-    }
-
     /// Whether the writes queued may write the style record of the row `id`, which `rows`, published before them, has.
     fn may_write_style_of(
         &self,
@@ -762,6 +767,7 @@ pub(crate) fn fly(
     host.let_frame_fly(|document, seed, marks| {
         // A host that waits for the frame says the stop word, and the frame comes back with its style alone.
         let run = move |stop: &crate::stage_thread::StopWord| {
+            clock::note_host_write(document);
             owner::with_state(document, seed, |state| {
                 let ((style, applied, round), marks) = state.with_marks(marks, |state| {
                     state.apply(changes.drain(..));
@@ -863,7 +869,6 @@ mod tests {
     #[test]
     fn replaced_paint_facts_replace_the_facts_queued_for_their_box() {
         use crate::css::style::tree::StyleNodeID;
-        use crate::layout::layout_changes::LayoutChange;
         use crate::layout::node_data::NodeSlotId;
         use crate::layout::tree_update_marks::MarkedBox;
         use crate::painting::host::FfiCanvasPaintFacts;
@@ -915,13 +920,6 @@ mod tests {
             queued_facts(),
             [canvas(4), canvas(5)],
             "a write that may rebind the box keeps the facts before it"
-        );
-        queue.push_front(ArenaChange::Layout(LayoutChange::RecordPartialRelayoutEscape));
-        push(element, canvas(6));
-        assert_eq!(
-            queued_facts(),
-            [canvas(4), canvas(5), canvas(6)],
-            "a write queued ahead of the facts keeps them"
         );
     }
 

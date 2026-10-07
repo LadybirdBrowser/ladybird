@@ -1,28 +1,12 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
 <script src="frame-in-flight.js"></script>
-<style>
-    @keyframes shrink {
-        from { height: 50px; }
-        to { height: 10px; }
-    }
-    #header {
-        height: 50px;
-        animation: shrink linear both;
-        animation-timeline: scroll(root);
-    }
-    #spacer {
-        height: 2000px;
-    }
-</style>
-<div id="header"></div>
 <div id="box" style="width: 10px; height: 0px; background: green"></div>
-<div id="spacer"></div>
+<div id="other" style="width: 10px; height: 10px; background: blue"></div>
 <script>
-    // A task that begins while the last rendering update's frame is still being painted runs the page's animations: the
-    // lane of the frame ticks them once the painting finishes beside the task, rather than leave the animations still
-    // until a later task. The scroll-driven animation keeps the rendering update's style in step, so painting is what
-    // still runs.
+    // The rendering update of a nested event loop presents a frame and leaves it no plan. The next rendering update,
+    // which presents nothing of its own, seals the plan for that frame: the frame's lane ticks the running animations
+    // beside the tasks after it.
     asyncTest(async done => {
         internals.setManualRenderingOpportunities(true);
         await nextTask();
@@ -35,12 +19,12 @@
             internals.injectRenderingOpportunity(frameTime);
             await nextTask();
         }
-        internals.holdNextFrame();
-        frameTime += 16;
+        other.style.backgroundColor = "green";
+        alert("nested");
         internals.injectRenderingOpportunity(frameTime);
-        await nextTask();
-        println(`clock in the first task after the update: ${internals.clockLeaseState(document)}`);
-        internals.releaseHeldFrame();
+        do await nextTask();
+        while (internals.frameSchedulerState() !== "idle");
+        println(`lane in the first task after the updates: ${internals.clockLeaseState(document)}`);
         internals.injectClockTick(frameTime + 1000);
         println(`last frame presented by: ${internals.lastFramePresentedBy(document)}`);
         internals.setManualRenderingOpportunities(false);

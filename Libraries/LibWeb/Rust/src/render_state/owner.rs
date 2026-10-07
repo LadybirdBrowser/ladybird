@@ -12,7 +12,7 @@
 //! sends its state anything never makes one, and drops it with the job that retires it.
 
 use super::RenderState;
-use std::cell::{RefCell, UnsafeCell};
+use std::cell::{Cell, RefCell, UnsafeCell};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
@@ -56,9 +56,16 @@ impl SharedWithHost {
 }
 
 thread_local! {
-    // On the owner, each document's render state. A state is boxed, so a job reaching it keeps reaching it while the
-    // job makes another document's state.
-    static STATES: RefCell<HashMap<DocumentId, Box<UnsafeCell<RenderState>>>> = RefCell::new(HashMap::new());
+    // On the owner, each document's render state and clock lanes. An entry is boxed, so a job reaching it keeps reaching
+    // it while the job makes another document's state.
+    static STATES: RefCell<HashMap<DocumentId, Box<DocumentEntry>>> = RefCell::new(HashMap::new());
+}
+
+/// What the owner holds of a document.
+struct DocumentEntry {
+    state: UnsafeCell<RenderState>,
+    /// The lanes of the document's presented frames (see [`super::clock`]), which a job on them takes out meanwhile.
+    lanes: Cell<Option<super::clock::LaneSlot>>,
 }
 
 /// On the owner: runs `job` on the render state of `document`, made from `seed` where no job has reached it yet.
@@ -72,23 +79,43 @@ pub(super) fn with_state<R>(
     job: impl FnOnce(&mut RenderState) -> R,
 ) -> R {
     let state = STATES.with_borrow_mut(|states| {
-        let state = match seed {
-            Some(seed) => states
-                .entry(document)
-                .or_insert_with(|| Box::new(UnsafeCell::new(RenderState::new(seed)))),
+        let entry = match seed {
+            Some(seed) => states.entry(document).or_insert_with(|| {
+                Box::new(DocumentEntry {
+                    state: UnsafeCell::new(RenderState::new(seed)),
+                    lanes: Cell::default(),
+                })
+            }),
             None => states
                 .get_mut(&document)
                 .expect("a document's first job makes its render state"),
         };
-        state.get()
+        entry.state.get()
     });
     // SAFETY: The state stays boxed in the map until a job retires it, which no job of the document runs inside of.
     job(unsafe { &mut *state })
 }
 
-/// On the owner: drops the render state of `document`, where a job made one.
+/// On the owner: runs `job` on the lanes of `document`, where a job made its render state. A job on them that reaches
+/// them again finds none.
+pub(super) fn with_lanes<R>(
+    document: DocumentId,
+    job: impl FnOnce(&mut Option<super::clock::LaneSlot>) -> R,
+) -> Option<R> {
+    let lanes = STATES.with_borrow(|states| states.get(&document).map(|entry| std::ptr::from_ref(&entry.lanes)))?;
+    // SAFETY: The entry stays boxed in the map until a job retires it, which no job of the document runs inside of.
+    let lanes = unsafe { &*lanes };
+    let mut taken = lanes.take();
+    let answer = job(&mut taken);
+    lanes.set(taken);
+    Some(answer)
+}
+
+/// On the owner: drops the render state of `document`, where a job made one, and its lanes.
 pub(super) fn retire(document: DocumentId) {
-    if let Some(state) = STATES.with_borrow_mut(|states| states.remove(&document)) {
+    if let Some(entry) = STATES.with_borrow_mut(|states| states.remove(&document)) {
+        let DocumentEntry { state, lanes } = *entry;
+        drop(lanes);
         state.into_inner().retire();
     }
 }

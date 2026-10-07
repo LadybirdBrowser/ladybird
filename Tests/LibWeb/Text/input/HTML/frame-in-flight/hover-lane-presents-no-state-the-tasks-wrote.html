@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; outline: 1px solid rgb(0, 0, 255); }
+    #box:hover { outline-color: rgb(0, 128, 0); }
+</style>
+<div id="box"></div>
+<script>
+    // A task that writes to the document and reads its layout leaves a state the screen does not show, which the lane of
+    // the presented frame never presents: it hovers on a fork of the state as the frame left it, taken before the task
+    // first wrote the state.
+    asyncTest(async done => {
+        const result = await whileHoverLeased(async frameTime => {
+            box.style.width = "120px";
+            const width = box.offsetWidth;
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            return { width, onScreen: internals.presentedBorderBox(box)?.width, presentedBy: internals.lastFramePresentedBy(document) };
+        });
+        println(`box width read: ${result.width}`);
+        println(`box width a tick presented: ${result.onScreen}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        done();
+    });
+</script>

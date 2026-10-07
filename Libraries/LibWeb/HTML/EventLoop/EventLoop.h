@@ -26,7 +26,7 @@ enum class FfiFlightBlocker : uint8_t;
 
 namespace Web::HTML {
 
-// What the render clock does with a document's running animations as it leases the document's render state.
+// What the render clock's lanes do with a document's running animations.
 enum class ClockAnimations : u8 {
     // Leaves them alone: the event loop is idle, and its rendering updates run them.
     Hold,
@@ -212,7 +212,7 @@ private:
     // Goes on with the rendering update in flight where it has landed, and presents the recordings that have landed.
     void take_finished_frames_in();
     bool let_layout_of_rendering_update_fly();
-    void lease_clocks(ClockAnimations);
+    void note_clock_lanes(ClockAnimations);
 
     Type m_type { Type::Window };
 
@@ -266,9 +266,9 @@ private:
 
     // The navigables whose committed frame flies beside the event loop, which has not taken it in yet.
     Vector<GC::Ref<LocalNavigable>> m_navigables_with_frames_in_flight;
-    // The navigables whose active document a rendering update left a plan for a clock lease, which the render clock may
-    // still lease.
-    Vector<GC::Ref<LocalNavigable>> m_navigables_with_clock_plans;
+    // The navigables whose active document a rendering update left a plan for the lane of its frame, which the event
+    // loop tells whether it runs a task.
+    Vector<GC::Ref<LocalNavigable>> m_navigables_with_clock_lanes;
     bool m_render_clock_is_manual_for_testing { false };
     bool m_frame_completion_registered { false };
     bool m_holds_next_frame_for_testing { false };

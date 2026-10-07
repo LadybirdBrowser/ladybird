@@ -1694,14 +1694,14 @@ void Internals::move_hover_pointer(double x, double y)
 
 Utf16String Internals::clock_lease_state(DOM::Document& document)
 {
-    switch (Layout::RustFFI::document_host_clock_lease_state(document.layout_node_arena().host())) {
-    case Layout::RustFFI::FfiClockLeaseState::None:
+    switch (Layout::RustFFI::document_host_clock_lane_state(document.layout_node_arena().host())) {
+    case Layout::RustFFI::FfiClockLaneState::None:
         return "none"_utf16;
-    case Layout::RustFFI::FfiClockLeaseState::Ticking:
+    case Layout::RustFFI::FfiClockLaneState::Ticking:
         return "ticking"_utf16;
-    case Layout::RustFFI::FfiClockLeaseState::Parked:
+    case Layout::RustFFI::FfiClockLaneState::Parked:
         return "parked"_utf16;
-    case Layout::RustFFI::FfiClockLeaseState::Hovering:
+    case Layout::RustFFI::FfiClockLaneState::Hovering:
         return "hovering"_utf16;
     }
     VERIFY_NOT_REACHED();
@@ -1725,8 +1725,8 @@ Optional<String> Internals::presented_color(DOM::Element& element)
 
 void Internals::set_manual_rendering_opportunities(bool enabled)
 {
-    // A test that injects its rendering opportunities injects its clock ticks too: the clock lease that runs now ends,
-    // and no later one ticks with the display.
+    // A test that injects its rendering opportunities injects its clock ticks too: the clock lanes tick with the display
+    // no more, and the frame in flight reaches the compositor first.
     HTML::main_thread_event_loop().set_render_clock_is_manual_for_testing(enabled);
     if (enabled) {
         if (auto* navigable = as_if<HTML::LocalNavigable>(window().associated_document().navigable().ptr()))

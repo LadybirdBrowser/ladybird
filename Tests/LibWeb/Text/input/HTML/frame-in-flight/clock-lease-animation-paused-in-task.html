@@ -3,8 +3,8 @@
 <script src="frame-in-flight.js"></script>
 <div id="box" style="width: 10px; height: 0px; background: green"></div>
 <script>
-    // Script that changes an animation beside a clock lease ends the lease: the lease ticked the animations as the last
-    // rendering update planned them.
+    // Script that changes an animation beside the lane of the presented frame parks the lane's animations: the lane ticked
+    // them as the last rendering update planned them.
     asyncTest(async done => {
         const result = await whileClockLeased(() => {
             return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
