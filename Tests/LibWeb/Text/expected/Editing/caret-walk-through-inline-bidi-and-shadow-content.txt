@@ -50,12 +50,12 @@ wrap Down #text[0]:4
 wrap Down #text[0]:8
 wrap Down #text[0]:14
 wrap Down #text[0]:19
+wrap Down #text[0]:24
 wrap Down #text[0]:27
-wrap Down #text[0]:27
+wrap Up #text[0]:19
 wrap Up #text[0]:14
 wrap Up #text[0]:8
 wrap Up #text[0]:4
-wrap Up #text[0]:0
 wrap Up #text[0]:0
 wrap Up #text[0]:0
 wrap Home #text[0]:0

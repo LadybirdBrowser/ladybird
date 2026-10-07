@@ -98,12 +98,33 @@ static FaceStyle read_declared_style(hb_face_t* face)
     return style;
 }
 
+// The ascender, the descender and the x-height at the default coordinates. A font adds the deltas of its variations.
+static FaceVerticalMetrics read_vertical_metrics(hb_face_t* face)
+{
+    // A new font has the scale of the face, so positions are in font units.
+    auto* font = hb_font_create(face);
+    hb_font_set_var_coords_normalized(font, nullptr, 0);
+
+    FaceVerticalMetrics metrics;
+    hb_position_t position = 0;
+    hb_ot_metrics_get_position_with_fallback(font, HB_OT_METRICS_TAG_HORIZONTAL_ASCENDER, &position);
+    metrics.ascender = position;
+    hb_ot_metrics_get_position_with_fallback(font, HB_OT_METRICS_TAG_HORIZONTAL_DESCENDER, &position);
+    metrics.descender = position;
+    if (hb_ot_metrics_get_position(font, HB_OT_METRICS_TAG_X_HEIGHT, &position))
+        metrics.x_height = position;
+
+    hb_font_destroy(font);
+    return metrics;
+}
+
 FaceDescription FaceDescription::read(hb_face_t* face)
 {
     FaceDescription description;
     if (auto family = read_family(face); family.has_value())
         description.m_family = FlyString { family.release_value() };
     description.m_declared_style = read_declared_style(face);
+    description.m_vertical_metrics = read_vertical_metrics(face);
 
     // https://learn.microsoft.com/en-us/typography/opentype/spec/fvar
     auto axis_count = hb_ot_var_get_axis_count(face);

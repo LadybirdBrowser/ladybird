@@ -91,7 +91,7 @@ public:
 
     SkFont skia_font(float scale) const;
 
-    hb_font_t* harfbuzz_font() const;
+    hb_font_t* harfbuzz_font() const { return m_harfbuzz_font; }
     FontVariationSettings const& variation_settings() const { return m_font_variation_settings; }
     ShapeFeatures const& features() const { return m_shape_features; }
 
@@ -111,8 +111,10 @@ private:
     mutable Atomic<u64> m_hinting_memo { 0 };
 #endif
 
-    mutable OnceFlag m_harfbuzz_font_once;
-    mutable hb_font_t* m_harfbuzz_font { nullptr };
+    hb_font_t* create_harfbuzz_font() const;
+    FontPixelMetrics compute_pixel_metrics() const;
+
+    hb_font_t* m_harfbuzz_font { nullptr };
 
     // A layout pass classifies fonts while the document thread may be doing the same to the same
     // font, so the verdict is a single atomic byte. Either winner is correct: the classification
