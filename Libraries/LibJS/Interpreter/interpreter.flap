@@ -1558,7 +1558,7 @@ inline fn jump_true(
 handler JumpTrue(
     condition: in Operand,
     target: BytecodeOffset
-) @terminator = jump_true(condition, target);
+) @terminator @fallthrough = jump_true(condition, target);
 
 inline fn jump_false(
     condition: in Operand,
@@ -1595,7 +1595,7 @@ inline fn jump_false(
 handler JumpFalse(
     condition: in Operand,
     target: BytecodeOffset
-) @terminator = jump_false(condition, target);
+) @terminator @fallthrough = jump_false(condition, target);
 
 handler JumpNullish(
     condition: in Operand,

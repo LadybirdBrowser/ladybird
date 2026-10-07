@@ -201,7 +201,11 @@ pub struct InstructionDefinition {
     pub name: String,
     pub parent: String,
     pub fields: Vec<Field>,
+    /// The instruction ends a basic block (`@terminator`).
     pub is_terminator: bool,
+    /// The terminator may also continue with the next instruction, like a
+    /// conditional jump with a single target (`@fallthrough`).
+    pub falls_through: bool,
     pub layout: OpLayout,
     pub array: Option<ArrayLayout>,
 }
@@ -343,16 +347,28 @@ pub fn parse_flap_metadata(source_name: &str, content: &str) -> Result<Vec<Instr
         let close = find_matching_parenthesis(declaration, open)
             .ok_or_else(|| ParseError::new(source_name, start_line, 1, "unterminated handler parameter list"))?;
         let fields = parse_handler_fields(source_name, start_line, &declaration[open + 1..close])?;
+        let has_annotation = |annotation: &str| {
+            declaration[close + 1..]
+                .split_whitespace()
+                .any(|token| token == annotation)
+        };
         let mut op = InstructionDefinition {
             name: name.to_string(),
             parent: "Instruction".to_string(),
             fields,
-            is_terminator: declaration[close + 1..]
-                .split_whitespace()
-                .any(|token| token == "@terminator"),
+            is_terminator: has_annotation("@terminator"),
+            falls_through: has_annotation("@fallthrough"),
             layout: OpLayout::default(),
             array: None,
         };
+        if op.falls_through && !op.is_terminator {
+            return Err(ParseError::new(
+                source_name,
+                start_line,
+                1,
+                format!("handler '{name}' is @fallthrough but not @terminator"),
+            ));
+        }
         validate_op(&mut op).map_err(|message| ParseError::new(source_name, start_line, 1, message))?;
         ops.push(op);
         line_index += 1;
@@ -860,6 +876,7 @@ pub fn derive_specialized_instructions(
             parent: "Instruction".to_string(),
             fields,
             is_terminator: ops_by_name[last_component.bytecode.as_str()].is_terminator,
+            falls_through: ops_by_name[last_component.bytecode.as_str()].falls_through,
             layout: OpLayout::default(),
             array: None,
         };
@@ -942,8 +959,21 @@ handler Call(
         assert_eq!(ops.len(), 1);
         assert_eq!(ops[0].name, "Call");
         assert!(ops[0].is_terminator);
+        assert!(!ops[0].falls_through);
         assert_eq!(ops[0].fields.len(), 3);
         assert!(ops[0].fields[2].is_array);
+    }
+
+    #[test]
+    fn parses_fallthrough_terminators() {
+        let ops = parse_flap_metadata(
+            "test.flap",
+            "handler JumpTrue(condition: in Operand, target: BytecodeOffset) @terminator @fallthrough { dispatch_next; }\nhandler Jump(target: BytecodeOffset) @terminator = jump(target);",
+        )
+        .unwrap();
+
+        assert!(ops[0].is_terminator && ops[0].falls_through);
+        assert!(ops[1].is_terminator && !ops[1].falls_through);
     }
 
     #[test]
@@ -1167,6 +1197,10 @@ specialize Copy() + Convert() + Use();
             (
                 "handler Fields(value: u32, value: u64) { dispatch_next; }\n",
                 "duplicate handler parameter 'value'",
+            ),
+            (
+                "handler Fall() @fallthrough { dispatch_next; }\n",
+                "is @fallthrough but not @terminator",
             ),
             (
                 "handler Array(values: Value[]) { dispatch_next; }\n",
