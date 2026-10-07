@@ -187,3 +187,27 @@ TEST_CASE(negative_stored_sizes_are_skipped_as_corrupt)
     auto entry = reloaded_index.find_entry(1, *request_headers);
     EXPECT(!entry.has_value());
 }
+
+TEST_CASE(creation_returns_error_for_corrupted_database)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+    TRY_OR_FAIL(HTTP::CacheIndex::migrate_schema(*database));
+
+    // SQLite stores the root page of each b-tree in sqlite_schema. CacheIndex's table and primary-key
+    // index use separate b-trees with different page layouts. Point the table's rootpage at the index's
+    // b-tree, then reload the schema with writable_schema = RESET.
+    // The column definitions remain valid, so statement preparation succeeds. When CacheIndex::create()
+    // scans the table to estimate its size, SQLite finds an index page where it expects a table page
+    // and reports SQLITE_CORRUPT ("database disk image is malformed").
+    TRY_OR_FAIL(database->execute_raw(R"#(
+        PRAGMA writable_schema = ON;
+        UPDATE sqlite_schema
+        SET rootpage = (SELECT rootpage FROM sqlite_schema WHERE type = 'index' AND tbl_name = 'CacheIndex')
+        WHERE name = 'CacheIndex';
+        PRAGMA writable_schema = RESET;
+    )#"sv));
+
+    auto result = HTTP::CacheIndex::create(*database, cache_directory());
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().string_literal(), "database disk image is malformed"sv);
+}

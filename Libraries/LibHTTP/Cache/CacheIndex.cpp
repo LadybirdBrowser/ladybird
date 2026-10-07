@@ -222,9 +222,9 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath
     };
 
     i64 total_estimated_size { 0 };
-    database.execute_statement(
+    TRY(database.try_execute_statement(
         statements.select_total_estimated_size,
-        [&](auto statement_id) -> ErrorOr<void> { total_estimated_size = database.result_column<i64>(statement_id, 0); return {}; });
+        [&](auto statement_id) -> ErrorOr<void> { total_estimated_size = database.result_column<i64>(statement_id, 0); return {}; }));
 
     return CacheIndex { database, statements, limits, total_estimated_size };
 }
