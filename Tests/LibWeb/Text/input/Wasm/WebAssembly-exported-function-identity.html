@@ -29,8 +29,6 @@
         const reexport = f => new WebAssembly.Instance(reexporterModule, { m: { f } }).exports;
 
         const { instance: adderInstance } = await WebAssembly.instantiate(adderBytes);
-        // Holding the exports object keeps it as the instance's exports for this realm, so that the other realm below
-        // always gets an exports object of its own.
         const adderExports = adderInstance.exports;
         const add = adderExports.add;
 
@@ -76,8 +74,8 @@
         const frameWindow = document.getElementById("frame").contentWindow;
         const exportsGetter = Object.getOwnPropertyDescriptor(frameWindow.WebAssembly.Instance.prototype, "exports").get;
         const frameAdd = exportsGetter.call(adderInstance).add;
-        println(`distinct from this realm's function: ${frameAdd !== add}`);
-        println(`prototype is the other realm's Function.prototype: ${Object.getPrototypeOf(frameAdd) === frameWindow.Function.prototype}`);
+        println(`same function as this realm's: ${frameAdd === add}`);
+        println(`prototype is this realm's Function.prototype: ${Object.getPrototypeOf(frameAdd) === Function.prototype}`);
         println(`own properties: ${Reflect.ownKeys(frameAdd).join()}`);
         println(`name and length: ${frameAdd.name} ${frameAdd.length}`);
         println(`call: ${frameAdd(20, 22)}`);

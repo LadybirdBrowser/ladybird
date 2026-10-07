@@ -9,6 +9,7 @@
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Weak.h>
 #include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
@@ -19,6 +20,7 @@
 #include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/Module.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
@@ -35,11 +37,23 @@
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
+#include <LibWeb/WebAssembly/BindingsGlue.h>
+#include <LibWeb/WebAssembly/Instance.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace {
 
 bool s_main_thread_vm_was_initialized_by_an_earlier_wrapper_test = false;
+
+void ensure_font_plugin_installed()
+{
+    static Web::Platform::FontPlugin font_plugin { false };
+    static bool font_plugin_installed = false;
+    if (!font_plugin_installed) {
+        Web::Platform::FontPlugin::install(font_plugin);
+        font_plugin_installed = true;
+    }
+}
 
 class TestPageClient final : public Web::PageClient {
     GC_CELL(TestPageClient, Web::PageClient);
@@ -997,8 +1011,7 @@ TEST_CASE(legacy_property_getters_use_wrapper_realm)
 
 TEST_CASE(relevant_global_main_world_wrapper_ignores_preferred_realm)
 {
-    Web::Platform::FontPlugin font_plugin(false);
-    Web::Platform::FontPlugin::install(font_plugin);
+    ensure_font_plugin_installed();
 
     auto principal_realm = Web::Bindings::create_a_principal_javascript_realm();
     VERIFY(principal_realm.ptr());
@@ -1028,6 +1041,41 @@ TEST_CASE(relevant_global_main_world_wrapper_ignores_preferred_realm)
     s_main_thread_vm_was_initialized_by_an_earlier_wrapper_test = true;
 }
 
+TEST_CASE(wasm_instance_exports_are_not_shared_with_another_world)
+{
+    ensure_font_plugin_installed();
+
+    auto principal_realm = Web::Bindings::create_a_principal_javascript_realm();
+    VERIFY(principal_realm.ptr());
+    auto& vm = Web::Bindings::main_thread_vm();
+
+    auto client = vm.heap().allocate<TestPageClient>();
+    auto page = Web::Page::create(client);
+    client->m_page = page.ptr();
+
+    auto traversable = Web::HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {});
+    page->set_top_level_traversable(traversable);
+    auto& window_realm = traversable->active_document()->window()->principal_realm();
+
+    auto extension_execution_context = MUST(JS::Realm::initialize_host_defined_realm(vm, nullptr, nullptr));
+    auto& extension_realm = *extension_execution_context->realm;
+    install_test_host_defined(extension_realm, Web::Bindings::WrapperWorld::Type::Extension, window_realm);
+
+    static constexpr u8 empty_module_bytes[] = { 0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00 };
+    auto bytes = JS::ArrayBuffer::create(window_realm, MUST(ByteBuffer::copy(empty_module_bytes, sizeof(empty_module_bytes))));
+    auto& module_constructor = Web::Bindings::ensure_web_constructor<Web::Bindings::ModulePrototype>(window_realm, "WebAssembly.Module"_utf16_fly_string);
+    auto module_wrapper = MUST(JS::construct(vm, module_constructor, bytes.ptr()));
+    auto instance = MUST(Web::Bindings::construct_instance(window_realm, *Web::Bindings::module_from_value(module_wrapper.ptr()), nullptr));
+
+    auto exports = Web::Bindings::exports(window_realm, instance);
+    EXPECT(&exports->shape().realm() == &window_realm);
+    EXPECT_DEATH("Reading a WebAssembly instance's exports from another world", Web::Bindings::exports(extension_realm, instance));
+
+    vm.pop_execution_context();
+    vm.pop_execution_context();
+    s_main_thread_vm_was_initialized_by_an_earlier_wrapper_test = true;
+}
+
 // This exercises the collected-document finalization path. It does not claim
 // coverage of the ResizeObserver sweep callback: the document's destruction
 // path releases the activity root before that callback would be relevant.
@@ -1039,8 +1087,7 @@ TEST_CASE(resize_observer_releases_activity_root_when_registration_document_is_c
     if (s_main_thread_vm_was_initialized_by_an_earlier_wrapper_test)
         return;
 
-    Web::Platform::FontPlugin font_plugin(false);
-    Web::Platform::FontPlugin::install(font_plugin);
+    ensure_font_plugin_installed();
     Web::Bindings::initialize_main_thread_vm(Web::HTML::AgentType::SimilarOriginWindow);
     auto& vm = Web::Bindings::main_thread_vm();
     auto make_document = [&]() {
