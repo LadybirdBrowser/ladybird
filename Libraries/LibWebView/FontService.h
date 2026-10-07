@@ -55,7 +55,7 @@ private:
         Gfx::FontFileFormat format { Gfx::FontFileFormat::OpenType };
     };
 
-    using MemoryFontSource = Variant<Gfx::BrokeredFontFile, Gfx::SystemFontReference>;
+    using MemoryFontSource = Variant<Gfx::BrokeredFontFile, Gfx::PlatformFontName>;
 
     ErrorOr<void> build_catalog();
     ErrorOr<void> build_empty_catalog();

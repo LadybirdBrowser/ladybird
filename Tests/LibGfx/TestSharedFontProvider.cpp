@@ -18,7 +18,6 @@
 #include <LibGfx/Font/FontCatalog.h>
 #include <LibGfx/Font/PathFontProvider.h>
 #include <LibGfx/Font/SharedFontProvider.h>
-#include <LibGfx/Font/TypefaceSkia.h>
 #include <LibTest/TestCase.h>
 
 namespace {
@@ -72,16 +71,11 @@ static Gfx::BrokeredFont open_test_font(u64 face_id)
     };
 }
 
-static Gfx::BrokeredFont reference_test_font(u64 face_id, String family)
+static Gfx::BrokeredFont platform_test_font(u64 face_id, String postscript_name)
 {
     return {
         .face_id = face_id,
-        .source = Gfx::SystemFontReference {
-            .family = move(family),
-            .weight = 400,
-            .width = Gfx::FontWidth::Normal,
-            .slope = 0,
-        },
+        .source = Gfx::PlatformFontName { move(postscript_name) },
     };
 }
 
@@ -256,26 +250,21 @@ TEST_CASE(caches_code_point_fallback_matches_and_misses)
     EXPECT_EQ(match_count, 4u);
 }
 
-TEST_CASE(matches_referenced_system_fonts_in_process)
+#ifdef AK_OS_MACOS
+TEST_CASE(opens_platform_fonts_by_name_in_process)
 {
-    // Referenced fonts are re-matched locally, so this needs a family the platform can resolve: whichever one it
-    // would pick for a plain letter.
-    auto platform_typeface = Gfx::TypefaceSkia::find_typeface_for_code_point('A', 400, Gfx::FontWidth::Normal, 0, false);
-    if (platform_typeface.is_error() || !platform_typeface.value())
-        return;
-    auto family = platform_typeface.value()->family();
-
+    // A platform font is opened by its PostScript name in the client, and every Mac has Helvetica.
     size_t match_count = 0;
     Gfx::SharedFontProviderCallbacks callbacks;
     callbacks.match_font_for_code_point = [&](u32, u16, u16, u8, bool) {
         ++match_count;
-        return reference_test_font(96, family.to_string());
+        return platform_test_font(96, "Helvetica"_string);
     };
 
     auto provider = MUST(Gfx::SharedFontProvider::create_empty(9, move(callbacks)));
     auto font = provider->get_font_for_code_point('A', 12, 400, Gfx::FontWidth::Normal, 0, false);
     EXPECT(font);
-    EXPECT_EQ(font->typeface().family(), family);
+    EXPECT_EQ(font->typeface().postscript_name(), "Helvetica"_string);
     auto identifier = font->typeface().system_font_identifier();
     EXPECT(identifier.has_value());
     EXPECT_EQ(identifier->face_id, 96u);
@@ -284,14 +273,15 @@ TEST_CASE(matches_referenced_system_fonts_in_process)
     EXPECT(provider->get_typeface_by_id(9, 96));
     EXPECT_EQ(match_count, 1u);
 }
+#endif
 
-TEST_CASE(negatively_caches_unresolvable_system_font_references)
+TEST_CASE(negatively_caches_platform_fonts_that_do_not_open)
 {
     size_t match_count = 0;
     Gfx::SharedFontProviderCallbacks callbacks;
     callbacks.match_font_for_code_point = [&](u32, u16, u16, u8, bool) {
         ++match_count;
-        return reference_test_font(97, "Ladybird No Such Family"_string);
+        return platform_test_font(97, "Ladybird-NoSuchFont"_string);
     };
 
     auto provider = MUST(Gfx::SharedFontProvider::create_empty(9, move(callbacks)));

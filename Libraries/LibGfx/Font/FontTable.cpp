@@ -78,6 +78,34 @@ static Optional<TableLocation> find_table(FontDataReader const& data, unsigned f
     return {};
 }
 
+static FontDataReader face_data(hb_blob_t* blob)
+{
+    unsigned length = 0;
+    auto const* data = hb_blob_get_data(blob, &length);
+    if (!data || length == 0)
+        return {};
+    return FontDataReader { { reinterpret_cast<u8 const*>(data), length } };
+}
+
+bool face_has_table(hb_face_t* face, FourCC tag)
+{
+    auto* blob = hb_face_reference_blob(face);
+    auto data = face_data(blob);
+    bool has_table = false;
+    if (!data.is_empty()) {
+        has_table = find_table(data, hb_face_get_index(face) & 0xFFFF, tag).has_value();
+    } else {
+        // A face without data of its own lists its tables without copying them.
+        unsigned tag_count = hb_face_get_table_tags(face, 0, nullptr, nullptr);
+        Vector<hb_tag_t> tags;
+        tags.resize(tag_count);
+        hb_face_get_table_tags(face, 0, &tag_count, tags.data());
+        has_table = tags.contains_slow(tag.to_u32());
+    }
+    hb_blob_destroy(blob);
+    return has_table;
+}
+
 Optional<String> face_name(hb_face_t* face, u16 name_id)
 {
     unsigned entry_count = 0;
@@ -113,10 +141,7 @@ Optional<String> face_name(hb_face_t* face, u16 name_id)
 FontTable::FontTable(hb_face_t* face, FourCC tag)
 {
     m_blob = hb_face_reference_blob(face);
-    unsigned data_length = 0;
-    auto const* data_pointer = hb_blob_get_data(m_blob, &data_length);
-    if (data_pointer && data_length > 0) {
-        FontDataReader data { { reinterpret_cast<u8 const*>(data_pointer), data_length } };
+    if (auto data = face_data(m_blob); !data.is_empty()) {
         // The upper 16 bits of the index select a named instance, not a face.
         if (auto location = find_table(data, hb_face_get_index(face) & 0xFFFF, tag); location.has_value()) {
             static_cast<FontDataReader&>(*this) = FontDataReader { data.bytes().slice(location->offset, location->length) };

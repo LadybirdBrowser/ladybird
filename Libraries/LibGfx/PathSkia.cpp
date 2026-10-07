@@ -8,6 +8,8 @@
 
 #include <AK/GenericShorthands.h>
 #include <AK/Math.h>
+#include <AK/Noncopyable.h>
+#include <AK/ScopeGuard.h>
 #include <AK/Span.h>
 #include <AK/TypeCasts.h>
 #include <LibGfx/Font/Font.h>
@@ -22,6 +24,10 @@
 #include <utils/SkParsePath.h>
 
 #include <harfbuzz/hb.h>
+
+#ifdef AK_OS_MACOS
+#    include <LibGfx/Font/TypefaceCoreText.h>
+#endif
 
 template<>
 constexpr bool AllocatedWithSystemAllocator<SkPath> = true;
@@ -128,24 +134,100 @@ hb_draw_funcs_t* glyph_outline_draw_funcs()
 
 }
 
-// The outline of a glyph in pixels, with its origin on the baseline.
-static SkPath glyph_outline(Font const& font, u32 glyph_id)
+#ifdef AK_OS_MACOS
+static SkPath core_text_glyph_outline(CTFontRef font, u32 glyph_id)
 {
-    auto* hb_font = font.harfbuzz_font();
-    int x_scale = 0;
-    int y_scale = 0;
-    hb_font_get_scale(hb_font, &x_scale, &y_scale);
-    if (x_scale <= 0 || y_scale <= 0)
+    auto path = CTFontCreatePathForGlyph(font, static_cast<CGGlyph>(glyph_id), nullptr);
+    if (!path)
         return {};
+    ScopeGuard release_path = [&] { CGPathRelease(path); };
+
+    // CoreText gives points in pixels with y up.
     SkPathBuilder builder;
-    GlyphOutline outline {
-        .builder = builder,
-        .units_to_pixels_x = font.pixel_size() / static_cast<float>(x_scale),
-        .units_to_pixels_y = font.pixel_size() / static_cast<float>(y_scale),
-    };
-    hb_font_draw_glyph(hb_font, glyph_id, glyph_outline_draw_funcs(), &outline);
-    outline.close_contour();
+    CGPathApply(path, &builder, [](void* info, CGPathElement const* element) {
+        auto& builder = *static_cast<SkPathBuilder*>(info);
+        auto point = [&](size_t index) {
+            return SkPoint::Make(static_cast<float>(element->points[index].x), 0.0f - static_cast<float>(element->points[index].y));
+        };
+        switch (element->type) {
+        case kCGPathElementMoveToPoint:
+            builder.moveTo(point(0));
+            break;
+        case kCGPathElementAddLineToPoint:
+            builder.lineTo(point(0));
+            break;
+        case kCGPathElementAddQuadCurveToPoint:
+            builder.quadTo(point(0), point(1));
+            break;
+        case kCGPathElementAddCurveToPoint:
+            builder.cubicTo(point(0), point(1), point(2));
+            break;
+        case kCGPathElementCloseSubpath:
+            builder.close();
+            break;
+        }
+    });
     return builder.detach();
+}
+#endif
+
+namespace {
+
+// Gives the outlines of the glyphs of a font in pixels, with their origin on the baseline.
+class GlyphOutliner {
+    AK_MAKE_NONCOPYABLE(GlyphOutliner);
+    AK_MAKE_NONMOVABLE(GlyphOutliner);
+
+public:
+    explicit GlyphOutliner(Font const& font)
+        : m_font(font)
+    {
+#ifdef AK_OS_MACOS
+        if (auto const* core_text_typeface = as_if<TypefaceCoreText>(font.typeface()); core_text_typeface && core_text_typeface->has_outlines_that_only_core_text_draws())
+            m_core_text_font = create_core_text_font_with_variations(core_text_typeface->core_text_font(), font.pixel_size(), font.variation_settings().to_sorted_list());
+#endif
+    }
+
+    ~GlyphOutliner()
+    {
+#ifdef AK_OS_MACOS
+        if (m_core_text_font)
+            CFRelease(m_core_text_font);
+#endif
+    }
+
+    SkPath outline(u32 glyph_id) const
+    {
+#ifdef AK_OS_MACOS
+        if (m_core_text_font)
+            return core_text_glyph_outline(m_core_text_font, glyph_id);
+#endif
+
+        auto* hb_font = m_font.harfbuzz_font();
+        int x_scale = 0;
+        int y_scale = 0;
+        hb_font_get_scale(hb_font, &x_scale, &y_scale);
+        if (x_scale <= 0 || y_scale <= 0)
+            return {};
+        SkPathBuilder builder;
+        GlyphOutline outline {
+            .builder = builder,
+            .units_to_pixels_x = m_font.pixel_size() / static_cast<float>(x_scale),
+            .units_to_pixels_y = m_font.pixel_size() / static_cast<float>(y_scale),
+        };
+        hb_font_draw_glyph(hb_font, glyph_id, glyph_outline_draw_funcs(), &outline);
+        outline.close_contour();
+        return builder.detach();
+    }
+
+private:
+    Font const& m_font;
+#ifdef AK_OS_MACOS
+    // The font at its size and variations, for outlines that only CoreText draws.
+    CTFontRef m_core_text_font { nullptr };
+#endif
+};
+
 }
 
 NonnullOwnPtr<Gfx::PathImplSkia> PathImplSkia::create()
@@ -313,8 +395,9 @@ void PathImplSkia::glyph_run(GlyphRun const& glyph_run)
     auto& path_builder = sk_path_builder();
     path_builder.setFillType(SkPathFillType::kWinding);
     auto font_ascent = glyph_run.font().pixel_metrics().ascent;
+    GlyphOutliner outliner { glyph_run.font() };
     for (auto const& glyph : glyph_run.glyphs())
-        path_builder.addPath(glyph_outline(glyph_run.font(), glyph.glyph_id), glyph.position.x(), glyph.position.y() + font_ascent);
+        path_builder.addPath(outliner.outline(glyph.glyph_id), glyph.position.x(), glyph.position.y() + font_ascent);
     update_state_from_path(sk_path());
 }
 
@@ -340,6 +423,7 @@ NonnullOwnPtr<PathImpl> PathImplSkia::place_glyph_runs_along(ReadonlySpan<Nonnul
     for (auto const& glyph_run : glyph_runs) {
         if (glyph_run->font().is_invisible())
             continue;
+        GlyphOutliner outliner { glyph_run->font() };
         for (auto const& glyph : glyph_run->glyphs()) {
             SkScalar glyph_distance = offset + glyph.position.x();
 
@@ -357,7 +441,7 @@ NonnullOwnPtr<PathImpl> PathImplSkia::place_glyph_runs_along(ReadonlySpan<Nonnul
             SkMatrix matrix;
             matrix.setTranslate(position.x(), position.y());
             matrix.preRotate(SkRadiansToDegrees(std::atan2(tangent.y(), tangent.x())));
-            output_path->sk_path_builder().addPath(glyph_outline(glyph_run->font(), glyph.glyph_id), matrix);
+            output_path->sk_path_builder().addPath(outliner.outline(glyph.glyph_id), matrix);
         }
         if (reached_end_of_path)
             break;

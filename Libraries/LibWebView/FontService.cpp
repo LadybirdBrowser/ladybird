@@ -232,8 +232,8 @@ Gfx::BrokeredFont FontService::open_font_without_lock(u64 generation, u64 face_i
                     },
                 };
             },
-            [&](Gfx::SystemFontReference const& reference) -> Gfx::BrokeredFont {
-                return { .face_id = face_id, .source = reference };
+            [&](Gfx::PlatformFontName const& name) -> Gfx::BrokeredFont {
+                return { .face_id = face_id, .source = name };
             });
     }
     return {};
@@ -256,17 +256,18 @@ Gfx::BrokeredFont FontService::materialize_typeface(NonnullRefPtr<Gfx::TypefaceS
         return open_font_without_lock(m_generation, face_id);
     }
 
-    auto face_id = m_next_dynamic_face_id++;
-
     // The platform does not always load a matched typeface's data back (CoreText rejects the hvgl-only data it hands
-    // out for PingFang), so such fonts are referred to by family and style for the client to re-match itself.
+    // out for PingFang), so such fonts are referred to by their PostScript name for the client to open.
+    Optional<String> postscript_name;
     if (Gfx::TypefaceSkia::try_load_from_temporary_memory(typeface->font_data(), ttc_index).is_error()) {
-        m_memory_font_sources.set(face_id, Gfx::SystemFontReference {
-                                               .family = typeface->family().to_string(),
-                                               .weight = typeface->weight(),
-                                               .width = typeface->width(),
-                                               .slope = typeface->slope(),
-                                           });
+        postscript_name = typeface->postscript_name();
+        if (!postscript_name.has_value())
+            return {};
+    }
+
+    auto face_id = m_next_dynamic_face_id++;
+    if (postscript_name.has_value()) {
+        m_memory_font_sources.set(face_id, Gfx::PlatformFontName { postscript_name.release_value() });
     } else {
         auto file = create_immutable_font_data(typeface->font_data());
         if (file.is_error())

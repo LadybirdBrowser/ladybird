@@ -6,13 +6,16 @@
 
 #pragma once
 
+#include <AK/String.h>
+#include <AK/Variant.h>
 #include <LibGfx/Font/Typeface.h>
 
 #include <CoreText/CoreText.h>
 
 namespace Gfx {
 
-// A system UI font, which CoreText gives without its font data. HarfBuzz reads its tables through CoreText.
+// A typeface that CoreText gives without its font data: a system UI font, or an installed font whose data CoreText
+// cannot load back. HarfBuzz reads its tables through CoreText.
 class TypefaceCoreText final : public Typeface {
     AK_MAKE_NONCOPYABLE(TypefaceCoreText);
     AK_MAKE_NONMOVABLE(TypefaceCoreText);
@@ -22,12 +25,20 @@ public:
     // same typeface.
     static RefPtr<TypefaceCoreText> system_ui(SystemUIFontStyle);
 
+    // The installed font that has this PostScript name.
+    static ErrorOr<NonnullRefPtr<TypefaceCoreText>> try_load_postscript_name(String const&);
+
     virtual ~TypefaceCoreText() override;
 
     CTFontRef core_text_font() const { return m_core_text_font; }
 
+    // HarfBuzz cannot draw the outlines of some fonts that CoreText gives, such as the hvgl outlines of PingFang.
+    bool has_outlines_that_only_core_text_draws() const;
+
 private:
-    TypefaceCoreText(CTFontRef, CGFontRef, SystemUIFontStyle);
+    using Identity = Variant<SystemUIFontStyle, String>;
+
+    TypefaceCoreText(CTFontRef, CGFontRef, Identity);
 
     virtual ReadonlyBytes buffer() const override { return {}; }
     virtual u32 ttc_index() const override { return 0; }
@@ -38,10 +49,16 @@ private:
 
     CTFontRef m_core_text_font { nullptr };
     CGFontRef m_graphics_font { nullptr };
-    SystemUIFontStyle m_style;
+    Identity m_identity;
+    mutable OnceFlag m_outline_format_once;
+    mutable bool m_has_outlines_that_only_core_text_draws { false };
 };
 
 template<>
 inline bool Typeface::fast_is<TypefaceCoreText>() const { return is_core_text(); }
+
+// A copy of a CoreText font at a size, with these coordinates on top of the variation of the font. Without
+// coordinates, the copy keeps the variation of the font. Null if CoreText does not make the copy.
+CTFontRef create_core_text_font_with_variations(CTFontRef, CGFloat size, ReadonlySpan<FontVariationAxis>);
 
 }

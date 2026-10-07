@@ -130,6 +130,7 @@ public:
     // The style of a font of this typeface with these variations.
     FaceStyle style_for_variations(ReadonlySpan<FontVariationAxis>) const;
     ErrorOr<Vector<String>> local_font_names() const;
+    Optional<String> postscript_name() const;
 
     // What a rasterizer keeps with this typeface. The first call makes it.
     template<typename T, typename Callback>
@@ -164,6 +165,7 @@ protected:
         SystemFont,
         SystemUIFont,
         SystemFontId,
+        PlatformFontName,
     };
 
     Typeface();
