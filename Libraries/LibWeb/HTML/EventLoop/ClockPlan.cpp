@@ -129,6 +129,16 @@ static bool animates_what_a_tick_cannot(Animations::KeyframeEffect const& effect
     return false;
 }
 
+// Whether a tick can sample the animation of `effect` on `target`.
+static bool tick_can_sample(DOM::Document const& document, Animations::KeyframeEffect const& effect, DOM::Element const& target, Layout::BegunRead const& read)
+{
+    // The root element and the body paint the background the canvas may take over, which only the host resolves.
+    auto const* layout_node = target.unsafe_layout_node(read);
+    return !effect.pseudo_element_type().has_value() && target.namespace_uri() == Namespace::HTML
+        && &target != document.document_element() && &target != document.body()
+        && layout_node && Painting::has_committed_box(*layout_node) && !animates_what_a_tick_cannot(effect);
+}
+
 // An animation of a scroll timeline that finished runs again as the scroll goes back.
 static bool runs_for_clock_plan(Animations::Animation const& animation, bool on_scroll_timeline)
 {
@@ -169,6 +179,7 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan)
         double deadline = AK::Infinity<double>;
         double last_end = -AK::Infinity<double>;
         Vector<Layout::RustFFI::FfiPlannedScrollTimeline> scroll_timelines;
+        Vector<u32> held_elements;
         auto plan = [&] {
             if (!document.is_fully_active() || document.hidden() || !document.window())
                 return false;
@@ -176,59 +187,62 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan)
             auto timeline_time = timeline->current_time();
             if (!timeline_time.has_value() || timeline_time->type != Animations::TimeValue::Type::Milliseconds)
                 return false;
+            auto plan_animation = [&](Animations::Animation const& animation, Animations::ScrollTimeline const* scroll_timeline, Animations::KeyframeEffect const& effect, DOM::Element const& target) {
+                // A tick moves the document's timeline, at the rate it runs, and the scroll timelines, to where the
+                // compositor has scrolled.
+                if (animation.pending() || !(animation.playback_rate() > 0))
+                    return false;
+                // A scroll timeline with nothing to scroll holds still, and so do its animations.
+                if (scroll_timeline && !scroll_timeline->followed_scroller().has_value())
+                    return false;
+                // What the compositor runs, or what the main thread does not sample per frame either, a tick does not
+                // sample: the lease only stops at its events.
+                bool const tick_samples = !runs_on_compositor(effect) && !effect.can_skip_per_frame_style_update();
+                if (tick_samples && !tick_can_sample(document, effect, target, read))
+                    return false;
+                auto local_time = effect.local_time();
+                if (scroll_timeline) {
+                    if (!plan_scroll_timeline(scroll_timelines, *scroll_timeline, effect, local_time, animation.playback_rate()))
+                        return false;
+                } else {
+                    if (!local_time.has_value() || local_time->type != Animations::TimeValue::Type::Milliseconds)
+                        return false;
+                    auto next_event = next_event_in_local_time(effect, local_time->value);
+                    if (!next_event.has_value())
+                        return false;
+                    deadline = min(deadline, timeline_time->value + (*next_event - local_time->value) / animation.playback_rate());
+                }
+                if (!tick_samples)
+                    return true;
+                if (!scroll_timeline) {
+                    auto active_end = effect.start_delay().value + effect.active_duration().value;
+                    last_end = max(last_end, timeline_time->value + (active_end - local_time->value) / animation.playback_rate());
+                }
+                auto element = target.style_node_id().value();
+                if (!elements.contains_slow(element))
+                    elements.append(element);
+                return true;
+            };
             for (auto const& associated_timeline : document.associated_animation_timelines()) {
                 auto const* scroll_timeline = as_if<Animations::ScrollTimeline>(*associated_timeline);
                 for (auto& animation : associated_timeline->associated_animations()) {
                     if (!runs_for_clock_plan(animation, scroll_timeline != nullptr))
                         continue;
-                    // A tick moves the document's timeline, at the rate it runs, and the scroll timelines, to where the
-                    // compositor has scrolled.
-                    if (animation.pending() || !(animation.playback_rate() > 0))
-                        return false;
                     if (associated_timeline.ptr() != timeline.ptr() && !scroll_timeline)
                         return false;
-                    // A scroll timeline with nothing to scroll holds still, and so do its animations.
-                    if (scroll_timeline && !scroll_timeline->followed_scroller().has_value())
+                    auto const* effect = as_if<Animations::KeyframeEffect>(animation.effect().ptr());
+                    auto target = effect ? effect->target() : nullptr;
+                    bool const animates_element = target && &target->document() == &document && target->is_connected();
+                    if (animates_element && plan_animation(animation, scroll_timeline, *effect, *target))
                         continue;
-                    auto effect = animation.effect();
-                    if (!effect || !is<Animations::KeyframeEffect>(*effect))
+                    if (!scroll_timeline)
                         return false;
-                    auto& keyframe_effect = static_cast<Animations::KeyframeEffect&>(*effect);
-                    auto target = keyframe_effect.target();
-                    if (!target || &target->document() != &document || !target->is_connected())
-                        return false;
-                    auto local_time = keyframe_effect.local_time();
-                    if (scroll_timeline) {
-                        if (!plan_scroll_timeline(scroll_timelines, *scroll_timeline, keyframe_effect, local_time, animation.playback_rate()))
-                            return false;
-                    } else {
-                        if (!local_time.has_value() || local_time->type != Animations::TimeValue::Type::Milliseconds)
-                            return false;
-                        auto next_event = next_event_in_local_time(keyframe_effect, local_time->value);
-                        if (!next_event.has_value())
-                            return false;
-                        deadline = min(deadline, timeline_time->value + (*next_event - local_time->value) / animation.playback_rate());
-                    }
-                    // What the compositor runs, or what the main thread does not sample per frame either, a tick does not
-                    // sample: the lease only stops at its events.
-                    if (runs_on_compositor(keyframe_effect) || keyframe_effect.can_skip_per_frame_style_update())
-                        continue;
-                    // The root element and the body paint the background the canvas may take over, which only the host
-                    // resolves.
-                    auto const* layout_node = target->unsafe_layout_node(read);
-                    if (keyframe_effect.pseudo_element_type().has_value() || target->namespace_uri() != Namespace::HTML
-                        || target.ptr() == document.document_element() || target.ptr() == document.body()
-                        || !layout_node || !Painting::has_committed_box(*layout_node) || animates_what_a_tick_cannot(keyframe_effect))
-                        return false;
-                    if (!scroll_timeline) {
-                        auto active_end = keyframe_effect.start_delay().value + keyframe_effect.active_duration().value;
-                        last_end = max(last_end, timeline_time->value + (active_end - local_time->value) / animation.playback_rate());
-                    }
-                    auto element = target->style_node_id().value();
-                    if (!elements.contains_slow(element))
-                        elements.append(element);
+                    if (animates_element && !effect->pseudo_element_type().has_value())
+                        held_elements.append(target->style_node_id().value());
                 }
             }
+            if (any_of(held_elements, [&](auto element) { return elements.contains_slow(element); }))
+                return false;
             return !elements.is_empty() && deadline > timeline_time->value;
         };
         if (plan()) {
