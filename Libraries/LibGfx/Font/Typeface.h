@@ -113,6 +113,8 @@ public:
     u8 slope() const;
 
     ReadonlyBytes font_data() const LIFETIME_BOUND { return buffer(); }
+    // What keeps the font data alive. Null for a typeface without font data of its own.
+    RefPtr<FontDataBacking> font_data_backing() const { return m_font_data; }
     u32 collection_index() const { return ttc_index(); }
 
     [[nodiscard]] NonnullRefPtr<Font> font(float point_size, FontVariationSettings const& variations = {}, Gfx::ShapeFeatures const& shape_features = {}) const;

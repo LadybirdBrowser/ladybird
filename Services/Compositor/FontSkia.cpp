@@ -5,16 +5,22 @@
  */
 
 #include <AK/Atomic.h>
+#include <AK/NeverDestroyed.h>
+#include <AK/ScopeGuard.h>
 #include <AK/TypeCasts.h>
 #include <Compositor/FontSkia.h>
 #include <LibGfx/Font/Font.h>
+#include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/RasterizerData.h>
-#include <LibGfx/Font/TypefaceSkia.h>
 
+#include <core/SkData.h>
 #include <core/SkFont.h>
 #include <core/SkFontArguments.h>
+#include <core/SkFontMgr.h>
 #include <core/SkFontTypes.h>
+#include <core/SkStream.h>
 #include <core/SkTypeface.h>
+#include <ports/SkFontMgr_empty.h>
 
 #if defined(USE_FONTCONFIG)
 #    include <LibGfx/Font/GlobalFontConfig.h>
@@ -23,6 +29,11 @@
 #ifdef AK_OS_MACOS
 #    include <LibGfx/Font/TypefaceCoreText.h>
 #    include <ports/SkTypeface_mac.h>
+#    include <src/ports/SkTypeface_mac_ct.h>
+#endif
+
+#ifdef AK_OS_WINDOWS
+#    include <src/ports/SkTypeface_win_dw.h>
 #endif
 
 namespace Compositor {
@@ -70,13 +81,53 @@ struct TypefaceData final : public Gfx::RasterizerData {
     sk_sp<SkTypeface> typeface;
 };
 
+// The Skia typeface of font data from the font manager of the platform. Null where FreeType is that font manager.
+// The typeface loaders are called directly, because a font manager also finds the system fonts when it is made.
+sk_sp<SkTypeface> make_platform_skia_typeface([[maybe_unused]] sk_sp<SkData> const& data, [[maybe_unused]] Gfx::Typeface const& typeface)
+{
+    if (Gfx::FontDatabase::the().force_freetype_rasterization())
+        return nullptr;
+#if defined(AK_OS_MACOS)
+    // The CoreText typeface loader of Skia loads only the first face of font data.
+    if (typeface.collection_index() != 0) {
+        auto font = Gfx::create_core_text_font_from_data(typeface.font_data_backing().release_nonnull(), typeface.font_data(), typeface.collection_index());
+        if (!font)
+            return nullptr;
+        ScopeGuard release_font = [&] { CFRelease(font); };
+        return SkMakeTypefaceFromCTFont(font);
+    }
+    return SkTypeface_Mac::MakeFromStream(std::make_unique<SkMemoryStream>(data), SkFontArguments {});
+#elif defined(AK_OS_WINDOWS)
+    return DWriteFontTypeface::MakeFromStream(std::make_unique<SkMemoryStream>(data), SkFontArguments {}.setCollectionIndex(static_cast<int>(typeface.collection_index())));
+#else
+    return nullptr;
+#endif
+}
+
 sk_sp<SkTypeface> make_skia_typeface(Gfx::Typeface const& typeface)
 {
 #ifdef AK_OS_MACOS
     if (auto const* core_text_typeface = as_if<Gfx::TypefaceCoreText>(typeface))
         return SkMakeTypefaceFromCTFont(core_text_typeface->core_text_font());
 #endif
-    return sk_ref_sp(as<Gfx::TypefaceSkia>(typeface).sk_typeface());
+    auto backing = typeface.font_data_backing();
+    if (!backing)
+        return nullptr;
+
+    // Skia can keep a typeface in text blobs and glyph caches after the typeface is gone, so the data keeps its backing.
+    auto bytes = typeface.font_data();
+    auto data = SkData::MakeWithProc(
+        bytes.data(), bytes.size(), [](void const*, void* context) { static_cast<Gfx::Typeface::FontDataBacking*>(context)->unref(); }, backing.leak_ref());
+    if (auto skia_typeface = make_platform_skia_typeface(data, typeface))
+        return skia_typeface;
+
+    // FreeType also loads some data that the font manager of the platform does not.
+    static NeverDestroyed<sk_sp<SkFontMgr>> font_manager { SkFontMgr_New_Custom_Empty() };
+    if (auto skia_typeface = (*font_manager)->makeFromStream(std::make_unique<SkMemoryStream>(data), SkFontArguments {}.setCollectionIndex(static_cast<int>(typeface.collection_index()))))
+        return skia_typeface;
+
+    dbgln("Compositor: Skia does not load the typeface of family '{}'", typeface.family());
+    return nullptr;
 }
 
 // The Skia typeface of a typeface. Null if Skia cannot load it.

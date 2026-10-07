@@ -40,6 +40,7 @@
 
 #ifdef AK_OS_MACOS
 #    include <CoreText/CoreText.h>
+#    include <LibGfx/Font/TypefaceCoreText.h>
 #    include <ports/SkFontMgr_mac_ct.h>
 #    include <ports/SkTypeface_mac.h>
 #    include <src/ports/SkTypeface_mac_ct.h>
@@ -70,52 +71,6 @@ static bool harfbuzz_can_read_face(ReadonlyBytes buffer, u32 ttc_index)
     return (ttc_index & 0xFFFF) < hb_face_count(blob);
 }
 
-#ifdef AK_OS_MACOS
-// A copy of a CoreText font of a face at the coordinates of a named instance of the face. A face does not have to list
-// its default instance, and then the index after the last instance selects it, which needs no copy.
-static CTFontRef create_core_text_named_instance(CTFontRef font, hb_face_t* face, unsigned instance_index)
-{
-    unsigned axis_count = hb_ot_var_get_axis_count(face);
-    Vector<hb_ot_var_axis_info_t> axes;
-    axes.resize(axis_count);
-    hb_ot_var_get_axis_infos(face, 0, &axis_count, axes.data());
-    Vector<float> coordinates;
-    coordinates.resize(axis_count);
-    unsigned coordinate_count = axis_count;
-    if (axis_count == 0 || hb_ot_var_named_instance_get_design_coords(face, instance_index, &coordinate_count, coordinates.data()) != axis_count)
-        return nullptr;
-
-    auto variation = CFDictionaryCreateMutable(kCFAllocatorDefault, axis_count, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
-    if (!variation)
-        return nullptr;
-    ScopeGuard release_variation = [&] { CFRelease(variation); };
-    for (unsigned index = 0; index < axis_count; ++index) {
-        i64 tag = axes[index].tag;
-        double value = coordinates[index];
-        auto tag_number = CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt64Type, &tag);
-        auto value_number = CFNumberCreate(kCFAllocatorDefault, kCFNumberDoubleType, &value);
-        if (tag_number && value_number)
-            CFDictionarySetValue(variation, tag_number, value_number);
-        if (tag_number)
-            CFRelease(tag_number);
-        if (value_number)
-            CFRelease(value_number);
-    }
-
-    CFTypeRef attribute_keys[] = { kCTFontVariationAttribute };
-    CFTypeRef attribute_values[] = { variation };
-    auto attributes = CFDictionaryCreate(kCFAllocatorDefault, attribute_keys, attribute_values, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
-    if (!attributes)
-        return nullptr;
-    ScopeGuard release_attributes = [&] { CFRelease(attributes); };
-    auto descriptor = CTFontDescriptorCreateWithAttributes(attributes);
-    if (!descriptor)
-        return nullptr;
-    ScopeGuard release_descriptor = [&] { CFRelease(descriptor); };
-    return CTFontCreateCopyWithAttributes(font, 0, nullptr, descriptor);
-}
-#endif
-
 ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, u32 ttc_index, NonnullRefPtr<FontDataBacking> backing)
 {
     if (!harfbuzz_can_read_face(buffer, ttc_index))
@@ -129,85 +84,11 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
 
     sk_sp<SkTypeface> skia_typeface;
 #ifdef AK_OS_MACOS
-    // NB: Skia's CoreText stream loader only supports collection index zero. Ask CoreText for the collection's
-    //     descriptors directly, then wrap the selected face in Skia, as we do for system UI fonts.
+    // NB: Skia's CoreText stream loader only supports collection index zero.
     if (ttc_index != 0 && !FontDatabase::the().force_freetype_rasterization()) {
-        if (buffer.size() > static_cast<size_t>(NumericLimits<CFIndex>::max()))
-            return Error::from_string_literal("Font data is too large for CoreText");
-        auto* blob = hb_blob_create(reinterpret_cast<char const*>(buffer.data()), buffer.size(), HB_MEMORY_MODE_READONLY, nullptr, nullptr);
-        ScopeGuard destroy_blob = [&] { hb_blob_destroy(blob); };
-        auto* face = hb_face_create(blob, ttc_index);
-        ScopeGuard destroy_face = [&] { hb_face_destroy(face); };
-        unsigned entry_count = 0;
-        auto const* entries = hb_ot_name_list_names(face, &entry_count);
-        auto language = HB_LANGUAGE_INVALID;
-        for (unsigned index = 0; index < entry_count; ++index) {
-            if (entries[index].name_id != HB_OT_NAME_ID_POSTSCRIPT_NAME)
-                continue;
-            if (language == HB_LANGUAGE_INVALID)
-                language = entries[index].language;
-            if (entries[index].language == hb_language_from_string("en", -1)) {
-                language = entries[index].language;
-                break;
-            }
-        }
-        unsigned name_length = hb_ot_name_get_utf8(face, HB_OT_NAME_ID_POSTSCRIPT_NAME, language, nullptr, nullptr);
-        if (name_length == 0 || name_length == NumericLimits<unsigned>::max())
-            return Error::from_string_literal("Font collection face has no PostScript name");
-        auto name = TRY(ByteBuffer::create_uninitialized(static_cast<size_t>(name_length) + 1));
-        unsigned capacity = name_length + 1;
-        hb_ot_name_get_utf8(face, HB_OT_NAME_ID_POSTSCRIPT_NAME, language, &capacity, reinterpret_cast<char*>(name.data()));
-        auto postscript_name = CFStringCreateWithBytes(kCFAllocatorDefault, name.data(), capacity, kCFStringEncodingUTF8, false);
-        if (!postscript_name)
-            return Error::from_string_literal("Invalid font PostScript name");
-        ScopeGuard release_name = [&] { CFRelease(postscript_name); };
-        // NB: CoreText must share the same bytes as Skia, retaining their backing for as long as it uses them.
-        CFAllocatorContext allocator_context {};
-        allocator_context.info = data.get();
-        allocator_context.retain = [](void const* info) -> void const* {
-            static_cast<SkData const*>(info)->ref();
-            return info;
-        };
-        allocator_context.release = [](void const* info) { static_cast<SkData const*>(info)->unref(); };
-        allocator_context.deallocate = [](void*, void*) { };
-        auto allocator = CFAllocatorCreate(kCFAllocatorDefault, &allocator_context);
-        if (!allocator)
-            return Error::from_string_literal("Failed to create CoreText font data allocator");
-        ScopeGuard release_allocator = [&] { CFRelease(allocator); };
-        auto cf_data = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault, static_cast<u8 const*>(data->data()), static_cast<CFIndex>(data->size()), allocator);
-        if (!cf_data)
-            return Error::from_string_literal("Failed to create CoreText font data");
-        ScopeGuard release_data = [&] { CFRelease(cf_data); };
-        auto descriptors = CTFontManagerCreateFontDescriptorsFromData(cf_data);
-        if (!descriptors)
-            return Error::from_string_literal("Failed to read CoreText font descriptors");
-        ScopeGuard release_descriptors = [&] { CFRelease(descriptors); };
-        // NB: CoreText also lists named variation instances. Match the actual TTC face's PostScript name rather
-        //     than interpreting a descriptor array position as a collection index.
-        CTFontDescriptorRef descriptor = nullptr;
-        for (CFIndex index = 0; index < CFArrayGetCount(descriptors); ++index) {
-            auto candidate = static_cast<CTFontDescriptorRef>(CFArrayGetValueAtIndex(descriptors, index));
-            auto candidate_name = CTFontDescriptorCopyAttribute(candidate, kCTFontNameAttribute);
-            if (!candidate_name)
-                continue;
-            ScopeGuard release_candidate_name = [&] { CFRelease(candidate_name); };
-            if (CFEqual(candidate_name, postscript_name)) {
-                descriptor = candidate;
-                break;
-            }
-        }
-        if (!descriptor)
-            return Error::from_string_literal("CoreText did not describe the requested collection face");
-        auto ct_font = CTFontCreateWithFontDescriptor(descriptor, 0, nullptr);
+        auto ct_font = create_core_text_font_from_data(backing, buffer, ttc_index);
         if (!ct_font)
-            return Error::from_string_literal("Failed to create CoreText font");
-        // The upper 16 bits of the index select a named instance, from 1. CoreText gets its coordinates as a variation.
-        if (auto instance_index = ttc_index >> 16; instance_index > 0) {
-            if (auto instance_font = create_core_text_named_instance(ct_font, face, instance_index - 1)) {
-                CFRelease(ct_font);
-                ct_font = instance_font;
-            }
-        }
+            return Error::from_string_literal("CoreText did not load the collection face");
         ScopeGuard release_font = [&] { CFRelease(ct_font); };
         skia_typeface = SkMakeTypefaceFromCTFont(ct_font);
     } else
