@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const fontData = await fetch("../../../Assets/HashSans.woff").then(response => response.arrayBuffer());
+        const face = new FontFace("WoffFromArrayBuffer", fontData);
+        document.fonts.add(face);
+        await face.loaded;
+
+        const element = document.createElement("span");
+        element.style.font = "20px WoffFromArrayBuffer";
+        element.textContent = "WWWWW";
+        document.body.appendChild(element);
+
+        // Every glyph of HashSans has an advance of 0.8em.
+        println(`width: ${element.getBoundingClientRect().width}`);
+    });
+</script>
