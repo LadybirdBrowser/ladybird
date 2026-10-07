@@ -6965,7 +6965,8 @@ PaintConfig LocalNavigable::stamp_paint_config(PaintConfig paint_config) const
 }
 
 // Tells the clock lane of the active document whether a task runs, beside which the lane samples the document's
-// running animations, and has it tick at once as a task begins. Answers whether the navigable still has a lane.
+// running animations, and has it tick at once as a task begins, where no display tick drives it already. Answers
+// whether the navigable still has a lane.
 bool LocalNavigable::note_clock_lane(ClockAnimations animations)
 {
     auto document = active_document();
@@ -6976,13 +6977,14 @@ bool LocalNavigable::note_clock_lane(ClockAnimations animations)
         return false;
     auto* host = arena->host();
     if (Layout::RustFFI::document_host_note_event_loop_task(host, animations == ClockAnimations::Run))
-        arm_clock_lane(true);
+        arm_clock_lane(TickNow::Yes);
     return true;
 }
 
 // Has the render clock hand the clock lanes of the active document the pointer moves over this navigable's compositor
-// context, and the display ticks they ask for, ticking them at once with `tick_now`.
-void LocalNavigable::arm_clock_lane(bool tick_now)
+// context, and the display ticks they ask for, ticking them at once with `TickNow::Yes` where no display tick drives
+// them.
+void LocalNavigable::arm_clock_lane(TickNow tick_now)
 {
     // A test injects its ticks itself.
     if (main_thread_event_loop().render_clock_is_manual_for_testing())
@@ -6994,9 +6996,10 @@ void LocalNavigable::arm_clock_lane(bool tick_now)
     if (!arena)
         return;
     auto handle = adopt_ref(*new Compositor::ClockTicksHandle { Layout::RustFFI::document_host_clock_ticks(arena->host()) });
-    if (tick_now)
-        (void)handle->tick(static_cast<i64>(HighResolutionTime::unsafe_shared_current_time() * 1'000'000.0), {});
-    Compositor::RenderClock::the().arm_lane(compositor_context().id(), page().client().maximum_frames_per_second(), move(handle), tick_now);
+    Optional<i64> tick_now_at;
+    if (tick_now == TickNow::Yes)
+        tick_now_at = static_cast<i64>(HighResolutionTime::unsafe_shared_current_time() * 1'000'000.0);
+    Compositor::RenderClock::the().arm_lane(compositor_context().id(), page().client().maximum_frames_per_second(), move(handle), tick_now_at);
 }
 
 // Seals what a frame of `document` reads of the document and this navigable where the frame begins: the frame is built

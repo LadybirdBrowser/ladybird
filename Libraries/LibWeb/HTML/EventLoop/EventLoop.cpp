@@ -1072,7 +1072,7 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
         bool const plans = may_plan && navigable && navigable->is_local_root() && navigable->active_document().ptr() == document.ptr();
         if (!seal_clock_plan(*document, plans, may_animate))
             continue;
-        navigable->arm_clock_lane(false);
+        navigable->arm_clock_lane(LocalNavigable::TickNow::No);
         if (!m_navigables_with_clock_lanes.contains_slow(GC::Ref { *navigable }))
             m_navigables_with_clock_lanes.append(*navigable);
     }
