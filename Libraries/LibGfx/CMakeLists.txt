@@ -61,7 +61,7 @@ set(SOURCES
 )
 
 if (APPLE)
-    list(APPEND SOURCES MetalContext.mm VideoSurfaceImage.mm)
+    list(APPEND SOURCES Font/TypefaceCoreText.cpp MetalContext.mm VideoSurfaceImage.mm)
 endif()
 
 if (HAS_DIRECTX)
@@ -110,7 +110,7 @@ if (NOT ANDROID)
 endif()
 
 if (APPLE)
-    target_link_libraries(LibGfx PRIVATE "-framework Metal" "-framework Accelerate")
+    target_link_libraries(LibGfx PRIVATE "-framework Metal" "-framework Accelerate" "-framework CoreFoundation" "-framework CoreGraphics" "-framework CoreText")
 endif()
 
 if (HAS_DIRECTX)

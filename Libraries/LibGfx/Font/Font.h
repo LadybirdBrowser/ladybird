@@ -14,7 +14,6 @@
 #include <AK/FlyString.h>
 #include <AK/Once.h>
 #include <AK/Optional.h>
-#include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Utf16String.h>
 #include <LibGfx/Font/RasterizerData.h>
@@ -86,11 +85,7 @@ public:
 
     // What a rasterizer keeps with this font. The first call makes it.
     template<typename T, typename Callback>
-    T& rasterizer_data(Callback make) const
-    {
-        call_once(m_rasterizer_data_once, [&] { m_rasterizer_data = make(); });
-        return as<T>(*m_rasterizer_data);
-    }
+    T& rasterizer_data(Callback make) const { return m_rasterizer_data.get<T>(make); }
 
 private:
     friend class Typeface;
@@ -103,8 +98,7 @@ private:
 
     hb_font_t* m_harfbuzz_font { nullptr };
 
-    mutable OnceFlag m_rasterizer_data_once;
-    mutable OwnPtr<RasterizerData> m_rasterizer_data;
+    RasterizerDataSlot m_rasterizer_data;
 
     // A layout pass classifies fonts while the document thread may be doing the same to the same
     // font, so the verdict is a single atomic byte. Either winner is correct: the classification

@@ -19,6 +19,7 @@
 #include <LibCore/MappedFile.h>
 #include <LibGfx/Font/FaceDescription.h>
 #include <LibGfx/Font/FontVariationSettings.h>
+#include <LibGfx/Font/RasterizerData.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/ShapeFeature.h>
 #include <LibIPC/Forward.h>
@@ -40,6 +41,21 @@ struct SystemFontIdentifier {
     u64 face_id { 0 };
 
     bool operator==(SystemFontIdentifier const&) const = default;
+};
+
+// The designs of the system UI font that CSS can name.
+enum class SystemUIFontKind : u8 {
+    System,
+    Serif,
+    Monospace,
+    Rounded,
+};
+
+struct SystemUIFontStyle {
+    SystemUIFontKind kind;
+    u16 weight;
+    u16 width;
+    u8 slope;
 };
 
 struct FontCacheKey {
@@ -91,10 +107,10 @@ public:
     u32 glyph_count() const;
     u16 units_per_em() const;
     u32 glyph_id_for_code_point(u32 code_point) const;
-    virtual FlyString const& family() const = 0;
-    virtual u16 weight() const = 0;
-    virtual u16 width() const = 0;
-    virtual u8 slope() const = 0;
+    FlyString const& family() const;
+    u16 weight() const;
+    u16 width() const;
+    u8 slope() const;
 
     ReadonlyBytes font_data() const LIFETIME_BOUND { return buffer(); }
     u32 collection_index() const { return ttc_index(); }
@@ -112,8 +128,12 @@ public:
     FaceDescription const& description() const;
 
     // The style of a font of this typeface with these variations.
-    virtual FaceStyle style_for_variations(ReadonlySpan<FontVariationAxis>) const;
+    FaceStyle style_for_variations(ReadonlySpan<FontVariationAxis>) const;
     ErrorOr<Vector<String>> local_font_names() const;
+
+    // What a rasterizer keeps with this typeface. The first call makes it.
+    template<typename T, typename Callback>
+    T& rasterizer_data(Callback make) const { return m_rasterizer_data.get<T>(make); }
 
     // Union of all glyph bounding boxes as recorded in the `head` table, in font units with y pointing up.
     // is_empty() when the face has no usable `head` table (e.g. bitmap-only fonts).
@@ -132,6 +152,7 @@ public:
     bool fast_is() const = delete;
 
     virtual bool is_skia() const { return false; }
+    virtual bool is_core_text() const { return false; }
 
     // How many glyph pages the calling thread has filled in, for tests of its glyph page caches.
     static u64 glyph_pages_populated_on_this_thread();
@@ -151,6 +172,8 @@ protected:
     virtual u32 ttc_index() const = 0;
     virtual void encode_font_data_for_ipc(IPC::Encoder&) const;
     virtual hb_face_t* create_harfbuzz_face() const;
+    // A typeface that the platform picked for a style answers with that style, whatever its tables say.
+    virtual Optional<FaceStyle> fixed_style() const { return {}; }
 
     void set_font_data(NonnullRefPtr<FontDataBacking> backing) { m_font_data = move(backing); }
     bool has_font_data_backing() const { return !m_font_data.is_null(); }
@@ -199,6 +222,7 @@ private:
     mutable Optional<FaceDescription> m_description;
     mutable OnceFlag m_bounding_box_once;
     mutable BoundingBoxInFontUnits m_bounding_box_in_font_units;
+    RasterizerDataSlot m_rasterizer_data;
 };
 
 }
@@ -218,5 +242,11 @@ ErrorOr<void> encode(Encoder&, Gfx::Typeface const&);
 
 template<>
 ErrorOr<NonnullRefPtr<Gfx::Typeface const>> decode(Decoder&);
+
+template<>
+ErrorOr<void> encode(Encoder&, Gfx::SystemUIFontStyle const&);
+
+template<>
+ErrorOr<Gfx::SystemUIFontStyle> decode(Decoder&);
 
 }

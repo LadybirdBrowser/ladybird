@@ -14,6 +14,9 @@
 #include <LibGfx/Font/SystemFallbackFonts.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/TypefaceSkia.h>
+#ifdef AK_OS_MACOS
+#    include <LibGfx/Font/TypefaceCoreText.h>
+#endif
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/TextLayout.h>
 #include <LibIPC/Decoder.h>
@@ -377,12 +380,12 @@ static NonnullRefPtr<Gfx::Typeface const> round_trip_typeface_through_ipc(Gfx::T
     return MUST(IPC::decode<NonnullRefPtr<Gfx::Typeface const>>(decoder));
 }
 
-TEST_CASE(system_ui_italic_keeps_its_slope_when_the_variation_clone_collapses)
+TEST_CASE(system_ui_italic_keeps_its_slope_with_variations)
 {
-    // At 28px the system font's opsz axis sits at its maximum, so applying the default variation hands back the base
-    // CoreText UI font, which Skia reads as upright.
+    // A system UI font is one variable face for every style, so its typeface and its fonts answer with the style
+    // that they were asked for, also after the typeface crosses IPC.
     float const font_size = 28;
-    auto typeface = MUST(Gfx::TypefaceSkia::match_system_ui(Gfx::SystemUIFontKind::System, font_size, 400, Gfx::FontWidth::Normal, 1));
+    auto typeface = Gfx::TypefaceCoreText::system_ui({ Gfx::SystemUIFontKind::System, 400, Gfx::FontWidth::Normal, 1 });
     EXPECT(typeface);
 
     Gfx::FontVariationSettings variations;
@@ -390,11 +393,12 @@ TEST_CASE(system_ui_italic_keeps_its_slope_when_the_variation_clone_collapses)
     variations.set_width(100);
     variations.set_optical_sizing(font_size);
     auto font = typeface->font(font_size * 0.75f, variations);
+    EXPECT_EQ(font->slope(), 1u);
     EXPECT_EQ(font->typeface().slope(), 1u);
 
     auto decoded = round_trip_typeface_through_ipc(font->typeface());
     EXPECT_EQ(decoded->slope(), 1u);
-    EXPECT_EQ(decoded->glyph_id_for_code_point('m'), font->typeface().glyph_id_for_code_point('m'));
+    EXPECT_EQ(decoded.ptr(), &font->typeface());
 }
 #endif
 

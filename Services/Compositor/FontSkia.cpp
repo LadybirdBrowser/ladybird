@@ -20,6 +20,11 @@
 #    include <LibGfx/Font/GlobalFontConfig.h>
 #endif
 
+#ifdef AK_OS_MACOS
+#    include <LibGfx/Font/TypefaceCoreText.h>
+#    include <ports/SkTypeface_mac.h>
+#endif
+
 namespace Compositor {
 
 #if defined(USE_FONTCONFIG)
@@ -55,15 +60,40 @@ static u64 encode_hinting_memo(float scale, Gfx::FontHintingOptions options)
 
 namespace {
 
+// What the compositor keeps with each typeface.
+struct TypefaceData final : public Gfx::RasterizerData {
+    explicit TypefaceData(sk_sp<SkTypeface> typeface)
+        : typeface(move(typeface))
+    {
+    }
+
+    sk_sp<SkTypeface> typeface;
+};
+
+sk_sp<SkTypeface> make_skia_typeface(Gfx::Typeface const& typeface)
+{
+#ifdef AK_OS_MACOS
+    if (auto const* core_text_typeface = as_if<Gfx::TypefaceCoreText>(typeface))
+        return SkMakeTypefaceFromCTFont(core_text_typeface->core_text_font());
+#endif
+    return sk_ref_sp(as<Gfx::TypefaceSkia>(typeface).sk_typeface());
+}
+
+// The Skia typeface of a typeface. Null if Skia cannot load it.
+sk_sp<SkTypeface> const& skia_typeface(Gfx::Typeface const& typeface)
+{
+    return typeface.rasterizer_data<TypefaceData>([&] { return make<TypefaceData>(make_skia_typeface(typeface)); }).typeface;
+}
+
 // The typeface of the font's variations. Without variations, or if Skia cannot apply them, it is the typeface itself.
 sk_sp<SkTypeface> typeface_with_variations(Gfx::Font const& font)
 {
-    auto const* typeface = as<Gfx::TypefaceSkia>(font.typeface()).sk_typeface();
+    auto const& typeface = skia_typeface(font.typeface());
     if (!typeface)
         return nullptr;
     auto axes = font.variation_settings().to_sorted_list();
     if (axes.is_empty())
-        return sk_ref_sp(typeface);
+        return typeface;
 
     Vector<SkFontArguments::VariationPosition::Coordinate> coordinates;
     coordinates.ensure_capacity(axes.size());
@@ -74,7 +104,7 @@ sk_sp<SkTypeface> typeface_with_variations(Gfx::Font const& font)
     arguments.setCollectionIndex(static_cast<int>(font.typeface().collection_index()));
     if (auto clone = typeface->makeClone(arguments))
         return clone;
-    return sk_ref_sp(typeface);
+    return typeface;
 }
 
 // What the compositor keeps with each font.

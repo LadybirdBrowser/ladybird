@@ -39,7 +39,6 @@
 
 #ifdef AK_OS_MACOS
 #    include <CoreText/CoreText.h>
-#    include <harfbuzz/hb-coretext.h>
 #    include <ports/SkFontMgr_mac_ct.h>
 #    include <ports/SkTypeface_mac.h>
 #    include <src/ports/SkTypeface_mac_ct.h>
@@ -56,41 +55,14 @@ static auto& skia_font_manager()
 struct TypefaceSkia::Impl {
     AK_ALLOC_WITH_KMALLOC;
 
-    Impl(sk_sp<SkTypeface> skia_typeface, std::unique_ptr<SkStreamAsset> stream = {}, Optional<SystemUIFontStyle> system_ui_font_style = {}
-#ifdef AK_OS_MACOS
-        ,
-        CGFontRef cg_font = nullptr
-#endif
-        )
+    Impl(sk_sp<SkTypeface> skia_typeface, std::unique_ptr<SkStreamAsset> stream = {})
         : skia_typeface(move(skia_typeface))
         , stream(move(stream))
-        , system_ui_font_style(move(system_ui_font_style))
     {
-#ifdef AK_OS_MACOS
-        if (cg_font) {
-            this->cg_font = cg_font;
-            CFRetain(this->cg_font);
-        }
-#endif
-    }
-
-    ~Impl()
-    {
-#ifdef AK_OS_MACOS
-        if (cg_font)
-            CFRelease(cg_font);
-#endif
     }
 
     sk_sp<SkTypeface> skia_typeface;
     std::unique_ptr<SkStreamAsset> stream;
-
-    // Skia reads a CoreText UI font as upright and regular because its descriptor carries no numeric style traits,
-    // so a system UI typeface answers style queries from the style it was matched for instead.
-    Optional<SystemUIFontStyle> system_ui_font_style;
-#ifdef AK_OS_MACOS
-    CGFontRef cg_font { nullptr };
-#endif
 };
 
 static SkFontMgr& font_manager()
@@ -143,28 +115,7 @@ static SkFontStyle::Slant slope_to_skia_slant(u8 slope)
     }
 }
 
-#ifdef AK_OS_MACOS
-static CTFontRef create_system_ui_font(SystemUIFontKind, float point_size, u8 slope);
-
-ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::typeface_from_core_text_typeface(sk_sp<SkTypeface> skia_typeface, CTFontRef ct_font, SystemUIFontStyle system_ui_font_style)
-{
-    if (!skia_typeface)
-        return RefPtr<TypefaceSkia> {};
-
-    auto cg_font = CTFontCopyGraphicsFont(ct_font, nullptr);
-    if (!cg_font)
-        return Error::from_string_literal("Failed to get graphics font from CoreText font");
-
-    auto typeface = adopt_ref(*new TypefaceSkia {
-        make<TypefaceSkia::Impl>(move(skia_typeface), std::unique_ptr<SkStreamAsset> {}, system_ui_font_style, cg_font),
-        {},
-        0 });
-    CFRelease(cg_font);
-    return typeface;
-}
-#endif
-
-ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::typeface_from_skia_typeface(sk_sp<SkTypeface> skia_typeface, Optional<SystemUIFontStyle> system_ui_font_style)
+ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::typeface_from_skia_typeface(sk_sp<SkTypeface> skia_typeface)
 {
     if (!skia_typeface)
         return RefPtr<TypefaceSkia> {};
@@ -177,7 +128,7 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::typeface_from_skia_typeface(sk_sp<Sk
         // NB: Safe to reference without copying because we hold on to the stream.
         ReadonlyBytes bytes { static_cast<u8 const*>(stream->getMemoryBase()), stream->getLength() };
         return adopt_ref(*new TypefaceSkia {
-            make<TypefaceSkia::Impl>(skia_typeface, std::move(stream), system_ui_font_style),
+            make<TypefaceSkia::Impl>(skia_typeface, std::move(stream)),
             bytes,
             ttc_index });
     }
@@ -188,7 +139,7 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::typeface_from_skia_typeface(sk_sp<Sk
     auto memory_stream = copy_stream_to_memory_stream(*stream);
     auto bytes = ReadonlyBytes { static_cast<u8 const*>(memory_stream->getMemoryBase()), memory_stream->getLength() };
     return adopt_ref(*new TypefaceSkia {
-        make<TypefaceSkia::Impl>(skia_typeface, move(memory_stream), system_ui_font_style),
+        make<TypefaceSkia::Impl>(skia_typeface, move(memory_stream)),
         bytes,
         ttc_index });
 }
@@ -333,12 +284,6 @@ void TypefaceSkia::encode_font_data_for_ipc(IPC::Encoder& encoder) const
         return;
     }
 
-    if (impl().system_ui_font_style.has_value()) {
-        MUST(encoder.encode(FontDataFormat::SystemUIFont));
-        MUST(encoder.encode(*impl().system_ui_font_style));
-        return;
-    }
-
     auto family_name = family().to_string();
 
     MUST(encoder.encode(FontDataFormat::SystemFont));
@@ -346,92 +291,6 @@ void TypefaceSkia::encode_font_data_for_ipc(IPC::Encoder& encoder) const
     MUST(encoder.encode(weight()));
     MUST(encoder.encode(width()));
     MUST(encoder.encode(slope()));
-}
-
-#ifdef AK_OS_MACOS
-// NB: These are the CoreText string values behind the public AppKit NSFontDescriptorSystemDesign constants.
-// Keeping them here avoids pulling Objective-C headers into this C++ file.
-static CFStringRef core_text_ui_font_design(SystemUIFontKind kind)
-{
-    switch (kind) {
-    case SystemUIFontKind::System:
-        return CFSTR("NSCTFontUIFontDesignDefault");
-    case SystemUIFontKind::Serif:
-        return CFSTR("NSCTFontUIFontDesignSerif");
-    case SystemUIFontKind::Monospace:
-        return CFSTR("NSCTFontUIFontDesignMonospaced");
-    case SystemUIFontKind::Rounded:
-        return CFSTR("NSCTFontUIFontDesignRounded");
-    }
-    VERIFY_NOT_REACHED();
-}
-
-static CTFontDescriptorRef create_system_ui_font_descriptor(SystemUIFontKind kind, u8 slope)
-{
-    CGFloat core_text_slant = slope == 0 ? 0.0f : 1.0f;
-    auto slant_number = CFNumberCreate(kCFAllocatorDefault, kCFNumberCGFloatType, &core_text_slant);
-    if (!slant_number)
-        return nullptr;
-
-    CFTypeRef trait_keys[] = { kCTFontSlantTrait, CFSTR("NSCTFontUIFontDesignTrait") };
-    CFTypeRef trait_values[] = { slant_number, core_text_ui_font_design(kind) };
-    auto traits = CFDictionaryCreate(kCFAllocatorDefault, trait_keys, trait_values, array_size(trait_keys), &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
-    CFRelease(slant_number);
-    if (!traits)
-        return nullptr;
-
-    CFTypeRef attribute_keys[] = { kCTFontTraitsAttribute };
-    CFTypeRef attribute_values[] = { traits };
-    auto attributes = CFDictionaryCreate(kCFAllocatorDefault, attribute_keys, attribute_values, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
-    CFRelease(traits);
-    if (!attributes)
-        return nullptr;
-
-    auto descriptor = CTFontDescriptorCreateWithAttributes(attributes);
-    CFRelease(attributes);
-    return descriptor;
-}
-
-static CTFontRef create_system_ui_font(SystemUIFontKind kind, float point_size, u8 slope)
-{
-    auto base_font = CTFontCreateUIFontForLanguage(kCTFontUIFontSystem, point_size, nullptr);
-    if (!base_font)
-        return nullptr;
-
-    auto descriptor = create_system_ui_font_descriptor(kind, slope);
-    if (!descriptor) {
-        CFRelease(base_font);
-        return nullptr;
-    }
-
-    auto font = CTFontCreateCopyWithAttributes(base_font, point_size, nullptr, descriptor);
-    if (!font)
-        font = CTFontCreateWithFontDescriptor(descriptor, point_size, nullptr);
-    CFRelease(base_font);
-    CFRelease(descriptor);
-    return font;
-}
-#endif
-
-ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::match_system_ui(SystemUIFontKind kind, float point_size, u16 weight, u16 width, u8 slope)
-{
-#ifdef AK_OS_MACOS
-    auto ct_font = create_system_ui_font(kind, point_size, slope);
-    if (!ct_font)
-        return RefPtr<TypefaceSkia> {};
-
-    auto skia_typeface = SkMakeTypefaceFromCTFont(ct_font);
-    auto typeface = typeface_from_core_text_typeface(move(skia_typeface), ct_font, SystemUIFontStyle { kind, weight, width, slope });
-    CFRelease(ct_font);
-    return typeface;
-#else
-    (void)kind;
-    (void)point_size;
-    (void)weight;
-    (void)width;
-    (void)slope;
-    return RefPtr<TypefaceSkia> {};
-#endif
 }
 
 ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::match_family_style(StringView family_name, u16 weight, u16 width, u8 slope)
@@ -483,77 +342,11 @@ u32 TypefaceSkia::platform_typeface_id() const
     return impl().skia_typeface->uniqueID();
 }
 
-hb_face_t* TypefaceSkia::create_harfbuzz_face() const
-{
-#ifdef AK_OS_MACOS
-    if (impl().cg_font)
-        return hb_coretext_face_create(impl().cg_font);
-#endif
-    return Typeface::create_harfbuzz_face();
-}
-
 TypefaceSkia::TypefaceSkia(NonnullOwnPtr<Impl> impl, ReadonlyBytes buffer, u32 ttc_index)
     : m_impl(move(impl))
     , m_buffer(buffer)
     , m_ttc_index(ttc_index)
 {
-}
-
-FlyString const& TypefaceSkia::family() const
-{
-    return description().family();
-}
-
-u16 TypefaceSkia::weight() const
-{
-    if (auto const& style = impl().system_ui_font_style; style.has_value())
-        return style->weight;
-    return description().style().weight;
-}
-
-u16 TypefaceSkia::width() const
-{
-    if (auto const& style = impl().system_ui_font_style; style.has_value())
-        return style->width;
-    return description().style().width;
-}
-
-u8 TypefaceSkia::slope() const
-{
-    if (auto const& style = impl().system_ui_font_style; style.has_value())
-        return style->slope;
-    return description().style().slope;
-}
-
-FaceStyle TypefaceSkia::style_for_variations(ReadonlySpan<FontVariationAxis> variations) const
-{
-    if (auto const& style = impl().system_ui_font_style; style.has_value())
-        return { .weight = style->weight, .width = style->width, .slope = style->slope };
-    return Typeface::style_for_variations(variations);
-}
-
-}
-
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Gfx::SystemUIFontStyle const& style)
-{
-    TRY(encoder.encode(style.kind));
-    TRY(encoder.encode(style.weight));
-    TRY(encoder.encode(style.width));
-    TRY(encoder.encode(style.slope));
-    return {};
-}
-
-template<>
-ErrorOr<Gfx::SystemUIFontStyle> decode(Decoder& decoder)
-{
-    auto kind = TRY(decoder.decode<Gfx::SystemUIFontKind>());
-    auto weight = TRY(decoder.decode<u16>());
-    auto width = TRY(decoder.decode<u16>());
-    auto slope = TRY(decoder.decode<u8>());
-    return Gfx::SystemUIFontStyle { kind, weight, width, slope };
 }
 
 }
