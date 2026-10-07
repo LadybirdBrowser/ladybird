@@ -883,7 +883,7 @@ pub struct ComputedGroupSets {
     live_animation_overlay_assignments: usize,
     next_animation_overlay_generation: u64,
     pending_cascade_states: HashMap<StyleNodeID, (u64, CascadeStateID)>,
-    pseudo_rows_by_node: HashMap<StyleNodeID, Box<[PseudoComputedRow]>>,
+    pseudo_rows_by_node: crate::fork::ForkShared<HashMap<StyleNodeID, Box<[PseudoComputedRow]>>>,
     group_set_nested_memory: MemoryLease,
     longhand_table_nested_memory: MemoryLease,
     animation_overlay_nested_memory: MemoryLease,
@@ -916,7 +916,7 @@ impl Default for ComputedGroupSets {
             live_animation_overlay_assignments: 0,
             next_animation_overlay_generation: 0,
             pending_cascade_states: HashMap::default(),
-            pseudo_rows_by_node: HashMap::default(),
+            pseudo_rows_by_node: Default::default(),
             group_set_nested_memory: MemoryLease::new(MemoryCategory::ComputedGroupSet),
             longhand_table_nested_memory: MemoryLease::new(MemoryCategory::ComputedLonghandTable),
             animation_overlay_nested_memory: MemoryLease::new(MemoryCategory::AnimationOverlayRecord),
@@ -1053,7 +1053,7 @@ impl ComputedGroupSets {
                 nodes.push(u32::try_from(index).expect("computed style node identity exceeds u32"));
             }
         }
-        for (&node, rows) in &self.pseudo_rows_by_node {
+        for (&node, rows) in self.pseudo_rows_by_node.iter() {
             if rows.iter().any(|row| {
                 row.assignment.is_some_and(|assignment| {
                     depends_on_viewport(assignment.fixed_metadata, assignment.custom_properties)

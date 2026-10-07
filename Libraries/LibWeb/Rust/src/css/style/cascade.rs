@@ -1444,7 +1444,7 @@ pub struct WinnerGroups {
     /// cascade of the node's current answer.
     stamps: Column<u64>,
     stamp: u64,
-    pseudo_rows_by_node: Column<Vec<PseudoWinnerRow>>,
+    pseudo_rows_by_node: crate::fork::ForkShared<Column<Vec<PseudoWinnerRow>>>,
     pseudo_row_capacity_bytes: u64,
     priority_current: BitColumn,
     row_count: usize,
@@ -1509,7 +1509,7 @@ impl Default for WinnerGroups {
             column: Column::default(),
             stamps: Column::default(),
             stamp: 0,
-            pseudo_rows_by_node: Column::default(),
+            pseudo_rows_by_node: Default::default(),
             pseudo_row_capacity_bytes: 0,
             priority_current: BitColumn::default(),
             row_count: 0,
@@ -2587,7 +2587,7 @@ impl WinnerGroups {
         self.winner_rule_references = WinnerRuleReferences::default();
         self.column = Column::default();
         self.stamps = Column::default();
-        self.pseudo_rows_by_node = Column::default();
+        *self.pseudo_rows_by_node = Column::default();
         self.pseudo_row_capacity_bytes = 0;
         self.priority_current = BitColumn::default();
         self.row_count = 0;

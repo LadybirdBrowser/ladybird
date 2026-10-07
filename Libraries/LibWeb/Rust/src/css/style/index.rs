@@ -3548,7 +3548,7 @@ pub struct ElementFactStore {
     primary_stale_payload_bytes: u64,
     /// Candidate sets over the same facts. A rule arriving needs to find the elements it could
     /// match without walking the document, and this is what answers that.
-    postings: FeaturePostings,
+    postings: crate::fork::ForkShared<FeaturePostings>,
     /// Tier-3 headroom when admission last closed during a full rebuild. Until more headroom
     /// appears, another scan can only reach the same closure.
     posting_rebuild_closed_at_headroom: Option<u64>,
@@ -3579,7 +3579,7 @@ pub struct ElementFactStore {
     /// The longhand properties each element declares itself, by the kind of declaration they came
     /// from. An element-attached declaration beats every rule in its context, so the cascade needs
     /// to know which properties one covers just as it does for a rule.
-    element_declared_properties: ElementDeclarationRows,
+    element_declared_properties: crate::fork::ForkShared<ElementDeclarationRows>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -3932,7 +3932,7 @@ impl Default for ElementFactStore {
             primary_live_bytes: 0,
             primary_live_payload_bytes: 0,
             primary_stale_payload_bytes: 0,
-            postings: FeaturePostings::default(),
+            postings: Default::default(),
             posting_rebuild_closed_at_headroom: None,
             memory: MemoryLease::new(MemoryCategory::StyleNodeMapping),
             memory_dirty: false,
@@ -3945,7 +3945,7 @@ impl Default for ElementFactStore {
             attribute_name_live_counts: PagedCopyColumn::default(),
             attribute_value_live_counts: PagedCopyColumn::default(),
             custom_property_set_live_counts: vec![0],
-            element_declared_properties: ElementDeclarationRows::default(),
+            element_declared_properties: Default::default(),
         };
         store.settled_non_apply_capacity_bytes = store.capacity_bytes() - store.apply_capacity_bytes();
         store
@@ -4950,7 +4950,7 @@ impl ElementFactStore {
         node: StyleNodeID,
     ) -> Option<HiddenInlineDeclarations> {
         let index = node.element_index()? as usize;
-        let rows = &mut self.element_declared_properties;
+        let rows = &mut *self.element_declared_properties;
         let row = rows.rows.get_mut(index)?.as_mut()?;
         let before = row.storage_bytes();
         let kind = ElementDeclarationKind::InlineStyle.index();
@@ -4972,7 +4972,7 @@ impl ElementFactStore {
         hidden: HiddenInlineDeclarations,
     ) {
         let index = node.element_index().expect("only an element has an inline declaration") as usize;
-        let rows = &mut self.element_declared_properties;
+        let rows = &mut *self.element_declared_properties;
         let row = rows.rows[index]
             .as_mut()
             .expect("a private demand keeps the element's declaration row");
