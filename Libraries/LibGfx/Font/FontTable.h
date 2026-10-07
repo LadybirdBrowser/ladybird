@@ -40,6 +40,9 @@ private:
     ReadonlyBytes m_bytes;
 };
 
+// Whether a face has a table, by the same rules as FontTable, without reading the table.
+bool face_has_table(hb_face_t*, FourCC tag);
+
 // A name of a face from its name table, in US English, or else in the first language that the face has it in.
 Optional<String> face_name(hb_face_t*, u16 name_id);
 

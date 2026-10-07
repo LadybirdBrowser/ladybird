@@ -11,6 +11,7 @@
 #include <AK/TypeCasts.h>
 #include <AK/Utf16String.h>
 #include <LibGfx/Font/Font.h>
+#include <LibGfx/Font/FontTable.h>
 #include <LibGfx/TextLayout.h>
 #include <RustFFI.h>
 
@@ -144,14 +145,6 @@ hb_font_t* Font::create_harfbuzz_font() const
     return font;
 }
 
-static bool hb_face_has_table(hb_face_t* face, hb_tag_t tag)
-{
-    hb_blob_t* blob = hb_face_reference_table(face, tag);
-    unsigned len = hb_blob_get_length(blob);
-    hb_blob_destroy(blob);
-    return len > 0;
-}
-
 bool Font::is_emoji_font() const
 {
     if (m_is_emoji_font.load(AK::MemoryOrder::memory_order_relaxed) == TriState::Unknown) {
@@ -170,9 +163,9 @@ bool Font::is_emoji_font() const
         bool has_colr = hb_ot_color_has_layers(face) || hb_ot_color_has_paint(face);
         bool has_svg = hb_ot_color_has_svg(face);
 
-        bool has_sbix = hb_face_has_table(face, HB_TAG('s', 'b', 'i', 'x'));
-        bool has_cbdt = hb_face_has_table(face, HB_TAG('C', 'B', 'D', 'T'));
-        bool has_cblc = hb_face_has_table(face, HB_TAG('C', 'B', 'L', 'C'));
+        bool has_sbix = face_has_table(face, FourCC { "sbix" });
+        bool has_cbdt = face_has_table(face, FourCC { "CBDT" });
+        bool has_cblc = face_has_table(face, FourCC { "CBLC" });
         bool has_any_color = has_colr || has_svg || has_sbix || (has_cbdt && has_cblc);
 
         auto looks_like_text = [&]() {

@@ -37,6 +37,11 @@ ErrorOr<Vector<String>> Typeface::local_font_names() const
     return names;
 }
 
+Optional<String> Typeface::postscript_name() const
+{
+    return face_name(harfbuzz_typeface(), HB_OT_NAME_ID_POSTSCRIPT_NAME);
+}
+
 FlyString const& Typeface::family() const
 {
     return description().family();
@@ -416,6 +421,15 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface const>> decode(Decoder& decoder)
         (void)style;
 #endif
         return Error::from_string_literal("Typeface IPC data referred to an unavailable system UI font");
+    }
+    case Gfx::Typeface::FontDataFormat::PlatformFontName: {
+        auto postscript_name = TRY(decoder.decode<String>());
+#ifdef AK_OS_MACOS
+        return TRY(Gfx::TypefaceCoreText::try_load_postscript_name(postscript_name));
+#else
+        (void)postscript_name;
+        return Error::from_string_literal("Typeface IPC data referred to a platform font, which this platform does not have");
+#endif
     }
     case Gfx::Typeface::FontDataFormat::SystemFontId: {
         auto generation = TRY(decoder.decode<u64>());
