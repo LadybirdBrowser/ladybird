@@ -68,7 +68,7 @@ pub struct RemovedBoxBlocks {
     pub former_paint_parent: NodeSlotId,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct VisualContextDirtySet {
     pub boxes: HashMap<NodeSlotId, BoxDirtyBits>,
     pub removed: Vec<RemovedBoxBlocks>,

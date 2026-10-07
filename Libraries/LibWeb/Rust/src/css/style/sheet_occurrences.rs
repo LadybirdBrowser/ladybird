@@ -7,13 +7,15 @@
 use super::capacity::ShallowCapacityBytes;
 use super::*;
 
+#[derive(Clone)]
+
 struct SheetOccurrence {
     identity: u64,
     sheet: SheetID,
     conditions_hold: bool,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct ScopeSheetOccurrences {
     occurrences: Vec<SheetOccurrence>,
     published: Vec<SheetID>,

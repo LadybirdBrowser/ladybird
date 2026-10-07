@@ -94,7 +94,7 @@ pub(super) enum FullDrive {
     AwaitsRegisteredContext(custom_property_cascade::RegisteredValueContext),
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(in crate::css::style) struct FontDriveScratch {
     request: Option<font_resolution::FontRequest>,
     pending: Option<PendingFontDrive>,
@@ -141,6 +141,7 @@ impl FontDriveScratch {
 /// An element's record, computed while one of its pseudo-elements waits for a font, held for the
 /// element's own row to resume. Its fields are private to the drive, so the record can only be
 /// taken back by naming the node it was computed for.
+#[derive(Clone)]
 pub(super) struct PendingElement {
     node: StyleNodeID,
     delta: RecordDelta,
@@ -162,6 +163,7 @@ impl PendingElement {
 
 /// A drive left for its target's retry. No parent/context borrow survives refill; the caller
 /// resumes the same subject before evaluating any later canonical element.
+#[derive(Clone)]
 struct PendingFontDrive {
     /// What the suspended drive belongs to. The record loop can settle that element another way
     /// before the retry comes, which leaves the drive behind; whoever is driven next must not
@@ -173,6 +175,7 @@ struct PendingFontDrive {
 }
 
 /// The completed font phase owns its table.
+#[derive(Clone)]
 struct DriveProgress {
     root_font_complete: bool,
     /// Whether the color-scheme phase ran too, as it has for a drive awaiting its registered

@@ -11,6 +11,8 @@ use std::num::NonZeroU32;
 
 const IDENTITIES_PER_PAGE: usize = 128;
 
+#[derive(Clone)]
+
 struct IdentityPage {
     slots: [Option<NonZeroU32>; IDENTITIES_PER_PAGE],
     live_count: u16,
@@ -18,7 +20,7 @@ struct IdentityPage {
 
 /// Native identities are allocated in ranges by parsed stylesheets. Hash only their page
 /// number, then read the compact semantic identity directly from the page's slot.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(in crate::css::style) struct NativeRuleIdentities {
     pages: HashMap<u64, Box<IdentityPage>>,
 }

@@ -177,7 +177,7 @@ pub struct BudgetInputs {
 /// The lock exists so the read side that holds the controller is `Sync`, not because two
 /// threads charge concurrently: the controller is touched only at boundaries, on one thread.
 /// No ledger operation can close admission or refuse required capacity.
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct ChargeLedger {
     category_bytes: [u64; MEMORY_CATEGORY_COUNT],
     tier_bytes: [u64; TIER_COUNT],
@@ -291,10 +291,20 @@ impl MemoryLease {
 
     fn bind(&mut self, memory: &MemoryController) {
         if let Some(ledger) = &self.ledger {
-            assert!(
-                Arc::ptr_eq(ledger, &memory.charges),
-                "memory lease moved between documents"
-            );
+            if Arc::ptr_eq(ledger, &memory.charges) {
+                return;
+            }
+            // A copy of the lease that a fork of the render state holds charges the fork's ledger from now on.
+            ledger
+                .lock()
+                .expect("the memory ledger is never held across a panic")
+                .release(self.category, self.bytes);
+            memory
+                .charges
+                .lock()
+                .expect("the memory ledger is never held across a panic")
+                .add(self.category, self.bytes);
+            self.ledger = Some(Arc::clone(&memory.charges));
         } else {
             self.ledger = Some(Arc::clone(&memory.charges));
         }
@@ -376,12 +386,13 @@ impl MemoryLease {
         assert!(bytes <= self.bytes);
         let released = self.bytes - bytes;
         if released != 0 {
-            self.ledger
-                .as_ref()
-                .expect("a charged memory lease has a ledger")
-                .lock()
-                .expect("the memory ledger is never held across a panic")
-                .release(self.category, released);
+            // NB: A fork's lease holds bytes its fork's ledger counts before it binds to it.
+            if let Some(ledger) = &self.ledger {
+                ledger
+                    .lock()
+                    .expect("the memory ledger is never held across a panic")
+                    .release(self.category, released);
+            }
             self.bytes = bytes;
         }
     }
@@ -391,6 +402,24 @@ impl MemoryLease {
             self.shrink_to(0);
         } else {
             self.bytes = 0;
+        }
+    }
+}
+
+/// A copy of a lease charges what it holds to the same ledger, until it binds to another document's: a fork of the
+/// render state, which copies what it shares with the host's state as either first writes it.
+impl Clone for MemoryLease {
+    fn clone(&self) -> Self {
+        if let Some(ledger) = &self.ledger {
+            ledger
+                .lock()
+                .expect("the memory ledger is never held across a panic")
+                .add(self.category, self.bytes);
+        }
+        Self {
+            category: self.category,
+            ledger: self.ledger.clone(),
+            bytes: self.bytes,
         }
     }
 }
@@ -430,6 +459,31 @@ pub struct MemoryController {
     tier3_quota_period_active: bool,
     #[cfg(test)]
     tier3_limit_override: Option<u64>,
+}
+
+/// A fork's controller keeps a ledger of its own, which starts as a copy of the original's: what the fork releases of
+/// what the original charged comes out of it, and the leases it copied charge it as they bind to it.
+impl Clone for MemoryController {
+    fn clone(&self) -> Self {
+        let ledger = self
+            .charges
+            .lock()
+            .expect("the memory ledger is never held across a panic")
+            .clone();
+        Self {
+            inputs: self.inputs,
+            charges: Arc::new(Mutex::new(ledger)),
+            benefit_hits: self.benefit_hits,
+            benefit_observations: self.benefit_observations,
+            observed_hit_totals: self.observed_hit_totals,
+            observed_miss_totals: self.observed_miss_totals,
+            tier3_period_start_bytes: self.tier3_period_start_bytes,
+            tier3_admitting: self.tier3_admitting,
+            tier3_quota_period_active: self.tier3_quota_period_active,
+            #[cfg(test)]
+            tier3_limit_override: self.tier3_limit_override,
+        }
+    }
 }
 
 impl MemoryController {

@@ -150,6 +150,17 @@ impl RetainedLonghandTable {
     }
 }
 
+/// A fork's table holds its own strong reference.
+impl Clone for RetainedLonghandTable {
+    fn clone(&self) -> Self {
+        if !self.table.is_null() {
+            // SAFETY: The table is a live strong reference, and an interned table is frozen.
+            unsafe { crate::css::computed_longhand_table::rust_computed_longhand_table_retain(self.table.as_ptr()) };
+        }
+        Self { table: self.table }
+    }
+}
+
 impl Drop for RetainedLonghandTable {
     fn drop(&mut self) {
         if !self.table.is_null() {
@@ -269,14 +280,27 @@ impl FinalStyleRecordID {
 /// The composition of an element or pseudo-element, which `ComputedGroupSets::detach_composition`
 /// took off the record its winners decided so that a record derived beneath it can take that
 /// record's place. It stays
-/// pinned until it is reattached or released, each of which consumes it, so it cannot be copied.
-/// Dropping it any other way would leave the pin behind, which debug builds catch.
+/// pinned until it is reattached or released, each of which consumes it. Dropping it any other way
+/// would leave the pin behind, which debug builds catch, but for the copy a fork of the render
+/// state holds, which goes with the fork's group sets where the fork does not consume it.
 #[derive(Debug)]
 #[must_use]
 pub(crate) struct DetachedComposition {
     record: FinalStyleRecordID,
     /// The record the composition is laid over.
     pub(crate) base: FinalStyleRecordID,
+    /// Whether this is a fork's copy, whose pin is the fork's group sets'.
+    forked: bool,
+}
+
+impl Clone for DetachedComposition {
+    fn clone(&self) -> Self {
+        Self {
+            record: self.record,
+            base: self.base,
+            forked: true,
+        }
+    }
 }
 
 impl DetachedComposition {
@@ -291,7 +315,7 @@ impl DetachedComposition {
 impl Drop for DetachedComposition {
     fn drop(&mut self) {
         debug_assert!(
-            std::thread::panicking(),
+            self.forked || std::thread::panicking(),
             "a detached composition was dropped without being reattached or released"
         );
     }
@@ -300,7 +324,14 @@ impl Drop for DetachedComposition {
 /// A reader's hold on the payloads of every style record published so far: while one is held, the
 /// engine frees no record's payloads, which a reader on another thread may be reading.
 pub(crate) struct StyleRecordLease {
-    _lease: std::sync::Arc<()>,
+    leases: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+}
+
+impl Drop for StyleRecordLease {
+    fn drop(&mut self) {
+        // NB: Releases the reads made under the lease to the engine that frees the payloads once it sees none held.
+        self.leases.fetch_sub(1, std::sync::atomic::Ordering::Release);
+    }
 }
 
 struct AnimationOverlayRecord {
@@ -309,14 +340,35 @@ struct AnimationOverlayRecord {
     base_style_record: StyleRecordID,
     source_identity: u64,
     final_style_record: FinalStyleRecordID,
-    animated_overlay: Box<crate::css::animated_overlay::AnimatedOverlay>,
-    payloads: Box<[SharedPayload]>,
+    /// NB: Shared with a copy of the record, as its address is handed out.
+    animated_overlay: std::sync::Arc<crate::css::animated_overlay::AnimatedOverlay>,
+    /// NB: Shared with a fork of the render state, whose boxes name this array as the host's do.
+    payloads: std::sync::Arc<[SharedPayload]>,
     /// The base's flags, with an `<image>` a layout node loads, which a sampled value can hold
     /// where the base does not, and with the display:none subtree a sampled display puts the
     /// record in.
     dependency_flags: u8,
     pin_count: u64,
     is_assigned: bool,
+}
+
+/// A fork's overlay record holds its own reference to each of its payloads.
+impl Clone for AnimationOverlayRecord {
+    fn clone(&self) -> Self {
+        for (index, payload) in self.payloads.iter().enumerate() {
+            retain_group_payload(index, payload.as_ptr());
+        }
+        Self {
+            base_style_record: self.base_style_record,
+            source_identity: self.source_identity,
+            final_style_record: self.final_style_record,
+            animated_overlay: self.animated_overlay.clone(),
+            payloads: self.payloads.clone(),
+            dependency_flags: self.dependency_flags,
+            pin_count: self.pin_count,
+            is_assigned: self.is_assigned,
+        }
+    }
 }
 
 impl Drop for AnimationOverlayRecord {
@@ -333,7 +385,7 @@ mod animation_overlay_slots {
 
     /// The animation-overlay records by slot. A record leaves its slot only to be retired, never dropped, so that a
     /// reader holding a style-record lease keeps reading its payloads until the owner frees the retired records.
-    #[derive(Default)]
+    #[derive(Clone, Default)]
     pub(super) struct AnimationOverlaySlots {
         slots: Vec<Option<AnimationOverlayRecord>>,
         free: Vec<u32>,
@@ -433,6 +485,8 @@ pub(super) struct IdentityMints {
     pub style_records: u64,
 }
 
+#[derive(Clone)]
+
 struct ComputedGroup {
     index: usize,
     payload: SharedPayload,
@@ -441,9 +495,12 @@ struct ComputedGroup {
     content_hash: u64,
 }
 
+#[derive(Clone)]
+
 struct ComputedGroupSet {
     identity_hash: u64,
-    payloads: Box<[SharedPayload]>,
+    /// NB: Shared with a fork of the render state, whose boxes name this array as the host's do.
+    payloads: std::sync::Arc<[SharedPayload]>,
     groups: Box<[ComputedGroupID]>,
     canonical_longhand_table: Option<ComputedLonghandTableID>,
 }
@@ -467,7 +524,7 @@ struct PseudoComputedRow {
     cascade_states: [CascadeStateID; 3],
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct PublishedComputedColumns {
     groups: Vec<u32>,
     inherited_groups: Vec<u32>,
@@ -821,8 +878,8 @@ pub struct ComputedGroupSets {
     // above. Dense element assignments and sparse pseudo assignments pin at most one slot each.
     animation_overlay_slots: animation_overlay_slots::AnimationOverlaySlots,
     animation_overlay_slots_by_record: HashMap<FinalStyleRecordID, u32>,
-    /// Shared with every lease held.
-    leases: std::sync::Arc<()>,
+    /// How many leases are held, shared with every copy of the sets: a copy holds no lease of its own.
+    leases: std::sync::Arc<std::sync::atomic::AtomicUsize>,
     live_animation_overlay_assignments: usize,
     next_animation_overlay_generation: u64,
     pending_cascade_states: HashMap<StyleNodeID, (u64, CascadeStateID)>,
@@ -880,13 +937,14 @@ impl ComputedGroupSets {
     }
 
     pub(crate) fn lease_style_records(&self) -> StyleRecordLease {
+        self.leases.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         StyleRecordLease {
-            _lease: std::sync::Arc::clone(&self.leases),
+            leases: std::sync::Arc::clone(&self.leases),
         }
     }
 
-    fn style_records_are_leased(&mut self) -> bool {
-        std::sync::Arc::get_mut(&mut self.leases).is_none()
+    fn style_records_are_leased(&self) -> bool {
+        self.leases.load(std::sync::atomic::Ordering::Acquire) != 0
     }
 
     /// Frees the retired overlay records, if no lease is held, and answers whether it freed any.
@@ -1073,7 +1131,7 @@ impl ComputedGroupSets {
             identity,
             ComputedGroupSet {
                 identity_hash: hash,
-                payloads,
+                payloads: payloads.into(),
                 groups: groups.into(),
                 canonical_longhand_table: None,
             },
@@ -1210,6 +1268,7 @@ impl ComputedGroupSets {
         let detached = DetachedComposition {
             record: overlay.final_style_record,
             base: self.final_base_style_record(overlay.base_style_record),
+            forked: false,
         };
         self.pin_style_record(detached.record.raw());
         self.release_animation_overlay_assignment(slot);
@@ -1912,7 +1971,7 @@ impl ComputedGroupSets {
             base_style_record,
             source_identity,
             final_style_record: self.next_animation_overlay_record(),
-            animated_overlay,
+            animated_overlay: animated_overlay.into(),
             dependency_flags,
             payloads: payloads.into(),
             pin_count: 0,
@@ -2576,7 +2635,7 @@ impl ComputedGroupSets {
             if first_groups.len() != second_groups.len()
                 || first_groups
                     .iter()
-                    .zip(second_groups)
+                    .zip(second_groups.iter())
                     .enumerate()
                     .any(|(index, (&first, &second))| {
                         first != second && !style_group_payloads_equal(index, first.as_ptr(), second.as_ptr())
@@ -3425,7 +3484,7 @@ impl ComputedGroupSets {
                 self.sets.get_mut(identity),
                 ComputedGroupSet {
                     identity_hash: 0,
-                    payloads: Box::default(),
+                    payloads: std::sync::Arc::default(),
                     groups: Box::default(),
                     canonical_longhand_table: None,
                 },
@@ -3734,6 +3793,48 @@ impl ComputedGroupSets {
             nested [];
             skip [];
         }
+    }
+}
+
+/// A copy of the group sets holds its own reference to every payload, and shares the leases on its records.
+impl Clone for ComputedGroupSets {
+    fn clone(&self) -> Self {
+        let copy = Self {
+            identity_mints: self.identity_mints,
+            groups: self.groups.clone(),
+            groups_by_content: self.groups_by_content.clone(),
+            sets: self.sets.clone(),
+            inherited_sets: self.inherited_sets.clone(),
+            custom_property_environments: self.custom_property_environments.clone(),
+            computed_fixed_metadata: self.computed_fixed_metadata.clone(),
+            computed_longhand_tables: self.computed_longhand_tables.clone(),
+            style_records: self.style_records.clone(),
+            style_record_liveness: self.style_record_liveness.clone(),
+            style_record_generations: self.style_record_generations.clone(),
+            style_record_column: self.style_record_column.clone(),
+            base_style_record_pins: self.base_style_record_pins.clone(),
+            columns: self.columns.clone(),
+            animation_overlay_slots: self.animation_overlay_slots.clone(),
+            animation_overlay_slots_by_record: self.animation_overlay_slots_by_record.clone(),
+            // NB: Either copy may be the host's, whose published frames hold their leases here.
+            leases: self.leases.clone(),
+            live_animation_overlay_assignments: self.live_animation_overlay_assignments,
+            next_animation_overlay_generation: self.next_animation_overlay_generation,
+            pending_cascade_states: self.pending_cascade_states.clone(),
+            pseudo_rows_by_node: self.pseudo_rows_by_node.clone(),
+            group_set_nested_memory: self.group_set_nested_memory.clone(),
+            longhand_table_nested_memory: self.longhand_table_nested_memory.clone(),
+            animation_overlay_nested_memory: self.animation_overlay_nested_memory.clone(),
+            pseudo_assignment_nested_memory: self.pseudo_assignment_nested_memory.clone(),
+            style_records_interned_since_reclamation: self.style_records_interned_since_reclamation,
+            next_reclamation_after: self.next_reclamation_after,
+            style_record_view_epoch_depth: self.style_record_view_epoch_depth,
+        };
+        for identity in copy.groups.live_identities() {
+            let group = copy.groups.get(identity);
+            retain_group_payload(group.index, group.payload.as_ptr());
+        }
+        copy
     }
 }
 
@@ -4213,6 +4314,19 @@ mod tests {
         assert!(sets.free_retired_animation_overlays());
         assert_eq!(sets.retired_animation_overlay_records(), 0);
         assert_eq!(sets.live_animation_overlay_records(), 0);
+    }
+
+    #[test]
+    fn a_copy_of_the_sets_holds_no_lease_and_shares_the_leases_held() {
+        let sets = ComputedGroupSets::default();
+        let copy = sets.clone();
+        assert!(!sets.style_records_are_leased());
+        assert!(!copy.style_records_are_leased());
+        let lease = copy.lease_style_records();
+        assert!(sets.style_records_are_leased());
+        assert!(copy.style_records_are_leased());
+        drop(lease);
+        assert!(!sets.style_records_are_leased());
     }
 
     #[test]

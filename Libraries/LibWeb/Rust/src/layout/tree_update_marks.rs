@@ -35,7 +35,7 @@ const CHILD_NEEDS: u8 = 1 << 3;
 
 /// One byte of marks per identity, in the element and the text index spaces apart. The low bits
 /// are the reuse reasons, so no reason ever needs translating.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct LayoutTreeUpdateMarks {
     elements: Vec<u8>,
     text: Vec<u8>,

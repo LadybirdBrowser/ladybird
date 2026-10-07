@@ -28,6 +28,12 @@ use std::ops::Deref;
 #[repr(transparent)]
 pub(crate) struct ShapeCell<T>(Cell<T>);
 
+impl<T: Copy> Clone for ShapeCell<T> {
+    fn clone(&self) -> Self {
+        Self(Cell::new(self.0.get()))
+    }
+}
+
 impl<T: Copy> ShapeCell<T> {
     pub(crate) const fn new(value: T) -> Self {
         Self(Cell::new(value))
@@ -50,7 +56,7 @@ impl<T: Copy> ShapeCell<T> {
 }
 
 /// How far the arena's nodes have been written, which tells a reader of the rows published before that they moved on.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct ShapeWrites {
     all: Cell<u64>,
     identity: Cell<u64>,
@@ -228,6 +234,7 @@ impl ShapeWriter<'_> {
 // NodeData is sized to fit cache lines evenly; the aligned chunk keeps every densely-strided slot
 // line-aligned, and per-slot bookkeeping lives in a parallel array so it stays that way.
 #[repr(align(64))]
+#[derive(Clone)]
 pub(crate) struct Chunk {
     slots: [NodeData; SLOTS_PER_CHUNK],
     /// One bit per node whose shape may have been written since the paint side last looked.
@@ -305,7 +312,7 @@ impl Chunk {
 pub(crate) const PUBLISHED_ROWS_PER_CHUNK: usize = 32;
 
 /// The arena's column of what the paint side reads of every node, which it publishes from.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct TreeShape {
     nodes: CowColumn<PaintNode, PUBLISHED_ROWS_PER_CHUNK>,
 }

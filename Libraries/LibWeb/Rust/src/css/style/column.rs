@@ -104,7 +104,7 @@ impl<T> ShallowCapacityBytes for Column<T> {
 ///     identity space between the rows it holds, which one high identity widens across the whole
 ///     element space. Keeping the storage between transactions removes both: growth is paid once
 ///     at the high-water mark, reset is one increment, and a row is one array read.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct StampedIndex {
     rows: Vec<StampedRow>,
     stamp: u32,
@@ -172,7 +172,7 @@ const STAMPED_INDEX_POOL_BYTE_LIMIT: u64 = 4 << 20;
 ///
 /// NB: Construction must stay free. Contexts that own one of these are created and discarded
 ///     around individual nodes, and most of them never record a row.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct PooledStampedIndex(Option<StampedIndex>);
 
 impl PooledStampedIndex {
@@ -401,7 +401,7 @@ impl<P: RemovablePagedColumnPage> PagedColumn<P> {
 }
 
 /// Dense marks compared against an externally owned epoch.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct EpochColumn {
     marks: Vec<u32>,
 }

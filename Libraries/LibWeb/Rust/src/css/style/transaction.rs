@@ -486,7 +486,7 @@ impl StyleTransaction {
 ///
 /// Normalization never combines changes across a required observation boundary. An operation whose
 /// Web-platform semantics force synchronous observation drains the journal first.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct NormalizationJournal {
     entries: HashMap<InputKey, (InputValue, InputValue)>,
     markers: Vec<CompleteScopeMarker>,

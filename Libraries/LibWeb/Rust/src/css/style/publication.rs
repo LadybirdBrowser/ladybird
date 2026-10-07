@@ -4241,6 +4241,7 @@ const MAXIMUM_COLD_RECORD_DONORS_PER_KEY: usize = 4;
 const COLD_RECORD_CACHE_LIMIT: usize = 4096;
 
 /// A record the engine derived for a published reaction, awaiting C++'s installation.
+#[derive(Clone)]
 pub(super) struct PendingEngineComputedRecord {
     node: StyleNodeID,
     /// The pseudo-element the record is for, or `u8::MAX` for the element's own.
@@ -4328,7 +4329,7 @@ impl WrittenValueChecks {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct EngineComputabilityScratch {
     /// What a record computed from the state reads beside its winners, or `None` when the engine
     /// computes none from it.
@@ -4354,7 +4355,7 @@ impl EngineComputabilityScratch {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct EngineComputedRecordScratch {
     pub(super) font_drive: drive::FontDriveScratch,
     /// Whether this flush carries a document environment change. A record's winners stand

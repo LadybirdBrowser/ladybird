@@ -11,6 +11,7 @@ use super::*;
 /// record the host computes, or one it composes as it installs it. The host installs the rows before
 /// that one and takes the next wave of the same pass, which settles the row over the installed rows
 /// under the facts of the transaction that planned it.
+#[derive(Clone)]
 pub(super) struct StylePass {
     transaction_version: StyleTransactionVersion,
     program_version: ProgramVersion,
@@ -36,7 +37,7 @@ pub(super) struct StylePass {
 /// What moved under the records of rows that no winner of theirs shows, each recorded beside the
 /// style input the row owes. A transaction takes them with its rows, and a pass that gives a row
 /// up gives them back with it.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct RowInputsMoved {
     /// The rows whose containers moved under what their queries or container-relative lengths read
     /// of them.
@@ -865,8 +866,7 @@ impl StyleEngine {
                 has_before_sibling_relations,
                 transaction_inputs: &transaction.inputs,
             };
-            Arc::get_mut(&mut self.retained.routing)
-                .expect("routing program is shared outside a planning epoch")
+            Arc::make_mut(&mut self.retained.routing)
                 .prepare_route_liveness(&self.retained.program, &self.retained.programs);
             let routing_for_siblings = Arc::clone(&self.retained.routing);
             let sibling_entries = routing_for_siblings.live_sibling_entries(&self.retained.program);

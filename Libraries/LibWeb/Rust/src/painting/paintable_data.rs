@@ -164,7 +164,7 @@ impl InlineBoxPieceRecord {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct PaintableSideData {
     // Invalidation also runs while paint geometry is borrowed. Keep this
     // mutable cache state out of the plain-data row shared with C++.

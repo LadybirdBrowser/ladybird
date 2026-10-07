@@ -70,10 +70,10 @@ pub(crate) fn longhand_slot_hash(slot: usize, value: *const c_void) -> u64 {
 /// has to be spelled with atomics for the compiler to agree, and it is cheaper than the `Cell`
 /// pair it replaces was: `adjust_slot_hash_sum` runs per slot write, and a relaxed store is one
 /// instruction.
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct MemoizedHashSum {
-    sum: AtomicU64,
-    known: AtomicBool,
+    sum: crate::fork::ForkCopied<AtomicU64>,
+    known: crate::fork::ForkCopied<AtomicBool>,
 }
 
 impl MemoizedHashSum {
@@ -98,6 +98,7 @@ impl MemoizedHashSum {
 /// One sparse inheritance-dependent specified value, exposed to C++ as the
 /// borrowed span behind a style's inheritance-dependent value view.
 #[repr(C)]
+#[derive(Clone)]
 pub struct FfiTableInheritanceDependentValue {
     pub property: u16,
     pub value: *const c_void,
@@ -215,6 +216,7 @@ impl DenseSlotStorage {
 /// A working table borrows unchanged slots through one owner of a flat base.
 /// The base is always dense, so even a seed made from another working delta
 /// cannot introduce a chain. Publication materializes only a unique result.
+#[derive(Clone)]
 struct ChangedSlot {
     index: u16,
     // None keeps the base value; Some(none()) represents an empty slot.
@@ -224,6 +226,7 @@ struct ChangedSlot {
 
 // NB: Inline changes avoid a separate allocation for each sparse drive.
 #[allow(clippy::large_enum_variant)]
+#[derive(Clone)]
 enum SlotStorage {
     Dense(Arc<DenseSlotStorage>),
     Delta {
@@ -509,6 +512,8 @@ impl SlotStorage {
         }
     }
 }
+
+#[derive(Clone)]
 
 pub struct ComputedLonghandTable {
     storage: SlotStorage,

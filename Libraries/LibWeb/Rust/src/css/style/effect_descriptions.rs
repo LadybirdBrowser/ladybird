@@ -30,6 +30,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 /// What a published keyframe declares for a property.
+#[derive(Clone)]
 pub(crate) enum PublishedValue {
     /// The element's own value, held by a keyframe the host synthesized, and not known until the
     /// element is sampled.
@@ -132,6 +133,8 @@ pub(crate) fn easing_from_computed_timing_function(value: &StyleValueData) -> Op
     }
 }
 
+#[derive(Clone)]
+
 pub(crate) struct PublishedDeclaration {
     pub(crate) property_id: u16,
     pub(crate) value: PublishedValue,
@@ -140,10 +143,13 @@ pub(crate) struct PublishedDeclaration {
 /// A custom property a keyframe declares. The name is retained: a description outlives the call
 /// that published it, and a fly string's raw representation is only an identity while the string
 /// is alive.
+#[derive(Clone)]
 pub(crate) struct PublishedCustomDeclaration {
     pub(crate) name: RetainedUtf16FlyString,
     pub(crate) value: PublishedValue,
 }
+
+#[derive(Clone)]
 
 pub(crate) struct PublishedKeyframe {
     pub(crate) key: i64,
@@ -158,6 +164,7 @@ pub(crate) struct PublishedKeyframe {
 }
 
 /// The style sheet an effect's keyframes come from, which their URLs resolve against.
+#[derive(Clone)]
 pub(crate) struct PublishedResourceContext {
     /// Shared with every resolution of the effect's declarations that points into it.
     pub(crate) base_url: Arc<[u8]>,
@@ -165,6 +172,7 @@ pub(crate) struct PublishedResourceContext {
 }
 
 /// One of an element's animation effects, described for the style engine.
+#[derive(Clone)]
 pub(crate) struct PublishedEffect {
     pub(crate) identity: u64,
     pub(crate) generation: u64,
@@ -328,7 +336,7 @@ type AnimationEffectList = (AnimationSlot, Box<[PublishedEffect]>);
 
 /// Per element, the animation effects the host holds for it and each of its pseudo-elements,
 /// described for the style engine.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct AnimationEffectDescriptions {
     /// Holding an animation is rare, so only the elements that do have a row, and a row holds only
     /// the lists that are not empty.

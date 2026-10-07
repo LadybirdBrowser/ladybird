@@ -25,6 +25,7 @@ struct TextPosition {
 
 // A run normally maps linearly into one rendered snapshot. A collapsed space
 // instead covers the entire whitespace range, which can cross text nodes.
+#[derive(Clone)]
 struct TextRun {
     text: Range<usize>,
     start: TextPosition,
@@ -39,7 +40,7 @@ impl TextRun {
 
 /// Text assembled from rendered snapshots. Runs retain rendered offsets, so
 /// all DOM conversion continues to use the snapshots' transform edit maps.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct MappedText {
     text: Vec<u16>,
     runs: Vec<TextRun>,

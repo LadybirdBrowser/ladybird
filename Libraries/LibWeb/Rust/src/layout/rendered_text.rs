@@ -77,10 +77,10 @@ impl PartialEq for PublishedTextSlot {
 }
 
 /// A text row's rendered text, with what layout caches beside it.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct TextContent {
     rendered: Arc<RenderedText>,
-    grapheme_segmenter: OnceCell<super::text_chunker::GraphemeSegmenter>,
+    grapheme_segmenter: crate::fork::ForkReset<OnceCell<super::text_chunker::GraphemeSegmenter>>,
     chunks: RefCell<Option<Arc<CachedTextChunks>>>,
     pub(super) rendering_key: Option<TextRenderingKey>,
 }
@@ -394,7 +394,7 @@ fn sync_text_content(arena: &mut LayoutNodeArena, id: NodeSlotId) {
                 dom_length_in_code_units: source_range.length,
                 edits: rendered.edits,
             }),
-            grapheme_segmenter: OnceCell::new(),
+            grapheme_segmenter: crate::fork::ForkReset::default(),
             chunks: RefCell::default(),
             rendering_key: Some(key),
         };

@@ -96,14 +96,14 @@ impl RegisteredCounterStyles {
 
 /// The counter styles one tree scope registers, and the scope a name it does not register is
 /// looked for in next. https://drafts.csswg.org/css-shadow-1/#tree-scoped-name-global
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct CounterStyleScope {
     pub(crate) parent: Option<u32>,
     pub(crate) styles: Arc<RegisteredCounterStyles>,
 }
 
 /// Every tree scope's registered counter styles, keyed by the tree scope's identity.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct CounterStyleRegistry {
     scopes: HashMap<u32, CounterStyleScope>,
 }

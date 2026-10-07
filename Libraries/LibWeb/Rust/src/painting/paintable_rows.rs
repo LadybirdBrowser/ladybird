@@ -282,7 +282,7 @@ impl PartialEq for CommittedFragmentLinkSlot {
 //
 // Dense by slot, because nearly every element box has one. Each entry names the row it was stamped
 // for, so a slot that has been recycled since answers for the new row and not the old one.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct UniqueNodeIdColumn {
     ids: RefCell<Vec<(NodeSlotId, i64)>>,
 }
@@ -308,7 +308,7 @@ impl UniqueNodeIdColumn {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct PaintableRowStore {
     rows: CowColumn<PaintableData, PAINTABLE_SLOTS_PER_CHUNK>,
     side_data: RefCell<Vec<PaintableSideData>>,

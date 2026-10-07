@@ -495,7 +495,7 @@ struct DefaultScrollShiftAnchorSlot {
     anchor: NodeSlotId,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct TextNodeSlot {
     generation: u8,
     state: Option<Box<TextNodeState>>,
@@ -504,7 +504,7 @@ struct TextNodeSlot {
 /// Each text row's state, and what it publishes for the paint side. A slot is written only through
 /// a [`TextStateMut`], which republishes the slot when it drops, or by [`TextSlots::reset`], so
 /// the published column cannot fall behind the slots.
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct TextSlots {
     slots: Vec<TextNodeSlot>,
     published: CowColumn<PublishedTextSlot, SLOTS_PER_CHUNK>,
@@ -599,7 +599,7 @@ impl Drop for TextStateMut<'_> {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct TextNodeState {
     source_range: Option<FfiTextSourceRange>,
     first_letter: NodeSlotId,
@@ -649,7 +649,7 @@ impl RowsVersion {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct ReplacedContentFactsSlot {
     generation: u8,
     facts: Option<FfiReplacedContentFacts>,
@@ -880,7 +880,7 @@ const BOUND_ROWS_PER_CHUNK: usize = 64;
 /// The row each node is bound to, kept so that the host reads it from published rows: by the dense
 /// index of an element or text identity, by generator and kind for a pseudo-element, and the
 /// viewport row for the document.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct BoundRows {
     elements: CowColumn<NodeSlotId, BOUND_ROWS_PER_CHUNK>,
     texts: CowColumn<NodeSlotId, BOUND_ROWS_PER_CHUNK>,
@@ -992,7 +992,7 @@ impl PublishedBoundRows {
 
 /// One row for each StyleNodeID, indexed by the identity's dense index within its kind, so element
 /// and text identities each cost one entry per node of their own kind.
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct RowsByStyleNode {
     elements: Vec<NodeSlotId>,
     texts: Vec<NodeSlotId>,
@@ -1035,7 +1035,7 @@ const PUBLISHED_REFERENCE_ATOM_COUNT: usize = 5;
 /// What the arena keeps under a style node identity, besides the rows carrying it. Identities are
 /// reissued, so every table here must let go of a retired one: `LayoutNodeArena::forget_style_node`
 /// names each field, and a table added here does not compile until it says how it forgets.
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct StyleNodeTables {
     /// The CSS counters set of every element and pseudo-element the tree build resolved one for.
     counters_sets: RefCell<super::counters::CountersSets>,
@@ -1119,6 +1119,7 @@ impl HostStyle {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct LayoutNodeArena {
     chunks: Vec<Box<Chunk>>,
     tree_shape: TreeShape,

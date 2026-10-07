@@ -4468,7 +4468,7 @@ impl RetainedState {
         let mut verification_memory = self.memory.verification_copy();
         let mut verification_compaction_scratch = ordering::CascadeCompactionWorkspace::default();
         let mut verification_compaction_scratch_memory = MemoryLease::new(MemoryCategory::BatchScratch);
-        std::mem::swap(&mut self.winner_groups, &mut verification_winner_groups);
+        std::mem::swap(&mut *self.winner_groups, &mut verification_winner_groups);
         std::mem::swap(&mut self.memory, &mut verification_memory);
         std::mem::swap(
             &mut self.cascade_compaction_scratch,
@@ -4490,7 +4490,7 @@ impl RetainedState {
             &mut verification_compaction_scratch,
         );
         std::mem::swap(&mut self.memory, &mut verification_memory);
-        std::mem::swap(&mut self.winner_groups, &mut verification_winner_groups);
+        std::mem::swap(&mut *self.winner_groups, &mut verification_winner_groups);
         self.counters.restore(&counters_before_verification);
         match answer {
             Ok(answer) => Ok((answer, verification_winner_groups)),

@@ -36,7 +36,7 @@ pub(super) struct SelectorTruth {
     pub(super) scope_proximity: u32,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct SelectorTruthSetCatalog {
     sets: super::intern_table::InternTable<SelectorTruthSetID, Arc<[SelectorTruth]>>,
     verified_derived_answers: HashMap<(SelectorTruthSetID, TreeScopeID, u64), Arc<[RetainedRuleMatch]>>,
@@ -94,6 +94,8 @@ enum AnswerReferenceCategory {
     Prefix,
 }
 
+#[derive(Clone)]
+
 pub(super) struct MatchAnswerCatalogEntry {
     pub(super) answer: Arc<[RetainedRuleMatch]>,
     synthetic_pseudo_mask: u64,
@@ -103,6 +105,8 @@ pub(super) struct MatchAnswerCatalogEntry {
     pub(super) retained_references: u32,
     pending_references: u32,
 }
+
+#[derive(Clone)]
 
 pub(super) struct MatchAnswerCatalog {
     pub(super) answers: super::intern_table::InternTable<MatchAnswerID, Option<MatchAnswerCatalogEntry>>,
@@ -506,6 +510,8 @@ pub(super) struct PrefixAnswer {
     pub(super) cascade_input: MatchAnswerID,
     pub(super) cascade_winner_inventory_is_complete: bool,
 }
+
+#[derive(Clone)]
 
 struct OwnedPrefixAnswerKey {
     prefix_contribution: MatchAnswerID,
@@ -1024,7 +1030,7 @@ pub(super) fn merge_retained_match_answers(answer: &mut Vec<RetainedRuleMatch>, 
 
 /// NB: None leaves a column unchanged; Some(None) is a tombstone. Every
 ///     nonempty replacement owns a pending catalog reference until installation.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct PendingAnswer {
     published_index: Option<usize>,
     observed: bool,
@@ -1035,6 +1041,7 @@ pub(super) struct PendingAnswer {
 /// Ordered node updates and exact-cache discoveries owned by one matching context.
 /// NB: The caller must install these effects or release_pending_all before
 ///     discarding the context. An incomplete batch retains the entire owner.
+#[derive(Clone)]
 pub(super) struct AnswerEffects {
     pub(super) winners: super::cascade::WinnerEffects,
     entries: Vec<(StyleNodeID, PendingAnswer)>,
@@ -1308,6 +1315,8 @@ impl AnswerEffects {
     }
 }
 
+#[derive(Clone)]
+
 pub(super) struct RetainedMatchAnswers {
     pub(super) column: Vec<MatchAnswerID>,
     pub(super) cascade_input_column: Vec<MatchAnswerID>,
@@ -1321,6 +1330,7 @@ pub(super) struct RetainedMatchAnswers {
 /// relation preserves the selector side of that join, so a later condition flip can route through
 /// exact selector truth without evaluating the selector again. It is Tier-3 state: incomplete
 /// retained coverage or closed admission simply leaves program routing on its cold path.
+#[derive(Clone)]
 pub(super) struct RetainedSelectorIncidences {
     by_program: Vec<Option<Arc<[RetainedSelectorIncidence]>>>,
     nested_capacity_bytes: u64,
@@ -1721,6 +1731,7 @@ impl RetainedMatchAnswers {
 }
 
 /// Matching scratch owned by one synchronous style traversal.
+#[derive(Clone)]
 pub(super) struct BatchMatchingTraversal {
     pub(super) pending_published: PublishedMatchAnswers,
     pub(super) answer_effects: AnswerEffects,
@@ -1742,6 +1753,7 @@ pub(super) struct BatchMatchingTraversal {
 
 /// Current-side matching scratch produced by the transaction immediately before a style
 /// traversal.
+#[derive(Clone)]
 pub(super) struct PreparedBatchMatchingTraversal {
     pub(super) root: StyleNodeID,
     pub(super) batch: Option<MatchingFactBatch>,
@@ -1780,6 +1792,8 @@ impl PreparedBatchMatchingTraversal {
 /// a `false` verdict for every asker under that key.
 pub(super) type RoutePruningStateCache = HashMap<(DispatchKey, u64), Option<Arc<Vec<CascadeStateID>>>>;
 
+#[derive(Clone)]
+
 pub(super) struct PublishedMatchAnswer {
     pub(super) node: StyleNodeID,
     pub(super) cascade_input: Option<MatchAnswerID>,
@@ -1787,6 +1801,8 @@ pub(super) struct PublishedMatchAnswer {
     pub(super) cascade_winners_are_complete: bool,
     pub(super) observed: bool,
 }
+
+#[derive(Clone)]
 
 pub(super) struct PublishedMatchAnswers {
     pub(super) answer_effects: AnswerEffects,
@@ -2027,11 +2043,15 @@ impl super::intern_table::InternIdentity for ScopeProgramID {
     }
 }
 
+#[derive(Clone)]
+
 pub(super) struct ScopeProgram {
     pub(super) key: ScopeDispatchKey,
     pub(super) dispatch: Arc<RuleDispatch>,
     pub(super) scope_count: u32,
 }
+
+#[derive(Clone)]
 
 pub(super) struct ReplacedStyleRule {
     pub(super) rule: RuleID,
@@ -2040,6 +2060,8 @@ pub(super) struct ReplacedStyleRule {
     pub(super) declarations_are_complete: bool,
     pub(super) gated_by_container_query: bool,
 }
+
+#[derive(Clone)]
 
 pub(super) struct PendingRuleDeclarationChange {
     pub(super) rule: RuleID,
@@ -2058,6 +2080,8 @@ pub(super) struct PendingRuleDeclarations {
     pub(super) custom_written_values: Vec<crate::css::style_value::RetainedStyleValueData>,
 }
 
+#[derive(Clone)]
+
 pub(super) struct SheetRuleReplacement {
     pub(super) sheet: SheetID,
     pub(super) rules: Vec<ReplacedStyleRule>,
@@ -2066,7 +2090,7 @@ pub(super) struct SheetRuleReplacement {
 }
 
 #[cfg(test)]
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct DiagnosticPlanCapture {
     pub(super) nodes: Vec<u32>,
     pub(super) scoped: bool,

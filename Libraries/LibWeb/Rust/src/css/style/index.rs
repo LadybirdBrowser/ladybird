@@ -480,6 +480,8 @@ pub struct StyleNodeFacts {
     text: Vec<u16>,
 }
 
+#[derive(Clone)]
+
 pub(super) struct MatchingFactBatch {
     facts: Arc<StyleNodeFacts>,
     charged_bytes: u64,
@@ -1336,7 +1338,7 @@ impl StyleNodeFacts {
 const MAX_POSTING_CHUNK: usize = 256;
 
 /// One feature's candidate set: chunked and sorted by `StyleNodeID`.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct Posting {
     chunks: Vec<Vec<StyleNodeID>>,
     length: usize,
@@ -1573,6 +1575,7 @@ pub type PostingKey = FeatureKey;
 /// them. This global arrangement avoids program-lifetime registration and first-use fact scans;
 /// per-key missing coverage confines eviction fallout to the acceleration that was actually
 /// removed.
+#[derive(Clone)]
 pub struct FeaturePostings {
     postings: HashMap<PostingKey, Posting>,
     residency: MemoryLease,
@@ -1584,7 +1587,7 @@ pub struct FeaturePostings {
     /// Packed and atomic rather than two `Cell`s because the fact store is on the read side an
     /// evaluation step borrows, which has to be `Sync`; relaxed, because this is a memory-policy
     /// ratio and no semantic decision reads it.
-    benefit_lookups: AtomicU64,
+    benefit_lookups: crate::fork::ForkCopied<AtomicU64>,
 }
 
 /// Mask of the miss half of `FeaturePostings::benefit_lookups`.
@@ -1599,7 +1602,7 @@ impl Default for FeaturePostings {
             cardinality_limited: HashSet::default(),
             grown_selector_postings: HashSet::default(),
             selector_posting_limit: usize::MAX,
-            benefit_lookups: AtomicU64::new(0),
+            benefit_lookups: crate::fork::ForkCopied::new(AtomicU64::new(0)),
         }
     }
 }
@@ -2054,7 +2057,7 @@ struct CascadeEntryData {
 }
 
 /// Transaction-local duplicate suppression for candidate dispatch.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct DispatchCandidateWorkspace {
     seen_at_epoch: EpochColumn,
     candidates: Vec<DispatchRow>,
@@ -2333,6 +2336,8 @@ impl Default for AncestorDispatchTopology {
     }
 }
 
+#[derive(Clone)]
+
 struct RuleDispatchTopology {
     /// Mutable construction form, consumed when the directory is finalized.
     buckets: HashMap<DispatchKey, Vec<DispatchRow>>,
@@ -2494,7 +2499,7 @@ impl RuleDispatch {
     }
 
     fn topology_mut(&mut self) -> &mut RuleDispatchTopology {
-        Arc::get_mut(&mut self.topology).expect("a shared selector topology is immutable")
+        Arc::make_mut(&mut self.topology)
     }
 
     fn entries_mut(&mut self) -> &mut Vec<DispatchEntryMetadata> {
@@ -2617,7 +2622,7 @@ impl RuleDispatch {
         );
         entry.required_ancestor_index = entry.required_ancestor.map(|required| {
             let topology = self.topology_mut();
-            let ancestors = Arc::get_mut(&mut topology.ancestors).expect("a shared ancestor topology is immutable");
+            let ancestors = Arc::make_mut(&mut topology.ancestors);
             let next = u32::try_from(ancestors.key_indices.len()).expect("ancestor requirement space exhausted");
             *ancestors.key_indices.entry(required).or_insert(next)
         });
@@ -3245,7 +3250,7 @@ impl RuleDispatch {
 /// One kind of an element's own declarations: what each covers, the value it was written with,
 /// and what the drive checks of that value. They are built from one list of pairs, so every
 /// declaration has its written value.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct ElementDeclarations {
     declared: Box<[DeclaredProperty]>,
     written: Box<[RetainedStyleValueData]>,
@@ -3330,6 +3335,7 @@ pub(super) fn unwritten_declarations(declared: &[DeclaredProperty]) -> Vec<(Decl
 
 /// The custom properties an element's inline style declares, in declaration order, each with
 /// the value it was written with.
+#[derive(Clone)]
 pub struct ElementCustomDeclarations {
     declared: Box<[CustomDeclaration]>,
     written: Box<[RetainedStyleValueData]>,
@@ -3350,7 +3356,7 @@ impl ElementCustomDeclarations {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct ElementDeclarationRow {
     by_kind: [ElementDeclarations; ElementDeclarationKind::COUNT],
     /// Only the `style` attribute declares custom properties.
@@ -3384,7 +3390,7 @@ impl ElementDeclarationRow {
 ///
 /// Each directory slot costs one pointer. A populated slot contains the fixed declaration-kind
 /// columns, and each property list owns one exact-sized allocation.
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct ElementDeclarationRows {
     rows: Column<Option<Box<ElementDeclarationRow>>>,
     payload_bytes: u64,
@@ -3524,6 +3530,7 @@ impl super::intern_table::InternIdentity for CustomPropertyNameSetID {
 /// exactly because a mutation published it. The store's [`StyleNodeFacts`] is both the input-side
 /// projection and the current-side evaluation arrangement; bounded batches are temporary views of
 /// selected rows.
+#[derive(Clone)]
 pub struct ElementFactStore {
     /// Required primary arrangement. Element identity selects its fixed column slots directly;
     /// variable facts are append-only payloads reached through the slots' handles.
@@ -3575,7 +3582,7 @@ pub struct ElementFactStore {
     element_declared_properties: ElementDeclarationRows,
 }
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct StagedFactRow {
     tag: StyleAtomID,
     /// The ASCII-lowercase folding of `tag`, held only when it differs from it. Type selectors
@@ -3627,7 +3634,7 @@ impl StagedFactRow {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct FactStaging {
     rows: PagedColumn<FactStagingPage>,
     entries: Vec<Option<StagedFactRowPair>>,
@@ -3640,6 +3647,8 @@ struct FactStaging {
 
 const FACT_STAGING_PAGE_SHIFT: usize = 6;
 const FACT_STAGING_PAGE_SIZE: usize = 1 << FACT_STAGING_PAGE_SHIFT;
+
+#[derive(Clone)]
 
 struct FactStagingPage {
     entries: [u32; FACT_STAGING_PAGE_SIZE],
@@ -3673,6 +3682,8 @@ impl RemovablePagedColumnPage for FactStagingPage {
         (previous != NO_ROW).then_some(previous)
     }
 }
+
+#[derive(Clone)]
 
 struct StagedFactRowPair {
     before: Option<PrimaryFactSnapshot>,
@@ -3877,7 +3888,7 @@ impl FactStaging {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct ElementFactMetadata {
     /// The animation names this element's computed style references, sorted.
     animation_names: Vec<StyleAtomID>,
@@ -5189,9 +5200,7 @@ impl ElementFactStore {
                 self.postings.remove(SelectorPostingKey::AttributeName(key), node);
             }
         }
-        Arc::get_mut(&mut self.rows)
-            .expect("forgetting a fact row requires unique primary rows")
-            .forget_row(node);
+        Arc::make_mut(&mut self.rows).forget_row(node);
         self.primary_live_bytes = self
             .primary_live_bytes
             .checked_sub(row_bytes)
@@ -5240,12 +5249,9 @@ impl ElementFactStore {
         Arc::strong_count(&self.rows) != 1
     }
 
+    /// NB: A retained traversal or a fork of the store may share the primary rows. The sweep writes only the store's
+    ///     own catalogs, and `prepare_attribute_catalogs` copies the rows where they are shared.
     pub(super) fn sweep_auxiliary_catalogs_without_sync(&mut self) {
-        assert_eq!(
-            Arc::strong_count(&self.rows),
-            1,
-            "auxiliary catalog sweeping requires unique primary rows"
-        );
         self.memory_dirty = true;
         let attribute_catalogs = Arc::make_mut(&mut self.attribute_catalogs);
         // Language spellings and attribute-name forms are retained until their atom is reclaimed;
@@ -5562,9 +5568,7 @@ impl ElementFactStore {
     pub fn release_staging(&mut self, memory: &mut MemoryController) {
         self.staging.clear();
         if self.primary_stale_payload_bytes > self.primary_live_payload_bytes {
-            Arc::get_mut(&mut self.rows)
-                .expect("compacting fact payloads requires unique primary rows")
-                .compact_primary_payloads();
+            Arc::make_mut(&mut self.rows).compact_primary_payloads();
             self.primary_stale_payload_bytes = 0;
         }
         let current = self.capacity_bytes();
@@ -5941,6 +5945,41 @@ mod tests {
         let mut atoms = HashSet::default();
         facts.collect_atoms(&mut atoms);
         assert!(atoms.is_empty());
+    }
+
+    #[test]
+    fn a_copy_of_the_store_sweeps_its_catalogs_apart_from_the_store() {
+        let mut memory = MemoryController::new();
+        let mut facts = ElementFactStore::new();
+        let node = StyleNodeID::element(1);
+        let attribute_name = StyleAtomID(1);
+        let attribute_value = StyleAtomID(2);
+        facts.note_attribute_name_forms(
+            attribute_name,
+            AttributeNameForms {
+                local: StyleAtomID(3),
+                folded_name: StyleAtomID(4),
+                folded_local: StyleAtomID(5),
+            },
+        );
+        facts.set_attribute_value_text(attribute_value, &[1]);
+        facts.set_attribute(node, attribute_name, attribute_value, true, &mut memory);
+        facts.apply_staged(&mut memory);
+
+        // A fork of the render state copies the store, which then shares the primary rows with it.
+        let mut copy = facts.clone();
+        facts.sweep_auxiliary_catalogs();
+        copy.sweep_auxiliary_catalogs();
+        for store in [&facts, &copy] {
+            assert_eq!(
+                store
+                    .rows
+                    .attribute_catalogs
+                    .value_texts
+                    .get(attribute_value.0 as usize),
+                Some(&Some(Box::from([1_u16])))
+            );
+        }
     }
 
     #[test]

@@ -278,6 +278,7 @@ pub(crate) struct NodeConstructionFacts {
 }
 
 #[repr(C)]
+#[derive(Clone)]
 pub(crate) struct NodeData {
     pub parent: ShapeCell<NodeSlotId>,
     pub first_child: ShapeCell<NodeSlotId>,

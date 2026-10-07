@@ -845,7 +845,7 @@ impl RetainedState {
 /// What the container conditions of the rows the engine answered read of their containers, per element, kept for the
 /// host until it takes each as it installs the element's record, and a flag the host reads, without asking, for whether
 /// any is kept.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct ContainerEffectsForHost {
     effects: HashMap<StyleNodeID, ContainerVerdict>,
     held: std::sync::Arc<std::sync::atomic::AtomicBool>,

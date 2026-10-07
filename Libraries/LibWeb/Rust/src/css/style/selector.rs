@@ -2752,6 +2752,7 @@ fn selector_program_pools() -> MutexGuard<'static, SelectorProgramPools> {
 ///
 /// The immutable program payloads are interned in the process's pool. Entry identities,
 /// attached rules, and every selector-result materialization remain document-local.
+#[derive(Clone)]
 pub struct SelectorPrograms {
     programs: SharedVector<Option<SelectorProgramStorage>>,
     vacant_programs: Vec<SelectorProgramID>,
@@ -3238,6 +3239,8 @@ fn share_flat_route_directory(
     Some(shared)
 }
 
+#[derive(Clone)]
+
 enum RouteDirectory {
     BuildingAfterIdle(HashMap<RoutingKey, Vec<RouteID>>),
     BuildingAfterChange(HashMap<RoutingKey, Vec<RouteID>>),
@@ -3432,6 +3435,7 @@ impl Hash for RouteColumnData {
 // Route columns contain immutable selector descriptors and integer identities. Equal contents
 // can be shared even when documents interpret the identities through different selector programs.
 // A later stylesheet edit detaches the columns before appending routes.
+#[derive(Clone)]
 enum RouteColumns {
     Owned(Box<RouteColumnData>),
     Shared(Arc<SharedRouteColumns>),
@@ -4054,6 +4058,8 @@ fn state_is_published_on_arrival(fact: StateFact) -> bool {
 /// changes which routes run.
 const LIVENESS_LOCK: &str = "the routing liveness view is never held across a panic";
 
+#[derive(Clone)]
+
 pub struct RoutingRegistry {
     routes: RouteColumns,
     /// Sibling-first routes indexed by a distinguishing feature of their left compound.
@@ -4069,8 +4075,8 @@ pub struct RoutingRegistry {
     live_sequence_entries: Vec<SequenceEntry>,
     /// The two members of the view a routing pass mutates as it runs. Each is taken once per
     /// pass, never per route, so the lock is a formality that makes the registry shareable.
-    live_sibling_workspace: Mutex<SiblingCandidateWorkspace>,
-    live_sequence_index: Mutex<SequenceEntryIndex>,
+    live_sibling_workspace: crate::fork::ForkLocked<SiblingCandidateWorkspace>,
+    live_sequence_index: crate::fork::ForkLocked<SequenceEntryIndex>,
     /// The live routes whose rules may move layout geometry, part of the liveness view.
     geometry_routes: BitColumn,
     route_liveness_version: Option<u64>,
@@ -4089,11 +4095,11 @@ impl Default for RoutingRegistry {
             live_relational_routes: Vec::new(),
             live_sibling_entries: Vec::new(),
             live_sequence_entries: Vec::new(),
-            live_sibling_workspace: Mutex::new(SiblingCandidateWorkspace::new(
+            live_sibling_workspace: crate::fork::ForkLocked::new(SiblingCandidateWorkspace::new(
                 &[],
                 &mut routing_pools().sibling_entry_maps,
             )),
-            live_sequence_index: Mutex::new(SequenceEntryIndex::default()),
+            live_sequence_index: crate::fork::ForkLocked::new(SequenceEntryIndex::default()),
             geometry_routes: BitColumn::default(),
             route_liveness_version: None,
             memory: MemoryLease::new(MemoryCategory::RoutingRegistry),
@@ -4958,14 +4964,14 @@ pub(crate) type MatchEvaluator<'a> = SelectorEvaluator<EngineSubject<'a>>;
 /// Exact invalidation evaluates the same selector entry over a region. In tree order, an ancestor
 /// or preceding-sibling relation differs from the preceding candidate by one edge, so retaining
 /// that answer turns repeated prefix walks into a dynamic program.
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct MatchRelationCache {
     answers: MatchRelationAnswers,
     preceding_sibling_parent_ids: HashMap<StyleNodeID, PrecedingSiblingParentID>,
     preceding_sibling_prefixes: PrecedingSiblingPrefixes,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct MatchRelationAnswers {
     columns: ProgramRelationColumns<RelationAnswerColumn>,
 }
@@ -4982,7 +4988,7 @@ struct MatchRelationAnswerGap {
 /// Only a small subset of document parents normally owns a sibling sequence under evaluation.
 /// Intern those parents once at the cache boundary, then keep every compiled relation's repeatedly
 /// updated prefix state in a direct column rather than repeating the three identities in a hash key.
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct PrecedingSiblingPrefixes {
     columns: ProgramRelationColumns<PrecedingSiblingPrefixColumn>,
 }
@@ -4990,6 +4996,8 @@ struct PrecedingSiblingPrefixes {
 define_id! { pub(crate) struct PrecedingSiblingParentID(); }
 
 type PrecedingSiblingPrefix = super::selector_evaluation::PrecedingSiblingPrefix<StyleNodeID>;
+
+#[derive(Clone)]
 
 struct ProgramRelationColumns<C> {
     programs: Column<Option<Box<ProgramColumns<C>>>>,
@@ -5005,7 +5013,7 @@ impl<C> Default for ProgramRelationColumns<C> {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct ProgramColumns<C> {
     relations: Column<Option<C>>,
 }
@@ -5062,7 +5070,7 @@ const RELATION_ANSWER_PAGE_WORDS: usize = RELATION_ANSWER_PAGE_BITS / u64::BITS 
 /// in every answer.
 type RelationAnswerColumn = PagedColumn<RelationAnswerPage>;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct RelationAnswerPage {
     known: [u64; RELATION_ANSWER_PAGE_WORDS],
     answers: [u64; RELATION_ANSWER_PAGE_WORDS],
@@ -5201,6 +5209,8 @@ struct SiblingSequenceMembership {
 const VALUE_PAGE_SHIFT: usize = 6;
 const VALUE_PAGE_SIZE: usize = 1 << VALUE_PAGE_SHIFT;
 
+#[derive(Clone)]
+
 struct ValuePage<T: Copy + Default> {
     known: u64,
     values: [T; VALUE_PAGE_SIZE],
@@ -5234,7 +5244,7 @@ type PrecedingSiblingPrefixColumn = PagedColumn<ValuePage<PrecedingSiblingPrefix
 type SiblingPositionColumn = PagedColumn<ValuePage<SiblingPositions>>;
 type SiblingSequenceMembershipColumn = PagedColumn<ValuePage<SiblingSequenceMembership>>;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct SiblingSequenceGeometry {
     sequences: Vec<Arc<[StyleNodeID]>>,
     memberships: SiblingSequenceMembershipColumn,
@@ -5318,7 +5328,7 @@ impl MatchEvaluationSide {
 /// old-fact matching share the current sequence positions; the old-tree side has its own. Type
 /// positions and selector answers additionally depend on the fact side and therefore remain
 /// distinct.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct MatchScratch {
     relations_by_evaluation_side: [MatchRelationCache; 3],
     sibling_geometry_by_tree_side: [SiblingSequenceGeometry; 2],
@@ -5327,7 +5337,7 @@ pub struct MatchScratch {
     positional_answers_by_evaluation_side: [PositionalAnswers; 3],
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct PositionalAnswers {
     by_test: Vec<(NthPosition, HashMap<StyleNodeID, bool>)>,
     answer_capacity_bytes: u64,

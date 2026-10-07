@@ -25,7 +25,7 @@ struct FeatureFluxNode {
     key_count: u32,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct FeatureFluxColumn {
     occupied: Vec<u64>,
     node_starts: Vec<u32>,
@@ -150,6 +150,7 @@ pub(super) enum TransactionFactSide {
 ///
 /// The after side lives in the resident arrangement. Changed local facts retain sparse before rows;
 /// unchanged nodes fall back to the resident arrangement on both sides.
+#[derive(Clone)]
 pub(super) struct TransactionFactView {
     pub(super) root: StyleNodeID,
     /// Every (node, key) local feature moved by this transaction, including all attribute name
@@ -207,6 +208,8 @@ impl TransactionFactView {
         resident.row_of(node).map(|row| (resident, row))
     }
 }
+
+#[derive(Clone)]
 
 pub(super) struct PrefixFactTransition {
     pub(super) roots: Vec<StyleNodeID>,

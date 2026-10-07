@@ -521,6 +521,7 @@ fn for_each_matching_scope(
     Ok(())
 }
 
+#[derive(Clone)]
 struct StagedFieldRow<V> {
     before: V,
     after: V,
@@ -530,6 +531,7 @@ struct StagedFieldRow<V> {
 /// Sparse staging for one program field. The first write freezes `before`, later writes replace
 /// `after`, and `take_dirty()` applies only the last write while retaining both sides for
 /// `ProgramStaging::delta()`.
+#[derive(Clone)]
 struct StagedField<K, V> {
     rows: HashMap<K, StagedFieldRow<V>>,
     touched: Vec<K>,
@@ -639,7 +641,7 @@ struct ProgramStagingDelta {
 
 /// Program transaction staging. Every field preserves its first before value and last-writer
 /// after value until release; `delta()` may read those pairs after the final values are applied.
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct ProgramStaging {
     rule_conditions: StagedField<RuleID, bool>,
     sheet_conditions: StagedField<SheetID, bool>,
@@ -751,6 +753,7 @@ pub(super) struct BatchCustomPropertyMatch {
 /// Long-lived engine state: the document, its program, derived results and cross-flush
 /// caches. This is the whole read side of an evaluation step; it holds no
 /// host handle, no journal intake and no borrowed FFI result storage.
+#[derive(Clone)]
 pub struct RetainedState {
     /// What the engine counts of its own decisions.
     counters: Counters,
@@ -761,9 +764,9 @@ pub struct RetainedState {
     /// points are `refresh_admission_facts`'s callers.
     admission: AdmissionFacts,
     deferred_pseudo_elements: u64,
-    tree: StyleNodeTree,
-    program: StyleSheetProgram,
-    native_rules: native_rules::NativeRuleRegistry,
+    tree: crate::fork::ForkShared<StyleNodeTree>,
+    program: crate::fork::ForkShared<StyleSheetProgram>,
+    native_rules: crate::fork::ForkShared<native_rules::NativeRuleRegistry>,
     /// The last declaration block version minted, by the engine or by its document's host, which mints without it.
     declaration_block_version: Arc<std::sync::atomic::AtomicU32>,
     /// Whether the last transaction taken planned nothing but derived child reactions.
@@ -810,16 +813,16 @@ pub struct RetainedState {
     sheet_order_version: u64,
 
     /// Canonical specified values referenced by dense rule and winner rows.
-    specified_values: SpecifiedValues,
+    specified_values: crate::fork::ForkShared<SpecifiedValues>,
     /// The winning stylesheet declarations last observed for each element, interned by their
     /// property-wise answer. Element identities are dense, so the column is directly indexed.
-    winner_groups: WinnerGroups,
+    winner_groups: crate::fork::ForkShared<WinnerGroups>,
     /// The shared computed-group payload tuple last published for each live element. This is the
     /// computed half of the eventual base style record; custom properties and metadata remain
     /// separate inputs until that record is complete.
-    computed_group_sets: ComputedGroupSets,
+    computed_group_sets: crate::fork::ForkShared<ComputedGroupSets>,
     /// The stores behind the custom-property environments live records are published with.
-    custom_property_environments: custom_property_environments::CustomPropertyEnvironments,
+    custom_property_environments: crate::fork::ForkShared<custom_property_environments::CustomPropertyEnvironments>,
     /// The nodes whose engine-computed record substituted a custom property into a winner: what
     /// C++ notes as reading custom properties when it installs the record.
     nodes_with_substituted_records: HashSet<StyleNodeID>,
@@ -845,10 +848,11 @@ pub struct RetainedState {
     nodes_with_element_relative_substitutions: HashMap<StyleNodeID, publication::ElementRelativeSubstitutions>,
     /// The custom-property environment each element holds, for the elements that hold one. This is
     /// the only copy: the element reads its environment from here.
-    element_custom_property_data: HashMap<StyleNodeID, inputs::HeldCustomPropertyEnvironment>,
+    element_custom_property_data: crate::fork::ForkShared<HashMap<StyleNodeID, inputs::HeldCustomPropertyEnvironment>>,
     /// The custom-property environments of each element's synthetic pseudo-elements, by
     /// pseudo-element kind, for the elements with a pseudo-element that holds one.
-    pseudo_element_custom_property_data: HashMap<StyleNodeID, Vec<(u8, inputs::HeldCustomPropertyEnvironment)>>,
+    pseudo_element_custom_property_data:
+        crate::fork::ForkShared<HashMap<StyleNodeID, Vec<(u8, inputs::HeldCustomPropertyEnvironment)>>>,
     /// The elements whose style reads their custom-property environment other than through `var()`,
     /// which a moved environment computes again.
     environment_move_recompute_nodes: HashSet<StyleNodeID>,
@@ -880,7 +884,7 @@ pub struct RetainedState {
     counter_style_environment_identities: HashMap<TreeScopeID, u64>,
     /// The style record each element holds, for the elements that hold one, as the host reports
     /// every record it installs or clears.
-    held_style_records: HashMap<StyleNodeID, u64>,
+    held_style_records: crate::fork::ForkShared<HashMap<StyleNodeID, u64>>,
     /// The records a clock frame shows in place of the ones the host installed, which it lends the published reads
     /// for as long as it runs.
     tick_shown: engine_sample::TickShownRecords,
@@ -893,12 +897,12 @@ pub struct RetainedState {
     children_explicitly_inherit_marks: HashSet<StyleNodeID>,
     /// The names of the CSS animations the host holds for each element, which the computation of
     /// its animation definitions matches them against.
-    css_defined_animations: animations::CssDefinedAnimations,
+    css_defined_animations: crate::fork::ForkShared<animations::CssDefinedAnimations>,
     /// The `@keyframes` each of the document's style scopes defines, as the host's rule caches
     /// resolved them, which an animation definition's keyframes are resolved from.
-    animation_keyframes: animations::AnimationKeyframes,
+    animation_keyframes: crate::fork::ForkShared<animations::AnimationKeyframes>,
     /// The animation effects the host holds for each element, described for sampling.
-    animation_effect_descriptions: effect_descriptions::AnimationEffectDescriptions,
+    animation_effect_descriptions: crate::fork::ForkShared<effect_descriptions::AnimationEffectDescriptions>,
     /// The font metrics of the record the host holds for the document element, which a `rem` the
     /// host resolves reads, once it holds one.
     held_root_font_inputs: Option<publication::RootFontInputs>,
@@ -939,8 +943,9 @@ pub struct RetainedState {
     /// Beside them, each published host's matches for the element-backed pseudo-elements, which
     /// the elements backing them cascade from while the host's answer is not installed.
     batch_backing_pseudo_matches: HashMap<StyleNodeID, Vec<RuleMatch>>,
-    engine_cold_record_cache: HashMap<publication::ColdRecordKey, publication::ColdRecord>,
-    engine_cold_record_donors: HashMap<publication::ColdRecordDonorKey, Vec<publication::ColdRecordDonor>>,
+    engine_cold_record_cache: crate::fork::ForkShared<HashMap<publication::ColdRecordKey, publication::ColdRecord>>,
+    engine_cold_record_donors:
+        crate::fork::ForkShared<HashMap<publication::ColdRecordDonorKey, Vec<publication::ColdRecordDonor>>>,
     computed_group_set_memory: MemoryLease,
     custom_property_environment_memory: MemoryLease,
     computed_fixed_metadata_memory: MemoryLease,
@@ -955,9 +960,9 @@ pub struct RetainedState {
     /// which is what a script reading style gets - opens no traversal, and an identity that only
     /// exists inside one answers the pages that need it least. An id is never reused for a
     /// different answer, so a consumer holding one across a flush is never told the wrong thing.
-    match_answers: MatchAnswerCatalog,
+    match_answers: crate::fork::ForkShared<MatchAnswerCatalog>,
     selector_truth_sets: SelectorTruthSetCatalog,
-    retained_match_answers: RetainedMatchAnswers,
+    retained_match_answers: crate::fork::ForkShared<RetainedMatchAnswers>,
     retained_selector_incidences: RetainedSelectorIncidences,
     /// Whether the current transaction changes activation without changing selector inputs.
     selector_incidence_is_current: bool,
@@ -972,7 +977,7 @@ pub struct RetainedState {
     /// invalidates naturally; cleared per transaction so the map cannot grow across flushes. A
     /// `None` entry records that the posting's coverage was incomplete, which is a `false`
     /// verdict for every asker.
-    route_pruning_states: Mutex<RoutePruningStateCache>,
+    route_pruning_states: crate::fork::ForkReset<Mutex<RoutePruningStateCache>>,
     /// Once Tier-3 pressure closes retained-answer admission, the rest of the completion batch
     /// stops asking for exact answers: an exact answer costs more to evaluate, and paying that
     /// premium for an answer the controller cannot retain buys nothing on any later flush.
@@ -991,7 +996,7 @@ pub struct RetainedState {
     /// consumes. This is required Tier-4 scratch, not a persistent inverse match relation.
     published_match_answers: PublishedMatchAnswers,
     transaction_fact_view: Option<TransactionFactView>,
-    facts: ElementFactStore,
+    facts: crate::fork::ForkShared<ElementFactStore>,
     programs: SelectorPrograms,
     /// The attribute names whose value text a selector reads, which the host holds a copy of between jobs.
     attribute_value_text_names: SelectorValueTextNames,
@@ -1016,7 +1021,7 @@ pub struct RetainedState {
     scope_roots: Column<Option<StyleNodeID>>,
     /// The inverse of `scope_roots`. Departing ordinary elements vastly outnumber departing scope
     /// roots, so retirement must ask this index instead of scanning every historical tree scope.
-    scope_by_root: SegmentedNodeColumn<TreeScopeID>,
+    scope_by_root: crate::fork::ForkShared<SegmentedNodeColumn<TreeScopeID>>,
     /// The immutable selector dispatch of each distinct effective sheet set and encapsulation
     /// depth. Concrete scopes retain only its dense identity.
     scope_programs: intern_table::InternTable<ScopeProgramID, Option<ScopeProgram>>,
@@ -1030,7 +1035,8 @@ pub struct RetainedState {
     scope_cascade_templates: HashMap<ScopeCascadeShape, Arc<RuleDispatch>>,
     /// One ancestor table for each key layout. Selector program growth often leaves this layout
     /// unchanged. Keep only the table so sharing it cannot retain an obsolete selector dispatch.
-    ancestor_dispatch_templates: HashMap<AncestorDispatchShape, Arc<index::AncestorDispatchTopology>>,
+    ancestor_dispatch_templates:
+        crate::fork::ForkShared<HashMap<AncestorDispatchShape, Arc<index::AncestorDispatchTopology>>>,
     /// The shared program each concrete tree scope resolved to. Program changes clear the table,
     /// while a depth change replaces only this scope's identity. It uses the same direct tree-scope
     /// index as the root column.
@@ -1041,7 +1047,7 @@ pub struct RetainedState {
     /// An attribute in a namespace is published under this as well as under its local name, and a
     /// selector that names the namespace tests it. The owner retains one document reference to each
     /// global identity and releases it when this engine is destroyed.
-    atoms: DocumentAtoms,
+    atoms: crate::fork::ForkShared<DocumentAtoms>,
     /// The HTML namespace when this is an HTML document, and none otherwise. Some attribute names
     /// compare their values ASCII case-insensitively on an HTML element in an HTML document.
     html_element_namespace: StyleAtomID,
@@ -1055,6 +1061,7 @@ pub struct RetainedState {
 
 /// Host-facing engine state: C++ ownership and journal intake.
 /// Never reachable from an evaluation step.
+#[derive(Clone)]
 pub struct HostState {
     /// The style pass the host is installing wave by wave, between two of its waves.
     suspended_style_pass: Option<flush::StylePass>,
@@ -1100,6 +1107,7 @@ pub struct HostState {
 }
 
 /// Mutable engine state; operations borrow their instrumentation from the boundary.
+#[derive(Clone)]
 pub struct StyleEngine {
     pub(super) retained: RetainedState,
     pub(super) host: HostState,

@@ -276,7 +276,7 @@ fn scope_kind_from_code(code: u8) -> PaintScopeKind {
 
 pub(crate) const SCOPE_KIND_COUNT: u8 = 1 + StackingContextPaintPhase::COUNT as u8;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct PaintOrderTree {
     nodes: Vec<ScopeNode>,
     free_nodes: Vec<u32>,

@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex};
 /// The random base values a document's random functions have drawn, by random caching key. The
 /// key's document is the engine's own; its element is the node, or none for an `element-shared`
 /// sharing.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct RandomBaseValues {
     /// The keys whose element is null, by name.
     document: HashMap<Box<[u16]>, f64>,
@@ -39,7 +39,7 @@ pub(crate) type NamedBaseValue = (Box<[u16]>, f64);
 pub(crate) type ParkedBaseValues = Arc<Mutex<Vec<NamedBaseValue>>>;
 
 /// A uniform pseudo-random source: a randomly keyed hash of a draw counter.
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct RandomSource {
     state: std::collections::hash_map::RandomState,
     draws: u64,

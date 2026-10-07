@@ -11,7 +11,7 @@ use super::{RetainedState, StyleEngine, StyleNodeID};
 
 /// What the host learned about size container queries while it computed styles: which elements
 /// were asked about, which elements asked, and which containers had no box to answer with yet.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct SizeContainerQueryFacts {
     /// Elements some size query or container-relative unit resolved against. `container-type` is
     /// set far more widely than it is asked about, so a container outside this set has no

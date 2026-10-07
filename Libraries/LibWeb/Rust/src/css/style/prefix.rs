@@ -1244,7 +1244,7 @@ pub(super) struct PrefixStates {
 }
 
 /// Private memo and row domain for one prefix evaluation context.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct PrefixTransitionScratch {
     facts_generation: u64,
     /// The `PrefixStates` every answer below names by index; see `PrefixStates::identity`.
@@ -1260,10 +1260,12 @@ pub(super) struct PrefixTransitionScratch {
     ancestor_chain: Vec<StyleNodeID>,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct PrefixEffects {
     writes: Vec<PrefixNodeWrite>,
 }
+
+#[derive(Clone)]
 
 struct PrefixNodeWrite {
     node: StyleNodeID,
@@ -1273,7 +1275,7 @@ struct PrefixNodeWrite {
     local_facts: Option<u32>,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct PrefixTransitionContext {
     pub(super) scratch: PrefixTransitionScratch,
     pub(super) effects: PrefixEffects,
@@ -1310,6 +1312,8 @@ impl PrefixTransitionContext {
         self.scratch.capacity_bytes() + self.effects.capacity_bytes()
     }
 }
+
+#[derive(Clone)]
 
 pub(super) struct PrefixTransitionContexts {
     by_program: Column<Option<PrefixTransitionContext>>,

@@ -50,7 +50,7 @@ pub(super) struct ContainerQueryInputRow {
     pub(super) direction: u8,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct ContainerQueryInputColumns {
     rows: Vec<Option<ContainerQueryInputRow>>,
 }
@@ -165,6 +165,8 @@ impl PseudoElementTarget {
 const SEGMENTED_NODE_COLUMN_PAGE_SHIFT: usize = 6;
 const SEGMENTED_NODE_COLUMN_PAGE_SIZE: usize = 1 << SEGMENTED_NODE_COLUMN_PAGE_SHIFT;
 
+#[derive(Clone)]
+
 struct SegmentedNodePage<T: Copy> {
     values: [Option<T>; SEGMENTED_NODE_COLUMN_PAGE_SIZE],
 }
@@ -201,6 +203,7 @@ impl<T: Copy> RemovablePagedColumnPage for SegmentedNodePage<T> {
 ///
 /// The page directory makes an absent column segment cost one pointer rather than one value per
 /// document node.
+#[derive(Clone)]
 pub(super) struct SegmentedNodeColumn<T: Copy>(PagedColumn<SegmentedNodePage<T>>);
 
 impl<T: Copy> Default for SegmentedNodeColumn<T> {
@@ -243,7 +246,7 @@ struct StagedTreeValue<T: Copy> {
 ///
 /// Pages are addressed by dense element identity. The touched lists exist only to drain populated
 /// rows without scanning the document-wide page directory at the commit barrier.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct TreeRelationStaging {
     rows: SegmentedNodeColumn<StagedTreeValue<Option<TreeRelations>>>,
     touched_rows: Vec<StyleNodeID>,
@@ -443,7 +446,7 @@ impl TreeRelationStaging {
 /// flat-tree children directly would cost two more words per node and duplicate information the
 /// slot and host relations already carry; deriving costs one lookup at the two places the flat tree
 /// actually diverges from the DOM tree.
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct ShadowRelations {
     /// A slotted element's slot.
     assigned_slot: SegmentedNodeColumn<StyleNodeID>,
@@ -532,7 +535,7 @@ impl ShadowRelations {
 /// A name is not keyed by tree scope. An element carries its scope in a column that a move or an
 /// adoption already maintains, so keying by it here would mean maintaining it twice; the scope is
 /// settled at the lookup instead, where the candidate list is almost always one element long.
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct ElementIdIndex {
     /// The name each element answers to, which is the key a change or a retirement removes under.
     name_of_node: HashMap<StyleNodeID, StyleAtomID>,
@@ -629,6 +632,7 @@ impl Default for TableSpans {
 ///
 /// Element columns are indexed by element index, with slot 0 unused so that a `StyleNodeID` indexes
 /// its own column entry directly.
+#[derive(Clone)]
 pub struct StyleNodeTree {
     // Required, dense.
     parent: Vec<Option<StyleNodeID>>,
@@ -2061,7 +2065,7 @@ impl StyleNodeTree {
 /// The rows of text identities, indexed by text index with slot 0 unused. A text node owns no
 /// element relations, only its place in the DOM child sequence. A retired index waits in
 /// `pending_reuse` until its epoch retires, as an element's does.
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct TextRows {
     parent: Vec<Option<StyleNodeID>>,
     next_sibling: Vec<Option<StyleNodeID>>,

@@ -18,6 +18,8 @@ type AppendText = unsafe extern "C" fn(*mut c_void, *const u8, usize);
 pub(crate) type DescribeNode =
     unsafe extern "C" fn(*const DocumentHost, &crate::render_state::BegunRead, NodeSlotId, *mut c_void, AppendText);
 
+#[derive(Clone)]
+
 struct Trace {
     lines: Vec<Line>,
     depth: usize,
@@ -25,6 +27,7 @@ struct Trace {
 
 /// One traced event: what it says, and the box it names, if any. The box is named once the pass is
 /// over, since naming it asks the document, which a pass cannot do.
+#[derive(Clone)]
 struct Line {
     depth: usize,
     prefix: &'static str,
@@ -35,7 +38,7 @@ struct Line {
 
 /// Observation belongs to the document, not to a single pass: geometry reads and
 /// style stabilization can cause several passes within one measured mutation.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct LayoutTrace(RefCell<Option<Trace>>);
 
 pub(super) struct Scope<'a>(&'a LayoutTrace);

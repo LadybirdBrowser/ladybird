@@ -198,6 +198,8 @@ pub struct Attachment {
     pub order: OrderToken,
 }
 
+#[derive(Clone)]
+
 struct Sheet {
     origin: CascadeOrigin,
     /// Advances whenever this sheet's immutable selector or static-cascade dispatch changes.
@@ -358,12 +360,15 @@ fn rule_declaration_pool() -> MutexGuard<'static, WeakPool<SharedRuleDeclaration
     RULE_DECLARATIONS.get_or_init(Mutex::default).lock().unwrap()
 }
 
+#[derive(Clone)]
+
 struct SemanticDeclarationEntry {
     id: SemanticDeclarationID,
     representative: RuleID,
 }
 
 /// The document's stylesheet program: identities, versions, order, and attachment.
+#[derive(Clone)]
 pub struct StyleSheetProgram {
     empty_declarations: Arc<SharedRuleDeclarations>,
     sheets: Vec<Sheet>,

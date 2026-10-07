@@ -109,7 +109,7 @@ struct Counter {
 type CountersSet = Arc<Vec<Counter>>;
 
 /// Every non-empty counters set, keyed by its owner. An empty set is simply absent.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct CountersSets {
     sets: HashMap<CounterOwner, CountersSet>,
     list_item_counter_name: Option<CssString>,

@@ -16,12 +16,14 @@ use super::tree::StyleNodeID;
 
 /// The identities of one document's style nodes, in two spaces: elements (with shadow roots and the document), and
 /// text nodes.
+#[derive(Clone)]
 pub struct StyleNodeIdAllocator {
     elements: IdentitySpace,
     texts: IdentitySpace,
 }
 
 /// One space: the index past every identity minted so far, and the indexes released for reuse.
+#[derive(Clone)]
 struct IdentitySpace {
     next: u32,
     released: Vec<u32>,
