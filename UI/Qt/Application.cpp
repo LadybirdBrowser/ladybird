@@ -1040,11 +1040,11 @@ void Application::update_reopen_recently_closed_actions() const
         static_cast<LadybirdQApplication*>(m_application.ptr())->update_reopen_recently_closed_action();
 }
 
-void Application::show_bookmark_context_menu(Gfx::IntPoint content_position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id)
+void Application::show_bookmark_context_menu(Gfx::IntPoint content_position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id)
 {
     if (auto* active_tab = this->active_tab()) {
         auto position = active_tab->view().mapToGlobal(QPoint { content_position.x(), content_position.y() });
-        active_tab->bookmarks_bar().show_context_menu(position, item, target_folder_id);
+        active_tab->bookmarks_bar().show_context_menu(position, item, target_folder_id, parent_folder_id);
     }
 }
 
@@ -1056,30 +1056,27 @@ Optional<Application::BookmarkID> Application::bookmark_item_id_for_context_menu
         return Application::BookmarkID {
             .id = bookmarks_bar.selected_bookmark_menu_item_id(),
             .target_folder_id = bookmarks_bar.selected_bookmark_menu_target_folder_id(),
+            .parent_folder_id = bookmarks_bar.selected_bookmark_menu_parent_folder_id(),
         };
     }
 
     return {};
 }
 
-template<typename PromiseType, typename ResolveCallback>
-static NonnullRefPtr<PromiseType> display_add_or_edit_bookmark_dialog(
+static NonnullRefPtr<WebView::Application::BookmarkPromise> display_add_or_edit_bookmark_dialog(
     QWidget* parent,
     BookmarkDialog::Type dialog_type,
     Optional<URL::URL const&> current_url,
     Optional<String const&> current_title,
     Optional<String> current_favicon_hash,
-    ResolveCallback resolve_bookmark,
     Optional<String const&> selected_folder_id = {})
 {
-    ReadonlySpan<WebView::BookmarkItem> folders;
-    if (dialog_type == BookmarkDialog::Type::AddBookmark)
-        folders = WebView::Application::bookmark_store().root_items();
+    auto const& folders = WebView::Application::bookmark_store().root_items();
 
     auto* dialog = new BookmarkDialog(parent, dialog_type, current_url, current_title, selected_folder_id, folders);
-    auto promise = PromiseType::construct();
+    auto promise = WebView::Application::BookmarkPromise::construct();
 
-    QObject::connect(dialog, &QDialog::finished, [promise, current_favicon_hash = move(current_favicon_hash), resolve_bookmark = move(resolve_bookmark), dialog = QPointer { dialog }](auto result) mutable {
+    QObject::connect(dialog, &QDialog::finished, [promise, current_favicon_hash = move(current_favicon_hash), dialog = QPointer { dialog }](auto result) mutable {
         if (result != QDialog::Accepted || !dialog) {
             promise->reject(Error::from_errno(ECANCELED));
             return;
@@ -1099,19 +1096,21 @@ static NonnullRefPtr<PromiseType> display_add_or_edit_bookmark_dialog(
         if (auto target_folder_id_text = ak_string_from_qstring(dialog->selected_folder_id()); !target_folder_id_text.is_empty())
             target_folder_id = move(target_folder_id_text);
 
-        WebView::BookmarkItem::Bookmark bookmark {
-            .url = url.release_value(),
-            .title = move(title),
-            .favicon_hash = move(current_favicon_hash),
-        };
-        resolve_bookmark(*promise, move(bookmark), move(target_folder_id));
+        promise->resolve(WebView::Application::BookmarkDialogResult {
+            .data = WebView::BookmarkItem::Bookmark {
+                .url = url.release_value(),
+                .title = move(title),
+                .favicon_hash = move(current_favicon_hash),
+            },
+            .target_folder_id = move(target_folder_id),
+        });
     });
 
     dialog->open();
     return promise;
 }
 
-NonnullRefPtr<Application::AddBookmarkPromise> Application::display_add_bookmark_dialog(Optional<String const&> target_folder_id) const
+NonnullRefPtr<Application::BookmarkPromise> Application::display_add_bookmark_dialog(Optional<String const&> target_folder_id) const
 {
     Optional<URL::URL> current_url;
     Optional<String> current_title;
@@ -1123,34 +1122,23 @@ NonnullRefPtr<Application::AddBookmarkPromise> Application::display_add_bookmark
         current_favicon_hash = view->favicon_hash();
     }
 
-    return display_add_or_edit_bookmark_dialog<AddBookmarkPromise>(
-        active_tab(), BookmarkDialog::Type::AddBookmark, current_url, current_title, current_favicon_hash,
-        [](AddBookmarkPromise& promise, WebView::BookmarkItem::Bookmark bookmark, Optional<String> target_folder_id) {
-            promise.resolve(AddBookmarkDialogResult {
-                .bookmark = move(bookmark),
-                .target_folder_id = move(target_folder_id),
-            });
-        },
-        target_folder_id);
+    return display_add_or_edit_bookmark_dialog(active_tab(), BookmarkDialog::Type::AddBookmark, current_url, current_title, current_favicon_hash, target_folder_id);
 }
 
-NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_dialog(WebView::BookmarkItem::Bookmark const& current_bookmark) const
+NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_dialog(WebView::BookmarkItem const& current_bookmark, Optional<String const&> parent_folder_id) const
 {
-    return display_add_or_edit_bookmark_dialog<BookmarkPromise>(
-        active_tab(), BookmarkDialog::Type::EditBookmark, current_bookmark.url, current_bookmark.title, current_bookmark.favicon_hash,
-        [](BookmarkPromise& promise, WebView::BookmarkItem::Bookmark bookmark, Optional<String>) {
-            promise.resolve(move(bookmark));
-        });
+    return display_add_or_edit_bookmark_dialog(active_tab(), BookmarkDialog::Type::EditBookmark, current_bookmark.bookmark().url, current_bookmark.bookmark().title, current_bookmark.bookmark().favicon_hash, parent_folder_id);
 }
 
-template<typename PromiseType>
-static NonnullRefPtr<PromiseType> display_add_or_edit_bookmark_folder_dialog(
+static NonnullRefPtr<WebView::Application::BookmarkPromise> display_add_or_edit_bookmark_folder_dialog(
     QWidget* parent,
     BookmarkDialog::Type dialog_type,
-    Optional<String const&> current_title)
+    Optional<String const&> current_title,
+    Optional<String const&> selected_folder_id,
+    Optional<String const&> excluded_folder_id = {})
 {
-    auto* dialog = new BookmarkDialog(parent, dialog_type, {}, current_title);
-    auto promise = PromiseType::construct();
+    auto* dialog = new BookmarkDialog(parent, dialog_type, {}, current_title, selected_folder_id, WebView::Application::bookmark_store().root_items(), excluded_folder_id);
+    auto promise = WebView::Application::BookmarkPromise::construct();
 
     QObject::connect(dialog, &QDialog::finished, [promise, dialog = QPointer { dialog }](auto result) {
         if (result != QDialog::Accepted || !dialog) {
@@ -1162,9 +1150,16 @@ static NonnullRefPtr<PromiseType> display_add_or_edit_bookmark_folder_dialog(
         if (auto title_text = ak_string_from_qstring(dialog->title()); !title_text.is_empty())
             title = move(title_text);
 
-        promise->resolve(WebView::BookmarkItem::Folder {
-            .title = move(title),
-            .children = {},
+        Optional<String> target_folder_id;
+        if (auto target_folder_id_text = ak_string_from_qstring(dialog->selected_folder_id()); !target_folder_id_text.is_empty())
+            target_folder_id = move(target_folder_id_text);
+
+        promise->resolve(WebView::Application::BookmarkDialogResult {
+            .data = WebView::BookmarkItem::Folder {
+                .title = move(title),
+                .children = {},
+            },
+            .target_folder_id = move(target_folder_id),
         });
     });
 
@@ -1172,14 +1167,14 @@ static NonnullRefPtr<PromiseType> display_add_or_edit_bookmark_folder_dialog(
     return promise;
 }
 
-NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_add_bookmark_folder_dialog(Optional<String const&> default_title) const
+NonnullRefPtr<Application::BookmarkPromise> Application::display_add_bookmark_folder_dialog(Optional<String const&> default_title, Optional<String const&> target_folder_id) const
 {
-    return display_add_or_edit_bookmark_folder_dialog<BookmarkFolderPromise>(active_tab(), BookmarkDialog::Type::AddFolder, default_title);
+    return display_add_or_edit_bookmark_folder_dialog(active_tab(), BookmarkDialog::Type::AddFolder, default_title, target_folder_id);
 }
 
-NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_edit_bookmark_folder_dialog(WebView::BookmarkItem::Folder const& current_folder) const
+NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_folder_dialog(WebView::BookmarkItem const& current_folder, Optional<String const&> parent_folder_id) const
 {
-    return display_add_or_edit_bookmark_folder_dialog<BookmarkFolderPromise>(active_tab(), BookmarkDialog::Type::EditFolder, current_folder.title);
+    return display_add_or_edit_bookmark_folder_dialog(active_tab(), BookmarkDialog::Type::EditFolder, current_folder.folder().title, parent_folder_id, current_folder.id);
 }
 
 void Application::on_devtools_enabled() const

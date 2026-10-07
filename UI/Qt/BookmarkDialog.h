@@ -31,7 +31,7 @@ public:
         EditFolder,
     };
 
-    BookmarkDialog(QWidget* parent, Type, Optional<URL::URL const&> url = {}, Optional<String const&> title = {}, Optional<String const&> selected_folder_id = {}, ReadonlySpan<WebView::BookmarkItem> folders = {});
+    BookmarkDialog(QWidget* parent, Type, Optional<URL::URL const&> url = {}, Optional<String const&> title = {}, Optional<String const&> selected_folder_id = {}, ReadonlySpan<WebView::BookmarkItem> folders = {}, Optional<String const&> excluded_folder_id = {});
 
     QString url() const;
     QString title() const;

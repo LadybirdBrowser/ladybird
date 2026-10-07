@@ -351,7 +351,7 @@
                 renderTree();
             }
 
-            function addContextMenuHandler(element, item, targetFolderId) {
+            function addContextMenuHandler(element, item, targetFolderId, parentFolderId) {
                 element.addEventListener("contextmenu", event => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -361,6 +361,7 @@
                         clientY: event.clientY,
                         id: item.id,
                         targetFolderId,
+                        parentFolderId,
                     });
                 });
             }
@@ -528,7 +529,7 @@
                 row.appendChild(SEARCH_QUERY ? createHighlightedBookmarkInfo(item) : createBookmarkInfo(item));
 
                 setupDragHandlers(row, item, parentId, index);
-                addContextMenuHandler(row, item, parentId || null);
+                addContextMenuHandler(row, item, parentId || null, parentId || null);
             }
 
             function renderFolderRow(row, wrapper, item, index, parentId) {
@@ -565,7 +566,7 @@
                 }
 
                 setupDragHandlers(row, item, parentId, index);
-                addContextMenuHandler(row, item, item.id);
+                addContextMenuHandler(row, item, item.id, parentId || null);
 
                 if (isExpanded) {
                     const childrenContainer = createElement("div", { className: "tree-children" });

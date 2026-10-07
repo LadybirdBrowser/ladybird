@@ -3844,8 +3844,9 @@ void ViewImplementation::initialize_context_menus()
             return;
 
         application.display_add_bookmark_dialog(bookmark_id->target_folder_id)
-            ->when_resolved([](Application::AddBookmarkDialogResult result) {
-                Application::bookmark_store().add_bookmark(move(result.bookmark.url), move(result.bookmark.title), move(result.bookmark.favicon_hash), result.target_folder_id);
+            ->when_resolved([](Application::BookmarkDialogResult result) {
+                auto& bookmark = result.data.get<BookmarkItem::Bookmark>();
+                Application::bookmark_store().add_bookmark(move(bookmark.url), move(bookmark.title), move(bookmark.favicon_hash), result.target_folder_id);
             });
     });
     auto add_bookmark_folder_action = Action::create("Add Folder..."sv, ActionID::AddBookmarkFolder, []() {
@@ -3855,9 +3856,10 @@ void ViewImplementation::initialize_context_menus()
         if (!bookmark_id.has_value())
             return;
 
-        application.display_add_bookmark_folder_dialog()
-            ->when_resolved([bookmark_id = bookmark_id.release_value()](BookmarkItem::Folder folder) {
-                Application::bookmark_store().add_folder(move(folder.title), bookmark_id.target_folder_id);
+        application.display_add_bookmark_folder_dialog({}, bookmark_id->target_folder_id)
+            ->when_resolved([](Application::BookmarkDialogResult result) {
+                auto& folder = result.data.get<BookmarkItem::Folder>();
+                Application::bookmark_store().add_folder(move(folder.title), result.target_folder_id);
             });
     });
 
@@ -3914,9 +3916,13 @@ void ViewImplementation::initialize_context_menus()
         if (!current_bookmark.has_value() || !current_bookmark->is_bookmark())
             return;
 
-        application.display_edit_bookmark_dialog(current_bookmark->bookmark())
-            ->when_resolved([bookmark_id = bookmark_id.release_value()](BookmarkItem::Bookmark bookmark) {
-                Application::bookmark_store().edit_bookmark(bookmark_id.id, move(bookmark.url), move(bookmark.title));
+        application.display_edit_bookmark_dialog(*current_bookmark, bookmark_id->parent_folder_id)
+            ->when_resolved([bookmark_id = bookmark_id.release_value()](Application::BookmarkDialogResult result) {
+                auto& store = Application::bookmark_store();
+                auto& bookmark = result.data.get<BookmarkItem::Bookmark>();
+                store.edit_bookmark(bookmark_id.id, move(bookmark.url), move(bookmark.title));
+                if (bookmark_id.parent_folder_id != result.target_folder_id)
+                    store.move_item(bookmark_id.id, result.target_folder_id, NumericLimits<size_t>::max());
             });
     }));
     m_bookmark_context_menu->add_action(Action::create("Delete Bookmark"sv, ActionID::DeleteBookmark, []() {
@@ -3946,9 +3952,13 @@ void ViewImplementation::initialize_context_menus()
         if (!current_folder.has_value() || !current_folder->is_folder())
             return;
 
-        application.display_edit_bookmark_folder_dialog(current_folder->folder())
-            ->when_resolved([bookmark_id = bookmark_id.release_value()](BookmarkItem::Folder folder) {
-                Application::bookmark_store().edit_folder(bookmark_id.id, move(folder.title));
+        application.display_edit_bookmark_folder_dialog(*current_folder, bookmark_id->parent_folder_id)
+            ->when_resolved([bookmark_id = bookmark_id.release_value()](Application::BookmarkDialogResult result) {
+                auto& store = Application::bookmark_store();
+                auto& folder = result.data.get<BookmarkItem::Folder>();
+                store.edit_folder(bookmark_id.id, move(folder.title));
+                if (bookmark_id.parent_folder_id != result.target_folder_id)
+                    store.move_item(bookmark_id.id, result.target_folder_id, NumericLimits<size_t>::max());
             });
     }));
     m_bookmark_folder_context_menu->add_action(Action::create("Delete Folder"sv, ActionID::DeleteBookmarkFolder, []() {

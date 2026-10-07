@@ -98,10 +98,11 @@ void BookmarksUI::show_context_menu(JsonValue const& data)
     if (auto id = object.get_string("id"sv); id.has_value()) {
         auto item = Application::bookmark_store().find_item_by_id(*id);
         auto target_folder_id = object.get_string("targetFolderId"sv);
+        auto parent_folder_id = object.get_string("parentFolderId"sv);
 
-        Application::the().show_bookmark_context_menu({ *client_x, *client_y }, item, target_folder_id);
+        Application::the().show_bookmark_context_menu({ *client_x, *client_y }, item, target_folder_id, parent_folder_id);
     } else {
-        Application::the().show_bookmark_context_menu({ *client_x, *client_y }, {}, {});
+        Application::the().show_bookmark_context_menu({ *client_x, *client_y }, {}, {}, {});
     }
 }
 

@@ -261,6 +261,7 @@ void BookmarksBar::rebuild()
                 action->setProperty("id", submenu->property("id"));
                 action->setProperty("type", submenu->property("type"));
                 action->setProperty("target_folder_id", submenu->property("target_folder_id"));
+                action->setProperty("parent_folder_id", submenu->property("parent_folder_id"));
                 action->setMenu(submenu);
                 addAction(action);
 
@@ -274,11 +275,12 @@ void BookmarksBar::rebuild()
     }
 }
 
-void BookmarksBar::show_context_menu(QPoint position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id)
+void BookmarksBar::show_context_menu(QPoint position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id)
 {
     if (item.has_value()) {
         m_selected_bookmark_menu_item_id = item->id;
         m_selected_bookmark_menu_target_folder_id = target_folder_id.copy();
+        m_selected_bookmark_menu_parent_folder_id = parent_folder_id.copy();
 
         if (item->is_bookmark())
             bookmark_context_menu().exec(position);
@@ -287,6 +289,7 @@ void BookmarksBar::show_context_menu(QPoint position, Optional<WebView::Bookmark
     } else {
         m_selected_bookmark_menu_item_id = {};
         m_selected_bookmark_menu_target_folder_id = {};
+        m_selected_bookmark_menu_parent_folder_id = {};
 
         bookmarks_bar_context_menu().exec(position);
     }
@@ -349,6 +352,7 @@ bool BookmarksBar::handle_right_mouse_click(QMouseEvent* event, QObject* item)
     if (is<BookmarksBar>(item)) {
         m_selected_bookmark_menu_item_id = {};
         m_selected_bookmark_menu_target_folder_id = {};
+        m_selected_bookmark_menu_parent_folder_id = {};
 
         bookmarks_bar_context_menu().exec(event->globalPosition().toPoint());
     } else if (auto* button = as_if<QToolButton>(item)) {
@@ -400,8 +404,13 @@ void BookmarksBar::extract_item_properties(QObject* item)
     m_selected_bookmark_menu_item_id = ak_string_from_qstring(item->property("id").toString());
     m_selected_bookmark_menu_item_type = item->property("type").toString();
 
+    m_selected_bookmark_menu_target_folder_id = {};
     if (auto value = ak_string_from_qstring(item->property("target_folder_id").toString()); !value.is_empty())
         m_selected_bookmark_menu_target_folder_id = AK::move(value);
+
+    m_selected_bookmark_menu_parent_folder_id = {};
+    if (auto value = ak_string_from_qstring(item->property("parent_folder_id").toString()); !value.is_empty())
+        m_selected_bookmark_menu_parent_folder_id = AK::move(value);
 }
 
 QMenu& BookmarksBar::bookmarks_bar_context_menu()
