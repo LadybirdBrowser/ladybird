@@ -6,17 +6,17 @@
 </div>
 <script>
     // A keyframe in container units resolves against a container's size, which only the host knows: the first tick of
-    // a clock lease of such an animation parks the lease.
+    // a clock lane of such an animation parks the lane.
     asyncTest(async done => {
-        const result = await whileClockLeased(() => {
+        const result = await whileLaneAnimates(() => {
             return box.animate([{ height: "0cqh" }, { height: "100cqh" }], { duration: 10000, easing: "linear" });
         }, frameTime => {
-            const before = internals.clockLeaseState(document);
+            const before = internals.clockLaneState(document);
             internals.injectClockTick(frameTime + 500);
-            return { before, after: internals.clockLeaseState(document) };
+            return { before, after: internals.clockLaneState(document) };
         });
-        println(`lease as the task begins: ${result.before}`);
-        println(`lease after a tick: ${result.after}`);
+        println(`lane as the task begins: ${result.before}`);
+        println(`lane after a tick: ${result.after}`);
         done();
     });
 </script>

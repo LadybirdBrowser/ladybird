@@ -7,18 +7,18 @@
     // style write and the computed style read after it reach the host's state, and the lane ticks a fork of the state
     // as the frame left it.
     asyncTest(async done => {
-        const result = await whileClockLeased(() => {
+        const result = await whileLaneAnimates(() => {
             return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
         }, frameTime => {
             internals.injectClockTick(frameTime + 500);
-            const before = internals.clockLeaseState(document);
+            const before = internals.clockLaneState(document);
             box.style.backgroundColor = "blue";
             const color = getComputedStyle(box).backgroundColor;
-            return { before, color, after: internals.clockLeaseState(document) };
+            return { before, color, after: internals.clockLaneState(document) };
         });
-        println(`lease before the write: ${result.before}`);
+        println(`lane before the write: ${result.before}`);
         println(`color: ${result.color}`);
-        println(`lease after the read: ${result.after}`);
+        println(`lane after the read: ${result.after}`);
         done();
     });
 </script>

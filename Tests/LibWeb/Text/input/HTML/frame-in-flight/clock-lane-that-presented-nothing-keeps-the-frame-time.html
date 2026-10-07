@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
 <script src="frame-in-flight.js"></script>
-<div>A document with nothing to animate, whose lease follows the pointer and presents no frame.</div>
+<div>A document with nothing to animate, whose lane follows the pointer and presents no frame.</div>
 <script>
-    // A rendering update after a clock lease whose ticks presented no frame renders at the time of its opportunity,
+    // A rendering update after a clock lane whose ticks presented no frame renders at the time of its opportunity,
     // however long after it the update runs: no frame a tick presented shows anything later.
     asyncTest(async done => {
-        const result = await whileHoverLeased(async () => {
-            const leaseState = internals.clockLeaseState(document);
+        const result = await whileLaneHovers(async () => {
+            const laneState = internals.clockLaneState(document);
             let callbackTimestamp = null;
             const injectedTimestamp = performance.now();
             // The update runs well after the opportunity.
@@ -15,9 +15,9 @@
             requestAnimationFrame(timestamp => callbackTimestamp = timestamp);
             internals.injectRenderingOpportunity(injectedTimestamp);
             await nextTask();
-            return { leaseState, received: Math.abs(callbackTimestamp - injectedTimestamp) < 0.01 };
+            return { laneState, received: Math.abs(callbackTimestamp - injectedTimestamp) < 0.01 };
         });
-        println(`lease as the task begins: ${result.leaseState}`);
+        println(`lane as the task begins: ${result.laneState}`);
         println(`callback received the opportunity's timestamp: ${result.received}`);
         done();
     });

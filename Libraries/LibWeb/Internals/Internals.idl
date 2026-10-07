@@ -221,22 +221,23 @@ interface Internals {
     undefined resetRenderingSchedulerCounters();
     undefined setManualRenderingOpportunities(boolean enabled);
     undefined injectRenderingOpportunity(double frameTimeMs);
-    // Hands the clock lease of the current document, if one runs, a tick at the given time, and waits until it has run.
+    // Hands the clock lanes of the current document a tick at the given time, and waits until it has run.
     // With a viewport scroll offset, the compositor had scrolled the viewport down to it at the tick.
     undefined injectClockTick(double frameTimeMs, optional double viewportScrollY);
-    // Hands the clock lease of the current document, if one runs, a pointer move to the given point in CSS pixels as the
-    // compositor would, and waits until the tick that hovers what is under it has run, at the given frame time, or now.
+    // Hands the clock lanes of the current document a pointer move to the given point in CSS pixels as the compositor
+    // would, and waits until the tick that hovers what is under it has run, at the given frame time, or now.
     undefined injectHoverPointer(double x, double y, optional double frameTimeMs);
-    // Hands the clock lease of the current document, if one runs, a pointer move to the given point in CSS pixels as the
-    // compositor would, which waits for the tick a test injects to hover what is under it.
+    // Hands the clock lanes of the current document a pointer move to the given point in CSS pixels as the compositor
+    // would, which waits for the tick a test injects to hover what is under it.
     undefined moveHoverPointer(double x, double y);
-    // "none" where no clock lease of the document runs, "ticking" while one does, "parked" once a tick parked it, and
-    // "hovering" where it samples no animation and only follows the pointer.
-    DOMString clockLeaseState(Document document);
+    // What the clock lane of the document's presented frame does: "none" where there is none, "ticking" while it samples
+    // animations, "parked" once a tick parked it, and "hovering" where it samples no animation and only follows the
+    // pointer.
+    DOMString clockLaneState(Document document);
     // The color, as a CSS color string, that a box a hover's transitions restyled showed in the last frame a tick of
-    // a clock lease presented, or null.
+    // a clock lane presented, or null.
     DOMString? presentedColor(Element element);
-    // The border box of the element in the last frame a clock tick presented, which ends the lease that runs.
+    // The border box of the element in the last frame a clock tick presented.
     DOMRect? presentedBorderBox(Element element);
     // "laying-out" while a rendering update's layout runs beside the event loop, or has and the update has not run its
     // steps after it yet, "in-flight" while a rendering update's frame or recording flies beside the event loop,
@@ -248,7 +249,7 @@ interface Internals {
     // before it reads anything.
     undefined holdNextFrame(optional DOMString hold = "");
     // What presented the last frame of the document's navigable: "commit" for a frame a rendering update committed,
-    // "clock" for a tick of the document's clock lease, or "none" before the first frame.
+    // "clock" for a tick of the document's clock lane, or "none" before the first frame.
     DOMString lastFramePresentedBy(Document document);
     // Whether the last frame of the page handed the compositor the keyboard scroll state the page holds now.
     boolean lastFrameKeyboardScrollStateIsCurrent();

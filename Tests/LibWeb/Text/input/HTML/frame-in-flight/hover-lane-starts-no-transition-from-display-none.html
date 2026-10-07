@@ -17,7 +17,7 @@
     // element from display: none starts none: the menu shows its hovered color at once, beside the task and once the
     // main thread takes the hover in.
     asyncTest(async done => {
-        const y = await whileHoverLeased(frameTime => {
+        const y = await whileLaneHovers(frameTime => {
             internals.injectHoverPointer(100, 25, frameTime + 16);
             return internals.presentedBorderBox(after)?.y;
         });

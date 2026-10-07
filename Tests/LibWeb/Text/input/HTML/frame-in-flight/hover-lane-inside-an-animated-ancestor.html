@@ -13,7 +13,7 @@
     // A hover beside the task moves the hover of an ancestor that runs an animation, whose record stays as it was: the
     // animation the main thread composes over it runs on, and the hovered link restyles beside the task.
     asyncTest(async done => {
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(100, 30);
             return internals.lastFramePresentedBy(document);
         });

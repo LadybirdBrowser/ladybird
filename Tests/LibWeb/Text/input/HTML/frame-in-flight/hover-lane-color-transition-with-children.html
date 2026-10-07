@@ -12,7 +12,7 @@
     // A hover beside the task shows a color transition of an element whose children inherit its color, in the
     // children too, as the render clock ticks.
     asyncTest(async done => {
-        const result = await whileHoverLeased(frameTime => {
+        const result = await whileLaneHovers(frameTime => {
             internals.injectHoverPointer(150, 20, frameTime + 16);
             internals.injectClockTick(frameTime + 16 + 50000);
             return {

@@ -13,7 +13,7 @@
     // A hover beside the task moves the custom properties of the hovered element, and the elements below it that read
     // them compute again over the moved ones, but for one that declares its own.
     asyncTest(async done => {
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(150, 50);
             return internals.lastFramePresentedBy(document);
         });

@@ -29,12 +29,12 @@
             do await nextTask();
             while (internals.frameSchedulerState() !== "idle");
             internals.injectClockTick(frameTime + 250);
-            const lease = internals.clockLeaseState(document);
+            const lane = internals.clockLaneState(document);
             const presentedBy = internals.lastFramePresentedBy(document);
             const presented = internals.presentedBorderBox(drawer);
             const transition = drawer.getAnimations().find(animation => animation.transitionProperty === "width");
             const expectedWidth = (frameTime + 250 - transition.startTime) / 10;
-            println(`lease after the tick: ${lease}`);
+            println(`lane after the tick: ${lane}`);
             println(`last frame presented by: ${presentedBy}`);
             println(`the presented width is the transition's at the tick: ${presented !== null && Math.abs(presented.width - expectedWidth) < 0.02}`);
             println(`the presented height is the one the shorter transition ended at: ${presented !== null && presented.height === 20}`);

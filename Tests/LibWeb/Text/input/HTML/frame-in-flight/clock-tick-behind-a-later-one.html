@@ -5,7 +5,7 @@
 <script>
     // A tick handed an earlier time than a tick before it does not sample the animation back in time.
     asyncTest(async done => {
-        const result = await whileClockLeased(() => {
+        const result = await whileLaneAnimates(() => {
             return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
         }, (frameTime, animation) => {
             internals.injectClockTick(frameTime + 2000);

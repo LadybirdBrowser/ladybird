@@ -1,2 +1,2 @@
-lease as the task begins: ticking
-lease after a tick: parked
+lane as the task begins: ticking
+lane after a tick: parked

@@ -12,7 +12,7 @@
     // A tick of the render clock hovers a list item whose marker inherits the color the hover changes, and presents the
     // frame with the marker restyled.
     asyncTest(async done => {
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(80, 20);
             return internals.lastFramePresentedBy(document);
         });

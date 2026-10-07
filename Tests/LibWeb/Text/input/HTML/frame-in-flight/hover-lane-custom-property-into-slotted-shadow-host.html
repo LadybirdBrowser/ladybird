@@ -17,7 +17,7 @@
     // slotted shadow host that reads none itself.
     asyncTest(async done => {
         const dropdown = share.shadowRoot.getElementById("dropdown");
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(100, 10);
             internals.injectHoverPointer(100, 100);
             internals.injectHoverPointer(100, 10);

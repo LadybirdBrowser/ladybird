@@ -21,14 +21,14 @@
     // A scroll-driven animation the page was scrolled to the end of has finished and holds its end. While a task runs,
     // the render clock runs it again where the compositor scrolls the page back to.
     asyncTest(async done => {
-        const result = await whileClockLeased(() => {
+        const result = await whileLaneAnimates(() => {
             window.scrollTo(0, document.documentElement.scrollHeight);
             return header.getAnimations()[0];
         }, frameTime => {
             internals.injectClockTick(frameTime + 16, 1000);
-            const lease = internals.clockLeaseState(document);
+            const lane = internals.clockLaneState(document);
             return {
-                lease,
+                lane,
                 presentedBy: internals.lastFramePresentedBy(document),
                 presented: internals.presentedBorderBox(header),
             };
@@ -36,7 +36,7 @@
         // The scroll range the clock samples over is the one laid out with the animation at its end.
         const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
         const expectedHeight = 50 - (40 * 1000) / maxScroll;
-        println(`render clock after a frame scrolled back: ${result.lease}`);
+        println(`render clock after a frame scrolled back: ${result.lane}`);
         println(`last frame presented by: ${result.presentedBy}`);
         println(`the presented height follows the scroll: ${result.presented !== null && Math.abs(result.presented.height - expectedHeight) < 0.02}`);
         println(`the animation finished on the main thread: ${header.getAnimations()[0].playState}`);

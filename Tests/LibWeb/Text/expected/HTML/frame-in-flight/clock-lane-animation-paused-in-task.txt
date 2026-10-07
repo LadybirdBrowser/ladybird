@@ -1,0 +1,2 @@
+lane before the pause: ticking
+lane after the pause: parked

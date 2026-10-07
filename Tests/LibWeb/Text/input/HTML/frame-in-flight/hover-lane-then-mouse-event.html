@@ -19,7 +19,7 @@
         internals.mouseMove(50, 50);
         await nextFrame();
         const hovered = () => [a, b, c].filter(box => box.matches(":hover")).map(box => box.id).join(",");
-        const result = await whileHoverLeased(() => {
+        const result = await whileLaneHovers(() => {
             internals.injectHoverPointer(50, 150);
             return hovered();
         });

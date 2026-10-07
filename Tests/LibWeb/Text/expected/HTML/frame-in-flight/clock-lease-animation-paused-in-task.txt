@@ -1,2 +1,0 @@
-lease before the pause: ticking
-lease after the pause: parked

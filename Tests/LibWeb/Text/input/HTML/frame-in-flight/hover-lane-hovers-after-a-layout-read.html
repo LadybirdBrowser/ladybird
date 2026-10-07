@@ -11,12 +11,12 @@
     // A task that reads the layout of the document writes nothing the screen does not show: the lane of the presented
     // frame goes on following the pointer beside it, and beside the tasks after it, and hovers.
     asyncTest(async done => {
-        const result = await whileHoverLeased(async frameTime => {
-            const before = internals.clockLeaseState(document);
+        const result = await whileLaneHovers(async frameTime => {
+            const before = internals.clockLaneState(document);
             const width = box.offsetWidth;
-            const afterRead = internals.clockLeaseState(document);
+            const afterRead = internals.clockLaneState(document);
             await nextTask();
-            const nextTaskBegins = internals.clockLeaseState(document);
+            const nextTaskBegins = internals.clockLaneState(document);
             internals.injectHoverPointer(50, 50, frameTime + 16);
             return { before, width, afterRead, nextTaskBegins, onScreen: internals.presentedBorderBox(box)?.width };
         });

@@ -13,7 +13,7 @@
     // hover beside the task hit tests where the compositor scrolled to, as its last tick said: what is under the pointer
     // on screen.
     asyncTest(async done => {
-        const result = await whileHoverLeased(frameTime => {
+        const result = await whileLaneHovers(frameTime => {
             internals.injectClockTick(frameTime + 16, 400);
             internals.injectHoverPointer(50, 50, frameTime + 32);
             const width = box => internals.presentedBorderBox(box)?.width ?? "not hovered";

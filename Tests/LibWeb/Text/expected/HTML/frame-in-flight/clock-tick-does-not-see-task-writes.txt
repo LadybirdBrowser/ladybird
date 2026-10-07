@@ -1,3 +1,3 @@
-lease after the writes and a tick: ticking
+lane after the writes and a tick: ticking
 presented width: 10
 last frame presented by: clock

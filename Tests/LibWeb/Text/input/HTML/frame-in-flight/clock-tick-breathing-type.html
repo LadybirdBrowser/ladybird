@@ -19,14 +19,14 @@
     // The render clock lays out text whose font size, line height and spacing animate beside a task, in a font the
     // main thread has not resolved, as the main thread lays it out at the same time.
     asyncTest(async done => {
-        const result = await whileClockLeased(() => {
+        const result = await whileLaneAnimates(() => {
             text.classList.add("breathe");
             return text.getAnimations()[0];
         }, (frameTime, animation) => {
             internals.injectClockTick(frameTime + 3000);
-            const lease = internals.clockLeaseState(document);
+            const lane = internals.clockLaneState(document);
             return {
-                lease,
+                lane,
                 presented: internals.presentedBorderBox(text),
                 presentedBy: internals.lastFramePresentedBy(document),
                 localTime: frameTime + 3000 - animation.startTime,
@@ -37,7 +37,7 @@
         result.animation.currentTime = result.localTime;
         const laidOut = text.getBoundingClientRect();
         const presented = result.presented;
-        println(`lease after the tick: ${result.lease}`);
+        println(`lane after the tick: ${result.lane}`);
         println(`last frame presented by: ${result.presentedBy}`);
         println(`the presented size is the main thread's: ${presented !== null && Math.abs(presented.width - laidOut.width) < 0.02 && Math.abs(presented.height - laidOut.height) < 0.02}`);
         println(`the text grew: ${laidOut.height > 20}`);

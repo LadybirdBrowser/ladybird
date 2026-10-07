@@ -12,7 +12,7 @@
 <script>
     // A hover beside the task restyles what inherits from the hovered element and what a selector reaches through it.
     asyncTest(async done => {
-        const presentedBy = await whileHoverLeased(() => {
+        const presentedBy = await whileLaneHovers(() => {
             internals.injectHoverPointer(150, 50);
             return internals.lastFramePresentedBy(document);
         });

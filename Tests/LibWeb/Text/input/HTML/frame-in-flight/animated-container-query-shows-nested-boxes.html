@@ -34,14 +34,14 @@
     // The render clock builds the boxes a container query shows beside a task even where the box it shows holds
     // elements with elements of their own, which no style update reached while the box was display:none.
     asyncTest(async done => {
-        const result = await whileClockLeased(() => {
+        const result = await whileLaneAnimates(() => {
             pane.classList.add("widen");
             return pane.getAnimations()[0];
         }, (frameTime, animation) => {
             internals.injectClockTick(frameTime + 3000);
             internals.injectClockTick(frameTime + 5000);
             return {
-                clock: internals.clockLeaseState(document),
+                clock: internals.clockLaneState(document),
                 presented: internals.presentedBorderBox(pane),
                 presentedBy: internals.lastFramePresentedBy(document),
                 localTime: frameTime + 5000 - animation.startTime,

@@ -26,23 +26,23 @@
     // var() height and a padding, of a box with an anonymous child, in a box that clips with rounded corners. The item
     // opens past its content, which leaves it nothing to scroll.
     asyncTest(async done => {
-        const result = await whileClockLeased(() => {
+        const result = await whileLaneAnimates(() => {
             answer.classList.add("open");
             return answer.getAnimations()[0];
         }, (frameTime, animation, startTime) => {
             internals.injectClockTick(frameTime + 1000);
             // 95% into the second iteration, past the hold of its first 10%.
             internals.injectClockTick(startTime + 19500);
-            const lease = internals.clockLeaseState(document);
+            const lane = internals.clockLaneState(document);
             const presented = internals.presentedBorderBox(answer);
             return {
                 presentedHeightIsTheTicks: presented !== null && Math.abs(presented.height - (104 * 0.85) / 0.9) < 0.05,
-                lease,
+                lane,
                 presentedBy: internals.lastFramePresentedBy(document),
             };
         });
         println(`the presented height is the animation's at the last tick, in its second iteration: ${result.presentedHeightIsTheTicks}`);
-        println(`lease after the ticks: ${result.lease}`);
+        println(`lane after the ticks: ${result.lane}`);
         println(`last frame presented by: ${result.presentedBy}`);
         done();
     });

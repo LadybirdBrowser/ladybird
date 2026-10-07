@@ -12,7 +12,7 @@
     // the update, so that the screen shows it before the update's steps run the document's script. The update waits for
     // none of it, and the update after it keeps the hover, with its events.
     asyncTest(async done => {
-        await whileHoverLeased(() => internals.moveHoverPointer(50, 50));
+        await whileLaneHovers(() => internals.moveHoverPointer(50, 50));
         await twoFrames();
         println(`box width a tick presented: ${internals.presentedBorderBox(box)?.width}`);
         println(`box matches :hover: ${box.matches(":hover")}`);

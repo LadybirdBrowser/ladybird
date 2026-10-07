@@ -19,7 +19,7 @@
     asyncTest(async done => {
         internals.mouseMove(100, 25);
         await nextFrame();
-        const result = await whileHoverLeased(frameTime => {
+        const result = await whileLaneHovers(frameTime => {
             internals.injectHoverPointer(100, 400, frameTime + 16);
             const y = internals.presentedBorderBox(after)?.y;
             return { onScreen: y, read: after.getBoundingClientRect().y, display: getComputedStyle(menu).display };

@@ -12,7 +12,7 @@
     // the presented frame never presents: it hovers on a fork of the state as the frame left it, taken before the task
     // first wrote the state.
     asyncTest(async done => {
-        const result = await whileHoverLeased(async frameTime => {
+        const result = await whileLaneHovers(async frameTime => {
             box.style.width = "120px";
             const width = box.offsetWidth;
             internals.injectHoverPointer(50, 50, frameTime + 16);

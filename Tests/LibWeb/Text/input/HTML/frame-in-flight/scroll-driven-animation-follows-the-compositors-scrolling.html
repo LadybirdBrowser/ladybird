@@ -23,24 +23,24 @@
     asyncTest(async done => {
         header.addEventListener("animationend", () => {});
         let maxScroll;
-        const result = await whileClockLeased(() => {
+        const result = await whileLaneAnimates(() => {
             maxScroll = document.documentElement.scrollHeight - window.innerHeight;
             return header.getAnimations()[0];
         }, frameTime => {
             internals.injectClockTick(frameTime + 16, 1000);
-            const leaseScrolled = internals.clockLeaseState(document);
+            const laneScrolled = internals.clockLaneState(document);
             internals.injectClockTick(frameTime + 32, maxScroll);
-            const leaseAtTheEnd = internals.clockLeaseState(document);
+            const laneAtTheEnd = internals.clockLaneState(document);
             return {
-                leaseScrolled,
-                leaseAtTheEnd,
+                laneScrolled,
+                laneAtTheEnd,
                 presentedBy: internals.lastFramePresentedBy(document),
                 presented: internals.presentedBorderBox(header),
             };
         });
         const expectedHeight = 50 - (40 * 1000) / maxScroll;
-        println(`render clock after a frame scrolled down: ${result.leaseScrolled}`);
-        println(`render clock after a frame scrolled to where the animation ends: ${result.leaseAtTheEnd}`);
+        println(`render clock after a frame scrolled down: ${result.laneScrolled}`);
+        println(`render clock after a frame scrolled to where the animation ends: ${result.laneAtTheEnd}`);
         println(`last frame presented by: ${result.presentedBy}`);
         println(`the presented height follows the scroll: ${result.presented !== null && Math.abs(result.presented.height - expectedHeight) < 0.02}`);
         println(`the page holds at the top: ${window.scrollY === 0 && header.getBoundingClientRect().height === 50}`);

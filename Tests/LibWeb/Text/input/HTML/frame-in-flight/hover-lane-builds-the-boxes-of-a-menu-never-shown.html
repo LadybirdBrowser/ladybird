@@ -17,7 +17,7 @@
     // the task, from the records the elements below it compute to against it. The main thread styles the elements and
     // builds the boxes again as it takes the hover in.
     asyncTest(async done => {
-        const y = await whileHoverLeased(frameTime => {
+        const y = await whileLaneHovers(frameTime => {
             internals.injectHoverPointer(100, 25, frameTime + 16);
             return internals.presentedBorderBox(after)?.y;
         });

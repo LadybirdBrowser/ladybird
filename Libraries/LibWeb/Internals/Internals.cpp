@@ -1692,7 +1692,7 @@ void Internals::move_hover_pointer(double x, double y)
     Layout::RustFFI::document_host_move_pointer(document.layout_node_arena().host(), static_cast<float>(x * device_pixels_per_css_pixel), static_cast<float>(y * device_pixels_per_css_pixel));
 }
 
-Utf16String Internals::clock_lease_state(DOM::Document& document)
+Utf16String Internals::clock_lane_state(DOM::Document& document)
 {
     switch (Layout::RustFFI::document_host_clock_lane_state(document.layout_node_arena().host())) {
     case Layout::RustFFI::FfiClockLaneState::None:

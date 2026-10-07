@@ -13,7 +13,7 @@
     asyncTest(async done => {
         internals.mouseMove(50, 50);
         await nextFrame();
-        const width = await whileHoverLeased(frameTime => {
+        const width = await whileLaneHovers(frameTime => {
             internals.injectHoverPointer(50, 400, frameTime + 16);
             return internals.presentedBorderBox(box)?.width;
         });

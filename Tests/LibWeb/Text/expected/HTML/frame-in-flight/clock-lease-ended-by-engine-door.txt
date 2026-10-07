@@ -1,3 +1,0 @@
-lease before the write: ticking
-color: rgb(0, 0, 255)
-lease after the read: ticking

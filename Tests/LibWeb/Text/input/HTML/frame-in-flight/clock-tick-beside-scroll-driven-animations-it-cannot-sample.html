@@ -34,22 +34,22 @@
     // A long task should not freeze the box's animation just because the page also has scroll-driven animations that
     // the render clock cannot sample. Here those are on the body, on a pseudo-element, and one that plays in reverse.
     promiseTest(async () => {
-        const result = await whileClockLeased(() => {
+        const result = await whileLaneAnimates(() => {
             const reversed = indicator.animate([{ width: "0px" }, { width: "100px" }], { timeline: new ScrollTimeline({ source: document.documentElement }) });
             reversed.playbackRate = -1;
             return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
         }, (frameTime, animation) => {
             internals.injectClockTick(frameTime + 1000);
-            const lease = internals.clockLeaseState(document);
+            const lane = internals.clockLaneState(document);
             const expectedHeight = (frameTime + 1000 - animation.startTime) / 100;
             const presented = internals.presentedBorderBox(box);
             return {
-                lease,
+                lane,
                 presentedHeightIsTheTicks: presented !== null && Math.abs(presented.height - expectedHeight) < 0.02,
                 presentedBy: internals.lastFramePresentedBy(document),
             };
         });
-        println(`lease after the tick: ${result.lease}`);
+        println(`lane after the tick: ${result.lane}`);
         println(`the presented height is the animation's at the tick: ${result.presentedHeightIsTheTicks}`);
         println(`last frame presented by: ${result.presentedBy}`);
     });
