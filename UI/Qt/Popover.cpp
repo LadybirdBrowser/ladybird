@@ -112,6 +112,8 @@ void move_popover_below(Popover& popover, QWidget& anchor)
             card_position.setX(available_geometry.right() - card_size.width() + 1);
         if (card_position.y() + card_size.height() > available_geometry.bottom())
             card_position.setY(anchor.mapToGlobal(anchor.rect().topRight()).y() - card_size.height() - POPOVER_ANCHOR_GAP);
+        if (card_position.y() < available_geometry.top())
+            card_position.setY(available_geometry.top());
     }
 
     popover.move(card_position - QPoint(POPOVER_SHADOW_MARGIN, POPOVER_SHADOW_MARGIN));
