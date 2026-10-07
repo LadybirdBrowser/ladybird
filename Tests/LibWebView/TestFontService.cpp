@@ -59,6 +59,14 @@ TEST_CASE(dynamic_matches_of_one_face_share_its_id)
     EXPECT_NE(first.face_id, other_file.face_id);
     EXPECT_NE(other_face.face_id, first_face.face_id);
 
+    // A platform font is one face by its PostScript name.
+    auto platform_font = WebView::FontServiceTestAccess::materialize(*service, Gfx::PlatformFontName { "Ladybird-Test"_string }, "platform-font"_string);
+    auto repeated_platform_font = WebView::FontServiceTestAccess::materialize(*service, Gfx::PlatformFontName { "Ladybird-Test"_string }, "repeated-platform-font"_string);
+    EXPECT_NE(platform_font.face_id, 0u);
+    EXPECT_EQ(platform_font.face_id, repeated_platform_font.face_id);
+    EXPECT_NE(platform_font.face_id, first.face_id);
+    EXPECT(platform_font.source.has<Gfx::PlatformFontName>());
+
     // The renderer gets the file itself, not a copy of its data.
     auto* font_file = first.source.get_pointer<Gfx::BrokeredFontFile>();
     EXPECT(font_file);

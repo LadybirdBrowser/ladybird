@@ -75,6 +75,8 @@ endif()
 
 if (HAS_FONTCONFIG)
     list(APPEND SOURCES Font/GlobalFontConfig.cpp Font/SystemFontMatcherFontconfig.cpp)
+elseif (APPLE)
+    list(APPEND SOURCES Font/SystemFontMatcherCoreText.cpp)
 else()
     list(APPEND SOURCES Font/SystemFontMatcherSkia.cpp)
 endif()

@@ -242,6 +242,7 @@ Gfx::BrokeredFont FontService::materialize(Gfx::SystemFontMatch match, String ca
 {
     return match.visit(
         [&](Gfx::SystemFontFile& file) { return materialize_file(move(file), move(cache_key)); },
+        [&](Gfx::PlatformFontName& name) { return materialize_platform_font(move(name), move(cache_key)); },
         [&](NonnullRefPtr<Gfx::Typeface>& typeface) { return materialize_typeface(move(typeface), move(cache_key)); });
 }
 
@@ -253,6 +254,17 @@ Gfx::BrokeredFont FontService::materialize_file(Gfx::SystemFontFile file, String
     auto face_id = m_face_id_by_source.ensure(source, [&] {
         auto new_face_id = m_next_dynamic_face_id++;
         m_font_sources.set(new_face_id, source);
+        return new_face_id;
+    });
+    m_dynamic_match_cache.set(move(cache_key), face_id);
+    return open_font_without_lock(m_generation, face_id);
+}
+
+Gfx::BrokeredFont FontService::materialize_platform_font(Gfx::PlatformFontName name, String cache_key)
+{
+    auto face_id = m_face_id_by_platform_font_name.ensure(name.postscript_name, [&] {
+        auto new_face_id = m_next_dynamic_face_id++;
+        m_memory_font_sources.set(new_face_id, name);
         return new_face_id;
     });
     m_dynamic_match_cache.set(move(cache_key), face_id);

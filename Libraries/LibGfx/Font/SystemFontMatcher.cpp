@@ -13,6 +13,10 @@
 #include <LibGfx/Font/SystemFontMatcher.h>
 #include <LibGfx/Font/WOFF/Loader.h>
 
+#ifdef AK_OS_MACOS
+#    include <LibGfx/Font/TypefaceCoreText.h>
+#endif
+
 namespace Gfx::SystemFontMatcher {
 
 namespace {
@@ -38,6 +42,7 @@ struct MatchCaches {
     Mutex mutex;
     HashMap<FileFace, Optional<SystemFontFile>, FileFaceTraits> loadable_files;
     HashMap<SystemFontFile, NonnullRefPtr<Typeface>, SystemFontFileTraits> typefaces;
+    HashMap<String, NonnullRefPtr<Typeface>> platform_typefaces;
 };
 
 MatchCaches& match_caches()
@@ -110,6 +115,21 @@ ErrorOr<NonnullRefPtr<Typeface>> load(SystemFontMatch const& match)
                 typeface->set_file_path(file.path);
             MutexLocker locker { caches.mutex };
             return caches.typefaces.ensure(file, [&] { return move(typeface); });
+        },
+        [&](PlatformFontName const& name) -> ErrorOr<NonnullRefPtr<Typeface>> {
+#ifdef AK_OS_MACOS
+            {
+                MutexLocker locker { caches.mutex };
+                if (auto it = caches.platform_typefaces.find(name.postscript_name); it != caches.platform_typefaces.end())
+                    return it->value;
+            }
+            NonnullRefPtr<Typeface> typeface = TRY(TypefaceCoreText::try_load_postscript_name(name.postscript_name));
+            MutexLocker locker { caches.mutex };
+            return caches.platform_typefaces.ensure(name.postscript_name, [&] { return move(typeface); });
+#else
+            (void)name;
+            return Error::from_string_literal("Only CoreText opens fonts by name");
+#endif
         },
         [](NonnullRefPtr<Typeface> const& typeface) -> ErrorOr<NonnullRefPtr<Typeface>> {
             return typeface;

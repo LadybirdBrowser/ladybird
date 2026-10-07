@@ -25,8 +25,13 @@ struct SystemFontFile {
     bool operator==(SystemFontFile const&) const = default;
 };
 
-// A platform whose matcher does not give a file gives the typeface itself.
-using SystemFontMatch = Variant<SystemFontFile, NonnullRefPtr<Typeface>>;
+// An installed font that the client opens by its PostScript name, for faces whose data the platform does not load back.
+struct PlatformFontName {
+    String postscript_name;
+};
+
+// A platform whose matcher does not give a file or a name gives the typeface itself.
+using SystemFontMatch = Variant<SystemFontFile, PlatformFontName, NonnullRefPtr<Typeface>>;
 
 // Matches installed fonts by the rules of the platform. Each face that a match gives is one that Typeface loads.
 namespace SystemFontMatcher {

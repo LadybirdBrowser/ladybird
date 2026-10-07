@@ -61,4 +61,8 @@ inline bool Typeface::fast_is<TypefaceCoreText>() const { return is_core_text();
 // coordinates, the copy keeps the variation of the font. Null if CoreText does not make the copy.
 CTFontRef create_core_text_font_with_variations(CTFontRef, CGFloat size, ReadonlySpan<FontVariationAxis>);
 
+// The first named instance of a face, counted from 0, whose coordinates are the variation of a CoreText font.
+// CoreText leaves the axes at their default values out of the variation.
+Optional<unsigned> named_instance_with_variation(hb_face_t*, CFDictionaryRef variation);
+
 }

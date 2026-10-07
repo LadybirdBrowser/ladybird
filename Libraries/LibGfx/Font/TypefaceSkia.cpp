@@ -13,6 +13,7 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
 #include <AK/ScopeGuard.h>
+#include <AK/Vector.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/TypefaceSkia.h>
 #include <LibIPC/Decoder.h>
@@ -156,6 +157,52 @@ static bool harfbuzz_can_read_face(ReadonlyBytes buffer, u32 ttc_index)
     return (ttc_index & 0xFFFF) < hb_face_count(blob);
 }
 
+#ifdef AK_OS_MACOS
+// A copy of a CoreText font of a face at the coordinates of a named instance of the face. A face does not have to list
+// its default instance, and then the index after the last instance selects it, which needs no copy.
+static CTFontRef create_core_text_named_instance(CTFontRef font, hb_face_t* face, unsigned instance_index)
+{
+    unsigned axis_count = hb_ot_var_get_axis_count(face);
+    Vector<hb_ot_var_axis_info_t> axes;
+    axes.resize(axis_count);
+    hb_ot_var_get_axis_infos(face, 0, &axis_count, axes.data());
+    Vector<float> coordinates;
+    coordinates.resize(axis_count);
+    unsigned coordinate_count = axis_count;
+    if (axis_count == 0 || hb_ot_var_named_instance_get_design_coords(face, instance_index, &coordinate_count, coordinates.data()) != axis_count)
+        return nullptr;
+
+    auto variation = CFDictionaryCreateMutable(kCFAllocatorDefault, axis_count, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    if (!variation)
+        return nullptr;
+    ScopeGuard release_variation = [&] { CFRelease(variation); };
+    for (unsigned index = 0; index < axis_count; ++index) {
+        i64 tag = axes[index].tag;
+        double value = coordinates[index];
+        auto tag_number = CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt64Type, &tag);
+        auto value_number = CFNumberCreate(kCFAllocatorDefault, kCFNumberDoubleType, &value);
+        if (tag_number && value_number)
+            CFDictionarySetValue(variation, tag_number, value_number);
+        if (tag_number)
+            CFRelease(tag_number);
+        if (value_number)
+            CFRelease(value_number);
+    }
+
+    CFTypeRef attribute_keys[] = { kCTFontVariationAttribute };
+    CFTypeRef attribute_values[] = { variation };
+    auto attributes = CFDictionaryCreate(kCFAllocatorDefault, attribute_keys, attribute_values, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    if (!attributes)
+        return nullptr;
+    ScopeGuard release_attributes = [&] { CFRelease(attributes); };
+    auto descriptor = CTFontDescriptorCreateWithAttributes(attributes);
+    if (!descriptor)
+        return nullptr;
+    ScopeGuard release_descriptor = [&] { CFRelease(descriptor); };
+    return CTFontCreateCopyWithAttributes(font, 0, nullptr, descriptor);
+}
+#endif
+
 ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, u32 ttc_index, NonnullRefPtr<FontDataBacking> backing)
 {
     if (!harfbuzz_can_read_face(buffer, ttc_index))
@@ -241,6 +288,13 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
         auto ct_font = CTFontCreateWithFontDescriptor(descriptor, 0, nullptr);
         if (!ct_font)
             return Error::from_string_literal("Failed to create CoreText font");
+        // The upper 16 bits of the index select a named instance, from 1. CoreText gets its coordinates as a variation.
+        if (auto instance_index = ttc_index >> 16; instance_index > 0) {
+            if (auto instance_font = create_core_text_named_instance(ct_font, face, instance_index - 1)) {
+                CFRelease(ct_font);
+                ct_font = instance_font;
+            }
+        }
         ScopeGuard release_font = [&] { CFRelease(ct_font); };
         skia_typeface = SkMakeTypefaceFromCTFont(ct_font);
     } else
