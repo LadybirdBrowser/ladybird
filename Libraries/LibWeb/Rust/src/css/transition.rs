@@ -1233,24 +1233,13 @@ impl HoverTransitions {
                 current_key,
             });
         }
-        let mut overlay = crate::css::animated_overlay::AnimatedOverlay::default();
-        let outcome = engine
-            .sample_over_record(
-                self.node,
-                self.after,
-                &mut overlay,
-                Some(&self.effects),
-                composed,
-                transform_reference_box,
-            )?
-            .outcome;
-        if outcome == crate::css::style_compute::FfiHostAnimationSampleOutcome::Cleared {
-            overlay = crate::css::animated_overlay::AnimatedOverlay::default();
-        }
-        let record = engine.compose_overlay_over_record(
+        engine.sample_composed_over_record(
             self.node,
             self.after,
-            &overlay,
+            crate::css::animated_overlay::AnimatedOverlay::default(),
+            Some(&self.effects),
+            composed,
+            transform_reference_box,
             // The render owner records the frames that show the sample, with the visual contexts it moves, and
             // composes the values the descendants inherit over them.
             crate::css::style::SampleBounds::BoxAndVisualContexts {
@@ -1258,8 +1247,7 @@ impl HoverTransitions {
                 children_follow: true,
                 subtree_follows: self.inheriting_covers_subtree,
             },
-        )?;
-        Ok((record, overlay))
+        )
     }
 }
 
