@@ -473,53 +473,6 @@ Optional<FlyString> TypefaceSkia::resolve_generic_family(StringView family_name,
     return result_or_error.release_value();
 }
 
-RefPtr<TypefaceSkia const> TypefaceSkia::clone_with_variations(Vector<FontVariationAxis> const& axes) const
-{
-    if (axes.is_empty())
-        return this;
-
-    SkFontArguments font_args;
-
-    Vector<SkFontArguments::VariationPosition::Coordinate> coords;
-    coords.ensure_capacity(axes.size());
-    for (size_t i = 0; i < axes.size(); ++i) {
-        coords.unchecked_append({ axes[i].tag.to_u32(), axes[i].value });
-    }
-    SkFontArguments::VariationPosition variation_pos;
-    variation_pos.coordinates = coords.data();
-    variation_pos.coordinateCount = static_cast<int>(coords.size());
-    font_args.setVariationDesignPosition(variation_pos);
-
-    font_args.setCollectionIndex(static_cast<int>(m_ttc_index));
-
-    auto skia_typeface = impl().skia_typeface->makeClone(font_args);
-    if (!skia_typeface)
-        return {};
-
-    if (has_font_data_backing()) {
-        auto typeface = adopt_ref(*new TypefaceSkia {
-            make<TypefaceSkia::Impl>(skia_typeface, std::unique_ptr<SkStreamAsset> {}, impl().system_ui_font_style),
-            m_buffer,
-            m_ttc_index });
-        typeface->copy_font_data_from(*this);
-        return typeface;
-    }
-
-#ifdef AK_OS_MACOS
-    if (impl().cg_font) {
-        return adopt_ref(*new TypefaceSkia {
-            make<TypefaceSkia::Impl>(move(skia_typeface), std::unique_ptr<SkStreamAsset> {}, impl().system_ui_font_style, impl().cg_font),
-            {},
-            m_ttc_index });
-    }
-#endif
-
-    auto typeface_or_error = typeface_from_skia_typeface(move(skia_typeface), impl().system_ui_font_style);
-    if (typeface_or_error.is_error())
-        return {};
-    return typeface_or_error.release_value();
-}
-
 SkTypeface const* TypefaceSkia::sk_typeface() const
 {
     return impl().skia_typeface.get();

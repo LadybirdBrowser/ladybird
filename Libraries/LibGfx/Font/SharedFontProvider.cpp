@@ -69,11 +69,7 @@ SharedFontProvider::SharedFontProvider(NonnullOwnPtr<Core::MappedFile> mapping, 
     m_resource_fonts.load_all_fonts_from_uri("resource://fonts"sv);
 }
 
-SharedFontProvider::~SharedFontProvider()
-{
-    for (auto const& entry : m_typeface_cache)
-        entry.value->clear_font_cache();
-}
+SharedFontProvider::~SharedFontProvider() = default;
 
 static FontVariationSettings default_variations(float point_size, unsigned weight, unsigned width)
 {

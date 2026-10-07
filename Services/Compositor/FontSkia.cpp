@@ -12,6 +12,7 @@
 #include <LibGfx/Font/TypefaceSkia.h>
 
 #include <core/SkFont.h>
+#include <core/SkFontArguments.h>
 #include <core/SkFontTypes.h>
 #include <core/SkTypeface.h>
 
@@ -54,8 +55,36 @@ static u64 encode_hinting_memo(float scale, Gfx::FontHintingOptions options)
 
 namespace {
 
+// The typeface of the font's variations. Without variations, or if Skia cannot apply them, it is the typeface itself.
+sk_sp<SkTypeface> typeface_with_variations(Gfx::Font const& font)
+{
+    auto const* typeface = as<Gfx::TypefaceSkia>(font.typeface()).sk_typeface();
+    if (!typeface)
+        return nullptr;
+    auto axes = font.variation_settings().to_sorted_list();
+    if (axes.is_empty())
+        return sk_ref_sp(typeface);
+
+    Vector<SkFontArguments::VariationPosition::Coordinate> coordinates;
+    coordinates.ensure_capacity(axes.size());
+    for (auto const& axis : axes)
+        coordinates.unchecked_append({ axis.tag.to_u32(), axis.value });
+    SkFontArguments arguments;
+    arguments.setVariationDesignPosition({ coordinates.data(), static_cast<int>(coordinates.size()) });
+    arguments.setCollectionIndex(static_cast<int>(font.typeface().collection_index()));
+    if (auto clone = typeface->makeClone(arguments))
+        return clone;
+    return sk_ref_sp(typeface);
+}
+
 // What the compositor keeps with each font.
 struct FontData final : public Gfx::RasterizerData {
+    explicit FontData(Gfx::Font const& font)
+        : typeface(typeface_with_variations(font))
+    {
+    }
+
+    sk_sp<SkTypeface> typeface;
 #if defined(USE_FONTCONFIG)
     // A font is drawn at one scale most of the time, and fontconfig's answer is a pure function of the family, the
     // scaled pixel size, the weight and the slope, so one answer is kept.
@@ -65,7 +94,7 @@ struct FontData final : public Gfx::RasterizerData {
 
 FontData& font_data(Gfx::Font const& font)
 {
-    return font.rasterizer_data<FontData>([] { return make<FontData>(); });
+    return font.rasterizer_data<FontData>([&] { return make<FontData>(font); });
 }
 
 #if defined(USE_FONTCONFIG)
@@ -97,11 +126,11 @@ void force_font_hinting_for_testing()
 
 Optional<SkFont> skia_font(Gfx::Font const& font, float scale)
 {
-    auto const* typeface = as<Gfx::TypefaceSkia>(font.typeface()).sk_typeface();
-    if (!typeface)
+    auto& data = font_data(font);
+    if (!data.typeface)
         return {};
 
-    SkFont sk_font { sk_ref_sp(typeface), font.pixel_size() * scale };
+    SkFont sk_font { data.typeface, font.pixel_size() * scale };
     sk_font.setSubpixel(true);
 
 #if defined(USE_FONTCONFIG)

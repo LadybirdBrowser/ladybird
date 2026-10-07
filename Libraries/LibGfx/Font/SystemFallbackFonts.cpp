@@ -29,8 +29,8 @@ struct SystemFallbackFontCache {
     Mutex mutex;
     // A miss is an answer too: without it every code point no family covers asks the provider again
     // on every lookup, and for the shared provider that is an IPC round trip.
-    // NB: The memo holds typefaces, not fonts, so the sizes a page asks for stay bounded by the typeface's
-    //     own font cache instead of each one being kept here until the font set changes.
+    // NB: The memo holds typefaces, not fonts, so a font of each size that a page asks for lives only while it is
+    //     in use or among the fonts made last, instead of until the font set changes.
     HashMap<SystemFallbackFontKey, RefPtr<Typeface const>, SystemFallbackFontKeyTraits> typefaces;
 };
 
