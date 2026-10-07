@@ -94,11 +94,8 @@ header img {
 
 .card-group:not(.hidden) ~ .card-group:not(.hidden) {
     margin-top: 16px;
-}
-
-.card-separator:not(.hidden) ~ .card-separator:not(.hidden) {
-    border-top: 1px solid var(--border-color);
     padding-top: 16px;
+    border-top: 1px solid var(--border-color);
 }
 
 .search-container {

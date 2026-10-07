@@ -63,7 +63,6 @@ function createControl(variable) {
 function createRow(variable) {
     const row = document.createElement("div");
     row.classList.add("card-group");
-    row.classList.add("card-separator");
     row.classList.add("config-row");
     row.classList.add("inline-container");
     row.dataset.filterText = `${variable.name} ${variable.title} ${variable.description}`.toLowerCase();
