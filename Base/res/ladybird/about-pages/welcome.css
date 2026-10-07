@@ -51,13 +51,6 @@ fieldset {
     grid-template-columns: 38% minmax(0, 1fr);
     gap: 32px;
     padding: 16px 24px;
-    margin-bottom: 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-}
-
-.setup-section:last-child {
-    margin-bottom: 0;
 }
 
 .section-heading {
@@ -285,7 +278,7 @@ button:focus-visible {
 }
 
 footer {
-    margin-top: 36px;
+    margin-top: 16px;
     text-align: center;
 }
 
