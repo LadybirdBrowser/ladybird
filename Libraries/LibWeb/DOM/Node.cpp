@@ -11,6 +11,7 @@
 #include <AK/HashTable.h>
 #include <AK/JsonObjectSerializer.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/TemporaryChange.h>
 #include <AK/Utf16StringBuilder.h>
 #include <AK/Vector.h>
 #include <LibGC/ConservativeVector.h>
@@ -192,6 +193,13 @@ Node* Node::from_unique_id(UniqueNodeID unique_id)
     if (index >= directory.size() || directory[index].generation != generation)
         return nullptr;
     return directory[index].node.ptr();
+}
+
+static u64 s_next_insertion_generation = 1;
+static Optional<u64> s_current_insertion_generation;
+Optional<u64> Node::current_insertion_generation()
+{
+    return s_current_insertion_generation;
 }
 
 Node::Node(Document& document, NodeType type)
@@ -1104,6 +1112,7 @@ void Node::insert_nodes_before(ReadonlySpan<GC::Ref<Node>> nodes, GC::Ptr<Node> 
     }
 
     // 9. Run the children changed steps for parent.
+    TemporaryChange insertion_generation_scope { s_current_insertion_generation, Optional<u64> { s_next_insertion_generation++ } };
     ChildrenChangedMetadata metadata { ChildrenChangedMetadata::Type::Inserted, metadata_node, affects_elements };
     children_changed(metadata);
     invalidate_html_collection_caches_in_ancestors(affects_elements);

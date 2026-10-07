@@ -8,6 +8,8 @@
 <select style="appearance: none"><option>20 Envelopes</option></select>
 <script>
     test(() => {
+        getComputedStyle(document.documentElement).width;
+
         for (const select of document.querySelectorAll("select")) {
             const label = internals.getShadowRoot(select).firstChild.firstChild;
             const rect = label.getBoundingClientRect();
