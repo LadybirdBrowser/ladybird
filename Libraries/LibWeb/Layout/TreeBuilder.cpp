@@ -202,6 +202,10 @@ bool attach_owed_style_resources(Layout::BegunRead const& read, DOM::Document& d
 {
     auto* layout_node = static_cast<Node*>(RustFFI::render_state_node_shell_if_live(document.layout_node_arena().host(), &read, slot));
     VERIFY(layout_node);
+    // A node that left the tree since the build stamped its box owes the box nothing, and the box goes with the next
+    // build.
+    if (!layout_node->is_anonymous() && !layout_node->dom_node())
+        return false;
     // A box that replaces its element's contents with a single image owns the provider that answers for it. The image
     // is named by the same style record the box was stamped from, and it loads before the resources the rest of that
     // style asks for.
