@@ -35,8 +35,6 @@ pub struct FfiHoverPlanInputs {
     pub scroll_offsets: *const libgfx_rust::FloatPoint,
     pub scroll_offset_count: usize,
     pub chrome_metrics: FfiChromeMetrics,
-    /// Whether a scroll container of the document may snap, which re-snaps as its content moves.
-    pub may_have_scroll_snap_areas: bool,
     /// The cursor of the document's page, which the hover asks to show the cursor of what it hovers.
     pub page_cursor: FfiPageCursor,
 }
@@ -101,8 +99,6 @@ pub(crate) struct HoverPlan {
     /// The scroll offsets of the frame the rendering update presented, in device pixels, by scroll frame.
     scroll_offsets: Vec<FloatPoint>,
     chrome_metrics: FfiChromeMetrics,
-    /// Whether a scroll container of the document may snap.
-    pub(crate) scroll_snaps: bool,
     /// What the hover's style transactions take: the root and the document computation inputs of the host's last.
     style: Option<(StyleNodeID, Arc<SealedStyleInputs>)>,
     /// The cursor of the document's page.
@@ -127,7 +123,6 @@ impl HoverPlan {
             device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
             scroll_offsets,
             chrome_metrics: inputs.chrome_metrics,
-            scroll_snaps: inputs.may_have_scroll_snap_areas,
             style: None,
             // SAFETY: Guaranteed by the caller.
             page_cursor: unsafe { PageCursor::retained(inputs.page_cursor) },
@@ -468,7 +463,7 @@ impl Lane {
                     *root,
                     sealed_inputs.inputs(),
                     &mut composed_beside,
-                    plan.scroll_snaps,
+                    arena.may_have_scroll_snap_areas(),
                     timestamp,
                     |node| transform_reference_box(arena, node),
                 )
