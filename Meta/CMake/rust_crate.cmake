@@ -1,3 +1,9 @@
+set_property(GLOBAL PROPERTY JOB_POOLS "${JOB_POOLS};cargo=1")
+
+# Compiler flags shared by Rust libraries, binaries, and tests.
+set(RUSTC_TARGET_FLAGS -Dwarnings ${RUSTC_TARGET_CPU_FLAGS})
+list(JOIN RUSTC_TARGET_FLAGS " " RUSTC_TARGET_FLAGS)
+
 # import_rust_crate(MANIFEST_PATH path/to/Cargo.toml CRATE_NAME name [PANIC_UNWIND] [KEEP_SYMBOLS symbol...])
 #
 # Builds a Rust static library crate using cargo and creates an IMPORTED target.
@@ -9,8 +15,6 @@
 # When corrosion supports dependency tracking, we can use corrosion_import_crate() instead of this function. See:
 # https://github.com/corrosion-rs/corrosion/issues/206
 # https://github.com/corrosion-rs/corrosion/issues/624
-set_property(GLOBAL PROPERTY JOB_POOLS "${JOB_POOLS};cargo=1")
-
 function(import_rust_crate)
     cmake_parse_arguments(PARSE_ARGV 0 ARG "PANIC_UNWIND" "MANIFEST_PATH;CRATE_NAME;FFI_OUTPUT_DIR;FFI_HEADER" "FEATURES;FFI_HEADERS;KEEP_SYMBOLS")
 
@@ -277,10 +281,7 @@ function(_rust_crate_common_setup)
         "CARGO_BUILD_RUSTC=${RUST_RUSTC}"
     )
 
-    if (RUSTC_TARGET_CPU_FLAGS)
-        list(JOIN RUSTC_TARGET_CPU_FLAGS " " rustc_target_cpu_flags)
-        list(APPEND cargo_env "CARGO_TARGET_${target_upper}_RUSTFLAGS=${rustc_target_cpu_flags}")
-    endif()
+    list(APPEND cargo_env "CARGO_TARGET_${target_upper}_RUSTFLAGS=${RUSTC_TARGET_FLAGS}")
 
     if (RUSTC_WRAPPER)
         list(APPEND cargo_env
@@ -314,7 +315,6 @@ function(_rust_crate_common_setup)
         ${cargo_profile_flag}
         --
         -Cdefault-linker-libraries=yes
-        -D warnings
         --emit=dep-info
     )
 
