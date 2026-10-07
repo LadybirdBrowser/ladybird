@@ -258,6 +258,11 @@ if (BUILD_TESTING AND NOT WIN32)
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-message-port-collection.py $<TARGET_FILE:WebDriver>
         )
         set_tests_properties(TestMessagePortCollection PROPERTIES TIMEOUT 120)
+        add_test(
+            NAME TestSharedStyleSheetMemory
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-shared-stylesheet-memory.py $<TARGET_FILE:WebDriver>
+        )
+        set_tests_properties(TestSharedStyleSheetMemory PROPERTIES TIMEOUT 180)
     endif()
 
     add_test(
