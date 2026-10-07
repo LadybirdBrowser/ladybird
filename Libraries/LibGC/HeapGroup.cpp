@@ -57,6 +57,7 @@ void HeapGroup::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, boo
     }
 
     for (auto* heap : m_heaps) {
+        heap->give_back_local_free_lists();
         heap->finish_pending_incremental_sweep();
         heap->m_collecting_garbage = true;
     }

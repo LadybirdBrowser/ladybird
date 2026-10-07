@@ -49,32 +49,65 @@ CellAllocator& CellAllocatorDescriptorBase::for_heap(Heap& heap)
     return allocator;
 }
 
-Cell* CellAllocator::allocate_cell(Heap& heap)
+Cell* CellAllocator::allocate_cell_slow(Heap& heap)
 {
+    VERIFY(HeapBlock::is_end_of_freelist(m_local_free_list.ptr()));
+    m_local_free_list = nullptr;
+    m_local_block = nullptr;
+
     if (!m_list_node.is_in_list())
         heap.register_cell_allocator({}, *this);
 
-    if (m_usable_blocks.is_empty() && heap.is_incremental_sweep_active() && !heap.is_gc_deferred()) {
-        // Sweep our own pending blocks first to try to find free cells
-        // before allocating a new block.
-        while (!m_usable_blocks.is_empty() || !m_blocks_pending_sweep.is_empty()) {
-            if (!m_usable_blocks.is_empty())
-                break;
+    bool can_sweep = heap.is_incremental_sweep_active() && !heap.is_gc_deferred();
+    for (;;) {
+        if (m_usable_blocks.is_empty() && can_sweep && !m_blocks_pending_sweep.is_empty()) {
+            // Sweep our own pending blocks first to try to find free cells
+            // before allocating a new block.
             heap.sweep_block(*m_blocks_pending_sweep.first());
+            continue;
         }
-    }
 
-    if (m_usable_blocks.is_empty()) {
-        auto block = HeapBlock::create(heap, *this);
-        m_usable_blocks.append(*block.leak_ptr());
-    }
+        if (m_usable_blocks.is_empty()) {
+            auto block = HeapBlock::create(heap, *this);
+            m_usable_blocks.append(*block.leak_ptr());
+        }
 
-    auto& block = *m_usable_blocks.last();
-    auto* cell = block.allocate();
-    VERIFY(cell);
-    if (block.is_full())
-        m_full_blocks.append(*m_usable_blocks.last());
-    return cell;
+        auto& block = *m_usable_blocks.last();
+        if (block.is_pending_sweep() && can_sweep) {
+            heap.sweep_block(block);
+            continue;
+        }
+
+        // NB: Without sweeping the block first, take a single cell from it,
+        //     which the heap marks as allocated during the sweep. The same
+        //     goes for the block the sweep is in the middle of, which a
+        //     destructor may allocate from.
+        if (block.is_pending_sweep() || block.is_being_swept()) {
+            auto* cell = block.allocate();
+            VERIFY(cell);
+            if (block.is_full())
+                m_full_blocks.append(block);
+            return cell;
+        }
+
+        m_local_free_list = block.take_free_cells();
+        VERIFY(!HeapBlock::is_end_of_freelist(m_local_free_list.ptr()));
+        m_full_blocks.append(block);
+        m_local_block = &block;
+        return allocate_cell(heap);
+    }
+}
+
+void CellAllocator::give_back_local_free_list(Badge<Heap>)
+{
+    if (!m_local_block)
+        return;
+    if (!HeapBlock::is_end_of_freelist(m_local_free_list.ptr())) {
+        m_local_block->give_back_free_cells(m_local_free_list.ptr());
+        m_usable_blocks.append(*m_local_block);
+    }
+    m_local_free_list = nullptr;
+    m_local_block = nullptr;
 }
 
 void CellAllocator::block_did_become_empty(Badge<Heap>, HeapBlock& block, DeferDecommit defer_decommit)

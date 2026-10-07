@@ -667,6 +667,7 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
 
     VERIFY(!m_collecting_garbage);
 
+    give_back_local_free_lists();
     finish_pending_incremental_sweep();
     g_next_incremental_sweep_should_report = false;
 
@@ -741,6 +742,12 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
     // A collection just happened: restart the idle policy's episode (peak rate and watchdog tick count) from here, so
     // a threshold-driven GC mid-episode doesn't leave it comparing against stale state.
     m_idle_collection_policy.reset(m_total_allocated_bytes);
+}
+
+void Heap::give_back_local_free_lists()
+{
+    for (auto& allocator : m_all_cell_allocators)
+        allocator.give_back_local_free_list({});
 }
 
 void Heap::run_post_gc_tasks()
@@ -1322,6 +1329,7 @@ void Heap::sweep_block(HeapBlock& block)
     // Remove from the allocator's pending sweep list.
     block.m_sweep_list_node.remove();
 
+    block.set_being_swept(true);
     bool block_has_live_cells = false;
     bool block_was_full = block.is_full();
     size_t collected_cells = 0;
@@ -1346,6 +1354,7 @@ void Heap::sweep_block(HeapBlock& block)
                 : m_sweep_live_external_bytes + cell_external_memory_size;
         }
     });
+    block.set_being_swept(false);
 
     if (!block_has_live_cells) {
         dbgln_if(HEAP_DEBUG, " - HeapBlock empty @ {}: cell_size={}", &block, block.cell_size());
