@@ -17,6 +17,7 @@
 #include <AK/Variant.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/MappedFile.h>
+#include <LibGfx/Font/FaceDescription.h>
 #include <LibGfx/Font/FontVariationSettings.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/ShapeFeature.h>
@@ -98,6 +99,10 @@ public:
     void set_file_path(String file_path) { m_file_path = move(file_path); }
 
     hb_face_t* harfbuzz_typeface() const;
+    FaceDescription const& description() const;
+
+    // The style of a font of this typeface with these variations.
+    virtual FaceStyle style_for_variations(ReadonlySpan<FontVariationAxis>) const;
     ErrorOr<Vector<String>> local_font_names() const;
 
     // Union of all glyph bounding boxes as recorded in the `head` table, in font units with y pointing up.
@@ -158,6 +163,8 @@ private:
     mutable OnceFlag m_harfbuzz_face_once;
     mutable hb_blob_t* m_harfbuzz_blob { nullptr };
     mutable hb_face_t* m_harfbuzz_face { nullptr };
+    mutable OnceFlag m_description_once;
+    mutable Optional<FaceDescription> m_description;
     mutable OnceFlag m_bounding_box_once;
     mutable BoundingBoxInFontUnits m_bounding_box_in_font_units;
 };

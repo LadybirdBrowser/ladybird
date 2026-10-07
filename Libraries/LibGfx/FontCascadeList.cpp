@@ -545,7 +545,7 @@ extern "C" void const* ladybird_gfx_cascade_snapshot_begin(void const* list)
         auto const& reference_font = cascade_list.first();
         snapshot->system_fallback_point_size = reference_font.point_size();
         snapshot->system_fallback_weight = static_cast<u16>(reference_font.weight());
-        snapshot->system_fallback_width = reference_font.typeface().width();
+        snapshot->system_fallback_width = reference_font.width();
         snapshot->system_fallback_slope = static_cast<u8>(reference_font.slope());
     }
     return snapshot;

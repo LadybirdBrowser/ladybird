@@ -49,6 +49,7 @@ Font::Font(NonnullRefPtr<Typeface const> typeface, float point_width, float poin
     , m_shape_features(features)
 {
     m_pixel_size = m_point_height * (DEFAULT_DPI / POINTS_PER_INCH);
+    m_style = m_typeface->style_for_variations(m_font_variation_settings.to_sorted_list());
 
     auto const* sk_typeface = as<TypefaceSkia>(*m_typeface).sk_typeface();
     SkFont const font { sk_ref_sp(sk_typeface), m_pixel_size };

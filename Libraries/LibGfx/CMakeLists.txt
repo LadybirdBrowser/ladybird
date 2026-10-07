@@ -11,10 +11,12 @@ set(SOURCES
     CornerRadii.cpp
     Cursor.cpp
     Filter.cpp
+    Font/FaceDescription.cpp
     Font/Font.cpp
     Font/FontCatalog.cpp
     Font/FontDatabase.cpp
     Font/FontSupport.cpp
+    Font/FontTable.cpp
     Font/FontVariationSettings.cpp
     Font/PathFontProvider.cpp
     Font/SharedFontProvider.cpp

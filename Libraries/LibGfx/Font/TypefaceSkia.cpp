@@ -90,7 +90,6 @@ struct TypefaceSkia::Impl {
     // Skia reads a CoreText UI font as upright and regular because its descriptor carries no numeric style traits,
     // so a system UI typeface answers style queries from the style it was matched for instead.
     Optional<SystemUIFontStyle> system_ui_font_style;
-    Optional<u16> data_font_weight;
 #ifdef AK_OS_MACOS
     CGFontRef cg_font { nullptr };
 #endif
@@ -196,21 +195,6 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::typeface_from_skia_typeface(sk_sp<Sk
         ttc_index });
 }
 
-static u16 font_weight_from_data(ReadonlyBytes buffer, u32 ttc_index, Vector<FontVariationAxis> const& axes = {})
-{
-    auto* blob = hb_blob_create(reinterpret_cast<char const*>(buffer.data()), buffer.size(), HB_MEMORY_MODE_READONLY, nullptr, nullptr);
-    ScopeGuard destroy_blob = [&] { hb_blob_destroy(blob); };
-    auto* face = hb_face_create(blob, ttc_index);
-    ScopeGuard destroy_face = [&] { hb_face_destroy(face); };
-    auto* font = hb_font_create(face);
-    ScopeGuard destroy_font = [&] { hb_font_destroy(font); };
-    Vector<hb_variation_t> variations;
-    for (auto const& axis : axes)
-        variations.append({ axis.tag.to_u32(), axis.value });
-    hb_font_set_variations(font, variations.data(), variations.size());
-    return round_to<u16>(clamp(hb_style_get_value(font, HB_STYLE_TAG_WEIGHT), 0.0f, 1000.0f));
-}
-
 ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, u32 ttc_index, NonnullRefPtr<FontDataBacking> backing)
 {
     // NB: Skia can retain the typeface in text blobs and glyph caches after our Typeface is destroyed.
@@ -220,7 +204,6 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
     sk_sp<SkData> data = SkData::MakeWithProc(buffer.data(), buffer.size(), [](void const*, void* context) { static_cast<FontDataBacking*>(context)->unref(); }, backing.ptr());
 
     sk_sp<SkTypeface> skia_typeface;
-    Optional<u16> data_font_weight;
 #ifdef AK_OS_MACOS
     // NB: Skia's CoreText stream loader only supports collection index zero. Ask CoreText for the collection's
     //     descriptors directly, then wrap the selected face in Skia, as we do for system UI fonts.
@@ -300,9 +283,6 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
             return Error::from_string_literal("Failed to create CoreText font");
         ScopeGuard release_font = [&] { CFRelease(ct_font); };
         skia_typeface = SkMakeTypefaceFromCTFont(ct_font);
-        // NB: SkMakeTypefaceFromCTFont applies native system-font weight conversion even for data-created fonts.
-        //     Use the supplied face's weight, as we would when loading it through Skia's stream loader.
-        data_font_weight = font_weight_from_data(buffer, ttc_index);
     } else
 #endif
     {
@@ -333,7 +313,6 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
     }
 
     auto typeface = adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), buffer, ttc_index });
-    typeface->impl().data_font_weight = data_font_weight;
     typeface->set_font_data(move(backing));
     return typeface;
 }
@@ -508,14 +487,12 @@ RefPtr<TypefaceSkia const> TypefaceSkia::clone_with_variations(Vector<FontVariat
     if (!skia_typeface)
         return {};
 
-    if (has_font_data_backing() || impl().data_font_weight.has_value()) {
+    if (has_font_data_backing()) {
         auto typeface = adopt_ref(*new TypefaceSkia {
             make<TypefaceSkia::Impl>(skia_typeface, std::unique_ptr<SkStreamAsset> {}, impl().system_ui_font_style),
             m_buffer,
             m_ttc_index });
         typeface->copy_font_data_from(*this);
-        if (impl().data_font_weight.has_value())
-            typeface->impl().data_font_weight = font_weight_from_data(m_buffer, m_ttc_index, axes);
         return typeface;
     }
 
@@ -664,46 +641,35 @@ void TypefaceSkia::populate_glyph_page(GlyphPage& glyph_page, size_t page_index)
 
 FlyString const& TypefaceSkia::family() const
 {
-    call_once(m_family_once, [&] {
-        SkString family_name;
-        impl().skia_typeface->getFamilyName(&family_name);
-        m_family = FlyString::from_utf8_without_validation(ReadonlyBytes { family_name.c_str(), family_name.size() });
-    });
-    return *m_family;
+    return description().family();
 }
 
 u16 TypefaceSkia::weight() const
 {
     if (auto const& style = impl().system_ui_font_style; style.has_value())
         return style->weight;
-    if (impl().data_font_weight.has_value())
-        return impl().data_font_weight.value();
-    return impl().skia_typeface->fontStyle().weight();
+    return description().style().weight;
 }
 
 u16 TypefaceSkia::width() const
 {
     if (auto const& style = impl().system_ui_font_style; style.has_value())
         return style->width;
-    return impl().skia_typeface->fontStyle().width();
+    return description().style().width;
 }
 
 u8 TypefaceSkia::slope() const
 {
     if (auto const& style = impl().system_ui_font_style; style.has_value())
         return style->slope;
+    return description().style().slope;
+}
 
-    auto slant = impl().skia_typeface->fontStyle().slant();
-    switch (slant) {
-    case SkFontStyle::kUpright_Slant:
-        return 0;
-    case SkFontStyle::kItalic_Slant:
-        return 1;
-    case SkFontStyle::kOblique_Slant:
-        return 2;
-    default:
-        return 0;
-    }
+FaceStyle TypefaceSkia::style_for_variations(ReadonlySpan<FontVariationAxis> variations) const
+{
+    if (auto const& style = impl().system_ui_font_style; style.has_value())
+        return { .weight = style->weight, .width = style->width, .slope = style->slope };
+    return Typeface::style_for_variations(variations);
 }
 
 }

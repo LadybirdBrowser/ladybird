@@ -9,6 +9,7 @@
 
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
+#include <LibGfx/Font/FontTable.h>
 #include <LibGfx/Font/FontVariationSettings.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/TypefaceSkia.h>
@@ -21,33 +22,10 @@ ErrorOr<Vector<String>> Typeface::local_font_names() const
 {
     // https://drafts.csswg.org/css-fonts-4/#local-font-fallback
     // NB: local() identifies a face by its full name or PostScript name, never by its family.
-    //     Prefer US English names, or the first available localization if English is absent.
-    auto* face = harfbuzz_typeface();
-    unsigned entry_count = 0;
-    auto const* entries = hb_ot_name_list_names(face, &entry_count);
     Vector<String> names;
     for (auto name_id : { HB_OT_NAME_ID_FULL_NAME, HB_OT_NAME_ID_POSTSCRIPT_NAME }) {
-        hb_language_t language = HB_LANGUAGE_INVALID;
-        for (unsigned index = 0; index < entry_count; ++index) {
-            auto const& entry = entries[index];
-            if (entry.name_id != name_id)
-                continue;
-            if (language == HB_LANGUAGE_INVALID)
-                language = entry.language;
-            if (entry.language == hb_language_from_string("en", -1) || entry.language == hb_language_from_string("en-us", -1)) {
-                language = entry.language;
-                break;
-            }
-        }
-        if (language == HB_LANGUAGE_INVALID)
-            continue;
-        auto length = hb_ot_name_get_utf8(face, name_id, language, nullptr, nullptr);
-        if (length == 0 || length == NumericLimits<unsigned>::max())
-            continue;
-        auto bytes = TRY(ByteBuffer::create_uninitialized(static_cast<size_t>(length) + 1));
-        auto capacity = length + 1;
-        hb_ot_name_get_utf8(face, name_id, language, &capacity, reinterpret_cast<char*>(bytes.data()));
-        names.append(TRY(String::from_utf8({ reinterpret_cast<char const*>(bytes.data()), capacity })));
+        if (auto name = face_name(harfbuzz_typeface(), name_id); name.has_value())
+            TRY(names.try_append(name.release_value()));
     }
     return names;
 }
@@ -121,6 +99,19 @@ hb_face_t* Typeface::harfbuzz_typeface() const
         hb_face_make_immutable(m_harfbuzz_face);
     });
     return m_harfbuzz_face;
+}
+
+FaceDescription const& Typeface::description() const
+{
+    call_once(m_description_once, [&] {
+        m_description = FaceDescription::read(harfbuzz_typeface());
+    });
+    return *m_description;
+}
+
+FaceStyle Typeface::style_for_variations(ReadonlySpan<FontVariationAxis> variations) const
+{
+    return description().style_for_variations(variations);
 }
 
 // Recording asks for this while the document thread may ask the same typeface for it, so the

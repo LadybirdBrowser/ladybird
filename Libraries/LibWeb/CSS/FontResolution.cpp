@@ -394,7 +394,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
             Gfx::SystemFallbackFontKey key {
                 .code_point = code_point,
                 .weight = static_cast<u16>(reference_font.weight()),
-                .width = reference_font.typeface().width(),
+                .width = reference_font.width(),
                 .slope = static_cast<u8>(reference_font.slope()),
                 .prefer_color_emoji = presentation == Gfx::EmojiPresentation::Emoji,
             };
