@@ -34,6 +34,10 @@
     }
 }
 
+:root {
+    --card-radius: 12px;
+}
+
 * {
     box-sizing: border-box;
 }
@@ -75,7 +79,8 @@ header img {
 .card {
     background-color: var(--card-background-color);
 
-    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--card-radius);
     margin-bottom: 20px;
 }
 
