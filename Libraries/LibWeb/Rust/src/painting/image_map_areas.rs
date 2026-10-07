@@ -178,7 +178,7 @@ fn shape_path(shape: AreaShape, coords: &[f64]) -> Option<OwnedPath> {
 // named by its style-tree identity, because that is what the hit hands back. A row's id carries the
 // generation of the slot it came from, so an entry left behind by a freed row names nothing a live
 // row can ask for. An image with no image map has no entry, which is nearly every image.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct ImageMapAreaColumn {
     /// Shared with the rows published for the host, so a write copies the maps only while those hold them.
     maps: RefCell<Arc<ImageMaps>>,

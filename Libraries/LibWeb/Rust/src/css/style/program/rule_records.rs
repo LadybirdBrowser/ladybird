@@ -42,7 +42,7 @@ fn rule_record_pages() -> MutexGuard<'static, WeakPool<RuleRecordPage>> {
 
 /// Equal rule records share immutable pages through the process's pool. Child lists remain
 /// outside the records; mutations detach only their page, including updates to its child-list slot.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct RuleRecordTable {
     pages: Vec<Arc<RuleRecordPage>>,
     len: usize,

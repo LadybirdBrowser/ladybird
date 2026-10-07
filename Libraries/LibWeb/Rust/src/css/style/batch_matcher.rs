@@ -452,6 +452,7 @@ fn for_each_scope_rule(
 /// Many selector entries ask the same question of one candidate's ancestry. Walking that ancestry
 /// for each entry repeats both relation steps and fact lookups, so a cold batch assigns every
 /// required key one bit and inherits the bits from parent to child once.
+#[derive(Clone)]
 pub(super) struct AncestorRequirements {
     words_per_row: usize,
     bits: Vec<u64>,
@@ -646,7 +647,7 @@ impl AncestorRequirements {
 }
 
 /// Exact ancestor summaries prepared before one synchronous matching traversal.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct AncestorRequirementsCache {
     // Concrete rule identities and cascade ranks do not affect ancestor requirements.
     by_topology: Vec<(AncestorDispatchTopologyID, AncestorRequirements)>,

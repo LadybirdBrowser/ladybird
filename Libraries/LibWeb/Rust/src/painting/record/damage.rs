@@ -119,7 +119,7 @@ impl std::fmt::Debug for PaintDamage {
 }
 
 /// The per-row state of the retained paint output, kept next to the other parallel row vectors.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct RowPaintState {
     damage: Cell<PaintDamage>,
     // The recording sequence number the row was last pushed in; publication clears rows pushed
@@ -145,7 +145,7 @@ impl RowPaintState {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct DamageSet {
     // Every row whose damage is non-empty, listed once when its first bit is pushed. Entries of
     // rows reset since are skipped by their slot generation.

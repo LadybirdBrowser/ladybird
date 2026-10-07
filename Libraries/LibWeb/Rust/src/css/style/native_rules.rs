@@ -32,6 +32,8 @@ struct NativeRuleConditions {
     containers: Box<[Arc<ContainerConditionsData>]>,
 }
 
+#[derive(Clone)]
+
 pub(super) struct NativeRuleRegistry {
     pub targets: NativeRuleTargets,
     pub identities: NativeRuleIdentities,

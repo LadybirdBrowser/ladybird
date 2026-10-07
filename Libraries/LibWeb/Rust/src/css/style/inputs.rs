@@ -147,6 +147,7 @@ impl RetainedCustomPropertyData {
 
 /// The custom-property environment an element or one of its synthetic pseudo-elements holds, with
 /// what a move of the environment it inherits reads of it.
+#[derive(Clone)]
 pub(crate) struct HeldCustomPropertyEnvironment {
     /// The identity the host's object names the environment by.
     pub(crate) identity: u64,
@@ -157,6 +158,14 @@ pub(crate) struct HeldCustomPropertyEnvironment {
     /// the one it inherits.
     pub(crate) declares: bool,
     pub(crate) data: RetainedCustomPropertyData,
+}
+
+/// A fork's environment holds its own reference.
+impl Clone for RetainedCustomPropertyData {
+    fn clone(&self) -> Self {
+        // SAFETY: The row holds a reference, so the data is live.
+        unsafe { Self::retain(self.data()) }
+    }
 }
 
 impl Drop for RetainedCustomPropertyData {
@@ -288,7 +297,7 @@ impl RetainedState {
         {
             return;
         }
-        let routing = Arc::get_mut(&mut self.routing).expect("routing program is shared outside a planning epoch");
+        let routing = Arc::make_mut(&mut self.routing);
         routing.add_rule(rule, program, &self.programs);
     }
 
@@ -1126,7 +1135,7 @@ impl RetainedState {
             .filter(|&rule| self.program.rule_is_live(rule))
             .filter_map(|rule| Some((rule, self.program.rule_version(rule).selector_program?)));
         let programs = &self.programs;
-        let routing = Arc::get_mut(&mut self.routing).expect("routing program is shared outside a planning epoch");
+        let routing = Arc::make_mut(&mut self.routing);
         for (rule, program) in rules {
             routing.add_rule(rule, program, programs);
         }
@@ -1836,8 +1845,8 @@ impl StyleEngine {
                 memory,
                 admission: AdmissionFacts::default(),
                 deferred_pseudo_elements: 0,
-                tree,
-                program: StyleSheetProgram::new(),
+                tree: crate::fork::ForkShared::new(tree),
+                program: crate::fork::ForkShared::new(StyleSheetProgram::new()),
                 native_rules: Default::default(),
                 declaration_block_version: Arc::new(std::sync::atomic::AtomicU32::new(1)),
                 last_transaction_only_derived_child_reactions: false,
@@ -1866,17 +1875,17 @@ impl StyleEngine {
                 font_resolution: None,
                 layer_topology_version: 0,
                 sheet_order_version: 0,
-                specified_values: SpecifiedValues::new(),
-                winner_groups: WinnerGroups::new(),
-                computed_group_sets: ComputedGroupSets::default(),
+                specified_values: crate::fork::ForkShared::new(SpecifiedValues::new()),
+                winner_groups: crate::fork::ForkShared::new(WinnerGroups::new()),
+                computed_group_sets: Default::default(),
                 custom_property_environments: Default::default(),
                 nodes_with_substituted_records: HashSet::default(),
                 custom_declaration_reads: HashMap::default(),
                 nodes_with_tree_counting_records: HashMap::default(),
                 nodes_with_rolled_back_records: HashMap::default(),
                 nodes_with_element_relative_substitutions: HashMap::default(),
-                element_custom_property_data: HashMap::default(),
-                pseudo_element_custom_property_data: HashMap::default(),
+                element_custom_property_data: Default::default(),
+                pseudo_element_custom_property_data: Default::default(),
                 environment_move_recompute_nodes: HashSet::default(),
                 container_effects_for_host: Default::default(),
                 published_container_verdicts: HashMap::default(),
@@ -1886,7 +1895,7 @@ impl StyleEngine {
                 layout_style_snapshots: HashMap::default(),
                 size_container_queries: Default::default(),
                 counter_style_environment_identities: HashMap::default(),
-                held_style_records: HashMap::default(),
+                held_style_records: Default::default(),
                 tick_shown: Default::default(),
                 backing_elements: HashMap::default(),
                 children_explicitly_inherit_marks: HashSet::default(),
@@ -1905,8 +1914,8 @@ impl StyleEngine {
                 batch_answers_complete_but_for_custom_properties: HashMap::default(),
                 batch_custom_property_matches: HashMap::default(),
                 batch_backing_pseudo_matches: HashMap::default(),
-                engine_cold_record_cache: HashMap::default(),
-                engine_cold_record_donors: HashMap::default(),
+                engine_cold_record_cache: Default::default(),
+                engine_cold_record_donors: Default::default(),
                 computed_group_set_memory: MemoryLease::new(MemoryCategory::ComputedGroupSet),
                 custom_property_environment_memory: MemoryLease::new(MemoryCategory::CustomPropertyEnvironment),
                 computed_fixed_metadata_memory: MemoryLease::new(MemoryCategory::ComputedFixedMetadata),
@@ -1916,21 +1925,21 @@ impl StyleEngine {
                 computed_pseudo_assignment_memory: MemoryLease::new(MemoryCategory::ComputedPseudoAssignment),
                 style_invalidation_cache: HashMap::default(),
                 html_element_namespace: StyleAtomID::NONE,
-                match_answers: MatchAnswerCatalog::default(),
+                match_answers: Default::default(),
                 selector_truth_sets: SelectorTruthSetCatalog::default(),
-                retained_match_answers: RetainedMatchAnswers::default(),
+                retained_match_answers: Default::default(),
                 retained_selector_incidences: RetainedSelectorIncidences::default(),
                 selector_incidence_is_current: false,
                 batch_matching_traversal: None,
                 completion_exactness: CompletionExactness::Exact,
-                route_pruning_states: Mutex::new(RoutePruningStateCache::default()),
+                route_pruning_states: crate::fork::ForkReset::new(Mutex::new(RoutePruningStateCache::default())),
                 prefix_caches: std::sync::Arc::default(),
                 #[cfg(test)]
                 force_bounded_prefix_completion: false,
                 prepared_batch_matching_traversal: None,
                 published_match_answers: PublishedMatchAnswers::default(),
                 transaction_fact_view: None,
-                facts: ElementFactStore::new(),
+                facts: crate::fork::ForkShared::new(ElementFactStore::new()),
                 programs: SelectorPrograms::for_live_engine(),
                 attribute_value_text_names: Arc::default(),
                 attribute_value_text_requirements_version: 0,
@@ -1944,14 +1953,14 @@ impl StyleEngine {
                 witness_effect_scratch: MemoryLease::new(MemoryCategory::BatchScratch),
                 relational_witness_residency: MemoryLease::new(MemoryCategory::RetainedWitness),
                 scope_roots: Column::default(),
-                scope_by_root: SegmentedNodeColumn::default(),
+                scope_by_root: Default::default(),
                 scope_programs: intern_table::InternTable::default(),
                 vacant_scope_programs: Vec::new(),
                 scope_dispatch_templates: HashMap::default(),
                 scope_cascade_templates: HashMap::default(),
-                ancestor_dispatch_templates: HashMap::default(),
+                ancestor_dispatch_templates: Default::default(),
                 scope_program_by_scope: Column::default(),
-                atoms: DocumentAtoms::for_live_engine(),
+                atoms: crate::fork::ForkShared::new(DocumentAtoms::for_live_engine()),
                 fold_id_and_class_name_case: false,
                 #[cfg(test)]
                 diagnostic_plan_capture: None,

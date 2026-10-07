@@ -130,6 +130,26 @@ impl GlobalAtoms {
         }
     }
 
+    /// Takes one more document reference to the live raw atom `raw`, for a fork of a document that holds it.
+    fn reference_raw(&mut self, raw: usize, expected: StyleAtomID) {
+        let entry = self
+            .raw
+            .get_mut(&raw)
+            .expect("a document references a live global atom");
+        assert_eq!(entry.atom, expected);
+        entry.document_references += 1;
+    }
+
+    /// Takes one more document reference to the live qualified atom `key`, for a fork of a document that holds it.
+    fn reference_qualified(&mut self, key: (u32, u32), expected: StyleAtomID) {
+        let entry = self
+            .qualified
+            .get_mut(&key)
+            .expect("a document references a live global qualified atom");
+        assert_eq!(entry.atom, expected);
+        entry.document_references += 1;
+    }
+
     fn release_qualified(&mut self, key: (u32, u32), expected: StyleAtomID) {
         let Entry::Occupied(mut occupied) = self.qualified.entry(key) else {
             unreachable!("a document must release a live global qualified atom");
@@ -453,6 +473,35 @@ impl DocumentAtoms {
             .collect::<Vec<_>>();
         reclaimed.sort_unstable_by_key(|entry| entry.atom.0);
         reclaimed
+    }
+}
+
+/// A fork of a document holds its own document reference to each atom the document holds.
+impl Clone for DocumentAtoms {
+    fn clone(&self) -> Self {
+        if matches!(self.scope, AtomScope::Process(_)) {
+            let mut global = global_atoms()
+                .lock()
+                .expect("process-global style atom lock is poisoned");
+            for (&key, &atom) in &self.qualified {
+                global.reference_qualified(key, atom);
+            }
+            for (&raw, &atom) in &self.raw {
+                global.reference_raw(raw, atom);
+            }
+        }
+        Self {
+            raw: self.raw.clone(),
+            cpp_memoized_raws: self.cpp_memoized_raws.clone(),
+            qualified: self.qualified.clone(),
+            scope: self.scope,
+            published: self.published.clone(),
+            #[cfg(test)]
+            available: self.available.clone(),
+            #[cfg(test)]
+            next: self.next.clone(),
+            sweep_at: self.sweep_at,
+        }
     }
 }
 

@@ -268,6 +268,7 @@ pub(super) enum WitnessEffect {
 /// such evaluation that completed with no witness. An evaluation of an overlaid or hypothetical
 /// state must never write here, because that is the one way to plant an entry whose "was true"
 /// half is false - the read-side re-verification only re-establishes the "is true now" half.
+#[derive(Clone)]
 pub struct RelationalWitnesses {
     entries: HashMap<RelationalWitnessKey, StyleNodeID>,
     admitting: bool,

@@ -291,7 +291,7 @@ struct InlineLayoutDamage {
 
 /// Per-document store of completed run results, one entry per slot,
 /// surviving across layout passes on the node arena.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct FcRunCacheArenaStore {
     entries: RefCell<Vec<Option<std::sync::Arc<FcRunCacheEntry>>>>,
     inline_layout_damage: RefCell<Vec<InlineLayoutDamage>>,

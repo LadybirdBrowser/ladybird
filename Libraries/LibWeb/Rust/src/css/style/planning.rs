@@ -125,7 +125,7 @@ pub(super) struct AlreadyPlannedSelectorTruthCandidate {
 }
 
 /// A transaction batch whose common singleton form neither allocates nor sorts.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) enum DeltaBatch<T> {
     #[default]
     Empty,
@@ -182,7 +182,7 @@ impl<T: Ord> DeltaBatch<T> {
 /// An exact change is both the retained-answer maintenance payload and its provenance. A route
 /// records a refresh only when it cannot preserve that old/new pair. Nodes reached through broad
 /// impact regions need no entry here because the region itself is already the refresh request.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct SelectorTruthChanges {
     pub(super) deltas: DeltaBatch<SelectorTruthDelta>,
     pub(super) refreshes: DeltaBatch<SelectorTruthRefresh>,
@@ -1111,6 +1111,8 @@ impl SequenceChanges {
     }
 }
 
+#[derive(Clone)]
+
 pub(super) struct SiblingCandidateWorkspace {
     entry_by_route: SharedVector<u32>,
     pub(super) candidate_epochs: EpochColumn,
@@ -1252,6 +1254,8 @@ impl SequenceEntrySelection<'_> {
     }
 }
 
+#[derive(Clone)]
+
 pub(super) struct NthSequenceEntryIndex {
     pub(super) nth: NthPosition,
     pub(super) unindexed: Vec<usize>,
@@ -1261,7 +1265,7 @@ pub(super) struct NthSequenceEntryIndex {
     pub(super) epoch: u32,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct SequenceEntryIndex {
     pub(super) empty: Vec<usize>,
     pub(super) nth: Vec<NthSequenceEntryIndex>,

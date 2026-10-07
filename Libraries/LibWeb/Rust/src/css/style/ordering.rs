@@ -25,6 +25,7 @@ type CascadeCompactionTop1 =
 
 // Element declarations use the overwhelmingly common target and a dense property identity. Keep
 // their winner lookup in a property-indexed table; pseudo targets remain in the sparse table above.
+#[derive(Clone)]
 struct ElementCascadeCompactionTop1 {
     winners: Vec<Top1Winner<u16, CascadePriority, CascadeCompactionCandidate>>,
     winner_by_property: Vec<u32>,
@@ -97,6 +98,7 @@ struct CompactionMatch {
 
 /// What compacting one match list decided: the states it published and, unless compaction was
 /// blocked, which matches it kept.
+#[derive(Clone)]
 struct RememberedCompaction {
     hash: u64,
     matches: Box<[CompactionMatch]>,
@@ -107,7 +109,7 @@ struct RememberedCompaction {
 /// Compactions that depend on nothing but their match lists, by list, as decided under one program
 /// version and winner group generation. A list is remembered the second time it is compacted: most
 /// lists are one element's own, and remembering those would only fill the table.
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct RememberedCompactions {
     decided_under: Option<(ProgramVersion, u64)>,
     /// The hashes of the lists compacted once since the table was last cleared.
@@ -186,6 +188,8 @@ impl RememberedCompactions {
             + self.nested_bytes) as u64
     }
 }
+
+#[derive(Clone)]
 
 pub(super) struct CascadeCompactionWorkspace {
     top_1: CascadeCompactionTop1,
@@ -1996,9 +2000,10 @@ impl RetainedState {
         }
         rebuilt_routing.prepare_route_liveness(&self.program, &self.programs);
         let mut previous_routing = std::mem::replace(&mut self.routing, Arc::new(rebuilt_routing));
-        Arc::get_mut(&mut previous_routing)
-            .expect("routing program is shared outside a planning epoch")
-            .release_memory();
+        // NB: A fork of the render state may still share the previous routing program, which it releases itself.
+        if let Some(previous_routing) = Arc::get_mut(&mut previous_routing) {
+            previous_routing.release_memory();
+        }
         Arc::get_mut(&mut self.routing)
             .expect("new routing program cannot be shared")
             .settle_memory(&mut self.memory);
@@ -2038,9 +2043,10 @@ impl RetainedState {
         self.sheets_excluded_from_routing = excluded_sheets;
         rebuilt_routing.prepare_route_liveness(&self.program, &self.programs);
         let mut previous_routing = std::mem::replace(&mut self.routing, Arc::new(rebuilt_routing));
-        Arc::get_mut(&mut previous_routing)
-            .expect("routing program is shared outside a planning epoch")
-            .release_memory();
+        // NB: A fork of the render state may still share the previous routing program, which it releases itself.
+        if let Some(previous_routing) = Arc::get_mut(&mut previous_routing) {
+            previous_routing.release_memory();
+        }
         Arc::get_mut(&mut self.routing)
             .expect("new routing program cannot be shared")
             .settle_memory(&mut self.memory);

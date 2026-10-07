@@ -18,6 +18,8 @@ use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 
 const TARGETS_PER_PAGE: usize = 128;
 
+#[derive(Clone)]
+
 struct TargetPage {
     values: [Option<NativeRuleTarget>; TARGETS_PER_PAGE],
     live_count: u16,
@@ -39,6 +41,8 @@ impl TargetPage {
     }
 }
 
+#[derive(Clone)]
+
 struct BoundTargetPage {
     data: Arc<TargetPage>,
     identity_base: u64,
@@ -57,7 +61,7 @@ impl BoundTargetPage {
     fn normalize(&mut self) {
         debug_assert_eq!(self.identity_base, 0);
         debug_assert_eq!(self.source_base, 0);
-        let data = Arc::get_mut(&mut self.data).expect("an unpublished page is private");
+        let data = Arc::make_mut(&mut self.data);
         self.identity_base = data
             .values
             .iter()
@@ -112,7 +116,7 @@ fn target_pages() -> MutexGuard<'static, WeakPool<TargetPage>> {
 /// relative to each page's document-local bases so copies of one parsed stylesheet can share
 /// payloads, through the process's pool, while retaining distinct native rule and stylesheet
 /// identities.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(in crate::css::style) struct NativeRuleTargets {
     pages: Vec<Option<BoundTargetPage>>,
     needs_sharing: bool,
@@ -215,9 +219,7 @@ impl NativeRuleTargets {
                 page.data = found;
                 continue;
             }
-            Arc::get_mut(&mut page.data)
-                .expect("an unpublished page is private")
-                .shared_hash = Some(hash);
+            Arc::make_mut(&mut page.data).shared_hash = Some(hash);
             pool.insert(hash, &page.data);
         }
         self.needs_sharing = false;

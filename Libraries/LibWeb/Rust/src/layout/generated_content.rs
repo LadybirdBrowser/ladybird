@@ -32,7 +32,7 @@ enum MarkerContent<'a> {
 }
 
 /// What the tree build recorded for the generated content of each pseudo-element it built a box for.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct GeneratedContent {
     /// The text each pseudo-element's content resolved to, the way accessibility reads it.
     accessible_texts: HashMap<CounterOwner, Vec<u16>>,

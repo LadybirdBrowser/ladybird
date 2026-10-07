@@ -12,7 +12,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::FfiCompositorAnimationPublishOutcome;
 use crate::painting::visual_animation::VisualAnimation;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct VisualContextState {
     pub tree: Option<std::sync::Arc<VisualContextTree>>,
     pub scroll_state: scroll_state::ScrollState,

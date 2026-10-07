@@ -982,7 +982,7 @@ pub(crate) enum DependentRestyle {
 /// engine's published reads, which a tree build builds boxes from, and takes them back as it ends, so the host never
 /// reads them. Each
 /// record is pinned until the host lets go of them as it builds those boxes again from its own.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct TickShownRecords(Vec<(StyleNodeID, ShownRecords)>);
 
 impl TickShownRecords {

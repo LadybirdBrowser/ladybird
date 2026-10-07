@@ -13,14 +13,14 @@ use super::fast_hash::FastMap as HashMap;
 use super::bridge::{FfiDocumentStyleComputationInputs, FfiHostHandle, FfiStyleSheetResourceContextEntry};
 use crate::css::style_compute::FfiStyleSheetResourceContext;
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct StyleSheetResourceContext {
     pub(crate) base_url: Box<[u8]>,
     pub(crate) has_base_url: bool,
     pub(crate) origin_clean: bool,
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct DocumentResourceContexts {
     pub(crate) document_base_url: Box<[u8]>,
     by_source: HashMap<u64, StyleSheetResourceContext>,

@@ -3112,6 +3112,7 @@ fn keyframe_parent_snapshot_for_style_record(
 
 /// Results of one longhand drive that remain outside the Rust longhand table.
 #[repr(C)]
+#[derive(Clone)]
 pub struct FfiLonghandDriverResults {
     /// Longhands whose specified-to-computed evaluation ran in this drive.
     pub longhand_evaluations: u32,
@@ -7072,6 +7073,10 @@ pub(crate) mod ffi_test_stubs {
     extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]
     extern "C" fn web_css_custom_property_data_reference(_data: *const c_void) {}
+    #[unsafe(no_mangle)]
+    extern "C" fn web_css_font_face_snapshot_reference(_snapshot: *const c_void) {}
+    #[unsafe(no_mangle)]
+    extern "C" fn web_css_font_cascade_memo_reference(_memo: *const c_void) {}
     #[unsafe(no_mangle)]
     extern "C" fn web_css_font_face_snapshot_unreference(_snapshot: *const c_void) {}
     #[unsafe(no_mangle)]

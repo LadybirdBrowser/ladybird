@@ -52,7 +52,7 @@ fn rule_version_pages() -> MutexGuard<'static, WeakPool<RuleVersionPage>> {
 
 /// Rule versions contain only numeric identities. Equal pages are interned through the process's
 /// pool rather than copied.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct RuleVersionTable {
     pages: Vec<Arc<RuleVersionPage>>,
     len: usize,

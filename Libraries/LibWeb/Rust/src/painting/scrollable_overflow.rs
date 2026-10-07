@@ -622,7 +622,7 @@ fn measure_scrollable_overflow_impl(
 
 /// Geometry caches and their pending effects belong to the arena, independently of the
 /// visual-context state temporarily borrowed or taken by painting traversals.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct ScrollableOverflowState {
     pub(crate) viewport: Cell<Option<NodeSlotId>>,
     pub(crate) full_layout_commit: Cell<bool>,
@@ -882,6 +882,17 @@ impl OverflowStyle {
             && old.transform_origin_x == new.transform_origin_x
             && old.transform_origin_y == new.transform_origin_y
             && old.transform_origin_z == new.transform_origin_z
+    }
+}
+
+/// A fork's snapshot holds its own reference to the group.
+impl Clone for OverflowStyle {
+    fn clone(&self) -> Self {
+        crate::css::computed_values::retain_group_payload(
+            crate::css::computed_value_types::STYLE_GROUP_INDEX_TRANSFORM,
+            self.0.as_ptr().cast(),
+        );
+        Self(self.0)
     }
 }
 

@@ -24,7 +24,7 @@ pub(crate) struct PendingRecordingTrace {
     pub(crate) should_paint_overlay: bool,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct PaintState {
     pub(crate) trace_recordings: bool,
     pub(crate) visual_context: crate::painting::visual_context::VisualContextState,

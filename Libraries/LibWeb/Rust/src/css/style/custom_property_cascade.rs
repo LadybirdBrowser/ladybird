@@ -41,7 +41,7 @@ use custom_property_environments::{CascadedCustomProperty, CustomPropertyName};
 /// The document's media features as the style update a transaction belongs to saw them, which
 /// `media()` conditions in `if()` read. Copied rather than borrowed: the host's snapshot ends with
 /// the style update, and a record demanded after it still resolves against these.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct DocumentMediaSnapshot {
     values: Vec<crate::css::parser::query_parser::FfiMediaFeatureValue>,
     /// Lent no output flag: `take_in` clears the one the host's context points to.
@@ -107,7 +107,7 @@ impl DocumentMediaSnapshot {
 /// The `@function` definitions each scope sees, as the host published them with a transaction's
 /// inputs: what a custom function call resolves against. A scope is a host `StyleScope`, named by
 /// its identity, as the resolver names the scope of a call and of a definition.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct DocumentFunctionSnapshot {
     /// Each definition some scope sees, by its identity, with the scope that defines it.
     definitions: HashMap<u64, (Arc<CompiledFunction>, usize)>,
@@ -122,6 +122,7 @@ pub(super) struct DocumentFunctionSnapshot {
 /// What a call from one scope reaches, as `visible_from` finds it, with the input blocks of each
 /// definition's body the document's media selects: only the container-gated blocks among those
 /// differ from one element to the next.
+#[derive(Clone)]
 pub(super) struct ScopeFunctions {
     /// Each reachable definition, with the scope that defines it and its selected blocks.
     definitions: Vec<(Arc<CompiledFunction>, usize, Box<[usize]>)>,

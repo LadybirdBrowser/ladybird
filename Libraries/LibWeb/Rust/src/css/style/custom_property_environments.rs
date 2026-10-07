@@ -51,6 +51,7 @@ pub(super) struct EnvironmentInputs {
 }
 
 /// An environment the engine resolved: its store, and the environment it was resolved over.
+#[derive(Clone)]
 struct EngineEnvironment {
     store: RetainedCustomPropertyStore,
     parent: u64,
@@ -58,6 +59,7 @@ struct EngineEnvironment {
 
 /// An environment memo entry and the written values whose addresses name its key. Keeping those
 /// values alive prevents later declarations from being allocated at the same addresses.
+#[derive(Clone)]
 struct MemoizedEnvironment {
     identity: u64,
     written_values: Box<[RetainedStyleValueData]>,
@@ -65,6 +67,7 @@ struct MemoizedEnvironment {
 
 /// One substituted value and the written value whose identity names it. Keeping the written value
 /// alive prevents a later declaration from being allocated at the same address as the key.
+#[derive(Clone)]
 struct MemoizedSubstitution {
     written_value: RetainedStyleValueData,
     value: RetainedStyleValueData,
@@ -101,6 +104,15 @@ impl RetainedCustomPropertyStore {
     }
 }
 
+/// A fork's handle holds its own strong reference.
+impl Clone for RetainedCustomPropertyStore {
+    fn clone(&self) -> Self {
+        // SAFETY: The handle owns a strong reference, so the store is live.
+        unsafe { Arc::increment_strong_count(self.0.cast::<CustomPropertyStore>()) };
+        Self(self.0)
+    }
+}
+
 impl Drop for RetainedCustomPropertyStore {
     fn drop(&mut self) {
         // SAFETY: The handle owns exactly one strong reference taken at construction.
@@ -110,6 +122,7 @@ impl Drop for RetainedCustomPropertyStore {
 
 /// The name catalog's own reference to a custom property's fly string, held so the raw word that
 /// keys it stays a unique identity for as long as the engine names the property.
+#[derive(Clone)]
 pub(super) struct SharedUtf16FlyString(RetainedUtf16FlyString);
 
 // SAFETY: An `AK::Utf16String` reference count is atomic (`AK/Rust/src/lib.rs`
@@ -131,12 +144,13 @@ impl SharedUtf16FlyString {
 
 /// What a custom property's name atom spells, and the fly string it is: a store names its entries
 /// by the fly string, and a `var()` reference names one by its text.
+#[derive(Clone)]
 pub(super) struct CustomPropertyName {
     pub(super) raw: SharedUtf16FlyString,
     pub(super) text: Arc<[u16]>,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct CustomPropertyEnvironments {
     stores: HashMap<u64, RetainedCustomPropertyStore>,
     names: HashMap<StyleAtomID, CustomPropertyName>,

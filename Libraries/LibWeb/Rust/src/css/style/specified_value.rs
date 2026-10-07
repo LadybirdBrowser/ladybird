@@ -18,6 +18,8 @@ use super::memory::MemoryController;
 use super::memory::MemoryLease;
 use super::partial_view::Lookup;
 
+#[derive(Clone)]
+
 struct SpecifiedValueEntry {
     id: SpecifiedValueID,
     value: RetainedStyleValueData,
@@ -39,6 +41,7 @@ pub(super) enum SpecifiedValueGap {
 /// An identity is never reused, so evicting the values only makes future equality checks
 /// conservative. Existing rule and winner rows can keep comparing their opaque identities without
 /// retaining old CSSOM values forever.
+#[derive(Clone)]
 pub(super) struct SpecifiedValues {
     entries: super::intern_table::InternTable<SpecifiedValueEntryIndex, SpecifiedValueEntry>,
     entries_by_pointer: HashMap<usize, SpecifiedValueID>,

@@ -122,7 +122,7 @@ impl SvgPaintResourceRow {
 /// copies it only while a publication still holds it.
 pub(crate) type SvgPaintResourceRows = HashMap<NodeSlotId, SvgPaintResourceRow>;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct SvgPaintResources {
     rows: RefCell<Arc<SvgPaintResourceRows>>,
     needs_sync: Cell<bool>,

@@ -22,11 +22,13 @@ unsafe extern "C" {
         snapshot: *const c_void,
         request: FfiFontResolutionRequest,
     ) -> FfiResolvedFont;
+    fn web_css_font_face_snapshot_reference(snapshot: *const c_void);
     fn web_css_font_face_snapshot_unreference(snapshot: *const c_void);
+    fn web_css_font_cascade_memo_reference(memo: *const c_void);
     fn web_css_font_cascade_memo_unreference(memo: *const c_void);
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 struct FontResolutionKey {
     font_family: usize,
     font_feature_values: [usize; FONT_RESOLUTION_FEATURE_INPUT_COUNT],
@@ -55,6 +57,7 @@ impl FontResolutionKey {
 
 /// Own the request's family and the feature values it names until the boundary transfers them
 /// into the prepared table.
+#[derive(Clone)]
 pub(super) struct FontRequest {
     ffi: FfiFontResolutionRequest,
     family: RetainedStyleValueData,
@@ -76,6 +79,8 @@ impl FontRequest {
     }
 }
 
+#[derive(Clone)]
+
 struct ResolvedFont {
     // Keep the family and feature values alive for the pointer identities in the cache key.
     _font_family: RetainedStyleValueData,
@@ -92,7 +97,7 @@ struct ResolvedFont {
 /// changes, and a lookup answers only for the generation the cache was filled at. So the engine
 /// never gives up the last reference to a `Gfx::FontCascadeList`, whose destructor releases fonts
 /// into host caches, and nothing in the cache stops it from moving to another thread.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct FontResolutionCache {
     generation: Option<u64>,
     cache: HashMap<FontResolutionKey, ResolvedFont>,
@@ -142,6 +147,7 @@ impl FontResolutionCache {
 
 /// A `Web::CSS::FontFaceSnapshot`, which Rust only names by pointer.
 #[repr(C)]
+#[derive(Clone)]
 struct FontFaceSnapshotObject {
     _opaque: [u8; 0],
     _not_send_or_sync: std::marker::PhantomData<*const ()>,
@@ -153,6 +159,7 @@ unsafe impl Sync for FontFaceSnapshotObject {}
 
 /// A `Web::CSS::FontCascadeMemo`, which Rust only names by pointer.
 #[repr(C)]
+#[derive(Clone)]
 struct FontCascadeMemoObject {
     _opaque: [u8; 0],
     _not_send_or_sync: std::marker::PhantomData<*const ()>,
@@ -168,21 +175,40 @@ unsafe impl Sync for FontCascadeMemoObject {}
 /// may be shared between them.
 struct HostReference<T> {
     object: HostShared<T>,
+    reference: unsafe extern "C" fn(*const c_void),
     unreference: unsafe extern "C" fn(*const c_void),
 }
 
 impl<T> HostReference<T> {
     /// # Safety
     /// `object` must be a live `T`, with one reference this takes over and `unreference` gives up.
-    unsafe fn adopt(object: *const c_void, unreference: unsafe extern "C" fn(*const c_void)) -> Self {
+    unsafe fn adopt(
+        object: *const c_void,
+        reference: unsafe extern "C" fn(*const c_void),
+        unreference: unsafe extern "C" fn(*const c_void),
+    ) -> Self {
         Self {
             object: HostShared::new(object.cast()),
+            reference,
             unreference,
         }
     }
 
     fn as_ptr(&self) -> *const c_void {
         self.object.as_ptr().cast()
+    }
+}
+
+/// A fork holds its own reference.
+impl<T> Clone for HostReference<T> {
+    fn clone(&self) -> Self {
+        // SAFETY: This owns one reference, so the object is live.
+        unsafe { (self.reference)(self.as_ptr()) };
+        Self {
+            object: self.object,
+            reference: self.reference,
+            unreference: self.unreference,
+        }
     }
 }
 
@@ -195,6 +221,7 @@ impl<T> Drop for HostReference<T> {
 
 /// The document's `@font-face` table as published, and the memo of the cascades resolved from it:
 /// one reference to each host object.
+#[derive(Clone)]
 pub(crate) struct PublishedFontFaces {
     snapshot: HostReference<FontFaceSnapshotObject>,
     memo: HostReference<FontCascadeMemoObject>,
@@ -207,8 +234,16 @@ impl PublishedFontFaces {
     pub(super) unsafe fn adopt(snapshot: *const c_void, memo: *const c_void) -> Self {
         unsafe {
             Self {
-                snapshot: HostReference::adopt(snapshot, web_css_font_face_snapshot_unreference),
-                memo: HostReference::adopt(memo, web_css_font_cascade_memo_unreference),
+                snapshot: HostReference::adopt(
+                    snapshot,
+                    web_css_font_face_snapshot_reference,
+                    web_css_font_face_snapshot_unreference,
+                ),
+                memo: HostReference::adopt(
+                    memo,
+                    web_css_font_cascade_memo_reference,
+                    web_css_font_cascade_memo_unreference,
+                ),
             }
         }
     }
@@ -216,6 +251,7 @@ impl PublishedFontFaces {
 
 /// The host's synchronous font resolver and the table it resolves against. This is host state, and
 /// only a round between evaluation passes may call it.
+#[derive(Clone)]
 pub(super) struct FontResolverHost {
     resolve: ResolveFontCallback,
     font_faces: PublishedFontFaces,

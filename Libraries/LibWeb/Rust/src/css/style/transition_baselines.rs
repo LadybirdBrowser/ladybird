@@ -20,7 +20,7 @@ use smallvec::SmallVec;
 /// pinned until the epoch commits, and the host follows every baseline it records for the engine, the commit that
 /// releases them, and every identity a transaction releases, as the engine drops a retired node's baselines, so it
 /// knows each without asking.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct TransitionBaselines {
     baselines: HashMap<StyleNodeID, SmallVec<[(u8, u64); 1]>>,
 }

@@ -534,6 +534,20 @@ extern "C" Web::CSS::StyleEngineFFI::FfiResolvedFont web_css_resolve_font(void c
     };
 }
 
+// A fork of the render state takes its own reference to the font objects the style engine holds.
+extern "C" WEB_API void web_css_font_face_snapshot_reference(void const*);
+extern "C" WEB_API void web_css_font_cascade_memo_reference(void const*);
+
+extern "C" void web_css_font_face_snapshot_reference(void const* snapshot)
+{
+    static_cast<Web::CSS::FontFaceSnapshot const*>(snapshot)->ref();
+}
+
+extern "C" void web_css_font_cascade_memo_reference(void const* memo)
+{
+    static_cast<Web::CSS::FontCascadeMemo const*>(memo)->ref();
+}
+
 extern "C" void web_css_font_face_snapshot_unreference(void const* snapshot)
 {
     static_cast<Web::CSS::FontFaceSnapshot const*>(snapshot)->unref();

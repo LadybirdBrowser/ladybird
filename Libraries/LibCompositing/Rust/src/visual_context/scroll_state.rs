@@ -34,7 +34,7 @@ pub struct ScrollNodeState {
 // containing-block-derived scroll-parent references. Rebuilt together with the tree; offsets are
 // refreshed in place between rebuilds. Sticky offsets never live here: they are derived from the
 // tree when the snapshot is resolved.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct ScrollState {
     states: Vec<ScrollNodeState>,
     // Each slot's own scroll offset. A frame a document published shares them, so a write copies

@@ -26,7 +26,7 @@ impl OrderToken {}
 
 /// One totally ordered axis: stylesheet order within a tree context, nested rule order within a
 /// sheet, or layer order within an origin.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct OrderMaintenance {
     labels: Vec<u64>,
     free_entries: Vec<u32>,

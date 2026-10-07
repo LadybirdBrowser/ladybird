@@ -645,6 +645,7 @@ impl ImpactRegionBatch {
 /// The live tree deliberately retains no document-order label. Once a transaction asks enough
 /// region-membership questions to justify one pass over the tree, this workspace turns subtree
 /// membership into an interval comparison without adding anything to the mandatory per-node state.
+#[derive(Clone)]
 pub(super) struct TransactionTopology {
     nodes: Vec<StyleNodeID>,
     preorder_by_element_index: Vec<u32>,
