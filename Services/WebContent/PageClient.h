@@ -111,9 +111,8 @@ public:
     void select_dropdown_closed(Optional<u32> const& selected_item_id);
 
     void set_user_style(String source);
-    void did_connect_devtools_client();
-    void did_disconnect_devtools_client();
-    bool has_devtools_client() const { return m_devtools_client_count > 0; }
+    void set_has_devtools_client(bool);
+    bool has_devtools_client() const { return m_has_devtools_client; }
     virtual bool has_active_devtools_client() const override { return has_devtools_client(); }
 
     void initialize_js_console(Web::DOM::Document& document);
@@ -426,7 +425,7 @@ private:
     RefPtr<Core::Timer> m_accessibility_focus_timer;
     Optional<i64> m_pending_accessibility_focus;
 
-    u64 m_devtools_client_count { 0 };
+    bool m_has_devtools_client { false };
 };
 
 }

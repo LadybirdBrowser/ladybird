@@ -200,8 +200,7 @@ endpoint WebContentServer routed by Web::PageId page_id
     resolve_dom_node_url(Web::PageId page_id, u64 request_id, Optional<Web::UniqueNodeID> node_id, String url) =|
 
     set_listen_for_dom_mutations(Web::PageId page_id, bool listen_for_dom_mutations) =|
-    did_connect_devtools_client(Web::PageId page_id) =|
-    did_disconnect_devtools_client(Web::PageId page_id) =|
+    set_has_devtools_client(Web::PageId page_id, bool has_devtools_client) =|
     get_dom_node_inner_html(Web::PageId page_id, Web::UniqueNodeID node_id) =|
     get_dom_node_outer_html(Web::PageId page_id, Web::UniqueNodeID node_id) =|
     set_dom_node_outer_html(Web::PageId page_id, Web::UniqueNodeID node_id, String html) =|

@@ -1773,13 +1773,13 @@ void ViewImplementation::set_listen_for_dom_mutations(bool listen_for_dom_mutati
 void ViewImplementation::did_connect_devtools_client()
 {
     m_devtools_connected = true;
-    page().async_did_connect_devtools_client();
+    page().async_set_has_devtools_client(true);
 }
 
 void ViewImplementation::did_disconnect_devtools_client()
 {
     m_devtools_connected = false;
-    page().async_did_disconnect_devtools_client();
+    page().async_set_has_devtools_client(false);
 }
 
 void ViewImplementation::get_dom_node_inner_html(Web::UniqueNodeID node_id)
@@ -2357,10 +2357,6 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
 
         Application::the().stop_watching_geolocation_position(*provider_watch_id);
     };
-
-    // If DevTools is connected, notify the new WebContent process.
-    if (m_devtools_connected)
-        page().async_did_connect_devtools_client();
 }
 
 void ViewImplementation::cancel_all_native_geolocation_requests()
@@ -2597,8 +2593,10 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
             m_backup_shared_image_buffer = move(m_front_bitmap.shared_image_buffer);
             m_backup_bitmap_size = m_front_bitmap.last_painted_size;
         }
-        if (previous_page->is_open())
+        if (previous_page->is_open()) {
             Application::the().update_compositor_context_visibility(previous_page->compositor_context_id(), Web::HTML::VisibilityState::Hidden);
+            previous_page->async_set_has_devtools_client(false);
+        }
 
         auto pending_webdriver_commands = move(m_pending_webdriver_commands);
         auto pending_webdriver_crash_commands = move(m_pending_webdriver_crash_commands);
@@ -2624,6 +2622,9 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
     // registerUIProcessAccessibilityTokens).
     if (m_accessibility_tree_requested)
         page.async_request_accessibility_tree();
+
+    // DevTools inspects the page that displays the tab, and no other.
+    page.async_set_has_devtools_client(m_devtools_connected);
     handle_resize();
     update_paused_debugger_overlay();
 

@@ -216,8 +216,7 @@ private:
     virtual void resolve_dom_node_url(Web::PageId page_id, u64 request_id, Optional<Web::UniqueNodeID> node_id, String url) override;
 
     virtual void set_listen_for_dom_mutations(Web::PageId page_id, bool) override;
-    virtual void did_connect_devtools_client(Web::PageId page_id) override;
-    virtual void did_disconnect_devtools_client(Web::PageId page_id) override;
+    virtual void set_has_devtools_client(Web::PageId page_id, bool has_devtools_client) override;
     virtual void get_dom_node_inner_html(Web::PageId page_id, Web::UniqueNodeID node_id) override;
     virtual void get_dom_node_outer_html(Web::PageId page_id, Web::UniqueNodeID node_id) override;
     virtual void set_dom_node_outer_html(Web::PageId page_id, Web::UniqueNodeID node_id, String html) override;
