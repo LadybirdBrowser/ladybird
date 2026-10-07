@@ -126,9 +126,9 @@ CompositorFrame NavigablePresenter::build_frame_beside_event_loop(SealedPresenta
 
 }
 
-extern "C" WEB_API void web_navigable_presenter_destroy(void* presenter)
+extern "C" WEB_API void web_navigable_presenter_unref(void* presenter)
 {
-    delete static_cast<Web::Compositor::NavigablePresenter*>(presenter);
+    static_cast<Web::Compositor::NavigablePresenter*>(presenter)->unref();
 }
 
 extern "C" WEB_API void web_sealed_presentation_destroy(void* sealed)

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
@@ -88,15 +89,16 @@ struct VectorImageResources {
 };
 
 // What a navigable presents to its compositor context from: the resource storage its recordings add to, and the
-// display list the compositor context holds with the resources it holds for it. The presenter holds no GC pointer.
-class WEB_API NavigablePresenter {
+// display list the compositor context holds with the resources it holds for it. The navigable and what presents a frame
+// of it beside the event loop share it. The presenter holds no GC pointer.
+class WEB_API NavigablePresenter : public AtomicRefCounted<NavigablePresenter> {
     AK_MAKE_NONCOPYABLE(NavigablePresenter);
     AK_MAKE_NONMOVABLE(NavigablePresenter);
 
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    NavigablePresenter() = default;
+    static NonnullRefPtr<NavigablePresenter> create() { return adopt_ref(*new NavigablePresenter); }
 
     Compositing::DisplayListResourceStorage& display_list_resource_storage() { return m_resource_storage; }
     Compositing::DisplayListResourceStorage const& display_list_resource_storage() const { return m_resource_storage; }
@@ -125,6 +127,8 @@ private:
     // loop, keeping what it published in the seal, which the next frame from the seal copies paint commands from.
     CompositorFrame build_frame_beside_event_loop(SealedPresentation&, NonnullRefPtr<Compositing::DisplayList>);
 
+    NavigablePresenter() = default;
+
     Compositing::DisplayListResourceStorage m_resource_storage;
     Optional<HTML::PaintConfig> m_compositor_display_list_paint_config;
     RefPtr<Compositing::DisplayList> m_compositor_display_list;
@@ -135,10 +139,10 @@ private:
     Optional<u64> m_last_keyboard_scroll_state_generation;
 };
 
-// A navigable's presenter and a frame sealed for it, which what presents the frame beside the event loop owns until it
+// A navigable's presenter and a frame sealed for it, which what presents the frame beside the event loop holds until it
 // lands.
 struct FlightPresentation {
-    NonnullOwnPtr<NavigablePresenter> presenter;
+    NonnullRefPtr<NavigablePresenter> presenter;
     NonnullOwnPtr<SealedPresentation> sealed;
 };
 
@@ -146,7 +150,7 @@ struct FlightPresentation {
 
 // What a recording that presents beside the event loop reaches of its presenter and seal, which it owns meanwhile.
 extern "C" {
-WEB_API void web_navigable_presenter_destroy(void* presenter);
+WEB_API void web_navigable_presenter_unref(void* presenter);
 WEB_API void web_sealed_presentation_destroy(void* sealed);
 WEB_API void web_sealed_presentation_take_visual_context_tree(void* sealed, void const* tree, Gfx::FloatPoint const* restructured_scroll_offsets, size_t scroll_offset_count);
 WEB_API void web_sealed_presentation_note_visual_context_tree_changed(void* sealed);

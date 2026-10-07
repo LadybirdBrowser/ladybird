@@ -22,7 +22,7 @@ use std::ptr::NonNull;
 use std::sync::Arc;
 
 unsafe extern "C" {
-    fn web_navigable_presenter_destroy(presenter: *mut c_void);
+    fn web_navigable_presenter_unref(presenter: *mut c_void);
     fn web_sealed_presentation_destroy(sealed: *mut c_void);
     fn web_sealed_presentation_take_visual_context_tree(
         sealed: *mut c_void,
@@ -50,7 +50,7 @@ unsafe extern "C" {
     );
 }
 
-/// A `Web::Compositor::NavigablePresenter`, owned.
+/// A reference to a `Web::Compositor::NavigablePresenter`, which its navigable shares.
 pub(crate) struct PresenterBox(NonNull<c_void>);
 
 /// A `Web::Compositor::SealedPresentation`, owned.
@@ -63,8 +63,8 @@ unsafe impl Send for SealedPresentationBox {}
 
 impl Drop for PresenterBox {
     fn drop(&mut self) {
-        // SAFETY: The box owns the presenter.
-        unsafe { web_navigable_presenter_destroy(self.0.as_ptr()) };
+        // SAFETY: The box holds a reference to the presenter.
+        unsafe { web_navigable_presenter_unref(self.0.as_ptr()) };
     }
 }
 
@@ -237,7 +237,7 @@ mod ffi_test_stubs {
     use std::ffi::c_void;
 
     #[unsafe(no_mangle)]
-    extern "C" fn web_navigable_presenter_destroy(_: *mut c_void) {}
+    extern "C" fn web_navigable_presenter_unref(_: *mut c_void) {}
 
     #[unsafe(no_mangle)]
     extern "C" fn web_sealed_presentation_destroy(_: *mut c_void) {}

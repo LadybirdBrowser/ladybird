@@ -547,7 +547,7 @@ static double rendering_update_timestamp(DOM::Document& document)
 // Hands the render owner `presentation` and its seal, which the host gives up.
 static Layout::RustFFI::FfiPresentation give_up(Compositor::FlightPresentation presentation)
 {
-    return { .presenter = presentation.presenter.leak_ptr(), .sealed = presentation.sealed.leak_ptr() };
+    return { .presenter = &presentation.presenter.leak_ref(), .sealed = presentation.sealed.leak_ptr() };
 }
 
 void commit_unrecorded_frame(Layout::BegunRead const& read, DOM::Document& document, Compositor::FlightPresentation presentation)
