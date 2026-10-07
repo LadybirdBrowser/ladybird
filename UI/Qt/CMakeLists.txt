@@ -24,6 +24,7 @@ qt_add_executable(ladybird main.cpp)
 target_sources(ladybird PRIVATE
     Application.cpp
     Autocomplete.cpp
+    BookmarkDialog.cpp
     BookmarksBar.cpp
     BrowserWindow.cpp
     ChromeStyle.cpp
