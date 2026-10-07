@@ -10895,6 +10895,11 @@ Utf16String Document::dump_display_list()
     if (paint_state().has_visual_context_tree(read))
         schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope::FreshTree);
 
+    // The dump reads the navigable's resource storage after the recording adds to it, which the Paint thread owns while
+    // the document's clock lane presents: the dump holds the lane until it is done.
+    auto* host = layout_node_arena().host();
+    Layout::RustFFI::document_host_hold_clock_lane(host);
+    ScopeGuard release_clock_lane = [&] { Layout::RustFFI::document_host_release_clock_lane(host); };
     auto& resource_storage = navigable()->display_list_resource_storage();
     auto display_list = record_display_list(read, HTML::PaintConfig {}, resource_storage, Painting::PaintCommandCacheMode::ReadOnly);
     if (!display_list)
