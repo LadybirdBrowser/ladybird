@@ -287,18 +287,18 @@ u64 IncrementallyPopulatedStream::select_request_position_while_locked(u64 posit
 
 bool IncrementallyPopulatedStream::check_if_data_is_available_or_begin_request_while_locked(Cursor& cursor, u64 position, u64 length)
 {
-    auto* chunk = m_chunks.find_largest_not_above(position);
-    if (!chunk)
-        return m_closed;
-
-    VERIFY(position >= chunk->offset());
-
     if (cursor.m_is_blocking) {
         cursor.m_active_timeout = MonotonicTime::now_coarse() + CURSOR_ACTIVE_TIME;
         auto request_position = select_request_position_while_locked(position);
         if (!m_currently_requested_position.has_value() || *m_currently_requested_position > request_position || request_position > m_current_append_head + FORWARD_REQUEST_THRESHOLD)
             begin_new_request_while_locked(request_position);
     }
+
+    auto* chunk = m_chunks.find_largest_not_above(position);
+    if (!chunk)
+        return m_closed;
+
+    VERIFY(position >= chunk->offset());
 
     u64 end = position + length;
     if (m_closed && end > m_expected_size.value())
