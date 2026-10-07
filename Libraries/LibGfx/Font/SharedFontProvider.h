@@ -16,6 +16,7 @@
 #include <LibGfx/Font/FontCatalog.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
+#include <LibGfx/Font/SystemFontMatcher.h>
 #include <LibIPC/File.h>
 
 namespace Gfx {
@@ -24,11 +25,6 @@ struct BrokeredFontFile {
     u32 ttc_index { 0 };
     FontFileFormat format { FontFileFormat::OpenType };
     IPC::File file;
-};
-
-// An installed font that the client opens by its PostScript name, for faces whose data the platform does not load back.
-struct PlatformFontName {
-    String postscript_name;
 };
 
 struct BrokeredFont {
