@@ -1250,7 +1250,7 @@ pub(crate) struct LayoutNodeArena {
     // Hit testing can measure overflow and invalidate painting state while querying this list.
     // Reuse workspace allocations without making recording scratch part of the committed paint state.
     pub(crate) scrollable_overflow: crate::painting::scrollable_overflow::ScrollableOverflowState,
-    pub(crate) partial_relayout_boundary_roots: RefCell<Vec<NodeSlotId>>,
+    pub(crate) partial_relayout_boundary_roots: RefCell<super::partial_relayout::PartialRelayoutBoundaryRoots>,
     nodes_with_layout_update_flags: RefCell<Vec<NodeSlotId>>,
     layout_update_flag_node_indices: RefCell<HashMap<NodeSlotId, usize>>,
     pub(super) pending_attached_subtree_roots: RefCell<Vec<NodeSlotId>>,
@@ -1361,7 +1361,7 @@ impl LayoutNodeArena {
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
             scrollable_overflow: Default::default(),
-            partial_relayout_boundary_roots: RefCell::new(Vec::new()),
+            partial_relayout_boundary_roots: RefCell::default(),
             nodes_with_layout_update_flags: RefCell::new(Vec::new()),
             layout_update_flag_node_indices: RefCell::new(HashMap::default()),
             pending_attached_subtree_roots: RefCell::new(Vec::new()),
@@ -1676,6 +1676,7 @@ impl LayoutNodeArena {
         self.inline_boxes_lifted_out_of.get_mut().remove(&id);
         self.out_of_flow_positioning_contained.get_mut().remove(&id);
         self.pre_order_labels[index as usize].set(0);
+        self.partial_relayout_boundary_roots.get_mut().note_freed(id);
         self.metadata_mut(index).occupied = false;
         self.forget_row_sharing_dom_node(id);
         self.unbind_row(id);

@@ -599,7 +599,7 @@ impl LayoutRoundJob {
         if self.layout == RoundLayout::PartialIfPlanned
             && arena.partial_relayout_may_be_attempted(
                 arena.layout_root(),
-                &arena.partial_relayout_boundary_roots.borrow(),
+                arena.partial_relayout_boundary_roots.borrow().roots(),
                 partial_relayout_facts,
             )
         {
