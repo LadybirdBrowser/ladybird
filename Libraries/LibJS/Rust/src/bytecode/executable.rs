@@ -2032,7 +2032,16 @@ fn constant_value(vm: &Vm, constant: &ConstantValue) -> Value {
         ConstantValue::Undefined => Value::UNDEFINED,
         ConstantValue::Empty => Value::EMPTY,
         ConstantValue::String(string) => {
-            Value::from_string(PrimitiveString::create(vm, ak::Utf16String::from_utf16(&string.0)))
+            // String constants are interned so that comparisons with them are pointer comparisons. Long ones are
+            // rarely compared, and not worth hashing.
+            const MAX_INTERNED_CONSTANT_LENGTH: usize = 256;
+            if string.0.len() > MAX_INTERNED_CONSTANT_LENGTH {
+                return Value::from_string(PrimitiveString::create(vm, ak::Utf16String::from_utf16(&string.0)));
+            }
+            Value::from_string(PrimitiveString::create_interned(
+                vm,
+                &ak::Utf16FlyString::from_utf16(&string.0),
+            ))
         }
         ConstantValue::BigInt(literal) => Value::from_bigint(BigInt::create(vm, parse_big_int_literal(literal))),
         ConstantValue::WellKnownSymbol(WellKnownSymbolKind::SymbolIterator) => {

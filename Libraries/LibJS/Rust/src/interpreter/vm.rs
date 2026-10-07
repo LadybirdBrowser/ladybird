@@ -504,6 +504,9 @@ pub struct Vm {
     fly_string_cache: Box<[Cell<Option<Gc<PrimitiveString>>>; FLY_STRING_CACHE_SIZE]>,
     numeric_string_cache: Box<[Cell<Option<Gc<PrimitiveString>>>; NUMERIC_STRING_CACHE_SIZE]>,
     large_numeric_string_cache: Box<[NumericStringCacheEntry; LARGE_NUMERIC_STRING_CACHE_SIZE]>,
+    /// The interned PrimitiveString of each Utf16FlyString, by its raw identity, see PrimitiveString::is_interned().
+    /// The strings are weak: the sweep callback drops the ones that die.
+    interned_strings: RefCell<HashMap<usize, Gc<PrimitiveString>, foldhash::fast::RandomState>>,
     empty_string: OnceCell<Gc<PrimitiveString>>,
     cached_strings: OnceCell<CachedStrings>,
     single_ascii_character_strings: OnceCell<[Gc<PrimitiveString>; SINGLE_ASCII_CHARACTER_STRING_COUNT]>,
@@ -641,6 +644,7 @@ impl Vm {
                     }
                 }; LARGE_NUMERIC_STRING_CACHE_SIZE],
             ),
+            interned_strings: RefCell::default(),
             empty_string: OnceCell::new(),
             cached_strings: OnceCell::new(),
             single_ascii_character_strings: OnceCell::new(),
@@ -712,31 +716,37 @@ impl Vm {
     }
 
     fn allocate_preallocated_strings_and_symbols(&self) {
-        let allocate_string = |string: &str| {
-            self.heap()
-                .allocate(PrimitiveString::new(Utf16String::from_utf8(string)))
+        // NB: The empty and single ASCII character strings are interned without being in the table of interned
+        //     strings, since every way to create one of them returns these.
+        let allocate_interned_string = |string: &str| {
+            let string = self
+                .heap()
+                .allocate(PrimitiveString::new(Utf16String::from_utf8(string)));
+            string.set_interned();
+            string
         };
 
-        let _ = self.empty_string.set(allocate_string(""));
-
-        let _ = self.cached_strings.set(CachedStrings {
-            number: allocate_string("number"),
-            undefined: allocate_string("undefined"),
-            object: allocate_string("object"),
-            string: allocate_string("string"),
-            symbol: allocate_string("symbol"),
-            boolean: allocate_string("boolean"),
-            bigint: allocate_string("bigint"),
-            function: allocate_string("function"),
-            object_Object: allocate_string("[object Object]"),
-        });
+        let _ = self.empty_string.set(allocate_interned_string(""));
 
         let _ = self
             .single_ascii_character_strings
             .set(core::array::from_fn(|character| {
                 let character = [character as u8];
-                allocate_string(core::str::from_utf8(&character).expect("ASCII is UTF-8"))
+                allocate_interned_string(core::str::from_utf8(&character).expect("ASCII is UTF-8"))
             }));
+
+        let create_interned = |string: &str| PrimitiveString::create_interned(self, &Utf16FlyString::from_utf8(string));
+        let _ = self.cached_strings.set(CachedStrings {
+            number: create_interned("number"),
+            undefined: create_interned("undefined"),
+            object: create_interned("object"),
+            string: create_interned("string"),
+            symbol: create_interned("symbol"),
+            boolean: create_interned("boolean"),
+            bigint: create_interned("bigint"),
+            function: create_interned("function"),
+            object_Object: create_interned("[object Object]"),
+        });
 
         let _ = self.well_known_symbols.set(WellKnownSymbols::create(self));
         let _ = self.global_symbol_registry.set(GlobalSymbolRegistry::create(self));
@@ -1204,6 +1214,7 @@ impl Vm {
                 *entry = StringToAtomCacheEntry::default();
             }
         }
+        self.interned_strings.borrow_mut().retain(|_, string| !is_dead(*string));
     }
 
     /// Forgets the cells that died in this collection from the inline caches of executables and static call sites.
@@ -1530,6 +1541,10 @@ impl Vm {
 
     pub fn fly_string_cache(&self) -> &[Cell<Option<Gc<PrimitiveString>>>; FLY_STRING_CACHE_SIZE] {
         &self.fly_string_cache
+    }
+
+    pub fn interned_strings(&self) -> &RefCell<HashMap<usize, Gc<PrimitiveString>, foldhash::fast::RandomState>> {
+        &self.interned_strings
     }
 
     pub fn numeric_string_cache(&self) -> &[Cell<Option<Gc<PrimitiveString>>>; NUMERIC_STRING_CACHE_SIZE] {
