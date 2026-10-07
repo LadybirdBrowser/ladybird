@@ -812,15 +812,6 @@ void AnimationEffect::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_associated_animation);
 }
 
-static ReadonlySpan<CSS::ComputedValuesFFI::FfiAnimatedOverlayEntry> animated_overlay_entries(CSS::ComputedValuesFFI::AnimatedOverlay const* overlay)
-{
-    if (!overlay)
-        return {};
-    size_t count = 0;
-    auto const* entries = CSS::ComputedValuesFFI::rust_animated_overlay_entries(overlay, &count);
-    return { entries, count };
-}
-
 AnimationUpdateContext::~AnimationUpdateContext()
 {
     publish();
@@ -906,7 +897,7 @@ void AnimationUpdateContext::publish()
             // entry may install first and recompute its pseudo-element styles. An element holds its record until it
             // installs the published one, but a pseudo-element holds it nowhere, so the update pins it until its own
             // entry.
-            bool const may_record_baseline = style.animated_overlay() && !animated_overlay_entries(style.animated_overlay()).is_empty()
+            bool const may_record_baseline = style.animated_overlay() && !CSS::ComputedValuesFFI::rust_animated_overlay_is_empty(style.animated_overlay())
                 && document.is_in_style_stabilization_epoch();
             if (sample.element.pseudo_element().has_value())
                 CSS::StyleEngineFFI::style_engine_pin_style_record(style_computer.style_engine().host(), sample.data.style_record_before_update.value());

@@ -179,6 +179,13 @@ pub extern "C" fn rust_animated_overlay_create() -> *mut AnimatedOverlay {
     }))
 }
 
+/// # Safety
+/// `overlay` must be a valid overlay.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_animated_overlay_is_empty(overlay: *const AnimatedOverlay) -> bool {
+    unsafe { &*overlay }.is_empty()
+}
+
 /// Returns a new overlay holding retained copies of `overlay`'s entries.
 ///
 /// # Safety

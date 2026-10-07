@@ -182,7 +182,7 @@ public:
     ~AnimatedProperties();
 
     u64 identity() const { return m_identity; }
-    bool is_empty() const { return entries().is_empty(); }
+    bool is_empty() const { return ComputedValuesFFI::rust_animated_overlay_is_empty(m_overlay); }
     ReadonlySpan<ComputedValuesFFI::FfiAnimatedOverlayEntry> entries() const;
 
     // The Rust overlay is the authoritative store. C++ wrappers are minted lazily and cached
