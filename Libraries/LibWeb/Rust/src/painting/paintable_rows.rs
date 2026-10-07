@@ -315,7 +315,7 @@ pub(crate) struct PaintableRowStore {
     committed_side_data: RefCell<CowColumn<CommittedSideData, PAINTABLE_SLOTS_PER_CHUNK>>,
     pub(crate) row_paint_states: RefCell<Vec<RowPaintState>>,
     pub(crate) damage: DamageSet,
-    visual_context_records: RefCell<Vec<Option<PaintableVisualContextRecord>>>,
+    visual_context_records: RefCell<CowColumn<Option<PaintableVisualContextRecord>, PAINTABLE_SLOTS_PER_CHUNK>>,
     /// The visual context node handles of each row that has a record. They are kept here only, in
     /// a column a frame publishes, so the visual context update and the recording read the same.
     visual_context_node_handles: RefCell<VisualContextNodeHandleColumn>,
@@ -840,6 +840,7 @@ impl LayoutNodeArena {
         let mut absolute_rect_memo = store.absolute_rect_memo.borrow_mut();
         let mut visual_context_records = store.visual_context_records.borrow_mut();
         store.rows.grow_to(index + 1);
+        visual_context_records.grow_to(index + 1);
         store.committed_side_data.get_mut().grow_to(index + 1);
         store.visual_context_node_handles.get_mut().grow_to(index + 1);
         store.stacking_context_entries.get_mut().grow_to(index + 1);
@@ -847,7 +848,6 @@ impl LayoutNodeArena {
             side_data.push(PaintableSideData::default());
             row_paint_states.push(RowPaintState::default());
             absolute_rect_memo.push(None);
-            visual_context_records.push(None);
         }
 
         store.population_writes += 1;
@@ -868,7 +868,7 @@ impl LayoutNodeArena {
             .set(index, CommittedSideData::default());
         row_paint_states[index].clear();
         absolute_rect_memo[index] = None;
-        visual_context_records[index] = None;
+        visual_context_records.set(index, None);
         set_visual_context_node_handles(store.visual_context_node_handles.get_mut(), index, None);
         drop_table(store.stacking_context_entries.get_mut(), index);
         self.scrollable_overflow.rows_to_measure.get_mut().push(layout_node);
@@ -914,7 +914,7 @@ impl LayoutNodeArena {
             .get_mut()
             .set(index, CommittedSideData::default());
         store.row_paint_states.borrow()[index].clear();
-        store.visual_context_records.borrow_mut()[index] = None;
+        store.visual_context_records.borrow_mut().set(index, None);
         set_visual_context_node_handles(store.visual_context_node_handles.get_mut(), index, None);
         drop_table(store.stacking_context_entries.get_mut(), index);
         if reset.kind == crate::painting::paintable_data::PaintableRowResetKind::Freed {
@@ -955,7 +955,12 @@ impl LayoutNodeArena {
             return None;
         }
         let index = id.slot_index() as usize;
-        let record = self.paintable_rows.visual_context_records.borrow_mut()[index].take()?;
+        let record = self
+            .paintable_rows
+            .visual_context_records
+            .borrow_mut()
+            .row_mut(index)
+            .and_then(|mut record| record.take())?;
         let node_handles = self
             .paintable_rows
             .visual_context_node_handles
@@ -984,7 +989,10 @@ impl LayoutNodeArena {
             id.slot_index() as usize,
             Some(node_handles),
         );
-        self.paintable_rows.visual_context_records.borrow_mut()[id.slot_index() as usize] = Some(record);
+        self.paintable_rows
+            .visual_context_records
+            .borrow_mut()
+            .set(id.slot_index() as usize, Some(record));
         if let Some(inputs) = inputs {
             if self.update_paint_order_inputs(id, inputs) {
                 self.note_paint_order_changed(id);
@@ -996,7 +1004,12 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn drop_all_visual_context_records(&self) {
-        self.paintable_rows.visual_context_records.borrow_mut().fill(None);
+        let rows = self.paintable_rows.side_data.borrow().len();
+        let mut records = self.paintable_rows.visual_context_records.borrow_mut();
+        for index in 0..rows {
+            records.set(index, None);
+        }
+        drop(records);
         let mut handles = self.paintable_rows.visual_context_node_handles.borrow_mut();
         for index in 0..self.paintable_row_count() {
             set_visual_context_node_handles(&mut handles, index, None);
@@ -1065,7 +1078,8 @@ impl LayoutNodeArena {
             return None;
         }
         let mut records = self.paintable_rows.visual_context_records.borrow_mut();
-        let record = records.get_mut(id.slot_index() as usize)?.as_mut()?;
+        let mut row = records.row_mut(id.slot_index() as usize)?;
+        let record = row.as_mut()?;
         let was_flagged = record.subtree_may_own_geometry_dependent_nodes;
         record.subtree_may_own_geometry_dependent_nodes = true;
         Some(was_flagged)
@@ -1074,7 +1088,9 @@ impl LayoutNodeArena {
     pub(crate) fn set_paintable_record_stacking_context_contribution_registered(&self, id: NodeSlotId) {
         debug_assert!(self.paintable_row_is_populated(id));
         let mut records = self.paintable_rows.visual_context_records.borrow_mut();
-        if let Some(record) = records.get_mut(id.slot_index() as usize).and_then(Option::as_mut) {
+        if let Some(mut row) = records.row_mut(id.slot_index() as usize)
+            && let Some(record) = row.as_mut()
+        {
             record.stacking_context.contribution_is_registered = true;
         }
     }
