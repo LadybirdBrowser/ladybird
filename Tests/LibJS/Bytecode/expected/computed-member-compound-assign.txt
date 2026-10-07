@@ -19,7 +19,7 @@ block0:
   [  c0] End value:reg6
 
 
-compound_computed$fcf5f443 computed-member-compound-assign.js:7:14
+compound_computed$7e57eccb computed-member-compound-assign.js:7:14
   Registers: 8
   Blocks:    1
   Constants:
@@ -32,10 +32,10 @@ block0:
   [  20] Mov dst:reg6, src:arg1
   [  30] AddRhsInt32 dst:reg7, lhs:reg5, rhs:1
   [  40] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
-  [  58] End value:Undefined
+  [  60] End value:Undefined
 
 
-compound_then_assign$2a87a2a4 computed-member-compound-assign.js:11:13
+compound_then_assign$27c3b194 computed-member-compound-assign.js:11:13
   Registers: 8
   Blocks:    1
   Constants:
@@ -48,6 +48,6 @@ block0:
   [  20] Mov dst:reg6, src:arg1
   [  30] AddRhsInt32 dst:reg7, lhs:reg5, rhs:0
   [  40] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
-  [  58] Mov2 c0_dst:reg7, c0_src:arg0, c1_dst:reg5, c1_src:arg1
-  [  70] PutByValue base:reg7, property:reg5, src:arg1, kind:Normal (imag[reg5])
-  [  88] End value:Undefined
+  [  60] Mov2 c0_dst:reg7, c0_src:arg0, c1_dst:reg5, c1_src:arg1
+  [  78] PutByValue base:reg7, property:reg5, src:arg1, kind:Normal (imag[reg5])
+  [  98] End value:Undefined

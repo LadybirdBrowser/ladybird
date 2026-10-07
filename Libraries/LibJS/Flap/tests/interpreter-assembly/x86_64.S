@@ -4210,7 +4210,7 @@ asm_handler_PutByValue:
     mov edx, DWORD PTR [r14 + r13 + 12]
     mov rdx, QWORD PTR [rbx + rdx * 8]
     mov QWORD PTR [rcx + rax * 8], rdx
-    add r13d, 24
+    add r13d, 32
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_PutByValue.ssa_switch_6_after_preferred:
@@ -4233,7 +4233,7 @@ asm_handler_PutByValue:
     mov edx, DWORD PTR [r14 + r13 + 12]
     mov rdx, QWORD PTR [rbx + rdx * 8]
     mov QWORD PTR [rcx + rax * 8], rdx
-    add r13d, 24
+    add r13d, 32
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_PutByValue.ssa_block_7:
@@ -4280,7 +4280,7 @@ asm_handler_PutByValue:
     and rcx, rax
     add rcx, rdx
     mov BYTE PTR [rcx], dil
-    add r13d, 24
+    add r13d, 32
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_PutByValue.ssa_block_12:
@@ -4289,7 +4289,7 @@ asm_handler_PutByValue:
     and rcx, rax
     add rcx, rdx
     mov WORD PTR [rcx], di
-    add r13d, 24
+    add r13d, 32
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_PutByValue.ssa_block_13:
@@ -4302,7 +4302,7 @@ asm_handler_PutByValue:
     xor rdi, rdi
 .Lasm_PutByValue.ssa_block_19:
     mov BYTE PTR [rcx], dil
-    add r13d, 24
+    add r13d, 32
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_PutByValue.ssa_block_18:
@@ -4316,7 +4316,7 @@ asm_handler_PutByValue:
     and rcx, rax
     add rcx, rdx
     mov DWORD PTR [rcx], edi
-    add r13d, 24
+    add r13d, 32
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_PutByValue.ssa_block_15:
@@ -4327,7 +4327,7 @@ asm_handler_PutByValue:
     cvtsi2sd xmm0, edi
     cvtsd2ss xmm0, xmm0
     movss DWORD PTR [rcx], xmm0
-    add r13d, 24
+    add r13d, 32
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_PutByValue.ssa_block_16:
@@ -4338,7 +4338,7 @@ asm_handler_PutByValue:
     cvtsi2sd xmm0, edi
     movq rax, xmm0
     mov QWORD PTR [rcx], rax
-    add r13d, 24
+    add r13d, 32
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_PutByValue.ssa_block_4:
@@ -4354,7 +4354,7 @@ asm_handler_PutByValue:
     movq xmm0, rdi
     cvtsd2ss xmm0, xmm0
     movss DWORD PTR [rcx], xmm0
-    add r13d, 24
+    add r13d, 32
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_PutByValue.ssa_switch_4_after_preferred:
@@ -4382,7 +4382,7 @@ asm_handler_PutByValue:
     and rcx, rax
     add rcx, rdx
     mov QWORD PTR [rcx], rdi
-    add r13d, 24
+    add r13d, 32
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_PutByValue.ssa_block_24:
@@ -4402,7 +4402,7 @@ asm_handler_PutByValue:
     and rcx, rax
     add rcx, rdx
     mov BYTE PTR [rcx], dil
-    add r13d, 24
+    add r13d, 32
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_PutByValue.ssa_block_25:
@@ -4422,7 +4422,7 @@ asm_handler_PutByValue:
     and rcx, rax
     add rcx, rdx
     mov WORD PTR [rcx], di
-    add r13d, 24
+    add r13d, 32
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_PutByValue.ssa_block_26:
@@ -4442,7 +4442,7 @@ asm_handler_PutByValue:
     and rcx, rax
     add rdx, rcx
     mov DWORD PTR [rdx], edi
-    add r13d, 24
+    add r13d, 32
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 asm_handler_PutByValue_hot_end:
@@ -11684,7 +11684,7 @@ asm_handler_PutByValue_cold:
 .Lasm_PutByValue.values_call_done_1:
     test eax, eax
     jnz .Lasm_PutByValue.ssa_block_1
-    add r13d, 24
+    add r13d, 32
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_PutByValue.ssa_block_1:
@@ -11755,7 +11755,7 @@ asm_handler_PutByValue_cold:
 .Lasm_PutByValue.values_call_done_11:
     test eax, eax
     jnz .Lasm_PutByValue.ssa_block_1
-    add r13d, 24
+    add r13d, 32
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 asm_handler_PutByValue_cold_end:

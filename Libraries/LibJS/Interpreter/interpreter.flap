@@ -2222,7 +2222,8 @@ handler PutByValue(
     property: in Operand,
     src: in Operand,
     kind: PutKind,
-    base_identifier: Optional<IdentifierTableIndex>
+    base_identifier: Optional<IdentifierTableIndex>,
+    cache: PropertyLookupCacheIndex
 ) {
     let slow = || @cold {
         call_slow_path(put_by_value);
@@ -2623,7 +2624,8 @@ handler GetByValue(
     dst: out Operand,
     base: in Operand,
     property: in Operand,
-    base_identifier: Optional<IdentifierTableIndex>
+    base_identifier: Optional<IdentifierTableIndex>,
+    cache: PropertyLookupCacheIndex
 ) {
     let slow = || @cold {
         call_slow_path(get_by_value);
