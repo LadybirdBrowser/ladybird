@@ -106,12 +106,12 @@ h2 {
 }
 
 .tab-option:has(:checked) {
-    border-color: var(--violet-100);
-    box-shadow: 0 0 0 1px var(--violet-100);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
 }
 
 .tab-option:has(:focus-visible) {
-    outline: 2px solid var(--violet-100);
+    outline: 2px solid var(--accent);
     outline-offset: 4px;
 }
 
@@ -126,7 +126,7 @@ input[type="radio"] {
     flex-shrink: 0;
     width: 20px;
     height: 20px;
-    accent-color: var(--violet-100);
+    accent-color: var(--accent);
 }
 
 .tab-option p {
@@ -269,12 +269,6 @@ select {
 
 .filter-list p {
     font-size: 12px;
-}
-
-input[type="checkbox"]:focus-visible,
-button:focus-visible {
-    outline: 2px solid var(--violet-100);
-    outline-offset: 4px;
 }
 
 footer {
