@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/background-image-from-template-ref.html">
+<style>
+    .box {
+        width: 100px;
+        height: 100px;
+        background-color: red;
+        background-size: 100px 100px;
+        background-repeat: no-repeat;
+        display: inline-block;
+    }
+</style>
+<body>
+<script>
+    const template = document.createElement("template");
+    template.innerHTML = '<div class="box"></div><div class="box" style="background-image: url(../data/smiley.png)"></div><div class="box"></div>';
+    // Set the image while the element still belongs to the inert template document.
+    template.content.children[0].style.backgroundImage = 'url("../data/smiley.png")';
+    template.content.children[2].style.backgroundImage = 'image-set("../data/smiley.png" 1x)';
+    document.body.append(template.content);
+
+    const image = new Image();
+    image.src = "../data/smiley.png";
+    image.decode().then(() => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                if (window.internals)
+                    internals.signalTestIsDone("PASS");
+                else
+                    document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>

@@ -665,7 +665,7 @@ fn namespace_rules_own_native_names_after_the_sheet_is_dropped() {
 }
 
 #[test]
-fn cached_sheets_share_across_urls_only_when_parsing_does_not_read_the_base() {
+fn cached_sheets_share_across_urls_without_capturing_image_resource_contexts() {
     let mut first_context = super::tests::parse_context();
     let first_url = b"https://first.example/path/";
     first_context.document_url = first_url.as_ptr();
@@ -688,10 +688,10 @@ fn cached_sheets_share_across_urls_only_when_parsing_does_not_read_the_base() {
         "background-image: url(image.png)",
         "background-image: image-set(\"image.png\" 1x)",
     ] {
-        let source = utf16(&format!(".base-dependent {{ {declaration} }}"));
+        let source = utf16(&format!(".shared-images {{ {declaration} }}"));
         let first = parse(&source, &first_context);
         let second = parse(&source, &second_context);
-        assert!(!Arc::ptr_eq(&first, &second));
+        assert!(Arc::ptr_eq(&first, &second));
         let repeated = parse(&source, &first_context);
         assert!(Arc::ptr_eq(&first, &repeated));
     }
@@ -728,7 +728,7 @@ fn cache_keys_include_parsing_context_and_replay_side_effects() {
     context.document_base_url = base_url.as_ptr();
     context.document_base_url_length = base_url.len();
     let with_base_url = parse(&source, &context);
-    assert!(!Arc::ptr_eq(&first, &with_base_url));
+    assert!(Arc::ptr_eq(&first, &with_base_url));
     context.document_base_url = std::ptr::null();
     context.document_base_url_length = 0;
 
