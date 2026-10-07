@@ -1074,7 +1074,10 @@ impl<'pass> FlexFormattingContext<'pass> {
             //    and the flex container is being sized under a min-content or max-content constraint
             //    (e.g. when performing automatic table layout [CSS21]), size the item under that constraint.
             //    The flex base size is the item’s resulting main size.
-            UsedFlexBasis::Content if self.available_space_for_items.unwrap().main == AvailableSize::MinContent => {
+            UsedFlexBasis::Content
+                if self.available_space_for_items.unwrap().main == AvailableSize::MinContent
+                    && self.flex_shrink_factor(node) != 0.0 =>
+            {
                 self.calculate_min_content_main_size(index)
             }
             UsedFlexBasis::Content if self.available_space_for_items.unwrap().main == AvailableSize::MaxContent => {
