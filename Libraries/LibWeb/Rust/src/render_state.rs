@@ -734,6 +734,7 @@ pub(crate) fn fly(
     if round.is_some() {
         host.let_go_of_rows();
     }
+    #[cfg(not(test))]
     let lays_out_alone = job.is_none();
     host.let_frame_fly(|document, seed, marks| {
         // A host that waits for the frame says the stop word, and the frame comes back with its style alone.

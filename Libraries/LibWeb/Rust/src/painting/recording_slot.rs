@@ -30,7 +30,9 @@ use crate::painting::record::recorder_state::RecorderState;
 use crate::painting::record::vector_images::VectorImageRenderRequest;
 use crate::painting::record::{RecordingInputs, RecordingOutput};
 use crate::render_state::{LockstepProof, SampledFrame, TaskBoundary};
-use crate::stage_thread::{InFlight, ParkedJob, StopWord};
+use crate::stage_thread::InFlight;
+#[cfg(not(test))]
+use crate::stage_thread::{ParkedJob, StopWord};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 
 /// A display list recording: the frame it records, which it drops before it returns, the rows
@@ -274,7 +276,10 @@ enum RecordingHold {
     Holding,
     // A layout held is never handed to the StyleLayout thread until it goes, so that the thread runs the jobs of other
     // documents meanwhile, as one the collector finalizes asks of it.
-    HoldingLayout { _parked: ParkedJob },
+    #[cfg(not(test))]
+    HoldingLayout {
+        _parked: ParkedJob,
+    },
 }
 
 static RECORDING_HOLD: Mutex<RecordingHold> = Mutex::new(RecordingHold::Idle);
@@ -296,6 +301,7 @@ pub(crate) fn take_recording_hold_for_testing() -> bool {
 
 /// Submits `job`, the layout of a frame, to the StyleLayout thread, or parks it where the test hold is armed for it.
 /// Answers the flight and whether the hold took it.
+#[cfg(not(test))]
 pub(crate) fn submit_layout<R: Send + 'static>(
     job: impl FnOnce(&StopWord) -> R + Send + 'static,
 ) -> (InFlight<R>, bool) {
