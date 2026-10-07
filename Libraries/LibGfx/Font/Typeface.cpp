@@ -7,6 +7,8 @@
 #include <harfbuzz/hb-ot.h>
 #include <harfbuzz/hb.h>
 
+#include <AK/Atomic.h>
+#include <AK/Diagnostics.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/FontTable.h>
@@ -50,10 +52,18 @@ ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_temporary_memory(Readon
     return try_load_from_anonymous_buffer(move(anonymous_buffer), ttc_index);
 }
 
-Typeface::Typeface() = default;
+static Atomic<u64> s_next_glyph_cache_id { 1 };
+
+Typeface::Typeface()
+    : m_glyph_cache_id(s_next_glyph_cache_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
+{
+    VERIFY(m_glyph_cache_id != 0);
+}
 
 Typeface::~Typeface()
 {
+    if (m_cmap_font)
+        hb_font_destroy(m_cmap_font);
     if (m_harfbuzz_face)
         hb_face_destroy(m_harfbuzz_face);
     if (m_harfbuzz_blob)
@@ -99,6 +109,122 @@ hb_face_t* Typeface::harfbuzz_typeface() const
         hb_face_make_immutable(m_harfbuzz_face);
     });
     return m_harfbuzz_face;
+}
+
+u32 Typeface::glyph_count() const
+{
+    return hb_face_get_glyph_count(harfbuzz_typeface());
+}
+
+u16 Typeface::units_per_em() const
+{
+    return hb_face_get_upem(harfbuzz_typeface());
+}
+
+u32 Typeface::glyph_id_for_code_point(u32 code_point) const
+{
+    return glyph_page(code_point / GlyphPage::glyphs_per_page).glyph_ids[code_point % GlyphPage::glyphs_per_page];
+}
+
+Typeface::GlyphPage const& Typeface::glyph_page(size_t page_index) const
+{
+    struct GlyphPageCache {
+        AK_ALLOC_WITH_KMALLOC;
+
+        u64 last_use { 0 };
+        OwnPtr<GlyphPage> page_zero;
+        HashMap<size_t, NonnullOwnPtr<GlyphPage>> pages;
+    };
+    struct ThreadGlyphPageCaches {
+        u64 last_typeface_id { 0 };
+        GlyphPageCache* last_cache { nullptr };
+        u64 use_clock { 0 };
+        HashMap<u64, NonnullOwnPtr<GlyphPageCache>> caches;
+    };
+    // NB: -Wexit-time-destructors is a Clang-only warning, and GCC rejects the
+    //     unknown option name in the pragma.
+#ifdef AK_COMPILER_CLANG
+    AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local ThreadGlyphPageCaches thread_caches)
+#else
+    static thread_local ThreadGlyphPageCaches thread_caches;
+#endif
+
+    auto& caches = thread_caches.caches;
+    auto* cache = thread_caches.last_cache;
+    if (thread_caches.last_typeface_id != m_glyph_cache_id) {
+        if (auto it = caches.find(m_glyph_cache_id); it != caches.end()) {
+            cache = it->value.ptr();
+        } else {
+            constexpr size_t maximum_cached_typefaces = 128;
+            if (caches.size() >= maximum_cached_typefaces) {
+                // NB: Evict the cache this thread used least recently. The caches of typefaces that are gone go first,
+                //     and the ones a text run alternates between stay: evicting any other would have them evict each
+                //     other at every switch once the caches of a long session filled up.
+                auto least_recently_used = caches.begin();
+                for (auto it = caches.begin(); it != caches.end(); ++it) {
+                    if (it->value->last_use < least_recently_used->value->last_use)
+                        least_recently_used = it;
+                }
+                caches.remove(least_recently_used);
+            }
+            auto new_cache = make<GlyphPageCache>();
+            cache = new_cache.ptr();
+            caches.set(m_glyph_cache_id, move(new_cache));
+        }
+        cache->last_use = ++thread_caches.use_clock;
+        thread_caches.last_typeface_id = m_glyph_cache_id;
+        thread_caches.last_cache = cache;
+    }
+
+    if (page_index == 0) {
+        if (!cache->page_zero) {
+            cache->page_zero = make<GlyphPage>();
+            populate_glyph_page(*cache->page_zero, 0);
+        }
+        return *cache->page_zero;
+    }
+    if (auto it = cache->pages.find(page_index); it != cache->pages.end()) {
+        return *it->value;
+    }
+
+    auto glyph_page = make<GlyphPage>();
+    populate_glyph_page(*glyph_page, page_index);
+    auto const* glyph_page_ptr = glyph_page.ptr();
+    cache->pages.set(page_index, move(glyph_page));
+    return *glyph_page_ptr;
+}
+
+static thread_local u64 s_glyph_pages_populated_on_this_thread = 0;
+
+u64 Typeface::glyph_pages_populated_on_this_thread()
+{
+    return s_glyph_pages_populated_on_this_thread;
+}
+
+void Typeface::populate_glyph_page(GlyphPage& glyph_page, size_t page_index) const
+{
+    ++s_glyph_pages_populated_on_this_thread;
+    u32 first_code_point = page_index * GlyphPage::glyphs_per_page;
+    auto* font = cmap_font();
+    auto glyph_count = this->glyph_count();
+    for (size_t i = 0; i < GlyphPage::glyphs_per_page; ++i) {
+        u32 code_point = first_code_point + i;
+        hb_codepoint_t glyph_id = 0;
+        // A cmap can name a glyph that the face does not have. Such a code point has no glyph.
+        if (!hb_font_get_nominal_glyph(font, code_point, &glyph_id) || glyph_id >= glyph_count)
+            glyph_id = 0;
+        glyph_page.glyph_ids[i] = static_cast<u16>(glyph_id);
+    }
+}
+
+// An unscaled font for code point lookups. The face's cmap gives the same glyphs at every size.
+hb_font_t* Typeface::cmap_font() const
+{
+    call_once(m_cmap_font_once, [&] {
+        m_cmap_font = hb_font_create(harfbuzz_typeface());
+        hb_font_make_immutable(m_cmap_font);
+    });
+    return m_cmap_font;
 }
 
 FaceDescription const& Typeface::description() const

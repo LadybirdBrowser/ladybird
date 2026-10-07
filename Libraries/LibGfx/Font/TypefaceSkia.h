@@ -43,9 +43,6 @@ public:
 
     RefPtr<TypefaceSkia const> clone_with_variations(Vector<FontVariationAxis> const& axes) const;
 
-    virtual u32 glyph_count() const override;
-    virtual u16 units_per_em() const override;
-    virtual u32 glyph_id_for_code_point(u32 code_point) const override;
     virtual FlyString const& family() const override;
     virtual u16 weight() const override;
     virtual u16 width() const override;
@@ -57,9 +54,6 @@ public:
 
     SkTypeface const* sk_typeface() const;
     u32 platform_typeface_id() const;
-
-    // How many glyph pages the calling thread has filled in, for tests of its glyph page caches.
-    static u64 glyph_pages_populated_on_this_thread();
 
 protected:
     virtual void encode_font_data_for_ipc(IPC::Encoder&) const override;
@@ -81,21 +75,6 @@ private:
 
     ReadonlyBytes m_buffer;
     u32 m_ttc_index { 0 };
-
-    // This cache stores information per code point.
-    // It's segmented into pages with data about 256 code points each.
-    struct GlyphPage {
-        AK_ALLOC_WITH_KMALLOC;
-
-        static constexpr size_t glyphs_per_page = 256;
-        u16 glyph_ids[glyphs_per_page];
-    };
-
-    // Addresses can be reused after destruction, so per-thread caches use a monotonic identity.
-    u64 m_glyph_cache_id { 0 };
-
-    [[nodiscard]] GlyphPage const& glyph_page(size_t page_index) const;
-    void populate_glyph_page(GlyphPage&, size_t page_index) const;
 };
 
 template<>
