@@ -9,6 +9,10 @@ body {
     padding: 20px;
     font-size: 14px;
     line-height: 1.5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 header {
