@@ -1,0 +1,4 @@
+name and length: 0 2
+call: 42
+prototype is the instance realm's Function.prototype: true
+same exports as in the instance realm: true

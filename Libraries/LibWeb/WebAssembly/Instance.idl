@@ -3,5 +3,5 @@
 interface Instance {
     [ImplementedInBindings] constructor(Module module, optional object importObject);
 
-    [ImplementedInBindings, NeedsCallerRealm] readonly attribute object exports;
+    [ImplementedInBindings] readonly attribute object exports;
 };

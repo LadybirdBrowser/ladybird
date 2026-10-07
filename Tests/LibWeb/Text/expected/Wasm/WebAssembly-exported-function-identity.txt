@@ -25,9 +25,9 @@ table holds the wrapper: true
 re-importing the wrapper keeps it: true
 importing the JavaScript function again wraps it anew: true
 == Exported function from another realm
-distinct from this realm's function: true
-prototype is the other realm's Function.prototype: true
-own properties: length,name
+same function as this realm's: true
+prototype is this realm's Function.prototype: true
+own properties: length,name,expando
 name and length: 0 2
 call: 42
 re-export resolves to this realm's function: true
