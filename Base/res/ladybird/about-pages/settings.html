@@ -73,13 +73,8 @@
                 margin-bottom: 0;
             }
 
-            .inline-container:has(> input[type="checkbox"]:disabled) {
+            .inline-container:has(> input[type="checkbox"]:disabled) > label {
                 opacity: 0.5;
-                filter: grayscale(1);
-            }
-
-            input[type="checkbox"][switch]:disabled {
-                cursor: default;
             }
 
             .button-container {

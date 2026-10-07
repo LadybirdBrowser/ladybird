@@ -42,7 +42,9 @@
 @media (prefers-color-scheme: light) {
     :root {
         --text-color: #2f3640;
-        --toggle-background-color: #cccccc;
+        --toggle-background-color: #8f8f8f;
+        --toggle-disabled-background-color: #e0e0e0;
+        --toggle-disabled-knob-color: #fafafa;
         --secondary-button-color: #dddddd;
         --secondary-button-hover: #e1e1e1;
         --secondary-button-active: #e9e9e9;
@@ -52,7 +54,9 @@
 @media (prefers-color-scheme: dark) {
     :root {
         --text-color: #e0e0e0;
-        --toggle-background-color: #555555;
+        --toggle-background-color: #6b6b6b;
+        --toggle-disabled-background-color: #353535;
+        --toggle-disabled-knob-color: #7a7a7a;
         --secondary-button-color: #555555;
         --secondary-button-hover: #505050;
         --secondary-button-active: #444444;
@@ -169,6 +173,17 @@ input[type="checkbox"][switch] {
     cursor: pointer;
 
     outline: none;
+}
+
+input[type="checkbox"][switch]:disabled,
+input[type="checkbox"][switch]:disabled:checked {
+    background-color: var(--toggle-disabled-background-color);
+    cursor: default;
+}
+
+input[type="checkbox"][switch]:disabled::before {
+    background-color: var(--toggle-disabled-knob-color);
+    border-color: var(--toggle-disabled-knob-color);
 }
 
 input[type="checkbox"][switch]:checked {
