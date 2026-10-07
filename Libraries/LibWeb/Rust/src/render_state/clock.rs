@@ -55,6 +55,7 @@ use smallvec::SmallVec;
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
+mod effects;
 pub(crate) mod hover;
 mod lane;
 pub(crate) use hover::PendingPointer;
@@ -175,6 +176,8 @@ pub(crate) struct Lane {
     plan: ClockPlan,
     /// What the ticks write.
     state: LaneState,
+    /// What the ticks sample of each element: the animations the plan names, and the transitions the hover started.
+    effects: Vec<effects::ElementEffects>,
     /// The boxes the ticks showed samples in, with the styles the frame showed in them.
     ticked: Vec<(NodeSlotId, HostStyle)>,
     /// The records the boxes the ticks built again show, which the engine keeps for them.
@@ -193,6 +196,9 @@ pub(crate) struct Lane {
     /// Whether a tick found the lane could sample no more: past the deadline or the animations' ends, or something only
     /// the host computes.
     parked: bool,
+    /// Whether a tick left its frame to the host, after which the fork may hold what no frame the lane presented shows,
+    /// such as visual contexts of another structure than the compositor has: the lane presents no other frame.
+    frame_left_to_host: bool,
     /// What the lane's hover moved.
     hovered: hover::LaneHover,
 }
@@ -963,6 +969,7 @@ impl Lane {
         let parked = !plan.animates();
         Self {
             recording: TickRecording(Riding::landed(recorder)),
+            effects: Self::host_effects(&plan.elements),
             plan,
             state,
             ticked: Vec::new(),
@@ -973,6 +980,7 @@ impl Lane {
             shown_at: f64::NEG_INFINITY,
             shown_scroll_progress,
             parked,
+            frame_left_to_host: false,
             hovered: hover::LaneHover::default(),
         }
     }
@@ -983,6 +991,7 @@ impl Lane {
         self.parked = !plan.animates();
         self.shown_scroll_progress = plan.scroll_progress(&[]).unwrap_or_default();
         self.shown_at = f64::NEG_INFINITY;
+        self.replan_host_effects(&plan.elements);
         self.plan = plan;
     }
 
@@ -990,7 +999,7 @@ impl Lane {
     fn state(&self) -> FfiClockLaneState {
         if !self.plan.animates() {
             FfiClockLaneState::Hovering
-        } else if self.parked && !self.hovered.has_running_transitions() {
+        } else if self.parked && !self.transitions_run() {
             FfiClockLaneState::Parked
         } else {
             FfiClockLaneState::Ticking
@@ -1029,13 +1038,13 @@ impl Lane {
     ) -> Ticked {
         let timestamp = frame_time_nanoseconds as f64 / 1_000_000.0 - self.plan.time_origin;
         let hovers = pointer.filter(|_| !self.hovered.is_parked());
-        let transitions = self.hovered.has_running_transitions();
+        let transitions = self.transitions_run();
         let samples_animations = samples_animations && !self.parked;
         let mut ticked = Ticked {
             hovered: None,
             presented: false,
         };
-        if !samples_animations && hovers.is_none() && !transitions {
+        if self.frame_left_to_host || (!samples_animations && hovers.is_none() && !transitions) {
             return ticked;
         }
         let turn = SamplingTurn(());
@@ -1054,7 +1063,7 @@ impl Lane {
         state.engine_mut().lend_tick_shown(std::mem::take(&mut self.shown));
         let mut moved = false;
         if transitions {
-            moved |= self.sample_hover_transitions(state, sampled_at.0);
+            moved |= self.sample_started_transitions(state, sampled_at.0);
         }
         if let Some(pointer) = hovers {
             let hovered = self.hover(state, pointer, sampled_at.0);
@@ -1064,7 +1073,8 @@ impl Lane {
             moved |= hovered == hover::Hovered::Moved;
         }
         if let Some(progress) = progress {
-            match self.sample(state, sampled_at, &progress) {
+            let samples = AnimationTimelineSamples::at_tick(sampled_at.0, &progress);
+            match self.sample_host_animations(state, samples) {
                 Ok(()) => {
                     moved = true;
                     self.shown_at = sampled_at.0;
@@ -1089,6 +1099,7 @@ impl Lane {
                         eprintln!("hover lane: frame left to the host: {reason}");
                     }
                     self.parked = true;
+                    self.frame_left_to_host = true;
                     self.hovered.park();
                 }
             }
@@ -1109,46 +1120,6 @@ impl Lane {
             return Ok(None);
         }
         Ok(Some(scroll_progress))
-    }
-
-    fn sample(
-        &mut self,
-        state: &mut RenderState,
-        sampled_at: SampleTime,
-        scroll_progress: &[ScrollProgress],
-    ) -> Result<(), Park> {
-        let Self {
-            plan, ticked, hovered, ..
-        } = self;
-        let samples = AnimationTimelineSamples::at_tick(sampled_at.0, scroll_progress);
-        for &element in &plan.elements {
-            // The transitions a hover started in place of those the element ran are the hover's to sample.
-            if hovered.owns_transitions_of(element) {
-                continue;
-            }
-            let arena = state.arena.arena();
-            let row = arena.bound_row(element);
-            if row.is_invalid() {
-                return Err(Park("an animated element has no box"));
-            }
-            // Every tick samples over the record the host installed.
-            let host_record = ticked
-                .iter()
-                .find(|(ticked_row, _)| *ticked_row == row)
-                .map_or_else(|| arena.node_style_record(row), |(_, host_style)| host_style.record());
-            let reference_box = crate::painting::ffi::committed_transform_reference_box(&arena.paintable_rows(), row);
-            let sample = state
-                .engine_mut()
-                .sample_at(element, host_record, samples, reference_box)?;
-            if let Some(host_style) = state.arena.arena().install_animation_sample(row, sample)? {
-                ticked.push((row, host_style));
-            }
-            state
-                .arena
-                .arena()
-                .push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
-        }
-        Ok(())
     }
 
     /// Lays out what the tick moved and presents the frame.
@@ -1222,12 +1193,15 @@ impl Lane {
                 }),
         );
         self.presented_colors.clear();
-        let restyled = self.hovered.transitions.iter().flat_map(|started| {
-            std::iter::once(started.transitions.node)
-                .chain(started.transitions.inheriting.iter().map(|(descendant, _)| *descendant))
-        });
+        let restyled: SmallVec<[StyleNodeID; 4]> = self
+            .started_transitions()
+            .flat_map(|(transitions, _)| {
+                std::iter::once(transitions.node)
+                    .chain(transitions.inheriting.iter().map(|(descendant, _)| *descendant))
+            })
+            .collect();
         // NB: A descendant that inherits what the transitions animate may have no box, as under `display: none`.
-        self.presented_colors.extend(restyled.filter_map(|element| {
+        self.presented_colors.extend(restyled.into_iter().filter_map(|element| {
             let row = arena.bound_row(element);
             if !arena.slot_is_live(row) {
                 return None;

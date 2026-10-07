@@ -18,7 +18,6 @@ use crate::css::css_pixels::{CssPixelPoint, CssPixels};
 use crate::css::style::hover_lane::{HoverBoxRebuild, HoverInstall, hover_row_generated_for};
 use crate::css::style::style_job::SealedStyleInputs;
 use crate::css::style::tree::StyleNodeID;
-use crate::css::transition::HoverTransitions;
 use crate::layout::node_data::{
     GENERATED_FOR_AFTER, GENERATED_FOR_BEFORE, GENERATED_FOR_MARKER, NodeFlag, NodeKind, NodeSlotId,
 };
@@ -212,20 +211,9 @@ pub(crate) struct LaneHover {
     /// The rows the hover's transactions installed, the last one for each element, in the order the elements were
     /// first installed, whose records the engine keeps for the boxes that show them.
     pub(crate) installs: Vec<HoverInstall>,
-    /// The transitions the hover's rows started, which the ticks sample until they end, and which the host starts in
-    /// its turn, from the time they started here.
-    pub(crate) transitions: Vec<ProvisionalTransitions>,
     /// The element the pointer moved to last whose hover the lane left to the host, or none for the pointer leaving
     /// the document: the lane hovers nothing until the pointer moves to another.
     left_to_host: Option<Option<StyleNodeID>>,
-}
-
-/// The transitions a hover's row started on an element, and when, in the document's milliseconds.
-pub(crate) struct ProvisionalTransitions {
-    pub(crate) transitions: HoverTransitions,
-    pub(crate) start_time: f64,
-    /// Whether they have ended, after which the element's box shows its after-change style.
-    ended: bool,
 }
 
 impl LaneHover {
@@ -235,26 +223,6 @@ impl LaneHover {
 
     pub(super) fn park(&mut self) {
         self.parked = true;
-    }
-
-    /// Whether a transition the hover started has yet to end, which the ticks sample until it does.
-    pub(super) fn has_running_transitions(&self) -> bool {
-        self.transitions.iter().any(|transitions| !transitions.ended)
-    }
-
-    /// Whether the hover started transitions on the element `node` names, which then runs no other the ticks sample: a
-    /// step the hover decided over the ones it ran replaced them.
-    pub(super) fn owns_transitions_of(&self, node: StyleNodeID) -> bool {
-        self.transitions
-            .iter()
-            .any(|transitions| transitions.transitions.node == node)
-    }
-
-    /// Whether a transition the hover started on the element `node` names has yet to end.
-    fn transitions_run_on(&self, node: u32) -> bool {
-        self.transitions
-            .iter()
-            .any(|transitions| !transitions.ended && transitions.transitions.node.raw() == node)
     }
 
     /// Keeps `installs`, the last install of each element in place of an earlier one, whose records the engine lets go.
@@ -333,7 +301,7 @@ pub(super) fn logs_hover() -> bool {
 
 /// The transform reference box of the box of the element `node` names, as the frame the lane presented last laid it
 /// out, if it has one.
-fn transform_reference_box(
+pub(super) fn transform_reference_box(
     arena: &crate::layout::LayoutNodeArena,
     node: StyleNodeID,
 ) -> Option<crate::css::css_pixels::CssPixelRect> {
@@ -573,7 +541,7 @@ impl Lane {
             let moves_transitions = wave
                 .rows
                 .iter()
-                .any(|row| self.hovered.transitions_run_on(row.style_node));
+                .any(|row| StyleNodeID::from_raw(row.style_node).is_some_and(|node| self.transitions_run_on(node)));
             // A move back to where a hover left to the host found the hover moves each element back to the record the
             // host holds, which its boxes show: nothing is the host's to do, and the boxes stay as they are.
             let settles_back = inputs == HoverInputs::TheLanesToo && {
@@ -651,11 +619,7 @@ impl Lane {
                     continue;
                 }
                 started_transitions = true;
-                self.hovered.transitions.push(ProvisionalTransitions {
-                    transitions,
-                    start_time: timestamp,
-                    ended: false,
-                });
+                self.start_transitions(transitions, timestamp);
             }
             let engine = state.engine_mut();
             self.hovered.keep_installs(engine, installs);
@@ -693,121 +657,9 @@ impl Lane {
             }
         }
         if started_transitions {
-            self.sample_hover_transitions(state, timestamp);
+            self.sample_started_transitions(state, timestamp);
         }
         Ok(())
-    }
-
-    /// Shows the transitions the hover started at `timestamp`, and the after-change style of those that have ended by
-    /// then. Answers whether that moved anything to lay out and present.
-    pub(super) fn sample_hover_transitions(&mut self, state: &mut RenderState, timestamp: f64) -> bool {
-        use crate::painting::record::damage::PaintDamage;
-        let mut moved = false;
-        // A plan the hover took for its own tick leaves the snapping of the document unknown.
-        let scroll_snaps = self.plan.hover.as_ref().is_none_or(|plan| plan.scroll_snaps);
-        for index in 0..self.hovered.transitions.len() {
-            let provisional = &self.hovered.transitions[index];
-            if provisional.ended {
-                continue;
-            }
-            let node = provisional.transitions.node;
-            let elapsed = timestamp - provisional.start_time;
-            let row = state.arena.arena().bound_row(node);
-            let inheriting = provisional.transitions.inheriting.clone();
-            let subtree_follows = provisional.transitions.inheriting_covers_subtree;
-            if elapsed >= provisional.transitions.duration {
-                self.hovered.transitions[index].ended = true;
-                // The boxes show the after-change styles of the element and of what inherits from it.
-                let arena = state.arena.arena();
-                let rows: smallvec::SmallVec<[NodeSlotId; 4]> = std::iter::once(row)
-                    .chain(inheriting.iter().map(|(descendant, _)| arena.bound_row(*descendant)))
-                    .collect();
-                for row in rows {
-                    if let Some(position) = self.ticked.iter().position(|(ticked, _)| *ticked == row) {
-                        let (row, host_style) = self.ticked.remove(position);
-                        let arena = state.arena.arena();
-                        arena.restore_host_style(row, host_style);
-                        arena.push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
-                        moved = true;
-                    }
-                }
-                continue;
-            }
-            if row.is_invalid() {
-                continue;
-            }
-            let (engine, arena) = state.engine_and_arena();
-            let reference_box = transform_reference_box(arena, node);
-            let Ok((sample, overlay)) = provisional
-                .transitions
-                .sample(engine, elapsed, reference_box, scroll_snaps)
-            else {
-                continue;
-            };
-            self.show_transition_sample(state, row, node, sample);
-            state
-                .arena
-                .arena()
-                .push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
-            // The descendants that inherit what the transitions animate show the values the element takes.
-            for (descendant, properties) in inheriting {
-                let arena = state.arena.arena();
-                let row = arena.bound_row(descendant);
-                if row.is_invalid() {
-                    continue;
-                }
-                let host_record = self
-                    .ticked
-                    .iter()
-                    .find(|(ticked, _)| *ticked == row)
-                    .map_or_else(|| arena.node_style_record(row), |(_, host_style)| host_style.record());
-                let mut inherited = crate::css::animated_overlay::AnimatedOverlay::default();
-                for property in properties {
-                    if let Some(entry) = overlay.get(property) {
-                        inherited.set_owned(property, entry.clone_value(), true, false);
-                    }
-                }
-                let Ok(sample) = state.engine_mut().compose_overlay_over_record(
-                    descendant,
-                    host_record,
-                    &inherited,
-                    crate::css::style::SampleBounds::BoxAndVisualContexts {
-                        scroll_snaps,
-                        children_follow: true,
-                        subtree_follows,
-                    },
-                ) else {
-                    continue;
-                };
-                self.show_transition_sample(state, row, descendant, sample);
-                state
-                    .arena
-                    .arena()
-                    .push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
-            }
-            moved = true;
-        }
-        moved
-    }
-
-    /// Shows `sample`, of the transitions a hover started on the element `node` names, in its box `row`, with the
-    /// visual contexts the move from what the box showed moves.
-    fn show_transition_sample(
-        &mut self,
-        state: &mut RenderState,
-        row: NodeSlotId,
-        node: StyleNodeID,
-        sample: crate::css::style::layout_style::DerivedStyleRecord,
-    ) {
-        let shown = state.arena.arena().node_style_record(row);
-        let damage = state
-            .engine_mut()
-            .element_record_damage(node, false, shown, sample.record);
-        let arena = state.arena.arena();
-        if let Ok(host_style) = arena.install_transition_sample(row, sample) {
-            self.ticked.extend(host_style.map(|host_style| (row, host_style)));
-            arena.note_style_visual_context_moves(row, damage);
-        }
     }
 
     /// Hit tests `position`, in device pixels, in the frame the lane presented last.

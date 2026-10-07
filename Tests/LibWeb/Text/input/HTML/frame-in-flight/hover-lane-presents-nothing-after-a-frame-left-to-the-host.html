@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    .cards { display: grid; grid-template-columns: repeat(4, 100px); gap: 12px; align-items: start; margin: 20px; }
+    .card { background: #fff; padding: 12px; box-shadow: 0 0 0 1px #e2e5ee; transition: transform 0.16s ease-out, box-shadow 0.16s ease-out; }
+    .card:hover { transform: translateY(-5px) rotate(-0.6deg); box-shadow: 0 16px 30px rgba(20, 20, 60, 0.16), 0 0 0 2px #5b4bff; }
+    .swatch { height: 40px; background: #7b6bff; transition: height 0.16s ease-out; }
+    .card:hover .swatch { height: 64px; }
+</style>
+<div class="cards">
+    <div class="card"><div class="swatch"></div>One</div>
+    <div class="card"><div class="swatch"></div>Two</div>
+    <div class="card"><div class="swatch"></div>Three</div>
+    <div class="card"><div class="swatch"></div>Four</div>
+</div>
+<script>
+    // A hover beside the task moves between cards whose transform transitions run on the compositor once the host
+    // takes them over. A tick that leaves its frame to the host, as the structure of the visual contexts moves under
+    // those animations, has the lane present no other frame, where the transitions its hover started go on.
+    asyncTest(async done => {
+        let seed = 3;
+        const random = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+        for (let round = 0; round < 6; ++round) {
+            await whileLaneHovers(async frameTime => {
+                let t = frameTime;
+                for (let i = 0; i < 30; ++i) {
+                    t += 8 + random() * 30;
+                    internals.injectHoverPointer(20 + random() * 460, 30 + random() * 100, t);
+                    if (random() < 0.5)
+                        internals.injectClockTick(t + 4);
+                    if (random() < 0.2)
+                        await nextTask();
+                }
+            });
+            await nextFrame();
+        }
+        println("survived");
+        done();
+    });
+</script>

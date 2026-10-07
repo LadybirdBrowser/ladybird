@@ -355,7 +355,7 @@ impl super::StyleEngine {
         record: u64,
         samples: super::animations::AnimationTimelineSamples<'_>,
         transform_reference_box: Option<crate::css::css_pixels::CssPixelRect>,
-    ) -> Result<super::layout_style::DerivedStyleRecord, NeedsHost> {
+    ) -> Result<(super::layout_style::DerivedStyleRecord, AnimatedOverlay), NeedsHost> {
         use crate::css::animation as anim;
 
         // Each effect the host sampled last samples at the key its timing gives at these times. One that left its
@@ -410,7 +410,7 @@ impl super::StyleEngine {
 
     /// Samples `composed`, the effects of the element `node` names, or those `fresh` describes, onto `overlay` over
     /// `record`, and composes the sample into a record no element holds, pinned for a box, as [`Self::sample_at`] does,
-    /// where the sample changes no more than `bounds` lets it.
+    /// where the sample changes no more than `bounds` lets it. Answers the record and the values the sample animates.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn sample_composed_over_record(
         &mut self,
@@ -421,14 +421,15 @@ impl super::StyleEngine {
         composed: crate::css::style_compute::SampledEffects,
         transform_reference_box: Option<crate::css::css_pixels::CssPixelRect>,
         bounds: super::style_invalidation::SampleBounds,
-    ) -> Result<super::layout_style::DerivedStyleRecord, NeedsHost> {
+    ) -> Result<(super::layout_style::DerivedStyleRecord, AnimatedOverlay), NeedsHost> {
         let outcome = self
             .sample_over_record(node, record, &mut overlay, fresh, composed, transform_reference_box)?
             .outcome;
         if outcome == crate::css::style_compute::FfiHostAnimationSampleOutcome::Cleared {
             overlay = AnimatedOverlay::default();
         }
-        self.compose_overlay_over_record(node, record, &overlay, bounds)
+        let sample = self.compose_overlay_over_record(node, record, &overlay, bounds)?;
+        Ok((sample, overlay))
     }
 
     /// Composes `overlay`, the values of animations of the element `node` names, or those it inherits from an

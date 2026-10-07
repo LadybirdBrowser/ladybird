@@ -370,16 +370,14 @@ impl LaneSlot {
         *self.ticks.published() = LanePublication {
             state: lane.map_or(FfiClockLaneState::None, Lane::state),
             planned_animation_changes: lane.map_or(0, |lane| lane.plan.animation_changes),
-            transitions_run: lane.is_some_and(|lane| lane.hovered.has_running_transitions()),
+            transitions_run: lane.is_some_and(Lane::transitions_run),
             follows_pointer: lane.is_some_and(|lane| lane.plan.follows_pointer() && !lane.hovered.is_parked()),
             awaits_lane: matches!(self.lanes, Lanes::Coming { .. }),
             report: LaneReport {
                 hovered_pointer: self.hovered_pointer,
                 transition_starts: lane.map_or_else(Vec::new, |lane| {
-                    lane.hovered
-                        .transitions
-                        .iter()
-                        .map(|started| (started.transitions.node, started.start_time))
+                    lane.started_transitions()
+                        .map(|(transitions, start_time)| (transitions.node, start_time))
                         .collect()
                 }),
                 presented_frames: self.presented_frames,
