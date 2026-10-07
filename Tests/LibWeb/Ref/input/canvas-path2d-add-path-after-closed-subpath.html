@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/canvas-path2d-add-path-after-closed-subpath-ref.html" />
+<canvas id="c" width="200" height="100"></canvas>
+<script>
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "green";
+
+    const path = new Path2D("M10 10 H60 V60 H10 Z");
+    path.addPath(new Path2D("M80 10 H130 V60 H80 Z"));
+    ctx.fill(path);
+</script>
