@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        --color: red;
+        color: var(--color);
+        width: 10px;
+        transition: width 10s linear;
+    }
+</style>
+<div id="target"><div id="child"></div></div>
+<script>
+    test(() => {
+        const animation = target.animate({ "--color": ["green", "green"] }, 10000);
+        animation.pause();
+        animation.currentTime = 0;
+        println(`before transition: ${getComputedStyle(target).getPropertyValue("--color")}`);
+        // Sampling the new transition must also preserve the existing animated custom property.
+        target.style.width = "110px";
+        println(`after transition: ${getComputedStyle(target).getPropertyValue("--color")}`);
+        println(`child color: ${getComputedStyle(child).color}`);
+        println(`transition started: ${target.getAnimations().some(animation => animation instanceof CSSTransition)}`);
+    });
+</script>

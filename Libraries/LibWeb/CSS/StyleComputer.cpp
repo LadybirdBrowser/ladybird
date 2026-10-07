@@ -1266,7 +1266,7 @@ void StyleComputer::start_needed_transitions(Layout::BegunRead const& read, Comp
     // A transition action is provisional until the stabilization epoch commits, but the style
     // published by this pass must already reflect that decision. Rebuild the effect stack without
     // transitions which are being removed, then layer any proposed replacements on top.
-    if (!replaced_transition_effects.is_empty()) {
+    if (!replaced_transition_effects.is_empty() || !newly_started_transition_effects.is_empty()) {
         new_style.clear_animated_properties(Badge<StyleComputer> {});
         auto animations = abstract_element.element().get_animations_internal(
             Animations::Animatable::GetAnimationsSorted::Yes,
@@ -1286,14 +1286,16 @@ void StyleComputer::start_needed_transitions(Layout::BegunRead const& read, Comp
                     continue;
                 remaining_effects.append(keyframe_effect);
             }
+            remaining_effects.extend(newly_started_transition_effects);
+            quick_sort(remaining_effects, [](auto const& a, auto const& b) {
+                return Animations::KeyframeEffect::composite_order(a, b) < 0;
+            });
             if (!remaining_effects.is_empty())
                 collect_animations_into(read, abstract_element, remaining_effects.span(), new_style, AnimationRefresh::Yes);
         }
     }
 
-    // Immediately set the properties to the transitions' current values, to prevent single-frame jumps.
     if (!newly_started_transition_effects.is_empty()) {
-        collect_animations_into(read, abstract_element, newly_started_transition_effects.span(), new_style, AnimationRefresh::Yes);
         // NB: Construction does not invalidate animated style because the effects were just evaluated. Request the
         //     first animation frame directly so timeline updates can schedule subsequent animated style updates.
         m_document->page().client().request_frame();
