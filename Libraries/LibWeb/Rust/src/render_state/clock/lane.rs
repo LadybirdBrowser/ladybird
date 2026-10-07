@@ -377,7 +377,11 @@ impl LaneSlot {
                 hovered_pointer: self.hovered_pointer,
                 transition_starts: lane.map_or_else(Vec::new, |lane| {
                     lane.started_transitions()
-                        .map(|(transitions, start_time)| (transitions.node, start_time))
+                        .map(|(transitions, start_time)| super::LaneTransitionStart {
+                            node: transitions.node,
+                            properties: transitions.properties().iter().copied().collect(),
+                            start_time,
+                        })
                         .collect()
                 }),
                 presented_frames: self.presented_frames,

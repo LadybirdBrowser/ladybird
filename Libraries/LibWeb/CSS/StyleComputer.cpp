@@ -446,7 +446,7 @@ void StyleComputer::commit_transition_stabilization_epoch()
             state.proposed_transition->commit_provisional_transition();
             ++document().style_invalidation_counters().committed_transitions_started;
             double started_at = 0;
-            if (!state.pseudo_element.has_value() && StyleEngineFFI::style_engine_lane_transition_start(m_style_engine.host(), element.style_node_id().value(), &started_at)) {
+            if (!state.pseudo_element.has_value() && StyleEngineFFI::style_engine_lane_transition_start(m_style_engine.host(), element.style_node_id().value(), to_underlying(state.property_id), &started_at)) {
                 started_beside_host.append(*state.proposed_transition);
                 started_beside_host_at.append(started_at);
             }

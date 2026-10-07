@@ -7,7 +7,7 @@
 //! What the host keeps of a document's render state, which the render owner holds: its name, the frame that may fly
 //! beside the host, and what the host reads between the jobs it hands the owner.
 
-use super::clock::{ClockPlan, ClockTicks, CommittedFrame};
+use super::clock::{ClockPlan, ClockTicks, CommittedFrame, LaneTransitionStarts};
 use super::owner::{self, DocumentId, SharedWithHost, StateSeed};
 use super::wait::{BegunRead, NodeRead};
 use super::{
@@ -101,10 +101,9 @@ pub struct DocumentHost {
     ticks: Arc<ClockTicks>,
     /// How many frames the lanes' ticks presented as the host last took in what they did.
     lane_frames_taken_in: Cell<u64>,
-    /// The elements whose transitions the hover of the lane that follows the presented frame started, and when, in the
-    /// document's milliseconds: the transitions the host's own hover starts on them run from then, as the screen showed
-    /// them.
-    lane_transition_starts: RefCell<Vec<(StyleNodeID, f64)>>,
+    /// The transitions the hover of the lane that follows the presented frame started: those the host's own hover starts
+    /// of the same properties of the same elements run from then, as the screen showed them.
+    lane_transition_starts: RefCell<LaneTransitionStarts>,
     /// Whether the frame in flight waits for a test to release it.
     frame_held_for_testing: Cell<bool>,
     /// The root and the sealed document computation inputs of the last style transaction the host took or let fly,
@@ -385,24 +384,21 @@ impl DocumentHost {
         if moved && let Some(pointer) = report.hovered_pointer {
             self.hover_events_owed.set(Some(pointer));
         }
-        if !report.transition_starts.is_empty() {
-            *self.lane_transition_starts.borrow_mut() = report.transition_starts;
-        }
+        self.lane_transition_starts
+            .borrow_mut()
+            .take_in(report.transition_starts);
         self.lane_frames_taken_in.replace(report.presented_frames) < report.presented_frames
     }
 
-    /// When the hover of the lane started the transitions of the element `node` names, where it did. See
+    /// When the hover of the lane started a transition of `property` of the element `node` names, where it did. See
     /// [`Self::lane_transition_starts`].
-    pub(crate) fn lane_transition_start(&self, node: StyleNodeID) -> Option<f64> {
-        self.lane_transition_starts
-            .borrow()
-            .iter()
-            .find_map(|&(started, time)| (started == node).then_some(time))
+    pub(crate) fn lane_transition_start(&self, node: StyleNodeID, property: u16) -> Option<f64> {
+        self.lane_transition_starts.borrow_mut().start_of(node, property)
     }
 
     /// Forgets when the hover of the lane started transitions, once the host started its own.
     pub(crate) fn forget_lane_transition_starts(&self) {
-        self.lane_transition_starts.borrow_mut().clear();
+        self.lane_transition_starts.borrow_mut().forget();
     }
 
     /// Keeps the root and the sealed inputs of a style transaction the host takes or lets fly, for the hover of a lane
