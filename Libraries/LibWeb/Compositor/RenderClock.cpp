@@ -180,15 +180,6 @@ void RenderClock::drop_channel()
     }
 }
 
-void RenderClock::arm(Web::CompositorContextId context_id, double maximum_frames_per_second, OnTick on_tick)
-{
-    VERIFY(isfinite(maximum_frames_per_second) && maximum_frames_per_second > 0);
-    (void)invoke_on_clock_thread([this, context_id, maximum_frames_per_second, on_tick = move(on_tick)]() mutable {
-        m_armed_contexts.set(context_id, ArmedContext { maximum_frames_per_second, move(on_tick) });
-        request_clock_tick(context_id, maximum_frames_per_second);
-    });
-}
-
 void RenderClock::arm_lane(Web::CompositorContextId context_id, double maximum_frames_per_second, NonnullRefPtr<ClockTicksHandle> ticks, Optional<i64> tick_now_at)
 {
     VERIFY(isfinite(maximum_frames_per_second) && maximum_frames_per_second > 0);

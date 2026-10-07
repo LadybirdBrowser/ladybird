@@ -89,13 +89,11 @@ public:
     // end to offer the Compositor. Blocks until the channel exists.
     ErrorOr<IPC::TransportHandle> attach();
 
-    // Asynchronous. A context is armed until it declines a tick or the channel is lost; a tick that arrives for a
-    // context that is not armed is dropped. Arming an armed context replaces what it hands ticks to.
-    void arm(Web::CompositorContextId, double maximum_frames_per_second, OnTick);
-
     // Asynchronous. Hands the pointer moves over the context to `ticks` from now on, until another document's ticks take
     // their place or the channel is lost, and arms the context's ticks for them where they ask for them; with
-    // `tick_now_at`, ticks them at once at that frame time, where no display tick drives them already.
+    // `tick_now_at`, ticks them at once at that frame time, where no display tick drives them already. A context is
+    // armed until it declines a tick or the channel is lost; a tick that arrives for a context that is not armed is
+    // dropped.
     void arm_lane(Web::CompositorContextId, double maximum_frames_per_second, NonnullRefPtr<ClockTicksHandle> ticks, Optional<i64> tick_now_at);
 
     // Asynchronous. Disarms the context, which is destroyed, and lets go of the ticks its pointer moves went to.
