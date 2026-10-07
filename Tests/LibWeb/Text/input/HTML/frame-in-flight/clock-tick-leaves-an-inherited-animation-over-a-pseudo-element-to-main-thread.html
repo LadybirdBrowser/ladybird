@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #card::before { content: "x"; }
+</style>
+<div id="card" style="color: rgb(0, 0, 0)">Card</div>
+<script>
+    // A running animation of an inherited property that the generated pseudo-element of the element inherits is the
+    // main thread's to sample: the render clock leaves it to the host rather than show a stale pseudo-element.
+    asyncTest(async done => {
+        const result = await whileLaneAnimates(() => {
+            return card.animate([{ color: "rgb(0, 0, 0)" }, { color: "rgb(0, 0, 200)" }], { duration: 10000, easing: "linear" });
+        }, frameTime => {
+            internals.injectClockTick(frameTime + 5000);
+            return {
+                lane: internals.clockLaneState(document),
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`lane after the tick: ${result.lane}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        done();
+    });
+</script>
