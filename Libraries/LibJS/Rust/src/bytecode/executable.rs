@@ -450,7 +450,9 @@ impl PropertyLookupCache {
 
         if let Some(data) = self.monomorphic_data() {
             let old_entry = data.entry.get();
-            if old_entry.has_same_cache_key_as(&new_entry) {
+            if old_entry.entry_type == PropertyLookupCacheEntryType::Empty
+                || old_entry.has_same_cache_key_as(&new_entry)
+            {
                 data.entry.set(new_entry);
                 return;
             }
@@ -516,6 +518,16 @@ impl PropertyLookupCache {
         new_data.entry.set(*new_entry);
         self.clear();
         self.set_data(new_data, MEGAMORPHIC_DATA_TAG);
+    }
+
+    /// Forgets the entries, but keeps the storage of a monomorphic cache, whose next entry then takes the place of the
+    /// empty one.
+    pub fn forget_entries(&self) {
+        if let Some(data) = self.monomorphic_data() {
+            data.entry.set(PropertyLookupCacheEntryData::default());
+            return;
+        }
+        self.clear();
     }
 
     pub fn clear(&self) {
@@ -795,6 +807,9 @@ pub struct KeyedPropertyLookup {
     pub shape: Option<Gc<Shape>>,
     pub prototype: Option<Gc<Object>>,
     pub prototype_chain_validity: Option<Gc<PrototypeChainValidity>>,
+    /// The shape that adding the property to an object of `shape` gives it, for `AddOwnProperty` entries of the
+    /// keyed property store cache.
+    pub new_shape: Option<Gc<Shape>>,
 }
 
 impl Default for KeyedPropertyLookup {
@@ -806,6 +821,7 @@ impl Default for KeyedPropertyLookup {
             shape: None,
             prototype: None,
             prototype_chain_validity: None,
+            new_shape: None,
         }
     }
 }
@@ -905,12 +921,11 @@ impl KeyedPropertyLookupCache {
     pub fn remove_dead_entries(&self) {
         for entry in self.entries.borrow_mut().iter_mut() {
             let lookup = &entry.lookup;
-            if lookup.entry_type == PropertyLookupCacheEntryType::Empty {
-                continue;
-            }
+            // NB: Entries of the keyed property store cache for puts it does not make have a shape but no type.
             if lookup.shape.is_some_and(cell_is_dead)
                 || lookup.prototype.is_some_and(cell_is_dead)
                 || lookup.prototype_chain_validity.is_some_and(cell_is_dead)
+                || lookup.new_shape.is_some_and(cell_is_dead)
             {
                 *entry = KeyedPropertyLookupCacheEntry::default();
             }
