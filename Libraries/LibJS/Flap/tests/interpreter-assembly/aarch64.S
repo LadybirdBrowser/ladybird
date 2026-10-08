@@ -4118,33 +4118,33 @@ asm_handler_ToInt32_hot_end:
 asm_handler_PutByValue:
     ldrb w9, [x21, #16]
     cbnz w9, .Lasm_PutByValue.ssa_block_1
+    ldr w0, [x21, #8]
+    ldr x1, [x27, x0, lsl #3]
+    lsr x9, x1, #48
+    cmp x9, x22
+    b.ne .Lasm_PutByValue.ssa_block_3
     ldr w0, [x21, #4]
     ldr x3, [x27, x0, lsl #3]
     lsr x9, x3, #48
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_PutByValue.ssa_block_1
-    ldr w0, [x21, #8]
-    ldr x0, [x27, x0, lsl #3]
-    lsr x9, x0, #48
-    cmp x9, x22
-    b.ne .Lasm_PutByValue.ssa_block_1
-    mov w0, w0
     and x3, x3, #0x3ffffffffff
     add x3, x3, x24
-    ldrh w1, [x3, #12]
-    tbnz x1, #3, .Lasm_PutByValue.ssa_block_7
-    tbz x1, #4, 1f
+    ldrh w2, [x3, #12]
+    mov w0, w1
+    tbnz x2, #3, .Lasm_PutByValue.ssa_block_10
+    tbz x2, #4, 1f
     b .Lasm_PutByValue.ssa_block_1
 1:
     ldrb w1, [x3, #14]
     cmp x1, #1
-    b.ne .Lasm_PutByValue.ssa_switch_6_after_preferred
+    b.ne .Lasm_PutByValue.ssa_switch_9_after_preferred
     ldr w1, [x3, #16]
     cmp x0, x1
     b.hs .Lasm_PutByValue.ssa_block_1
     ldr x1, [x3, #40]
-    cbz x1, .Lasm_PutByValue.assert_predicate_failure_46
+    cbz x1, .Lasm_PutByValue.assert_predicate_failure_58
     ldur w2, [x1, #-8]
     cmp x0, x2
     b.hs .Lasm_PutByValue.ssa_block_1
@@ -4155,21 +4155,21 @@ asm_handler_PutByValue:
     add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_PutByValue.ssa_switch_6_after_preferred:
+.Lasm_PutByValue.ssa_switch_9_after_preferred:
     cmp x1, #2
     b.ne .Lasm_PutByValue.ssa_block_1
     ldr w1, [x3, #16]
     cmp x0, x1
     b.hs .Lasm_PutByValue.ssa_block_1
     ldr x1, [x3, #40]
-    cbz x1, .Lasm_PutByValue.ssa_block_2
+    cbz x1, .Lasm_PutByValue.ssa_block_4
     ldur w2, [x1, #-8]
     cmp x0, x2
-    b.hs .Lasm_PutByValue.ssa_block_2
+    b.hs .Lasm_PutByValue.ssa_block_4
     ldr x2, [x1, x0, lsl #3]
     movz x9, #0x7ffb, lsl #48
     cmp x2, x9
-    b.eq .Lasm_PutByValue.ssa_block_2
+    b.eq .Lasm_PutByValue.ssa_block_4
     ldr w2, [x21, #12]
     ldr x2, [x27, x2, lsl #3]
     str x2, [x1, x0, lsl #3]
@@ -4177,10 +4177,10 @@ asm_handler_PutByValue:
     add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_PutByValue.ssa_block_7:
+.Lasm_PutByValue.ssa_block_10:
     ldr x2, [x3, #88]
     cmn x2, #1
-    b.eq .Lasm_PutByValue.ssa_block_3
+    b.eq .Lasm_PutByValue.ssa_block_5
     mov x1, x20
     ldr x1, [x1, #56]
     cbz x1, .Lasm_PutByValue.assert_failure_0
@@ -4192,25 +4192,25 @@ asm_handler_PutByValue:
     ldr x4, [x27, x4, lsl #3]
     lsr x5, x4, #48
     cmp w5, w22
-    b.ne .Lasm_PutByValue.ssa_block_4
+    b.ne .Lasm_PutByValue.ssa_block_6
     sxtw x4, w4
     cmp x3, #0
     ccmp x3, #5, #4, ne
-    b.eq .Lasm_PutByValue.ssa_block_11
+    b.eq .Lasm_PutByValue.ssa_block_14
     cmp x3, #2
     ccmp x3, #6, #4, ne
-    b.eq .Lasm_PutByValue.ssa_block_12
+    b.eq .Lasm_PutByValue.ssa_block_15
     cmp x3, #1
-    b.eq .Lasm_PutByValue.ssa_block_13
+    b.eq .Lasm_PutByValue.ssa_block_16
     cmp x3, #7
     ccmp x3, #3, #4, ne
-    b.eq .Lasm_PutByValue.ssa_block_14
+    b.eq .Lasm_PutByValue.ssa_block_17
     cmp x3, #10
-    b.eq .Lasm_PutByValue.ssa_block_15
+    b.eq .Lasm_PutByValue.ssa_block_18
     cmp x3, #11
-    b.eq .Lasm_PutByValue.ssa_block_16
-    b .Lasm_PutByValue.ssa_block_3
-.Lasm_PutByValue.ssa_block_11:
+    b.eq .Lasm_PutByValue.ssa_block_19
+    b .Lasm_PutByValue.ssa_block_5
+.Lasm_PutByValue.ssa_block_14:
     add x0, x2, x0
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
@@ -4219,7 +4219,7 @@ asm_handler_PutByValue:
     add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_PutByValue.ssa_block_12:
+.Lasm_PutByValue.ssa_block_15:
     add x0, x2, x0, lsl #1
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
@@ -4228,24 +4228,24 @@ asm_handler_PutByValue:
     add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_PutByValue.ssa_block_13:
+.Lasm_PutByValue.ssa_block_16:
     add x0, x2, x0
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
-    tbz w4, #31, .Lasm_PutByValue.ssa_block_18
+    tbz w4, #31, .Lasm_PutByValue.ssa_block_21
     mov x4, #0
-.Lasm_PutByValue.ssa_block_19:
+.Lasm_PutByValue.ssa_block_22:
     strb w4, [x0]
     ldrb w9, [x21, #32]
     add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_PutByValue.ssa_block_18:
+.Lasm_PutByValue.ssa_block_21:
     cmp w4, #255
-    b.lt .Lasm_PutByValue.ssa_block_19
+    b.lt .Lasm_PutByValue.ssa_block_22
     mov w4, #255
-    b .Lasm_PutByValue.ssa_block_19
-.Lasm_PutByValue.ssa_block_14:
+    b .Lasm_PutByValue.ssa_block_22
+.Lasm_PutByValue.ssa_block_17:
     add x0, x2, x0, lsl #2
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
@@ -4254,7 +4254,7 @@ asm_handler_PutByValue:
     add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_PutByValue.ssa_block_15:
+.Lasm_PutByValue.ssa_block_18:
     add x0, x2, x0, lsl #2
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
@@ -4265,7 +4265,7 @@ asm_handler_PutByValue:
     add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_PutByValue.ssa_block_16:
+.Lasm_PutByValue.ssa_block_19:
     add x0, x2, x0, lsl #3
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
@@ -4276,13 +4276,13 @@ asm_handler_PutByValue:
     add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_PutByValue.ssa_block_4:
+.Lasm_PutByValue.ssa_block_6:
     cmp x3, #10
-    b.ne .Lasm_PutByValue.ssa_switch_4_after_preferred
+    b.ne .Lasm_PutByValue.ssa_switch_6_after_preferred
     and w5, w5, #0x7ff8
     mov w9, #32760
     cmp w5, w9
-    b.eq .Lasm_PutByValue.ssa_block_3
+    b.eq .Lasm_PutByValue.ssa_block_5
     add x0, x2, x0, lsl #2
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
@@ -4293,24 +4293,24 @@ asm_handler_PutByValue:
     add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_PutByValue.ssa_switch_4_after_preferred:
+.Lasm_PutByValue.ssa_switch_6_after_preferred:
     cmp x3, #11
-    b.eq .Lasm_PutByValue.ssa_block_23
+    b.eq .Lasm_PutByValue.ssa_block_27
     cmp x3, #0
     ccmp x3, #5, #4, ne
-    b.eq .Lasm_PutByValue.ssa_block_24
+    b.eq .Lasm_PutByValue.ssa_block_28
     cmp x3, #2
     ccmp x3, #6, #4, ne
-    b.eq .Lasm_PutByValue.ssa_block_25
+    b.eq .Lasm_PutByValue.ssa_block_29
     cmp x3, #7
     ccmp x3, #3, #4, ne
-    b.eq .Lasm_PutByValue.ssa_block_26
-    b .Lasm_PutByValue.ssa_block_3
-.Lasm_PutByValue.ssa_block_23:
+    b.eq .Lasm_PutByValue.ssa_block_30
+    b .Lasm_PutByValue.ssa_block_5
+.Lasm_PutByValue.ssa_block_27:
     and w5, w5, #0x7ff8
     mov w9, #32760
     cmp w5, w9
-    b.eq .Lasm_PutByValue.ssa_block_3
+    b.eq .Lasm_PutByValue.ssa_block_5
     add x0, x2, x0, lsl #3
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
@@ -4319,18 +4319,18 @@ asm_handler_PutByValue:
     add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_PutByValue.ssa_block_24:
+.Lasm_PutByValue.ssa_block_28:
     cmp x5, x22
     ccmp x5, x23, #4, ne
-    b.eq .Lasm_PutByValue.ssa_block_29
+    b.eq .Lasm_PutByValue.ssa_block_33
     and w5, w5, #0x7ff8
     mov w9, #32760
     cmp w5, w9
-    b.ne .Lasm_PutByValue.ssa_block_30
-    b .Lasm_PutByValue.ssa_block_3
-.Lasm_PutByValue.ssa_block_29:
+    b.ne .Lasm_PutByValue.ssa_block_34
+    b .Lasm_PutByValue.ssa_block_5
+.Lasm_PutByValue.ssa_block_33:
     sxtw x3, w4
-.Lasm_PutByValue.ssa_block_31:
+.Lasm_PutByValue.ssa_block_35:
     add x0, x2, x0
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
@@ -4339,18 +4339,18 @@ asm_handler_PutByValue:
     add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_PutByValue.ssa_block_25:
+.Lasm_PutByValue.ssa_block_29:
     cmp x5, x22
     ccmp x5, x23, #4, ne
-    b.eq .Lasm_PutByValue.ssa_block_33
+    b.eq .Lasm_PutByValue.ssa_block_37
     and w5, w5, #0x7ff8
     mov w9, #32760
     cmp w5, w9
-    b.ne .Lasm_PutByValue.ssa_block_34
-    b .Lasm_PutByValue.ssa_block_3
-.Lasm_PutByValue.ssa_block_33:
+    b.ne .Lasm_PutByValue.ssa_block_38
+    b .Lasm_PutByValue.ssa_block_5
+.Lasm_PutByValue.ssa_block_37:
     sxtw x3, w4
-.Lasm_PutByValue.ssa_block_35:
+.Lasm_PutByValue.ssa_block_39:
     add x0, x2, x0, lsl #1
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
@@ -4359,22 +4359,69 @@ asm_handler_PutByValue:
     add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_PutByValue.ssa_block_26:
+.Lasm_PutByValue.ssa_block_30:
     cmp x5, x22
     ccmp x5, x23, #4, ne
-    b.eq .Lasm_PutByValue.ssa_block_37
+    b.eq .Lasm_PutByValue.ssa_block_41
     and w5, w5, #0x7ff8
     mov w9, #32760
     cmp w5, w9
-    b.ne .Lasm_PutByValue.ssa_block_38
-    b .Lasm_PutByValue.ssa_block_3
-.Lasm_PutByValue.ssa_block_37:
+    b.ne .Lasm_PutByValue.ssa_block_42
+    b .Lasm_PutByValue.ssa_block_5
+.Lasm_PutByValue.ssa_block_41:
     sxtw x3, w4
-.Lasm_PutByValue.ssa_block_39:
+.Lasm_PutByValue.ssa_block_43:
     add x0, x2, x0, lsl #2
     and x0, x0, #0x3ffffffffff
     adds x1, x1, x0
     str w3, [x1]
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_PutByValue.ssa_block_3:
+    ldr w0, [x21, #4]
+    ldr x2, [x27, x0, lsl #3]
+    lsr x9, x2, #48
+    mov w10, #65529
+    cmp x9, x10
+    b.ne .Lasm_PutByValue.ssa_block_1
+    ldr x0, [x28, #88]
+    cbz x0, .Lasm_PutByValue.assert_predicate_failure_148
+    ldr x0, [x0, #80]
+    cbz x0, .Lasm_PutByValue.assert_failure_1
+    ldr w3, [x21, #24]
+    ldr x0, [x0, x3, lsl #3]
+    cbz x0, .Lasm_PutByValue.ssa_block_2
+    and x0, x0, #0xfffffffffffffffc
+    cbz x0, .Lasm_PutByValue.assert_predicate_failure_182
+    ldr x9, [x0, #48]
+    cmp x9, x1
+    b.ne .Lasm_PutByValue.ssa_block_2
+    and x2, x2, #0x3ffffffffff
+    add x2, x2, x24
+    ldr x1, [x2, #24]
+    cbz x1, .Lasm_PutByValue.assert_failure_2
+    ldp x4, x3, [x0, #24]
+    cmp x4, x1
+    b.ne .Lasm_PutByValue.ssa_block_2
+    cbnz x3, .Lasm_PutByValue.ssa_block_2
+    ldp w3, w4, [x0, #4]
+    ldr w9, [x1, #52]
+    cmp w9, w4
+    b.ne .Lasm_PutByValue.ssa_block_2
+    ldr x1, [x2, #32]
+    cbz x1, .Lasm_PutByValue.assert_failure_3
+    ldr x2, [x1, x3, lsl #3]
+    lsr x9, x2, #48
+    mov w10, #65532
+    cmp x9, x10
+    b.eq .Lasm_PutByValue.ssa_block_2
+    ldrb w9, [x0, #13]
+    cbz w9, .Lasm_PutByValue.ssa_block_2
+    ldr w0, [x21, #12]
+    ldr x0, [x27, x0, lsl #3]
+    str x0, [x1, x3, lsl #3]
     ldrb w9, [x21, #32]
     add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
@@ -4480,33 +4527,33 @@ asm_handler_PutById_hot_end:
 
 .p2align 4
 asm_handler_GetByValue:
+    ldr w0, [x21, #12]
+    ldr x1, [x27, x0, lsl #3]
+    lsr x9, x1, #48
+    cmp x9, x22
+    b.ne .Lasm_GetByValue.ssa_block_4
     ldr w0, [x21, #8]
     ldr x3, [x27, x0, lsl #3]
     lsr x9, x3, #48
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_GetByValue.ssa_block_1
-    ldr w0, [x21, #12]
-    ldr x0, [x27, x0, lsl #3]
-    lsr x9, x0, #48
-    cmp x9, x22
-    b.ne .Lasm_GetByValue.ssa_block_1
-    mov w0, w0
     and x3, x3, #0x3ffffffffff
     add x3, x3, x24
-    ldrh w1, [x3, #12]
-    tbnz x1, #3, .Lasm_GetByValue.ssa_block_13
-    tbz x1, #4, 1f
+    ldrh w2, [x3, #12]
+    mov w0, w1
+    tbnz x2, #3, .Lasm_GetByValue.ssa_block_16
+    tbz x2, #4, 1f
     b .Lasm_GetByValue.ssa_block_1
 1:
     ldrb w1, [x3, #14]
     cmp x1, #1
-    b.ne .Lasm_GetByValue.ssa_switch_14_after_preferred
+    b.ne .Lasm_GetByValue.ssa_switch_17_after_preferred
     ldr w1, [x3, #16]
     cmp x0, x1
     b.hs .Lasm_GetByValue.ssa_block_1
     ldr x1, [x3, #40]
-    cbz x1, .Lasm_GetByValue.assert_predicate_failure_51
+    cbz x1, .Lasm_GetByValue.assert_predicate_failure_63
     ldur w2, [x1, #-8]
     cmp x0, x2
     b.hs .Lasm_GetByValue.ssa_block_1
@@ -4517,7 +4564,7 @@ asm_handler_GetByValue:
     add x21, x21, #24
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GetByValue.ssa_switch_14_after_preferred:
+.Lasm_GetByValue.ssa_switch_17_after_preferred:
     cmp x1, #2
     b.ne .Lasm_GetByValue.ssa_block_1
     ldr w1, [x3, #16]
@@ -4538,19 +4585,19 @@ asm_handler_GetByValue:
     add x21, x21, #24
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GetByValue.ssa_block_13:
+.Lasm_GetByValue.ssa_block_16:
     ldr x2, [x3, #88]
     cmn x2, #1
-    b.eq .Lasm_GetByValue.ssa_block_2
+    b.eq .Lasm_GetByValue.ssa_block_3
     mov x1, x20
     ldr x1, [x1, #56]
     cbz x1, .Lasm_GetByValue.assert_failure_0
     ldr w4, [x3, #76]
     cmp x0, x4
-    b.hs .Lasm_GetByValue.ssa_block_2
+    b.hs .Lasm_GetByValue.ssa_block_3
     ldrb w3, [x3, #72]
     cmp x3, #2
-    b.hs .Lasm_GetByValue.ssa_switch_13_after_preferred
+    b.hs .Lasm_GetByValue.ssa_switch_16_after_preferred
     add x0, x2, x0
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
@@ -4562,55 +4609,55 @@ asm_handler_GetByValue:
     add x21, x21, #24
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GetByValue.ssa_switch_13_after_preferred:
+.Lasm_GetByValue.ssa_switch_16_after_preferred:
     cmp x3, #7
-    b.eq .Lasm_GetByValue.ssa_block_18
-    cmp x3, #2
-    b.eq .Lasm_GetByValue.ssa_block_19
-    cmp x3, #5
-    b.eq .Lasm_GetByValue.ssa_block_20
-    cmp x3, #6
     b.eq .Lasm_GetByValue.ssa_block_21
-    cmp x3, #3
+    cmp x3, #2
     b.eq .Lasm_GetByValue.ssa_block_22
-    cmp x3, #10
+    cmp x3, #5
     b.eq .Lasm_GetByValue.ssa_block_23
-    cmp x3, #11
+    cmp x3, #6
     b.eq .Lasm_GetByValue.ssa_block_24
-    b .Lasm_GetByValue.ssa_block_2
-.Lasm_GetByValue.ssa_block_18:
+    cmp x3, #3
+    b.eq .Lasm_GetByValue.ssa_block_25
+    cmp x3, #10
+    b.eq .Lasm_GetByValue.ssa_block_26
+    cmp x3, #11
+    b.eq .Lasm_GetByValue.ssa_block_27
+    b .Lasm_GetByValue.ssa_block_3
+.Lasm_GetByValue.ssa_block_21:
     add x0, x2, x0, lsl #2
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
     ldr w0, [x0]
-    b .Lasm_GetByValue.ssa_block_5
-.Lasm_GetByValue.ssa_block_19:
+    b .Lasm_GetByValue.ssa_block_7
+.Lasm_GetByValue.ssa_block_22:
     add x0, x2, x0, lsl #1
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
     ldrh w0, [x0]
-    b .Lasm_GetByValue.ssa_block_5
-.Lasm_GetByValue.ssa_block_20:
+    b .Lasm_GetByValue.ssa_block_7
+.Lasm_GetByValue.ssa_block_23:
     add x0, x2, x0
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
     ldrsb w0, [x0]
-    b .Lasm_GetByValue.ssa_block_5
-.Lasm_GetByValue.ssa_block_21:
+    b .Lasm_GetByValue.ssa_block_7
+.Lasm_GetByValue.ssa_block_24:
     add x0, x2, x0, lsl #1
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
     ldrsh w0, [x0]
-    b .Lasm_GetByValue.ssa_block_5
-.Lasm_GetByValue.ssa_block_22:
+    b .Lasm_GetByValue.ssa_block_7
+.Lasm_GetByValue.ssa_block_25:
     add x0, x2, x0, lsl #2
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
     ldr w0, [x0]
     tbz x0, #31, 1f
-    b .Lasm_GetByValue.ssa_block_6
+    b .Lasm_GetByValue.ssa_block_8
 1:
-.Lasm_GetByValue.ssa_block_5:
+.Lasm_GetByValue.ssa_block_7:
     movk x0, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
@@ -4618,7 +4665,7 @@ asm_handler_GetByValue:
     add x21, x21, #24
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GetByValue.ssa_block_23:
+.Lasm_GetByValue.ssa_block_26:
     add x0, x2, x0, lsl #2
     and x0, x0, #0x3ffffffffff
     adds x0, x0, x1
@@ -4627,13 +4674,13 @@ asm_handler_GetByValue:
     fmov x0, d0
     movz x1, #0x8000, lsl #48
     cmp x0, x1
-    b.eq .Lasm_GetByValue.ssa_block_4
+    b.eq .Lasm_GetByValue.ssa_block_6
     fcvtzs w0, d0
     scvtf d16, w0
     fcmp d0, d16
-    b.ne .Lasm_GetByValue.ssa_block_4
-    b .Lasm_GetByValue.ssa_block_3
-.Lasm_GetByValue.ssa_block_24:
+    b.ne .Lasm_GetByValue.ssa_block_6
+    b .Lasm_GetByValue.ssa_block_5
+.Lasm_GetByValue.ssa_block_27:
     add x0, x2, x0, lsl #3
     and x0, x0, #0x3ffffffffff
     adds x1, x1, x0
@@ -4641,12 +4688,12 @@ asm_handler_GetByValue:
     fmov d0, x0
     movz x1, #0x8000, lsl #48
     cmp x0, x1
-    b.eq .Lasm_GetByValue.ssa_block_4
+    b.eq .Lasm_GetByValue.ssa_block_6
     fcvtzs w0, d0
     scvtf d16, w0
     fcmp d0, d16
-    b.ne .Lasm_GetByValue.ssa_block_4
-.Lasm_GetByValue.ssa_block_3:
+    b.ne .Lasm_GetByValue.ssa_block_6
+.Lasm_GetByValue.ssa_block_5:
     movk x0, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
@@ -4654,11 +4701,59 @@ asm_handler_GetByValue:
     add x21, x21, #24
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GetByValue.ssa_block_4:
+.Lasm_GetByValue.ssa_block_6:
     fmov x0, d0
     fcmp d0, d0
     b.vs .Lasm_GetByValue.canon_nan_1
 .Lasm_GetByValue.canon_nan_1_ret:
+    ldr w9, [x21, #4]
+    str x0, [x27, x9, lsl #3]
+    ldrb w9, [x21, #24]
+    add x21, x21, #24
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetByValue.ssa_block_4:
+    ldr w0, [x21, #8]
+    ldr x2, [x27, x0, lsl #3]
+    lsr x9, x2, #48
+    mov w10, #65529
+    cmp x9, x10
+    b.ne .Lasm_GetByValue.ssa_block_1
+    ldr x0, [x28, #88]
+    cbz x0, .Lasm_GetByValue.assert_predicate_failure_166
+    ldr x0, [x0, #80]
+    cbz x0, .Lasm_GetByValue.assert_failure_2
+    ldr w3, [x21, #20]
+    ldr x0, [x0, x3, lsl #3]
+    cbz x0, .Lasm_GetByValue.ssa_block_2
+    and x0, x0, #0xfffffffffffffffc
+    cbz x0, .Lasm_GetByValue.assert_predicate_failure_175
+    ldr x9, [x0, #48]
+    cmp x9, x1
+    b.ne .Lasm_GetByValue.ssa_block_2
+    and x2, x2, #0x3ffffffffff
+    add x2, x2, x24
+    ldr x1, [x2, #24]
+    cbz x1, .Lasm_GetByValue.assert_failure_3
+    ldp x4, x3, [x0, #24]
+    cmp x4, x1
+    b.ne .Lasm_GetByValue.ssa_block_2
+    ldr w4, [x0]
+    cmp w4, #6
+    b.eq .Lasm_GetByValue.ssa_block_2
+    ldr w4, [x0, #8]
+    ldr w9, [x1, #52]
+    cmp w9, w4
+    b.ne .Lasm_GetByValue.ssa_block_2
+    cbnz x3, .Lasm_GetByValue.ssa_block_2
+    ldr x1, [x2, #32]
+    cbz x1, .Lasm_GetByValue.assert_failure_4
+    ldr w0, [x0, #4]
+    ldr x0, [x1, x0, lsl #3]
+    lsr x9, x0, #48
+    mov w10, #65532
+    cmp x9, x10
+    b.eq .Lasm_GetByValue.ssa_block_1
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
@@ -4751,10 +4846,11 @@ asm_handler_GetGlobal:
     ldr x1, [x0, #104]
     cbz x1, .Lasm_GetGlobal.assert_failure_0
     ldr w0, [x21, #12]
-    lsl x0, x0, #6
+    mov w9, #72
+    mul x0, x0, x9
     adds x0, x0, x1
     cbz x0, .Lasm_GetGlobal.assert_predicate_failure_15
-    ldr x1, [x0, #48]
+    ldr x1, [x0, #56]
     ldr x9, [x2, #64]
     cmp x9, x1
     b.ne .Lasm_GetGlobal.ssa_block_1
@@ -4781,11 +4877,11 @@ asm_handler_GetGlobal:
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_GetGlobal.ssa_block_2:
-    ldrb w9, [x0, #60]
+    ldrb w9, [x0, #68]
     cbz w9, .Lasm_GetGlobal.ssa_block_1
     ldr x1, [x2, #32]
     cbz x1, .Lasm_GetGlobal.assert_failure_3
-    ldr w0, [x0, #56]
+    ldr w0, [x0, #64]
     ldr x0, [x1, x0, lsl #3]
     movz x9, #0x7ffb, lsl #48
     cmp x0, x9
@@ -4807,10 +4903,11 @@ asm_handler_SetGlobal:
     ldr x2, [x0, #104]
     cbz x2, .Lasm_SetGlobal.assert_failure_0
     ldr w0, [x21, #12]
-    lsl x0, x0, #6
+    mov w9, #72
+    mul x0, x0, x9
     adds x0, x0, x2
     cbz x0, .Lasm_SetGlobal.assert_predicate_failure_15
-    ldr x2, [x0, #48]
+    ldr x2, [x0, #56]
     ldr x9, [x1, #64]
     cmp x9, x2
     b.ne .Lasm_SetGlobal.ssa_block_1
@@ -4840,9 +4937,9 @@ asm_handler_SetGlobal:
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_SetGlobal.ssa_block_2:
-    ldrb w9, [x0, #60]
+    ldrb w9, [x0, #68]
     cbz w9, .Lasm_SetGlobal.ssa_block_1
-    ldr w0, [x0, #56]
+    ldr w0, [x0, #64]
     ldr x2, [x1, #32]
     cbz x2, .Lasm_SetGlobal.assert_failure_3
     ldr x3, [x2, x0, lsl #3]
@@ -11821,49 +11918,76 @@ asm_handler_ToInt32_cold:
 asm_handler_ToInt32_cold_end:
 asm_handler_PutByValue_cold:
 // Cold paths for PutByValue
-.Lasm_PutByValue.ssa_block_30:
-    fmov d0, x4
-    fcvtzs w3, d0
-    scvtf d16, w3
-    fcmp d0, d16
-    b.ne .Lasm_PutByValue.ssa_block_3
-    b .Lasm_PutByValue.ssa_block_31
 .Lasm_PutByValue.ssa_block_34:
     fmov d0, x4
     fcvtzs w3, d0
     scvtf d16, w3
     fcmp d0, d16
-    b.ne .Lasm_PutByValue.ssa_block_3
+    b.ne .Lasm_PutByValue.ssa_block_5
     b .Lasm_PutByValue.ssa_block_35
 .Lasm_PutByValue.ssa_block_38:
     fmov d0, x4
     fcvtzs w3, d0
     scvtf d16, w3
     fcmp d0, d16
-    b.ne .Lasm_PutByValue.ssa_block_3
+    b.ne .Lasm_PutByValue.ssa_block_5
     b .Lasm_PutByValue.ssa_block_39
-.Lasm_PutByValue.ssa_block_3:
+.Lasm_PutByValue.ssa_block_42:
+    fmov d0, x4
+    fcvtzs w3, d0
+    scvtf d16, w3
+    fcmp d0, d16
+    b.ne .Lasm_PutByValue.ssa_block_5
+    b .Lasm_PutByValue.ssa_block_43
+.Lasm_PutByValue.ssa_block_5:
     sub sp, sp, #32
     ldr w12, [x21, #4]
     ldr x11, [x27, x12, lsl #3]
-.Lasm_PutByValue.value_ready_2:
+.Lasm_PutByValue.value_ready_5:
     str x11, [sp]
     ldr w12, [x21, #8]
     ldr x11, [x27, x12, lsl #3]
-.Lasm_PutByValue.value_ready_3:
+.Lasm_PutByValue.value_ready_6:
     str x11, [sp, #8]
     ldr w12, [x21, #12]
     ldr x11, [x27, x12, lsl #3]
-.Lasm_PutByValue.value_ready_4:
+.Lasm_PutByValue.value_ready_7:
     str x11, [sp, #16]
     mov x0, x20
     sub w1, w21, w26
     mov x2, x21
     add x3, sp, #0
     bl CSYM(asm_try_put_by_value_typed_array)
-.Lasm_PutByValue.values_restore_stack_5:
+.Lasm_PutByValue.values_restore_stack_8:
     add sp, sp, #32
-.Lasm_PutByValue.values_call_done_1:
+.Lasm_PutByValue.values_call_done_4:
+    cbnz w0, .Lasm_PutByValue.ssa_block_1
+    ldrb w9, [x21, #32]
+    add x21, x21, #32
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_PutByValue.ssa_block_2:
+    sub sp, sp, #32
+    ldr w12, [x21, #4]
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_PutByValue.value_ready_10:
+    str x11, [sp]
+    ldr w12, [x21, #8]
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_PutByValue.value_ready_11:
+    str x11, [sp, #8]
+    ldr w12, [x21, #12]
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_PutByValue.value_ready_12:
+    str x11, [sp, #16]
+    mov x0, x20
+    sub w1, w21, w26
+    mov x2, x21
+    add x3, sp, #0
+    bl CSYM(asm_try_put_by_value_cache)
+.Lasm_PutByValue.values_restore_stack_13:
+    add sp, sp, #32
+.Lasm_PutByValue.values_call_done_9:
     cbnz w0, .Lasm_PutByValue.ssa_block_1
     ldrb w9, [x21, #32]
     add x21, x21, #32
@@ -11875,42 +11999,42 @@ asm_handler_PutByValue_cold:
     str w1, [x28, #64]
     ldr w9, [x21, #4]
     ldr x10, [x27, x9, lsl #3]
-.Lasm_PutByValue.scalar_value_ready_6:
+.Lasm_PutByValue.scalar_value_ready_14:
     mov x3, x10
     ldr w9, [x21, #8]
     ldr x10, [x27, x9, lsl #3]
-.Lasm_PutByValue.scalar_value_ready_7:
+.Lasm_PutByValue.scalar_value_ready_15:
     mov x4, x10
     ldr w9, [x21, #12]
     ldr x10, [x27, x9, lsl #3]
-.Lasm_PutByValue.scalar_value_ready_8:
+.Lasm_PutByValue.scalar_value_ready_16:
     mov x5, x10
     mov x0, x20
     sub w1, w21, w26
     mov x2, x21
     bl CSYM(asm_slow_path_put_by_value)
     tbz x0, #63, 1f
-    b .Lasm_PutByValue.scalar_result_done_9
+    b .Lasm_PutByValue.scalar_result_done_17
 1:
     tbnz x0, #32, 1f
-    b .Lasm_PutByValue.scalar_result_done_9
+    b .Lasm_PutByValue.scalar_result_done_17
 1:
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_PutByValue.scalar_result_done_9:
+.Lasm_PutByValue.scalar_result_done_17:
     tbz x0, #63, 1f
     b .Lexit
 1:
     tbnz x0, #32, 1f
-    b .Lasm_PutByValue.slow_path_transfer_10
+    b .Lasm_PutByValue.slow_path_transfer_18
 1:
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_PutByValue.slow_path_transfer_10:
+.Lasm_PutByValue.slow_path_transfer_18:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
@@ -11919,28 +12043,28 @@ asm_handler_PutByValue_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_PutByValue.ssa_block_2:
+.Lasm_PutByValue.ssa_block_4:
     sub sp, sp, #32
     ldr w12, [x21, #4]
     ldr x11, [x27, x12, lsl #3]
-.Lasm_PutByValue.value_ready_12:
+.Lasm_PutByValue.value_ready_20:
     str x11, [sp]
     ldr w12, [x21, #8]
     ldr x11, [x27, x12, lsl #3]
-.Lasm_PutByValue.value_ready_13:
+.Lasm_PutByValue.value_ready_21:
     str x11, [sp, #8]
     ldr w12, [x21, #12]
     ldr x11, [x27, x12, lsl #3]
-.Lasm_PutByValue.value_ready_14:
+.Lasm_PutByValue.value_ready_22:
     str x11, [sp, #16]
     mov x0, x20
     sub w1, w21, w26
     mov x2, x21
     add x3, sp, #0
     bl CSYM(asm_try_put_by_value_holey_array)
-.Lasm_PutByValue.values_restore_stack_15:
+.Lasm_PutByValue.values_restore_stack_23:
     add sp, sp, #32
-.Lasm_PutByValue.values_call_done_11:
+.Lasm_PutByValue.values_call_done_19:
     cbnz w0, .Lasm_PutByValue.ssa_block_1
     ldrb w9, [x21, #32]
     add x21, x21, #32
@@ -12443,7 +12567,7 @@ asm_handler_PutByIdWithThis_cold_end:
 
 asm_handler_GetByValue_cold:
 // Cold paths for GetByValue
-.Lasm_GetByValue.ssa_block_6:
+.Lasm_GetByValue.ssa_block_8:
     scvtf d0, x0
     fmov x0, d0
     ldr w9, [x21, #4]
@@ -12452,15 +12576,15 @@ asm_handler_GetByValue_cold:
     add x21, x21, #24
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GetByValue.ssa_block_2:
+.Lasm_GetByValue.ssa_block_3:
     sub sp, sp, #32
     ldr w12, [x21, #8]
     ldr x11, [x27, x12, lsl #3]
-.Lasm_GetByValue.value_ready_3:
+.Lasm_GetByValue.value_ready_6:
     str x11, [sp, #8]
     ldr w12, [x21, #12]
     ldr x11, [x27, x12, lsl #3]
-.Lasm_GetByValue.value_ready_4:
+.Lasm_GetByValue.value_ready_7:
     str x11, [sp, #16]
     mov x0, x20
     sub w1, w21, w26
@@ -12469,17 +12593,50 @@ asm_handler_GetByValue_cold:
     bl CSYM(asm_try_get_by_value_typed_array)
     ldr x9, [x20]
     cmp x9, x28
-    b.ne .Lasm_GetByValue.values_restore_stack_5
-    cbnz x0, .Lasm_GetByValue.values_exceptional_outputs_6
+    b.ne .Lasm_GetByValue.values_restore_stack_8
+    cbnz x0, .Lasm_GetByValue.values_exceptional_outputs_9
     ldr w12, [x21, #4]
     ldr x11, [sp]
     str x11, [x27, x12, lsl #3]
-.Lasm_GetByValue.skip_output_value_7:
-    b .Lasm_GetByValue.values_restore_stack_5
-.Lasm_GetByValue.values_exceptional_outputs_6:
-.Lasm_GetByValue.values_restore_stack_5:
+.Lasm_GetByValue.skip_output_value_10:
+    b .Lasm_GetByValue.values_restore_stack_8
+.Lasm_GetByValue.values_exceptional_outputs_9:
+.Lasm_GetByValue.values_restore_stack_8:
     add sp, sp, #32
-.Lasm_GetByValue.values_call_done_2:
+.Lasm_GetByValue.values_call_done_5:
+    cbnz w0, .Lasm_GetByValue.ssa_block_1
+    ldrb w9, [x21, #24]
+    add x21, x21, #24
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetByValue.ssa_block_2:
+    sub sp, sp, #32
+    ldr w12, [x21, #8]
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_GetByValue.value_ready_12:
+    str x11, [sp, #8]
+    ldr w12, [x21, #12]
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_GetByValue.value_ready_13:
+    str x11, [sp, #16]
+    mov x0, x20
+    sub w1, w21, w26
+    mov x2, x21
+    add x3, sp, #0
+    bl CSYM(asm_try_get_by_value_cache)
+    ldr x9, [x20]
+    cmp x9, x28
+    b.ne .Lasm_GetByValue.values_restore_stack_14
+    cbnz x0, .Lasm_GetByValue.values_exceptional_outputs_15
+    ldr w12, [x21, #4]
+    ldr x11, [sp]
+    str x11, [x27, x12, lsl #3]
+.Lasm_GetByValue.skip_output_value_16:
+    b .Lasm_GetByValue.values_restore_stack_14
+.Lasm_GetByValue.values_exceptional_outputs_15:
+.Lasm_GetByValue.values_restore_stack_14:
+    add sp, sp, #32
+.Lasm_GetByValue.values_call_done_11:
     cbnz w0, .Lasm_GetByValue.ssa_block_1
     ldrb w9, [x21, #24]
     add x21, x21, #24
@@ -12491,21 +12648,21 @@ asm_handler_GetByValue_cold:
     str w1, [x28, #64]
     ldr w9, [x21, #8]
     ldr x10, [x27, x9, lsl #3]
-.Lasm_GetByValue.scalar_value_ready_8:
+.Lasm_GetByValue.scalar_value_ready_17:
     mov x3, x10
     ldr w9, [x21, #12]
     ldr x10, [x27, x9, lsl #3]
-.Lasm_GetByValue.scalar_value_ready_9:
+.Lasm_GetByValue.scalar_value_ready_18:
     mov x4, x10
     mov x0, x20
     sub w1, w21, w26
     mov x2, x21
     bl CSYM(asm_slow_path_get_by_value)
     tbz x0, #63, 1f
-    b .Lasm_GetByValue.scalar_result_done_10
+    b .Lasm_GetByValue.scalar_result_done_19
 1:
     tbnz x0, #32, 1f
-    b .Lasm_GetByValue.scalar_result_done_10
+    b .Lasm_GetByValue.scalar_result_done_19
 1:
     ldr w9, [x21, #4]
     str x1, [x27, x9, lsl #3]
@@ -12513,18 +12670,18 @@ asm_handler_GetByValue_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GetByValue.scalar_result_done_10:
+.Lasm_GetByValue.scalar_result_done_19:
     tbz x0, #63, 1f
     b .Lexit
 1:
     tbnz x0, #32, 1f
-    b .Lasm_GetByValue.slow_path_transfer_11
+    b .Lasm_GetByValue.slow_path_transfer_20
 1:
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GetByValue.slow_path_transfer_11:
+.Lasm_GetByValue.slow_path_transfer_20:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
@@ -18802,9 +18959,19 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_failure_0:
     brk #0
-.Lasm_PutByValue.assert_predicate_failure_46:
+.Lasm_PutByValue.assert_predicate_failure_58:
     brk #0
 .Lasm_PutByValue.assert_failure_0:
+    brk #0
+.Lasm_PutByValue.assert_predicate_failure_148:
+    brk #0
+.Lasm_PutByValue.assert_failure_1:
+    brk #0
+.Lasm_PutByValue.assert_predicate_failure_182:
+    brk #0
+.Lasm_PutByValue.assert_failure_2:
+    brk #0
+.Lasm_PutByValue.assert_failure_3:
     brk #0
 .Lasm_GetById.assert_failure_0:
     brk #0
@@ -18866,9 +19033,19 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_PutById.assert_failure_2:
     brk #0
-.Lasm_GetByValue.assert_predicate_failure_51:
+.Lasm_GetByValue.assert_predicate_failure_63:
     brk #0
 .Lasm_GetByValue.assert_failure_0:
+    brk #0
+.Lasm_GetByValue.assert_predicate_failure_166:
+    brk #0
+.Lasm_GetByValue.assert_failure_2:
+    brk #0
+.Lasm_GetByValue.assert_predicate_failure_175:
+    brk #0
+.Lasm_GetByValue.assert_failure_3:
+    brk #0
+.Lasm_GetByValue.assert_failure_4:
     brk #0
 .Lasm_GetLength.assert_failure_0:
     brk #0
