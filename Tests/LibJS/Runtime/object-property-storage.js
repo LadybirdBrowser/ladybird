@@ -100,3 +100,82 @@ test("array storage replaced by array operations", () => {
     expect(args.length).toBe(1500);
     expect(args[777][0]).toBe(777);
 });
+
+test("object literals of every size keep their properties inline and grow beyond them", () => {
+    const literals = [];
+    for (let round = 0; round < 3; ++round) {
+        literals.push({});
+        literals.push({ a: 1 });
+        literals.push({ a: 1, b: 2, c: 3 });
+        literals.push({ a: 1, b: 2, c: 3, d: 4, e: 5 });
+        literals.push({ a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7 });
+        literals.push({ a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8, i: 9, j: 10, k: 11 });
+        literals.push({
+            a: 1,
+            b: 2,
+            c: 3,
+            d: 4,
+            e: 5,
+            f: 6,
+            g: 7,
+            h: 8,
+            i: 9,
+            j: 10,
+            k: 11,
+            l: 12,
+            m: 13,
+            n: 14,
+            o: 15,
+        });
+        literals.push({
+            a: 1,
+            b: 2,
+            c: 3,
+            d: 4,
+            e: 5,
+            f: 6,
+            g: 7,
+            h: 8,
+            i: 9,
+            j: 10,
+            k: 11,
+            l: 12,
+            m: 13,
+            n: 14,
+            o: 15,
+            p: 16,
+            q: 17,
+            r: 18,
+            s: 19,
+            t: 20,
+        });
+    }
+    gc();
+    for (const literal of literals) {
+        const keys = Object.keys(literal);
+        keys.forEach((key, index) => expect(literal[key]).toBe(index + 1));
+        for (let i = 0; i < 20; ++i) literal["added" + i] = { i };
+    }
+    gc();
+    for (const literal of literals) {
+        for (let i = 0; i < 20; ++i) expect(literal["added" + i].i).toBe(i);
+        expect(literal.a === undefined || literal.a === 1).toBeTrue();
+    }
+});
+
+test("strict arguments objects", () => {
+    function capture() {
+        "use strict";
+        return arguments;
+    }
+    const kept = [];
+    for (let i = 0; i < 100; ++i) kept.push(capture({ i }, String(i)));
+    gc();
+    kept.forEach((args, i) => {
+        expect(args.length).toBe(2);
+        expect(args[0].i).toBe(i);
+        expect(args[1]).toBe(String(i));
+        args.extra = i;
+        expect(args.extra).toBe(i);
+    });
+});
