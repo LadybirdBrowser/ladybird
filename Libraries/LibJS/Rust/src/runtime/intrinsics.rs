@@ -23,7 +23,7 @@ use crate::runtime::array_buffer_constructor::ArrayBufferConstructor;
 use crate::runtime::array_buffer_prototype::ArrayBufferPrototype;
 use crate::runtime::array_constructor::ArrayConstructor;
 use crate::runtime::array_iterator_prototype::ArrayIteratorPrototype;
-use crate::runtime::array_prototype::ArrayPrototype;
+use crate::runtime::array_prototype::{ArrayPrototype, array_species_create};
 use crate::runtime::async_disposable_stack_constructor::AsyncDisposableStackConstructor;
 use crate::runtime::async_disposable_stack_prototype::AsyncDisposableStackPrototype;
 use crate::runtime::async_from_sync_iterator_prototype::AsyncFromSyncIteratorPrototype;
@@ -38,7 +38,7 @@ use crate::runtime::big_int_constructor::BigIntConstructor;
 use crate::runtime::big_int_prototype::BigIntPrototype;
 use crate::runtime::boolean_constructor::BooleanConstructor;
 use crate::runtime::boolean_prototype::BooleanPrototype;
-use crate::runtime::completion::Must;
+use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::console_object::ConsoleObject;
 use crate::runtime::data_view_constructor::DataViewConstructor;
 use crate::runtime::data_view_prototype::DataViewPrototype;
@@ -433,6 +433,21 @@ define_intrinsics! {
     // JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ARRAY_CONSTRUCTOR_FUNCTIONS
     from_async_array_constructor_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
 
+    // JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ARRAY_PROTOTYPE_FUNCTIONS
+    every_array_prototype_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
+    filter_array_prototype_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
+    find_array_prototype_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
+    find_index_array_prototype_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
+    find_last_array_prototype_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
+    find_last_index_array_prototype_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
+    for_each_array_prototype_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
+    map_array_prototype_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
+    reduce_array_prototype_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
+    reduce_right_array_prototype_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
+    some_array_prototype_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
+
+    array_species_create_abstract_operation_function: Cell<Option<Gc<FunctionObject>>>,
+
     default_collator: Cell<Option<Gc<Collator>>>,
 }
 
@@ -815,6 +830,12 @@ fn array_constructor_source() -> Utf16String {
     ))
 }
 
+fn array_prototype_source() -> Utf16String {
+    Utf16String::from_utf8(include_str!(
+        "../../../Runtime/JavaScriptImplementations/ArrayPrototype.js"
+    ))
+}
+
 /// The shared data of each named function a builtin file declares at its top level, in source order.
 pub(crate) fn parse_builtin_file(vm: &Vm, script_text: Utf16String) -> MarkedVec<'_, Gc<SharedFunctionInstanceData>> {
     let code = SourceCode::create(Utf16String::from_utf8("BuiltinFile"), script_text);
@@ -829,32 +850,35 @@ pub(crate) fn parse_builtin_file(vm: &Vm, script_text: Utf16String) -> MarkedVec
     shared_data_list
 }
 
-/// The accessors of the functions a builtin file written in JavaScript declares, which parse the file and create the
-/// function the first time they are asked for.
+/// The accessors of the functions a builtin file written in JavaScript declares. The first time one of them is asked
+/// for, `$create` parses the file once and creates all of them.
 macro_rules! native_javascript_backed_function_accessors {
-    ($($name:ident: $source:ident, $function_name:literal, $length:literal;)*) => {
+    ($source:ident, $create:ident { $($name:ident: $function_name:literal, $length:literal;)* }) => {
         impl Intrinsics {
+            fn $create(&self, vm: &Vm) {
+                let shared_data_list = parse_builtin_file(vm, $source());
+                for shared_data in shared_data_list.to_vec() {
+                    let function_name = shared_data.name();
+                    $(
+                        if function_name == Utf16FlyString::from_utf8($function_name) {
+                            self.$name.set(Some(NativeJavaScriptBackedFunction::create(
+                                vm,
+                                self.realm,
+                                shared_data,
+                                &PropertyKey::from_fly_string(function_name.clone(), StringMayBeNumber::No),
+                                $length,
+                            )));
+                        }
+                    )*
+                }
+            }
+
             $(
                 pub fn $name(&self, vm: &Vm) -> Gc<NativeJavaScriptBackedFunction> {
-                    if let Some(function) = self.$name.get() {
-                        return function;
+                    if self.$name.get().is_none() {
+                        self.$create(vm);
                     }
-                    let shared_data_list = parse_builtin_file(vm, $source());
-                    let function_name = Utf16FlyString::from_utf8($function_name);
-                    let shared_data = shared_data_list
-                        .to_vec()
-                        .into_iter()
-                        .find(|shared_data| shared_data.name() == function_name)
-                        .expect(concat!("the builtin file declares ", $function_name));
-                    let function = NativeJavaScriptBackedFunction::create(
-                        vm,
-                        self.realm,
-                        shared_data,
-                        &PropertyKey::from_fly_string(function_name, StringMayBeNumber::No),
-                        $length,
-                    );
-                    self.$name.set(Some(function));
-                    function
+                    self.$name.get().expect(concat!("the builtin file declares ", $function_name))
                 }
             )*
         }
@@ -862,17 +886,61 @@ macro_rules! native_javascript_backed_function_accessors {
 }
 
 // JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ABSTRACT_OPERATIONS
-native_javascript_backed_function_accessors! {
-    async_iterator_close_abstract_operation_function: abstract_operations_source, "AsyncIteratorClose", 3;
-    get_method_abstract_operation_function: abstract_operations_source, "GetMethod", 2;
-    get_iterator_direct_abstract_operation_function: abstract_operations_source, "GetIteratorDirect", 1;
-    get_iterator_from_method_abstract_operation_function: abstract_operations_source, "GetIteratorFromMethod", 2;
-    iterator_complete_abstract_operation_function: abstract_operations_source, "IteratorComplete", 1;
-}
+native_javascript_backed_function_accessors!(abstract_operations_source, create_abstract_operation_functions {
+    async_iterator_close_abstract_operation_function: "AsyncIteratorClose", 3;
+    get_method_abstract_operation_function: "GetMethod", 2;
+    get_iterator_direct_abstract_operation_function: "GetIteratorDirect", 1;
+    get_iterator_from_method_abstract_operation_function: "GetIteratorFromMethod", 2;
+    iterator_complete_abstract_operation_function: "IteratorComplete", 1;
+});
 
 // JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ARRAY_CONSTRUCTOR_FUNCTIONS
-native_javascript_backed_function_accessors! {
-    from_async_array_constructor_function: array_constructor_source, "fromAsync", 1;
+native_javascript_backed_function_accessors!(array_constructor_source, create_array_constructor_functions {
+    from_async_array_constructor_function: "fromAsync", 1;
+});
+
+// JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ARRAY_PROTOTYPE_FUNCTIONS
+native_javascript_backed_function_accessors!(array_prototype_source, create_array_prototype_functions {
+    every_array_prototype_function: "every", 1;
+    filter_array_prototype_function: "filter", 1;
+    find_array_prototype_function: "find", 1;
+    find_index_array_prototype_function: "findIndex", 1;
+    find_last_array_prototype_function: "findLast", 1;
+    find_last_index_array_prototype_function: "findLastIndex", 1;
+    for_each_array_prototype_function: "forEach", 1;
+    map_array_prototype_function: "map", 1;
+    reduce_array_prototype_function: "reduce", 1;
+    reduce_right_array_prototype_function: "reduceRight", 1;
+    some_array_prototype_function: "some", 1;
+});
+
+impl Intrinsics {
+    /// The function behind `ArraySpeciesCreate()` in builtin files.
+    pub fn array_species_create_abstract_operation_function(&self, vm: &Vm) -> Gc<FunctionObject> {
+        if let Some(function) = self.array_species_create_abstract_operation_function.get() {
+            return function;
+        }
+        let function = RawNativeFunction::create(
+            vm,
+            raw_native!(array_species_create_abstract_operation),
+            2,
+            &PropertyKey::from(Utf16FlyString::from_utf8("ArraySpeciesCreate")),
+            Some(self.realm),
+            None,
+            None,
+        )
+        .upcast();
+        self.array_species_create_abstract_operation_function
+            .set(Some(function));
+        function
+    }
+}
+
+/// ArraySpeciesCreate ( originalArray, length ), for builtin files.
+fn array_species_create_abstract_operation(vm: &Vm) -> ThrowCompletionOr<Value> {
+    let original_array = vm.argument(0).as_object();
+    let length = vm.argument(1).as_f64() as u64;
+    Ok(Value::from_object(array_species_create(vm, &original_array, length)?))
 }
 
 impl Intrinsics {

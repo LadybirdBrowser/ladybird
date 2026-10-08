@@ -1914,6 +1914,9 @@ fn constant_value(vm: &Vm, constant: &ConstantValue) -> Value {
                 .expect("an executable that calls abstract operations is created in a realm")
                 .intrinsics();
             let function = match operation {
+                AbstractOperationKind::ArraySpeciesCreate => {
+                    return Value::from_object(intrinsics.array_species_create_abstract_operation_function(vm));
+                }
                 AbstractOperationKind::AsyncIteratorClose => {
                     intrinsics.async_iterator_close_abstract_operation_function(vm)
                 }

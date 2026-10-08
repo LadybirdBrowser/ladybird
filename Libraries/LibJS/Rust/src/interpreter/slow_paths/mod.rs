@@ -1423,6 +1423,24 @@ impl RuntimeFunctions for Runtime {
         control::throw_const_assignment(vm, pc)
     }
 
+    fn throw_not_a_function(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::ThrowNotAFunction,
+        values: &mut op::ThrowNotAFunctionValues,
+    ) -> SlowPathControl {
+        control::throw_not_a_function(vm, pc, values)
+    }
+
+    fn get_argument_count(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::GetArgumentCount,
+        values: &mut op::GetArgumentCountValues,
+    ) -> SlowPathControl {
+        control::get_argument_count(vm, pc, values)
+    }
+
     fn r#await(vm: &Vm, _pc: u32, instruction: &op::Await, values: &mut op::AwaitValues) -> SlowPathControl {
         control::r#await(vm, instruction, values)
     }

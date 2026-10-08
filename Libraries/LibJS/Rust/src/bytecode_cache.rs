@@ -49,7 +49,7 @@ use crate::compile::CompiledProgramBytecode;
 use crate::u32_from_usize;
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
-const FORMAT_VERSION: u32 = 20;
+const FORMAT_VERSION: u32 = 22;
 /// The size of the source hash a blob is keyed by.
 pub(crate) const SOURCE_HASH_SIZE: usize = 32;
 const BYTECODE_ALIGNMENT: usize = 8;
@@ -2188,7 +2188,7 @@ fn validate_constant_value(decoder: &mut Decoder<'_>) -> Option<()> {
             _ => return None,
         },
         tag if tag == ConstantTag::AbstractOperation as u8 => match u8::decode(decoder)? {
-            0..=4 => {}
+            0..=5 => {}
             _ => return None,
         },
         _ => return None,
@@ -2273,6 +2273,7 @@ impl Decode for ConstantValue {
                 2 => Some(Self::AbstractOperation(AbstractOperationKind::GetIteratorDirect)),
                 3 => Some(Self::AbstractOperation(AbstractOperationKind::GetIteratorFromMethod)),
                 4 => Some(Self::AbstractOperation(AbstractOperationKind::IteratorComplete)),
+                5 => Some(Self::AbstractOperation(AbstractOperationKind::ArraySpeciesCreate)),
                 _ => None,
             },
             _ => None,

@@ -599,6 +599,16 @@ pub fn throw_if_nullish(vm: &Vm, pc: u32, values: &op::ThrowIfNullishValues) -> 
     SlowPathControl::continue_at(pc + op::ThrowIfNullish::LENGTH)
 }
 
+pub fn throw_not_a_function(vm: &Vm, pc: u32, values: &op::ThrowNotAFunctionValues) -> SlowPathControl {
+    throw_error(vm, pc, ErrorKind::TypeError, ErrorType::NotAFunction, &[&values.src])
+}
+
+pub fn get_argument_count(vm: &Vm, pc: u32, values: &mut op::GetArgumentCountValues) -> SlowPathControl {
+    let passed_argument_count = vm.running_execution_context_ref().passed_argument_count.get();
+    values.dst = Value::from_f64(f64::from(passed_argument_count));
+    SlowPathControl::continue_at(pc + op::GetArgumentCount::LENGTH)
+}
+
 pub fn throw_const_assignment(vm: &Vm, pc: u32) -> SlowPathControl {
     throw_error(vm, pc, ErrorKind::TypeError, ErrorType::InvalidAssignToConst, &[])
 }

@@ -84,6 +84,8 @@ asm_dispatch_table:
     .quad asm_handler_ThrowIfNotObject
     .quad asm_handler_ThrowIfNullish
     .quad asm_handler_ThrowConstAssignment
+    .quad asm_handler_ThrowNotAFunction
+    .quad asm_handler_GetArgumentCount
     .quad asm_handler_Throw
     .quad asm_handler_Debugger
     .quad asm_handler_Await
@@ -230,8 +232,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsRhsInt32
     .quad asm_handler_JumpLooselyEqualsRhsInt32
     .quad asm_handler_JumpLooselyInequalsRhsInt32
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -821,6 +821,14 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_ThrowConstAssignment_hot_end
     .quad asm_handler_ThrowConstAssignment_cold
     .quad asm_handler_ThrowConstAssignment_cold_end
+    .quad asm_handler_ThrowNotAFunction
+    .quad asm_handler_ThrowNotAFunction_hot_end
+    .quad asm_handler_ThrowNotAFunction_cold
+    .quad asm_handler_ThrowNotAFunction_cold_end
+    .quad asm_handler_GetArgumentCount
+    .quad asm_handler_GetArgumentCount_hot_end
+    .quad asm_handler_GetArgumentCount_cold
+    .quad asm_handler_GetArgumentCount_cold_end
     .quad asm_handler_Throw
     .quad asm_handler_Throw_hot_end
     .quad asm_handler_Throw_cold
@@ -1405,14 +1413,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -10260,6 +10260,86 @@ asm_handler_ThrowConstAssignment:
 asm_handler_ThrowConstAssignment_hot_end:
 asm_handler_ThrowConstAssignment_cold:
 asm_handler_ThrowConstAssignment_cold_end:
+
+.p2align 4
+asm_handler_ThrowNotAFunction:
+    mov x0, x20
+    sub w1, w21, w26
+    str w1, [x28, #64]
+    ldr w9, [x21, #4]
+    ldr x10, [x27, x9, lsl #3]
+.Lasm_ThrowNotAFunction.scalar_value_ready_0:
+    mov x3, x10
+    mov x0, x20
+    sub w1, w21, w26
+    mov x2, x21
+    bl CSYM(asm_slow_path_throw_not_a_function)
+    tbnz x0, #63, .Lasm_ThrowNotAFunction.scalar_result_done_1
+    tbz x0, #32, .Lasm_ThrowNotAFunction.scalar_result_done_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ThrowNotAFunction.scalar_result_done_1:
+    tbz x0, #63, 1f
+    b .Lexit
+1:
+    tbz x0, #32, .Lasm_ThrowNotAFunction.slow_path_transfer_2
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ThrowNotAFunction.slow_path_transfer_2:
+    ldr x28, [x20]
+    ldr x9, [x28, #88]
+    ldr x26, [x9, #40]
+    add x27, x28, #128
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_ThrowNotAFunction_hot_end:
+asm_handler_ThrowNotAFunction_cold:
+asm_handler_ThrowNotAFunction_cold_end:
+
+.p2align 4
+asm_handler_GetArgumentCount:
+    mov x0, x20
+    sub w1, w21, w26
+    str w1, [x28, #64]
+    mov x0, x20
+    sub w1, w21, w26
+    mov x2, x21
+    bl CSYM(asm_slow_path_get_argument_count)
+    tbnz x0, #63, .Lasm_GetArgumentCount.scalar_result_done_0
+    tbz x0, #32, .Lasm_GetArgumentCount.scalar_result_done_0
+    ldr w9, [x21, #4]
+    str x1, [x27, x9, lsl #3]
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetArgumentCount.scalar_result_done_0:
+    tbz x0, #63, 1f
+    b .Lexit
+1:
+    tbz x0, #32, .Lasm_GetArgumentCount.slow_path_transfer_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetArgumentCount.slow_path_transfer_1:
+    ldr x28, [x20]
+    ldr x9, [x28, #88]
+    ldr x26, [x9, #40]
+    add x27, x28, #128
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_GetArgumentCount_hot_end:
+asm_handler_GetArgumentCount_cold:
+asm_handler_GetArgumentCount_cold_end:
 
 .p2align 4
 asm_handler_Throw:

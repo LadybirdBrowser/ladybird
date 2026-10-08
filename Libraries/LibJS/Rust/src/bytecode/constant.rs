@@ -24,6 +24,7 @@ pub enum AbstractOperationKind {
     GetIteratorDirect = 2,
     GetIteratorFromMethod = 3,
     IteratorComplete = 4,
+    ArraySpeciesCreate = 5,
 }
 
 /// Constant tags for the FFI constant buffer (ABI-compatible).

@@ -63,6 +63,58 @@ block3:
   [ 270] Return value:reg5
 
 
+map$34c012b6 BuiltinFile:275:28
+  Registers: 9
+  Blocks:    9
+  Locals:    kValue~0, mappedValue~1, k~2, object~3, length~4, array~5
+  Constants:
+    [0] = Value([object RawNativeFunction])
+    [1] = Undefined
+    [2] = Int32(0)
+
+block0:
+  [   0] Enter
+  [   8] ToObject dst:object~3, value:this
+  [  18] Mov dst:reg5, src:object~3
+  [  28] GetLength dst:reg6, base:reg5 (object.length)
+  [  40] ToLength dst:length~4, value:reg6
+  [  50] IsCallable dst:reg5, value:arg0
+  [  60] Not dst:reg6, src:reg5
+  [  70] JumpFalse condition:reg6, target:block2
+
+block1:
+  [  80] ThrowNotAFunction src:arg0
+
+block2:
+  [  88] Mov2 c0_dst:reg6, c0_src:object~3, c1_dst:reg5, c1_src:length~4
+  [  a0] Call dst:array~5, callee:Value([object RawNativeFunction]), this_value:Undefined, ArraySpeciesCreate, arguments:[reg6, reg5]
+  [  c8] Mov dst:k~2, src:Int32(0)
+  [  d8] Jump target:block5
+
+block3:
+  [  e0] In dst:reg5, lhs:k~2, rhs:object~3
+  [  f0] JumpIf condition:reg5, true_target:block7, false_target:block8
+
+block4:
+  [ 100] Increment dst:k~2
+
+block5:
+  [ 108] JumpLessThan lhs:k~2, rhs:length~4, true_target:block3, false_target:block6
+
+block6:
+  [ 120] Return value:array~5
+
+block7:
+  [ 128] Mov dst:reg6, src:object~3
+  [ 138] GetByValue dst:kValue~0, base:reg6, property:k~2 (object[k~2])
+  [ 150] Mov3 c0_dst:reg6, c0_src:kValue~0, c1_dst:reg7, c1_src:k~2, c2_dst:reg8, c2_src:object~3
+  [ 170] Call dst:mappedValue~1, callee:arg0, this_value:arg1, callback, arguments:[reg6, reg7, reg8]
+  [ 1a0] CreateDataPropertyOrThrow object:array~5, property:k~2, value:mappedValue~1
+
+block8:
+  [ 1b0] Jump target:block4
+
+
 $dd56fdd7 for-loop-scoping.js:6:20
   Registers: 6
   Blocks:    1
