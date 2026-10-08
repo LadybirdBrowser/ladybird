@@ -45,6 +45,25 @@ pub fn compile(pattern: &Pattern) -> Program {
     compiler.program
 }
 
+/// Sorts `ranges` and merges the ones that overlap or touch, which the binary search of the VM relies on.
+fn normalize_char_ranges(ranges: &mut Vec<CharRange>) {
+    ranges.sort_by_key(|range| range.start);
+    let mut merged_count = 0;
+    for index in 0..ranges.len() {
+        let range = ranges[index].clone();
+        if merged_count > 0 {
+            let last = &mut ranges[merged_count - 1];
+            if range.start <= last.end.saturating_add(1) {
+                last.end = last.end.max(range.end);
+                continue;
+            }
+        }
+        ranges[merged_count] = range;
+        merged_count += 1;
+    }
+    ranges.truncate(merged_count);
+}
+
 struct Compiler {
     program: Program,
     /// Effective flags (affected by modifier groups).
@@ -984,8 +1003,8 @@ impl Compiler {
                     // individual matchers.
                     self.compile_complex_class(ranges, cc.negated);
                 } else {
-                    // Sort ranges by start code point for binary search in the VM.
-                    char_ranges.sort_by_key(|r| r.start);
+                    // Sort and merge ranges for binary search in the VM.
+                    normalize_char_ranges(&mut char_ranges);
                     self.emit(Instruction::CharClass {
                         ranges: char_ranges,
                         negated: cc.negated,
@@ -1091,7 +1110,7 @@ impl Compiler {
                             _ => return None,
                         }
                     }
-                    ranges.sort_by_key(|r| r.start);
+                    normalize_char_ranges(&mut ranges);
                     Some(SimpleMatch::CharClass {
                         ranges,
                         negated: cc.negated,
@@ -1178,7 +1197,7 @@ impl Compiler {
                     _ => return None,
                 }
             }
-            ranges.sort_by_key(|r| r.start);
+            normalize_char_ranges(&mut ranges);
             return Some(SimpleMatch::CharClass { ranges, negated });
         }
 
@@ -1218,7 +1237,7 @@ impl Compiler {
         }
 
         if !plain_ranges.is_empty() {
-            plain_ranges.sort_by_key(|r| r.start);
+            normalize_char_ranges(&mut plain_ranges);
             matchers.push(SimpleMatch::CharClass {
                 ranges: plain_ranges,
                 negated: false,
@@ -1235,7 +1254,7 @@ impl Compiler {
     fn try_simple_match_for_unicode_set(&self, expr: &ClassSetExpression, negated: bool) -> Option<SimpleMatch> {
         if let Some(ranges) = Self::try_extract_union_ranges(expr) {
             let mut sorted = ranges;
-            sorted.sort_by_key(|r| r.start);
+            normalize_char_ranges(&mut sorted);
             return Some(SimpleMatch::CharClass {
                 ranges: sorted,
                 negated,
@@ -1308,7 +1327,7 @@ impl Compiler {
             }
         }
 
-        ranges.sort_by_key(|r| r.start);
+        normalize_char_ranges(&mut ranges);
         Some(ranges)
     }
 
