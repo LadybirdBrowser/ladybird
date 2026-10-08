@@ -131,6 +131,13 @@ struct CAPI {
         return cell;
     }
 
+    static Cell* allocate_storage_cell(Heap& heap, CellAllocatorDescriptorBase& descriptor, bool& must_mark)
+    {
+        auto* cell = heap.allocate_cell(descriptor, Heap::TriggersCollection::No);
+        must_mark = heap.mark_if_allocated_during_incremental_sweep(*cell);
+        return cell;
+    }
+
     static void defer_gc(Heap& heap) { heap.defer_gc(); }
     static void undefer_gc(Heap& heap) { heap.undefer_gc(); }
     static StackInfo const& stack_info(Heap const& heap) { return heap.m_stack_info; }
@@ -298,6 +305,12 @@ GCCell* gc_heap_allocate_cell(GCHeap* heap, GCAllocator* allocator, bool* must_m
 {
     auto& descriptor = *reinterpret_cast<CAPICellAllocator*>(allocator);
     return as_gc_cell(CAPI::allocate_cell(as_heap(heap), descriptor, *must_mark));
+}
+
+GCCell* gc_heap_allocate_storage_cell(GCHeap* heap, GCAllocator* allocator, bool* must_mark)
+{
+    auto& descriptor = *reinterpret_cast<CAPICellAllocator*>(allocator);
+    return as_gc_cell(CAPI::allocate_storage_cell(as_heap(heap), descriptor, *must_mark));
 }
 
 GCCellTypeInfo const* gc_cell_type_info(GCCell const* cell)

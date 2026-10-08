@@ -123,6 +123,11 @@ GC_API void gc_allocator_destroy(GCAllocator*);
 // Returns uninitialized storage for one cell. *must_mark tells the caller what to store as the cell's mark: cells that
 // are allocated while an incremental sweep is in progress have to start out marked.
 GC_API GCCell* gc_heap_allocate_cell(GCHeap*, GCAllocator*, bool* must_mark);
+// Like gc_heap_allocate_cell(), for cells that other cells keep their storage in instead of malloc memory: it never
+// collects garbage and does not count towards the next collection, so storage can grow while its owner is between
+// states nothing may observe, and callers can hold on to anything across the growth. Live storage counts once a
+// collection finds it, through the live cell bytes that set the next threshold.
+GC_API GCCell* gc_heap_allocate_storage_cell(GCHeap*, GCAllocator*, bool* must_mark);
 // The type info the cell's block was allocated with.
 GC_API GCCellTypeInfo const* gc_cell_type_info(GCCell const*);
 
