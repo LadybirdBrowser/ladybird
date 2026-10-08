@@ -413,3 +413,17 @@ test("character classes with builtin classes", () => {
     expect(firstMatch(/[\w-]+/i, "ſ-k")).toEqual([1, "-k"]);
     expect(firstMatch(/[\s-]+/i, "ab - c")).toEqual([2, " - "]);
 });
+
+test("alternatives that start with literal characters", () => {
+    const tokenizer = /<!--([\s\S]*?)-->|<(\?[^>]*)>|<\/([a-z]+)>|<([a-z]+)>|([^<]+|<)/g;
+    const tokens = [];
+    let match;
+    while ((match = tokenizer.exec("a<b>c<!--d--></b><?e>< f")))
+        tokens.push(match.findIndex((capture, index) => index > 0 && capture !== undefined) + ":" + match[0]);
+    expect(tokens).toEqual(["5:a", "4:<b>", "5:c", "1:<!--d-->", "3:</b>", "2:<?e>", "5:<", "5: f"]);
+
+    expect(/ab|ac|(a)d/.exec("ad")[1]).toBe("a");
+    expect(/(?:x|(y))z|yw/.exec("yw")).toEqual(["yw", undefined]);
+    expect(/a(?:bc|bd)|ab/i.exec("ABD")[0]).toBe("ABD");
+    expect(/(?:[a-c]x|[a-c]y)/.exec("by")[0]).toBe("by");
+});

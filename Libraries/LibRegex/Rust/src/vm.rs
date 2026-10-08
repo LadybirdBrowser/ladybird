@@ -1647,6 +1647,15 @@ impl<'a, I: Input> Vm<'a, I> {
                 Instruction::Split { prefer, other } => {
                     let prefer = *prefer;
                     let other = *other;
+                    // OPTIMIZATION: A preferred path that starts by matching a character the input does not have here
+                    //               fails right away, which would backtrack to the other path with nothing changed. So
+                    //               take the other path without saving a backtrack state.
+                    if !self.modifiers.ignore_case
+                        && Self::fails_at_first_code_unit(instructions, prefer, input, self.pos)
+                    {
+                        self.pc = other;
+                        continue;
+                    }
                     let pos = self.pos;
                     self.push_backtrack(other, pos);
                     self.pc = prefer;
@@ -2602,6 +2611,36 @@ impl<'a, I: Input> Vm<'a, I> {
                 self.pos += 1;
             }
         }
+    }
+
+    /// Whether the path at `pc` starts with matches of single code units, outside of ignore-case and Unicode mode, one
+    /// of which fails on the input from `pos` on. Saves and clears of registers in between change nothing a failure
+    /// would not undo.
+    #[inline(always)]
+    fn fails_at_first_code_unit(instructions: &[Instruction], mut pc: u32, input: I, mut pos: usize) -> bool {
+        const MAX_CODE_UNITS_CHECKED: usize = 4;
+        let mut checked = 0;
+        while checked < MAX_CODE_UNITS_CHECKED {
+            let code_unit = (pos < input.len()).then(|| u32::from(input.code_unit(pos)));
+            let matches = match instructions.get(pc as usize) {
+                Some(Instruction::Char(character)) => code_unit == Some(*character),
+                Some(Instruction::CharClass { ranges, negated }) => {
+                    code_unit.is_some_and(|code_unit| char_in_ranges(code_unit, ranges) != *negated)
+                }
+                Some(Instruction::Save(_) | Instruction::ClearRegister(_)) => {
+                    pc += 1;
+                    continue;
+                }
+                _ => return false,
+            };
+            if !matches {
+                return true;
+            }
+            pc += 1;
+            pos += 1;
+            checked += 1;
+        }
+        false
     }
 
     /// Push a backtrack state that restores the current registers.
