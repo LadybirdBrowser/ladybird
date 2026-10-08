@@ -24,7 +24,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> create_for_constructor(JS::Object&, CSSStyleSheetOptions const& options = {});
 
     GC::Ptr<CSSRule> owner_rule() { return state().owner_rule(); }
-    CSSRuleList* css_rules() { return &state().rules(); }
+    WebIDL::ExceptionOr<GC::Ref<CSSRuleList>> css_rules();
 
     WebIDL::ExceptionOr<unsigned> insert_rule(Utf16View rule, unsigned index) { return state().insert_rule(rule, index); }
     WebIDL::ExceptionOr<WebIDL::Long> add_rule(Optional<Utf16String> selector, Optional<Utf16String> style, Optional<WebIDL::UnsignedLong> index) { return state().add_rule(move(selector), move(style), index); }

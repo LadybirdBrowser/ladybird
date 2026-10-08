@@ -8,10 +8,12 @@
  */
 
 #include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/StyleSheetImport.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::CSS {
 
@@ -52,6 +54,17 @@ CSSStyleSheet::CSSStyleSheet(StyleSheetState& state)
 }
 
 CSSStyleSheet::~CSSStyleSheet() = default;
+
+// https://drafts.csswg.org/cssom/#dom-cssstylesheet-cssrules
+WebIDL::ExceptionOr<GC::Ref<CSSRuleList>> CSSStyleSheet::css_rules()
+{
+    // 1. If the origin-clean flag is unset, throw a SecurityError exception.
+    if (!state().is_origin_clean())
+        return WebIDL::SecurityError::create("Can't access the rules of cross-origin stylesheets."_utf16);
+
+    // 2. Return a read-only, live CSSRuleList object representing the CSS rules.
+    return GC::Ref { state().rules() };
+}
 
 void CSSStyleSheet::update_owner_chain()
 {
