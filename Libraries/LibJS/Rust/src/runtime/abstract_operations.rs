@@ -54,7 +54,7 @@ use crate::runtime::object_environment::{IsWithEnvironment, ObjectEnvironment};
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::private_environment::PrivateEnvironment;
 use crate::runtime::promise_capability::{new_promise_capability, try_or_reject};
-use crate::runtime::property_attributes::{DEFAULT_ATTRIBUTES, PropertyAttributes};
+use crate::runtime::property_attributes::PropertyAttributes;
 use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::proxy_object::ProxyObject;
@@ -1692,19 +1692,10 @@ pub fn create_unmapped_arguments_object(vm: &Vm, arguments: &[Cell<Value>]) -> G
 
     // 5. Let index be 0.
     // 6. Repeat, while index < len,
-    for (index, argument) in arguments.iter().enumerate() {
-        // a. Let val be argumentsList[index].
-        let value = argument.get();
-
-        // b. Perform ! CreateDataPropertyOrThrow(obj, ! ToString(𝔽(index)), val).
-        object.indexed_put(
-            u32::try_from(index).expect("the argument index fits in u32"),
-            value,
-            DEFAULT_ATTRIBUTES,
-        );
-
-        // c. Set index to index + 1.
-    }
+    //    a. Let val be argumentsList[index].
+    //    b. Perform ! CreateDataPropertyOrThrow(obj, ! ToString(𝔽(index)), val).
+    //    c. Set index to index + 1.
+    set_arguments_as_indexed_elements(&object, arguments);
 
     // 7. Perform ! DefinePropertyOrThrow(obj, @@iterator, PropertyDescriptor { [[Value]]: %Array.prototype.values%, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
     let array_prototype_values = realm.array_prototype_values_function();
@@ -1721,6 +1712,19 @@ pub fn create_unmapped_arguments_object(vm: &Vm, arguments: &[Cell<Value>]) -> G
 
     // 9. Return obj.
     object
+}
+
+/// OPTIMIZATION: The arguments become default data properties of an object without indexed properties, which is
+///               packed indexed storage made in one step.
+fn set_arguments_as_indexed_elements(object: &Object, arguments: &[Cell<Value>]) {
+    let length = u32::try_from(arguments.len()).expect("the argument count fits in u32");
+    if length == 0 {
+        return;
+    }
+    object.set_indexed_property_elements_to_undefined(length);
+    for (index, argument) in arguments.iter().enumerate() {
+        object.set_packed_indexed_element(index as u32, argument.get());
+    }
 }
 
 // 10.4.4.7 CreateMappedArgumentsObject ( func, formals, argumentsList, env ), https://tc39.es/ecma262/#sec-createmappedargumentsobject
@@ -1749,19 +1753,10 @@ pub fn create_mapped_arguments_object(
 
     // 14. Let index be 0.
     // 15. Repeat, while index < len,
-    for (index, argument) in arguments.iter().enumerate() {
-        // a. Let val be argumentsList[index].
-        let value = argument.get();
-
-        // b. Perform ! CreateDataPropertyOrThrow(obj, ! ToString(𝔽(index)), val).
-        object.indexed_put(
-            u32::try_from(index).expect("the argument index fits in u32"),
-            value,
-            DEFAULT_ATTRIBUTES,
-        );
-
-        // c. Set index to index + 1.
-    }
+    //     a. Let val be argumentsList[index].
+    //     b. Perform ! CreateDataPropertyOrThrow(obj, ! ToString(𝔽(index)), val).
+    //     c. Set index to index + 1.
+    set_arguments_as_indexed_elements(&object, arguments);
 
     // 16. Perform ! DefinePropertyOrThrow(obj, "length", PropertyDescriptor { [[Value]]: 𝔽(len), [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
     object.put_direct(realm.mapped_arguments_object_length_offset(), Value::from_i32(length));
