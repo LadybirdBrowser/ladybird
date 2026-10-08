@@ -1570,7 +1570,7 @@ void Canvas2DContextBase::set_filter(Utf16View filter)
                 function.offset_y = static_cast<float>(CSS::Length::from_style_value(drop_shadow.offset_y(), {}).absolute_length_to_px());
                 if (drop_shadow.radius())
                     function.amount = static_cast<float>(CSS::Length::from_style_value(*drop_shadow.radius(), {}).absolute_length_to_px());
-                function.color = drop_shadow.color() ? drop_shadow.color()->to_color(canvas_host().canvas_color_resolution_context()).value_or(Gfx::Color::Black) : Gfx::Color::Black;
+                function.color = drop_shadow.color() ? drop_shadow.color()->to_color(canvas_host().canvas_color_resolution_style()).value_or(Gfx::Color::Black) : Gfx::Color::Black;
                 break;
             }
             }

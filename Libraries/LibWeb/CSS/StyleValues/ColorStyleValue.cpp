@@ -56,19 +56,6 @@ static_assert(offsetof(StyleValueFFI::StyleValueData::ColorMix_Body, color_base)
 static_assert(offsetof(StyleValueFFI::StyleValueData::LightDark_Body, color_base) == sizeof(StyleValueFFI::StyleValueData::Tag));
 static_assert(offsetof(StyleValueFFI::StyleValueData::ContrastColor_Body, color_base) == sizeof(StyleValueFFI::StyleValueData::Tag));
 
-// The C++ Type is Color for every color variant, so color operations dispatch on the Rust tag.
-Optional<Color> ColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
-{
-    {
-        Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_storage;
-        auto input = make_rust_color_resolution_input(color_resolution_context, length_storage);
-        auto resolved = StyleValueFFI::rust_style_value_to_color(m_value.operator->(), &input);
-        if (resolved.resolved)
-            return Color(resolved.rgba[0], resolved.rgba[1], resolved.rgba[2], resolved.rgba[3]);
-    }
-    return {};
-}
-
 ValueComparingNonnullRefPtr<ColorStyleValue const> ColorStyleValue::create_from_color(Color color, ColorSyntax color_syntax, Optional<Utf16FlyString> name)
 {
     return ColorFunctionStyleValue::create(

@@ -41,7 +41,7 @@ public:
     virtual void did_create_canvas_backing_storage() override;
     virtual CSS::FontComputer& canvas_font_computer() override;
     virtual CSS::ComputationContext canvas_font_computation_context() override;
-    virtual CSS::ColorResolutionContext canvas_color_resolution_context() override;
+    virtual CSS::ColorResolutionStyle canvas_color_resolution_style() override;
     virtual CSSPixelRect canvas_viewport_rect() const override;
     virtual RefPtr<Gfx::Bitmap> get_bitmap_from_surface() override;
     virtual bool is_origin_clean() const override;

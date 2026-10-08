@@ -284,7 +284,7 @@ CSS::FontComputer& OffscreenCanvas::canvas_font_computer()
     return worker_global_scope->font_computer();
 }
 
-CSS::ColorResolutionContext OffscreenCanvas::canvas_color_resolution_context()
+CSS::ColorResolutionStyle OffscreenCanvas::canvas_color_resolution_style()
 {
     return {};
 }

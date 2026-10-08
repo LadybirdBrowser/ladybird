@@ -197,7 +197,7 @@ public:
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
-    Optional<Color> to_color(ColorResolutionContext) const;
+    Optional<Color> to_color(ColorResolutionStyle) const;
     Keyword to_keyword() const;
 
     // The Rust-owned data of this value, for handing to the Rust style computation core.
