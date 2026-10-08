@@ -2339,6 +2339,13 @@ pub fn append_number_to_string(builder: &mut impl NumberStringBuilder, value: f6
         return;
     }
 
+    // OPTIMIZATION: For an integer of a magnitude below 2^53, the steps below produce its decimal digits, preceded by
+    //               "-" if it is negative.
+    if value.trunc() == value && value.abs() < 9_007_199_254_740_992.0 {
+        builder.append_ascii(DecimalDigits::new_signed(value as i64).as_bytes());
+        return;
+    }
+
     // 5. Let n, k, and s be integers such that k ≥ 1, radix ^ (k - 1) ≤ s < radix ^ k, 𝔽(s × radix ^ (n - k)) is x,
     //    and k is as small as possible.
     let ak::DecimalExponentialForm {
