@@ -496,6 +496,42 @@ impl RopeString {
     }
 
     fn concatenate_pieces(&self) -> Utf16String {
+        // OPTIMIZATION: Most ropes have a few pieces, which are gathered without allocating.
+        const INLINE_PIECES: usize = 8;
+        let mut pieces = [self.lhs(); INLINE_PIECES];
+        let mut piece_count = 0;
+        let mut stack = [self.lhs(); INLINE_PIECES];
+        stack[0] = self.rhs();
+        stack[1] = self.lhs();
+        let mut stack_depth = 2;
+        while stack_depth > 0 {
+            stack_depth -= 1;
+            let current = stack[stack_depth];
+            if current.deferred_kind.get() == DeferredKind::Rope {
+                if stack_depth + 2 > INLINE_PIECES {
+                    return self.concatenate_many_pieces();
+                }
+                let current_rope_string = current.as_rope_string();
+                stack[stack_depth] = current_rope_string.rhs();
+                stack[stack_depth + 1] = current_rope_string.lhs();
+                stack_depth += 2;
+                continue;
+            }
+            if piece_count == INLINE_PIECES {
+                return self.concatenate_many_pieces();
+            }
+            pieces[piece_count] = current;
+            piece_count += 1;
+        }
+
+        let mut views = [Utf16View::Ascii(&[]); INLINE_PIECES];
+        for (view, piece) in views.iter_mut().zip(&pieces[..piece_count]) {
+            *view = piece.utf16_string_view();
+        }
+        concatenate(&views[..piece_count])
+    }
+
+    fn concatenate_many_pieces(&self) -> Utf16String {
         // This vector will hold all the pieces of the rope that need to be assembled
         // into the resolved string.
         // NB: Resolving takes no VM, so it cannot allocate cells or collect garbage while these vectors hold strings
