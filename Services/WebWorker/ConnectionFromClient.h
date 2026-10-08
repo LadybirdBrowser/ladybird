@@ -43,7 +43,7 @@ public:
 
     Web::Compositor::CompositorConnection* compositor_process_connection() const;
 
-    Function<void(IPC::TransportHandle const&)> on_request_server_connection;
+    Function<void(IPC::TransportHandle const&, Optional<int> client_id)> on_request_server_connection;
     Function<void(IPC::TransportHandle const&)> on_image_decoder_connection;
 
     // Asks the Browser to spawn this process's MediaServer if it has none, and to connect a client to it.
@@ -58,8 +58,8 @@ private:
     Web::Page& page();
     Web::Page const& page() const;
 
-    virtual void connect_to_request_server(IPC::TransportHandle handle) override;
-    virtual void simulate_request_server_connection_loss_and_reconnect_for_testing(IPC::TransportHandle replacement_handle) override;
+    virtual void connect_to_request_server(IPC::TransportHandle handle, int client_id) override;
+    virtual void simulate_request_server_connection_loss_and_reconnect_for_testing(IPC::TransportHandle replacement_handle, int client_id) override;
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
     virtual void connect_to_wasm_compiler(IPC::TransportHandle handle) override;
     virtual void connect_to_compositor(IPC::TransportHandle handle) override;
