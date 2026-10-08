@@ -688,13 +688,15 @@ impl Shape {
             return;
         }
 
+        // NB: Only the premade shapes of intrinsics get properties without transitions when they are not
+        //     dictionaries, before any object has them, so nothing can have cached them. Their dictionary generation
+        //     stays 0 like that of every other shape that is no dictionary, which caches compare it with.
         self.ensure_descriptor_array(vm);
         let descriptors = self.descriptors().expect("the shape has a descriptor array");
         if descriptors.lookup(property_key, property_count).is_none() {
             assert!(property_count < u32::MAX);
             descriptors.set(property_key, metadata, property_count);
             self.property_count.set(property_count + 1);
-            self.increment_dictionary_generation();
             return;
         }
         descriptors.set(property_key, metadata, property_count);
