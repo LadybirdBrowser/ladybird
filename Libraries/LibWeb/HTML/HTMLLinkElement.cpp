@@ -1126,6 +1126,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
         auto maybe_decoded_string = css_decode_bytes(environment_encoding, mime_type_charset, body_bytes);
         if (maybe_decoded_string.is_error()) {
             dbgln("Failed to decode CSS file: {}", response.url().value_or(URL::URL()));
+            associate_empty_style_sheet(response, origin_clean);
             dispatch_event(create_event_for_element(*this, HTML::EventNames::error));
         } else {
             VERIFY(!response.url_list().is_empty());
@@ -1154,18 +1155,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
 
                             CSS::Parser::Parser parser { CSS::Parser::ParsingParams { *loaded_document } };
                             auto sheet = parser.create_css_stylesheet(parsed, location);
-                            auto media = link->attribute(HTML::AttributeNames::media);
-                            auto title = link->in_a_document_tree() ? link->attribute(HTML::AttributeNames::title) : Optional<Utf16String> {};
-                            link->document_or_shadow_root_style_scope().initialize_a_css_style_sheet(
-                                *sheet, link.ptr(), media.has_value() ? media->utf16_view() : u""sv,
-                                title.has_value() ? title.release_value() : Utf16String {},
-                                (link->m_relationship & Relationship::Alternate && !link->m_explicitly_enabled) ? CSS::StyleScope::Alternate::Yes : CSS::StyleScope::Alternate::No,
-                                origin_clean, nullptr, nullptr);
-                            link->m_loaded_style_sheet = sheet;
-
-                            // NB: Removing disabled explicitly enables the sheet, even if its title would disable it.
-                            if (link->m_explicitly_enabled)
-                                sheet->set_disabled(false);
+                            link->associate_style_sheet(*sheet, origin_clean);
 
                             // 2. Fire an event named load at el.
                             link->dispatch_event(create_event_for_element(*link, HTML::EventNames::load));
@@ -1177,10 +1167,40 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
     }
     // 5. Otherwise, fire an event named error at el.
     else {
+        associate_empty_style_sheet(response, origin_clean);
         dispatch_event(create_event_for_element(*this, HTML::EventNames::error));
     }
 
     finish_processing_stylesheet_resource(fetch_generation);
+}
+
+void HTMLLinkElement::associate_style_sheet(CSS::StyleSheetState& sheet, CSS::StyleScope::OriginClean origin_clean)
+{
+    auto media = attribute(HTML::AttributeNames::media);
+    auto title = in_a_document_tree() ? attribute(HTML::AttributeNames::title) : Optional<Utf16String> {};
+    document_or_shadow_root_style_scope().initialize_a_css_style_sheet(
+        sheet, this, media.has_value() ? media->utf16_view() : u""sv,
+        title.has_value() ? title.release_value() : Utf16String {},
+        (m_relationship & Relationship::Alternate && !m_explicitly_enabled) ? CSS::StyleScope::Alternate::Yes : CSS::StyleScope::Alternate::No,
+        origin_clean, nullptr, nullptr);
+    m_loaded_style_sheet = sheet;
+
+    // NB: Removing disabled explicitly enables the sheet, even if its title would disable it.
+    if (m_explicitly_enabled)
+        sheet.set_disabled(false);
+}
+
+// AD-HOC: The spec creates no style sheet for a link whose resource failed to load, but all major engines associate an
+//         empty one with it. Its origin-clean flag is still set only if the response was CORS-same-origin, which a
+//         network error never is.
+void HTMLLinkElement::associate_empty_style_sheet(Fetch::Infrastructure::Response const& response, CSS::StyleScope::OriginClean origin_clean)
+{
+    // NB: A link that was removed while its resource was being fetched no longer contributes a style sheet.
+    if (!is_browsing_context_connected())
+        return;
+
+    auto location = response.url_list().is_empty() ? document().encoding_parse_url(href()) : response.url_list().first();
+    associate_style_sheet(*parse_css_stylesheet(CSS::Parser::ParsingParams { document() }, u""sv, move(location)), origin_clean);
 }
 
 void HTMLLinkElement::cancel_pending_stylesheet_processing()

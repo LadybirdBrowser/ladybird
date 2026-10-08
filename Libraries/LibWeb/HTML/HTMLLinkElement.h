@@ -176,6 +176,8 @@ private:
     void process_linked_resource(bool success, Fetch::Infrastructure::Response const&, CSS::StyleScope::OriginClean, Core::ImmutableBytes const*);
     void process_icon_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer);
     void process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const&, CSS::StyleScope::OriginClean, ReadonlyBytes);
+    void associate_style_sheet(CSS::StyleSheetState&, CSS::StyleScope::OriginClean);
+    void associate_empty_style_sheet(Fetch::Infrastructure::Response const&, CSS::StyleScope::OriginClean);
     void finish_processing_stylesheet_resource(u64 fetch_generation);
     void cancel_pending_stylesheet_processing();
 

@@ -1,0 +1,2 @@
+link.sheet: null
+document.styleSheets.length: 0

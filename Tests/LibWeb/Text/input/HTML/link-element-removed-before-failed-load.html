@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const token = `link-element-removed-before-failed-load-${Math.random()}`;
+        const url = await server.createEcho("GET", "/link-element-removed-before-failed-load", {
+            status: 404,
+            headers: { "Cache-Control": "no-store", "Content-Type": "text/css" },
+            body: "",
+            wait_for_unblock: token,
+        });
+
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = url;
+        const errored = new Promise(resolve => link.addEventListener("error", resolve, { once: true }));
+        document.head.append(link);
+        link.remove();
+
+        await fetch(new URL(`/unblock/${token}`, url));
+        await errored;
+        println(`link.sheet: ${link.sheet}`);
+        println(`document.styleSheets.length: ${document.styleSheets.length}`);
+        done();
+    });
+</script>

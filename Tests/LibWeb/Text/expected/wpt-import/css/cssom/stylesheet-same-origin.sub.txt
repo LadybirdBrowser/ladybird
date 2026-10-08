@@ -2,12 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-6 Pass
-1 Fail
+7 Pass
 Pass	Origin-clean check in cross-origin CSSOM Stylesheets
 Pass	Origin-clean check in cross-origin CSSOM Stylesheets (redirect from same-origin to cross-origin)
 Pass	Origin-clean check in cross-origin CSSOM Stylesheets (redirect from cross-origin to same-origin)
-Fail	Origin-clean check in loading error CSSOM Stylesheets
+Pass	Origin-clean check in loading error CSSOM Stylesheets
 Pass	Origin-clean check in same-origin CSSOM Stylesheets
 Pass	Origin-clean check in data:css CSSOM Stylesheets
 Pass	Origin-clean check in copied cross-origin CSSOM Stylesheets
