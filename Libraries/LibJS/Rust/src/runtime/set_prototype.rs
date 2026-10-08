@@ -153,7 +153,7 @@ impl SetPrototype {
         //     a. If e is not empty and SameValue(e, value) is true, then
         //         i. Return S.
         // 5. Append value to S.[[SetData]].
-        set.set_add(value);
+        set.set_add(vm, value);
 
         // 6. Return S.
         Ok(Value::from_object(set))
@@ -167,7 +167,7 @@ impl SetPrototype {
 
         // 3. For each element e of S.[[SetData]], do
         //     a. Replace the element of S.[[SetData]] whose value is e with an element whose value is empty.
-        set.set_clear();
+        set.set_clear(vm);
 
         // 4. Return undefined.
         Ok(Value::UNDEFINED)
@@ -189,7 +189,7 @@ impl SetPrototype {
         //         i. Replace the element of S.[[SetData]] whose value is e with an element whose value is empty.
         //         ii. Return true.
         // 5. Return false.
-        Ok(Value::from_bool(set.set_remove(value)))
+        Ok(Value::from_bool(set.set_remove(vm, value)))
     }
 
     // 24.2.4.5 Set.prototype.difference ( other ), https://tc39.es/ecma262/#sec-set.prototype.difference
@@ -229,7 +229,7 @@ impl SetPrototype {
                 //     2. If inOther is true, then
                 if in_other {
                     // a. Set resultSetData[index] to EMPTY.
-                    result.set_remove(key);
+                    result.set_remove(vm, key);
                 }
 
                 // iii. Set index to index + 1.
@@ -253,7 +253,7 @@ impl SetPrototype {
                 // 3. If valueIndex is not NOT-FOUND, then
                 if result.set_has(next) {
                     // a. Set resultSetData[valueIndex] to EMPTY.
-                    result.set_remove(next);
+                    result.set_remove(vm, next);
                 }
             }
         }
@@ -375,7 +375,7 @@ impl SetPrototype {
                     // b. If SetDataHas(resultSetData, e) is false, then
                     if !set_data_has(result, e) {
                         // i. Append e to resultSetData.
-                        result.set_add(e);
+                        result.set_add(vm, e);
                     }
                 }
 
@@ -408,7 +408,7 @@ impl SetPrototype {
                     // b. If SetDataHas(resultSetData, next) is false, then
                     if !set_data_has(result, next) {
                         // i. Append next to resultSetData.
-                        result.set_add(next);
+                        result.set_add(vm, next);
                     }
                 }
             }
@@ -611,14 +611,14 @@ impl SetPrototype {
             if set_data_has(set, next) {
                 // 1. If alreadyInResult is true, set resultSetData[resultIndex] to empty.
                 if already_in_result {
-                    result.set_remove(next);
+                    result.set_remove(vm, next);
                 }
             }
             // v. Else,
             else {
                 // 1. If alreadyInResult is false, append next to resultSetData.
                 if !already_in_result {
-                    result.set_add(next);
+                    result.set_add(vm, next);
                 }
             }
         }
@@ -657,7 +657,7 @@ impl SetPrototype {
             // ii. If SetDataHas(resultSetData, next) is false, then
             if !set_data_has(result, next) {
                 // 1. Append next to resultSetData.
-                result.set_add(next);
+                result.set_add(vm, next);
             }
         }
 

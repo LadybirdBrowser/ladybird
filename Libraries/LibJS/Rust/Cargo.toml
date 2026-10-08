@@ -16,6 +16,7 @@ thread-sanitizer = []
 [dependencies]
 ak = { path = "../../../AK/Rust" }
 foldhash = "0.1"
+hashbrown = { version = "0.16.1", default-features = false }
 indexmap = "2"
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
 libc = "0.2"

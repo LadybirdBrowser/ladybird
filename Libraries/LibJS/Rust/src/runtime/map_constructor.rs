@@ -243,6 +243,7 @@ impl MapConstructor {
             // b. Let entry be the Record { [[Key]]: g.[[Key]], [[Value]]: elements }.
             // c. Append entry to map.[[MapData]].
             map.map_set(
+                vm,
                 groups.keys.get(index).expect("the group exists"),
                 Value::from_object(elements),
             );
