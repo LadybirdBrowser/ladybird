@@ -182,3 +182,24 @@ describe("basic functionality", () => {
         expect(counted(/a/g)).toBe(1);
     });
 });
+
+test("legacy static properties after a global replace without captures", () => {
+    expect("a-b-c".replace(/-/g, "_")).toBe("a_b_c");
+    expect(RegExp.lastMatch).toBe("-");
+    expect(RegExp.leftContext).toBe("a-b");
+    expect(RegExp.rightContext).toBe("c");
+    expect(RegExp.lastParen).toBe("");
+    expect(RegExp.$1).toBe("");
+
+    expect("x1y22z".replace(/(\d+)/g, "#")).toBe("x#y#z");
+    expect(RegExp.lastMatch).toBe("22");
+    expect(RegExp.$1).toBe("22");
+});
+
+test("replacement values that are not strings", () => {
+    const regexp = /-/g;
+    expect("a-b".replace(regexp, 1)).toBe("a1b");
+    expect("a-b".replace(regexp, null)).toBe("anullb");
+    expect(regexp.lastIndex).toBe(0);
+    expect(() => "a-b".replace(regexp, Symbol())).toThrow(TypeError);
+});
