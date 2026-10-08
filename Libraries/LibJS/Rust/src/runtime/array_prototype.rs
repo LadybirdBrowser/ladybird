@@ -963,18 +963,10 @@ impl ArrayPrototype {
             && array.is_simple_packed_array()
             && u64::from(array.indexed_array_like_size()) == length
         {
-            let element_count = u64::from(array.indexed_packed_element_count());
-            while k < element_count {
-                let element = array
-                    .indexed_get(k as u32)
-                    .expect("a packed array has every element below its size")
-                    .value;
-                if is_strictly_equal(search_element, element) {
-                    return Ok(number(k));
-                }
-                k += 1;
-            }
-            return Ok(Value::from_i32(-1));
+            return Ok(match array.indexed_packed_index_of(search_element, k as u32) {
+                Some(index) => number(u64::from(index)),
+                None => Value::from_i32(-1),
+            });
         }
 
         // 10. Repeat, while k < len,

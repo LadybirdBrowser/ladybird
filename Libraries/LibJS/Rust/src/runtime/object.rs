@@ -54,7 +54,7 @@ use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::shape::Shape;
 use crate::runtime::symbol::Symbol;
-use crate::runtime::value::{PreferredType, same_value};
+use crate::runtime::value::{PreferredType, is_strictly_equal, same_value};
 use crate::utf16::to_utf16_fly_string;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -3861,6 +3861,19 @@ impl Object {
     pub fn indexed_packed_elements_span_size(&self) -> u32 {
         assert!(self.indexed_storage_kind() == IndexedStorageKind::Packed);
         self.indexed_packed_element_count()
+    }
+
+    pub fn indexed_packed_index_of(&self, value: Value, start: u32) -> Option<u32> {
+        let count = self.indexed_packed_elements_span_size();
+        if start >= count {
+            return None;
+        }
+        // SAFETY: The count is within the elements buffer, and IsStrictlyEqual runs no code that could write it.
+        let elements = unsafe { core::slice::from_raw_parts(self.indexed_elements.get(), count as usize) };
+        elements[start as usize..]
+            .iter()
+            .position(|element| is_strictly_equal(value, *element))
+            .map(|offset| start + offset as u32)
     }
 
     /// Copies the first elements of packed storage into `destination`.
