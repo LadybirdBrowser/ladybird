@@ -1,0 +1,2 @@
+before resize: 214x40
+after resize: 214x40

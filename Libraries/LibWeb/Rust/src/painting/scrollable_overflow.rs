@@ -416,10 +416,13 @@ fn measure_scrollable_overflow_impl(
 
         {
             let child_data = layout_arena.committed_side_data(child_node);
+            // NB: A line before a line clamp point can be cut short of the atomic inlines on it, so it does not
+            //     contribute their boxes.
             if child_position == positioning::STATIC
                 && child_display.is_inline_outside()
                 && !child_is_floating
                 && !child_has_css_transform
+                && !style_queries::has_line_clamp_point(layout_arena, box_node)
                 && layout_arena
                     .committed_side_data(child_node)
                     .overflow_valid_across_recommits
