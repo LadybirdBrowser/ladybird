@@ -426,7 +426,7 @@ fn first_filter_matches<I: Input>(program: &Program, input: I, pos: usize, filte
     let cp = decode_code_point(program.unicode, input, pos);
     match filter {
         SimpleMatch::BuiltinClass(class) => match_builtin_class(cp, *class, program.ignore_case && program.unicode),
-        SimpleMatch::CharClass { ranges, negated } => char_in_ranges(cp, ranges) != *negated,
+        SimpleMatch::CharClass { ranges, negated } => ranges.contains(cp) != *negated,
         SimpleMatch::AnyChar { dot_all } => *dot_all || !is_line_terminator(cp),
         SimpleMatch::Char(c) => cp == *c,
         SimpleMatch::CharNoCase(lo, _hi) => case_fold_eq(cp, *lo, program.unicode),
@@ -812,11 +812,11 @@ fn execute_simple_scan_into<I: Input>(
         SimpleScan::GreedyQuantifier { matcher, min, max } => {
             execute_simple_greedy_scan_into(program, input, start_pos, matcher, *min, *max, out)
         }
-        SimpleScan::CharClass { ranges, negated, ascii } if !program.unicode => {
+        SimpleScan::CharClass { ranges, negated } if !program.unicode => {
             // Without the u and v flags, every code unit is a character of its own.
             for pos in start_pos..input.len() {
                 let code_unit = u32::from(input.code_unit(pos));
-                if ascii.contains_or_in_ranges(code_unit, ranges) != *negated {
+                if ranges.contains(code_unit) != *negated {
                     out[0] = pos as i32;
                     out[1] = pos as i32 + 1;
                     return true;
@@ -846,7 +846,7 @@ fn execute_simple_scan_into<I: Input>(
 #[inline(always)]
 fn match_simple_scan(scan: &SimpleScan, cp: u32) -> bool {
     match scan {
-        SimpleScan::CharClass { ranges, negated, ascii } => ascii.contains_or_in_ranges(cp, ranges) != *negated,
+        SimpleScan::CharClass { ranges, negated } => ranges.contains(cp) != *negated,
         SimpleScan::BuiltinClass(class) => match_builtin_class(cp, *class, false),
         SimpleScan::Char(c) => cp == *c,
         SimpleScan::GreedyQuantifier { .. } => false, // handled separately
@@ -892,7 +892,7 @@ fn match_simple_match(matcher: &SimpleMatch, cp: u32) -> bool {
         SimpleMatch::AnyChar { dot_all } => *dot_all || !is_line_terminator(cp),
         SimpleMatch::Char(c) => cp == *c,
         SimpleMatch::CharNoCase(c1, c2) => cp == *c1 || cp == *c2,
-        SimpleMatch::CharClass { ranges, negated } => char_in_ranges(cp, ranges) != *negated,
+        SimpleMatch::CharClass { ranges, negated } => ranges.contains(cp) != *negated,
         SimpleMatch::BuiltinClass(class) => match_builtin_class(cp, *class, false),
         SimpleMatch::UnicodeProperty(data) => {
             let matched =
@@ -1014,11 +1014,7 @@ struct StartPositionHint {
 /// A simple pattern that can be scanned without the full VM.
 enum SimpleScan {
     /// A single character class.
-    CharClass {
-        ranges: Vec<CharRange>,
-        negated: bool,
-        ascii: AsciiBitmap,
-    },
+    CharClass { ranges: CharRanges, negated: bool },
     /// A single builtin class.
     BuiltinClass(BuiltinCharacterClass),
     /// A single character.
@@ -1029,31 +1025,6 @@ enum SimpleScan {
         min: u32,
         max: Option<u32>,
     },
-}
-
-/// The ASCII members of a character class, one bit per code point, which spare the search through its ranges for most
-/// characters of most inputs.
-#[derive(Clone, Copy)]
-struct AsciiBitmap([u64; 2]);
-
-impl AsciiBitmap {
-    fn from_ranges(ranges: &[CharRange]) -> Self {
-        let mut bits = [0u64; 2];
-        for range in ranges {
-            for code_point in range.start..=range.end.min(0x7F) {
-                bits[(code_point / 64) as usize] |= 1 << (code_point % 64);
-            }
-        }
-        Self(bits)
-    }
-
-    #[inline(always)]
-    fn contains_or_in_ranges(&self, code_point: u32, ranges: &[CharRange]) -> bool {
-        if code_point < 0x80 {
-            return self.0[(code_point / 64) as usize] & (1 << (code_point % 64)) != 0;
-        }
-        char_in_ranges(code_point, ranges)
-    }
 }
 
 /// Find a common first character across all alternatives in a Split chain.
@@ -1292,7 +1263,6 @@ pub(crate) fn analyze_pattern(
             Instruction::CharClass { ranges, negated } => Some(SimpleScan::CharClass {
                 ranges: ranges.clone(),
                 negated: *negated,
-                ascii: AsciiBitmap::from_ranges(ranges),
             }),
             Instruction::BuiltinClass(class) => Some(SimpleScan::BuiltinClass(*class)),
             Instruction::Char(c) => Some(SimpleScan::Char(*c)),
@@ -1604,7 +1574,7 @@ impl<'a, I: Input> Vm<'a, I> {
                         let in_class = if self.modifiers.ignore_case {
                             match_char_class(cp, ranges, true, false, false)
                         } else {
-                            char_in_ranges(cp, ranges)
+                            ranges.contains(cp)
                         };
                         if in_class != *negated {
                             self.pos += 1;
@@ -2658,7 +2628,7 @@ impl<'a, I: Input> Vm<'a, I> {
             let matches = match instructions.get(pc as usize) {
                 Some(Instruction::Char(character)) => code_unit == Some(*character),
                 Some(Instruction::CharClass { ranges, negated }) => {
-                    code_unit.is_some_and(|code_unit| char_in_ranges(code_unit, ranges) != *negated)
+                    code_unit.is_some_and(|code_unit| ranges.contains(code_unit) != *negated)
                 }
                 Some(Instruction::Save(_) | Instruction::ClearRegister(_)) => {
                     pc += 1;
@@ -3327,7 +3297,7 @@ impl<'a, I: Input> Vm<'a, I> {
                     }
                 } else {
                     while *pos < len && count < limit {
-                        let in_class = char_in_ranges(input.code_unit(*pos) as u32, ranges);
+                        let in_class = ranges.contains(input.code_unit(*pos) as u32);
                         if in_class == *negated {
                             break;
                         }
@@ -3670,7 +3640,7 @@ pub(crate) fn char_in_ranges(cp: u32, ranges: &[CharRange]) -> bool {
 #[inline(always)]
 pub(crate) fn match_char_class(
     cp: u32,
-    ranges: &[CharRange],
+    ranges: &CharRanges,
     ignore_case: bool,
     unicode_mode: bool,
     unicode_sets: bool,
@@ -3707,7 +3677,7 @@ pub(crate) fn match_char_class(
             libunicode_rust::character_types::code_point_matches_range_ignoring_case(cp, r.start, r.end, unicode_mode)
         })
     } else {
-        char_in_ranges(cp, ranges)
+        ranges.contains(cp)
     }
 }
 

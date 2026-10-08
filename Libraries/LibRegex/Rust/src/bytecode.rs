@@ -70,7 +70,7 @@ pub enum Instruction {
     AnyChar { dot_all: bool },
 
     /// Match a character in a set of ranges. `negated` inverts the match.
-    CharClass { ranges: Vec<CharRange>, negated: bool },
+    CharClass { ranges: CharRanges, negated: bool },
 
     /// Match a built-in character class (\d, \w, \s and negations).
     BuiltinClass(BuiltinCharacterClass),
@@ -209,13 +209,54 @@ pub enum SimpleMatch {
     /// Case-insensitive character.
     CharNoCase(u32, u32),
     /// Character class (set of ranges), negated flag.
-    CharClass { ranges: Vec<CharRange>, negated: bool },
+    CharClass { ranges: CharRanges, negated: bool },
     /// Built-in class (\d, \w, \s, etc.)
     BuiltinClass(BuiltinCharacterClass),
     /// Unicode property (\p{...}, \P{...}).
     UnicodeProperty(Box<UnicodePropertyData>),
     /// Union of two matchers: matches if either alternative matches.
     Union(Box<SimpleMatch>, Box<SimpleMatch>),
+}
+
+/// The ranges of a character class, sorted, with its ASCII members in a bitmap that spares the search through the
+/// ranges for most characters of most inputs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CharRanges {
+    ranges: Vec<CharRange>,
+    ascii: [u64; 2],
+}
+
+impl CharRanges {
+    pub fn new(ranges: Vec<CharRange>) -> Self {
+        let mut ascii = [0u64; 2];
+        for range in &ranges {
+            for code_point in range.start..=range.end.min(0x7F) {
+                ascii[(code_point / 64) as usize] |= 1 << (code_point % 64);
+            }
+        }
+        Self { ranges, ascii }
+    }
+
+    /// Whether `code_point` is in one of the ranges.
+    #[inline(always)]
+    pub fn contains(&self, code_point: u32) -> bool {
+        if code_point < 0x80 {
+            return self.ascii[(code_point / 64) as usize] & (1 << (code_point % 64)) != 0;
+        }
+        crate::vm::char_in_ranges(code_point, &self.ranges)
+    }
+
+    pub fn into_vec(self) -> Vec<CharRange> {
+        self.ranges
+    }
+}
+
+impl core::ops::Deref for CharRanges {
+    type Target = [CharRange];
+
+    fn deref(&self) -> &[CharRange] {
+        &self.ranges
+    }
 }
 
 /// A character range for CharClass instructions (u32 code points).

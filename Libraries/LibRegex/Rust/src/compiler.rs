@@ -1054,7 +1054,7 @@ impl Compiler {
                     // Sort and merge ranges for binary search in the VM.
                     normalize_char_ranges(&mut char_ranges);
                     self.emit(Instruction::CharClass {
-                        ranges: char_ranges,
+                        ranges: CharRanges::new(char_ranges),
                         negated: cc.negated,
                     });
                 }
@@ -1109,7 +1109,7 @@ impl Compiler {
             }
             CharacterClassRange::Range(lo, hi) => {
                 self.emit(Instruction::CharClass {
-                    ranges: vec![CharRange { start: *lo, end: *hi }],
+                    ranges: CharRanges::new(vec![CharRange { start: *lo, end: *hi }]),
                     negated: false,
                 });
             }
@@ -1129,7 +1129,7 @@ impl Compiler {
         match operand {
             ClassSetOperand::Char(c) => Some(SimpleMatch::Char(*c)),
             ClassSetOperand::Range(lo, hi) => Some(SimpleMatch::CharClass {
-                ranges: vec![CharRange { start: *lo, end: *hi }],
+                ranges: CharRanges::new(vec![CharRange { start: *lo, end: *hi }]),
                 negated: false,
             }),
             ClassSetOperand::BuiltinClass(bc) => Some(SimpleMatch::BuiltinClass(*bc)),
@@ -1160,7 +1160,7 @@ impl Compiler {
                     }
                     normalize_char_ranges(&mut ranges);
                     Some(SimpleMatch::CharClass {
-                        ranges,
+                        ranges: CharRanges::new(ranges),
                         negated: cc.negated,
                     })
                 }
@@ -1248,7 +1248,10 @@ impl Compiler {
                 }
             }
             normalize_char_ranges(&mut ranges);
-            return Some(SimpleMatch::CharClass { ranges, negated });
+            return Some(SimpleMatch::CharClass {
+                ranges: CharRanges::new(ranges),
+                negated,
+            });
         }
 
         if negated {
@@ -1289,7 +1292,7 @@ impl Compiler {
         if !plain_ranges.is_empty() {
             normalize_char_ranges(&mut plain_ranges);
             matchers.push(SimpleMatch::CharClass {
-                ranges: plain_ranges,
+                ranges: CharRanges::new(plain_ranges),
                 negated: false,
             });
         }
@@ -1306,7 +1309,7 @@ impl Compiler {
             let mut sorted = ranges;
             normalize_char_ranges(&mut sorted);
             return Some(SimpleMatch::CharClass {
-                ranges: sorted,
+                ranges: CharRanges::new(sorted),
                 negated,
             });
         }
@@ -1398,7 +1401,10 @@ impl Compiler {
         }
 
         if let Some(ranges) = Self::try_extract_union_ranges(expr) {
-            self.emit(Instruction::CharClass { ranges, negated });
+            self.emit(Instruction::CharClass {
+                ranges: CharRanges::new(ranges),
+                negated,
+            });
             return;
         }
 
@@ -1535,7 +1541,7 @@ impl Compiler {
                     return;
                 }
                 self.emit(Instruction::CharClass {
-                    ranges: vec![CharRange { start: *lo, end: *hi }],
+                    ranges: CharRanges::new(vec![CharRange { start: *lo, end: *hi }]),
                     negated: false,
                 });
             }
