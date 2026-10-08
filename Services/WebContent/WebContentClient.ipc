@@ -189,6 +189,7 @@ endpoint WebContentClient routed by Web::PageId page_id
 
     did_lose_request_server_connection() => (Optional<IPC::TransportHandle> handle)
     request_media_server_connection() => (Optional<IPC::TransportHandle> handle)
+    request_audio_server_connection() => (Optional<IPC::TransportHandle> handle)
 
     [NotRouted] did_request_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key) => (Optional<Utf16String> value)
     [NotRouted] did_set_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key, Utf16String value) => (WebView::StorageSetResult result)

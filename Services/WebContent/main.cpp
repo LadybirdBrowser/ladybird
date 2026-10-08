@@ -22,6 +22,7 @@
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibMain/Main.h>
+#include <LibMedia/Audio/ClientConnection.h>
 #include <LibMediaClient/Client.h>
 #include <LibRequests/RequestClient.h>
 #include <LibSandbox/ConnectBroker.h>
@@ -244,6 +245,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     MediaClient::Client::set_transport_factory([webcontent_client] {
         return webcontent_client->request_media_server_transport();
+    });
+    // WebAudio's output plays through the AudioServer; this process never reaches a device itself.
+    Audio::ClientConnection::set_transport_factory([webcontent_client] {
+        return webcontent_client->request_audio_server_transport();
     });
 
 #if defined(HAVE_WASM_COMPILER_SERVICE)
