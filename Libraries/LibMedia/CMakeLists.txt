@@ -7,6 +7,7 @@ set(SOURCES
     Audio/AudioServerPath.cpp
     Audio/NullPlaybackStream.cpp
     Audio/PlaybackStream.cpp
+    Audio/PlaybackStreamMixer.cpp
     Audio/RecordStream.cpp
     Audio/SharedAudioFrameRing.cpp
     Audio/SpscAudioFrameRing.cpp

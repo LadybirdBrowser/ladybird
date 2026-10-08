@@ -34,6 +34,7 @@ set(TEST_SOURCES
     TestParseMatroska.cpp
     TestPipelineNodes.cpp
     TestPlaybackStream.cpp
+    TestPlaybackStreamMixer.cpp
     TestRemoteVideoNode.cpp
     TestSharedAudioFrameRing.cpp
     TestSourceBufferDemuxer.cpp
