@@ -558,7 +558,7 @@ static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> nav
         return true;
 
     JsonValue network_response = navigation_params->webdriver_bidi_network_response;
-    if (WebDriver::BiDi::g_network_events_enabled && response->request_server_request().has_value() && !network_response.is_object() && navigation_params->request) {
+    if (WebDriver::BiDi::g_network_events_enabled && response->network_transport().has_value() && !network_response.is_object() && navigation_params->request) {
         RefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info = navigation_params->fetch_timing_info;
         if (navigation_params->fetch_controller)
             timing_info = navigation_params->fetch_controller->timing_info();
@@ -603,14 +603,22 @@ static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> nav
     }
 
     auto download_url = response->url().value_or(navigation_params->request ? navigation_params->request->current_url() : URL::about_blank());
-    if (auto const& request_server_request = response->request_server_request(); request_server_request.has_value()) {
+    if (auto const& network_transport = response->network_transport(); network_transport.has_value()) {
+        auto const& transport_handle = *network_transport->handle;
+        auto const& lease = transport_handle.transfer_lease();
+        // A request that another client adopted has no lease to hand over.
+        if (!lease.has_value()) {
+            report_download_rejected();
+            stop_or_resume_response_body_delivery(navigation_params);
+            return true;
+        }
         auto suggested_filename = suggested_download_filename(download_url, *response->header_list(), {}, interface_origin);
-        auto response_body_will_be_transferred_in_full = request_server_request->request && request_server_request->request->has_file_backed_response_body();
+        auto response_body_will_be_transferred_in_full = transport_handle.has_file_backed_response_body();
         ByteBuffer initial_data_buffer;
         if (initial_data.has_value() && !initial_data->is_empty() && !response_body_will_be_transferred_in_full)
             initial_data_buffer = MUST(ByteBuffer::copy(*initial_data));
 
-        auto download_id = navigation_params->navigable->page().client().page_did_start_download(navigation_params->navigable->id(), navigation_params->id, download_url, suggested_filename, response_content_length(*response->header_list()), request_server_request->client_id, request_server_request->request_id, move(initial_data_buffer),
+        auto download_id = navigation_params->navigable->page().client().page_did_start_download(navigation_params->navigable->id(), navigation_params->id, download_url, suggested_filename, response_content_length(*response->header_list()), lease->source_client_id, lease->source_request_id, move(initial_data_buffer),
             move(network_response));
         if (!download_id.has_value()) {
             if (navigation_params->fetch_controller)

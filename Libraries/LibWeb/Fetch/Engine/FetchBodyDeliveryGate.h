@@ -11,7 +11,6 @@
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/Weakable.h>
-#include <LibRequests/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Engine/FetchByteChannel.h>
 
@@ -45,7 +44,6 @@ public:
 
     // Allowances granted before the transport exists are applied on attach.
     void attach_transport(NonnullRefPtr<Transport>);
-    void attach_transport(NonnullRefPtr<Requests::Request>);
 
     enum class DeliveryResult : u8 {
         Accepted,

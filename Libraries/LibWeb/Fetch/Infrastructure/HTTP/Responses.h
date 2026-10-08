@@ -18,11 +18,10 @@
 #include <LibHTTP/HeaderList.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibRequests/Forward.h>
-#include <LibRequests/Request.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
+#include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/ResponseCacheState.h>
@@ -62,15 +61,13 @@ public:
     };
 
     // RequestServer bookkeeping is transport state, not JS-visible response data.
-    struct RequestServerRequest {
-        // The request itself pauses and resumes the body's delivery.
-        struct DeliveredByRequest { };
+    struct NetworkTransport {
+        // The handle itself pauses and resumes the body's delivery.
+        struct DeliveredByHandle { };
 
-        int client_id { -1 };
-        u64 request_id { 0 };
-        RefPtr<Requests::Request> request;
+        NonnullRefPtr<Engine::NetworkTransportHandle> handle;
         // A body paced by a FetchByteChannel is released from the navigation hold through its delivery gate.
-        Variant<DeliveredByRequest, NonnullRefPtr<Engine::FetchBodyDeliveryGate>> body_delivery { DeliveredByRequest {} };
+        Variant<DeliveredByHandle, NonnullRefPtr<Engine::FetchBodyDeliveryGate>> body_delivery { DeliveredByHandle {} };
     };
 
     [[nodiscard]] static GC::Ref<Response> create();
@@ -151,8 +148,8 @@ public:
     // Non-standard
     [[nodiscard]] Optional<String> const& network_error_message() const { return m_network_error_message; }
     MonotonicTime monotonic_response_time() const { return m_monotonic_response_time; }
-    [[nodiscard]] virtual Optional<RequestServerRequest> const& request_server_request() const { return m_request_server_request; }
-    virtual void set_request_server_request(RequestServerRequest request) { m_request_server_request = move(request); }
+    [[nodiscard]] virtual Optional<NetworkTransport> const& network_transport() const { return m_network_transport; }
+    virtual void set_network_transport(NetworkTransport network_transport) { m_network_transport = move(network_transport); }
     virtual void release_request_transfer_lease() const;
     virtual void resume_body_delivery() const;
     virtual void resume_body_delivery_up_to(size_t) const;
@@ -234,7 +231,7 @@ private:
     Optional<Core::ImmutableBytes> m_javascript_bytecode_cache;
     Optional<u64> m_javascript_bytecode_cache_vary_key;
     Optional<NonnullRefPtr<HTTP::HeaderList>> m_javascript_bytecode_cache_memory_cache_request_headers;
-    Optional<RequestServerRequest> m_request_server_request;
+    Optional<NetworkTransport> m_network_transport;
 
 public:
     [[nodiscard]] ByteString const& method() const { return m_method; }
@@ -293,8 +290,8 @@ public:
 
     [[nodiscard]] virtual RedirectTaint redirect_taint() const override { return m_internal_response->redirect_taint(); }
     virtual void set_redirect_taint(RedirectTaint redirect_taint) override { m_internal_response->set_redirect_taint(redirect_taint); }
-    [[nodiscard]] virtual Optional<RequestServerRequest> const& request_server_request() const override { return m_internal_response->request_server_request(); }
-    virtual void set_request_server_request(RequestServerRequest request) override { m_internal_response->set_request_server_request(move(request)); }
+    [[nodiscard]] virtual Optional<NetworkTransport> const& network_transport() const override { return m_internal_response->network_transport(); }
+    virtual void set_network_transport(NetworkTransport network_transport) override { m_internal_response->set_network_transport(move(network_transport)); }
     virtual void release_request_transfer_lease() const override { m_internal_response->release_request_transfer_lease(); }
     virtual void resume_body_delivery() const override { m_internal_response->resume_body_delivery(); }
     virtual void resume_body_delivery_up_to(size_t byte_count) const override { m_internal_response->resume_body_delivery_up_to(byte_count); }

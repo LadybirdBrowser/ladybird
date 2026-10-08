@@ -463,8 +463,8 @@ static JsonObject get_the_response_data(Response const& response, FetchTimingInf
     if (timings.final_connection_timing_info().has_value())
         protocol = timings.final_connection_timing_info()->alpn_negotiated_protocol;
     if (protocol.is_empty()) {
-        if (auto const& network_request = response.request_server_request(); network_request.has_value() && network_request->request)
-            protocol = network_request->request->http_version();
+        if (auto const& network_transport = response.network_transport(); network_transport.has_value())
+            protocol = network_transport->handle->http_version();
     }
     if (protocol.is_empty())
         protocol = url.has_value() ? url->scheme().to_byte_string() : ByteString {};

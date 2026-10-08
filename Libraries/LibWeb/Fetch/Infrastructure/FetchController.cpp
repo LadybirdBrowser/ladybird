@@ -7,7 +7,7 @@
 #include <LibGC/Heap.h>
 #include <LibGC/Weak.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibRequests/Request.h>
+#include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 #include <LibWeb/Fetch/Fetching/PendingResponse.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -48,14 +48,14 @@ void FetchController::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_pending_responses);
 }
 
-void FetchController::set_pending_request(RefPtr<Requests::Request> const& request)
+void FetchController::set_network_transport(Engine::NetworkTransportHandle& network_transport)
 {
-    m_pending_request = request;
-    m_has_started_request |= !!request;
-    if (request && m_fetch_params && m_fetch_params->request()->destination() == Request::Destination::Font) {
-        request->on_requires_network = GC::weak_callback(*this, [](auto& controller) {
+    set_body_transport(network_transport);
+    m_has_started_request = true;
+    if (m_fetch_params && m_fetch_params->request()->destination() == Request::Destination::Font) {
+        network_transport.set_on_requires_network(GC::weak_callback(*this, [](auto& controller) {
             controller.m_requires_network = true;
-        });
+        }));
     }
 }
 
@@ -205,10 +205,6 @@ void FetchController::stop_request()
 
 void FetchController::stop_body_transport()
 {
-    if (m_pending_request) {
-        m_pending_request->stop();
-        m_pending_request = nullptr;
-    }
     if (auto body_transport = m_body_transport.strong_ref()) {
         m_body_transport = nullptr;
         body_transport->stop();

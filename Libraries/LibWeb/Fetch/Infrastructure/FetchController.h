@@ -14,7 +14,6 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibRequests/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
@@ -71,7 +70,7 @@ public:
     [[nodiscard]] GC::Ptr<Fetching::PendingResponse> pending_preloaded_response() const { return m_pending_preloaded_response; }
     void set_pending_preloaded_response(GC::Ptr<Fetching::PendingResponse> pending_preloaded_response) { m_pending_preloaded_response = pending_preloaded_response; }
 
-    void set_pending_request(RefPtr<Requests::Request> const&);
+    void set_network_transport(Engine::NetworkTransportHandle&);
     void set_body_transport(Engine::FetchBodyDeliveryGate::Transport&);
     bool requires_network() const { return m_requires_network; }
     bool has_started_request() const { return m_has_started_request; }
@@ -127,7 +126,6 @@ private:
     // Widen this if preload handoff ever supports multiple consumers.
     GC::Ptr<Fetching::PendingResponse> m_pending_preloaded_response;
 
-    WeakPtr<Requests::Request> m_pending_request;
     WeakPtr<Engine::FetchBodyDeliveryGate::Transport> m_body_transport;
     bool m_requires_network { false };
     bool m_has_started_request { false };
