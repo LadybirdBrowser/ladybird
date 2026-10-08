@@ -43,6 +43,7 @@ use crate::utf16::Utf16View;
 /// functions TESTJS_GLOBAL_FUNCTION defines, each has a length of 1.
 pub const EXPOSED_GLOBAL_FUNCTIONS: &[(&str, RawNativeFunctionPointer)] = &[
     ("canParseSource", raw_native!(can_parse_source)),
+    ("haveSameShape", raw_native!(have_same_shape)),
     ("gc", raw_native!(collect_garbage)),
     (
         "collectGarbageOnEveryAllocation",
@@ -80,6 +81,16 @@ fn as_if<T: GcCell + Extends<Object>>(value: Value) -> Option<Gc<T>> {
         return None;
     }
     value.as_object().downcast::<T>()
+}
+
+fn have_same_shape(vm: &Vm) -> ThrowCompletionOr<Value> {
+    let (lhs, rhs) = (vm.argument(0), vm.argument(1));
+    for argument in [lhs, rhs] {
+        if !argument.is_object() {
+            return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&argument]);
+        }
+    }
+    Ok(Value::from_bool(lhs.as_object().shape() == rhs.as_object().shape()))
 }
 
 fn can_parse_source(vm: &Vm) -> ThrowCompletionOr<Value> {
