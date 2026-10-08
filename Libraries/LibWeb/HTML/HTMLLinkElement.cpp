@@ -511,6 +511,9 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource(u64 fetch_genera
             return;
         m_fetch_controller = nullptr;
 
+        // NB: The unsafe response below is always CORS-same-origin, so determine the origin-clean flag beforehand.
+        auto origin_clean = response->is_cors_same_origin() ? CSS::StyleScope::OriginClean::Yes : CSS::StyleScope::OriginClean::No;
+
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
         //        https://github.com/whatwg/html/issues/9355
         response = response->unsafe_response();
@@ -535,7 +538,7 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource(u64 fetch_genera
         // FIXME: 3. Otherwise, wait for the link resource's critical subresources to finish loading.
 
         // 4. Process the linked resource given el, success, response, and bodyBytes.
-        process_linked_resource(success, response, successful_body_bytes);
+        process_linked_resource(success, response, origin_clean, successful_body_bytes);
     };
 
     m_fetch_controller = Fetch::Fetching::fetch(HTML::relevant_realm(*this), *request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
@@ -972,7 +975,7 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetc
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#process-the-linked-resource
-void HTMLLinkElement::process_linked_resource(bool success, Fetch::Infrastructure::Response const& response, Core::ImmutableBytes const* body_bytes)
+void HTMLLinkElement::process_linked_resource(bool success, Fetch::Infrastructure::Response const& response, CSS::StyleScope::OriginClean origin_clean, Core::ImmutableBytes const* body_bytes)
 {
     if (success)
         VERIFY(body_bytes);
@@ -983,7 +986,7 @@ void HTMLLinkElement::process_linked_resource(bool success, Fetch::Infrastructur
             icon_bytes = body_bytes->copy_to_byte_buffer().release_value_but_fixme_should_propagate_errors();
         process_icon_resource(success, response, move(icon_bytes));
     } else if (m_relationship & Relationship::Stylesheet) {
-        process_stylesheet_resource(success, response, success ? body_bytes->bytes() : ReadonlyBytes {});
+        process_stylesheet_resource(success, response, origin_clean, success ? body_bytes->bytes() : ReadonlyBytes {});
     }
 }
 
@@ -1054,7 +1057,7 @@ void HTMLLinkElement::process_icon_resource(bool success, Fetch::Infrastructure:
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet:process-the-linked-resource
-void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const& response, ReadonlyBytes body_bytes)
+void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const& response, CSS::StyleScope::OriginClean origin_clean, ReadonlyBytes body_bytes)
 {
     if (!document().is_fully_active())
         return;
@@ -1129,7 +1132,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
             m_stylesheet_processing_pending = true;
             CSS::Parser::Parser::parse_stylesheet_off_thread(
                 CSS::Parser::ParsingParams { document() }, maybe_decoded_string.release_value(),
-                [link = GC::make_root(*this), loaded_document = GC::make_root(document()), fetch_generation = m_current_fetch_generation, location = response.url_list().first()](CSS::Parser::RustStyleSheetParse parsed) mutable {
+                [link = GC::make_root(*this), loaded_document = GC::make_root(document()), fetch_generation = m_current_fetch_generation, location = response.url_list().first(), origin_clean](CSS::Parser::RustStyleSheetParse parsed) mutable {
                     if (fetch_generation != link->m_current_fetch_generation || !link->m_stylesheet_processing_pending)
                         return;
                     // NB: An inactive document's element tasks cannot run. Release its result here.
@@ -1139,7 +1142,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                         return;
                     }
                     link->queue_an_element_task(Task::Source::Networking,
-                        [link = move(link), loaded_document = move(loaded_document), fetch_generation, location = move(location), parsed = move(parsed)] {
+                        [link = move(link), loaded_document = move(loaded_document), fetch_generation, location = move(location), parsed = move(parsed), origin_clean] {
                             if (fetch_generation != link->m_current_fetch_generation || !link->m_stylesheet_processing_pending)
                                 return;
                             if (&link->document() != loaded_document.ptr() || !loaded_document->is_fully_active()
@@ -1157,7 +1160,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                                 *sheet, link.ptr(), media.has_value() ? media->utf16_view() : u""sv,
                                 title.has_value() ? title.release_value() : Utf16String {},
                                 (link->m_relationship & Relationship::Alternate && !link->m_explicitly_enabled) ? CSS::StyleScope::Alternate::Yes : CSS::StyleScope::Alternate::No,
-                                CSS::StyleScope::OriginClean::Yes, nullptr, nullptr);
+                                origin_clean, nullptr, nullptr);
                             link->m_loaded_style_sheet = sheet;
 
                             // NB: Removing disabled explicitly enables the sheet, even if its title would disable it.
