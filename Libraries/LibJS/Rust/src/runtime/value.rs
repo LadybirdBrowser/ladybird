@@ -13,7 +13,9 @@ use num_traits::Zero;
 
 use crate::build_configuration::HEAP_REGION_OFFSET_MASK;
 use crate::bytecode::executable::{PropertyLookupCache, StaticPropertyLookupCacheSite};
-use crate::bytecode::property_access::{CachePropertyAbsence, GetByIdMode, get_by_id};
+use crate::bytecode::property_access::{
+    CachePropertyAbsence, GetByIdMode, get_by_id, get_own_property_without_side_effects,
+};
 use crate::gc::capi::js_heap_region_base;
 use crate::gc::class_id::ClassId;
 use crate::interpreter::vm::Vm;
@@ -35,6 +37,7 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::number_object::NumberObject;
 use crate::runtime::object::PropertyLookupPhase;
+use crate::runtime::object_prototype::{ObjectPrototype, builtin_tag};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::proxy_object::ProxyObject;
 use crate::runtime::string_object::StringObject;
@@ -63,6 +66,85 @@ fn decode_cell_address(encoded: u64) -> usize {
         );
     }
     address as usize
+}
+
+/// The most objects on a prototype chain to_primitive_of_object_with_default_conversions() looks through.
+const MAX_DEFAULT_CONVERSION_PROTOTYPE_CHAIN_LENGTH: usize = 4;
+
+/// OPTIMIZATION: ToPrimitive of an object that inherits toString and valueOf from %Object.prototype%, without any
+///               @@toPrimitive or @@toStringTag on its prototype chain, is "[object Object]" for every preferred type:
+///               there is no exotic @@toPrimitive, valueOf returns the object itself, and toString is
+///               %Object.prototype.toString%. Returns nothing if the object is not such an object, or if its builtinTag
+///               is not "Object".
+fn to_primitive_of_object_with_default_conversions(vm: &Vm, object: &Object) -> Option<Gc<PrimitiveString>> {
+    let realm = vm.current_realm()?;
+    let object_prototype = realm.object_prototype();
+
+    let to_primitive_key = PropertyKey::from(vm.well_known_symbols().to_primitive);
+    let to_string_tag_key = PropertyKey::from(vm.well_known_symbols().to_string_tag);
+
+    // Every object on the chain below %Object.prototype% looks these properties up in its own storage, and has none.
+    let mut current = object.as_gc();
+    let mut chain_length = 0;
+    while current != object_prototype {
+        chain_length += 1;
+        if chain_length > MAX_DEFAULT_CONVERSION_PROTOTYPE_CHAIN_LENGTH || !current.has_ordinary_named_property_lookup()
+        {
+            return None;
+        }
+        let shape = current.shape();
+        if shape.property_count() > 0
+            && (shape.lookup(&vm.names.toString).is_some()
+                || shape.lookup(&vm.names.valueOf).is_some()
+                || shape.lookup(&to_primitive_key).is_some()
+                || shape.lookup(&to_string_tag_key).is_some())
+        {
+            return None;
+        }
+        current = shape.prototype()?;
+    }
+
+    // %Object.prototype% still has its own toString and valueOf, and no @@toPrimitive or @@toStringTag.
+    let cache = |site| vm.static_property_lookup_cache(site);
+    let to_string = get_own_property_without_side_effects(
+        &object_prototype,
+        &vm.names.toString,
+        cache(StaticPropertyLookupCacheSite::ValueDefaultConversionsToString),
+    );
+    if !to_string.is_object()
+        || to_string.as_object() != realm.intrinsics().object_prototype_to_string_function().upcast()
+    {
+        return None;
+    }
+    let value_of = get_own_property_without_side_effects(
+        &object_prototype,
+        &vm.names.valueOf,
+        cache(StaticPropertyLookupCacheSite::ValueDefaultConversionsValueOf),
+    );
+    if !value_of.is_function() || !ObjectPrototype::is_value_of_function(vm, value_of.as_function()) {
+        return None;
+    }
+    if !get_own_property_without_side_effects(
+        &object_prototype,
+        &to_primitive_key,
+        cache(StaticPropertyLookupCacheSite::ValueDefaultConversionsToPrimitive),
+    )
+    .is_empty()
+        || !get_own_property_without_side_effects(
+            &object_prototype,
+            &to_string_tag_key,
+            cache(StaticPropertyLookupCacheSite::ValueDefaultConversionsToStringTag),
+        )
+        .is_empty()
+    {
+        return None;
+    }
+
+    // NB: Proxies have no ordinary property lookup, so IsArray is whether the object is an Array.
+    if builtin_tag(object, object.is_array_exotic_object()) != "Object" {
+        return None;
+    }
+    Some(vm.cached_strings().object_Object)
 }
 
 impl Value {
@@ -412,6 +494,10 @@ impl Value {
     fn to_primitive_slow_case(self, vm: &Vm, mut preferred_type: PreferredType) -> ThrowCompletionOr<Value> {
         // 1. If input is an Object, then
         if self.is_object() {
+            if let Some(string) = to_primitive_of_object_with_default_conversions(vm, &self.as_object()) {
+                return Ok(Value::from_string(string));
+            }
+
             // a. Let exoticToPrim be ? GetMethod(input, @@toPrimitive).
             let exotic_to_primitive = self.get_method_with_cache(
                 vm,

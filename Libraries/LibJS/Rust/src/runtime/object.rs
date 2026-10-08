@@ -974,9 +974,10 @@ impl Object {
     pub fn has_own_property(&self, vm: &Vm, property_key: &PropertyKey) -> ThrowCompletionOr<bool> {
         // OPTIMIZATION: Whether the ordinary [[GetOwnProperty]] finds a property only depends on the object's storage,
         //               so ask the storage without building the descriptor.
-        let ordinary_get_own_property: InternalGetOwnPropertyMethod = Object::ordinary_get_own_property;
-        if core::ptr::fn_addr_eq(self.methods().internal_get_own_property, ordinary_get_own_property)
-            && !self.has_unimplemented_properties()
+        if core::ptr::fn_addr_eq(
+            self.methods().internal_get_own_property,
+            ORDINARY_OBJECT_METHODS.internal_get_own_property,
+        ) && !self.has_unimplemented_properties()
         {
             return Ok(self.storage_has(property_key));
         }
