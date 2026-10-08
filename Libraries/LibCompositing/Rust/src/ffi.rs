@@ -308,6 +308,33 @@ pub unsafe extern "C" fn visual_context_tree_live_node_count(tree: *const c_void
     unsafe { tree_from_handle(tree) }.live_node_count()
 }
 
+/// Checks a tape and the raw bytes of its run table, as they arrived from another process. Returns
+/// null when they are well formed, or else a static error message whose size it writes.
+///
+/// # Safety
+///
+/// `tape` must address `tape_size` bytes and `run_bytes` must address `run_bytes_size` bytes for
+/// the call, or be null with a size of zero; `error_size` must be writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_validate_tape(
+    tape: *const u8,
+    tape_size: usize,
+    run_bytes: *const u8,
+    run_bytes_size: usize,
+    error_size: *mut usize,
+) -> *const u8 {
+    // SAFETY: The caller guarantees both slices address the stated number of bytes.
+    let tape = unsafe { ffi_slice(tape, tape_size) };
+    let run_bytes = unsafe { ffi_slice(run_bytes, run_bytes_size) };
+    let (message, size) = match crate::display_list::validate::validate_tape(tape, run_bytes) {
+        Ok(_) => (std::ptr::null(), 0),
+        Err(message) => (message.as_ptr(), message.len()),
+    };
+    // SAFETY: The caller guarantees `error_size` is writable.
+    unsafe { *error_size = size };
+    message
+}
+
 /// # Safety
 ///
 /// `tree` must be a live retained tree handle; `command_runs` must address `command_run_count`

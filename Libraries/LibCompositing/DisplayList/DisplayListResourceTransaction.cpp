@@ -135,6 +135,9 @@ ErrorOr<Compositing::DisplayListResourceTransaction> decode(Decoder& decoder)
     for (size_t i = 0; i < display_list_count; ++i) {
         auto display_list = TRY(decoder.decode<NonnullRefPtr<Compositing::DisplayList>>());
         auto visual_context_tree = TRY(decoder.decode<Compositing::AccumulatedVisualContextTree>());
+        if (display_list->compatible_visual_context_tree_structural_epoch() != visual_context_tree.structural_epoch())
+            return Error::from_string_literal("Display list resource does not match its visual context tree");
+        TRY(Compositing::validate_display_list_references_live_visual_context_nodes(*display_list, visual_context_tree));
         display_lists.unchecked_append({ move(display_list), move(visual_context_tree) });
     }
 
