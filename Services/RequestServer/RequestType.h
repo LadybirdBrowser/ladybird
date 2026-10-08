@@ -15,6 +15,8 @@ enum class RequestType : u8 {
     Connect,
     BackgroundRevalidation,
     WebSocket,
+    // A response another RequestServer is streaming to this one.
+    Imported,
 };
 
 }
