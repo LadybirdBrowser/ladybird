@@ -16,3 +16,39 @@ test("basic functionality", () => {
     expect(o.hasOwnProperty(testSymbol)).toBeTrue();
     expect(o.hasOwnProperty(Symbol("fake"))).toBeFalse();
 });
+
+test("objects with their own [[GetOwnProperty]]", () => {
+    const array = [1, , 3];
+    expect(array.hasOwnProperty(0)).toBeTrue();
+    expect(array.hasOwnProperty(1)).toBeFalse();
+    expect(array.hasOwnProperty("length")).toBeTrue();
+
+    const string = new String("ab");
+    expect(string.hasOwnProperty(1)).toBeTrue();
+    expect(string.hasOwnProperty(2)).toBeFalse();
+    expect(string.hasOwnProperty("length")).toBeTrue();
+
+    const proxy = new Proxy({}, { getOwnPropertyDescriptor: () => ({ value: 1, configurable: true }) });
+    expect(proxy.hasOwnProperty("anything")).toBeTrue();
+
+    function f(a) {
+        return arguments;
+    }
+    expect(f(1).hasOwnProperty(0)).toBeTrue();
+    expect(f(1).hasOwnProperty(1)).toBeFalse();
+    expect(f.hasOwnProperty("prototype")).toBeTrue();
+    expect(Math.hasOwnProperty("abs")).toBeTrue();
+    expect(new Uint8Array(2).hasOwnProperty(1)).toBeTrue();
+    expect(new Uint8Array(2).hasOwnProperty(2)).toBeFalse();
+});
+
+test("accessor and indexed properties of ordinary objects", () => {
+    const o = { 3: "x" };
+    Object.defineProperty(o, "getter", { get: () => 1 });
+    expect(o.hasOwnProperty("getter")).toBeTrue();
+    expect(o.hasOwnProperty(3)).toBeTrue();
+    expect(o.hasOwnProperty("3")).toBeTrue();
+    expect(o.hasOwnProperty(4)).toBeFalse();
+    delete o[3];
+    expect(o.hasOwnProperty(3)).toBeFalse();
+});
