@@ -9,12 +9,12 @@ use core::cell::Cell;
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{GcCell, define_cell};
+use crate::gc::class::{ExternalMemorySize, GcCell, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::source_range::SourceRange;
-use crate::utf16::Utf16View;
+use crate::utf16::{Utf16View, utf16_string_external_memory_size};
 
 pub struct TracebackFrame {
     pub function_name: Utf16String,
@@ -55,6 +55,19 @@ impl ErrorData {
             traceback: Self::populate_stack(vm),
             cached_string: Cell::new(None),
         }
+    }
+
+    pub fn traceback_storage_size(&self) -> usize {
+        self.traceback.capacity() * size_of::<TracebackFrame>()
+    }
+
+    pub fn external_memory_size(&self) -> usize {
+        let function_names_size: usize = self
+            .traceback
+            .iter()
+            .map(|frame| utf16_string_external_memory_size(&frame.function_name))
+            .sum();
+        self.traceback_storage_size() + function_names_size
     }
 
     fn populate_stack(vm: &Vm) -> Vec<TracebackFrame> {
@@ -172,15 +185,24 @@ pub struct ErrorDataCell {
     error_data: ErrorData,
 }
 
-define_cell!(ErrorDataCell, Other);
+define_cell!(ErrorDataCell, Other, external_memory_size: external_memory_size);
+
+impl ExternalMemorySize for ErrorDataCell {
+    fn external_memory_size(&self) -> usize {
+        self.error_data.external_memory_size()
+    }
+}
 
 impl ErrorDataCell {
     /// ErrorDataCell::capture(vm): error data with the call stack of the running execution context.
     pub fn capture(vm: &Vm) -> Gc<ErrorDataCell> {
-        vm.heap().allocate(Self {
+        let cell = vm.heap().allocate(Self {
             header: CellHeader::for_class(Self::CLASS),
             error_data: ErrorData::new(vm),
-        })
+        });
+        vm.heap()
+            .did_allocate_external_memory(cell.error_data.traceback_storage_size());
+        cell
     }
 
     pub fn error_data(&self) -> &ErrorData {
