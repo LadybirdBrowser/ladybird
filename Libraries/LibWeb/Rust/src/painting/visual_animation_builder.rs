@@ -12,6 +12,7 @@
 use std::ffi::c_void;
 
 use crate::css::absolutize::number_from_value;
+use crate::css::color_resolution::{ColorResolutionInput, FfiColorResolutionStyle, to_color};
 use crate::css::css_enums::keyword;
 use crate::css::css_pixels::CssPixels;
 use crate::css::easing::Easing;
@@ -125,14 +126,6 @@ impl<'a> Host<'a> {
         // SAFETY: The host hands over one strong reference, which the wrapper releases.
         Some(unsafe { RetainedStyleValueData::from_retained_pointer(value.cast()) })
     }
-
-    fn resolve_color(&self, value: &StyleValueData) -> Option<Color> {
-        let mut color = Color::TRANSPARENT;
-        // SAFETY: The value is live for the call and the host writes the color synchronously.
-        let has_color =
-            unsafe { (self.0.resolve_color)(self.0.context, std::ptr::from_ref(value).cast(), &raw mut color) };
-        has_color.then_some(color)
-    }
 }
 
 /// A build request with its keyframes in reach.
@@ -159,6 +152,18 @@ impl<'a> Request<'a> {
 
     pub fn layout_node(&self) -> crate::layout::node_data::NodeSlotId {
         self.ffi.layout_node
+    }
+
+    /// The color a resolved color value names for the target.
+    fn resolve_color(&self, value: &StyleValueData) -> Option<Color> {
+        let target_style = FfiColorResolutionStyle {
+            inherited_ui_values: self.ffi.target_inherited_ui_values,
+            inherited_text_values: self.ffi.target_inherited_text_values,
+        };
+        // SAFETY: The host keeps the target's style group payloads live for the build.
+        let input = unsafe { ColorResolutionInput::for_ffi_style(&raw const target_style) };
+        let color = to_color(value, &input)?;
+        Some(Color::from_rgba(color.r, color.g, color.b, color.a))
     }
 
     fn targets(&self, property: AnimatedProperty) -> bool {
@@ -219,21 +224,18 @@ fn is_legacy_color_function(value: &StyleValueData) -> bool {
 /// Legacy sRGB colors interpolate in gamma-encoded sRGB, which the compositor sampler matches. Modern
 /// color syntaxes stay on the main thread until compositor values can retain their interpolation
 /// color space, and currentcolor with them.
-fn background_color_from_style_value(value: &StyleValueData, host: &Host) -> Option<Color> {
+fn background_color_from_style_value(value: &StyleValueData, request: &Request) -> Option<Color> {
     if matches!(value, StyleValueData::Keyword { keyword: code } if *code == keyword::CURRENTCOLOR) {
         return None;
     }
     if matches!(value, StyleValueData::ColorFunction { .. }) && !is_legacy_color_function(value) {
         return None;
     }
-    host.resolve_color(value)
+    request.resolve_color(value)
 }
 
-fn filter_functions_from_style_value(
-    value: &StyleValueData,
-    device_pixels_per_css_pixel: f32,
-    host: &Host,
-) -> Option<Vec<FfiFilterFunction>> {
+fn filter_functions_from_style_value(value: &StyleValueData, request: &Request) -> Option<Vec<FfiFilterFunction>> {
+    let device_pixels_per_css_pixel = request.device_pixels_per_css_pixel();
     if is_none_keyword(value) {
         return Some(Vec::new());
     }
@@ -281,7 +283,7 @@ fn filter_functions_from_style_value(
                 // Gfx filters hold 8-bit sRGB colors. Modern color syntaxes and currentcolor stay on the
                 // main thread until compositor filter values can retain their color space and syntax.
                 let color = color.optional_data().filter(|color| is_legacy_color_function(color))?;
-                let color = host.resolve_color(color)?;
+                let color = request.resolve_color(color)?;
                 let resolve_length = |length: &StyleValueData| {
                     length_px_unrounded(length, None).map(|px| device_pixels(px, device_pixels_per_css_pixel))
                 };
@@ -630,13 +632,9 @@ fn lower_keyframe(
             VisualAnimationValue::Opacity(opacity_from_style_value(resolved.data())?)
         }
         FfiVisualAnimationTargetKind::BackgroundColor => {
-            VisualAnimationValue::BackgroundColor(background_color_from_style_value(resolved.data(), host)?)
+            VisualAnimationValue::BackgroundColor(background_color_from_style_value(resolved.data(), request)?)
         }
-        _ => VisualAnimationValue::Filter(filter_functions_from_style_value(
-            resolved.data(),
-            request.device_pixels_per_css_pixel(),
-            host,
-        )?),
+        _ => VisualAnimationValue::Filter(filter_functions_from_style_value(resolved.data(), request)?),
     };
     Some(Some(value))
 }
@@ -932,8 +930,8 @@ mod tests {
     fn color_function(syntax: u8) -> StyleValueData {
         StyleValueData::ColorFunction {
             color_base: ColorBase {
-                has_color_type: false,
-                color_type: 0,
+                has_color_type: true,
+                color_type: crate::css::color_conversion::RGB,
                 color_syntax: syntax,
             },
             channel_0: retained(number_value(255.0)),
@@ -970,7 +968,6 @@ mod tests {
     #[derive(Default)]
     struct TestHost {
         values: HashMap<(usize, u16, bool), Arc<StyleValueData>>,
-        resolved_color: Option<Color>,
         resolutions: RefCell<usize>,
     }
 
@@ -996,7 +993,6 @@ mod tests {
             FfiCompositorAnimationHost {
                 context: std::ptr::from_ref(self).cast_mut().cast(),
                 resolved_keyframe_value: test_resolved_keyframe_value,
-                resolve_color: test_resolve_color,
             }
         }
     }
@@ -1012,17 +1008,6 @@ mod tests {
         host.values
             .get(&(keyframe_index, property_id, uses_underlying_style))
             .map_or(std::ptr::null(), |value| Arc::into_raw(Arc::clone(value)).cast())
-    }
-
-    unsafe extern "C" fn test_resolve_color(context: *mut c_void, _value: *const c_void, color: *mut Color) -> bool {
-        let host = unsafe { &*context.cast::<TestHost>() };
-        match host.resolved_color {
-            Some(resolved) => {
-                unsafe { *color = resolved };
-                true
-            }
-            None => false,
-        }
     }
 
     fn linear_easing() -> FfiEasingDescriptor {
@@ -1103,6 +1088,8 @@ mod tests {
         FfiCompositorAnimationRequest {
             target_kind: kind,
             layout_node: crate::layout::node_data::NodeSlotId::INVALID,
+            target_inherited_ui_values: std::ptr::null(),
+            target_inherited_text_values: std::ptr::null(),
             timing: timing(),
             keyframes: keyframes.as_ptr(),
             keyframe_count: keyframes.len(),
@@ -1462,25 +1449,22 @@ mod tests {
 
     #[test]
     fn filter_keyframes_lower_to_filter_functions() {
-        let host = TestHost {
-            resolved_color: Some(Color::from_rgb(255, 0, 0)),
-            ..TestHost::default()
-        }
-        .with_value(0, AnimatedProperty::Filter, none())
-        .with_value(
-            1,
-            AnimatedProperty::Filter,
-            value_list(vec![
-                filter(FILTER_KIND_BLUR, 0, px(4.0)),
-                filter(
-                    FILTER_KIND_DROP_SHADOW,
-                    0,
-                    shadow(Some(color_function(COLOR_SYNTAX_LEGACY)), 1.0, 2.0, Some(3.0)),
-                ),
-                filter(FILTER_KIND_HUE_ROTATE, 0, deg(90.0)),
-                filter(FILTER_KIND_COLOR, ColorFilterType::Sepia as u8, percentage(50.0)),
-            ]),
-        );
+        let host = TestHost::default()
+            .with_value(0, AnimatedProperty::Filter, none())
+            .with_value(
+                1,
+                AnimatedProperty::Filter,
+                value_list(vec![
+                    filter(FILTER_KIND_BLUR, 0, px(4.0)),
+                    filter(
+                        FILTER_KIND_DROP_SHADOW,
+                        0,
+                        shadow(Some(color_function(COLOR_SYNTAX_LEGACY)), 1.0, 2.0, Some(3.0)),
+                    ),
+                    filter(FILTER_KIND_HUE_ROTATE, 0, deg(90.0)),
+                    filter(FILTER_KIND_COLOR, ColorFilterType::Sepia as u8, percentage(50.0)),
+                ]),
+            );
         let ffi_host = host.ffi();
         let keyframes = [
             present(0.0, AnimatedProperty::Filter),
@@ -1512,20 +1496,17 @@ mod tests {
         assert!(animation.is_valid());
 
         // A drop shadow in a modern color syntax keeps the effect on the main thread.
-        let modern = TestHost {
-            resolved_color: Some(Color::from_rgb(255, 0, 0)),
-            ..TestHost::default()
-        }
-        .with_value(0, AnimatedProperty::Filter, none())
-        .with_value(
-            1,
-            AnimatedProperty::Filter,
-            value_list(vec![filter(
-                FILTER_KIND_DROP_SHADOW,
-                0,
-                shadow(Some(color_function(1)), 1.0, 2.0, None),
-            )]),
-        );
+        let modern = TestHost::default()
+            .with_value(0, AnimatedProperty::Filter, none())
+            .with_value(
+                1,
+                AnimatedProperty::Filter,
+                value_list(vec![filter(
+                    FILTER_KIND_DROP_SHADOW,
+                    0,
+                    shadow(Some(color_function(1)), 1.0, 2.0, None),
+                )]),
+            );
         let modern_host = modern.ffi();
         let mut state = CompositorAnimationEffectState::default();
         assert!(!state.build(&request, &Host::new(&modern_host), |_| vec![2]).built);
@@ -1534,16 +1515,13 @@ mod tests {
     #[test]
     fn background_colors_keep_modern_syntaxes_and_currentcolor_on_the_main_thread() {
         let build = |value: StyleValueData| {
-            let host = TestHost {
-                resolved_color: Some(Color::from_rgb(0, 0, 255)),
-                ..TestHost::default()
-            }
-            .with_value(
-                0,
-                AnimatedProperty::BackgroundColor,
-                color_function(COLOR_SYNTAX_LEGACY),
-            )
-            .with_value(1, AnimatedProperty::BackgroundColor, value);
+            let host = TestHost::default()
+                .with_value(
+                    0,
+                    AnimatedProperty::BackgroundColor,
+                    color_function(COLOR_SYNTAX_LEGACY),
+                )
+                .with_value(1, AnimatedProperty::BackgroundColor, value);
             let ffi_host = host.ffi();
             let keyframes = [
                 present(0.0, AnimatedProperty::BackgroundColor),
@@ -1558,7 +1536,7 @@ mod tests {
         let legacy = build(color_function(COLOR_SYNTAX_LEGACY)).expect("legacy colors are compositor driven");
         assert_eq!(
             legacy.keyframes[1].value,
-            VisualAnimationValue::BackgroundColor(Color::from_rgb(0, 0, 255))
+            VisualAnimationValue::BackgroundColor(Color::from_rgb(255, 0, 0))
         );
         assert!(build(color_function(1)).is_none());
         assert!(
@@ -1567,8 +1545,15 @@ mod tests {
             })
             .is_none()
         );
-        // A keyword the main thread can resolve, such as a system color, is taken.
-        assert!(build(StyleValueData::Keyword { keyword: keyword::NONE }).is_some());
+        // A keyword that names a color, such as a system color, is taken.
+        let system_color = build(StyleValueData::Keyword {
+            keyword: keyword::CANVAS,
+        })
+        .expect("system colors are compositor driven");
+        assert_eq!(
+            system_color.keyframes[1].value,
+            VisualAnimationValue::BackgroundColor(Color::from_rgb(255, 255, 255))
+        );
     }
 
     fn tree_with_one_effect() -> Arc<VisualContextTree> {

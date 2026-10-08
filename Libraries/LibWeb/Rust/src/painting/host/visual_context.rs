@@ -205,6 +205,10 @@ pub struct FfiCompositorAnimationRequest {
     pub target_kind: FfiVisualAnimationTargetKind,
     /// The target's box, whose visual context nodes the animation drives.
     pub layout_node: crate::layout::node_data::NodeSlotId,
+    /// The target's InheritedUIValues and InheritedTextValues group payloads, whose used color-scheme and color
+    /// the keyframes' colors resolve against.
+    pub target_inherited_ui_values: *const std::ffi::c_void,
+    pub target_inherited_text_values: *const std::ffi::c_void,
     pub timing: FfiCompositorAnimationTiming,
     pub keyframes: *const FfiCompositorAnimationKeyframe,
     pub keyframe_count: usize,
@@ -237,12 +241,6 @@ pub struct FfiCompositorAnimationHost {
         property_id: u16,
         uses_underlying_style: bool,
     ) -> *const std::ffi::c_void,
-    /// The color a resolved color value names for the target; false when it names none.
-    pub resolve_color: unsafe extern "C" fn(
-        context: *mut std::ffi::c_void,
-        value: *const std::ffi::c_void,
-        color: *mut libgfx_rust::Color,
-    ) -> bool,
 }
 
 #[derive(Clone, Copy, Debug, Default)]

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes light-dark-color {
+        from { background-color: light-dark(red, rgba(0, 0, 200, 0)); }
+        to { background-color: blue; }
+    }
+
+    @keyframes light-dark-font-relative-color {
+        from { background-color: light-dark(red, rgba(calc(10em / 1px), 0, 0, 0)); }
+        to { background-color: blue; }
+    }
+
+    @keyframes system-color {
+        from { background-color: Canvas; }
+        to { background-color: CanvasText; }
+    }
+
+    .target {
+        width: 20px;
+        height: 20px;
+        color-scheme: dark;
+        font-size: 20px;
+    }
+
+    #light-dark {
+        animation: light-dark-color 1s linear infinite;
+    }
+
+    #light-dark-font-relative {
+        animation: light-dark-font-relative-color 1s linear infinite;
+    }
+
+    #system {
+        animation: system-color 1s linear infinite;
+    }
+</style>
+<div id="light-dark" class="target"></div>
+<div id="light-dark-font-relative" class="target"></div>
+<div id="system" class="target"></div>
+<div id="scripted-light-dark-font-relative" class="target"></div>
+<script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    asyncTest(async done => {
+        document.getElementById("scripted-light-dark-font-relative").animate(
+            [{ backgroundColor: "light-dark(red, rgba(calc(10em / 1px), 0, 0, 0))" }, { backgroundColor: "blue" }],
+            { duration: 1000, iterations: Infinity });
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        let frameTime = performance.now();
+        for (let i = 0; i < 4; ++i) {
+            frameTime += 16;
+            internals.injectRenderingOpportunity(frameTime);
+            await nextTask();
+        }
+
+        for (const id of ["light-dark", "light-dark-font-relative", "system", "scripted-light-dark-font-relative"]) {
+            const context = internals.visualContextNodeIndices(document.getElementById(id));
+            println(`${id} uses compositor: ${context.needsCompositorBackgroundColorFrame}`);
+            println(`${id} keyframes: ${context.backgroundColorAnimationKeyframes.join(", ")}`);
+        }
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>
