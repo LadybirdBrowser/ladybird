@@ -370,6 +370,15 @@ impl RuntimeFunctions for Runtime {
         property_access::get_by_value(vm, pc, instruction, values, KeyedSiteCache::Skip)
     }
 
+    fn try_get_by_id_cache_on_primitive(
+        vm: &Vm,
+        _pc: u32,
+        instruction: &op::GetById,
+        values: &mut op::GetByIdValues,
+    ) -> bool {
+        property_access::try_get_by_id_cache_on_primitive(vm, instruction, values)
+    }
+
     fn try_get_by_value_cache(
         vm: &Vm,
         _pc: u32,
