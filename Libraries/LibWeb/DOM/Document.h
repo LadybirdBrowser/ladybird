@@ -496,6 +496,7 @@ public:
     void obtain_supported_color_schemes();
 
     void obtain_theme_color(Layout::BegunRead const& read);
+    Color theme_color(Layout::BegunRead const& read);
 
     void update_style();
     // A style update, or a read of style or layout, joins the style transaction that flew beside the event loop first,

@@ -2290,6 +2290,34 @@ pub(crate) unsafe fn resolution_input_from_ffi(input: &FfiColorResolutionInput) 
     }
 }
 
+/// Resolves a parsed style value to an sRGB color against a style record of `host`'s document, as the record
+/// computes its own values: its used color-scheme and `color`, and its lengths. A null record names no style.
+///
+/// # Safety
+/// `host` must be a live document host, on its document's thread, and `value` must point at live style value data.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_to_color_against_style_record(
+    host: &crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
+    style_record: u64,
+    value: *const core::ffi::c_void,
+) -> FfiResolvedColorValue {
+    let value = unsafe { &*value.cast::<crate::css::style_value::StyleValueData>() };
+    let color = crate::css::style::engine_calls::with_engine(read, host, |engine| {
+        engine.color_against_style_record(style_record, value)
+    });
+    match color {
+        Some(color) => FfiResolvedColorValue {
+            resolved: true,
+            rgba: [color.r, color.g, color.b, color.a],
+        },
+        None => FfiResolvedColorValue {
+            resolved: false,
+            rgba: [0; 4],
+        },
+    }
+}
+
 /// Resolves a style value to an sRGB color, or declines.
 ///
 /// # Safety

@@ -178,6 +178,28 @@ impl RetainedState {
         })
     }
 
+    /// The color a parsed `<color>` names against a style record: the record's used color-scheme and `color`, with
+    /// lengths resolving as the record computes them. With no such record, it resolves against no style at all.
+    pub(crate) fn color_against_style_record(
+        &self,
+        style_record: u64,
+        value: &crate::css::style_value::StyleValueData,
+    ) -> Option<crate::css::color_resolution::Rgba> {
+        use crate::css::color_resolution::{ColorResolutionInput, EMPTY_INPUT, to_color};
+        let Some(view) = self.computed_group_sets.style_record_view(style_record) else {
+            return to_color(value, &EMPTY_INPUT);
+        };
+        let length = self.record_length_resolution_context(&view);
+        let values = crate::css::computed_value_views::ComputedValuesView::new(
+            crate::css::host_shared::SharedPayload::as_pointer_slice(view.payloads),
+        );
+        let input = ColorResolutionInput {
+            length: length.as_ref(),
+            ..ColorResolutionInput::for_style(values)
+        };
+        to_color(value, &input)
+    }
+
     /// The basis of one physical axis for a subject's container-relative lengths. A
     /// pseudo-element's are its originating element's.
     fn container_unit_basis(&self, subject: StyleNodeID, axis_is_horizontal: bool) -> ContainerUnitBasis {

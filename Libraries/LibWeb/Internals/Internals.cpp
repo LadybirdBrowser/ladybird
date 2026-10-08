@@ -791,6 +791,13 @@ Optional<Utf16String> Internals::current_cursor_pixel(i32 x, i32 y)
     return Utf16String::from_utf8(image_cursor->bitmap.bitmap()->get_pixel(x, y).to_string());
 }
 
+Utf16String Internals::theme_color()
+{
+    auto& document = window().associated_document();
+    Layout::ForcedReadScope read { document };
+    return Utf16String::from_utf8(document.theme_color(read).to_string());
+}
+
 Utf16String Internals::selected_text_for_clipboard()
 {
     if (auto navigable = page().hosted_focused_navigable())
