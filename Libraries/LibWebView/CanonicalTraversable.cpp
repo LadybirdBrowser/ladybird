@@ -2187,6 +2187,18 @@ void CanonicalTraversable::enqueue_history_operation(Web::HTML::CrossProcessId o
             remove_nested_history(*parent_navigable, parameters.parent_document_state_id, parameters.navigable_id);
     }
 
+    // AD-HOC: The update for a navigable's creation populates the entry its nested history kept, if a document
+    //         repopulated for its entry created it, in place of the navigation its container starts meanwhile. That
+    //         navigation's start arrives after this request, and is canceled before it fetches anything.
+    if (auto const* parameters = request.get_pointer<Web::NavigableCreationHistoryOperationParameters>()) {
+        auto navigable = find(parameters->navigable_id);
+        auto current_step = m_session_history.current_step();
+        if (navigable.has_value() && current_step.has_value() && !navigable->ongoing_navigation()
+            && m_session_history.get_the_target_history_entry(*navigable, *current_step)) {
+            navigable->set_ongoing_navigation_to_traversal(operation_id);
+        }
+    }
+
     if (auto const* parameters = request.get_pointer<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>(); parameters && requesting_page)
         did_attempt_to_populate_the_history_entry_document(*requesting_page, *parameters);
 
@@ -2770,6 +2782,10 @@ void CanonicalTraversable::release_history_operation(HistoryOperation& operation
     // stays with the operation: its completion can be what finished it.
     for (auto const& [navigable_id, pending_job] : operation.pending_changing_jobs)
         pending_job->abandon(find(navigable_id));
+    if (auto const* parameters = operation.parameters.get_pointer<Web::NavigableCreationHistoryOperationParameters>()) {
+        if (auto navigable = find(parameters->navigable_id); navigable.has_value())
+            navigable->clear_ongoing_navigation_traversal(operation.operation_id);
+    }
     if (auto const* parameters = operation.parameters.get_pointer<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>()) {
         if (auto navigable = find(parameters->navigable_id); navigable.has_value())
             navigable->did_finish_finalizing_navigation(parameters->navigation_id, result);

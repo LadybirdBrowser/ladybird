@@ -783,8 +783,8 @@ void LocalNavigable::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_input_method_composition_node);
     m_event_handler.visit_edges(visitor);
 
-    for (auto& navigation : m_pending_navigations)
-        navigation.visit_edges(visitor);
+    if (m_navigation_waiting_for_traversal.has_value())
+        m_navigation_waiting_for_traversal->visit_edges(visitor);
     for (auto& parked : m_navigations_parked_for_population) {
         if (parked.navigation.has_value())
             parked.navigation->visit_edges(visitor);
@@ -1660,11 +1660,10 @@ void LocalNavigable::set_ongoing_navigation_without_informing_navigation_api(Var
             navigation_observer.ongoing_navigation_changed()->function()();
     }
 
-    // AD-HOC: If we just finished a traversal and there are navigations that were deferred because the traversal was
-    //         ongoing, process them now. A freshly-created child navigable can also have pending navigations while
-    //         its initial session history entry is being installed, so only drain once both gates are open.
-    if (was_traversal && !ongoing_navigation.has<Traversal>() && m_has_session_history_entry_and_ready_for_navigation)
-        process_pending_navigations();
+    // AD-HOC: If we just finished a traversal and a navigation was deferred because the traversal was ongoing, begin
+    //         it now.
+    if (was_traversal && !ongoing_navigation.has<Traversal>())
+        begin_navigation_waiting_for_traversal();
 }
 
 void LocalNavigable::clear_ongoing_history_traversal()
@@ -1677,16 +1676,9 @@ void LocalNavigable::clear_ongoing_history_traversal()
         set_ongoing_navigation_without_informing_navigation_api({});
 }
 
-void LocalNavigable::queue_pending_navigation(PreparedNavigation navigation, PendingNavigationBehavior behavior)
-{
-    if (behavior == PendingNavigationBehavior::Replace)
-        m_pending_navigations.clear();
-    m_pending_navigations.append(move(navigation));
-}
-
 void LocalNavigable::clear_pending_navigations()
 {
-    m_pending_navigations.clear();
+    m_navigation_waiting_for_traversal.clear();
     if (m_navigations_parked_for_population.is_empty())
         return;
     m_navigations_parked_for_population.clear();
@@ -1721,20 +1713,11 @@ Optional<LocalNavigable::NavigationParkedForPopulation> LocalNavigable::take_nav
     return m_navigations_parked_for_population.take(*index);
 }
 
-void LocalNavigable::process_pending_navigations()
+void LocalNavigable::begin_navigation_waiting_for_traversal()
 {
-    if (!m_has_session_history_entry_and_ready_for_navigation || ongoing_navigation().has<Traversal>())
+    if (!m_navigation_waiting_for_traversal.has_value() || ongoing_navigation().has<Traversal>())
         return;
-
-    while (!m_pending_navigations.is_empty())
-        begin_navigation(m_pending_navigations.take_first());
-}
-
-// The entry a child navigable's nested history kept is restored in place of the navigation its container started.
-void LocalNavigable::drop_container_navigation_for_restored_entry()
-{
-    if (!m_pending_navigations.is_empty())
-        m_pending_navigations.remove(0);
+    begin_navigation(m_navigation_waiting_for_traversal.release_value());
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
@@ -3362,17 +3345,6 @@ WebIDL::ExceptionOr<void> LocalNavigable::continue_navigation_in_active_document
     if (!active_window())
         return {};
 
-    // AD-HOC: A child navigable's session history entry exists canonically only once the UI process has admitted
-    //         the creation operation, so navigations that arrive before that acknowledgment queue until it lands.
-    //         Top-level traversables are marked ready at creation and never queue here. Keep the values snapshotted
-    //         by steps 1-7 so the eventual continuation starts at step 8.
-    //         A javascript: URL runs against the active document, and the UI process orders any document it creates
-    //         after the creation operation, so it queues its task now unless an earlier navigation is still queued.
-    if (!m_has_session_history_entry_and_ready_for_navigation && (navigation.url.scheme() != "javascript"sv || has_pending_navigations())) {
-        queue_pending_navigation(move(navigation), PendingNavigationBehavior::Append);
-        return {};
-    }
-
     begin_navigation(move(navigation));
     return {};
 }
@@ -3653,7 +3625,7 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
     auto initiator_origin_snapshot = navigation.initiator_origin_snapshot;
     auto initiator_base_url_snapshot = navigation.initiator_base_url_snapshot;
 
-    // Keep the ID in the prepared navigation in case step 18 queues it behind an ongoing traversal.
+    // Keep the ID in the prepared navigation in case step 18 defers it behind an ongoing traversal.
     auto navigation_id = navigation.navigation_id;
 
     // 9. If navigable's active document's unload counter is greater than 0,
@@ -3737,7 +3709,7 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
         //         instead so UI-initiated navigations that race the tail end of a previous load are not dropped.
         //         Match Chromium, WebKit, and Gecko's observable behavior by letting the newest navigation win.
         //         See https://github.com/whatwg/html/issues/12581.
-        queue_pending_navigation(move(navigation), PendingNavigationBehavior::Replace);
+        m_navigation_waiting_for_traversal = move(navigation);
 
         // 2. Return.
         return;
@@ -4831,7 +4803,7 @@ GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, Remot
         navigable->set_parent_compositor_context(as<RemoteNavigable>(*parent_navigable).compositor_context_id());
     }
 
-    // The UI process appended the navigable's session history entry to the traversable before choosing this process.
+    // The UI process orders any history step for the navigable after the update for its creation.
     navigable->set_has_session_history_entry_and_ready_for_navigation();
     return navigable;
 }
@@ -6727,7 +6699,6 @@ void LocalNavigable::set_has_session_history_entry_and_ready_for_navigation()
 {
     m_has_session_history_entry_and_ready_for_navigation = true;
     report_state_to_remote_container();
-    process_pending_navigations();
 }
 
 void LocalNavigable::clear_parent_compositor_context()
