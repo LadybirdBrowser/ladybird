@@ -41,6 +41,8 @@ namespace Ladybird {
 class BrowserWindow;
 enum class ChromeIcon;
 class DownloadsPopover;
+class ContentBlockingButton;
+class ContentBlockingPopover;
 class JavaScriptDialog;
 class MessagePopover;
 class WindowControlButton;
@@ -143,6 +145,8 @@ private:
     void update_downloads_popover();
     void show_downloads_popover();
     void position_downloads_popover();
+    void show_content_blocking_popover();
+    void update_content_blocking_controls(WebView::ContentBlockingSnapshot const&);
     void show_private_session_popover();
     void position_private_session_popover();
     void set_loading(bool);
@@ -168,6 +172,8 @@ private:
     BookmarksBar* m_bookmarks_bar { nullptr };
     QPushButton* m_private_badge { nullptr };
     QToolButton* m_hamburger_button { nullptr };
+    ContentBlockingButton* m_content_blocking_button { nullptr };
+    QPointer<ContentBlockingPopover> m_content_blocking_popover;
     QToolButton* m_downloads_button { nullptr };
     QPointer<DownloadsPopover> m_downloads_popover;
     QPointer<MessagePopover> m_private_session_popover;

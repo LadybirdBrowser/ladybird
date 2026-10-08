@@ -20,6 +20,8 @@
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
+#include <UI/Qt/ContentBlockingButton.h>
+#include <UI/Qt/ContentBlockingPopover.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/JavaScriptDialog.h>
 #if defined(AK_OS_MACOS)
@@ -695,6 +697,13 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     m_location_edit->set_zoom_action(create_application_action(*m_location_edit, view().reset_zoom_action(), IncludeActionIcon::No));
     location_edit_layout->addWidget(m_location_edit);
     toolbar_layout->addWidget(location_edit_container, 1);
+
+    m_content_blocking_button = new ContentBlockingButton(m_toolbar);
+    toolbar_layout->addWidget(m_content_blocking_button, 0, Qt::AlignVCenter);
+    QObject::connect(m_content_blocking_button, &QToolButton::clicked, this, [this] { show_content_blocking_popover(); });
+    view().on_content_blocking_change = [this](auto const& snapshot) { update_content_blocking_controls(snapshot); };
+    update_content_blocking_controls(view().content_blocking_snapshot());
+
     m_right_toggle_vertical_tabs_expanded_button = create_toolbar_button(*m_toolbar, *m_toggle_vertical_tabs_expanded_action);
     toolbar_layout->addWidget(m_right_toggle_vertical_tabs_expanded_button, 0, Qt::AlignVCenter);
 
@@ -747,11 +756,18 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     };
     set_loading(view().is_loading());
 
+    view().on_load_start = [this] {
+        if (m_content_blocking_popover)
+            m_content_blocking_popover->close();
+    };
+
     view().on_load_finish = [this](auto const&) {
         m_suppress_javascript_dialogs_until_navigation = false;
     };
 
     view().on_top_level_navigation_commit = [this] {
+        if (m_content_blocking_popover)
+            m_content_blocking_popover->close();
         m_suppress_javascript_dialogs_until_navigation = false;
     };
 
@@ -778,6 +794,8 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     view().on_favicon_change = [this](auto const& bitmap) {
         if (!bitmap.has_value()) {
             m_favicon = {};
+            if (m_content_blocking_popover)
+                m_content_blocking_popover->set_favicon(m_favicon);
             update_tab_icon();
             return;
         }
@@ -790,6 +808,8 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
             return;
 
         m_favicon = qpixmap;
+        if (m_content_blocking_popover)
+            m_content_blocking_popover->set_favicon(m_favicon);
         update_tab_icon();
     };
 
@@ -1390,6 +1410,8 @@ void Tab::hideEvent(QHideEvent* event)
     QWidget::hideEvent(event);
 
     m_hover_label->hide();
+    if (m_content_blocking_popover)
+        m_content_blocking_popover->close();
 }
 
 void Tab::update_hover_label()
@@ -1437,6 +1459,8 @@ void Tab::update_chrome_style()
         hover_surface, hover_text, hover_border));
     if (m_downloads_popover)
         m_downloads_popover->update_chrome_style(palette());
+    if (m_content_blocking_popover)
+        m_content_blocking_popover->update_chrome_style(palette());
     m_is_updating_chrome_style = false;
 }
 
@@ -1584,6 +1608,69 @@ void Tab::download_removed(u64, WebView::IsPrivate is_private)
         return;
     update_downloads_button();
     update_downloads_popover();
+}
+
+void Tab::update_content_blocking_controls(WebView::ContentBlockingSnapshot const& snapshot)
+{
+    m_content_blocking_button->set_snapshot(snapshot);
+    if (!m_content_blocking_popover || !m_content_blocking_popover->isVisible())
+        return;
+
+    if (snapshot.state == WebView::ContentBlockingState::Unavailable) {
+        m_content_blocking_popover->close();
+        return;
+    }
+
+    m_content_blocking_popover->set_snapshot(snapshot);
+    move_popover_below(*m_content_blocking_popover, *m_content_blocking_button);
+}
+
+void Tab::show_content_blocking_popover()
+{
+    if (m_content_blocking_popover && m_content_blocking_popover->isVisible()) {
+        m_content_blocking_popover->close();
+        m_content_blocking_button->setFocus(Qt::PopupFocusReason);
+        return;
+    }
+
+    auto snapshot = view().content_blocking_snapshot();
+    if (snapshot.state == WebView::ContentBlockingState::Unavailable)
+        return;
+
+    if (!m_content_blocking_popover) {
+        m_content_blocking_popover = new ContentBlockingPopover(this);
+        m_content_blocking_popover->on_keyboard_dismiss = [button = QPointer(m_content_blocking_button)] {
+            if (button && button->isVisible())
+                button->setFocus(Qt::PopupFocusReason);
+        };
+    }
+
+    m_content_blocking_popover->on_toggle = [this, site = snapshot.site](bool enabled) {
+        auto current = view().content_blocking_snapshot();
+        if (!site.has_value() || current.site != site || !current.can_toggle()) {
+            m_content_blocking_popover->close();
+            return;
+        }
+
+        if (auto result = WebView::Application::settings().set_content_blocker_enabled_for_site(*site, enabled); result.is_error()) {
+            m_content_blocking_popover->set_snapshot(view().content_blocking_snapshot());
+            m_content_blocking_popover->show_error("Unable to save the site preference.");
+            move_popover_below(*m_content_blocking_popover, *m_content_blocking_button);
+            return;
+        }
+
+        m_content_blocking_popover->close();
+        view().reload();
+    };
+
+    m_content_blocking_popover->update_chrome_style(palette());
+    m_content_blocking_popover->set_favicon(m_favicon);
+    m_content_blocking_popover->set_snapshot(snapshot);
+    move_popover_below(*m_content_blocking_popover, *m_content_blocking_button);
+    m_content_blocking_popover->show();
+    move_popover_below(*m_content_blocking_popover, *m_content_blocking_button);
+    m_content_blocking_popover->raise();
+    m_content_blocking_popover->focus_switch();
 }
 
 void Tab::update_vertical_tabs_toolbar_button_placement()

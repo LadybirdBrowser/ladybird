@@ -28,6 +28,8 @@ target_sources(ladybird PRIVATE
     BookmarksBar.cpp
     BrowserWindow.cpp
     ChromeStyle.cpp
+    ContentBlockingButton.cpp
+    ContentBlockingPopover.cpp
     CrashReportNotifier.cpp
     CrashReportReviewWidget.cpp
     DevToolsBanner.cpp
