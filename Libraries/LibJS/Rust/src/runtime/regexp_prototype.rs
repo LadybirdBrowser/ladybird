@@ -493,8 +493,11 @@ fn regexp_builtin_exec(
     let n_capture_groups = compiled_regex.capture_count();
     let named_groups = compiled_regex.named_groups();
 
-    let array = Array::create(vm, realm, u64::from(n_capture_groups) + 1, None).must();
+    let array = Array::create(vm, realm, 0, None).must();
     array.unsafe_set_shape(realm.intrinsics().regexp_builtin_exec_array_shape());
+    // OPTIMIZATION: The match and the captures are consecutive default data properties, so they are written into
+    //               packed indexed storage of the final length directly.
+    array.set_indexed_property_elements_to_undefined(n_capture_groups + 1);
 
     // "index" property.
     array.put_direct(
@@ -515,11 +518,7 @@ fn regexp_builtin_exec(
     );
 
     // Element 0: the full match substring.
-    array.indexed_put(
-        0,
-        substring(vm, string, match_index, end_index - match_index),
-        DEFAULT_ATTRIBUTES,
-    );
+    array.set_packed_indexed_element(0, substring(vm, string, match_index, end_index - match_index));
 
     let has_groups = !named_groups.is_empty();
     let mut groups = if has_groups {
@@ -559,7 +558,7 @@ fn regexp_builtin_exec(
             Value::UNDEFINED
         };
 
-        array.indexed_put(i, captured_value, DEFAULT_ATTRIBUTES);
+        array.set_packed_indexed_element(i, captured_value);
 
         // Named groups: find by linear scan (typically very few named groups).
         for named_group in named_groups {
