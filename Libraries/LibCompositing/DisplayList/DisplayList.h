@@ -53,14 +53,6 @@ public:
         Optional<AsyncScrollingMetadata> async_scrolling_metadata;
     };
 
-    // How a tape and its run table are laid out in a shared buffer: the tape first, the runs right after
-    // it. Nothing when the sizes overflow or the tape is not a whole number of aligned commands.
-    struct SharedBufferLayout {
-        u64 runs_offset { 0 };
-        u64 total_size { 0 };
-    };
-    static Optional<SharedBufferLayout> shared_buffer_layout(u64 tape_size, u64 run_count);
-
     // An empty list.
     static NonnullRefPtr<DisplayList> create(AccumulatedVisualContextTree const&);
     // Adopts a strong reference to an immutable Rust recording, including its run table.
@@ -68,9 +60,8 @@ public:
     // Shares an immutable Rust recording that someone else holds, taking a strong reference of its own.
     static NonnullRefPtr<DisplayList> share_rust_command_storage(AccumulatedVisualContextTree const&, void const*);
 
-    // The producer's side of sending a list: a fresh shared buffer holding the tape and the run table,
-    // laid out per shared_buffer_layout. The buffer is handed to the receiver whole; the producer keeps
-    // nothing.
+    // The producer's side of sending a list: a fresh shared buffer holding the tape and the run table. The
+    // buffer is handed to the receiver whole; the producer keeps nothing.
     ErrorOr<Core::AnonymousBuffer> copy_to_shared_buffer() const;
     // The receiver's side: copies the tape and the run table out of the buffer, which the sender can still
     // write to, and checks the copies. Fails when the sizes do not fit the buffer or the tape is malformed.
@@ -85,40 +76,14 @@ public:
     // The Rust storage that holds the list's tape.
     void const* rust_handle() const { return m_storage; }
 
-    ReadonlyBytes command_bytes() const { return m_command_bytes; }
-    ReadonlySpan<DisplayListCommandRun> command_runs() const { return m_command_runs; }
-    ReadonlyBytes command_bytes_of_run(DisplayListCommandRun const& run) const { return command_bytes().slice(run.offset, run.size); }
+    // The sizes a receiver needs to unpack the list from its shared buffer.
+    u64 tape_size() const;
+    u64 run_count() const;
+
     void set_surface_clear_color(Gfx::Color color) { m_surface_clear_color = color; }
     Optional<Gfx::Color> surface_clear_color() const { return m_surface_clear_color; }
     void set_async_scrolling_metadata(AsyncScrollingMetadata metadata) { m_async_scrolling_metadata = metadata; }
     Optional<AsyncScrollingMetadata> const& async_scrolling_metadata() const { return m_async_scrolling_metadata; }
-
-    static constexpr size_t command_alignment = 8;
-
-    template<typename SpanType, typename Callback>
-    static void for_each_command_header(SpanType command_bytes, Callback callback)
-    {
-        static_assert(IsSame<SpanType, Bytes> || IsSame<SpanType, ReadonlyBytes>);
-        for (size_t offset = 0; offset < command_bytes.size();) {
-            VERIFY(offset + sizeof(DisplayListCommandHeader) <= command_bytes.size());
-            auto header = read_display_list_object<DisplayListCommandHeader>(command_bytes.slice(offset));
-            offset += sizeof(header);
-            VERIFY(offset + header.payload_size <= command_bytes.size());
-            auto payload = SpanType { command_bytes.data() + offset, header.payload_size };
-            offset += header.payload_size;
-            callback(header, payload);
-        }
-    }
-
-    template<typename Callback>
-    void for_each_command_header(Callback callback) const
-    {
-        for (auto const& run : command_runs()) {
-            for_each_command_header(command_bytes_of_run(run), [&](auto const& header, auto payload) {
-                callback(run.context, header, payload);
-            });
-        }
-    }
 
     // The ids of the resources the list's commands reference, including the commands nested in others, each once.
     struct ReferencedResourceIds {
@@ -151,10 +116,8 @@ private:
 
     u64 m_compatible_visual_context_tree_structural_epoch { 0 };
     u64 m_id { 0 };
-    // One strong reference to the Rust storage, which owns the tape these spans borrow.
+    // One strong reference to the Rust storage, which owns the tape.
     void const* m_storage { nullptr };
-    ReadonlyBytes m_command_bytes;
-    ReadonlySpan<DisplayListCommandRun> m_command_runs;
     Optional<Gfx::Color> m_surface_clear_color;
     Optional<AsyncScrollingMetadata> m_async_scrolling_metadata;
 

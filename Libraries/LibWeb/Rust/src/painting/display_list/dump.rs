@@ -39,13 +39,7 @@ pub struct FfiPaintingDumpCallbacks {
     context: *mut c_void,
     /// Describes the row in the slot, as its layout node describes itself.
     debug_description: unsafe extern "C" fn(context: *mut c_void, slot: NodeSlotId, description_sink: *mut c_void),
-    command_bytes:
-        unsafe extern "C" fn(context: *mut c_void, display_list: *const c_void, byte_count: *mut usize) -> *const u8,
-    command_runs: unsafe extern "C" fn(
-        context: *mut c_void,
-        display_list: *const c_void,
-        run_count: *mut usize,
-    ) -> *const DisplayListCommandRun,
+    /// Answers the storage handle of a nested display list.
     nested_display_list: unsafe extern "C" fn(context: *mut c_void, display_list_id: u64) -> *const c_void,
     append_text: unsafe extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
 }
@@ -57,27 +51,6 @@ impl FfiPaintingDumpCallbacks {
         // function.
         unsafe { (self.debug_description)(self.context, slot, (&raw mut description).cast()) };
         String::from_utf8_lossy(&description).into_owned()
-    }
-
-    fn command_bytes(&self, _: &MainThread, display_list: *const c_void) -> &[u8] {
-        let mut byte_count = 0;
-        // SAFETY: The host owns the display list for the duration of the dump and returns a span
-        // that stays live for this call.
-        let bytes = unsafe { (self.command_bytes)(self.context, display_list, &raw mut byte_count) };
-        if byte_count == 0 {
-            return &[];
-        }
-        assert!(!bytes.is_null());
-        // SAFETY: The host reported `byte_count` readable bytes at `bytes`.
-        unsafe { std::slice::from_raw_parts(bytes, byte_count) }
-    }
-
-    fn command_runs(&self, _: &MainThread, display_list: *const c_void) -> &[DisplayListCommandRun] {
-        let mut run_count = 0;
-        // SAFETY: The host owns the display list for the duration of the dump and returns its live runs.
-        let runs = unsafe { (self.command_runs)(self.context, display_list, &raw mut run_count) };
-        // SAFETY: The host reported `run_count` readable runs at `runs`.
-        unsafe { libcompositing_rust::ffi::ffi_slice(runs, run_count) }
     }
 
     fn nested_display_list(&self, _: &MainThread, display_list_id: DisplayListResourceId) -> *const c_void {
@@ -140,19 +113,15 @@ impl VisualContextNodeOwners {
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread, and `visual_context_tree` a live retained tree
-/// handle built from its render state; `command_runs` must address
-/// `command_run_count` runs; `display_list` and every pointer returned by `callbacks` must remain
-/// live for this call. The callback byte spans must contain display-list records produced by this
-/// build of LibWeb. `debug_description` is called synchronously with a `Vec<u8>` sink the host
-/// fills through `layout_arena_paint_push_bytes`.
+/// handle built from its render state; `display_list` is the storage handle of the display list, and it and every
+/// storage handle `callbacks` returns must remain live for this call. `debug_description` is called synchronously
+/// with a `Vec<u8>` sink the host fills through `layout_arena_paint_push_bytes`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn painting_dump(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     viewport: NodeSlotId,
     visual_context_tree: *const c_void,
-    command_runs: *const DisplayListCommandRun,
-    command_run_count: usize,
     display_list: *const c_void,
     callbacks: FfiPaintingDumpCallbacks,
 ) {
@@ -160,7 +129,7 @@ pub unsafe extern "C" fn painting_dump(
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { main_thread(host) };
     let visual_context_tree = unsafe { libcompositing_rust::ffi::tree_from_handle(visual_context_tree) };
-    let command_runs = unsafe { libcompositing_rust::ffi::ffi_slice(command_runs, command_run_count) };
+    let (_, command_runs) = unsafe { libcompositing_rust::display_list::storage::tape_of(display_list) };
     // SAFETY: Guaranteed by the caller.
     let owners = unsafe {
         crate::painting::ffi::read_arena(host, read, viewport, |arena, viewport| {
@@ -191,8 +160,9 @@ fn dump_commands(
     display_list: *const c_void,
     base_indent: usize,
 ) {
-    let bytes = callbacks.command_bytes(main_thread, display_list);
-    for run in callbacks.command_runs(main_thread, display_list) {
+    // SAFETY: The caller keeps the storage live for the dump.
+    let (bytes, command_runs) = unsafe { libcompositing_rust::display_list::storage::tape_of(display_list) };
+    for run in command_runs {
         let run_bytes = &bytes[run.offset as usize..(run.offset + run.size) as usize];
         dump_command_bytes(main_thread, output, callbacks, run_bytes, run.context, base_indent);
     }

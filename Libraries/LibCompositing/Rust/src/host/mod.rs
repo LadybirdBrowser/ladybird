@@ -10,5 +10,4 @@ pub mod replay;
 
 pub use replay::*;
 
-pub use crate::display_list::storage::FfiRecordedDisplayList;
 pub use crate::visual_context::ffi_types::*;

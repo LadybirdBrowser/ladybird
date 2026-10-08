@@ -33,13 +33,6 @@ concept DisplayListCommand = requires {
 
 template<typename T>
 requires(IsTriviallyCopyable<T>)
-ReadonlyBytes display_list_object_bytes(T const& object)
-{
-    return { &object, sizeof(T) };
-}
-
-template<typename T>
-requires(IsTriviallyCopyable<T>)
 T read_display_list_object(ReadonlyBytes bytes)
 {
     VERIFY(bytes.size() >= sizeof(T));
@@ -48,26 +41,8 @@ T read_display_list_object(ReadonlyBytes bytes)
     return object;
 }
 
-static_assert(IsTriviallyCopyable<DisplayListCommandHeader>);
-static_assert(sizeof(DisplayListCommandHeader) == 24);
-static_assert(IsTriviallyCopyable<DisplayListCommandRun>);
-static_assert(sizeof(DisplayListCommandRun) == 40);
 static_assert(IsTriviallyCopyable<DisplayListGlyph>);
 static_assert(IsTriviallyCopyable<TextShadowLayer>);
-static_assert(IsTriviallyCopyable<DisplayListInlineClip>);
-static_assert(sizeof(DisplayListInlineClip) == 64);
-static_assert(IsTriviallyCopyable<DisplayListInlineTransform>);
-static_assert(sizeof(DisplayListInlineTransform) == 32);
-
-inline bool operator==(DisplayListCommandRun const& a, DisplayListCommandRun const& b)
-{
-    return a.offset == b.offset
-        && a.size == b.size
-        && a.context == b.context
-        && a.ink_bounds == b.ink_bounds
-        && a.has_unbounded_draw == b.has_unbounded_draw
-        && a.has_compositor_metadata == b.has_compositor_metadata;
-}
 
 #define VERIFY_DISPLAY_LIST_COMMAND(command)     \
     static_assert(IsTriviallyCopyable<command>); \

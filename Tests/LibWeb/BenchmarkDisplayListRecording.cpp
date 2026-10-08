@@ -359,7 +359,7 @@ void time_document_recordings(DocumentShape shape, StringView label, Optional<Mu
         auto display_list = document.record_display_list(read, benchmark_paint_config(), loaded_page.display_list_resource_storage, Web::Painting::PaintCommandCacheMode::ReadWrite);
         samples.microseconds.append(timer.elapsed_time().to_microseconds());
         VERIFY(display_list);
-        recorded_byte_count = display_list->command_bytes().size();
+        recorded_byte_count = display_list->tape_size();
     }
     outln("{} bytes of display list commands", recorded_byte_count);
     layout_samples.report("  mutation and layout"sv);

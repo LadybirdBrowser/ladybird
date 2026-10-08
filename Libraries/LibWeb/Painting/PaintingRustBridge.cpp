@@ -8,7 +8,6 @@
 #include <AK/StringBuilder.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
-#include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/Environment.h>
@@ -340,24 +339,13 @@ Utf16String serialize_painting_dump(Layout::BegunRead const& read, DOM::Document
     Layout::RustFFI::FfiPaintingDumpCallbacks callbacks {
         .context = &context,
         .debug_description = [](void* context_pointer, Compositing::RustFFI::NodeSlotId slot, void* description_sink) { push_debug_description(*static_cast<DumpContext*>(context_pointer)->document, slot, description_sink); },
-        .command_bytes = [](void*, void const* display_list_pointer, size_t* byte_count) -> u8 const* {
-            auto bytes = static_cast<Compositing::DisplayList const*>(display_list_pointer)->command_bytes();
-            *byte_count = bytes.size();
-            return bytes.data();
-        },
-        .command_runs = [](void*, void const* display_list_pointer, size_t* run_count) -> Compositing::DisplayListCommandRun const* {
-            auto runs = static_cast<Compositing::DisplayList const*>(display_list_pointer)->command_runs();
-            *run_count = runs.size();
-            return runs.data();
-        },
         .nested_display_list = [](void* context_pointer, u64 display_list_id) -> void const* {
             auto& context = *static_cast<DumpContext*>(context_pointer);
-            return &context.resource_storage.display_list(Compositing::DisplayListResourceId { display_list_id });
+            return context.resource_storage.display_list(Compositing::DisplayListResourceId { display_list_id }).rust_handle();
         },
         .append_text = [](void* context_pointer, u8 const* bytes, size_t byte_count) { static_cast<DumpContext*>(context_pointer)->dump = Utf16String::from_utf8_without_validation(StringView { bytes, byte_count }); },
     };
-    auto command_runs = display_list.command_runs();
-    Layout::RustFFI::painting_dump(document_host(document), &read, viewport_row_slot(read, document), visual_context_tree.rust_handle(), command_runs.data(), command_runs.size(), &display_list, callbacks);
+    Layout::RustFFI::painting_dump(document_host(document), &read, viewport_row_slot(read, document), visual_context_tree.rust_handle(), display_list.rust_handle(), callbacks);
     return move(context.dump);
 }
 
@@ -726,7 +714,7 @@ RefPtr<Compositing::DisplayList> finish_rust_display_list_recording(Layout::Begu
     take_recording_trace_if_pending(read, document);
     auto display_list = display_list_of_published_recording(recording, presented);
     if (rust_painting_timing_enabled())
-        dbgln("PAINT_RECORD rust={} µs commands={} bytes", rust_timer.elapsed_time().to_microseconds(), display_list->command_bytes().size());
+        dbgln("PAINT_RECORD rust={} µs commands={} bytes", rust_timer.elapsed_time().to_microseconds(), display_list->tape_size());
     return display_list;
 }
 
