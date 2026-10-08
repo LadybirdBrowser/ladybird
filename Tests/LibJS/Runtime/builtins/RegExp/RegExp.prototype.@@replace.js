@@ -203,3 +203,45 @@ test("replacement values that are not strings", () => {
     expect(regexp.lastIndex).toBe(0);
     expect(() => "a-b".replace(regexp, Symbol())).toThrow(TypeError);
 });
+
+describe("replacing with functions and substitutions", () => {
+    test("the replacer sees the state after all matches were found", () => {
+        const regexp = /(a)|(b)/g;
+        const calls = [];
+        const result = "abcab".replace(regexp, (match, a, b, position, string) => {
+            calls.push([match, a, b, position, string, regexp.lastIndex, RegExp.lastMatch]);
+            regexp.lastIndex = 3;
+            return `<${match}>`;
+        });
+        expect(result).toBe("<a><b>c<a><b>");
+        expect(regexp.lastIndex).toBe(3);
+        expect(calls).toEqual([
+            ["a", "a", undefined, 0, "abcab", 0, "b"],
+            ["b", undefined, "b", 1, "abcab", 3, "b"],
+            ["a", "a", undefined, 3, "abcab", 3, "b"],
+            ["b", undefined, "b", 4, "abcab", 3, "b"],
+        ]);
+    });
+
+    test("empty matches, surrogate pairs and other flags", () => {
+        expect("aaa".replace(/a*?/g, (match, position) => `[${position}]`)).toBe("[0]a[1]a[2]a[3]");
+        expect("😀x😀".replace(/(?:)/gu, "-")).toBe("-😀-x-😀-");
+        expect("😀x".replace(/(?:)/g, "-")).toBe("-\uD83D-\uDE00-x-");
+        expect("abc".replace(/(?<n>b)/, (...args) => typeof args[args.length - 1])).toBe("aobjectc");
+        expect("abcabc".replace(/b/y, "X")).toBe("abcabc");
+        expect("aXbX".replace(/x/gi, match => match.toLowerCase())).toBe("axbx");
+        expect("abc".replace(/z/g, () => "never")).toBe("abc");
+
+        const nonGlobal = /o/;
+        nonGlobal.lastIndex = 5;
+        expect("foo".replace(nonGlobal, () => String(nonGlobal.lastIndex))).toBe("f5o");
+        expect(nonGlobal.lastIndex).toBe(5);
+    });
+
+    test("substitutions", () => {
+        expect("a1b22".replace(/(\d)(x)?/g, "[$1|$2|$&|$`|$']")).toBe("a[1||1|a|b22]b[2||2|a1b|2][2||2|a1b2|]");
+        expect("hello".replace(/l/g, "$$")).toBe("he$$o");
+        expect("hello".replace(/(l)/g, "$11")).toBe("hel1l1o");
+        expect("hello".replace(/(l)/, "$0")).toBe("he$0lo");
+    });
+});
