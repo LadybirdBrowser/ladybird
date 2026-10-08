@@ -316,7 +316,7 @@ static ErrorOr<void> append_allowed_mach_services(StringBuilder& builder, Seatbe
     }
 
     // Audio output units and audio decoders alike go through the component registrar.
-    if (has_flag(options.system_services, SystemService::Audio)) {
+    if (has_flag(options.system_services, SystemService::Audio) || has_flag(options.system_services, SystemService::AudioDecoding)) {
         builder.append(R"~~~(
 (allow mach-lookup
     (global-name "com.apple.audio.AudioComponentRegistrar"))
