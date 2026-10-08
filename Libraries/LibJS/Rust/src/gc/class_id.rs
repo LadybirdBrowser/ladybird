@@ -26,6 +26,7 @@ define_class_ids! {
     PrimitiveString,
     RopeString,
     Substring,
+    InlineString,
     Symbol,
     BigInt,
     Accessor,
