@@ -327,3 +327,116 @@ describe("normal behavior", () => {
         });
     });
 });
+
+describe("copying properties", () => {
+    test("onto empty and existing targets", () => {
+        const source = { a: 1, b: "two", c: null };
+        const copy = Object.assign({}, source);
+        expect(Object.keys(copy)).toEqual(["a", "b", "c"]);
+        expect(copy).not.toBe(source);
+        copy.a = 5;
+        expect(source.a).toBe(1);
+        copy.d = 4;
+        expect(Object.keys(source)).toEqual(["a", "b", "c"]);
+
+        const target = { c: 0, a: 0 };
+        expect(Object.keys(Object.assign(target, source))).toEqual(["c", "a", "b"]);
+        expect(target.a).toBe(1);
+        expect(target.c).toBeNull();
+    });
+
+    test("setters, read-only properties and accessors on the prototype chain of the target", () => {
+        const calls = [];
+        const prototype = {
+            set a(value) {
+                calls.push(value);
+            },
+        };
+        const target = Object.create(prototype);
+        Object.assign(target, { a: 1 });
+        expect(calls).toEqual([1]);
+        expect(Object.keys(target)).toEqual([]);
+
+        const readOnly = Object.create(Object.defineProperty({}, "a", { value: 0, writable: false }));
+        expect(() => Object.assign(readOnly, { a: 1 })).toThrow(TypeError);
+
+        Object.defineProperty(Object.prototype, "assignedThroughObjectPrototype", {
+            set(value) {
+                calls.push(value);
+            },
+            configurable: true,
+        });
+        try {
+            const result = Object.assign({}, { assignedThroughObjectPrototype: 2 });
+            expect(calls).toEqual([1, 2]);
+            expect(Object.keys(result)).toEqual([]);
+        } finally {
+            delete Object.prototype.assignedThroughObjectPrototype;
+        }
+
+        const withProto = Object.assign({}, JSON.parse('{"__proto__": {"x": 1}}'));
+        expect(withProto.x).toBe(1);
+        expect(Object.keys(withProto)).toEqual([]);
+    });
+
+    test("own read-only properties and accessors of the target", () => {
+        const target = {};
+        Object.defineProperty(target, "a", { value: 0, writable: false, enumerable: true });
+        expect(() => Object.assign(target, { a: 1 })).toThrow(TypeError);
+        let set = 0;
+        const withSetter = {
+            set a(value) {
+                set = value;
+            },
+        };
+        Object.assign(withSetter, { a: 3 });
+        expect(set).toBe(3);
+    });
+
+    test("sources with accessors and non-default attributes", () => {
+        const source = {
+            get a() {
+                return "got";
+            },
+        };
+        Object.defineProperty(source, "hidden", { value: 1, enumerable: false });
+        Object.defineProperty(source, "readOnly", { value: 2, enumerable: true, writable: false });
+        const copy = Object.assign({}, source);
+        expect(Object.getOwnPropertyDescriptor(copy, "a")).toEqual({
+            value: "got",
+            writable: true,
+            enumerable: true,
+            configurable: true,
+        });
+        expect(copy.hidden).toBeUndefined();
+        expect(Object.getOwnPropertyDescriptor(copy, "readOnly").writable).toBeTrue();
+    });
+});
+
+test("copies of objects of the same shape see later changes to Object.prototype", () => {
+    const make = () => Object.freeze({ first: 1, second: 2 });
+    for (let i = 0; i < 3; ++i) expect(Object.keys(Object.assign({}, make()))).toEqual(["first", "second"]);
+    const copy = Object.assign({}, make());
+    expect(Object.getOwnPropertyDescriptor(copy, "first")).toEqual({
+        value: 1,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+    });
+
+    const calls = [];
+    Object.defineProperty(Object.prototype, "second", {
+        set(value) {
+            calls.push(value);
+        },
+        configurable: true,
+    });
+    try {
+        const result = Object.assign({}, make());
+        expect(calls).toEqual([2]);
+        expect(Object.keys(result)).toEqual(["first"]);
+    } finally {
+        delete Object.prototype.second;
+    }
+    expect(Object.keys(Object.assign({}, make()))).toEqual(["first", "second"]);
+});

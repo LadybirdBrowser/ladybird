@@ -98,6 +98,17 @@ struct RareData {
     delete_transitions: HashMap<PropertyKey, GcWeak<Shape>, RandomState>,
     child_prototype_shapes: Vec<GcWeak<Shape>>,
     own_string_keys: Option<OwnStringKeys>,
+    assign_copy: Option<AssignCopy>,
+}
+
+/// What Object.assign of an object with a shape onto an empty object makes, as set_cached_assign_copy() keeps it.
+#[derive(Clone, Copy)]
+pub struct AssignCopy {
+    /// The validity of the shape of the prototype of the empty object when the copy was found to be right, which stops
+    /// being valid when that prototype changes its properties.
+    pub prototype_validity: Gc<PrototypeChainValidity>,
+    /// The shape the empty object ends up with.
+    pub copy_shape: Gc<Shape>,
 }
 
 /// The string keys of the properties of a shape, as with_own_string_keys() caches them.
@@ -158,6 +169,10 @@ unsafe impl Trace for ShapeStorage {
             }
             if let Some(own_string_keys) = &rare_data.own_string_keys {
                 visitor.visit_values(&own_string_keys.keys);
+            }
+            if let Some(assign_copy) = &rare_data.assign_copy {
+                visitor.visit(assign_copy.prototype_validity);
+                visitor.visit(assign_copy.copy_shape);
             }
         }
     }
@@ -651,6 +666,20 @@ impl Shape {
             .and_then(|rare_data| rare_data.own_string_keys.as_ref())
             .expect("the shape has its own string keys");
         callback(&own_string_keys.keys, &own_string_keys.enumerable)
+    }
+
+    /// What Object.assign of an object with this shape onto an empty object made, if it was kept.
+    pub fn cached_assign_copy(&self) -> Option<AssignCopy> {
+        self.storage
+            .rare_data
+            .borrow()
+            .as_ref()
+            .and_then(|rare_data| rare_data.assign_copy)
+    }
+
+    pub fn set_cached_assign_copy(&self, assign_copy: AssignCopy) {
+        assert!(!self.is_dictionary());
+        self.with_rare_data(|rare_data| rare_data.assign_copy = Some(assign_copy));
     }
 
     fn increment_dictionary_generation(&self) {

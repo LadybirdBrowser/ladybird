@@ -36,9 +36,10 @@ use crate::runtime::abstract_operations::{
     call, call_function_object, function_object_as_object, validate_and_apply_property_descriptor,
 };
 use crate::runtime::accessor::Accessor;
-use crate::runtime::array::Array;
+use crate::runtime::array::{ARRAY_OBJECT_METHODS, Array};
 use crate::runtime::class_field_definition::{ClassElementName, ClassFieldDefinition, ClassFieldInitializer};
 use crate::runtime::completion::{Must, ThrowCompletionOr};
+use crate::runtime::ecmascript_function_object::ECMASCRIPT_FUNCTION_OBJECT_METHODS;
 use crate::runtime::error::{ErrorKind, error_data_of_error};
 use crate::runtime::error_data::ErrorData;
 use crate::runtime::error_types::ErrorType;
@@ -52,7 +53,7 @@ use crate::runtime::property_attributes::{DEFAULT_ATTRIBUTES, PropertyAttributes
 use crate::runtime::property_descriptor::{PropertyDescriptor, to_property_descriptor};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
-use crate::runtime::shape::Shape;
+use crate::runtime::shape::{AssignCopy, Shape};
 use crate::runtime::symbol::Symbol;
 use crate::runtime::value::{PreferredType, is_strictly_equal, same_value};
 use crate::utf16::to_utf16_fly_string;
@@ -921,6 +922,38 @@ impl Object {
         self.internal_has_property(vm, property_key)
     }
 
+    /// Whether [[GetPrototypeOf]] and [[Get]] of this object are the ordinary ones, and [[GetOwnProperty]] is the
+    /// ordinary one for properties named by symbols and by strings that are not array indices, so that its storage and
+    /// its prototype alone decide what looking those properties up finds.
+    pub fn has_ordinary_named_property_lookup(&self) -> bool {
+        if self.has_unimplemented_properties() {
+            return false;
+        }
+        let methods = self.methods();
+        // NB: ECMAScript function objects only answer "caller", "arguments" and a lazily created "prototype" themselves,
+        //     and arrays only "length" and array indices.
+        (core::ptr::fn_addr_eq(
+            methods.internal_get_own_property,
+            ORDINARY_OBJECT_METHODS.internal_get_own_property,
+        ) || core::ptr::fn_addr_eq(
+            methods.internal_get_own_property,
+            ECMASCRIPT_FUNCTION_OBJECT_METHODS.internal_get_own_property,
+        ) || core::ptr::fn_addr_eq(
+            methods.internal_get_own_property,
+            ARRAY_OBJECT_METHODS.internal_get_own_property,
+        )) && core::ptr::fn_addr_eq(methods.internal_get, ORDINARY_OBJECT_METHODS.internal_get)
+            && core::ptr::fn_addr_eq(
+                methods.internal_get_prototype_of,
+                ORDINARY_OBJECT_METHODS.internal_get_prototype_of,
+            )
+    }
+
+    /// Whether this object has ordinary named property lookup, and an ordinary [[Set]].
+    pub fn has_ordinary_named_property_lookup_and_set(&self) -> bool {
+        self.has_ordinary_named_property_lookup()
+            && core::ptr::fn_addr_eq(self.methods().internal_set, ORDINARY_OBJECT_METHODS.internal_set)
+    }
+
     /// Whether [[OwnPropertyKeys]] and [[GetOwnProperty]] of this object are the ordinary ones and it has no indexed
     /// properties, so that its own property keys are the keys its shape has.
     pub fn own_property_keys_are_those_of_its_shape(&self) -> bool {
@@ -1153,6 +1186,129 @@ impl Object {
 
         // 4. Return properties.
         Ok(properties)
+    }
+
+    /// Whether [[Set]] of each property of `from` on this object, which has none of them, creates a data property on
+    /// it: its prototypes have ordinary property lookup and [[Set]], and none of them has one of those properties as an
+    /// accessor or as a data property that is not writable.
+    pub fn set_of_properties_of_creates_them(&self, vm: &Vm, from: &Object) -> bool {
+        let object_prototype = vm.current_realm().map(|realm| realm.object_prototype());
+        let mut prototype = self.shape().prototype();
+        while let Some(current) = prototype {
+            // NB: %Object.prototype% only has an exotic [[SetPrototypeOf]].
+            let is_ordinary = Some(current) == object_prototype || current.has_ordinary_named_property_lookup_and_set();
+            if !is_ordinary || current.indexed_storage_kind() != IndexedStorageKind::None {
+                return false;
+            }
+            let current_shape = current.shape();
+            let mut creates_them = true;
+            from.shape().for_each_property_in_insertion_order(|property_key, _| {
+                if let Some(metadata) = current_shape.lookup(property_key)
+                    && (!metadata.attributes.is_writable() || current.get_direct(metadata.offset).is_accessor())
+                {
+                    creates_them = false;
+                    return ControlFlow::Break(());
+                }
+                ControlFlow::Continue(())
+            });
+            if !creates_them {
+                return false;
+            }
+            prototype = current_shape.prototype();
+        }
+        true
+    }
+
+    /// OPTIMIZATION: For Object.assign onto an empty ordinary object: when [[Set]] of each own enumerable property of
+    ///               `from` on this object creates it, this object ends up with those properties in order, as data
+    ///               properties with the default attributes and the values of `from`. That is the shape a series of put
+    ///               transitions from the empty shape makes, which the shape of `from` keeps along with the validity
+    ///               of the prototype it was found for. Only sources of the current realm are copied this way, so that
+    ///               the shape of a source never keeps the shapes of another realm alive. Returns whether the
+    ///               properties were assigned this way.
+    pub fn assign_properties_to_new_object(&self, vm: &Vm, from: &Object) -> bool {
+        let Some(current_realm) = vm.current_realm() else {
+            return false;
+        };
+        let new_object_shape = current_realm.new_object_shape();
+        let from_shape = from.shape();
+        if !(self.shape() == new_object_shape
+            && self.indexed_storage_kind() == IndexedStorageKind::None
+            && self.extensible()
+            && self.eligible_for_own_property_enumeration_fast_path()
+            && !self.has_intrinsic_accessors()
+            && !self.may_interfere_with_indexed_property_access()
+            && !self.requires_slow_add_own_property()
+            && from.own_property_keys_are_those_of_its_shape()
+            && !from.has_intrinsic_accessors()
+            && !from_shape.is_dictionary()
+            && from_shape.realm() == current_realm)
+        {
+            return false;
+        }
+        let Some(prototype) = new_object_shape.prototype() else {
+            return false;
+        };
+        let Some(prototype_validity) = prototype.shape().prototype_chain_validity() else {
+            return false;
+        };
+
+        // Only data properties are read without running code.
+        let mut has_accessors_or_symbols = false;
+        from_shape.for_each_property_in_insertion_order(|property_key, metadata| {
+            if !property_key.is_string()
+                || (metadata.attributes.is_enumerable() && from.get_direct(metadata.offset).is_accessor())
+            {
+                has_accessors_or_symbols = true;
+                return ControlFlow::Break(());
+            }
+            ControlFlow::Continue(())
+        });
+        if has_accessors_or_symbols {
+            return false;
+        }
+
+        let copy_shape = match from_shape.cached_assign_copy() {
+            Some(assign_copy)
+                if assign_copy.prototype_validity == prototype_validity
+                    && prototype_validity.is_valid()
+                    && assign_copy.copy_shape.prototype() == Some(prototype) =>
+            {
+                assign_copy.copy_shape
+            }
+            _ => {
+                if !self.set_of_properties_of_creates_them(vm, from) {
+                    return false;
+                }
+                let mut copy_shape = new_object_shape;
+                let mut enumerable_keys = Vec::new();
+                from_shape.for_each_property_in_insertion_order(|property_key, metadata| {
+                    if metadata.attributes.is_enumerable() {
+                        enumerable_keys.push(property_key.clone());
+                    }
+                    ControlFlow::Continue(())
+                });
+                for property_key in &enumerable_keys {
+                    copy_shape = copy_shape.create_put_transition(vm, property_key, DEFAULT_ATTRIBUTES);
+                }
+                from_shape.set_cached_assign_copy(AssignCopy {
+                    prototype_validity,
+                    copy_shape,
+                });
+                copy_shape
+            }
+        };
+
+        self.unsafe_set_shape(copy_shape);
+        let mut offset = 0;
+        from_shape.for_each_property_in_insertion_order(|_, metadata| {
+            if metadata.attributes.is_enumerable() {
+                self.put_direct(offset, from.get_direct(metadata.offset));
+                offset += 1;
+            }
+            ControlFlow::Continue(())
+        });
+        true
     }
 
     // 7.3.26 CopyDataProperties ( target, source, excludedItems ), https://tc39.es/ecma262/#sec-copydataproperties
