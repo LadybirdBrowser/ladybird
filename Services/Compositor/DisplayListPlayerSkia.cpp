@@ -219,6 +219,13 @@ void DisplayListPlayerSkia::paint_scrollbar(Gfx::PaintingSurface& surface, Paint
     paint_scrollbar_into_surface(surface, command);
 }
 
+static SkMatrix vertical_glyph_run_rotation(Gfx::IntRect const& rect)
+{
+    auto rotation = SkMatrix::Translate(rect.width(), 0);
+    rotation.preRotate(90, rect.top_left().x(), rect.top_left().y());
+    return rotation;
+}
+
 static void draw_glyph_run(SkCanvas& canvas, SkTextBlob const& blob, Gfx::IntRect const& rect, Gfx::FloatPoint translation, Gfx::Orientation orientation, SkPaint const& paint)
 {
     switch (orientation) {
@@ -227,12 +234,20 @@ static void draw_glyph_run(SkCanvas& canvas, SkTextBlob const& blob, Gfx::IntRec
         break;
     case Gfx::Orientation::Vertical:
         canvas.save();
-        canvas.translate(rect.width(), 0);
-        canvas.rotate(90, rect.top_left().x(), rect.top_left().y());
+        canvas.concat(vertical_glyph_run_rotation(rect));
         canvas.drawTextBlob(&blob, translation.x(), translation.y(), paint);
         canvas.restore();
         break;
     }
+}
+
+static SkRect glyph_run_bounds_including_antialiasing(SkTextBlob const& blob, Gfx::IntRect const& rect, Gfx::FloatPoint translation, Gfx::Orientation orientation)
+{
+    auto bounds = blob.bounds().makeOffset(translation.x(), translation.y());
+    if (orientation == Gfx::Orientation::Vertical)
+        bounds = vertical_glyph_run_rotation(rect).mapRect(bounds);
+    bounds.outset(1, 1);
+    return bounds;
 }
 
 void DisplayListPlayerSkia::play_command(DrawGlyphRun const& command)
@@ -843,10 +858,15 @@ void DisplayListPlayerSkia::play_command(PaintTextShadow const& command)
         shadow_paint.setImageFilter(shadow_filters.size() == 1
                 ? shadow_filters.first()
                 : SkImageFilters::Merge(shadow_filters.data(), static_cast<int>(shadow_filters.size())));
-        canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, &shadow_paint, nullptr, 0));
+        // Without bounds the layer would span the whole clip. Skia maps these glyph bounds through the shadow filters
+        // to find where the shadows land.
+        auto glyph_rect = command.rect.translated(anchor.rounded_offset);
+        auto glyph_translation = command.translation + anchor.offset;
+        auto glyph_bounds = glyph_run_bounds_including_antialiasing(*blob, glyph_rect, glyph_translation, command.orientation);
+        canvas.saveLayer(SkCanvas::SaveLayerRec(&glyph_bounds, &shadow_paint, nullptr, 0));
         SkPaint glyph_paint;
         glyph_paint.setColor(to_skia_color(anchor.color.with_alpha(255)));
-        draw_glyph_run(canvas, *blob, command.rect.translated(anchor.rounded_offset), command.translation + anchor.offset, command.orientation, glyph_paint);
+        draw_glyph_run(canvas, *blob, glyph_rect, glyph_translation, command.orientation, glyph_paint);
         canvas.restore();
 
         group_start = group_end;
