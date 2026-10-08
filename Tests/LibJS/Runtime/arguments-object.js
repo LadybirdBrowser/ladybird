@@ -91,6 +91,28 @@ test("many mapped parameters preserve the last duplicate", () => {
     expect(f("first")).toEqual(["first", undefined, undefined]);
 });
 
+test("arguments objects that gain named properties", () => {
+    function mapped(a, b) {
+        return arguments;
+    }
+    function unmapped(a, b) {
+        "use strict";
+        return arguments;
+    }
+    for (const make of [mapped, unmapped]) {
+        const object = make(1, 2);
+        for (let i = 0; i < 10; ++i) object[`key${i}`] = { i };
+        gc();
+        expect(object.length).toBe(2);
+        expect(object[Symbol.iterator]).toBe(Array.prototype.values);
+        expect(object.key9.i).toBe(9);
+        expect([...object]).toEqual([1, 2]);
+        delete object.length;
+        expect(object.length).toBeUndefined();
+        expect(Object.prototype.toString.call(object)).toBe("[object Arguments]");
+    }
+});
+
 test("arguments of the enclosing function in arrow functions", () => {
     function viaArrow(a) {
         const read = () => arguments[0];

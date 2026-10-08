@@ -15,7 +15,7 @@ use crate::gc::class::{GcCell, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::environment::Environment;
-use crate::layout::object::Object;
+use crate::layout::object::{INLINE_NAMED_STORAGE_CAPACITY, Object};
 use crate::layout::value::Value;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::object::{
@@ -33,6 +33,10 @@ use crate::runtime::value::same_value;
 #[derive(Trace)]
 pub struct ArgumentsObject {
     base: Object,
+    /// OPTIMIZATION: The named properties of arguments objects, "length", "callee" and @@iterator, fit in the inline
+    ///               named storage with this slot after it.
+    #[gc(untraced)]
+    extra_inline_named_storage: Cell<Value>,
     environment: Cell<Gc<Environment>>,
     #[gc(untraced)]
     parameter_map: RefCell<ParameterMap>,
@@ -73,20 +77,26 @@ fn as_arguments_object(object: &Object) -> &ArgumentsObject {
     unsafe { &*core::ptr::from_ref(object).cast::<ArgumentsObject>() }
 }
 
+// NB: The inline named storage ends the object, so the extra slot continues it.
+const _: () = assert!(core::mem::offset_of!(ArgumentsObject, extra_inline_named_storage) == size_of::<Object>());
+
 impl ArgumentsObject {
     pub fn create(vm: &Vm, realm: Gc<Realm>, environment: Gc<Environment>, parameter_list_is_empty: bool) -> Gc<Self> {
+        let base = Object::new_with_shape(
+            Self::CLASS,
+            realm.mapped_arguments_object_shape(),
+            if parameter_list_is_empty {
+                MayInterfereWithIndexedPropertyAccess::No
+            } else {
+                MayInterfereWithIndexedPropertyAccess::Yes
+            },
+        );
+        base.inline_named_capacity.set(INLINE_NAMED_STORAGE_CAPACITY as u8 + 1);
         allocate_object(
             vm,
             ArgumentsObject {
-                base: Object::new_with_shape(
-                    Self::CLASS,
-                    realm.mapped_arguments_object_shape(),
-                    if parameter_list_is_empty {
-                        MayInterfereWithIndexedPropertyAccess::No
-                    } else {
-                        MayInterfereWithIndexedPropertyAccess::Yes
-                    },
-                ),
+                base,
+                extra_inline_named_storage: Cell::new(Value::UNDEFINED),
                 environment: Cell::new(environment),
                 parameter_map: RefCell::new(ParameterMap {
                     names: Rc::from([]),

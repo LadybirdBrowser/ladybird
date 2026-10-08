@@ -52,8 +52,8 @@ pub struct Object {
     pub header: CellHeader,
     pub flags: Cell<u16>,
     pub indexed_storage_kind: Cell<IndexedStorageKind>,
-    /// How many named property values the inline storage holds. It ends the object, and only plain objects have cells
-    /// with room for more than INLINE_NAMED_STORAGE_CAPACITY.
+    /// How many named property values the inline storage holds. It ends the object, and only plain objects and
+    /// mapped arguments objects have cells with room for more than INLINE_NAMED_STORAGE_CAPACITY.
     pub inline_named_capacity: Cell<u8>,
     pub indexed_array_like_size: Cell<u32>,
     pub shape: Cell<Gc<Shape>>,
