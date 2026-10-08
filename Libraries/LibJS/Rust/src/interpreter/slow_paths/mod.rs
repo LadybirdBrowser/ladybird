@@ -123,12 +123,12 @@ impl RuntimeFunctions for Runtime {
         operators::loosely_inequals_values(vm, pc, dst, lhs, rhs)
     }
 
-    fn strictly_equals_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-        operators::strictly_equals_values(vm, pc, dst, lhs, rhs)
+    fn strictly_equals_values(_vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::strictly_equals_values(pc, dst, lhs, rhs)
     }
 
-    fn strictly_inequals_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-        operators::strictly_inequals_values(vm, pc, dst, lhs, rhs)
+    fn strictly_inequals_values(_vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::strictly_inequals_values(pc, dst, lhs, rhs)
     }
 
     fn jump_less_than_values(
