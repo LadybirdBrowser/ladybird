@@ -174,3 +174,11 @@ test("character class with many overlapping ranges", () => {
     expect(/[\x00-\x7a\x10\x20\x30\x40\x60\x61\x62\x63]/v.test("P")).toBeTrue();
     expect(/^[\x00-\x7a\x10\x20\x30\x40\x60\x61\x62\x63]+$/v.test("PQR")).toBeTrue();
 });
+
+test("a failed test leaves the legacy static properties alone", () => {
+    expect(/(a)/.exec("xa")).not.toBeNull();
+    expect(/b/.test("c")).toBeFalse();
+    expect(RegExp.$1).toBe("a");
+    expect(RegExp.lastMatch).toBe("a");
+    expect(RegExp.leftContext).toBe("x");
+});

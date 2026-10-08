@@ -2315,7 +2315,9 @@ impl RegExpPrototype {
                     return throw_backtrack_limit_exceeded(vm);
                 }
                 let matched = test_exec_result == MatchResult::Match;
-                if matched {
+                // NB: RegExpBuiltinExec only updates the legacy static properties after a match, and only for a RegExp
+                //     of the current realm.
+                if matched && realm == typed_regexp.realm() {
                     let n_capture_groups = compiled_regex.capture_count();
                     let match_start = compiled_regex.capture_slot(0) as usize;
                     let match_end = compiled_regex.capture_slot(1) as usize;
@@ -2329,8 +2331,6 @@ impl RegExpPrototype {
                         legacy_captures.starts(),
                         legacy_captures.ends(),
                     );
-                } else {
-                    invalidate_legacy_regexp_static_properties(realm.intrinsics().regexp_constructor(vm));
                 }
                 return Ok(Value::from_bool(matched));
             }
