@@ -310,7 +310,7 @@ void DisplayListPlayer::execute_command_bytes(ReadonlyBytes command_bytes, Scrol
         };
 
         switch (header.command_type) {
-#define DISPATCH_DISPLAY_LIST_COMMAND(command_type, player_method)                    \
+#define DISPATCH_DISPLAY_LIST_COMMAND(command_type)                                   \
     case DisplayListCommandType::command_type:                                        \
         dispatch_command.template operator()<command_type>([&](auto const& command) { \
             play_command(command);                                                    \

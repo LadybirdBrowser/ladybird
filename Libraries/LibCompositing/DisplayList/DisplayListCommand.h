@@ -17,45 +17,6 @@
 
 namespace Compositing {
 
-#define ENUMERATE_DISPLAY_LIST_COMMANDS(V)                                             \
-    V(DrawGlyphRun, draw_glyph_run)                                                    \
-    V(FillRect, fill_rect)                                                             \
-    V(PaintCaret, paint_caret)                                                         \
-    V(DrawScaledDecodedImageFrame, draw_scaled_decoded_image_frame)                    \
-    V(DrawRepeatedDecodedImageFrame, draw_repeated_decoded_image_frame)                \
-    V(DrawRepeatedTile, draw_repeated_tile)                                            \
-    V(DrawTiledDecodedImageFrame, draw_tiled_decoded_image_frame)                      \
-    V(DrawCompositedContext, draw_composited_context)                                  \
-    V(DrawCanvas, draw_canvas)                                                         \
-    V(DrawVideoFrame, draw_video_frame)                                                \
-    V(PaintLinearGradient, paint_linear_gradient)                                      \
-    V(PaintRadialGradient, paint_radial_gradient)                                      \
-    V(PaintConicGradient, paint_conic_gradient)                                        \
-    V(PaintOuterBoxShadow, paint_outer_box_shadow)                                     \
-    V(PaintInnerBoxShadow, paint_inner_box_shadow)                                     \
-    V(PaintTextShadow, paint_text_shadow)                                              \
-    V(FillRectWithRoundedCorners, fill_rect_with_rounded_corners)                      \
-    V(FillRoundedRectRing, fill_rounded_rect_ring)                                     \
-    V(FillPath, fill_path)                                                             \
-    V(StrokePath, stroke_path)                                                         \
-    V(DrawEllipse, draw_ellipse)                                                       \
-    V(DrawLine, draw_line)                                                             \
-    V(BackdropFilterRegion, backdrop_filter_region)                                    \
-    V(DrawRect, draw_rect)                                                             \
-    V(PaintNestedDisplayList, paint_nested_display_list)                               \
-    V(DrawIsolatedGroup, draw_isolated_group)                                          \
-    V(DeclareMaskContent, declare_mask_content)                                        \
-    V(CompositorScrollNode, compositor_scroll_node)                                    \
-    V(CompositorWheelHitTestTarget, compositor_wheel_hit_test_target)                  \
-    V(CompositorWheelHitTestTargetWithCornerRadii,                                     \
-        compositor_wheel_hit_test_target_with_corner_radii)                            \
-    V(CompositorMainThreadWheelEventRegion, compositor_main_thread_wheel_event_region) \
-    V(CompositorScrollbar, compositor_scrollbar)                                       \
-    V(CompositorBlockingWheelEventRegion, compositor_blocking_wheel_event_region)      \
-    V(PaintScrollBar, paint_scrollbar)                                                 \
-    V(CompositorSnapContainer, compositor_snap_container)                              \
-    V(CompositorSnapArea, compositor_snap_area)
-
 constexpr bool display_list_command_is_compositor_metadata(DisplayListCommandType type)
 {
     switch (type) {
@@ -116,8 +77,8 @@ template<typename Callback>
 decltype(auto) visit_display_list_command_type(DisplayListCommandType command_type, Callback&& callback)
 {
     switch (command_type) {
-#define VISIT_DISPLAY_LIST_COMMAND_TYPE(command, player_method) \
-    case DisplayListCommandType::command:                       \
+#define VISIT_DISPLAY_LIST_COMMAND_TYPE(command) \
+    case DisplayListCommandType::command:        \
         return callback.template operator()<command>();
         ENUMERATE_DISPLAY_LIST_COMMANDS(VISIT_DISPLAY_LIST_COMMAND_TYPE)
 #undef VISIT_DISPLAY_LIST_COMMAND_TYPE
@@ -176,9 +137,9 @@ inline bool operator==(DisplayListCommandRun const& a, DisplayListCommandRun con
         && a.has_compositor_metadata == b.has_compositor_metadata;
 }
 
-#define VERIFY_DISPLAY_LIST_COMMAND(command, player_method) \
-    static_assert(IsTriviallyCopyable<command>);            \
-    static_assert(alignof(command) <= alignof(DisplayListCommandHeader));
+#define VERIFY_DISPLAY_LIST_COMMAND(command)     \
+    static_assert(IsTriviallyCopyable<command>); \
+    static_assert(alignof(command) <= display_list_payload_alignment);
 ENUMERATE_DISPLAY_LIST_COMMANDS(VERIFY_DISPLAY_LIST_COMMAND)
 #undef VERIFY_DISPLAY_LIST_COMMAND
 
