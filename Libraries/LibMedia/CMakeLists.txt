@@ -8,6 +8,7 @@ set(SOURCES
     Audio/NullPlaybackStream.cpp
     Audio/PlaybackStream.cpp
     Audio/RecordStream.cpp
+    Audio/SharedAudioFrameRing.cpp
     Audio/SpscAudioFrameRing.cpp
     Audio/WSOLAAlgorithm.cpp
     Audio/WSOLAInternals.cpp
