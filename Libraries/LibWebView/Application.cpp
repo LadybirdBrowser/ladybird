@@ -2810,6 +2810,10 @@ void Application::apply_content_blocker_settings()
             client.async_set_content_blockers(*m_content_blocker_list_buffer);
         return IterationDecision::Continue;
     });
+    ViewImplementation::for_each_view([](ViewImplementation& view) {
+        view.notify_content_blocking_changed();
+        return IterationDecision::Continue;
+    });
 }
 
 bool Application::content_blocker_list_update_in_progress() const
