@@ -287,6 +287,7 @@ fn keyed_property_lookup_cache_key(key: Value, property_key: &PropertyKey) -> u6
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum KeyedSiteCache {
     Use,
+    /// The instruction's property lookup cache is keyed generic (see PropertyLookupCache::is_keyed_generic()).
     Skip,
 }
 
@@ -344,9 +345,9 @@ pub fn get_by_value(
     }
     if site_cache == KeyedSiteCache::Use {
         let cache_key = keyed_property_lookup_cache_key(property_key_value, &property_key);
-        if cache_key != 0 {
-            let executable = vm.current_executable();
-            let cache = executable.property_lookup_cache(instruction.cache as usize);
+        let executable = vm.current_executable();
+        let cache = executable.property_lookup_cache(instruction.cache as usize);
+        if cache_key != 0 && !cache.is_keyed_generic() {
             values.dst = asm_try!(
                 vm,
                 pc,
@@ -457,9 +458,9 @@ pub fn put_by_value(
         KeyedSiteCache::Use => keyed_property_lookup_cache_key(property, &property_key),
         KeyedSiteCache::Skip => 0,
     };
-    if cache_key != 0 {
-        let executable = vm.current_executable();
-        let cache = executable.property_lookup_cache(instruction.cache as usize);
+    let executable = vm.current_executable();
+    let cache = executable.property_lookup_cache(instruction.cache as usize);
+    if cache_key != 0 && !cache.is_keyed_generic() {
         asm_try!(
             vm,
             pc,

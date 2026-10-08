@@ -149,6 +149,22 @@ inline fn load_property_lookup_cache(
     property_cache
 }
 
+# The data of the property lookup cache of a keyed access: `empty` if it has none yet, `generic` if the
+# access saw too many keys to cache (see PropertyLookupCache::is_keyed_generic()).
+inline fn load_keyed_property_lookup_cache(
+    cache: PropertyLookupCacheIndex,
+    generic: Label,
+    else empty: Label
+) -> PropertyLookupCache {
+    let executable = exec_ctx.executable;
+    assert(executable != 0);
+    let mut property_cache = executable.property_lookup_caches[load(cache)];
+    guard property_cache != 0 else empty;
+    branch_eq(property_cache, PROPERTY_LOOKUP_CACHE_KEYED_GENERIC, generic);
+    and(property_cache, PROPERTY_LOOKUP_CACHE_DATA_POINTER_MASK);
+    property_cache
+}
+
 inline fn array_index(value: Value, else failure: Label) -> u32 {
     guard let Value<i32>(signed_index) = value else failure;
     let index = u32(signed_index);
@@ -2229,6 +2245,10 @@ handler PutByValue(
         call_slow_path(put_by_value);
     };
 
+    let slow_without_cache = || @cold {
+        call_slow_path(put_by_value_uncached);
+    };
+
     let try_cache = || @cold {
         guard call_interp(asm_try_put_by_value_cache) == 0 else slow;
         dispatch_next;
@@ -2239,8 +2259,8 @@ handler PutByValue(
     guard extract_tag(key) == INT32_TAG else {
         # Keys that are not array indices: the property lookup cache remembers the shapes and keys it has
         # seen, and matches string and symbol keys by identity.
+        guard let property_cache = load_keyed_property_lookup_cache(cache, slow_without_cache) else slow;
         guard let Value<Object>(object) = load(base) else slow;
-        guard let property_cache = load_property_lookup_cache(cache) else try_cache;
         guard property_cache.key is key else try_cache;
         let shape = object.shape;
         guard property_cache.shape == shape else try_cache;
@@ -2652,6 +2672,10 @@ handler GetByValue(
         call_slow_path(get_by_value);
     };
 
+    let slow_without_cache = || @cold {
+        call_slow_path(get_by_value_uncached);
+    };
+
     let try_cache = || @cold {
         guard call_interp(asm_try_get_by_value_cache) == 0 else slow;
         dispatch_next;
@@ -2666,8 +2690,8 @@ handler GetByValue(
     guard extract_tag(key) == INT32_TAG else {
         # Keys that are not array indices: the property lookup cache remembers the shapes and keys it has
         # seen, and matches string and symbol keys by identity.
+        guard let property_cache = load_keyed_property_lookup_cache(cache, slow_without_cache) else slow;
         guard let Value<Object>(object) = load(base) else slow;
-        guard let property_cache = load_property_lookup_cache(cache) else try_cache;
         guard property_cache.key is key else try_cache;
         let shape = object.shape;
         guard property_cache.shape == shape else try_cache;

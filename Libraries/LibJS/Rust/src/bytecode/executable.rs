@@ -33,8 +33,8 @@ use crate::layout::executable::ExecutableHead;
 use crate::layout::object::Object;
 pub use crate::layout::property_lookup_cache::{
     EnvironmentCoordinate, GlobalVariableCache, ObjectPropertyIteratorCache, ObjectPropertyIteratorCacheData,
-    ObjectPropertyIteratorFastPath, PROPERTY_LOOKUP_CACHE_DATA_TAG_MASK, PropertyLookupCache, PropertyLookupCacheEntry,
-    PropertyLookupCacheEntryType,
+    ObjectPropertyIteratorFastPath, PROPERTY_LOOKUP_CACHE_DATA_TAG_MASK, PROPERTY_LOOKUP_CACHE_KEYED_GENERIC_DATA,
+    PropertyLookupCache, PropertyLookupCacheEntry, PropertyLookupCacheEntryType,
 };
 use crate::layout::shape::{PrototypeChainValidity, Shape};
 use crate::layout::value::Value;
@@ -197,6 +197,9 @@ pub const MEGAMORPHIC_PRIMARY_CACHE_SIZE: usize = 64;
 pub const MEGAMORPHIC_SECONDARY_CACHE_SIZE: usize = 64;
 const POLYMORPHIC_DATA_TAG: usize = 1;
 const MEGAMORPHIC_DATA_TAG: usize = 2;
+/// How many (shape, key) pairs a megamorphic cache of a keyed access may miss and learn before it gives up (see
+/// PropertyLookupCache::is_keyed_generic()).
+const MAX_KEYED_MEGAMORPHIC_MISSES: u32 = 1024;
 
 const _: () = assert!(MEGAMORPHIC_PRIMARY_CACHE_SIZE.is_power_of_two());
 const _: () = assert!(MEGAMORPHIC_SECONDARY_CACHE_SIZE.is_power_of_two());
@@ -219,6 +222,8 @@ struct MegamorphicData {
     entry: PropertyLookupCacheEntry,
     primary_entries: [PropertyLookupCacheEntry; MEGAMORPHIC_PRIMARY_CACHE_SIZE],
     secondary_entries: [PropertyLookupCacheEntry; MEGAMORPHIC_SECONDARY_CACHE_SIZE],
+    /// Misses of a keyed access (see MAX_KEYED_MEGAMORPHIC_MISSES).
+    keyed_misses: Cell<u32>,
 }
 
 const _: () = assert!(align_of::<MonomorphicData>() > PROPERTY_LOOKUP_CACHE_DATA_TAG_MASK);
@@ -303,6 +308,12 @@ impl PropertyLookupCache {
         self.data.set(address | tag);
     }
 
+    /// Whether this is the cache of a keyed access that saw too many (shape, key) pairs to keep track of. Such a cache
+    /// stays empty, so its accesses go straight to their slow paths.
+    pub fn is_keyed_generic(&self) -> bool {
+        self.data.get() == PROPERTY_LOOKUP_CACHE_KEYED_GENERIC_DATA
+    }
+
     pub fn first_entry(&self) -> Option<PropertyLookupCacheEntryData> {
         self.first_entry_slot().map(PropertyLookupCacheEntry::get)
     }
@@ -376,15 +387,19 @@ impl PropertyLookupCache {
         core::slice::from_ref(&data.entry)
     }
 
-    /// Records a new entry of `entry_type`, filled in by `callback`, moving the cache to the next tier when it has no
-    /// room for it. Only accesses the cache missed get here, so this stays out of line instead of growing the frames
-    /// of the property access paths that every access runs through.
+    /// Records an entry of `entry_type`, filled in by `callback`, moving the cache to the next tier when it has no
+    /// room for it. Keyed sites also refresh entries after hits in the VM cache. Keep this out of line instead of
+    /// growing the frames of the property access paths that every access runs through.
     #[inline(never)]
     pub fn update(
         &self,
         entry_type: PropertyLookupCacheEntryType,
         callback: impl FnOnce(&mut PropertyLookupCacheEntryData),
     ) {
+        if self.is_keyed_generic() {
+            return;
+        }
+
         let mut new_entry = PropertyLookupCacheEntryData {
             entry_type,
             ..Default::default()
@@ -392,6 +407,27 @@ impl PropertyLookupCache {
         callback(&mut new_entry);
 
         if let Some(data) = self.megamorphic_data() {
+            // NB: A keyed access that keeps missing cycles through more keys than the cache can hold, and filling it
+            //     would cost more than it saves.
+            if new_entry.key != 0 {
+                let lookup_shape = new_entry
+                    .lookup_shape()
+                    .expect("a megamorphic entry has a lookup shape");
+                let is_known = |entry: &PropertyLookupCacheEntry| {
+                    let entry = entry.get();
+                    entry.lookup_shape() == Some(lookup_shape) && entry.key == new_entry.key
+                };
+                let known = is_known(&data.primary_entries[megamorphic_primary_index(lookup_shape, new_entry.key)])
+                    || is_known(&data.secondary_entries[megamorphic_secondary_index(lookup_shape, new_entry.key)]);
+                if !known {
+                    data.keyed_misses.set(data.keyed_misses.get() + 1);
+                }
+                if data.keyed_misses.get() > MAX_KEYED_MEGAMORPHIC_MISSES {
+                    self.clear();
+                    self.data.set(PROPERTY_LOOKUP_CACHE_KEYED_GENERIC_DATA);
+                    return;
+                }
+            }
             insert_megamorphic_entry(data, &new_entry);
             data.entry.set(new_entry);
             return;
@@ -463,6 +499,7 @@ impl PropertyLookupCache {
             entry: PropertyLookupCacheEntry::new(),
             primary_entries: core::array::from_fn(|_| PropertyLookupCacheEntry::new()),
             secondary_entries: core::array::from_fn(|_| PropertyLookupCacheEntry::new()),
+            keyed_misses: Cell::new(0),
         });
         for entry in entries.iter().rev() {
             let entry = entry.get();
@@ -478,7 +515,8 @@ impl PropertyLookupCache {
 
     pub fn clear(&self) {
         let data = self.data.get();
-        if data == 0 {
+        if data == 0 || data == PROPERTY_LOOKUP_CACHE_KEYED_GENERIC_DATA {
+            self.data.set(0);
             return;
         }
         let address = data & !PROPERTY_LOOKUP_CACHE_DATA_TAG_MASK;
@@ -506,6 +544,10 @@ impl PropertyLookupCache {
 
     pub fn copy_from(&self, other: &PropertyLookupCache) {
         self.clear();
+        if other.is_keyed_generic() {
+            self.data.set(PROPERTY_LOOKUP_CACHE_KEYED_GENERIC_DATA);
+            return;
+        }
         if let Some(data) = other.monomorphic_data() {
             self.set_data(
                 Box::new(MonomorphicData {
@@ -536,6 +578,7 @@ impl PropertyLookupCache {
                     secondary_entries: core::array::from_fn(|index| {
                         PropertyLookupCacheEntry::from_data(data.secondary_entries[index].get())
                     }),
+                    keyed_misses: Cell::new(data.keyed_misses.get()),
                 }),
                 MEGAMORPHIC_DATA_TAG,
             );

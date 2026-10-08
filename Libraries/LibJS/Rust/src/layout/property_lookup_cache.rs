@@ -52,6 +52,9 @@ pub struct PropertyLookupCache {
 
 pub const PROPERTY_LOOKUP_CACHE_DATA_TAG_MASK: usize = 3;
 
+/// The data of a keyed generic cache: the tag without data (see PropertyLookupCache::is_keyed_generic()).
+pub const PROPERTY_LOOKUP_CACHE_KEYED_GENERIC_DATA: usize = 3;
+
 #[repr(C)]
 pub struct GlobalVariableCache {
     pub entry: PropertyLookupCacheEntry,
