@@ -134,3 +134,13 @@ describe("normal behavior", () => {
         expect(exception).toBe("mapper exception");
     });
 });
+
+test("stack traces show no position in the builtin", () => {
+    let stack = null;
+    Array.fromAsync([1], () => {
+        stack = new Error().stack;
+    });
+    runQueuedPromiseJobs();
+    expect(stack.includes("at fromAsync\n")).toBeTrue();
+    expect(stack.includes("BuiltinFile")).toBeFalse();
+});
