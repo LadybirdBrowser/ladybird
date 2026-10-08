@@ -81,8 +81,10 @@ Cell* CellAllocator::allocate_cell_slow(Heap& heap)
         // NB: Without sweeping the block first, take a single cell from it,
         //     which the heap marks as allocated during the sweep. The same
         //     goes for the block the sweep is in the middle of, which a
-        //     destructor may allocate from.
-        if (block.is_pending_sweep() || block.is_being_swept()) {
+        //     destructor may allocate from. A heap that collects on every
+        //     allocation has no local free lists, which code that pops them
+        //     itself would take cells from without collecting.
+        if (block.is_pending_sweep() || block.is_being_swept() || heap.should_collect_on_every_allocation()) {
             auto* cell = block.allocate();
             VERIFY(cell);
             if (block.is_full())

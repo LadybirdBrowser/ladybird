@@ -54,6 +54,11 @@ pub struct GCLayout {
     pub max_cell_alignment: u32,
     pub cell_type_info_size: u32,
     pub weak_impl_pointer_offset: u32,
+    pub free_cell_next_offset: u32,
+    pub free_cell_link_mask: u32,
+    pub heap_allocated_bytes_since_last_gc_offset: u32,
+    pub heap_gc_bytes_threshold_offset: u32,
+    pub heap_total_allocated_bytes_offset: u32,
     pub heap_region_offset_mask: u64,
     pub primitive_storage_cage_offset_mask: u64,
 }
@@ -111,6 +116,7 @@ unsafe extern "C" {
         allocator: *mut GCAllocator,
         must_mark: *mut bool,
     ) -> *mut c_void;
+    pub fn gc_heap_allocator_local_free_list(heap: *mut GCHeap, allocator: *mut GCAllocator) -> *mut *mut c_void;
     pub fn gc_cell_type_info(cell: *const c_void) -> *const CellTypeInfo;
 
     pub fn gc_root_create(cell: *mut c_void) -> *mut GCRoot;

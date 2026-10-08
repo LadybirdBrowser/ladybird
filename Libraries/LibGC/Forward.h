@@ -11,6 +11,7 @@
 
 namespace GC {
 
+struct CAPI;
 class Cell;
 class CellAllocator;
 struct CellTypeInfo;
