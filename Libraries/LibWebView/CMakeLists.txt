@@ -2,6 +2,7 @@ set(SOURCES
     AccessibilityTreeManager.cpp
     Application.cpp
     ApplyHistoryStep.cpp
+    AudioServerControlClient.cpp
     Autocomplete.cpp
     AutocompleteMuxer.cpp
     AutocompleteRanker.cpp
@@ -89,11 +90,15 @@ endif()
 
 set(GENERATED_SOURCES ${CURRENT_LIB_GENERATED})
 
+compile_ipc(../../Services/AudioServer/AudioServerControl.ipc ../../Services/AudioServer/AudioServerControlEndpoint.h)
+compile_ipc(../../Services/AudioServer/AudioServerControlClient.ipc ../../Services/AudioServer/AudioServerControlClientEndpoint.h)
 compile_ipc(UIProcessServer.ipc UIProcessServerEndpoint.h)
 compile_ipc(UIProcessClient.ipc UIProcessClientEndpoint.h)
 
 set(GENERATED_SOURCES
     ${GENERATED_SOURCES}
+    ../../Services/AudioServer/AudioServerControlClientEndpoint.h
+    ../../Services/AudioServer/AudioServerControlEndpoint.h
     ../../Services/RequestServer/RequestClientEndpoint.h
     ../../Services/RequestServer/RequestServerEndpoint.h
     UIProcessClientEndpoint.h

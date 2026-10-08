@@ -2156,6 +2156,10 @@ void Application::process_did_exit(Process&& process, Optional<int>)
     case ProcessType::MediaServer:
         // The connection's holder launches a new MediaServer when it next connects a client.
         break;
+    case ProcessType::AudioServer:
+        // The connection's holder launches a new AudioServer when it next connects a client; the streams of the old
+        // one report their loss and reopen.
+        break;
     case ProcessType::RequestServer:
         if (auto client = process.client<Requests::RequestControlClient>()) {
             dbgln_if(WEBVIEW_PROCESS_DEBUG, "Restart request server");
