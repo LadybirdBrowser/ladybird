@@ -187,7 +187,7 @@ bool ContentBlocker::is_filtered(URL::URL const& url, URL::URL const& source_url
 
 bool ContentBlocker::is_filtered(URL::URL const& url, URL::URL const& source_url, ResourceType resource_type) const
 {
-    if (!filtering_enabled() || !m_engine)
+    if (!m_engine)
         return false;
 
     if (url.scheme() == "data"sv)
@@ -215,7 +215,7 @@ Utf16String ContentBlocker::cosmetic_style_sheet_for_url(URL::URL const& url) co
 
 Utf16String ContentBlocker::cosmetic_style_sheet_for_url(URL::URL const& url, ReadonlySpan<Utf16FlyString> classes, ReadonlySpan<Utf16FlyString> ids) const
 {
-    if (!filtering_enabled() || !m_engine || !m_has_cosmetic_rules)
+    if (!m_engine || !m_has_cosmetic_rules)
         return {};
 
     auto url_string = serialized_url(url);
@@ -242,7 +242,7 @@ Utf16String ContentBlocker::cosmetic_style_sheet_for_url(URL::URL const& url, Re
 
 bool ContentBlocker::has_generic_cosmetic_selectors_for_url(URL::URL const& url, ReadonlySpan<Utf16FlyString> classes, ReadonlySpan<Utf16FlyString> ids) const
 {
-    if (!filtering_enabled() || !m_engine || !m_has_cosmetic_rules)
+    if (!m_engine || !m_has_cosmetic_rules)
         return false;
 
     auto url_string = serialized_url(url);

@@ -73,14 +73,16 @@ void ResourceLoader::set_client(NonnullRefPtr<Requests::RequestClient> request_c
     };
 }
 
-void ResourceLoader::prefetch_dns(URL::URL const& url, URL::URL const& source_url)
+void ResourceLoader::prefetch_dns(GC::Ptr<Page> page, URL::URL const& url, URL::URL const& source_url)
 {
     if (url.scheme().is_one_of("file"sv, "data"sv))
         return;
 
-    if (ContentBlocker::the().is_filtered(url, source_url, ContentBlocker::ResourceType::Other)) {
-        dbgln("ResourceLoader: Refusing to prefetch DNS for '{}': \033[31;1mURL was filtered\033[0m", url);
-        return;
+    if (!page || page->content_blocking_enabled()) {
+        if (ContentBlocker::the().is_filtered(url, source_url, ContentBlocker::ResourceType::Other)) {
+            dbgln("ResourceLoader: Refusing to prefetch DNS for '{}': \033[31;1mURL was filtered\033[0m", url);
+            return;
+        }
     }
 
     // FIXME: We could put this request in a queue until the client connection is re-established.
@@ -88,14 +90,16 @@ void ResourceLoader::prefetch_dns(URL::URL const& url, URL::URL const& source_ur
         m_request_client->ensure_connection(url, RequestServer::CacheLevel::ResolveOnly);
 }
 
-void ResourceLoader::preconnect(URL::URL const& url, URL::URL const& source_url)
+void ResourceLoader::preconnect(GC::Ptr<Page> page, URL::URL const& url, URL::URL const& source_url)
 {
     if (url.scheme().is_one_of("file"sv, "data"sv))
         return;
 
-    if (ContentBlocker::the().is_filtered(url, source_url, ContentBlocker::ResourceType::Other)) {
-        dbgln("ResourceLoader: Refusing to pre-connect to '{}': \033[31;1mURL was filtered\033[0m", url);
-        return;
+    if (!page || page->content_blocking_enabled()) {
+        if (ContentBlocker::the().is_filtered(url, source_url, ContentBlocker::ResourceType::Other)) {
+            dbgln("ResourceLoader: Refusing to pre-connect to '{}': \033[31;1mURL was filtered\033[0m", url);
+            return;
+        }
     }
 
     // FIXME: We could put this request in a queue until the client connection is re-established.
@@ -186,10 +190,12 @@ static bool should_block_request(LoadRequest const& request)
         return true;
     }
 
-    auto source_url = request.source_url().value_or(url);
-    if (ContentBlocker::the().is_filtered(url, source_url, request.destination(), request.initiator_type(), request.request_mode())) {
-        log_filtered_request(request);
-        return true;
+    if (auto page = request.page(); !page || page->content_blocking_enabled()) {
+        auto source_url = request.source_url().value_or(url);
+        if (ContentBlocker::the().is_filtered(url, source_url, request.destination(), request.initiator_type(), request.request_mode())) {
+            log_filtered_request(request);
+            return true;
+        }
     }
 
     return false;

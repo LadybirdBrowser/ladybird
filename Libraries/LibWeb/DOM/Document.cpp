@@ -974,7 +974,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
 
 Utf16String const& Document::content_blocker_style_sheet()
 {
-    if (is_decoded_svg()) {
+    if (is_decoded_svg() || !page().content_blocking_enabled()) {
         if (!m_content_blocker_style_sheet.has_value())
             m_content_blocker_style_sheet = Utf16String {};
         return m_content_blocker_style_sheet.value();
@@ -1019,7 +1019,7 @@ void Document::invalidate_content_blocker_style_sheet()
 
 bool Document::content_blocker_style_sheet_may_need_refresh_for_class_or_id(Utf16FlyString const* id, ReadonlySpan<Utf16FlyString> class_names)
 {
-    if (is_decoded_svg())
+    if (is_decoded_svg() || !page().content_blocking_enabled())
         return false;
 
     if (!m_content_blocker_style_sheet.has_value())

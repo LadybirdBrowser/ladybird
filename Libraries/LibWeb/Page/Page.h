@@ -392,9 +392,11 @@ public:
 
     Optional<Utf16String> const& user_style() const { return m_user_style_sheet_source; }
     void set_user_style(Utf16String source);
-    void set_content_blocking_enabled(bool);
     void invalidate_user_style();
     void invalidate_style_for_preference_change();
+
+    bool content_blocking_enabled() const { return m_content_blocking_enabled; }
+    void set_content_blocking_enabled(bool);
 
     bool pdf_viewer_supported() const { return m_pdf_viewer_supported; }
 
@@ -562,6 +564,8 @@ private:
     size_t m_active_screen_wake_lock_count { 0 };
 
     Optional<Utf16String> m_user_style_sheet_source;
+
+    bool m_content_blocking_enabled { true };
 
     // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-supported
     // Each user agent has a PDF viewer supported boolean, whose value is implementation-defined (and might vary

@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/HTMLDocument.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/FontPlugin.h>
@@ -64,12 +65,21 @@ public:
 
 GC_DEFINE_ALLOCATOR(TestPageClient);
 
+static void install_font_plugin()
+{
+    static bool installed = [] {
+        static Web::Platform::FontPlugin font_plugin(false);
+        Web::Platform::FontPlugin::install(font_plugin);
+        return true;
+    }();
+    VERIFY(installed);
+}
+
 }
 
 TEST_CASE(replacing_custom_property_only_inline_blocks_updates_dependent_style)
 {
-    static Web::Platform::FontPlugin font_plugin(false);
-    Web::Platform::FontPlugin::install(font_plugin);
+    install_font_plugin();
     auto principal_realm = Web::Bindings::create_a_principal_javascript_realm();
     VERIFY(principal_realm.ptr());
     auto& vm = Web::Bindings::main_thread_vm();
@@ -99,4 +109,45 @@ TEST_CASE(replacing_custom_property_only_inline_blocks_updates_dependent_style)
     replace_block("--paint: red"_utf16, "rgb(255, 0, 0)"_utf16);
     replace_block("--paint: blue"_utf16, "rgb(0, 0, 255)"_utf16);
     replace_block(""_utf16, "rgb(0, 0, 0)"_utf16);
+}
+
+TEST_CASE(content_blocking_policy_isolated_between_pages)
+{
+    install_font_plugin();
+    auto principal_realm = Web::Bindings::create_a_principal_javascript_realm();
+    VERIFY(principal_realm.ptr());
+    auto& vm = Web::Bindings::main_thread_vm();
+    auto make_page = [&] {
+        auto client = vm.heap().allocate<TestPageClient>();
+        auto page = Web::Page::create(client);
+        client->m_page = page.ptr();
+        auto traversable = Web::HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {});
+        page->set_top_level_traversable(traversable);
+        auto& document = *traversable->active_document();
+        if (!document.body())
+            MUST(document.populate_with_html_head_and_body());
+        auto element = MUST(Web::DOM::create_element(document, "div"_utf16_fly_string, Web::Namespace::HTML));
+        element->set_attribute("class"_fly_string, "advertisement"_utf16);
+        MUST(document.body()->append_child(element));
+        return page;
+    };
+    auto first_page = make_page();
+    auto second_page = make_page();
+    auto& blocker = Web::ContentBlocker::the();
+    Vector<String> rules { "##.advertisement"_string, "||ads.example.com^"_string };
+    MUST(blocker.set_patterns(rules));
+    auto& first_document = *static_cast<Web::HTML::LocalNavigable&>(*first_page->top_level_traversable()).active_document();
+    auto& second_document = *static_cast<Web::HTML::LocalNavigable&>(*second_page->top_level_traversable()).active_document();
+    EXPECT(!first_document.content_blocker_style_sheet().is_empty());
+    EXPECT(!second_document.content_blocker_style_sheet().is_empty());
+    first_page->set_content_blocking_enabled(false);
+    EXPECT(!first_page->content_blocking_enabled());
+    EXPECT(second_page->content_blocking_enabled());
+    EXPECT(first_document.content_blocker_style_sheet().is_empty());
+    EXPECT(!second_document.content_blocker_style_sheet().is_empty());
+    EXPECT(blocker.has_rules());
+    first_page->set_content_blocking_enabled(true);
+    EXPECT(!first_document.content_blocker_style_sheet().is_empty());
+    EXPECT(!second_document.content_blocker_style_sheet().is_empty());
+    MUST(blocker.set_patterns({}));
 }
