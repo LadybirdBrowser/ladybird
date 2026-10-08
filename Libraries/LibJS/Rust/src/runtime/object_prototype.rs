@@ -14,11 +14,13 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
+use crate::layout_forward::RawNativeFunctionPointer;
 use crate::runtime::abstract_operations::require_object_coercible;
 use crate::runtime::boolean_object::BooleanObject;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::function_object::FunctionObject;
 use crate::runtime::native_function::raw_native;
 use crate::runtime::number_object::NumberObject;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, define_object_class};
@@ -27,9 +29,13 @@ use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::regexp_constructor::is_raw_native_function_running;
 use crate::runtime::string_object::StringObject;
 use crate::runtime::value::same_value;
 use crate::utf16::{Utf16View, concatenate};
+
+/// %Object.prototype.valueOf%, which is_value_of_function() looks for.
+static VALUE_OF_FUNCTION: RawNativeFunctionPointer = raw_native!(ObjectPrototype::value_of);
 
 /// %Object.prototype%, an immutable prototype exotic object.
 #[repr(C)]
@@ -43,6 +49,50 @@ define_object_class!(ObjectPrototype, extends: [Object], methods: {
     internal_set_prototype_of: ObjectPrototype::internal_set_prototype_of,
     ..ORDINARY_OBJECT_METHODS
 });
+
+/// Steps 5 to 14 of Object.prototype.toString: the builtinTag of `object`, given whether IsArray(object) is true.
+pub fn builtin_tag(object: &Object, is_array: bool) -> &'static str {
+    // 5. If isArray is true, let builtinTag be "Array".
+    if is_array {
+        "Array"
+    }
+    // 6. Else if O has a [[ParameterMap]] internal slot, let builtinTag be "Arguments".
+    else if object.has_parameter_map() {
+        "Arguments"
+    }
+    // 7. Else if O has a [[Call]] internal method, let builtinTag be "Function".
+    else if object.is_function() {
+        "Function"
+    }
+    // 8. Else if O has an [[ErrorData]] internal slot, let builtinTag be "Error".
+    else if object.has_error_data() {
+        "Error"
+    }
+    // 9. Else if O has a [[BooleanData]] internal slot, let builtinTag be "Boolean".
+    else if object.is::<BooleanObject>() {
+        "Boolean"
+    }
+    // 10. Else if O has a [[NumberData]] internal slot, let builtinTag be "Number".
+    else if object.is::<NumberObject>() {
+        "Number"
+    }
+    // 11. Else if O has a [[StringData]] internal slot, let builtinTag be "String".
+    else if object.is::<StringObject>() {
+        "String"
+    }
+    // 12. Else if O has a [[DateValue]] internal slot, let builtinTag be "Date".
+    else if object.class().id == ClassId::Date {
+        "Date"
+    }
+    // 13. Else if O has a [[RegExpMatcher]] internal slot, let builtinTag be "RegExp".
+    else if object.class().id == ClassId::RegExpObject {
+        "RegExp"
+    }
+    // 14. Else, let builtinTag be "Object".
+    else {
+        "Object"
+    }
+}
 
 impl ObjectPrototype {
     pub fn new(vm: &Vm, realm: Gc<Realm>) -> ObjectPrototype {
@@ -67,7 +117,7 @@ impl ObjectPrototype {
         define_native_function(&names.hasOwnProperty, raw_native!(ObjectPrototype::has_own_property), 1);
         define_native_function(&names.toString, raw_native!(ObjectPrototype::to_string), 0);
         define_native_function(&names.toLocaleString, raw_native!(ObjectPrototype::to_locale_string), 0);
-        define_native_function(&names.valueOf, raw_native!(ObjectPrototype::value_of), 0);
+        define_native_function(&names.valueOf, VALUE_OF_FUNCTION, 0);
         define_native_function(
             &names.propertyIsEnumerable,
             raw_native!(ObjectPrototype::property_is_enumerable),
@@ -198,47 +248,8 @@ impl ObjectPrototype {
         // 4. Let isArray be ? IsArray(O).
         let is_array = Value::from_object(object).is_array(vm)?;
 
-        let builtin_tag: &str =
-            // 5. If isArray is true, let builtinTag be "Array".
-            if is_array {
-                "Array"
-            }
-            // 6. Else if O has a [[ParameterMap]] internal slot, let builtinTag be "Arguments".
-            else if object.has_parameter_map() {
-                "Arguments"
-            }
-            // 7. Else if O has a [[Call]] internal method, let builtinTag be "Function".
-            else if object.is_function() {
-                "Function"
-            }
-            // 8. Else if O has an [[ErrorData]] internal slot, let builtinTag be "Error".
-            else if object.has_error_data() {
-                "Error"
-            }
-            // 9. Else if O has a [[BooleanData]] internal slot, let builtinTag be "Boolean".
-            else if object.is::<BooleanObject>() {
-                "Boolean"
-            }
-            // 10. Else if O has a [[NumberData]] internal slot, let builtinTag be "Number".
-            else if object.is::<NumberObject>() {
-                "Number"
-            }
-            // 11. Else if O has a [[StringData]] internal slot, let builtinTag be "String".
-            else if object.is::<StringObject>() {
-                "String"
-            }
-            // 12. Else if O has a [[DateValue]] internal slot, let builtinTag be "Date".
-            else if object.class().id == ClassId::Date {
-                "Date"
-            }
-            // 13. Else if O has a [[RegExpMatcher]] internal slot, let builtinTag be "RegExp".
-            else if object.class().id == ClassId::RegExpObject {
-                "RegExp"
-            }
-            // 14. Else, let builtinTag be "Object".
-            else {
-                "Object"
-            };
+        // NB: Steps 5 to 14 are in builtin_tag().
+        let builtin_tag = builtin_tag(&object, is_array);
 
         // 15. Let tag be ? Get(O, @@toStringTag).
         let to_string_tag = object.get_with_cache(
@@ -268,6 +279,11 @@ impl ObjectPrototype {
             vm,
             concatenate(&[Utf16View::Ascii(b"[object "), tag, Utf16View::Ascii(b"]")]),
         )))
+    }
+
+    /// Whether `function` is %Object.prototype.valueOf% of some realm.
+    pub fn is_value_of_function(vm: &Vm, function: Gc<FunctionObject>) -> bool {
+        is_raw_native_function_running(vm, function, VALUE_OF_FUNCTION)
     }
 
     // 20.1.3.7 Object.prototype.valueOf ( ), https://tc39.es/ecma262/#sec-object.prototype.valueof
