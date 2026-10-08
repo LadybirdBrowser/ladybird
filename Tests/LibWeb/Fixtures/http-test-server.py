@@ -102,6 +102,7 @@ class WPTContext:
         localpaths.repo_root = os.path.abspath(wpt_directory)
 
         from wptserve.config import ConfigBuilder
+        from wptserve.handlers import AsIsHandler
         from wptserve.handlers import FileHandler
         from wptserve.handlers import python_script_handler
         from wptserve.request import Request
@@ -117,10 +118,23 @@ class WPTContext:
         self.request_class = Request
         self.response_class = Response
         self.file_handler_class = FileHandler
+        self.as_is_handler_class = AsIsHandler
         self.python_script_handler = python_script_handler
         self.http_exception = HTTPException
         self.stash_class = Stash
         self.stash_manager, self.stash_address, self.stash_authkey = start_stash_server()
+
+    def create_file_handler(self, base_path, url_base="/"):
+        file_handler = self.file_handler_class(base_path=base_path, url_base=url_base)
+        as_is_handler = self.as_is_handler_class(base_path=base_path, url_base=url_base)
+
+        def handler(request, response):
+            # Like upstream wptserve, send .asis files without generating any response headers.
+            if request.url_parts.path.endswith(".asis"):
+                return as_is_handler(request, response)
+            return file_handler(request, response)
+
+        return handler
 
     def configure_server(self, http_ports):
         def make_subdomains_product(subdomains, depth=2):
@@ -904,8 +918,8 @@ def start_server(port, static_directory, ca_cert_output=None):
     httpd.scheme = "http"
     httpd.router = SimpleNamespace(doc_root=TestHTTPRequestHandler.wpt_directory)
     httpd.wpt = WPTContext(TestHTTPRequestHandler.wpt_directory)
-    httpd.wpt_file_handler = httpd.wpt.file_handler_class(base_path=TestHTTPRequestHandler.wpt_directory)
-    httpd.static_file_handler = httpd.wpt.file_handler_class(
+    httpd.wpt_file_handler = httpd.wpt.create_file_handler(base_path=TestHTTPRequestHandler.wpt_directory)
+    httpd.static_file_handler = httpd.wpt.create_file_handler(
         base_path=TestHTTPRequestHandler.static_directory,
         url_base="/static/",
     )
