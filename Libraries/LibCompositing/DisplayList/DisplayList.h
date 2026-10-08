@@ -59,7 +59,6 @@ protected:
         return { reinterpret_cast<T const*>(bytes.data()), bytes.size() / sizeof(T) };
     }
     void execute_impl(DisplayList const&, ScrollStateSnapshot const& scroll_state);
-    void execute_run_commands(DisplayListCommandRun const&, ScrollStateSnapshot const& scroll_state);
     void execute_command_bytes(ReadonlyBytes, ScrollStateSnapshot const& scroll_state);
     ScrollStateSnapshot const& active_scroll_state() const { return *m_active_scroll_state; }
     void execute_display_list_into_surface(DisplayList const&, AccumulatedVisualContextTree const&, Gfx::PaintingSurface&);
@@ -69,6 +68,9 @@ protected:
     void execute_nested_display_list(DisplayList const&, AccumulatedVisualContextTree const&, ScrollStateSnapshot const&);
 
 private:
+    struct ReplayCallbacks;
+    void play_command_bytes(DisplayListCommandType, u8 const* command, ReadonlyBytes payload);
+
 #define DECLARE_PLAY_COMMAND(command_type) \
     virtual void play_command(command_type const&) = 0;
     ENUMERATE_DISPLAY_LIST_COMMANDS(DECLARE_PLAY_COMMAND)
