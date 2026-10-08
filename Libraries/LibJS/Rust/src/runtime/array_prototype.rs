@@ -31,14 +31,15 @@ use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
-use crate::runtime::value::{is_strictly_equal, same_value_zero};
+use crate::runtime::value::{PreferredType, append_number_to_string, is_strictly_equal, same_value_zero};
 use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
-use crate::utf16::Utf16View;
+use crate::utf16::{Utf16StringBuilder, Utf16View};
 
 thread_local! {
     /// The objects Array.prototype.join and Array.prototype.toLocaleString are joining, by address. Each join keeps its
     /// object alive while it is in here.
-    static ARRAY_JOIN_SEEN_OBJECTS: RefCell<HashSet<usize>> = RefCell::new(HashSet::new());
+    static ARRAY_JOIN_SEEN_OBJECTS: RefCell<HashSet<usize, foldhash::fast::RandomState>> =
+        RefCell::new(HashSet::default());
 }
 
 /// Takes an object out of the seen objects of joins when its join returns.
@@ -71,6 +72,21 @@ define_object_class!(ArrayPrototype, extends: [Array, Object], methods: {
     initialize: ArrayPrototype::initialize,
     ..ARRAY_OBJECT_METHODS
 });
+
+/// The element at `index` of an object whose indexed storage nothing intercepts, if it has one there. Holes and
+/// elements of dictionary storage, which may be accessors, are left to a [[Get]].
+fn own_plain_indexed_element(object: &Object, index: u64) -> Option<Value> {
+    if object.may_interfere_with_indexed_property_access() {
+        return None;
+    }
+    if !matches!(
+        object.indexed_storage_kind(),
+        IndexedStorageKind::Packed | IndexedStorageKind::Holey
+    ) {
+        return None;
+    }
+    Some(object.indexed_get(u32::try_from(index).ok()?)?.value)
+}
 
 fn property_key(index: u64) -> PropertyKey {
     PropertyKey::from_number(index)
@@ -1000,6 +1016,7 @@ impl ArrayPrototype {
 
     // 23.1.3.18 Array.prototype.join ( separator ), https://tc39.es/ecma262/#sec-array.prototype.join
     fn join(vm: &Vm) -> ThrowCompletionOr<Value> {
+        // 1. Let obj be ? ToObject(this value).
         let this_object = vm.this_value().to_object(vm)?;
 
         // This is not part of the spec, but all major engines do some kind of circular reference checks.
@@ -1009,27 +1026,68 @@ impl ArrayPrototype {
             return Ok(Value::from_string(PrimitiveString::create(vm, Utf16String::default())));
         };
 
+        // 2. Let length be ? LengthOfArrayLike(obj).
         let length = length_of_array_like(vm, &this_object)?;
-        let mut separator = Utf16String::from_utf8(",");
-        if !vm.argument(0).is_undefined() {
-            separator = vm.argument(0).to_utf16_string(vm)?;
-        }
-        let mut builder = Vec::new();
-        for i in 0..length {
-            if i > 0 {
-                Utf16View::of_string(&separator).append_to(&mut builder);
+
+        // 3. If separator is undefined, let sep be ",".
+        // 4. Else, let sep be ? ToString(separator).
+        let separator = if vm.argument(0).is_undefined() {
+            None
+        } else {
+            Some(vm.argument(0).to_utf16_string(vm)?)
+        };
+        let separator = separator.as_ref().map_or(Utf16View::Ascii(b","), Utf16View::of_string);
+
+        // 5. Let result be the empty String.
+        // NB: Most joins are of short strings and numbers, so start with room for a few code units of each.
+        let element_capacity = length.min(1024) as usize * 8;
+        let separator_capacity = length.saturating_sub(1).min(1024) as usize * separator.length_in_code_units().min(8);
+        let mut builder = Utf16StringBuilder::with_capacity(element_capacity + separator_capacity);
+
+        // 6. Let k be 0.
+        // 7. Repeat, while k < length,
+        for k in 0..length {
+            // a. If k > 0, set result to the string-concatenation of result and sep.
+            if k > 0 {
+                builder.append(separator);
             }
-            let value = this_object.get(vm, &property_key(i))?;
-            if value.is_nullish() {
-                continue;
+
+            // b. Let element be ? Get(obj, ! ToString(𝔽(k))).
+            // OPTIMIZATION: Read the elements of objects whose indexed storage nothing intercepts directly. Converting
+            //               an element may run code that changes the object, so this is checked for every element.
+            let element = match own_plain_indexed_element(&this_object, k) {
+                Some(element) => element,
+                None => this_object.get(vm, &property_key(k))?,
+            };
+
+            // c. If element is neither undefined nor null, then
+            if !element.is_nullish() {
+                // i. Let elementString be ? ToString(element).
+                // ii. Set result to the string-concatenation of result and elementString.
+                // OPTIMIZATION: Strings and numbers are appended without making a string of their own first. ToString
+                //               of an object is ToString of ? ToPrimitive(object, string), which is usually a string.
+                let primitive = if element.is_object() {
+                    element.to_primitive(vm, PreferredType::String)?
+                } else {
+                    element
+                };
+                if primitive.is_string() {
+                    builder.append(primitive.as_string().utf16_string_view());
+                } else if primitive.is_number() {
+                    append_number_to_string(&mut builder, primitive.as_f64());
+                } else {
+                    let element_string = primitive.to_utf16_string(vm)?;
+                    builder.append(Utf16View::of_string(&element_string));
+                }
             }
-            let string = value.to_utf16_string(vm)?;
-            Utf16View::of_string(&string).append_to(&mut builder);
+
+            // d. Set k to k + 1.
         }
 
+        // 8. Return result.
         Ok(Value::from_string(PrimitiveString::create(
             vm,
-            Utf16String::from_utf16(&builder),
+            builder.to_utf16_string(),
         )))
     }
 
