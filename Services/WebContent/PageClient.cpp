@@ -280,13 +280,6 @@ void PageClient::request_set_opener_of_remote_navigable(Web::HTML::RemoteNavigab
     client().async_did_request_set_opener_of_navigable(m_id, navigable.id(), opener.id());
 }
 
-void PageClient::navigate_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::PreparedNavigationDescriptor navigation)
-{
-    // A navigable the page represents without hosting its document is addressed by the page hosting it.
-    if (auto* navigable = as_if<Web::HTML::LocalNavigable>(page().navigable_with_id(navigable_id).ptr()))
-        navigable->continue_navigation_from_another_process(move(navigation));
-}
-
 void PageClient::deliver_posted_message(Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor message)
 {
     if (auto* navigable = as_if<Web::HTML::LocalNavigable>(page().navigable_with_id(navigable_id).ptr()))

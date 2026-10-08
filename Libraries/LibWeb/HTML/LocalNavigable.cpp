@@ -3464,28 +3464,26 @@ void LocalNavigable::continue_navigation_after_population_dispatch(PreparedNavig
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
-void LocalNavigable::continue_navigation_from_another_process(PreparedNavigationDescriptor descriptor)
-{
-    // 8. If the surrounding agent is equal to navigable's active document's relevant agent, then continue these
-    //    steps. Otherwise, queue a global task on the navigation and traversal task source given navigable's active
-    //    window to continue these steps.
-    // NB: The surrounding agent is the requesting process's, never navigable's active document's relevant agent.
-    auto window = active_window();
-    if (!window)
-        return;
-    queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*window), GC::create_function(heap(), [this, window, descriptor = move(descriptor)] mutable {
-        MUST(continue_navigation_in_active_document_agent(create_prepared_navigation_from_descriptor(relevant_realm(*window), move(descriptor))));
-    }));
-}
-
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
-// NB: The UI process runs navigate for a navigation from the browser's UI, or of a document that was lost, but for the
-//     steps that need navigable's container or active document. This process runs those, then the unload check and
-//     the first steps of population it is asked for.
+// NB: The UI process runs navigate for a navigation from the browser's UI, from a sourceDocument in another process, or
+//     of a document that was lost, but for the steps that need navigable's container or active document. This process
+//     runs those, then the unload check and the first steps of population it is asked for.
 void LocalNavigable::adopt_navigation_started_in_ui_process(Utf16String navigation_id)
 {
     if (has_been_destroyed() || !active_window())
         return;
+
+    // 10. Let container be navigable's container.
+    auto container = this->container();
+
+    // 11. If container is an iframe element and will lazy load element steps given container returns true,
+    //     then stop intersection-observing a lazy loading element container and set container's lazy load resumption steps to null.
+    if (container && container->is_html_iframe_element()) {
+        auto& iframe_element = static_cast<HTMLIFrameElement&>(*container);
+        if (iframe_element.will_lazy_load_element()) {
+            iframe_element.document().stop_intersection_observing_a_lazy_loading_element(iframe_element);
+            iframe_element.set_lazy_load_resumption_steps(nullptr);
+        }
+    }
 
     // 15. If navigable's parent is non-null, then set navigable's is delaying load events to true.
     if (parent())

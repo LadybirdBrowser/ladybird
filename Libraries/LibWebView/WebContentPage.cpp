@@ -642,11 +642,11 @@ bool WebContentPage::take_owed_reply(OwedReply owed)
     return m_owed_replies.remove(owed);
 }
 
-static bool may_navigate_to_a_local_file(WebContentClient& requesting_client, Web::HTML::NavigationSourceSnapshot const& source_snapshot_params);
+static bool may_navigate_to_a_local_file(WebContentClient& requesting_client);
 
 void WebContentPage::did_request_navigation_of_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId source_navigable_id, Web::HTML::CrossProcessId source_document_id, Web::HTML::PreparedNavigationDescriptor navigation)
 {
-    if (navigation.url.scheme() == "file"sv && !may_navigate_to_a_local_file(client(), navigation.source_snapshot_params))
+    if (navigation.url.scheme() == "file"sv && !may_navigate_to_a_local_file(client()))
         return;
 
     auto target = traversable().find(navigable_id);
@@ -668,6 +668,11 @@ void WebContentPage::did_request_navigation_of_navigable(Web::HTML::CrossProcess
     if (!source.has_value())
         return;
     auto& source_document = source->active_document();
+    auto const& fetch_client = navigation.source_snapshot_params.fetch_client;
+    if (!fetch_client.has_value() || fetch_client->id != source_document.relevant_global_object().relevant_settings_object().id()) {
+        client().did_misbehave("did_request_navigation_of_navigable"sv, "fetch client is not the source document's environment"sv);
+        return;
+    }
 
     // 6. Otherwise:
     //    2. If sourceDocument's node navigable is not allowed by sandboxing to navigate navigable given
@@ -683,18 +688,7 @@ void WebContentPage::did_request_navigation_of_navigable(Web::HTML::CrossProcess
     //    3. Set initiatorOriginSnapshot to sourceDocument's origin.
     navigation.initiator_origin_snapshot = source_document.origin();
 
-    // A document that was lost with the process that hosted it is navigated from step 8 on here: no process hosts it.
-    if (!target->active_document().host()) {
-        target->begin_navigation(move(navigation));
-        return;
-    }
-    target->set_routed_navigation(navigation.navigation_id, navigation.initiator_origin_snapshot);
-
-    // The request continues navigate at step 8 in the process hosting the target's document.
-    auto endpoint = endpoint_hosting_navigable_represented_by(navigable_id);
-    if (!endpoint)
-        return;
-    endpoint->async_navigate_navigable(navigable_id, move(navigation));
+    target->begin_navigation(move(navigation));
 }
 
 void WebContentPage::did_post_message_to_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor message)
@@ -898,23 +892,9 @@ static Optional<URL::Origin> initiator_origin_snapshot(URL::Origin const& given_
 
 // A page reaches local file content only by navigating there from local file content, or from the browser's UI: a
 // process holding none could otherwise come to host a file: document, and with it read every file the user can.
-static bool may_navigate_to_a_local_file(WebContentClient& requesting_client, Web::HTML::NavigationSourceSnapshot const& source_snapshot_params)
+static bool may_navigate_to_a_local_file(WebContentClient& requesting_client)
 {
-    if (requesting_client.may_read_local_files())
-        return true;
-
-    // A navigation a page starts in another process's navigable continues in that process, so the process hosting the
-    // fetch client vouches for it.
-    if (!source_snapshot_params.fetch_client.has_value())
-        return false;
-    bool result = false;
-    WebContentClient::for_each_client([&](WebContentClient& client) {
-        if (!client.hosted_environment(source_snapshot_params.fetch_client->id).has_value())
-            return IterationDecision::Continue;
-        result = client.may_read_local_files();
-        return IterationDecision::Break;
-    });
-    return result;
+    return requesting_client.may_read_local_files();
 }
 
 // A navigation a page asked the browser's UI to start for it, with the initiator origin the UI process takes from the
@@ -925,7 +905,7 @@ static Optional<Web::HTML::PreparedNavigationDescriptor> navigation_from_page(We
     auto initiator_origin = initiator_origin_snapshot(navigation.initiator_origin_snapshot, navigation.source_snapshot_params, requesting_client);
     if (!initiator_origin.has_value())
         return {};
-    if (navigation.url.scheme() == "file"sv && !may_navigate_to_a_local_file(requesting_client, navigation.source_snapshot_params))
+    if (navigation.url.scheme() == "file"sv && !may_navigate_to_a_local_file(requesting_client))
         return {};
     navigation.initiator_origin_snapshot = initiator_origin.release_value();
     return navigation;
@@ -1924,14 +1904,9 @@ void WebContentPage::did_request_navigation_start(Web::HTML::CrossProcessId navi
     //     "traversal" since.
     auto navigation_is_blocked_by_history_traversal = target_navigable
         && target_navigable->ongoing_navigation().has<CanonicalNavigable::Traversal>();
-    // The page hosting the navigable's document continues navigate at step 8, for a sourceDocument it hosts or for
-    // one another page hosts, which asked the UI process to route the navigation here.
     Optional<URL::Origin> initiator_origin;
-    if (start_request.has_value() && target_navigable) {
+    if (start_request.has_value())
         initiator_origin = initiator_origin_snapshot(start_request->initiator_origin, start_request->source_snapshot_params, client());
-        if (!initiator_origin.has_value())
-            initiator_origin = target_navigable->take_routed_navigation_initiator_origin(navigation_id);
-    }
     if (!target_navigable
         || target_navigable->id() != navigable_id
         || !traversable().hosts(*target_navigable, *this)
@@ -1946,7 +1921,7 @@ void WebContentPage::did_request_navigation_start(Web::HTML::CrossProcessId navi
         client().did_misbehave("did_request_navigation_start"sv, "start request names another URL"sv);
         return;
     }
-    if (start_request.has_value() && url.scheme() == "file"sv && !may_navigate_to_a_local_file(client(), start_request->source_snapshot_params)) {
+    if (start_request.has_value() && url.scheme() == "file"sv && !may_navigate_to_a_local_file(client())) {
         async_cancel_navigation_params_creation(navigable_id, navigation_id);
         return;
     }
