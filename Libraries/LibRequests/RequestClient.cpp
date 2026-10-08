@@ -111,6 +111,7 @@ ErrorOr<ExportedRequest> RequestClient::export_request(Request& request)
     auto exported = IPCProxy::export_request(request.id());
     if (!exported.has_value())
         return Error::from_string_literal("RequestServer refused to export the request");
+    m_requests.remove(request.id());
     return exported.release_value();
 }
 

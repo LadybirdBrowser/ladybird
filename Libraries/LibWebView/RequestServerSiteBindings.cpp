@@ -8,6 +8,7 @@
 #include <LibURL/Site.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalDocument.h>
+#include <LibWebView/RequestServerManager.h>
 #include <LibWebView/RequestServerSiteBindings.h>
 
 namespace WebView {
@@ -66,10 +67,13 @@ void RequestServerSiteBindings::bind(Site site)
 void RequestServerSiteBindings::send(Site const& site) const
 {
     // NB: A client that has not connected yet, or whose RequestServer has died, is bound to every site when it connects.
-    if (!m_client_id.has_value() || !Application::has_request_server_control_client())
+    if (!m_client_id.has_value())
+        return;
+    auto instance = RequestServerManager::the().instance_for_client(*m_client_id);
+    if (!instance)
         return;
 
-    (void)Application::request_server_control_client().send_sync_but_allow_failure<Messages::RequestServerControl::BindClientToSite>(*m_client_id, site.top_level_site, site.frame_site);
+    (void)instance->control_client().send_sync_but_allow_failure<Messages::RequestServerControl::BindClientToSite>(*m_client_id, site.top_level_site, site.frame_site);
 }
 
 }

@@ -58,7 +58,8 @@ public:
     void remove_web_worker_owner(WebWorkerClient&);
 
     void post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage, CanonicalEnvironmentSettingsObject const& source_settings, pid_t source_process_id, IsPrivate);
-    ErrorOr<void> reconnect_to_request_server();
+    // Reconnects the workers whose RequestServer client the predicate picks out to the given RequestServer.
+    ErrorOr<void> reconnect_to_request_server(RequestServerInstance&, Function<bool(RequestServerSiteBindings const&)> should_reconnect);
     void for_each_request_server_site_bindings(Function<IterationDecision(RequestServerSiteBindings&)> const&);
     ErrorOr<void> simulate_request_server_connection_loss_for_testing(WebContentClient&, Web::PageId page_id);
 
@@ -132,8 +133,6 @@ private:
         NonnullOwnPtr<CanonicalWorkerEnvironmentSettingsObject> inside_settings;
         bool may_read_local_files { false };
     };
-
-    ErrorOr<void> reconnect_to_request_server(Function<bool(WorkerAgent const&)> should_reconnect);
 
     // A worker whose agent is gone counts toward the workers of its top-level site until its process exits, or until its
     // connection closes, which ends its process.

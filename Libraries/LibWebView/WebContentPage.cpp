@@ -27,6 +27,7 @@
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
+#include <LibWebView/RequestServerManager.h>
 #include <LibWebView/StorageJar.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
@@ -336,7 +337,32 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     }
     auto& loader = *navigable->ongoing_navigation()->loader;
     navigable->set_navigation_host(*host);
-    host->async_populate_navigation(loader.request(), loader.take_result());
+    auto finish_handoff = [page = NonnullRefPtr<WebContentPage>(*this), host, navigable_id, navigation_id](bool succeeded) {
+        if (!page->is_open())
+            return;
+        auto navigable = page->population_worker_navigable(navigable_id);
+        if (!navigable.has_value())
+            return;
+        auto const& navigation = navigable->ongoing_navigation();
+        if (!navigation.has_value() || navigation->navigation_id != navigation_id || navigation->phase != CanonicalNavigation::Phase::Populating || !navigation->loader)
+            return;
+        if (!succeeded || !host->is_open()) {
+            if (navigable->is_top_level_traversable() && page->displays_tab())
+                page->view().did_cancel_loading(navigation_id);
+            navigable->clear_ongoing_navigation();
+            return;
+        }
+        auto& loader = *navigation->loader;
+        host->async_populate_navigation(loader.request(), loader.take_result());
+    };
+    // Wait for the destination RequestServer to acknowledge the import before the host adopts it.
+    if (auto client_id = host->client().request_server_site_bindings().client_id(); client_id.has_value()) {
+        if (auto request_server = RequestServerManager::the().instance_for_client(*client_id)) {
+            loader.move_response_body_to(*request_server, move(finish_handoff));
+            return true;
+        }
+    }
+    finish_handoff(false);
     return true;
 }
 
