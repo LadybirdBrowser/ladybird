@@ -31,6 +31,7 @@ pub use crate::layout::function_object::{SharedFunctionInstanceData, asm_call_me
 use crate::runtime::environment_shape::{EnvironmentShape, EnvironmentShapeCache};
 use crate::runtime::private_environment::PrivateName;
 use crate::runtime::property_key::PropertyKey;
+use crate::runtime::shape::Shape;
 use crate::source_code::SourceCode;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -115,6 +116,11 @@ pub struct SharedFunctionInstanceDataStorage {
     bytecode_cache_source_text_offset: Cell<usize>,
     bytecode_cache_source_text_length: Cell<usize>,
     use_rust_compilation: bool,
+
+    /// How many properties the objects constructions of the function create get, as far as known (see
+    /// construct_reserve()), and how many constructions asked.
+    construct_reserve: Cell<u32>,
+    construct_count: Cell<u32>,
 }
 
 impl Drop for SharedFunctionInstanceDataStorage {
@@ -124,6 +130,12 @@ impl Drop for SharedFunctionInstanceDataStorage {
         }
     }
 }
+
+/// The most properties that constructions make room for ahead (the largest inline capacity of plain objects).
+const MAX_CONSTRUCT_RESERVE: u32 = 16;
+
+/// The last construction that follows the transitions again (see SharedFunctionInstanceData::construct_reserve()).
+const MAX_CONSTRUCT_RESERVE_UPDATES: u32 = 1024;
 
 /// Frees bytecode that the frontend compiled ahead of a call that never came, along with the regular expressions the
 /// host compiled for it and for the functions nested in it, which only an executable created from it frees otherwise.
@@ -230,6 +242,8 @@ impl SharedFunctionInstanceData {
                 bytecode_cache_source_text_offset: Cell::new(0),
                 bytecode_cache_source_text_length: Cell::new(0),
                 use_rust_compilation: true,
+                construct_reserve: Cell::new(0),
+                construct_count: Cell::new(0),
             },
         }
     }
@@ -694,6 +708,21 @@ impl SharedFunctionInstanceData {
 
     pub fn this_value_needs_environment_resolution(&self) -> bool {
         self.storage.this_value_needs_environment_resolution.get()
+    }
+
+    /// How many properties to make room for in an object that a construction of the function creates with `shape`:
+    /// as many as the objects with the shape ended up with, which the longest chain of forward transitions from the
+    /// shape tells (every object a constructor builds the same way follows one). The transitions are looked at again
+    /// on the first, second, fourth and so on construction, up to the 1024th.
+    pub fn construct_reserve(&self, shape: Gc<Shape>) -> u32 {
+        let storage = &self.storage;
+        let count = storage.construct_count.get();
+        if count <= MAX_CONSTRUCT_RESERVE_UPDATES && count.is_power_of_two() {
+            let reserve = shape.property_count() + shape.longest_forward_transition_chain(MAX_CONSTRUCT_RESERVE);
+            storage.construct_reserve.set(reserve.min(MAX_CONSTRUCT_RESERVE));
+        }
+        storage.construct_count.set(count.saturating_add(1));
+        storage.construct_reserve.get()
     }
 
     pub fn function_environment_needed(&self) -> bool {

@@ -388,6 +388,34 @@ impl Shape {
         new_shape
     }
 
+    /// How many properties objects with the shape got after it at most, up to `limit`: the length of the longest chain of
+    /// forward transitions from it, looking at no more than `limit` shapes in all.
+    pub fn longest_forward_transition_chain(&self, limit: u32) -> u32 {
+        let mut budget = limit;
+        self.longest_forward_transition_chain_within(limit, &mut budget)
+    }
+
+    fn longest_forward_transition_chain_within(&self, depth_limit: u32, budget: &mut u32) -> u32 {
+        if depth_limit == 0 || *budget == 0 {
+            return 0;
+        }
+        *budget -= 1;
+        let targets: Vec<Gc<Shape>> = match &*self.storage.forward_transitions.borrow() {
+            ForwardTransitions::Empty => Vec::new(),
+            ForwardTransitions::Single { target, .. } => target.get().into_iter().collect(),
+            ForwardTransitions::Multiple(map) => map.values().filter_map(GcWeak::get).collect(),
+        };
+        let mut longest = 0;
+        for target in targets {
+            let length = 1 + target.longest_forward_transition_chain_within(depth_limit - 1, budget);
+            longest = longest.max(length);
+            if longest >= depth_limit {
+                break;
+            }
+        }
+        longest
+    }
+
     fn get_or_prune_cached_forward_transition(&self, key: &TransitionKey) -> Option<Gc<Shape>> {
         if self.is_prototype_shape() {
             return None;

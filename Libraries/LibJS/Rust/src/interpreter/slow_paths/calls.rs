@@ -858,11 +858,8 @@ pub fn call_construct(
             pc,
             get_prototype_from_constructor(vm, function.as_function_object_gc(), Intrinsics::object_prototype)
         );
-        let this_object = Object::create(
-            vm,
-            function.realm().expect("an ECMAScript function has a realm"),
-            Some(prototype),
-        );
+        // NB: OrdinaryObjectCreate(prototype), with room for the properties the constructor is known to add.
+        let this_object = Object::create_for_construct(vm, prototype, function.shared_data());
         let Some(context) = vm.push_inline_frame(
             function,
             function.inline_call_executable(),

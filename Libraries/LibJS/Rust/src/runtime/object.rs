@@ -25,7 +25,7 @@ use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::execution_context::ExecutionContext;
-use crate::layout::function_object::{EcmascriptFunctionObject, FunctionObject};
+use crate::layout::function_object::{EcmascriptFunctionObject, FunctionObject, SharedFunctionInstanceData};
 use crate::layout::host_class::JSValue;
 pub use crate::layout::object::{
     INDEXED_ELEMENTS_HEADER_SIZE, INLINE_NAMED_STORAGE_CAPACITY, IndexedStorageKind, Object, object_flag,
@@ -690,6 +690,22 @@ impl Object {
             );
         }
         Self::create_in_size_class(vm, shape, property_count)
+    }
+
+    /// OrdinaryObjectCreate(prototype) for the `this` of a construction of the function with `shared_data`, with
+    /// room for the properties earlier constructions gave their objects (see
+    /// SharedFunctionInstanceData::construct_reserve()).
+    pub fn create_for_construct(
+        vm: &Vm,
+        prototype: Gc<Object>,
+        shared_data: Gc<SharedFunctionInstanceData>,
+    ) -> Gc<Object> {
+        let mut shape = prototype.shape().realm().empty_object_shape();
+        if shape.prototype() != Some(prototype) {
+            shape = shape.create_prototype_transition(vm, Some(prototype));
+        }
+        let reserve = shared_data.construct_reserve(shape);
+        Self::create_in_size_class(vm, shape, reserve)
     }
 
     /// A plain object of the shape, in the size class for that many properties.
