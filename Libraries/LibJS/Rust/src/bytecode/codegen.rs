@@ -8600,7 +8600,23 @@ pub fn emit_function_declaration_instantiation(
     if has_parameter_expressions {
         let non_local_parameter_count = parameter_names.iter().filter(|p| !p.is_local).count();
         if non_local_parameter_count > 0 {
-            generator.push_new_lexical_environment(u32_from_usize(non_local_parameter_count));
+            // NB: The arguments binding goes here too, and so do the lexical declarations of strict code without a
+            //     separate var environment for non-local vars (see Step 5 and Step 7).
+            let arguments_name = ak::Utf16FlyString::from_utf8("arguments");
+            let arguments_binding = arguments_object_needed
+                && !generator
+                    .local_variables
+                    .iter()
+                    .any(|lv| lv.name == arguments_name && !lv.is_lexically_declared);
+            let has_non_local_vars =
+                function_scope_data.is_some_and(|fsd| fsd.vars_to_initialize.iter().any(|v| v.local.is_none()));
+            let lexical_bindings = if strict && !has_non_local_vars {
+                count_non_local_lexical_bindings(body_scope, &generator.arena)
+            } else {
+                0
+            };
+            let capacity = u32_from_usize(non_local_parameter_count) + u32::from(arguments_binding) + lexical_bindings;
+            generator.push_new_lexical_environment(capacity);
         }
     }
 
