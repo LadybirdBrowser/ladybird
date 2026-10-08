@@ -334,6 +334,34 @@ pub const LOW_SURROGATE_MIN: u16 = 0xdc00;
 pub const LOW_SURROGATE_MAX: u16 = 0xdfff;
 pub const FIRST_SUPPLEMENTARY_PLANE_CODE_POINT: u32 = 0x10000;
 
+/// Whether a code unit is one that a JSON string cannot hold as it is: a quotation mark, a reverse solidus or a
+/// control character.
+pub fn is_json_special_code_unit(code_unit: u32) -> bool {
+    matches!(code_unit, 0x00..=0x1F | 0x22 | 0x5C)
+}
+
+/// OPTIMIZATION: Looks for the JSON special code units in the lanes of a word at once, where each lane holds a code
+///               unit and `lowest_bits` has the lowest bit of every lane set. Returns a word with the highest bit of
+///               each lane set whose code unit is special, though lanes above the first such one may be set when they
+///               are not. Code units with their highest bit set are not special.
+pub fn json_special_code_unit_lanes(word: u64, lowest_bits: u64) -> u64 {
+    let highest_bits = lowest_bits << (u64::BITS / lowest_bits.count_ones() - 1);
+    let is_zero = |lanes: u64| lanes.wrapping_sub(lowest_bits) & !lanes;
+    let quotation_marks = is_zero(word ^ (lowest_bits * 0x22));
+    let reverse_solidi = is_zero(word ^ (lowest_bits * 0x5C));
+    let control_characters = word.wrapping_sub(lowest_bits * 0x20) & !word;
+    (quotation_marks | reverse_solidi | control_characters) & highest_bits
+}
+
+/// Whether ASCII text has a code unit that a JSON string cannot hold as it is.
+fn ascii_has_json_special_code_unit(bytes: &[u8]) -> bool {
+    let (chunks, remainder) = bytes.as_chunks::<8>();
+    chunks
+        .iter()
+        .any(|chunk| json_special_code_unit_lanes(u64::from_le_bytes(*chunk), 0x0101_0101_0101_0101) != 0)
+        || remainder.iter().any(|byte| is_json_special_code_unit(u32::from(*byte)))
+}
+
 pub fn is_unicode_surrogate(code_unit: u16) -> bool {
     (HIGH_SURROGATE_MIN..=LOW_SURROGATE_MAX).contains(&code_unit)
 }
@@ -451,9 +479,7 @@ impl Utf16StringBuilder {
     /// QuoteJSONString specifies.
     pub fn append_quoted_escaped_for_json(&mut self, string: Utf16View<'_>) {
         if let (BuilderStorage::Ascii(bytes), Utf16View::Ascii(units)) = (&mut self.storage, string)
-            && !units.iter().fold(false, |needs_escaping, &byte| {
-                needs_escaping | (byte < 0x20) | (byte == b'"') | (byte == b'\\')
-            })
+            && !ascii_has_json_special_code_unit(units)
         {
             bytes.reserve(units.len() + 2);
             bytes.push(b'"');
