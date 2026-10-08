@@ -467,16 +467,28 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
         }
         DisplayListCommandType::PaintTextShadow => {
             let command = read_command::<PaintTextShadow>(payload);
-            write_field(output, "shadow_rect", command.shadow_bounding_rect);
+            write_field(output, "shadows_rect", command.shadows_bounding_rect);
             write_field(output, "rect", command.rect);
             write_field(output, "translation", command.translation);
-            write!(output, " blur_radius={}", command.blur_radius).unwrap();
-            write_field(output, "color", command.color);
             let orientation = match command.orientation {
                 libgfx_rust::Orientation::Horizontal => "Horizontal",
                 libgfx_rust::Orientation::Vertical => "Vertical",
             };
             write!(output, " orientation={orientation}").unwrap();
+            output.push_str(" layers=[");
+            let (layer_chunks, _) =
+                span_bytes(payload, command.layers).as_chunks::<{ std::mem::size_of::<TextShadowLayer>() }>();
+            for (index, layer_bytes) in layer_chunks.iter().enumerate() {
+                if index > 0 {
+                    output.push_str(", ");
+                }
+                let layer = read_command::<TextShadowLayer>(layer_bytes);
+                output.push_str("offset=");
+                layer.offset.push_dump(output);
+                write!(output, " blur_radius={}", layer.blur_radius).unwrap();
+                write_field(output, "color", layer.color);
+            }
+            output.push(']');
         }
         DisplayListCommandType::FillRectWithRoundedCorners => {
             let command = read_command::<FillRectWithRoundedCorners>(payload);

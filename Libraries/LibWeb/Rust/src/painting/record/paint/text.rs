@@ -9,7 +9,7 @@ use crate::painting::record::trace::Observer;
 
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
-use crate::painting::display_list::commands::{DisplayListGlyph, FontResourceId};
+use crate::painting::display_list::commands::{DisplayListGlyph, FontResourceId, TextShadowLayer};
 use crate::painting::display_list::recorder::GlyphRunForRecording;
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::paintable_data::{FragmentRecord, SELECTION_STATE_START_AND_END};
@@ -17,7 +17,7 @@ use crate::painting::record::PaintRecorder;
 use crate::painting::record::inputs::CaretTarget;
 use crate::painting::selection::{HighlightPseudoElement, SelectionRange};
 use crate::painting::text_fragment::{self, SelectionOffsets};
-use libgfx_rust::{Color, FloatPoint, IntRect, Orientation};
+use libgfx_rust::{Color, FloatPoint, IntPoint, IntRect, Orientation};
 use std::sync::Arc;
 
 #[derive(Clone, Copy)]
@@ -514,51 +514,57 @@ fn paint_text_shadow<O: Observer>(
     // NB: Force-dark leaves text shadows alone. Light text keeps its color under force-dark, so inverting the dark
     // outline set behind it would put a light halo around light glyphs — which reads as blurred text. Blink doesn't
     // filter text shadows either: DarkModeFilter::ApplyToFlagsIfNeeded recolors only the paint flags, never the
-    // DrawLooper that TextPainter bakes the shadow colors into.
+    // shadow filter that TextShadowPainter puts on the text's layer.
     // Shadow layers are ordered front-to-back, so we paint them in reverse.
-    for layer in shadow_layers.iter().rev() {
-        let blur_radius = converter.rounded_device_pixels(layer.blur_radius);
-        // Space around the painted text to allow it to blur.
-        let margin = blur_radius * 2;
-        let offset_x = layer.offset_x.to_float() * scale as f32;
-        let offset_y = layer.offset_y.to_float() * scale as f32;
-        let rect = IntRect::new(
-            fragment_device_rect.x + offset_x.round() as i32,
-            fragment_device_rect.y + offset_y.round() as i32,
-            fragment_device_rect.width,
-            fragment_device_rect.height,
-        );
-        let shadow_bounding_rect = IntRect::new(
-            rect.x - margin,
-            rect.y - margin,
-            rect.width + margin * 2,
-            rect.height + margin * 2,
-        );
-        let translation = FloatPoint {
-            x: baseline_start.x + offset_x,
-            y: baseline_start.y + offset_y,
-        };
-        recorder.recorder.paint_text_shadow(
-            blur_radius,
-            shadow_bounding_rect,
-            rect,
-            translation,
-            GlyphRunForRecording {
-                font_smoothing: recorder
-                    .source
-                    .node_style_if_live(fragment.style_source)
-                    .unwrap()
-                    .inherited_text()
-                    .font_smoothing,
-                font_id: FontResourceId(font_id),
-                glyphs: span_glyphs,
-            },
-            scale,
-            Color(layer.color),
-            orientation,
-            ForceDarkRole::None,
-        );
-    }
+    let mut shadows_bounding_rect = IntRect::default();
+    let layers: Vec<TextShadowLayer> = shadow_layers
+        .iter()
+        .rev()
+        .map(|layer| {
+            let blur_radius = converter.rounded_device_pixels(layer.blur_radius);
+            let offset = FloatPoint {
+                x: layer.offset_x.to_float() * scale as f32,
+                y: layer.offset_y.to_float() * scale as f32,
+            };
+            let rounded_offset = IntPoint {
+                x: offset.x.round() as i32,
+                y: offset.y.round() as i32,
+            };
+            // Space around the painted text to allow it to blur.
+            let margin = blur_radius * 2;
+            shadows_bounding_rect = shadows_bounding_rect.united(IntRect::new(
+                fragment_device_rect.x + rounded_offset.x - margin,
+                fragment_device_rect.y + rounded_offset.y - margin,
+                fragment_device_rect.width + margin * 2,
+                fragment_device_rect.height + margin * 2,
+            ));
+            TextShadowLayer {
+                offset,
+                rounded_offset,
+                blur_radius,
+                color: Color(layer.color),
+            }
+        })
+        .collect();
+    recorder.recorder.paint_text_shadow(
+        &layers,
+        shadows_bounding_rect,
+        fragment_device_rect,
+        baseline_start,
+        GlyphRunForRecording {
+            font_smoothing: recorder
+                .source
+                .node_style_if_live(fragment.style_source)
+                .unwrap()
+                .inherited_text()
+                .font_smoothing,
+            font_id: FontResourceId(font_id),
+            glyphs: span_glyphs,
+        },
+        scale,
+        orientation,
+        ForceDarkRole::None,
+    );
 }
 
 fn paint_text_fragment<O: Observer>(

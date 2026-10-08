@@ -141,6 +141,7 @@ static_assert(sizeof(DisplayListCommandHeader) == 24);
 static_assert(IsTriviallyCopyable<DisplayListCommandRun>);
 static_assert(sizeof(DisplayListCommandRun) == 40);
 static_assert(IsTriviallyCopyable<DisplayListGlyph>);
+static_assert(IsTriviallyCopyable<TextShadowLayer>);
 static_assert(IsTriviallyCopyable<DisplayListInlineClip>);
 static_assert(sizeof(DisplayListInlineClip) == 64);
 static_assert(IsTriviallyCopyable<DisplayListInlineTransform>);

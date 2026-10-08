@@ -6,6 +6,6 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-PaintTextShadow@s1/e0 shadow_rect=[762,2 20x35] rect=[762,2 20x35] translation=[762,18] blur_radius=0 color=rgb(255, 0, 0) orientation=Vertical
+PaintTextShadow@s1/e0 shadows_rect=[762,2 20x35] rect=[760,0 20x35] translation=[760,16] orientation=Vertical layers=[offset=[2,2] blur_radius=0 color=rgb(255, 0, 0)]
 DrawGlyphRun@s1/e0 rect=[760,0 20x35] translation=[760,16] color=rgb(0, 0, 0)
 
