@@ -100,7 +100,16 @@ void NetworkBodyPump::handle_network_data(Requests::ResponseData data)
     if (m_delivery_gate->did_deliver(bytes.size()) == Engine::FetchBodyDeliveryGate::DeliveryResult::Rejected)
         return;
 
+    // 10. Increase response’s body info’s decoded size by bytes’s length.
+    // NB: The response's body info is updated once the network completes.
+    m_decoded_body_size += bytes.size();
+
+    // 12. Append bytes to buffer. (Steps 12 and 13 live in FetchByteChannel's writes.)
     auto const* file_backed = data.file_backed_slice();
+    if (file_backed)
+        m_channel->write(file_backed->slice);
+    else
+        m_channel->write_copy(bytes);
 
     // Capture bytes for MIME sniffing
     if (m_body) {
@@ -124,16 +133,6 @@ void NetworkBodyPump::handle_network_data(Requests::ResponseData data)
             m_cache_buffer.append(bytes);
         }
     }
-
-    // 10. Increase response’s body info’s decoded size by bytes’s length.
-    // NB: The response's body info is updated once the network completes.
-    m_decoded_body_size += bytes.size();
-
-    // 12. Append bytes to buffer. (Steps 12 and 13 live in FetchByteChannel's writes.)
-    if (file_backed)
-        m_channel->write(file_backed->slice);
-    else
-        m_channel->write_copy(bytes);
 }
 
 void NetworkBodyPump::handle_network_complete(Optional<u64> encoded_body_size)

@@ -133,6 +133,18 @@ void Response::resume_body_delivery_up_to(size_t byte_count) const
         m_network_transport->body_delivery_gate->release_hold_up_to(byte_count);
 }
 
+Vector<Core::ImmutableBytes> Response::release_body_for_transfer() const
+{
+    VERIFY(m_network_transport.has_value());
+    m_network_transport->body_delivery_gate->release_transport();
+    auto prefix = m_network_transport->body_channel->transfer_out();
+
+    // A file-backed body reaches the next process whole, with the bytes this one already received.
+    if (m_network_transport->handle->has_file_backed_response_body())
+        return {};
+    return prefix;
+}
+
 // https://fetch.spec.whatwg.org/#concept-response-url
 Optional<URL::URL const&> Response::url() const
 {

@@ -84,7 +84,7 @@ bool Request::stop()
     if (had_active_request && on_stop)
         on_stop();
     if (teardown)
-        teardown();
+        teardown(TeardownReason::Stopped);
 
     return had_active_request;
 }
@@ -352,7 +352,7 @@ void Request::did_transfer(Badge<RequestClient>)
     if (on_stop)
         on_stop();
     if (teardown)
-        teardown();
+        teardown(TeardownReason::Transferred);
 }
 
 void Request::defer_teardown()

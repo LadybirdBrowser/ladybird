@@ -62,6 +62,9 @@ public:
     // A detached transport is never touched again.
     void detach_transport();
 
+    // Pauses the transport and detaches it.
+    void release_transport();
+
     void grant_credit(u64 byte_count);
 
 private:

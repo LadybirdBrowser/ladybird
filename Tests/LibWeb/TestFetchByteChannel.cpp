@@ -23,6 +23,7 @@ using Closed = FetchByteChannel::Closed;
 using ConsumerCancelled = FetchByteChannel::ConsumerCancelled;
 using Errored = FetchByteChannel::Errored;
 using Open = FetchByteChannel::Open;
+using Transferred = FetchByteChannel::Transferred;
 
 struct SinkEvent {
     enum class Kind : u8 {
@@ -127,12 +128,17 @@ bool spin_until_or_timeout(Condition condition)
     return true;
 }
 
-ByteString flatten(FetchByteChannel::TakeResult const& result)
+ByteString flatten(Vector<Core::ImmutableBytes> const& taken_bytes)
 {
     ByteBuffer flat;
-    for (auto const& taken : result.taken)
+    for (auto const& taken : taken_bytes)
         flat.append(taken.bytes());
     return ByteString { flat.bytes() };
+}
+
+ByteString flatten(FetchByteChannel::TakeResult const& result)
+{
+    return flatten(result.taken);
 }
 
 }
@@ -415,8 +421,9 @@ TEST_CASE(every_ending_wakes_a_waiter)
         Close,
         Error,
         Cancel,
+        Transfer,
     };
-    for (auto ending : { Ending::Close, Ending::Error, Ending::Cancel }) {
+    for (auto ending : { Ending::Close, Ending::Error, Ending::Cancel, Ending::Transfer }) {
         ChannelHarness harness;
         auto ticket = harness.channel->arm_waiter();
 
@@ -429,6 +436,9 @@ TEST_CASE(every_ending_wakes_a_waiter)
             break;
         case Ending::Cancel:
             EXPECT_EQ(harness.channel->cancel(), TerminateResult::Terminated);
+            break;
+        case Ending::Transfer:
+            EXPECT(harness.channel->transfer_out().is_empty());
             break;
         }
 
@@ -452,6 +462,93 @@ TEST_CASE(cancellation_notifies_the_producer)
     auto result = harness.channel->take_all();
     EXPECT(result.taken.is_empty());
     EXPECT(result.state.has<ConsumerCancelled>());
+}
+
+TEST_CASE(transfer_out_returns_the_undrained_bytes)
+{
+    ChannelHarness harness;
+    EXPECT_EQ(harness.channel->write(bytes_of("first "sv)), WriteResult::Accepted);
+    EXPECT_EQ(harness.channel->write(bytes_of("second "sv)), WriteResult::Accepted);
+    EXPECT_EQ(harness.channel->write(bytes_of("third"sv)), WriteResult::Accepted);
+    EXPECT_EQ(flatten(harness.channel->take_up_to(3)), "fir"sv);
+    (void)harness.take_events();
+
+    EXPECT_EQ(flatten(harness.channel->transfer_out()), "st second third"sv);
+    EXPECT(harness.take_events().is_empty());
+
+    auto result = harness.channel->take_all();
+    EXPECT(result.taken.is_empty());
+    EXPECT(result.state.has<Transferred>());
+    EXPECT_EQ(result.buffered_byte_count, 0u);
+}
+
+TEST_CASE(transfer_out_of_an_undrained_close_returns_its_tail)
+{
+    ChannelHarness harness;
+    EXPECT_EQ(harness.channel->write(bytes_of("tail"sv)), WriteResult::Accepted);
+    EXPECT_EQ(harness.channel->close(), TerminateResult::Terminated);
+
+    EXPECT_EQ(flatten(harness.channel->transfer_out()), "tail"sv);
+    EXPECT(harness.channel->take_all().state.has<Transferred>());
+}
+
+TEST_CASE(transfer_out_returns_copied_bytes_in_order)
+{
+    ChannelHarness harness;
+    EXPECT_EQ(harness.channel->write(bytes_of("adopted "sv)), WriteResult::Accepted);
+    EXPECT_EQ(harness.channel->write_copy("copied"sv.bytes()), WriteResult::Accepted);
+
+    EXPECT_EQ(flatten(harness.channel->transfer_out()), "adopted copied"sv);
+}
+
+TEST_CASE(a_transferred_channel_tells_neither_side)
+{
+    ChannelHarness harness;
+    EXPECT_EQ(harness.channel->write(bytes_of("moving"sv)), WriteResult::Accepted);
+    (void)harness.take_events();
+    EXPECT_EQ(flatten(harness.channel->transfer_out()), "moving"sv);
+
+    EXPECT_EQ(harness.channel->write(bytes_of("late"sv)), WriteResult::Rejected);
+    EXPECT_EQ(harness.channel->close(), TerminateResult::AlreadyTerminated);
+    EXPECT_EQ(harness.channel->cancel(), TerminateResult::AlreadyTerminated);
+    EXPECT(harness.channel->transfer_out().is_empty());
+
+    auto result = harness.channel->take_all();
+    EXPECT(result.taken.is_empty());
+    EXPECT(result.state.has<Transferred>());
+
+    // Neither a consumer cancellation nor credit reaches the transport.
+    EXPECT(harness.take_events().is_empty());
+}
+
+TEST_CASE(an_error_after_a_transfer_tells_neither_side)
+{
+    ChannelHarness harness;
+    EXPECT_EQ(harness.channel->write(bytes_of("moving"sv)), WriteResult::Accepted);
+    (void)harness.take_events();
+    (void)harness.channel->transfer_out();
+
+    EXPECT_EQ(harness.channel->error({}), TerminateResult::AlreadyTerminated);
+    EXPECT(harness.channel->take_all().state.has<Transferred>());
+    EXPECT(harness.take_events().is_empty());
+}
+
+TEST_CASE(an_errored_or_cancelled_channel_transfers_nothing)
+{
+    {
+        ChannelHarness harness;
+        EXPECT_EQ(harness.channel->write(bytes_of("junk"sv)), WriteResult::Accepted);
+        EXPECT_EQ(harness.channel->error({}), TerminateResult::Terminated);
+        EXPECT(harness.channel->transfer_out().is_empty());
+        EXPECT(harness.channel->take_all().state.has<Errored>());
+    }
+    {
+        ChannelHarness harness;
+        EXPECT_EQ(harness.channel->write(bytes_of("junk"sv)), WriteResult::Accepted);
+        EXPECT_EQ(harness.channel->cancel(), TerminateResult::Terminated);
+        EXPECT(harness.channel->transfer_out().is_empty());
+        EXPECT(harness.channel->take_all().state.has<ConsumerCancelled>());
+    }
 }
 
 TEST_CASE(no_credit_replenishment_after_terminal)
@@ -593,6 +690,69 @@ TEST_CASE(concurrent_cancellation_rejects_every_later_write)
     EXPECT_EQ(accepted_after_rejection.load(), 0u);
     EXPECT_EQ(producer_sink->cancellations.load(), 1u);
     EXPECT(channel->take_all().state.has<ConsumerCancelled>());
+}
+
+TEST_CASE(concurrent_transfer_moves_every_accepted_byte_once)
+{
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto consumer_sink = adopt_ref(*new LatestTicketSink);
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto producer_sink = adopt_ref(*new CountingProducerSink);
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto channel = FetchByteChannel::create({ .low = 16, .high = 64 }, *consumer_sink, *producer_sink);
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> timed_out { false };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> transferred { false };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<u64> accepted { 0 };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<u64> accepted_after_rejection { 0 };
+    producer_sink->credit.store(channel->initial_credit(), AK::MemoryOrder::memory_order_release);
+
+    // A transfer tells the transport nothing, so the writer learns of it from the test and from its rejected writes.
+    auto writer = Threading::Thread::construct("channel writer"sv, [&channel, &producer_sink, &timed_out, &transferred, &accepted, &accepted_after_rejection]() -> intptr_t {
+        for (;;) {
+            auto may_write = spin_until_or_timeout([&] {
+                return producer_sink->credit.load(AK::MemoryOrder::memory_order_acquire) > 0 || transferred.load();
+            });
+            if (!may_write) {
+                timed_out.store(true);
+                return 1;
+            }
+            if (!transferred.load())
+                producer_sink->credit.fetch_sub(1, AK::MemoryOrder::memory_order_acq_rel);
+            if (channel->write(MUST(Core::ImmutableBytes::copy("x"sv.bytes()))) == WriteResult::Rejected)
+                break;
+            accepted.fetch_add(1);
+        }
+        for (int i = 0; i < 16; ++i) {
+            if (channel->write(MUST(Core::ImmutableBytes::copy("x"sv.bytes()))) == WriteResult::Accepted)
+                accepted_after_rejection.fetch_add(1);
+        }
+        return 0;
+    });
+    writer->start();
+
+    // The consumer drains a while, then transfers the body while the writer is mid-stream.
+    u64 total_bytes_taken = 0;
+    while (total_bytes_taken < 5'000) {
+        auto ticket = channel->arm_waiter();
+        auto woken = spin_until_or_timeout([&] {
+            return consumer_sink->latest.load(AK::MemoryOrder::memory_order_acquire) >= ticket.value();
+        });
+        if (!woken) {
+            timed_out.store(true);
+            warnln("No wake arrived for ticket {}", ticket.value());
+            break;
+        }
+        for (auto const& taken : channel->take_all().taken)
+            total_bytes_taken += taken.size();
+    }
+    u64 total_bytes_moved = 0;
+    for (auto const& moved : channel->transfer_out())
+        total_bytes_moved += moved.size();
+    transferred.store(true);
+
+    MUST(writer->join());
+    EXPECT(!timed_out.load());
+    EXPECT_EQ(total_bytes_taken + total_bytes_moved, accepted.load());
+    EXPECT_EQ(accepted_after_rejection.load(), 0u);
+    EXPECT_EQ(producer_sink->cancellations.load(), 0u);
+    EXPECT(channel->take_all().state.has<Transferred>());
 }
 
 TEST_CASE(arming_after_an_ending_fires_at_once)
