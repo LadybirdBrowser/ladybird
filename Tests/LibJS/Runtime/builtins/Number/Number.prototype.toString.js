@@ -182,3 +182,16 @@ describe("errors", () => {
         });
     });
 });
+
+test("integral doubles", () => {
+    expect((2 ** 31).toString()).toBe("2147483648");
+    expect((-(2 ** 31) - 1).toString()).toBe("-2147483649");
+    expect((2 ** 52).toString()).toBe("4503599627370496");
+    expect((2 ** 53 - 1).toString()).toBe("9007199254740991");
+    expect((-(2 ** 53) + 1).toString()).toBe("-9007199254740991");
+    expect((2 ** 53).toString()).toBe("9007199254740992");
+    expect((1e20).toString()).toBe("100000000000000000000");
+    expect((1e21).toString()).toBe("1e+21");
+    expect(String(-0)).toBe("0");
+    expect([2 ** 40, -(2 ** 40), 4.0].join()).toBe("1099511627776,-1099511627776,4");
+});
