@@ -116,3 +116,12 @@ test("regex split observes inherited @@match", () => {
     expect(thrown).toBe("BLOCKED");
     expect(calls).toBe(1);
 });
+
+test("many substrings", () => {
+    const words = Array.from({ length: 40 }, (_, i) => `word${i}`);
+    const parts = words.join(", ").split(", ");
+    gc();
+    expect(parts).toEqual(words);
+    expect(words.join("").split("").length).toBe(words.join("").length);
+    expect(words.join(",").split(",", 20)).toEqual(words.slice(0, 20));
+});
