@@ -1742,6 +1742,14 @@ handler DynamicTypeofBinding(
     cache: EnvironmentCoordinateCacheIndex
 ) @cold = call_slow_path(dynamic_typeof_binding);
 
+# `typeof` of a global variable, which finds it through the global variable
+# cache of GetGlobal, and is "undefined" for unresolvable ones.
+handler TypeofGlobal(
+    dst: out Operand,
+    identifier: IdentifierTableIndex,
+    cache: GlobalVariableCacheIndex
+) @cold = call_slow_path(typeof_global);
+
 handler VerifyEnvironmentCoordinate(
     identifier: IdentifierTableIndex,
     coordinate: EnvironmentCoordinate,
