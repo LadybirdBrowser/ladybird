@@ -194,8 +194,11 @@ public:
 
     ~AudioState()
     {
-        if (m_audio_unit != nullptr)
-            AudioOutputUnitStop(m_audio_unit);
+        if (m_audio_unit == nullptr)
+            return;
+        AudioOutputUnitStop(m_audio_unit);
+        AudioUnitUninitialize(m_audio_unit);
+        AudioComponentInstanceDispose(m_audio_unit);
     }
 
     void queue_task(AudioTask task)
