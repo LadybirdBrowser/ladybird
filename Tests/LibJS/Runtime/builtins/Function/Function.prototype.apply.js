@@ -117,3 +117,42 @@ describe("errors", () => {
         }).toThrowWithMessage(TypeError, "null is not a function");
     });
 });
+
+test("array-likes whose elements are read through internal methods", () => {
+    function collect(...values) {
+        return values;
+    }
+    const arrayLike = {
+        length: 3,
+        get 0() {
+            gc();
+            return { first: true };
+        },
+        1: "second",
+        get 2() {
+            gc();
+            return ["third"];
+        },
+    };
+    expect(collect.apply(null, arrayLike)).toEqual([{ first: true }, "second", ["third"]]);
+
+    const many = { length: 40 };
+    for (let i = 0; i < 40; ++i) many[i] = i;
+    expect(collect.apply(null, many)).toEqual(Array.from({ length: 40 }, (_, i) => i));
+
+    function mapped(a, b, c) {
+        a = "changed";
+        return collect.apply(null, arguments);
+    }
+    expect(mapped(1, 2, 3)).toEqual(["changed", 2, 3]);
+    expect(mapped(1)).toEqual(["changed"]);
+
+    const throwing = {
+        length: 2,
+        0: 1,
+        get 1() {
+            throw new Error("from a getter");
+        },
+    };
+    expect(() => collect.apply(null, throwing)).toThrowWithMessage(Error, "from a getter");
+});

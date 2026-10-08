@@ -187,6 +187,17 @@ impl FunctionPrototype {
             }
         }
 
+        // OPTIMIZATION: Few enough arguments are gathered on the stack, which the collector scans, rather than in a rooted
+        //               list.
+        if length <= STACK_ARGUMENT_CAPACITY as u64 {
+            let mut arguments = [Value::UNDEFINED; STACK_ARGUMENT_CAPACITY];
+            let arguments = &mut arguments[..length as usize];
+            for (index, argument) in arguments.iter_mut().enumerate() {
+                *argument = arg_array_object.get(vm, &PropertyKey::from_number(index as u64))?;
+            }
+            return call_function_object(vm, function, this_arg, arguments);
+        }
+
         let arguments = MarkedVec::with_capacity(vm, length as usize);
         for index in 0..length {
             arguments.push(arg_array_object.get(vm, &PropertyKey::from_number(index))?);
