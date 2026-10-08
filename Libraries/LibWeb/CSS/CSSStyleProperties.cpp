@@ -678,7 +678,7 @@ static void ensure_pseudo_element_style_for_cssom(Layout::BegunRead const& read,
     install_engine_pseudo_element_style(read, abstract_element);
 }
 
-static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const&, Color, ColorResolutionContext const* = nullptr);
+static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const&, Color, Optional<ColorResolutionStyle> = {});
 
 // Brings style (and, when the property needs it, layout) up to date for computed-style property
 // access, and returns the layout node to read used values from (may be null). An empty Optional
@@ -859,15 +859,8 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                 // The same resolved-value special cases the layout-node path applies, read from
                 // the style's own resolved group data since there is no layout node to ask.
                 switch (computed_property_id) {
-                case PropertyID::Color: {
-                    ColorResolutionContext color_resolution_context {
-                        .color_scheme = computed_values->color_scheme(),
-                        .current_color = computed_values->color(),
-                        .current_color_style_value = computed_values->color_style_value(),
-                        .calculation_resolution_context = { .length_resolution_context = Length::ResolutionContext::for_element(abstract_element, *computed_values) },
-                    };
-                    return resolve_color_style_value(*computed_value, computed_values->color(), &color_resolution_context).release_nonnull();
-                }
+                case PropertyID::Color:
+                    return resolve_color_style_value(*computed_value, computed_values->color(), ColorResolutionStyle::for_computed_values(*computed_values)).release_nonnull();
                 case PropertyID::CaretColor:
                     return resolve_color_style_value(*computed_value, computed_values->caret_color()).release_nonnull();
                 case PropertyID::BackgroundColor:
@@ -1025,14 +1018,13 @@ Optional<Utf16String> CSSStyleProperties::serialized_computed_value_from_stored_
     return serialize_style_value_handle(*handle, SerializationMode::ResolvedValue);
 }
 
-static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& style_value, Color computed_color, ColorResolutionContext const* color_resolution_context)
+static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& style_value, Color computed_color, Optional<ColorResolutionStyle> color_resolution_style)
 {
-    if (color_resolution_context && style_value.is_color_function()) {
+    if (color_resolution_style.has_value() && style_value.is_color_function()) {
         auto const& color_function = as<ColorFunctionStyleValue>(style_value);
         if (color_function.origin_color() && color_function.color_type().has_value()) {
-            Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_storage;
-            auto input = make_rust_color_resolution_input(*color_resolution_context, length_storage);
-            auto const* resolved = StyleValueFFI::rust_relative_color_resolved_value(style_value.rust_style_value_data(), &input);
+            auto ffi_color_resolution_style = color_resolution_style->to_ffi();
+            auto const* resolved = StyleValueFFI::rust_relative_color_resolved_value(style_value.rust_style_value_data(), &ffi_color_resolution_style);
             if (!resolved)
                 return style_value;
             return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(resolved));
@@ -1095,7 +1087,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         VERIFY(style);
         return style->computed_style_value(property_id).release_nonnull();
     };
-    auto color_resolution_context = ColorResolutionContext::for_layout_node_with_style(layout_node);
+    auto color_resolution_style = ColorResolutionStyle::for_layout_node(layout_node);
 
     if (property_is_logical_alias(property_id)) {
         return style_value_for_computed_property(
@@ -1136,32 +1128,31 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         return resolve_color_style_value(
             *style_value,
             background_values->background_color_value(),
-            &color_resolution_context);
+            color_resolution_style);
     }
     case PropertyID::BorderBottomColor:
-        return resolve_color_style_value(*get_computed_value(property_id), layout_node.border_bottom().color, &color_resolution_context);
+        return resolve_color_style_value(*get_computed_value(property_id), layout_node.border_bottom().color, color_resolution_style);
     case PropertyID::BorderLeftColor:
-        return resolve_color_style_value(*get_computed_value(property_id), layout_node.border_left().color, &color_resolution_context);
+        return resolve_color_style_value(*get_computed_value(property_id), layout_node.border_left().color, color_resolution_style);
     case PropertyID::BorderRightColor:
-        return resolve_color_style_value(*get_computed_value(property_id), layout_node.border_right().color, &color_resolution_context);
+        return resolve_color_style_value(*get_computed_value(property_id), layout_node.border_right().color, color_resolution_style);
     case PropertyID::BorderTopColor:
-        return resolve_color_style_value(*get_computed_value(property_id), layout_node.border_top().color, &color_resolution_context);
+        return resolve_color_style_value(*get_computed_value(property_id), layout_node.border_top().color, color_resolution_style);
     case PropertyID::BoxShadow:
         return style_value_for_shadow(ShadowStyleValue::ShadowType::Normal, layout_node.box_shadow());
     case PropertyID::CaretColor:
-        return resolve_color_style_value(*get_computed_value(property_id), layout_node.caret_color(), &color_resolution_context);
+        return resolve_color_style_value(*get_computed_value(property_id), layout_node.caret_color(), color_resolution_style);
     case PropertyID::Color: {
         auto style = element.computed_style(pseudo_element);
         VERIFY(style);
-        auto current_color_resolution_context = ColorResolutionContext::for_element(*owner_node());
-        return resolve_color_style_value(*get_computed_value(property_id), style->color(), &current_color_resolution_context);
+        return resolve_color_style_value(*get_computed_value(property_id), style->color(), ColorResolutionStyle::for_element(*owner_node()));
     }
     case PropertyID::ColumnRuleColor:
-        return resolve_color_style_value(*get_computed_value(property_id), layout_node.column_rule_color(), &color_resolution_context);
+        return resolve_color_style_value(*get_computed_value(property_id), layout_node.column_rule_color(), color_resolution_style);
     case PropertyID::OutlineColor:
-        return resolve_color_style_value(*get_computed_value(property_id), layout_node.outline_color(), &color_resolution_context);
+        return resolve_color_style_value(*get_computed_value(property_id), layout_node.outline_color(), color_resolution_style);
     case PropertyID::TextDecorationColor:
-        return resolve_color_style_value(*get_computed_value(property_id), layout_node.text_decoration_color(), &color_resolution_context);
+        return resolve_color_style_value(*get_computed_value(property_id), layout_node.text_decoration_color(), color_resolution_style);
     case PropertyID::TextShadow:
         return style_value_for_shadow(ShadowStyleValue::ShadowType::Text, layout_node.text_shadow());
     case PropertyID::BackdropFilter:
@@ -1429,7 +1420,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         // -> Any other property
         //    The resolved value is the computed value.
     case PropertyID::WebkitTextFillColor:
-        return resolve_color_style_value(*get_computed_value(property_id), layout_node.webkit_text_fill_color(), &color_resolution_context);
+        return resolve_color_style_value(*get_computed_value(property_id), layout_node.webkit_text_fill_color(), color_resolution_style);
     case PropertyID::LetterSpacing: {
         // https://drafts.csswg.org/css-text-4/#letter-spacing-property
         // For legacy reasons, a computed letter-spacing of zero yields a resolved value (getComputedStyle() return value) of normal.

@@ -1,0 +1,8 @@
+box color: color(srgb 0.117647 0.078431 0.117647)
+box border-top-color: color(srgb 0.196078 0.078431 0.117647)
+box background-color: color(srgb 0.117647 0.196078 0.117647)
+box outline-color: color(srgb 0.117647 0.078431 0.27451)
+boxless color: color(srgb 0.117647 0.078431 0.117647)
+boxless border-top-color: rgb(50, 20, 30)
+boxless background-color: rgb(30, 50, 30)
+boxless outline-color: rgb(30, 20, 70)

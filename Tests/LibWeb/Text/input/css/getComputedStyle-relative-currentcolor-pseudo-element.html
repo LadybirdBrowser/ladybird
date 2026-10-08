@@ -1,0 +1,31 @@
+<!doctype html>
+<style>
+    #host {
+        color: rgb(255 0 0);
+    }
+    #host::before {
+        content: "x";
+        color: rgb(0 128 0);
+        border-top: 1px solid rgb(from currentcolor r g b);
+        background-color: rgb(from currentcolor r g b / 50%);
+    }
+    #precise::before {
+        content: "x";
+        color: color(srgb 0.1 0.2 0.3);
+        border-top: 1px solid color(from currentcolor srgb r g b);
+    }
+</style>
+<div id="host"></div>
+<div id="precise"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const style = getComputedStyle(host, "::before");
+        println(`color: ${style.color}`);
+        println(`border-top-color: ${style.borderTopColor}`);
+        println(`background-color: ${style.backgroundColor}`);
+        const preciseStyle = getComputedStyle(precise, "::before");
+        println(`precise color: ${preciseStyle.color}`);
+        println(`precise border-top-color: ${preciseStyle.borderTopColor}`);
+    });
+</script>

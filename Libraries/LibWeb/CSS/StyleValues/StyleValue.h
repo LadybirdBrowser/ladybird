@@ -31,7 +31,6 @@
 #include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWebCommon/CSS/PreferredColorScheme.h>
 
 namespace Web::CSS {
 
@@ -119,18 +118,6 @@ struct ElementFactsForRust {
     StyleValueFFI::FfiElementFacts to_ffi() const;
 };
 
-struct ColorResolutionContext {
-    Optional<PreferredColorScheme> color_scheme;
-    Optional<Color> current_color;
-    // Unlike current_color, this preserves precision and missing components, as needed by relative color origins.
-    RefPtr<StyleValue const> current_color_style_value {};
-    void const* current_color_style_value_data { nullptr };
-    CalculationResolutionContext calculation_resolution_context;
-
-    [[nodiscard]] static ColorResolutionContext for_element(DOM::AbstractElement const&);
-    [[nodiscard]] static ColorResolutionContext for_layout_node_with_style(Layout::NodeWithStyle const&);
-};
-
 // The computed style a <color> resolves against, named by its InheritedUIValues and InheritedTextValues group
 // payloads: Rust reads the used color-scheme and the color currentcolor names from them. Default-constructed, it
 // names no style.
@@ -140,6 +127,7 @@ struct ColorResolutionStyle {
 
     [[nodiscard]] static ColorResolutionStyle for_element(DOM::AbstractElement const&);
     [[nodiscard]] static ColorResolutionStyle for_layout_node(Layout::NodeWithStyle const&);
+    [[nodiscard]] static ColorResolutionStyle for_computed_values(ComputedValues const&);
 
     StyleValueFFI::FfiColorResolutionStyle to_ffi() const { return { inherited_ui_values, inherited_text_values }; }
 };

@@ -445,7 +445,6 @@ enum class WritingMode : u8;
 
 struct CalculationContext;
 struct CalculationResolutionContext;
-struct ColorResolutionContext;
 struct ColorResolutionStyle;
 struct ComputationContext;
 struct CustomPropertyRegistration;
