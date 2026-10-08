@@ -5,7 +5,6 @@
  */
 
 #include <LibCore/EventLoop.h>
-#include <LibMedia/Audio/NullPlaybackStream.h>
 #include <LibWeb/WebAudio/Rendering/RealtimeAudioRenderer.h>
 
 namespace Web::WebAudio::Rendering {
@@ -48,12 +47,6 @@ void RealtimeAudioRenderer::start_rendering()
     promise->when_resolved([self = NonnullRefPtr(*this)](NonnullRefPtr<Audio::PlaybackStream>& stream) {
         self->set_playback_stream(stream);
     });
-}
-
-void RealtimeAudioRenderer::start_rendering_with_null_output()
-{
-    prepare_to_start_rendering();
-    set_playback_stream(Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, TARGET_LATENCY_MS, [self = NonnullRefPtr(*this)](Span<float> buffer, MonotonicTime buffer_starts_playing_at) { return self->fill_output_buffer(buffer, buffer_starts_playing_at); }));
 }
 
 void RealtimeAudioRenderer::prepare_to_start_rendering()

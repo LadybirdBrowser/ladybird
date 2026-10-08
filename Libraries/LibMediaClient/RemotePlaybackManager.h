@@ -19,7 +19,6 @@
 #include <AK/Weakable.h>
 #include <LibCore/Promise.h>
 #include <LibGfx/Size.h>
-#include <LibMedia/AudioOutput.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/DemuxerScanState.h>
 #include <LibMedia/Forward.h>
@@ -47,7 +46,7 @@ class RemotePlaybackManager : public Weakable<RemotePlaybackManager> {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    static NonnullOwnPtr<RemotePlaybackManager> create(Media::AudioOutput);
+    static NonnullOwnPtr<RemotePlaybackManager> create();
     ~RemotePlaybackManager();
 
     u64 session_id() const { return m_session_id; }

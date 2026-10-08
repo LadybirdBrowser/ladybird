@@ -43,7 +43,6 @@ public:
     void clear_callbacks();
 
     void start_rendering();
-    void start_rendering_with_null_output();
     void resume();
     void suspend();
     void stop();
