@@ -181,6 +181,20 @@ void ApplyHistoryStep::run_changing_navigable_jobs()
             continue;
         }
 
+        // AD-HOC: Unconditionally populating a document here could unload and re-navigate a frame because an
+        //         unrelated navigable was created or destroyed, which no other engine does. So an update for a
+        //         navigable's creation or destruction leaves a navigable alone if a navigation has claimed it, or if
+        //         the update would change its document. A navigable its creation marked as traversing is the
+        //         exception: it populates the entry its nested history kept.
+        //         See https://github.com/whatwg/html/issues/12724.
+        if (!m_navigation_type.has_value()) {
+            auto crosses_documents = !navigable->active_document_is(*target_entry) || target_entry->document_state->reload_pending;
+            if (navigable->ongoing_navigation_id().has_value() || (crosses_documents && !navigable->ongoing_navigation().has<CanonicalNavigable::Traversal>())) {
+                changing_navigable_job_completed(navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped);
+                continue;
+            }
+        }
+
         ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob job {
             .navigable_id = navigable_id,
             .target_entry = *target_entry,
@@ -507,6 +521,11 @@ void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& n
         return;
     }
 
+    // AD-HOC: An update for a navigable's creation or destruction changes the document of no navigable but one its
+    //         creation already marked as traversing. See https://github.com/whatwg/html/issues/12724.
+    if (!m_navigation_type.has_value())
+        return;
+
     auto target_document_is_active_document = navigable.active_document_is(target_entry);
     auto traversal_crosses_documents = !target_document_is_active_document
         || target_entry.document_state->reload_pending;
@@ -527,11 +546,6 @@ void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& n
             m_same_document_traversal_yields.set(navigable.id(), { Web::HTML::TraversalYieldsTo::AdmittedNavigation, {} });
         return;
     }
-
-    // AD-HOC: A navigable creation/destruction update skips a navigable already claimed by its requested navigation.
-    //         See https://github.com/whatwg/html/issues/12724.
-    if (!m_navigation_type.has_value() && ongoing_navigation_id.has_value())
-        return;
 
     Optional<Utf16String> canceled_navigation_id;
     if (m_navigation_type == Web::Bindings::NavigationType::Traverse) {

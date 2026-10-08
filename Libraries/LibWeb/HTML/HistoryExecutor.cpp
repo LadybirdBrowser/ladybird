@@ -293,25 +293,6 @@ bool HistoryExecutor::run_changing_navigable_history_step_job_impl(ChangingNavig
         return false;
     }
 
-    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-for-navigable-creation/destruction
-    // AD-HOC: Unconditionally populating a document here could unload and re-navigate a frame because an unrelated
-    //         navigable was created or destroyed — which no other engine does. So we skip such applying-the-target-
-    //         entry-would-cross-documents navigables here.
-    //         https://github.com/whatwg/html/issues/12724
-    //         Nor do we take a navigable from a navigation that has already started: its container's requested
-    //         navigation owns the ongoing navigation ID and eventual document activation.
-    //         A navigable still awaiting the update for its creation has only its initial about:blank, and populates
-    //         the entry its nested history kept, which supersedes its container's navigation.
-    if (!job.navigation_type.has_value()) {
-        bool would_cross_documents = claimed_target_entry->document_state()->document_id() != navigable->active_document_id()
-            || claimed_target_entry->document_state()->reload_pending();
-        bool restores_kept_entry = would_cross_documents && !navigable->has_session_history_entry_and_ready_for_navigation();
-        if (!restores_kept_entry && (would_cross_documents || navigable->ongoing_navigation().has<Utf16String>())) {
-            on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Skipped, nullptr });
-            return false;
-        }
-    }
-
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#fire-a-traverse-navigate-event
     // The UI process is the canonical coordinator for navigation starts and history operations. Only it can prove
     // that a navigation was admitted after this traversal; the presence of a local navigation ID does not establish
