@@ -88,7 +88,7 @@ pub struct ProxyObject {
 /// IsConstructor only reach them for a proxy whose target has them, since the proxy keeps the IsFunction flag only if
 /// its target is callable and has_constructor() asks the target.
 pub static PROXY_OBJECT_METHODS: ObjectMethods = ObjectMethods {
-    internal_get_prototype_of: ProxyObject::internal_get_prototype_of,
+    internal_get_prototype_of: Some(ProxyObject::internal_get_prototype_of),
     internal_set_prototype_of: ProxyObject::internal_set_prototype_of,
     internal_is_extensible: ProxyObject::internal_is_extensible,
     internal_prevent_extensions: ProxyObject::internal_prevent_extensions,

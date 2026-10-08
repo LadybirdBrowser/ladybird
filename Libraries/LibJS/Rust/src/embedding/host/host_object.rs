@@ -97,7 +97,7 @@ fn host_object_methods(table: &'static JSHostClass) -> ObjectMethods {
         ..ORDINARY_OBJECT_METHODS
     };
     if hooks.get_prototype_of.is_some() {
-        methods.internal_get_prototype_of = get_prototype_of_through_hook;
+        methods.internal_get_prototype_of = Some(get_prototype_of_through_hook);
     }
     if hooks.set_prototype_of.is_some() {
         methods.internal_set_prototype_of = set_prototype_of_through_hook;

@@ -235,7 +235,8 @@ pub struct ObjectMethods {
     /// What Realm::create_object() runs once it allocates an object, which defines the properties of built-in objects.
     /// Subclasses call the method of the class they extend first.
     pub initialize: fn(&Object, &Vm, Gc<Realm>),
-    pub internal_get_prototype_of: fn(&Object, &Vm) -> ThrowCompletionOr<Option<Gc<Object>>>,
+    /// [[GetPrototypeOf]], unless it is OrdinaryGetPrototypeOf, which returns the prototype of the object's shape.
+    pub internal_get_prototype_of: Option<InternalGetPrototypeOf>,
     pub internal_set_prototype_of: fn(&Object, &Vm, Option<Gc<Object>>) -> ThrowCompletionOr<bool>,
     pub internal_is_extensible: fn(&Object, &Vm) -> ThrowCompletionOr<bool>,
     pub internal_prevent_extensions: fn(&Object, &Vm) -> ThrowCompletionOr<bool>,
@@ -273,11 +274,14 @@ pub struct ObjectMethods {
     pub error_data: fn(&Object) -> Option<&ErrorData>,
 }
 
+/// [[GetPrototypeOf]].
+pub type InternalGetPrototypeOf = fn(&Object, &Vm) -> ThrowCompletionOr<Option<Gc<Object>>>;
+
 pub type InternalGetOwnPropertyMethod = fn(&Object, &Vm, &PropertyKey) -> ThrowCompletionOr<Option<PropertyDescriptor>>;
 
 pub static ORDINARY_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     initialize: |_, _, _| {},
-    internal_get_prototype_of: Object::ordinary_get_prototype_of,
+    internal_get_prototype_of: None,
     internal_set_prototype_of: Object::ordinary_set_prototype_of,
     internal_is_extensible: Object::ordinary_is_extensible,
     internal_prevent_extensions: Object::ordinary_prevent_extensions,
@@ -959,7 +963,7 @@ impl Object {
             methods.internal_get_own_property,
             ARRAY_OBJECT_METHODS.internal_get_own_property,
         )) && is_ordinary_method!(methods, internal_get)
-            && is_ordinary_method!(methods, internal_get_prototype_of)
+            && methods.internal_get_prototype_of.is_none()
     }
 
     /// Whether this object has ordinary named property lookup, and an ordinary [[Set]].
@@ -1836,7 +1840,10 @@ impl Object {
     // The internal methods, which dispatch through the object's class.
 
     pub fn internal_get_prototype_of(&self, vm: &Vm) -> ThrowCompletionOr<Option<Gc<Object>>> {
-        (self.methods().internal_get_prototype_of)(self, vm)
+        match self.methods().internal_get_prototype_of {
+            Some(internal_get_prototype_of) => internal_get_prototype_of(self, vm),
+            None => self.ordinary_get_prototype_of(vm),
+        }
     }
 
     pub fn internal_set_prototype_of(&self, vm: &Vm, prototype: Option<Gc<Object>>) -> ThrowCompletionOr<bool> {
