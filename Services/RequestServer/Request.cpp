@@ -579,6 +579,26 @@ void Request::set_revalidation_stall_timeout(AK::Duration timeout)
     s_revalidation_stall_timeout = timeout;
 }
 
+NonnullOwnPtr<Request> Request::import(
+    u64 request_id,
+    Optional<HTTP::DiskCache&> disk_cache,
+    ConnectionFromClient& client,
+    Resolver& resolver,
+    Requests::ExportedRequest exported,
+    Optional<Requests::RequestTransferLeaseKey> transfer_lease)
+{
+    auto request = adopt_own(*new Request { request_id, RequestType::Imported, disk_cache, move(exported.network_isolation_key), HTTP::CacheMode::Default, client, nullptr, resolver, move(exported.url), move(exported.method), HTTP::HeaderList::create(move(exported.request_headers)), ByteBuffer {}, HTTP::Cookie::IncludeCredentials::No, move(transfer_lease) });
+    request->m_request_start_time = exported.request_start_time;
+    request->m_status_code = exported.status_code;
+    request->m_reason_phrase = move(exported.reason_phrase);
+    request->m_response_headers = HTTP::HeaderList::create(move(exported.response_headers));
+    request->m_import = Import {};
+    request->m_import->body_fd = exported.body.take_fd();
+    request->m_import->status_fd = exported.status.take_fd();
+    request->transition_to_state(State::ReadImported);
+    return request;
+}
+
 Request::~Request()
 {
     if constexpr (REQUESTSERVER_DEBUG) {
@@ -960,6 +980,9 @@ void Request::process()
         break;
     case State::WaitForAIA:
         // Do nothing; we are waiting for the AIA intermediate-certificate fetch to notify us to proceed.
+        break;
+    case State::ReadImported:
+        handle_read_imported_state();
         break;
     case State::FailedCacheOnly:
         handle_failed_cache_only_state();
@@ -1577,11 +1600,17 @@ void Request::handle_fetch_state()
 
 void Request::handle_complete_state()
 {
-    if (m_type == RequestType::Fetch) {
+    if (delivers_response_to_client()) {
         VERIFY(m_curl_result_code.has_value());
 
         if (should_retry_after_fetching_aia_intermediate(*m_curl_result_code)) {
             start_aia_fetch_and_retry();
+            return;
+        }
+
+        if (m_import.has_value() && m_import->network_error.has_value()) {
+            m_network_error = m_import->network_error;
+            transition_to_state(State::Error);
             return;
         }
 
@@ -1615,10 +1644,14 @@ void Request::handle_complete_state()
             m_cache_entry_writer.clear();
         }
 
-        if (cached_body_file.has_value())
-            m_client->async_request_cached_body_file_available(m_request_id, IPC::File::adopt_fd(cached_body_file->fd), cached_body_file->offset, cached_body_file->size);
+        if (m_export.has_value()) {
+            write_export_result();
+        } else {
+            if (cached_body_file.has_value())
+                m_client->async_request_cached_body_file_available(m_request_id, IPC::File::adopt_fd(cached_body_file->fd), cached_body_file->offset, cached_body_file->size);
 
-        m_client->async_request_finished(m_request_id, m_bytes_transferred_to_client, timing_info, m_network_error);
+            m_client->async_request_finished(m_request_id, m_bytes_transferred_to_client, timing_info, m_network_error);
+        }
     }
 
     if (m_cache_entry_writer.has_value()) {
@@ -1634,12 +1667,272 @@ void Request::handle_complete_state()
 
 void Request::handle_error_state()
 {
-    if (m_type == RequestType::Fetch) {
+    if (m_export.has_value()) {
+        write_export_result();
+    } else if (delivers_response_to_client()) {
         // FIXME: Implement timing info for failed requests.
         m_client->async_request_finished(m_request_id, m_bytes_transferred_to_client, {}, m_network_error.value_or(Requests::NetworkError::Unknown));
     }
 
     m_client->request_complete({}, *this);
+}
+
+// The outcome of an exported transfer, as written to its status socket.
+struct ExportedRequestResult {
+    Requests::RequestTimingInfo timing_info;
+    u64 total_size { 0 };
+    bool has_network_error { false };
+    Requests::NetworkError network_error { Requests::NetworkError::Unknown };
+};
+
+Request::Export::Export(Export&& other)
+    : status_fd(exchange(other.status_fd, -1))
+    , notifier(move(other.notifier))
+{
+}
+
+Request::Export& Request::Export::operator=(Export&& other)
+{
+    if (this != &other) {
+        close();
+        status_fd = exchange(other.status_fd, -1);
+        notifier = move(other.notifier);
+    }
+    return *this;
+}
+
+Request::Export::~Export()
+{
+    close();
+}
+
+void Request::Export::close()
+{
+    if (notifier) {
+        notifier->close();
+        notifier = nullptr;
+    }
+    if (status_fd != -1) {
+        (void)Core::System::close(status_fd);
+        status_fd = -1;
+    }
+}
+
+Request::Import::Import(Import&& other)
+    : body_fd(exchange(other.body_fd, -1))
+    , status_fd(exchange(other.status_fd, -1))
+    , body_notifier(move(other.body_notifier))
+    , status_notifier(move(other.status_notifier))
+    , body_ended(other.body_ended)
+    , status_bytes(move(other.status_bytes))
+    , timing_info(move(other.timing_info))
+    , network_error(move(other.network_error))
+{
+}
+
+Request::Import& Request::Import::operator=(Import&& other)
+{
+    if (this != &other) {
+        this->~Import();
+        new (this) Import(move(other));
+    }
+    return *this;
+}
+
+Request::Import::~Import()
+{
+    if (body_notifier)
+        body_notifier->close();
+    if (status_notifier)
+        status_notifier->close();
+    if (body_fd != -1)
+        (void)Core::System::close(body_fd);
+    if (status_fd != -1)
+        (void)Core::System::close(status_fd);
+}
+
+ErrorOr<Requests::ExportedRequest> Request::export_response()
+{
+    if (m_type != RequestType::Fetch || m_export.has_value())
+        return Error::from_string_literal("Only a fetched response can be exported");
+    if (!m_client_request_pipe.has_value() || !m_sent_response_headers_to_client)
+        return Error::from_string_literal("The response head has not arrived yet");
+
+    int status_fds[2] {};
+    TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, status_fds));
+    TRY(Core::System::set_socket_blocking(status_fds[0], false));
+    TRY(Core::System::set_socket_blocking(status_fds[1], false));
+    auto status = IPC::File::adopt_fd(status_fds[1]);
+    auto body = IPC::File::adopt_fd(TRY(Core::System::dup(m_client_request_pipe->reader_fd())));
+
+    m_export = Export {};
+    m_export->status_fd = status_fds[0];
+    m_export->notifier = Core::Notifier::construct(status_fds[0], Core::NotificationType::Read);
+    m_export->notifier->on_activation = weak_callback(*this, [](auto& self) { self.importer_went_away(); });
+
+    Requests::ExportedRequest exported {
+        .network_isolation_key = m_network_isolation_key,
+        .url = m_url,
+        .method = m_method,
+        .request_headers = m_request_headers->headers(),
+        .request_start_time = m_request_start_time,
+        .status_code = m_status_code,
+        .reason_phrase = m_reason_phrase,
+        .response_headers = m_response_headers->headers(),
+        .body = move(body),
+        .status = move(status),
+    };
+
+    m_transfer_lease.clear();
+    m_client->async_request_transferred(m_request_id);
+
+    // A transfer that is already over has its whole body in the pipe.
+    if (is_complete())
+        write_export_result();
+
+    return exported;
+}
+
+void Request::write_export_result()
+{
+    if (!m_export.has_value() || m_export->status_fd == -1)
+        return;
+
+    ExportedRequestResult result {
+        .timing_info = acquire_timing_info(),
+        .total_size = m_bytes_transferred_to_client,
+        .has_network_error = m_network_error.has_value(),
+        .network_error = m_network_error.value_or(Requests::NetworkError::Unknown),
+    };
+    (void)Core::System::write(m_export->status_fd, { &result, sizeof(result) });
+    m_export->close();
+}
+
+// The importing RequestServer closes its end of the status socket when it has no more use for the response.
+void Request::importer_went_away()
+{
+    u8 byte;
+    auto result = Core::System::read(m_export->status_fd, { &byte, 1 });
+    if (!result.is_error() && result.value() != 0)
+        return;
+    if (result.is_error() && first_is_one_of(result.error().code(), EAGAIN, EWOULDBLOCK))
+        return;
+
+    m_export->close();
+    if (is_complete())
+        return;
+
+    MUST(free_curl_structs());
+    m_network_error = Requests::NetworkError::Unknown;
+    transition_to_state(State::Error);
+}
+
+void Request::handle_read_imported_state()
+{
+    if (inform_client_request_started().is_error())
+        return;
+
+    if (m_disk_cache.has_value()) {
+        m_disk_cache->create_entry(*this, *m_disk_cache_partition, m_url, m_method, m_request_headers, m_request_start_time)
+            .visit(
+                [&](Optional<HTTP::CacheEntryWriter&> cache_entry_writer) {
+                    m_cache_entry_writer = cache_entry_writer;
+                    if (!m_cache_entry_writer.has_value())
+                        m_cache_status = CacheStatus::NotCached;
+                },
+                [&](HTTP::DiskCache::CacheHasOpenEntry) {
+                    m_cache_status = CacheStatus::NotCached;
+                });
+    } else {
+        m_cache_status = CacheStatus::NotCached;
+    }
+
+    transfer_headers_to_client_if_needed();
+
+    (void)Core::System::set_socket_blocking(m_import->body_fd, false);
+    (void)Core::System::set_socket_blocking(m_import->status_fd, false);
+
+    m_import->body_notifier = Core::Notifier::construct(m_import->body_fd, Core::NotificationType::Read);
+    m_import->body_notifier->on_activation = weak_callback(*this, [](auto& self) { self.read_imported_body(); });
+    m_import->status_notifier = Core::Notifier::construct(m_import->status_fd, Core::NotificationType::Read);
+    m_import->status_notifier->on_activation = weak_callback(*this, [](auto& self) { self.read_imported_status(); });
+}
+
+void Request::read_imported_body()
+{
+    u8 buffer[64 * KiB];
+    while (true) {
+        auto result = Core::System::read(m_import->body_fd, { buffer, sizeof(buffer) });
+        if (result.is_error()) {
+            if (first_is_one_of(result.error().code(), EAGAIN, EWOULDBLOCK))
+                return;
+        }
+        if (result.is_error() || result.value() == 0) {
+            m_import->body_ended = true;
+            m_import->body_notifier->close();
+            m_import->body_notifier = nullptr;
+            complete_import_if_finished();
+            return;
+        }
+
+        mark_activity();
+        if (auto write_result = m_response_buffer.write_some({ buffer, static_cast<size_t>(result.value()) }); write_result.is_error()) {
+            m_network_error = Requests::NetworkError::Unknown;
+            transition_to_state(State::Error);
+            return;
+        }
+        if (auto write_result = write_queued_bytes_without_blocking(); write_result.is_error()) {
+            dbgln("Request::read_imported_body: Aborting request because error occurred whilst writing data to the client: {}", write_result.error());
+            m_network_error = Requests::NetworkError::Unknown;
+            transition_to_state(State::Error);
+            return;
+        }
+    }
+}
+
+void Request::read_imported_status()
+{
+    u8 buffer[sizeof(ExportedRequestResult)];
+    auto result = Core::System::read(m_import->status_fd, { buffer, sizeof(buffer) });
+    if (result.is_error() && first_is_one_of(result.error().code(), EAGAIN, EWOULDBLOCK))
+        return;
+
+    if (!result.is_error() && result.value() != 0) {
+        (void)m_import->status_bytes.try_append(buffer, result.value());
+        if (m_import->status_bytes.size() < sizeof(ExportedRequestResult))
+            return;
+    }
+
+    m_import->status_notifier->close();
+    m_import->status_notifier = nullptr;
+
+    if (m_import->status_bytes.size() >= sizeof(ExportedRequestResult)) {
+        ExportedRequestResult exported_result;
+        memcpy(&exported_result, m_import->status_bytes.data(), sizeof(exported_result));
+        m_import->timing_info = exported_result.timing_info;
+        if (exported_result.has_network_error)
+            m_import->network_error = exported_result.network_error;
+    } else {
+        // The exporting RequestServer went away before the transfer was over.
+        m_import->timing_info = Requests::RequestTimingInfo {};
+        m_import->network_error = Requests::NetworkError::Unknown;
+    }
+
+    complete_import_if_finished();
+}
+
+void Request::complete_import_if_finished()
+{
+    if (!m_import->body_ended || !m_import->timing_info.has_value())
+        return;
+    if (m_curl_result_code.has_value())
+        return;
+
+    m_curl_result_code = CURLE_OK;
+    if (auto result = write_queued_bytes_without_blocking(); result.is_error()) {
+        m_network_error = Requests::NetworkError::Unknown;
+        transition_to_state(State::Error);
+    }
 }
 
 size_t Request::on_header_received(void* buffer, size_t size, size_t nmemb, void* user_data)
@@ -2058,6 +2351,7 @@ bool Request::is_revalidation_request() const
         return m_cache_entry_reader.has_value() && m_cache_entry_reader->revalidation_type() == HTTP::CacheEntryReader::RevalidationType::MustRevalidate;
     case RequestType::Connect:
     case RequestType::WebSocket:
+    case RequestType::Imported:
         return false;
     case RequestType::BackgroundRevalidation:
         return m_cache_entry_reader.has_value();
@@ -2111,6 +2405,9 @@ Requests::RequestTimingInfo Request::acquire_timing_info() const
     // |--|--|--|--|--|--|--STARTTRANSFER
     // |--|--|--|--|--|--|--|--TOTAL
     // |--|--|--|--|--|--|--|--REDIRECT
+
+    if (m_import.has_value())
+        return m_import->timing_info.value_or({});
 
     // FIXME: Implement timing info for cache hits.
     if (m_cache_entry_reader.has_value())

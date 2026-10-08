@@ -28,6 +28,7 @@
 #include <LibHTTP/NetworkIsolationKey.h>
 #include <LibHTTP/Proxy.h>
 #include <LibIPC/File.h>
+#include <LibRequests/ExportedRequest.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibRequests/RequestTransferLease.h>
@@ -86,7 +87,19 @@ public:
         ByteBuffer request_body,
         HTTP::Cookie::IncludeCredentials include_credentials);
 
+    static NonnullOwnPtr<Request> import(
+        u64 request_id,
+        Optional<HTTP::DiskCache&> disk_cache,
+        ConnectionFromClient& client,
+        Resolver& resolver,
+        Requests::ExportedRequest,
+        Optional<Requests::RequestTransferLeaseKey>);
+
     virtual ~Request() override;
+
+    // Hands the response over to another RequestServer. The body keeps flowing into the response pipe, and the outcome
+    // goes to the status socket instead of to a client. The exporting client is told the request was transferred.
+    ErrorOr<Requests::ExportedRequest> export_response();
 
     static void set_performance_monitor_enabled(bool);
     static Vector<Requests::NetworkUsage> take_network_usage();
@@ -141,6 +154,7 @@ private:
         Connect,           // Issue a network request to connect to the URL.
         Fetch,             // Issue a network request to fetch the URL.
         WaitForAIA,        // Wait for an AIA intermediate-certificate fetch to complete, then retry the fetch.
+        ReadImported,      // Read the response another RequestServer is streaming to this one.
         Complete,          // Finalize the request with the client.
         Error,             // Any error occured during the request's lifetime.
     };
@@ -156,6 +170,8 @@ private:
             return "WaitForCache"sv;
         case State::WaitForAIA:
             return "WaitForAIA"sv;
+        case State::ReadImported:
+            return "ReadImported"sv;
         case State::FailedCacheOnly:
             return "FailedCacheOnly"sv;
         case State::ServeSubstitution:
@@ -218,6 +234,12 @@ private:
     void handle_retrieve_cookie_state();
     void handle_connect_state();
     void handle_fetch_state();
+    void handle_read_imported_state();
+    void read_imported_body();
+    void read_imported_status();
+    void complete_import_if_finished();
+    void write_export_result();
+    void importer_went_away();
     void handle_complete_state();
     void handle_error_state();
 
@@ -250,6 +272,8 @@ private:
     ErrorOr<void> revalidation_failed();
 
     bool is_cache_only_request() const;
+
+    bool delivers_response_to_client() const { return m_type == RequestType::Fetch || m_type == RequestType::Imported; }
 
     u32 acquire_status_code() const;
     Requests::RequestTimingInfo acquire_timing_info() const;
@@ -348,6 +372,41 @@ private:
 
     Optional<Requests::RequestTransferLeaseKey> m_transfer_lease;
     RefPtr<ConnectionFromClient> m_network_connection_keep_alive;
+
+    struct Export {
+        AK_MAKE_NONCOPYABLE(Export);
+
+    public:
+        Export() = default;
+        Export(Export&&);
+        Export& operator=(Export&&);
+        ~Export();
+        void close();
+
+        int status_fd { -1 };
+        RefPtr<Core::Notifier> notifier;
+    };
+    Optional<Export> m_export;
+
+    struct Import {
+        AK_MAKE_NONCOPYABLE(Import);
+
+    public:
+        Import() = default;
+        Import(Import&&);
+        Import& operator=(Import&&);
+        ~Import();
+
+        int body_fd { -1 };
+        int status_fd { -1 };
+        RefPtr<Core::Notifier> body_notifier;
+        RefPtr<Core::Notifier> status_notifier;
+        bool body_ended { false };
+        ByteBuffer status_bytes;
+        Optional<Requests::RequestTimingInfo> timing_info;
+        Optional<Requests::NetworkError> network_error;
+    };
+    Optional<Import> m_import;
 };
 
 }

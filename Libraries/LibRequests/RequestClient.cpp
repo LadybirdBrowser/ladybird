@@ -100,6 +100,27 @@ RefPtr<Request> RequestClient::adopt_request(int source_client_id, u64 source_re
     return request;
 }
 
+ErrorOr<ExportedRequest> RequestClient::export_request(Request& request)
+{
+    auto exported = IPCProxy::export_request(request.id());
+    if (!exported.has_value())
+        return Error::from_string_literal("RequestServer refused to export the request");
+    return exported.release_value();
+}
+
+RefPtr<Request> RequestClient::import_request(ExportedRequest exported, TransferLease transfer_lease)
+{
+    auto request_id = m_next_request_id++;
+
+    auto transfer_lease_key = transfer_lease == TransferLease::Yes
+        ? Optional<RequestTransferLeaseKey> { { m_request_server_client_id, request_id } }
+        : Optional<RequestTransferLeaseKey> {};
+    IPCProxy::async_import_request(request_id, move(exported), transfer_lease_key.has_value());
+    auto request = Request::create_from_id({}, *this, request_id, move(transfer_lease_key));
+    m_requests.set(request_id, request);
+    return request;
+}
+
 ErrorOr<bool> RequestClient::store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const& network_isolation_key, URL::URL const& url, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, ReadonlyBytes data)
 {
     auto buffer = TRY(Core::AnonymousBuffer::create_with_size(data.size()));

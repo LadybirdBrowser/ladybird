@@ -759,6 +759,59 @@ Messages::RequestServer::StopRequestResponse ConnectionFromClient::stop_request(
     return true;
 }
 
+Messages::RequestServer::ExportRequestResponse ConnectionFromClient::export_request(u64 request_id)
+{
+    if (m_site_binding != SiteBinding::Unrestricted) {
+        did_misbehave("export of a request by a bound client");
+        return Optional<Requests::ExportedRequest> {};
+    }
+
+    auto request = m_active_requests.get(request_id);
+    if (!request.has_value())
+        return Optional<Requests::ExportedRequest> {};
+
+    auto transfer_lease = (*request)->transfer_lease();
+    auto exported = (*request)->export_response();
+    if (exported.is_error()) {
+        dbgln("RequestServer: Failed to export request {}: {}", request_id, exported.error());
+        return Optional<Requests::ExportedRequest> {};
+    }
+
+    if (transfer_lease.has_value())
+        m_request_transfer_leases.remove(*transfer_lease);
+
+    // A finished transfer has nothing left to do here once its outcome is on its way.
+    if ((*request)->is_complete()) {
+        Core::deferred_invoke([weak_self = make_weak_ptr<ConnectionFromClient>(), request_id] {
+            if (auto self = weak_self.strong_ref())
+                self->m_active_requests.remove(request_id);
+        });
+    }
+
+    return exported.release_value();
+}
+
+void ConnectionFromClient::import_request(u64 request_id, Requests::ExportedRequest exported_request, bool create_transfer_lease)
+{
+    if (m_site_binding != SiteBinding::Unrestricted) {
+        did_misbehave("import of a request by a bound client");
+        return;
+    }
+    if (is_live_request_id(request_id)) {
+        did_misbehave("reused live request ID");
+        return;
+    }
+
+    Optional<Requests::RequestTransferLeaseKey> transfer_lease;
+    if (create_transfer_lease) {
+        transfer_lease = Requests::RequestTransferLeaseKey { client_id(), request_id };
+        m_request_transfer_leases.set(*transfer_lease, RequestTransferLease { *this, request_id });
+    }
+
+    auto request = Request::import(request_id, m_disk_cache, *this, m_resolver, move(exported_request), transfer_lease);
+    m_active_requests.set(request_id, move(request));
+}
+
 void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level)
 {
     if (is_live_request_id(request_id)) {
