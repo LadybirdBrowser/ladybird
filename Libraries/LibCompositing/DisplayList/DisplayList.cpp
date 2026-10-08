@@ -6,7 +6,6 @@
 
 #include <AK/Atomic.h>
 #include <AK/Checked.h>
-#include <AK/Debug.h>
 #include <AK/NumericLimits.h>
 #include <AK/TemporaryChange.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
@@ -33,17 +32,6 @@ DisplayList::DisplayList(u64 compatible_visual_context_tree_structural_epoch, u6
     , m_command_runs(move(command_runs))
     , m_surface_clear_color(surface_clear_color)
     , m_async_scrolling_metadata(move(async_scrolling_metadata))
-{
-}
-
-DisplayList::DisplayList(Properties properties, Core::AnonymousBuffer shared_tape_buffer, ReadonlyBytes command_bytes, Vector<DisplayListCommandRun>&& command_runs)
-    : m_compatible_visual_context_tree_structural_epoch(properties.compatible_visual_context_tree_structural_epoch)
-    , m_id(properties.id)
-    , m_shared_tape_buffer(move(shared_tape_buffer))
-    , m_borrowed_command_bytes(command_bytes)
-    , m_command_runs(move(command_runs))
-    , m_surface_clear_color(properties.surface_clear_color)
-    , m_async_scrolling_metadata(move(properties.async_scrolling_metadata))
 {
 }
 
@@ -87,15 +75,6 @@ NonnullRefPtr<DisplayList> DisplayList::adopt_rust_command_storage(AccumulatedVi
     return display_list;
 }
 
-NonnullRefPtr<DisplayList> DisplayList::create_from_command_bytes(AccumulatedVisualContextTree const& visual_context_tree, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs)
-{
-    MUST(validate_display_list_command_runs(command_bytes, command_runs));
-    auto display_list = create(visual_context_tree);
-    display_list->m_command_bytes = move(command_bytes);
-    display_list->m_command_runs = move(command_runs);
-    return display_list;
-}
-
 Optional<DisplayList::SharedBufferLayout> DisplayList::shared_buffer_layout(u64 tape_size, u64 run_count)
 {
     if (tape_size % command_alignment != 0)
@@ -132,7 +111,7 @@ ErrorOr<NonnullRefPtr<DisplayList>> DisplayList::create_from_shared_buffer(Prope
     auto layout = shared_buffer_layout(tape_size, run_count);
     if (!layout.has_value())
         return Error::from_string_literal("Display list sizes do not describe a shared buffer");
-    ReadonlyBytes tape;
+    ByteBuffer tape;
     Vector<DisplayListCommandRun> command_runs;
     if (layout->total_size > 0) {
         if (!shared_tape_buffer.is_valid())
@@ -143,13 +122,14 @@ ErrorOr<NonnullRefPtr<DisplayList>> DisplayList::create_from_shared_buffer(Prope
         // Every run holds at least one command, so more runs than headers cannot describe this tape.
         if (run_count > tape_size / sizeof(DisplayListCommandHeader))
             return Error::from_string_literal("Display list run table is larger than its tape allows");
+        // The sender can still write to the buffer, so the tape and its runs are copied out before they are checked.
         TRY(command_runs.try_resize(run_count));
         if (run_count > 0)
             __builtin_memcpy(command_runs.data(), shared_tape_buffer.data<u8>() + layout->runs_offset, run_count * sizeof(DisplayListCommandRun));
-        tape = shared_tape_buffer.bytes().slice(0, tape_size);
+        tape = TRY(ByteBuffer::copy(shared_tape_buffer.bytes().slice(0, tape_size)));
     }
-    TRY(validate_display_list_command_runs(tape, command_runs));
-    return adopt_ref(*new DisplayList(move(properties), move(shared_tape_buffer), tape, move(command_runs)));
+    TRY(validate_received_display_list_tape(tape, command_runs));
+    return adopt_ref(*new DisplayList(properties.compatible_visual_context_tree_structural_epoch, properties.id, move(tape), move(command_runs), properties.surface_clear_color, move(properties.async_scrolling_metadata)));
 }
 
 DisplayList::Properties DisplayList::properties() const
@@ -182,36 +162,15 @@ ErrorOr<void> validate_display_list_command_runs(ReadonlyBytes command_bytes, Re
     }
     if (next_offset != command_bytes.size())
         return Error::from_string_literal("Display list command runs do not cover the command bytes");
-    if constexpr (DISPLAY_LIST_RUNS_DEBUG) {
-        Optional<ContextRef> previous_context;
-        for (auto const& run : runs) {
-            if (previous_context == run.context)
-                return Error::from_string_literal("Adjacent display list command runs share a visual context");
-            previous_context = run.context;
-            DisplayListCommandRun computed_run {};
-            computed_run.offset = run.offset;
-            computed_run.context = run.context;
-            auto bytes = command_bytes.slice(run.offset, run.size);
-            for (size_t offset = 0; offset < bytes.size();) {
-                if (bytes.size() - offset < sizeof(DisplayListCommandHeader))
-                    return Error::from_string_literal("Display list command run ends inside a command header");
-                auto header = read_display_list_object<DisplayListCommandHeader>(bytes.slice(offset));
-                auto record_size = sizeof(DisplayListCommandHeader) + static_cast<size_t>(header.payload_size);
-                if (record_size > bytes.size() - offset || record_size % DisplayList::command_alignment != 0)
-                    return Error::from_string_literal("Display list command run ends inside a command");
-                offset += record_size;
-                computed_run.size += record_size;
-                if (display_list_command_is_compositor_metadata(header.command_type))
-                    computed_run.has_compositor_metadata = true;
-                else if (header.has_bounding_rect)
-                    computed_run.ink_bounds.unite(header.bounding_rect);
-                else
-                    computed_run.has_unbounded_draw = true;
-            }
-            if (computed_run != run)
-                return Error::from_string_literal("Display list command run summary disagrees with its command bytes");
-        }
-    }
+    return {};
+}
+
+ErrorOr<void> validate_received_display_list_tape(ReadonlyBytes command_bytes, ReadonlySpan<DisplayListCommandRun> runs)
+{
+    size_t error_size = 0;
+    auto const* error = Compositing::RustFFI::display_list_validate_tape(command_bytes.data(), command_bytes.size(), reinterpret_cast<u8 const*>(runs.data()), runs.size() * sizeof(DisplayListCommandRun), &error_size);
+    if (error)
+        return Error::from_string_view({ error, error_size });
     return {};
 }
 
@@ -466,7 +425,7 @@ ErrorOr<NonnullRefPtr<Compositing::DisplayList>> decode(Decoder& decoder)
     TRY(command_runs.try_resize(command_run_count));
     if (!command_runs.is_empty())
         TRY(decoder.decode_into(Bytes { reinterpret_cast<u8*>(command_runs.data()), command_runs.size() * sizeof(Compositing::DisplayListCommandRun) }));
-    TRY(Compositing::validate_display_list_command_runs(command_bytes, command_runs));
+    TRY(Compositing::validate_received_display_list_tape(command_bytes, command_runs));
     return adopt_ref(*new Compositing::DisplayList(compatible_visual_context_tree_structural_epoch, id, move(command_bytes), move(command_runs), surface_clear_color, move(async_scrolling_metadata)));
 }
 

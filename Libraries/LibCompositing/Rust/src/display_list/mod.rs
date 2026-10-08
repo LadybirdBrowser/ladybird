@@ -14,3 +14,4 @@ pub mod ffi_bytes;
 pub mod nested_records;
 pub mod replay;
 pub mod storage;
+pub mod validate;

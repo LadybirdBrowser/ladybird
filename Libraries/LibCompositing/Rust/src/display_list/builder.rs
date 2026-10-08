@@ -540,9 +540,10 @@ pub fn for_each_command<'a>(bytes: &'a [u8], mut f: impl FnMut(&DisplayListComma
 
 pub fn read_command<C: Copy>(payload: &[u8]) -> C {
     assert!(payload.len() >= std::mem::size_of::<C>());
-    // SAFETY: Display-list records are native-layout copies of these `Copy` command structs. The
-    // byte stream is validated at the C++ boundary, and `read_unaligned` does not require the
-    // payload pointer to have `C`'s alignment.
+    // SAFETY: Display-list records are native-layout copies of these `Copy` command structs. A
+    // tape is either recorded by this crate or checked by `validate::validate_tape` when it
+    // arrives from another process, so every enum and bool byte holds a valid value.
+    // `read_unaligned` does not require the payload pointer to have `C`'s alignment.
     unsafe { std::ptr::read_unaligned(payload.as_ptr().cast::<C>()) }
 }
 

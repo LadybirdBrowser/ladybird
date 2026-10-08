@@ -134,15 +134,13 @@ public:
     static NonnullRefPtr<DisplayList> adopt_rust_command_storage(AccumulatedVisualContextTree const&, void const*);
     // Shares immutable Rust command storage that someone else holds, taking a strong reference of its own.
     static NonnullRefPtr<DisplayList> share_rust_command_storage(AccumulatedVisualContextTree const&, void const*);
-    static NonnullRefPtr<DisplayList> create_from_command_bytes(AccumulatedVisualContextTree const&, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs);
 
     // The producer's side of sending a list: a fresh shared buffer holding the tape and the run table,
     // laid out per shared_buffer_layout. The buffer is handed to the receiver whole; the producer keeps
     // nothing.
     ErrorOr<Core::AnonymousBuffer> copy_to_shared_buffer() const;
-    // The receiver's side: borrows the tape from the buffer for the list's lifetime and copies the run
-    // table out, so the bounds every reader relies on cannot change underneath it. Fails when the sizes
-    // do not fit the buffer or the runs do not describe the tape.
+    // The receiver's side: copies the tape and the run table out of the buffer, which the sender can still
+    // write to, and checks the copies. Fails when the sizes do not fit the buffer or the tape is malformed.
     static ErrorOr<NonnullRefPtr<DisplayList>> create_from_shared_buffer(Properties, Core::AnonymousBuffer, u64 tape_size, u64 run_count);
 
     // Taken at send time: the async scrolling metadata is restamped on every send.
@@ -192,21 +190,17 @@ private:
 
     explicit DisplayList(u64 compatible_visual_context_tree_structural_epoch);
     DisplayList(u64 compatible_visual_context_tree_structural_epoch, u64 id, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata>);
-    DisplayList(Properties, Core::AnonymousBuffer shared_tape_buffer, ReadonlyBytes command_bytes, Vector<DisplayListCommandRun>&& command_runs);
 
-    bool borrows_command_bytes() const { return m_rust_command_storage || m_shared_tape_buffer.is_valid(); }
+    bool borrows_command_bytes() const { return m_rust_command_storage; }
 
     // Immutable placement for this list and its compatible clip/effect topology.
     // Atomic publication allows compositor workers to replay the list concurrently.
     mutable Atomic<void const*> m_replay_effect_clip_plan { nullptr };
     u64 m_compatible_visual_context_tree_structural_epoch { 0 };
     u64 m_id { 0 };
-    // Native construction and IPC decoding own their buffers here. Rust recordings instead share one
-    // immutable allocation with the cache, and lists received through a shared buffer borrow the tape
-    // from that mapping; the spans borrow whichever retained owner applies. A list received through a
-    // shared buffer still owns its run table, copied out of the mapping.
+    // Received lists own their buffers here. Rust recordings instead share one immutable allocation with
+    // the cache, which the spans borrow.
     void const* m_rust_command_storage { nullptr };
-    Core::AnonymousBuffer m_shared_tape_buffer;
     ReadonlyBytes m_borrowed_command_bytes;
     ReadonlySpan<DisplayListCommandRun> m_borrowed_command_runs;
     ByteBuffer m_command_bytes;
@@ -221,8 +215,11 @@ private:
 };
 
 // Runs must start at offset zero, follow each other without gaps, stay aligned, and end at the tape's
-// end. Under DISPLAY_LIST_RUNS_DEBUG their boundaries and summaries are checked against the commands.
+// end. This is all a list recorded in this process needs.
 COMPOSITING_API ErrorOr<void> validate_display_list_command_runs(ReadonlyBytes command_bytes, ReadonlySpan<DisplayListCommandRun>);
+// Checks a tape that came from another process: its runs, its record framing and every value whose bytes
+// could be invalid, so that every later read of it is sound.
+COMPOSITING_API ErrorOr<void> validate_received_display_list_tape(ReadonlyBytes command_bytes, ReadonlySpan<DisplayListCommandRun>);
 COMPOSITING_API ErrorOr<void> validate_display_list_references_live_visual_context_nodes(DisplayList const&, AccumulatedVisualContextTree const&);
 
 }
