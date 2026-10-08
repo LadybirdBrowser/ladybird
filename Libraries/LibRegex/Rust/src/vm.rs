@@ -1306,12 +1306,15 @@ enum SavedState {
     Normal {
         pc: u32,
         pos: usize,
-        reg_snapshot_offset: usize,
+        trail_len: usize,
+        /// A register to set after the registers are restored, or u32::MAX for none.
+        set_register: u32,
+        set_register_value: i32,
         modifiers: ActiveModifiers,
         modifier_stack_len: usize,
     },
     /// Greedy loop backtrack: give up one character at a time from the right.
-    /// Carries a register snapshot because later failed alternatives may have
+    /// Restores the registers because later failed alternatives may have
     /// mutated captures before we revisit the loop choice point.
     Greedy {
         pc: u32,
@@ -1319,7 +1322,7 @@ enum SavedState {
         start_pos: usize,
         /// Current right edge (position after last consumed char).
         current_pos: usize,
-        reg_snapshot_offset: usize,
+        trail_len: usize,
         /// Minimum number of chars that must be kept.
         min: u32,
         /// Whether this greedy loop was executing in backward mode (lookbehind).
@@ -1328,13 +1331,13 @@ enum SavedState {
         modifier_stack_len: usize,
     },
     /// Lazy loop backtrack: try consuming one more character.
-    /// Carries a register snapshot because later failed alternatives may have
+    /// Restores the registers because later failed alternatives may have
     /// mutated captures before we revisit the loop choice point.
     Lazy {
         pc: u32,
         /// Position to try consuming from next.
         pos: usize,
-        reg_snapshot_offset: usize,
+        trail_len: usize,
         /// Maximum total matches allowed.
         max: Option<u32>,
         /// Number of matches consumed so far.
@@ -1342,6 +1345,13 @@ enum SavedState {
         modifiers: ActiveModifiers,
         modifier_stack_len: usize,
     },
+}
+
+/// The value a register had before a write, which backtracking to a state saved before that write restores.
+#[derive(Clone, Copy)]
+struct RegisterUndo {
+    register: u32,
+    value: i32,
 }
 
 /// Active modifier flags during execution.
@@ -1358,7 +1368,7 @@ struct ActiveModifiers {
 pub struct VmScratch {
     registers: Vec<i32>,
     backtrack_stack: Vec<SavedState>,
-    register_pool: Vec<i32>,
+    register_trail: Vec<RegisterUndo>,
     modifier_stack: Vec<ActiveModifiers>,
 }
 
@@ -1375,9 +1385,9 @@ struct Vm<'a, I: Input> {
     pos: usize,
     registers: &'a mut Vec<i32>,
     backtrack_stack: &'a mut Vec<SavedState>,
-    /// Flat pool for register snapshots. Each saved state stores an offset into
-    /// this pool. Avoids per-Split Vec allocation.
-    register_pool: &'a mut Vec<i32>,
+    /// The old values of the registers written so far, most recent last. A saved state records the length of this
+    /// trail, and backtracking to it undoes the writes after that point, so saving a state costs nothing per register.
+    register_trail: &'a mut Vec<RegisterUndo>,
     steps: u64,
     modifiers: ActiveModifiers,
     modifier_stack: &'a mut Vec<ActiveModifiers>,
@@ -1385,6 +1395,8 @@ struct Vm<'a, I: Input> {
     backward: bool,
     /// Backtrack floor: prevents backtracking past this depth during lookaround bodies.
     bt_floor: usize,
+    /// Active lookarounds need undo entries even when there are no pending backtrack states.
+    lookaround_depth: usize,
 }
 
 impl<'a, I: Input> Vm<'a, I> {
@@ -1394,7 +1406,7 @@ impl<'a, I: Input> Vm<'a, I> {
         scratch.registers.resize(reg_count, -1);
         scratch.registers.fill(-1);
         scratch.backtrack_stack.clear();
-        scratch.register_pool.clear();
+        scratch.register_trail.clear();
         scratch.modifier_stack.clear();
         Self {
             program,
@@ -1403,7 +1415,7 @@ impl<'a, I: Input> Vm<'a, I> {
             pos: start_pos,
             registers: &mut scratch.registers,
             backtrack_stack: &mut scratch.backtrack_stack,
-            register_pool: &mut scratch.register_pool,
+            register_trail: &mut scratch.register_trail,
             steps: 0,
             modifiers: ActiveModifiers {
                 ignore_case: program.ignore_case,
@@ -1413,6 +1425,7 @@ impl<'a, I: Input> Vm<'a, I> {
             modifier_stack: &mut scratch.modifier_stack,
             backward: false,
             bt_floor: 0,
+            lookaround_depth: 0,
         }
     }
 
@@ -1434,7 +1447,7 @@ impl<'a, I: Input> Vm<'a, I> {
         self.pos = pos;
         self.registers.fill(-1);
         self.backtrack_stack.clear();
-        self.register_pool.clear();
+        self.register_trail.clear();
         self.steps = 0;
         self.modifiers = ActiveModifiers {
             ignore_case: self.program.ignore_case,
@@ -1444,6 +1457,7 @@ impl<'a, I: Input> Vm<'a, I> {
         self.modifier_stack.clear();
         self.backward = false;
         self.bt_floor = 0;
+        self.lookaround_depth = 0;
     }
 
     fn run(&mut self) -> VmResult {
@@ -1600,7 +1614,7 @@ impl<'a, I: Input> Vm<'a, I> {
                     let reg = *reg as usize;
                     let pos_i32 = self.pos as i32;
                     if reg < self.registers.len() {
-                        self.registers[reg] = pos_i32;
+                        self.set_register(reg, pos_i32);
                     }
                     self.pc += 1;
                     // Fuse consecutive Save/ClearRegister instructions.
@@ -1609,14 +1623,14 @@ impl<'a, I: Input> Vm<'a, I> {
                             Some(Instruction::Save(r2)) => {
                                 let r2 = *r2 as usize;
                                 if r2 < self.registers.len() {
-                                    self.registers[r2] = pos_i32;
+                                    self.set_register(r2, pos_i32);
                                 }
                                 self.pc += 1;
                             }
                             Some(Instruction::ClearRegister(r2)) => {
                                 let r2 = *r2 as usize;
                                 if r2 < self.registers.len() {
-                                    self.registers[r2] = -1;
+                                    self.set_register(r2, -1);
                                 }
                                 self.pc += 1;
                             }
@@ -1628,7 +1642,7 @@ impl<'a, I: Input> Vm<'a, I> {
                 Instruction::ClearRegister(reg) => {
                     let reg = *reg as usize;
                     if reg < self.registers.len() {
-                        self.registers[reg] = -1;
+                        self.set_register(reg, -1);
                     }
                     self.pc += 1;
                     // Fuse consecutive ClearRegister/Save instructions.
@@ -1637,14 +1651,14 @@ impl<'a, I: Input> Vm<'a, I> {
                             Some(Instruction::ClearRegister(r2)) => {
                                 let r2 = *r2 as usize;
                                 if r2 < self.registers.len() {
-                                    self.registers[r2] = -1;
+                                    self.set_register(r2, -1);
                                 }
                                 self.pc += 1;
                             }
                             Some(Instruction::Save(r2)) => {
                                 let r2 = *r2 as usize;
                                 if r2 < self.registers.len() {
-                                    self.registers[r2] = self.pos as i32;
+                                    self.set_register(r2, self.pos as i32);
                                 }
                                 self.pc += 1;
                             }
@@ -1754,14 +1768,14 @@ impl<'a, I: Input> Vm<'a, I> {
                         for &cap_reg in clear_captures {
                             let r = cap_reg as usize;
                             if r < self.registers.len() {
-                                self.registers[r] = -1;
+                                self.set_register(r, -1);
                             }
                         }
                         if !self.backtrack() {
                             return VmResult::NoMatch;
                         }
                     } else {
-                        self.registers[reg] = self.pos as i32;
+                        self.set_register(reg, self.pos as i32);
                         self.pc += 1;
                     }
                 }
@@ -1972,7 +1986,7 @@ impl<'a, I: Input> Vm<'a, I> {
                         }
                     }
                     if reg < self.registers.len() {
-                        self.registers[reg] = self.pos as i32;
+                        self.set_register(reg, self.pos as i32);
                     }
                     self.pc += 1;
                 }
@@ -1980,7 +1994,7 @@ impl<'a, I: Input> Vm<'a, I> {
                 Instruction::ClearRegister(reg) => {
                     let reg = *reg as usize;
                     if reg < self.registers.len() {
-                        self.registers[reg] = -1;
+                        self.set_register(reg, -1);
                     }
                     self.pc += 1;
                 }
@@ -2084,14 +2098,14 @@ impl<'a, I: Input> Vm<'a, I> {
                         for &cap_reg in clear_captures {
                             let r = cap_reg as usize;
                             if r < self.registers.len() {
-                                self.registers[r] = -1;
+                                self.set_register(r, -1);
                             }
                         }
                         if !self.backtrack() {
                             return VmResult::NoMatch;
                         }
                     } else {
-                        self.registers[reg] = self.pos as i32;
+                        self.set_register(reg, self.pos as i32);
                         self.pc += 1;
                     }
                 }
@@ -2241,7 +2255,7 @@ impl<'a, I: Input> Vm<'a, I> {
     fn handle_repeat_start(&mut self, counter_reg: u32) {
         let reg = counter_reg as usize;
         if reg < self.registers.len() {
-            self.registers[reg] = 0;
+            self.set_register(reg, 0);
         }
         self.pc += 1;
     }
@@ -2252,7 +2266,7 @@ impl<'a, I: Input> Vm<'a, I> {
         let count = self.registers[reg] as u32;
 
         if count < min {
-            self.registers[reg] += 1;
+            self.set_register(reg, self.registers[reg] + 1);
             self.pc = body;
         } else if max.is_some_and(|m| count >= m) {
             self.pc += 1;
@@ -2260,7 +2274,7 @@ impl<'a, I: Input> Vm<'a, I> {
             let pos = self.pos;
             let exit_pc = self.pc + 1;
             self.push_backtrack(exit_pc, pos);
-            self.registers[reg] += 1;
+            self.set_register(reg, self.registers[reg] + 1);
             self.pc = body;
         } else {
             let pos = self.pos;
@@ -2273,18 +2287,17 @@ impl<'a, I: Input> Vm<'a, I> {
     fn handle_look_start(&mut self, positive: bool, forward: bool, end: u32) -> Option<VmResult> {
         let saved_pos = self.pos;
         let saved_bt_len = self.backtrack_stack.len();
-        let saved_pool_len = self.register_pool.len();
+        let saved_trail_len = self.register_trail.len();
         let saved_bt_floor = self.bt_floor;
         let saved_backward = self.backward;
-        let reg_save_offset = self.register_pool.len();
-        let reg_count = self.registers.len();
-        self.register_pool.extend_from_slice(self.registers);
 
         self.bt_floor = saved_bt_len;
         self.pc += 1; // Skip to body start.
         self.backward = !forward;
 
+        self.lookaround_depth += 1;
         let body_result = self.run();
+        self.lookaround_depth -= 1;
 
         self.bt_floor = saved_bt_floor;
         self.backward = saved_backward;
@@ -2296,20 +2309,17 @@ impl<'a, I: Input> Vm<'a, I> {
         }
         let body_matched = body_result == VmResult::Match;
 
+        // NB: A body that matched keeps its register writes on the trail, so that backtracking past this assertion
+        //     undoes them too.
         if positive {
             if body_matched {
-                self.register_pool.truncate(saved_pool_len);
                 self.pc = end;
             } else {
-                self.registers
-                    .copy_from_slice(&self.register_pool[reg_save_offset..reg_save_offset + reg_count]);
-                self.register_pool.truncate(saved_pool_len);
+                self.undo_register_writes(saved_trail_len);
                 return self.fail_current_path();
             }
         } else {
-            self.registers
-                .copy_from_slice(&self.register_pool[reg_save_offset..reg_save_offset + reg_count]);
-            self.register_pool.truncate(saved_pool_len);
+            self.undo_register_writes(saved_trail_len);
             if body_matched {
                 return self.fail_current_path();
             }
@@ -2552,29 +2562,30 @@ impl<'a, I: Input> Vm<'a, I> {
         }
     }
 
-    /// Push a backtrack state with a snapshot of the current registers.
+    /// Push a backtrack state that restores the current registers.
     #[inline(always)]
     fn push_backtrack(&mut self, pc: u32, pos: usize) {
-        let offset = self.snapshot_registers();
         self.backtrack_stack.push(SavedState::Normal {
             pc,
             pos,
-            reg_snapshot_offset: offset,
+            trail_len: self.register_trail.len(),
+            set_register: u32::MAX,
+            set_register_value: 0,
             modifiers: self.modifiers,
             modifier_stack_len: self.modifier_stack.len(),
         });
     }
 
-    /// Push a backtrack state with a MODIFIED copy of the current registers.
-    /// The modification is applied at `mod_index` with `mod_value`.
+    /// Push a backtrack state that restores the current registers, except that register `mod_index` is set to
+    /// `mod_value`.
     #[inline(always)]
     fn push_backtrack_modified(&mut self, pc: u32, pos: usize, mod_index: usize, mod_value: i32) {
-        let offset = self.snapshot_registers();
-        self.register_pool[offset + mod_index] = mod_value;
         self.backtrack_stack.push(SavedState::Normal {
             pc,
             pos,
-            reg_snapshot_offset: offset,
+            trail_len: self.register_trail.len(),
+            set_register: mod_index as u32,
+            set_register_value: mod_value,
             modifiers: self.modifiers,
             modifier_stack_len: self.modifier_stack.len(),
         });
@@ -2583,12 +2594,11 @@ impl<'a, I: Input> Vm<'a, I> {
     /// Push a greedy loop backtrack state.
     #[inline(always)]
     fn push_greedy_backtrack(&mut self, pc: u32, start_pos: usize, current_pos: usize, min: u32) {
-        let reg_snapshot_offset = self.snapshot_registers();
         self.backtrack_stack.push(SavedState::Greedy {
             pc,
             start_pos,
             current_pos,
-            reg_snapshot_offset,
+            trail_len: self.register_trail.len(),
             min,
             backward: self.backward,
             modifiers: self.modifiers,
@@ -2599,11 +2609,10 @@ impl<'a, I: Input> Vm<'a, I> {
     /// Push a lazy loop backtrack state.
     #[inline(always)]
     fn push_lazy_backtrack(&mut self, pc: u32, pos: usize, max: Option<u32>, consumed: u32) {
-        let reg_snapshot_offset = self.snapshot_registers();
         self.backtrack_stack.push(SavedState::Lazy {
             pc,
             pos,
-            reg_snapshot_offset,
+            trail_len: self.register_trail.len(),
             max,
             consumed,
             modifiers: self.modifiers,
@@ -2612,17 +2621,34 @@ impl<'a, I: Input> Vm<'a, I> {
     }
 
     #[inline(always)]
-    fn snapshot_registers(&mut self) -> usize {
-        let offset = self.register_pool.len();
-        self.register_pool.extend_from_slice(self.registers);
-        offset
+    fn needs_undo_entries(&self) -> bool {
+        !self.backtrack_stack.is_empty() || self.lookaround_depth != 0
     }
 
+    /// Write a register, recording its old value when a saved state may need it.
     #[inline(always)]
-    fn restore_registers(&mut self, reg_snapshot_offset: usize) {
-        let reg_count = self.registers.len();
-        self.registers
-            .copy_from_slice(&self.register_pool[reg_snapshot_offset..reg_snapshot_offset + reg_count]);
+    fn set_register(&mut self, register: usize, value: i32) {
+        let old_value = self.registers[register];
+        if old_value == value {
+            return;
+        }
+        if self.needs_undo_entries() {
+            self.register_trail.push(RegisterUndo {
+                register: register as u32,
+                value: old_value,
+            });
+        } else {
+            self.register_trail.clear();
+        }
+        self.registers[register] = value;
+    }
+
+    /// Undo the register writes recorded after the trail had `trail_len` entries, most recent first.
+    #[inline(always)]
+    fn undo_register_writes(&mut self, trail_len: usize) {
+        for undo in self.register_trail.drain(trail_len..).rev() {
+            self.registers[undo.register as usize] = undo.value;
+        }
     }
 
     // Sum the minimum counts of immediately following loops that match the
@@ -2738,14 +2764,18 @@ impl<'a, I: Input> Vm<'a, I> {
                 SavedState::Normal {
                     pc,
                     pos,
-                    reg_snapshot_offset,
+                    trail_len,
+                    set_register,
+                    set_register_value,
                     modifiers,
                     modifier_stack_len,
                 } => {
                     self.pc = pc;
                     self.pos = pos;
-                    self.restore_registers(reg_snapshot_offset);
-                    self.register_pool.truncate(reg_snapshot_offset);
+                    self.undo_register_writes(trail_len);
+                    if set_register != u32::MAX {
+                        self.set_register(set_register as usize, set_register_value);
+                    }
                     self.modifiers = modifiers;
                     self.modifier_stack.truncate(modifier_stack_len);
                 }
@@ -2753,14 +2783,13 @@ impl<'a, I: Input> Vm<'a, I> {
                     pc,
                     start_pos,
                     current_pos,
-                    reg_snapshot_offset,
+                    trail_len,
                     min,
                     backward,
                     modifiers,
                     modifier_stack_len,
                 } => {
-                    self.restore_registers(reg_snapshot_offset);
-                    self.register_pool.truncate(reg_snapshot_offset);
+                    self.undo_register_writes(trail_len);
                     self.modifiers = modifiers;
                     self.modifier_stack.truncate(modifier_stack_len);
 
@@ -2851,12 +2880,12 @@ impl<'a, I: Input> Vm<'a, I> {
 
                         // Push updated state if we can still give back more.
                         if new_pos < max_pos {
-                            let reg_snapshot_offset = self.snapshot_registers();
+                            let trail_len = self.register_trail.len();
                             self.backtrack_stack.push(SavedState::Greedy {
                                 pc,
                                 start_pos,
                                 current_pos: new_pos,
-                                reg_snapshot_offset,
+                                trail_len,
                                 min,
                                 backward,
                                 modifiers,
@@ -2949,12 +2978,12 @@ impl<'a, I: Input> Vm<'a, I> {
 
                         // Push updated greedy state for further backtracking.
                         if new_pos > min_pos {
-                            let reg_snapshot_offset = self.snapshot_registers();
+                            let trail_len = self.register_trail.len();
                             self.backtrack_stack.push(SavedState::Greedy {
                                 pc,
                                 start_pos,
                                 current_pos: new_pos,
-                                reg_snapshot_offset,
+                                trail_len,
                                 min,
                                 backward,
                                 modifiers,
@@ -2969,14 +2998,13 @@ impl<'a, I: Input> Vm<'a, I> {
                 SavedState::Lazy {
                     pc,
                     pos,
-                    reg_snapshot_offset,
+                    trail_len,
                     max,
                     consumed,
                     modifiers,
                     modifier_stack_len,
                 } => {
-                    self.restore_registers(reg_snapshot_offset);
-                    self.register_pool.truncate(reg_snapshot_offset);
+                    self.undo_register_writes(trail_len);
                     self.modifiers = modifiers;
                     self.modifier_stack.truncate(modifier_stack_len);
 
