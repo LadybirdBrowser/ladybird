@@ -301,6 +301,7 @@ private:
 
             auto written_buffer = state.m_data_request_callback(output_buffer);
             state.m_frames_written += static_cast<i64>(written_buffer.size() / state.m_sample_specification.channel_count());
+            output_buffer.slice(written_buffer.size()).fill(0);
 
             if (written_buffer.is_empty())
                 state.m_paused = Paused::Underrun;
