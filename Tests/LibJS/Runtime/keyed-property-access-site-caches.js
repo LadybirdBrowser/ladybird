@@ -112,6 +112,22 @@ describe("per-site caches of keyed property accesses", () => {
         }
     });
 
+    test("a site that cycles through more keys than it can cache", () => {
+        const keys = [];
+        for (let i = 0; i < 2000; ++i) keys.push("key" + i);
+        const object = {};
+        for (let round = 0; round < 2; ++round) {
+            for (let i = 0; i < keys.length; ++i) write(object, keys[i], i + round);
+        }
+        for (let round = 0; round < 2; ++round) {
+            for (let i = 0; i < keys.length; ++i) expect(read(object, keys[i])).toBe(i + 1);
+        }
+        const symbol = Symbol("late");
+        write(object, symbol, "symbol");
+        expect(read(object, symbol)).toBe("symbol");
+        expect(read(object, "missing")).toBeUndefined();
+    });
+
     test("keys that are not cached", () => {
         const array = [1, 2, 3];
         for (let i = 0; i < 5; ++i) {
@@ -132,7 +148,6 @@ describe("per-site caches of keyed property accesses", () => {
     });
 });
 
-
 test("a keyed site handles replacement string keys after collection", () => {
     const object = {};
     let suffix = 0;
@@ -152,4 +167,29 @@ test("a keyed site handles replacement string keys after collection", () => {
     object[replacement] = 22;
     for (let i = 0; i < 8; ++i) expect(read(object, replacement)).toBe(22);
     expect(object["collected-cache-key-0"]).toBe(11);
+});
+
+test("stable keyed accessors keep their observable calls and mutations", () => {
+    const keys = ["first", "second", "third", "fourth", "fifth", "sixth"];
+    const object = {};
+    let calls = 0;
+    for (let index = 0; index < keys.length; ++index) {
+        Object.defineProperty(object, keys[index], {
+            configurable: true,
+            get() {
+                ++calls;
+                return index;
+            },
+        });
+    }
+    function read(object, key) {
+        return object[key];
+    }
+    for (let i = 0; i < 2048; ++i) expect(read(object, keys[i % keys.length])).toBe(i % keys.length);
+    expect(calls).toBe(2048);
+    Object.defineProperty(object, keys[3], { value: 99 });
+    for (let index = 0; index < keys.length; ++index) {
+        expect(read(object, keys[index])).toBe(index === 3 ? 99 : index);
+    }
+    expect(calls).toBe(2053);
 });

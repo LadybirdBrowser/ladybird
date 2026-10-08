@@ -361,6 +361,15 @@ impl RuntimeFunctions for Runtime {
         property_access::get_by_value(vm, pc, instruction, values, KeyedSiteCache::Use)
     }
 
+    fn get_by_value_uncached(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::GetByValue,
+        values: &mut op::GetByValueValues,
+    ) -> SlowPathControl {
+        property_access::get_by_value(vm, pc, instruction, values, KeyedSiteCache::Skip)
+    }
+
     fn try_get_by_value_cache(
         vm: &Vm,
         _pc: u32,
@@ -416,6 +425,15 @@ impl RuntimeFunctions for Runtime {
         values: &mut op::PutByValueValues,
     ) -> SlowPathControl {
         property_access::put_by_value(vm, pc, instruction, values, KeyedSiteCache::Use)
+    }
+
+    fn put_by_value_uncached(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::PutByValue,
+        values: &mut op::PutByValueValues,
+    ) -> SlowPathControl {
+        property_access::put_by_value(vm, pc, instruction, values, KeyedSiteCache::Skip)
     }
 
     fn try_put_by_value_cache(
