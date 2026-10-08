@@ -2461,13 +2461,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     // an FFI call.
     let mut style_value_config = base_config.clone();
     style_value_config.namespaces = Some(vec!["Web".to_string(), "CSS".to_string(), "StyleValueFFI".to_string()]);
-    // A transition step's inputs and decisions cross through the style engine's header, which names them here.
+    // A transition step's inputs and decisions cross through the style engine's header, which names them here, and
+    // the style a color resolves against crosses the layout header behind an opaque pointer.
     style_value_config.export.include = [
         "StyleValueData",
         "RetainedGridTrackEntry",
         "FfiTransitionInput",
         "FfiExistingTransition",
         "FfiTransitionAction",
+        "FfiColorResolutionStyle",
     ]
     .map(String::from)
     .to_vec();

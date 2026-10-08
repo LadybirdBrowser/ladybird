@@ -768,6 +768,15 @@ Utf16String Internals::current_cursor()
         });
 }
 
+Optional<Utf16String> Internals::current_cursor_pixel(i32 x, i32 y)
+{
+    auto cursor = page().current_cursor();
+    auto const* image_cursor = cursor.get_pointer<Gfx::ImageCursor>();
+    if (!image_cursor || !image_cursor->bitmap.is_valid())
+        return {};
+    return Utf16String::from_utf8(image_cursor->bitmap.bitmap()->get_pixel(x, y).to_string());
+}
+
 Utf16String Internals::selected_text_for_clipboard()
 {
     if (auto navigable = page().hosted_focused_navigable())

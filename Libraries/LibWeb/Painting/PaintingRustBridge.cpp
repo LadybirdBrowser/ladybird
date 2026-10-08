@@ -21,7 +21,6 @@
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -294,23 +293,6 @@ static CSS::PreferredColorScheme image_color_scheme(Layout::NodeWithStyle const&
     // INTEROP: Like Firefox, images use the preferred scheme when neither the element nor
     //          its document opts into a supported scheme. Controls still default to light.
     return document.svg_image_color_scheme().value_or(document.page().preferred_color_scheme());
-}
-
-CSS::ColorResolutionContext gradient_stop_color_resolution_context(Layout::NodeWithStyle const& layout_node)
-{
-    void const* current_color_style_value_data = nullptr;
-    if (auto* dom_node = layout_node.dom_node()) {
-        if (auto* element = as_if<DOM::Element>(*dom_node)) {
-            if (auto const* values = element->style_group<CSS::ComputedValues::InheritedTextValues>())
-                current_color_style_value_data = values->color_style_value.pointer;
-        }
-    }
-    return {
-        .color_scheme = layout_node.color_scheme(),
-        .current_color = layout_node.color(),
-        .current_color_style_value_data = current_color_style_value_data,
-        .calculation_resolution_context = {},
-    };
 }
 
 void rust_update_visual_viewport_transform(Layout::BegunRead const& read, DOM::Document& document)
@@ -771,8 +753,7 @@ Compositing::DisplayListResource record_image_paint_display_list(ImagePaint cons
     Layout::RustFFI::FfiImagePaintRecordInputs inputs {};
     inputs.dest_rect = request.dest_rect;
     inputs.device_pixels_per_css_pixel = device_pixels_per_css_pixel;
-    Optional<CSS::ComputedValuesFFI::FfiLengthResolutionContext> gradient_stop_length_resolution_context_storage;
-    CSS::StyleValueFFI::FfiColorResolutionInput gradient_stop_color_resolution_input {};
+    auto gradient_stop_color_resolution_style = request.gradient_stop_color_resolution_style.to_ffi();
     paint.value.visit(
         [&](ImagePaint::DecodedFrame const& decoded_frame) {
             inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::DecodedFrame;
@@ -788,8 +769,7 @@ Compositing::DisplayListResource record_image_paint_display_list(ImagePaint cons
             inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::Gradient;
             inputs.gradient_style_value = gradient.style_value->rust_style_value_data();
             inputs.gradient_tile_size = request.dest_rect.size().to_type<CSSPixels>();
-            gradient_stop_color_resolution_input = CSS::make_rust_color_resolution_input(request.gradient_stop_color_resolution_context, gradient_stop_length_resolution_context_storage);
-            inputs.gradient_stop_color_resolution_input = &gradient_stop_color_resolution_input;
+            inputs.gradient_stop_color_resolution_style = &gradient_stop_color_resolution_style;
         });
     return record_image_paint(inputs);
 }

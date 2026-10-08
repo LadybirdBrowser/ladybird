@@ -82,7 +82,6 @@ WEB_API void take_recording_trace_if_pending(Layout::BegunRead const&, DOM::Docu
 WEB_API NonnullRefPtr<Compositing::DisplayList> display_list_of_published_recording(DisplayListRecording const&, Layout::RustFFI::FfiPresentedRecording const&);
 WEB_API Utf16String serialize_painting_dump(Layout::BegunRead const&, DOM::Document const&, Compositing::AccumulatedVisualContextTree const&, Compositing::DisplayList const&, Compositing::DisplayListResourceStorage const&);
 
-WEB_API CSS::ColorResolutionContext gradient_stop_color_resolution_context(Layout::NodeWithStyle const&);
 // The graph applying a list of filter functions in order, or nothing for an empty list.
 WEB_API Optional<Gfx::Filter> filter_from_functions(ReadonlySpan<Compositing::RustFFI::FfiFilterFunction>);
 

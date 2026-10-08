@@ -121,6 +121,14 @@ ColorResolutionContext ColorResolutionContext::for_layout_node_with_style(Layout
     };
 }
 
+ColorResolutionStyle ColorResolutionStyle::for_layout_node(Layout::NodeWithStyle const& layout_node)
+{
+    return {
+        .inherited_ui_values = &layout_node.style_group<ComputedValues::InheritedUIValues>(),
+        .inherited_text_values = &layout_node.style_group<ComputedValues::InheritedTextValues>(),
+    };
+}
+
 StyleValue::StyleValue(Type type, StyleValueFFI::StyleValueData const* value)
     : m_value(value)
     , m_type(type)

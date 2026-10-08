@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    div {
+        position: absolute;
+        top: 0;
+        width: 100px;
+        height: 100px;
+    }
+    #current-color {
+        left: 0;
+        color: rgb(0 128 0);
+        cursor: linear-gradient(currentcolor, currentcolor), help;
+    }
+    #relative-current-color {
+        left: 200px;
+        color: rgb(0 0 200);
+        cursor: linear-gradient(rgb(from currentcolor 100 g b), rgb(from currentcolor 100 g b)), help;
+    }
+    #light-dark {
+        left: 400px;
+        color-scheme: dark;
+        cursor: linear-gradient(light-dark(red, rgb(10 20 30)), light-dark(red, rgb(10 20 30))), help;
+    }
+</style>
+<div id="current-color"></div>
+<div id="relative-current-color"></div>
+<div id="light-dark"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const x of [50, 250, 450]) {
+            internals.mouseMove(x, 50);
+            println(`${internals.currentCursor()} ${internals.currentCursorPixel(16, 16)}`);
+        }
+    });
+</script>

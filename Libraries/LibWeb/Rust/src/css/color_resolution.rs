@@ -20,6 +20,8 @@ use crate::css::calc::{
 };
 use crate::css::color_conversion::{self, Components};
 use crate::css::color_interpolation::{ResolvedColor, interpolate_color};
+use crate::css::computed_value_types::{InheritedTextValues, InheritedUIValues};
+use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_enums::channel_keyword;
 use crate::css::css_enums::keyword;
 use crate::css::css_enums::keyword_to_channel_keyword;
@@ -682,6 +684,55 @@ pub(crate) const EMPTY_INPUT: ColorResolutionInput<'static> = ColorResolutionInp
     length: None,
     channels: None,
 };
+
+impl<'a> ColorResolutionInput<'a> {
+    /// What a color resolves against in a computed style: the used color-scheme picks `light-dark()`
+    /// branches and system colors, and the computed `color` is what `currentcolor` names. A missing group
+    /// leaves its part unset. The values resolved here are absolutized, so no length context is needed.
+    pub(crate) fn for_style_groups(
+        inherited_ui_values: Option<&'a InheritedUIValues>,
+        inherited_text_values: Option<&'a InheritedTextValues>,
+    ) -> Self {
+        ColorResolutionInput {
+            scheme: inherited_ui_values.map(|values| values.color_scheme),
+            current_color: inherited_text_values.map(|values| Rgba::from_packed(values.color)),
+            current_color_value: inherited_text_values.and_then(|values| unsafe {
+                // SAFETY: A non-null handle points at the style value the group payload retains.
+                values.color_style_value.pointer.cast::<StyleValueData>().as_ref()
+            }),
+            length: None,
+            channels: None,
+        }
+    }
+
+    pub(crate) fn for_style(style: ComputedValuesView<'a>) -> Self {
+        Self::for_style_groups(Some(style.inherited_ui()), Some(style.inherited_text()))
+    }
+
+    /// # Safety
+    /// `style` must be null or point at an `FfiColorResolutionStyle` whose group payloads are live for `'a`.
+    pub(crate) unsafe fn for_ffi_style(style: *const FfiColorResolutionStyle) -> Self {
+        // SAFETY: Guaranteed by the caller.
+        let Some(style) = (unsafe { style.as_ref() }) else {
+            return EMPTY_INPUT;
+        };
+        // SAFETY: Guaranteed by the caller.
+        unsafe {
+            Self::for_style_groups(
+                style.inherited_ui_values.cast::<InheritedUIValues>().as_ref(),
+                style.inherited_text_values.cast::<InheritedTextValues>().as_ref(),
+            )
+        }
+    }
+}
+
+/// The computed style a color resolves against, as the host names it: the element's or layout node's
+/// InheritedUIValues and InheritedTextValues group payloads, either of which may be null.
+#[repr(C)]
+pub struct FfiColorResolutionStyle {
+    pub inherited_ui_values: *const core::ffi::c_void,
+    pub inherited_text_values: *const core::ffi::c_void,
+}
 
 /// Angle's base type index in the numeric type order, as fixed by
 /// resolve_calculated_angle_with_channels()'s matches_dimension(1, ..) check.

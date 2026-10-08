@@ -685,13 +685,13 @@ pub struct FfiImagePaintRecordInputs {
     pub nested_display_list_size: libgfx_rust::IntSize,
     pub gradient_style_value: *const c_void,
     pub gradient_tile_size: FfiCssPixelSize,
-    /// The `FfiColorResolutionInput` the gradient's color stops resolve against.
-    pub gradient_stop_color_resolution_input: *const c_void,
+    /// The `FfiColorResolutionStyle` the gradient's color stops resolve against.
+    pub gradient_stop_color_resolution_style: *const c_void,
 }
 
 /// # Safety
 ///
-/// `inputs`, and the gradient style value and color resolution input it points at, must be
+/// `inputs`, and the gradient style value and color resolution style it points at, must be
 /// live for the call. `consume` is called synchronously and takes ownership of the command
 /// storage and visual context tree handles.
 #[unsafe(no_mangle)]
@@ -700,7 +700,7 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
     context: *mut c_void,
     consume: unsafe extern "C" fn(*mut c_void, *const c_void, *const c_void),
 ) {
-    use crate::css::color_resolution::{FfiColorResolutionInput, resolution_input_from_ffi};
+    use crate::css::color_resolution::ColorResolutionInput;
     use crate::painting::display_list::commands::{DisplayListResourceId, ImageFrameResourceId};
     use crate::painting::display_list::device_pixels::DevicePixelConverter;
     use crate::painting::display_list::recorder::DisplayListRecorder;
@@ -739,20 +739,16 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
             inputs.nested_display_list_size,
         ),
         FfiImagePaintRecordKind::Gradient => {
-            // SAFETY: the host keeps the gradient style value and its color resolution input
-            // live for the duration of the call.
-            let (gradient_style_value, color_resolution_input) = unsafe {
+            // SAFETY: the host keeps the gradient style value and the style its color stops
+            // resolve against live for the duration of the call.
+            let (gradient_style_value, color_input) = unsafe {
                 (
                     &*inputs
                         .gradient_style_value
                         .cast::<crate::css::style_value::StyleValueData>(),
-                    &*inputs
-                        .gradient_stop_color_resolution_input
-                        .cast::<FfiColorResolutionInput>(),
+                    ColorResolutionInput::for_ffi_style(inputs.gradient_stop_color_resolution_style.cast()),
                 )
             };
-            // SAFETY: the borrowed input outlives the resolution below.
-            let color_input = unsafe { resolution_input_from_ffi(color_resolution_input) };
             let resolved =
                 resolve_gradient_paint_with_input(gradient_style_value, inputs.gradient_tile_size.into(), &color_input);
             record_resolved_gradient_fill(
