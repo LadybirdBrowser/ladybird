@@ -311,8 +311,9 @@ void BrowserWindow::initialize_application_actions()
     addAction(application.open_next_tab_action());
     addAction(application.open_previous_tab_action());
     addAction(application.open_file_action());
-    addAction(application.open_downloads_action());
     addAction(application.open_settings_action());
+    addAction(application.open_downloads_action());
+    addAction(application.toggle_bookmark_bar_action());
     addAction(application.find_in_page_action());
     addAction(application.zoom_in_action());
     addAction(application.zoom_out_action());
@@ -1098,10 +1099,13 @@ void BrowserWindow::set_window_rect(Optional<Web::DevicePixels> x, Optional<Web:
 void BrowserWindow::enter_fullscreen()
 {
     m_tabs_container->set_tab_bar_visible(false);
-    current_tab()->bookmarks_bar().setVisible(false);
 
     m_restore_to_maximized = isMaximized();
     showFullScreen();
+
+    for_each_tab([](Tab& tab) {
+        tab.update_bookmarks_bar_visibility();
+    });
 }
 
 void BrowserWindow::exit_fullscreen()
@@ -1110,12 +1114,15 @@ void BrowserWindow::exit_fullscreen()
         return;
 
     m_tabs_container->set_tab_bar_visible(true);
-    current_tab()->bookmarks_bar().setVisible(Application::settings().appearance().show_bookmarks_bar);
 
     if (m_restore_to_maximized)
         showMaximized();
     else
         showNormal();
+
+    for_each_tab([](Tab& tab) {
+        tab.update_bookmarks_bar_visibility();
+    });
 
     // A crash report that came in while the toolbar was hidden can be offered now, even on a tab other than the one
     // that was current back then.
@@ -1420,8 +1427,8 @@ void BrowserWindow::appearance_changed()
 {
     update_menu_bar_visibility();
 
-    for_each_tab([&, show_bookmarks_bar = Application::settings().appearance().show_bookmarks_bar](Tab& tab) {
-        tab.bookmarks_bar().setVisible(show_bookmarks_bar);
+    for_each_tab([](Tab& tab) {
+        tab.update_bookmarks_bar_visibility();
     });
 }
 

@@ -181,7 +181,7 @@ BookmarksBar::BookmarksBar(Tab* parent)
 {
     setObjectName("LadybirdBookmarksBar");
     setIconSize({ BOOKMARK_BUTTON_ICON_SIZE, BOOKMARK_BUTTON_ICON_SIZE });
-    setVisible(WebView::Application::settings().appearance().show_bookmarks_bar);
+    setVisible(false);
     setMovable(false);
     setFloatable(false);
     update_chrome_style();
@@ -191,24 +191,11 @@ BookmarksBar::BookmarksBar(Tab* parent)
     rebuild();
 }
 
-bool BookmarksBar::event(QEvent* event)
-{
-    if (event->type() == QEvent::PaletteChange)
-        update_chrome_style();
-
-    return QToolBar::event(event);
-}
-
 void BookmarksBar::update_chrome_style()
 {
-    if (m_is_updating_chrome_style)
-        return;
-
-    m_is_updating_chrome_style = true;
     // Bookmark items are pills, like the tabs.
     auto corner_radius = bookmark_button_height(fontMetrics(), iconSize().height()) / 2;
-    setStyleSheet(ChromeStyle::bookmarks_bar_style_sheet(palette(), corner_radius));
-    m_is_updating_chrome_style = false;
+    setStyleSheet(ChromeStyle::bookmarks_bar_style_sheet(m_tab->palette(), corner_radius));
 }
 
 void BookmarksBar::rebuild()
@@ -258,6 +245,9 @@ void BookmarksBar::rebuild()
                     set_button_properties(button, qstring_from_ak_string(bookmark->text()));
             },
             [&](NonnullRefPtr<WebView::Menu> const& folder) {
+                if (folder->properties().get("type"sv) != "folder"sv)
+                    return;
+
                 auto title = qstring_from_ak_string(folder->title());
 
                 auto* submenu = create_application_menu(*this, *folder);

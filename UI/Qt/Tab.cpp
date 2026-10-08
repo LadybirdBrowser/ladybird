@@ -34,6 +34,8 @@
 
 #include <LibWebView/TabPerformanceMonitor.h>
 #include <QColorDialog>
+#include <QCursor>
+#include <QDynamicPropertyChangeEvent>
 #include <QFileDialog>
 #include <QFont>
 #include <QFontMetrics>
@@ -53,11 +55,13 @@
 #include <QStylePainter>
 #include <QTimer>
 #include <QVBoxLayout>
+#include <QVariantAnimation>
 #include <UI/Qt/PerformanceMonitorWidget.h>
 
 namespace Ladybird {
 
 static constexpr auto WINDOW_DRAG_REGION_PROPERTY = "LadybirdWindowDragRegion";
+static constexpr int BOOKMARKS_BAR_HOVER_COLLAPSE_POLL_INTERVAL_MS = 250;
 
 class ToolbarButton : public QToolButton {
 public:
@@ -572,9 +576,47 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     toolbar_layout->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN, TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN);
 
     m_location_edit = new LocationEdit(this, m_window->is_private());
-    m_bookmarks_bar = new BookmarksBar(this);
     m_loading_animation_timer = new QTimer(this);
     m_loading_animation_timer->setInterval(80);
+
+    m_bookmarks_bar = new BookmarksBar(this);
+    m_bookmarks_bar_container = new QWidget(this);
+    m_bookmarks_bar_container->setObjectName("LadybirdBookmarksBarContainer");
+    m_bookmarks_bar_container->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+#if defined(AK_OS_MACOS) || defined(LADYBIRD_QT_USE_RHI_WIDGET)
+    // The web view is native on these presentation paths, so its sibling overlay must also be native.
+    m_bookmarks_bar_container->setAttribute(Qt::WA_DontCreateNativeAncestors);
+    m_bookmarks_bar_container->setAttribute(Qt::WA_NativeWindow);
+#endif
+    m_bookmarks_bar->setParent(m_bookmarks_bar_container);
+    m_bookmarks_bar->show();
+
+    m_bookmarks_bar_hover_expand_timer = new QTimer(this);
+    m_bookmarks_bar_hover_expand_timer->setSingleShot(true);
+    m_bookmarks_bar_hover_expand_timer->setTimerType(Qt::PreciseTimer);
+    connect(m_bookmarks_bar_hover_expand_timer, &QTimer::timeout, this, [this] {
+        if (cursor_is_over_bookmarks_bar_hover_region())
+            set_bookmarks_bar_hover_expanded(true);
+    });
+
+    m_bookmarks_bar_hover_expand_animation = new QVariantAnimation(this);
+    m_bookmarks_bar_hover_expand_animation->setEasingCurve(QEasingCurve::OutCubic);
+    m_bookmarks_bar_hover_expand_animation->setStartValue(0.0);
+    m_bookmarks_bar_hover_expand_animation->setEndValue(1.0);
+    connect(m_bookmarks_bar_hover_expand_animation, &QVariantAnimation::valueChanged, this, [this](QVariant const& value) {
+        m_bookmarks_bar_hover_expand_progress = value.toReal();
+        update_bookmarks_bar_geometry();
+    });
+
+    m_bookmarks_bar_hover_collapse_timer = new QTimer(this);
+    m_bookmarks_bar_hover_collapse_timer->setInterval(BOOKMARKS_BAR_HOVER_COLLAPSE_POLL_INTERVAL_MS);
+    connect(m_bookmarks_bar_hover_collapse_timer, &QTimer::timeout, this, &Tab::update_bookmarks_bar_hover);
+
+    m_toolbar->installEventFilter(this);
+    m_bookmarks_bar_container->installEventFilter(this);
+    m_bookmarks_bar->installEventFilter(this);
+    m_view->installEventFilter(this);
+    m_location_edit->installEventFilter(this);
 
     m_hover_label = new HyperlinkLabel(this);
     m_hover_label->hide();
@@ -594,9 +636,10 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     addAction(focus_location_editor_action);
 
     toolbar_container_layout->addWidget(m_toolbar);
-    toolbar_container_layout->addWidget(m_bookmarks_bar);
+    toolbar_container_layout->addWidget(m_bookmarks_bar_container);
     tab_layout->addWidget(m_view);
     tab_layout->addWidget(m_find_in_page);
+    update_bookmarks_bar_visibility();
 
     m_navigate_back_action = create_application_action(*this, view().navigate_back_action());
     m_navigate_forward_action = create_application_action(*this, view().navigate_forward_action());
@@ -1254,6 +1297,7 @@ void Tab::set_vertical_tabs_enabled(bool enabled)
     if (m_sidebar_toggle_navigation_spacer)
         m_sidebar_toggle_navigation_spacer->changeSize(enabled ? TOOLBAR_SIDEBAR_TOGGLE_NAVIGATION_GAP : 0, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
     update_vertical_tabs_toolbar_button_placement();
+    update_bookmarks_bar_visibility();
     m_toolbar->layout()->invalidate();
 }
 
@@ -1383,6 +1427,7 @@ void Tab::tab_settings_changed()
         m_sidebar_toggle_navigation_spacer->changeSize(m_vertical_tabs_enabled ? TOOLBAR_SIDEBAR_TOGGLE_NAVIGATION_GAP : 0, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
     recreate_toolbar_icons();
     update_vertical_tabs_toolbar_button_placement();
+    update_bookmarks_bar_visibility();
     m_toolbar->layout()->invalidate();
 }
 
@@ -1468,6 +1513,7 @@ void Tab::hideEvent(QHideEvent* event)
 {
     QWidget::hideEvent(event);
 
+    set_bookmarks_bar_hover_expanded(false);
     m_hover_label->hide();
     if (m_content_blocking_popover)
         m_content_blocking_popover->close();
@@ -1510,12 +1556,39 @@ bool Tab::event(QEvent* event)
     return QWidget::event(event);
 }
 
+bool Tab::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == m_location_edit && event->type() == QEvent::DynamicPropertyChange) {
+        if (static_cast<QDynamicPropertyChangeEvent*>(event)->propertyName() == "autocompleteOpen")
+            update_bookmarks_bar_hover();
+    }
+    if (watched == m_view && (event->type() == QEvent::Resize || event->type() == QEvent::Move))
+        update_bookmarks_bar_geometry();
+    if (watched == m_bookmarks_bar_container && event->type() == QEvent::Resize)
+        update_bookmarks_bar_geometry();
+    if (watched == m_bookmarks_bar && event->type() == QEvent::LayoutRequest)
+        update_bookmarks_bar_geometry();
+
+    if (watched == m_toolbar || watched == m_bookmarks_bar_container) {
+        if (event->type() == QEvent::Enter || event->type() == QEvent::Show) {
+            update_bookmarks_bar_hover();
+        } else if (event->type() == QEvent::Leave) {
+            QTimer::singleShot(0, this, &Tab::update_bookmarks_bar_hover);
+        } else if (event->type() == QEvent::Hide && watched == m_toolbar) {
+            set_bookmarks_bar_hover_expanded(false);
+        }
+    }
+
+    return QWidget::eventFilter(watched, event);
+}
+
 void Tab::update_chrome_style()
 {
     if (m_is_updating_chrome_style)
         return;
     m_is_updating_chrome_style = true;
     m_toolbar_container->setStyleSheet(ChromeStyle::toolbar_container_style_sheet(palette()));
+    m_bookmarks_bar->update_chrome_style();
     auto hover_surface = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface(palette()));
     auto hover_border = ChromeStyle::style_sheet_color(ChromeStyle::chrome_border(palette()));
     auto hover_text = ChromeStyle::style_sheet_color(ChromeStyle::chrome_text(palette()));
@@ -1804,6 +1877,133 @@ void Tab::find_previous()
 void Tab::find_next()
 {
     m_find_in_page->find_next();
+}
+
+void Tab::update_bookmarks_bar_visibility()
+{
+    auto show_bookmarks_bar = Application::settings().appearance().show_bookmarks_bar;
+    auto* toolbar_layout = static_cast<QBoxLayout*>(m_toolbar_container->layout());
+
+    if (show_bookmarks_bar == WebView::ShowBookmarksBar::OnHover) {
+        // Hovering must not resize the page or move the sidebar. Keep the bar out of both layouts and overlay the view.
+        toolbar_layout->removeWidget(m_bookmarks_bar_container);
+        static_cast<QBoxLayout*>(layout())->removeWidget(m_bookmarks_bar_container);
+        if (m_bookmarks_bar_container->parentWidget() != this)
+            m_bookmarks_bar_container->setParent(this);
+    } else if (toolbar_layout->indexOf(m_bookmarks_bar_container) == -1) {
+        // An always-visible bar remains in the full-width toolbar above the vertical tabs.
+        toolbar_layout->addWidget(m_bookmarks_bar_container);
+    }
+
+    update_bookmarks_bar_hover();
+    update_bookmarks_bar_geometry();
+}
+
+bool Tab::has_bookmarks_bar_in_page() const
+{
+    return m_bookmarks_bar_container->parentWidget() == this && !m_bookmarks_bar_container->isHidden();
+}
+
+bool Tab::can_expand_bookmarks_bar_on_hover() const
+{
+    return Application::settings().appearance().show_bookmarks_bar == WebView::ShowBookmarksBar::OnHover
+        && isVisible() && m_toolbar->isVisible() && !m_window->isFullScreen()
+        && !m_location_edit->property("autocompleteOpen").toBool();
+}
+
+bool Tab::cursor_is_over_bookmarks_bar_hover_region() const
+{
+    // Menus are separate windows, so QWidget::isAncestorOf() does not follow them back to the toolbar.
+    for (auto* popup = QApplication::activePopupWidget(); popup; popup = popup->parentWidget()) {
+        if (popup == m_bookmarks_bar)
+            return true;
+    }
+
+    if (!m_window->underMouse())
+        return false;
+
+    auto cursor_position = QCursor::pos();
+    auto contains_cursor = [&](QWidget const& widget) {
+        return widget.isVisible() && QRect { widget.mapToGlobal(QPoint {}), widget.size() }.contains(cursor_position);
+    };
+    return contains_cursor(*m_toolbar) || contains_cursor(*m_bookmarks_bar_container);
+}
+
+void Tab::update_bookmarks_bar_hover()
+{
+    if (!can_expand_bookmarks_bar_on_hover() || !cursor_is_over_bookmarks_bar_hover_region()) {
+        set_bookmarks_bar_hover_expanded(false);
+        return;
+    }
+
+    if (!m_bookmarks_bar_hover_expanded && !m_bookmarks_bar_hover_expand_timer->isActive()) {
+        auto delay = Application::settings().config_variable_as_integer<int>(WebView::ConfigVariableID::VerticalTabsHoverExpandDelay);
+        m_bookmarks_bar_hover_expand_timer->start(delay);
+    }
+}
+
+void Tab::set_bookmarks_bar_hover_expanded(bool expanded)
+{
+    m_bookmarks_bar_hover_expand_timer->stop();
+    expanded &= can_expand_bookmarks_bar_on_hover();
+    if (m_bookmarks_bar_hover_expanded == expanded)
+        return;
+
+    m_bookmarks_bar_hover_expanded = expanded;
+    m_bookmarks_bar_hover_expand_animation->stop();
+
+    auto duration = expanded
+        ? Application::settings().config_variable_as_integer<int>(WebView::ConfigVariableID::VerticalTabsHoverExpandAnimationDuration)
+        : 0;
+    m_bookmarks_bar_hover_expand_progress = expanded && duration == 0 ? 1.0 : 0.0;
+
+    if (expanded)
+        m_bookmarks_bar_hover_collapse_timer->start();
+    else
+        m_bookmarks_bar_hover_collapse_timer->stop();
+
+    update_bookmarks_bar_geometry();
+
+    if (expanded && duration > 0) {
+        m_bookmarks_bar_hover_expand_animation->setDuration(duration);
+        m_bookmarks_bar_hover_expand_animation->start();
+    }
+}
+
+void Tab::update_bookmarks_bar_geometry()
+{
+    auto show_bookmarks_bar = Application::settings().appearance().show_bookmarks_bar;
+    auto on_hover = show_bookmarks_bar == WebView::ShowBookmarksBar::OnHover;
+    auto visible = !m_window->isFullScreen()
+        && (show_bookmarks_bar == WebView::ShowBookmarksBar::Always
+            || (show_bookmarks_bar == WebView::ShowBookmarksBar::OnHover && m_bookmarks_bar_hover_expanded));
+
+    auto full_height = m_bookmarks_bar->sizeHint().height();
+    auto height = on_hover
+        ? min(qRound(full_height * m_bookmarks_bar_hover_expand_progress), m_view->height())
+        : full_height;
+
+    // Clip the full-height toolbar as it slides down, keeping its buttons at their normal size throughout the reveal.
+    m_bookmarks_bar_container->setFixedHeight(height);
+    if (on_hover)
+        m_bookmarks_bar_container->setGeometry(m_view->x(), m_view->y(), m_view->width(), height);
+    m_bookmarks_bar->setGeometry(0, height - full_height, m_bookmarks_bar_container->width(), full_height);
+    m_view->set_bookmarks_bar_overlay_height(on_hover && visible ? height : 0);
+    m_bookmarks_bar_container->setVisible(visible);
+    if (on_hover && visible)
+        m_bookmarks_bar_container->raise();
+
+#if defined(AK_OS_MACOS)
+    ensure_appkit_window_is_exposed(*m_bookmarks_bar_container);
+#endif
+
+    auto hover_bookmarks_visible = on_hover && visible;
+    if (m_toolbar_container->property("hoverBookmarksVisible").toBool() != hover_bookmarks_visible) {
+        m_toolbar_container->setProperty("hoverBookmarksVisible", hover_bookmarks_visible);
+        m_toolbar_container->style()->unpolish(m_toolbar_container);
+        m_toolbar_container->style()->polish(m_toolbar_container);
+        m_toolbar_container->update();
+    }
 }
 
 void Tab::request_close()
