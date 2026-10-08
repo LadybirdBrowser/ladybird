@@ -292,12 +292,24 @@ static void sample_animations_for_installed_record(Layout::BegunRead const& read
 
 // Whether the custom-property environment an engine-computed record was published with can be
 // installed: the one the element inherits - the parent's inheritable data, which is the parent's
-// own unless a registration made some of it non-inherited - or one the engine resolved over it.
-bool StyleEngineFFI::web_css_engine_record_environment_is_installable(StyleReactionApplication* application, DOM::Element* element, u64 style_record)
+// own unless a registration made some of it non-inherited - or, where the element's cascade
+// declares custom properties, one the engine resolved over it.
+bool StyleEngineFFI::web_css_engine_record_environment_is_installable(StyleReactionApplication* application, DOM::Element* element, u64 style_record, bool declares_custom_properties)
 {
     bool installable = false;
-    (void)element->custom_property_environment_of_engine_record(application->read, StyleRecordID { style_record }, installable);
-    return installable;
+    auto data = element->custom_property_environment_of_engine_record(application->read, StyleRecordID { style_record }, installable);
+    if (!installable || declares_custom_properties)
+        return installable;
+    // An element declaring no custom property holds exactly what it inherits. A record naming an
+    // environment resolved over that one was resolved over the parent's environment before an
+    // earlier reaction of the batch moved it: it is the environment an ancestor declared over what
+    // the parent holds now.
+    RefPtr<CustomPropertyData const> inherited_data;
+    if (auto parent = DOM::AbstractElement { *element }.element_to_inherit_style_from(); parent.has_value()) {
+        if (auto parent_data = parent->custom_property_data())
+            inherited_data = parent_data->inheritable(application->read, *application->document);
+    }
+    return (data ? data->identity() : 0) == (inherited_data ? inherited_data->identity() : 0);
 }
 
 static RefPtr<CustomPropertyData const> custom_property_environment_base(DOM::Element const& element, RefPtr<CustomPropertyData const> data)

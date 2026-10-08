@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="sheet-container">
+    <style>
+        :root { --x: "a"; }
+        .changed { width: 10px; }
+    </style>
+</div>
+<script>
+    test(() => {
+        const element = document.createElement("div");
+        document.body.append(element);
+        document.body.offsetWidth;
+
+        // The root stops declaring --x in the same style update that recomputes the element, which
+        // declares no custom property and must stop inheriting --x with the root.
+        document.getElementById("sheet-container").remove();
+        element.className = "changed";
+        document.body.offsetWidth;
+
+        const child = document.createElement("p");
+        element.append(child);
+        document.body.offsetWidth;
+
+        println(`element: '${getComputedStyle(element).getPropertyValue("--x")}'`);
+        println(`child: '${getComputedStyle(child).getPropertyValue("--x")}'`);
+    });
+</script>

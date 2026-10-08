@@ -7102,6 +7102,7 @@ pub(crate) mod ffi_test_stubs {
         _application: *mut HostStyleReactionApplication,
         _element: *mut HostElement,
         _style_record: u64,
+        _declares_custom_properties: bool,
     ) -> bool {
         unreachable!("no unit test applies style reactions");
     }
