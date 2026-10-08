@@ -47,6 +47,8 @@ public:
     };
 
     explicit RequestClient(NonnullOwnPtr<IPC::Transport>);
+    // For a client whose ID the process that connected it already knows, so that no round trip is needed.
+    RequestClient(NonnullOwnPtr<IPC::Transport>, int client_id);
     virtual ~RequestClient() override;
 
     // Best-effort index into the resolved address pool.

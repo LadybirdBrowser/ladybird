@@ -460,10 +460,10 @@ void ConnectionFromClient::compositor_process_reconnected()
     m_page_host->compositor_process_reconnected();
 }
 
-void ConnectionFromClient::connect_to_request_server(IPC::TransportHandle handle)
+void ConnectionFromClient::connect_to_request_server(IPC::TransportHandle handle, int client_id)
 {
     if (on_request_server_connection)
-        on_request_server_connection(handle);
+        on_request_server_connection(handle, client_id);
 }
 
 ErrorOr<NonnullOwnPtr<IPC::Transport>> ConnectionFromClient::request_media_server_transport()

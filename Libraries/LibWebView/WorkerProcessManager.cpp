@@ -172,7 +172,7 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
 #endif
 
     client->request_server_site_bindings().did_connect(request_server_connection.client_id);
-    client->async_connect_to_request_server(move(request_server_connection.handle));
+    client->async_connect_to_request_server(move(request_server_connection.handle), request_server_connection.client_id);
     client->async_set_site_compatibility_data(Application::the().site_compatibility_data());
     connect_to_image_decoder(*client, move(image_decoder));
 #if defined(HAVE_WASM_COMPILER_SERVICE)
@@ -358,7 +358,7 @@ ErrorOr<void> WorkerProcessManager::reconnect_to_request_server(Function<bool(Wo
 
         auto request_server_connection = TRY(connect_new_request_server_client(*session, RequestServer::SiteBinding::Bound));
         agent.client->request_server_site_bindings().did_connect(request_server_connection.client_id);
-        agent.client->async_connect_to_request_server(move(request_server_connection.handle));
+        agent.client->async_connect_to_request_server(move(request_server_connection.handle), request_server_connection.client_id);
     }
     return {};
 }
@@ -384,7 +384,7 @@ ErrorOr<void> WorkerProcessManager::simulate_request_server_connection_loss_for_
         VERIFY(session);
         auto request_server_connection = TRY(connect_new_request_server_client(*session, RequestServer::SiteBinding::Bound));
         client->request_server_site_bindings().did_connect(request_server_connection.client_id);
-        auto response = client->send_sync_but_allow_failure<Messages::WebWorkerServer::SimulateRequestServerConnectionLossAndReconnectForTesting>(move(request_server_connection.handle));
+        auto response = client->send_sync_but_allow_failure<Messages::WebWorkerServer::SimulateRequestServerConnectionLossAndReconnectForTesting>(move(request_server_connection.handle), request_server_connection.client_id);
         if (!response)
             return Error::from_string_literal("WebWorker disconnected while reconnecting to RequestServer");
     }

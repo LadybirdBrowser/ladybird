@@ -102,7 +102,7 @@ static void install_crash_signal_handlers()
 }
 #endif
 
-static ErrorOr<void> connect_to_resource_loader(GC::Heap& heap, IPC::TransportHandle const& handle);
+static ErrorOr<void> connect_to_resource_loader(GC::Heap& heap, IPC::TransportHandle const& handle, Optional<int> client_id);
 static ErrorOr<void> connect_to_image_decoder(IPC::TransportHandle const& handle);
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
@@ -233,8 +233,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #endif
 
     auto& heap = Web::Bindings::main_thread_vm().heap();
-    webcontent_client->on_request_server_connection = [&heap](auto const& handle) {
-        if (auto result = connect_to_resource_loader(heap, handle); result.is_error())
+    webcontent_client->on_request_server_connection = [&heap](auto const& handle, auto client_id) {
+        if (auto result = connect_to_resource_loader(heap, handle, client_id); result.is_error())
             dbgln("Failed to connect to resource loader: {}", result.error());
     };
     webcontent_client->on_image_decoder_connection = [](auto const& handle) {
@@ -259,10 +259,13 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     return event_loop.exec();
 }
 
-ErrorOr<void> connect_to_resource_loader(GC::Heap& heap, IPC::TransportHandle const& handle)
+ErrorOr<void> connect_to_resource_loader(GC::Heap& heap, IPC::TransportHandle const& handle, Optional<int> client_id)
 {
     auto transport = TRY(handle.create_transport());
-    auto request_client = TRY(try_make_ref_counted<Requests::RequestClient>(move(transport)));
+    // Querying the client ID runs the event loop and could dispatch a request before the client is ready.
+    auto request_client = client_id.has_value()
+        ? TRY(try_make_ref_counted<Requests::RequestClient>(move(transport), *client_id))
+        : TRY(try_make_ref_counted<Requests::RequestClient>(move(transport)));
 #ifdef AK_OS_WINDOWS
     auto response = request_client->send_sync<Messages::RequestServer::InitTransport>(Core::System::getpid());
     request_client->transport().set_peer_pid(response->peer_pid());

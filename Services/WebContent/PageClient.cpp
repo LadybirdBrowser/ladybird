@@ -1338,7 +1338,7 @@ void PageClient::page_did_lose_request_server_connection()
         return;
 
     if (client().on_request_server_connection)
-        client().on_request_server_connection(*handle);
+        client().on_request_server_connection(*handle, {});
 }
 
 void PageClient::page_did_simulate_worker_request_server_connection_loss()

@@ -1081,7 +1081,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
         client->set_initial_top_level_history_entry({}, move(initial_history_entry));
 
     client->request_server_site_bindings().did_connect(request_server_connection.client_id);
-    client->async_connect_to_request_server(move(request_server_connection.handle));
+    client->async_connect_to_request_server(move(request_server_connection.handle), request_server_connection.client_id);
     client->async_set_site_compatibility_data(m_site_compatibility_data);
     connect_to_image_decoder(*client, move(image_decoder));
 #if defined(HAVE_WASM_COMPILER_SERVICE)
@@ -1913,7 +1913,7 @@ ErrorOr<void> Application::launch_request_server()
             auto client_id = new_clients.client_ids.take_last();
             did_connect_request_server_client(client_id, client.session(), RequestServer::SiteBinding::Bound);
             client.request_server_site_bindings().did_connect(client_id);
-            client.async_connect_to_request_server(new_clients.handles.take_last());
+            client.async_connect_to_request_server(new_clients.handles.take_last(), client_id);
             return IterationDecision::Continue;
         });
 

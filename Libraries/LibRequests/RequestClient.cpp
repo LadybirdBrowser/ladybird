@@ -40,6 +40,12 @@ RequestClient::RequestClient(NonnullOwnPtr<IPC::Transport> transport)
     m_request_server_client_id = send_sync<Messages::RequestServer::GetClientId>()->client_id();
 }
 
+RequestClient::RequestClient(NonnullOwnPtr<IPC::Transport> transport, int client_id)
+    : IPC::ConnectionToServer<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport))
+    , m_request_server_client_id(client_id)
+{
+}
+
 RequestClient::~RequestClient() = default;
 
 void RequestClient::die()

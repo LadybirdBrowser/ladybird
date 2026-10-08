@@ -13,8 +13,8 @@ endpoint WebWorkerServer {
     init_transport(int peer_pid) => (int peer_pid)
     set_font_service(IPC::TransportHandle handle, IPC::File catalog, u64 catalog_size, u64 generation) =|
 
-    connect_to_request_server(IPC::TransportHandle handle) =|
-    simulate_request_server_connection_loss_and_reconnect_for_testing(IPC::TransportHandle replacement_handle) => ()
+    connect_to_request_server(IPC::TransportHandle handle, int client_id) =|
+    simulate_request_server_connection_loss_and_reconnect_for_testing(IPC::TransportHandle replacement_handle, int client_id) => ()
     connect_to_image_decoder(IPC::TransportHandle handle) =|
     connect_to_wasm_compiler(IPC::TransportHandle handle) =|
     connect_to_compositor(IPC::TransportHandle handle) =|
