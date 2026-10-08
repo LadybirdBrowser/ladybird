@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::{Cell, RefCell};
+use core::cell::{Cell, OnceCell, RefCell};
 use core::ffi::c_void;
 use core::mem::offset_of;
 use core::ptr::NonNull;
@@ -26,13 +26,17 @@ pub struct Heap {
     allocators: [Cell<Option<HeapAllocator>>; CLASS_COUNT],
     /// The allocators of the classes derived at run time, by the address of their class.
     runtime_class_allocators: RefCell<HashMap<usize, HeapAllocator, foldhash::fast::RandomState>>,
-    /// The allocators of size classes, by the address of their class and their cell size, each with the type info its
-    /// blocks dispatch through, which has to outlive the allocator.
-    size_class_allocators: RefCell<SizeClassAllocators>,
+    /// The size classes of each class, by class id, out of line, as few classes have any.
+    size_class_tables: Box<[OnceCell<SizeClassTable>; CLASS_COUNT]>,
     inline_allocation_info: InlineAllocationInfo,
 }
 
-type SizeClassAllocators = HashMap<(usize, u32), (HeapAllocator, Box<CellTypeInfo>), foldhash::fast::RandomState>;
+/// The size classes of a class, with the type infos their blocks dispatch through, which have to outlive the
+/// allocators.
+struct SizeClassTable {
+    allocators: Box<[SizeClassAllocator]>,
+    _type_infos: Box<[CellTypeInfo]>,
+}
 
 /// What the heap needs to know to allocate cells from its local free lists itself, besides the address of the list:
 /// where the heap's allocation counters are, and where a free cell keeps the link to the next free cell and which bits
@@ -137,7 +141,7 @@ impl Heap {
             raw,
             allocators: [const { Cell::new(None) }; CLASS_COUNT],
             runtime_class_allocators: RefCell::default(),
-            size_class_allocators: RefCell::default(),
+            size_class_tables: Box::new([const { OnceCell::new() }; CLASS_COUNT]),
             inline_allocation_info: InlineAllocationInfo {
                 allocated_bytes_since_last_gc: counter(layout.heap_allocated_bytes_since_last_gc_offset),
                 gc_bytes_threshold: counter(layout.heap_gc_bytes_threshold_offset),
@@ -372,32 +376,55 @@ impl Heap {
         RuntimeClassAllocator { class, allocator }
     }
 
-    /// The size class of `class` whose cells have `cell_size` bytes, which the first call for the class and the size
-    /// creates.
-    pub fn size_class_allocator(&self, class: &'static Class, cell_size: u32) -> SizeClassAllocator {
+    /// The size classes of `class`, whose cells have `cell_sizes` bytes, in that order, which the first call for the
+    /// class creates. A class has one set of size classes, so every call for it passes the same sizes.
+    #[inline(always)]
+    pub fn size_classes(&self, class: &'static Class, cell_sizes: &[u32]) -> &[SizeClassAllocator] {
+        let table =
+            self.size_class_tables[class.id as usize].get_or_init(|| self.create_size_classes(class, cell_sizes));
+        debug_assert!(
+            table
+                .allocators
+                .iter()
+                .map(SizeClassAllocator::cell_size)
+                .eq(cell_sizes.iter().copied())
+        );
+        &table.allocators
+    }
+
+    #[cold]
+    fn create_size_classes(&self, class: &'static Class, cell_sizes: &[u32]) -> SizeClassTable {
         assert!(
-            cell_size >= class.type_info.cell_size && cell_size.is_multiple_of(8),
-            "a size class of {} has cells of {cell_size} bytes",
+            !class.is_derived_at_run_time(),
+            "a class derived at run time shares the id of {}",
             class.name
         );
-        let allocator = self
-            .size_class_allocators
-            .borrow_mut()
-            .entry((core::ptr::from_ref(class) as usize, cell_size))
-            .or_insert_with(|| {
-                let type_info = Box::new(CellTypeInfo {
+        let type_infos: Box<[CellTypeInfo]> = cell_sizes
+            .iter()
+            .map(|&cell_size| {
+                assert!(
+                    cell_size >= class.type_info.cell_size && cell_size.is_multiple_of(8),
+                    "a size class of {} has cells of {cell_size} bytes",
+                    class.name
+                );
+                CellTypeInfo {
                     cell_size,
                     ..class.type_info
-                });
-                // SAFETY: The heap destroys the allocator before the type info, and the class name is static.
-                let allocator = unsafe { self.create_allocator(&raw const *type_info, class.name) };
-                (allocator, type_info)
+                }
             })
-            .0;
-        SizeClassAllocator {
-            class,
-            cell_size,
-            allocator,
+            .collect();
+        let allocators = type_infos
+            .iter()
+            .map(|type_info| SizeClassAllocator {
+                class,
+                cell_size: type_info.cell_size,
+                // SAFETY: The heap destroys the allocator before the type info, and the class name is static.
+                allocator: unsafe { self.create_allocator(type_info, class.name) },
+            })
+            .collect();
+        SizeClassTable {
+            allocators,
+            _type_infos: type_infos,
         }
     }
 
@@ -496,8 +523,10 @@ impl Drop for Heap {
             for allocator in self.runtime_class_allocators.get_mut().values() {
                 capi::gc_allocator_destroy(allocator.raw.as_ptr());
             }
-            for (allocator, _) in self.size_class_allocators.get_mut().values() {
-                capi::gc_allocator_destroy(allocator.raw.as_ptr());
+            for table in self.size_class_tables.iter().filter_map(OnceCell::get) {
+                for size_class in &table.allocators {
+                    capi::gc_allocator_destroy(size_class.allocator.raw.as_ptr());
+                }
             }
         }
     }
