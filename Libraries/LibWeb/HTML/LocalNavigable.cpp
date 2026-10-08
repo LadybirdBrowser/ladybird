@@ -7097,7 +7097,7 @@ void LocalNavigable::finish_recording_in_flight(RecordingInFlight& in_flight, La
     // leaves no hit-test list, as the boxes it names may be gone.
     auto const hit_test_list_stands = landing == Layout::RustFFI::FfiRecordingLanding::LandedBehindRows ? Painting::HitTestListStands::No : Painting::HitTestListStands::Yes;
     Painting::take_recording_trace_if_pending(read, *document);
-    document->adopt_published_recording(Painting::hit_test_list_read(read, hit_test_list_stands), *in_flight.recording, sealed->published->display_list, sealed->published->referenced_resources);
+    document->adopt_published_recording(Painting::hit_test_list_read(read, hit_test_list_stands), *in_flight.recording, sealed->published->display_list, [&] { return sealed->published->referenced_resources; });
 }
 
 void LocalNavigable::paint_next_frame()
