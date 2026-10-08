@@ -194,6 +194,7 @@ define_intrinsics! {
     new_object_shape: Cell<Option<Gc<Shape>>>,
     new_regexp_object_shape: Cell<Option<Gc<Shape>>>,
     new_array_shape: Cell<Option<Gc<Shape>>>,
+    bound_function_shape: Cell<Option<Gc<Shape>>>,
 
     iterator_result_object_shape: Cell<Option<Gc<Shape>>>,
     iterator_result_object_value_offset: Cell<u32>,
@@ -1522,6 +1523,23 @@ impl Intrinsics {
     /// The shape of a new array with %Array.prototype%, once CreateIntrinsics has created it.
     pub fn new_array_shape_if_created(&self) -> Option<Gc<Shape>> {
         self.new_array_shape.get()
+    }
+
+    /// The shape of a bound function that Function.prototype.bind creates for a target with %Function.prototype% as
+    /// its prototype: its "length" and "name" properties, in that order, which is the shape the transitions of
+    /// SetFunctionLength and SetFunctionName end up at.
+    pub fn bound_function_shape(&self, vm: &Vm) -> Gc<Shape> {
+        if let Some(shape) = self.bound_function_shape.get() {
+            return shape;
+        }
+        let attributes = PropertyAttributes::new(Attribute::CONFIGURABLE);
+        let shape = self
+            .empty_object_shape()
+            .create_prototype_transition(vm, Some(self.realm.function_prototype()))
+            .create_put_transition(vm, &vm.names.length, attributes)
+            .create_put_transition(vm, &vm.names.name, attributes);
+        self.bound_function_shape.set(Some(shape));
+        shape
     }
 
     pub fn realm(&self) -> Gc<Realm> {

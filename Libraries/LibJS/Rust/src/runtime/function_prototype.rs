@@ -16,7 +16,9 @@ use crate::layout::execution_context::ExecutionContext;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{call_function_object, length_of_array_like};
-use crate::runtime::bound_function::BoundFunction;
+use crate::runtime::bound_function::{
+    BOUND_FUNCTION_LENGTH_OFFSET, BOUND_FUNCTION_NAME_OFFSET, BoundFunction, LengthAndNameSlots,
+};
 use crate::runtime::class_field_definition::ClassElementName;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
@@ -30,7 +32,7 @@ use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::value::ordinary_has_instance;
-use crate::utf16::{Utf16View, concatenate};
+use crate::utf16::{Utf16StringBuilder, Utf16View, concatenate};
 
 /// %Function.prototype%, a function object that accepts any arguments and returns undefined.
 #[repr(C)]
@@ -215,18 +217,25 @@ impl FunctionPrototype {
         let arguments = arguments_after_the_first(vm);
 
         // 3. Let F be ? BoundFunctionCreate(Target, thisArg, args).
-        let function = BoundFunction::create(vm, realm, target, this_argument, &arguments.to_vec())?;
+        let (function, length_and_name_slots) =
+            BoundFunction::create(vm, realm, target, this_argument, &arguments.to_vec())?;
 
         // 4. Let L be 0.
         let mut length = 0.0;
 
         // 5. Let targetHasLength be ? HasOwnProperty(Target, "length").
-        let target_has_length = target.has_own_property(vm, &vm.names.length)?;
+        // OPTIMIZATION: When Target has an own "length" data property, which functions usually do, HasOwnProperty is
+        //               true and Get returns its value.
+        let own_length = own_data_property_value(vm, &target, &vm.names.length);
+        let target_has_length = own_length.is_some() || target.has_own_property(vm, &vm.names.length)?;
 
         // 6. If targetHasLength is true, then
         if target_has_length {
             // a. Let targetLen be ? Get(Target, "length").
-            let target_length = target.get(vm, &vm.names.length)?;
+            let target_length = match own_length {
+                Some(length) => length,
+                None => target.get(vm, &vm.names.length)?,
+            };
 
             // b. If targetLen is a Number, then
             if target_length.is_number() {
@@ -258,23 +267,48 @@ impl FunctionPrototype {
         }
 
         // 7. Perform SetFunctionLength(F, L).
-        function.set_function_length(vm, length);
+        match length_and_name_slots {
+            LengthAndNameSlots::Premade => function.put_direct(BOUND_FUNCTION_LENGTH_OFFSET, Value::from_f64(length)),
+            LengthAndNameSlots::Absent => function.set_function_length(vm, length),
+        }
 
         // 8. Let targetName be ? Get(Target, "name").
-        let target_name = target.get(vm, &vm.names.name)?;
+        let target_name = match own_data_property_value(vm, &target, &vm.names.name) {
+            Some(name) => name,
+            None => target.get(vm, &vm.names.name)?,
+        };
 
         // 9. If targetName is not a String, set targetName to the empty String.
         // 10. Perform SetFunctionName(F, targetName, "bound").
-        let target_name = if target_name.is_string() {
-            target_name.as_string().utf16_string()
-        } else {
-            Utf16String::default()
-        };
-        function.set_function_name(
-            vm,
-            &ClassElementName::PropertyKey(PropertyKey::from(&target_name)),
-            Some("bound"),
-        );
+        match length_and_name_slots {
+            LengthAndNameSlots::Premade => {
+                // OPTIMIZATION: F is not a native function, and targetName is a String by now, so SetFunctionName sets its
+                //               "name" to the string-concatenation of "bound", a space and targetName.
+                let target_name = target_name.is_string().then(|| target_name.as_string());
+                let target_name_length = target_name.map_or(0, |name| name.length_in_utf16_code_units());
+                let mut builder = Utf16StringBuilder::with_capacity("bound ".len() + target_name_length);
+                builder.append_ascii("bound ");
+                if let Some(target_name) = target_name {
+                    builder.append(target_name.utf16_string_view());
+                }
+                function.put_direct(
+                    BOUND_FUNCTION_NAME_OFFSET,
+                    Value::from_string(PrimitiveString::create(vm, builder.to_utf16_string())),
+                );
+            }
+            LengthAndNameSlots::Absent => {
+                let target_name = if target_name.is_string() {
+                    target_name.as_string().utf16_string()
+                } else {
+                    Utf16String::default()
+                };
+                function.set_function_name(
+                    vm,
+                    &ClassElementName::PropertyKey(PropertyKey::from(&target_name)),
+                    Some("bound"),
+                );
+            }
+        }
 
         // 11. Return F.
         Ok(Value::from_object(function))
@@ -366,6 +400,20 @@ impl FunctionPrototype {
 
 /// How many arguments apply(), call() and proxies copy onto the stack rather than into a rooted list.
 pub(crate) const STACK_ARGUMENT_CAPACITY: usize = 16;
+
+/// The value of an own data property of `object` named `property_key`, if [[GetOwnProperty]] of the object is the
+/// ordinary one for that key and finds such a property. Then HasOwnProperty is true and Get returns that value, and
+/// reading it runs no code.
+fn own_data_property_value(vm: &Vm, object: &Object, property_key: &PropertyKey) -> Option<Value> {
+    if !object.has_ordinary_get_own_property_for(vm, property_key) {
+        return None;
+    }
+    let property = object.storage_get(vm, property_key)?;
+    if property.value.is_accessor() {
+        return None;
+    }
+    Some(property.value)
+}
 
 /// The arguments of the running native function after its first, which the spec calls ...args.
 fn arguments_after_the_first(vm: &Vm) -> MarkedVec<'_, Value> {
