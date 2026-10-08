@@ -7,7 +7,6 @@
 use core::cell::Cell;
 use core::ops::ControlFlow;
 use core::ptr::NonNull;
-use std::alloc::{Layout, handle_alloc_error};
 use std::collections::HashSet;
 
 use ak::{Utf16FlyString, Utf16String};
@@ -17,6 +16,7 @@ use libjs_runtime_macros::Trace;
 use crate::bytecode::executable::{PropertyLookupCache, StaticPropertyLookupCacheSite};
 use crate::bytecode::property_access::{Strict, put_by_property_key};
 use crate::embedding::abi_types::JSRealm;
+use crate::gc::capi;
 use crate::gc::class::{Class, Extends, ExternalMemorySize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap::RuntimeClassAllocator;
@@ -56,6 +56,7 @@ use crate::runtime::realm::Realm;
 use crate::runtime::shape::{AssignCopy, Shape};
 use crate::runtime::symbol::Symbol;
 use crate::runtime::value::{PreferredType, is_strictly_equal, same_value};
+use crate::runtime::value_storage::{self, ValueStorageKind};
 use crate::utf16::to_utf16_fly_string;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -340,6 +341,12 @@ unsafe impl Trace for Object {
             // a collection.
             visitor.visit_values(unsafe { core::slice::from_raw_parts(named_properties, property_count) });
         }
+        if !named_properties.is_null()
+            && !self.named_storage_is_inline()
+            && let Some(storage) = value_storage::cell(named_properties)
+        {
+            visitor.visit(storage);
+        }
 
         match self.indexed_storage_kind() {
             IndexedStorageKind::None => {}
@@ -350,6 +357,15 @@ unsafe impl Trace for Object {
             ),
             IndexedStorageKind::Dictionary => self.indexed_dictionary().trace(visitor),
         }
+        let indexed_elements = self.indexed_elements.get();
+        if matches!(
+            self.indexed_storage_kind(),
+            IndexedStorageKind::Packed | IndexedStorageKind::Holey
+        ) && !indexed_elements.is_null()
+            && let Some(storage) = value_storage::cell(indexed_elements)
+        {
+            visitor.visit(storage);
+        }
 
         if let Some(private_elements) = self.private_elements.get() {
             private_elements.trace(visitor);
@@ -358,113 +374,26 @@ unsafe impl Trace for Object {
 }
 
 /// Object::~Object(), which LibGC runs as it sweeps the object, rather than in a finalizer every dead object would
-/// have to visit while the world is stopped.
+/// have to visit while the world is stopped. Property storage in ValueStorage cells is collected with the object, and
+/// may be swept before it, so only the flags tell what else the object owns.
 impl Drop for Object {
     fn drop(&mut self) {
-        self.free_indexed_elements();
-        let named_properties = self.named_properties.get();
-        if !named_properties.is_null() && !self.named_storage_is_inline() {
-            heap_value_storage::deallocate(named_properties);
-            self.named_properties.set(self.inline_named_storage_pointer());
+        let flags = self.flags.get();
+        if flags & object_flag::HAS_MALLOC_NAMED_STORAGE != 0 {
+            // SAFETY: The object owns its malloc storage, and is dead.
+            unsafe { value_storage::deallocate(self.named_properties.get()) };
+        }
+        match self.indexed_storage_kind() {
+            IndexedStorageKind::Dictionary => self.free_indexed_elements_dictionary(),
+            IndexedStorageKind::Packed | IndexedStorageKind::Holey
+                if flags & object_flag::HAS_MALLOC_INDEXED_STORAGE != 0 =>
+            {
+                // SAFETY: The object owns its malloc storage, and is dead.
+                unsafe { value_storage::deallocate(self.indexed_elements.get()) };
+            }
+            _ => {}
         }
         self.private_elements.free();
-    }
-}
-
-/// Heap-allocated property storage layout:
-///   [u32 capacity] [u32 padding] [Value 0] [Value 1] ...
-/// These are the only functions that depend on this allocation layout.
-mod heap_value_storage {
-    use super::*;
-
-    // Allocating through AK puts the storage in its heap partition for JS object storage, apart from every other
-    // allocation, as C++ objects keep theirs. That partition belongs to the thread that first allocates from it, so
-    // the standalone tests, which run each test on a thread of its own, use the global allocator instead.
-    #[cfg(feature = "allocator")]
-    mod raw {
-        unsafe extern "C" {
-            fn ladybird_js_object_storage_alloc(size: usize) -> *mut u8;
-            fn ladybird_js_object_storage_realloc(pointer: *mut u8, new_size: usize) -> *mut u8;
-            fn ladybird_dealloc(pointer: *mut u8, alignment: usize);
-        }
-
-        pub unsafe fn allocate(layout: super::Layout) -> *mut u8 {
-            // SAFETY: Any size can be allocated, and AK aligns every allocation for a Value.
-            unsafe { ladybird_js_object_storage_alloc(layout.size()) }
-        }
-
-        pub unsafe fn reallocate(pointer: *mut u8, _old_layout: super::Layout, new_size: usize) -> *mut u8 {
-            // SAFETY: The caller passes storage that allocate() returned.
-            unsafe { ladybird_js_object_storage_realloc(pointer, new_size) }
-        }
-
-        pub unsafe fn deallocate(pointer: *mut u8, layout: super::Layout) {
-            // SAFETY: The caller passes storage that allocate() returned.
-            unsafe { ladybird_dealloc(pointer, layout.align()) }
-        }
-    }
-
-    #[cfg(not(feature = "allocator"))]
-    mod raw {
-        pub use std::alloc::{alloc as allocate, dealloc as deallocate, realloc as reallocate};
-    }
-
-    const HEADER_SIZE: usize = INDEXED_ELEMENTS_HEADER_SIZE;
-
-    fn layout(capacity: u32) -> Layout {
-        Layout::from_size_align(allocation_size(capacity), align_of::<Value>()).expect("the storage layout is valid")
-    }
-
-    pub fn allocation_size(capacity: u32) -> usize {
-        HEADER_SIZE + capacity as usize * size_of::<Value>()
-    }
-
-    pub fn allocate(capacity: u32) -> *mut Value {
-        let layout = layout(capacity);
-        // SAFETY: The layout has room for at least the header.
-        let raw = unsafe { raw::allocate(layout) };
-        if raw.is_null() {
-            handle_alloc_error(layout);
-        }
-        // SAFETY: The allocation starts with the header, and the elements follow it.
-        unsafe {
-            raw.cast::<u32>().write(capacity);
-            raw.add(size_of::<u32>()).cast::<u32>().write(0);
-            raw.add(HEADER_SIZE).cast::<Value>()
-        }
-    }
-
-    pub fn reallocate(storage: *mut Value, new_capacity: u32) -> *mut Value {
-        let old_layout = layout(capacity(storage));
-        let new_layout = layout(new_capacity);
-        // SAFETY: The storage came from allocate() with the capacity in its header.
-        let raw = unsafe { raw::reallocate(allocation_start(storage), old_layout, new_layout.size()) };
-        if raw.is_null() {
-            handle_alloc_error(new_layout);
-        }
-        // SAFETY: The reallocated storage keeps its header in front of the elements.
-        unsafe {
-            raw.cast::<u32>().write(new_capacity);
-            raw.add(HEADER_SIZE).cast::<Value>()
-        }
-    }
-
-    pub fn deallocate(storage: *mut Value) {
-        if storage.is_null() {
-            return;
-        }
-        // SAFETY: The storage came from allocate() with the capacity in its header.
-        unsafe { raw::deallocate(allocation_start(storage), layout(capacity(storage))) };
-    }
-
-    pub fn capacity(storage: *const Value) -> u32 {
-        // SAFETY: The storage came from allocate(), which put the capacity in front of the first element.
-        unsafe { storage.cast::<u8>().sub(HEADER_SIZE).cast::<u32>().read() }
-    }
-
-    fn allocation_start(storage: *mut Value) -> *mut u8 {
-        // SAFETY: The header is part of the same allocation.
-        unsafe { storage.cast::<u8>().sub(HEADER_SIZE) }
     }
 }
 
@@ -3515,14 +3444,18 @@ impl Object {
         if self.named_properties.get().is_null() || self.named_storage_is_inline() {
             return 0;
         }
-        heap_value_storage::allocation_size(heap_value_storage::capacity(self.named_properties.get()))
+        value_storage::external_memory_size_of(self.named_properties.get())
     }
 
     fn indexed_storage_external_memory_size(&self) -> usize {
         match self.indexed_storage_kind() {
             IndexedStorageKind::None => 0,
             IndexedStorageKind::Packed | IndexedStorageKind::Holey => {
-                heap_value_storage::allocation_size(self.indexed_elements_capacity())
+                let elements = self.indexed_elements.get();
+                if elements.is_null() {
+                    return 0;
+                }
+                value_storage::external_memory_size_of(elements)
             }
             IndexedStorageKind::Dictionary => {
                 size_of::<GenericIndexedPropertyStorage>() + self.indexed_dictionary().borrow().external_memory_size()
@@ -3531,41 +3464,57 @@ impl Object {
     }
 
     // Capacity of the current named-property storage in Values. Heap storage keeps its capacity in a
-    // u32 just before the first element (see heap_value_storage); inline storage is fixed.
+    // u32 just before the first element (see value_storage); inline storage is fixed.
     fn named_storage_capacity(&self) -> u32 {
         if self.named_storage_is_inline() {
             return INLINE_NAMED_STORAGE_CAPACITY as u32;
         }
-        heap_value_storage::capacity(self.named_properties.get())
+        value_storage::capacity(self.named_properties.get())
+    }
+
+    /// The VM whose heap the object lives in, for operations that allocate storage without being handed the VM.
+    fn vm(&self) -> &Vm {
+        // SAFETY: The VM creates its heap with itself as the context, and outlives every cell in it.
+        unsafe { &*capi::gc_cell_heap_context(core::ptr::from_ref(self).cast()).cast::<Vm>() }
+    }
+
+    /// Replaces the named or indexed storage `storage` points at with `new_storage`, and frees the old storage if it is
+    /// malloc storage. `malloc_flag` tells a dead object's destructor that it owns malloc storage.
+    fn replace_storage(&self, storage: &Cell<*mut Value>, malloc_flag: u16, new_storage: *mut Value) {
+        let old_storage = storage.get();
+        let old_storage_is_malloc = self.has_flag(malloc_flag);
+        storage.set(new_storage);
+        if value_storage::kind(new_storage) == ValueStorageKind::Malloc {
+            self.set_flag(malloc_flag);
+        } else {
+            self.clear_flag(malloc_flag);
+        }
+        if old_storage_is_malloc {
+            // SAFETY: The object owned the old storage, which it no longer points at.
+            unsafe { value_storage::deallocate(old_storage) };
+        }
     }
 
     fn ensure_named_storage_capacity(&self, needed: u32) {
-        let is_inline = self.named_storage_is_inline();
         let old_capacity = self.named_storage_capacity();
         if needed <= old_capacity {
             return;
         }
         let new_capacity = needed.max(old_capacity.saturating_mul(2));
-        if is_inline {
-            let new_storage = heap_value_storage::allocate(new_capacity);
-            for index in 0..new_capacity as usize {
-                let value = if index < INLINE_NAMED_STORAGE_CAPACITY {
-                    self.inline_named_storage[index].get()
-                } else {
-                    Value::UNDEFINED
-                };
-                // SAFETY: The index is within the new storage.
-                unsafe { new_storage.add(index).write(value) };
-            }
-            self.named_properties.set(new_storage);
-        } else {
-            let new_storage = heap_value_storage::reallocate(self.named_properties.get(), new_capacity);
-            for index in old_capacity..new_capacity {
-                // SAFETY: The index is within the new storage.
-                unsafe { new_storage.add(index as usize).write(Value::UNDEFINED) };
-            }
-            self.named_properties.set(new_storage);
+
+        // NB: Callers may have given the object a shape with more properties than its storage has room for already, so
+        //     nothing may visit it before the new storage is in place, and cached property additions read their cache
+        //     entry after this. Storage allocation never collects garbage.
+        let new_storage = value_storage::allocate(self.vm().heap(), new_capacity, Value::UNDEFINED);
+        // SAFETY: Both storages hold at least old_capacity values, and they do not overlap.
+        unsafe {
+            core::ptr::copy_nonoverlapping(self.named_properties.get(), new_storage, old_capacity as usize);
         }
+        self.replace_storage(
+            &self.named_properties,
+            object_flag::HAS_MALLOC_NAMED_STORAGE,
+            new_storage,
+        );
     }
 
     // Indexed property storage
@@ -3607,7 +3556,7 @@ impl Object {
             self.indexed_storage_kind(),
             IndexedStorageKind::Packed | IndexedStorageKind::Holey
         ));
-        heap_value_storage::capacity(elements)
+        value_storage::capacity(elements)
     }
 
     fn indexed_element(&self, index: u32) -> Value {
@@ -3630,13 +3579,18 @@ impl Object {
         visitor.visit_values(unsafe { core::slice::from_raw_parts(self.indexed_elements.get(), count as usize) });
     }
 
-    fn allocate_indexed_elements(capacity: u32) -> *mut Value {
-        let elements = heap_value_storage::allocate(capacity);
-        for index in 0..capacity as usize {
-            // SAFETY: The index is within the new buffer.
-            unsafe { elements.add(index).write(Value::EMPTY) };
-        }
-        elements
+    /// Storage for at least `capacity` elements, all empty.
+    fn allocate_indexed_elements(&self, capacity: u32) -> *mut Value {
+        value_storage::allocate(self.vm().heap(), capacity, Value::EMPTY)
+    }
+
+    fn adopt_indexed_elements(&self, elements: *mut Value) {
+        debug_assert!(self.indexed_elements.get().is_null() && !self.has_flag(object_flag::HAS_MALLOC_INDEXED_STORAGE));
+        self.replace_storage(
+            &self.indexed_elements,
+            object_flag::HAS_MALLOC_INDEXED_STORAGE,
+            elements,
+        );
     }
 
     fn free_indexed_elements(&self) {
@@ -3650,11 +3604,20 @@ impl Object {
                 )
             });
         } else {
-            heap_value_storage::deallocate(self.indexed_elements.get());
+            self.release_indexed_elements();
         }
         self.indexed_elements.set(core::ptr::null_mut());
         self.indexed_storage_kind.set(IndexedStorageKind::None);
         self.indexed_array_like_size.set(0);
+    }
+
+    /// Frees the packed or holey element storage if it is malloc storage, which the object owns.
+    fn release_indexed_elements(&self) {
+        if self.has_flag(object_flag::HAS_MALLOC_INDEXED_STORAGE) {
+            // SAFETY: The object owns the malloc storage, which the caller stops pointing at.
+            unsafe { value_storage::deallocate(self.indexed_elements.get()) };
+            self.clear_flag(object_flag::HAS_MALLOC_INDEXED_STORAGE);
+        }
     }
 
     /// Makes room for `capacity` elements in packed or holey indexed storage up front, so that filling them in does not
@@ -3682,17 +3645,20 @@ impl Object {
             .max(old_capacity.saturating_add(old_capacity / 2))
             .max(8);
 
-        let new_elements = Self::allocate_indexed_elements(new_capacity);
+        let new_elements = self.allocate_indexed_elements(new_capacity);
 
         let old_elements = self.indexed_elements.get();
         if !old_elements.is_null() {
             let copy_count = old_capacity.min(needed_capacity);
             // SAFETY: Both buffers hold at least copy_count elements, and they do not overlap.
             unsafe { core::ptr::copy_nonoverlapping(old_elements, new_elements, copy_count as usize) };
-            heap_value_storage::deallocate(old_elements);
         }
 
-        self.indexed_elements.set(new_elements);
+        self.replace_storage(
+            &self.indexed_elements,
+            object_flag::HAS_MALLOC_INDEXED_STORAGE,
+            new_elements,
+        );
     }
 
     fn transition_to_dictionary(&self) {
@@ -3708,7 +3674,7 @@ impl Object {
                     dictionary.put(index, value, DEFAULT_ATTRIBUTES);
                 }
             }
-            heap_value_storage::deallocate(self.indexed_elements.get());
+            self.release_indexed_elements();
         }
 
         // Set the array_like_size on the dictionary
@@ -3721,14 +3687,14 @@ impl Object {
 
     #[cold]
     fn transition_to_packed(&self) {
-        let elements = Self::allocate_indexed_elements(self.indexed_array_like_size());
+        let elements = self.allocate_indexed_elements(self.indexed_array_like_size());
         for (&index, element) in self.indexed_dictionary().borrow().sparse_elements() {
             // SAFETY: Every index of the dictionary is below its array-like size, the size of the new buffer.
             unsafe { elements.add(index as usize).write(element.value) };
         }
 
         self.free_indexed_elements_dictionary();
-        self.indexed_elements.set(elements);
+        self.adopt_indexed_elements(elements);
         self.indexed_storage_kind.set(IndexedStorageKind::Packed);
     }
 
@@ -4140,7 +4106,7 @@ impl Object {
         let size = u32::try_from(values.len()).expect("an array-like size fits in u32");
         self.indexed_storage_kind.set(IndexedStorageKind::Packed);
         self.indexed_array_like_size.set(size);
-        self.indexed_elements.set(Self::allocate_indexed_elements(size));
+        self.adopt_indexed_elements(self.allocate_indexed_elements(size));
         for (index, value) in values.iter().enumerate() {
             self.set_indexed_element(index as u32, *value);
         }
@@ -4155,7 +4121,7 @@ impl Object {
             return;
         }
 
-        let elements = heap_value_storage::allocate(size);
+        let elements = self.allocate_indexed_elements(size);
         for index in 0..size as usize {
             // SAFETY: The index is within the new buffer.
             unsafe { elements.add(index).write(Value::UNDEFINED) };
@@ -4163,7 +4129,7 @@ impl Object {
 
         self.indexed_storage_kind.set(IndexedStorageKind::Packed);
         self.indexed_array_like_size.set(size);
-        self.indexed_elements.set(elements);
+        self.adopt_indexed_elements(elements);
     }
 
     // For FunctionPrototype.apply fast path
