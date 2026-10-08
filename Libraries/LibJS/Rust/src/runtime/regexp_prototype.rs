@@ -696,6 +696,13 @@ fn regexp_builtin_exec(
     Ok(Value::from_object(array))
 }
 
+/// The capture slots of the matches RegExpPrototype::find_replace_matches_natively() found, slots_per_match of them for
+/// every match, -1 for captures that did not participate.
+struct NativeReplaceMatches {
+    slots: Vec<i32>,
+    slots_per_match: usize,
+}
+
 // 22.2.7.1 RegExpExec ( R, S ), https://tc39.es/ecma262/#sec-regexpexec
 pub fn regexp_exec(vm: &Vm, regexp_object: &Object, string: Gc<PrimitiveString>) -> ThrowCompletionOr<Value> {
     // 1. Let exec be ? Get(R, "exec").
@@ -1509,6 +1516,98 @@ impl RegExpPrototype {
         ))))
     }
 
+    /// OPTIMIZATION: Steps 7 to 12 of RegExp.prototype[@@replace] for an unmodified RegExp that is not sticky and has
+    ///               no named groups: reading the flags runs no code, RegExpExec is RegExpBuiltinExec, and nothing
+    ///               reads the result arrays but the steps after these, so the matches are found with the compiled
+    ///               regex and kept as capture slots. lastIndex ends up as RegExpBuiltinExec would leave it, and so do
+    ///               the legacy static properties, which reflect the last match. Returns nothing for other RegExps.
+    fn find_replace_matches_natively(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        regexp_object: Gc<Object>,
+        string: Gc<PrimitiveString>,
+    ) -> ThrowCompletionOr<Option<NativeReplaceMatches>> {
+        if !Self::replace_is_fast_and_non_observable(vm, realm, &regexp_object) {
+            return Ok(None);
+        }
+        let typed_regexp = regexp_object
+            .downcast::<RegExpObject>()
+            .expect("the fast path only runs on RegExp objects");
+        let flag_bits = typed_regexp.flag_bits();
+        if flag_bits.has(RegExpFlags::STICKY) {
+            return Ok(None);
+        }
+        let Some(compiled_regex) = get_or_compile_regex(&typed_regexp) else {
+            return Ok(None);
+        };
+        if !compiled_regex.named_groups().is_empty() {
+            return Ok(None);
+        }
+        let global = flag_bits.has(RegExpFlags::GLOBAL);
+        let full_unicode = flag_bits.has(RegExpFlags::UNICODE) || flag_bits.has(RegExpFlags::UNICODE_SETS);
+        let slots_per_match = compiled_regex.total_groups() as usize * 2;
+
+        let string_view = string.utf16_string_view();
+        let length = string_view.length_in_code_units();
+        let mut slots = Vec::with_capacity(slots_per_match);
+        let mut last_index = 0;
+        while last_index <= length {
+            let exec_result =
+                exec_with_unicode_last_index_retry(&compiled_regex, string_view, last_index, full_unicode, false);
+            if exec_result.result == MatchResult::LimitExceeded {
+                return throw_backtrack_limit_exceeded(vm);
+            }
+            if exec_result.result != MatchResult::Match {
+                break;
+            }
+            for slot in 0..slots_per_match {
+                slots.push(compiled_regex.capture_slot(slot as u32));
+            }
+            if !global {
+                break;
+            }
+            let match_start = compiled_regex.capture_slot(0) as usize;
+            let match_end = compiled_regex.capture_slot(1) as usize;
+            last_index = if match_end == match_start {
+                advance_string_index(string_view, match_end as u64, full_unicode) as usize
+            } else {
+                match_end
+            };
+        }
+
+        // NB: A global search ends with a RegExpBuiltinExec that finds nothing, which sets lastIndex to 0, and one that
+        //     is not global leaves it alone.
+        if global {
+            regexp_object.set_with_cache(
+                vm,
+                &vm.names.lastIndex,
+                Value::from_i32(0),
+                cache(vm, CacheSite::RegExpPrototypeSymbolReplaceLastIndex),
+            )?;
+        }
+
+        if let Some(last_match) = slots.rchunks(slots_per_match).next() {
+            if typed_regexp.legacy_features_enabled() && realm == typed_regexp.realm() {
+                let capture_count = (slots_per_match / 2 - 1).min(MAX_LEGACY_CAPTURES as usize);
+                let starts: Vec<i32> = (1..=capture_count).map(|group| last_match[group * 2]).collect();
+                let ends: Vec<i32> = (1..=capture_count).map(|group| last_match[group * 2 + 1]).collect();
+                update_legacy_regexp_static_properties_lazy(
+                    vm,
+                    realm.intrinsics().regexp_constructor(vm),
+                    string,
+                    last_match[0] as usize,
+                    last_match[1] as usize,
+                    &starts,
+                    &ends,
+                );
+            } else if realm == typed_regexp.realm() {
+                invalidate_legacy_regexp_static_properties(realm.intrinsics().regexp_constructor(vm));
+            }
+        }
+
+        Ok(Some(NativeReplaceMatches { slots, slots_per_match }))
+    }
+
     pub fn symbol_replace_impl(
         vm: &Vm,
         regexp_object: Gc<Object>,
@@ -1563,66 +1662,71 @@ impl RegExpPrototype {
             replace_string = Some(replace_value.to_utf16_string(vm)?);
         }
 
-        // 7. Let flags be ? ToString(? Get(rx, "flags")).
-        let flags_value = regexp_object.get_with_cache(
-            vm,
-            &vm.names.flags,
-            cache(vm, CacheSite::RegExpPrototypeSymbolReplaceFlags),
-        )?;
-        let flags = flags_value.to_utf16_string(vm)?;
-
-        // 8. If flags contains "g", let global be true. Otherwise, let global be false.
-        let global = contains_code_unit(&flags, b'g');
-
-        // 9. If global is true, then
-        if global {
-            // a. Perform ? Set(rx, "lastIndex", +0𝔽, true).
-            regexp_object.set_with_cache(
-                vm,
-                &vm.names.lastIndex,
-                Value::from_i32(0),
-                cache(vm, CacheSite::RegExpPrototypeSymbolReplaceLastIndex),
-            )?;
-        }
-
-        // 10. Let results be a new empty List.
+        // NB: Steps 7 to 12 run natively when they cannot be observed, see find_replace_matches_natively().
+        let native_matches = Self::find_replace_matches_natively(vm, realm, regexp_object, string)?;
         let results: MarkedVec<'_, Gc<Object>> = MarkedVec::new(vm);
+        if native_matches.is_none() {
+            // 7. Let flags be ? ToString(? Get(rx, "flags")).
+            let flags_value = regexp_object.get_with_cache(
+                vm,
+                &vm.names.flags,
+                cache(vm, CacheSite::RegExpPrototypeSymbolReplaceFlags),
+            )?;
+            let flags = flags_value.to_utf16_string(vm)?;
 
-        // 11. Let done be false.
-        // 12. Repeat, while done is false,
-        loop {
-            // a. Let result be ? RegExpExec(rx, S).
-            let result = regexp_exec(vm, &regexp_object, string)?;
+            // 8. If flags contains "g", let global be true. Otherwise, let global be false.
+            let global = contains_code_unit(&flags, b'g');
 
-            // b. If result is null, set done to true.
-            if result.is_null() {
-                break;
+            // 9. If global is true, then
+            if global {
+                // a. Perform ? Set(rx, "lastIndex", +0𝔽, true).
+                regexp_object.set_with_cache(
+                    vm,
+                    &vm.names.lastIndex,
+                    Value::from_i32(0),
+                    cache(vm, CacheSite::RegExpPrototypeSymbolReplaceLastIndex),
+                )?;
             }
 
-            // c. Else,
+            // 10. Let results be a new empty List.
+            // NB: The list is made above, since the steps after these read it.
 
-            // i. Append result to the end of results.
-            results.push(result.as_object());
+            // 11. Let done be false.
+            // 12. Repeat, while done is false,
+            loop {
+                // a. Let result be ? RegExpExec(rx, S).
+                let result = regexp_exec(vm, &regexp_object, string)?;
 
-            // ii. If global is false, set done to true.
-            if !global {
-                break;
-            }
+                // b. If result is null, set done to true.
+                if result.is_null() {
+                    break;
+                }
 
-            // iii. Else,
+                // c. Else,
 
-            // 1. Let matchStr be ? ToString(? Get(result, "0")).
-            let match_value = result.get(vm, &PropertyKey::from(0u32))?;
-            let match_string = match_value.to_utf16_string(vm)?;
+                // i. Append result to the end of results.
+                results.push(result.as_object());
 
-            // 2. If matchStr is the empty String, then
-            if Utf16View::of_string(&match_string).is_empty() {
-                // b. If flags contains "u" or flags contains "v", let fullUnicode be true. Otherwise, let fullUnicode be false.
-                let full_unicode = contains_code_unit(&flags, b'u') || contains_code_unit(&flags, b'v');
+                // ii. If global is false, set done to true.
+                if !global {
+                    break;
+                }
 
-                // Steps 2a, 2c-2d are implemented by increment_last_index.
-                let string_data = string.utf16_string();
-                increment_last_index(vm, regexp_object, Utf16View::of_string(&string_data), full_unicode)?;
+                // iii. Else,
+
+                // 1. Let matchStr be ? ToString(? Get(result, "0")).
+                let match_value = result.get(vm, &PropertyKey::from(0u32))?;
+                let match_string = match_value.to_utf16_string(vm)?;
+
+                // 2. If matchStr is the empty String, then
+                if Utf16View::of_string(&match_string).is_empty() {
+                    // b. If flags contains "u" or flags contains "v", let fullUnicode be true. Otherwise, let fullUnicode be false.
+                    let full_unicode = contains_code_unit(&flags, b'u') || contains_code_unit(&flags, b'v');
+
+                    // Steps 2a, 2c-2d are implemented by increment_last_index.
+                    let string_data = string.utf16_string();
+                    increment_last_index(vm, regexp_object, Utf16View::of_string(&string_data), full_unicode)?;
+                }
             }
         }
 
@@ -1637,70 +1741,95 @@ impl RegExpPrototype {
         let string_view = Utf16View::of_string(&string_data);
 
         // 15. For each element result of results, do
-        for result_index in 0..results.len() {
-            let result = results.get(result_index).expect("the index is in bounds");
+        let result_count = native_matches.as_ref().map_or(results.len(), |native_matches| {
+            native_matches.slots.len() / native_matches.slots_per_match
+        });
+        let captures: MarkedVec<'_, Value> = MarkedVec::new(vm);
+        let mut replacer_args = Vec::new();
+        for result_index in 0..result_count {
+            while captures.pop().is_some() {}
+            let (matched, matched_length, position, mut named_captures) = if let Some(native_matches) = &native_matches
+            {
+                // OPTIMIZATION: Steps a to j read the result array RegExpBuiltinExec would have made for this match,
+                //               which has the match at "0", its captures at "1" onwards, its position at "index" and
+                //               undefined at "groups".
+                let match_slots = &native_matches.slots[result_index * native_matches.slots_per_match
+                    ..(result_index + 1) * native_matches.slots_per_match];
+                let (start, end) = (match_slots[0] as usize, match_slots[1] as usize);
+                for capture in match_slots[2..].chunks(2) {
+                    captures.push(if capture[0] >= 0 && capture[1] >= 0 {
+                        substring(vm, string, capture[0] as usize, (capture[1] - capture[0]) as usize)
+                    } else {
+                        Value::UNDEFINED
+                    });
+                }
+                let matched = substring(vm, string, start, end - start).as_string();
+                (matched, end - start, start as f64, Value::UNDEFINED)
+            } else {
+                let result = results.get(result_index).expect("the index is in bounds");
 
-            // a. Let resultLength be ? LengthOfArrayLike(result).
-            let result_length = length_of_array_like(vm, &result)?;
+                // a. Let resultLength be ? LengthOfArrayLike(result).
+                let result_length = length_of_array_like(vm, &result)?;
 
-            // b. Let nCaptures be max(resultLength - 1, 0).
-            let n_captures = result_length.saturating_sub(1);
+                // b. Let nCaptures be max(resultLength - 1, 0).
+                let n_captures = result_length.saturating_sub(1);
 
-            // c. Let matched be ? ToString(? Get(result, "0")).
-            let matched_value = result.get(vm, &PropertyKey::from(0u32))?;
-            let matched = matched_value.to_primitive_string(vm)?;
+                // c. Let matched be ? ToString(? Get(result, "0")).
+                let matched_value = result.get(vm, &PropertyKey::from(0u32))?;
+                let matched = matched_value.to_primitive_string(vm)?;
 
-            // d. Let matchLength be the length of matched.
-            let matched_length = matched.length_in_utf16_code_units();
+                // d. Let matchLength be the length of matched.
+                let matched_length = matched.length_in_utf16_code_units();
 
-            // e. Let position be ? ToIntegerOrInfinity(? Get(result, "index")).
-            let position_value = result.get_with_cache(
-                vm,
-                &vm.names.index,
-                cache(vm, CacheSite::RegExpPrototypeSymbolReplaceIndex),
-            )?;
-            let mut position = position_value.to_integer_or_infinity(vm)?;
+                // e. Let position be ? ToIntegerOrInfinity(? Get(result, "index")).
+                let position_value = result.get_with_cache(
+                    vm,
+                    &vm.names.index,
+                    cache(vm, CacheSite::RegExpPrototypeSymbolReplaceIndex),
+                )?;
+                let mut position = position_value.to_integer_or_infinity(vm)?;
 
-            // f. Set position to the result of clamping position between 0 and lengthS.
-            position = position.clamp(0.0, string.length_in_utf16_code_units() as f64);
+                // f. Set position to the result of clamping position between 0 and lengthS.
+                position = position.clamp(0.0, string.length_in_utf16_code_units() as f64);
 
-            // g. Let captures be a new empty List.
-            let captures: MarkedVec<'_, Value> = MarkedVec::new(vm);
+                // g. Let captures be a new empty List.
 
-            // h. Let n be 1.
-            // i. Repeat, while n ≤ nCaptures,
-            for n in 1..=n_captures {
-                // i. Let capN be ? Get(result, ! ToString(𝔽(n))).
-                let mut capture = result.get(vm, &PropertyKey::from_number(n))?;
+                // h. Let n be 1.
+                // i. Repeat, while n ≤ nCaptures,
+                for n in 1..=n_captures {
+                    // i. Let capN be ? Get(result, ! ToString(𝔽(n))).
+                    let mut capture = result.get(vm, &PropertyKey::from_number(n))?;
 
-                // ii. If capN is not undefined, then
-                if !capture.is_undefined() {
-                    // 1. Set capN to ? ToString(capN).
-                    capture = Value::from_string(PrimitiveString::create(vm, capture.to_utf16_string(vm)?));
+                    // ii. If capN is not undefined, then
+                    if !capture.is_undefined() {
+                        // 1. Set capN to ? ToString(capN).
+                        capture = Value::from_string(PrimitiveString::create(vm, capture.to_utf16_string(vm)?));
+                    }
+
+                    // iii. Append capN as the last element of captures.
+                    captures.push(capture);
+
+                    // iv. NOTE: When n = 1, the preceding step puts the first element into captures (at index 0). More generally, the nth capture (the characters captured by the nth set of capturing parentheses) is at captures[n - 1].
+                    // v. Set n to n + 1.
                 }
 
-                // iii. Append capN as the last element of captures.
-                captures.push(capture);
+                // j. Let namedCaptures be ? Get(result, "groups").
+                let named_captures = result.get_with_cache(
+                    vm,
+                    &vm.names.groups,
+                    cache(vm, CacheSite::RegExpPrototypeSymbolReplaceGroups),
+                )?;
 
-                // iv. NOTE: When n = 1, the preceding step puts the first element into captures (at index 0). More generally, the nth capture (the characters captured by the nth set of capturing parentheses) is at captures[n - 1].
-                // v. Set n to n + 1.
-            }
-
-            // j. Let namedCaptures be ? Get(result, "groups").
-            let mut named_captures = result.get_with_cache(
-                vm,
-                &vm.names.groups,
-                cache(vm, CacheSite::RegExpPrototypeSymbolReplaceGroups),
-            )?;
+                (matched, matched_length, position, named_captures)
+            };
 
             // k. If functionalReplace is true, then
             let replacement = if replace_value.is_function() {
                 // i. Let replacerArgs be the list-concatenation of « matched », captures, and « 𝔽(position), S ».
-                let replacer_args: MarkedVec<'_, Value> = MarkedVec::new(vm);
+                // NB: Everything in the list is kept alive by the captures, the variables above, and the caller.
+                replacer_args.clear();
                 replacer_args.push(Value::from_string(matched));
-                for capture_index in 0..captures.len() {
-                    replacer_args.push(captures.get(capture_index).expect("the index is in bounds"));
-                }
+                captures.with_values(|captures| replacer_args.extend_from_slice(captures));
                 replacer_args.push(Value::from_f64(position));
                 replacer_args.push(Value::from_string(string));
 
@@ -1711,12 +1840,8 @@ impl RegExpPrototype {
                 }
 
                 // iii. Let replValue be ? Call(replaceValue, undefined, replacerArgs).
-                let replace_result = call_function_object(
-                    vm,
-                    replace_value.as_function(),
-                    Value::UNDEFINED,
-                    &replacer_args.to_vec(),
-                )?;
+                let replace_result =
+                    call_function_object(vm, replace_value.as_function(), Value::UNDEFINED, &replacer_args)?;
 
                 // iv. Let replacement be ? ToString(replValue).
                 replace_result.to_utf16_string(vm)?
