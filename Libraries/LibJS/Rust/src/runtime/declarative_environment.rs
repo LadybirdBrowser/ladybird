@@ -845,6 +845,27 @@ impl DeclarativeEnvironment {
         self.find_binding_and_index(name)?.index()
     }
 
+    /// Creates the binding the environment's shape has next, with Value::EMPTY, if the shape names it `name` with
+    /// `flags` and has no other binding of that name, and returns whether it did. The binding is then the one
+    /// CreateMutableBinding or CreateImmutableBinding would create, and HasBinding(name) would have returned false
+    /// before. This is how the bindings of an environment that has its final shape from the start get created.
+    pub fn create_next_binding_of_shape(&self, name: &Utf16FlyString, flags: u8) -> bool {
+        let Some(shape) = self.shape.get() else {
+            return false;
+        };
+        let index = self.binding_values.size();
+        if !shape.has_unique_binding_names
+            || index >= shape.size()
+            || shape.binding_name(index) != name
+            || shape.binding_flags(index) != flags
+            || self.class().id == ClassId::ModuleEnvironment
+        {
+            return false;
+        }
+        self.binding_values.append(Value::EMPTY);
+        true
+    }
+
     pub fn ensure_capacity(&self, needed_capacity: usize) {
         self.binding_values.ensure_capacity(needed_capacity);
         if self.shape.get().is_some() || needed_capacity == 0 {
