@@ -195,6 +195,8 @@ static bool should_block_request(LoadRequest const& request)
         auto source_url = request.source_url().value_or(url);
         if (ContentBlocker::the().is_filtered(url, source_url, request.destination(), request.initiator_type(), request.request_mode())) {
             log_filtered_request(request);
+            if (page)
+                page->client().page_did_block_resource();
             return true;
         }
     }

@@ -1313,9 +1313,16 @@ bool CanonicalTraversable::select_changing_navigable_history_step_job_endpoint(H
     if (!endpoint || !endpoint->is_open())
         return false;
 
-    if (navigable->is_top_level_traversable() && operation.is_browser_traversal()) {
-        if (auto callback = move(operation.browser_traversal().on_ready))
-            callback();
+    if (navigable->is_top_level_traversable()) {
+        if (!operation.parameters.has<Web::ReloadHistoryOperationParameters>()
+            && job.target_entry->document_state->document.ptr() != &navigable->active_document()) {
+            if (auto view = this->view(); view.has_value())
+                view->reset_blocked_request_count();
+        }
+        if (operation.is_browser_traversal()) {
+            if (auto callback = move(operation.browser_traversal().on_ready))
+                callback();
+        }
     }
 
     add_history_operation_completion_endpoint(operation, *endpoint);

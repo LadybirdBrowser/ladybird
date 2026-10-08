@@ -24,6 +24,7 @@
 #include <LibWebCommon/CSS/SystemColor.h>
 #include <LibWebCommon/Geolocation/GeolocationPositionErrorCode.h>
 #include <LibWebCommon/Infra/Strings.h>
+#include <LibWebCommon/Loader/ContentBlocking.h>
 #include <LibWebCommon/WebDriver/Error.h>
 #include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
@@ -1943,6 +1944,51 @@ void ViewImplementation::request_style_sheet_source(Web::CSS::StyleSheetIdentifi
     page().async_request_style_sheet_source(identifier);
 }
 
+void ViewImplementation::did_block_resource(Badge<WebContentPage>)
+{
+    if (m_blocked_request_count != NumericLimits<u64>::max())
+        ++m_blocked_request_count;
+    notify_content_blocking_changed();
+}
+
+void ViewImplementation::reset_blocked_request_count()
+{
+    m_blocked_request_count = 0;
+    notify_content_blocking_changed();
+}
+
+void ViewImplementation::notify_content_blocking_changed()
+{
+    if (on_content_blocking_change)
+        on_content_blocking_change(content_blocking_snapshot());
+}
+
+ContentBlockingSnapshot ViewImplementation::content_blocking_snapshot() const
+{
+    ContentBlockingSnapshot snapshot;
+    snapshot.blocked_request_count = m_blocked_request_count;
+
+    if (m_crash_state.has_value() || !traversable().active_document().host())
+        return snapshot;
+
+    auto entry = traversable().active_session_history_entry();
+    if (!entry)
+        return snapshot;
+
+    snapshot.site = Web::content_blocking_site(entry->url);
+    if (!snapshot.site.has_value())
+        return snapshot;
+
+    if (!Application::the().content_blocking_enabled())
+        snapshot.state = ContentBlockingState::Disabled;
+    else if (!Application::settings().content_blocker_enabled_for_site(*snapshot.site))
+        snapshot.state = ContentBlockingState::SiteDisabled;
+    else
+        snapshot.state = Application::the().has_content_blocking_rules() ? ContentBlockingState::Enabled : ContentBlockingState::NoRules;
+
+    return snapshot;
+}
+
 void ViewImplementation::debug_request(ByteString const& request, ByteString const& argument)
 {
     if (request == "dump-session-history"sv)
@@ -2473,6 +2519,7 @@ void ViewImplementation::cancel_all_native_geolocation_requests()
 
 void ViewImplementation::did_start_navigation()
 {
+    reset_blocked_request_count();
     set_loading_state(true);
     dump_session_history("did-start-navigation"sv);
 }
@@ -3335,6 +3382,7 @@ void ViewImplementation::set_crash_state(Optional<CrashState> state)
 {
     auto active = state.has_value();
     m_crash_state = move(state);
+    notify_content_blocking_changed();
     if (on_crash_overlay_state_change)
         on_crash_overlay_state_change(active);
 }

@@ -1158,6 +1158,11 @@ void WebContentPage::did_output_js_console_message(ConsoleOutput console_output)
     }
 }
 
+void WebContentPage::did_block_resource()
+{
+    view().did_block_resource({});
+}
+
 void WebContentPage::did_start_network_request(u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type, String referrer_policy, bool is_navigation_request, Web::Fetch::Infrastructure::RequestPriority priority)
 {
     if (displays_tab()) {
