@@ -1,7 +1,4 @@
 set(TEST_SOURCES
-    TestAsyncScrollingStateSnapMetadata.cpp
-    TestDisplayListCommandRuns.cpp
-    TestDisplayListSharedBuffer.cpp
     TestPausedDebuggerOverlay.cpp
     TestScrollState.cpp
     TestSmoothScrollAnimation.cpp

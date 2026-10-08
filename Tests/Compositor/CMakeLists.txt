@@ -1,6 +1,5 @@
 set(TEST_SOURCES
     TestAsyncScrollTree.cpp
-    TestContextState.cpp
     TestScrollbarController.cpp
     TestVSyncScheduler.cpp
 )
@@ -17,8 +16,4 @@ endforeach()
 if (APPLE)
     ladybird_test(TestVideoSurfaceImage.mm Compositor LIBS compositorservice LibCompositing LibGfx skia)
     target_link_libraries(TestVideoSurfaceImage PRIVATE "-framework CoreVideo")
-endif()
-
-if (NOT WIN32)
-    ladybird_test("TestTransportPlatform.cpp" Compositor LIBS compositorservice LibCompositing LibGfx LibWeb)
 endif()

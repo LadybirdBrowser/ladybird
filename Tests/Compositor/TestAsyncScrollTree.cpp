@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ByteBuffer.h>
 #include <AK/Tuple.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
@@ -48,7 +47,7 @@ static Compositing::AccumulatedVisualContextTree make_visual_context_tree()
 
 static NonnullRefPtr<Compositing::DisplayList> make_empty_display_list(Compositing::AccumulatedVisualContextTree const& visual_context_tree)
 {
-    return Compositing::DisplayList::create_from_command_bytes(visual_context_tree, ByteBuffer {}, {});
+    return Compositing::DisplayList::create(visual_context_tree);
 }
 
 TEST_CASE(wheel_hit_testing_rejects_a_different_visual_context_tree_structural_epoch)
