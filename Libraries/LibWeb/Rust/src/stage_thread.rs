@@ -688,6 +688,11 @@ pub(crate) fn style_layout_thread() -> &'static StageThread {
     STYLE_LAYOUT_THREAD.get_or_init(|| StageThread::spawn("StyleLayout"))
 }
 
+/// Whether the calling thread is the StyleLayout thread, without starting it.
+pub(crate) fn is_on_style_layout_thread() -> bool {
+    STYLE_LAYOUT_THREAD.get().is_some_and(StageThread::is_current)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
