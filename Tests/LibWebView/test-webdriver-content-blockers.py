@@ -6,6 +6,7 @@
 
 import http.server
 import json
+import os
 import runpy
 import subprocess
 import sys
@@ -76,7 +77,8 @@ with tempfile.TemporaryDirectory() as directory:
     threading.Thread(target=server.serve_forever, daemon=True).start()
     port = helpers["unused_port"]()
     process = subprocess.Popen(
-        [sys.argv[1], "--headless", "-l", "127.0.0.1", "-p", str(port), "--profile-path", directory]
+        [sys.argv[1], "--headless", "-l", "127.0.0.1", "-p", str(port), "--profile-path", directory],
+        env={**os.environ, "LADYBIRD_CONTENT_BLOCKER_LIST_UPDATE_TIMEOUT_MS": "1000"},
     )
     session = None
     try:
