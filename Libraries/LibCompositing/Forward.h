@@ -20,7 +20,6 @@ class Canvas2DCommandStream;
 struct Canvas2DCommandStreamSegment;
 class CanvasSurfaceRegistry;
 class DisplayList;
-struct DisplayListCommandRun;
 struct DisplayListGlyph;
 class DisplayListResourceStorage;
 struct DisplayListResourceSet;

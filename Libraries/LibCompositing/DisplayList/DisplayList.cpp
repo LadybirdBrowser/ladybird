@@ -5,7 +5,6 @@
  */
 
 #include <AK/Atomic.h>
-#include <AK/Checked.h>
 #include <AK/Function.h>
 #include <AK/ScopeGuard.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
@@ -30,9 +29,6 @@ DisplayList::DisplayList(u64 compatible_visual_context_tree_structural_epoch, u6
     , m_async_scrolling_metadata(move(async_scrolling_metadata))
 {
     VERIFY(m_storage);
-    auto view = RustFFI::display_list_storage_view(m_storage);
-    m_command_bytes = { view.bytes, view.byte_count };
-    m_command_runs = { view.command_runs, view.command_run_count };
 }
 
 DisplayList::~DisplayList()
@@ -70,7 +66,7 @@ static ErrorOr<void const*> receive_display_list_tape(u64 tape_size, u64 run_cou
     if (!pending.pending)
         return Error::from_string_literal("Display list is too large to receive");
     ArmedScopeGuard abandon_pending = [&] { RustFFI::display_list_storage_abandon(pending.pending); };
-    TRY(fill(Bytes { pending.tape, tape_size }, Bytes { pending.run_bytes, run_count * sizeof(DisplayListCommandRun) }));
+    TRY(fill(Bytes { pending.tape, tape_size }, Bytes { pending.run_bytes, pending.run_bytes_size }));
     abandon_pending.disarm();
     u8 const* error = nullptr;
     size_t error_size = 0;
@@ -137,61 +133,39 @@ void DisplayList::replay_records(ReadonlyBytes records, ScrollStateSnapshot cons
     RustFFI::display_list_replay_records(records.data(), records.size(), scroll_offsets.data(), scroll_offsets.size(), &callbacks);
 }
 
-Optional<DisplayList::SharedBufferLayout> DisplayList::shared_buffer_layout(u64 tape_size, u64 run_count)
+u64 DisplayList::tape_size() const
 {
-    if (tape_size % command_alignment != 0)
-        return {};
-    Checked<u64> runs_bytes = run_count;
-    runs_bytes *= sizeof(DisplayListCommandRun);
-    Checked<u64> total_size = tape_size;
-    total_size += runs_bytes;
-    if (runs_bytes.has_overflow() || total_size.has_overflow())
-        return {};
-    return SharedBufferLayout { .runs_offset = tape_size, .total_size = total_size.value() };
+    return RustFFI::display_list_storage_tape_size(m_storage);
+}
+
+u64 DisplayList::run_count() const
+{
+    return RustFFI::display_list_storage_run_count(m_storage);
 }
 
 ErrorOr<Core::AnonymousBuffer> DisplayList::copy_to_shared_buffer() const
 {
-    auto tape = command_bytes();
-    auto runs = command_runs();
-    auto layout = shared_buffer_layout(tape.size(), runs.size());
-    if (!layout.has_value())
-        return Error::from_string_literal("Display list is too large for a shared buffer");
-    if (layout->total_size == 0)
+    auto size = RustFFI::display_list_storage_packed_size(m_storage);
+    if (size == 0)
         return Core::AnonymousBuffer {};
     // Sealed where the platform supports it, so the receiver cannot be faulted by the file shrinking.
-    auto buffer = TRY(Core::AnonymousBuffer::create_with_size(layout->total_size, Core::AnonymousBuffer::Sealability::Sealable));
-    auto* destination = buffer.data<u8>();
-    tape.copy_to({ destination, tape.size() });
-    if (!runs.is_empty())
-        __builtin_memcpy(destination + layout->runs_offset, runs.data(), runs.size() * sizeof(DisplayListCommandRun));
+    auto buffer = TRY(Core::AnonymousBuffer::create_with_size(size, Core::AnonymousBuffer::Sealability::Sealable));
+    RustFFI::display_list_storage_write_packed(m_storage, buffer.data<u8>());
     return buffer;
 }
 
 ErrorOr<NonnullRefPtr<DisplayList>> DisplayList::create_from_shared_buffer(Properties properties, Core::AnonymousBuffer shared_tape_buffer, u64 tape_size, u64 run_count)
 {
-    auto layout = shared_buffer_layout(tape_size, run_count);
-    if (!layout.has_value())
-        return Error::from_string_literal("Display list sizes do not describe a shared buffer");
-    if (layout->total_size > 0) {
-        if (!shared_tape_buffer.is_valid())
-            return Error::from_string_literal("Display list arrived without its shared buffer");
+    ReadonlyBytes packed;
+    if (shared_tape_buffer.is_valid()) {
         TRY(shared_tape_buffer.validate_backing_size());
-        if (layout->total_size > shared_tape_buffer.size())
-            return Error::from_string_literal("Display list sizes exceed its shared buffer");
-        // Every run holds at least one command, so more runs than headers cannot describe this tape.
-        if (run_count > tape_size / sizeof(DisplayListCommandHeader))
-            return Error::from_string_literal("Display list run table is larger than its tape allows");
+        packed = shared_tape_buffer.bytes();
     }
-    // The sender can still write to the buffer, so the tape and its runs are copied out before they are checked.
-    auto const* storage = TRY(receive_display_list_tape(tape_size, run_count, [&](Bytes tape, Bytes run_bytes) -> ErrorOr<void> {
-        if (layout->total_size == 0)
-            return {};
-        auto source = shared_tape_buffer.bytes();
-        source.slice(0, tape_size).copy_to(tape);
-        source.slice(layout->runs_offset, run_bytes.size()).copy_to(run_bytes);
-        return {};
-    }));
+    u8 const* error = nullptr;
+    size_t error_size = 0;
+    auto const* storage = RustFFI::display_list_storage_receive_packed(packed.data(), packed.size(), tape_size, run_count, &error, &error_size);
+    if (!storage)
+        return Error::from_string_view({ error, error_size });
     return adopt_received_storage(move(properties), storage);
 }
 
@@ -266,14 +240,11 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayList const& display_list)
 {
     TRY(encoder.encode(display_list.properties()));
-    auto command_bytes = display_list.command_bytes();
-    auto command_runs = display_list.command_runs();
-    TRY(encoder.encode_size(command_bytes.size()));
-    TRY(encoder.encode_size(command_runs.size()));
-    TRY(encoder.append(command_bytes.data(), command_bytes.size()));
-    // Trivially copyable records, so they travel as raw bytes like the command tape does.
-    if (!command_runs.is_empty())
-        TRY(encoder.append(reinterpret_cast<u8 const*>(command_runs.data()), command_runs.size() * sizeof(Compositing::DisplayListCommandRun)));
+    TRY(encoder.encode_size(display_list.tape_size()));
+    TRY(encoder.encode_size(display_list.run_count()));
+    auto packed = TRY(ByteBuffer::create_uninitialized(Compositing::RustFFI::display_list_storage_packed_size(display_list.rust_handle())));
+    Compositing::RustFFI::display_list_storage_write_packed(display_list.rust_handle(), packed.data());
+    TRY(encoder.append(packed.data(), packed.size()));
     return {};
 }
 

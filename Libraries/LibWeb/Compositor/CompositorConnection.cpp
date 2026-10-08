@@ -196,16 +196,16 @@ bool CompositorConnectionFrameSink::post_display_list_update(Web::CompositorCont
     auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
     auto shared_tape_buffer = display_list.copy_to_shared_buffer();
     if (shared_tape_buffer.is_error()) {
-        dbgln("WebContent: Could not place a {} byte display list in shared memory: {}", display_list.command_bytes().size(), shared_tape_buffer.error());
+        dbgln("WebContent: Could not place a {} byte display list in shared memory: {}", display_list.tape_size(), shared_tape_buffer.error());
         return true;
     }
     auto copy_time = timer.elapsed_time();
 
-    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateDisplayList::static_encode(context_id, shared_tape_buffer.value(), display_list.command_bytes().size(), display_list.command_runs().size(), display_list.properties(), update.visual_context_tree, update.resource_transaction, update.scroll_state_snapshot));
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateDisplayList::static_encode(context_id, shared_tape_buffer.value(), display_list.tape_size(), display_list.run_count(), display_list.properties(), update.visual_context_tree, update.resource_transaction, update.scroll_state_snapshot));
     if (!post(encoded_message))
         return false;
     if (display_list_timing_enabled())
-        dbgln("DISPLAY_LIST_PUBLISH bytes={} copy={} µs encode+post={} µs", display_list.command_bytes().size(), copy_time.to_microseconds(), (timer.elapsed_time() - copy_time).to_microseconds());
+        dbgln("DISPLAY_LIST_PUBLISH bytes={} copy={} µs encode+post={} µs", display_list.tape_size(), copy_time.to_microseconds(), (timer.elapsed_time() - copy_time).to_microseconds());
     return true;
 }
 
@@ -389,13 +389,13 @@ bool CompositorConnection::rasterize_display_list(Compositing::DisplayList const
     VERIFY(target->anonymous_buffer().is_valid());
     auto shared_tape_buffer = display_list.copy_to_shared_buffer();
     if (shared_tape_buffer.is_error()) {
-        dbgln("WebContent: Could not place a {} byte display list to rasterize in shared memory: {}", display_list.command_bytes().size(), shared_tape_buffer.error());
+        dbgln("WebContent: Could not place a {} byte display list to rasterize in shared memory: {}", display_list.tape_size(), shared_tape_buffer.error());
         return false;
     }
     auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::RasterizeDisplayList>(
         shared_tape_buffer.release_value(),
-        display_list.command_bytes().size(),
-        display_list.command_runs().size(),
+        display_list.tape_size(),
+        display_list.run_count(),
         display_list.properties(),
         visual_context_tree,
         move(resource_transaction),

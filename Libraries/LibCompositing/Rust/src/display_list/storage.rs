@@ -24,15 +24,15 @@ use std::sync::{Arc, OnceLock};
 // dereferences a pointer whose count is zero.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct FfiRecordedDisplayList {
-    pub bytes: *const u8,
-    pub byte_count: usize,
-    pub command_runs: *const DisplayListCommandRun,
-    pub command_run_count: usize,
+struct TapeView {
+    bytes: *const u8,
+    byte_count: usize,
+    command_runs: *const DisplayListCommandRun,
+    command_run_count: usize,
 }
 
-impl FfiRecordedDisplayList {
-    pub const fn empty() -> Self {
+impl TapeView {
+    const fn empty() -> Self {
         Self {
             bytes: std::ptr::null(),
             byte_count: 0,
@@ -84,7 +84,7 @@ enum Tape {
 pub struct DisplayListStorage {
     // The view comes first and keeps its layout, as code from another copy of this crate in the
     // process reads it.
-    view: FfiRecordedDisplayList,
+    view: TapeView,
     tape: Tape,
     // The placement of the runs' clips and effects. The C++ list that owns this storage replays it
     // against trees of one structural epoch only, so one plan serves every replay.
@@ -100,9 +100,9 @@ unsafe impl Sync for DisplayListStorage {}
 impl DisplayListStorage {
     fn new(tape: Tape) -> Arc<Self> {
         let view = match &tape {
-            Tape::Empty => FfiRecordedDisplayList::empty(),
-            Tape::Recorded(recorded) => FfiRecordedDisplayList::of(&recorded.bytes, &recorded.command_runs),
-            Tape::Received { bytes, command_runs } => FfiRecordedDisplayList::of(bytes.as_slice(), command_runs),
+            Tape::Empty => TapeView::empty(),
+            Tape::Recorded(recorded) => TapeView::of(&recorded.bytes, &recorded.command_runs),
+            Tape::Received { bytes, command_runs } => TapeView::of(bytes.as_slice(), command_runs),
         };
         Arc::new(Self {
             view,
@@ -187,13 +187,172 @@ pub unsafe extern "C" fn display_list_storage_release(storage: *const c_void) {
     }
 }
 
+/// The tape and run table of a storage. This reads only the view at the start of the storage, so
+/// code from any copy of this crate in the process can call it.
+///
 /// # Safety
-/// `storage` must be a live storage handle. The returned spans remain valid while it lives.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_storage_view(storage: *const c_void) -> FfiRecordedDisplayList {
+/// `storage` must be a live storage handle for the duration of the borrow.
+pub unsafe fn tape_of<'a>(storage: *const c_void) -> (&'a [u8], &'a [DisplayListCommandRun]) {
     assert!(!storage.is_null());
-    // SAFETY: The view is the first field of the #[repr(C)] storage.
-    unsafe { *storage.cast::<FfiRecordedDisplayList>() }
+    // SAFETY: The view is the first field of the #[repr(C)] storage, and its spans address the tape
+    // the storage owns.
+    unsafe {
+        let view = *storage.cast::<TapeView>();
+        (
+            crate::ffi::ffi_slice(view.bytes, view.byte_count),
+            crate::ffi::ffi_slice(view.command_runs, view.command_run_count),
+        )
+    }
+}
+
+/// # Safety
+/// `storage` must be a live storage handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_storage_tape_size(storage: *const c_void) -> usize {
+    unsafe { storage_from_handle(storage) }.bytes().len()
+}
+
+/// # Safety
+/// `storage` must be a live storage handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_storage_run_count(storage: *const c_void) -> usize {
+    unsafe { storage_from_handle(storage) }.command_runs().len()
+}
+
+// The tape and its run table packed together for transport: the tape first, then the runs.
+fn packed_size(tape_size: usize, run_count: usize) -> Option<usize> {
+    run_count
+        .checked_mul(std::mem::size_of::<DisplayListCommandRun>())?
+        .checked_add(tape_size)
+}
+
+// Writes a run field by field, so its padding is written too.
+fn write_run(run: &DisplayListCommandRun, out: &mut [u8]) {
+    use std::mem::offset_of;
+    out.fill(0);
+    let mut put = |offset: usize, bytes: &[u8]| out[offset..offset + bytes.len()].copy_from_slice(bytes);
+    let context = offset_of!(DisplayListCommandRun, context);
+    let ink_bounds = offset_of!(DisplayListCommandRun, ink_bounds);
+    put(offset_of!(DisplayListCommandRun, offset), &run.offset.to_ne_bytes());
+    put(offset_of!(DisplayListCommandRun, size), &run.size.to_ne_bytes());
+    put(
+        context + offset_of!(ContextRef, spatial),
+        &run.context.spatial.0.to_ne_bytes(),
+    );
+    put(
+        context + offset_of!(ContextRef, clip),
+        &run.context.clip.0.to_ne_bytes(),
+    );
+    put(
+        context + offset_of!(ContextRef, effect),
+        &run.context.effect.0.to_ne_bytes(),
+    );
+    put(
+        ink_bounds + offset_of!(libgfx_rust::IntRect, x),
+        &run.ink_bounds.x.to_ne_bytes(),
+    );
+    put(
+        ink_bounds + offset_of!(libgfx_rust::IntRect, y),
+        &run.ink_bounds.y.to_ne_bytes(),
+    );
+    put(
+        ink_bounds + offset_of!(libgfx_rust::IntRect, width),
+        &run.ink_bounds.width.to_ne_bytes(),
+    );
+    put(
+        ink_bounds + offset_of!(libgfx_rust::IntRect, height),
+        &run.ink_bounds.height.to_ne_bytes(),
+    );
+    put(
+        offset_of!(DisplayListCommandRun, has_unbounded_draw),
+        &[u8::from(run.has_unbounded_draw)],
+    );
+    put(
+        offset_of!(DisplayListCommandRun, has_compositor_metadata),
+        &[u8::from(run.has_compositor_metadata)],
+    );
+}
+
+/// The size of the storage's tape and run table packed for transport.
+///
+/// # Safety
+/// `storage` must be a live storage handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_storage_packed_size(storage: *const c_void) -> usize {
+    let storage = unsafe { storage_from_handle(storage) };
+    packed_size(storage.bytes().len(), storage.command_runs().len()).expect("a stored tape fits in memory")
+}
+
+/// Writes the storage's tape and run table packed for transport.
+///
+/// # Safety
+/// `storage` must be a live storage handle and `destination` must address
+/// `display_list_storage_packed_size(storage)` writable bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_storage_write_packed(storage: *const c_void, destination: *mut u8) {
+    let storage = unsafe { storage_from_handle(storage) };
+    let (tape, runs) = (storage.bytes(), storage.command_runs());
+    let size = packed_size(tape.len(), runs.len()).expect("a stored tape fits in memory");
+    if size == 0 {
+        return;
+    }
+    // SAFETY: The caller guarantees `destination` addresses `size` writable bytes.
+    let destination = unsafe { std::slice::from_raw_parts_mut(destination, size) };
+    let (tape_destination, runs_destination) = destination.split_at_mut(tape.len());
+    tape_destination.copy_from_slice(tape);
+    let (run_destinations, _) = runs_destination.as_chunks_mut::<{ std::mem::size_of::<DisplayListCommandRun>() }>();
+    for (run, out) in runs.iter().zip(run_destinations) {
+        write_run(run, out);
+    }
+}
+
+/// Copies a packed tape and run table out of memory that another process can still write to, and
+/// checks the copy. Returns the new storage, or null with a static error message whose address and
+/// size it writes.
+///
+/// # Safety
+/// `packed` must address `packed_size` readable bytes, or be null with a size of zero; `error` and
+/// `error_size` must be writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_storage_receive_packed(
+    packed: *const u8,
+    packed_size_in_bytes: usize,
+    tape_size: usize,
+    run_count: usize,
+    error: *mut *const u8,
+    error_size: *mut usize,
+) -> *const c_void {
+    let fail = |message: &'static str| {
+        // SAFETY: The caller guarantees both are writable.
+        unsafe {
+            *error = message.as_ptr();
+            *error_size = message.len();
+        }
+        std::ptr::null()
+    };
+    let Some(size) = packed_size(tape_size, run_count) else {
+        return fail("Display list sizes overflow");
+    };
+    if size > packed_size_in_bytes {
+        return fail("Display list sizes exceed the buffer that holds it");
+    }
+    // Every run holds at least one record, so more runs than headers cannot describe the tape.
+    if run_count > tape_size / super::builder::HEADER_SIZE {
+        return fail("Display list run table is larger than its tape allows");
+    }
+    let pending = display_list_storage_begin(tape_size, run_count);
+    if pending.pending.is_null() {
+        return fail("Display list is too large to receive");
+    }
+    if size > 0 {
+        // SAFETY: The caller guarantees `packed` addresses at least `size` bytes, and `begin` made room
+        // for both parts.
+        unsafe {
+            std::ptr::copy_nonoverlapping(packed, pending.tape, tape_size);
+            std::ptr::copy_nonoverlapping(packed.add(tape_size), pending.run_bytes, size - tape_size);
+        }
+    }
+    unsafe { display_list_storage_finish(pending.pending, error, error_size) }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -322,6 +481,7 @@ pub struct FfiPendingDisplayListStorage {
     pub pending: *mut c_void,
     pub tape: *mut u8,
     pub run_bytes: *mut u8,
+    pub run_bytes_size: usize,
 }
 
 /// Allocates room for a tape of `tape_size` bytes and a table of `run_count` runs that arrive from
@@ -334,6 +494,7 @@ pub extern "C" fn display_list_storage_begin(tape_size: usize, run_count: usize)
         pending: std::ptr::null_mut(),
         tape: std::ptr::null_mut(),
         run_bytes: std::ptr::null_mut(),
+        run_bytes_size: 0,
     };
     let Some(run_bytes_size) = run_count.checked_mul(std::mem::size_of::<DisplayListCommandRun>()) else {
         return failed;
@@ -350,6 +511,7 @@ pub extern "C" fn display_list_storage_begin(tape_size: usize, run_count: usize)
     FfiPendingDisplayListStorage {
         tape: pending.bytes.words.as_mut_ptr().cast(),
         run_bytes: pending.run_bytes.as_mut_ptr(),
+        run_bytes_size,
         pending: Box::into_raw(pending).cast(),
     }
 }
@@ -408,21 +570,13 @@ mod tests {
         let published = Arc::into_raw(recorded.clone());
         let storage = unsafe { display_list_storage_adopt_recorded(published.cast()) };
         Arc::make_mut(&mut recorded).bytes[0] = 9;
-        let view = unsafe { display_list_storage_view(storage) };
-        assert_eq!(
-            unsafe { std::slice::from_raw_parts(view.bytes, view.byte_count) },
-            &[1, 2, 3]
-        );
+        assert_eq!(unsafe { tape_of(storage) }.0, &[1, 2, 3]);
         drop(recorded);
         // An FFI consumer transfers the opaque owner without lending any arena state.
         let transferred = storage as usize;
         std::thread::spawn(move || {
             let storage = transferred as *const c_void;
-            let view = unsafe { display_list_storage_view(storage) };
-            assert_eq!(
-                unsafe { std::slice::from_raw_parts(view.bytes, view.byte_count) },
-                &[1, 2, 3]
-            );
+            assert_eq!(unsafe { tape_of(storage) }.0, &[1, 2, 3]);
             unsafe { display_list_storage_release(storage) };
         })
         .join()
