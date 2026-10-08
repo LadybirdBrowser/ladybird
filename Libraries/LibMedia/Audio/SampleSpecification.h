@@ -6,7 +6,9 @@
 
 #pragma once
 
+#include <LibIPC/Forward.h>
 #include <LibMedia/Audio/ChannelMap.h>
+#include <LibMedia/Export.h>
 
 namespace Audio {
 
@@ -50,5 +52,15 @@ struct Formatter<Audio::SampleSpecification> : StandardFormatter {
         return builder.builder().try_appendff("{} Hz, {}", sample_specification.sample_rate(), sample_specification.channel_map());
     }
 };
+
+}
+
+namespace IPC {
+
+template<>
+MEDIA_API ErrorOr<void> encode(Encoder&, Audio::SampleSpecification const&);
+
+template<>
+MEDIA_API ErrorOr<Audio::SampleSpecification> decode(Decoder&);
 
 }

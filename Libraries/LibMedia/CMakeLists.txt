@@ -5,10 +5,14 @@ set(SOURCES
     Audio/AudioFrameRingBase.cpp
     Audio/AudioRingBuffer.cpp
     Audio/AudioServerPath.cpp
+    Audio/ClientConnection.cpp
     Audio/NullPlaybackStream.cpp
     Audio/PlaybackStream.cpp
     Audio/PlaybackStreamMixer.cpp
     Audio/RecordStream.cpp
+    Audio/RemotePlaybackStream.cpp
+    Audio/SampleSpecification.cpp
+    Audio/ServerConnection.cpp
     Audio/SharedAudioFrameRing.cpp
     Audio/SpscAudioFrameRing.cpp
     Audio/WSOLAAlgorithm.cpp
@@ -92,6 +96,8 @@ set(SOURCES
 )
 
 set(GENERATED_SOURCES
+    Audio/AudioClientEndpoint.h
+    Audio/AudioServerEndpoint.h
     VideoPresentation/VideoPresentationClientEndpoint.h
     VideoPresentation/VideoPresentationServerEndpoint.h
 )
@@ -104,6 +110,8 @@ if (APPLE)
     )
 endif()
 
+compile_ipc(Audio/AudioClient.ipc Audio/AudioClientEndpoint.h)
+compile_ipc(Audio/AudioServer.ipc Audio/AudioServerEndpoint.h)
 compile_ipc(VideoPresentation/VideoPresentationClient.ipc VideoPresentation/VideoPresentationClientEndpoint.h)
 compile_ipc(VideoPresentation/VideoPresentationServer.ipc VideoPresentation/VideoPresentationServerEndpoint.h)
 
