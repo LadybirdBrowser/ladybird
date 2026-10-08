@@ -6,8 +6,8 @@
 
 //! Writes the RuntimeFunctions trait, with one method per function the generated interpreter calls, and an
 //! extern "C" entry point for each with exactly the signature the interpreter's call sites assume. The entry points
-//! translate every calling convention into one Rust signature per kind of call. A method that the runtime does not
-//! implement yet stops the process with the function's name.
+//! translate every calling convention into one Rust signature per kind of call. The methods have no default bodies, so
+//! the runtime does not build unless it defines every function that the interpreter, in either of its variants, calls.
 
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -96,7 +96,7 @@ pub fn generate(functions: &[RuntimeFunction], ops: &[InstructionDefinition]) ->
                 let record = Record::new(op, layout, &ops);
                 let _ = writeln!(
                     methods,
-                    "    fn {name}(_vm: &Vm, pc: u32, {}) -> SlowPathControl {{\n        unimplemented_runtime_function(\"{symbol}\", pc)\n    }}",
+                    "    fn {name}(_vm: &Vm, pc: u32, {}) -> SlowPathControl;",
                     record.method_parameters()
                 );
                 generate_slow_path_entry_point(&mut entry_points, symbol, &name, *abi, &record);
@@ -105,7 +105,7 @@ pub fn generate(functions: &[RuntimeFunction], ops: &[InstructionDefinition]) ->
                 let record = Record::new(op, layout, &ops);
                 let _ = writeln!(
                     methods,
-                    "    /// Returns whether it handled the instruction; if not, the interpreter takes the instruction's slow path.\n    fn {name}(_vm: &Vm, _pc: u32, {}) -> bool {{\n        false\n    }}",
+                    "    /// Returns whether it handled the instruction; if not, the interpreter takes the instruction's slow path.\n    fn {name}(_vm: &Vm, _pc: u32, {}) -> bool;",
                     record.method_parameters()
                 );
                 let _ = writeln!(
@@ -125,7 +125,7 @@ pub fn generate(functions: &[RuntimeFunction], ops: &[InstructionDefinition]) ->
             RuntimeFunctionKind::BinarySlowPath => {
                 let _ = writeln!(
                     methods,
-                    "    fn {name}(_vm: &Vm, pc: u32, _dst: &Cell<Value>, _lhs: Value, _rhs: Value) -> SlowPathControl {{\n        unimplemented_runtime_function(\"{symbol}\", pc)\n    }}"
+                    "    fn {name}(_vm: &Vm, pc: u32, _dst: &Cell<Value>, _lhs: Value, _rhs: Value) -> SlowPathControl;"
                 );
                 let _ = writeln!(
                     entry_points,
@@ -135,7 +135,7 @@ pub fn generate(functions: &[RuntimeFunction], ops: &[InstructionDefinition]) ->
             RuntimeFunctionKind::JumpSlowPath => {
                 let _ = writeln!(
                     methods,
-                    "    fn {name}(_vm: &Vm, pc: u32, _lhs: Value, _rhs: Value, _true_target: u32, _false_target: u32) -> SlowPathControl {{\n        unimplemented_runtime_function(\"{symbol}\", pc)\n    }}"
+                    "    fn {name}(_vm: &Vm, pc: u32, _lhs: Value, _rhs: Value, _true_target: u32, _false_target: u32) -> SlowPathControl;"
                 );
                 let _ = writeln!(
                     entry_points,
@@ -143,20 +143,14 @@ pub fn generate(functions: &[RuntimeFunction], ops: &[InstructionDefinition]) ->
                 );
             }
             RuntimeFunctionKind::Helper => {
-                let _ = writeln!(
-                    methods,
-                    "    fn {name}(_argument: u64) -> u64 {{\n        unimplemented_runtime_function(\"{symbol}\", 0)\n    }}"
-                );
+                let _ = writeln!(methods, "    fn {name}(_argument: u64) -> u64;");
                 let _ = writeln!(
                     entry_points,
                     "pub extern \"C\" fn {symbol}(argument: u64) -> u64 {{\n    <Runtime as RuntimeFunctions>::{name}(argument)\n}}"
                 );
             }
             RuntimeFunctionKind::HelperWithTwoArguments => {
-                let _ = writeln!(
-                    methods,
-                    "    fn {name}(_first: u64, _second: u64) -> u64 {{\n        unimplemented_runtime_function(\"{symbol}\", 0)\n    }}"
-                );
+                let _ = writeln!(methods, "    fn {name}(_first: u64, _second: u64) -> u64;");
                 let _ = writeln!(
                     entry_points,
                     "pub extern \"C\" fn {symbol}(first: u64, second: u64) -> u64 {{\n    <Runtime as RuntimeFunctions>::{name}(first, second)\n}}"
@@ -165,7 +159,7 @@ pub fn generate(functions: &[RuntimeFunction], ops: &[InstructionDefinition]) ->
             RuntimeFunctionKind::FallbackHandler => {
                 let _ = writeln!(
                     methods,
-                    "    fn {name}(_vm: &Vm, pc: u32, _instruction: *const u8) -> SlowPathControl {{\n        unimplemented_runtime_function(\"{symbol}\", pc)\n    }}"
+                    "    fn {name}(_vm: &Vm, pc: u32, _instruction: *const u8) -> SlowPathControl;"
                 );
                 let _ = writeln!(
                     entry_points,
@@ -173,20 +167,14 @@ pub fn generate(functions: &[RuntimeFunction], ops: &[InstructionDefinition]) ->
                 );
             }
             RuntimeFunctionKind::BreakpointCheck => {
-                let _ = writeln!(
-                    methods,
-                    "    fn {name}(_vm: &Vm, pc: u32) {{\n        unimplemented_runtime_function(\"{symbol}\", pc)\n    }}"
-                );
+                let _ = writeln!(methods, "    fn {name}(_vm: &Vm, pc: u32);");
                 let _ = writeln!(
                     entry_points,
                     "pub unsafe extern \"C\" fn {symbol}(vm: *const Vm, pc: u32) {{\n    // SAFETY: The interpreter passes its VM.\n    let vm = unsafe {{ &*vm }};\n    <Runtime as RuntimeFunctions>::{name}(vm, pc);\n}}"
                 );
             }
             RuntimeFunctionKind::StackOverflowSlowPath => {
-                let _ = writeln!(
-                    methods,
-                    "    fn {name}(_vm: &Vm, pc: u32) -> SlowPathControl {{\n        unimplemented_runtime_function(\"{symbol}\", pc)\n    }}"
-                );
+                let _ = writeln!(methods, "    fn {name}(_vm: &Vm, pc: u32) -> SlowPathControl;");
                 let _ = writeln!(
                     entry_points,
                     "pub unsafe extern \"C\" fn {symbol}(vm: *const Vm, pc: u32) -> i64 {{\n    // SAFETY: The interpreter passes its VM.\n    let vm = unsafe {{ &*vm }};\n    <Runtime as RuntimeFunctions>::{name}(vm, pc).0\n}}"
