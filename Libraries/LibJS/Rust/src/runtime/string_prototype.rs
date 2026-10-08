@@ -10,6 +10,7 @@ use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable::StaticPropertyLookupCacheSite;
 use crate::gc::class::{GcCell, define_cell};
+use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -1298,13 +1299,8 @@ impl StringPrototype {
         let string = this_value.to_primitive_string(vm)?;
 
         // 12. Let substrings be a new empty List.
-        let array = Array::create(vm, realm, 0, None).must();
-        let mut array_length = 0;
-        let append = |index: usize, value: Gc<PrimitiveString>| {
-            array
-                .create_data_property_or_throw(vm, &PropertyKey::from_number(index as u64), Value::from_string(value))
-                .must();
-        };
+        // NB: The list is made before the steps that need it, since the ones before them return lists of their own.
+        let mut substrings = SubstringList::new(vm);
 
         // 5. If limit is undefined, let lim be 232 - 1; else let lim be ℝ(? ToUint32(limit)).
         let mut limit = u32::MAX;
@@ -1313,12 +1309,12 @@ impl StringPrototype {
         }
 
         // 6. Let separatorStr be ? ToString(separator).
-        let separator = separator_argument.to_utf16_string(vm)?;
+        let separator = separator_argument.to_primitive_string(vm)?;
 
         // 7. If lim = 0, then
         if limit == 0 {
             // a. Return CreateArrayFromList(« »).
-            return Ok(Value::from_object(array.upcast::<Object>()));
+            return Ok(substrings.into_array(vm, realm));
         }
 
         let string_length = string.length_in_utf16_code_units();
@@ -1326,13 +1322,12 @@ impl StringPrototype {
         // 8. If separator is undefined, then
         if separator_argument.is_undefined() {
             // a. Return CreateArrayFromList(« S »).
-            append(0, string);
-            return Ok(Value::from_object(array.upcast::<Object>()));
+            substrings.push(string);
+            return Ok(substrings.into_array(vm, realm));
         }
 
         // 9. Let separatorLength be the length of separatorStr.
-        let separator_view = Utf16View::of_string(&separator);
-        let separator_length = separator_view.length_in_code_units();
+        let separator_length = separator.length_in_utf16_code_units();
 
         // 10. If separatorLength = 0, then
         if separator_length == 0 {
@@ -1344,19 +1339,20 @@ impl StringPrototype {
             // d. Let codeUnits be a List consisting of the sequence of code units that are the elements of head.
             // e. Return CreateArrayFromList(codeUnits).
             for index in 0..out_length {
-                append(index, PrimitiveString::create_from_substring(vm, string, index, 1));
+                substrings.push(PrimitiveString::create_from_substring(vm, string, index, 1));
             }
-            return Ok(Value::from_object(array.upcast::<Object>()));
+            return Ok(substrings.into_array(vm, realm));
         }
 
         // 11. If str is the empty String, return CreateArrayFromList(« str »).
         if string_length == 0 {
-            append(0, string);
-            return Ok(Value::from_object(array.upcast::<Object>()));
+            substrings.push(string);
+            return Ok(substrings.into_array(vm, realm));
         }
 
-        let string_data = string.utf16_string();
-        let string_view = Utf16View::of_string(&string_data);
+        // NB: Neither view changes while substrings of the string are made, since resolved strings never change.
+        let string_view = string.resolved_utf16_string_view();
+        let separator_view = separator.resolved_utf16_string_view();
 
         // 13. Let searchStart be 0.
         let mut search_start = 0;
@@ -1368,15 +1364,16 @@ impl StringPrototype {
         while let Some(index) = match_index {
             // a. Let substring be the substring of str from searchStart to matchIndex.
             // b. Append substring to substrings.
-            append(
-                array_length,
-                PrimitiveString::create_from_substring(vm, string, search_start, index - search_start),
-            );
-            array_length += 1;
+            substrings.push(PrimitiveString::create_from_substring(
+                vm,
+                string,
+                search_start,
+                index - search_start,
+            ));
 
             // c. If the number of elements in substrings is lim, return CreateArrayFromList(substrings).
-            if array_length == limit as usize {
-                return Ok(Value::from_object(array.upcast::<Object>()));
+            if substrings.len() == limit as usize {
+                return Ok(substrings.into_array(vm, realm));
             }
 
             // d. Set searchStart to matchIndex + separatorLength.
@@ -1388,13 +1385,15 @@ impl StringPrototype {
 
         // 16. Let substring be the substring of str from searchStart.
         // 17. Append substring to substrings.
-        append(
-            array_length,
-            PrimitiveString::create_from_substring(vm, string, search_start, string_length - search_start),
-        );
+        substrings.push(PrimitiveString::create_from_substring(
+            vm,
+            string,
+            search_start,
+            string_length - search_start,
+        ));
 
         // 18. Return CreateArrayFromList(substrings).
-        Ok(Value::from_object(array.upcast::<Object>()))
+        Ok(substrings.into_array(vm, realm))
     }
 
     // 22.1.3.24 String.prototype.startsWith ( searchString [ , position ] ), https://tc39.es/ecma262/#sec-string.prototype.startswith
@@ -2050,4 +2049,54 @@ fn create_html(vm: &Vm, string: Value, tag: &str, attribute: &str, value: Value)
 
     // 8. Return p4.
     Ok(string_value(vm, builder.to_utf16_string()))
+}
+
+/// OPTIMIZATION: The substrings of String.prototype.split, the first few of them on the stack, which the collector scans,
+///               and the others in a rooted list, made into an array in one step.
+struct SubstringList<'vm> {
+    first_substrings: [Value; SubstringList::STACK_CAPACITY],
+    length: usize,
+    other_substrings: MarkedVec<'vm, Value>,
+}
+
+impl<'vm> SubstringList<'vm> {
+    const STACK_CAPACITY: usize = 16;
+
+    fn new(vm: &'vm Vm) -> Self {
+        Self {
+            first_substrings: [Value::UNDEFINED; Self::STACK_CAPACITY],
+            length: 0,
+            other_substrings: MarkedVec::new(vm),
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.length
+    }
+
+    fn push(&mut self, substring: Gc<PrimitiveString>) {
+        if self.length < Self::STACK_CAPACITY {
+            self.first_substrings[self.length] = Value::from_string(substring);
+        } else {
+            self.other_substrings.push(Value::from_string(substring));
+        }
+        self.length += 1;
+    }
+
+    // 7.3.16 CreateArrayFromList ( elements ), https://tc39.es/ecma262/#sec-createarrayfromlist
+    fn into_array(self, vm: &Vm, realm: Gc<Realm>) -> Value {
+        if self.length <= Self::STACK_CAPACITY {
+            return Value::from_object(
+                Array::create_from(vm, realm, &self.first_substrings[..self.length]).upcast::<Object>(),
+            );
+        }
+        // NB: The array is allocated before the first substrings are copied off the stack, so the collector still
+        //     finds them there if the allocation collects.
+        let array = Array::create(vm, realm, 0, None).must();
+        let mut elements = self.first_substrings.to_vec();
+        self.other_substrings
+            .with_values(|others| elements.extend_from_slice(others));
+        array.set_indexed_property_elements(&elements);
+        Value::from_object(array.upcast::<Object>())
+    }
 }
