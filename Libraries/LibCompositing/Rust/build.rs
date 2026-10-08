@@ -216,6 +216,38 @@ fn display_list_command_names(path: &Path) -> Result<Vec<String>, Box<dyn Error>
     Ok(names)
 }
 
+// The variants of DisplayListCommandType in declaration order, which is the order of their discriminants.
+fn display_list_command_type_variants(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
+    let source = std::fs::read_to_string(path)?;
+    let (_, body) = source
+        .split_once("pub enum DisplayListCommandType {")
+        .ok_or("DisplayListCommandType not found")?;
+    let (body, _) = body.split_once('}').ok_or("unterminated DisplayListCommandType")?;
+    let variants: Vec<String> = body
+        .lines()
+        .map(|line| line.trim().trim_end_matches(','))
+        .filter(|line| !line.is_empty() && !line.starts_with("//"))
+        .map(String::from)
+        .collect();
+    if variants.is_empty() || variants.iter().any(|name| !name.chars().all(|c| c.is_alphanumeric())) {
+        return Err(format!("unparsable DisplayListCommandType variants: {variants:?}").into());
+    }
+    Ok(variants)
+}
+
+fn display_list_payload_alignment(path: &Path) -> Result<String, Box<dyn Error>> {
+    let source = std::fs::read_to_string(path)?;
+    let value = source
+        .lines()
+        .find_map(|line| line.strip_prefix("pub const COMMAND_ALIGNMENT: usize = "))
+        .and_then(|rest| rest.strip_suffix(';'))
+        .ok_or("COMMAND_ALIGNMENT not found")?;
+    if value.is_empty() || !value.chars().all(|c| c.is_ascii_digit()) {
+        return Err(format!("unparsable COMMAND_ALIGNMENT: {value}").into());
+    }
+    Ok(value.to_string())
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR")?);
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
@@ -419,6 +451,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     .into_iter()
     .map(String::from)
     .collect();
+    let mut after_includes = String::from("\n#define ENUMERATE_DISPLAY_LIST_COMMANDS(V)");
+    for name in display_list_command_type_variants(&commands_source)? {
+        after_includes.push_str(&format!(" \\\n    V({name})"));
+    }
+    after_includes.push_str(&format!(
+        "\n\nnamespace Compositing {{\n\n// Every record and every payload starts at a multiple of this.\nconstexpr size_t display_list_payload_alignment = {};\n\n}}",
+        display_list_payload_alignment(&manifest_dir.join("src/display_list/builder.rs"))?
+    ));
+    commands_config.after_includes = Some(after_includes);
     for name in display_list_command_names(&commands_source)? {
         commands_config.export.pre_body.insert(
             name.clone(),

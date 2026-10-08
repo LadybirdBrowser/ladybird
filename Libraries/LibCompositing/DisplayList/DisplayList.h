@@ -52,7 +52,7 @@ protected:
     template<typename T>
     ReadonlySpan<T> inline_objects(DisplayListDataSpan span) const
     {
-        static_assert(alignof(T) <= alignof(DisplayListCommandHeader));
+        static_assert(alignof(T) <= display_list_payload_alignment);
         auto bytes = inline_data(span);
         VERIFY(bytes.size() % sizeof(T) == 0);
         VERIFY(reinterpret_cast<FlatPtr>(bytes.data()) % alignof(T) == 0);
@@ -69,7 +69,7 @@ protected:
     void execute_nested_display_list(DisplayList const&, AccumulatedVisualContextTree const&, ScrollStateSnapshot const&);
 
 private:
-#define DECLARE_PLAY_COMMAND(command_type, player_method) \
+#define DECLARE_PLAY_COMMAND(command_type) \
     virtual void play_command(command_type const&) = 0;
     ENUMERATE_DISPLAY_LIST_COMMANDS(DECLARE_PLAY_COMMAND)
 #undef DECLARE_PLAY_COMMAND

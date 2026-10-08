@@ -53,7 +53,7 @@ public:
     void paint_scrollbar(Gfx::PaintingSurface&, Compositing::PaintScrollBar const&);
 
 private:
-#define DECLARE_PLAY_COMMAND(command_type, player_method) \
+#define DECLARE_PLAY_COMMAND(command_type) \
     void play_command(Compositing::command_type const&) override;
     ENUMERATE_DISPLAY_LIST_COMMANDS(DECLARE_PLAY_COMMAND)
 #undef DECLARE_PLAY_COMMAND
