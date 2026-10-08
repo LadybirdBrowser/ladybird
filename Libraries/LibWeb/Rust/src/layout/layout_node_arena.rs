@@ -694,6 +694,10 @@ pub(crate) struct DueBoxPresence {
 }
 
 impl DueBoxPresence {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
+    }
+
     /// Tells the host, if it listens.
     pub(crate) fn tell(self, _: &MainThread) {
         let Some(BoxPresenceHost(context, callback)) = self.host else {
@@ -5777,6 +5781,44 @@ mod tests {
                 (element, 0),
             ]
         );
+    }
+
+    #[test]
+    fn a_change_that_forgets_a_style_node_owes_the_host_its_box_presence() {
+        use crate::css::style::tree::StyleNodeID;
+        use crate::layout::layout_changes::LayoutChange;
+        unsafe extern "C" fn record(context: *mut c_void, style_node: u32, bits: u8) {
+            // SAFETY: The test registers a live Vec as the context, and reads it only after unregistering.
+            unsafe { &mut *context.cast::<Vec<(u32, u8)>>() }.push((style_node, bits));
+        }
+        let mut reports: Vec<(u32, u8)> = Vec::new();
+        let mut arena = LayoutNodeArena::new();
+        let element = StyleNodeID::element(3);
+        let row = arena.allocate(NodeConstructionFacts {
+            style_node: element.raw(),
+            ..test_construction_facts()
+        });
+        arena.bind_row(row);
+        arena.set_box_presence_host(Some(super::BoxPresenceHost(
+            std::ptr::from_mut(&mut reports).cast::<c_void>(),
+            record,
+        )));
+
+        let owed = LayoutChange::StyleNodeChanged {
+            old: Some(element),
+            new: None,
+            generated_for: Default::default(),
+        }
+        .apply_owing(&mut arena);
+        assert!(reports.is_empty(), "the change tells the host nothing while it applies");
+        assert!(!owed.is_empty());
+        owed.pay(&crate::stage::MainThread::for_test());
+        arena.set_box_presence_host(None);
+        assert_eq!(reports, [(element.raw(), 0)]);
+
+        arena
+            .free_subtree(row)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]

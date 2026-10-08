@@ -328,7 +328,12 @@ impl ArenaChange {
         owed: &mut Vec<crate::layout::tree_mutation::HostWorkDue>,
     ) {
         match self {
-            Self::Layout(change) => change.apply(arena),
+            Self::Layout(change) => {
+                let host_work = change.apply_owing(arena);
+                if !host_work.is_empty() {
+                    owed.push(host_work);
+                }
+            }
             Self::DetachForRemoval(nodes) => owed.push(
                 crate::layout::layout_changes::LayoutWrite::DetachRemainingRowsForRemoval(&nodes)
                     .apply(arena)

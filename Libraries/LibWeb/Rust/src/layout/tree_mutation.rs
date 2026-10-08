@@ -116,6 +116,11 @@ pub(crate) struct HostWorkDue {
 }
 
 impl HostWorkDue {
+    /// Whether the host is owed nothing.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.box_presence.is_empty() && self.calls.is_empty()
+    }
+
     /// Makes the host calls owed.
     pub(crate) fn pay(self, main_thread: &MainThread) {
         self.box_presence.tell(main_thread);
