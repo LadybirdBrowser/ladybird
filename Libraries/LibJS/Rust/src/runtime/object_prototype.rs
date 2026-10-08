@@ -312,9 +312,9 @@ impl ObjectPrototype {
             characters[..8].copy_from_slice(b"[object ");
             characters[8..8 + tag_characters.len()].copy_from_slice(tag_characters);
             characters[8 + tag_characters.len()] = b']';
-            return Ok(Value::from_string(PrimitiveString::create(
+            return Ok(Value::from_string(PrimitiveString::create_from_ascii(
                 vm,
-                Utf16String::from_ascii(&characters[..tag_characters.len() + 9]),
+                &characters[..tag_characters.len() + 9],
             )));
         }
         Ok(Value::from_string(PrimitiveString::create(

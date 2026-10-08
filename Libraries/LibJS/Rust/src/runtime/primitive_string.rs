@@ -66,6 +66,39 @@ unsafe impl Trace for InlineString {
     fn trace(&self, _: &mut Visitor) {}
 }
 
+/// OPTIMIZATION: Copies the at most INLINE_STRING_CAPACITY bytes of `source` to the start of `destination` with two
+///               overlapping moves of a fixed size, which is cheaper than a call to memcpy for so few bytes.
+#[inline(always)]
+fn copy_few_bytes(destination: &mut [u8], source: &[u8]) {
+    #[inline(always)]
+    fn copy<const N: usize>(destination: &mut [u8], source: &[u8], offset: usize) {
+        let bytes: [u8; N] = source[offset..offset + N].try_into().expect("the source has the bytes");
+        destination[offset..offset + N].copy_from_slice(&bytes);
+    }
+    let length = source.len();
+    assert!(length <= INLINE_STRING_CAPACITY && length <= destination.len());
+    match length {
+        0 => {}
+        1..=3 => {
+            destination[0] = source[0];
+            destination[length / 2] = source[length / 2];
+            destination[length - 1] = source[length - 1];
+        }
+        4..=7 => {
+            copy::<4>(destination, source, 0);
+            copy::<4>(destination, source, length - 4);
+        }
+        8..=16 => {
+            copy::<8>(destination, source, 0);
+            copy::<8>(destination, source, length - 8);
+        }
+        _ => {
+            copy::<16>(destination, source, 0);
+            copy::<16>(destination, source, length - 16);
+        }
+    }
+}
+
 /// Mirrors AK::u64_hash, the MurmurHash3 64-bit finalizer.
 pub(crate) fn u64_hash(mut key: u64) -> u32 {
     key ^= key >> 33;
@@ -129,7 +162,21 @@ impl PrimitiveString {
         if characters.len() < size_of::<usize>() || characters.len() > INLINE_STRING_CAPACITY {
             return Self::create(vm, Utf16String::from_ascii(characters));
         }
-        vm.heap().allocate(InlineString::new(characters)).upcast()
+        let mut inline_characters = [0; INLINE_STRING_CAPACITY];
+        copy_few_bytes(&mut inline_characters, characters);
+        Self::create_from_inline_characters(vm, inline_characters, characters.len())
+    }
+
+    /// Creates a string of the first `length` of `characters`, which are ASCII.
+    fn create_from_inline_characters(
+        vm: &Vm,
+        characters: [u8; INLINE_STRING_CAPACITY],
+        length: usize,
+    ) -> Gc<PrimitiveString> {
+        if length < size_of::<usize>() {
+            return Self::create(vm, Utf16String::from_ascii(&characters[..length]));
+        }
+        vm.heap().allocate(InlineString::new(characters, length)).upcast()
     }
 
     pub fn create_from_utf16_view(vm: &Vm, string: Utf16View<'_>) -> Gc<PrimitiveString> {
@@ -244,21 +291,17 @@ impl PrimitiveString {
         rhs: &PrimitiveString,
     ) -> Option<Gc<PrimitiveString>> {
         let length = lhs.length_in_utf16_code_units() + rhs.length_in_utf16_code_units();
-        if length > INLINE_STRING_CAPACITY
-            || lhs.deferred_kind() == DeferredKind::Rope
-            || rhs.deferred_kind() == DeferredKind::Rope
-        {
+        if length > INLINE_STRING_CAPACITY {
             return None;
         }
-        let (Utf16View::Ascii(lhs_characters), Utf16View::Ascii(rhs_characters)) =
-            (lhs.utf16_string_view(), rhs.utf16_string_view())
+        let (Some(lhs_characters), Some(rhs_characters)) = (lhs.flat_ascii_characters(), rhs.flat_ascii_characters())
         else {
             return None;
         };
         let mut characters = [0; INLINE_STRING_CAPACITY];
-        characters[..lhs_characters.len()].copy_from_slice(lhs_characters);
-        characters[lhs_characters.len()..length].copy_from_slice(rhs_characters);
-        Some(Self::create_from_ascii(vm, &characters[..length]))
+        copy_few_bytes(&mut characters, lhs_characters);
+        copy_few_bytes(&mut characters[lhs_characters.len()..], rhs_characters);
+        Some(Self::create_from_inline_characters(vm, characters, length))
     }
 
     pub fn create_from_concatenation(
@@ -330,9 +373,11 @@ impl PrimitiveString {
             && let Utf16View::Ascii(characters) = string.utf16_string_view()
         {
             let mut copied_characters = [0; INLINE_STRING_CAPACITY];
-            copied_characters[..code_unit_length]
-                .copy_from_slice(&characters[code_unit_offset..code_unit_offset + code_unit_length]);
-            return Self::create_from_ascii(vm, &copied_characters[..code_unit_length]);
+            copy_few_bytes(
+                &mut copied_characters,
+                &characters[code_unit_offset..code_unit_offset + code_unit_length],
+            );
+            return Self::create_from_inline_characters(vm, copied_characters, code_unit_length);
         }
 
         if string.deferred_kind() == DeferredKind::Substring {
@@ -509,12 +554,33 @@ impl PrimitiveString {
         unsafe { *self.utf16_string.0.get() = Some(string) };
     }
 
+    #[inline]
     fn resolve_if_needed(&self) {
+        if self.deferred_kind() != DeferredKind::None {
+            self.resolve();
+        }
+    }
+
+    #[inline(never)]
+    fn resolve(&self) {
         match self.deferred_kind() {
             DeferredKind::None => {}
             DeferredKind::Rope => self.as_rope_string().resolve(),
             DeferredKind::Substring => self.as_substring().resolve(),
             DeferredKind::Inline => self.as_inline_string().resolve(),
+        }
+    }
+
+    /// The characters of a string that is inline or resolved and ASCII.
+    #[inline(always)]
+    fn flat_ascii_characters(&self) -> Option<&[u8]> {
+        match self.deferred_kind() {
+            DeferredKind::Inline => Some(self.as_inline_string().characters()),
+            DeferredKind::None => match Utf16View::of_string(self.resolved_utf16_string()?) {
+                Utf16View::Ascii(characters) => Some(characters),
+                Utf16View::Utf16(_) => None,
+            },
+            DeferredKind::Rope | DeferredKind::Substring => None,
         }
     }
 
@@ -729,13 +795,11 @@ impl Substring {
 }
 
 impl InlineString {
-    fn new(characters: &[u8]) -> Self {
-        let mut string = Self {
-            base: PrimitiveString::new_deferred(Self::CLASS, DeferredKind::Inline, characters.len()),
-            characters: [0; INLINE_STRING_CAPACITY],
-        };
-        string.characters[..characters.len()].copy_from_slice(characters);
-        string
+    fn new(characters: [u8; INLINE_STRING_CAPACITY], length: usize) -> Self {
+        Self {
+            base: PrimitiveString::new_deferred(Self::CLASS, DeferredKind::Inline, length),
+            characters,
+        }
     }
 
     fn characters(&self) -> &[u8] {
