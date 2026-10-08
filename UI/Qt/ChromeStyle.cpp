@@ -1423,6 +1423,51 @@ QPushButton#LadybirdMessagePopoverAcceptButton:pressed {{
         text, surface, border, muted_text, control_border, hover_surface, pressed_surface, accent_color, accent_hover, accent_pressed);
 }
 
+QString content_blocking_popover_style_sheet(QPalette const& palette)
+{
+    auto text = style_sheet_color(chrome_text(palette));
+    auto surface = style_sheet_color(chrome_surface(palette));
+    auto border = style_sheet_color(chrome_border(palette));
+    auto muted_text = style_sheet_color(chrome_muted_text(palette));
+    auto recessed_surface = style_sheet_color(chrome_surface_recessed(palette));
+    auto footer_surface = style_sheet_color(chrome_background(palette));
+
+    return qformatted(R"(
+QFrame#LadybirdContentBlockingPopover {{
+    color: {0};
+    background: {1};
+    border: 1px solid {2};
+    border-radius: 8px;
+}}
+
+QFrame#LadybirdContentBlockingPopover QLabel,
+QFrame#LadybirdContentBlockingPopover QCheckBox {{
+    color: {0};
+}}
+
+QLabel#LadybirdContentBlockingSite,
+QLabel#LadybirdContentBlockingCount {{
+    font-weight: 600;
+}}
+
+QLabel#LadybirdContentBlockingCount {{
+    background: {4};
+    border-radius: 12px;
+    padding: 12px 16px;
+}}
+
+QFrame#LadybirdContentBlockingPopover QLabel#LadybirdContentBlockingNote {{
+    color: {3};
+    background: {5};
+    border-top: 1px solid {2};
+    border-bottom-left-radius: 7px;
+    border-bottom-right-radius: 7px;
+    padding: 12px 16px;
+}}
+)",
+        text, surface, border, muted_text, recessed_surface, footer_surface);
+}
+
 static void paint_circular_control_frame(QPainter& painter, QRect const& rect, qreal device_pixel_ratio, QColor const& background, QColor const& border)
 {
     auto frame_rect = QRectF(rect).adjusted(0.5, 0.5, -0.5, -0.5);
