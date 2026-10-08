@@ -138,6 +138,7 @@ struct ColorResolutionStyle {
     void const* inherited_ui_values { nullptr };
     void const* inherited_text_values { nullptr };
 
+    [[nodiscard]] static ColorResolutionStyle for_element(DOM::AbstractElement const&);
     [[nodiscard]] static ColorResolutionStyle for_layout_node(Layout::NodeWithStyle const&);
 
     StyleValueFFI::FfiColorResolutionStyle to_ffi() const { return { inherited_ui_values, inherited_text_values }; }

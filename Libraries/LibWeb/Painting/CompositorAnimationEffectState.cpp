@@ -138,9 +138,13 @@ static RefPtr<CSS::StyleValue const> resolved_compositor_animation_style_value(L
     }
     if (style_value->is_guaranteed_invalid() || style_value->is_unresolved() || style_value->is_pending_substitution())
         return nullptr;
+    // Absolutizing against the target's used color-scheme collapses light-dark() as computing the value would, so
+    // the color the builder resolves needs no length context.
+    auto const* inherited_ui_values = target.style_group<CSS::ComputedValues::InheritedUIValues>();
     CSS::ComputationContext computation_context {
         .length_resolution_context = CSS::Length::ResolutionContext::for_element(target),
         .abstract_element = target,
+        .color_scheme = inherited_ui_values ? inherited_ui_values->color_scheme_value() : Optional<CSS::PreferredColorScheme> {},
     };
     return style_value->absolutized(computation_context);
 }
@@ -173,23 +177,11 @@ static void const* resolved_compositor_keyframe_value(void* context, size_t keyf
     return CSS::StyleValueFFI::rust_style_value_retain(style_value->rust_style_value_data());
 }
 
-static bool resolve_compositor_animation_color(void* context, void const* value, Gfx::Color* color)
-{
-    auto& data = static_cast<CompositorAnimationBuild*>(context)->data;
-    auto style_value = CSS::StyleValue::adopt_rust_style_value_data(CSS::StyleValueFFI::rust_style_value_retain(static_cast<CSS::StyleValueFFI::StyleValueData const*>(value)));
-    auto resolved = style_value->to_color(CSS::ColorResolutionContext::for_element(data.target));
-    if (!resolved.has_value())
-        return false;
-    *color = *resolved;
-    return true;
-}
-
 static Layout::RustFFI::FfiCompositorAnimationHost compositor_animation_host(CompositorAnimationBuild& lent)
 {
     return {
         .context = &lent,
         .resolved_keyframe_value = resolved_compositor_keyframe_value,
-        .resolve_color = resolve_compositor_animation_color,
     };
 }
 
@@ -199,6 +191,9 @@ static Layout::RustFFI::FfiCompositorAnimationRequest compositor_animation_reque
     Layout::RustFFI::FfiCompositorAnimationRequest request {};
     request.target_kind = target_kind;
     request.layout_node = Layout::Node::slot_id(&layout_node);
+    auto target_color_resolution_style = CSS::ColorResolutionStyle::for_element(data.target);
+    request.target_inherited_ui_values = target_color_resolution_style.inherited_ui_values;
+    request.target_inherited_text_values = target_color_resolution_style.inherited_text_values;
     request.keyframes = data.keyframes.data();
     request.keyframe_count = data.keyframes.size();
     request.key_frame_set_identity = reinterpret_cast<uintptr_t>(effect.key_frame_set());

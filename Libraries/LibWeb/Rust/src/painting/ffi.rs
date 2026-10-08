@@ -1314,6 +1314,47 @@ pub unsafe extern "C" fn render_state_visual_context_tree_has_visual_animations(
     }
 }
 
+/// Hands `push_keyframe_color` the keyframe colors of each background color animation the visual context tree runs on
+/// the effect node, in keyframe order.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_background_color_animation_keyframe_colors(
+    host: &DocumentHost,
+    read: &crate::render_state::BegunRead,
+    effect_node_index: u32,
+    context: *mut c_void,
+    push_keyframe_color: unsafe extern "C" fn(*mut c_void, libgfx_rust::Color),
+) {
+    use crate::painting::host::FfiVisualAnimationTargetKind;
+    use crate::painting::visual_animation::VisualAnimationValue;
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        read_arena(
+            host,
+            read,
+            (effect_node_index, context, push_keyframe_color),
+            |arena, (effect_node_index, context, push_keyframe_color)| {
+                let paint_state = arena.paint_state().borrow();
+                let Some(tree) = paint_state.visual_context.tree.as_deref() else {
+                    return;
+                };
+                let animations_of_node = tree.visual_animations().iter().filter(|animation| {
+                    animation.target_kind == FfiVisualAnimationTargetKind::BackgroundColor
+                        && animation.node_indices.contains(&effect_node_index)
+                });
+                for keyframe in animations_of_node.flat_map(|animation| &animation.keyframes) {
+                    if let VisualAnimationValue::BackgroundColor(color) = keyframe.value {
+                        push_keyframe_color(context, color);
+                    }
+                }
+            },
+        );
+    }
+}
+
 /// # Safety
 ///
 /// The returned handle is owned by the caller until `compositor_animation_effect_state_destroy`.

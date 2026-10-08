@@ -1,0 +1,8 @@
+light-dark uses compositor: true
+light-dark keyframes: rgba(0, 0, 200, 0), rgb(0, 0, 255)
+light-dark-font-relative uses compositor: true
+light-dark-font-relative keyframes: rgba(200, 0, 0, 0), rgb(0, 0, 255)
+system uses compositor: true
+system keyframes: rgb(20, 20, 20), rgb(235, 235, 235)
+scripted-light-dark-font-relative uses compositor: true
+scripted-light-dark-font-relative keyframes: rgba(200, 0, 0, 0), rgb(0, 0, 255)

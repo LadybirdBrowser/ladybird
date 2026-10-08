@@ -121,6 +121,14 @@ ColorResolutionContext ColorResolutionContext::for_layout_node_with_style(Layout
     };
 }
 
+ColorResolutionStyle ColorResolutionStyle::for_element(DOM::AbstractElement const& element)
+{
+    return {
+        .inherited_ui_values = element.style_group<ComputedValues::InheritedUIValues>(),
+        .inherited_text_values = element.style_group<ComputedValues::InheritedTextValues>(),
+    };
+}
+
 ColorResolutionStyle ColorResolutionStyle::for_layout_node(Layout::NodeWithStyle const& layout_node)
 {
     return {
