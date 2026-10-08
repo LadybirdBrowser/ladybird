@@ -529,7 +529,16 @@ fn generate_unary_expression(
         {
             let dst = choose_dst(generator, preferred_dst);
             let id = generator.intern_identifier_id(arena.identifiers[*ident].name);
-            emit_typeof_binding(generator, dst.operand(), id);
+            if arena.identifiers[*ident].is_global {
+                let cache = generator.next_global_variable_cache();
+                generator.emit(Instruction::TypeofGlobal {
+                    dst: dst.operand(),
+                    identifier: id,
+                    cache,
+                });
+            } else {
+                emit_typeof_binding(generator, dst.operand(), id);
+            }
             return Some(dst);
         }
         let dst = choose_dst(generator, preferred_dst);

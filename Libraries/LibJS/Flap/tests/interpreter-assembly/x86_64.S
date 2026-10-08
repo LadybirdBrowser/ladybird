@@ -66,6 +66,7 @@ asm_dispatch_table:
     .quad asm_handler_SetResolvedBinding
     .quad asm_handler_TypeofBinding
     .quad asm_handler_DynamicTypeofBinding
+    .quad asm_handler_TypeofGlobal
     .quad asm_handler_VerifyEnvironmentCoordinate
     .quad asm_handler_HasPrivateId
     .quad asm_handler_SetFunctionName
@@ -233,7 +234,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsRhsInt32
     .quad asm_handler_JumpLooselyEqualsRhsInt32
     .quad asm_handler_JumpLooselyInequalsRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -746,6 +746,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_DynamicTypeofBinding_hot_end
     .quad asm_handler_DynamicTypeofBinding_cold
     .quad asm_handler_DynamicTypeofBinding_cold_end
+    .quad asm_handler_TypeofGlobal
+    .quad asm_handler_TypeofGlobal_hot_end
+    .quad asm_handler_TypeofGlobal_cold
+    .quad asm_handler_TypeofGlobal_cold_end
     .quad asm_handler_VerifyEnvironmentCoordinate
     .quad asm_handler_VerifyEnvironmentCoordinate_hot_end
     .quad asm_handler_VerifyEnvironmentCoordinate_cold
@@ -1414,10 +1418,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -9519,6 +9519,45 @@ asm_handler_DynamicTypeofBinding:
 asm_handler_DynamicTypeofBinding_hot_end:
 asm_handler_DynamicTypeofBinding_cold:
 asm_handler_DynamicTypeofBinding_cold_end:
+
+.p2align 4
+asm_handler_TypeofGlobal:
+    mov DWORD PTR [rbx + -64], r13d
+    lea r11, [r14 + r13]
+    mov rdi, QWORD PTR [rbp - 48]
+    mov esi, r13d
+    lea rdx, [r14 + r13]
+    call CSYM(asm_slow_path_typeof_global)
+    test rax, rax
+    js .Lasm_TypeofGlobal.scalar_result_done_0
+    bt rax, 32
+    jnc .Lasm_TypeofGlobal.scalar_result_done_0
+    lea rcx, [r14 + r13]
+    mov r10d, DWORD PTR [rcx + 4]
+    mov QWORD PTR [rbx + r10 * 8], rdx
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_TypeofGlobal.scalar_result_done_0:
+    test rax, rax
+    js .Lexit
+    bt rax, 32
+    jnc .Lasm_TypeofGlobal.slow_path_transfer_1
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_TypeofGlobal.slow_path_transfer_1:
+    mov rcx, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [rcx]
+    add rbx, 128
+    mov rcx, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [rcx + 40]
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_TypeofGlobal_hot_end:
+asm_handler_TypeofGlobal_cold:
+asm_handler_TypeofGlobal_cold_end:
 
 .p2align 4
 asm_handler_VerifyEnvironmentCoordinate:

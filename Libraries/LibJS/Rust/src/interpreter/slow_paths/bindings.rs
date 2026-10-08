@@ -672,11 +672,57 @@ pub fn get_new_target(
 }
 
 pub fn get_global(vm: &Vm, pc: u32, instruction: &op::GetGlobal, values: &mut op::GetGlobalValues) -> SlowPathControl {
+    let strict = strict_of(&instruction.header);
+    match asm_try!(
+        vm,
+        pc,
+        global_variable_value(vm, instruction.identifier, instruction.cache, strict)
+    ) {
+        Some(value) => {
+            values.dst = value;
+            SlowPathControl::continue_at(pc + op::GetGlobal::LENGTH)
+        }
+        None => throw_error(
+            vm,
+            pc,
+            ErrorKind::ReferenceError,
+            ErrorType::UnknownIdentifier,
+            &[&get_identifier(vm, instruction.identifier)],
+        ),
+    }
+}
+
+/// `typeof` of a global variable, "undefined" if it is unresolvable.
+pub fn typeof_global(
+    vm: &Vm,
+    pc: u32,
+    instruction: &op::TypeofGlobal,
+    values: &mut op::TypeofGlobalValues,
+) -> SlowPathControl {
+    let strict = strict_of(&instruction.header);
+    let value = asm_try!(
+        vm,
+        pc,
+        global_variable_value(vm, instruction.identifier, instruction.cache, strict)
+    );
+    values.dst = Value::from_string(value.unwrap_or(Value::UNDEFINED).typeof_(vm));
+    SlowPathControl::continue_at(pc + op::TypeofGlobal::LENGTH)
+}
+
+/// The value of the global variable `identifier`, a binding of the global declarative environment or a property of the
+/// global object, found through the running executable's global variable cache `cache`, which this updates. Returns
+/// nothing if there is no such variable.
+fn global_variable_value(
+    vm: &Vm,
+    identifier: IdentifierTableIndex,
+    cache: u32,
+    strict: Strict,
+) -> ThrowCompletionOr<Option<Value>> {
     let binding_object = vm.global_object();
     let declarative_record = vm.global_declarative_environment();
     let executable = current_executable(vm);
-    let cache = || executable.global_variable_cache(instruction.cache);
-    let strict = strict_of(&instruction.header);
+    let cache_index = cache;
+    let cache = || executable.global_variable_cache(cache_index);
 
     let shape = binding_object.shape();
     if cache().environment_serial_number.get() == declarative_record.environment_serial_number() {
@@ -685,21 +731,13 @@ pub fn get_global(vm: &Vm, pc: u32, instruction: &op::GetGlobal, values: &mut op
             && (!shape.is_dictionary() || shape.dictionary_generation() == entry.shape_dictionary_generation)
         {
             let value = binding_object.get_direct(entry.property_offset);
-            values.dst = asm_try!(
-                vm,
-                pc,
-                get_cached_property_value(vm, value, Value::from_object(binding_object))
-            );
-            return SlowPathControl::continue_at(pc + op::GetGlobal::LENGTH);
+            return get_cached_property_value(vm, value, Value::from_object(binding_object)).map(Some);
         }
 
         if cache().has_environment_binding_index.get() {
-            values.dst = asm_try!(
-                vm,
-                pc,
-                declarative_record.get_binding_value_direct(vm, cache().environment_binding_index.get() as usize)
-            );
-            return SlowPathControl::continue_at(pc + op::GetGlobal::LENGTH);
+            return declarative_record
+                .get_binding_value_direct(vm, cache().environment_binding_index.get() as usize)
+                .map(Some);
         }
     }
 
@@ -708,36 +746,29 @@ pub fn get_global(vm: &Vm, pc: u32, instruction: &op::GetGlobal, values: &mut op
         .environment_serial_number
         .set(declarative_record.environment_serial_number());
 
-    let identifier = get_identifier(vm, instruction.identifier);
+    let identifier = get_identifier(vm, identifier);
 
     let mut offset = None;
-    if asm_try!(vm, pc, declarative_record.has_binding(&identifier, Some(&mut offset))) {
+    if declarative_record.has_binding(&identifier, Some(&mut offset))? {
         let offset = offset.expect("the global declarative record reports the index of its bindings");
         cache().environment_binding_index.set(offset as u32);
         cache().has_environment_binding_index.set(true);
-        values.dst = asm_try!(
-            vm,
-            pc,
-            declarative_record.get_binding_value(vm, &identifier, strict == Strict::Yes)
-        );
-        return SlowPathControl::continue_at(pc + op::GetGlobal::LENGTH);
+        return declarative_record
+            .get_binding_value(vm, &identifier, strict == Strict::Yes)
+            .map(Some);
     }
 
-    let identifier_key = PropertyKey::from(identifier.clone());
-    if asm_try!(vm, pc, binding_object.has_property(vm, &identifier_key)) {
+    let identifier_key = PropertyKey::from(identifier);
+    if binding_object.has_property(vm, &identifier_key)? {
         let dictionary_generation = shape.dictionary_generation();
         let mut cacheable_metadata = CacheableGetPropertyMetadata::default();
-        let value = asm_try!(
+        let value = binding_object.internal_get(
             vm,
-            pc,
-            binding_object.internal_get(
-                vm,
-                &identifier_key,
-                Value::from_object(binding_object),
-                Some(&mut cacheable_metadata),
-                PropertyLookupPhase::OwnProperty,
-            )
-        );
+            &identifier_key,
+            Value::from_object(binding_object),
+            Some(&mut cacheable_metadata),
+            PropertyLookupPhase::OwnProperty,
+        )?;
         if cacheable_metadata.r#type == CacheableGetPropertyMetadataType::GetOwnProperty
             && shape == binding_object.shape()
             && shape.dictionary_generation() == dictionary_generation
@@ -753,17 +784,10 @@ pub fn get_global(vm: &Vm, pc: u32, instruction: &op::GetGlobal, values: &mut op
                 }
             });
         }
-        values.dst = value;
-        return SlowPathControl::continue_at(pc + op::GetGlobal::LENGTH);
+        return Ok(Some(value));
     }
 
-    throw_error(
-        vm,
-        pc,
-        ErrorKind::ReferenceError,
-        ErrorType::UnknownIdentifier,
-        &[&identifier],
-    )
+    Ok(None)
 }
 
 pub fn set_global(vm: &Vm, pc: u32, instruction: &op::SetGlobal, values: &mut op::SetGlobalValues) -> SlowPathControl {
