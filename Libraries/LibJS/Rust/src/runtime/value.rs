@@ -93,12 +93,7 @@ fn to_primitive_of_object_with_default_conversions(vm: &Vm, object: &Object) -> 
             return None;
         }
         let shape = current.shape();
-        if shape.property_count() > 0
-            && (shape.lookup(&vm.names.toString).is_some()
-                || shape.lookup(&vm.names.valueOf).is_some()
-                || shape.lookup(&to_primitive_key).is_some()
-                || shape.lookup(&to_string_tag_key).is_some())
-        {
+        if shape.has_conversion_properties(vm) {
             return None;
         }
         current = shape.prototype()?;

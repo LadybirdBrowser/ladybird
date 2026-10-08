@@ -152,3 +152,41 @@ describe("objects further down the prototype chain", () => {
         expect(String(Object.create(proxy))).toBe("[object FromProxy]");
     });
 });
+
+describe("objects with the same properties", () => {
+    test("adding a conversion to an object gives it its own shape", () => {
+        const make = () => ({ a: 1, b: 2 });
+        const first = make();
+        const second = make();
+        expect(`${first}`).toBe("[object Object]");
+        second.toString = () => "second";
+        expect(`${second}`).toBe("second");
+        expect(`${make()}`).toBe("[object Object]");
+        const third = make();
+        third[Symbol.toStringTag] = "Third";
+        expect(`${third}`).toBe("[object Third]");
+        expect(`${make()}`).toBe("[object Object]");
+    });
+
+    test("a prototype that gains a conversion after it was checked", () => {
+        class Base {}
+        const instance = new Base();
+        expect(`${instance}`).toBe("[object Object]");
+        Base.prototype.valueOf = () => 42;
+        expect(instance + 1).toBe(43);
+        delete Base.prototype.valueOf;
+        expect(`${instance}`).toBe("[object Object]");
+        Base.prototype[Symbol.toPrimitive] = () => "primitive";
+        expect(`${instance}`).toBe("primitive");
+    });
+
+    test("objects with many properties", () => {
+        const object = {};
+        for (let i = 0; i < 100; ++i) object[`key${i}`] = i;
+        expect(`${object}`).toBe("[object Object]");
+        object.toString = () => "many";
+        expect(`${object}`).toBe("many");
+        delete object.toString;
+        expect(`${object}`).toBe("[object Object]");
+    });
+});

@@ -65,6 +65,10 @@ impl PrototypeChainValidity {
 mod shape_flag {
     pub const DICTIONARY: u8 = 1 << 0;
     pub const HAS_PARAMETER_MAP: u8 = 1 << 1;
+    /// Whether HAS_CONVERSION_PROPERTIES has been found for a shape that is not a dictionary.
+    pub const CONVERSION_PROPERTIES_KNOWN: u8 = 1 << 2;
+    /// Whether the shape has one of the properties that conversions to primitives look up.
+    pub const HAS_CONVERSION_PROPERTIES: u8 = 1 << 3;
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -645,6 +649,8 @@ impl Shape {
 
     pub fn add_property_without_transition(&self, vm: &Vm, property_key: &PropertyKey, attributes: PropertyAttributes) {
         self.invalidate_prototype_if_needed_for_change_without_transition(vm);
+        self.flags
+            .set(self.flags.get() & !(shape_flag::CONVERSION_PROPERTIES_KNOWN | shape_flag::HAS_CONVERSION_PROPERTIES));
         let property_count = self.property_count();
         let metadata = PropertyMetadata {
             offset: property_count,
@@ -925,6 +931,39 @@ impl Shape {
 
     pub fn set_has_parameter_map(&self) {
         self.flags.set(self.flags.get() | shape_flag::HAS_PARAMETER_MAP);
+    }
+
+    /// Whether objects of this shape have one of the properties that converting an object to a primitive looks up:
+    /// "toString", "valueOf", @@toPrimitive and @@toStringTag.
+    pub fn has_conversion_properties(&self, vm: &Vm) -> bool {
+        if self.property_count() == 0 {
+            return false;
+        }
+        // OPTIMIZATION: The properties of a shape that is not a dictionary only change when one is added to it without a
+        //               transition, which forgets the answer, so the answer is kept.
+        let flags = self.flags.get();
+        if flags & shape_flag::CONVERSION_PROPERTIES_KNOWN != 0 {
+            return flags & shape_flag::HAS_CONVERSION_PROPERTIES != 0;
+        }
+        let well_known_symbols = vm.well_known_symbols();
+        let has_conversion_properties = self.lookup(&vm.names.toString).is_some()
+            || self.lookup(&vm.names.valueOf).is_some()
+            || self
+                .lookup(&PropertyKey::from(well_known_symbols.to_primitive))
+                .is_some()
+            || self
+                .lookup(&PropertyKey::from(well_known_symbols.to_string_tag))
+                .is_some();
+        if !self.is_dictionary() {
+            let has_flag = if has_conversion_properties {
+                shape_flag::HAS_CONVERSION_PROPERTIES
+            } else {
+                0
+            };
+            self.flags
+                .set(flags | shape_flag::CONVERSION_PROPERTIES_KNOWN | has_flag);
+        }
+        has_conversion_properties
     }
 
     pub fn dictionary_generation(&self) -> u32 {
