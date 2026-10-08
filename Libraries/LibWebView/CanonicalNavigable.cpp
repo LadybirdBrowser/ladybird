@@ -1289,26 +1289,13 @@ void CanonicalNavigable::set_the_ongoing_navigation(OngoingNavigation value)
     // 2. Inform the navigation API about aborting navigation given navigable.
     // NB: The page holding navigable does this as it sets its own ongoing navigation.
 
+    auto superseded_navigation = uncommitted_navigation();
+
     // 3. Set navigable's ongoing navigation to newValue.
     m_ongoing_navigation = move(value);
 
-    auto ongoing_navigation_id = this->ongoing_navigation_id();
-    Vector<NonnullRefPtr<CanonicalNavigation>> ended_navigations;
-    for (size_t i = 0; i < m_navigations.size();) {
-        auto const& navigation = *m_navigations[i];
-        auto ends = navigation.ends_when_superseded()
-            && (!ongoing_navigation_id.has_value() || navigation.navigation_id != *ongoing_navigation_id);
-        if (ends)
-            ended_navigations.append(m_navigations.take(i));
-        else
-            ++i;
-    }
-
-    // The document populated for an ended navigation is not going to be activated.
-    for (auto const& navigation : ended_navigations) {
-        if (navigation->history_entry)
-            abandon_populated_document(navigation->history_entry->document_state);
-    }
+    if (superseded_navigation && superseded_navigation->ends_when_superseded())
+        end_navigation(*superseded_navigation);
 }
 
 void CanonicalNavigable::set_ongoing_navigation(CanonicalNavigation::Start navigation)
@@ -1361,8 +1348,14 @@ void CanonicalNavigable::end_navigation(CanonicalNavigation& navigation)
     auto index = m_navigations.find_first_index_if([&](auto const& candidate) { return candidate.ptr() == &navigation; });
     VERIFY(index.has_value());
     auto ended_navigation = m_navigations.take(*index);
-    if (ended_navigation->history_entry)
-        abandon_populated_document(ended_navigation->history_entry->document_state);
+
+    // The page checking if unloading is canceled holds the navigation until it is told to continue it.
+    if (auto worker = navigation.worker(); worker && worker->is_open() && navigation.state.has<CanonicalNavigation::CheckingIfUnloadingIsCanceled>())
+        worker->async_cancel_navigation_params_creation(id(), navigation.navigation_id);
+
+    // The document populated for an ended navigation is not going to be activated.
+    if (navigation.history_entry)
+        abandon_populated_document(navigation.history_entry->document_state);
 }
 
 BlobURLStore* CanonicalNavigable::blob_url_store() const

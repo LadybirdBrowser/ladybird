@@ -1643,13 +1643,6 @@ void LocalNavigable::set_ongoing_navigation_without_informing_navigation_api(Var
     if (m_ongoing_navigation == ongoing_navigation)
         return;
 
-    // AD-HOC: A UI-approved traversal supersedes any older navigation parked while the UI process coordinates
-    //         population. Do not let that navigation resume after the traversal finishes.
-    if (ongoing_navigation.has<Traversal>() && m_ongoing_navigation.has<Utf16String>()) {
-        if (take_navigation_parked_for_population(m_ongoing_navigation.get<Utf16String>()).has_value())
-            set_delaying_load_events(false);
-    }
-
     m_ongoing_navigation = ongoing_navigation;
 
     for (auto& navigation_observer : m_navigation_observers) {
