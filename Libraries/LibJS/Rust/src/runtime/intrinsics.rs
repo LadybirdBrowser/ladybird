@@ -938,11 +938,22 @@ impl Intrinsics {
     }
 }
 
+/// The largest array whose elements ArraySpeciesCreate() in builtin files makes room for up front.
+const MAX_RESERVED_SPECIES_CAPACITY: u32 = 1 << 16;
+
 /// ArraySpeciesCreate ( originalArray, length ), for builtin files.
 fn array_species_create_abstract_operation(vm: &Vm) -> ThrowCompletionOr<Value> {
     let original_array = vm.argument(0).as_object();
     let length = vm.argument(1).as_f64() as u64;
-    Ok(Value::from_object(array_species_create(vm, &original_array, length)?))
+    let array = array_species_create(vm, &original_array, length)?;
+    // OPTIMIZATION: Array.prototype.map fills in the elements of the array it creates in order, so its storage gets
+    //               room for them up front, unless that is a lot of memory for an array that may be mostly holes.
+    if let Ok(capacity) = u32::try_from(length)
+        && capacity <= MAX_RESERVED_SPECIES_CAPACITY
+    {
+        array.reserve_indexed_elements(capacity);
+    }
+    Ok(Value::from_object(array))
 }
 
 impl Intrinsics {
