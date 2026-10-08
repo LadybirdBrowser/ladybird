@@ -384,3 +384,32 @@ test("case-insensitive Unicode matching of astral characters", () => {
     expect(result).not.toBe(null);
     expect(result[0]).toBe("\u{10400}");
 });
+
+test("character classes with builtin classes", () => {
+    const firstMatch = (regexp, string) => {
+        const match = regexp.exec(string);
+        return match === null ? null : [match.index, match[0]];
+    };
+
+    expect(firstMatch(/[^\s"]+/, '  \t"abc" def')).toEqual([4, "abc"]);
+    expect(firstMatch(/[^\s\/>"'=]+/, ' class="toggle"')).toEqual([1, "class"]);
+    expect(firstMatch(/[^\w-]+/, "12ab-CD_ef!?")).toEqual([10, "!?"]);
+    expect(firstMatch(/[\W\d]+/, "12ab")).toEqual([0, "12"]);
+    expect(firstMatch(/[^\W_]+/, "__ab_")).toEqual([2, "ab"]);
+    expect(firstMatch(/[^\S]+/, "a 　﻿b")).toEqual([1, " 　﻿"]);
+    expect(firstMatch(/[^\D]+/, "ab12c")).toEqual([2, "12"]);
+    expect(firstMatch(/[\s\S]+/, "a\nb")).toEqual([0, "a\nb"]);
+    expect(firstMatch(/[^\w\s]+/, "ab  -+")).toEqual([4, "-+"]);
+    expect(firstMatch(/a[^\s]*?b/, "a b axyb")).toEqual([4, "axyb"]);
+    expect(firstMatch(/[^\s]{2,3}/, "a bcde")).toEqual([2, "bcd"]);
+
+    // Without the u flag, a class matches the code units of a surrogate pair one at a time.
+    expect(firstMatch(/[^\s\uD83D]+/, "😀 x")).toEqual([1, "\uDE00"]);
+    expect(firstMatch(/[\D]/, "😀")).toEqual([0, "\uD83D"]);
+
+    // Case-insensitive classes.
+    expect(firstMatch(/[^\sa-c]+/i, "ABC xyAbz")).toEqual([4, "xy"]);
+    expect(firstMatch(/[^\w]+/i, "ſK")).toEqual([0, "ſK"]);
+    expect(firstMatch(/[\w-]+/i, "ſ-k")).toEqual([1, "-k"]);
+    expect(firstMatch(/[\s-]+/i, "ab - c")).toEqual([2, " - "]);
+});

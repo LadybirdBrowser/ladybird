@@ -45,6 +45,57 @@ pub fn compile(pattern: &Pattern) -> Program {
     compiler.program
 }
 
+const fn char_range(start: u32, end: u32) -> CharRange {
+    CharRange { start, end }
+}
+
+/// `\d`: <https://tc39.es/ecma262/#sec-compiletocharset>
+const DIGIT_RANGES: &[CharRange] = &[char_range(0x30, 0x39)];
+const NON_DIGIT_RANGES: &[CharRange] = &[char_range(0, 0x2F), char_range(0x3A, 0x10FFFF)];
+
+/// `\w` without the u and v flags is the ASCII WordCharacters: <https://tc39.es/ecma262/#sec-wordcharacters>
+const WORD_RANGES: &[CharRange] = &[
+    char_range(0x30, 0x39),
+    char_range(0x41, 0x5A),
+    char_range(0x5F, 0x5F),
+    char_range(0x61, 0x7A),
+];
+const NON_WORD_RANGES: &[CharRange] = &[
+    char_range(0, 0x2F),
+    char_range(0x3A, 0x40),
+    char_range(0x5B, 0x5E),
+    char_range(0x60, 0x60),
+    char_range(0x7B, 0x10FFFF),
+];
+
+/// `\s` is WhiteSpace and LineTerminator: <https://tc39.es/ecma262/#sec-white-space>,
+/// <https://tc39.es/ecma262/#sec-line-terminators>
+const WHITESPACE_RANGES: &[CharRange] = &[
+    char_range(0x09, 0x0D),
+    char_range(0x20, 0x20),
+    char_range(0xA0, 0xA0),
+    char_range(0x1680, 0x1680),
+    char_range(0x2000, 0x200A),
+    char_range(0x2028, 0x2029),
+    char_range(0x202F, 0x202F),
+    char_range(0x205F, 0x205F),
+    char_range(0x3000, 0x3000),
+    char_range(0xFEFF, 0xFEFF),
+];
+const NON_WHITESPACE_RANGES: &[CharRange] = &[
+    char_range(0, 0x08),
+    char_range(0x0E, 0x1F),
+    char_range(0x21, 0x9F),
+    char_range(0xA1, 0x167F),
+    char_range(0x1681, 0x1FFF),
+    char_range(0x200B, 0x2027),
+    char_range(0x202A, 0x202E),
+    char_range(0x2030, 0x205E),
+    char_range(0x2060, 0x2FFF),
+    char_range(0x3001, 0xFEFE),
+    char_range(0xFF00, 0x10FFFF),
+];
+
 /// Sorts `ranges` and merges the ones that overlap or touch, which the binary search of the VM relies on.
 fn normalize_char_ranges(ranges: &mut Vec<CharRange>) {
     ranges.sort_by_key(|range| range.start);
@@ -77,32 +128,31 @@ struct Compiler {
 }
 
 impl Compiler {
-    fn append_ascii_char_range(char_ranges: &mut Vec<CharRange>, start: u8, end: u8) {
-        char_ranges.push(CharRange {
-            start: u32::from(start),
-            end: u32::from(end),
-        });
-    }
-
-    fn append_builtin_class_ranges_for_legacy_positive_class(
-        char_ranges: &mut Vec<CharRange>,
-        builtin_class: BuiltinCharacterClass,
-    ) -> bool {
-        match builtin_class {
-            BuiltinCharacterClass::Digit => {
-                Self::append_ascii_char_range(char_ranges, b'0', b'9');
-                true
-            }
-            BuiltinCharacterClass::Word => {
-                // Legacy `\w` is ASCII-only: `[A-Za-z0-9_]`.
-                Self::append_ascii_char_range(char_ranges, b'0', b'9');
-                Self::append_ascii_char_range(char_ranges, b'A', b'Z');
-                Self::append_ascii_char_range(char_ranges, b'_', b'_');
-                Self::append_ascii_char_range(char_ranges, b'a', b'z');
-                true
-            }
-            _ => false,
+    /// The code point ranges of a builtin class inside a character class of a pattern without the u and v flags, if
+    /// the class can match it as plain ranges.
+    ///
+    /// Without ignore-case, every builtin is a fixed set of code points. With ignore-case, \d and \w are still exact in
+    /// a positive class, since Canonicalize never maps a code point outside them onto one inside them in non-unicode
+    /// mode. But matching a class with ranges then checks every code point that is not in them against the case
+    /// closure of each range, which would make the large ranges of \s, of the negated builtins, and of negated classes
+    /// slower than matching the builtins themselves.
+    fn legacy_builtin_class_ranges(&self, class: BuiltinCharacterClass, negated: bool) -> Option<&'static [CharRange]> {
+        if self.program.unicode || self.program.unicode_sets {
+            return None;
         }
+        if self.effective_ignore_case
+            && (negated || !matches!(class, BuiltinCharacterClass::Digit | BuiltinCharacterClass::Word))
+        {
+            return None;
+        }
+        Some(match class {
+            BuiltinCharacterClass::Digit => DIGIT_RANGES,
+            BuiltinCharacterClass::NonDigit => NON_DIGIT_RANGES,
+            BuiltinCharacterClass::Word => WORD_RANGES,
+            BuiltinCharacterClass::NonWord => NON_WORD_RANGES,
+            BuiltinCharacterClass::Whitespace => WHITESPACE_RANGES,
+            BuiltinCharacterClass::NonWhitespace => NON_WHITESPACE_RANGES,
+        })
     }
 
     fn new(pattern: &Pattern) -> Self {
@@ -970,7 +1020,6 @@ impl Compiler {
                 let mut has_builtin = false;
 
                 let split_surrogates = !self.program.unicode && !self.program.unicode_sets;
-                let can_inline_builtin_ranges = !cc.negated && !self.program.unicode && !self.program.unicode_sets;
                 for r in ranges {
                     match r {
                         CharacterClassRange::Single(cp) => {
@@ -987,11 +1036,10 @@ impl Compiler {
                             char_ranges.push(CharRange { start: *lo, end: *hi });
                         }
                         CharacterClassRange::BuiltinClass(class)
-                            if can_inline_builtin_ranges
-                                && Self::append_builtin_class_ranges_for_legacy_positive_class(
-                                    &mut char_ranges,
-                                    *class,
-                                ) => {}
+                            if let Some(builtin_ranges) = self.legacy_builtin_class_ranges(*class, cc.negated) =>
+                        {
+                            char_ranges.extend_from_slice(builtin_ranges);
+                        }
                         CharacterClassRange::BuiltinClass(_) | CharacterClassRange::UnicodeProperty(_) => {
                             has_builtin = true;
                         }
@@ -1174,11 +1222,10 @@ impl Compiler {
     /// collects plain ranges into one `CharClass` and each builtin/property into its
     /// own `SimpleMatch`, then folds them into a `Union`.
     fn try_simple_match_for_ranges(&self, ranges_vec: &[CharacterClassRange], negated: bool) -> Option<SimpleMatch> {
-        let has_complex = ranges_vec.iter().any(|r| {
-            matches!(
-                r,
-                CharacterClassRange::BuiltinClass(_) | CharacterClassRange::UnicodeProperty(_)
-            )
+        let has_complex = ranges_vec.iter().any(|r| match r {
+            CharacterClassRange::BuiltinClass(class) => self.legacy_builtin_class_ranges(*class, negated).is_none(),
+            CharacterClassRange::UnicodeProperty(_) => true,
+            CharacterClassRange::Single(_) | CharacterClassRange::Range(..) => false,
         });
 
         if !has_complex {
@@ -1194,7 +1241,10 @@ impl Compiler {
                     CharacterClassRange::Range(lo, hi) => {
                         ranges.push(CharRange { start: *lo, end: *hi });
                     }
-                    _ => return None,
+                    CharacterClassRange::BuiltinClass(class) => {
+                        ranges.extend_from_slice(self.legacy_builtin_class_ranges(*class, negated)?);
+                    }
+                    CharacterClassRange::UnicodeProperty(_) => return None,
                 }
             }
             normalize_char_ranges(&mut ranges);
