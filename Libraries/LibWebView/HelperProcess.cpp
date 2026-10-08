@@ -437,6 +437,8 @@ ErrorOr<NonnullRefPtr<AudioServerControlClient>> launch_audio_server_process()
     auto const& browser_options = WebView::Application::browser_options();
 
     Vector<ByteString> arguments;
+    if (browser_options.headless_mode.has_value())
+        arguments.append("--headless"sv);
     if (browser_options.disable_sandbox == DisableSandbox::Yes)
         arguments.append("--disable-sandbox"sv);
     if (auto server = mach_server_name(); server.has_value()) {

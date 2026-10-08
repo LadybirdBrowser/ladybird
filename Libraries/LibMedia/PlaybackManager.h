@@ -19,7 +19,6 @@
 #include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Promise.h>
-#include <LibMedia/AudioOutput.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
@@ -62,8 +61,6 @@ public:
 
     static NonnullOwnPtr<PlaybackManager> create();
     ~PlaybackManager();
-
-    void set_audio_output(AudioOutput audio_output) { m_audio_output = audio_output; }
 
     AK::Duration duration() const { return m_duration; }
     void set_duration(AK::Duration);
@@ -251,7 +248,6 @@ private:
     HostHooks m_host_hooks;
     float m_playback_rate { 1.0f };
 
-    AudioOutput m_audio_output { AudioOutput::Platform };
     bool m_started { false };
 
     Vector<NonnullRefPtr<Demuxer>> m_demuxers;

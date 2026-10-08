@@ -19,7 +19,7 @@ static Media::DecoderError media_server_gone_error()
     return Media::DecoderError::with_description(Media::DecoderErrorCategory::Unknown, "The media server is gone"sv);
 }
 
-NonnullOwnPtr<RemotePlaybackManager> RemotePlaybackManager::create(Media::AudioOutput audio_output)
+NonnullOwnPtr<RemotePlaybackManager> RemotePlaybackManager::create()
 {
     auto client_or_error = Client::acquire();
     if (client_or_error.is_error()) {
@@ -35,7 +35,7 @@ NonnullOwnPtr<RemotePlaybackManager> RemotePlaybackManager::create(Media::AudioO
     auto client = client_or_error.release_value();
     auto playback_manager = adopt_own(*new RemotePlaybackManager(client, client->allocate_id()));
     client->register_playback_manager({}, *playback_manager);
-    client->async_create_playback_session(playback_manager->session_id(), audio_output);
+    client->async_create_playback_session(playback_manager->session_id());
     return playback_manager;
 }
 

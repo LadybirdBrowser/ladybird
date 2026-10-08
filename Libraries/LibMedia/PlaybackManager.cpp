@@ -142,8 +142,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
                     if (!self)
                         return;
                     self->on_audio_sink_state_changed(status);
-                },
-                self->m_audio_output));
+                }));
             MUST(self->m_audio_time_stretch_processor->connect_input(*self->m_audio_mixer));
             MUST(self->m_audio_sink->connect_input(*self->m_audio_time_stretch_processor));
             self->set_clock(*self->m_audio_sink);

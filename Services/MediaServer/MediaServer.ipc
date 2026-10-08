@@ -1,7 +1,6 @@
 #include <AK/Time.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibMedia/AudioOutput.h>
 #include <LibMedia/DecoderCapabilities.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
 #include <LibMedia/MediaSupport.h>
@@ -33,7 +32,7 @@ endpoint MediaServer
     close_media_stream(u64 stream_id) =|
     set_media_stream_may_idle(u64 stream_id, bool may_idle) =|
 
-    create_playback_session(u64 session_id, Media::AudioOutput audio_output) =|
+    create_playback_session(u64 session_id) =|
     destroy_playback_session(u64 session_id) =|
     add_media_stream_source(u64 session_id, u64 stream_id) =|
     start_playback(u64 session_id) =|

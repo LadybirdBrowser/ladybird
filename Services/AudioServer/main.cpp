@@ -6,6 +6,7 @@
 
 #include <AudioServer/ControlConnection.h>
 #include <AudioServer/Sandbox.h>
+#include <AudioServer/TabMixers.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/CrashHandler.h>
 #include <LibCore/EventLoop.h>
@@ -25,6 +26,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     StringView mach_server_name;
     bool wait_for_debugger = false;
     bool disable_sandbox = false;
+    bool is_headless = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(crash_report_fd, "Descriptor for anonymous crash diagnostics", "crash-report-fd", 0, "fd");
@@ -32,6 +34,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
+    args_parser.add_option(is_headless, "Discard the mixed output instead of playing it", "headless");
     args_parser.parse(arguments);
 
     if (crash_report_fd >= 0) {
@@ -56,6 +59,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     if (!disable_sandbox)
         TRY(AudioServer::apply_sandbox(mach_server_name));
+
+    if (is_headless)
+        AudioServer::TabMixers::the().set_audio_output(Media::AudioOutput::Null);
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<AudioServer::ControlConnection>(mach_server_name));
 

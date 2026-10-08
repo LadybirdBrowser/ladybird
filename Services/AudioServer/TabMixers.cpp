@@ -9,6 +9,7 @@
 #include <AudioServer/TabMixers.h>
 #include <LibCore/EventLoop.h>
 #include <LibIPC/Transport.h>
+#include <LibMedia/Audio/NullPlaybackStream.h>
 #include <LibMedia/Audio/PlaybackStream.h>
 
 namespace AudioServer {
@@ -32,8 +33,13 @@ struct SharedDataRequestCallback : public AtomicRefCounted<SharedDataRequestCall
     Audio::PlaybackStream::AudioDataRequestCallback callback;
 };
 
-static NonnullRefPtr<Audio::PlaybackStream::CreatePromise> create_device_stream(Audio::OutputState state, u32 target_latency_ms, Audio::PlaybackStream::AudioDataRequestCallback callback)
+static NonnullRefPtr<Audio::PlaybackStream::CreatePromise> create_device_stream(Media::AudioOutput audio_output, Audio::OutputState state, u32 target_latency_ms, Audio::PlaybackStream::AudioDataRequestCallback callback)
 {
+    if (audio_output == Media::AudioOutput::Null) {
+        auto promise = Audio::PlaybackStream::CreatePromise::construct();
+        promise->resolve(Audio::NullPlaybackStream::create(state, target_latency_ms, move(callback)));
+        return promise;
+    }
     auto shared_callback = make_ref_counted<SharedDataRequestCallback>(move(callback));
     return Audio::PlaybackStream::create_platform_or_null(state, target_latency_ms, [shared_callback](Span<float> buffer, MonotonicTime buffer_starts_playing_at) {
         return shared_callback->callback(buffer, buffer_starts_playing_at);
@@ -42,8 +48,10 @@ static NonnullRefPtr<Audio::PlaybackStream::CreatePromise> create_device_stream(
 
 TabMixers::Tab& TabMixers::tab_for(u64 tab_id)
 {
-    return m_tabs.ensure(tab_id, [] {
-        auto mixer = Audio::PlaybackStreamMixer::create(Core::EventLoop::current(), DEVICE_TARGET_LATENCY_MS, create_device_stream);
+    return m_tabs.ensure(tab_id, [audio_output = m_audio_output] {
+        auto mixer = Audio::PlaybackStreamMixer::create(Core::EventLoop::current(), DEVICE_TARGET_LATENCY_MS, [audio_output](Audio::OutputState state, u32 target_latency_ms, Audio::PlaybackStream::AudioDataRequestCallback callback) {
+            return create_device_stream(audio_output, state, target_latency_ms, move(callback));
+        });
         return Tab { .mixer = move(mixer), .connections = {} };
     });
 }

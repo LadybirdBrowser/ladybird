@@ -2153,19 +2153,10 @@ void HTMLMediaElement::on_metadata_parsed(SourceType source_type)
     update_ready_state();
 }
 
-static Media::AudioOutput audio_output_for_document(DOM::Document const& document)
-{
-    // AD-HOC: Headless instances use a null output stream, so that playback follows the same audio-driven path while
-    //         discarding the samples, without holding onto the system's audio output resources.
-    if (document.page().client().is_headless())
-        return Media::AudioOutput::Null;
-    return Media::AudioOutput::Platform;
-}
-
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
 void HTMLMediaElement::set_up_playback_manager_for_remote()
 {
-    m_playback_manager = MediaClient::RemotePlaybackManager::create(audio_output_for_document(document()));
+    m_playback_manager = MediaClient::RemotePlaybackManager::create();
 
     m_playback_manager->set_playback_rate(static_cast<float>(m_playback_rate));
 
@@ -2258,7 +2249,7 @@ void HTMLMediaElement::handle_playback_manager_error(Media::DecoderError&& error
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
 void HTMLMediaElement::set_up_playback_manager_for_local(Function<void(Utf16String)> failure_callback)
 {
-    m_playback_manager = MediaClient::RemotePlaybackManager::create(audio_output_for_document(document()));
+    m_playback_manager = MediaClient::RemotePlaybackManager::create();
 
     m_playback_manager->set_playback_rate(static_cast<float>(m_playback_rate));
 

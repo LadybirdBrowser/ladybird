@@ -12,6 +12,7 @@
 #include <LibIPC/TransportHandle.h>
 #include <LibMedia/Audio/PlaybackStreamMixer.h>
 #include <LibMedia/Audio/ServerConnection.h>
+#include <LibMedia/AudioOutput.h>
 
 namespace AudioServer {
 
@@ -19,6 +20,9 @@ namespace AudioServer {
 class TabMixers {
 public:
     static TabMixers& the();
+
+    // Decides what every tab's device stream is; headless instances discard their mix into a null stream.
+    void set_audio_output(Media::AudioOutput audio_output) { m_audio_output = audio_output; }
 
     ErrorOr<IPC::TransportHandle> connect_client(u64 tab_id);
 
@@ -33,6 +37,7 @@ private:
 
     HashMap<u64, Tab> m_tabs;
     int m_next_client_id { 1 };
+    Media::AudioOutput m_audio_output { Media::AudioOutput::Platform };
 };
 
 }
