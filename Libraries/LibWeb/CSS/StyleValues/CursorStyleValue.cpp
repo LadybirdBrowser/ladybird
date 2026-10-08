@@ -85,7 +85,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
             .dest_rect = bitmap.rect().to_type<float>(),
             .image_rendering = ImageRendering::Auto,
             .color_scheme = current_color_scheme,
-            .gradient_stop_color_resolution_context = Painting::gradient_stop_color_resolution_context(layout_node),
+            .gradient_stop_color_resolution_style = ColorResolutionStyle::for_layout_node(layout_node),
             .accumulated_scale = { 1, 1 },
             .resource_storage = resource_storage,
         };

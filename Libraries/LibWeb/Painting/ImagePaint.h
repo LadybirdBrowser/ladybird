@@ -41,7 +41,7 @@ struct ImagePaintRequest {
     Gfx::FloatRect dest_rect;
     CSS::ImageRendering image_rendering;
     CSS::PreferredColorScheme color_scheme;
-    CSS::ColorResolutionContext gradient_stop_color_resolution_context;
+    CSS::ColorResolutionStyle gradient_stop_color_resolution_style;
     Gfx::FloatSize accumulated_scale;
     Compositing::DisplayListResourceStorage& resource_storage;
 };

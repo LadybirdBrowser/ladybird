@@ -6,7 +6,7 @@
 
 use crate::painting::record::trace::Observer;
 
-use crate::css::color_resolution::{ColorResolutionInput, Rgba, to_color};
+use crate::css::color_resolution::{ColorResolutionInput, to_color};
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
 use crate::css::style_value::{RetainedColorStop, RetainedStyleValueData, StyleValueData};
@@ -16,7 +16,6 @@ use crate::painting::display_list::recorder::{
 };
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::record::PaintRecorder;
-use crate::painting::style_queries;
 use crate::painting::visual_context::basic_shapes::{position_resolved, resolve_circle_size, resolve_ellipse_size};
 use libgfx_rust::{
     Color, CompositingAndBlendingOperator, FloatRect, GradientInterpolationMethod, GradientInterpolationType,
@@ -502,23 +501,6 @@ fn resolve_color_stop_positions(
     }
 }
 
-fn stop_color_resolution_input(style: ComputedValuesView<'_>) -> ColorResolutionInput<'_> {
-    let inherited_text = style.inherited_text();
-    let current_color = inherited_text.color;
-    ColorResolutionInput {
-        scheme: Some(style.inherited_ui().color_scheme),
-        current_color: Some(Rgba {
-            r: (current_color >> 16) as u8,
-            g: (current_color >> 8) as u8,
-            b: current_color as u8,
-            a: (current_color >> 24) as u8,
-        }),
-        current_color_value: style_queries::handle_value(&inherited_text.color_style_value),
-        length: None,
-        channels: None,
-    }
-}
-
 fn stop_length_px(position: &StyleValueData, percentage_basis_px: f64) -> f64 {
     match position {
         StyleValueData::Length { value, unit } => {
@@ -844,7 +826,7 @@ pub(crate) fn resolve_gradient_paint(
     gradient_value: &StyleValueData,
     tile_size: CssPixelSize,
 ) -> ResolvedGradientPaint {
-    resolve_gradient_paint_with_input(gradient_value, tile_size, &stop_color_resolution_input(style))
+    resolve_gradient_paint_with_input(gradient_value, tile_size, &ColorResolutionInput::for_style(style))
 }
 
 pub(crate) fn resolve_gradient_paint_with_input(

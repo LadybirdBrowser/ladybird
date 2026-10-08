@@ -1,0 +1,3 @@
+Image rgb(0, 128, 0)
+Image rgb(100, 0, 200)
+Image rgb(10, 20, 30)

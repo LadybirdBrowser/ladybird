@@ -131,6 +131,18 @@ struct ColorResolutionContext {
     [[nodiscard]] static ColorResolutionContext for_layout_node_with_style(Layout::NodeWithStyle const&);
 };
 
+// The computed style a <color> resolves against, named by its InheritedUIValues and InheritedTextValues group
+// payloads: Rust reads the used color-scheme and the color currentcolor names from them. Default-constructed, it
+// names no style.
+struct ColorResolutionStyle {
+    void const* inherited_ui_values { nullptr };
+    void const* inherited_text_values { nullptr };
+
+    [[nodiscard]] static ColorResolutionStyle for_layout_node(Layout::NodeWithStyle const&);
+
+    StyleValueFFI::FfiColorResolutionStyle to_ffi() const { return { inherited_ui_values, inherited_text_values }; }
+};
+
 class WEB_API StyleValue : public RefCounted<StyleValue> {
 public:
     AK_ALLOC_WITH_KMALLOC;
