@@ -21,8 +21,7 @@ use crate::layout::cell::Gc;
 use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{
-    call, get_this_environment, new_declarative_environment, new_object_environment, new_private_environment,
-    perform_import_call,
+    call, get_this_environment, new_object_environment, new_private_environment, perform_import_call,
 };
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::declarative_environment::DeclarativeEnvironment;
@@ -126,7 +125,8 @@ pub fn create_lexical_environment(
     capacity: u32,
     is_catch_environment: bool,
 ) -> Gc<DeclarativeEnvironment> {
-    let environment = new_declarative_environment(vm, parent);
+    // NB: NewDeclarativeEnvironment(parent), with room for the bindings the code creates.
+    let environment = DeclarativeEnvironment::create_with_binding_capacity(vm, Some(parent), capacity as usize);
     environment.set_environment_shape_cache(shape_cache, capacity as usize);
     environment.ensure_capacity(capacity as usize);
     environment.set_is_catch_environment(is_catch_environment);
@@ -142,7 +142,9 @@ pub fn create_variable_environment(
     shape_cache: Option<EnvironmentShapeCache>,
     capacity: u32,
 ) -> Gc<DeclarativeEnvironment> {
-    let var_environment = new_declarative_environment(vm, lexical_environment);
+    // NB: NewDeclarativeEnvironment(lexicalEnvironment), with room for the bindings the code creates.
+    let var_environment =
+        DeclarativeEnvironment::create_with_binding_capacity(vm, Some(lexical_environment), capacity as usize);
     if let Some(shape_cache) = shape_cache {
         var_environment.set_environment_shape_cache(shape_cache, capacity as usize);
     }

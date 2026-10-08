@@ -126,6 +126,7 @@ impl Environment {
             this_binding_status: (ThisBindingStatus::Uninitialized as u8).into(),
             permanently_screwed_by_eval: false.into(),
             declarative: is_declarative.into(),
+            binding_values_are_inline: false.into(),
             outer: outer_environment.into(),
         }
     }

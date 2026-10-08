@@ -15,7 +15,10 @@ use crate::layout::cell::Gc;
 use crate::layout::function_object::FunctionObject;
 use crate::layout::value::Value;
 use crate::runtime::completion::ThrowCompletionOr;
-use crate::runtime::declarative_environment::{DECLARATIVE_ENVIRONMENT_METHODS, DeclarativeEnvironment};
+use crate::runtime::declarative_environment::{
+    DECLARATIVE_ENVIRONMENT_METHODS, DeclarativeEnvironment, INLINE_BINDING_CAPACITIES, allocate_environment,
+    inline_binding_cell_sizes,
+};
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::environment::{Environment, EnvironmentMethods, ThisBindingStatus};
 use crate::runtime::error::ErrorKind;
@@ -60,14 +63,28 @@ pub const FUNCTION_ENVIRONMENT_METHODS: EnvironmentMethods = EnvironmentMethods 
     ..DECLARATIVE_ENVIRONMENT_METHODS
 };
 
+const FUNCTION_ENVIRONMENT_CELL_SIZES: [u32; INLINE_BINDING_CAPACITIES.len()] =
+    inline_binding_cell_sizes(size_of::<FunctionEnvironment>());
+
 impl FunctionEnvironment {
-    pub fn create(vm: &Vm, outer_environment: Option<Gc<Environment>>) -> Gc<FunctionEnvironment> {
-        vm.heap().allocate(FunctionEnvironment {
-            base: DeclarativeEnvironment::new(Self::CLASS, outer_environment),
-            this_value: Cell::new(Value::UNDEFINED),
-            function_object: Cell::new(None),
-            new_target: Cell::new(Value::UNDEFINED),
-        })
+    /// A new environment with room for `binding_capacity` bindings in its cell, if a size class has that much.
+    pub fn create(
+        vm: &Vm,
+        outer_environment: Option<Gc<Environment>>,
+        binding_capacity: usize,
+    ) -> Gc<FunctionEnvironment> {
+        allocate_environment(
+            vm,
+            FunctionEnvironment {
+                base: DeclarativeEnvironment::new(Self::CLASS, outer_environment),
+                this_value: Cell::new(Value::UNDEFINED),
+                function_object: Cell::new(None),
+                new_target: Cell::new(Value::UNDEFINED),
+            },
+            binding_capacity,
+            &FUNCTION_ENVIRONMENT_CELL_SIZES,
+            |environment| &environment.base,
+        )
     }
 
     pub fn this_binding_status(&self) -> ThisBindingStatus {

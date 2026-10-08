@@ -831,7 +831,12 @@ pub fn new_function_environment(
     new_target: Option<Gc<Object>>,
 ) -> Gc<FunctionEnvironment> {
     // 1. Let env be a new function Environment Record containing no bindings.
-    let env = FunctionEnvironment::create(vm, function.environment());
+    // NB: With room for the bindings the function's code creates.
+    let env = FunctionEnvironment::create(
+        vm,
+        function.environment(),
+        function.shared_data().function_environment_bindings_count(),
+    );
 
     // 2. Set env.[[FunctionObject]] to F.
     env.set_function_object(function.upcast());
@@ -863,7 +868,8 @@ pub fn new_function_environment_for_native_javascript_backed_function(
     new_target: Option<Gc<Object>>,
 ) -> Gc<FunctionEnvironment> {
     // 1. Let env be a new function Environment Record containing no bindings.
-    let env = FunctionEnvironment::create(vm, None);
+    // NB: With room for the bindings the function's code creates.
+    let env = FunctionEnvironment::create(vm, None, function.shared_data().function_environment_bindings_count());
 
     // 2. Set env.[[FunctionObject]] to F.
     env.set_function_object(function.upcast());
