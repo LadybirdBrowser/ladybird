@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A navigation's response body reaches the document that adopts it in full, although it is larger than the
+    // buffers between RequestServer and that document together.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const size = 4 * 1024 * 1024;
+        const url = await server.createEcho("GET", `/transferred-large-body-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: { "Cache-Control": "no-store", "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><div id="filler">${"x".repeat(size)}</div>
+                <script>parent.postMessage(document.getElementById("filler").textContent.length, "*");<\/script>`,
+        });
+
+        const length = new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+        const iframe = document.createElement("iframe");
+        iframe.src = url;
+        document.body.append(iframe);
+        println(`document received the whole body: ${(await length) === size}`);
+        iframe.remove();
+    });
+</script>

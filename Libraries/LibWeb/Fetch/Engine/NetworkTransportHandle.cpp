@@ -38,11 +38,6 @@ void NetworkTransportHandle::stop()
     m_request->stop();
 }
 
-void NetworkTransportHandle::resume_body_delivery()
-{
-    m_request->resume_body_delivery();
-}
-
 void NetworkTransportHandle::release_transfer_lease()
 {
     m_request->release_transfer_lease();

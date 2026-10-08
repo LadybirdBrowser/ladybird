@@ -10,17 +10,14 @@
         const output = [];
         const println = line => output.push(line);
 
-        // The body arrives through a body pump, or through a receiver when the navigation adopts a request fetched
-        // elsewhere.
+        // The body arrives through a body pump, also when the navigation adopts a request fetched elsewhere.
         const countBodyCells = () => {
-            const counts = { pumps: 0, pullSources: 0, receivers: 0 };
+            const counts = { pumps: 0, pullSources: 0 };
             for (const cell of Object.values(JSON.parse(internals.dumpGCGraph()))) {
                 if (cell.class_name === "NetworkBodyPump")
                     ++counts.pumps;
                 else if (cell.class_name === "BodyStreamPullSource")
                     ++counts.pullSources;
-                else if (cell.class_name === "FetchedDataReceiver")
-                    ++counts.receivers;
             }
             return counts;
         };
@@ -32,10 +29,10 @@
             for (;;) {
                 await internals.gcAsync();
                 const counts = countBodyCells();
-                if (counts.pumps === initial.pumps && counts.pullSources === initial.pullSources && counts.receivers === initial.receivers)
+                if (counts.pumps === initial.pumps && counts.pullSources === initial.pullSources)
                     return "released";
                 if (performance.now() > deadline)
-                    return `left ${counts.pumps - initial.pumps} pumps, ${counts.pullSources - initial.pullSources} pull sources and ${counts.receivers - initial.receivers} receivers`;
+                    return `left ${counts.pumps - initial.pumps} pumps and ${counts.pullSources - initial.pullSources} pull sources`;
                 await sleep(10);
             }
         };
@@ -51,7 +48,7 @@
 
         // The body is held after its first chunk, and ends short once it is let go.
         const arrivalDeadline = performance.now() + 10000;
-        for (let counts = countBodyCells(); counts.pumps === initial.pumps && counts.receivers === initial.receivers; counts = countBodyCells()) {
+        for (let counts = countBodyCells(); counts.pumps === initial.pumps; counts = countBodyCells()) {
             if (performance.now() > arrivalDeadline) {
                 println("body of the failed navigation never arrived");
                 return output;

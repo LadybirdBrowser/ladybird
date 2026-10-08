@@ -119,6 +119,10 @@ struct NavigationParams : GC::Cell {
     // a user navigation involvement used when obtaining a browsing context for the new Document
     UserNavigationInvolvement user_involvement;
 
+    // The fetch controller, or else the transport of a body adopted without one.
+    using BodyDelivery = Variant<Empty, GC::Ref<Fetch::Infrastructure::FetchController>, NonnullRefPtr<Fetch::Engine::NetworkTransportHandle>>;
+    [[nodiscard]] BodyDelivery body_delivery() const;
+
 protected:
     void visit_edges(Visitor& visitor) override;
 
@@ -213,6 +217,9 @@ protected:
 };
 
 using NavigationParamsVariant = Variant<NavigationParamsNullOrError, GC::Ref<NavigationParams>, GC::Ref<NonFetchSchemeNavigationParams>>;
+
+// Returns whether a fetch controller or network transport was stopped.
+bool stop_body_delivery(NavigationParams::BodyDelivery const&);
 
 bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::Infrastructure::Response> response, LocalNavigable* navigable, ContentSecurityPolicy::PolicyList const& csp_list, URL::Origin destination_origin);
 

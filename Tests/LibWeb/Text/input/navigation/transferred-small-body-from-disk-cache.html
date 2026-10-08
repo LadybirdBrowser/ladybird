@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A navigation response the disk cache serves through the pipe, being smaller than a page, reaches the document
+    // that adopts it once and in full.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const size = 2 * 1024;
+        const url = await server.createEcho("GET", `/transferred-small-cached-body-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: { "Cache-Control": "max-age=3600", "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><div class="filler">${"x".repeat(size)}</div>
+                <script>
+                    addEventListener("load", () => parent.postMessage({
+                        fillers: document.querySelectorAll(".filler").length,
+                        length: document.querySelector(".filler").textContent.length,
+                        deliveryType: performance.getEntriesByType("navigation")[0].deliveryType,
+                    }, "*"));
+                <\/script>`,
+        });
+
+        const navigate = () =>
+            new Promise(resolve => {
+                window.addEventListener("message", event => resolve(event.data), { once: true });
+                const iframe = document.createElement("iframe");
+                iframe.src = url;
+                document.body.append(iframe);
+            });
+
+        // In test mode, the disk cache only stores responses to requests carrying the cache-enablement header, which a
+        // page cannot attach to a navigation request.
+        const diskCacheWasEnabledForNavigations = internals.setDiskCacheEnabledForNavigations(true);
+        try {
+            const first = await navigate();
+            println(`first load is complete: ${first.fillers === 1 && first.length === size}`);
+
+            // The first body ends only after RequestServer has written its cache entry.
+            const second = await navigate();
+            println(`second load came from the cache: ${second.deliveryType === "cache"}`);
+            println(`second load is complete and not repeated: ${second.fillers === 1 && second.length === size}`);
+        } finally {
+            internals.setDiskCacheEnabledForNavigations(diskCacheWasEnabledForNavigations);
+        }
+    });
+</script>

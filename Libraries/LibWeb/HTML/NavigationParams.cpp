@@ -7,6 +7,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigationParams.h>
@@ -25,6 +26,31 @@ void NavigationParams::visit_edges(Visitor& visitor)
     visitor.visit(fetch_controller);
     visitor.visit(commit_early_hints);
     visitor.visit(reserved_environment);
+}
+
+NavigationParams::BodyDelivery NavigationParams::body_delivery() const
+{
+    if (fetch_controller)
+        return GC::Ref { *fetch_controller };
+    if (auto const& network_transport = response->network_transport(); network_transport.has_value())
+        return network_transport->handle;
+    return Empty {};
+}
+
+bool stop_body_delivery(NavigationParams::BodyDelivery const& body_delivery)
+{
+    return body_delivery.visit(
+        [](Empty) { return false; },
+        [](GC::Ref<Fetch::Infrastructure::FetchController> const& fetch_controller) {
+            if (fetch_controller->state() != Fetch::Infrastructure::FetchController::State::Ongoing)
+                return false;
+            fetch_controller->stop_fetch();
+            return true;
+        },
+        [](NonnullRefPtr<Fetch::Engine::NetworkTransportHandle> const& network_transport) {
+            network_transport->stop();
+            return true;
+        });
 }
 
 void NonFetchSchemeNavigationParams::visit_edges(Visitor& visitor)

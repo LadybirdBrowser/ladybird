@@ -2138,9 +2138,9 @@ private:
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-navigation-id
     Optional<Utf16String> m_navigation_id;
 
-    // AD-HOC: The main resource fetch is not part of the document's subresource fetch group, so retain its controller
-    //         separately while the navigation fetch is ongoing.
-    GC::Ptr<Fetch::Infrastructure::FetchController> m_ongoing_navigation_fetch_controller;
+    // AD-HOC: The main resource fetch is not part of the document's subresource fetch group, so retain its controller,
+    //         or the network transport of a body adopted without one, separately while the navigation fetch is ongoing.
+    Variant<Empty, GC::Ref<Fetch::Infrastructure::FetchController>, NonnullRefPtr<Fetch::Engine::NetworkTransportHandle>> m_ongoing_navigation_fetch;
 
     // https://html.spec.whatwg.org/multipage/origin.html#active-sandboxing-flag-set
     HTML::SandboxingFlagSet m_active_sandboxing_flag_set;

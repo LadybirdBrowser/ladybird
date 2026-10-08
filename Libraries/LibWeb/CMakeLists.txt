@@ -360,7 +360,6 @@ set(SOURCES
     Fetch/Fetching/BodyStreamPullSource.cpp
     Fetch/Fetching/Checks.cpp
     Fetch/Fetching/ClientContextSnapshots.cpp
-    Fetch/Fetching/FetchedDataReceiver.cpp
     Fetch/Fetching/NetworkBodyPump.cpp
     Fetch/Fetching/Fetching.cpp
     Fetch/Fetching/PendingResponse.cpp
