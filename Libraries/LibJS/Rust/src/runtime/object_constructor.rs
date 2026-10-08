@@ -195,6 +195,12 @@ impl ObjectConstructor {
             // i. Let from be ! ToObject(nextSource).
             let from = next_source.to_object(vm).must();
 
+            // OPTIMIZATION: Setting the properties of an ordinary source on an empty target that has no setters or
+            //               read-only properties in the way gives it a copy of them, which can be made directly.
+            if to != from && to.assign_properties_to_new_object(vm, &from) {
+                continue;
+            }
+
             // OPTIMIZATION: Snapshot named property keys and offsets without converting keys to JS strings.
             // Read current values directly while the source shape is unchanged. Getters and target setters
             // can mutate the source, so retain every original key and recheck the shape before each read.
@@ -771,6 +777,17 @@ fn try_assign_from_shape(vm: &Vm, target: &Object, source: &Object) -> ThrowComp
                 continue;
             }
             value = source.get(vm, &property_key)?;
+        }
+        // OPTIMIZATION: [[Set]] of an own writable data property of an object with ordinary property lookup and [[Set]]
+        //               changes its value, and nothing else.
+        if target.has_ordinary_named_property_lookup_and_set()
+            && !target.has_intrinsic_accessors()
+            && let Some(metadata) = target.shape().lookup(&property_key)
+            && metadata.attributes.is_writable()
+            && !target.get_direct(metadata.offset).is_accessor()
+        {
+            target.put_direct(metadata.offset, value);
+            continue;
         }
         target.set(vm, &property_key, value, ShouldThrowExceptions::Yes)?;
     }
