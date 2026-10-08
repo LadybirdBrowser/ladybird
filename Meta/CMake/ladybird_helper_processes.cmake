@@ -1,4 +1,5 @@
 set(ladybird_helper_processes
+    AudioServer
     Compositor
     ImageDecoder
     MediaServer

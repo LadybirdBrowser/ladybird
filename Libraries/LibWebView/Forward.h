@@ -15,6 +15,7 @@ namespace WebView {
 
 class Action;
 class Application;
+class AudioServerControlClient;
 class Autocomplete;
 class AutocompleteService;
 class BlobURLStore;

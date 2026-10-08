@@ -13,6 +13,7 @@
 #include <LibMedia/Audio/AudioServerPath.h>
 #include <LibSandbox/ConnectBroker.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/AudioServerControlClient.h>
 #include <LibWebView/CompositorClient.h>
 #include <LibWebView/FontService.h>
 #include <LibWebView/FontServiceHost.h>
@@ -218,7 +219,7 @@ static ErrorOr<pid_t> launch_helper_process(StringView server_name, Vector<ByteS
 
         // The audio clients cannot create a socket of their own, so the one endpoint they are allowed to
         // reach is opened here and handed over as a connected descriptor.
-        if (process_type == ProcessType::WebContent || process_type == ProcessType::MediaServer) {
+        if (process_type == ProcessType::WebContent || process_type == ProcessType::MediaServer || process_type == ProcessType::AudioServer) {
             if (auto audio_server_paths = Audio::audio_server_path_candidates(); !audio_server_paths.is_empty()) {
                 // Asking again covers an audio server that was not reachable when the renderer
                 // started, and a configured fallback the audio library had not got to yet.
@@ -429,6 +430,21 @@ void connect_to_image_decoder(WebContentClient& client, ImageDecoderConnection d
 void connect_to_image_decoder(WebWorkerClient& client, ImageDecoderConnection decoder)
 {
     connect_client_to_image_decoder(client, move(decoder));
+}
+
+ErrorOr<NonnullRefPtr<AudioServerControlClient>> launch_audio_server_process()
+{
+    auto const& browser_options = WebView::Application::browser_options();
+
+    Vector<ByteString> arguments;
+    if (browser_options.disable_sandbox == DisableSandbox::Yes)
+        arguments.append("--disable-sandbox"sv);
+    if (auto server = mach_server_name(); server.has_value()) {
+        arguments.append("--mach-server-name"sv);
+        arguments.append(server.value());
+    }
+
+    return launch_server_process<AudioServerControlClient>("AudioServer"sv, arguments);
 }
 
 ErrorOr<NonnullRefPtr<MediaClient::Client>> launch_media_server_process()

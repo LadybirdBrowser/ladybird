@@ -13,6 +13,7 @@ import subprocess
 from pathlib import Path
 
 HELPERS = (
+    "AudioServer",
     "Compositor",
     "ImageDecoder",
     "MediaServer",

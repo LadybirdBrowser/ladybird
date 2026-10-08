@@ -29,6 +29,7 @@ namespace WebView {
 WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(IsPrivate, Web::PageId initial_page_id, Web::HTML::CrossProcessId root_navigable_id);
 
 WEBVIEW_API ErrorOr<NonnullRefPtr<MediaClient::Client>> launch_media_server_process();
+WEBVIEW_API ErrorOr<NonnullRefPtr<AudioServerControlClient>> launch_audio_server_process();
 WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process();
 WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::WebWorkerClient>> launch_web_worker_process(Web::HTML::AgentType, IsPrivate, Web::HTML::WorkerAgentId);
 WEBVIEW_API ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_process();

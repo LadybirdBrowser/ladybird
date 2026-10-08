@@ -1,0 +1,9 @@
+#include <LibIPC/TransportHandle.h>
+
+endpoint AudioServerControl
+{
+    init_transport(int peer_pid) => (int peer_pid)
+
+    // Every client of one tab plays into that tab's mix, so the Browser names the tab a client belongs to.
+    connect_new_client(u64 tab_id) => (Optional<IPC::TransportHandle> handle)
+}

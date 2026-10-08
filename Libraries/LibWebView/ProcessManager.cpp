@@ -28,6 +28,8 @@ ProcessType process_type_from_name(StringView name)
         return ProcessType::ImageDecoder;
     if (name == "MediaServer"sv)
         return ProcessType::MediaServer;
+    if (name == "AudioServer"sv)
+        return ProcessType::AudioServer;
     if (name == "WasmCompiler"sv)
         return ProcessType::WasmCompiler;
 
@@ -52,6 +54,8 @@ StringView process_name_from_type(ProcessType type)
         return "ImageDecoder"sv;
     case ProcessType::MediaServer:
         return "MediaServer"sv;
+    case ProcessType::AudioServer:
+        return "AudioServer"sv;
     case ProcessType::WasmCompiler:
         return "WasmCompiler"sv;
     }
