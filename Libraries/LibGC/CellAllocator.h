@@ -100,6 +100,9 @@ public:
     // Hands the local free list back to the local block.
     void give_back_local_free_list(Badge<Heap>);
 
+    // For code that pops the local free list itself, see gc_heap_allocator_local_free_list().
+    RawPtr<Cell>* local_free_list(Badge<CAPI>) { return &m_local_free_list; }
+
     template<typename Callback>
     IterationDecision for_each_block(Callback callback)
     {

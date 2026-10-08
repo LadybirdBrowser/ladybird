@@ -119,6 +119,11 @@ struct CAPI {
             .max_cell_alignment = __BIGGEST_ALIGNMENT__,
             .cell_type_info_size = sizeof(CellTypeInfo),
             .weak_impl_pointer_offset = WeakImpl::value_offset(),
+            .free_cell_next_offset = HeapBlock::freelist_next_offset(),
+            .free_cell_link_mask = HeapBlock::freelist_link_mask,
+            .heap_allocated_bytes_since_last_gc_offset = offsetof(Heap, m_allocated_bytes_since_last_gc),
+            .heap_gc_bytes_threshold_offset = offsetof(Heap, m_gc_bytes_threshold),
+            .heap_total_allocated_bytes_offset = offsetof(Heap, m_total_allocated_bytes),
             .heap_region_offset_mask = HEAP_REGION_OFFSET_MASK,
             .primitive_storage_cage_offset_mask = PrimitiveStorage::cage_offset_mask,
         };
@@ -138,6 +143,13 @@ struct CAPI {
         return cell;
     }
 
+    static_assert(sizeof(Heap::m_allocated_bytes_since_last_gc) == sizeof(size_t));
+    static_assert(sizeof(Heap::m_gc_bytes_threshold) == sizeof(size_t));
+    static_assert(sizeof(Heap::m_total_allocated_bytes) == sizeof(size_t));
+
+    // Foreign code reads and writes the head of the list as a plain pointer.
+    static_assert(sizeof(RawPtr<Cell>) == sizeof(Cell*));
+    static RawPtr<Cell>* local_free_list(Heap& heap, CellAllocatorDescriptorBase& descriptor) { return descriptor.for_heap(heap).local_free_list({}); }
     static void defer_gc(Heap& heap) { heap.defer_gc(); }
     static void undefer_gc(Heap& heap) { heap.undefer_gc(); }
     static StackInfo const& stack_info(Heap const& heap) { return heap.m_stack_info; }
@@ -311,6 +323,18 @@ GCCell* gc_heap_allocate_storage_cell(GCHeap* heap, GCAllocator* allocator, bool
 {
     auto& descriptor = *reinterpret_cast<CAPICellAllocator*>(allocator);
     return as_gc_cell(CAPI::allocate_storage_cell(as_heap(heap), descriptor, *must_mark));
+}
+
+GCCell** gc_heap_allocator_local_free_list(GCHeap* heap, GCAllocator* allocator)
+{
+#ifdef HAS_ADDRESS_SANITIZER
+    (void)heap;
+    (void)allocator;
+    return nullptr;
+#else
+    auto& descriptor = *reinterpret_cast<CAPICellAllocator*>(allocator);
+    return reinterpret_cast<GCCell**>(CAPI::local_free_list(as_heap(heap), descriptor));
+#endif
 }
 
 GCCellTypeInfo const* gc_cell_type_info(GCCell const* cell)

@@ -749,6 +749,14 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
     m_idle_collection_policy.reset(m_total_allocated_bytes);
 }
 
+void Heap::set_should_collect_on_every_allocation(bool should_collect)
+{
+    m_should_collect_on_every_allocation = should_collect;
+    // NB: Code that pops local free lists itself would take cells from them without collecting.
+    if (should_collect)
+        give_back_local_free_lists();
+}
+
 void Heap::give_back_local_free_lists()
 {
     for (auto& allocator : m_all_cell_allocators)

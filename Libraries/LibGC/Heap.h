@@ -91,7 +91,7 @@ public:
     bool is_collecting_everything() const { return m_collecting_garbage && m_current_collection_type == CollectionType::CollectEverything; }
 
     void set_incremental_sweep_enabled(bool enabled) { m_incremental_sweep_enabled = enabled; }
-    void set_should_collect_on_every_allocation(bool b) { m_should_collect_on_every_allocation = b; }
+    void set_should_collect_on_every_allocation(bool);
 
     void did_create_root(Badge<RootImpl>, RootImpl&);
     void did_destroy_root(Badge<RootImpl>, RootImpl&);
