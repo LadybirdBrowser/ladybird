@@ -10,7 +10,7 @@ use ak::Utf16FlyString;
 use libjs_abi::PutKind;
 
 use crate::bytecode::executable::{
-    KeyedPropertyLookupCache, KeyedPropertyLookupCacheEntry, PropertyLookupCache, PropertyLookupCacheEntryType,
+    KeyedPropertyLookup, KeyedPropertyLookupCache, PropertyLookupCache, PropertyLookupCacheEntryType,
 };
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -75,7 +75,7 @@ pub fn property_addition_is_cacheable(vm: &Vm, object: &Object, property_key: &P
 
 /// Remembers a keyed lookup that the VM's keyed property lookup cache describes in the per-site cache of the
 /// instruction that made it, keyed by the identity of the key Value (see PropertyLookupCacheEntry::key).
-fn remember_keyed_lookup(site_cache: &PropertyLookupCache, site_cache_key: u64, entry: &KeyedPropertyLookupCacheEntry) {
+fn remember_keyed_lookup(site_cache: &PropertyLookupCache, site_cache_key: u64, entry: &KeyedPropertyLookup) {
     site_cache.update(entry.entry_type, |site_entry| {
         site_entry.key = site_cache_key;
         site_entry.property_offset = entry.property_offset;
@@ -104,14 +104,12 @@ pub fn get_by_value_with_keyed_cache(
     let shape = base_object.shape();
     let keyed_property_lookup_cache = vm.keyed_property_lookup_cache();
     let entry_index = KeyedPropertyLookupCache::entry_index_for(shape, property_name);
-    let entry = keyed_property_lookup_cache.entry(entry_index);
-    let remember = |entry: &KeyedPropertyLookupCacheEntry| {
+    let remember = |entry: &KeyedPropertyLookup| {
         if let Some((site_cache, site_cache_key)) = site_cache {
             remember_keyed_lookup(site_cache, site_cache_key, entry);
         }
     };
-    if entry.shape == Some(shape)
-        && entry.property_name.as_ref() == Some(property_name)
+    if let Some(entry) = keyed_property_lookup_cache.lookup(entry_index, shape, property_name)
         && (!shape.is_dictionary() || shape.dictionary_generation() == entry.shape_dictionary_generation)
     {
         let prototype_chain_validity_is_valid = entry
@@ -166,9 +164,8 @@ pub fn get_by_value_with_keyed_cache(
         return Ok(value);
     }
 
-    let mut entry = KeyedPropertyLookupCacheEntry {
+    let mut entry = KeyedPropertyLookup {
         shape: Some(shape),
-        property_name: Some(property_name.clone()),
         ..Default::default()
     };
     entry.shape_dictionary_generation = shape.dictionary_generation();
@@ -194,7 +191,7 @@ pub fn get_by_value_with_keyed_cache(
         CacheableGetPropertyMetadataType::NotCacheable => unreachable!("an uncacheable lookup returned above"),
     }
     remember(&entry);
-    keyed_property_lookup_cache.set_entry(entry_index, entry);
+    keyed_property_lookup_cache.set_entry(entry_index, entry, property_name);
     Ok(value)
 }
 
