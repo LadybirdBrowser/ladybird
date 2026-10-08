@@ -1,0 +1,14 @@
+#include <LibMedia/Audio/SharedAudioFrameRing.h>
+
+endpoint AudioServer {
+    init_transport(int peer_pid) => (int peer_pid)
+
+    create_stream(u64 stream_id) =|
+    destroy_stream(u64 stream_id) =|
+
+    attach_stream_ring(u64 stream_id, Audio::SharedAudioFrameRing ring) =|
+    resume_stream(u64 stream_id, u64 request_id) =|
+    drain_stream(u64 stream_id, u64 request_id) =|
+    discard_stream(u64 stream_id, u64 request_id) =|
+    set_stream_volume(u64 stream_id, float volume) =|
+}

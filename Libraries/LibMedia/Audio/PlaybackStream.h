@@ -59,6 +59,9 @@ public:
 
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double volume) = 0;
 
+    // Runs once, on the creating thread, when the output device can no longer play this stream.
+    Function<void()> on_output_lost;
+
 private:
     static NonnullRefPtr<CreatePromise> create_platform_or_null(OutputState, u32 target_latency_ms, AudioDataRequestCallback platform_data_request_callback, AudioDataRequestCallback fallback_data_request_callback);
     static NonnullRefPtr<CreatePromise> create_platform_playback_stream(OutputState, u32 target_latency_ms, AudioDataRequestCallback&&);

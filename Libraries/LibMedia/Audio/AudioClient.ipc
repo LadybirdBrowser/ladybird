@@ -1,0 +1,7 @@
+#include <LibMedia/Audio/SampleSpecification.h>
+
+endpoint AudioClient {
+    stream_created(u64 stream_id, Audio::SampleSpecification sample_specification, u32 device_latency_ms) =|
+    stream_creation_failed(u64 stream_id) =|
+    stream_request_completed(u64 stream_id, u64 request_id) =|
+}

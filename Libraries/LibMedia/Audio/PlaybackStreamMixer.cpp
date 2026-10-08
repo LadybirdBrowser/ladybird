@@ -16,7 +16,7 @@ namespace Audio {
 NonnullRefPtr<PlaybackStreamMixer> PlaybackStreamMixer::create(Core::EventLoop& control_loop, u32 target_latency_ms, DeviceStreamFactory factory)
 {
     auto state = make_ref_counted<MixState>(control_loop);
-    auto mixer = adopt_ref(*new PlaybackStreamMixer(state));
+    auto mixer = adopt_ref(*new PlaybackStreamMixer(state, target_latency_ms));
     state->m_mixer = mixer.ptr();
 
     auto promise = factory(OutputState::Suspended, target_latency_ms, [state](Span<float> buffer, MonotonicTime buffer_starts_playing_at) {
@@ -33,8 +33,9 @@ NonnullRefPtr<PlaybackStreamMixer> PlaybackStreamMixer::create(Core::EventLoop& 
     return mixer;
 }
 
-PlaybackStreamMixer::PlaybackStreamMixer(NonnullRefPtr<MixState> state)
+PlaybackStreamMixer::PlaybackStreamMixer(NonnullRefPtr<MixState> state, u32 device_target_latency_ms)
     : m_state(move(state))
+    , m_device_target_latency_ms(device_target_latency_ms)
 {
 }
 

@@ -36,6 +36,7 @@ public:
     using DeviceReadyCallback = Function<void(ErrorOr<SampleSpecification> const&)>;
     void when_device_ready(DeviceReadyCallback);
     Optional<SampleSpecification> const& device_sample_specification() const { return m_device_sample_specification; }
+    u32 device_target_latency_ms() const { return m_device_target_latency_ms; }
 
     // Control thread. Rings must be in the device format.
     void add_client(MixerClientId, SharedAudioFrameRing, float gain);
@@ -85,7 +86,7 @@ private:
         HashMap<MixerClientId, Client> m_clients;
     };
 
-    explicit PlaybackStreamMixer(NonnullRefPtr<MixState>);
+    PlaybackStreamMixer(NonnullRefPtr<MixState>, u32 device_target_latency_ms);
 
     void set_device_stream(NonnullRefPtr<PlaybackStream>);
     void set_device_error(Error);
@@ -97,6 +98,7 @@ private:
     void finish_drain(MixerClientId);
 
     NonnullRefPtr<MixState> m_state;
+    u32 const m_device_target_latency_ms { 0 };
     RefPtr<PlaybackStream> m_device_stream;
     Optional<SampleSpecification> m_device_sample_specification;
     Optional<Error> m_device_error;
