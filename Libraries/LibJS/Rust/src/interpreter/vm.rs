@@ -1157,10 +1157,15 @@ impl Vm {
     pub fn stack_trace(&self) -> Vec<StackTraceElement> {
         let mut stack_trace = Vec::new();
         self.for_each_execution_context_top_to_bottom(|context| {
-            let source_range = context
-                .executable
+            // NB: Builtins written in JavaScript show up like other builtins, without a position in their source.
+            let runs_builtin = context
+                .function
                 .get()
-                .map(|executable| Executable::from_head(executable).get_source_range(context.program_counter.get()));
+                .is_some_and(|function| function.is::<NativeJavaScriptBackedFunction>());
+            let source_range =
+                context.executable.get().filter(|_| !runs_builtin).map(|executable| {
+                    Executable::from_head(executable).get_source_range(context.program_counter.get())
+                });
             stack_trace.push(StackTraceElement {
                 execution_context: NonNull::from(context),
                 source_range,
