@@ -614,6 +614,7 @@ impl Vm {
                 execution_context_stack_capacity: Cell::new(0),
                 type_error_realm_override: Cell::new(None),
                 type_error_realm_override_depth: Cell::new(0),
+                keyed_property_lookup_cache_entries: Cell::new(core::ptr::null()),
             },
             heap: OnceCell::new(),
             _interpreter_stack_memory: interpreter_stack_memory,
@@ -686,6 +687,9 @@ impl Vm {
         unsafe { storage.write(vm) };
         // SAFETY: The VM was just written there.
         let vm = unsafe { &*storage };
+        vm.head
+            .keyed_property_lookup_cache_entries
+            .set(vm.keyed_property_lookup_cache.entries_for_interpreter());
         let context = storage.cast();
         // SAFETY: The VM stays at this address until it is dropped, and it destroys the heap before anything else.
         let heap = unsafe { Heap::new(gather_roots, context, options.become_process_default_heap) };

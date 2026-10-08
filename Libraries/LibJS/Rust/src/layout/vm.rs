@@ -10,6 +10,7 @@ use core::ffi::c_void;
 use super::cell::Gc;
 use super::execution_context::ExecutionContext;
 use super::function_object::NativeFunctionTableEntry;
+use super::property_lookup_cache::KeyedPropertyLookupCacheEntryLayout;
 use super::realm::Realm;
 
 /// The memory that execution contexts and their value slots are bump-allocated from.
@@ -52,6 +53,8 @@ pub struct VmHead {
     /// length it was created at. An embedder's TypeErrorRealmScope sets and restores both directly.
     pub type_error_realm_override: Cell<Option<Gc<Realm>>>,
     pub type_error_realm_override_depth: Cell<usize>,
+    /// The entries of the VM's keyed property lookup cache, which stay where they are for as long as the VM lives.
+    pub keyed_property_lookup_cache_entries: Cell<*const KeyedPropertyLookupCacheEntryLayout>,
 }
 
 /// The storage an embedder reserves to construct a Vm in place, and its alignment. build.rs cannot see the Vm, only its

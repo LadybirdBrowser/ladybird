@@ -31,6 +31,7 @@ use crate::layout::buffer::InterpreterBuffer;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::executable::ExecutableHead;
 use crate::layout::object::Object;
+use crate::layout::property_lookup_cache::KeyedPropertyLookupCacheEntryLayout;
 pub use crate::layout::property_lookup_cache::{
     EnvironmentCoordinate, GlobalVariableCache, ObjectPropertyIteratorCache, ObjectPropertyIteratorCacheData,
     ObjectPropertyIteratorFastPath, PROPERTY_LOOKUP_CACHE_DATA_TAG_MASK, PROPERTY_LOOKUP_CACHE_KEYED_GENERIC_DATA,
@@ -781,11 +782,12 @@ impl Default for StaticPropertyLookupCaches {
 }
 
 pub const KEYED_PROPERTY_LOOKUP_CACHE_ENTRY_COUNT: usize = 1 << KEYED_PROPERTY_LOOKUP_CACHE_INDEX_BITS;
-const KEYED_PROPERTY_LOOKUP_CACHE_INDEX_BITS: u32 = 11;
+pub const KEYED_PROPERTY_LOOKUP_CACHE_INDEX_BITS: u32 = 11;
 
 /// One remembered lookup of a property by name on a shape. Like the entries of a PropertyLookupCache, it does not keep
 /// its cells alive; the VM's sweep callback clears the entries whose cells died.
 #[derive(Clone, Copy)]
+#[repr(C)]
 pub struct KeyedPropertyLookup {
     pub entry_type: PropertyLookupCacheEntryType,
     pub property_offset: u32,
@@ -809,12 +811,42 @@ impl Default for KeyedPropertyLookup {
 }
 
 /// A lookup with the name of the property it looked up, which the entry keeps alive so that its identity stays
-/// unique.
+/// unique. The interpreter looks up own properties in entries itself (see KeyedPropertyLookupCacheEntryLayout), which
+/// are 64 bytes so that it finds them by shifting the hash.
 #[derive(Default)]
-struct KeyedPropertyLookupCacheEntry {
+#[repr(C, align(64))]
+pub struct KeyedPropertyLookupCacheEntry {
     lookup: KeyedPropertyLookup,
     property_name: Option<Utf16FlyString>,
 }
+
+const _: () = assert!(size_of::<KeyedPropertyLookupCacheEntry>() == 64);
+// NB: The interpreter reads entries with the layout of KeyedPropertyLookupCacheEntryLayout, and finds them the way
+//     entry_index_for() does.
+const _: () = assert!(
+    KEYED_PROPERTY_LOOKUP_CACHE_INDEX_BITS
+        == crate::layout::property_lookup_cache::KEYED_PROPERTY_LOOKUP_CACHE_INTERPRETER_INDEX_BITS
+);
+const _: () = assert!(
+    MEGAMORPHIC_HASH_MULTIPLIER
+        == crate::layout::property_lookup_cache::KEYED_PROPERTY_LOOKUP_CACHE_INTERPRETER_HASH_MULTIPLIER
+);
+const _: () = {
+    use core::mem::offset_of;
+    type Layout = KeyedPropertyLookupCacheEntryLayout;
+    let lookup = offset_of!(KeyedPropertyLookupCacheEntry, lookup);
+    assert!(size_of::<KeyedPropertyLookupCacheEntry>() == size_of::<Layout>());
+    assert!(lookup + offset_of!(KeyedPropertyLookup, entry_type) == offset_of!(Layout, entry_type));
+    assert!(lookup + offset_of!(KeyedPropertyLookup, property_offset) == offset_of!(Layout, property_offset));
+    assert!(
+        lookup + offset_of!(KeyedPropertyLookup, shape_dictionary_generation)
+            == offset_of!(Layout, shape_dictionary_generation)
+    );
+    assert!(lookup + offset_of!(KeyedPropertyLookup, shape) == offset_of!(Layout, shape));
+    assert!(offset_of!(KeyedPropertyLookupCacheEntry, property_name) == offset_of!(Layout, property_name));
+};
+// NB: The interpreter compares the name of an entry with the identity of a string, a word.
+const _: () = assert!(size_of::<Option<Utf16FlyString>>() == size_of::<u64>());
 
 /// The VM-wide cache of string-keyed GetByValue lookups. Lookups are copied out, so that no entry is borrowed while
 /// the lookup it caches runs.
@@ -834,12 +866,17 @@ impl KeyedPropertyLookupCache {
     }
 
     /// The index of the one entry that may hold the lookup of `property_name` on `shape`: the top bits of the
-    /// Fibonacci hash of the shape's address and the name's identity. Fly strings are interned, so the identity of the
-    /// name stands in for the hash of its contents.
+    /// Fibonacci hash of the low 32 bits of the shape's address and the name's identity, which the interpreter computes
+    /// the same way. Fly strings are interned, so the identity of the name stands in for the hash of its contents.
     pub fn entry_index_for(shape: Gc<Shape>, property_name: &Utf16FlyString) -> usize {
-        let identity = (shape.as_ptr().addr() as u64) ^ (property_name.raw_identity() as u64).rotate_left(32);
-        let hash = (identity ^ (identity >> 32)) as u32;
+        let hash = (shape.as_ptr().addr() as u32) ^ (property_name.raw_identity() as u32);
         (hash.wrapping_mul(MEGAMORPHIC_HASH_MULTIPLIER) >> (32 - KEYED_PROPERTY_LOOKUP_CACHE_INDEX_BITS)) as usize
+    }
+
+    /// The entries, for the interpreter, which looks up own data properties in them (see
+    /// KeyedPropertyLookupCacheEntryLayout). They stay where they are for as long as the VM lives.
+    pub fn entries_for_interpreter(&self) -> *const KeyedPropertyLookupCacheEntryLayout {
+        self.entries.borrow().as_ptr().cast()
     }
 
     /// The lookup entry `index` remembers for `property_name` on `shape`, if it is for them.

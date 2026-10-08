@@ -222,6 +222,18 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_PROTOTYPE_CHAIN_VALIDITY", "PropertyLookupCache.prototype_chain_validity", "PrototypeChainValidity", PropertyLookupCacheEntry, prototype_chain_validity, 8, "nullable", "cell");
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_KEY", "PropertyLookupCache.key", "Value", PropertyLookupCacheEntry, key, 8, "nullable", "scalar");
     size!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_SIZE", PropertyLookupCacheEntry);
+    w.constant("PROPERTY_LOOKUP_CACHE_ENTRY_TYPE_GET_OWN_PROPERTY", PropertyLookupCacheEntryType::GetOwnProperty as u32);
+
+    w.section("KeyedPropertyLookupCacheEntry layout");
+    field!(w, "KEYED_PROPERTY_LOOKUP_CACHE_ENTRY_TYPE", "KeyedPropertyLookupCacheEntry.entry_type", "u32", KeyedPropertyLookupCacheEntryLayout, entry_type, 4, "nullable", "scalar");
+    field!(w, "KEYED_PROPERTY_LOOKUP_CACHE_ENTRY_PROPERTY_OFFSET", "KeyedPropertyLookupCacheEntry.property_offset", "u32", KeyedPropertyLookupCacheEntryLayout, property_offset, 4, "nullable", "scalar");
+    field!(w, "KEYED_PROPERTY_LOOKUP_CACHE_ENTRY_DICTIONARY_GENERATION", "KeyedPropertyLookupCacheEntry.shape_dictionary_generation", "u32", KeyedPropertyLookupCacheEntryLayout, shape_dictionary_generation, 4, "nullable", "scalar");
+    field!(w, "KEYED_PROPERTY_LOOKUP_CACHE_ENTRY_SHAPE", "KeyedPropertyLookupCacheEntry.shape", "Shape", KeyedPropertyLookupCacheEntryLayout, shape, 8, "nullable", "cell");
+    field!(w, "KEYED_PROPERTY_LOOKUP_CACHE_ENTRY_PROPERTY_NAME", "KeyedPropertyLookupCacheEntry.property_name", "u64", KeyedPropertyLookupCacheEntryLayout, property_name, 8, "nullable", "scalar");
+    w.constant("KEYED_PROPERTY_LOOKUP_CACHE_ENTRY_SIZE_SHIFT", size_of::<KeyedPropertyLookupCacheEntryLayout>().trailing_zeros());
+    w.constant("KEYED_PROPERTY_LOOKUP_CACHE_INDEX_SHIFT", 32 - KEYED_PROPERTY_LOOKUP_CACHE_INTERPRETER_INDEX_BITS);
+    // NB: As a signed value, which x86-64 multiplies with as an immediate. The low 32 bits of the product are the same.
+    w.constant("KEYED_PROPERTY_LOOKUP_CACHE_HASH_MULTIPLIER", KEYED_PROPERTY_LOOKUP_CACHE_INTERPRETER_HASH_MULTIPLIER as i32);
 
     w.section("ObjectPropertyIteratorCacheData layout");
     offset!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTIES", ObjectPropertyIteratorCacheData, storage);
@@ -309,6 +321,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     offset!(w, "VM_HEAP_REGION_BASE", VmHead, heap_region_base);
     offset!(w, "VM_NATIVE_FUNCTION_TABLE_DATA", VmHead, native_function_table_data);
     offset!(w, "VM_BREAKPOINT_CONTROLLER", VmHead, debugger);
+    field!(w, "VM_KEYED_PROPERTY_LOOKUP_CACHE_ENTRIES", "VM.keyed_property_lookup_cache_entries", "u64", VmHead, keyed_property_lookup_cache_entries, 8, "nonnull", "scalar");
     w.line("field VM.primitive_storage_cage_base u64 VM_PRIMITIVE_STORAGE_CAGE_BASE nonnull scalar");
     w.line("field VM.heap_region_base u64 VM_HEAP_REGION_BASE nonnull scalar");
     w.line("field VM.native_function_table Sequence<NativeFunctionTableEntry> VM_NATIVE_FUNCTION_TABLE_DATA nonnull scalar");
