@@ -267,3 +267,20 @@ test("flag getters changed after replacing", () => {
     expect("a-b-c".replace(/-/g, "+")).toBe("a+b+c");
     expect(calls).toBe(1);
 });
+
+test("replacement patterns of matches found natively", () => {
+    expect("hello world".replace(/(o)/g, "[$1]")).toBe("hell[o] w[o]rld");
+    expect("abc".replace(/(x)?b/, "<$1>")).toBe("a<>c");
+    expect("abc".replace(/b/, "$&$&")).toBe("abbc");
+    expect("abc".replace(/b/, "[$`|$']")).toBe("a[a|c]c");
+    expect("abc".replace(/b/, "$$")).toBe("a$c");
+    expect("abc".replace(/(b)/, "$10")).toBe("ab0c");
+    expect("abc".replace(/(b)/, "$01")).toBe("abc");
+    expect("abc".replace(/(b)/, "$2")).toBe("a$2c");
+    expect("abc".replace(/(b)/, "$<name>")).toBe("a$<name>c");
+    expect("abc".replace(/(?<name>b)/, "[$<name>]")).toBe("a[b]c");
+    expect("aaa".replace(/a/g, "$'")).toBe("aaa".replace(/a/g, (match, offset, string) => string.slice(offset + 1)));
+    expect("ébé".replace(/(b)/g, "<$1$1>")).toBe("é<bb>é");
+    expect("x".repeat(40).replace(/(x)(x)/g, "$2")).toBe("x".repeat(20));
+    expect("a1b2".replace(/(\d)/g, "{$1}")).toBe("a{1}b{2}");
+});
