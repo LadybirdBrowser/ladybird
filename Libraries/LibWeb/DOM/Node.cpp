@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/HashTable.h>
 #include <AK/JsonObjectSerializer.h>
 #include <AK/NeverDestroyed.h>
@@ -1628,18 +1629,54 @@ void Node::run_removing_steps(Node& parent, Node& parent_root, bool was_tracked_
     });
 }
 
-void Node::add_transient_registered_observers_for_removal(Node& parent)
+// https://dom.spec.whatwg.org/#add-transient-registered-observers
+void Node::add_transient_registered_observers(Node& parent)
 {
+    // 1. For each inclusive ancestor inclusiveAncestor of parent, and then for each registered of inclusiveAncestor’s
+    //    registered observer list:
     for (auto* inclusive_ancestor = &parent; inclusive_ancestor; inclusive_ancestor = inclusive_ancestor->parent()) {
         auto* registered_observer_list = inclusive_ancestor->registered_observer_list();
         if (!registered_observer_list)
             continue;
         for (auto& registered : *registered_observer_list) {
-            if (registered->options().subtree) {
-                auto transient_observer = TransientRegisteredObserver::create(registered->observer(), registered->options(), registered);
-                add_registered_observer(move(transient_observer));
-                registered->observer()->add_transient_registered_node({}, *this);
+            // 1. If registered’s options["subtree"] is false, then continue.
+            if (!registered->options().subtree)
+                continue;
+
+            // 2. Let observer be registered’s observer.
+            auto observer = registered->observer();
+
+            // 3. Let source be registered’s source if registered is a transient registered observer; otherwise
+            //    registered.
+            GC::Ref<RegisteredObserver> source = registered;
+            if (auto* transient = as_if<TransientRegisteredObserver>(*registered))
+                source = transient->source();
+
+            // 4. If node’s registered observer list contains a transient registered observer whose source is source,
+            //    then continue.
+            if (auto const* node_registered_observer_list = this->registered_observer_list()) {
+                auto contains_transient_with_source = any_of(*node_registered_observer_list, [&source](auto const& node_registered) {
+                    auto const* transient = as_if<TransientRegisteredObserver>(*node_registered);
+                    return transient && transient->source() == source;
+                });
+                if (contains_transient_with_source)
+                    continue;
             }
+
+            // 5. Append a new transient registered observer whose observer is observer, options is source’s options,
+            //    and source is source to node’s registered observer list.
+            add_registered_observer(TransientRegisteredObserver::create(observer, source->options(), source));
+
+            // 6. Append a weak reference to node to observer’s transient node set.
+            observer->append_to_transient_node_set({}, *this);
+
+            // 7. Append observer to the surrounding agent’s pending mutation observers.
+            auto& surrounding_agent = HTML::relevant_similar_origin_window_agent(*this);
+            if (!surrounding_agent.pending_mutation_observers.contains_slow(observer))
+                surrounding_agent.pending_mutation_observers.append(observer);
+
+            // 8. Queue a mutation observer microtask.
+            queue_mutation_observer_microtask(surrounding_agent);
         }
     }
 }
@@ -1724,11 +1761,8 @@ void Node::remove(bool suppress_observers)
     // chain it hung off. Nothing about any element in that chain moved, so it has to be told.
     CSS::Invalidation::invalidate_style_after_subtree_place_changed(*this, parent);
 
-    // 15. For each inclusive ancestor inclusiveAncestor of parent, and then for each registered of inclusiveAncestor’s
-    //     registered observer list, if registered’s options["subtree"] is true, then append a new transient registered
-    //     observer whose observer is registered’s observer, options is registered’s options, and source is registered
-    //     to node’s registered observer list.
-    add_transient_registered_observers_for_removal(*parent);
+    // 15. Add transient registered observers given node and parent.
+    add_transient_registered_observers(*parent);
 
     // 16. If suppressObservers is false, then queue a tree mutation record for parent with « », « node »,
     //     oldPreviousSibling, and oldNextSibling.
@@ -2047,7 +2081,10 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
             assign_slottables(slot);
     }
 
-    // 17. If child is non-null:
+    // 17. Add transient registered observers given node and oldParent.
+    add_transient_registered_observers(*old_parent);
+
+    // 18. If child is non-null:
     if (child) {
         // 1. For each live range whose start node is newParent and start offset is greater than child’s index:
         //    increase its start offset by 1.
@@ -2063,14 +2100,14 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         }
     }
 
-    // 18. Let newPreviousSibling be child’s previous sibling if child is non-null, and newParent’s last child otherwise.
+    // 19. Let newPreviousSibling be child’s previous sibling if child is non-null, and newParent’s last child otherwise.
     auto* new_previous_sibling = child ? child->previous_sibling() : new_parent.last_child();
 
-    // 19. If child is null, then append node to newParent’s children.
+    // 20. If child is null, then append node to newParent’s children.
     if (!child) {
         new_parent.append_child_impl(*this);
     }
-    // 20. Otherwise, insert node into newParent’s children before child’s index.
+    // 21. Otherwise, insert node into newParent’s children before child’s index.
     else {
         new_parent.insert_before_impl(*this, child);
     }
@@ -2100,7 +2137,7 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
             new_parent.set_child_needs_layout_tree_update(true);
     }
 
-    // 21. If newParent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable, then assign a slot for node.
+    // 22. If newParent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable, then assign a slot for node.
     if (auto* new_parent_element = as_if<Element>(new_parent)) {
         auto is_named_shadow_host = new_parent_element->is_shadow_host()
             && new_parent_element->shadow_root()->slot_assignment() == SlotAssignmentMode::Named;
@@ -2123,21 +2160,21 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         });
     }
 
-    // 22. If newParent’s root is a shadow root, and newParent is a slot whose assigned nodes is empty, then run signal a slot change for newParent.
+    // 23. If newParent’s root is a shadow root, and newParent is a slot whose assigned nodes is empty, then run signal a slot change for newParent.
     if (auto* new_parent_slot_element = as_if<HTML::HTMLSlotElement>(new_parent); new_parent_slot_element && new_root.is_shadow_root()) {
         new_parent_slot_element->assign_slottables_if_needed();
         if (new_parent_slot_element->assigned_nodes_internal().is_empty())
             signal_a_slot_change(*new_parent_slot_element);
     }
 
-    // 23. Run assign slottables for a tree with node’s root.
+    // 24. Run assign slottables for a tree with node’s root.
     // OPTIMIZATION: Moving into a named shadow tree only changes slot assignments when the moved subtree holds a slot.
     if (!new_shadow_root || moved_subtree_has_slot || new_shadow_root->slot_assignment() == SlotAssignmentMode::Manual)
         assign_slottables_for_a_tree(new_root);
 
     CSS::Invalidation::invalidate_style_after_subtree_place_changed(*this, moved_from_parent);
 
-    // 24. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree order:
+    // 25. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree order:
     for_each_shadow_including_inclusive_descendant([this, &new_parent, old_parent](Node& inclusive_descendant) {
         // 1. Let isSubtreeRoot be true if inclusiveDescendant is node; otherwise false.
         auto is_subtree_root = (&inclusive_descendant == this) ? IsSubtreeRoot::Yes : IsSubtreeRoot::No;
@@ -2160,11 +2197,11 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     for (auto const& state : previous_read_write_states)
         CSS::Invalidation::invalidate_style_after_read_write_state_change(*state.element, state.value);
 
-    // 25. Queue a tree mutation record for oldParent with « », « node », oldPreviousSibling, and oldNextSibling.
+    // 26. Queue a tree mutation record for oldParent with « », « node », oldPreviousSibling, and oldNextSibling.
     GC::Ref<Node> moved_node = *this;
     old_parent->queue_tree_mutation_record({}, { &moved_node, 1 }, old_previous_sibling, old_next_sibling);
 
-    // 26. Queue a tree mutation record for newParent with « node », « », newPreviousSibling, and child.
+    // 27. Queue a tree mutation record for newParent with « node », « », newPreviousSibling, and child.
     new_parent.queue_tree_mutation_record({ &moved_node, 1 }, {}, new_previous_sibling, child);
 
     old_parent->invalidate_html_collection_caches_in_ancestors(affects_elements);
@@ -3049,11 +3086,8 @@ void Node::remove_all_children(bool suppress_observers)
         if (a_child_holds_a_propagating_state_source)
             CSS::Invalidation::invalidate_style_after_subtree_place_changed(*child, this);
 
-        // 15. For each inclusive ancestor inclusiveAncestor of parent, and then for each registered of
-        //     inclusiveAncestor’s registered observer list, if registered’s options["subtree"] is true, then append a
-        //     new transient registered observer whose observer is registered’s observer, options is registered’s
-        //     options, and source is registered to node’s registered observer list.
-        child->add_transient_registered_observers_for_removal(*this);
+        // 15. Add transient registered observers given node and parent.
+        child->add_transient_registered_observers(*this);
 
         // 16. If suppressObservers is false, then queue a tree mutation record for parent with « », « node »,
         //     oldPreviousSibling, and oldNextSibling.
@@ -4027,14 +4061,14 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
         }
     }
 
-    // OPTIMIZATION: If there are no interested observers, bail without doing any more work.
+    // 4. If interestedObservers is empty, then return.
     if (interested_observers.is_empty() && !page.listen_for_dom_mutations())
         return;
 
     auto added_nodes_list = StaticNodeList::create(added_nodes);
     auto removed_nodes_list = StaticNodeList::create(removed_nodes);
 
-    // 4. For each observer → mappedOldValue of interestedObservers:
+    // 5. For each observer → mappedOldValue of interestedObservers:
     for (auto& [observer, mapped_old_value] : interested_observers) {
         // 1. Let record be a new MutationRecord object with its type set to type, target set to target, attributeName set to name, attributeNamespace set to namespace, oldValue set to mappedOldValue,
         //    addedNodes set to addedNodes, removedNodes set to removedNodes, previousSibling set to previousSibling, and nextSibling set to nextSibling.
@@ -4044,10 +4078,12 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
         observer->enqueue_record({}, move(record));
 
         // 3. Append observer to the surrounding agent’s pending mutation observers.
-        HTML::relevant_similar_origin_window_agent(*this).pending_mutation_observers.append(*observer);
+        auto& pending_mutation_observers = HTML::relevant_similar_origin_window_agent(*this).pending_mutation_observers;
+        if (!pending_mutation_observers.contains_slow(GC::Ref { *observer }))
+            pending_mutation_observers.append(*observer);
     }
 
-    // 5. Queue a mutation observer microtask.
+    // 6. Queue a mutation observer microtask.
     queue_mutation_observer_microtask(HTML::relevant_similar_origin_window_agent(*this));
 
     // AD-HOC: Notify the UI if it is interested in DOM mutations (i.e. for DevTools).

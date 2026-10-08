@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/QuickSort.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibWeb/Bindings/MutationRecord.h>
@@ -28,16 +29,22 @@ GC_DEFINE_ALLOCATOR(MutationObserver);
 GC_DEFINE_ALLOCATOR(RegisteredObserver);
 GC_DEFINE_ALLOCATOR(TransientRegisteredObserver);
 
-WebIDL::ExceptionOr<GC::Ref<MutationObserver>> MutationObserver::create(GC::Ptr<WebIDL::CallbackType> callback)
+GC::Ref<MutationObserver> MutationObserver::create_for_constructor(JS::Object& relevant_global_object, GC::Ptr<WebIDL::CallbackType> callback)
 {
-    return GC::Heap::the().allocate<MutationObserver>(callback);
+    return GC::Heap::the().allocate<MutationObserver>(callback, HTML::relevant_similar_origin_window_agent(relevant_global_object));
 }
 
 // https://dom.spec.whatwg.org/#dom-mutationobserver-mutationobserver
-MutationObserver::MutationObserver(GC::Ptr<WebIDL::CallbackType> callback)
-    : m_callback(move(callback))
+MutationObserver::MutationObserver(GC::Ptr<WebIDL::CallbackType> callback, HTML::SimilarOriginWindowAgent& relevant_agent)
 {
-    // The new MutationObserver(callback) constructor steps are to set this’s callback to callback.
+    // 1. Set this’s callback to callback.
+    m_callback = move(callback);
+
+    // 2. Set this’s creation index to this’s relevant agent’s mutation observer counter.
+    m_creation_index = relevant_agent.mutation_observer_counter;
+
+    // 3. Increase this’s relevant agent’s mutation observer counter by 1.
+    ++relevant_agent.mutation_observer_counter;
 }
 
 MutationObserver::~MutationObserver() = default;
@@ -109,27 +116,40 @@ WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, MutationObserv
     if (options.character_data_old_value.has_value() && options.character_data_old_value.value() && !options.character_data.value())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "characterData must be true if characterDataOldValue is true."_utf16 };
 
-    // 7. For each registered of target’s registered observer list, if registered’s observer is this:
-    bool updated_existing_observer = false;
-    if (target.registered_observer_list()) {
-        for (auto& registered_observer : *target.registered_observer_list()) {
-            if (registered_observer->observer().ptr() != this)
-                continue;
-
-            updated_existing_observer = true;
-
-            // 1. For each node of this’s node list, remove all transient registered observers whose source is registered from node’s registered observer list.
-            remove_transient_registered_observers(registered_observer.ptr());
-
-            // 2. Set registered’s options to options.
-            registered_observer->set_options(move(options));
-            target.document().add_mutation_observer_types(registered_observer->options());
-            break;
+    // 7. Let registered be the registered observer in target’s registered observer list that is not a transient
+    //    registered observer and whose observer is this, if any; otherwise null.
+    GC::Ptr<RegisteredObserver> registered;
+    if (auto* registered_observer_list = target.registered_observer_list()) {
+        for (auto& registered_observer : *registered_observer_list) {
+            if (!is<TransientRegisteredObserver>(*registered_observer) && registered_observer->observer().ptr() == this) {
+                registered = registered_observer;
+                break;
+            }
         }
     }
 
-    // 8. Otherwise:
-    if (!updated_existing_observer) {
+    // 8. If registered is non-null:
+    if (registered) {
+        // 1. For each node of this’s transient node set: remove all transient registered observers whose source is
+        //    registered from node’s registered observer list.
+        for (auto& node : m_transient_node_set) {
+            if (!node)
+                continue;
+
+            if (auto* registered_observer_list = node->registered_observer_list()) {
+                registered_observer_list->remove_all_matching([&registered](RegisteredObserver& registered_observer) {
+                    auto* transient = as_if<TransientRegisteredObserver>(registered_observer);
+                    return transient && transient->source().ptr() == registered.ptr();
+                });
+            }
+        }
+
+        // 2. Set registered’s options to options.
+        registered->set_options(move(options));
+        target.document().add_mutation_observer_types(registered->options());
+    }
+    // 9. Otherwise:
+    else {
         // 1. Append a new registered observer whose observer is this and options is options to target’s registered observer list.
         auto new_registered_observer = RegisteredObserver::create(*this, options);
         target.add_registered_observer(new_registered_observer);
@@ -162,9 +182,13 @@ void MutationObserver::disconnect()
         }
     }
 
+    // 2. Remove transient registered observers for this.
     remove_transient_registered_observers();
 
-    // 2. Empty this’s record queue.
+    // 3. Empty this’s node list.
+    m_node_list.clear();
+
+    // 4. Empty this’s record queue.
     m_record_queue.clear();
 }
 
@@ -183,47 +207,33 @@ Vector<GC::Root<MutationRecord>> MutationObserver::take_records()
     return records;
 }
 
-void MutationObserver::add_transient_registered_node(Badge<Node>, Node& node)
+void MutationObserver::append_to_transient_node_set(Badge<Node>, Node& node)
 {
-    for (auto& transient_registered_node : m_transient_registered_node_list) {
-        if (transient_registered_node.ptr().ptr() == &node)
+    for (auto& transient_node : m_transient_node_set) {
+        if (transient_node.ptr().ptr() == &node)
             return;
     }
-    m_transient_registered_node_list.append(node);
+    m_transient_node_set.append(node);
 }
 
-void MutationObserver::remove_transient_registered_observers(RegisteredObserver const* source)
+// https://dom.spec.whatwg.org/#remove-transient-registered-observers
+void MutationObserver::remove_transient_registered_observers()
 {
-    for (auto& node : m_transient_registered_node_list) {
+    // 1. For each node of observer’s transient node set: remove all transient registered observers whose observer is
+    //    observer from node’s registered observer list.
+    for (auto& node : m_transient_node_set) {
         if (!node)
             continue;
 
         if (auto* registered_observer_list = node->registered_observer_list()) {
-            registered_observer_list->remove_all_matching([this, source](RegisteredObserver& registered_observer) {
-                auto* transient = as_if<TransientRegisteredObserver>(registered_observer);
-                return transient && transient->observer().ptr() == this && (!source || transient->source().ptr() == source);
+            registered_observer_list->remove_all_matching([this](RegisteredObserver& registered_observer) {
+                return is<TransientRegisteredObserver>(registered_observer) && registered_observer.observer().ptr() == this;
             });
         }
     }
 
-    if (!source) {
-        m_transient_registered_node_list.clear();
-        return;
-    }
-
-    m_transient_registered_node_list.remove_all_matching([this](GC::Weak<Node> const& node) {
-        if (!node)
-            return true;
-        auto const* registered_observer_list = node->registered_observer_list();
-        if (!registered_observer_list)
-            return true;
-        for (auto const& registered_observer : *registered_observer_list) {
-            auto const* transient = as_if<TransientRegisteredObserver>(*registered_observer);
-            if (transient && transient->observer().ptr() == this)
-                return false;
-        }
-        return true;
-    });
+    // 2. Empty observer’s transient node set.
+    m_transient_node_set.clear();
 }
 
 // https://dom.spec.whatwg.org/#queue-a-mutation-observer-compound-microtask
@@ -242,22 +252,25 @@ void queue_mutation_observer_microtask(HTML::SimilarOriginWindowAgent& surroundi
         // 1. Set the surrounding agent’s mutation observer microtask queued to false.
         surrounding_agent.mutation_observer_microtask_queued = false;
 
-        // 2. Let notifySet be a clone of the surrounding agent’s pending mutation observers.
+        // 2. Let notifyList be the result of sorting the surrounding agent’s pending mutation observers in ascending
+        //    order, with a being less than b if a’s creation index is less than b’s creation index.
         // 3. Empty the surrounding agent’s pending mutation observers.
-        auto notify_set = move(surrounding_agent.pending_mutation_observers);
+        auto notify_list = move(surrounding_agent.pending_mutation_observers);
+        quick_sort(notify_list, [](auto const& a, auto const& b) {
+            return a->creation_index() < b->creation_index();
+        });
 
         // 4. Let signalSet be a clone of the surrounding agent’s signal slots.
         // 5. Empty the surrounding agent’s signal slots.
         auto signal_set = move(surrounding_agent.signal_slots);
 
-        // 6. For each mo of notifySet:
-        for (auto& mutation_observer : notify_set) {
+        // 6. For each mo of notifyList:
+        for (auto& mutation_observer : notify_list) {
             // 1. Let records be a clone of mo’s record queue.
             // 2. Empty mo’s record queue.
             auto records = mutation_observer->take_records();
 
-            // 3. For each node of mo’s node list, remove all transient registered observers whose observer is mo from
-            //    node’s registered observer list.
+            // 3. Remove transient registered observers for mo.
             mutation_observer->remove_transient_registered_observers();
 
             // 4. If records is not empty, then invoke mo’s callback with « records, mo » and "report", and with
