@@ -20,6 +20,7 @@ use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::object::Object;
 use crate::layout::property_lookup_cache::ObjectPropertyIteratorCacheData;
 pub use crate::layout::shape::{PrototypeChainValidity, Shape};
+use crate::layout::value::Value;
 use crate::runtime::descriptor_array::{DescriptorArray, MAX_DESCRIPTOR_COUNT, PropertyMetadata};
 use crate::runtime::property_attributes::PropertyAttributes;
 use crate::runtime::property_key::PropertyKey;
@@ -96,6 +97,16 @@ struct RareData {
     prototype_transitions: HashMap<usize, GcWeak<Shape>, RandomState>,
     delete_transitions: HashMap<PropertyKey, GcWeak<Shape>, RandomState>,
     child_prototype_shapes: Vec<GcWeak<Shape>>,
+    own_string_keys: Option<OwnStringKeys>,
+}
+
+/// The string keys of the properties of a shape, as with_own_string_keys() caches them.
+struct OwnStringKeys {
+    /// The dictionary generation of the shape when the keys were collected. Changing the properties of a shape in
+    /// place changes its generation.
+    generation: u32,
+    keys: Box<[Value]>,
+    enumerable: Box<[bool]>,
 }
 
 /// The parts of a shape the interpreter does not read.
@@ -144,6 +155,9 @@ unsafe impl Trace for ShapeStorage {
         if let Some(rare_data) = &*self.rare_data.borrow() {
             for property_key in rare_data.delete_transitions.keys() {
                 property_key.trace(visitor);
+            }
+            if let Some(own_string_keys) = &rare_data.own_string_keys {
+                visitor.visit_values(&own_string_keys.keys);
             }
         }
     }
@@ -598,6 +612,45 @@ impl Shape {
             self.property_count.set(self.property_count() - 1);
         }
         self.increment_dictionary_generation();
+    }
+
+    /// Calls `callback` with the string keys of the properties of this shape in insertion order, as string values, and
+    /// whether each of the properties is enumerable. They are made the first time they are asked for, and kept on the
+    /// shape until its properties change. The callback must not allocate cells.
+    pub fn with_own_string_keys<R>(&self, vm: &Vm, callback: impl FnOnce(&[Value], &[bool]) -> R) -> R {
+        let generation = self.dictionary_generation();
+        let is_cached = self
+            .storage
+            .rare_data
+            .borrow()
+            .as_ref()
+            .and_then(|rare_data| rare_data.own_string_keys.as_ref())
+            .is_some_and(|own_string_keys| own_string_keys.generation == generation);
+        if !is_cached {
+            let mut property_keys = Vec::with_capacity(self.property_count() as usize);
+            self.for_each_property_in_insertion_order(|property_key, metadata| {
+                if property_key.is_string() {
+                    property_keys.push((property_key.clone(), metadata.attributes.is_enumerable()));
+                }
+                ControlFlow::Continue(())
+            });
+            let keys = MarkedVec::with_capacity(vm, property_keys.len());
+            for (property_key, _) in &property_keys {
+                keys.push(property_key.to_value(vm));
+            }
+            let own_string_keys = OwnStringKeys {
+                generation,
+                keys: keys.with_values(|keys| keys.into()),
+                enumerable: property_keys.iter().map(|(_, enumerable)| *enumerable).collect(),
+            };
+            self.with_rare_data(|rare_data| rare_data.own_string_keys = Some(own_string_keys));
+        }
+        let rare_data = self.storage.rare_data.borrow();
+        let own_string_keys = rare_data
+            .as_ref()
+            .and_then(|rare_data| rare_data.own_string_keys.as_ref())
+            .expect("the shape has its own string keys");
+        callback(&own_string_keys.keys, &own_string_keys.enumerable)
     }
 
     fn increment_dictionary_generation(&self) {

@@ -921,6 +921,22 @@ impl Object {
         self.internal_has_property(vm, property_key)
     }
 
+    /// Whether [[OwnPropertyKeys]] and [[GetOwnProperty]] of this object are the ordinary ones and it has no indexed
+    /// properties, so that its own property keys are the keys its shape has.
+    pub fn own_property_keys_are_those_of_its_shape(&self) -> bool {
+        let methods = self.methods();
+        !self.has_unimplemented_properties()
+            && self.indexed_storage_kind() == IndexedStorageKind::None
+            && core::ptr::fn_addr_eq(
+                methods.internal_own_property_keys,
+                ORDINARY_OBJECT_METHODS.internal_own_property_keys,
+            )
+            && core::ptr::fn_addr_eq(
+                methods.internal_get_own_property,
+                ORDINARY_OBJECT_METHODS.internal_get_own_property,
+            )
+    }
+
     // 7.3.13 HasOwnProperty ( O, P ), https://tc39.es/ecma262/#sec-hasownproperty
     pub fn has_own_property(&self, vm: &Vm, property_key: &PropertyKey) -> ThrowCompletionOr<bool> {
         // OPTIMIZATION: Whether the ordinary [[GetOwnProperty]] finds a property only depends on the object's storage,
