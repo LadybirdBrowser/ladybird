@@ -12,6 +12,7 @@ use indexmap::IndexMap;
 
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
+use crate::gc::heap::cell_is_dead;
 use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak::GcWeak;
@@ -164,6 +165,71 @@ unsafe impl Trace for Shape {
 
 fn prototype_address(prototype: Option<Gc<Object>>) -> usize {
     prototype.map_or(0, |prototype| prototype.as_ptr().addr())
+}
+
+/// A prototype transition the VM's cache of them remembers: from shape `from` to prototype `prototype` (see
+/// prototype_address()) leads to `target`.
+#[derive(Clone, Copy, Default)]
+struct PrototypeTransition {
+    from: Option<Gc<Shape>>,
+    prototype: usize,
+    target: Option<Gc<Shape>>,
+}
+
+const PROTOTYPE_TRANSITION_CACHE_INDEX_BITS: u32 = 8;
+
+/// The prototype transitions made most recently, by the hash of the shape and the prototype, in front of the
+/// transition tables of shapes. Objects are made with a prototype all the time (arrays, regular expression results,
+/// instances of classes), and their shapes come from the realm's empty object shape, whose table of prototype
+/// transitions has an entry for every prototype objects were ever made with.
+///
+/// Like the transition tables, the cache does not keep its shapes alive: the VM's sweep callback forgets transitions
+/// whose shapes died. A target shape keeps its prototype alive, so the prototype of a remembered transition is alive.
+pub struct PrototypeTransitionCache {
+    entries: [Cell<PrototypeTransition>; 1 << PROTOTYPE_TRANSITION_CACHE_INDEX_BITS],
+}
+
+impl PrototypeTransitionCache {
+    pub fn new() -> Self {
+        Self {
+            entries: core::array::from_fn(|_| Cell::new(PrototypeTransition::default())),
+        }
+    }
+
+    fn entry(&self, from: Gc<Shape>, prototype: usize) -> &Cell<PrototypeTransition> {
+        let hash = (from.as_ptr().addr() as u32 ^ prototype as u32).wrapping_mul(0x9e37_79b9);
+        &self.entries[(hash >> (32 - PROTOTYPE_TRANSITION_CACHE_INDEX_BITS)) as usize]
+    }
+
+    fn get(&self, from: Gc<Shape>, prototype: usize) -> Option<Gc<Shape>> {
+        let transition = self.entry(from, prototype).get();
+        (transition.from == Some(from) && transition.prototype == prototype)
+            .then_some(transition.target)
+            .flatten()
+    }
+
+    fn set(&self, from: Gc<Shape>, prototype: usize, target: Gc<Shape>) {
+        self.entry(from, prototype).set(PrototypeTransition {
+            from: Some(from),
+            prototype,
+            target: Some(target),
+        });
+    }
+
+    pub fn remove_dead_entries(&self) {
+        for entry in &self.entries {
+            let transition = entry.get();
+            if transition.from.is_some_and(cell_is_dead) || transition.target.is_some_and(cell_is_dead) {
+                entry.set(PrototypeTransition::default());
+            }
+        }
+    }
+}
+
+impl Default for PrototypeTransitionCache {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Shape {
@@ -451,7 +517,16 @@ impl Shape {
     }
 
     pub fn create_prototype_transition(&self, vm: &Vm, new_prototype: Option<Gc<Object>>) -> Gc<Shape> {
+        // NB: Dictionary shapes change in place, and prototype shapes have no cached transitions.
+        let cache = (!self.is_dictionary() && !self.is_prototype_shape()).then(|| vm.prototype_transition_cache());
+        let prototype = prototype_address(new_prototype);
+        if let Some(existing_shape) = cache.and_then(|cache| cache.get(self.as_gc(), prototype)) {
+            return existing_shape;
+        }
         if let Some(existing_shape) = self.get_or_prune_cached_prototype_transition(new_prototype) {
+            if let Some(cache) = cache {
+                cache.set(self.as_gc(), prototype, existing_shape);
+            }
             return existing_shape;
         }
         if let Some(new_prototype) = new_prototype {
@@ -471,11 +546,10 @@ impl Shape {
         self.invalidate_prototype_if_needed_for_new_prototype(vm, new_shape);
         if !self.is_prototype_shape() {
             let target = GcWeak::new(vm.heap(), new_shape);
-            self.with_rare_data(|rare_data| {
-                rare_data
-                    .prototype_transitions
-                    .insert(prototype_address(new_prototype), target)
-            });
+            self.with_rare_data(|rare_data| rare_data.prototype_transitions.insert(prototype, target));
+        }
+        if let Some(cache) = cache {
+            cache.set(self.as_gc(), prototype, new_shape);
         }
         new_shape
     }

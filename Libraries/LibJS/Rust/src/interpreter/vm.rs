@@ -69,6 +69,7 @@ use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::promise::{Promise, PromiseState, RejectionOperation};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::reference::{BaseType, Reference};
+use crate::runtime::shape::PrototypeTransitionCache;
 use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
 use crate::runtime::source_text_module::SourceTextModule;
 use crate::runtime::symbol::{self, GlobalSymbolRegistry, Symbol, enumerate_well_known_symbols};
@@ -514,6 +515,7 @@ pub struct Vm {
     executables: RefCell<Vec<Gc<Executable>>>,
     static_property_lookup_caches: StaticPropertyLookupCaches,
     keyed_property_lookup_cache: KeyedPropertyLookupCache,
+    prototype_transition_cache: Box<PrototypeTransitionCache>,
     host_ensure_can_add_private_element: Cell<HostEnsureCanAddPrivateElement>,
     host_get_code_for_eval: Cell<HostGetCodeForEval>,
     host_ensure_can_compile_strings: Cell<HostEnsureCanCompileStrings>,
@@ -639,6 +641,7 @@ impl Vm {
             executables: RefCell::new(Vec::new()),
             static_property_lookup_caches: StaticPropertyLookupCaches::new(),
             keyed_property_lookup_cache: KeyedPropertyLookupCache::new(),
+            prototype_transition_cache: Box::new(PrototypeTransitionCache::new()),
             host_ensure_can_add_private_element: Cell::new(default_host_ensure_can_add_private_element),
             host_get_code_for_eval: Cell::new(default_host_get_code_for_eval),
             host_ensure_can_compile_strings: Cell::new(default_host_ensure_can_compile_strings),
@@ -1201,6 +1204,7 @@ impl Vm {
         });
         self.static_property_lookup_caches.remove_dead_entries();
         self.keyed_property_lookup_cache.remove_dead_entries();
+        self.prototype_transition_cache.remove_dead_entries();
     }
 
     pub fn register_executable(&self, executable: Gc<Executable>) {
@@ -1213,6 +1217,10 @@ impl Vm {
 
     pub fn keyed_property_lookup_cache(&self) -> &KeyedPropertyLookupCache {
         &self.keyed_property_lookup_cache
+    }
+
+    pub fn prototype_transition_cache(&self) -> &PrototypeTransitionCache {
+        &self.prototype_transition_cache
     }
 
     /// Stores the value the running frame returns and clears its exception, for the slow paths that leave the
