@@ -193,6 +193,7 @@ define_intrinsics! {
     empty_object_shape: Cell<Option<Gc<Shape>>>,
     new_object_shape: Cell<Option<Gc<Shape>>>,
     new_regexp_object_shape: Cell<Option<Gc<Shape>>>,
+    new_array_shape: Cell<Option<Gc<Shape>>>,
 
     iterator_result_object_shape: Cell<Option<Gc<Shape>>>,
     iterator_result_object_value_offset: Cell<u32>,
@@ -1402,6 +1403,12 @@ impl Intrinsics {
         assert!(self.array_prototype(vm).indexed_array_like_size() == 0);
         assert!(self.object_prototype(vm).indexed_array_like_size() == 0);
 
+        // OPTIMIZATION: Every array created with %Array.prototype% starts out with this shape, so creating one does not
+        //               have to look up the prototype transition of the empty object shape.
+        let new_array_shape = Shape::create(vm, realm);
+        new_array_shape.set_prototype_without_transition(vm, realm.intrinsics().array_prototype(vm));
+        self.new_array_shape.set(Some(new_array_shape));
+
         let regexp_builtin_exec_array_shape = Shape::create(vm, realm);
         regexp_builtin_exec_array_shape.set_prototype_without_transition(vm, realm.intrinsics().array_prototype(vm));
         regexp_builtin_exec_array_shape.add_property_without_transition(
@@ -1442,6 +1449,11 @@ impl Intrinsics {
             .create_put_transition(vm, &vm.names.lastIndex, PropertyAttributes::new(Attribute::WRITABLE));
         self.new_regexp_object_shape.set(Some(shape));
         shape
+    }
+
+    /// The shape of a new array with %Array.prototype%, once CreateIntrinsics has created it.
+    pub fn new_array_shape_if_created(&self) -> Option<Gc<Shape>> {
+        self.new_array_shape.get()
     }
 
     pub fn realm(&self) -> Gc<Realm> {

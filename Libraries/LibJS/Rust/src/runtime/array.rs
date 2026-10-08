@@ -83,8 +83,16 @@ impl Array {
 
     /// An array with `prototype`, for `class`, which is Array or a class that extends it.
     pub fn new_with_class(vm: &Vm, class: &'static Class, realm: Gc<Realm>, prototype: Gc<Object>) -> Self {
+        let premade_shape = realm
+            .intrinsics()
+            .new_array_shape_if_created()
+            .filter(|shape| shape.prototype() == Some(prototype));
+        let base = match premade_shape {
+            Some(shape) => Object::new_with_shape(class, shape, MayInterfereWithIndexedPropertyAccess::No),
+            None => Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),
+        };
         let array = Self {
-            base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base,
             realm: Cell::new(realm),
             length_writable: Cell::new(true),
             is_proxy_target: Cell::new(false),
@@ -114,16 +122,9 @@ impl Array {
         let array = allocate_object(vm, Self::new(vm, realm, prototype));
 
         // 6. Perform ! OrdinaryDefineOwnProperty(A, "length", PropertyDescriptor { [[Value]]: 𝔽(length), [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
-        let mut descriptor = PropertyDescriptor {
-            value: Some(Value::from_f64(length as f64)),
-            writable: Some(true),
-            enumerable: Some(false),
-            configurable: Some(false),
-            ..Default::default()
-        };
-        array
-            .internal_define_own_property(vm, &vm.names.length.clone(), &mut descriptor, None)
-            .must();
+        // OPTIMIZATION: The length of an array is the size of its indexed storage, and a new array's length is already
+        //               writable, so this only sets that size.
+        array.set_indexed_array_like_size(length as usize);
 
         // 7. Return A.
         Ok(array)
