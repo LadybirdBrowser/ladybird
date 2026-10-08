@@ -378,6 +378,20 @@ unsafe impl Trace for Object {
 /// may be swept before it, so only the flags tell what else the object owns.
 impl Drop for Object {
     fn drop(&mut self) {
+        // OPTIMIZATION: Most objects own nothing outside the GC heap.
+        if self.flags.get() & (object_flag::HAS_MALLOC_NAMED_STORAGE | object_flag::HAS_MALLOC_INDEXED_STORAGE) == 0
+            && self.indexed_storage_kind() != IndexedStorageKind::Dictionary
+            && self.private_elements.get().is_none()
+        {
+            return;
+        }
+        self.free_storage_outside_the_heap();
+    }
+}
+
+impl Object {
+    #[cold]
+    fn free_storage_outside_the_heap(&mut self) {
         let flags = self.flags.get();
         if flags & object_flag::HAS_MALLOC_NAMED_STORAGE != 0 {
             // SAFETY: The object owns its malloc storage, and is dead.
