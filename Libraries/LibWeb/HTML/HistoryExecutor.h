@@ -62,7 +62,7 @@ public:
     void request_history_operation(HistoryOperationParameters);
     void request_history_operation(HistoryOperationParameters, HistoryOperationState);
     void handle_ui_history_operation_started(CrossProcessId operation_id, GC::Ref<OnHistoryOperationReady>);
-    void complete_ui_history_operation(CrossProcessId operation_id, HistoryStepResult, Optional<i32> committed_step);
+    void complete_ui_history_operation(CrossProcessId operation_id, HistoryStepResult, Optional<i32> target_entry_step);
 
     void traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document = {});
     void finalize_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, Optional<SessionHistoryEntryPersistedState> previous_entry_persisted_state);

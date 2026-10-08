@@ -2819,8 +2819,16 @@ void CanonicalTraversable::report_history_operation_result(HistoryOperation& ope
         }
     }
 
+    // The step of the entry the requesting page's operation targets: the committed step, but for a created child's
+    // initial entry, whose step the steps creating it set.
+    auto target_entry_step = committed_step;
+    if (auto const* parameters = operation.parameters.get_pointer<Web::NavigableCreationHistoryOperationParameters>(); parameters && committed_step.has_value()) {
+        if (auto child_navigable = find(parameters->navigable_id); child_navigable.has_value())
+            target_entry_step = child_navigable->active_session_history_entry()->step;
+    }
+
     for (auto& endpoint : operation.completion_endpoints)
-        endpoint->async_complete_history_operation(operation.operation_id, result, committed_step, m_session_history.size());
+        endpoint->async_complete_history_operation(operation.operation_id, result, target_entry_step, m_session_history.size());
 
     // All apply-driven mutations have settled at operation completion.
     session_history_changed();
