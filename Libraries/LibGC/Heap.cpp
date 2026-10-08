@@ -319,9 +319,14 @@ Heap::~Heap()
     m_incoming_cross_heap_members.clear();
 }
 
-void Heap::will_allocate(size_t size)
+void Heap::will_allocate(size_t size, TriggersCollection triggers_collection)
 {
     ASSERT(!heap_access_is_forbidden_on_this_thread());
+    if (triggers_collection == TriggersCollection::No) {
+        m_total_allocated_bytes += size;
+        return;
+    }
+
     // NB: Sweeping a block destroys its dead cells, and a destructor may allocate. A collection started from there
     //     would mark the block's reachable cells and queue the block for the next sweep, the rest of the current sweep
     //     would then clear those marks, and the next sweep of the block would free cells that are still in use. So an

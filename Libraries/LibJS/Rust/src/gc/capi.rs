@@ -106,6 +106,11 @@ unsafe extern "C" {
     ) -> *mut GCAllocator;
     pub fn gc_allocator_destroy(allocator: *mut GCAllocator);
     pub fn gc_heap_allocate_cell(heap: *mut GCHeap, allocator: *mut GCAllocator, must_mark: *mut bool) -> *mut c_void;
+    pub fn gc_heap_allocate_storage_cell(
+        heap: *mut GCHeap,
+        allocator: *mut GCAllocator,
+        must_mark: *mut bool,
+    ) -> *mut c_void;
     pub fn gc_cell_type_info(cell: *const c_void) -> *const CellTypeInfo;
 
     pub fn gc_root_create(cell: *mut c_void) -> *mut GCRoot;

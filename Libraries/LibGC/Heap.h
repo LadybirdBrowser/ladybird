@@ -176,10 +176,16 @@ private:
     }
 
     // Shared by allocate<T>() and any allocation whose cell type is only known through its allocator descriptor.
-    Cell* allocate_cell(CellAllocatorDescriptorBase& descriptor)
+    // Cells that other cells keep their storage in neither collect garbage nor count towards the next collection
+    // (see gc_heap_allocate_storage_cell()).
+    enum class TriggersCollection {
+        No,
+        Yes,
+    };
+    Cell* allocate_cell(CellAllocatorDescriptorBase& descriptor, TriggersCollection triggers_collection = TriggersCollection::Yes)
     {
         VERIFY(!m_collecting_garbage);
-        will_allocate(descriptor.cell_size());
+        will_allocate(descriptor.cell_size(), triggers_collection);
         return descriptor.for_heap(*this).allocate_cell(*this);
     }
 
@@ -209,7 +215,7 @@ private:
     // must never be in, so every collection starts with this.
     void give_back_local_free_lists();
 
-    void will_allocate(size_t);
+    void will_allocate(size_t, TriggersCollection = TriggersCollection::Yes);
     void update_gc_bytes_threshold(size_t live_cell_bytes, size_t live_external_bytes);
 
     enum class IncludeIncomingCrossHeapMembers {
