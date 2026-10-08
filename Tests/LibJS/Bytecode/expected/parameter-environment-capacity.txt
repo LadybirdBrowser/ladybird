@@ -31,7 +31,7 @@ sloppy$b222ab46 parameter-environment-capacity.js:7:5
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:2, is_catch_environment:false
   [  28] CreateVariable `a`, is_immutable:false, is_global:false, is_strict:false
   [  38] CreateArguments is_immutable:false
   [  48] JumpUndefined condition:arg0, true_target:block1, false_target:block2
@@ -66,7 +66,7 @@ method$6a5f3dc4 parameter-environment-capacity.js:12:9
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:2, is_catch_environment:false
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:3, is_catch_environment:false
   [  28] CreateVariable `mode`, is_immutable:false, is_global:false, is_strict:false
   [  38] CreateVariable `index`, is_immutable:false, is_global:false, is_strict:false
   [  48] JumpUndefined condition:arg0, true_target:block1, false_target:block2
