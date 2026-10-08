@@ -412,6 +412,17 @@ void keep_appkit_window_visible_while_inactive(QWidget& widget)
     view.window.hidesOnDeactivate = NO;
 }
 
+void ensure_appkit_window_is_exposed(QWidget& widget)
+{
+    auto* window = widget.windowHandle();
+    if (!widget.isVisible() || !window || window->isExposed())
+        return;
+
+    // Qt restores a native view's exposed state from its display callback. A view whose backing layer is already
+    // clean can remain unexposed after being shown or raised, causing Qt to route hover events to the view below it.
+    [reinterpret_cast<NSView*>(widget.winId()) setNeedsDisplay:YES];
+}
+
 void set_appkit_window_content_aspect_ratio(QWidget& widget, Gfx::IntSize aspect_ratio)
 {
     auto* view = reinterpret_cast<NSView*>(widget.winId());

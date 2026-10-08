@@ -205,7 +205,31 @@ Optional<ConfigVariableID> config_variable_id_from_name(StringView name)
     return {};
 }
 
-static StringView vertical_tabs_position_to_string(VerticalTabsPosition position)
+static constexpr StringView show_bookmarks_bar_to_string(ShowBookmarksBar show_bookmarks_bar)
+{
+    switch (show_bookmarks_bar) {
+    case ShowBookmarksBar::Always:
+        return "always"sv;
+    case ShowBookmarksBar::Never:
+        return "never"sv;
+    case ShowBookmarksBar::OnHover:
+        return "onHover"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static constexpr Optional<ShowBookmarksBar> bookmarks_bar_position_from_string(StringView show_bookmarks_bar)
+{
+    if (show_bookmarks_bar == "always"sv)
+        return ShowBookmarksBar::Always;
+    if (show_bookmarks_bar == "never"sv)
+        return ShowBookmarksBar::Never;
+    if (show_bookmarks_bar == "onHover"sv)
+        return ShowBookmarksBar::OnHover;
+    return {};
+}
+
+static constexpr StringView vertical_tabs_position_to_string(VerticalTabsPosition position)
 {
     switch (position) {
     case VerticalTabsPosition::Left:
@@ -216,7 +240,7 @@ static StringView vertical_tabs_position_to_string(VerticalTabsPosition position
     VERIFY_NOT_REACHED();
 }
 
-static Optional<VerticalTabsPosition> vertical_tabs_position_from_string(StringView position)
+static constexpr Optional<VerticalTabsPosition> vertical_tabs_position_from_string(StringView position)
 {
     if (position == "left"sv)
         return VerticalTabsPosition::Left;
@@ -539,7 +563,7 @@ JsonValue Settings::serialize_json() const
 
     JsonObject appearance;
     appearance.set(SHOW_MENU_BAR_KEY, m_appearance.show_menu_bar);
-    appearance.set(SHOW_BOOKMARKS_BAR_KEY, m_appearance.show_bookmarks_bar);
+    appearance.set(SHOW_BOOKMARKS_BAR_KEY, show_bookmarks_bar_to_string(m_appearance.show_bookmarks_bar));
     settings.set(APPEARANCE_KEY, move(appearance));
 
     JsonObject zoom_per_host;
@@ -801,8 +825,10 @@ Appearance Settings::parse_appearance(JsonValue const& settings)
 
     if (auto show_menu_bar = settings.as_object().get_bool(SHOW_MENU_BAR_KEY); show_menu_bar.has_value())
         appearance.show_menu_bar = *show_menu_bar;
-    if (auto show_bookmarks_bar = settings.as_object().get_bool(SHOW_BOOKMARKS_BAR_KEY); show_bookmarks_bar.has_value())
-        appearance.show_bookmarks_bar = *show_bookmarks_bar;
+    if (auto show_bookmarks_bar = settings.as_object().get_string(SHOW_BOOKMARKS_BAR_KEY); show_bookmarks_bar.has_value()) {
+        if (auto parsed = bookmarks_bar_position_from_string(*show_bookmarks_bar); parsed.has_value())
+            appearance.show_bookmarks_bar = *parsed;
+    }
 
     return appearance;
 }

@@ -32,10 +32,12 @@
 #include <QToolButton>
 #include <QWidget>
 
-class QTimer;
 class QColorDialog;
 class QFileDialog;
 class QMessageBox;
+class QTimer;
+class QVariantAnimation;
+
 namespace Ladybird {
 
 class BrowserWindow;
@@ -94,6 +96,8 @@ public:
     void find_next();
 
     BookmarksBar& bookmarks_bar() { return *m_bookmarks_bar; }
+    bool has_bookmarks_bar_in_page() const;
+    void update_bookmarks_bar_visibility();
 
     void request_close();
     void request_window_close_preflight(Function<void(bool)> on_complete);
@@ -140,6 +144,7 @@ private:
     virtual void resizeEvent(QResizeEvent*) override;
     virtual void hideEvent(QHideEvent*) override;
     virtual bool event(QEvent*) override;
+    virtual bool eventFilter(QObject*, QEvent*) override;
 
     virtual void tab_settings_changed() override;
     virtual void config_variable_changed(WebView::ConfigVariableID) override;
@@ -164,6 +169,12 @@ private:
     int tab_index();
     void set_screen_wake_lock_state(Web::ScreenWakeLockState);
 
+    bool can_expand_bookmarks_bar_on_hover() const;
+    bool cursor_is_over_bookmarks_bar_hover_region() const;
+    void update_bookmarks_bar_hover();
+    void set_bookmarks_bar_hover_expanded(bool);
+    void update_bookmarks_bar_geometry();
+
     virtual void download_added(WebView::FileDownloader::Download const&) override;
     virtual void download_updated(WebView::FileDownloader::Download const&) override;
     virtual void download_removed(u64, WebView::IsPrivate) override;
@@ -179,7 +190,15 @@ private:
     WindowControlButton* m_minimize_window_button { nullptr };
     WindowControlButton* m_maximize_window_button { nullptr };
     WindowControlButton* m_close_window_button { nullptr };
+
     BookmarksBar* m_bookmarks_bar { nullptr };
+    QWidget* m_bookmarks_bar_container { nullptr };
+    QTimer* m_bookmarks_bar_hover_expand_timer { nullptr };
+    QTimer* m_bookmarks_bar_hover_collapse_timer { nullptr };
+    QVariantAnimation* m_bookmarks_bar_hover_expand_animation { nullptr };
+    bool m_bookmarks_bar_hover_expanded { false };
+    qreal m_bookmarks_bar_hover_expand_progress { 0.0 };
+
     QPushButton* m_private_badge { nullptr };
     QToolButton* m_hamburger_button { nullptr };
     ContentBlockingButton* m_content_blocking_button { nullptr };

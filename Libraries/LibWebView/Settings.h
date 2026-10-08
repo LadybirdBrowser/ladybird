@@ -30,9 +30,15 @@ struct WindowSettings {
     bool maximized { false };
 };
 
+enum class ShowBookmarksBar : u8 {
+    Always,
+    Never,
+    OnHover,
+};
+
 struct Appearance {
     bool show_menu_bar { false };
-    bool show_bookmarks_bar { true };
+    ShowBookmarksBar show_bookmarks_bar { ShowBookmarksBar::Always };
 };
 
 struct ContentSettings {

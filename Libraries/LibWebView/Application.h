@@ -376,6 +376,7 @@ public:
 
     Menu& bookmarks_menu() { return *m_bookmarks_menu; }
     void toggle_bookmark_for_view(ViewImplementation&);
+    Action& toggle_bookmark_bar_action() { return *m_toggle_bookmark_bar_action; }
 
     Menu& history_menu() { return *m_history_menu; }
 
@@ -689,6 +690,10 @@ private:
     RefPtr<Menu> m_bookmarks_menu;
     RefPtr<Action> m_toggle_bookmark_action;
     RefPtr<Action> m_toggle_bookmark_bar_action;
+    RefPtr<Menu> m_show_bookmarks_bar_menu;
+    RefPtr<Action> m_show_bookmarks_bar_always_action;
+    RefPtr<Action> m_show_bookmarks_bar_never_action;
+    RefPtr<Action> m_show_bookmarks_bar_on_hover_action;
     size_t m_bookmarks_menu_static_size { 0 };
 
     RefPtr<Menu> m_history_menu;

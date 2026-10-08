@@ -100,6 +100,7 @@ public:
     QAction* open_file_action();
     QAction* open_settings_action();
     QAction* open_downloads_action();
+    QAction* toggle_bookmark_bar_action();
     QAction* find_in_page_action();
     QAction* zoom_in_action();
     QAction* zoom_out_action();

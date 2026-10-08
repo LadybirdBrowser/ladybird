@@ -137,6 +137,7 @@ public:
     void set_maximum_frames_per_second(double);
     void set_display_metadata(Optional<u64> display_id, double maximum_frames_per_second);
     void set_vertical_tab_overlay_insets(int left, int right);
+    void set_bookmarks_bar_overlay_height(int);
     void prepare_for_window_move();
     void finish_window_move();
     void close_select_dropdown_after_crash();
@@ -334,6 +335,7 @@ private:
 
     int m_vertical_tab_overlay_left { 0 };
     int m_vertical_tab_overlay_right { 0 };
+    int m_bookmarks_bar_overlay_height { 0 };
 #endif
 };
 

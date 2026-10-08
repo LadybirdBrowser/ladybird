@@ -1809,6 +1809,7 @@ TabWidget::TabWidget(QWidget* parent)
 
         m_toolbar_container->setCurrentIndex(index);
         emit current_tab_changed(index);
+        update_vertical_tabs_content_separator();
         update_vertical_tabs_overlay_geometry();
         update_vertical_tabs_resize_handle();
         update_vertical_tabs_content_overlay();
@@ -1867,6 +1868,7 @@ void TabWidget::insert_tab(int index, Tab* widget, QString const& label)
     if (auto* current = as_if<Tab>(m_stacked_widget->currentWidget()); current && current != widget)
         size_page_like(*widget, *current);
     widget->view().installEventFilter(this);
+    widget->bookmarks_bar().installEventFilter(this);
 
     m_stacked_widget->insertWidget(index, widget);
     m_tab_bar->insertTab(index, label);
@@ -1897,6 +1899,7 @@ Tab* TabWidget::take_tab(int index)
 
     m_stacked_widget->removeWidget(widget);
     as<Tab>(widget)->view().removeEventFilter(this);
+    as<Tab>(widget)->bookmarks_bar().removeEventFilter(this);
     auto* toolbar = as<Tab>(widget)->toolbar_container();
     if (m_toolbar_container->indexOf(toolbar) != -1)
         m_toolbar_container->removeWidget(toolbar);
@@ -2033,6 +2036,9 @@ void TabWidget::dropEvent(QDropEvent* event)
 
 bool TabWidget::eventFilter(QObject* watched, QEvent* event)
 {
+    if (is<BookmarksBar>(watched) && (event->type() == QEvent::Show || event->type() == QEvent::Hide))
+        update_vertical_tabs_content_separator();
+
     if (watched == window() && event->type() == QEvent::Leave)
         defer_update_vertical_tabs_hover_expanded();
 
@@ -2466,7 +2472,9 @@ void TabWidget::update_vertical_tabs_resize_handle()
 
 void TabWidget::update_vertical_tabs_content_separator()
 {
-    auto show_content_separator = m_tab_bar_visible && m_tab_bar->tab_layout() != TabLayout::Horizontal;
+    auto* current = as_if<Tab>(m_stacked_widget->currentWidget());
+    auto has_page_bookmarks_bar = current && current->has_bookmarks_bar_in_page();
+    auto show_content_separator = m_tab_bar_visible && m_tab_bar->tab_layout() != TabLayout::Horizontal && !has_page_bookmarks_bar;
     m_vertical_tabs_content_separator->setVisible(show_content_separator);
     if (!show_content_separator)
         return;

@@ -199,6 +199,11 @@ QColor chrome_separator(QPalette const& palette)
     return mix(chrome_surface(palette), chrome_border(palette), is_dark(palette) ? 0.42 : 0.54);
 }
 
+static QColor chrome_content_separator(QPalette const& palette)
+{
+    return mix(chrome_background(palette), chrome_border(palette), is_dark(palette) ? 0.44 : 0.58);
+}
+
 QColor chrome_window_outline(QPalette const& palette)
 {
     auto dark = is_dark(palette);
@@ -371,6 +376,10 @@ QWidget#LadybirdToolbarContainer {{
 
 QWidget#LadybirdToolbarContainer[fullWidthToolbar="true"] {{
     border-bottom: 0;
+}}
+
+QWidget#LadybirdToolbarContainer[hoverBookmarksVisible="true"] {{
+    border-bottom-color: transparent;
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton {{
@@ -737,20 +746,28 @@ QString bookmarks_bar_style_sheet(QPalette const& palette, int corner_radius)
     auto pressed = style_sheet_color(chrome_control_surface_pressed(palette));
     auto control_border = style_sheet_color(chrome_control_border(palette));
     auto text = style_sheet_color(chrome_button_text(palette));
+    auto background = style_sheet_color(chrome_background(palette));
+    auto border = style_sheet_color(chrome_content_separator(palette));
 
     return qformatted(R"(
 QToolBar#LadybirdBookmarksBar {{
     color: {2};
+    background: {4};
     border: 0;
+    border-bottom: 1px solid {5};
     padding: 1px 4px;
     spacing: 3px;
+}}
+
+QWidget#LadybirdToolbarContainer QToolBar#LadybirdBookmarksBar {{
+    border-bottom: 0;
 }}
 
 QToolBar#LadybirdBookmarksBar QToolButton {{
     color: {2};
     background: transparent;
     border: 1px solid transparent;
-    border-radius: {4}px;
+    border-radius: {6}px;
 }}
 
 QToolBar#LadybirdBookmarksBar QToolButton:hover {{
@@ -764,7 +781,7 @@ QToolBar#LadybirdBookmarksBar QToolButton:checked {{
     border-color: {3};
 }}
 )",
-        hover, pressed, text, control_border, corner_radius);
+        hover, pressed, text, control_border, background, border, corner_radius);
 }
 
 QString find_in_page_style_sheet(QPalette const& palette)
@@ -1164,7 +1181,7 @@ QString tab_widget_style_sheet(QPalette const& palette)
     auto text = style_sheet_color(chrome_button_text(palette));
     auto close_hover = style_sheet_color(chrome_destructive_hover());
     auto close_text = style_sheet_color(chrome_destructive_text());
-    auto sidebar_separator = style_sheet_color(mix(chrome_background_color, chrome_border(palette), dark ? 0.44 : 0.58));
+    auto sidebar_separator = style_sheet_color(chrome_content_separator(palette));
     auto sidebar_separator_hover = style_sheet_color(mix(chrome_background_color, chrome_border(palette), dark ? 0.64 : 0.76));
 
     return qformatted(R"(

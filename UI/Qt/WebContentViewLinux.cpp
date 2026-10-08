@@ -866,16 +866,12 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
         bool rendered = m_renderer.render(command_buffer, *paintable->shared_image_buffer, paintable->bitmap_size, target_size, m_view.m_scales_frames_to_fit);
 
         if (rendered && m_view.m_vulkan_window_supports_alpha_blending.value_or(false)) {
-            // Clear the strips overlaid by hover-expanded vertical tabs to transparent so the tab column painted in the
-            // widget backing store shows through this native window.
+            // Clear the regions covered by hover-expanded browser chrome to transparent so widgets painted in the
+            // backing store show through this native window. Top and side overlays can be visible together.
             auto device_pixel_ratio = m_view.device_pixel_ratio();
 
-            auto punch_transparent_strip = [&](int logical_width, bool from_right) {
-                if (logical_width <= 0)
-                    return;
-
-                auto strip_width = min(qRound(logical_width * device_pixel_ratio), target_size.width());
-                if (strip_width <= 0)
+            auto punch_transparent_rect = [&](QRect const& rect) {
+                if (rect.isEmpty())
                     return;
 
                 VkClearAttachment clear_attachment {
@@ -886,8 +882,8 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
 
                 VkClearRect clear_rect {
                     .rect = {
-                        .offset = { from_right ? target_size.width() - strip_width : 0, 0 },
-                        .extent = { static_cast<u32>(strip_width), static_cast<u32>(target_size.height()) },
+                        .offset = { rect.x(), rect.y() },
+                        .extent = { static_cast<u32>(rect.width()), static_cast<u32>(rect.height()) },
                     },
                     .baseArrayLayer = 0,
                     .layerCount = 1,
@@ -896,8 +892,12 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
                 vkCmdClearAttachments(command_buffer, 1, &clear_attachment, 1, &clear_rect);
             };
 
-            punch_transparent_strip(m_view.m_vertical_tab_overlay_left, false);
-            punch_transparent_strip(m_view.m_vertical_tab_overlay_right, true);
+            auto left_width = clamp(qRound(m_view.m_vertical_tab_overlay_left * device_pixel_ratio), 0, target_size.width());
+            auto right_width = clamp(qRound(m_view.m_vertical_tab_overlay_right * device_pixel_ratio), 0, target_size.width());
+            auto top_height = clamp(qRound(m_view.m_bookmarks_bar_overlay_height * device_pixel_ratio), 0, target_size.height());
+            punch_transparent_rect({ 0, 0, left_width, target_size.height() });
+            punch_transparent_rect({ target_size.width() - right_width, 0, right_width, target_size.height() });
+            punch_transparent_rect({ 0, 0, target_size.width(), top_height });
         }
 
         vkCmdEndRenderPass(command_buffer);
@@ -1060,8 +1060,8 @@ void WebContentView::update_vulkan_window_mask()
     if (!m_vulkan_window || !m_vulkan_window_container)
         return;
 
-    // On X11, the native window's bounding shape exposes the strips painted transparent for hover-expanded vertical
-    // tabs. Wayland instead uses the renderer's alpha output and empties the native window's input region separately.
+    // On X11, the native window's bounding shape exposes the regions painted transparent for hover-expanded chrome.
+    // Wayland instead uses the renderer's alpha output and empties the native window's input region separately.
     auto size = m_vulkan_window_container->size();
     QRegion window_mask { QRect { QPoint { 0, 0 }, size } };
 
@@ -1070,6 +1070,8 @@ void WebContentView::update_vulkan_window_mask()
             window_mask -= QRect { 0, 0, m_vertical_tab_overlay_left, size.height() };
         if (m_vertical_tab_overlay_right > 0)
             window_mask -= QRect { size.width() - m_vertical_tab_overlay_right, 0, m_vertical_tab_overlay_right, size.height() };
+        if (m_bookmarks_bar_overlay_height > 0)
+            window_mask -= QRect { 0, 0, size.width(), m_bookmarks_bar_overlay_height };
     }
 
     // QWindow interprets an empty mask as clearing the mask. Use a non-empty region outside the window to produce an

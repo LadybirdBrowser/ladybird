@@ -737,7 +737,7 @@ static Web::UIEvents::KeyCode get_keycode_from_qt_key_event(QKeyEvent const& eve
 
 static bool is_browser_reserved_shortcut(QKeyEvent const& event)
 {
-    // Browser chrome shortcuts that manage tabs, windows, or focus should not wait for
+    // Browser chrome shortcuts that manage tabs, windows, focus, or chrome visibility should not wait for
     // WebContent to decide whether the page wants to suppress them.
     if (event.matches(QKeySequence::StandardKey::Close)
         || event.matches(QKeySequence::StandardKey::New)
@@ -752,6 +752,8 @@ static bool is_browser_reserved_shortcut(QKeyEvent const& event)
     if (modifiers == (Qt::ControlModifier | Qt::ShiftModifier) && key == Qt::Key_T)
         return true;
     if (modifiers == (Qt::ControlModifier | Qt::ShiftModifier) && key == Qt::Key_N)
+        return true;
+    if (modifiers == (Qt::ControlModifier | Qt::ShiftModifier) && key == Qt::Key_B)
         return true;
 
     if (modifiers == Qt::ControlModifier && (key == Qt::Key_L || key == Qt::Key_Tab || key == Qt::Key_PageDown))
@@ -1520,6 +1522,18 @@ void WebContentView::set_vertical_tab_overlay_insets([[maybe_unused]] int left, 
     m_vertical_tab_overlay_left = left;
     m_vertical_tab_overlay_right = right;
 
+    update_vulkan_window_mask();
+    schedule_repaint();
+#endif
+}
+
+void WebContentView::set_bookmarks_bar_overlay_height([[maybe_unused]] int height)
+{
+#ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
+    if (m_bookmarks_bar_overlay_height == height)
+        return;
+
+    m_bookmarks_bar_overlay_height = height;
     update_vulkan_window_mask();
     schedule_repaint();
 #endif

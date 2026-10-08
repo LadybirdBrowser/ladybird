@@ -354,8 +354,10 @@ public:
         m_open_file_action->setShortcut(QKeySequence(QKeySequence::StandardKey::Open));
         QObject::connect(m_open_file_action, &QAction::triggered, this, []() { Application::the().open_file(); });
 
-        m_open_downloads_action = create_application_action(*m_application_widget, application.open_downloads_page_action(), IncludeActionIcon::No);
         m_open_settings_action = create_application_action(*m_application_widget, application.open_settings_page_action(), IncludeActionIcon::No);
+        m_open_downloads_action = create_application_action(*m_application_widget, application.open_downloads_page_action(), IncludeActionIcon::No);
+
+        m_toggle_bookmark_bar_action = create_application_action(*m_application_widget, application.toggle_bookmark_bar_action(), IncludeActionIcon::No);
 
         m_find_in_page_action = make_action("&Find in Page...");
         m_find_in_page_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Find));
@@ -515,6 +517,7 @@ private:
     QAction* m_open_file_action { nullptr };
     QAction* m_open_settings_action { nullptr };
     QAction* m_open_downloads_action { nullptr };
+    QAction* m_toggle_bookmark_bar_action { nullptr };
     QAction* m_find_in_page_action { nullptr };
     QAction* m_zoom_in_action { nullptr };
     QAction* m_zoom_out_action { nullptr };
@@ -1541,6 +1544,7 @@ DEFINE_APP_MENU_GETTER(QAction, open_previous_tab_action);
 DEFINE_APP_MENU_GETTER(QAction, open_file_action);
 DEFINE_APP_MENU_GETTER(QAction, open_settings_action);
 DEFINE_APP_MENU_GETTER(QAction, open_downloads_action);
+DEFINE_APP_MENU_GETTER(QAction, toggle_bookmark_bar_action);
 DEFINE_APP_MENU_GETTER(QAction, find_in_page_action);
 DEFINE_APP_MENU_GETTER(QAction, zoom_in_action);
 DEFINE_APP_MENU_GETTER(QAction, zoom_out_action);
