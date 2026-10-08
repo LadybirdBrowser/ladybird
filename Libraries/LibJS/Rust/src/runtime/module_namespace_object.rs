@@ -40,7 +40,7 @@ pub struct ModuleNamespaceObject {
 
 pub static MODULE_NAMESPACE_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     initialize: ModuleNamespaceObject::initialize,
-    internal_get_prototype_of: ModuleNamespaceObject::internal_get_prototype_of,
+    internal_get_prototype_of: Some(ModuleNamespaceObject::internal_get_prototype_of),
     internal_set_prototype_of: ModuleNamespaceObject::internal_set_prototype_of,
     internal_is_extensible: ModuleNamespaceObject::internal_is_extensible,
     internal_prevent_extensions: ModuleNamespaceObject::internal_prevent_extensions,
