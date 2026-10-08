@@ -52,6 +52,9 @@ pub struct Object {
     pub header: CellHeader,
     pub flags: Cell<u16>,
     pub indexed_storage_kind: Cell<IndexedStorageKind>,
+    /// How many named property values the inline storage holds. It ends the object, and only plain objects have cells
+    /// with room for more than INLINE_NAMED_STORAGE_CAPACITY.
+    pub inline_named_capacity: Cell<u8>,
     pub indexed_array_like_size: Cell<u32>,
     pub shape: Cell<Gc<Shape>>,
     /// Points at `inline_named_storage` until the object needs more room.
@@ -60,6 +63,13 @@ pub struct Object {
     pub private_elements: PrivateElements,
     pub inline_named_storage: [Cell<Value>; INLINE_NAMED_STORAGE_CAPACITY],
 }
+
+// NB: The inline capacity fits in the padding in front of the array-like size, and the inline storage ends the object.
+const _: () = assert!(size_of::<Object>() == 72);
+const _: () = assert!(
+    core::mem::offset_of!(Object, inline_named_storage) + INLINE_NAMED_STORAGE_CAPACITY * size_of::<Value>()
+        == size_of::<Object>()
+);
 
 /// Mirrors the Variant<Auto, Detached, u32> the interpreter reads: the length first, then the alternative's index.
 #[repr(C)]

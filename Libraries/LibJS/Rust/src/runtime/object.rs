@@ -19,7 +19,7 @@ use crate::embedding::abi_types::JSRealm;
 use crate::gc::capi;
 use crate::gc::class::{Class, Extends, ExternalMemorySize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
-use crate::gc::heap::RuntimeClassAllocator;
+use crate::gc::heap::{Heap, RuntimeClassAllocator, SizeClassAllocator};
 use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
@@ -463,6 +463,49 @@ fn remove_intrinsic_accessor(vm: &Vm, object: &Object, property_key: &PropertyKe
     }
 }
 
+/// Plain objects (exactly an Object, as create() and create_with_premade_shape() make them) come in size classes by how
+/// many named property values they hold inline: the smallest one that fits the properties of their shape at creation,
+/// so that most of them never need named property storage of their own. The first size class is an Object's own cell.
+const PLAIN_OBJECT_INLINE_CAPACITIES: [u8; 6] = [2, 4, 6, 8, 12, 16];
+
+/// The inline capacity of plain objects created without properties. More would keep the properties many of them get
+/// right away (like `this` in constructors) inline, but makes the cells of all of them larger.
+const EMPTY_PLAIN_OBJECT_INLINE_CAPACITY: u8 = PLAIN_OBJECT_INLINE_CAPACITIES[0];
+
+const _: () = assert!(PLAIN_OBJECT_INLINE_CAPACITIES[0] as usize == INLINE_NAMED_STORAGE_CAPACITY);
+
+const PLAIN_OBJECT_SIZE_CLASS_CELL_SIZES: [u32; PLAIN_OBJECT_INLINE_CAPACITIES.len() - 1] = {
+    let mut cell_sizes = [0; PLAIN_OBJECT_INLINE_CAPACITIES.len() - 1];
+    let mut index = 0;
+    while index < cell_sizes.len() {
+        let inline_capacity = PLAIN_OBJECT_INLINE_CAPACITIES[index + 1] as usize;
+        // NB: The inline named storage ends the object.
+        cell_sizes[index] =
+            (size_of::<Object>() + (inline_capacity - INLINE_NAMED_STORAGE_CAPACITY) * size_of::<Value>()) as u32;
+        index += 1;
+    }
+    cell_sizes
+};
+
+/// The size class (an index into PLAIN_OBJECT_INLINE_CAPACITIES) of plain objects created with a shape of that many
+/// properties.
+fn plain_object_size_class(property_count: u32) -> usize {
+    let inline_values = if property_count == 0 {
+        u32::from(EMPTY_PLAIN_OBJECT_INLINE_CAPACITY)
+    } else {
+        property_count
+    };
+    PLAIN_OBJECT_INLINE_CAPACITIES
+        .iter()
+        .position(|&inline_capacity| inline_values <= u32::from(inline_capacity))
+        .unwrap_or(PLAIN_OBJECT_INLINE_CAPACITIES.len() - 1)
+}
+
+/// The allocators of the plain object size classes beyond the first, which is Object's own allocator.
+fn plain_object_size_classes(heap: &Heap) -> &[SizeClassAllocator] {
+    heap.size_classes(Object::CLASS, &PLAIN_OBJECT_SIZE_CLASS_CELL_SIZES)
+}
+
 const SPARSE_ARRAY_HOLE_THRESHOLD: u32 = 200;
 pub(crate) const MAX_TRANSITIONS_BEFORE_CONVERTING_TO_DICTIONARY: u32 = 64;
 
@@ -513,6 +556,7 @@ impl Object {
             header: CellHeader::for_class(class),
             flags: Cell::new(object_flag::IS_EXTENSIBLE),
             indexed_storage_kind: Cell::new(IndexedStorageKind::None),
+            inline_named_capacity: Cell::new(INLINE_NAMED_STORAGE_CAPACITY as u8),
             indexed_array_like_size: Cell::new(0),
             shape: Cell::new(shape),
             named_properties: Cell::new(core::ptr::null_mut()),
@@ -623,9 +667,32 @@ impl Object {
     }
 
     pub fn create_with_premade_shape(vm: &Vm, shape: Gc<Shape>) -> Gc<Object> {
-        allocate_object(
-            vm,
-            Self::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No),
+        let property_count = shape.property_count();
+        // OPTIMIZATION: Objects with up to two properties, the most common ones, are in the first size class.
+        if property_count <= INLINE_NAMED_STORAGE_CAPACITY as u32 {
+            return allocate_object(
+                vm,
+                Self::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No),
+            );
+        }
+        Self::create_in_size_class(vm, shape, property_count)
+    }
+
+    /// A plain object of the shape, in the size class for that many properties.
+    #[inline(never)]
+    fn create_in_size_class(vm: &Vm, shape: Gc<Shape>, property_count: u32) -> Gc<Object> {
+        let object = Self::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No);
+        let size_class = plain_object_size_class(property_count);
+        if size_class == 0 {
+            return allocate_object(vm, object);
+        }
+        object
+            .inline_named_capacity
+            .set(PLAIN_OBJECT_INLINE_CAPACITIES[size_class]);
+        let size_class_allocator = plain_object_size_classes(vm.heap())[size_class - 1];
+        set_up_named_storage(
+            vm.heap()
+                .allocate_with_size_class(size_class_allocator, object, Value::UNDEFINED),
         )
     }
 
@@ -3467,7 +3534,7 @@ impl Object {
     // u32 just before the first element (see value_storage); inline storage is fixed.
     fn named_storage_capacity(&self) -> u32 {
         if self.named_storage_is_inline() {
-            return INLINE_NAMED_STORAGE_CAPACITY as u32;
+            return self.inline_named_capacity.get().into();
         }
         value_storage::capacity(self.named_properties.get())
     }
