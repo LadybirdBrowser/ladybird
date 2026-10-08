@@ -21,7 +21,8 @@ public:
     bool enabled() const { return m_enabled; }
     static void did_present(u64 view_id);
     static void forget_view(u64 view_id);
-    static void request_server_did_restart();
+    // Every RequestServer reports its clients' network use to the monitor.
+    static void configure(Requests::RequestControlClient&);
 
 private:
     TabPerformanceMonitor();

@@ -16,6 +16,7 @@
 #include <LibWebView/CanonicalNavigable.h>
 #include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/NavigationLoader.h>
+#include <LibWebView/RequestServerManager.h>
 
 namespace WebView {
 
@@ -157,8 +158,13 @@ void NavigationLoader::acquire_response_body(Function<void(bool)> completion_ste
         return;
     }
 
-    auto& request_client = Application::request_server_client(m_is_private);
-    auto request = request_client.adopt_request(
+    // The response lives in the RequestServer of the client that fetched it.
+    auto request_server = RequestServerManager::the().instance_for_client(body_handle->request_server_client_id);
+    if (!request_server) {
+        did_acquire(false);
+        return;
+    }
+    auto request = request_server->ui_client().adopt_request(
         body_handle->request_server_client_id,
         body_handle->request_server_request_id,
         Requests::RequestClient::TransferLease::Yes);
@@ -166,6 +172,7 @@ void NavigationLoader::acquire_response_body(Function<void(bool)> completion_ste
         did_acquire(false);
         return;
     }
+    m_response_body_request_server = request_server;
     m_response_body_request_server_client_id = body_handle->request_server_client_id;
     m_response_body_request_server_request_id = body_handle->request_server_request_id;
 
@@ -184,6 +191,37 @@ void NavigationLoader::acquire_response_body(Function<void(bool)> completion_ste
             if (auto* loader = weak_this.ptr())
                 loader->did_acquire(false);
         });
+}
+
+void NavigationLoader::move_response_body_to(RequestServerInstance& request_server)
+{
+    if (!m_response_body_request || !m_response_body_request_server || m_response_body_request_server.ptr() == &request_server)
+        return;
+
+    auto* body_handle = response_body_handle(*m_result);
+    if (!body_handle)
+        return;
+
+    auto exported = m_response_body_request_server->ui_client().export_request(*m_response_body_request);
+    if (exported.is_error()) {
+        warnln("Unable to move a navigation response between RequestServers: {}", exported.error());
+        return;
+    }
+
+    auto request = request_server.ui_client().import_request(exported.release_value(), Requests::RequestClient::TransferLease::Yes);
+    if (!request) {
+        did_acquire(false);
+        return;
+    }
+    request->set_body_delivery_paused(true);
+    m_response_body_request = request;
+    m_response_body_request_server = request_server;
+
+    // The handle names the lease the host adopts, which is now the UI process's request in the host's RequestServer.
+    body_handle->request_server_client_id = request_server.ui_client().request_server_client_id();
+    body_handle->request_server_request_id = request->id();
+    m_response_body_request_server_client_id = body_handle->request_server_client_id;
+    m_response_body_request_server_request_id = body_handle->request_server_request_id;
 }
 
 Web::HTML::NavigationPopulationResult NavigationLoader::take_result()
@@ -239,13 +277,16 @@ void NavigationLoader::set_document(CanonicalDocument const& document, Canonical
         navigation_params->new_browsing_context_group_id = document.browsing_context().group()->id();
 }
 
-void NavigationLoader::discard(IsPrivate is_private, Web::HTML::NavigationPopulationResult& result)
+void NavigationLoader::discard(IsPrivate, Web::HTML::NavigationPopulationResult& result)
 {
     auto* body_handle = response_body_handle(result);
     if (!body_handle)
         return;
 
-    auto request = Application::request_server_client(is_private).adopt_request(body_handle->request_server_client_id, body_handle->request_server_request_id);
+    auto request_server = RequestServerManager::the().instance_for_client(body_handle->request_server_client_id);
+    if (!request_server)
+        return;
+    auto request = request_server->ui_client().adopt_request(body_handle->request_server_client_id, body_handle->request_server_request_id);
     if (request)
         request->stop();
 }

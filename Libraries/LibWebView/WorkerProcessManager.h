@@ -56,7 +56,8 @@ public:
     void remove_web_worker_owner(WebWorkerClient&);
 
     void post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage, CanonicalEnvironmentSettingsObject const& source_settings, pid_t source_process_id, IsPrivate);
-    ErrorOr<void> reconnect_to_request_server();
+    // Reconnects the workers whose RequestServer client the predicate picks out to the given RequestServer.
+    ErrorOr<void> reconnect_to_request_server(RequestServerInstance&, Function<bool(RequestServerSiteBindings const&)> should_reconnect);
     void for_each_request_server_site_bindings(Function<IterationDecision(RequestServerSiteBindings&)> const&);
     ErrorOr<void> simulate_request_server_connection_loss_for_testing(WebContentClient&, Web::PageId page_id);
 
@@ -127,8 +128,6 @@ private:
         Vector<Owner> owners;
         NonnullOwnPtr<CanonicalWorkerEnvironmentSettingsObject> inside_settings;
     };
-
-    ErrorOr<void> reconnect_to_request_server(Function<bool(WorkerAgent const&)> should_reconnect);
 
     Web::HTML::WorkerAgentId m_next_agent_id { 0 };
     HashMap<Web::HTML::WorkerAgentId, WorkerAgent> m_agents;

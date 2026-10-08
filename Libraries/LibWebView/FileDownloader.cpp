@@ -27,6 +27,7 @@
 #include <LibWebView/DownloadSegmentation.h>
 #include <LibWebView/DownloadStore.h>
 #include <LibWebView/FileDownloader.h>
+#include <LibWebView/RequestServerManager.h>
 
 namespace WebView {
 
@@ -241,7 +242,10 @@ u64 FileDownloader::adopt_download(IsPrivate is_private, URL::URL const& url, Le
             return download_id;
     }
 
-    auto request = Application::request_server_client(is_private).adopt_request(request_server_client_id, request_server_request_id);
+    // The response lives in the RequestServer of the client that fetched it.
+    RefPtr<Requests::Request> request;
+    if (auto request_server = RequestServerManager::the().instance_for_client(request_server_client_id))
+        request = request_server->ui_client().adopt_request(request_server_client_id, request_server_request_id);
     if (!request) {
         fail_download(download_id, "Unable to adopt request to download file"_string);
         return download_id;

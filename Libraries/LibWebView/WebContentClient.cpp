@@ -37,6 +37,7 @@
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
+#include <LibWebView/RequestServerManager.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentTestClient.h>
@@ -730,7 +731,13 @@ Messages::WebContentClient::DidIsKnownHstsHostResponse WebContentClient::did_is_
 
 Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentClient::did_lose_request_server_connection()
 {
-    auto connection = connect_new_request_server_client(*m_session, RequestServer::SiteBinding::Bound);
+    // The replacement client is on the RequestServer the process was using.
+    RefPtr<RequestServerInstance> instance;
+    if (auto client_id = m_request_server_site_bindings.client_id(); client_id.has_value())
+        instance = RequestServerManager::the().instance_for_client(*client_id);
+    auto connection = instance
+        ? RequestServerManager::the().connect_new_client(*instance, *m_session, RequestServer::SiteBinding::Bound)
+        : connect_new_request_server_client(*m_session, RequestServer::SiteBinding::Bound);
     if (connection.is_error()) {
         warnln("Unable to connect a replacement RequestServer client: {}", connection.error());
         return OptionalNone {};

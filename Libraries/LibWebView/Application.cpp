@@ -59,6 +59,7 @@
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
 #include <LibWebView/ProcessType.h>
+#include <LibWebView/RequestServerManager.h>
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/SiteCompatibility.h>
 #include <LibWebView/TabPerformanceMonitor.h>
@@ -116,24 +117,12 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
 
     virtual void browsing_data_settings_changed() override
     {
-        auto const& browsing_data_settings = Application::settings().browsing_data_settings();
-        Application::request_server_control_client().async_set_disk_cache_settings(browsing_data_settings.disk_cache_settings);
+        Application::request_server_manager().disk_cache_settings_changed();
     }
 
     virtual void dns_settings_changed() override
     {
-        Application::settings().dns_settings().visit(
-            [](SystemDNS) {
-                Application::request_server_control_client().async_set_use_system_dns();
-            },
-            [](DNSOverTLS const& dns_over_tls) {
-                dbgln("Setting DNS server to {}:{} with TLS ({} local dnssec)", dns_over_tls.server_address, dns_over_tls.port, dns_over_tls.validate_dnssec_locally ? "with" : "without");
-                Application::request_server_control_client().async_set_dns_server(dns_over_tls.server_address, dns_over_tls.port, true, dns_over_tls.validate_dnssec_locally);
-            },
-            [](DNSOverUDP const& dns_over_udp) {
-                dbgln("Setting DNS server to {}:{} ({} local dnssec)", dns_over_udp.server_address, dns_over_udp.port, dns_over_udp.validate_dnssec_locally ? "with" : "without");
-                Application::request_server_control_client().async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false, dns_over_udp.validate_dnssec_locally);
-            });
+        Application::request_server_manager().dns_settings_changed();
     }
 
     virtual void config_variable_changed(ConfigVariableID variable) override
@@ -270,23 +259,22 @@ void Application::set_cpu_profiler_process(Core::Process process, OwnPtr<Core::F
 
 Requests::RequestClient& Application::request_server_client(IsPrivate is_private)
 {
-    if (is_private == IsPrivate::No)
-        return *the().m_request_server_client;
-
-    if (!the().m_private_request_server_client) {
-        auto connection = connect_new_request_server_client(session_for_new_view(IsPrivate::Yes), RequestServer::SiteBinding::Unrestricted).release_value_but_fixme_should_propagate_errors();
-        auto transport = connection.handle.create_transport().release_value_but_fixme_should_propagate_errors();
-        auto request_server_client = make_ref_counted<Requests::RequestClient>(move(transport));
-
-#ifdef AK_OS_WINDOWS
-        auto response = request_server_client->send_sync<Messages::RequestServer::InitTransport>(Core::System::getpid());
-        request_server_client->transport().set_peer_pid(response->peer_pid());
-#endif
-
-        the().m_private_request_server_client = move(request_server_client);
+    auto instance = request_server_manager().browser_instance(session_for_new_view(is_private));
+    if (instance.is_error()) {
+        warnln("\033[31;1mUnable to launch RequestServer: {}\033[0m", instance.error());
+        VERIFY_NOT_REACHED();
     }
+    return instance.value()->ui_client();
+}
 
-    return *the().m_private_request_server_client;
+Requests::RequestControlClient& Application::request_server_control_client()
+{
+    auto instance = request_server_manager().browser_instance(default_session());
+    if (instance.is_error()) {
+        warnln("\033[31;1mUnable to launch RequestServer: {}\033[0m", instance.error());
+        VERIFY_NOT_REACHED();
+    }
+    return instance.value()->control_client();
 }
 
 ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
@@ -326,6 +314,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool validate_dnssec_locally = false;
     bool log_all_js_exceptions = false;
     auto site_isolation_mode = default_site_isolation_mode();
+    Optional<size_t> maximum_site_request_servers;
     bool disable_http_memory_cache = false;
     bool disable_http_disk_cache = false;
     bool disable_content_blocker = false;
@@ -421,6 +410,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     });
     args_parser.add_option(disable_http_memory_cache, "Disable HTTP memory cache", "disable-http-memory-cache");
     args_parser.add_option(disable_http_disk_cache, "Disable HTTP disk cache", "disable-http-disk-cache");
+    args_parser.add_option(maximum_site_request_servers, "How many RequestServers a session may have for the sites it visits, 0 to share one", "max-site-request-servers", 0, "count");
     args_parser.add_option(disable_content_blocker, "Disable content blocker", "disable-content-blocker");
     args_parser.add_option(disable_sandbox, "Disable helper process sandboxing", "disable-sandbox");
     args_parser.add_option(Core::ArgsParser::Option {
@@ -649,6 +639,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .http_disk_cache_mode = http_disk_cache_mode,
         .resource_substitution_map_path = resource_substitution_map_path.has_value() ? Optional<ByteString> { *resource_substitution_map_path } : OptionalNone {},
         .proxy_configuration = HTTP::ProxyConfiguration::from_environment(),
+        .maximum_site_request_servers = maximum_site_request_servers.value_or(RequestServerOptions {}.maximum_site_request_servers),
     };
 
     m_web_content_options = {
@@ -1142,6 +1133,12 @@ void Application::did_connect_request_server_client(int client_id, BrowsingSessi
         m_unrestricted_request_server_clients.set(client_id);
 }
 
+void Application::did_disconnect_request_server_client(int client_id)
+{
+    m_request_server_client_sessions.remove(client_id);
+    m_unrestricted_request_server_clients.remove(client_id);
+}
+
 bool Application::request_server_client_may_use_cookies_in(int client_id, URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& context) const
 {
     if (m_unrestricted_request_server_clients.contains(client_id))
@@ -1270,7 +1267,6 @@ void Application::reset_private_browsing_session()
 
     // RequestServer answers our own private client with the cookies of the session it was created for, so the next
     // private request made by the UI process needs a client of the new session.
-    m_private_request_server_client = nullptr;
 
     // Views pending deferred deletion may still push updates, and the replacement store reuses their ids.
     ViewImplementation::for_each_view([](ViewImplementation& view) {
@@ -1810,30 +1806,18 @@ void Application::recover_compositor_process()
 
 ErrorOr<void> Application::launch_request_server()
 {
-    // A new RequestServer hands out client IDs from the start again.
-    m_request_server_client_sessions.clear();
-    m_unrestricted_request_server_clients.clear();
-    m_request_server_control_client = TRY(launch_request_server_process());
+    m_request_server_manager = make<RequestServerManager>();
+    (void)TRY(m_request_server_manager->browser_instance(*m_default_session));
 
-    // The UI process speaks the control endpoint over the initial socket, and gets its own data connection from it,
-    // exactly like every other client of RequestServer.
-    auto request_server_connection = TRY(connect_new_request_server_client(*m_default_session, RequestServer::SiteBinding::Unrestricted));
-    auto request_server_transport = TRY(request_server_connection.handle.create_transport());
-    m_request_server_client = make_ref_counted<Requests::RequestClient>(move(request_server_transport));
+    if (m_browser_options.dns_settings.has_value())
+        m_settings->set_dns_settings(m_browser_options.dns_settings.value(), true);
 
-#ifdef AK_OS_WINDOWS
-    auto init_transport_response = m_request_server_client->send_sync<Messages::RequestServer::InitTransport>(Core::System::getpid());
-    m_request_server_client->transport().set_peer_pid(init_transport_response->peer_pid());
-#endif
+    return {};
+}
 
-    TabPerformanceMonitor::request_server_did_restart();
-
-    m_request_server_control_client->on_client_disconnected = [](int client_id) {
-        the().m_request_server_client_sessions.remove(client_id);
-        the().m_unrestricted_request_server_clients.remove(client_id);
-    };
-
-    m_request_server_control_client->on_store_response_cookies_and_hsts_policy = [](int client_id, URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& partition_context, Vector<HTTP::Cookie::ParsedCookie> const& cookies, Optional<HTTP::HSTS::ParsedHSTSPolicy> const& hsts_policy) {
+void Application::configure_request_server_control_client(Requests::RequestControlClient& control_client)
+{
+    control_client.on_store_response_cookies_and_hsts_policy = [](int client_id, URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& partition_context, Vector<HTTP::Cookie::ParsedCookie> const& cookies, Optional<HTTP::HSTS::ParsedHSTSPolicy> const& hsts_policy) {
         auto session = the().session_for_request_server_client(client_id);
         if (!session)
             return;
@@ -1847,7 +1831,7 @@ ErrorOr<void> Application::launch_request_server()
             session->hsts_store->store_policy(url.host()->get<String>(), *hsts_policy);
     };
 
-    m_request_server_control_client->on_retrieve_http_cookie = [](int client_id, URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& partition_context) -> String {
+    control_client.on_retrieve_http_cookie = [](int client_id, URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& partition_context) -> String {
         auto session = the().session_for_request_server_client(client_id);
         if (!session)
             return {};
@@ -1866,67 +1850,7 @@ ErrorOr<void> Application::launch_request_server()
         return cookie;
     };
 
-    m_request_server_control_client->on_request_server_died = [this]() {
-        m_request_server_control_client = nullptr;
-        m_request_server_client = nullptr;
-        m_private_request_server_client = nullptr;
-
-        if (Core::EventLoop::current().was_exit_requested())
-            return;
-
-        if (auto result = launch_request_server(); result.is_error()) {
-            warnln("\033[31;1mUnable to launch replacement RequestServer: {}\033[0m", result.error());
-            VERIFY_NOT_REACHED();
-        }
-
-        size_t normal_client_count = 0;
-        size_t private_client_count = 0;
-        WebContentClient::for_each_client([&](WebContentClient& client) {
-            client.is_private() == IsPrivate::No ? ++normal_client_count : ++private_client_count;
-            return IterationDecision::Continue;
-        });
-
-        struct NewClients {
-            Vector<IPC::TransportHandle> handles;
-            Vector<int> client_ids;
-        };
-        auto create_clients = [&](auto is_private, auto client_count) -> NewClients {
-            if (client_count == 0)
-                return {};
-
-            auto response = m_request_server_control_client->send_sync_but_allow_failure<Messages::RequestServerControl::ConnectNewClients>(client_count, is_private, RequestServer::SiteBinding::Bound);
-            if (!response || response->handles().size() != client_count || response->client_ids().size() != client_count) {
-                warnln("Failed to connect {} new clients to RequestServer", client_count);
-                VERIFY_NOT_REACHED();
-            }
-
-            return { response->take_handles(), response->take_client_ids() };
-        };
-
-        auto normal_clients = create_clients(RequestServer::IsPrivate::No, normal_client_count);
-        auto private_clients = create_clients(RequestServer::IsPrivate::Yes, private_client_count);
-
-        WebContentClient::for_each_client([&](WebContentClient& client) {
-            auto& new_clients = client.is_private() == IsPrivate::No ? normal_clients : private_clients;
-            // A replacement client belongs to the session of the process it is for, which may be a private session
-            // that has since been replaced by a newer one.
-            auto client_id = new_clients.client_ids.take_last();
-            did_connect_request_server_client(client_id, client.session(), RequestServer::SiteBinding::Bound);
-            client.request_server_site_bindings().did_connect(client_id);
-            client.async_connect_to_request_server(new_clients.handles.take_last(), client_id);
-            return IterationDecision::Continue;
-        });
-
-        if (auto result = WorkerProcessManager::the().reconnect_to_request_server(); result.is_error()) {
-            warnln("Unable to reconnect WebWorker processes to RequestServer: {}", result.error());
-            VERIFY_NOT_REACHED();
-        }
-    };
-
-    if (m_browser_options.dns_settings.has_value())
-        m_settings->set_dns_settings(m_browser_options.dns_settings.value(), true);
-
-    return {};
+    TabPerformanceMonitor::configure(control_client);
 }
 
 void Application::set_image_decoder_exit_handler(pid_t pid, Function<void()> handler)
@@ -2333,7 +2257,7 @@ NonnullRefPtr<Core::Promise<Application::BrowsingDataSizes>> Application::estima
 {
     auto promise = Core::Promise<BrowsingDataSizes>::construct();
 
-    m_request_server_control_client->estimate_cache_size_accessed_since(since)
+    m_request_server_manager->estimate_cache_size_accessed_since(since)
         ->when_resolved([this, promise, since](Requests::CacheSizes cache_sizes) {
             auto cookie_sizes = m_default_session->cookie_jar->estimate_storage_size_accessed_since(since);
             auto storage_sizes = m_default_session->storage_jar->estimate_storage_size_accessed_since(since);
@@ -2361,7 +2285,7 @@ NonnullRefPtr<Core::Promise<Empty>> Application::clear_browsing_data(ClearBrowsi
     bool did_change_history = false;
 
     if (options.delete_cached_files == ClearBrowsingDataOptions::Delete::Yes) {
-        promise = m_request_server_control_client->clear_cache(options.since);
+        promise = m_request_server_manager->clear_cache(options.since);
 
         // FIXME: Maybe we should forward the "since" parameter to the WebContent process, but the in-memory cache is
         //        transient anyways, so just assuming they were all accessed in the last hour is fine for now.
