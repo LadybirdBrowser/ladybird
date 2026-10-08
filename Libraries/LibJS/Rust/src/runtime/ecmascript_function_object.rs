@@ -27,7 +27,7 @@ use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::layout_forward::FlyStringSlot;
 use crate::runtime::abstract_operations::{
-    create_unmapped_arguments_object, new_function_environment, ordinary_create_from_constructor,
+    create_unmapped_arguments_object, get_prototype_from_constructor, new_function_environment,
 };
 use crate::runtime::async_function_driver_wrapper::AsyncFunctionDriverWrapper;
 use crate::runtime::async_generator::AsyncGenerator;
@@ -387,12 +387,9 @@ impl EcmascriptFunctionObject {
         // 3. If kind is base, then
         if kind == ConstructorKind::Base {
             // a. Let thisArgument be ? OrdinaryCreateFromConstructor(newTarget, "%Object.prototype%").
-            this_argument = Some(ordinary_create_from_constructor(
-                vm,
-                function.realm().expect("an ECMAScript function has a realm"),
-                new_target,
-                Intrinsics::object_prototype,
-            )?);
+            // NB: With room for the properties the constructor is known to add.
+            let prototype = get_prototype_from_constructor(vm, new_target, Intrinsics::object_prototype)?;
+            this_argument = Some(Object::create_for_construct(vm, prototype, function.shared_data()));
         }
 
         // 4. Let calleeContext be PrepareForOrdinaryCall(F, newTarget).
