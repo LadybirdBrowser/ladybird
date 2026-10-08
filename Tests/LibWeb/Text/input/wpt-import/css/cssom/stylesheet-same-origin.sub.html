@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>CSSOM - CSSStylesheet should support origins</title>
+    <link rel="help" href="https://drafts.csswg.org/cssom/#the-cssstylesheet-interface">
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+
+    <link id="crossorigin" href="http://www1.{{host}}:{{ports[http][1]}}/css/cssom/stylesheet-same-origin.css" rel="stylesheet">
+    <link id="crossorigin-clone" href="http://www1.{{host}}:{{ports[http][1]}}/css/cssom/stylesheet-same-origin.css" rel="stylesheet">
+    <link id="sameorigin" href="stylesheet-same-origin.css" rel="stylesheet">
+    <link id="sameorigindata" href="data:text/css,.green-text{color:rgb(0, 255, 0)}" rel="stylesheet">
+    <link id="redirect-sameorigin-to-crossorigin"
+          href="/common/redirect.py?location=http://www1.{{host}}:{{ports[http][1]}}/css/cssom/stylesheet-same-origin.css"
+          rel="stylesheet">
+    <link id="redirect-crossorigin-to-sameorigin"
+          href="http://www1.{{host}}:{{ports[http][1]}}/common/redirect.py?location=http://{{host}}:{{ports[http][0]}}/css/cssom/stylesheet-same-origin.css"
+          rel="stylesheet">
+    <link id="loaderror" href="support/malformed-http-response.asis" rel="stylesheet">
+
+    <script>
+        var crossorigin = document.getElementById("crossorigin").sheet;
+        var crossoriginClone = document.getElementById("crossorigin-clone").sheet;
+        var redirectSameOriginToCrossOrigin = document.getElementById("redirect-sameorigin-to-crossorigin").sheet;
+        var redirectCrossOriginToSameOrigin = document.getElementById("redirect-crossorigin-to-sameorigin").sheet;
+        var loadError = document.getElementById("loaderror").sheet;
+        var sameorigin = document.getElementById("sameorigin").sheet;
+        var sameorigindata = document.getElementById("sameorigindata").sheet;
+
+        function doOriginCleanCheck(sheet, name) {
+            assert_equals(sheet.cssRules.length, 1, name + " stylesheet.cssRules should be accessible.");
+            sheet.insertRule("#test { margin: 10px; }", 1);
+            assert_equals(sheet.cssRules.length, 2, name + " stylesheet.insertRule should be accessible.");
+            sheet.deleteRule(0);
+            assert_equals(sheet.cssRules.length, 1, name + " stylesheet.deleteRule should be accessible.");
+        }
+
+        function doOriginDirtyCheck(sheet) {
+            assert_throws_dom("SecurityError",
+                function () {
+                    sheet.cssRules;
+                },
+                'stylesheet.cssRules should throw SecurityError.');
+            assert_throws_dom("SecurityError",
+                function () {
+                    sheet.insertRule("#test { margin: 10px; }", 1);
+                },
+                'stylesheet.insertRule should throw SecurityError.');
+
+            assert_throws_dom("SecurityError",
+                function () {
+                    sheet.deleteRule(0);
+                },
+                'stylesheet.deleteRule should throw SecurityError.');
+        }
+
+        test(function() {
+            doOriginDirtyCheck(crossorigin);
+        }, "Origin-clean check in cross-origin CSSOM Stylesheets");
+
+        test(function() {
+            doOriginDirtyCheck(redirectSameOriginToCrossOrigin);
+        }, "Origin-clean check in cross-origin CSSOM Stylesheets (redirect from same-origin to cross-origin)");
+
+        test(function() {
+            doOriginDirtyCheck(redirectCrossOriginToSameOrigin);
+        }, "Origin-clean check in cross-origin CSSOM Stylesheets (redirect from cross-origin to same-origin)");
+
+       test(function() {
+            doOriginDirtyCheck(loadError);
+        }, "Origin-clean check in loading error CSSOM Stylesheets");
+
+        test(function() {
+            doOriginCleanCheck(sameorigin, "Same-origin");
+        }, "Origin-clean check in same-origin CSSOM Stylesheets");
+
+        test(function() {
+            doOriginCleanCheck(sameorigindata, "data:css");
+        }, "Origin-clean check in data:css CSSOM Stylesheets");
+
+        test(function() {
+            doOriginDirtyCheck(crossoriginClone, "cross-origin clone");
+            crossoriginClone.media.appendMedium("screen");
+            doOriginDirtyCheck(crossoriginClone, "cross-origin clone after mutation");
+        }, "Origin-clean check in copied cross-origin CSSOM Stylesheets");
+    </script>
+</head>
+<body>
+</html>
