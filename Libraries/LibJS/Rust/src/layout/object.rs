@@ -26,6 +26,11 @@ pub mod object_flag {
     pub const IS_GLOBAL_OBJECT: u16 = 1 << 11;
     pub const HAS_UNIMPLEMENTED_PROPERTIES: u16 = 1 << 12;
     pub const IS_HTMLDDA: u16 = 1 << 13;
+    /// The named or indexed storage is a malloc allocation (rather than inline or a ValueStorage cell), which the
+    /// object frees. The flags let a dead object's destructor tell without reading the storage, since a ValueStorage
+    /// cell may be swept before its object.
+    pub const HAS_MALLOC_NAMED_STORAGE: u16 = 1 << 14;
+    pub const HAS_MALLOC_INDEXED_STORAGE: u16 = 1 << 15;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

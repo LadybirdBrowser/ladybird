@@ -33,6 +33,7 @@ define_class_ids! {
     Shape,
     PrototypeChainValidity,
     DescriptorArray,
+    ValueStorage,
     PrivateEnvironment,
     Realm,
     Object,

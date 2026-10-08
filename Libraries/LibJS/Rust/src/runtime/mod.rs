@@ -182,6 +182,7 @@ pub mod typed_array_prototype;
 pub mod uint8_array;
 pub mod value;
 pub mod value_conversions;
+pub mod value_storage;
 pub mod value_traits;
 pub mod weak_map;
 pub mod weak_map_constructor;
