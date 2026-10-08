@@ -26,6 +26,7 @@ use crate::runtime::function_object::FunctionObject;
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::object::{
     MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, ObjectMethods, ShouldThrowExceptions,
+    allocate_object,
 };
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_descriptor::PropertyDescriptor;
@@ -168,6 +169,9 @@ impl Finalize for RegExpObject {
     }
 }
 
+/// The offset of "lastIndex" in the shape of Intrinsics::new_regexp_object_shape(), its only property.
+const NEW_REGEXP_OBJECT_LAST_INDEX_OFFSET: u32 = 0;
+
 impl RegExpObject {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<RegExpObject> {
         realm.create_object(
@@ -187,10 +191,24 @@ impl RegExpObject {
         pattern: Utf16String,
         flags: Utf16String,
     ) -> Gc<RegExpObject> {
-        realm.create_object(
+        // OPTIMIZATION: Regular expression literals create a new RegExp object every time they are evaluated, so start
+        //               from a premade shape that already has the "lastIndex" property initialize() would define.
+        let shape = realm.intrinsics().new_regexp_object_shape(vm);
+        let flag_bits = to_flag_bits(Utf16View::of_string(&flags));
+        let regexp_object = allocate_object(
             vm,
-            Self::new(vm, pattern, flags, realm.intrinsics().regexp_prototype(vm)),
-        )
+            RegExpObject {
+                base: Object::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No),
+                pattern: GcRefCell::new(pattern),
+                flags: GcRefCell::new(flags),
+                flag_bits: Cell::new(flag_bits),
+                legacy_features_enabled: Cell::new(false),
+                cached_regex: GcRefCell::new(None),
+                realm: Cell::new(None),
+            },
+        );
+        regexp_object.put_direct(NEW_REGEXP_OBJECT_LAST_INDEX_OFFSET, Value::from_i32(0));
+        regexp_object
     }
 
     fn new(vm: &Vm, pattern: Utf16String, flags: Utf16String, prototype: Gc<Object>) -> RegExpObject {
