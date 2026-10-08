@@ -970,8 +970,8 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
             auto pending_document = output ? output->document : GC::Ptr<DOM::Document> {};
 
             // AD-HOC: Clear the ongoing navigation, like the "navigation must be a replace" and download cases do.
-            //         No history step will be applied for this navigation, so nothing else clears it, and a stale
-            //         ongoing navigation ID makes later same-document traversals consider themselves superseded.
+            //         No history step will be applied for this navigation, so nothing else clears it, and WebDriver
+            //         would wait for it to mature until the page load timeout.
             if (!pending_document)
                 navigable->set_ongoing_navigation({});
 
