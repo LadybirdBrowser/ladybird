@@ -1245,12 +1245,8 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<Utf16String> const&, Opti
         return this;
 
     // 8. If document's node navigable is non-null and document's node navigable's ongoing navigation is a navigation ID, then stop loading document's node navigable.
-    // AD-HOC: A navigation can also wait for the UI process to continue it, so we need to cancel that too.
-    if (auto navigable = this->navigable()) {
-        navigable->clear_pending_navigations();
-        if (navigable->ongoing_navigation().has<Utf16String>())
-            navigable->stop_loading();
-    }
+    if (auto navigable = this->navigable(); navigable && navigable->ongoing_navigation().has<Utf16String>())
+        navigable->stop_loading();
 
     // 9. For each shadow-including inclusive descendant node of document, erase all event listeners and handlers given node.
     for_each_shadow_including_inclusive_descendant([](Node& node) {
