@@ -233,6 +233,7 @@ void ControlConnectionFromClient::retrieved_http_cookie(int client_id, u64 reque
         auto request = [&]() {
             switch (request_type) {
             case RequestType::Fetch:
+            case RequestType::Imported:
                 return (*connection)->m_active_requests.get(request_id);
             case RequestType::BackgroundRevalidation:
                 return (*connection)->m_active_revalidation_requests.get(request_id);

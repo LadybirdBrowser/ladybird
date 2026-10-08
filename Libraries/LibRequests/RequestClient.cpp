@@ -100,6 +100,27 @@ RefPtr<Request> RequestClient::adopt_request(int source_client_id, u64 source_re
     return request;
 }
 
+ErrorOr<ExportedRequest> RequestClient::export_request(Request& request)
+{
+    auto exported = IPCProxy::export_request(request.id());
+    if (!exported.has_value())
+        return Error::from_string_literal("RequestServer refused to export the request");
+    return exported.release_value();
+}
+
+RefPtr<Request> RequestClient::import_request(ExportedRequest exported, TransferLease transfer_lease)
+{
+    auto request_id = m_next_request_id++;
+
+    auto transfer_lease_key = transfer_lease == TransferLease::Yes
+        ? Optional<RequestTransferLeaseKey> { { m_request_server_client_id, request_id } }
+        : Optional<RequestTransferLeaseKey> {};
+    IPCProxy::async_import_request(request_id, move(exported), transfer_lease_key.has_value());
+    auto request = Request::create_from_id({}, *this, request_id, move(transfer_lease_key));
+    m_requests.set(request_id, request);
+    return request;
+}
+
 ErrorOr<Optional<Core::ImmutableBytes>> RequestClient::store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const& network_isolation_key, URL::URL const& url, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, ReadonlyBytes data)
 {
     auto buffer = TRY(Core::AnonymousBuffer::create_with_size(data.size()));
@@ -226,8 +247,9 @@ void RequestClient::headers_became_available(u64 request_id, Vector<HTTP::Header
     if (javascript_bytecode_file.has_value())
         javascript_bytecode = map_cache_associated_data_file(javascript_bytecode_file->take_fd(), javascript_bytecode_size);
 
-    if (auto request = m_requests.get(request_id); request.has_value())
-        (*request)->did_receive_headers({}, HTTP::HeaderList::create(move(response_headers)), status_code, reason_phrase, move(javascript_bytecode), javascript_bytecode_cache_vary_key, cache_state);
+    RefPtr<Request> request = m_requests.get(request_id).value_or(nullptr);
+    if (request)
+        request->did_receive_headers({}, HTTP::HeaderList::create(move(response_headers)), status_code, reason_phrase, move(javascript_bytecode), javascript_bytecode_cache_vary_key, cache_state);
     else
         warnln("Received headers for non-existent request {}", request_id);
 }
