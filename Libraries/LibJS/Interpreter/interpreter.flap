@@ -2229,9 +2229,30 @@ handler PutByValue(
         call_slow_path(put_by_value);
     };
 
+    let try_cache = || @cold {
+        guard call_interp(asm_try_put_by_value_cache) == 0 else slow;
+        dispatch_next;
+    };
+
     guard load(kind) == PUT_KIND_NORMAL else slow;
+    let key = load(property);
+    guard extract_tag(key) == INT32_TAG else {
+        # Keys that are not array indices: the property lookup cache remembers the shapes and keys it has
+        # seen, and matches string and symbol keys by identity.
+        guard let Value<Object>(object) = load(base) else slow;
+        guard let property_cache = load_property_lookup_cache(cache) else try_cache;
+        guard property_cache.key is key else try_cache;
+        let shape = object.shape;
+        guard property_cache.shape == shape else try_cache;
+        guard property_cache.prototype == 0 else try_cache;
+        guard property_cache.shape_dictionary_generation == shape.dictionary_generation else try_cache;
+        guard object.named_properties[property_cache.property_offset] is not Value<Accessor> else try_cache;
+        guard property_cache.writes_data_property != 0 else try_cache;
+        object.named_properties[property_cache.property_offset] = load(src);
+        dispatch_next;
+    };
     guard let Value<Object>(object) = load(base) else slow;
-    guard let index = array_index(load(property)) else slow;
+    let index = u32(unbox_i32(key));
     let flags = object.flags;
     if flags lacks OBJECT_FLAG_IS_TYPED_ARRAY {
         let try_holey_array_slow = || @cold {
@@ -2631,13 +2652,36 @@ handler GetByValue(
         call_slow_path(get_by_value);
     };
 
+    let try_cache = || @cold {
+        guard call_interp(asm_try_get_by_value_cache) == 0 else slow;
+        dispatch_next;
+    };
+
     let try_typed_array_slow = || @cold {
         guard call_interp(asm_try_get_by_value_typed_array) == 0 else slow;
         dispatch_next;
     };
 
+    let key = load(property);
+    guard extract_tag(key) == INT32_TAG else {
+        # Keys that are not array indices: the property lookup cache remembers the shapes and keys it has
+        # seen, and matches string and symbol keys by identity.
+        guard let Value<Object>(object) = load(base) else slow;
+        guard let property_cache = load_property_lookup_cache(cache) else try_cache;
+        guard property_cache.key is key else try_cache;
+        let shape = object.shape;
+        guard property_cache.shape == shape else try_cache;
+        guard property_cache.entry_type != PROPERTY_LOOKUP_CACHE_ENTRY_TYPE_GET_MISSING_PROPERTY else try_cache;
+        guard property_cache.shape_dictionary_generation == shape.dictionary_generation else try_cache;
+        # Values found in the prototype chain go through try_cache, which checks the chain's validity.
+        guard property_cache.prototype == 0 else try_cache;
+        let value = object.named_properties[property_cache.property_offset];
+        guard value is not Value<Accessor> else slow;
+        store(dst, value);
+        dispatch_next;
+    };
     guard let Value<Object>(object) = load(base) else slow;
-    guard let index = array_index(load(property)) else slow;
+    let index = u32(unbox_i32(key));
     let flags = object.flags;
     if flags lacks OBJECT_FLAG_IS_TYPED_ARRAY {
         branch_bits_set(flags, OBJECT_FLAG_MAY_INTERFERE, slow);

@@ -65,6 +65,8 @@ pub struct PropertyLookupCacheEntryData {
     pub shape: Option<Gc<Shape>>,
     pub prototype: Option<Gc<Object>>,
     pub prototype_chain_validity: Option<Gc<PrototypeChainValidity>>,
+    /// See PropertyLookupCacheEntry::key.
+    pub key: u64,
 }
 
 impl Default for PropertyLookupCacheEntryData {
@@ -79,6 +81,7 @@ impl Default for PropertyLookupCacheEntryData {
             shape: None,
             prototype: None,
             prototype_chain_validity: None,
+            key: 0,
         }
     }
 }
@@ -99,7 +102,7 @@ impl PropertyLookupCacheEntryData {
         {
             return false;
         }
-        if self.entry_type != other.entry_type {
+        if self.entry_type != other.entry_type || self.key != other.key {
             return false;
         }
 
@@ -119,7 +122,8 @@ impl PropertyLookupCacheEntryData {
     }
 
     fn has_dead_cell(&self) -> bool {
-        self.from_shape.is_some_and(cell_is_dead)
+        (self.key != 0 && cell_is_dead(Value(self.key).as_cell()))
+            || self.from_shape.is_some_and(cell_is_dead)
             || self.shape.is_some_and(cell_is_dead)
             || self.prototype.is_some_and(cell_is_dead)
             || self.prototype_chain_validity.is_some_and(cell_is_dead)
@@ -142,6 +146,7 @@ impl PropertyLookupCacheEntry {
             shape: Cell::new(data.shape),
             prototype: Cell::new(data.prototype),
             prototype_chain_validity: Cell::new(data.prototype_chain_validity),
+            key: Cell::new(data.key),
         }
     }
 
@@ -156,6 +161,7 @@ impl PropertyLookupCacheEntry {
             shape: self.shape.get(),
             prototype: self.prototype.get(),
             prototype_chain_validity: self.prototype_chain_validity.get(),
+            key: self.key.get(),
         }
     }
 
@@ -169,6 +175,7 @@ impl PropertyLookupCacheEntry {
         self.shape.set(data.shape);
         self.prototype.set(data.prototype);
         self.prototype_chain_validity.set(data.prototype_chain_validity);
+        self.key.set(data.key);
     }
 
     /// Forgets the whole entry if one of its cells died in this collection, as clear_cache_entry_if_dead does.
@@ -221,25 +228,31 @@ const _: () = assert!(core::mem::offset_of!(MonomorphicData, entry) == 0);
 const _: () = assert!(core::mem::offset_of!(PolymorphicData, entries) == 0);
 const _: () = assert!(core::mem::offset_of!(MegamorphicData, entry) == 0);
 
-fn megamorphic_primary_index(shape: Gc<Shape>) -> usize {
-    let hash = u64_hash(shape.as_ptr().addr() as u64) as usize;
-    hash & (MEGAMORPHIC_PRIMARY_CACHE_SIZE - 1)
+fn megamorphic_hash(shape: Gc<Shape>, key: u64) -> usize {
+    let hash = u64_hash(shape.as_ptr().addr() as u64);
+    if key == 0 {
+        return hash as usize;
+    }
+    pair_int_hash(hash, u64_hash(key)) as usize
 }
 
-fn megamorphic_secondary_index(shape: Gc<Shape>) -> usize {
-    let hash = u64_hash(shape.as_ptr().addr() as u64) as usize;
-    (hash >> 8) & (MEGAMORPHIC_SECONDARY_CACHE_SIZE - 1)
+fn megamorphic_primary_index(shape: Gc<Shape>, key: u64) -> usize {
+    megamorphic_hash(shape, key) & (MEGAMORPHIC_PRIMARY_CACHE_SIZE - 1)
+}
+
+fn megamorphic_secondary_index(shape: Gc<Shape>, key: u64) -> usize {
+    (megamorphic_hash(shape, key) >> 8) & (MEGAMORPHIC_SECONDARY_CACHE_SIZE - 1)
 }
 
 fn insert_megamorphic_entry(data: &MegamorphicData, entry: &PropertyLookupCacheEntryData) {
     let lookup_shape = entry.lookup_shape().expect("a megamorphic entry has a lookup shape");
 
-    let primary_entry = &data.primary_entries[megamorphic_primary_index(lookup_shape)];
+    let primary_entry = &data.primary_entries[megamorphic_primary_index(lookup_shape, entry.key)];
     let primary = primary_entry.get();
     if let Some(displaced_shape) = primary.lookup_shape()
-        && displaced_shape != lookup_shape
+        && (displaced_shape != lookup_shape || primary.key != entry.key)
     {
-        data.secondary_entries[megamorphic_secondary_index(displaced_shape)].set(primary);
+        data.secondary_entries[megamorphic_secondary_index(displaced_shape, primary.key)].set(primary);
     }
     primary_entry.set(*entry);
 }
@@ -333,27 +346,28 @@ impl PropertyLookupCache {
         copied
     }
 
-    /// The entries that may be for `shape`. A megamorphic cache finds the one for the shape and moves it first, where
-    /// the interpreter looks.
-    pub fn entries_for_shape(&self, shape: Gc<Shape>) -> PropertyLookupCacheEntries {
-        Self::copy_entries(self.entry_slots_for_shape(shape))
+    /// The entries that may be for `shape` and `key` (see PropertyLookupCacheEntry::key; 0 for named accesses).
+    /// Callers check each entry's shape and key. A megamorphic cache finds the one for the shape and key and moves it
+    /// first, where the interpreter looks.
+    pub fn entries_for_shape(&self, shape: Gc<Shape>, key: u64) -> PropertyLookupCacheEntries {
+        Self::copy_entries(self.entry_slots_for_shape(shape, key))
     }
 
     /// entries_for_shape() in place, for the cache-only fast paths. The entries must not be held across anything that
     /// may update the cache.
     #[inline]
-    pub fn entry_slots_for_shape(&self, shape: Gc<Shape>) -> &[PropertyLookupCacheEntry] {
+    pub fn entry_slots_for_shape(&self, shape: Gc<Shape>, key: u64) -> &[PropertyLookupCacheEntry] {
         let Some(data) = self.megamorphic_data() else {
             return self.entries();
         };
 
         let find_entry = |entries: &[PropertyLookupCacheEntry], index: usize| {
             let entry = entries[index].get();
-            (entry.lookup_shape() == Some(shape)).then_some(entry)
+            (entry.lookup_shape() == Some(shape) && entry.key == key).then_some(entry)
         };
 
-        let entry = find_entry(&data.primary_entries, megamorphic_primary_index(shape))
-            .or_else(|| find_entry(&data.secondary_entries, megamorphic_secondary_index(shape)));
+        let entry = find_entry(&data.primary_entries, megamorphic_primary_index(shape, key))
+            .or_else(|| find_entry(&data.secondary_entries, megamorphic_secondary_index(shape, key)));
         let Some(entry) = entry else {
             return &[];
         };

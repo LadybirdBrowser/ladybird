@@ -38,6 +38,10 @@ pub struct PropertyLookupCacheEntry {
     pub shape: Cell<Option<Gc<Shape>>>,
     pub prototype: Cell<Option<Gc<Object>>>,
     pub prototype_chain_validity: Cell<Option<Gc<PrototypeChainValidity>>>,
+    /// The encoded string or symbol Value whose property this entry describes, for the caches of keyed accesses like
+    /// GetByValue, or 0 for the caches of named accesses like GetById, whose instruction determines the property. Like
+    /// the cells above, the key is not kept alive by the cache.
+    pub key: Cell<u64>,
 }
 
 /// A tagged pointer to the entries of a property lookup cache; the interpreter only ever consults the first entry.

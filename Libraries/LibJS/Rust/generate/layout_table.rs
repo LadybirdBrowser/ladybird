@@ -217,6 +217,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_SHAPE", "PropertyLookupCache.shape", "Shape", PropertyLookupCacheEntry, shape, 8, "nullable", "cell", "cache_target");
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_PROTOTYPE", "PropertyLookupCache.prototype", "Object", PropertyLookupCacheEntry, prototype, 8, "nullable", "cell", "cache_target");
     field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_PROTOTYPE_CHAIN_VALIDITY", "PropertyLookupCache.prototype_chain_validity", "PrototypeChainValidity", PropertyLookupCacheEntry, prototype_chain_validity, 8, "nullable", "cell");
+    field!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_KEY", "PropertyLookupCache.key", "Value", PropertyLookupCacheEntry, key, 8, "nullable", "scalar");
     size!(w, "PROPERTY_LOOKUP_CACHE_ENTRY_SIZE", PropertyLookupCacheEntry);
 
     w.section("ObjectPropertyIteratorCacheData layout");

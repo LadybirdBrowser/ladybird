@@ -811,6 +811,7 @@ impl Object {
             PutKind::Normal,
             strict,
             Some(cache),
+            0,
         )
     }
 
