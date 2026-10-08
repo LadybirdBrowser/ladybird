@@ -870,16 +870,6 @@ void LocalNavigable::stop_delaying_load_events_for_navigation(Utf16String const&
     set_delaying_load_events(false);
 }
 
-void LocalNavigable::set_navigation_load_event_guard(DOM::Document& parent_doc)
-{
-    m_navigation_load_event_guard.emplace(parent_doc);
-}
-
-void LocalNavigable::clear_navigation_load_event_guard()
-{
-    m_navigation_load_event_guard.clear();
-}
-
 RefPtr<SessionHistoryEntry> LocalNavigable::active_session_history_entry() const
 {
     return m_active_session_history_entry;
@@ -1182,11 +1172,8 @@ void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, G
     //         their loading lifecycle before being activated (when they had no navigable).
     //         Re-trigger the post-load steps that were skipped:
     //         - completely_finish_loading: fires the iframe load event on the container
-    //         - clear_navigation_load_event_guard: clears the parent's load event delayer
-    //           that was set in finalize_a_cross_document_navigation
     //         - schedule_html_parser_end_check: allows the parent's parser end state to progress
     if (new_document->ready_for_post_load_tasks()) {
-        clear_navigation_load_event_guard();
         if (auto nav_container = container())
             nav_container->document().schedule_html_parser_end_check();
     }
@@ -4315,33 +4302,6 @@ bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& docu
     return url.scheme() == "javascript"sv || document.is_initial_about_blank();
 }
 
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
-// NB: The UI process runs these steps. Its job activating historyEntry's document begins here, with the parts that need
-//     the live navigable and Document.
-bool prepare_to_finalize_a_cross_document_navigation(LocalNavigable& navigable, DOM::Document& pending_document)
-{
-    // The steps can run after the navigable was destroyed, or after its page has started closing. In that case the
-    // navigable may not have been marked destroyed yet, while destruction has already detached the pending document
-    // from its browsing context or destroyed the active document. There is no live navigation left to finalize.
-    auto active_document = navigable.active_document();
-    if (navigable.has_been_destroyed() || pending_document.has_been_destroyed() || !pending_document.browsing_context() || !active_document || active_document->has_been_destroyed()) {
-        navigable.set_delaying_load_events(false);
-        return false;
-    }
-
-    // AD-HOC: Without this guard, decrementing the navigable's delay counter triggers schedule_load_event_delay_check
-    //         on the parent, which can see the about:blank (ready_for_post_load_tasks=true) before the session
-    //         history traversal activates the new document. The guard is cleared when the new document becomes ready
-    //         for post-load tasks (via set_ready_for_post_load_tasks).
-    if (auto container_document = navigable.container_document())
-        navigable.set_navigation_load_event_guard(*container_document);
-
-    // 2. Set navigable's is delaying load events to false.
-    navigable.set_delaying_load_events(false);
-
-    return true;
-}
-
 class CheckUnloadingCanceledState : public GC::Cell {
     GC_CELL(CheckUnloadingCanceledState, GC::Cell);
     GC_DECLARE_ALLOCATOR(CheckUnloadingCanceledState);
@@ -4615,7 +4575,12 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .pending_document = pending_document,
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .on_complete = GC::create_function(navigable->heap(), [navigable](HistoryStepResult) {
+            .on_complete = GC::create_function(navigable->heap(), [navigable, navigation_id, has_document = !!pending_document](HistoryStepResult) {
+                // AD-HOC: Step 2 runs as the navigation's document is activated. When the steps end without activating
+                //         it, the navigation is dropped, and stops delaying load events.
+                if (has_document && !navigable->has_been_destroyed() && navigable->is_delaying_load_events())
+                    navigable->stop_delaying_load_events_for_navigation(navigation_id);
+
                 // AD-HOC: Trigger a relayout in the container document for size negotiation with SVG documents.
                 if (auto container = navigable->container())
                     container->set_needs_layout_update(DOM::SetNeedsLayoutReason::FinalizeACrossDocumentNavigation);

@@ -320,12 +320,6 @@ void NavigableContainer::destroy_the_child_navigable()
         //         block the parent document's load event indefinitely.
         local_navigable->set_delaying_load_events(false);
 
-        // AD-HOC: Clear the navigation load event guard that may have been set by
-        //         finalize_a_cross_document_navigation. Without this, the guard's
-        //         DocumentLoadEventDelayer on the parent document persists until GC,
-        //         blocking the parent's load event indefinitely.
-        local_navigable->clear_navigation_load_event_guard();
-
         // 4. Inform the navigation API about child navigable destruction given navigable.
         local_navigable->inform_the_navigation_api_about_child_navigable_destruction();
 
@@ -434,7 +428,6 @@ void NavigableContainer::swap_content_navigable_to_remote(Badge<Page>, Replicate
 
     local_navigable.set_container({}, nullptr);
     local_navigable.set_delaying_load_events(false);
-    local_navigable.clear_navigation_load_event_guard();
     local_navigable.set_has_been_destroyed();
     local_navigable.remove_from_all_local_navigables();
 }

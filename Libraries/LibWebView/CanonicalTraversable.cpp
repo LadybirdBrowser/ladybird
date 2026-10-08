@@ -2656,7 +2656,7 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
 
     // 2. Set navigable's is delaying load events to false.
     // NB: The page that populated historyEntry's document performs this step: when it reports that there is no
-    //     document, or as its job for these steps begins.
+    //     document, or as it activates the document.
 
     // 3. If historyEntry's document is null, then return.
     // NB: The document populated for historyEntry waits in its document state until historyEntry is activated.
