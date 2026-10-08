@@ -33,9 +33,7 @@ use crate::runtime::ecmascript_regex::{EcmaScriptRegex, MatchResult};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::native_function::raw_native;
-use crate::runtime::object::{
-    MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, ShouldThrowExceptions, define_object_class,
-};
+use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, define_object_class};
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
@@ -1301,7 +1299,12 @@ impl RegExpPrototype {
             last_index = last_index_value.to_length(vm)?;
         }
         if is_global {
-            typed_regexp_object.set(vm, &vm.names.lastIndex, Value::from_i32(0), ShouldThrowExceptions::Yes)?;
+            typed_regexp_object.set_with_cache(
+                vm,
+                &vm.names.lastIndex,
+                Value::from_i32(0),
+                cache(vm, CacheSite::RegExpPrototypeSymbolReplaceFastResetLastIndex),
+            )?;
             last_index = 0;
         }
 
@@ -1309,7 +1312,9 @@ impl RegExpPrototype {
 
         let need_legacy = typed_regexp.legacy_features_enabled() && realm == typed_regexp.realm();
 
-        let mut accumulated_result = Utf16StringBuilder::new();
+        // NB: The result is at least as long as the string when the replacement is not shorter than what it replaces.
+        let mut accumulated_result =
+            Utf16StringBuilder::with_capacity(length_s + replace_string.length_in_code_units());
         let mut accumulated_result_length: usize = 0;
         let mut next_source_position: usize = 0;
         let mut had_match = false;
@@ -1460,7 +1465,8 @@ impl RegExpPrototype {
             // For global replace, the internal buffer was overwritten by the
             // final failed search. Re-exec at the last match position to
             // populate captures. For non-global, the buffer is still valid.
-            if is_global {
+            // A pattern without capture groups has no captures to populate.
+            if is_global && n_capture_groups > 0 {
                 let re_exec_result = compiled_regex.exec(utf16_view, last_match_start);
                 if re_exec_result == MatchResult::LimitExceeded {
                     return throw_backtrack_limit_exceeded(vm);
@@ -1529,7 +1535,8 @@ impl RegExpPrototype {
                 // or swap out the prototype. So, ask again before choosing the fast path: V8 re-casts to FastJSRegExp
                 // after its own ToString (regexp-replace.tq), and JSC calls isSymbolReplaceFastAndNonObservable a 2nd time
                 // (StringPrototype.cpp) — while SpiderMonkey puts its single check after the coercion (RegExp.js).
-                if Self::replace_is_fast_and_non_observable(vm, realm, &regexp_object)
+                // OPTIMIZATION: Coercing a primitive runs no user code, so nothing can have changed then.
+                if (!replace_value.is_object() || Self::replace_is_fast_and_non_observable(vm, realm, &regexp_object))
                     && !contains_code_unit(&coerced_replace_string, b'$')
                 {
                     let typed_regexp = typed_regexp.expect("the fast path only runs on RegExp objects");
