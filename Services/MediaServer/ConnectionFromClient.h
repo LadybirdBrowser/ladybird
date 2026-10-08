@@ -37,6 +37,9 @@ public:
 
     virtual void die() override;
 
+    // Controller only: asks the Browser for this server's connection to the AudioServer.
+    ErrorOr<NonnullOwnPtr<IPC::Transport>> request_audio_server_transport();
+
 private:
     virtual Messages::MediaServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual Messages::MediaServer::ConnectNewClientResponse connect_new_client() override;

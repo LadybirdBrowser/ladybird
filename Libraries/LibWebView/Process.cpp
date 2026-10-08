@@ -129,7 +129,7 @@ Vector<ByteString> Process::helper_process_environment(ProcessType type)
             is_allowed |= any_of(proxy_names, [&](auto name) { return entry.name.equals_ignoring_ascii_case(name); });
             is_allowed |= certificate_names.contains_slow(entry.name);
         }
-        if (type == ProcessType::WebContent || type == ProcessType::MediaServer || type == ProcessType::AudioServer)
+        if (type == ProcessType::WebContent || type == ProcessType::AudioServer)
             is_allowed |= audio_names.contains_slow(entry.name);
         if (type == ProcessType::Compositor)
             is_allowed |= any_of(gpu_prefixes, [&](auto prefix) { return entry.name.starts_with(prefix); });

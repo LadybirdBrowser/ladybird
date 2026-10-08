@@ -15,6 +15,7 @@
 #include <LibMedia/Audio/PlaybackStreamMixer.h>
 #include <LibMedia/Audio/RemotePlaybackStream.h>
 #include <LibMedia/Audio/ServerConnection.h>
+#include <LibMedia/Sinks/AudioPlaybackSink.h>
 #include <LibTest/TestCase.h>
 
 static constexpr u32 CHANNEL_COUNT = FakeDeviceStream::CHANNEL_COUNT;
@@ -365,4 +366,86 @@ TEST_CASE(destroying_a_stream_removes_it_from_the_mixer)
     EXPECT(fixture.pump_until([&] { return fixture.mixer->has_clients(); }));
     stream = nullptr;
     EXPECT(fixture.pump_until([&] { return !fixture.mixer->has_clients() && !fixture.device->is_playing(); }));
+}
+
+// A mixer on a fake device whose server connections are handed out through the process-wide transport factory, the
+// way a sink in MediaServer reaches the AudioServer. Each request gets a fresh server end on the same mixer.
+struct RemoteSinkFixture {
+    Core::EventLoop loop;
+    RefPtr<FakeDeviceStream> device;
+    RefPtr<Audio::PlaybackStreamMixer> mixer;
+    Vector<NonnullRefPtr<Audio::ServerConnection>> servers;
+    size_t connections_requested { 0 };
+    bool accepting_connections { true };
+
+    RemoteSinkFixture()
+    {
+        mixer = Audio::PlaybackStreamMixer::create(loop, 100, [this](Audio::OutputState state, u32, Audio::PlaybackStream::AudioDataRequestCallback callback) {
+            device = make_ref_counted<FakeDeviceStream>(state, move(callback));
+            auto promise = Audio::PlaybackStream::CreatePromise::construct();
+            promise->resolve(*device);
+            return promise;
+        });
+        Audio::ClientConnection::set_transport_factory([this]() -> ErrorOr<NonnullOwnPtr<IPC::Transport>> {
+            connections_requested++;
+            if (!accepting_connections)
+                return Error::from_string_literal("The fixture is no longer accepting connections");
+            auto paired = TRY(IPC::Transport::create_paired());
+            servers.append(Audio::ServerConnection::construct(move(paired.local), static_cast<int>(connections_requested), *mixer));
+            auto transport = TRY(paired.remote_handle.create_transport());
+            introduce_paired_transports(servers.last()->transport(), *transport);
+            return transport;
+        });
+    }
+
+    ~RemoteSinkFixture()
+    {
+        Audio::ClientConnection::set_transport_factory({});
+    }
+
+    template<typename Condition>
+    bool pump_until(Condition condition, AK::Duration timeout = AK::Duration::from_seconds(5))
+    {
+        auto deadline = MonotonicTime::now() + timeout;
+        while (!condition()) {
+            if (MonotonicTime::now() > deadline)
+                return false;
+            loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+        }
+        return true;
+    }
+
+    // Closing every server end makes the client connection die. Done with the sink still alive, so that its reopen
+    // asks for a connection and is refused: the sign that the client is gone, before the loop is.
+    void close_connections_and_wait_for_the_client_to_die()
+    {
+        accepting_connections = false;
+        auto requests_before = connections_requested;
+        servers.clear();
+        EXPECT(pump_until([&] { return connections_requested > requests_before; }));
+        pump_until([] { return false; }, AK::Duration::from_milliseconds(10));
+    }
+};
+
+TEST_CASE(audio_playback_sink_reopens_its_output_after_loss_with_a_seek_in_flight)
+{
+    RemoteSinkFixture fixture;
+    RefPtr<Media::AudioPlaybackSink> sink = MUST(Media::AudioPlaybackSink::try_create([](Media::PipelineStatus) { }, Media::AudioOutput::Platform));
+    sink->start();
+    sink->resume();
+    EXPECT(fixture.pump_until([&] { return fixture.mixer->active_client_count() == 1; }));
+    EXPECT_EQ(fixture.connections_requested, 1u);
+
+    // The server goes away with the seek's request unanswered: the sink hears of the loss, then of the request's fate.
+    sink->seek(AK::Duration::from_seconds(1));
+    fixture.servers.clear();
+    EXPECT(fixture.pump_until([&] { return fixture.connections_requested == 2; }));
+
+    // The new stream seeks to the pending target and plays on.
+    EXPECT(fixture.pump_until([&] { return fixture.mixer->active_client_count() == 1 && fixture.servers.size() == 1; }));
+    EXPECT(fixture.pump_until([&] { return sink->time_reader().current_time() >= AK::Duration::from_seconds(1); }));
+
+    fixture.close_connections_and_wait_for_the_client_to_die();
+    sink = nullptr;
+    fixture.pump_until([] { return false; }, AK::Duration::from_milliseconds(10));
 }

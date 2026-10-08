@@ -48,6 +48,9 @@ public:
 
     u64 generation() const { return m_generation; }
 
+    // Set by the Browser on the controller connection; a server's request for an AudioServer connection goes here.
+    Function<ErrorOr<IPC::TransportHandle>()> on_request_audio_server_connection;
+
     ErrorOr<IPC::TransportHandle> create_video_presentation_channel();
 
     // The synchronous queries serve APIs that must answer on the spot; everything else asks through a promise.
@@ -81,6 +84,7 @@ public:
 private:
     virtual void die() override;
 
+    virtual Messages::MediaClient::RequestAudioServerConnectionResponse request_audio_server_connection() override;
     virtual void file_media_support_reported(u64 request_id, Media::MediaSupportInfo info) override;
     virtual void decoder_capabilities_reported(u64 request_id, Optional<Media::DecoderCapabilities> capabilities) override;
     virtual void audio_data_decoded(u64 request_id, u32 sample_rate, u32 channel_count, u64 frame_count, Core::AnonymousBuffer planar_samples) override;

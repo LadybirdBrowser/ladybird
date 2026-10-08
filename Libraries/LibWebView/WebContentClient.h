@@ -218,8 +218,13 @@ private:
 
     ProcessHandle m_process_handle;
 
-    // The controller connection to the MediaServer spawned for this process, from its first media use until it exits.
+    ErrorOr<IPC::TransportHandle> connect_audio_server_client();
+
+    // The controller connections to the MediaServer and AudioServer spawned for this process, from its first media use
+    // until it exits. The AudioServer mixes for this process alone, so a compromised one hears only its own site.
     RefPtr<MediaClient::Client> m_media_server_client;
+    RefPtr<AudioServerControlClient> m_audio_server_client;
+    u64 m_audio_tab_id { 0 };
     RefPtr<Core::Timer> m_detached_page_close_timer;
 
     RefPtr<WebUI> m_web_ui;

@@ -60,6 +60,9 @@ private:
         Playing,
     };
 
+    void reopen_playback_stream_after_loss();
+    bool playback_stream_is_current(Audio::PlaybackStream const&) const;
+
     void create_playback_stream();
     bool effectively_paused() const;
     void update_playback_stream_state();

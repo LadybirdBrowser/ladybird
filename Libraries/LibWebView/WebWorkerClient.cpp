@@ -7,6 +7,7 @@
 #include <LibCore/Process.h>
 #include <LibWebCommon/WebView/ProcessHandle.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/AudioServerControlClient.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CanonicalEnvironmentSettingsObject.h>
 #include <LibWebView/CookieJar.h>
@@ -21,6 +22,7 @@ WebWorkerClient::WebWorkerClient(NonnullOwnPtr<IPC::Transport> transport, IsPriv
     : IPC::ConnectionToServer<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(transport))
     , m_is_private(is_private)
     , m_agent_id(agent_id)
+    , m_audio_tab_id(allocate_audio_tab_id())
 {
     if (auto session = Application::existing_session(is_private))
         m_session = session->make_weak_ptr();
@@ -157,7 +159,9 @@ Messages::WebWorkerClient::DidIsKnownHstsHostResponse WebWorkerClient::did_is_kn
 
 Messages::WebWorkerClient::RequestMediaServerConnectionResponse WebWorkerClient::request_media_server_connection()
 {
-    auto handle = connect_new_media_server_client(m_media_server_client);
+    auto handle = connect_new_media_server_client(m_media_server_client, [this] {
+        return connect_new_audio_server_client(m_audio_server_client, m_audio_tab_id);
+    });
     if (handle.is_error()) {
         warnln("Unable to connect a MediaServer client: {}", handle.error());
         return OptionalNone {};

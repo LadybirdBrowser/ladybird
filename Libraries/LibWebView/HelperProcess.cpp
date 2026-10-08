@@ -219,7 +219,7 @@ static ErrorOr<pid_t> launch_helper_process(StringView server_name, Vector<ByteS
 
         // The audio clients cannot create a socket of their own, so the one endpoint they are allowed to
         // reach is opened here and handed over as a connected descriptor.
-        if (process_type == ProcessType::WebContent || process_type == ProcessType::MediaServer || process_type == ProcessType::AudioServer) {
+        if (process_type == ProcessType::WebContent || process_type == ProcessType::AudioServer) {
             if (auto audio_server_paths = Audio::audio_server_path_candidates(); !audio_server_paths.is_empty()) {
                 // Asking again covers an audio server that was not reachable when the renderer
                 // started, and a configured fallback the audio library had not got to yet.
@@ -620,10 +620,29 @@ ErrorOr<RequestServerClientConnection> connect_new_request_server_client(Browsin
     return RequestServerClientConnection { .handle = response->take_handle(), .client_id = response->client_id() };
 }
 
-ErrorOr<IPC::TransportHandle> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller)
+u64 allocate_audio_tab_id()
+{
+    static u64 s_next_audio_tab_id { 1 };
+    return s_next_audio_tab_id++;
+}
+
+ErrorOr<IPC::TransportHandle> connect_new_audio_server_client(RefPtr<AudioServerControlClient>& controller, u64 audio_tab_id)
 {
     if (!controller || !controller->is_open())
+        controller = TRY(launch_audio_server_process());
+
+    auto response = controller->send_sync_but_allow_failure<Messages::AudioServerControl::ConnectNewClient>(audio_tab_id);
+    if (!response || !response->handle().has_value())
+        return Error::from_string_literal("Failed to connect to AudioServer");
+    return response->take_handle().release_value();
+}
+
+ErrorOr<IPC::TransportHandle> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller, Function<ErrorOr<IPC::TransportHandle>()> connect_audio_server)
+{
+    if (!controller || !controller->is_open()) {
         controller = TRY(launch_media_server_process());
+        controller->on_request_audio_server_connection = move(connect_audio_server);
+    }
 
     auto response = controller->send_sync_but_allow_failure<Messages::MediaServer::ConnectNewClient>();
     if (!response || !response->handle().has_value())

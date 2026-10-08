@@ -1,5 +1,6 @@
 #include <AK/Time.h>
 #include <LibCore/AnonymousBuffer.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibMedia/DecoderCapabilities.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/DemuxerScanState.h>
@@ -16,6 +17,9 @@
 
 endpoint MediaClient
 {
+    // Only the controller answers this: the Browser connects the server to the AudioServer as a member of its tab's mix.
+    request_audio_server_connection() => (Optional<IPC::TransportHandle> handle)
+
     file_media_support_reported(u64 request_id, Media::MediaSupportInfo info) =|
     decoder_capabilities_reported(u64 request_id, Optional<Media::DecoderCapabilities> capabilities) =|
     audio_data_decoded(u64 request_id, u32 sample_rate, u32 channel_count, u64 frame_count, Core::AnonymousBuffer planar_samples) =|
