@@ -427,3 +427,25 @@ test("alternatives that start with literal characters", () => {
     expect(/a(?:bc|bd)|ab/i.exec("ABD")[0]).toBe("ABD");
     expect(/(?:[a-c]x|[a-c]y)/.exec("by")[0]).toBe("by");
 });
+
+test("modifiers end with their group after backtracking into it", () => {
+    expect(/(?i:[^\s"]+)x/.exec('x"yX')).toBeNull();
+    expect(/(?i:[^\s"]+)x/.exec("xyX")).toBeNull();
+    expect(/(?i:[^\s"]+)x/.exec("xyx")[0]).toBe("xyx");
+    expect(/(?i:a+)b/.exec("AaaAB")).toBeNull();
+    expect(/(?i:a+)b/.exec("AaaAb")[0]).toBe("AaaAb");
+    expect(/(?-i:a+)b/i.exec("aaB")[0]).toBe("aaB");
+    expect(/(?-i:a+)b/i.exec("aAb")).toBeNull();
+    expect(/(?i:a(?-i:b)+)c/.exec("Abbbc")[0]).toBe("Abbbc");
+    expect(/(?i:a(?-i:b)+)c/.exec("AbbbC")).toBeNull();
+    expect(/(?=(?i:a+))a/.exec("Aa")[0]).toBe("a");
+});
+
+test("lookarounds restore state without outer alternatives", () => {
+    expect(/^(?!(a)b)a$/.exec("a")).toEqual(["a", undefined]);
+    expect(/^(?!(?=(a))b)a$/.exec("a")).toEqual(["a", undefined]);
+    expect(/^(?=(a))a$/.exec("a")).toEqual(["a", "a"]);
+    expect(/^(?!(?i:a)b)a$/.exec("a")[0]).toBe("a");
+    expect(/^(?=(?i:a))a$/.exec("a")[0]).toBe("a");
+    expect(/^(?!(?=(?i:a))b)a$/.exec("a")[0]).toBe("a");
+});
