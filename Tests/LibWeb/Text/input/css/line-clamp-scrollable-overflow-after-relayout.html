@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+    #clamp {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 1;
+        overflow: hidden;
+        width: 100px;
+        font: 16px/20px monospace;
+        white-space: nowrap;
+    }
+</style>
+<div id="clamp">A<span style="display: inline-block; width: 200px">Wide</span><br>Hidden</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const clamp = document.getElementById("clamp");
+        println(`before resize: ${clamp.scrollWidth}x${clamp.scrollHeight}`);
+        clamp.style.width = "88px";
+        println(`after resize: ${clamp.scrollWidth}x${clamp.scrollHeight}`);
+    });
+</script>
