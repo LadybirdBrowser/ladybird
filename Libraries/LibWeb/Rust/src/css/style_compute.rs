@@ -7111,12 +7111,11 @@ pub(crate) mod ffi_test_stubs {
         unreachable!("no unit test applies style reactions");
     }
     #[unsafe(no_mangle)]
-    extern "C" fn web_css_engine_record_environment_is_installable(
+    extern "C" fn web_css_engine_record_environment(
         _application: *mut HostStyleReactionApplication,
         _element: *mut HostElement,
         _style_record: u64,
-        _declares_custom_properties: bool,
-    ) -> bool {
+    ) -> crate::css::style::reaction_application::FfiRecordEnvironment {
         unreachable!("no unit test applies style reactions");
     }
     #[unsafe(no_mangle)]
