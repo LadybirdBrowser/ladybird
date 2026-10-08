@@ -716,10 +716,16 @@ fn generate_function_expression(
     let should_eager_compile = generator.eager_compile_function_ids.contains(&function_id);
     let data = generator.function_table.take(function_id);
     let has_name = data.name.is_some();
+    // OPTIMIZATION: Nothing observes the scope of a name the function never looks up.
+    let binds_name = has_name
+        && match &data.body.inner {
+            StatementKind::FunctionBody { scope, .. } => !generator.arena.scopes[*scope].function_name_is_unused,
+            _ => true,
+        };
 
     // Named function expressions get an intermediate scope so the name
     // is visible inside the function body but not outside.
-    let name_id = if has_name {
+    let name_id = if binds_name {
         let parent = generator
             .lexical_environment_register_stack
             .last()
@@ -779,12 +785,8 @@ fn generate_function_expression(
         home_object,
     });
 
-    if has_name {
-        emit_initialize_lexical_binding(
-            generator,
-            name_id.expect("has_name guarantees name_id is set"),
-            dst.operand(),
-        );
+    if let Some(name_id) = name_id {
+        emit_initialize_lexical_binding(generator, name_id, dst.operand());
 
         generator.end_variable_scope();
     }
