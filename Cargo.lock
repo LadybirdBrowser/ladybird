@@ -871,6 +871,7 @@ dependencies = [
  "fARM64",
  "flapc",
  "foldhash 0.1.5",
+ "hashbrown 0.16.1",
  "iced-x86",
  "indexmap",
  "ladybird_allocator",

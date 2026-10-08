@@ -6,11 +6,11 @@
 
 use core::cell::Cell;
 use core::ops::Deref;
-use std::collections::HashMap;
 
+use hashbrown::HashMap;
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{Finalize, GcCell, define_cell};
+use crate::gc::class::{ExternalMemorySize, Finalize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
@@ -43,6 +43,7 @@ struct MapStorage {
     removed_entry_count: usize,
     next_insertion_id: u64,
     generation: u64,
+    external_memory_size: usize,
 }
 
 // SAFETY: Visits the key and value of every entry. The keys of the indices are the keys of the live entries.
@@ -53,6 +54,13 @@ unsafe impl Trace for MapStorage {
 }
 
 impl MapStorage {
+    fn update_external_memory_size(&mut self) -> (usize, usize) {
+        let old_size = self.external_memory_size;
+        self.external_memory_size =
+            (self.entries.capacity() * size_of::<StoredEntry>()).saturating_add(self.indices.allocation_size());
+        (old_size, self.external_memory_size)
+    }
+
     fn index_of_first_entry_not_inserted_before(&self, insertion_id: u64) -> usize {
         // Entries are stored in insertion order, so their insertion IDs are increasing.
         self.entries.partition_point(|entry| entry.insertion_id < insertion_id)
@@ -98,7 +106,21 @@ pub struct Map {
     storage: GcRefCell<MapStorage>,
 }
 
-define_cell!(Map, Object, extends: [Object], finalize: finalize);
+define_cell!(
+    Map,
+    Object,
+    extends: [Object],
+    finalize: finalize,
+    external_memory_size: external_memory_size
+);
+
+impl ExternalMemorySize for Map {
+    fn external_memory_size(&self) -> usize {
+        self.base
+            .external_memory_size()
+            .saturating_add(self.storage.borrow().external_memory_size)
+    }
+}
 
 impl Deref for Map {
     type Target = Object;
@@ -127,16 +149,19 @@ impl Map {
     }
 
     // 24.1.3.1 Map.prototype.clear ( ), https://tc39.es/ecma262/#sec-map.prototype.clear
-    pub fn map_clear(&self) {
+    pub fn map_clear(&self, vm: &Vm) {
         let mut storage = self.storage.borrow_mut();
         storage.entries.clear();
         storage.indices.clear();
         storage.removed_entry_count = 0;
         storage.generation += 1;
+        let (old_size, new_size) = storage.update_external_memory_size();
+        drop(storage);
+        vm.heap().account_external_memory_change(old_size, new_size);
     }
 
     // 24.1.3.3 Map.prototype.delete ( key ), https://tc39.es/ecma262/#sec-map.prototype.delete
-    pub fn map_remove(&self, key: Value) -> bool {
+    pub fn map_remove(&self, vm: &Vm, key: Value) -> bool {
         let mut storage = self.storage.borrow_mut();
         let Some(index) = storage.indices.remove(&ValueTraitsKey(key)) else {
             return false;
@@ -154,6 +179,9 @@ impl Map {
         {
             storage.compact_entries();
         }
+        let (old_size, new_size) = storage.update_external_memory_size();
+        drop(storage);
+        vm.heap().account_external_memory_change(old_size, new_size);
 
         true
     }
@@ -171,7 +199,7 @@ impl Map {
     }
 
     // 24.1.3.9 Map.prototype.set ( key, value ), https://tc39.es/ecma262/#sec-map.prototype.set
-    pub fn map_set(&self, key: Value, value: Value) {
+    pub fn map_set(&self, vm: &Vm, key: Value, value: Value) {
         let mut storage = self.storage.borrow_mut();
         let new_index = storage.entries.len();
         let index = *storage.indices.entry(ValueTraitsKey(key)).or_insert(new_index);
@@ -186,6 +214,9 @@ impl Map {
             value,
             insertion_id,
         });
+        let (old_size, new_size) = storage.update_external_memory_size();
+        drop(storage);
+        vm.heap().account_external_memory_change(old_size, new_size);
     }
 
     pub fn map_size(&self) -> usize {

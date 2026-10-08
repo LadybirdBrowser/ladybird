@@ -20,17 +20,17 @@ GC::Ref<Set> Set::create(Realm& realm)
 
 void Set::set_clear()
 {
-    js_collections_set_clear(object_to_abi(*this));
+    js_collections_set_clear(vm_to_abi(vm()), object_to_abi(*this));
 }
 
 bool Set::set_remove(Value const& value)
 {
-    return js_collections_set_remove(object_to_abi(*this), value_to_abi(value));
+    return js_collections_set_remove(vm_to_abi(vm()), object_to_abi(*this), value_to_abi(value));
 }
 
 void Set::set_add(Value const& key)
 {
-    js_collections_set_add(object_to_abi(*this), value_to_abi(key));
+    js_collections_set_add(vm_to_abi(vm()), object_to_abi(*this), value_to_abi(key));
 }
 
 size_t Set::set_size() const

@@ -5,11 +5,11 @@
  */
 
 use core::ops::Deref;
-use std::collections::HashMap;
 
+use hashbrown::HashMap;
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{Finalize, GcCell, define_cell};
+use crate::gc::class::{ExternalMemorySize, Finalize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap::cell_is_dead;
 use crate::gc::visitor::{Trace, Visitor};
@@ -47,7 +47,22 @@ static WEAK_MAP_METHODS: ObjectMethods = ObjectMethods {
     ..ORDINARY_OBJECT_METHODS
 };
 
-define_cell!(WeakMap, Object, extends: [Object], methods: WEAK_MAP_METHODS, finalize: finalize);
+define_cell!(
+    WeakMap,
+    Object,
+    extends: [Object],
+    methods: WEAK_MAP_METHODS,
+    finalize: finalize,
+    external_memory_size: external_memory_size
+);
+
+impl ExternalMemorySize for WeakMap {
+    fn external_memory_size(&self) -> usize {
+        self.base
+            .external_memory_size()
+            .saturating_add(self.values.borrow().0.allocation_size())
+    }
+}
 
 impl Deref for WeakMap {
     type Target = Object;
@@ -88,8 +103,13 @@ impl WeakMap {
         self.values.borrow().0.contains_key(&key)
     }
 
-    pub fn weak_map_set(&self, key: Gc<CellHeader>, value: Value) {
-        self.values.borrow_mut().0.insert(key, value);
+    pub fn weak_map_set(&self, vm: &Vm, key: Gc<CellHeader>, value: Value) {
+        let mut values = self.values.borrow_mut();
+        let old_size = values.0.allocation_size();
+        values.0.insert(key, value);
+        let new_size = values.0.allocation_size();
+        drop(values);
+        vm.heap().account_external_memory_change(old_size, new_size);
     }
 
     pub fn weak_map_remove(&self, key: Gc<CellHeader>) -> bool {

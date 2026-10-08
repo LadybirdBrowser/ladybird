@@ -149,7 +149,7 @@ impl WeakMapPrototype {
 
         // 5. Let p be the Record { [[Key]]: key, [[Value]]: value }.
         // 6. Append p to M.[[WeakMapData]].
-        weak_map.weak_map_set(key.as_cell(), value);
+        weak_map.weak_map_set(vm, key.as_cell(), value);
 
         // 7. Return value.
         Ok(value)
@@ -191,7 +191,7 @@ impl WeakMapPrototype {
         //         ii. Return value.
         // 9. Let p be the Record { [[Key]]: key, [[Value]]: value }.
         // 10. Append p to M.[[WeakMapData]].
-        weak_map.weak_map_set(key.as_cell(), value);
+        weak_map.weak_map_set(vm, key.as_cell(), value);
 
         // 11. Return value.
         Ok(value)
@@ -240,7 +240,7 @@ impl WeakMapPrototype {
         //        ii. Return M.
         // 5. Let p be the Record { [[Key]]: key, [[Value]]: value }.
         // 6. Append p to M.[[WeakMapData]].
-        weak_map.weak_map_set(key.as_cell(), value);
+        weak_map.weak_map_set(vm, key.as_cell(), value);
 
         // 7. Return M.
         Ok(Value::from_object(weak_map))

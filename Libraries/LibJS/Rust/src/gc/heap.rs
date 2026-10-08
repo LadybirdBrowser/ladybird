@@ -194,6 +194,14 @@ impl Heap {
         unsafe { capi::gc_heap_did_free_external_memory(self.raw.as_ptr(), size) };
     }
 
+    pub fn account_external_memory_change(&self, old_size: usize, new_size: usize) {
+        if new_size > old_size {
+            self.did_allocate_external_memory(new_size - old_size);
+        } else if old_size > new_size {
+            self.did_free_external_memory(old_size - new_size);
+        }
+    }
+
     pub fn should_collect_on_every_allocation(&self) -> bool {
         // SAFETY: The heap is live.
         unsafe { capi::gc_heap_should_collect_on_every_allocation(self.raw.as_ptr()) }

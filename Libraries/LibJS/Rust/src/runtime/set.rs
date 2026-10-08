@@ -59,20 +59,20 @@ impl Set {
     //       so all the functions below do not directly implement the operations as
     //       defined by the specification.
 
-    pub fn set_clear(&self) {
-        self.values().map_clear();
+    pub fn set_clear(&self, vm: &Vm) {
+        self.values().map_clear(vm);
     }
 
-    pub fn set_remove(&self, value: Value) -> bool {
-        self.values().map_remove(value)
+    pub fn set_remove(&self, vm: &Vm, value: Value) -> bool {
+        self.values().map_remove(vm, value)
     }
 
     pub fn set_has(&self, key: Value) -> bool {
         self.values().map_has(key)
     }
 
-    pub fn set_add(&self, key: Value) {
-        self.values().map_set(key, Value::UNDEFINED);
+    pub fn set_add(&self, vm: &Vm, key: Value) {
+        self.values().map_set(vm, key, Value::UNDEFINED);
     }
 
     pub fn set_size(&self) -> usize {
@@ -97,7 +97,7 @@ impl Set {
         let result = Set::create(vm, realm);
         let iterator = self.begin();
         while !iterator.is_end() {
-            result.set_add(iterator.current());
+            result.set_add(vm, iterator.current());
             iterator.advance();
         }
         result

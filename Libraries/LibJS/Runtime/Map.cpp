@@ -20,17 +20,17 @@ GC::Ref<Map> Map::create(Realm& realm)
 
 void Map::map_clear()
 {
-    js_collections_map_clear(object_to_abi(*this));
+    js_collections_map_clear(vm_to_abi(vm()), object_to_abi(*this));
 }
 
 bool Map::map_remove(Value const& key)
 {
-    return js_collections_map_remove(object_to_abi(*this), value_to_abi(key));
+    return js_collections_map_remove(vm_to_abi(vm()), object_to_abi(*this), value_to_abi(key));
 }
 
 void Map::map_set(Value const& key, Value value)
 {
-    js_collections_map_set(object_to_abi(*this), value_to_abi(key), value_to_abi(value));
+    js_collections_map_set(vm_to_abi(vm()), object_to_abi(*this), value_to_abi(key), value_to_abi(value));
 }
 
 size_t Map::map_size() const

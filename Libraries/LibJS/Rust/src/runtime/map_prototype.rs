@@ -133,7 +133,7 @@ impl MapPrototype {
         // 3. For each Record { [[Key]], [[Value]] } p of M.[[MapData]], do
         //     a. Set p.[[Key]] to empty.
         //     b. Set p.[[Value]] to empty.
-        map.map_clear();
+        map.map_clear(vm);
 
         // 4. Return undefined.
         Ok(Value::UNDEFINED)
@@ -156,7 +156,7 @@ impl MapPrototype {
         //         ii. Set p.[[Value]] to empty.
         //         iii. Return true.
         // 4. Return false.
-        Ok(Value::from_bool(map.map_remove(key)))
+        Ok(Value::from_bool(map.map_remove(vm, key)))
     }
 
     // 24.1.3.4 Map.prototype.entries ( ), https://tc39.es/ecma262/#sec-map.prototype.entries
@@ -260,7 +260,7 @@ impl MapPrototype {
 
         // 5. Let p be the Record { [[Key]]: key, [[Value]]: value }.
         // 6. Append p to M.[[MapData]].
-        map.map_set(key, value);
+        map.map_set(vm, key, value);
 
         // 7. Return value.
         Ok(value)
@@ -300,7 +300,7 @@ impl MapPrototype {
         //         ii. Return value.
         // 9. Let p be the Record { [[Key]]: key, [[Value]]: value }.
         // 10. Append p to M.[[MapData]].
-        map.map_set(key, value);
+        map.map_set(vm, key, value);
 
         // 11. Return value.
         Ok(value)
@@ -357,7 +357,7 @@ impl MapPrototype {
         //         ii. Return M.
         // 5. Let p be the Record { [[Key]]: key, [[Value]]: value }.
         // 6. Append p to M.[[MapData]].
-        map.map_set(key, value);
+        map.map_set(vm, key, value);
 
         // 7. Return M.
         Ok(Value::from_object(map))

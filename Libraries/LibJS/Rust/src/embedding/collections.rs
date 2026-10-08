@@ -96,23 +96,26 @@ pub unsafe extern "C" fn js_collections_map_size(map: *mut JSObject) -> usize {
 
 /// Sets the value of the key's entry, which a new key appends after the others. Main thread only.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_collections_map_set(map: *mut JSObject, key: JSValue, value: JSValue) {
+pub unsafe extern "C" fn js_collections_map_set(vm: *mut JSVM, map: *mut JSObject, key: JSValue, value: JSValue) {
     // SAFETY: See the module documentation.
-    unsafe { map_from_abi(map) }.map_set(Value(key), Value(value));
+    let (vm, map) = unsafe { (vm_from_abi(vm), map_from_abi(map)) };
+    map.map_set(vm, Value(key), Value(value));
 }
 
 /// Removes the key's entry, and returns whether there was one. Main thread only.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_collections_map_remove(map: *mut JSObject, key: JSValue) -> bool {
+pub unsafe extern "C" fn js_collections_map_remove(vm: *mut JSVM, map: *mut JSObject, key: JSValue) -> bool {
     // SAFETY: See the module documentation.
-    unsafe { map_from_abi(map) }.map_remove(Value(key))
+    let (vm, map) = unsafe { (vm_from_abi(vm), map_from_abi(map)) };
+    map.map_remove(vm, Value(key))
 }
 
 /// Removes every entry. Main thread only.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_collections_map_clear(map: *mut JSObject) {
+pub unsafe extern "C" fn js_collections_map_clear(vm: *mut JSVM, map: *mut JSObject) {
     // SAFETY: See the module documentation.
-    unsafe { map_from_abi(map) }.map_clear();
+    let (vm, map) = unsafe { (vm_from_abi(vm), map_from_abi(map)) };
+    map.map_clear(vm);
 }
 
 /// Calls the callback with the key and value of each entry in insertion order, the way Map.prototype.forEach visits
@@ -176,23 +179,26 @@ pub unsafe extern "C" fn js_collections_set_size(set: *mut JSObject) -> usize {
 
 /// Appends the value unless the set has it already. Main thread only.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_collections_set_add(set: *mut JSObject, value: JSValue) {
+pub unsafe extern "C" fn js_collections_set_add(vm: *mut JSVM, set: *mut JSObject, value: JSValue) {
     // SAFETY: See the module documentation.
-    unsafe { set_from_abi(set) }.set_add(Value(value));
+    let (vm, set) = unsafe { (vm_from_abi(vm), set_from_abi(set)) };
+    set.set_add(vm, Value(value));
 }
 
 /// Removes the value, and returns whether the set had it. Main thread only.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_collections_set_remove(set: *mut JSObject, value: JSValue) -> bool {
+pub unsafe extern "C" fn js_collections_set_remove(vm: *mut JSVM, set: *mut JSObject, value: JSValue) -> bool {
     // SAFETY: See the module documentation.
-    unsafe { set_from_abi(set) }.set_remove(Value(value))
+    let (vm, set) = unsafe { (vm_from_abi(vm), set_from_abi(set)) };
+    set.set_remove(vm, Value(value))
 }
 
 /// Removes every value. Main thread only.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_collections_set_clear(set: *mut JSObject) {
+pub unsafe extern "C" fn js_collections_set_clear(vm: *mut JSVM, set: *mut JSObject) {
     // SAFETY: See the module documentation.
-    unsafe { set_from_abi(set) }.set_clear();
+    let (vm, set) = unsafe { (vm_from_abi(vm), set_from_abi(set)) };
+    set.set_clear(vm);
 }
 
 /// Calls the callback with each value in insertion order, the way Set.prototype.forEach visits them: the callback may

@@ -92,7 +92,7 @@ impl WeakSetPrototype {
         //     a. If e is not empty and SameValue(e, value) is true, then
         //         i. Return S.
         // 5. Append value to S.[[WeakSetData]].
-        weak_set.weak_set_add(value.as_cell());
+        weak_set.weak_set_add(vm, value.as_cell());
 
         // 6. Return S.
         Ok(Value::from_object(weak_set))
