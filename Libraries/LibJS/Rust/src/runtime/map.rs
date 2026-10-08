@@ -151,8 +151,8 @@ impl Map {
     // 24.1.3.1 Map.prototype.clear ( ), https://tc39.es/ecma262/#sec-map.prototype.clear
     pub fn map_clear(&self, vm: &Vm) {
         let mut storage = self.storage.borrow_mut();
-        storage.entries.clear();
-        storage.indices.clear();
+        storage.entries = Vec::new();
+        storage.indices = HashMap::default();
         storage.removed_entry_count = 0;
         storage.generation += 1;
         let (old_size, new_size) = storage.update_external_memory_size();
