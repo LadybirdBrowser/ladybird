@@ -239,8 +239,7 @@ Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_ifr
         // AD-HOC: If the content navigable already has a navigation in progress or pending, skip the initial
         //         about:blank URL update. Without this, the URL update creates a state machine that clobbers the
         //         navigable's ongoing_navigation, causing the real navigation to be dropped when its populate completion
-        //         callback checks ongoing_navigation != navigation_id. Non-blank src navigations must still be processed
-        //         here, and will be queued by LocalNavigable::navigate() until the child navigable is ready for navigation.
+        //         callback checks ongoing_navigation != navigation_id.
         if (local_navigable.has_pending_navigations() || !local_navigable.ongoing_navigation().has<Empty>())
             return {};
 

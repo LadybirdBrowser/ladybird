@@ -274,14 +274,6 @@ bool HistoryExecutor::run_changing_navigable_history_step_job_impl(ChangingNavig
         on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Skipped, nullptr });
         return false;
     }
-    // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-child-navigable
-    // NB: The creation/destruction update is the bookkeeping step after the child's nested history has been attached to its canonical
-    //     parent document state. If the container's requested navigation has already started, it owns the ongoing navigation ID and
-    //     eventual document activation.
-    if (!job.navigation_type.has_value() && navigable->ongoing_navigation().has<Utf16String>()) {
-        on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Skipped, nullptr });
-        return false;
-    }
 
     // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
     // NB: The UI coordinator already ran that step against canonical history and sent the selected entry with this
@@ -306,17 +298,18 @@ bool HistoryExecutor::run_changing_navigable_history_step_job_impl(ChangingNavig
     //         navigable was created or destroyed — which no other engine does. So we skip such applying-the-target-
     //         entry-would-cross-documents navigables here.
     //         https://github.com/whatwg/html/issues/12724
+    //         Nor do we take a navigable from a navigation that has already started: its container's requested
+    //         navigation owns the ongoing navigation ID and eventual document activation.
     //         A navigable still awaiting the update for its creation has only its initial about:blank, and populates
-    //         the entry its nested history kept.
+    //         the entry its nested history kept, which supersedes its container's navigation.
     if (!job.navigation_type.has_value()) {
         bool would_cross_documents = claimed_target_entry->document_state()->document_id() != navigable->active_document_id()
             || claimed_target_entry->document_state()->reload_pending();
-        if (would_cross_documents && navigable->has_session_history_entry_and_ready_for_navigation()) {
+        bool restores_kept_entry = would_cross_documents && !navigable->has_session_history_entry_and_ready_for_navigation();
+        if (!restores_kept_entry && (would_cross_documents || navigable->ongoing_navigation().has<Utf16String>())) {
             on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Skipped, nullptr });
             return false;
         }
-        if (would_cross_documents)
-            navigable->drop_container_navigation_for_restored_entry();
     }
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#fire-a-traverse-navigate-event
