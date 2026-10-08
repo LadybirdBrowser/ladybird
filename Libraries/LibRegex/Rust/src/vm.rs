@@ -812,6 +812,18 @@ fn execute_simple_scan_into<I: Input>(
         SimpleScan::GreedyQuantifier { matcher, min, max } => {
             execute_simple_greedy_scan_into(program, input, start_pos, matcher, *min, *max, out)
         }
+        SimpleScan::CharClass { ranges, negated, ascii } if !program.unicode => {
+            // Without the u and v flags, every code unit is a character of its own.
+            for pos in start_pos..input.len() {
+                let code_unit = u32::from(input.code_unit(pos));
+                if ascii.contains_or_in_ranges(code_unit, ranges) != *negated {
+                    out[0] = pos as i32;
+                    out[1] = pos as i32 + 1;
+                    return true;
+                }
+            }
+            false
+        }
         _ => {
             let mut pos = start_pos;
             while pos < input.len() {
@@ -834,7 +846,7 @@ fn execute_simple_scan_into<I: Input>(
 #[inline(always)]
 fn match_simple_scan(scan: &SimpleScan, cp: u32) -> bool {
     match scan {
-        SimpleScan::CharClass { ranges, negated } => char_in_ranges(cp, ranges) != *negated,
+        SimpleScan::CharClass { ranges, negated, ascii } => ascii.contains_or_in_ranges(cp, ranges) != *negated,
         SimpleScan::BuiltinClass(class) => match_builtin_class(cp, *class, false),
         SimpleScan::Char(c) => cp == *c,
         SimpleScan::GreedyQuantifier { .. } => false, // handled separately
@@ -1002,7 +1014,11 @@ struct StartPositionHint {
 /// A simple pattern that can be scanned without the full VM.
 enum SimpleScan {
     /// A single character class.
-    CharClass { ranges: Vec<CharRange>, negated: bool },
+    CharClass {
+        ranges: Vec<CharRange>,
+        negated: bool,
+        ascii: AsciiBitmap,
+    },
     /// A single builtin class.
     BuiltinClass(BuiltinCharacterClass),
     /// A single character.
@@ -1013,6 +1029,31 @@ enum SimpleScan {
         min: u32,
         max: Option<u32>,
     },
+}
+
+/// The ASCII members of a character class, one bit per code point, which spare the search through its ranges for most
+/// characters of most inputs.
+#[derive(Clone, Copy)]
+struct AsciiBitmap([u64; 2]);
+
+impl AsciiBitmap {
+    fn from_ranges(ranges: &[CharRange]) -> Self {
+        let mut bits = [0u64; 2];
+        for range in ranges {
+            for code_point in range.start..=range.end.min(0x7F) {
+                bits[(code_point / 64) as usize] |= 1 << (code_point % 64);
+            }
+        }
+        Self(bits)
+    }
+
+    #[inline(always)]
+    fn contains_or_in_ranges(&self, code_point: u32, ranges: &[CharRange]) -> bool {
+        if code_point < 0x80 {
+            return self.0[(code_point / 64) as usize] & (1 << (code_point % 64)) != 0;
+        }
+        char_in_ranges(code_point, ranges)
+    }
 }
 
 /// Find a common first character across all alternatives in a Split chain.
@@ -1251,6 +1292,7 @@ pub(crate) fn analyze_pattern(
             Instruction::CharClass { ranges, negated } => Some(SimpleScan::CharClass {
                 ranges: ranges.clone(),
                 negated: *negated,
+                ascii: AsciiBitmap::from_ranges(ranges),
             }),
             Instruction::BuiltinClass(class) => Some(SimpleScan::BuiltinClass(*class)),
             Instruction::Char(c) => Some(SimpleScan::Char(*c)),
