@@ -347,12 +347,10 @@ impl DocumentHost {
             .deferred
             .borrow_mut()
             .follow_job(deferred_inputs, !self.changes.is_empty());
-        if work.is_empty() {
-            return;
-        }
         // SAFETY: The host has its job or frame back, on its document's thread, or on the render owner in a host
         // callback of a job the host waits for, as every host callback runs.
         let main_thread = unsafe { crate::stage::from_ffi_entry(&OWED_WORK_PAYMENT, self) };
+        crate::css::style::give_up_custom_property_data_let_go_beside_the_host(&main_thread);
         for work in work {
             work.pay(&main_thread);
         }

@@ -101,7 +101,7 @@ pub mod impact;
 pub mod index;
 mod input_routing;
 mod inputs;
-pub(crate) use inputs::next_declaration_block_version;
+pub(crate) use inputs::{give_up_custom_property_data_let_go_beside_the_host, next_declaration_block_version};
 pub mod instrumentation;
 mod intern_table;
 pub(crate) mod layout_style;

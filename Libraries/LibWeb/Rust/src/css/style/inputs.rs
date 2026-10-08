@@ -120,7 +120,8 @@ pub(crate) struct CustomPropertyDataObject {
 }
 
 // SAFETY: The data is immutable once built and counts its references atomically, so a shared
-// reference to it may be read, taken and given up on any thread.
+// reference to it may be read and taken on any thread. The StyleLayout thread leaves giving one up
+// to the host (see `RetainedCustomPropertyData`'s `Drop`).
 unsafe impl Sync for CustomPropertyDataObject {}
 
 /// The custom-property environment one element holds, a `Web::CSS::CustomPropertyData` the engine
@@ -160,8 +161,35 @@ pub(crate) struct HeldCustomPropertyEnvironment {
 
 impl Drop for RetainedCustomPropertyData {
     fn drop(&mut self) {
+        // The last reference destroys the data, which gives up its references to its values, counted without atomics
+        // on the host's thread. The StyleLayout thread, which lets go of an environment beside the host's task as a
+        // fork or a streamed write does, leaves it to the host.
+        if crate::stage_thread::is_on_style_layout_thread() {
+            CUSTOM_PROPERTY_DATA_LET_GO_BESIDE_THE_HOST
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push(self.data() as usize);
+            return;
+        }
         // SAFETY: The row owns exactly one reference, taken in `retain`.
         unsafe { web_css_custom_property_data_unreference(self.data()) };
+    }
+}
+
+/// The references to custom-property environments the StyleLayout thread let go of, which the host gives up.
+static CUSTOM_PROPERTY_DATA_LET_GO_BESIDE_THE_HOST: std::sync::Mutex<Vec<usize>> = std::sync::Mutex::new(Vec::new());
+
+/// Gives up the references to custom-property environments the StyleLayout thread let go of. On the host's thread, or
+/// in a job the host waits for.
+pub(crate) fn give_up_custom_property_data_let_go_beside_the_host(_: &crate::stage::MainThread) {
+    let let_go = std::mem::take(
+        &mut *CUSTOM_PROPERTY_DATA_LET_GO_BESIDE_THE_HOST
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner),
+    );
+    for data in let_go {
+        // SAFETY: Each entry is a reference a dropped environment owned.
+        unsafe { web_css_custom_property_data_unreference(data as *const std::ffi::c_void) };
     }
 }
 
