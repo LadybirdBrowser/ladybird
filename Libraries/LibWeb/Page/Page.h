@@ -395,8 +395,8 @@ public:
     void invalidate_user_style();
     void invalidate_style_for_preference_change();
 
-    bool content_blocking_enabled() const { return m_content_blocking_enabled; }
-    void set_content_blocking_enabled(bool);
+    bool content_blocking_enabled_for_url(Optional<URL::URL> const&) const;
+    void set_content_blocking_policy(bool enabled, ReadonlySpan<String> disabled_sites);
 
     bool pdf_viewer_supported() const { return m_pdf_viewer_supported; }
 
@@ -566,6 +566,7 @@ private:
     Optional<Utf16String> m_user_style_sheet_source;
 
     bool m_content_blocking_enabled { true };
+    HashTable<String> m_content_blocking_disabled_sites;
 
     // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-supported
     // Each user agent has a PDF viewer supported boolean, whose value is implementation-defined (and might vary

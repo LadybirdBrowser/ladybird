@@ -16,6 +16,7 @@
 #include <LibURL/InternalURLs.h>
 #include <LibURL/Parser.h>
 #include <LibUnicode/Locale.h>
+#include <LibWebCommon/Loader/ContentBlocking.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Settings.h>
 #include <LibWebView/UserAgent.h>
@@ -78,6 +79,7 @@ static constexpr auto BACKGROUND_NETWORKING_ENABLED_KEY = "enabled"sv;
 static constexpr auto BACKGROUND_NETWORKING_FEATURES_KEY = "features"sv;
 
 static constexpr auto CONTENT_BLOCKERS_KEY = "contentBlockers"sv;
+static constexpr auto CONTENT_BLOCKER_DISABLED_SITES_KEY = "disabledSites"sv;
 static constexpr auto CONTENT_BLOCKER_BUILT_IN_LISTS_KEY = "builtInLists"sv;
 static constexpr auto CONTENT_BLOCKER_CUSTOM_SUBSCRIPTIONS_KEY = "customSubscriptions"sv;
 static constexpr auto CONTENT_BLOCKER_LOCAL_LISTS_KEY = "localLists"sv;
@@ -354,6 +356,16 @@ Settings Settings::create(ByteString settings_path)
 
     if (auto content_blockers = settings_json.value().get_object(CONTENT_BLOCKERS_KEY); content_blockers.has_value()) {
         settings.m_content_blocker_enabled = content_blockers->get_bool(CONTENT_BLOCKER_ENABLED_KEY).value_or(false);
+
+        if (auto sites = content_blockers->get_array(CONTENT_BLOCKER_DISABLED_SITES_KEY); sites.has_value()) {
+            sites->for_each([&](JsonValue const& entry) {
+                if (!entry.is_string())
+                    return;
+                if (auto host = Web::canonical_content_blocking_host(entry.as_string()); host.has_value())
+                    settings.m_content_blocker_disabled_sites.set(host.release_value());
+            });
+        }
+
         if (auto built_in_lists = content_blockers->get_object(CONTENT_BLOCKER_BUILT_IN_LISTS_KEY); built_in_lists.has_value()) {
             for (auto& list : settings.m_content_blocker_lists)
                 list.enabled = built_in_lists->get_bool(list.identifier).value_or(list.enabled);
@@ -547,6 +559,11 @@ JsonValue Settings::serialize_json() const
     background_networking.set(BACKGROUND_NETWORKING_FEATURES_KEY, move(background_network_features));
     settings.set(BACKGROUND_NETWORKING_KEY, move(background_networking));
 
+    JsonArray disabled_sites;
+    disabled_sites.ensure_capacity(m_content_blocker_disabled_sites.size());
+    for (auto const& host : m_content_blocker_disabled_sites)
+        disabled_sites.must_append(host);
+
     JsonObject built_in_content_blocker_lists;
     JsonArray custom_content_blocker_subscriptions;
     JsonArray local_content_blocker_lists;
@@ -569,6 +586,7 @@ JsonValue Settings::serialize_json() const
 
     JsonObject content_blockers;
     content_blockers.set(CONTENT_BLOCKER_ENABLED_KEY, m_content_blocker_enabled);
+    content_blockers.set(CONTENT_BLOCKER_DISABLED_SITES_KEY, move(disabled_sites));
     content_blockers.set(CONTENT_BLOCKER_BUILT_IN_LISTS_KEY, move(built_in_content_blocker_lists));
     content_blockers.set(CONTENT_BLOCKER_CUSTOM_SUBSCRIPTIONS_KEY, move(custom_content_blocker_subscriptions));
     content_blockers.set(CONTENT_BLOCKER_LOCAL_LISTS_KEY, move(local_content_blocker_lists));
@@ -1051,6 +1069,32 @@ Optional<ContentBlockerList const&> Settings::content_blocker_list(StringView id
         if (list.identifier == identifier)
             return list;
     }
+    return {};
+}
+
+bool Settings::content_blocker_enabled_for_site(StringView site) const
+{
+    auto host = Web::canonical_content_blocking_host(site);
+    return !host.has_value() || !m_content_blocker_disabled_sites.contains(*host);
+}
+
+ErrorOr<void> Settings::set_content_blocker_enabled_for_site(StringView site, bool enabled)
+{
+    auto host = Web::canonical_content_blocking_host(site);
+    if (!host.has_value())
+        return Error::from_string_literal("Invalid site hostname");
+
+    auto changed = enabled
+        ? m_content_blocker_disabled_sites.remove(*host)
+        : m_content_blocker_disabled_sites.set(*host) == HashSetResult::InsertedNewEntry;
+    if (!changed)
+        return {};
+
+    // FIXME: persist_settings should return an error so we can propagate to the UI.
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.content_blocker_settings_changed();
     return {};
 }
 

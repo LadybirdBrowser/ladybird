@@ -48,6 +48,7 @@
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>
 #include <LibWebCommon/HTML/SelectedFile.h>
+#include <LibWebCommon/Loader/ContentBlocking.h>
 
 namespace Web {
 
@@ -1752,14 +1753,30 @@ void Page::invalidate_style_for_preference_change()
     }
 }
 
-void Page::set_content_blocking_enabled(bool enabled)
+bool Page::content_blocking_enabled_for_url(Optional<URL::URL> const& url) const
 {
-    if (m_content_blocking_enabled == enabled)
-        return;
-    m_content_blocking_enabled = enabled;
+    if (!m_content_blocking_enabled)
+        return false;
+    if (!url.has_value())
+        return true;
 
-    if (ContentBlocker::the().has_cosmetic_rules())
-        invalidate_user_style();
+    auto host = content_blocking_site(*url);
+    return !host.has_value() || !m_content_blocking_disabled_sites.contains(*host);
+}
+
+void Page::set_content_blocking_policy(bool enabled, ReadonlySpan<String> disabled_sites)
+{
+    HashTable<String> sites;
+    sites.ensure_capacity(disabled_sites.size());
+
+    for (auto const& site : disabled_sites) {
+        if (auto host = canonical_content_blocking_host(site); host.has_value())
+            sites.set(host.release_value());
+    }
+
+    m_content_blocking_enabled = enabled;
+    m_content_blocking_disabled_sites = move(sites);
+    invalidate_user_style();
 }
 
 Vector<GC::Root<DOM::Document>> Page::documents_in_active_window() const

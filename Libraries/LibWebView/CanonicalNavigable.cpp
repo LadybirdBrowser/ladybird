@@ -769,7 +769,10 @@ ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalNavigable::obtain_page_to_host_i
         traversable.represent_group_in(*host);
     }
 
-    return *host->page(page_id);
+    auto& page = *host->page(page_id);
+    if (traversable.view().has_value())
+        Application::the().apply_content_blocking_policy(page);
+    return page;
 }
 
 ErrorOr<CanonicalNavigable::PageToPopulateDocument> CanonicalNavigable::obtain_page_to_populate_document(CanonicalSessionHistoryEntry& entry, NavigationLoader& loader, WebContentPage& page_that_created_navigation_params)

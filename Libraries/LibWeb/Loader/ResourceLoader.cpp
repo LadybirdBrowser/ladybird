@@ -16,6 +16,7 @@
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/Parser.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/Loader/ContentBlocker.h>
@@ -73,12 +74,12 @@ void ResourceLoader::set_client(NonnullRefPtr<Requests::RequestClient> request_c
     };
 }
 
-void ResourceLoader::prefetch_dns(GC::Ptr<Page> page, URL::URL const& url, URL::URL const& source_url)
+void ResourceLoader::prefetch_dns(GC::Ptr<DOM::Document> document, URL::URL const& url, URL::URL const& source_url)
 {
     if (url.scheme().is_one_of("file"sv, "data"sv))
         return;
 
-    if (!page || page->content_blocking_enabled()) {
+    if (!document || document->content_blocking_enabled()) {
         if (ContentBlocker::the().is_filtered(url, source_url, ContentBlocker::ResourceType::Other)) {
             dbgln("ResourceLoader: Refusing to prefetch DNS for '{}': \033[31;1mURL was filtered\033[0m", url);
             return;
@@ -90,12 +91,12 @@ void ResourceLoader::prefetch_dns(GC::Ptr<Page> page, URL::URL const& url, URL::
         m_request_client->ensure_connection(url, RequestServer::CacheLevel::ResolveOnly);
 }
 
-void ResourceLoader::preconnect(GC::Ptr<Page> page, URL::URL const& url, URL::URL const& source_url)
+void ResourceLoader::preconnect(GC::Ptr<DOM::Document> document, URL::URL const& url, URL::URL const& source_url)
 {
     if (url.scheme().is_one_of("file"sv, "data"sv))
         return;
 
-    if (!page || page->content_blocking_enabled()) {
+    if (!document || document->content_blocking_enabled()) {
         if (ContentBlocker::the().is_filtered(url, source_url, ContentBlocker::ResourceType::Other)) {
             dbgln("ResourceLoader: Refusing to pre-connect to '{}': \033[31;1mURL was filtered\033[0m", url);
             return;
@@ -190,7 +191,7 @@ static bool should_block_request(LoadRequest const& request)
         return true;
     }
 
-    if (auto page = request.page(); !page || page->content_blocking_enabled()) {
+    if (auto page = request.page(); !page || page->content_blocking_enabled_for_url(request.top_level_creation_url())) {
         auto source_url = request.source_url().value_or(url);
         if (ContentBlocker::the().is_filtered(url, source_url, request.destination(), request.initiator_type(), request.request_mode())) {
             log_filtered_request(request);

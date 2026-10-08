@@ -40,6 +40,7 @@ set(SOURCES
     HTML/WebViewHints.cpp
     HTML/WorkerAgentTypes.cpp
     Infra/Strings.cpp
+    Loader/ContentBlocking.cpp
     Loader/DownloadFilename.cpp
     Loader/SiteCompatibility.cpp
     MimeSniff/MimeType.cpp

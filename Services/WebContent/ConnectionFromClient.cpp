@@ -3073,10 +3073,10 @@ void ConnectionFromClient::update_input_method_state(Web::PageId page_id)
     async_did_update_input_method_state(page_id, caret_rect, is_enabled, cursor_position, anchor_position, move(text_before_cursor), move(text_after_cursor));
 }
 
-void ConnectionFromClient::set_content_blocking_enabled(Web::PageId page_id, bool enabled)
+void ConnectionFromClient::set_content_blocking_policy(Web::PageId page_id, bool enabled, Vector<String> disabled_sites)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->page().set_content_blocking_enabled(enabled);
+        page->page().set_content_blocking_policy(enabled, disabled_sites);
 }
 
 void ConnectionFromClient::set_content_blockers(Core::AnonymousBuffer patterns_buffer)

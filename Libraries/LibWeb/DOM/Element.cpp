@@ -283,7 +283,7 @@ static void invalidate_content_blocker_style_if_needed(Element& element)
 {
     if (!element.is_connected())
         return;
-    if (!element.document().page().content_blocking_enabled() || !ContentBlocker::the().has_cosmetic_rules())
+    if (!element.document().content_blocking_enabled() || !ContentBlocker::the().has_cosmetic_rules())
         return;
 
     auto const& id = element.id();

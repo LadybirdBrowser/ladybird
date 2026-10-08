@@ -230,7 +230,7 @@ private:
     virtual void clone_dom_node(Web::PageId page_id, Web::UniqueNodeID node_id) override;
     virtual void remove_dom_node(Web::PageId page_id, Web::UniqueNodeID node_id) override;
 
-    virtual void set_content_blocking_enabled(Web::PageId page_id, bool enabled) override;
+    virtual void set_content_blocking_policy(Web::PageId page_id, bool enabled, Vector<String> disabled_sites) override;
     virtual void set_content_blockers(Core::AnonymousBuffer patterns) override;
 
     virtual void set_autoplay_settings(Web::PageId page_id, Web::HTML::AutoplayPolicy policy, Vector<Utf16String> allowlist) override;

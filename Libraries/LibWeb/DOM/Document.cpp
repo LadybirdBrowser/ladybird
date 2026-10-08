@@ -972,9 +972,14 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_ancestor_origins_list);
 }
 
+bool Document::content_blocking_enabled() const
+{
+    return page().content_blocking_enabled_for_url(relevant_settings_object().top_level_creation_url);
+}
+
 Utf16String const& Document::content_blocker_style_sheet()
 {
-    if (is_decoded_svg() || !page().content_blocking_enabled()) {
+    if (is_decoded_svg() || !content_blocking_enabled()) {
         if (!m_content_blocker_style_sheet.has_value())
             m_content_blocker_style_sheet = Utf16String {};
         return m_content_blocker_style_sheet.value();
@@ -1019,7 +1024,7 @@ void Document::invalidate_content_blocker_style_sheet()
 
 bool Document::content_blocker_style_sheet_may_need_refresh_for_class_or_id(Utf16FlyString const* id, ReadonlySpan<Utf16FlyString> class_names)
 {
-    if (is_decoded_svg() || !page().content_blocking_enabled())
+    if (is_decoded_svg() || !content_blocking_enabled())
         return false;
 
     if (!m_content_blocker_style_sheet.has_value())
