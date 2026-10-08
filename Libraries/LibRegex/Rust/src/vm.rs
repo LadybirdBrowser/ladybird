@@ -1353,7 +1353,8 @@ enum SavedState {
         set_register: u32,
         set_register_value: i32,
         modifiers: ActiveModifiers,
-        modifier_stack_len: usize,
+        /// The length of the modifier trail when the state was saved.
+        modifier_trail_len: usize,
     },
     /// Greedy loop backtrack: give up one character at a time from the right.
     /// Restores the registers because later failed alternatives may have
@@ -1370,7 +1371,8 @@ enum SavedState {
         /// Whether this greedy loop was executing in backward mode (lookbehind).
         backward: bool,
         modifiers: ActiveModifiers,
-        modifier_stack_len: usize,
+        /// The length of the modifier trail when the state was saved.
+        modifier_trail_len: usize,
     },
     /// Lazy loop backtrack: try consuming one more character.
     /// Restores the registers because later failed alternatives may have
@@ -1385,7 +1387,8 @@ enum SavedState {
         /// Number of matches consumed so far.
         consumed: u32,
         modifiers: ActiveModifiers,
-        modifier_stack_len: usize,
+        /// The length of the modifier trail when the state was saved.
+        modifier_trail_len: usize,
     },
 }
 
@@ -1394,6 +1397,13 @@ enum SavedState {
 struct RegisterUndo {
     register: u32,
     value: i32,
+}
+
+/// A change to the modifier stack, which backtracking to a state saved before it undoes.
+#[derive(Clone, Copy)]
+enum ModifierUndo {
+    Pushed,
+    Popped(ActiveModifiers),
 }
 
 /// Active modifier flags during execution.
@@ -1412,6 +1422,7 @@ pub struct VmScratch {
     backtrack_stack: Vec<SavedState>,
     register_trail: Vec<RegisterUndo>,
     modifier_stack: Vec<ActiveModifiers>,
+    modifier_trail: Vec<ModifierUndo>,
 }
 
 impl VmScratch {
@@ -1433,6 +1444,9 @@ struct Vm<'a, I: Input> {
     steps: u64,
     modifiers: ActiveModifiers,
     modifier_stack: &'a mut Vec<ActiveModifiers>,
+    /// The changes to the modifier stack so far, most recent last. A saved state records the length of this trail, and
+    /// backtracking to it undoes the changes after that point, which may have popped entries the state still needs.
+    modifier_trail: &'a mut Vec<ModifierUndo>,
     /// True when executing a lookbehind body (characters consumed right-to-left).
     backward: bool,
     /// Backtrack floor: prevents backtracking past this depth during lookaround bodies.
@@ -1450,6 +1464,7 @@ impl<'a, I: Input> Vm<'a, I> {
         scratch.backtrack_stack.clear();
         scratch.register_trail.clear();
         scratch.modifier_stack.clear();
+        scratch.modifier_trail.clear();
         Self {
             program,
             input,
@@ -1465,6 +1480,7 @@ impl<'a, I: Input> Vm<'a, I> {
                 dot_all: program.dot_all,
             },
             modifier_stack: &mut scratch.modifier_stack,
+            modifier_trail: &mut scratch.modifier_trail,
             backward: false,
             bt_floor: 0,
             lookaround_depth: 0,
@@ -1497,6 +1513,7 @@ impl<'a, I: Input> Vm<'a, I> {
             dot_all: self.program.dot_all,
         };
         self.modifier_stack.clear();
+        self.modifier_trail.clear();
         self.backward = false;
         self.bt_floor = 0;
         self.lookaround_depth = 0;
@@ -2339,6 +2356,8 @@ impl<'a, I: Input> Vm<'a, I> {
         let saved_pos = self.pos;
         let saved_bt_len = self.backtrack_stack.len();
         let saved_trail_len = self.register_trail.len();
+        let saved_modifier_trail_len = self.modifier_trail.len();
+        let saved_modifiers = self.modifiers;
         let saved_bt_floor = self.bt_floor;
         let saved_backward = self.backward;
 
@@ -2367,10 +2386,14 @@ impl<'a, I: Input> Vm<'a, I> {
                 self.pc = end;
             } else {
                 self.undo_register_writes(saved_trail_len);
+                self.undo_modifier_changes(saved_modifier_trail_len);
+                self.modifiers = saved_modifiers;
                 return self.fail_current_path();
             }
         } else {
             self.undo_register_writes(saved_trail_len);
+            self.undo_modifier_changes(saved_modifier_trail_len);
+            self.modifiers = saved_modifiers;
             if body_matched {
                 return self.fail_current_path();
             }
@@ -2383,6 +2406,11 @@ impl<'a, I: Input> Vm<'a, I> {
     #[inline(always)]
     fn handle_push_modifiers(&mut self, ignore_case: Option<bool>, multiline: Option<bool>, dot_all: Option<bool>) {
         self.modifier_stack.push(self.modifiers);
+        if self.needs_undo_entries() {
+            self.modifier_trail.push(ModifierUndo::Pushed);
+        } else {
+            self.modifier_trail.clear();
+        }
         if let Some(v) = ignore_case {
             self.modifiers.ignore_case = v;
         }
@@ -2398,6 +2426,11 @@ impl<'a, I: Input> Vm<'a, I> {
     #[inline(always)]
     fn handle_pop_modifiers(&mut self) {
         if let Some(prev) = self.modifier_stack.pop() {
+            if self.needs_undo_entries() {
+                self.modifier_trail.push(ModifierUndo::Popped(prev));
+            } else {
+                self.modifier_trail.clear();
+            }
             self.modifiers = prev;
         }
         self.pc += 1;
@@ -2653,7 +2686,7 @@ impl<'a, I: Input> Vm<'a, I> {
             set_register: u32::MAX,
             set_register_value: 0,
             modifiers: self.modifiers,
-            modifier_stack_len: self.modifier_stack.len(),
+            modifier_trail_len: self.modifier_trail.len(),
         });
     }
 
@@ -2668,7 +2701,7 @@ impl<'a, I: Input> Vm<'a, I> {
             set_register: mod_index as u32,
             set_register_value: mod_value,
             modifiers: self.modifiers,
-            modifier_stack_len: self.modifier_stack.len(),
+            modifier_trail_len: self.modifier_trail.len(),
         });
     }
 
@@ -2683,7 +2716,7 @@ impl<'a, I: Input> Vm<'a, I> {
             min,
             backward: self.backward,
             modifiers: self.modifiers,
-            modifier_stack_len: self.modifier_stack.len(),
+            modifier_trail_len: self.modifier_trail.len(),
         });
     }
 
@@ -2697,8 +2730,21 @@ impl<'a, I: Input> Vm<'a, I> {
             max,
             consumed,
             modifiers: self.modifiers,
-            modifier_stack_len: self.modifier_stack.len(),
+            modifier_trail_len: self.modifier_trail.len(),
         });
+    }
+
+    /// Undo the changes to the modifier stack recorded after the trail had `trail_len` entries, most recent first.
+    fn undo_modifier_changes(&mut self, trail_len: usize) {
+        while self.modifier_trail.len() > trail_len {
+            match self.modifier_trail.pop() {
+                Some(ModifierUndo::Pushed) => {
+                    self.modifier_stack.pop();
+                }
+                Some(ModifierUndo::Popped(modifiers)) => self.modifier_stack.push(modifiers),
+                None => break,
+            }
+        }
     }
 
     #[inline(always)]
@@ -2849,7 +2895,7 @@ impl<'a, I: Input> Vm<'a, I> {
                     set_register,
                     set_register_value,
                     modifiers,
-                    modifier_stack_len,
+                    modifier_trail_len,
                 } => {
                     self.pc = pc;
                     self.pos = pos;
@@ -2858,7 +2904,7 @@ impl<'a, I: Input> Vm<'a, I> {
                         self.set_register(set_register as usize, set_register_value);
                     }
                     self.modifiers = modifiers;
-                    self.modifier_stack.truncate(modifier_stack_len);
+                    self.undo_modifier_changes(modifier_trail_len);
                 }
                 SavedState::Greedy {
                     pc,
@@ -2868,11 +2914,11 @@ impl<'a, I: Input> Vm<'a, I> {
                     min,
                     backward,
                     modifiers,
-                    modifier_stack_len,
+                    modifier_trail_len,
                 } => {
                     self.undo_register_writes(trail_len);
                     self.modifiers = modifiers;
-                    self.modifier_stack.truncate(modifier_stack_len);
+                    self.undo_modifier_changes(modifier_trail_len);
 
                     let same_matcher_loop_suffix_deficit =
                         self.same_matcher_loop_suffix_deficit(pc as usize, current_pos, backward);
@@ -2970,7 +3016,7 @@ impl<'a, I: Input> Vm<'a, I> {
                                 min,
                                 backward,
                                 modifiers,
-                                modifier_stack_len,
+                                modifier_trail_len,
                             });
                         }
 
@@ -3068,7 +3114,7 @@ impl<'a, I: Input> Vm<'a, I> {
                                 min,
                                 backward,
                                 modifiers,
-                                modifier_stack_len,
+                                modifier_trail_len,
                             });
                         }
 
@@ -3083,11 +3129,11 @@ impl<'a, I: Input> Vm<'a, I> {
                     max,
                     consumed,
                     modifiers,
-                    modifier_stack_len,
+                    modifier_trail_len,
                 } => {
                     self.undo_register_writes(trail_len);
                     self.modifiers = modifiers;
-                    self.modifier_stack.truncate(modifier_stack_len);
+                    self.undo_modifier_changes(modifier_trail_len);
 
                     // Check if we can consume one more.
                     if max.is_some_and(|m| consumed >= m) {
