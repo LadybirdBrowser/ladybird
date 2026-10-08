@@ -12,6 +12,7 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
+use crate::layout_forward::RawNativeFunctionPointer;
 use crate::runtime::abstract_operations::{
     call_function_object, construct, get_prototype_from_constructor, length_of_array_like,
 };
@@ -31,9 +32,13 @@ use crate::runtime::object::ShouldThrowExceptions;
 use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::regexp_constructor::is_raw_native_function_running;
 use crate::runtime::set::Set;
 use crate::runtime::set_iterator::set_iteration_is_unobservable;
 use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
+
+/// The getter of Array[@@species], which has_intrinsic_symbol_species_getter() looks for.
+static SYMBOL_SPECIES_GETTER: RawNativeFunctionPointer = raw_native!(ArrayConstructor::symbol_species_getter);
 
 // OPTIMIZATION: Without a mapper, unobservable collection iteration can copy storage directly.
 fn array_from_set_or_map(
@@ -154,7 +159,7 @@ impl ArrayConstructor {
             vm,
             realm,
             &PropertyKey::from(vm.well_known_symbols().species),
-            raw_native!(ArrayConstructor::symbol_species_getter),
+            SYMBOL_SPECIES_GETTER,
             None,
             PropertyAttributes::new(Attribute::CONFIGURABLE),
         );
@@ -502,6 +507,21 @@ impl ArrayConstructor {
 
         // 9. Return A.
         Ok(Value::from_object(array))
+    }
+
+    /// Whether @@species still resolves to the intrinsic getter, which hands back its this value, so that an
+    /// ArraySpeciesCreate that reaches this constructor observes nothing and constructs an Array.
+    pub fn has_intrinsic_symbol_species_getter(&self, vm: &Vm) -> bool {
+        let Some(species) = self.storage_get(vm, &PropertyKey::from(vm.well_known_symbols().species)) else {
+            return false;
+        };
+        if !species.value.is_accessor() {
+            return false;
+        }
+        let Some(getter) = species.value.as_accessor().getter() else {
+            return false;
+        };
+        is_raw_native_function_running(vm, getter, SYMBOL_SPECIES_GETTER)
     }
 
     // 23.1.2.5 get Array [ @@species ], https://tc39.es/ecma262/#sec-get-array-@@species
