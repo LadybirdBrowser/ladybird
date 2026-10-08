@@ -102,6 +102,7 @@ GC_API void gc_heap_collect_garbage(GCHeap*, int collection_type, bool print_rep
 GC_API bool gc_heap_is_collecting_everything(GCHeap const*);
 GC_API void gc_heap_defer_gc(GCHeap*);
 GC_API void gc_heap_undefer_gc(GCHeap*);
+GC_API bool gc_heap_should_collect_on_every_allocation(GCHeap const*);
 GC_API void gc_heap_set_should_collect_on_every_allocation(GCHeap*, bool);
 GC_API void gc_heap_set_incremental_sweep_enabled(GCHeap*, bool);
 GC_API void gc_heap_uproot_cell(GCHeap*, GCCell*);
