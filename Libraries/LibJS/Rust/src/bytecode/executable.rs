@@ -44,7 +44,6 @@ use crate::runtime::array::Array;
 use crate::runtime::big_int::{BigInt, SignedBigInteger};
 use crate::runtime::environment_shape::{EnvironmentShape, EnvironmentShapeCache};
 use crate::runtime::primitive_string::PrimitiveString;
-use crate::runtime::primitive_string::u64_hash;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
 use crate::runtime::value::number_to_string;
@@ -777,24 +776,22 @@ impl Default for StaticPropertyLookupCaches {
     }
 }
 
-pub const KEYED_PROPERTY_LOOKUP_CACHE_ENTRY_COUNT: usize = 2048;
-
-const _: () = assert!(KEYED_PROPERTY_LOOKUP_CACHE_ENTRY_COUNT.is_power_of_two());
+pub const KEYED_PROPERTY_LOOKUP_CACHE_ENTRY_COUNT: usize = 1 << KEYED_PROPERTY_LOOKUP_CACHE_INDEX_BITS;
+const KEYED_PROPERTY_LOOKUP_CACHE_INDEX_BITS: u32 = 11;
 
 /// One remembered lookup of a property by name on a shape. Like the entries of a PropertyLookupCache, it does not keep
 /// its cells alive; the VM's sweep callback clears the entries whose cells died.
-#[derive(Clone)]
-pub struct KeyedPropertyLookupCacheEntry {
+#[derive(Clone, Copy)]
+pub struct KeyedPropertyLookup {
     pub entry_type: PropertyLookupCacheEntryType,
     pub property_offset: u32,
     pub shape_dictionary_generation: u32,
     pub shape: Option<Gc<Shape>>,
     pub prototype: Option<Gc<Object>>,
     pub prototype_chain_validity: Option<Gc<PrototypeChainValidity>>,
-    pub property_name: Option<Utf16FlyString>,
 }
 
-impl Default for KeyedPropertyLookupCacheEntry {
+impl Default for KeyedPropertyLookup {
     fn default() -> Self {
         Self {
             entry_type: PropertyLookupCacheEntryType::Empty,
@@ -803,20 +800,22 @@ impl Default for KeyedPropertyLookupCacheEntry {
             shape: None,
             prototype: None,
             prototype_chain_validity: None,
-            property_name: None,
         }
     }
 }
 
-/// The VM-wide cache of string-keyed GetByValue lookups. Entries are copied in and out, so that none is borrowed
-/// while the lookup it caches runs.
-pub struct KeyedPropertyLookupCache {
-    entries: RefCell<Box<[KeyedPropertyLookupCacheEntry]>>,
+/// A lookup with the name of the property it looked up, which the entry keeps alive so that its identity stays
+/// unique.
+#[derive(Default)]
+struct KeyedPropertyLookupCacheEntry {
+    lookup: KeyedPropertyLookup,
+    property_name: Option<Utf16FlyString>,
 }
 
-/// Mirrors AK::pair_int_hash.
-fn pair_int_hash(key1: u32, key2: u32) -> u32 {
-    u64_hash((u64::from(key1) << 32) | u64::from(key2))
+/// The VM-wide cache of string-keyed GetByValue lookups. Lookups are copied out, so that no entry is borrowed while
+/// the lookup it caches runs.
+pub struct KeyedPropertyLookupCache {
+    entries: RefCell<Box<[KeyedPropertyLookupCacheEntry]>>,
 }
 
 impl KeyedPropertyLookupCache {
@@ -830,31 +829,47 @@ impl KeyedPropertyLookupCache {
         }
     }
 
-    /// The index of the one entry that may hold the lookup of `property_name` on `shape`. Fly strings are interned,
-    /// so the identity of the name stands in for the hash of its contents.
+    /// The index of the one entry that may hold the lookup of `property_name` on `shape`: the top bits of the
+    /// Fibonacci hash of the shape's address and the name's identity. Fly strings are interned, so the identity of the
+    /// name stands in for the hash of its contents.
     pub fn entry_index_for(shape: Gc<Shape>, property_name: &Utf16FlyString) -> usize {
-        let shape_hash = u64_hash(shape.as_ptr().addr() as u64);
-        let property_name_hash = u64_hash(property_name.raw_identity() as u64);
-        pair_int_hash(shape_hash, property_name_hash) as usize & (KEYED_PROPERTY_LOOKUP_CACHE_ENTRY_COUNT - 1)
+        let identity = (shape.as_ptr().addr() as u64) ^ (property_name.raw_identity() as u64).rotate_left(32);
+        let hash = (identity ^ (identity >> 32)) as u32;
+        (hash.wrapping_mul(MEGAMORPHIC_HASH_MULTIPLIER) >> (32 - KEYED_PROPERTY_LOOKUP_CACHE_INDEX_BITS)) as usize
     }
 
-    pub fn entry(&self, index: usize) -> KeyedPropertyLookupCacheEntry {
-        self.entries.borrow()[index].clone()
+    /// The lookup entry `index` remembers for `property_name` on `shape`, if it is for them.
+    pub fn lookup(
+        &self,
+        index: usize,
+        shape: Gc<Shape>,
+        property_name: &Utf16FlyString,
+    ) -> Option<KeyedPropertyLookup> {
+        let entries = self.entries.borrow();
+        let entry = &entries[index];
+        (entry.lookup.shape == Some(shape) && entry.property_name.as_ref() == Some(property_name))
+            .then_some(entry.lookup)
     }
 
-    pub fn set_entry(&self, index: usize, entry: KeyedPropertyLookupCacheEntry) {
-        self.entries.borrow_mut()[index] = entry;
+    pub fn set_entry(&self, index: usize, lookup: KeyedPropertyLookup, property_name: &Utf16FlyString) {
+        let mut entries = self.entries.borrow_mut();
+        let entry = &mut entries[index];
+        entry.lookup = lookup;
+        if entry.property_name.as_ref() != Some(property_name) {
+            entry.property_name = Some(property_name.clone());
+        }
     }
 
     /// Forgets the entries with a cell that died in this collection. Only the VM's sweep callback calls this.
     pub fn remove_dead_entries(&self) {
         for entry in self.entries.borrow_mut().iter_mut() {
-            if entry.entry_type == PropertyLookupCacheEntryType::Empty {
+            let lookup = &entry.lookup;
+            if lookup.entry_type == PropertyLookupCacheEntryType::Empty {
                 continue;
             }
-            if entry.shape.is_some_and(cell_is_dead)
-                || entry.prototype.is_some_and(cell_is_dead)
-                || entry.prototype_chain_validity.is_some_and(cell_is_dead)
+            if lookup.shape.is_some_and(cell_is_dead)
+                || lookup.prototype.is_some_and(cell_is_dead)
+                || lookup.prototype_chain_validity.is_some_and(cell_is_dead)
             {
                 *entry = KeyedPropertyLookupCacheEntry::default();
             }
