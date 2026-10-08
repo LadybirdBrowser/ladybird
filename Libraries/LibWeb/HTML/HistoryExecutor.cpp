@@ -828,8 +828,9 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
     auto& operation = ensure_history_operation(operation_id);
     auto source_snapshot_params = operation.source_snapshot_params;
     auto pending_document = operation.pending_document;
+    // The update for a navigable's creation targets an entry the navigable retains, not the one the request gave.
     RefPtr<SessionHistoryEntry> local_target_entry;
-    if (operation.local_target_navigable_id == navigable_id) {
+    if (operation.local_target_navigable_id == navigable_id && navigation_type.has_value()) {
         VERIFY(operation.local_target_entry);
         local_target_entry = operation.local_target_entry;
     }
@@ -842,11 +843,6 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
     if (!navigable) {
         on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Skipped, UnloadDisplayedDocument::No);
         return;
-    }
-    // A navigable created by a repopulated document targets the entry its nested history kept, not its initial one.
-    if (local_target_entry && !navigation_type.has_value() && !navigable->has_session_history_entry_and_ready_for_navigation()
-        && local_target_entry->document_state() && local_target_entry->document_state()->cross_process_id() != target_entry.document_state.id) {
-        local_target_entry = nullptr;
     }
     if (local_target_entry) {
         auto document_state = local_target_entry->document_state();
