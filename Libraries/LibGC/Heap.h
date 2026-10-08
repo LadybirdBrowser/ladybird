@@ -316,6 +316,8 @@ private:
 
     RefPtr<Core::Timer> m_idle_gc_timer;
     u64 m_total_allocated_bytes { 0 };
+    // The context a heap created through LibGC/CAPI.h was created with.
+    void* m_foreign_context { nullptr };
     IdleCollectionPolicy m_idle_collection_policy;
 };
 

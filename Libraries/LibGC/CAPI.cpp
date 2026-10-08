@@ -150,6 +150,8 @@ struct CAPI {
     // Foreign code reads and writes the head of the list as a plain pointer.
     static_assert(sizeof(RawPtr<Cell>) == sizeof(Cell*));
     static RawPtr<Cell>* local_free_list(Heap& heap, CellAllocatorDescriptorBase& descriptor) { return descriptor.for_heap(heap).local_free_list({}); }
+    static void set_foreign_context(Heap& heap, void* context) { heap.m_foreign_context = context; }
+    static void* foreign_context(Heap& heap) { return heap.m_foreign_context; }
     static void defer_gc(Heap& heap) { heap.defer_gc(); }
     static void undefer_gc(Heap& heap) { heap.undefer_gc(); }
     static StackInfo const& stack_info(Heap const& heap) { return heap.m_stack_info; }
@@ -221,6 +223,7 @@ GCHeap* gc_heap_create(GCGatherRootsCallback gather_roots, void* context, bool b
             gather_roots(context, reinterpret_cast<GCVisitor*>(static_cast<Cell::Visitor*>(&visitor)));
         },
         become_process_default ? Heap::BecomeProcessDefault::Yes : Heap::BecomeProcessDefault::No);
+    CAPI::set_foreign_context(*heap, context);
     return reinterpret_cast<GCHeap*>(heap);
 }
 
@@ -335,6 +338,11 @@ GCCell** gc_heap_allocator_local_free_list(GCHeap* heap, GCAllocator* allocator)
     auto& descriptor = *reinterpret_cast<CAPICellAllocator*>(allocator);
     return reinterpret_cast<GCCell**>(CAPI::local_free_list(as_heap(heap), descriptor));
 #endif
+}
+
+void* gc_cell_heap_context(GCCell const* cell)
+{
+    return CAPI::foreign_context(HeapBlockBase::from_cell(reinterpret_cast<Cell const*>(cell))->heap());
 }
 
 GCCellTypeInfo const* gc_cell_type_info(GCCell const* cell)
