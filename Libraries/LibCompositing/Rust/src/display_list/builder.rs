@@ -559,6 +559,20 @@ pub fn inline_transform_of(header: &DisplayListCommandHeader, payload: &[u8]) ->
         .map(|offset| read_command::<DisplayListInlineTransform>(&payload[offset..]).transform)
 }
 
+/// The inline clip entries at the end of a record's payload, in the order the player pushes them.
+pub fn inline_clips_of<'a>(
+    header: &DisplayListCommandHeader,
+    payload: &'a [u8],
+) -> impl Iterator<Item = DisplayListInlineClip> + use<'a> {
+    let count = usize::from(header.inline_clip_count);
+    let entries = &payload[payload.len() - count * INLINE_CLIP_ENTRY_SIZE..];
+    entries
+        .as_chunks::<INLINE_CLIP_ENTRY_SIZE>()
+        .0
+        .iter()
+        .map(|entry| read_command::<DisplayListInlineClip>(entry))
+}
+
 pub fn read_header(bytes: &[u8]) -> DisplayListCommandHeader {
     assert!(bytes.len() >= HEADER_SIZE);
     let cursor = HeaderReader { bytes };

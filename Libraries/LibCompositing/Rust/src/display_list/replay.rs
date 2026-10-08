@@ -4,18 +4,24 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::display_list::builder::{for_each_command, inline_clips_of, inline_transform_of, read_command};
 use crate::display_list::commands::{
-    ClipNodeIndex, DisplayListCommandRun, EffectNodeIndex, ReplayClip, ReplayLayer, ReplayMask, SpatialNodeIndex,
+    ClipNodeIndex, DisplayListCommandRun, DisplayListCommandType, EffectNodeIndex, InlineClipKind, PaintScrollBar,
+    ReplayClip, ReplayLayer, ReplayMask, SpatialNodeIndex,
 };
 use crate::display_list::depth_sorted_plan::{DepthSortedReplayStepKind, build_depth_sorted_replay_plan};
 use crate::display_list::effect_clip_plan::EffectClipPlan;
+use crate::display_list::ffi_bytes::FfiBytes;
+use crate::display_list::nested_records::span_bytes;
 use crate::visual_context::queries::TreeCullingScratch;
 use crate::visual_context::{
     ClipNodeData, ContextRef, EffectNodeData, SpatialData, VisualContextTree, device_offset_for_index,
     resolve_leaf_to_context_matrices, should_cull_back_face,
 };
 use libgfx_rust::path::OwnedPath;
-use libgfx_rust::{CornerRadii, FloatMatrix4x4, FloatPoint, FloatVector3, IntRect, WindingRule, translation_matrix};
+use libgfx_rust::{
+    AffineTransform, CornerRadii, FloatMatrix4x4, FloatPoint, FloatVector3, IntRect, WindingRule, translation_matrix,
+};
 use std::cell::RefCell;
 
 pub trait ReplayPainter {
@@ -29,7 +35,73 @@ pub trait ReplayPainter {
     fn pop_mask(&mut self, mask: &ReplayMask, effect: EffectNodeIndex);
     fn pop(&mut self);
     fn push_device_space_plane_clip(&mut self, vertices: &[FloatVector3]);
-    fn execute_run(&mut self, run_index: usize);
+    fn push_transform(&mut self, transform: &AffineTransform);
+    fn push_clip_path_bytes(&mut self, path_bytes: &[u8], winding_rule: WindingRule);
+    // Plays one command. `command` holds the command struct, which can differ from the one at the start of
+    // `payload`; the command's spans point into `payload`.
+    fn play_command(&mut self, command_type: DisplayListCommandType, command: &[u8], payload: &[u8]);
+
+    fn execute_run(&mut self, _run_index: usize, records: &[u8], scroll_offsets: &[FloatPoint]) {
+        replay_records(records, scroll_offsets, self);
+    }
+}
+
+/// Plays one stream of records: the records of a run, or the records nested in a command. Compositor
+/// metadata is skipped, a command whose bounds are empty or clipped away is culled, and each command plays
+/// inside its inline clips and transform. A scroll bar's thumb moves by the offset of its scroll node.
+pub fn replay_records<Painter: ReplayPainter + ?Sized>(
+    records: &[u8],
+    scroll_offsets: &[FloatPoint],
+    painter: &mut Painter,
+) {
+    for_each_command(records, |header, _, payload| {
+        if header.command_type.is_compositor_metadata() {
+            return;
+        }
+        if header.has_bounding_rect
+            && (header.bounding_rect.is_empty() || painter.would_be_fully_clipped_by_painter(header.bounding_rect))
+        {
+            return;
+        }
+        for clip in inline_clips_of(header, payload) {
+            match clip.kind {
+                InlineClipKind::Path => {
+                    painter.push_clip_path_bytes(span_bytes(payload, clip.path_data), clip.path_winding_rule);
+                }
+                InlineClipKind::Rect | InlineClipKind::RoundedRect => painter.push_clip(&ReplayClip {
+                    rect: clip.clip_rect_or_path_device_bounds,
+                    corner_radii: clip.corner_radii,
+                    mode: clip.mode,
+                }),
+            }
+        }
+        let inline_transform = inline_transform_of(header, payload);
+        if let Some(transform) = &inline_transform {
+            painter.push_transform(transform);
+        }
+        if header.command_type == DisplayListCommandType::PaintScrollBar {
+            let mut command = read_command::<PaintScrollBar>(payload);
+            let device_offset = device_offset_for_index(scroll_offsets, command.scroll_node_index);
+            if command.vertical {
+                let shift = (-f64::from(device_offset.y) * command.scroll_size) as i32;
+                command.thumb_rect.y = command.thumb_rect.y.saturating_add(shift);
+            } else {
+                let shift = (-f64::from(device_offset.x) * command.scroll_size) as i32;
+                command.thumb_rect.x = command.thumb_rect.x.saturating_add(shift);
+            }
+            let mut command_bytes = [0u8; std::mem::size_of::<PaintScrollBar>()];
+            command.write_ffi_bytes(&mut command_bytes);
+            painter.play_command(header.command_type, &command_bytes, payload);
+        } else {
+            painter.play_command(header.command_type, payload, payload);
+        }
+        if inline_transform.is_some() {
+            painter.pop();
+        }
+        for _ in 0..header.inline_clip_count {
+            painter.pop();
+        }
+    });
 }
 
 // Cumulative to-root matrices for every spatial node, resolved against the live scroll offsets
@@ -101,7 +173,9 @@ enum SwitchResult {
 
 struct ReplayDriver<'a, Painter: ReplayPainter> {
     tree: &'a VisualContextTree,
+    tape: &'a [u8],
     command_runs: &'a [DisplayListCommandRun],
+    scroll_offsets: &'a [FloatPoint],
     effect_clips: &'a EffectClipPlan,
     painter: &'a mut Painter,
     palette: ReplayPaletteStorage,
@@ -476,7 +550,8 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
         {
             return;
         }
-        self.painter.execute_run(run_index);
+        let records = &self.tape[run.offset as usize..(run.offset + run.size) as usize];
+        self.painter.execute_run(run_index, records, self.scroll_offsets);
     }
 
     fn execute(&mut self) {
@@ -553,6 +628,7 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
 
 pub fn replay_display_list(
     tree: &VisualContextTree,
+    tape: &[u8],
     command_runs: &[DisplayListCommandRun],
     effect_clips: &EffectClipPlan,
     scroll_offsets: &[FloatPoint],
@@ -563,7 +639,9 @@ pub fn replay_display_list(
     tree.fill_culling_scratch(&mut scratch.culling);
     let mut driver = ReplayDriver {
         tree,
+        tape,
         command_runs,
+        scroll_offsets,
         effect_clips,
         painter,
         palette: scratch.palette,
@@ -761,7 +839,13 @@ mod tests {
         fn push_device_space_plane_clip(&mut self, vertices: &[FloatVector3]) {
             self.events.push(PainterEvent::PushPlaneClip(vertices.len()));
         }
-        fn execute_run(&mut self, run_index: usize) {
+        fn push_transform(&mut self, _transform: &AffineTransform) {}
+
+        fn push_clip_path_bytes(&mut self, _path_bytes: &[u8], _winding_rule: WindingRule) {}
+
+        fn play_command(&mut self, _command_type: DisplayListCommandType, _command: &[u8], _payload: &[u8]) {}
+
+        fn execute_run(&mut self, run_index: usize, _records: &[u8], _scroll_offsets: &[FloatPoint]) {
             self.events.push(PainterEvent::Run(run_index));
         }
     }
@@ -851,7 +935,7 @@ mod tests {
     }
 
     fn replay(tree: &VisualContextTree, runs: &[DisplayListCommandRun], painter: &mut RecordingPainter) {
-        replay_display_list(tree, runs, &EffectClipPlan::new(tree, runs).unwrap(), &[], painter);
+        replay_display_list(tree, &[], runs, &EffectClipPlan::new(tree, runs).unwrap(), &[], painter);
     }
 
     #[test]
@@ -1431,6 +1515,7 @@ mod tests {
         let base = painter.base_matrix;
         replay_display_list(
             &tree,
+            &[],
             &runs,
             &EffectClipPlan::new(&tree, &runs).unwrap(),
             &scroll_offsets,

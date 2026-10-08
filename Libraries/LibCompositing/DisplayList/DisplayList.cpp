@@ -226,63 +226,55 @@ void DisplayListPlayer::execute_nested_display_list(
     execute_impl(display_list, scroll_state_snapshot);
 }
 
-void DisplayListPlayer::execute_run_commands(DisplayListCommandRun const& run, ScrollStateSnapshot const& scroll_state)
+// Builds the callbacks the Rust replay drives a player through.
+struct DisplayListPlayer::ReplayCallbacks {
+    static Compositing::RustFFI::FfiDisplayListReplayCallbacks for_player(DisplayListPlayer& player)
+    {
+        return {
+            .context = &player,
+            .canvas_matrix = [](void* context) -> Gfx::FloatMatrix4x4 { return static_cast<DisplayListPlayer*>(context)->canvas_matrix(); },
+            .set_matrix = [](void* context, Gfx::FloatMatrix4x4 const* matrix) { static_cast<DisplayListPlayer*>(context)->set_matrix(*matrix); },
+            .would_be_fully_clipped_by_painter = [](void* context, Gfx::IntRect rect) -> bool {
+                return static_cast<DisplayListPlayer*>(context)->would_be_fully_clipped_by_painter(rect);
+            },
+            .push_clip = [](void* context, ReplayClip const* clip) { static_cast<DisplayListPlayer*>(context)->push_clip(*clip); },
+            .push_clip_path = [](void* context, void const* path, Gfx::WindingRule winding_rule) { static_cast<DisplayListPlayer*>(context)->push_clip_path(*static_cast<Gfx::Path const*>(path), winding_rule); },
+            .push_layer = [](void* context, ReplayLayer const* layer) { static_cast<DisplayListPlayer*>(context)->push_layer(*layer); },
+            .push_mask = [](void* context, ReplayMask const* mask) { static_cast<DisplayListPlayer*>(context)->push_mask(*mask); },
+            .pop_mask = [](void* context, ReplayMask const* mask, EffectNodeIndex effect) { static_cast<DisplayListPlayer*>(context)->pop_mask(*mask, effect); },
+            .pop = [](void* context) { static_cast<DisplayListPlayer*>(context)->pop(); },
+            .push_device_space_plane_clip = [](void* context, Gfx::FloatVector3 const* vertices, size_t vertex_count) {
+                Gfx::Path path;
+                path.move_to({ vertices[0].x(), vertices[0].y() });
+                for (size_t i = 1; i < vertex_count; ++i)
+                    path.line_to({ vertices[i].x(), vertices[i].y() });
+                path.close();
+                static_cast<DisplayListPlayer*>(context)->push_device_space_plane_clip(path); },
+            .push_transform = [](void* context, Gfx::AffineTransform const* transform) { static_cast<DisplayListPlayer*>(context)->push_transform(*transform); },
+            .push_clip_path_bytes = [](void* context, u8 const* path_bytes, size_t path_bytes_size, Gfx::WindingRule winding_rule) { static_cast<DisplayListPlayer*>(context)->push_clip_path(Gfx::Path::from_serialized_bytes({ path_bytes, path_bytes_size }), winding_rule); },
+            .play_command = [](void* context, DisplayListCommandType command_type, u8 const* command, u8 const* payload, size_t payload_size) { static_cast<DisplayListPlayer*>(context)->play_command_bytes(command_type, command, { payload, payload_size }); },
+        };
+    }
+};
+
+void DisplayListPlayer::play_command_bytes(DisplayListCommandType command_type, u8 const* command, ReadonlyBytes payload)
 {
-    execute_command_bytes(active_display_list().command_bytes_of_run(run), scroll_state);
+    TemporaryChange current_command_payload_change { m_current_command_payload, payload };
+    switch (command_type) {
+#define PLAY_DISPLAY_LIST_COMMAND(command_type)                                                  \
+    case DisplayListCommandType::command_type:                                                   \
+        play_command(read_display_list_object<command_type>({ command, sizeof(command_type) })); \
+        break;
+        ENUMERATE_DISPLAY_LIST_COMMANDS(PLAY_DISPLAY_LIST_COMMAND)
+#undef PLAY_DISPLAY_LIST_COMMAND
+    }
 }
 
 void DisplayListPlayer::execute_command_bytes(ReadonlyBytes command_bytes, ScrollStateSnapshot const& scroll_state)
 {
-    DisplayList::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
-        if (display_list_command_is_compositor_metadata(header.command_type))
-            return;
-
-        auto bounding_rect = header.has_bounding_rect
-            ? Optional<Gfx::IntRect>(header.bounding_rect)
-            : Optional<Gfx::IntRect> {};
-
-        if (bounding_rect.has_value() && (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect)))
-            return;
-
-        TemporaryChange current_command_payload_change { m_current_command_payload, payload };
-        for_each_display_list_inline_clip(header, payload, [&](DisplayListInlineClip const& inline_clip) {
-            if (inline_clip.kind == InlineClipKind::Path) {
-                auto path_bytes = payload.slice(inline_clip.path_data.offset, inline_clip.path_data.size);
-                push_clip_path(Gfx::Path::from_serialized_bytes(path_bytes), inline_clip.path_winding_rule);
-            } else {
-                push_clip(ReplayClip { .rect = inline_clip.clip_rect_or_path_device_bounds, .corner_radii = inline_clip.corner_radii, .mode = inline_clip.mode });
-            }
-        });
-        auto inline_transform = display_list_inline_transform(header, payload);
-        if (inline_transform.has_value())
-            push_transform(*inline_transform);
-        auto dispatch_command = [&]<DisplayListCommand Command>(auto&& callback) {
-            auto command = read_display_list_command_payload<Command>(payload);
-            if constexpr (IsSame<Command, PaintScrollBar>) {
-                auto device_offset = scroll_state.device_offset_for_index(command.scroll_node_index);
-                if (command.vertical)
-                    command.thumb_rect.translate_by(0, static_cast<int>(-device_offset.y() * command.scroll_size));
-                else
-                    command.thumb_rect.translate_by(static_cast<int>(-device_offset.x() * command.scroll_size), 0);
-            }
-            callback(command);
-        };
-
-        switch (header.command_type) {
-#define DISPATCH_DISPLAY_LIST_COMMAND(command_type)                                   \
-    case DisplayListCommandType::command_type:                                        \
-        dispatch_command.template operator()<command_type>([&](auto const& command) { \
-            play_command(command);                                                    \
-        });                                                                           \
-        break;
-            ENUMERATE_DISPLAY_LIST_COMMANDS(DISPATCH_DISPLAY_LIST_COMMAND)
-#undef DISPATCH_DISPLAY_LIST_COMMAND
-        }
-        if (inline_transform.has_value())
-            pop();
-        for (u8 index = 0; index < header.inline_clip_count; ++index)
-            pop();
-    });
+    auto callbacks = ReplayCallbacks::for_player(*this);
+    auto scroll_offsets = scroll_state.device_offsets();
+    Compositing::RustFFI::display_list_replay_records(command_bytes.data(), command_bytes.size(), scroll_offsets.data(), scroll_offsets.size(), &callbacks);
 }
 
 void DisplayListPlayer::declare_mask_content(EffectNodeIndex effect, ReadonlyBytes content)
@@ -303,39 +295,11 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
     VERIFY(display_list.compatible_visual_context_tree_structural_epoch() == visual_context_tree.structural_epoch());
     VERIFY(m_surface);
 
-    struct ReplayContext {
-        DisplayListPlayer& player;
-        ScrollStateSnapshot const& scroll_state;
-    } replay_context { *this, scroll_state };
-
-    Compositing::RustFFI::FfiDisplayListReplayCallbacks callbacks {
-        .context = &replay_context,
-        .canvas_matrix = [](void* context) -> Gfx::FloatMatrix4x4 { return static_cast<ReplayContext*>(context)->player.canvas_matrix(); },
-        .set_matrix = [](void* context, Gfx::FloatMatrix4x4 const* matrix) { static_cast<ReplayContext*>(context)->player.set_matrix(*matrix); },
-        .would_be_fully_clipped_by_painter = [](void* context, Gfx::IntRect rect) -> bool {
-            return static_cast<ReplayContext*>(context)->player.would_be_fully_clipped_by_painter(rect);
-        },
-        .push_clip = [](void* context, ReplayClip const* clip) { static_cast<ReplayContext*>(context)->player.push_clip(*clip); },
-        .push_clip_path = [](void* context, void const* path, Gfx::WindingRule winding_rule) { static_cast<ReplayContext*>(context)->player.push_clip_path(*static_cast<Gfx::Path const*>(path), winding_rule); },
-        .push_layer = [](void* context, ReplayLayer const* layer) { static_cast<ReplayContext*>(context)->player.push_layer(*layer); },
-        .push_mask = [](void* context, ReplayMask const* mask) { static_cast<ReplayContext*>(context)->player.push_mask(*mask); },
-        .pop_mask = [](void* context, ReplayMask const* mask, EffectNodeIndex effect) { static_cast<ReplayContext*>(context)->player.pop_mask(*mask, effect); },
-        .pop = [](void* context) { static_cast<ReplayContext*>(context)->player.pop(); },
-        .push_device_space_plane_clip = [](void* context, Gfx::FloatVector3 const* vertices, size_t vertex_count) {
-            Gfx::Path path;
-            path.move_to({ vertices[0].x(), vertices[0].y() });
-            for (size_t i = 1; i < vertex_count; ++i)
-                path.line_to({ vertices[i].x(), vertices[i].y() });
-            path.close();
-            static_cast<ReplayContext*>(context)->player.push_device_space_plane_clip(path); },
-        .execute_run = [](void* context, size_t run_index) {
-            auto& replay = *static_cast<ReplayContext*>(context);
-            replay.player.execute_run_commands(replay.player.active_display_list().command_runs()[run_index], replay.scroll_state); },
-    };
-
+    auto callbacks = ReplayCallbacks::for_player(*this);
+    auto command_bytes = display_list.command_bytes();
     auto command_runs = display_list.command_runs();
     auto scroll_offsets = scroll_state.device_offsets();
-    Compositing::RustFFI::display_list_replay(visual_context_tree.rust_handle(), display_list.replay_effect_clip_plan(visual_context_tree), command_runs.data(), command_runs.size(), scroll_offsets.data(), scroll_offsets.size(), &callbacks);
+    Compositing::RustFFI::display_list_replay(visual_context_tree.rust_handle(), display_list.replay_effect_clip_plan(visual_context_tree), command_bytes.data(), command_bytes.size(), command_runs.data(), command_runs.size(), scroll_offsets.data(), scroll_offsets.size(), &callbacks);
 }
 
 }
