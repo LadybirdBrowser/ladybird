@@ -6,6 +6,7 @@
 
 #include <LibWebView/CanonicalNavigable.h>
 
+#include <AK/AnyOf.h>
 #include <AK/Random.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/HTML/HistoryOperation.h>
@@ -796,10 +797,7 @@ ErrorOr<CanonicalNavigable::PageToPopulateDocument> CanonicalNavigable::obtain_p
     response_document->document_id = Application::the().allocate_ui_process_cross_process_id();
     auto document = create_and_initialize_a_document(*response_document);
     loader.set_document(*document, *this);
-    if (auto* navigation = uncommitted_navigation(); navigation && navigation->history_entry == &entry)
-        populate_document_for_navigation(*navigation, document, loader.result().inline_content_origin);
-    else
-        populate_document(document_state, document, loader.result().inline_content_origin);
+    populate_document(document_state, document, loader.result().inline_content_origin);
 
     // A document created for inline content stands in for the resource the process that fetched it could not load; that
     // process hosts it.
@@ -807,7 +805,7 @@ ErrorOr<CanonicalNavigable::PageToPopulateDocument> CanonicalNavigable::obtain_p
     if (!response_document->is_inline_content || is_top_level_traversable()) {
         auto host_or_error = obtain_page_to_host(*document, document_state->initiator_origin);
         if (host_or_error.is_error()) {
-            abandon_populated_document(*document);
+            abandon_populated_document(document_state, *document);
             return host_or_error.release_error();
         }
         host = host_or_error.release_value();
@@ -834,25 +832,21 @@ RefPtr<CanonicalDocument> CanonicalNavigable::document_with_id(Web::HTML::CrossP
     return document;
 }
 
+// A document state that is not a navigation's is a history job's, which the navigable holds while the job runs.
 void CanonicalNavigable::populate_document(NonnullRefPtr<CanonicalDocumentState> document_state, NonnullRefPtr<CanonicalDocument> document, Optional<URL::Origin> inline_content_origin)
 {
     document->determine_whether_it_is_local_file_content(blob_url_store());
     if (document->is_local_file_content())
         document_state->held_local_file_content = true;
-    if (m_document_state_populated_by_history_job)
-        abandon_populated_document(m_document_state_populated_by_history_job.release_nonnull());
-    document_state->populated_document = PopulatedDocument { move(document), move(inline_content_origin) };
-    m_document_state_populated_by_history_job = move(document_state);
-}
-
-void CanonicalNavigable::populate_document_for_navigation(CanonicalNavigation& navigation, NonnullRefPtr<CanonicalDocument> document, Optional<URL::Origin> inline_content_origin)
-{
-    VERIFY(navigation.history_entry);
-    NonnullRefPtr document_state = navigation.history_entry->document_state;
-    document->determine_whether_it_is_local_file_content(blob_url_store());
-    if (document->is_local_file_content())
-        document_state->held_local_file_content = true;
     abandon_populated_document(document_state);
+    auto is_for_navigation = any_of(m_navigations, [&](auto const& navigation) {
+        return navigation->history_entry && navigation->history_entry->document_state == document_state;
+    });
+    if (!is_for_navigation) {
+        if (m_document_state_populated_by_history_job)
+            abandon_populated_document(m_document_state_populated_by_history_job.release_nonnull());
+        m_document_state_populated_by_history_job = document_state;
+    }
     document_state->populated_document = PopulatedDocument { move(document), move(inline_content_origin) };
 }
 
@@ -868,7 +862,7 @@ void CanonicalNavigable::populate_document_for_javascript_url(CanonicalNavigatio
     if (document->web_ui_host().has_value() && document->web_ui_host() != active_document().web_ui_host())
         return;
     navigation.history_entry = move(history_entry);
-    populate_document_for_navigation(navigation, move(document));
+    populate_document(navigation.history_entry->document_state, move(document));
 }
 
 // The process hosting a document populated for the navigable created it with an origin other than its navigation
@@ -906,15 +900,10 @@ void CanonicalNavigable::did_create_populated_document_with_an_origin_of_its_own
     populated_document->document = move(document);
 }
 
-void CanonicalNavigable::abandon_populated_document(CanonicalDocument const& document)
+void CanonicalNavigable::abandon_populated_document(NonnullRefPtr<CanonicalDocumentState> document_state, CanonicalDocument const& document)
 {
-    RefPtr<CanonicalDocumentState> document_state_holding_document;
-    for_each_populated_document_state([&](CanonicalDocumentState& document_state) {
-        if (document_state.populated_document->document == &document)
-            document_state_holding_document = document_state;
-    });
-    if (document_state_holding_document)
-        abandon_populated_document(document_state_holding_document.release_nonnull());
+    if (document_state->populated_document.has_value() && document_state->populated_document->document == &document)
+        abandon_populated_document(move(document_state));
 }
 
 // A page created to host the abandoned document is discarded, unless it hosts another document of the navigable.
