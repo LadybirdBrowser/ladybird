@@ -126,6 +126,7 @@ asm_dispatch_table:
     .quad asm_handler_GetMethod
     .quad asm_handler_GetIterator
     .quad asm_handler_GetGlobal
+    .quad asm_handler_ResolveGlobalBinding
     .quad asm_handler_SetGlobal
     .quad asm_handler_Call
     .quad asm_handler_CallBuiltinMathAbs
@@ -233,7 +234,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsRhsInt32
     .quad asm_handler_JumpLooselyEqualsRhsInt32
     .quad asm_handler_JumpLooselyInequalsRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -989,6 +989,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_GetGlobal_hot_end
     .quad asm_handler_GetGlobal_cold
     .quad asm_handler_GetGlobal_cold_end
+    .quad asm_handler_ResolveGlobalBinding
+    .quad asm_handler_ResolveGlobalBinding_hot_end
+    .quad asm_handler_ResolveGlobalBinding_cold
+    .quad asm_handler_ResolveGlobalBinding_cold_end
     .quad asm_handler_SetGlobal
     .quad asm_handler_SetGlobal_hot_end
     .quad asm_handler_SetGlobal_cold
@@ -1417,10 +1421,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -5008,6 +5008,53 @@ asm_handler_GetGlobal:
     ldr x10, [x19, x9, lsl #3]
     br x10
 asm_handler_GetGlobal_hot_end:
+
+.p2align 4
+asm_handler_ResolveGlobalBinding:
+    ldr x0, [x28, #8]
+    ldp x2, x3, [x0, #16]
+    ldr x0, [x28, #88]
+    cbz x0, .Lasm_ResolveGlobalBinding.assert_predicate_failure_9
+    ldr x1, [x0, #104]
+    cbz x1, .Lasm_ResolveGlobalBinding.assert_failure_0
+    ldr w0, [x21, #12]
+    mov w9, #72
+    mul x0, x0, x9
+    adds x0, x0, x1
+    cbz x0, .Lasm_ResolveGlobalBinding.assert_predicate_failure_15
+    ldr x1, [x0, #56]
+    ldr x9, [x3, #64]
+    cmp x9, x1
+    b.ne .Lasm_ResolveGlobalBinding.ssa_block_1
+    ldr x1, [x2, #24]
+    cbz x1, .Lasm_ResolveGlobalBinding.assert_failure_1
+    ldr x9, [x0, #24]
+    cmp x9, x1
+    b.ne .Lasm_ResolveGlobalBinding.ssa_block_2
+    ldr w2, [x0, #8]
+    ldr w9, [x1, #52]
+    cmp w9, w2
+    b.ne .Lasm_ResolveGlobalBinding.ssa_block_2
+    ldr w9, [x21, #4]
+    movz x10, #0x1, lsl #0
+    movk x10, #0x7ff9, lsl #48
+    str x10, [x27, x9, lsl #3]
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ResolveGlobalBinding.ssa_block_2:
+    ldrb w9, [x0, #68]
+    cbz w9, .Lasm_ResolveGlobalBinding.ssa_block_1
+    ldr w9, [x21, #4]
+    movz x10, #0x1, lsl #0
+    movk x10, #0x7ff9, lsl #48
+    str x10, [x27, x9, lsl #3]
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_ResolveGlobalBinding_hot_end:
 
 .p2align 4
 asm_handler_SetGlobal:
@@ -13670,6 +13717,49 @@ asm_handler_GetGlobal_cold:
     ldr x10, [x19, x9, lsl #3]
     br x10
 asm_handler_GetGlobal_cold_end:
+asm_handler_ResolveGlobalBinding_cold:
+// Cold paths for ResolveGlobalBinding
+.Lasm_ResolveGlobalBinding.ssa_block_1:
+    mov x0, x20
+    sub w1, w21, w26
+    str w1, [x28, #64]
+    mov x0, x20
+    sub w1, w21, w26
+    mov x2, x21
+    bl CSYM(asm_slow_path_resolve_global_binding)
+    tbz x0, #63, 1f
+    b .Lasm_ResolveGlobalBinding.scalar_result_done_2
+1:
+    tbnz x0, #32, 1f
+    b .Lasm_ResolveGlobalBinding.scalar_result_done_2
+1:
+    ldr w9, [x21, #4]
+    str x1, [x27, x9, lsl #3]
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ResolveGlobalBinding.scalar_result_done_2:
+    tbz x0, #63, 1f
+    b .Lexit
+1:
+    tbnz x0, #32, 1f
+    b .Lasm_ResolveGlobalBinding.slow_path_transfer_3
+1:
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ResolveGlobalBinding.slow_path_transfer_3:
+    ldr x28, [x20]
+    ldr x9, [x28, #88]
+    ldr x26, [x9, #40]
+    add x27, x28, #128
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_ResolveGlobalBinding_cold_end:
 asm_handler_SetGlobal_cold:
 // Cold paths for SetGlobal
 .Lasm_SetGlobal.ssa_block_1:
@@ -19841,6 +19931,14 @@ asm_assertion_failure_traps:
 .Lasm_GetGlobal.assert_failure_2:
     brk #0
 .Lasm_GetGlobal.assert_failure_3:
+    brk #0
+.Lasm_ResolveGlobalBinding.assert_predicate_failure_9:
+    brk #0
+.Lasm_ResolveGlobalBinding.assert_failure_0:
+    brk #0
+.Lasm_ResolveGlobalBinding.assert_predicate_failure_15:
+    brk #0
+.Lasm_ResolveGlobalBinding.assert_failure_1:
     brk #0
 .Lasm_SetGlobal.assert_predicate_failure_9:
     brk #0

@@ -3057,6 +3057,35 @@ handler GetGlobal(
     dispatch_next;
 }
 
+handler ResolveGlobalBinding(
+    dst: out Operand,
+    identifier: IdentifierTableIndex,
+    cache: GlobalVariableCacheIndex
+) {
+    let slow = || @cold {
+        call_slow_path(resolve_global_binding);
+    };
+
+    # A binding the cache of the SetGlobal or GetGlobal of the identifier still finds exists.
+    let realm = exec_ctx.realm;
+    let global_object = realm.global_object;
+    let environment = realm.global_declarative_environment;
+    let global_cache = load_global_variable_cache(cache);
+    guard global_cache.environment_serial_number == environment.serial_number else slow;
+
+    let try_environment = || {
+        guard global_cache.has_environment_binding_index != 0 else slow;
+        store(dst, Value<True>);
+        dispatch_next;
+    };
+
+    let shape = global_object.shape;
+    guard global_cache.shape == shape else try_environment;
+    guard global_cache.shape_dictionary_generation == shape.dictionary_generation else try_environment;
+    store(dst, Value<True>);
+    dispatch_next;
+}
+
 handler SetGlobal(
     identifier: IdentifierTableIndex,
     src: in Operand,

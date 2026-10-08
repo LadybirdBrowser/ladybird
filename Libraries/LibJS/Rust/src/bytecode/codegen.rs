@@ -2903,9 +2903,19 @@ fn emit_block_declaration_instantiation(generator: &mut Generator, scope: &Scope
 // Variable declaration
 // =============================================================================
 
-struct ResolvedBinding {
-    environment: ScopedOperand,
-    identifier: IdentifierTableIndex,
+enum ResolvedBinding {
+    /// The environment ResolveBinding found the binding in, or null if the reference is unresolvable.
+    Environment {
+        environment: ScopedOperand,
+        identifier: IdentifierTableIndex,
+    },
+    /// Whether ResolveGlobalBinding found the binding of an identifier the compiler found no binding of before the
+    /// global environment, in which case it is stored with SetGlobal.
+    Global {
+        is_resolvable: ScopedOperand,
+        identifier: IdentifierTableIndex,
+        cache: u32,
+    },
 }
 
 fn emit_resolve_binding_for_identifier_assignment(
@@ -2925,23 +2935,77 @@ fn emit_resolve_binding_for_identifier_assignment(
         return None;
     }
 
+    // OPTIMIZATION: Only the global environment can have the binding of a global-looking identifier, so whether it has
+    //               one is checked with the cache of the SetGlobal that stores the value if so.
+    if ident.is_global {
+        let is_resolvable = generator.allocate_register();
+        let cache = generator.next_global_variable_cache();
+        generator.emit(Instruction::ResolveGlobalBinding {
+            dst: is_resolvable.operand(),
+            identifier,
+            cache,
+        });
+        return Some(ResolvedBinding::Global {
+            is_resolvable,
+            identifier,
+            cache,
+        });
+    }
+
     let environment = generator.allocate_register();
     generator.emit(Instruction::ResolveBinding {
         dst: environment.operand(),
         identifier,
     });
-    Some(ResolvedBinding {
+    Some(ResolvedBinding::Environment {
         environment,
         identifier,
     })
 }
 
 fn emit_set_resolved_binding(generator: &mut Generator, resolved_binding: &ResolvedBinding, value: &ScopedOperand) {
-    generator.emit(Instruction::SetResolvedBinding {
-        environment: resolved_binding.environment.operand(),
-        identifier: resolved_binding.identifier,
-        src: value.operand(),
-    });
+    match resolved_binding {
+        ResolvedBinding::Environment {
+            environment,
+            identifier,
+        } => {
+            generator.emit(Instruction::SetResolvedBinding {
+                environment: environment.operand(),
+                identifier: *identifier,
+                src: value.operand(),
+            });
+        }
+        ResolvedBinding::Global {
+            is_resolvable,
+            identifier,
+            cache,
+        } => {
+            let set_block = generator.make_block();
+            let unresolvable_block = generator.make_block();
+            let end_block = generator.make_block();
+            generator.emit_jump_if(is_resolvable, set_block, unresolvable_block);
+
+            generator.switch_to_basic_block(set_block);
+            generator.emit(Instruction::SetGlobal {
+                identifier: *identifier,
+                src: value.operand(),
+                cache: *cache,
+            });
+            generator.emit(Instruction::Jump { target: end_block });
+
+            // NB: PutValue of an unresolvable reference throws a ReferenceError in strict mode code.
+            generator.switch_to_basic_block(unresolvable_block);
+            let null = generator.add_constant_null();
+            generator.emit(Instruction::SetResolvedBinding {
+                environment: null.operand(),
+                identifier: *identifier,
+                src: value.operand(),
+            });
+            generator.emit(Instruction::Jump { target: end_block });
+
+            generator.switch_to_basic_block(end_block);
+        }
+    }
 }
 
 fn emit_set_variable_or_resolved_binding(
