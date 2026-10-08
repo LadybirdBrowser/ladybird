@@ -734,12 +734,12 @@ ErrorOr<void> PulseAudioStream::wait_for_operation(pa_operation* operation, Stri
 {
     while (pa_operation_get_state(operation) == PA_OPERATION_RUNNING)
         m_context->wait_for_signal();
+    pa_operation_unref(operation);
     if (!m_context->connection_is_good() || !this->connection_is_good()) {
         auto pulse_audio_error_name = pulse_audio_error_to_string(m_context->get_last_error());
         warnln("Encountered stream error: {}", pulse_audio_error_name);
         return Error::from_string_view(error_message);
     }
-    pa_operation_unref(operation);
     return {};
 }
 
