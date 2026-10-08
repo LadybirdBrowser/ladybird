@@ -556,6 +556,12 @@ class Response;
 
 }
 
+namespace Web::Fetch::Engine {
+
+class NetworkTransportHandle;
+
+}
+
 namespace Web::Fetch::Fetching {
 
 class PendingResponse;

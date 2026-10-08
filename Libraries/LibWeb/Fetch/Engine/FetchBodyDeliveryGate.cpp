@@ -5,7 +5,6 @@
  */
 
 #include <LibCore/EventLoop.h>
-#include <LibRequests/Request.h>
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 
 namespace Web::Fetch::Engine {
@@ -42,21 +41,6 @@ private:
     NonnullRefPtr<FetchBodyDeliveryGate> m_gate;
 };
 
-class RequestTransportAdapter final : public FetchBodyDeliveryGate::Transport {
-public:
-    explicit RequestTransportAdapter(NonnullRefPtr<Requests::Request> request)
-        : m_request(move(request))
-    {
-    }
-
-    virtual void resume_body_delivery_up_to(u64 byte_count) override { m_request->resume_body_delivery_up_to(byte_count); }
-    virtual void pause_body_delivery() override { m_request->set_body_delivery_paused(true); }
-    virtual void stop() override { m_request->stop(); }
-
-private:
-    NonnullRefPtr<Requests::Request> m_request;
-};
-
 NonnullRefPtr<FetchBodyDeliveryGate> FetchBodyDeliveryGate::create(NavigationHold navigation_hold)
 {
     return adopt_ref(*new FetchBodyDeliveryGate(navigation_hold));
@@ -85,11 +69,6 @@ void FetchBodyDeliveryGate::attach_transport(NonnullRefPtr<Transport> transport)
     }
     m_transport = move(transport);
     apply_to_transport();
-}
-
-void FetchBodyDeliveryGate::attach_transport(NonnullRefPtr<Requests::Request> request)
-{
-    attach_transport(adopt_ref(*new RequestTransportAdapter(move(request))));
 }
 
 void FetchBodyDeliveryGate::Transport::misbehaved(StringView reason)

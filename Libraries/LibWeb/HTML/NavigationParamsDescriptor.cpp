@@ -11,6 +11,7 @@
 #include <LibRequests/RequestClient.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 #include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
 #include <LibWeb/Fetch/Fetching/FetchedDataReceiver.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -77,10 +78,12 @@ static NavigationResponseDescriptor create_navigation_response_descriptor(Fetch:
         headers.unchecked_append(header);
 
     NavigationResponseBody body;
-    if (auto const& request = response.request_server_request(); request.has_value()) {
+    if (auto const& network_transport = response.network_transport(); network_transport.has_value()) {
+        auto const& lease = network_transport->handle->transfer_lease();
+        VERIFY(lease.has_value());
         body = NavigationResponseBodyHandle {
-            .request_server_client_id = request->client_id,
-            .request_server_request_id = request->request_id,
+            .request_server_client_id = lease->source_client_id,
+            .request_server_request_id = lease->source_request_id,
             .request_server_top_level_site = {},
         };
     }
@@ -90,7 +93,7 @@ static NavigationResponseDescriptor create_navigation_response_descriptor(Fetch:
             body = body_bytes.release_value();
     }
 
-    auto network_response = request && timing_info && response.request_server_request().has_value() ? WebDriver::BiDi::network_response_for_navigation(*request, *timing_info, response) : Optional<JsonObject> {};
+    auto network_response = request && timing_info && response.network_transport().has_value() ? WebDriver::BiDi::network_response_for_navigation(*request, *timing_info, response) : Optional<JsonObject> {};
     return {
         .url_list = response.url_list(),
         .status = response.status(),
@@ -215,6 +218,14 @@ void create_navigation_params_descriptor(JS::Realm& realm, NavigationParamsVaria
     }
 
     auto navigation_params = params.get<GC::Ref<NavigationParams>>();
+
+    // A request that another client adopted has no lease to hand over.
+    auto const& network_transport = navigation_params->response->network_transport();
+    if (network_transport.has_value() && !network_transport->handle->transfer_lease().has_value()) {
+        completion_steps->function()(NavigationParamsNullOrError { "Unable to transfer response body"_utf16 });
+        return;
+    }
+
     auto descriptor = create_navigation_params_descriptor(navigation_params);
     auto body = navigation_params->response->body();
     if (!body || !descriptor.response.body.has<Empty>()) {
@@ -334,10 +345,9 @@ static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::R
                 stream->error(JS::TypeError::create(realm, "Transferred navigation response failed"_utf16));
         });
 
-    response.set_request_server_request({
-        .client_id = handle.request_server_client_id,
-        .request_id = handle.request_server_request_id,
-        .request = request,
+    auto network_transport = Fetch::Engine::NetworkTransportHandle::create(*request);
+    response.set_network_transport({
+        .handle = move(network_transport),
     });
     return body;
 }

@@ -28,6 +28,7 @@
 #include <LibWeb/Fetch/BodyInit.h>
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 #include <LibWeb/Fetch/Engine/FetchByteChannel.h>
+#include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 #include <LibWeb/Fetch/Engine/WholeBodyTransport.h>
 #include <LibWeb/Fetch/Fetching/BodyStreamPullSource.h>
 #include <LibWeb/Fetch/Fetching/Checks.h>
@@ -961,7 +962,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         else {
             auto internal_response = response.unsafe_response();
             WebDriver::BiDi::network_response_started(fetch_params, *internal_response);
-            if (fetch_params.request()->is_navigation_request() && !internal_response->request_server_request().has_value())
+            if (fetch_params.request()->is_navigation_request() && !internal_response->network_transport().has_value())
                 WebDriver::BiDi::network_response_completed(fetch_params, *internal_response);
         }
     }
@@ -2705,7 +2706,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     // A load without a RequestServer request, such as one for a file: URL, hands over its whole body at once.
     auto whole_body_transport = create_whole_body_transport(*delivery_gate, *channel);
 
-    auto on_headers_received = GC::create_function(GC::Heap::the(), [&fetch_params, pending_response, stream, request, body_pump, delivery_gate, whole_body_transport, http_cache](Requests::Request* request_server_request, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, Requests::CacheState cache_state) {
+    auto on_headers_received = GC::create_function(GC::Heap::the(), [&fetch_params, pending_response, stream, request, body_pump, delivery_gate, whole_body_transport, http_cache](Engine::NetworkTransportHandle* network_transport, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, Requests::CacheState cache_state) {
         if (pending_response->is_resolved()) {
             // RequestServer will send us the response headers twice, the second time being for HTTP trailers. This
             // fetch algorithm is not interested in trailers, so just drop them here.
@@ -2739,11 +2740,9 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
             break;
         }
 
-        if (request_server_request) {
-            response->set_request_server_request({
-                .client_id = request_server_request->request_server_client_id(),
-                .request_id = request_server_request->id(),
-                .request = RefPtr<Requests::Request> { request_server_request },
+        if (network_transport) {
+            response->set_network_transport({
+                .handle = *network_transport,
                 .body_delivery = delivery_gate,
             });
         } else {
@@ -2835,19 +2834,19 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     auto transfer_lease = fetch_params.has_response_body_transfer_lease()
         ? Requests::RequestClient::TransferLease::Yes
         : Requests::RequestClient::TransferLease::No;
-    auto network_request = ResourceLoader::the().load(load_request, on_headers_received, on_data_received, on_cached_body_available, on_complete, transfer_lease);
-    if (network_request) {
-        delivery_gate->attach_transport(*network_request);
+    auto network_transport = ResourceLoader::the().load(load_request, on_headers_received, on_data_received, on_cached_body_available, on_complete, transfer_lease);
+    if (network_transport) {
+        delivery_gate->attach_transport(*network_transport);
         // The gate detaches before the cancellation reaches it.
-        network_request->on_teardown = [delivery_gate, channel, body_pump = GC::Root { body_pump }] {
+        network_transport->set_on_teardown([delivery_gate, channel, body_pump = GC::Root { body_pump }] {
             delivery_gate->detach_transport();
             channel->cancel();
             body_pump->abandon_cache_entry();
-        };
+        });
+        fetch_params.controller()->set_network_transport(*network_transport);
     } else {
         fetch_params.controller()->set_body_transport(whole_body_transport);
     }
-    fetch_params.controller()->set_pending_request(network_request);
 
     // To transmit request’s body body, run these steps:
     // 1. If body is null and fetchParams’s process request end-of-body is non-null, then queue a fetch task given
