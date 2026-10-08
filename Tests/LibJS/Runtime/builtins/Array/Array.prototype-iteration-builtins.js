@@ -148,4 +148,25 @@ describe("stack traces", () => {
         }
         expect(recurse(200)).toBe(200);
     });
+
+    test("unbounded recursion through builtins throws", () => {
+        function recurse() {
+            [0].forEach(recurse);
+        }
+        expect(recurse).toThrow();
+    });
+
+    test("exceptions from callbacks propagate through builtins and can be caught", () => {
+        let caught = null;
+        try {
+            [1, 2].map(value => {
+                if (value === 2) throw new Error("callback");
+                return value;
+            });
+        } catch (error) {
+            caught = error.message;
+        }
+        expect(caught).toBe("callback");
+        expect([1, 2].map(value => value * 2)).toEqual([2, 4]);
+    });
 });

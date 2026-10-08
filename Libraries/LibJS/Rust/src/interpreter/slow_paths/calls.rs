@@ -37,6 +37,7 @@ use crate::runtime::function_environment::FunctionEnvironment;
 use crate::runtime::function_object::FunctionObject;
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::math_object;
+use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::object::{Object, StackFrameInfo};
 use crate::runtime::property_attributes::DEFAULT_ATTRIBUTES;
 use crate::runtime::property_key::PropertyKey;
@@ -345,6 +346,25 @@ pub fn call(
     values: &mut op::CallValues,
     arguments: &[Value],
 ) -> SlowPathControl {
+    if let Some(builtin) = value_as_native_javascript_backed_function(values.callee)
+        && let Some(executable) = builtin.inline_call_executable(vm)
+    {
+        // NB: Stack traces show the caller at its program counter.
+        vm.running_execution_context_ref().program_counter.set(pc);
+        if vm
+            .push_builtin_inline_frame(
+                builtin,
+                executable,
+                arguments,
+                pc + instruction.length(),
+                instruction.dst.0,
+                values.this_value,
+            )
+            .is_some()
+        {
+            return SlowPathControl::dispatch_at(0);
+        }
+    }
     asm_try!(
         vm,
         pc,
@@ -1000,6 +1020,14 @@ pub fn super_call_with_argument_array(
 
     values.dst = Value::from_object(result);
     SlowPathControl::continue_at(pc + op::SuperCallWithArgumentArray::LENGTH)
+}
+
+/// `value` as a builtin written in JavaScript, if it is one.
+fn value_as_native_javascript_backed_function(value: Value) -> Option<Gc<NativeJavaScriptBackedFunction>> {
+    if !value.is_object() {
+        return None;
+    }
+    value.as_object().downcast::<NativeJavaScriptBackedFunction>()
 }
 
 // Try to inline a JS-to-JS call by building the callee frame through the
