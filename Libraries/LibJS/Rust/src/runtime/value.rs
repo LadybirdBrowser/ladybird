@@ -77,6 +77,13 @@ const MAX_DEFAULT_CONVERSION_PROTOTYPE_CHAIN_LENGTH: usize = 4;
 ///               %Object.prototype.toString%. Returns nothing if the object is not such an object, or if its builtinTag
 ///               is not "Object".
 fn to_primitive_of_object_with_default_conversions(vm: &Vm, object: &Object) -> Option<Gc<PrimitiveString>> {
+    // NB: Only objects whose builtinTag is "Object" convert to the cached string, so the others, such as arrays, are left
+    //     to the generic path first. Proxies have no ordinary property lookup, so IsArray is whether the object is an
+    //     Array.
+    if builtin_tag(object, object.is_array_exotic_object()) != "Object" {
+        return None;
+    }
+
     let realm = vm.current_realm()?;
     let object_prototype = realm.object_prototype();
 
@@ -135,10 +142,6 @@ fn to_primitive_of_object_with_default_conversions(vm: &Vm, object: &Object) -> 
         return None;
     }
 
-    // NB: Proxies have no ordinary property lookup, so IsArray is whether the object is an Array.
-    if builtin_tag(object, object.is_array_exotic_object()) != "Object" {
-        return None;
-    }
     Some(vm.cached_strings().object_Object)
 }
 

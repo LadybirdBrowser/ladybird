@@ -552,6 +552,17 @@ fn set_up_named_storage<T: GcCell + Extends<Object>>(cell: Gc<T>) -> Gc<T> {
     cell
 }
 
+/// Whether `$methods.$method` is the ordinary method. NB: The method tables of arrays and ECMAScript function objects
+/// take their ordinary methods from ORDINARY_OBJECT_METHODS, but their addresses may differ from the ones in it, so
+/// those tables are compared too.
+macro_rules! is_ordinary_method {
+    ($methods:expr, $method:ident) => {
+        core::ptr::fn_addr_eq($methods.$method, ORDINARY_OBJECT_METHODS.$method)
+            || core::ptr::fn_addr_eq($methods.$method, ARRAY_OBJECT_METHODS.$method)
+            || core::ptr::fn_addr_eq($methods.$method, ECMASCRIPT_FUNCTION_OBJECT_METHODS.$method)
+    };
+}
+
 impl Object {
     // The constructors of Object, which build the data of an object of `class` for allocate_object().
 
@@ -941,11 +952,8 @@ impl Object {
         ) || core::ptr::fn_addr_eq(
             methods.internal_get_own_property,
             ARRAY_OBJECT_METHODS.internal_get_own_property,
-        )) && core::ptr::fn_addr_eq(methods.internal_get, ORDINARY_OBJECT_METHODS.internal_get)
-            && core::ptr::fn_addr_eq(
-                methods.internal_get_prototype_of,
-                ORDINARY_OBJECT_METHODS.internal_get_prototype_of,
-            )
+        )) && is_ordinary_method!(methods, internal_get)
+            && is_ordinary_method!(methods, internal_get_prototype_of)
     }
 
     /// Whether this object has ordinary named property lookup, and an ordinary [[Set]].
