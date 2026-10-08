@@ -238,7 +238,7 @@ pub struct ObjectMethods {
     pub internal_set_prototype_of: fn(&Object, &Vm, Option<Gc<Object>>) -> ThrowCompletionOr<bool>,
     pub internal_is_extensible: fn(&Object, &Vm) -> ThrowCompletionOr<bool>,
     pub internal_prevent_extensions: fn(&Object, &Vm) -> ThrowCompletionOr<bool>,
-    pub internal_get_own_property: fn(&Object, &Vm, &PropertyKey) -> ThrowCompletionOr<Option<PropertyDescriptor>>,
+    pub internal_get_own_property: InternalGetOwnPropertyMethod,
     pub internal_define_own_property: InternalDefineOwnProperty,
     pub internal_has_property: fn(&Object, &Vm, &PropertyKey) -> ThrowCompletionOr<bool>,
     pub internal_get: InternalGet,
@@ -268,6 +268,8 @@ pub struct ObjectMethods {
     /// The [[ErrorData]] internal slot, which Error objects have.
     pub error_data: fn(&Object) -> Option<&ErrorData>,
 }
+
+pub type InternalGetOwnPropertyMethod = fn(&Object, &Vm, &PropertyKey) -> ThrowCompletionOr<Option<PropertyDescriptor>>;
 
 pub static ORDINARY_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     initialize: |_, _, _| {},
@@ -921,6 +923,15 @@ impl Object {
 
     // 7.3.13 HasOwnProperty ( O, P ), https://tc39.es/ecma262/#sec-hasownproperty
     pub fn has_own_property(&self, vm: &Vm, property_key: &PropertyKey) -> ThrowCompletionOr<bool> {
+        // OPTIMIZATION: Whether the ordinary [[GetOwnProperty]] finds a property only depends on the object's storage,
+        //               so ask the storage without building the descriptor.
+        let ordinary_get_own_property: InternalGetOwnPropertyMethod = Object::ordinary_get_own_property;
+        if core::ptr::fn_addr_eq(self.methods().internal_get_own_property, ordinary_get_own_property)
+            && !self.has_unimplemented_properties()
+        {
+            return Ok(self.storage_has(property_key));
+        }
+
         // 1. Let desc be ? O.[[GetOwnProperty]](P).
         let descriptor = self.internal_get_own_property(vm, property_key)?;
 
