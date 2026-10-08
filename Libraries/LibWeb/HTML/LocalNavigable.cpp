@@ -969,10 +969,24 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
                 return;
             }
 
+            // AD-HOC: This check is not in the spec but we should not continue navigation if ongoing navigation id has changed.
+            if (navigable->ongoing_navigation() != navigation_id) {
+                navigable->stop_delaying_load_events_for_navigation(navigation_id);
+                navigable->page().client().navigation_population_failed(navigable->id(), navigation_id);
+                return;
+            }
+
             if (output)
                 output->apply_to(*history_entry);
             auto pending_document = output ? output->document : GC::Ptr<DOM::Document> {};
-            finalize_a_cross_document_navigation(navigable, to_history_handling_behavior(history_handling), user_involvement, history_entry, pending_document, navigation_id, navigation_id, GC::create_function(navigable->heap(), [](HistoryStepResult) { }));
+
+            // AD-HOC: Clear the ongoing navigation, like the "navigation must be a replace" and download cases do.
+            //         No history step will be applied for this navigation, so nothing else clears it, and a stale
+            //         ongoing navigation ID makes later same-document traversals consider themselves superseded.
+            if (!pending_document)
+                navigable->set_ongoing_navigation({});
+
+            finalize_a_cross_document_navigation(navigable, to_history_handling_behavior(history_handling), user_involvement, history_entry, pending_document, navigation_id);
         }));
 }
 
@@ -4225,9 +4239,9 @@ void LocalNavigable::navigate_to_a_javascript_url(GC::Ref<Fetch::Infrastructure:
     history_entry->set_document_state(document_state);
 
     // 13. Append session history traversal steps to targetNavigable's traversable to finalize a cross-document navigation with targetNavigable, historyHandling, userInvolvement, and historyEntry.
-    // NB: The UI process finalizes the navigation it admitted by its ID, though targetNavigable's ongoing navigation is
-    //     null from step 3.
-    finalize_a_cross_document_navigation(*this, history_handling, user_involvement, history_entry, new_document, navigation_id, {}, GC::create_function(heap(), [](HistoryStepResult) { }));
+    // NB: The navigation ID lets the UI process match this to the navigation it admitted. It is not compared with the
+    //     ongoing navigation, which step 3 set to null.
+    finalize_a_cross_document_navigation(*this, history_handling, user_involvement, history_entry, new_document, navigation_id);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#reload
@@ -4573,7 +4587,7 @@ void check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
 // NB: The UI process appends the steps finalizing the navigation, and runs them, once this process reports that
 //     populating historyEntry's document is over.
-void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Utf16String navigation_id, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete)
+void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Utf16String navigation_id)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (navigable->has_been_destroyed()) {
@@ -4582,23 +4596,10 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
         return;
     }
 
-    // AD-HOC: This check is not in the spec but we should not continue navigation if ongoing navigation id has changed.
-    if (expected_ongoing_navigation_id.has_value() && navigable->ongoing_navigation() != *expected_ongoing_navigation_id) {
-        navigable->stop_delaying_load_events_for_navigation(*expected_ongoing_navigation_id);
-        navigable->page().client().navigation_population_failed(navigable->id(), navigation_id);
-        return;
-    }
-
     if (!pending_document) {
         // 2. Set navigable's is delaying load events to false.
         // 3. If historyEntry's document is null, then return.
         navigable->set_delaying_load_events(false);
-
-        // AD-HOC: Clear the ongoing navigation, like the "navigation must be a replace" and download cases do.
-        //         No history step will be applied for this navigation, so nothing else clears it, and a stale
-        //         ongoing navigation ID makes later same-document traversals consider themselves superseded.
-        if (expected_ongoing_navigation_id.has_value() && navigable->ongoing_navigation() == expected_ongoing_navigation_id)
-            navigable->set_ongoing_navigation({});
     }
 
     navigable->page().history_executor().request_history_operation(
@@ -4615,11 +4616,10 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .pending_document = pending_document,
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .on_complete = GC::create_function(navigable->heap(), [navigable, on_complete](HistoryStepResult result) {
+            .on_complete = GC::create_function(navigable->heap(), [navigable](HistoryStepResult) {
                 // AD-HOC: Trigger a relayout in the container document for size negotiation with SVG documents.
                 if (auto container = navigable->container())
                     container->set_needs_layout_update(DOM::SetNeedsLayoutReason::FinalizeACrossDocumentNavigation);
-                on_complete->function()(result);
             }),
         });
 }
