@@ -44,8 +44,8 @@ public:
 
     RefPtr<Requests::RequestClient>& request_client() { return m_request_client; }
 
-    void prefetch_dns(URL::URL const&, URL::URL const& source_url);
-    void preconnect(URL::URL const&, URL::URL const& source_url);
+    void prefetch_dns(GC::Ptr<Page>, URL::URL const&, URL::URL const& source_url);
+    void preconnect(GC::Ptr<Page>, URL::URL const&, URL::URL const& source_url);
 
     static bool is_known_hsts_host(Page&, String const& host);
 

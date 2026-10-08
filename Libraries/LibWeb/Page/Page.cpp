@@ -1712,18 +1712,6 @@ void Page::set_user_style(Utf16String source)
     invalidate_user_style();
 }
 
-void Page::set_content_blocking_enabled(bool enabled)
-{
-    auto& blocker = ContentBlocker::the();
-    if (blocker.filtering_enabled() == enabled)
-        return;
-
-    auto has_cosmetic_rules = blocker.has_cosmetic_rules();
-    blocker.set_filtering_enabled(enabled);
-    if (has_cosmetic_rules)
-        invalidate_user_style();
-}
-
 void Page::invalidate_user_style()
 {
     if (!has_top_level_traversable())
@@ -1760,6 +1748,16 @@ void Page::invalidate_style_for_preference_change()
         if (auto document = navigable->active_document())
             invalidate_document(*document);
     }
+}
+
+void Page::set_content_blocking_enabled(bool enabled)
+{
+    if (m_content_blocking_enabled == enabled)
+        return;
+    m_content_blocking_enabled = enabled;
+
+    if (ContentBlocker::the().has_cosmetic_rules())
+        invalidate_user_style();
 }
 
 Vector<GC::Root<DOM::Document>> Page::documents_in_active_window() const

@@ -2718,7 +2718,7 @@ void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementati
     // Test mode supplies its own filter lists independently of profile preferences.
     auto content_blocking_enabled = m_browser_options.enable_content_blocker == EnableContentBlocker::Yes
         && (m_web_content_options.is_test_mode == IsTestMode::Yes || m_settings->content_blocker_enabled());
-    page.async_debug_request("content-blocking"sv, content_blocking_enabled ? "on"sv : "off"sv);
+    page.async_set_content_blocking_enabled(content_blocking_enabled);
     if (m_content_blocker_list_buffer.has_value())
         page.client().async_set_content_blockers(*m_content_blocker_list_buffer);
 
@@ -2764,30 +2764,30 @@ void Application::background_networking_settings_changed(Badge<ApplicationSettin
 
 void Application::content_blocker_settings_changed(Badge<ApplicationSettingsObserver>)
 {
-    if (m_web_content_options.is_test_mode == IsTestMode::Yes)
-        return;
-
-    auto enabled = m_browser_options.enable_content_blocker == EnableContentBlocker::Yes && m_settings->content_blocker_enabled();
-    ViewImplementation::for_each_view([enabled](ViewImplementation& view) {
-        view.debug_request("content-blocking"sv, enabled ? "on"sv : "off"sv);
-        return IterationDecision::Continue;
-    });
-
     apply_content_blocker_settings();
 }
 
 void Application::apply_content_blocker_settings()
 {
-    if (m_web_content_options.is_test_mode == IsTestMode::Yes)
-        return;
-    rebuild_content_blocker_list_paths();
-    if (auto result = load_content_blocker_lists(); result.is_error()) {
-        warnln("Unable to apply content blocker settings: {}", result.error());
-        return;
+    bool lists_loaded = false;
+    if (m_web_content_options.is_test_mode == IsTestMode::No) {
+        rebuild_content_blocker_list_paths();
+        if (auto result = load_content_blocker_lists(); result.is_error())
+            warnln("Unable to apply content blocker settings: {}", result.error());
+        else
+            lists_loaded = true;
     }
 
+    auto enabled = m_browser_options.enable_content_blocker == EnableContentBlocker::Yes
+        && (m_web_content_options.is_test_mode == IsTestMode::Yes || m_settings->content_blocker_enabled());
+
     WebContentClient::for_each_client([&](WebContentClient& client) {
-        client.async_set_content_blockers(*m_content_blocker_list_buffer);
+        client.for_each_page([&](WebContentPage& page) {
+            client.async_set_content_blocking_enabled(page.id(), enabled);
+            return IterationDecision::Continue;
+        });
+        if (lists_loaded)
+            client.async_set_content_blockers(*m_content_blocker_list_buffer);
         return IterationDecision::Continue;
     });
 }

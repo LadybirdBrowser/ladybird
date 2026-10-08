@@ -16,7 +16,6 @@ static ContentBlocker& make_blocker(Vector<String> rules)
 {
     auto& blocker = ContentBlocker::the();
     MUST(blocker.set_patterns(rules));
-    blocker.set_filtering_enabled(true);
     return blocker;
 }
 
@@ -99,27 +98,6 @@ TEST_CASE(empty_rules_clear_previous_rules)
 
     EXPECT(!blocker.has_rules());
     EXPECT(!blocker.is_filtered(url("https://ads.example.com/script.js"sv), source_url, ContentBlocker::ResourceType::Script));
-}
-
-TEST_CASE(disable_filtering)
-{
-    Vector<String> rules = {
-        { "||example.com^"_string },
-        { "##.ad"_string }
-    };
-
-    auto& blocker = make_blocker(move(rules));
-    blocker.set_filtering_enabled(false);
-    Vector<Utf16FlyString> classes = { "ad"_utf16_fly_string };
-    Vector<Utf16FlyString> ids;
-
-    EXPECT(!blocker.is_filtered(url("https://example.com"sv)));
-    EXPECT(!blocker.is_filtered(url("http://example.com/ads"sv)));
-    EXPECT(blocker.cosmetic_style_sheet_for_url(url("https://example.com"sv), classes.span(), ids.span()).is_empty());
-
-    blocker.set_filtering_enabled(true);
-    EXPECT(blocker.is_filtered(url("https://example.com"sv)));
-    EXPECT(!blocker.cosmetic_style_sheet_for_url(url("https://example.com"sv), classes.span(), ids.span()).is_empty());
 }
 
 TEST_CASE(fetch_metadata_maps_to_resource_type)

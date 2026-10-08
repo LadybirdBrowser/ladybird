@@ -45,8 +45,6 @@ public:
 
     bool has_rules() const { return m_engine != nullptr; }
     bool has_cosmetic_rules() const { return m_has_cosmetic_rules; }
-    bool filtering_enabled() const { return m_filtering_enabled; }
-    void set_filtering_enabled(bool const enabled) { m_filtering_enabled = enabled; }
 
     bool is_filtered(URL::URL const&) const;
     bool is_filtered(URL::URL const&, URL::URL const& source_url, ResourceType) const;
@@ -65,7 +63,6 @@ private:
     ContentBlocker();
     ~ContentBlocker();
 
-    bool m_filtering_enabled { true };
     bool m_has_cosmetic_rules { false };
     void* m_engine { nullptr };
 };
