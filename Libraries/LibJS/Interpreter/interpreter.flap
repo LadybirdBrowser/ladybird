@@ -2632,7 +2632,13 @@ handler GetById(
         dispatch_next;
     };
 
-    guard let Value<Object>(object) = load(base) else try_cache;
+    # Primitive bases find their properties through the prototype of their kind, which the cache remembers.
+    let try_primitive = || @cold {
+        guard call_interp(asm_try_get_by_id_cache_on_primitive) == 0 else slow;
+        dispatch_next;
+    };
+
+    guard let Value<Object>(object) = load(base) else try_primitive;
     let shape = object.shape;
     guard let property_cache = load_property_lookup_cache(cache) else try_cache;
     guard property_cache.shape == shape else try_polymorphic_entries(object, shape);
@@ -2771,7 +2777,25 @@ handler GetByValue(
         store(dst, value);
         dispatch_next;
     };
-    guard let Value<Object>(object) = load(base) else slow;
+    # The code unit of a string at an index, as a string. Only ASCII code units have a string ready.
+    let string_index_slow = || @cold {
+        call_slow_path(get_by_value);
+    };
+    let string_index = || {
+        guard let Value<PrimitiveString>(string) = load(base) else slow;
+        let signed_index = unbox_i32(key);
+        guard signed_index >= 0 else slow;
+        let unsigned_index = assume_u32(signed_index);
+        guard let code_unit = load_primitive_string_utf16_code_unit(string, unsigned_index, string_index_slow) else slow;
+        guard code_unit < 0x80 else slow;
+        let signed_code_unit: i32 = alias(code_unit);
+        let result: Value = call_helper_with_two_arguments(asm_helper_single_ascii_character_string, current_vm(), signed_code_unit);
+        assert(extract_tag(result) == STRING_TAG);
+        store(dst, result);
+        dispatch_next;
+    };
+
+    guard let Value<Object>(object) = load(base) else string_index;
     let index = u32(unbox_i32(key));
     let flags = object.flags;
     if flags lacks OBJECT_FLAG_IS_TYPED_ARRAY {

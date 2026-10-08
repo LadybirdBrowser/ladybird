@@ -316,6 +316,20 @@ fn get_by_value_with_site_cache(
     get_by_value_with_keyed_cache(vm, object, base, property_key, Some((cache, cache_key)))
 }
 
+/// The string of the code unit of the string `string` at `index`, if there is one there and it is an ASCII one.
+fn ascii_code_unit_string_at(vm: &Vm, string: Value, index: i32) -> Option<Value> {
+    let index = usize::try_from(index).ok()?;
+    let string = string.as_string();
+    let view = string.utf16_string_view();
+    if index >= view.length_in_code_units() {
+        return None;
+    }
+    let code_unit = u8::try_from(view.code_unit_at(index))
+        .ok()
+        .filter(|code_unit| *code_unit < 0x80)?;
+    Some(Value::from_string(vm.single_ascii_character_string(code_unit)))
+}
+
 pub fn get_by_value(
     vm: &Vm,
     pc: u32,
@@ -325,6 +339,14 @@ pub fn get_by_value(
 ) -> SlowPathControl {
     let base_value = values.base;
     let property_key_value = values.property;
+    // OPTIMIZATION: An index of a string reads a string of one code unit, and the VM has those of ASCII code units.
+    if base_value.is_string()
+        && property_key_value.is_int32()
+        && let Some(value) = ascii_code_unit_string_at(vm, base_value, property_key_value.as_i32())
+    {
+        values.dst = value;
+        return SlowPathControl::continue_at(pc + op::GetByValue::LENGTH);
+    }
     let object = asm_try!(
         vm,
         pc,
@@ -1500,6 +1522,35 @@ pub fn try_put_by_id_cache(vm: &Vm, instruction: &op::PutById, values: &op::PutB
 // Fast cache-only GetById. Returns the cached value on hit, or Empty on miss.
 pub fn try_get_by_id_cache(base: Value, cache: &PropertyLookupCache) -> Value {
     try_get_by_property_lookup_cache(base, cache, 0)
+}
+
+/// Fast cache-only GetById on a primitive base, whose named properties (other than the length of a string) are those
+/// of the prototype of its kind, as get_by_id() caches them. Returns whether it stored the result in dst; if not, the
+/// caller falls to the slow path.
+pub fn try_get_by_id_cache_on_primitive(vm: &Vm, instruction: &op::GetById, values: &mut op::GetByIdValues) -> bool {
+    let base = values.base;
+    if base.is_object() || base.is_nullish() {
+        return false;
+    }
+    let executable = vm.current_executable();
+    let property_key = executable.get_property_key(instruction.property);
+    // NB: Strings have own properties for their indices and their length.
+    if base.is_string()
+        && (property_key.is_number()
+            || (property_key.is_string() && property_key.as_string() == vm.names.length.as_string()))
+    {
+        return false;
+    }
+    let Some(prototype) = property_access::base_object_for_get_impl(vm, base) else {
+        return false;
+    };
+    let cache = executable.property_lookup_cache(instruction.cache as usize);
+    let value = try_get_by_id_cache(Value::from_object(prototype), cache);
+    if value.is_empty() {
+        return false;
+    }
+    values.dst = value;
+    true
 }
 
 // Fast cache-only GetByValue with a string or symbol key, matched by identity. Returns whether it stored the result
