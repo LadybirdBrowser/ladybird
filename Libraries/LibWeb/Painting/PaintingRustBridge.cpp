@@ -556,7 +556,7 @@ void commit_unrecorded_frame(Layout::BegunRead const& read, DOM::Document& docum
     Layout::RustFFI::render_state_commit_unrecorded_frame(document_host(document), &read, sends_visual_context_tree, rendering_update_timestamp(document), give_up(move(presentation)));
 }
 
-Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRead const& read, DOM::Document& document, Compositing::AccumulatedVisualContextTree visual_context_tree, NonnullRefPtr<Compositing::DisplayList> placeholder_display_list, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs, Optional<Compositor::FlightPresentation> committed)
+Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRead const& read, DOM::Document& document, Compositing::AccumulatedVisualContextTree visual_context_tree, Optional<Gfx::Color> surface_clear_color, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs, Optional<Compositor::FlightPresentation> committed)
 {
     auto* host = document_host(document);
     auto device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel();
@@ -690,7 +690,7 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
     }
     DisplayListRecording recording {
         .visual_context_tree = move(visual_context_tree),
-        .placeholder_display_list = move(placeholder_display_list),
+        .surface_clear_color = surface_clear_color,
         .cache_mode = cache_mode,
         .in_flight = false,
         .async_scrolling_metadata = async_scrolling_metadata,
@@ -748,8 +748,8 @@ NonnullRefPtr<Compositing::DisplayList> display_list_of_published_recording(Disp
     }
 
     auto display_list = Compositing::DisplayList::share_rust_command_storage(recording.visual_context_tree, presented.display_list);
-    if (auto color = recording.placeholder_display_list->surface_clear_color(); color.has_value())
-        display_list->set_surface_clear_color(*color);
+    if (recording.surface_clear_color.has_value())
+        display_list->set_surface_clear_color(*recording.surface_clear_color);
     stamp_async_scrolling_metadata(*display_list);
     return display_list;
 }

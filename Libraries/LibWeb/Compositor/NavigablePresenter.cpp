@@ -176,14 +176,12 @@ OwnPtr<SealedPresentation> NavigablePresenter::seal_for_clock_lane(SealedPresent
     sealed->paint_command_cache_source_resources = m_compositor_display_list_command_resources;
     sealed->recording = Painting::DisplayListRecording {
         .visual_context_tree = *m_compositor_visual_context_tree,
-        .placeholder_display_list = Compositing::DisplayList::create(*m_compositor_visual_context_tree),
+        .surface_clear_color = m_compositor_display_list->surface_clear_color(),
         .cache_mode = Painting::PaintCommandCacheMode::ReadWrite,
         .in_flight = true,
         .async_scrolling_metadata = m_compositor_display_list->async_scrolling_metadata(),
         .paint_command_cache_source = m_compositor_display_list,
     };
-    if (auto color = m_compositor_display_list->surface_clear_color(); color.has_value())
-        sealed->recording->placeholder_display_list->set_surface_clear_color(*color);
     sealed->context_id = committed.context_id;
     sealed->present_viewport_rect = committed.present_viewport_rect;
     sealed->presented_by = PresentedBy::Clock;

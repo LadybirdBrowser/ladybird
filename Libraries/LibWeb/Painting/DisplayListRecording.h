@@ -35,7 +35,7 @@ inline Optional<Layout::BegunRead const&> hit_test_list_read(Layout::BegunRead c
 // in flight beside the event loop until the event loop takes it in. Its display list is made once it is published.
 struct DisplayListRecording {
     Compositing::AccumulatedVisualContextTree visual_context_tree;
-    NonnullRefPtr<Compositing::DisplayList> placeholder_display_list;
+    Optional<Gfx::Color> surface_clear_color;
     PaintCommandCacheMode cache_mode;
     bool in_flight { false };
     // What its display list is stamped with for async scrolling, sealed where the recording began, and the display list
