@@ -786,7 +786,6 @@ void LocalNavigable::visit_edges(Cell::Visitor& visitor)
     for (auto& parked : m_navigations_parked_for_population) {
         if (parked.navigation.has_value())
             parked.navigation->visit_edges(visitor);
-        visitor.visit(parked.continue_steps);
     }
 
     for (auto& async_scroll_operation : m_pending_async_scroll_operations)
@@ -1682,7 +1681,7 @@ void LocalNavigable::clear_ongoing_history_traversal()
         set_ongoing_navigation_without_informing_navigation_api({});
 }
 
-void LocalNavigable::clear_pending_navigations()
+void LocalNavigable::clear_parked_navigations()
 {
     if (m_navigations_parked_for_population.is_empty())
         return;
@@ -1690,7 +1689,7 @@ void LocalNavigable::clear_pending_navigations()
     set_delaying_load_events(false);
 }
 
-void LocalNavigable::park_navigation_for_population(Utf16String navigation_id, Optional<PreparedNavigation> navigation, GC::Ref<GC::Function<void(Optional<PreparedNavigation>, Optional<NavigationPopulationRequest>)>> continue_steps)
+void LocalNavigable::park_navigation_for_population(Utf16String navigation_id, Optional<PreparedNavigation> navigation)
 {
     // An overlapping navigation supersedes the previous one, but the previous navigation's
     // population dispatch can still be in flight. Keep it parked until its response or
@@ -1699,7 +1698,6 @@ void LocalNavigable::park_navigation_for_population(Utf16String navigation_id, O
     m_navigations_parked_for_population.append({
         .navigation_id = move(navigation_id),
         .navigation = move(navigation),
-        .continue_steps = continue_steps,
     });
 }
 
@@ -3509,16 +3507,7 @@ void LocalNavigable::adopt_navigation_started_in_ui_process(Utf16String navigati
     // 19. Set the ongoing navigation for navigable to navigationId.
     set_ongoing_navigation(navigation_id);
 
-    auto continue_steps = GC::create_function(heap(), [this](Optional<PreparedNavigation> pending_navigation, Optional<NavigationPopulationRequest> population_request) {
-        VERIFY(!pending_navigation.has_value());
-        VERIFY(population_request.has_value());
-        auto window = active_window();
-        if (!window)
-            return;
-        auto source_snapshot_params = create_source_snapshot_params_from_navigation_source_snapshot(relevant_realm(*window), population_request->source_snapshot_params);
-        create_navigation_params_for_navigation(population_request.release_value(), source_snapshot_params, NullOrError {}, Bindings::NavigationTimingType::Navigate);
-    });
-    park_navigation_for_population(navigation_id, {}, continue_steps);
+    park_navigation_for_population(navigation_id, {});
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
@@ -3821,12 +3810,7 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
         .navigation_api_key = entry_defaults->navigation_api_key(),
         .navigation_api_id = entry_defaults->navigation_api_id(),
     };
-    auto continue_steps = GC::create_function(heap(), [this](Optional<PreparedNavigation> pending_navigation, Optional<NavigationPopulationRequest> population_request) {
-        VERIFY(pending_navigation.has_value());
-        VERIFY(population_request.has_value());
-        continue_navigation_after_population_dispatch(pending_navigation.release_value(), population_request.release_value());
-    });
-    park_navigation_for_population(navigation_id, move(navigation), continue_steps);
+    park_navigation_for_population(navigation_id, move(navigation));
 
     auto target = is_top_level_traversable() ? NavigationTarget::TopLevel : NavigationTarget::IFrame;
     active_browsing_context()->page().client().request_navigation_start(*this, target, url, navigation_id, move(start_request));
@@ -3904,7 +3888,22 @@ bool LocalNavigable::resume_navigation_params_creation(Utf16String const& naviga
         return true;
     }
 
-    pending->continue_steps->function()(move(pending->navigation), move(request));
+    if (has_been_destroyed() || !active_window()) {
+        set_delaying_load_events(false);
+        return true;
+    }
+    if (ongoing_navigation() != navigation_id) {
+        stop_delaying_load_events_for_navigation(navigation_id);
+        return true;
+    }
+
+    if (pending->navigation.has_value()) {
+        continue_navigation_after_population_dispatch(pending->navigation.release_value(), request.release_value());
+        return true;
+    }
+
+    auto source_snapshot_params = create_source_snapshot_params_from_navigation_source_snapshot(relevant_realm(*active_window()), request->source_snapshot_params);
+    create_navigation_params_for_navigation(request.release_value(), source_snapshot_params, NullOrError {}, Bindings::NavigationTimingType::Navigate);
     return true;
 }
 
@@ -6648,7 +6647,7 @@ void LocalNavigable::stop_loading()
     auto document = active_document();
 
     // NB: A navigation waiting for the UI process to continue it is not continued.
-    clear_pending_navigations();
+    clear_parked_navigations();
 
     // NB: This is what makes step 2 of navigate to a javascript: URL return for a navigation this stops.
     m_queued_javascript_url_navigations.clear();
