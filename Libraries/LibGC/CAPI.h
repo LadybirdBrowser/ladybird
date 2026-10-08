@@ -152,6 +152,8 @@ GC_API GCCell* gc_heap_allocate_storage_cell(GCHeap*, GCAllocator*, bool* must_m
 // always empty while the heap collects on every allocation. Returns null if cells must always be allocated through the
 // heap, as in builds that poison free cells for AddressSanitizer.
 GC_API GCCell** gc_heap_allocator_local_free_list(GCHeap*, GCAllocator*);
+// The context that the heap of the cell was created with, as code that only has a cell finds the rest of its runtime.
+GC_API void* gc_cell_heap_context(GCCell const*);
 // The type info the cell's block was allocated with.
 GC_API GCCellTypeInfo const* gc_cell_type_info(GCCell const*);
 

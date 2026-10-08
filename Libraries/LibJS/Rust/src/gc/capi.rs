@@ -117,6 +117,7 @@ unsafe extern "C" {
         must_mark: *mut bool,
     ) -> *mut c_void;
     pub fn gc_heap_allocator_local_free_list(heap: *mut GCHeap, allocator: *mut GCAllocator) -> *mut *mut c_void;
+    pub fn gc_cell_heap_context(cell: *const c_void) -> *mut c_void;
     pub fn gc_cell_type_info(cell: *const c_void) -> *const CellTypeInfo;
 
     pub fn gc_root_create(cell: *mut c_void) -> *mut GCRoot;
