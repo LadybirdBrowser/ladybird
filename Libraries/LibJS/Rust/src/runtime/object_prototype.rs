@@ -50,6 +50,30 @@ define_object_class!(ObjectPrototype, extends: [Object], methods: {
     ..ORDINARY_OBJECT_METHODS
 });
 
+/// The longest tag whose Object.prototype.toString result is made without building a string first.
+const SHORT_TAG_LENGTH: usize = 23;
+
+/// Whether no object on the prototype chain of `object`, starting with `object`, has a @@toStringTag property, and all of
+/// them look properties up in their storage, so that Get of @@toStringTag gives undefined without running code.
+fn has_no_to_string_tag_on_prototype_chain(vm: &Vm, object: &Object) -> bool {
+    const MAX_PROTOTYPE_CHAIN_LENGTH: usize = 8;
+    let object_prototype = vm.current_realm().map(|realm| realm.object_prototype());
+    let mut current = Some(object.as_gc());
+    for _ in 0..MAX_PROTOTYPE_CHAIN_LENGTH {
+        let Some(object) = current else {
+            return true;
+        };
+        // NB: %Object.prototype% only has an exotic [[SetPrototypeOf]]. Intrinsic accessors, whose keys are in the shape
+        //     already, only have string keys.
+        let is_ordinary = Some(object) == object_prototype || object.has_ordinary_named_property_lookup();
+        if !is_ordinary || object.shape().has_to_string_tag(vm) {
+            return false;
+        }
+        current = object.shape().prototype();
+    }
+    false
+}
+
 /// Steps 5 to 14 of Object.prototype.toString: the builtinTag of `object`, given whether IsArray(object) is true.
 pub fn builtin_tag(object: &Object, is_array: bool) -> &'static str {
     // 5. If isArray is true, let builtinTag be "Array".
@@ -252,11 +276,16 @@ impl ObjectPrototype {
         let builtin_tag = builtin_tag(&object, is_array);
 
         // 15. Let tag be ? Get(O, @@toStringTag).
-        let to_string_tag = object.get_with_cache(
-            vm,
-            &PropertyKey::from(vm.well_known_symbols().to_string_tag),
-            vm.static_property_lookup_cache(StaticPropertyLookupCacheSite::ObjectPrototypeToStringToStringTag),
-        )?;
+        // OPTIMIZATION: Get finds nothing without running code when no object on the chain has the property.
+        let to_string_tag = if has_no_to_string_tag_on_prototype_chain(vm, &object) {
+            Value::UNDEFINED
+        } else {
+            object.get_with_cache(
+                vm,
+                &PropertyKey::from(vm.well_known_symbols().to_string_tag),
+                vm.static_property_lookup_cache(StaticPropertyLookupCacheSite::ObjectPrototypeToStringToStringTag),
+            )?
+        };
 
         // Optimization: Instead of creating another PrimitiveString from builtin_tag, we separate tag and to_string_tag and add an additional branch to step 16.
         let custom_tag: Utf16String;
@@ -274,6 +303,19 @@ impl ObjectPrototype {
         // OPTIMIZATION: The VM has a cache for the extremely common "[object Object]" string.
         if tag == "Object" {
             return Ok(Value::from_string(vm.cached_strings().object_Object));
+        }
+        // OPTIMIZATION: The result for a short ASCII tag is made from its characters without building a string first.
+        if let Utf16View::Ascii(tag_characters) = tag
+            && tag_characters.len() <= SHORT_TAG_LENGTH
+        {
+            let mut characters = [0; SHORT_TAG_LENGTH + 9];
+            characters[..8].copy_from_slice(b"[object ");
+            characters[8..8 + tag_characters.len()].copy_from_slice(tag_characters);
+            characters[8 + tag_characters.len()] = b']';
+            return Ok(Value::from_string(PrimitiveString::create(
+                vm,
+                Utf16String::from_ascii(&characters[..tag_characters.len() + 9]),
+            )));
         }
         Ok(Value::from_string(PrimitiveString::create(
             vm,

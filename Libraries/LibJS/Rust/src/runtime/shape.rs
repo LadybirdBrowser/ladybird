@@ -69,6 +69,10 @@ mod shape_flag {
     pub const CONVERSION_PROPERTIES_KNOWN: u8 = 1 << 2;
     /// Whether the shape has one of the properties that conversions to primitives look up.
     pub const HAS_CONVERSION_PROPERTIES: u8 = 1 << 3;
+    /// Whether HAS_TO_STRING_TAG has been found for a shape that is not a dictionary.
+    pub const TO_STRING_TAG_KNOWN: u8 = 1 << 4;
+    /// Whether the shape has a @@toStringTag property.
+    pub const HAS_TO_STRING_TAG: u8 = 1 << 5;
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -649,8 +653,13 @@ impl Shape {
 
     pub fn add_property_without_transition(&self, vm: &Vm, property_key: &PropertyKey, attributes: PropertyAttributes) {
         self.invalidate_prototype_if_needed_for_change_without_transition(vm);
-        self.flags
-            .set(self.flags.get() & !(shape_flag::CONVERSION_PROPERTIES_KNOWN | shape_flag::HAS_CONVERSION_PROPERTIES));
+        self.flags.set(
+            self.flags.get()
+                & !(shape_flag::CONVERSION_PROPERTIES_KNOWN
+                    | shape_flag::HAS_CONVERSION_PROPERTIES
+                    | shape_flag::TO_STRING_TAG_KNOWN
+                    | shape_flag::HAS_TO_STRING_TAG),
+        );
         let property_count = self.property_count();
         let metadata = PropertyMetadata {
             offset: property_count,
@@ -964,6 +973,30 @@ impl Shape {
                 .set(flags | shape_flag::CONVERSION_PROPERTIES_KNOWN | has_flag);
         }
         has_conversion_properties
+    }
+
+    /// Whether objects of this shape have a @@toStringTag property.
+    pub fn has_to_string_tag(&self, vm: &Vm) -> bool {
+        if self.property_count() == 0 {
+            return false;
+        }
+        // OPTIMIZATION: As with has_conversion_properties(), the answer is kept for shapes that are not dictionaries.
+        let flags = self.flags.get();
+        if flags & shape_flag::TO_STRING_TAG_KNOWN != 0 {
+            return flags & shape_flag::HAS_TO_STRING_TAG != 0;
+        }
+        let has_to_string_tag = self
+            .lookup(&PropertyKey::from(vm.well_known_symbols().to_string_tag))
+            .is_some();
+        if !self.is_dictionary() {
+            let has_flag = if has_to_string_tag {
+                shape_flag::HAS_TO_STRING_TAG
+            } else {
+                0
+            };
+            self.flags.set(flags | shape_flag::TO_STRING_TAG_KNOWN | has_flag);
+        }
+        has_to_string_tag
     }
 
     pub fn dictionary_generation(&self) -> u32 {

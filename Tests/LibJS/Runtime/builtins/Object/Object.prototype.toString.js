@@ -29,3 +29,39 @@ test("result for various object types", () => {
 
     expect(globalThis.toString()).toBe("[object Object]");
 });
+
+test("tags found on the prototype chain after earlier calls", () => {
+    const toString = Object.prototype.toString;
+    const array = [1, 2];
+    expect(toString.call(array)).toBe("[object Array]");
+    expect(toString.call({})).toBe("[object Object]");
+
+    Array.prototype[Symbol.toStringTag] = "Listed";
+    try {
+        expect(toString.call(array)).toBe("[object Listed]");
+    } finally {
+        delete Array.prototype[Symbol.toStringTag];
+    }
+    expect(toString.call(array)).toBe("[object Array]");
+
+    class Tagged {
+        get [Symbol.toStringTag]() {
+            return "Tagged from a getter";
+        }
+    }
+    expect(toString.call(new Tagged())).toBe("[object Tagged from a getter]");
+
+    const longTag = { [Symbol.toStringTag]: "A tag that is longer than thirty-two characters" };
+    expect(toString.call(longTag)).toBe("[object A tag that is longer than thirty-two characters]");
+    expect(toString.call({ [Symbol.toStringTag]: "Ünïcode" })).toBe("[object Ünïcode]");
+    expect(toString.call({ [Symbol.toStringTag]: 42 })).toBe("[object Object]");
+
+    const proxy = new Proxy([], {
+        get(target, key) {
+            return key === Symbol.toStringTag ? "Proxied" : target[key];
+        },
+    });
+    expect(toString.call(proxy)).toBe("[object Proxied]");
+    expect(toString.call(function () {})).toBe("[object Function]");
+    expect(`${[{}, {}]}`).toBe("[object Object],[object Object]");
+});
