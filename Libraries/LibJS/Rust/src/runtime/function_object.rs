@@ -24,6 +24,7 @@ use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJ
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::realm::Realm;
+use crate::runtime::shape::Shape;
 use crate::utf16::Utf16View;
 
 /// The internal methods of FunctionObject, which declares [[Call]] and leaves it to the classes extending it.
@@ -74,6 +75,16 @@ impl FunctionObject {
         may_interfere_with_indexed_property_access: MayInterfereWithIndexedPropertyAccess,
     ) -> FunctionObject {
         let object = Object::new_with_prototype(vm, class, prototype, may_interfere_with_indexed_property_access);
+        object.set_is_function();
+        Self::from_object(object)
+    }
+
+    pub fn new_with_shape(
+        class: &'static Class,
+        shape: Gc<Shape>,
+        may_interfere_with_indexed_property_access: MayInterfereWithIndexedPropertyAccess,
+    ) -> FunctionObject {
+        let object = Object::new_with_shape(class, shape, may_interfere_with_indexed_property_access);
         object.set_is_function();
         Self::from_object(object)
     }

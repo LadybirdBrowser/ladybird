@@ -63,17 +63,55 @@ impl Object {
     }
 }
 
+/// Whether a bound function was created with the premade shape of Intrinsics::bound_function_shape(), whose "length"
+/// and "name" properties Function.prototype.bind fills in.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum LengthAndNameSlots {
+    Premade,
+    Absent,
+}
+
+/// The offset of "length" in the shape of Intrinsics::bound_function_shape().
+pub const BOUND_FUNCTION_LENGTH_OFFSET: u32 = 0;
+
+/// The offset of "name" in the shape of Intrinsics::bound_function_shape().
+pub const BOUND_FUNCTION_NAME_OFFSET: u32 = 1;
+
 impl BoundFunction {
     // 10.4.1.3 BoundFunctionCreate ( targetFunction, boundThis, boundArgs ), https://tc39.es/ecma262/#sec-boundfunctioncreate
+    // OPTIMIZATION: Function.prototype.bind, the only caller, goes on to define "length" and "name" on the new function.
+    //               When its prototype is %Function.prototype%, it is created with a premade shape that has both
+    //               properties already, holding undefined until the caller writes them, which nothing can observe
+    //               before then.
     pub fn create(
         vm: &Vm,
         realm: Gc<Realm>,
         target_function: Gc<FunctionObject>,
         bound_this: Value,
         bound_arguments: &[Value],
-    ) -> ThrowCompletionOr<Gc<BoundFunction>> {
+    ) -> ThrowCompletionOr<(Gc<BoundFunction>, LengthAndNameSlots)> {
         // 1. Let proto be ? targetFunction.[[GetPrototypeOf]]().
         let prototype = target_function.internal_get_prototype_of(vm)?;
+
+        let length_and_name_slots = if prototype == Some(realm.function_prototype()) {
+            LengthAndNameSlots::Premade
+        } else {
+            LengthAndNameSlots::Absent
+        };
+        let base = match length_and_name_slots {
+            LengthAndNameSlots::Premade => FunctionObject::new_with_shape(
+                Self::CLASS,
+                realm.intrinsics().bound_function_shape(vm),
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+            LengthAndNameSlots::Absent => FunctionObject::new_with_realm_and_prototype(
+                vm,
+                Self::CLASS,
+                realm,
+                prototype,
+                MayInterfereWithIndexedPropertyAccess::No,
+            ),
+        };
 
         // 2. Let internalSlotsList be the list-concatenation of « [[Prototype]], [[Extensible]] » and the internal slots listed in Table 34.
         // 3. Let obj be MakeBasicObject(internalSlotsList).
@@ -87,13 +125,7 @@ impl BoundFunction {
         let object = allocate_object(
             vm,
             BoundFunction {
-                base: FunctionObject::new_with_realm_and_prototype(
-                    vm,
-                    Self::CLASS,
-                    realm,
-                    prototype,
-                    MayInterfereWithIndexedPropertyAccess::No,
-                ),
+                base,
                 bound_target_function: Cell::new(target_function),
                 bound_this: Cell::new(bound_this),
                 bound_arguments: OnceCell::new(),
@@ -110,7 +142,7 @@ impl BoundFunction {
         }
 
         // 10. Return obj.
-        Ok(object)
+        Ok((object, length_and_name_slots))
     }
 
     pub fn bound_target_function(&self) -> Gc<FunctionObject> {

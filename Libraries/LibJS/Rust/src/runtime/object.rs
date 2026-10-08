@@ -621,6 +621,7 @@ impl Object {
         Self::new_with_shape(class, shape, may_interfere_with_indexed_property_access)
     }
 
+    #[inline]
     pub fn new_with_prototype(
         vm: &Vm,
         class: &'static Class,
@@ -968,6 +969,26 @@ impl Object {
                 methods.internal_get_own_property,
                 ORDINARY_OBJECT_METHODS.internal_get_own_property,
             )
+    }
+
+    /// Whether [[GetOwnProperty]] of this object is OrdinaryGetOwnProperty for `property_key`, so that the object's
+    /// storage alone decides what it returns.
+    pub fn has_ordinary_get_own_property_for(&self, vm: &Vm, property_key: &PropertyKey) -> bool {
+        if self.has_unimplemented_properties() {
+            return false;
+        }
+        let internal_get_own_property = self.methods().internal_get_own_property;
+        let ordinary_get_own_property: InternalGetOwnPropertyMethod = Object::ordinary_get_own_property;
+        if core::ptr::fn_addr_eq(internal_get_own_property, ordinary_get_own_property) {
+            return true;
+        }
+        // NB: ECMAScript function objects only answer "caller", "arguments" and a lazily created "prototype" themselves.
+        core::ptr::fn_addr_eq(
+            internal_get_own_property,
+            ECMASCRIPT_FUNCTION_OBJECT_METHODS.internal_get_own_property,
+        ) && *property_key != vm.names.caller
+            && *property_key != vm.names.arguments
+            && *property_key != vm.names.prototype
     }
 
     // 7.3.13 HasOwnProperty ( O, P ), https://tc39.es/ecma262/#sec-hasownproperty
