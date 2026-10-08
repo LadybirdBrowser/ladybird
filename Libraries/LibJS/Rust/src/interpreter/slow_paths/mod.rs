@@ -852,6 +852,15 @@ impl RuntimeFunctions for Runtime {
         bindings::resolve_binding(vm, pc, instruction, values)
     }
 
+    fn resolve_global_binding(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::ResolveGlobalBinding,
+        values: &mut op::ResolveGlobalBindingValues,
+    ) -> SlowPathControl {
+        bindings::resolve_global_binding(vm, pc, instruction, values)
+    }
+
     fn resolve_super_base(
         vm: &Vm,
         pc: u32,

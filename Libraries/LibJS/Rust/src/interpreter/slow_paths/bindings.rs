@@ -1057,6 +1057,32 @@ pub fn resolve_binding(
     SlowPathControl::continue_at(pc + op::ResolveBinding::LENGTH)
 }
 
+/// Whether ResolveBinding of an identifier the compiler found no binding of before the global environment finds a
+/// binding, the global environment's.
+pub fn resolve_global_binding(
+    vm: &Vm,
+    pc: u32,
+    instruction: &op::ResolveGlobalBinding,
+    values: &mut op::ResolveGlobalBindingValues,
+) -> SlowPathControl {
+    let identifier = get_identifier(vm, instruction.identifier);
+    let reference = asm_try!(
+        vm,
+        pc,
+        vm.resolve_binding(&identifier, strict_of(&instruction.header), None)
+    );
+    let is_resolvable = !reference.is_unresolvable();
+    if is_resolvable {
+        let global_environment = vm
+            .current_realm()
+            .expect("a binding is resolved in a realm")
+            .global_environment();
+        assert!(reference.base_environment() == global_environment.upcast());
+    }
+    values.dst = Value::from_bool(is_resolvable);
+    SlowPathControl::continue_at(pc + op::ResolveGlobalBinding::LENGTH)
+}
+
 pub fn resolve_super_base(
     vm: &Vm,
     pc: u32,
