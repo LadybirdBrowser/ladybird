@@ -1620,6 +1620,9 @@ void ContextState::paint_screenshot(DisplayListPlayerSkia& display_list_player, 
 {
     VERIFY(can_paint_screenshot(target_bitmap));
 
+    // Screenshot requests can arrive between display ticks, so sample animations at capture time.
+    advance_visual_animations(MonotonicTime::now());
+
     auto target_surface = Gfx::PaintingSurface::wrap_bitmap(*target_bitmap.bitmap());
     paint_current_display_list(display_list_player, *target_surface, composited_context_resolver, {}, PaintUIOverlay::No, false);
     display_list_player.flush(*target_surface);
