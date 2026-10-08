@@ -171,9 +171,7 @@ pub fn get_by_value_with_keyed_cache(
         property_name: Some(property_name.clone()),
         ..Default::default()
     };
-    if shape.is_dictionary() {
-        entry.shape_dictionary_generation = shape.dictionary_generation();
-    }
+    entry.shape_dictionary_generation = shape.dictionary_generation();
     match cacheable_metadata.r#type {
         CacheableGetPropertyMetadataType::GetOwnProperty => {
             entry.entry_type = PropertyLookupCacheEntryType::GetOwnProperty;
@@ -231,9 +229,7 @@ pub fn get_own_property_without_side_effects(
         if let Some(metadata) = metadata {
             entry.property_offset = metadata.offset;
         }
-        if shape.is_dictionary() {
-            entry.shape_dictionary_generation = shape.dictionary_generation();
-        }
+        entry.shape_dictionary_generation = shape.dictionary_generation();
     });
 
     let Some(metadata) = metadata else {
@@ -467,9 +463,7 @@ pub fn get_with_property_lookup_cache(
                         .property_offset
                         .expect("cacheable metadata has an offset");
 
-                    if shape.is_dictionary() {
-                        entry.shape_dictionary_generation = shape.dictionary_generation();
-                    }
+                    entry.shape_dictionary_generation = shape.dictionary_generation();
                 });
             }
             CacheableGetPropertyMetadataType::GetPropertyInPrototypeChain => {
@@ -482,9 +476,7 @@ pub fn get_with_property_lookup_cache(
                     entry.prototype = cacheable_metadata.prototype;
                     entry.prototype_chain_validity = prototype_chain_validity;
 
-                    if shape.is_dictionary() {
-                        entry.shape_dictionary_generation = shape.dictionary_generation();
-                    }
+                    entry.shape_dictionary_generation = shape.dictionary_generation();
                 });
             }
             CacheableGetPropertyMetadataType::GetMissingProperty
@@ -495,9 +487,7 @@ pub fn get_with_property_lookup_cache(
                     entry.shape = Some(shape);
                     entry.prototype_chain_validity = prototype_chain_validity;
 
-                    if shape.is_dictionary() {
-                        entry.shape_dictionary_generation = shape.dictionary_generation();
-                    }
+                    entry.shape_dictionary_generation = shape.dictionary_generation();
                 });
             }
             _ => {}
@@ -744,9 +734,7 @@ pub fn put_by_property_key(
                                 .expect("cacheable metadata has an offset");
                             cache.writes_data_property = cacheable_metadata.writes_data_property;
 
-                            if object.shape().is_dictionary() {
-                                cache.shape_dictionary_generation = object.shape().dictionary_generation();
-                            }
+                            cache.shape_dictionary_generation = object.shape().dictionary_generation();
                         });
                     }
                     CacheableSetPropertyMetadataType::ChangePropertyInPrototypeChain => {
@@ -762,9 +750,7 @@ pub fn put_by_property_key(
                             cache.prototype = Some(prototype);
                             cache.prototype_chain_validity = prototype_chain_validity;
 
-                            if object.shape().is_dictionary() {
-                                cache.shape_dictionary_generation = object.shape().dictionary_generation();
-                            }
+                            cache.shape_dictionary_generation = object.shape().dictionary_generation();
                         });
                     }
                     CacheableSetPropertyMetadataType::NotCacheable => {}
