@@ -101,7 +101,6 @@ public:
     StyleValue const& property(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
     void const* effective_property_data(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
 
-    Color color(PropertyID, ColorResolutionContext) const;
     PreferredColorScheme color_scheme(PreferredColorScheme, Optional<Vector<Utf16FlyString> const&> document_supported_schemes) const;
     FontVariantEmoji font_variant_emoji() const;
     Display display_before_box_type_transformation() const;

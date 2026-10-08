@@ -55,7 +55,8 @@ public:
     DOM::Document& document() { return m_document; }
     DOM::Document const& document() const { return m_document; }
 
-    [[nodiscard]] NonnullRefPtr<ComputedValues const> create_document_style() const;
+    // Interns the document's own style, the viewport's, which no element holds.
+    [[nodiscard]] StyleRecordID intern_document_style(Layout::BegunRead const&) const;
 
     // The document element's style installed: the metrics `rem` resolves against are its font's.
     void update_root_element_font_metrics(ComputedValues const&);

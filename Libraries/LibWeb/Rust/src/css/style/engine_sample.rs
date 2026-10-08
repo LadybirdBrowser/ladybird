@@ -12,7 +12,7 @@ use super::publication::drive_font_metric;
 use super::tree::{StyleNodeID, TreeScopeID};
 use super::{RetainedState, bridge};
 use crate::css::animated_overlay::AnimatedOverlay;
-use crate::css::color_resolution::{ColorResolutionInput, FfiColorResolutionInput, Rgba, to_color};
+use crate::css::color_resolution::{ColorResolutionInput, Rgba, to_color};
 use crate::css::computed_longhand_table::{ComputedLonghandTable, FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS};
 use crate::css::computed_value_types::{
     FontValues, STYLE_GROUP_INDEX_ANCHOR, STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_BOX,
@@ -27,7 +27,7 @@ use crate::css::style_compute::{
     FfiLengthResolutionContext, FfiStyleComputationEnvironment, keyword, px_length_unit,
 };
 use crate::css::style_value::StyleValueData;
-use crate::css::table_group_builder::{FfiFontGroupBuildInputs, FfiTableGroupBuildInputs, group_index};
+use crate::css::table_group_builder::{FfiFontGroupBuildInputs, TableGroupBuildInputs, group_index};
 
 /// One record's font, as a length resolves against it.
 struct RecordFont {
@@ -268,31 +268,27 @@ impl RetainedState {
                 )
             })
             .unwrap_or(Rgba::BLACK);
-        let color_input = FfiColorResolutionInput {
-            has_scheme: true,
-            scheme: used_color_scheme,
-            has_current_color: true,
-            current_color_rgba: [color.r, color.g, color.b, color.a],
-            current_color_value: color_value,
-            length: (&raw const length).cast(),
+        let color_input = ColorResolutionInput {
+            scheme: Some(used_color_scheme),
+            current_color: Some(color),
+            current_color_value: color_data,
+            length: Some(&length),
+            channels: None,
         };
-        let build_inputs = FfiTableGroupBuildInputs {
-            color_input: (&raw const color_input).cast(),
+        let build_inputs = TableGroupBuildInputs {
+            color_input: &color_input,
             used_color_scheme,
-            animated_overlay: overlay,
+            animated_overlay: Some(overlay),
             box_display_before_transformation_raw: display_before_box_type_transformation_raw,
-            font: font_inputs.map_or(std::ptr::null(), std::ptr::from_ref),
+            font: font_inputs,
         };
-        let parents = [std::ptr::null(); group_index::COUNT];
         let mut rebuilt = [std::ptr::null(); group_index::COUNT];
         unsafe {
-            crate::css::table_group_builder::rust_build_group_payloads_from_table(
+            crate::css::table_group_builder::build_group_payloads_from_table(
                 table,
                 groups,
-                parents.as_ptr(),
-                &raw const build_inputs,
-                rebuilt.as_mut_ptr(),
-                group_index::COUNT,
+                &build_inputs,
+                &mut rebuilt,
             );
         }
         let mut rebuilt_groups = 0;

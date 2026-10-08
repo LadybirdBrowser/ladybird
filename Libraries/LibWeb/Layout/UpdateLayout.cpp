@@ -56,10 +56,8 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
             // The viewport's style is the document's, which the style computer makes rather than publishes, so a build
             // that may build the viewport is handed it before it starts.
             CSS::StyleRecordID document_style_record;
-            if (may_create_viewport) {
-                auto& style_computer = document.style_computer();
-                document_style_record = style_computer.intern_anonymous_layout_style(*read, *style_computer.create_document_style());
-            }
+            if (may_create_viewport)
+                document_style_record = document.style_computer().intern_document_style(*read);
             // The viewport's row holds what the navigable has scrolled the viewport to, which the navigable publishes as
             // it scrolls. A new document has not heard from it yet.
             if (auto navigable = document.navigable())

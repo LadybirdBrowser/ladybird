@@ -20,10 +20,7 @@ use std::ffi::c_void;
 
 use crate::css::animated_overlay::AnimatedOverlay;
 use crate::css::calc::{resolve_calculated_flex_without_context, resolve_calculated_integer_without_context};
-use crate::css::color_resolution::{
-    ColorResolutionInput, FfiColorResolutionInput, PREFERRED_COLOR_SCHEME_DARK, Rgba, accent_color,
-    resolution_input_from_ffi, to_color,
-};
+use crate::css::color_resolution::{ColorResolutionInput, PREFERRED_COLOR_SCHEME_DARK, Rgba, accent_color, to_color};
 use crate::css::computed_longhand_table::ComputedLonghandTable;
 use crate::css::computed_value_types::{
     AnchorValues, AnimationValues, BackgroundValues, BorderValues, ComputedClipEdge, ComputedColorOrAuto,
@@ -80,22 +77,16 @@ pub(crate) mod group_index {
     pub const COUNT: usize = 23;
 }
 
-/// The pre-resolved inputs one table-driven group build needs from C++: the
-/// color resolution context (whose current color is the element's own
-/// resolved color), the used color-scheme, and platform font data.
-#[repr(C)]
-pub struct FfiTableGroupBuildInputs {
-    /// A marshalled StyleValueFFI::FfiColorResolutionInput whose current
-    /// color is the element's own resolved color, matching the context the
-    /// C++ sidecar loops resolved against.
-    pub color_input: *const c_void,
+/// What one table-driven group build reads beside the table: the color resolution input (whose current color is the
+/// element's own resolved color), the used color-scheme, the animated overlay over the table, and platform font data.
+pub(crate) struct TableGroupBuildInputs<'a> {
+    pub color_input: &'a ColorResolutionInput<'a>,
     /// The used color-scheme code (PreferredColorScheme underlying value).
     pub used_color_scheme: u8,
-    pub animated_overlay: *const AnimatedOverlay,
-    /// The raw bits of the C++ Display value before the box type
-    /// transformation, a C++-side member the table does not hold.
+    pub animated_overlay: Option<&'a AnimatedOverlay>,
+    /// The raw bits of the Display value before the box type transformation, which the table does not hold.
     pub box_display_before_transformation_raw: u32,
-    pub font: *const FfiFontGroupBuildInputs,
+    pub font: Option<&'a FfiFontGroupBuildInputs>,
 }
 
 /// Platform font resources and derived facts supplied to the Rust-owned font
@@ -3528,58 +3519,36 @@ pub(crate) unsafe fn rebuild_group_from_table(
     (!payload.is_null()).then_some(payload)
 }
 
-/// Builds every applied group's payload from the longhand table, writing one
-/// payload per applied group into `out_payloads`.
-/// Non-null payloads carry one reference for the caller, with the marshalled
-/// builders' sharing rules.
+/// Builds every applied group's payload from the longhand table, writing one payload per applied group into `out`
+/// and null for every other group. Each payload carries one reference for the caller.
 ///
 /// # Safety
-/// `table` must be a valid frozen table holding the style's computed values;
-/// `parent_payloads` and `out_payloads` must each hold `group_count` entries,
-/// with each parent entry a valid payload of its group or null; `inputs` must
-/// be valid with its pointers live across the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_build_group_payloads_from_table(
-    table: *const ComputedLonghandTable,
+/// `table` must be a valid frozen table holding the style's computed values, and the pointers `inputs` borrow must
+/// stay live across the call.
+pub(crate) unsafe fn build_group_payloads_from_table(
+    table: &ComputedLonghandTable,
     groups_to_apply: u32,
-    parent_payloads: *const *const c_void,
-    inputs: *const FfiTableGroupBuildInputs,
-    out_payloads: *mut *const c_void,
-    group_count: usize,
+    inputs: &TableGroupBuildInputs<'_>,
+    out: &mut [*const c_void; group_index::COUNT],
 ) {
-    assert_eq!(
-        group_count,
-        group_index::COUNT,
-        "the C++ StyleGroupIndex numbering drifted from the table builder's mirror"
-    );
-    let table = unsafe { &*table };
-    let inputs = unsafe { &*inputs };
-    let parents = unsafe { std::slice::from_raw_parts(parent_payloads, group_count) };
-    let out = unsafe { std::slice::from_raw_parts_mut(out_payloads, group_count) };
     let values = EffectiveValues {
         table,
-        animated_overlay: unsafe { inputs.animated_overlay.as_ref() },
+        animated_overlay: inputs.animated_overlay,
     };
-    let color_input = unsafe { &*inputs.color_input.cast::<FfiColorResolutionInput>() };
-    // SAFETY: The caller keeps the input's pointers live across the call.
-    let input = unsafe { resolution_input_from_ffi(color_input) };
+    let input = *inputs.color_input;
 
-    for group in 0..group_count {
-        out[group] = std::ptr::null();
+    for (group, out_payload) in out.iter_mut().enumerate() {
+        *out_payload = std::ptr::null();
         if (groups_to_apply >> group) & 1 == 0 {
             continue;
         }
-        let parent_payload = parents[group];
-        // SAFETY: Gathered pointers name live table or override data and
-        // the caller warrants the parent payloads.
+        let parent_payload = std::ptr::null();
+        // SAFETY: Gathered pointers name live table or override data.
         let payload = unsafe {
             match group {
                 group_index::FONT => build_font_group(
                     &values,
-                    inputs
-                        .font
-                        .as_ref()
-                        .expect("an applied font group has platform font inputs"),
+                    inputs.font.expect("an applied font group has platform font inputs"),
                     parent_payload,
                 ),
                 group_index::BOX => {
@@ -3650,6 +3619,6 @@ pub unsafe extern "C" fn rust_build_group_payloads_from_table(
             }
         };
         assert!(!payload.is_null(), "computed group build returned null");
-        out[group] = payload;
+        *out_payload = payload;
     }
 }
