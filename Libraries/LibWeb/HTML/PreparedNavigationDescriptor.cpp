@@ -106,26 +106,4 @@ PreparedNavigationDescriptor prepare_navigation_from_document(DOM::Document& sou
     };
 }
 
-PreparedNavigation create_prepared_navigation_from_descriptor(JS::Realm& realm, PreparedNavigationDescriptor descriptor)
-{
-    return {
-        .url = move(descriptor.url),
-        .document_resource = move(descriptor.document_resource),
-        .response = nullptr,
-        .history_handling = descriptor.history_handling,
-        .navigation_api_state = move(descriptor.navigation_api_state),
-        .form_data_entry_list = {},
-        .referrer_policy = descriptor.referrer_policy,
-        .user_involvement = descriptor.user_involvement,
-        .navigation_id = move(descriptor.navigation_id),
-        .source_element = nullptr,
-        .initial_insertion = descriptor.initial_insertion,
-        .api_method_tracker = nullptr,
-        .csp_navigation_type = descriptor.csp_navigation_type,
-        .source_snapshot_params = create_source_snapshot_params_from_navigation_source_snapshot(realm, descriptor.source_snapshot_params),
-        .initiator_origin_snapshot = move(descriptor.initiator_origin_snapshot),
-        .initiator_base_url_snapshot = move(descriptor.initiator_base_url_snapshot),
-    };
-}
-
 }

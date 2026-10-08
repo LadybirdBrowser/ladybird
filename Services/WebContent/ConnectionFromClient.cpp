@@ -292,12 +292,6 @@ void ConnectionFromClient::cancel_navigation_params_creation(Web::PageId page_id
         page->cancel_navigation_params_creation(navigable_id, navigation_id);
 }
 
-void ConnectionFromClient::navigate_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::PreparedNavigationDescriptor navigation)
-{
-    if (auto page = this->page(page_id); page.has_value())
-        page->navigate_navigable(navigable_id, move(navigation));
-}
-
 void ConnectionFromClient::deliver_posted_message(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor message)
 {
     if (auto page = this->page(page_id); page.has_value())

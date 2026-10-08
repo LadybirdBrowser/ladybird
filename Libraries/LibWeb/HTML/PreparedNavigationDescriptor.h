@@ -28,6 +28,5 @@ struct NavigationSourceSnapshots {
 WEB_API NavigationSourceSnapshots snapshot_navigation_source(GC::Ptr<DOM::Document> source_document);
 
 WEB_API PreparedNavigationDescriptor prepare_navigation_from_document(DOM::Document& source_document, URL::URL, ReferrerPolicy::ReferrerPolicy);
-WEB_API PreparedNavigation create_prepared_navigation_from_descriptor(JS::Realm&, PreparedNavigationDescriptor);
 
 }
