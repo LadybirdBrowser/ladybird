@@ -219,6 +219,15 @@ impl NativeJavaScriptBackedFunction {
         rust_executable
     }
 
+    /// The executable an inline call of this builtin runs, if the interpreter can call it inline: it is a normal
+    /// function that needs no function environment.
+    pub fn inline_call_executable(&self, vm: &Vm) -> Option<Gc<Executable>> {
+        if self.kind() != FunctionKind::Normal || self.function_environment_needed() {
+            return None;
+        }
+        Some(self.bytecode_executable(vm))
+    }
+
     pub fn shared_data(&self) -> Gc<SharedFunctionInstanceData> {
         self.shared_function_instance_data.get()
     }

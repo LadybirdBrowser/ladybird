@@ -24,6 +24,7 @@ use crate::runtime::completion::{Throw, ThrowCompletionOr};
 use crate::runtime::environment::Environment;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::source_text_module::SourceTextModule;
 use crate::script::Script;
 use libjs_abi::register;
@@ -302,35 +303,13 @@ impl Vm {
         new_target: Option<Gc<Object>>,
         is_construct: bool,
     ) -> Option<NonNull<ExecutionContext>> {
-        let stack = self.interpreter_stack();
-
-        let insn_argument_count = u32::try_from(arguments.len()).expect("the argument count fits in u32");
-        let registers_and_locals_count = callee_executable.registers_and_locals_count();
-        let constant_count =
-            u32::try_from(callee_executable.constants().len()).expect("the constant count fits in u32");
-        let argument_count = insn_argument_count.max(callee_function.formal_parameter_count());
-
-        let callee_context_pointer = stack.allocate(registers_and_locals_count, constant_count, argument_count)?;
-        // SAFETY: The context was just allocated, and stays allocated until the interpreter returns from it or
-        // unwinds it.
-        let callee_context = unsafe { callee_context_pointer.as_ref() };
-
-        // Copy the supplied arguments into the callee's argument slots.
-        let callee_argument_values = callee_context.arguments();
-        for (slot, argument) in callee_argument_values.iter().zip(arguments) {
-            slot.set(*argument);
-        }
-        for slot in &callee_argument_values[arguments.len()..] {
-            slot.set(Value::UNDEFINED);
-        }
-        callee_context.passed_argument_count.set(insn_argument_count);
-
-        // Set up caller linkage so Return can restore the caller frame.
-        callee_context
-            .caller_frame
-            .set(self.head.running_execution_context.get());
-        callee_context.caller_dst_raw.set(dst_raw);
-        callee_context.caller_return_pc.set(return_pc);
+        let callee_context = self.allocate_inline_frame(
+            callee_executable,
+            arguments,
+            callee_function.formal_parameter_count(),
+            return_pc,
+            dst_raw,
+        )?;
         callee_context.caller_is_construct.set(is_construct);
 
         // Inlined PrepareForOrdinaryCall (avoids function call overhead on hot path).
@@ -362,6 +341,7 @@ impl Vm {
 
         // Inline JS-to-JS frames stay out of the VM execution context stack and
         // are tracked through caller_frame instead.
+        let callee_context_pointer = NonNull::from(callee_context);
         self.head.running_execution_context.set(callee_context_pointer.as_ptr());
 
         // Bind this if the function uses it.
@@ -381,6 +361,103 @@ impl Vm {
             .set(callee_context.this_value.get());
 
         Some(callee_context_pointer)
+    }
+
+    /// Enters a frame for a call of a builtin written in JavaScript that the interpreter runs inline, like
+    /// push_inline_frame() does for ECMAScript functions. The frame is set up like [[Call]] of a built-in function
+    /// object sets up its callee context. The builtin must not need a function environment.
+    pub fn push_builtin_inline_frame(
+        &self,
+        callee_function: Gc<NativeJavaScriptBackedFunction>,
+        callee_executable: Gc<Executable>,
+        arguments: &[Value],
+        return_pc: u32,
+        dst_raw: u32,
+        this_value: Value,
+    ) -> Option<NonNull<ExecutionContext>> {
+        assert!(!callee_function.function_environment_needed());
+        let caller_context = self.running_execution_context_ref();
+        let callee_context = self.allocate_inline_frame(
+            callee_executable,
+            arguments,
+            callee_function.shared_data().formal_parameter_count(),
+            return_pc,
+            dst_raw,
+        )?;
+
+        // 10.3.1 [[Call]] ( thisArgument, argumentsList ), https://tc39.es/ecma262/#sec-built-in-function-objects-call-thisargument-argumentslist
+        // 4. Set the Function of calleeContext to F.
+        callee_context
+            .function
+            .set(Some(callee_function.as_function_object_gc()));
+
+        // 5. Let calleeRealm be F.[[Realm]].
+        // 6. Set the Realm of calleeContext to calleeRealm.
+        callee_context.realm.set(Some(callee_function.realm()));
+
+        // 7. Set the ScriptOrModule of calleeContext to null.
+        callee_context.script_or_module.set(ScriptOrModule::Empty);
+
+        // 8. Perform any necessary implementation-defined initialization of calleeContext.
+        // NB: Like NativeFunction's [[Call]], which runs these builtins otherwise.
+        callee_context.this_value.set(this_value);
+        callee_context.register(register::THIS_VALUE).set(this_value);
+        callee_context
+            .lexical_environment
+            .set(caller_context.lexical_environment.get());
+        callee_context
+            .variable_environment
+            .set(caller_context.variable_environment.get());
+        callee_context
+            .private_environment
+            .set(caller_context.private_environment.get());
+
+        let callee_context_pointer = NonNull::from(callee_context);
+        self.head.running_execution_context.set(callee_context_pointer.as_ptr());
+        callee_context.executable.set(Some(Executable::head(callee_executable)));
+        Some(callee_context_pointer)
+    }
+
+    /// Allocates a frame for an inline call of `callee_executable`, with its arguments and its linkage to the running
+    /// frame, which Return uses to get back to it.
+    fn allocate_inline_frame(
+        &self,
+        callee_executable: Gc<Executable>,
+        arguments: &[Value],
+        formal_parameter_count: u32,
+        return_pc: u32,
+        dst_raw: u32,
+    ) -> Option<&ExecutionContext> {
+        let stack = self.interpreter_stack();
+
+        let insn_argument_count = u32::try_from(arguments.len()).expect("the argument count fits in u32");
+        let registers_and_locals_count = callee_executable.registers_and_locals_count();
+        let constant_count =
+            u32::try_from(callee_executable.constants().len()).expect("the constant count fits in u32");
+        let argument_count = insn_argument_count.max(formal_parameter_count);
+
+        let callee_context_pointer = stack.allocate(registers_and_locals_count, constant_count, argument_count)?;
+        // SAFETY: The context was just allocated, and stays allocated until the interpreter returns from it or
+        // unwinds it.
+        let callee_context = unsafe { callee_context_pointer.as_ref() };
+
+        // Copy the supplied arguments into the callee's argument slots.
+        let callee_argument_values = callee_context.arguments();
+        for (slot, argument) in callee_argument_values.iter().zip(arguments) {
+            slot.set(*argument);
+        }
+        for slot in &callee_argument_values[arguments.len()..] {
+            slot.set(Value::UNDEFINED);
+        }
+        callee_context.passed_argument_count.set(insn_argument_count);
+
+        // Set up caller linkage so Return can restore the caller frame.
+        callee_context
+            .caller_frame
+            .set(self.head.running_execution_context.get());
+        callee_context.caller_dst_raw.set(dst_raw);
+        callee_context.caller_return_pc.set(return_pc);
+        Some(callee_context)
     }
 
     /// Leaves the running frame, which the interpreter entered inline, for the frame that called it.
