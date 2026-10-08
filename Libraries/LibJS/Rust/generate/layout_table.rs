@@ -204,6 +204,8 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.section("PropertyLookupCache layout");
     offset!(w, "PROPERTY_LOOKUP_CACHE_DATA", PropertyLookupCache, data);
     w.hex_constant("PROPERTY_LOOKUP_CACHE_DATA_POINTER_MASK", !(PROPERTY_LOOKUP_CACHE_DATA_TAG_MASK as u64));
+    w.constant("PROPERTY_LOOKUP_CACHE_DATA_TAG_MASK", PROPERTY_LOOKUP_CACHE_DATA_TAG_MASK);
+    w.constant("PROPERTY_LOOKUP_CACHE_POLYMORPHIC_DATA_TAG", PROPERTY_LOOKUP_CACHE_POLYMORPHIC_DATA_TAG);
     w.constant("PROPERTY_LOOKUP_CACHE_KEYED_GENERIC", PROPERTY_LOOKUP_CACHE_KEYED_GENERIC_DATA);
     size!(w, "PROPERTY_LOOKUP_CACHE_SIZE", PropertyLookupCache);
 

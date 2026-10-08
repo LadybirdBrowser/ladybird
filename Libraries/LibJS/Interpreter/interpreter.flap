@@ -2592,10 +2592,50 @@ handler GetById(
         dispatch_next;
     };
 
+    # The other entries of a polymorphic cache (the first one did not match). Accessors and missing
+    # properties are left to the runtime's probe.
+    let try_polymorphic_entries = |object: Object, shape: Shape| {
+        let polymorphic_executable = exec_ctx.executable;
+        let tagged_cache: u64 = alias(polymorphic_executable.property_lookup_caches[load(cache)]);
+        let cache_tag = tagged_cache & PROPERTY_LOOKUP_CACHE_DATA_TAG_MASK;
+        guard cache_tag == PROPERTY_LOOKUP_CACHE_POLYMORPHIC_DATA_TAG else try_cache;
+        let first_entry: u64 = tagged_cache & PROPERTY_LOOKUP_CACHE_DATA_POINTER_MASK;
+        let second_entry_address: u64 = first_entry + PROPERTY_LOOKUP_CACHE_ENTRY_SIZE;
+        let second_entry: PropertyLookupCache = alias(second_entry_address);
+        guard second_entry.shape != shape else use_polymorphic_entry(object, second_entry, shape);
+        let third_entry_address: u64 = second_entry_address + PROPERTY_LOOKUP_CACHE_ENTRY_SIZE;
+        let third_entry: PropertyLookupCache = alias(third_entry_address);
+        guard third_entry.shape != shape else use_polymorphic_entry(object, third_entry, shape);
+        let fourth_entry_address: u64 = third_entry_address + PROPERTY_LOOKUP_CACHE_ENTRY_SIZE;
+        let fourth_entry: PropertyLookupCache = alias(fourth_entry_address);
+        guard fourth_entry.shape != shape else use_polymorphic_entry(object, fourth_entry, shape);
+        goto try_cache;
+    };
+
+    let use_polymorphic_entry = |object: Object, entry: PropertyLookupCache, shape: Shape| {
+        guard entry.entry_type != PROPERTY_LOOKUP_CACHE_ENTRY_TYPE_GET_MISSING_PROPERTY else try_cache;
+        guard entry.shape_dictionary_generation == shape.dictionary_generation else try_cache;
+        let entry_prototype = entry.prototype;
+        guard entry_prototype == 0 else @cold {
+            let entry_prototype_chain_validity = entry.prototype_chain_validity;
+            guard entry_prototype_chain_validity != 0 else try_cache;
+            guard entry_prototype_chain_validity.valid != 0 else try_cache;
+            goto load_polymorphic_value(entry_prototype, entry);
+        };
+        goto load_polymorphic_value(object, entry);
+    };
+
+    let load_polymorphic_value = |holder: Object, entry: PropertyLookupCache| {
+        let polymorphic_value = holder.named_properties[entry.property_offset];
+        guard polymorphic_value is not Value<Accessor> else try_cache;
+        store(dst, polymorphic_value);
+        dispatch_next;
+    };
+
     guard let Value<Object>(object) = load(base) else try_cache;
     let shape = object.shape;
     guard let property_cache = load_property_lookup_cache(cache) else try_cache;
-    guard property_cache.shape == shape else try_cache;
+    guard property_cache.shape == shape else try_polymorphic_entries(object, shape);
     guard property_cache.entry_type != PROPERTY_LOOKUP_CACHE_ENTRY_TYPE_GET_MISSING_PROPERTY else try_cache;
     let load_cached_value = |holder: Object, object: Object, property_cache: PropertyLookupCache, shape: Shape| {
         guard property_cache.shape_dictionary_generation == shape.dictionary_generation else try_cache;

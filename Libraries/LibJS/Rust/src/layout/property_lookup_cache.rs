@@ -52,6 +52,9 @@ pub struct PropertyLookupCache {
 
 pub const PROPERTY_LOOKUP_CACHE_DATA_TAG_MASK: usize = 3;
 
+/// The tag of a polymorphic cache's data, whose entries are an array the interpreter probes.
+pub const PROPERTY_LOOKUP_CACHE_POLYMORPHIC_DATA_TAG: usize = 1;
+
 /// The data of a keyed generic cache: the tag without data (see PropertyLookupCache::is_keyed_generic()).
 pub const PROPERTY_LOOKUP_CACHE_KEYED_GENERIC_DATA: usize = 3;
 
