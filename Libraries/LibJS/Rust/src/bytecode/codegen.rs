@@ -3229,6 +3229,15 @@ fn try_generate_builtin_abstract_operation(
         generator.emit(Instruction::ThrowIfNotObject { src: src.operand() });
         return Some(Some(dst));
     }
+    if name == utf16!("ThrowNotAFunction") {
+        let src = generate_expression_or_undefined(&data.arguments[0].value, generator, None);
+        generator.emit(Instruction::ThrowNotAFunction { src: src.operand() });
+        return Some(Some(dst));
+    }
+    if name == utf16!("ArgumentCount") {
+        generator.emit(Instruction::GetArgumentCount { dst: dst.operand() });
+        return Some(Some(dst));
+    }
     if name == utf16!("ThrowTypeError") {
         if let ExpressionKind::StringLiteral(ref s) = data.arguments[0].value.inner {
             let message_string = generator.intern_string(s);
@@ -3317,6 +3326,7 @@ fn try_generate_builtin_abstract_operation(
 
     // Operations that map to intrinsic function calls.
     let known_operations: &[(&[u16], AbstractOperationKind)] = &[
+        (utf16!("ArraySpeciesCreate"), AbstractOperationKind::ArraySpeciesCreate),
         (utf16!("AsyncIteratorClose"), AbstractOperationKind::AsyncIteratorClose),
         (utf16!("GetMethod"), AbstractOperationKind::GetMethod),
         (utf16!("GetIteratorDirect"), AbstractOperationKind::GetIteratorDirect),

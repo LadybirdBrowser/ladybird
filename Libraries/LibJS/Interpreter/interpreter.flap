@@ -1898,6 +1898,14 @@ handler ThrowIfNullish(
 
 handler ThrowConstAssignment() @cold = call_slow_path(throw_const_assignment);
 
+handler ThrowNotAFunction(
+    src: Operand
+) @cold = call_slow_path(throw_not_a_function);
+
+handler GetArgumentCount(
+    dst: out Operand
+) @cold = call_slow_path(get_argument_count);
+
 handler Throw(
     src: Operand
 ) @terminator @cold = call_slow_path(throw);

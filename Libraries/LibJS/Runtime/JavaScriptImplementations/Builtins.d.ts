@@ -96,3 +96,20 @@ declare const SYMBOL_ASYNC_ITERATOR: symbol;
  * @defaultValue 2 ** 53 - 1
  */
 declare const MAX_ARRAY_LIKE_INDEX: number;
+
+/**
+ * Throws a {@link TypeError} saying that the given value is not a function.
+ * @param value {any} The value that is not a function
+ * @throws {TypeError} Always.
+ */
+declare function ThrowNotAFunction(value: any): never;
+
+/**
+ * Returns the number of arguments the running builtin was called with.
+ */
+declare function ArgumentCount(): number;
+
+/**
+ * Creates a new array like the given one with the given length, using its species constructor.
+ */
+declare function ArraySpeciesCreate(originalArray: object, length: number): object;
