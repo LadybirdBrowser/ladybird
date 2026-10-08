@@ -247,7 +247,7 @@ impl Value {
     }
 
     pub fn is_nan(self) -> bool {
-        self.is_number() && self.as_f64().is_nan()
+        self.0 == nan_box::CANON_NAN_BITS
     }
 
     pub fn is_infinity(self) -> bool {
