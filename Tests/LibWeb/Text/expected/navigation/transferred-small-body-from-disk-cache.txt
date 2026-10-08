@@ -1,0 +1,3 @@
+first load is complete: true
+second load came from the cache: true
+second load is complete and not repeated: true

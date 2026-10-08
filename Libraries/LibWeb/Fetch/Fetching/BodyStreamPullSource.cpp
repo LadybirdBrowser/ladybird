@@ -75,7 +75,7 @@ void BodyStreamWakeSink::wake(Engine::WakeTicket ticket)
     });
 }
 
-BodyStreamPullSource::BodyStreamPullSource(JS::Realm& realm, GC::Ref<Infrastructure::FetchParams const> fetch_params, GC::Ref<Streams::ReadableStream> stream, NonnullRefPtr<Engine::FetchByteChannel> channel, BodyStreamWakeSink const& wake_sink)
+BodyStreamPullSource::BodyStreamPullSource(JS::Realm& realm, GC::Ptr<Infrastructure::FetchParams const> fetch_params, GC::Ref<Streams::ReadableStream> stream, NonnullRefPtr<Engine::FetchByteChannel> channel, BodyStreamWakeSink const& wake_sink)
     : m_realm(realm)
     , m_fetch_params(fetch_params)
     , m_stream(stream)
@@ -129,7 +129,8 @@ GC::Ref<WebIDL::Promise> BodyStreamPullSource::cancel(JS::Value reason)
         WebIDL::resolve_promise(realm, *promise, JS::js_undefined());
 
     // cancelAlgorithm: abort fetchParams's controller with reason, given reason.
-    m_fetch_params->controller()->abort(realm, reason);
+    if (m_fetch_params)
+        m_fetch_params->controller()->abort(realm, reason);
     return WebIDL::create_resolved_promise(realm, JS::js_undefined());
 }
 
@@ -149,9 +150,17 @@ BodyStreamPullSource::WakeResult BodyStreamPullSource::on_wake(Engine::WakeTicke
 
     // 3. Queue a fetch task to run the following steps, with fetchParams’s task destination:
     // NB: This task stays queued when the fetch is stopped.
-    Infrastructure::queue_fetch_task(m_fetch_params->task_destination(), GC::create_function(heap(), [this] {
+    auto steps = GC::create_function(heap(), [this] {
         run_pull_task();
-    }));
+    });
+    if (m_fetch_params) {
+        Infrastructure::queue_fetch_task(m_fetch_params->task_destination(), steps);
+        return WakeResult::Consumed;
+    }
+
+    // AD-HOC: The tasks of a navigation body adopted from another process are queued without a document, since the
+    //         previous document's tasks stop running once the new document replaces it.
+    HTML::queue_a_task(HTML::Task::Source::Networking, HTML::main_thread_event_loop(), nullptr, steps);
     return WakeResult::Consumed;
 }
 
@@ -249,7 +258,8 @@ void BodyStreamPullSource::drain_into_stream()
             auto error = WebIDL::exception_to_throw_completion(realm.vm(), realm, pull_result.release_error());
             if (m_stream->is_readable())
                 m_stream->error(error.value());
-            m_fetch_params->controller()->terminate();
+            if (m_fetch_params)
+                m_fetch_params->controller()->terminate();
             m_channel->cancel();
             m_detached = true;
             return;
@@ -257,7 +267,7 @@ void BodyStreamPullSource::drain_into_stream()
     }
 
     // 2. If stream is errored, then terminate fetchParams’s controller.
-    if (m_stream->is_errored())
+    if (m_stream->is_errored() && m_fetch_params)
         m_fetch_params->controller()->terminate();
 
     settle_stream(result);

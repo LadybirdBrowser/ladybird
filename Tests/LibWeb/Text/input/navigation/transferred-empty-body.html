@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A navigation response with an empty body still produces a document in the process that adopts it.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const url = await server.createEcho("GET", `/transferred-empty-body-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: { "Cache-Control": "no-store", "Content-Type": "text/html" },
+            body: "",
+        });
+
+        const iframe = document.createElement("iframe");
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.src = url;
+        document.body.append(iframe);
+        await loaded;
+        println("empty document loaded");
+        iframe.remove();
+    });
+</script>

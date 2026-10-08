@@ -29,7 +29,6 @@ public:
     virtual void pause_body_delivery() override;
     virtual void stop() override;
 
-    void resume_body_delivery();
     void release_transfer_lease();
 
     void set_on_requires_network(Function<void()>);

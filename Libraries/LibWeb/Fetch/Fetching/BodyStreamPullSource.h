@@ -42,7 +42,7 @@ class BodyStreamPullSource final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(BodyStreamPullSource);
 
 public:
-    BodyStreamPullSource(JS::Realm&, GC::Ref<Infrastructure::FetchParams const>, GC::Ref<Streams::ReadableStream>, NonnullRefPtr<Engine::FetchByteChannel>, BodyStreamWakeSink const&);
+    BodyStreamPullSource(JS::Realm&, GC::Ptr<Infrastructure::FetchParams const>, GC::Ref<Streams::ReadableStream>, NonnullRefPtr<Engine::FetchByteChannel>, BodyStreamWakeSink const&);
     virtual ~BodyStreamPullSource() override;
 
     GC::Ref<WebIDL::Promise> pull();
@@ -65,7 +65,8 @@ private:
 
     // The realm the stream is set up in.
     GC::Ref<JS::Realm> m_realm;
-    GC::Ref<Infrastructure::FetchParams const> m_fetch_params;
+    // Null for a navigation body adopted from another process.
+    GC::Ptr<Infrastructure::FetchParams const> m_fetch_params;
     GC::Ref<Streams::ReadableStream> m_stream;
     NonnullRefPtr<Engine::FetchByteChannel> m_channel;
     BodyStreamWakeToken const m_registry_token { 0 };

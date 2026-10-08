@@ -138,6 +138,7 @@
 #include <LibWeb/Editing/SpellCheckController.h>
 #include <LibWeb/Editing/SpellingMarkers.h>
 #include <LibWeb/Editing/WritingSuggestionController.h>
+#include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 #include <LibWeb/Fetch/Fetching/Checks.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
@@ -639,10 +640,9 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
             navigation_params.response->status());
     }
 
-    // AD-HOC: Retain the navigation fetch controller so aborting the document can cancel the main resource after
-    //         response commitment. Navigation fetches are not included in the document's subresource fetch group.
-    if (navigation_params.fetch_controller)
-        document->m_ongoing_navigation_fetch_controller = navigation_params.fetch_controller;
+    // AD-HOC: Retain the navigation's fetch controller, or an adopted body's transport, so aborting the document
+    //         cancels its main resource, which is not in its fetch group.
+    document->m_ongoing_navigation_fetch = navigation_params.body_delivery();
 
     // 17. If navigationParams's response has a `Refresh` header, then:
     if (auto maybe_refresh = navigation_params.response->header_list()->get("Refresh"sv); maybe_refresh.has_value()) {
@@ -994,7 +994,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_pending_parsing_blocking_svg_script);
     visitor.visit(m_history);
     visitor.visit(m_html_parser_end_state);
-    visitor.visit(m_ongoing_navigation_fetch_controller);
+    visitor.visit(m_ongoing_navigation_fetch);
     visitor.visit(m_navigation_timing_entry);
     visitor.visit(m_style_computer);
     visitor.visit(m_font_computer);
@@ -5259,7 +5259,7 @@ void Document::schedule_svg_referenced_motion_path_update(SVG::SVGAnimateMotionE
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#completely-finish-loading
 void Document::completely_finish_loading()
 {
-    m_ongoing_navigation_fetch_controller = nullptr;
+    m_ongoing_navigation_fetch = Empty {};
 
     // 2. Set document's completely loaded time to the current time.
     // AD-HOC: Set this unconditionally, even if the document has no navigable yet.
@@ -6718,16 +6718,15 @@ void Document::abort()
     //    If this resulted in any instances of the fetch algorithm being canceled
     //    or any queued tasks or any network data getting discarded,
     //    then make document unsalvageable given document and "fetch".
-    bool canceled_fetch = false;
+    bool canceled_fetch = HTML::stop_body_delivery(m_ongoing_navigation_fetch);
+    m_ongoing_navigation_fetch = Empty {};
+
     auto cancel_fetch = [&](GC::Ptr<Fetch::Infrastructure::FetchController> controller) {
         if (!controller || controller->state() != Fetch::Infrastructure::FetchController::State::Ongoing)
             return;
         controller->stop_fetch();
         canceled_fetch = true;
     };
-
-    cancel_fetch(m_ongoing_navigation_fetch_controller);
-    m_ongoing_navigation_fetch_controller = nullptr;
 
     // AD-HOC: The fetch group belongs to the document's Window. Once the Window is associated with another document,
     //         as when the initial about:blank document is replaced, its fetches are not in the context of this document.
