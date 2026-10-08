@@ -192,6 +192,7 @@ macro_rules! define_intrinsics {
 define_intrinsics! {
     empty_object_shape: Cell<Option<Gc<Shape>>>,
     new_object_shape: Cell<Option<Gc<Shape>>>,
+    new_regexp_object_shape: Cell<Option<Gc<Shape>>>,
 
     iterator_result_object_shape: Cell<Option<Gc<Shape>>>,
     iterator_result_object_value_offset: Cell<u32>,
@@ -1426,6 +1427,21 @@ impl Intrinsics {
             .set(offset_of(regexp_builtin_exec_array_shape, &names.groups));
         self.regexp_builtin_exec_array_shape
             .set(Some(regexp_builtin_exec_array_shape));
+    }
+
+    /// The shape of a RegExp object with %RegExp.prototype% and its "lastIndex" property, which is looked up the first
+    /// time a regular expression literal is evaluated. It is the shape the transitions of a RegExp object that the
+    /// RegExp constructor creates end up at, so the objects of both share it.
+    pub fn new_regexp_object_shape(&self, vm: &Vm) -> Gc<Shape> {
+        if let Some(shape) = self.new_regexp_object_shape.get() {
+            return shape;
+        }
+        let shape = self
+            .empty_object_shape()
+            .create_prototype_transition(vm, Some(self.regexp_prototype(vm)))
+            .create_put_transition(vm, &vm.names.lastIndex, PropertyAttributes::new(Attribute::WRITABLE));
+        self.new_regexp_object_shape.set(Some(shape));
+        shape
     }
 
     pub fn realm(&self) -> Gc<Realm> {
