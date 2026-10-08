@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -27,11 +27,13 @@ use crate::runtime::abstract_operations::{
     call_function_object, checked_js_string_length_sum, construct, get_substitution, length_of_array_like,
     species_constructor,
 };
+use crate::runtime::accessor::Accessor;
 use crate::runtime::array::Array;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::ecmascript_regex::{EcmaScriptRegex, MatchResult};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::function_object::FunctionObject;
 use crate::runtime::native_function::raw_native;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, define_object_class};
 use crate::runtime::primitive_string::PrimitiveString;
@@ -47,6 +49,7 @@ use crate::runtime::regexp_object::{
     REGEXP_FLAGS_WITH_CHARACTERS, RegExpFlags, RegExpObject, compile_flags_for, parse_regex_pattern,
 };
 use crate::runtime::regexp_string_iterator::RegExpStringIterator;
+use crate::runtime::shape::Shape;
 use crate::runtime::string_prototype::code_point_at;
 use crate::runtime::value::same_value;
 use crate::utf16::{Utf16StringBuilder, Utf16View, concatenate};
@@ -185,7 +188,18 @@ define_regexp_flag_getters! {
 #[derive(Trace)]
 pub struct RegExpPrototype {
     base: Object,
+    // What reading_flags_is_unobservable() last found unchanged: the shape and dictionary generation of this prototype,
+    // and the slot, accessor and getter of "flags" and of each flag. The cells are kept alive, so another accessor or
+    // getter can never take one's place at the same address.
+    flag_getters_shape: Cell<Option<Gc<Shape>>>,
+    flag_getters_generation: Cell<u32>,
+    flag_getter_offsets: [Cell<u32>; FLAG_GETTER_COUNT],
+    flag_getter_accessors: [Cell<Option<Gc<Accessor>>>; FLAG_GETTER_COUNT],
+    flag_getter_functions: [Cell<Option<Gc<FunctionObject>>>; FLAG_GETTER_COUNT],
 }
+
+/// "flags" and the eight flags.
+const FLAG_GETTER_COUNT: usize = 9;
 
 define_object_class!(RegExpPrototype, extends: [Object], methods: {
     initialize: RegExpPrototype::initialize,
@@ -791,6 +805,11 @@ impl RegExpPrototype {
         realm.create_object(
             vm,
             RegExpPrototype {
+                flag_getters_shape: Cell::new(None),
+                flag_getters_generation: Cell::new(0),
+                flag_getter_offsets: Default::default(),
+                flag_getter_accessors: Default::default(),
+                flag_getter_functions: Default::default(),
                 base: Object::new_with_prototype(
                     vm,
                     Self::CLASS,
@@ -965,9 +984,72 @@ impl RegExpPrototype {
     fn reading_flags_is_unobservable(vm: &Vm, realm: Gc<Realm>) -> bool {
         let regexp_prototype = realm.intrinsics().regexp_prototype(vm);
 
+        // OPTIMIZATION: Asking for every getter takes a lookup and a check of the getter's native function each, so
+        //               remember what the last check found, and only check that the slots still hold the same accessors
+        //               with the same getters.
+        let typed_regexp_prototype = regexp_prototype.downcast::<RegExpPrototype>();
+        if typed_regexp_prototype.is_some_and(|prototype| prototype.flag_getters_are_unchanged()) {
+            return true;
+        }
+        let unobservable = Self::reading_flags_is_unobservable_uncached(vm, &regexp_prototype);
+        if unobservable && let Some(typed_regexp_prototype) = typed_regexp_prototype {
+            typed_regexp_prototype.remember_flag_getters(vm);
+        }
+        unobservable
+    }
+
+    fn flag_getter_names(vm: &Vm) -> [&PropertyKey; FLAG_GETTER_COUNT] {
+        let names = &vm.names;
+        [
+            &names.flags,
+            &names.hasIndices,
+            &names.global,
+            &names.ignoreCase,
+            &names.multiline,
+            &names.dotAll,
+            &names.unicode,
+            &names.unicodeSets,
+            &names.sticky,
+        ]
+    }
+
+    fn flag_getters_are_unchanged(&self) -> bool {
+        let shape = self.shape();
+        if self.flag_getters_shape.get() != Some(shape)
+            || self.flag_getters_generation.get() != shape.dictionary_generation()
+        {
+            return false;
+        }
+        (0..FLAG_GETTER_COUNT).all(|index| {
+            let value = self.get_direct(self.flag_getter_offsets[index].get());
+            value.is_accessor()
+                && Some(value.as_accessor()) == self.flag_getter_accessors[index].get()
+                && value.as_accessor().getter() == self.flag_getter_functions[index].get()
+        })
+    }
+
+    fn remember_flag_getters(&self, vm: &Vm) {
+        let shape = self.shape();
+        for (index, name) in Self::flag_getter_names(vm).into_iter().enumerate() {
+            let Some(metadata) = shape.lookup(name) else {
+                return;
+            };
+            let value = self.get_direct(metadata.offset);
+            if !value.is_accessor() {
+                return;
+            }
+            self.flag_getter_offsets[index].set(metadata.offset);
+            self.flag_getter_accessors[index].set(Some(value.as_accessor()));
+            self.flag_getter_functions[index].set(value.as_accessor().getter());
+        }
+        self.flag_getters_shape.set(Some(shape));
+        self.flag_getters_generation.set(shape.dictionary_generation());
+    }
+
+    fn reading_flags_is_unobservable_uncached(vm: &Vm, regexp_prototype: &Object) -> bool {
         if !has_intrinsic_getter(
             vm,
-            &regexp_prototype,
+            regexp_prototype,
             &vm.names.flags,
             cache(vm, CacheSite::RegExpFlagsUnobservableFlags),
             FLAGS_GETTER,
@@ -975,7 +1057,7 @@ impl RegExpPrototype {
             return false;
         }
 
-        Self::every_flag_has_its_intrinsic_getter(vm, &regexp_prototype)
+        Self::every_flag_has_its_intrinsic_getter(vm, regexp_prototype)
     }
 
     // ToLength(Get(R, "lastIndex")) runs whatever valueOf the property holds, so the fast path needs a plain number there.

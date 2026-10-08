@@ -245,3 +245,25 @@ describe("replacing with functions and substitutions", () => {
         expect("hello".replace(/(l)/, "$0")).toBe("he$0lo");
     });
 });
+
+test("flag getters changed after replacing", () => {
+    expect("a-b".replace(/-/g, "+")).toBe("a+b");
+    const descriptor = Object.getOwnPropertyDescriptor(RegExp.prototype, "global");
+    const originalGetter = descriptor.get;
+    let calls = 0;
+    Object.defineProperty(RegExp.prototype, "global", {
+        get() {
+            ++calls;
+            return originalGetter.call(this);
+        },
+        configurable: true,
+    });
+    try {
+        expect("a-b-c".replace(/-/g, "+")).toBe("a+b+c");
+        expect(calls).toBe(1);
+    } finally {
+        Object.defineProperty(RegExp.prototype, "global", descriptor);
+    }
+    expect("a-b-c".replace(/-/g, "+")).toBe("a+b+c");
+    expect(calls).toBe(1);
+});
