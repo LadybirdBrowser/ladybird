@@ -349,8 +349,12 @@ void CrashReportSubmission::post(StringView path, StringView activity, StringVie
         headers->set({ "X-Ladybird-Nonce"sv, ByteString::number(proof->nonce) });
     }
 
-    auto& request_client = Application::request_server_client(IsPrivate::No);
-    m_request = request_client.start_request("POST"sv, *url, *headers, body.bytes(),
+    auto request_client = Application::request_server_client(IsPrivate::No);
+    if (request_client.is_error()) {
+        fail("Could not start the report request."_string, ShouldRetry::Yes);
+        return;
+    }
+    m_request = request_client.value()->start_request("POST"sv, *url, *headers, body.bytes(),
         HTTP::CacheMode::NoStore, HTTP::Cookie::IncludeCredentials::No);
     if (!m_request) {
         fail("Could not connect to the report server."_string, ShouldRetry::Yes);

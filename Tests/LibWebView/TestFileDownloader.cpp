@@ -397,7 +397,7 @@ void expect_request_can_be_released_from_finish_callback(TestHttpServer& server,
     auto url = URL::Parser::basic_parse(ByteString::formatted("http://127.0.0.1:{}/file", server.port()));
     VERIFY(url.has_value());
 
-    auto request = WebView::Application::request_server_client().start_request("GET"sv, *url);
+    auto request = MUST(WebView::Application::request_server_client())->start_request("GET"sv, *url);
     VERIFY(request);
 
     size_t delivered_size = 0;
@@ -428,9 +428,57 @@ void expect_request_can_be_released_from_finish_callback(TestHttpServer& server,
     VERIFY(delivered_size == expected_body_size);
 }
 
-void expect_leased_request_is_torn_down_when_transferred_after_finishing(TestHttpServer& server, size_t expected_body_size)
+void expect_request_can_be_exported_from_headers_callback(TestHttpServer& server, size_t expected_body_size)
 {
-    auto& request_client = WebView::Application::request_server_client();
+    auto& request_client = *MUST(WebView::Application::request_server_client());
+    auto url = URL::Parser::basic_parse(ByteString::formatted("http://127.0.0.1:{}/file", server.port()));
+    VERIFY(url.has_value());
+
+    auto request = request_client.start_request("GET"sv, *url, {}, {}, HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials::Yes, Requests::RequestClient::TransferLease::Yes);
+    VERIFY(request);
+
+    size_t delivered_size = 0;
+    bool finished = false;
+    request->set_body_delivery_paused(true);
+    request->set_unbuffered_request_callbacks(
+        [&](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState) {
+            auto exported = MUST(request_client.export_request(*request));
+            request = request_client.import_request(move(exported));
+            VERIFY(request);
+            request->set_unbuffered_request_callbacks(
+                [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState) {
+                },
+                [&](Requests::ResponseData data) {
+                    delivered_size += data.bytes().size();
+                },
+                [](Core::ImmutableBytes) {
+                },
+                [&](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> error) {
+                    VERIFY(!error.has_value());
+                    finished = true;
+                });
+        },
+        [](Requests::ResponseData) {
+            VERIFY_NOT_REACHED();
+        },
+        [](Core::ImmutableBytes) {
+            VERIFY_NOT_REACHED();
+        },
+        [](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError>) {
+            VERIFY_NOT_REACHED();
+        });
+
+    bool timed_out = false;
+    auto timeout = Core::Timer::create_single_shot(10'000, [&] { timed_out = true; });
+    timeout->start();
+    Core::EventLoop::current().spin_until([&] { return finished || timed_out; });
+    VERIFY(!timed_out);
+    VERIFY(delivered_size == expected_body_size);
+}
+
+void expect_leased_request_is_torn_down_when_transferred_after_finishing(TestHttpServer& server, size_t expected_body_size, bool export_response = false)
+{
+    auto& request_client = *MUST(WebView::Application::request_server_client());
 
     auto url = URL::Parser::basic_parse(ByteString::formatted("http://127.0.0.1:{}/file", server.port()));
     VERIFY(url.has_value());
@@ -461,8 +509,15 @@ void expect_leased_request_is_torn_down_when_transferred_after_finishing(TestHtt
     Core::EventLoop::current().spin_until([&] { return request->is_finished(); });
     VERIFY(!finished);
 
-    // Adopting the finished request transfers it away from its original owner — which has to be told to let go of it.
-    auto adopted_request = request_client.adopt_request(request_client.request_server_client_id(), request->id());
+    // Transferring a finished request must release the original client's reference.
+    auto adopted_request = [&] {
+        if (export_response) {
+            auto exported = MUST(request_client.export_request(*request));
+            VERIFY(request->ref_count() == 1);
+            return request_client.import_request(move(exported));
+        }
+        return request_client.adopt_request(request_client.request_server_client_id(), request->id());
+    }();
     VERIFY(adopted_request);
 
     size_t delivered_size = 0;
@@ -486,8 +541,7 @@ void expect_leased_request_is_torn_down_when_transferred_after_finishing(TestHtt
     });
     timeout->start();
 
-    // The transfer stops the original request, and drops the client's reference to it — so, this one is the last.
-    Core::EventLoop::current().spin_until([&] { return (stopped && adopted_request_finished && request->ref_count() == 1) || timed_out; });
+    Core::EventLoop::current().spin_until([&] { return ((export_response || stopped) && adopted_request_finished && request->ref_count() == 1) || timed_out; });
     VERIFY(!timed_out);
     VERIFY(!finished);
     VERIFY(delivered_size == expected_body_size);
@@ -527,6 +581,22 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
         expect_leased_request_is_torn_down_when_transferred_after_finishing(server, response_body.size());
         outln("leased request torn down when transferred after finishing");
+    }
+
+    {
+        auto response_body = make_body(4 * KiB);
+        TestHttpServer server { response_body, RangeSupport::No };
+
+        expect_leased_request_is_torn_down_when_transferred_after_finishing(server, response_body.size(), true);
+        outln("leased request released when exported after finishing");
+    }
+
+    {
+        auto response_body = make_body(4 * KiB);
+        TestHttpServer server { response_body, RangeSupport::No };
+
+        expect_request_can_be_exported_from_headers_callback(server, response_body.size());
+        outln("export request from headers callback");
     }
 
     auto body = make_body(12 * MiB);

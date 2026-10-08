@@ -1509,10 +1509,34 @@ void CanonicalTraversable::continue_history_navigation_population(Web::HTML::Cro
     }
     add_history_operation_completion_endpoint(*operation, *endpoint);
     auto& job = *pending_job.value();
-    endpoint->owe_reply({ OwedReply::Kind::ChangingJob, operation_id, navigable_id });
-    endpoint->async_continue_history_navigation_population(operation_id, job.job.target_entry_descriptor(), job.job.navigation_type,
-        Web::HTML::HistoryNavigationPopulation { loader->request(), loader->take_result() });
     job.population_loader = move(loader);
+    auto finish_handoff = [weak_this = make_weak_ptr(), weak_loader = job.population_loader->make_weak_ptr(), operation_id, navigable_id, endpoint](bool succeeded) {
+        if (!weak_this || !weak_loader)
+            return;
+        auto& traversable = static_cast<CanonicalTraversable&>(*weak_this);
+        auto* operation = traversable.find_history_operation(operation_id);
+        if (!operation)
+            return;
+        auto pending_job = operation->pending_changing_jobs.get(navigable_id);
+        if (!pending_job.has_value() || pending_job.value()->population_loader.ptr() != weak_loader.ptr())
+            return;
+        if (!succeeded || !endpoint->is_open()) {
+            traversable.did_fail_history_navigation_population(operation_id, navigable_id, *endpoint);
+            return;
+        }
+        auto& job = *pending_job.value();
+        auto& loader = *job.population_loader;
+        endpoint->owe_reply({ OwedReply::Kind::ChangingJob, operation_id, navigable_id });
+        endpoint->async_continue_history_navigation_population(operation_id, job.job.target_entry_descriptor(), job.job.navigation_type,
+            Web::HTML::HistoryNavigationPopulation { loader.request(), loader.take_result() });
+    };
+    if (auto client_id = endpoint->client().request_server_site_bindings().client_id(); client_id.has_value()) {
+        if (auto request_server = RequestServerManager::the().instance_for_client(*client_id)) {
+            job.population_loader->move_response_body_to(*request_server, move(finish_handoff));
+            return;
+        }
+    }
+    finish_handoff(false);
 }
 
 void CanonicalTraversable::dispatch_changing_navigable_history_step_job(HistoryOperation& operation, Web::HTML::CrossProcessId navigable_id)

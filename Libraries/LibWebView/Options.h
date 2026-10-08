@@ -118,6 +118,8 @@ struct RequestServerOptions {
     HTTPDiskCacheMode http_disk_cache_mode { HTTPDiskCacheMode::Disabled };
     Optional<ByteString> resource_substitution_map_path;
     HTTP::ProxyConfiguration proxy_configuration;
+    // Per-session limit, excluding the RequestServer with no site. Zero makes every process share that server.
+    size_t maximum_site_request_servers { 16 };
 };
 
 enum class IsTestMode {

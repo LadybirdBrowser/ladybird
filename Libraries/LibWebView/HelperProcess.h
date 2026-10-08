@@ -31,7 +31,8 @@ WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content
 WEBVIEW_API ErrorOr<NonnullRefPtr<MediaClient::Client>> launch_media_server_process();
 WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process();
 WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::WebWorkerClient>> launch_web_worker_process(Web::HTML::AgentType, IsPrivate, Web::HTML::WorkerAgentId);
-WEBVIEW_API ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_process();
+WEBVIEW_API ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_process(ByteString const& cache_path, Optional<Utf16String> const& site, HTTPDiskCacheMode);
+WEBVIEW_API void apply_dns_settings(Requests::RequestControlClient&);
 #if defined(HAVE_WASM_COMPILER_SERVICE)
 WEBVIEW_API ErrorOr<NonnullRefPtr<WasmCompilerClient::Client>> launch_wasm_compiler_process();
 #endif
@@ -53,7 +54,8 @@ struct RequestServerClientConnection {
     int client_id { -1 };
 };
 
-// The new client uses the cookies of the given session. That must be the session of the process the client is for.
+// A new client of the session's RequestServer with no site. The client uses the cookies of the given session, which
+// must be the session of the process the client is for.
 WEBVIEW_API ErrorOr<RequestServerClientConnection> connect_new_request_server_client(BrowsingSession&, RequestServer::SiteBinding);
 // Launches the MediaServer for a renderer if it has none, keeping its controller connection in the given slot, and
 // connects a new client to it.

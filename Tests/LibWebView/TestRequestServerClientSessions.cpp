@@ -90,7 +90,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     // The views of the first private session keep it alive after the user restarts private browsing.
     auto first_private_session = WebView::Application::session_for_new_view(WebView::IsPrivate::Yes);
     auto first_private_client = connect_request_server_client(*first_private_session);
-    auto first_ui_private_client = client_id_of(WebView::Application::request_server_client(WebView::IsPrivate::Yes));
+    auto first_ui_private_client = client_id_of(*TRY(WebView::Application::request_server_client(WebView::IsPrivate::Yes)));
     VERIFY(app->session_for_request_server_client(first_ui_private_client) == first_private_session);
 
     app->reset_private_browsing_session();
@@ -98,7 +98,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto second_private_client = connect_request_server_client(*second_private_session);
 
     // The UI process's own private client is replaced along with the session, so its requests use the new cookies.
-    auto second_ui_private_client = client_id_of(WebView::Application::request_server_client(WebView::IsPrivate::Yes));
+    auto second_ui_private_client = client_id_of(*TRY(WebView::Application::request_server_client(WebView::IsPrivate::Yes)));
     VERIFY(app->session_for_request_server_client(second_ui_private_client) == second_private_session);
 
     VERIFY(first_private_session.ptr() != second_private_session.ptr());
