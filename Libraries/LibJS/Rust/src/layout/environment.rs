@@ -23,6 +23,8 @@ pub struct Environment {
     pub this_binding_status: Cell<u8>,
     pub permanently_screwed_by_eval: Cell<bool>,
     pub declarative: Cell<bool>,
+    /// Whether the binding values of a declarative environment are stored in its cell, after the fields of its class.
+    pub binding_values_are_inline: Cell<bool>,
     pub outer: Cell<Option<Gc<Environment>>>,
 }
 

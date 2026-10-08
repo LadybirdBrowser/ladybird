@@ -175,10 +175,74 @@ unsafe impl Trace for DeclarativeEnvironment {
 
 impl Finalize for DeclarativeEnvironment {
     fn finalize(&self) {
-        self.binding_values.clear();
+        if self.binding_values_are_inline.get() {
+            self.binding_values.forget_unowned_storage();
+        } else {
+            self.binding_values.clear();
+        }
         self.free_rare_data();
     }
 }
+
+/// How many binding values the size classes of an environment class have room for after the fields of the class.
+/// Environments with more bindings keep them in malloc storage.
+pub const INLINE_BINDING_CAPACITIES: [u8; 8] = [1, 2, 3, 4, 6, 8, 12, 16];
+
+/// The cell sizes of the size classes of an environment class whose cells are `cell_size` bytes.
+pub const fn inline_binding_cell_sizes(cell_size: usize) -> [u32; INLINE_BINDING_CAPACITIES.len()] {
+    let mut cell_sizes = [0; INLINE_BINDING_CAPACITIES.len()];
+    let mut index = 0;
+    while index < cell_sizes.len() {
+        cell_sizes[index] = (cell_size + INLINE_BINDING_CAPACITIES[index] as usize * size_of::<Value>()) as u32;
+        index += 1;
+    }
+    cell_sizes
+}
+
+/// The size class (an index into INLINE_BINDING_CAPACITIES) of environments with room for `binding_capacity` binding
+/// values, or None if they need none or more than any size class has.
+pub fn inline_binding_size_class(binding_capacity: usize) -> Option<usize> {
+    if binding_capacity == 0 {
+        return None;
+    }
+    INLINE_BINDING_CAPACITIES
+        .iter()
+        .position(|&capacity| binding_capacity <= capacity as usize)
+}
+
+/// Moves `environment`, a new environment of class T without bindings, into the heap, with room for
+/// `binding_capacity` binding values in its cell if a size class of T (with `cell_sizes`, from
+/// inline_binding_cell_sizes()) has room for them.
+pub fn allocate_environment<T: GcCell>(
+    vm: &Vm,
+    environment: T,
+    binding_capacity: usize,
+    cell_sizes: &[u32; INLINE_BINDING_CAPACITIES.len()],
+    declarative: fn(&T) -> &DeclarativeEnvironment,
+) -> Gc<T> {
+    let heap = vm.heap();
+    let Some(size_class) = inline_binding_size_class(binding_capacity) else {
+        return heap.allocate(environment);
+    };
+    let environment = heap.allocate_with_size_class(
+        heap.size_classes(T::CLASS, cell_sizes)[size_class],
+        environment,
+        Value::EMPTY,
+    );
+    let declarative_environment = declarative(&environment);
+    // SAFETY: The cell has room for the size class's binding values after the fields of T, as long as it lives.
+    unsafe {
+        let inline_values = environment.as_ptr().cast::<u8>().add(size_of::<T>()).cast::<Value>();
+        declarative_environment
+            .binding_values
+            .use_unowned_storage(inline_values, usize::from(INLINE_BINDING_CAPACITIES[size_class]));
+    }
+    declarative_environment.binding_values_are_inline.set(true);
+    environment
+}
+
+const DECLARATIVE_ENVIRONMENT_CELL_SIZES: [u32; INLINE_BINDING_CAPACITIES.len()] =
+    inline_binding_cell_sizes(size_of::<DeclarativeEnvironment>());
 
 impl Deref for DeclarativeEnvironment {
     type Target = Environment;
@@ -233,6 +297,21 @@ impl DeclarativeEnvironment {
 
     pub fn create(vm: &Vm, outer_environment: Option<Gc<Environment>>) -> Gc<DeclarativeEnvironment> {
         vm.heap().allocate(Self::new(Self::CLASS, outer_environment))
+    }
+
+    /// A new environment with room for `binding_capacity` bindings in its cell, if a size class has that much.
+    pub fn create_with_binding_capacity(
+        vm: &Vm,
+        outer_environment: Option<Gc<Environment>>,
+        binding_capacity: usize,
+    ) -> Gc<DeclarativeEnvironment> {
+        allocate_environment(
+            vm,
+            Self::new(Self::CLASS, outer_environment),
+            binding_capacity,
+            &DECLARATIVE_ENVIRONMENT_CELL_SIZES,
+            |environment| environment,
+        )
     }
 
     fn rare_data(&self) -> Option<&DeclarativeEnvironmentRareData> {
@@ -350,6 +429,9 @@ impl DeclarativeEnvironment {
             rare_data.binding_flags.append(flags);
         }
 
+        if self.binding_values_are_inline.get() && index == self.binding_values.capacity() {
+            self.move_binding_values_out_of_cell(index + 1);
+        }
         self.binding_values.append(if binding.initialized {
             binding.value
         } else {
@@ -862,11 +944,22 @@ impl DeclarativeEnvironment {
         {
             return false;
         }
+        if self.binding_values_are_inline.get() && index == self.binding_values.capacity() {
+            self.move_binding_values_out_of_cell(index + 1);
+        }
         self.binding_values.append(Value::EMPTY);
         true
     }
 
+    fn move_binding_values_out_of_cell(&self, needed_capacity: usize) {
+        self.binding_values.move_to_owned_storage(needed_capacity);
+        self.binding_values_are_inline.set(false);
+    }
+
     pub fn ensure_capacity(&self, needed_capacity: usize) {
+        if needed_capacity > self.binding_values.capacity() && self.binding_values_are_inline.get() {
+            self.move_binding_values_out_of_cell(needed_capacity);
+        }
         self.binding_values.ensure_capacity(needed_capacity);
         if self.shape.get().is_some() || needed_capacity == 0 {
             return;
@@ -882,7 +975,9 @@ impl DeclarativeEnvironment {
     }
 
     pub fn shrink_to_fit(&self) {
-        self.binding_values.shrink_to_fit();
+        if !self.binding_values_are_inline.get() {
+            self.binding_values.shrink_to_fit();
+        }
 
         let Some(rare_data) = self.rare_data() else {
             return;
