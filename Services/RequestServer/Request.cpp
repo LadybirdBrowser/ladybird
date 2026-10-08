@@ -541,6 +541,10 @@ Request::Request(
     , m_response_headers(HTTP::HeaderList::create())
     , m_transfer_lease(move(transfer_lease))
 {
+    // A response for another site is only passing through this RequestServer on its way to that site's.
+    if (auto const& site = process_top_level_site(); site.has_value() && m_disk_cache.has_value() && m_network_isolation_key->top_level_site != *site)
+        m_disk_cache.clear();
+
     if constexpr (REQUESTSERVER_WIRE_DEBUG)
         wire_stats().ensure(this).created_at = MonotonicTime::now();
 }
