@@ -91,11 +91,10 @@ public:
 
     RefPtr<CanonicalDocument> document_with_id(Web::HTML::CrossProcessId) const;
     void populate_document(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
-    void populate_document_for_navigation(CanonicalNavigation&, NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
     // Populates nothing for a document that would hold access the active document lacks.
     void populate_document_for_javascript_url(CanonicalNavigation&, NonnullRefPtr<CanonicalSessionHistoryEntry>, NonnullRefPtr<CanonicalDocument>);
     void did_create_populated_document_with_an_origin_of_its_own(WebContentPage const& host, Web::HTML::CrossProcessId document_id, Web::HTML::PopulatedDocumentOrigin, Web::HTML::EnvironmentId const& environment_id);
-    void abandon_populated_document(CanonicalDocument const&);
+    void abandon_populated_document(NonnullRefPtr<CanonicalDocumentState>, CanonicalDocument const&);
     void place_populated_document(CanonicalDocument&, WebContentPage&);
 
     // The document states holding a populated document: the history entries' of the navigations under way, and the one a

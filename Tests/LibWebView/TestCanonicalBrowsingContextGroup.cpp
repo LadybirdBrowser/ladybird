@@ -178,7 +178,7 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
     auto navigation_id = Utf16String::from_utf8("navigation"sv);
     auto abandoned_document_state = WebView::CanonicalDocumentState::create({});
     traversable.set_ongoing_navigation(navigation_for_testing(navigation_id, 0, WebView::CanonicalSessionHistoryEntry::create(abandoned_document_state)));
-    traversable.populate_document_for_navigation(*traversable.uncommitted_navigation(), destination_document);
+    traversable.populate_document(traversable.uncommitted_navigation()->history_entry->document_state, destination_document);
 
     EXPECT_EQ(&traversable.active_browsing_context(), initial_context);
     EXPECT(initial_group->browsing_context_set().contains(initial_context));
@@ -191,7 +191,7 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
     auto destination_document_state = WebView::CanonicalDocumentState::create({});
     auto committed_entry = WebView::CanonicalSessionHistoryEntry::create(destination_document_state);
     traversable.set_ongoing_navigation(navigation_for_testing(navigation_id, 0, committed_entry));
-    traversable.populate_document_for_navigation(*traversable.uncommitted_navigation(), destination_document);
+    traversable.populate_document(traversable.uncommitted_navigation()->history_entry->document_state, destination_document);
     Web::HTML::HostedNavigableState committed_state {
         .active_document_url = destination_url,
         .active_document_is_fully_active = true,
@@ -235,7 +235,7 @@ TEST_CASE(child_navigation_under_a_document_that_switched_groups_uses_its_group)
     auto navigation_id = Utf16String::from_utf8("navigation"sv);
     auto destination_document_state = WebView::CanonicalDocumentState::create({});
     traversable.set_ongoing_navigation(navigation_for_testing(navigation_id, 0, WebView::CanonicalSessionHistoryEntry::create(destination_document_state)));
-    traversable.populate_document_for_navigation(*traversable.uncommitted_navigation(), destination_document);
+    traversable.populate_document(traversable.uncommitted_navigation()->history_entry->document_state, destination_document);
     Web::HTML::HostedNavigableState committed_state {
         .active_document_url = destination_url,
         .active_document_is_fully_active = true,
@@ -290,7 +290,7 @@ TEST_CASE(clearing_a_navigation_abandons_only_the_document_populated_for_it)
     auto navigation_document_state = WebView::CanonicalDocumentState::create({});
     traversable.set_ongoing_navigation(navigation_for_testing(navigation_id, 0, WebView::CanonicalSessionHistoryEntry::create(navigation_document_state)));
     auto navigation_document = make_document();
-    traversable.populate_document_for_navigation(*traversable.uncommitted_navigation(), navigation_document);
+    traversable.populate_document(traversable.uncommitted_navigation()->history_entry->document_state, navigation_document);
     EXPECT_EQ(navigation_document_state->populated_document->document.ptr(), navigation_document.ptr());
     traversable.clear_ongoing_navigation();
     EXPECT(!navigation_document_state->populated_document.has_value());
@@ -313,7 +313,7 @@ TEST_CASE(document_claimed_by_a_history_job_outlives_a_newer_navigation)
     auto newer_document_state = WebView::CanonicalDocumentState::create({});
     traversable.set_ongoing_navigation(navigation_for_testing(Utf16String::from_utf8("newer"sv), 0, WebView::CanonicalSessionHistoryEntry::create(newer_document_state)));
     auto newer_document = make_document();
-    traversable.populate_document_for_navigation(*traversable.uncommitted_navigation(), newer_document);
+    traversable.populate_document(traversable.uncommitted_navigation()->history_entry->document_state, newer_document);
     EXPECT_EQ(claimed_document_state->populated_document->document.ptr(), claimed_document.ptr());
 
     Web::HTML::HostedNavigableState committed_state {
