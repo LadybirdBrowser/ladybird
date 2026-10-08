@@ -2716,6 +2716,30 @@ handler GetByValue(
         call_slow_path(get_by_value_uncached);
     };
 
+    # Accesses that saw too many keys for their own cache look up own data properties in the VM's keyed property
+    # lookup cache, like the runtime does: the entry is at the top bits of the Fibonacci hash of the shape and the
+    # identity of the name, the word of the storage of a fly string.
+    let try_vm_keyed_property_lookup_cache = |keyed_object: Object| @cold {
+        guard let Value<PrimitiveString>(name_string) = load(property) else slow_without_cache;
+        let keyed_name: u64 = alias(name_string.utf16_data);
+        let keyed_shape = keyed_object.shape;
+        let keyed_shape_bits: u64 = alias(keyed_shape);
+        let keyed_mixed = u32(keyed_shape_bits ^ keyed_name);
+        let keyed_hash: u32 = keyed_mixed * KEYED_PROPERTY_LOOKUP_CACHE_HASH_MULTIPLIER;
+        let keyed_index: u64 = alias(keyed_hash >> KEYED_PROPERTY_LOOKUP_CACHE_INDEX_SHIFT);
+        let keyed_vm = current_vm();
+        let keyed_entry_address: u64 = keyed_vm.keyed_property_lookup_cache_entries + (keyed_index << KEYED_PROPERTY_LOOKUP_CACHE_ENTRY_SIZE_SHIFT);
+        let keyed_entry: KeyedPropertyLookupCacheEntry = alias(keyed_entry_address);
+        guard keyed_entry.property_name == keyed_name else slow_without_cache;
+        guard keyed_entry.shape == keyed_shape else slow_without_cache;
+        guard keyed_entry.entry_type == PROPERTY_LOOKUP_CACHE_ENTRY_TYPE_GET_OWN_PROPERTY else slow_without_cache;
+        guard keyed_entry.shape_dictionary_generation == keyed_shape.dictionary_generation else slow_without_cache;
+        let keyed_value = keyed_object.named_properties[keyed_entry.property_offset];
+        guard keyed_value is not Value<Accessor> else slow_without_cache;
+        store(dst, keyed_value);
+        dispatch_next;
+    };
+
     let try_cache = || @cold {
         guard call_interp(asm_try_get_by_value_cache) == 0 else slow;
         dispatch_next;
@@ -2730,8 +2754,11 @@ handler GetByValue(
     guard extract_tag(key) == INT32_TAG else {
         # Keys that are not array indices: the property lookup cache remembers the shapes and keys it has
         # seen, and matches string and symbol keys by identity.
-        guard let property_cache = load_keyed_property_lookup_cache(cache, slow_without_cache) else slow;
         guard let Value<Object>(object) = load(base) else slow;
+        let keyed_executable = exec_ctx.executable;
+        let tagged_cache: u64 = alias(keyed_executable.property_lookup_caches[load(cache)]);
+        guard tagged_cache != PROPERTY_LOOKUP_CACHE_KEYED_GENERIC else try_vm_keyed_property_lookup_cache(object);
+        guard let property_cache = load_keyed_property_lookup_cache(cache, slow_without_cache) else slow;
         guard property_cache.key is key else try_cache;
         let shape = object.shape;
         guard property_cache.shape == shape else try_cache;
