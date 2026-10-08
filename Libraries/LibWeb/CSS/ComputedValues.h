@@ -416,7 +416,6 @@ public:
         Yes,
     };
 
-    static NonnullRefPtr<ComputedValues const> create(ComputedStyleWorkingSet const&, DOM::Document const&, StyleScope const&, ColorResolutionContext, ComputedValues const* inherit_parent = nullptr);
     static constexpr u32 all_style_groups = (1u << to_underlying(StyleGroupIndex::Count)) - 1;
 
     RefPtr<StyleValue const> computed_style_value(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
@@ -1258,32 +1257,8 @@ private:
     }
 
 public:
-    void set_property_flag_bitmaps(ReadonlyBytes importance, ReadonlyBytes inheritance)
-    {
-        m_values.m_property_important.copy_from(importance);
-        m_values.m_property_inherited.copy_from(inheritance);
-    }
-    void set_depends_on_viewport_metrics(bool value) { m_values.m_depends_on_viewport_metrics = value; }
-    void set_font_metrics_depend_on_viewport_metrics(bool value) { m_values.m_font_metrics_depend_on_viewport_metrics = value; }
-    void set_in_display_none_subtree(bool value) { m_values.m_in_display_none_subtree = value; }
-    void set_highlight_colors_authored(bool value) { m_values.m_highlight_colors_authored = value; }
-    void set_highlight_color_is_current_color(bool value) { m_values.m_highlight_color_is_current_color = value; }
-    void set_pseudo_element_styles(u64 value) { m_values.m_pseudo_element_styles = value; }
-    void set_computed_longhand_table(void const* table) { m_values.adopt_computed_longhand_table(table); }
     void set_animated_properties(AnimatedProperties const*);
 
-    // Rust-built payloads arrive in StyleGroupIndex order carrying this reference.
-    void adopt_style_group_payloads(ReadonlySpan<void const*> payloads)
-    {
-        VERIFY(payloads.size() == to_underlying(StyleGroupIndex::Count));
-        size_t index = 0;
-#define LIBWEB_ADOPT_STYLE_GROUP(name, path, sharing_name, affects_layout) \
-    if (payloads[index])                                                   \
-        m_values.path.adopt(const_cast<void*>(payloads[index]));           \
-    ++index;
-        LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(LIBWEB_ADOPT_STYLE_GROUP)
-#undef LIBWEB_ADOPT_STYLE_GROUP
-    }
     void set_color(Color color)
     {
         if (m_values.m_inherited.text->color_value() == color)

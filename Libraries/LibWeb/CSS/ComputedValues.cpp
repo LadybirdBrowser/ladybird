@@ -472,60 +472,6 @@ Vector<Utf16FlyString> ComputedValues::AnimationValues::animation_names_value() 
     return names;
 }
 
-NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedStyleWorkingSet const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const* inherit_parent)
-{
-    Builder builder;
-    auto& computed_values = *builder.operator->();
-
-    // NOTE: color-scheme must resolve first to ensure system colors can be resolved correctly,
-    //       and the element's own color right after it, so currentColor can resolve in every
-    //       other property (e.g. background-color). Both resolve against the caller's context,
-    //       so resolving them up front is order-equivalent to the setters below.
-    auto color_scheme = computed_style.color_scheme(document.page().preferred_color_scheme(), document.supported_color_schemes());
-    color_resolution_context.color_scheme = color_scheme;
-    // FIXME: We should resolve colors to their absolute forms at compute time (i.e. by implementing the relevant absolutized methods)
-    auto color = computed_style.color(CSS::PropertyID::Color, color_resolution_context);
-    color_resolution_context.current_color = color;
-
-    // Build every group payload the core can map straight from the drive's longhand table.
-    auto const* longhand_table = computed_style.computed_longhand_table();
-    auto animated_properties = computed_style.animated_properties_snapshot();
-    Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_context_storage;
-    auto ffi_color_input = make_rust_color_resolution_input(color_resolution_context, length_context_storage);
-    auto font_group_inputs = computed_style.font_group_build_inputs(document, style_scope.style_engine_tree_scope());
-    ComputedValuesFFI::FfiTableGroupBuildInputs table_build_inputs {
-        .color_input = &ffi_color_input,
-        .used_color_scheme = static_cast<u8>(to_underlying(color_scheme)),
-        .animated_overlay = animated_properties ? animated_properties->overlay() : nullptr,
-        .box_display_before_transformation_raw = bit_cast<u32>(computed_style.display_before_box_type_transformation()),
-        .font = &font_group_inputs,
-    };
-    Array<void const*, to_underlying(StyleGroupIndex::Count)> parent_group_payloads {};
-    if (inherit_parent) {
-        for (size_t group = 0; group < parent_group_payloads.size(); ++group)
-            parent_group_payloads[group] = inherit_parent->style_group_payload(static_cast<StyleGroupIndex>(group));
-    }
-    Array<void const*, to_underlying(StyleGroupIndex::Count)> table_group_payloads {};
-    ComputedValuesFFI::rust_build_group_payloads_from_table(longhand_table, all_style_groups, parent_group_payloads.data(), &table_build_inputs, table_group_payloads.data(), table_group_payloads.size());
-    computed_values.adopt_style_group_payloads(table_group_payloads);
-    computed_values.set_property_flag_bitmaps(computed_style.property_importance_bitmap(), computed_style.property_inheritance_bitmap());
-    computed_values.set_depends_on_viewport_metrics(computed_style.depends_on_viewport_metrics());
-    computed_values.set_font_metrics_depend_on_viewport_metrics(computed_style.font_metrics_depend_on_viewport_metrics());
-    computed_values.set_in_display_none_subtree(computed_style.in_display_none_subtree());
-    computed_values.set_highlight_colors_authored(computed_style.highlight_colors_authored());
-    computed_values.set_highlight_color_is_current_color(computed_style.highlight_color_is_current_color());
-    u64 pseudo_element_styles = 0;
-    for (auto i = 0; i < to_underlying(PseudoElement::KnownPseudoElementCount); ++i) {
-        auto pseudo_element = static_cast<PseudoElement>(i);
-        if (computed_style.has_pseudo_element_style(pseudo_element))
-            pseudo_element_styles |= 1ull << i;
-    }
-    computed_values.set_pseudo_element_styles(pseudo_element_styles);
-    computed_values.set_computed_longhand_table(computed_style.computed_longhand_table());
-
-    return move(builder).build();
-}
-
 ComputedValues::Statistics ComputedValues::s_statistics;
 
 ComputedValues::ComputedValues()

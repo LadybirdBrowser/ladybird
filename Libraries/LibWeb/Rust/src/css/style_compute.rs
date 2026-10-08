@@ -5103,6 +5103,28 @@ pub unsafe extern "C" fn rust_create_document_longhand_table(
     longhand_table.into_raw_shared().cast_mut()
 }
 
+/// Builds the document's own style from the longhand table `rust_create_document_longhand_table` created and interns
+/// its record, which the caller pins. Answers the record.
+///
+/// # Safety
+/// `host` must be a live document host, on its document's thread. `table` must point at a frozen table, `font` at
+/// the platform font inputs of its font group and `length` at the context its lengths resolve against, each live for
+/// the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_intern_document_style(
+    host: &crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
+    table: *const ComputedLonghandTable,
+    font: *const crate::css::table_group_builder::FfiFontGroupBuildInputs,
+    length: *const FfiLengthResolutionContext,
+) -> u64 {
+    // SAFETY: Guaranteed by the caller.
+    let (table, font, length) = unsafe { (&*table, &*font, &*length) };
+    crate::css::style::engine_calls::with_engine(read, host, |engine| unsafe {
+        crate::css::style::bridge::intern_document_style(engine, table, font, length)
+    })
+}
+
 /// Computes every selected keyframe longhand through the Rust longhand driver.
 /// Each keyframe gets a temporary table and the driver's coordination inputs
 /// from the underlying style, then all of that keyframe's specified values are

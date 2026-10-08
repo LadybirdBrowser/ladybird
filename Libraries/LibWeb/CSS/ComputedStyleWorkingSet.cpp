@@ -435,15 +435,6 @@ void const* ComputedStyleWorkingSet::effective_property_data(PropertyID property
     return effective.value;
 }
 
-Color ComputedStyleWorkingSet::color(PropertyID id, ColorResolutionContext color_resolution_context) const
-{
-    Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_storage;
-    auto input = make_rust_color_resolution_input(color_resolution_context, length_storage);
-    auto resolved = StyleValueFFI::rust_style_value_to_color(effective_property_data(id), &input);
-    VERIFY(resolved.resolved);
-    return Color(resolved.rgba[0], resolved.rgba[1], resolved.rgba[2], resolved.rgba[3]);
-}
-
 // https://drafts.csswg.org/css-color-adjust-1/#determine-the-used-color-scheme
 PreferredColorScheme ComputedStyleWorkingSet::color_scheme(PreferredColorScheme preferred_scheme, Optional<Vector<Utf16FlyString> const&> document_supported_schemes) const
 {

@@ -2011,7 +2011,7 @@ void StyleComputer::finalize_animated_box_type(Layout::BegunRead const& read, Co
     style.finish_animated_overlay_rust_mutation(Badge<StyleComputer> {});
 }
 
-NonnullRefPtr<ComputedValues const> StyleComputer::create_document_style() const
+StyleRecordID StyleComputer::intern_document_style(Layout::BegunRead const& read) const
 {
     Vector<u8> document_supported_color_scheme_codes;
     auto document_supported_color_schemes = document().supported_color_schemes();
@@ -2037,14 +2037,9 @@ NonnullRefPtr<ComputedValues const> StyleComputer::create_document_style() const
         .viewport_height = viewport_rect.height().to_double(),
     };
     auto computed_properties = CSS::ComputedStyleWorkingSet::create_with_longhand_table(ComputedValuesFFI::rust_create_document_longhand_table(&input));
-    CSS::ColorResolutionContext color_resolution_context {
-        .color_scheme = document().page().preferred_color_scheme(),
-        .current_color = CSS::InitialValues::color(),
-        .current_color_style_value = &computed_properties->property(PropertyID::Color),
-        .calculation_resolution_context = { .length_resolution_context = CSS::Length::ResolutionContext::for_document(document()) },
-    };
-    auto computed_values = CSS::ComputedValues::create(*computed_properties, document(), document().style_scope(), move(color_resolution_context));
-    return computed_values;
+    // The font group inputs borrow the font list the working set resolves, so it outlives the call.
+    auto font_group_inputs = computed_properties->font_group_build_inputs(document(), document().style_scope().style_engine_tree_scope());
+    return StyleRecordID { ComputedValuesFFI::rust_intern_document_style(m_style_engine.host(), &read, computed_properties->computed_longhand_table(), &font_group_inputs, &input.length_resolution_context) };
 }
 
 void StyleComputer::publish_sampled_animation_overlays(Layout::BegunRead const& read, ReadonlySpan<SampledAnimationOverlay> overlays, Span<StyleEngineFFI::FfiAnimationOverlayPublication> publications) const
