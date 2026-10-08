@@ -396,22 +396,10 @@ impl PrimitiveString {
 
         let this = core::ptr::from_ref(self);
         let mut string_to_atom_cache = vm.string_to_atom_cache().borrow_mut();
-        for i in 0..string_to_atom_cache.len() {
-            if !string_to_atom_cache[i]
-                .string
-                .is_some_and(|cached| core::ptr::eq(cached.as_ptr(), this))
-            {
-                continue;
-            }
-            if i != 0 {
-                string_to_atom_cache.swap(0, i);
-            }
-            return PropertyKey::from(
-                string_to_atom_cache[0]
-                    .atom
-                    .clone()
-                    .expect("a cached string has its atom"),
-            );
+        let index = (u64_hash(this.addr() as u64) as usize) & (string_to_atom_cache.len() - 1);
+        let entry = &mut string_to_atom_cache[index];
+        if entry.string.is_some_and(|cached| core::ptr::eq(cached.as_ptr(), this)) {
+            return PropertyKey::from(entry.atom.clone().expect("a cached string has its atom"));
         }
 
         let fly_string = match self.resolved_utf16_string() {
@@ -420,8 +408,7 @@ impl PrimitiveString {
                 core::str::from_utf8(self.as_inline_string().characters()).expect("an inline string is ASCII"),
             ),
         };
-        string_to_atom_cache[1] = core::mem::take(&mut string_to_atom_cache[0]);
-        string_to_atom_cache[0] = StringToAtomCacheEntry {
+        *entry = StringToAtomCacheEntry {
             // SAFETY: Strings only exist as cells, since every way to create one allocates it.
             string: Some(unsafe { Gc::from_ref(self) }),
             atom: Some(fly_string.clone()),
