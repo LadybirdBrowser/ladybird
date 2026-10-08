@@ -22,6 +22,7 @@ use crate::layout::property_lookup_cache::ObjectPropertyIteratorCacheData;
 pub use crate::layout::shape::{PrototypeChainValidity, Shape};
 use crate::layout::value::Value;
 use crate::runtime::descriptor_array::{DescriptorArray, MAX_DESCRIPTOR_COUNT, PropertyMetadata};
+use crate::runtime::object::IntegrityLevel;
 use crate::runtime::property_attributes::PropertyAttributes;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
@@ -99,6 +100,8 @@ struct RareData {
     child_prototype_shapes: Vec<GcWeak<Shape>>,
     own_string_keys: Option<OwnStringKeys>,
     assign_copy: Option<AssignCopy>,
+    /// The shapes that sealing and freezing objects of this shape give them, by integrity level.
+    integrity_level_shapes: [Option<Gc<Shape>>; 2],
 }
 
 /// What Object.assign of an object with a shape onto an empty object makes, as set_cached_assign_copy() keeps it.
@@ -173,6 +176,9 @@ unsafe impl Trace for ShapeStorage {
             if let Some(assign_copy) = &rare_data.assign_copy {
                 visitor.visit(assign_copy.prototype_validity);
                 visitor.visit(assign_copy.copy_shape);
+            }
+            for shape in rare_data.integrity_level_shapes.iter().flatten() {
+                visitor.visit(*shape);
             }
         }
     }
@@ -680,6 +686,21 @@ impl Shape {
     pub fn set_cached_assign_copy(&self, assign_copy: AssignCopy) {
         assert!(!self.is_dictionary());
         self.with_rare_data(|rare_data| rare_data.assign_copy = Some(assign_copy));
+    }
+
+    /// The shape that SetIntegrityLevel with `level` gave objects of this shape that have no accessor properties, if
+    /// it was kept.
+    pub fn cached_integrity_level_shape(&self, level: IntegrityLevel) -> Option<Gc<Shape>> {
+        self.storage
+            .rare_data
+            .borrow()
+            .as_ref()
+            .and_then(|rare_data| rare_data.integrity_level_shapes[level as usize])
+    }
+
+    pub fn set_cached_integrity_level_shape(&self, level: IntegrityLevel, shape: Gc<Shape>) {
+        assert!(!self.is_dictionary() && !self.is_prototype_shape());
+        self.with_rare_data(|rare_data| rare_data.integrity_level_shapes[level as usize] = Some(shape));
     }
 
     fn increment_dictionary_generation(&self) {

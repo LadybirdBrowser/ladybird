@@ -991,6 +991,10 @@ impl Object {
 
     // 7.3.16 SetIntegrityLevel ( O, level ), https://tc39.es/ecma262/#sec-setintegritylevel
     pub fn set_integrity_level(&self, vm: &Vm, level: IntegrityLevel) -> ThrowCompletionOr<bool> {
+        if self.set_integrity_level_by_shape(vm, level) {
+            return Ok(true);
+        }
+
         // 1. Let status be ? O.[[PreventExtensions]]().
         let status = self.internal_prevent_extensions(vm)?;
 
@@ -1059,6 +1063,67 @@ impl Object {
 
         // 6. Return true.
         Ok(true)
+    }
+
+    /// OPTIMIZATION: SetIntegrityLevel of an ordinary object whose own properties are those of its shape, none of them
+    ///               an accessor, makes it non-extensible and gives each property the attributes the level asks for,
+    ///               which are configure transitions of its shape. The shape those transitions end at is kept on the
+    ///               shape they start from. Returns whether the object was sealed or frozen this way.
+    fn set_integrity_level_by_shape(&self, vm: &Vm, level: IntegrityLevel) -> bool {
+        let shape = self.shape();
+        let methods = self.methods();
+        if shape.is_dictionary()
+            || shape.is_prototype_shape()
+            || self.has_intrinsic_accessors()
+            || !self.own_property_keys_are_those_of_its_shape()
+            || !core::ptr::fn_addr_eq(
+                methods.internal_prevent_extensions,
+                ORDINARY_OBJECT_METHODS.internal_prevent_extensions,
+            )
+            || !core::ptr::fn_addr_eq(
+                methods.internal_define_own_property,
+                ORDINARY_OBJECT_METHODS.internal_define_own_property,
+            )
+        {
+            return false;
+        }
+
+        let mut properties = Vec::with_capacity(shape.property_count() as usize);
+        let mut has_accessors = false;
+        shape.for_each_property_in_insertion_order(|property_key, metadata| {
+            if self.get_direct(metadata.offset).is_accessor() {
+                has_accessors = true;
+                return ControlFlow::Break(());
+            }
+            properties.push((property_key.clone(), metadata.attributes));
+            ControlFlow::Continue(())
+        });
+        if has_accessors {
+            return false;
+        }
+
+        let target_shape = match shape.cached_integrity_level_shape(level) {
+            Some(target_shape) => target_shape,
+            None => {
+                let mut target_shape = shape;
+                for (property_key, attributes) in &properties {
+                    let mut new_attributes = *attributes;
+                    new_attributes.set_configurable(false);
+                    if level == IntegrityLevel::Frozen {
+                        new_attributes.set_writable(false);
+                    }
+                    if new_attributes != *attributes {
+                        target_shape = target_shape.create_configure_transition(vm, property_key, new_attributes);
+                    }
+                }
+                shape.set_cached_integrity_level_shape(level, target_shape);
+                target_shape
+            }
+        };
+
+        self.set_extensible(false);
+        self.shape.set(target_shape);
+        true
     }
 
     // 7.3.17 TestIntegrityLevel ( O, level ), https://tc39.es/ecma262/#sec-testintegritylevel
