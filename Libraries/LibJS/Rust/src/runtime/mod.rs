@@ -100,6 +100,7 @@ pub mod iterator_helper_prototype;
 pub mod iterator_prototype;
 pub mod job_callback;
 pub mod json_object;
+pub mod json_text_parser;
 pub mod keyed_collections;
 pub mod map;
 pub mod map_constructor;

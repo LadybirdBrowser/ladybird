@@ -63,6 +63,7 @@ use crate::runtime::error_types::ErrorType;
 use crate::runtime::finalization_registry::FinalizationRegistry;
 use crate::runtime::function_environment::FunctionEnvironment;
 use crate::runtime::job_callback::{JobCallback, call_job_callback, make_job_callback};
+use crate::runtime::json_text_parser::JsonParseCache;
 use crate::runtime::module::{Module, finish_loading_imported_module};
 use crate::runtime::module_loading::{ImportedModulePayload, ImportedModuleReferrer};
 use crate::runtime::module_request::ModuleRequest;
@@ -513,6 +514,7 @@ pub struct Vm {
     /// The interned PrimitiveString of each Utf16FlyString, by its raw identity, see PrimitiveString::is_interned().
     /// The strings are weak: the sweep callback drops the ones that die.
     interned_strings: RefCell<HashMap<usize, Gc<PrimitiveString>, foldhash::fast::RandomState>>,
+    json_parse_cache: JsonParseCache,
     empty_string: OnceCell<Gc<PrimitiveString>>,
     cached_strings: OnceCell<CachedStrings>,
     single_ascii_character_strings: OnceCell<[Gc<PrimitiveString>; SINGLE_ASCII_CHARACTER_STRING_COUNT]>,
@@ -655,6 +657,7 @@ impl Vm {
                 }; LARGE_NUMERIC_STRING_CACHE_SIZE],
             ),
             interned_strings: RefCell::default(),
+            json_parse_cache: JsonParseCache::default(),
             empty_string: OnceCell::new(),
             cached_strings: OnceCell::new(),
             single_ascii_character_strings: OnceCell::new(),
@@ -1001,6 +1004,7 @@ impl Vm {
         self.single_ascii_character_strings.trace(visitor);
         self.numeric_string_cache.trace(visitor);
         self.large_numeric_string_cache.trace(visitor);
+        self.json_parse_cache.trace(visitor);
         self.cached_strings.trace(visitor);
         self.well_known_symbols.trace(visitor);
         self.global_symbol_registry.trace(visitor);
@@ -1574,6 +1578,10 @@ impl Vm {
         self.single_ascii_character_strings
             .get()
             .expect("the VM allocates the single ASCII character strings")[usize::from(character)]
+    }
+
+    pub fn json_parse_cache(&self) -> &JsonParseCache {
+        &self.json_parse_cache
     }
 
     pub fn cached_strings(&self) -> &CachedStrings {
