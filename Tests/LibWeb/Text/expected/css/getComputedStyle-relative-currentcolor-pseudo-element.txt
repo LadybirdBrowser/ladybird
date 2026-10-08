@@ -1,0 +1,5 @@
+color: rgb(0, 128, 0)
+border-top-color: color(srgb 0 0.501961 0)
+background-color: color(srgb 0 0.501961 0 / 0.5)
+precise color: color(srgb 0.1 0.2 0.3)
+precise border-top-color: color(srgb 0.1 0.2 0.3)

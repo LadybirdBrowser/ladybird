@@ -81,46 +81,6 @@ Utf16FlyString css_string_from_rust(void const* string)
     return Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(view.data), view.length });
 }
 
-ColorResolutionContext ColorResolutionContext::for_element(DOM::AbstractElement const& element)
-{
-    auto const* ui_values = element.style_group<ComputedValues::InheritedUIValues>();
-    auto const* text_values = element.style_group<ComputedValues::InheritedTextValues>();
-    VERIFY(ui_values);
-    VERIFY(text_values);
-
-    CalculationResolutionContext calculation_resolution_context { .length_resolution_context = Length::ResolutionContext::for_element(element) };
-    RefPtr<StyleValue const> current_color_style_value;
-    if (text_values->color_style_value.pointer)
-        current_color_style_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-            static_cast<StyleValueFFI::StyleValueData const*>(text_values->color_style_value.pointer)));
-
-    return {
-        .color_scheme = ui_values->color_scheme_value(),
-        .current_color = text_values->color_value(),
-        .current_color_style_value = move(current_color_style_value),
-        .calculation_resolution_context = calculation_resolution_context
-    };
-}
-
-ColorResolutionContext ColorResolutionContext::for_layout_node_with_style(Layout::NodeWithStyle const& layout_node)
-{
-    RefPtr<StyleValue const> current_color_style_value;
-    if (auto* dom_node = layout_node.dom_node()) {
-        if (auto* element = as_if<DOM::Element>(*dom_node)) {
-            if (auto const* values = element->style_group<ComputedValues::InheritedTextValues>(); values && values->color_style_value.pointer)
-                current_color_style_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-                    static_cast<StyleValueFFI::StyleValueData const*>(values->color_style_value.pointer)));
-        }
-    }
-
-    return {
-        .color_scheme = layout_node.color_scheme(),
-        .current_color = layout_node.color(),
-        .current_color_style_value = current_color_style_value,
-        .calculation_resolution_context = { .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) },
-    };
-}
-
 ColorResolutionStyle ColorResolutionStyle::for_element(DOM::AbstractElement const& element)
 {
     return {
@@ -134,6 +94,14 @@ ColorResolutionStyle ColorResolutionStyle::for_layout_node(Layout::NodeWithStyle
     return {
         .inherited_ui_values = &layout_node.style_group<ComputedValues::InheritedUIValues>(),
         .inherited_text_values = &layout_node.style_group<ComputedValues::InheritedTextValues>(),
+    };
+}
+
+ColorResolutionStyle ColorResolutionStyle::for_computed_values(ComputedValues const& computed_values)
+{
+    return {
+        .inherited_ui_values = computed_values.style_group_payload(StyleGroupIndex::InheritedUIValues),
+        .inherited_text_values = computed_values.style_group_payload(StyleGroupIndex::InheritedTextValues),
     };
 }
 

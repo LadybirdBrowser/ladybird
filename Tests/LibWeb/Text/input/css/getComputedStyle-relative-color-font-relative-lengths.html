@@ -1,0 +1,27 @@
+<!doctype html>
+<style>
+    :root {
+        font-size: 30px;
+    }
+    .target {
+        font-size: 20px;
+        color: rgb(from rgb(10 20 30) calc(r + 1em / 1px) g b);
+        border-top: 1px solid rgb(from currentcolor calc(r + 1em / 1px) g b);
+        background-color: rgb(from currentcolor r calc(g + 1rem / 1px) b);
+        outline-color: rgb(from currentcolor r g calc(b + sign(1em - 10px) * 40));
+    }
+</style>
+<div id="box" class="target"></div>
+<div id="boxless" class="target" style="display: none"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const id of ["box", "boxless"]) {
+            const style = getComputedStyle(document.getElementById(id));
+            println(`${id} color: ${style.color}`);
+            println(`${id} border-top-color: ${style.borderTopColor}`);
+            println(`${id} background-color: ${style.backgroundColor}`);
+            println(`${id} outline-color: ${style.outlineColor}`);
+        }
+    });
+</script>

@@ -13,7 +13,6 @@
 #include <LibGfx/Color.h>
 #include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
-#include <LibWeb/ComputedValuesRustFFI.h>
 
 namespace Web::CSS {
 
@@ -21,9 +20,6 @@ enum class ColorSyntax : u8 {
     Legacy,
     Modern,
 };
-
-// Marshals the plain-data parts of a ColorResolutionContext for the Rust resolver.
-StyleValueFFI::FfiColorResolutionInput make_rust_color_resolution_input(ColorResolutionContext const&, Optional<ComputedValuesFFI::FfiLengthResolutionContext>&);
 
 class ColorStyleValue : public StyleValue {
 public:

@@ -656,9 +656,9 @@ pub(crate) const PREFERRED_COLOR_SCHEME_LIGHT: u8 = 2;
 // Gfx::RectangularColorSpace::Oklab.
 pub(crate) const RECTANGULAR_COLOR_SPACE_OKLAB: u8 = 8;
 
-/// Mirror of Web::CSS::ColorResolutionContext: the preferred color scheme, the used value of
-/// currentcolor, the computed currentcolor style value, and the calculation-resolution inputs
-/// (a length context plus relative-color channel values).
+/// What a color resolves against: the used color scheme, the used value of currentcolor, the
+/// computed currentcolor style value, and the calculation-resolution inputs (a length context
+/// plus relative-color channel values).
 #[derive(Clone, Copy)]
 pub(crate) struct ColorResolutionInput<'a> {
     /// The PreferredColorScheme code; Dark is 1.
@@ -675,8 +675,7 @@ impl ColorResolutionInput<'_> {
     }
 }
 
-/// The equivalent of a default-constructed C++ CalculationResolutionContext /
-/// ColorResolutionContext: no scheme, no currentcolor, no length context, no channels.
+/// Resolution against no style at all: no scheme, no currentcolor, no length context, no channels.
 pub(crate) const EMPTY_INPUT: ColorResolutionInput<'static> = ColorResolutionInput {
     scheme: None,
     current_color: None,
@@ -1375,21 +1374,21 @@ fn computed_value_form(value: StyleValueData) -> StyleValueData {
     }
 }
 
-/// The resolved value of a relative color function: its relative form in its computed value
-/// form. Returns one strong reference, or null when the origin color does not resolve.
+/// The resolved value of a relative color function against a style: its relative form in its
+/// computed value form. Returns one strong reference, or null when the origin color does not
+/// resolve.
 ///
 /// # Safety
-/// `value` must point at live style value data and `input` at a valid resolution input whose
-/// pointers outlive the call.
+/// `value` must point at live style value data, and `style` must be null or point at a style
+/// whose group payloads outlive the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_relative_color_resolved_value(
     value: *const core::ffi::c_void,
-    input: *const FfiColorResolutionInput,
+    style: *const FfiColorResolutionStyle,
 ) -> *const StyleValueData {
     let value = unsafe { &*value.cast::<StyleValueData>() };
-    let input = unsafe { &*input };
-    // SAFETY: The caller warrants the input's pointers outlive the call.
-    let resolution_input = unsafe { resolution_input_from_ffi(input) };
+    // SAFETY: Guaranteed by the caller.
+    let resolution_input = unsafe { ColorResolutionInput::for_ffi_style(style) };
     match resolve_relative_form(value, &resolution_input) {
         Some(resolved) => Arc::into_raw(Arc::new(computed_value_form(resolved))),
         None => core::ptr::null(),
@@ -2237,57 +2236,11 @@ mod tests {
     }
 }
 
-/// The plain-data resolution context C++ marshals for the FFI entry.
-#[repr(C)]
-pub struct FfiColorResolutionInput {
-    pub has_scheme: bool,
-    pub scheme: u8,
-    pub has_current_color: bool,
-    pub current_color_rgba: [u8; 4],
-    /// Full-precision currentcolor style value data, or null.
-    pub current_color_value: *const core::ffi::c_void,
-    /// Length resolution context, or null.
-    pub length: *const core::ffi::c_void,
-}
-
-/// A resolved color handed back to C++; `resolved` is false when the Rust resolution
-/// declined and the C++ path must run.
+/// A resolved color handed back to C++; `resolved` is false when the value names no color.
 #[repr(C)]
 pub struct FfiResolvedColorValue {
     pub resolved: bool,
     pub rgba: [u8; 4],
-}
-
-/// Borrows a marshalled FFI resolution input as the resolver's input type.
-///
-/// # Safety
-/// The input's current-color value and length-context pointers must stay live
-/// for the returned borrow's lifetime.
-pub(crate) unsafe fn resolution_input_from_ffi(input: &FfiColorResolutionInput) -> ColorResolutionInput<'_> {
-    let current_color_value = unsafe {
-        input
-            .current_color_value
-            .cast::<crate::css::style_value::StyleValueData>()
-            .as_ref()
-    };
-    let length = unsafe {
-        input
-            .length
-            .cast::<crate::css::style_compute::FfiLengthResolutionContext>()
-            .as_ref()
-    };
-    ColorResolutionInput {
-        scheme: input.has_scheme.then_some(input.scheme),
-        current_color: input.has_current_color.then_some(Rgba {
-            r: input.current_color_rgba[0],
-            g: input.current_color_rgba[1],
-            b: input.current_color_rgba[2],
-            a: input.current_color_rgba[3],
-        }),
-        current_color_value,
-        length,
-        channels: None,
-    }
 }
 
 /// Resolves a parsed style value to an sRGB color against a style record of `host`'s document, as the record
