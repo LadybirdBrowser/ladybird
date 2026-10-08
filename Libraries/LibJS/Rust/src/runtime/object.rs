@@ -3636,6 +3636,17 @@ impl Object {
         self.indexed_array_like_size.set(0);
     }
 
+    /// Makes room for `capacity` elements in packed or holey indexed storage up front, so that filling them in does not
+    /// grow the storage.
+    pub fn reserve_indexed_elements(&self, capacity: u32) {
+        if matches!(
+            self.indexed_storage_kind(),
+            IndexedStorageKind::Packed | IndexedStorageKind::Holey
+        ) {
+            self.ensure_indexed_elements(capacity);
+        }
+    }
+
     fn ensure_indexed_elements(&self, needed_capacity: u32) {
         if !self.indexed_elements.get().is_null() && self.indexed_elements_capacity() >= needed_capacity {
             return;
