@@ -1917,8 +1917,11 @@ void WebContentPage::did_request_navigation_start(Web::HTML::CrossProcessId navi
         target_navigable = child_frame.has_value() ? &*child_frame : nullptr;
     }
 
-    // AD-HOC: The local ongoing-navigation check can run before the UI traversal queue sets its canonical value.
-    //         Recheck it here so navigation admission and history traversal remain ordered by the UI process.
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
+    // 18. If navigable's ongoing navigation is "traversal", then:
+    //     2. Return.
+    // NB: The page ran this step against the ongoing navigation it knew of, which the traversal queue can have set to
+    //     "traversal" since.
     auto navigation_is_blocked_by_history_traversal = target_navigable
         && target_navigable->ongoing_navigation().has<CanonicalNavigable::Traversal>();
     // The page hosting the navigable's document continues navigate at step 8, for a sourceDocument it hosts or for

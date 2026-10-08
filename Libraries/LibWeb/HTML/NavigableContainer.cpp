@@ -234,16 +234,7 @@ Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_ifr
     // 4. If url matches about:blank and initialInsertion is true, then perform the URL and history update steps given element's content navigable's active document and url.
     if (url_matches_about_blank(url) && initial_insertion == InitialInsertion::Yes) {
         // NB: A newly inserted element's content navigable was created in this process.
-        auto& local_navigable = as<LocalNavigable>(*m_content_navigable);
-
-        // AD-HOC: If the content navigable already has a navigation in progress or pending, skip the initial
-        //         about:blank URL update. Without this, the URL update creates a state machine that clobbers the
-        //         navigable's ongoing_navigation, causing the real navigation to be dropped when its populate completion
-        //         callback checks ongoing_navigation != navigation_id.
-        if (local_navigable.has_pending_navigations() || !local_navigable.ongoing_navigation().has<Empty>())
-            return {};
-
-        perform_url_and_history_update_steps(*local_navigable.active_document(), url);
+        perform_url_and_history_update_steps(*as<LocalNavigable>(*m_content_navigable).active_document(), url);
     }
 
     // 5. Return url.

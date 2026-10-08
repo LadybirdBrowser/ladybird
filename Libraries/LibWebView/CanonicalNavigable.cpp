@@ -242,15 +242,10 @@ void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescripto
     //            id is navigationId, status is "pending", and url is url.
 
     // 18. If navigable's ongoing navigation is "traversal", then:
-    if (m_ongoing_navigation.has<Traversal>()) {
+    // AD-HOC: A navigation from the browser's UI goes on, and takes the navigable over from the traversal.
+    if (m_ongoing_navigation.has<Traversal>() && user_involvement != Web::HTML::UserNavigationInvolvement::BrowserUI) {
         // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status
         //           whose id is navigationId, status is "canceled", and url is url.
-
-        // AD-HOC: The HTML Standard cancels a navigation that starts while a traversal is ongoing. We defer it instead
-        //         so UI-initiated navigations that race the tail end of a previous load are not dropped. Match
-        //         Chromium, WebKit, and Gecko's observable behavior by letting the newest navigation win.
-        //         See https://github.com/whatwg/html/issues/12581.
-        m_navigation_waiting_for_traversal = move(navigation);
 
         // 2. Return.
         return;
@@ -345,13 +340,6 @@ Optional<URL::Origin> CanonicalNavigable::take_routed_navigation_initiator_origi
     if (!m_routed_navigation.has_value() || m_routed_navigation->navigation_id != navigation_id)
         return {};
     return m_routed_navigation.release_value().initiator_origin;
-}
-
-void CanonicalNavigable::begin_navigation_waiting_for_traversal()
-{
-    if (!m_navigation_waiting_for_traversal.has_value() || m_ongoing_navigation.has<Traversal>())
-        return;
-    begin_navigation(m_navigation_waiting_for_traversal.release_value());
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#obtain-browsing-context-navigation

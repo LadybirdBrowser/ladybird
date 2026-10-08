@@ -230,7 +230,6 @@ private:
     void finish_history_operation(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult, Optional<i32> committed_step);
     void release_history_operation(HistoryOperation&, Web::HTML::HistoryStepResult);
     void report_history_operation_result(HistoryOperation&, Web::HTML::HistoryStepResult, Optional<i32> committed_step);
-    void run_steps_waiting_for_traversal();
     HistoryOperation* ongoing_browser_history_traversal();
 
     void run_browser_ui_traversal_at_queue_position(Function<Optional<i32>()> select_target_step, CheckForCancelation, Function<void()> on_ready, NonnullRefPtr<Core::Promise<Empty>>);

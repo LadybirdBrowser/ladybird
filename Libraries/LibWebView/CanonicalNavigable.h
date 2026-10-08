@@ -118,13 +118,11 @@ public:
     void navigate(URL::URL, Web::HTML::DocumentResource = {}, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
     Web::HTML::PreparedNavigationDescriptor prepare_navigation(URL::URL, Web::HTML::DocumentResource = {}, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
     void begin_navigation(Web::HTML::PreparedNavigationDescriptor);
-    bool has_navigation_waiting_for_traversal() const { return m_navigation_waiting_for_traversal.has_value(); }
 
     // A navigation another page started for the navigable continues in the page hosting its document, with the
     // initiator origin the UI process took from the page that started it.
     void set_routed_navigation(Utf16String navigation_id, URL::Origin initiator_origin);
     Optional<URL::Origin> take_routed_navigation_initiator_origin(Utf16String const& navigation_id);
-    void begin_navigation_waiting_for_traversal();
 
     CanonicalBrowsingContext::BrowsingContextAndDocument obtain_a_browsing_context_to_use_for_a_navigation_response(NavigationLoader::ResponseDocument const&);
     NonnullRefPtr<CanonicalDocument> create_and_initialize_a_document(NavigationLoader::ResponseDocument const&);
@@ -264,7 +262,6 @@ private:
     void end_navigation(CanonicalNavigation&);
     OngoingNavigation m_ongoing_navigation;
     Vector<NonnullOwnPtr<CanonicalNavigation>> m_navigations;
-    Optional<Web::HTML::PreparedNavigationDescriptor> m_navigation_waiting_for_traversal;
     struct RoutedNavigation {
         Utf16String navigation_id;
         URL::Origin initiator_origin;
