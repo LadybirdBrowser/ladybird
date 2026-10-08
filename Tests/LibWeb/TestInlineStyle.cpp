@@ -9,6 +9,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibTest/TestCase.h>
+#include <LibURL/Parser.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
@@ -16,6 +17,7 @@
 #include <LibWeb/HTML/HTMLDocument.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
@@ -140,14 +142,25 @@ TEST_CASE(content_blocking_policy_isolated_between_pages)
     auto& second_document = *static_cast<Web::HTML::LocalNavigable&>(*second_page->top_level_traversable()).active_document();
     EXPECT(!first_document.content_blocker_style_sheet().is_empty());
     EXPECT(!second_document.content_blocker_style_sheet().is_empty());
-    first_page->set_content_blocking_enabled(false);
-    EXPECT(!first_page->content_blocking_enabled());
-    EXPECT(second_page->content_blocking_enabled());
+    first_page->set_content_blocking_policy(false, {});
+    EXPECT(!first_document.content_blocking_enabled());
+    EXPECT(second_document.content_blocking_enabled());
     EXPECT(first_document.content_blocker_style_sheet().is_empty());
     EXPECT(!second_document.content_blocker_style_sheet().is_empty());
     EXPECT(blocker.has_rules());
-    first_page->set_content_blocking_enabled(true);
+    first_page->set_content_blocking_policy(true, {});
     EXPECT(!first_document.content_blocker_style_sheet().is_empty());
     EXPECT(!second_document.content_blocker_style_sheet().is_empty());
+    auto site = URL::Parser::basic_parse("https://example.com:8443/"sv).value();
+    first_document.relevant_settings_object().top_level_creation_url = site;
+    second_document.relevant_settings_object().top_level_creation_url = site;
+    first_page->set_content_blocking_policy(true, { { "EXAMPLE.COM."_string } });
+    EXPECT(!first_page->content_blocking_enabled_for_url(site));
+    EXPECT(second_page->content_blocking_enabled_for_url(site));
+    EXPECT(first_document.content_blocker_style_sheet().is_empty());
+    EXPECT(!second_document.content_blocker_style_sheet().is_empty());
+    EXPECT(first_page->content_blocking_enabled_for_url(URL::Parser::basic_parse("https://shop.example.com/"sv).value()));
+    first_page->set_content_blocking_policy(true, {});
+    EXPECT(!first_document.content_blocker_style_sheet().is_empty());
     MUST(blocker.set_patterns({}));
 }

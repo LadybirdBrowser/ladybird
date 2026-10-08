@@ -742,14 +742,16 @@ void Application::rebuild_content_blocker_list_paths()
     }
 }
 
-ErrorOr<void> Application::load_content_blocker_lists()
+ErrorOr<bool> Application::load_content_blocker_lists()
 {
     StringView custom_filters;
     if (m_web_content_options.is_test_mode == IsTestMode::No)
         custom_filters = m_settings->custom_content_blocker_filters();
     if (m_browser_options.content_blocker_list_paths.is_empty() && custom_filters.is_empty()) {
+        if (m_content_blocker_list_buffer.has_value() && m_content_blocker_list_buffer->size() == 0)
+            return false;
         m_content_blocker_list_buffer = TRY(Core::AnonymousBuffer::create_with_size(0));
-        return {};
+        return true;
     }
 
     Checked<size_t> total_size = 0;
@@ -780,9 +782,11 @@ ErrorOr<void> Application::load_content_blocker_lists()
     bytes[offset++] = '\n';
     VERIFY(offset == bytes.size());
 
-    m_content_blocker_list_buffer = move(blocker_list_buffer);
+    if (m_content_blocker_list_buffer.has_value() && m_content_blocker_list_buffer->bytes() == blocker_list_buffer.bytes())
+        return false;
 
-    return {};
+    m_content_blocker_list_buffer = move(blocker_list_buffer);
+    return true;
 }
 
 void Application::start_content_blocker_list_update(ContentBlockerListUpdateTrigger trigger, Optional<StringView> requested_identifier)
@@ -1099,6 +1103,9 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     client->async_connect_to_wasm_compiler(wasm_compiler_handle);
 #endif
+
+    if (m_content_blocker_list_buffer.has_value())
+        client->async_set_content_blockers(*m_content_blocker_list_buffer);
 
     m_web_content_clients.set(client);
     return client;
@@ -2715,12 +2722,7 @@ void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementati
     view.set_preferred_contrast(m_contrast);
     view.set_preferred_motion(m_motion);
 
-    // Test mode supplies its own filter lists independently of profile preferences.
-    auto content_blocking_enabled = m_browser_options.enable_content_blocker == EnableContentBlocker::Yes
-        && (m_web_content_options.is_test_mode == IsTestMode::Yes || m_settings->content_blocker_enabled());
-    page.async_set_content_blocking_enabled(content_blocking_enabled);
-    if (m_content_blocker_list_buffer.has_value())
-        page.client().async_set_content_blockers(*m_content_blocker_list_buffer);
+    apply_content_blocking_policy(page);
 
     page.async_debug_request("set-line-box-borders"sv, m_show_line_box_borders_action->checked() ? "on"sv : "off"sv);
     page.async_debug_request("set-caret-hit-test-debug-overlay"sv, m_show_caret_hit_test_debug_overlay_action->checked() ? "on"sv : "off"sv);
@@ -2762,6 +2764,24 @@ void Application::background_networking_settings_changed(Badge<ApplicationSettin
     start_content_blocker_list_update(ContentBlockerListUpdateTrigger::Automatic);
 }
 
+bool Application::content_blocking_enabled() const
+{
+    // Test mode supplies its own filter lists independently of profile preferences.
+    return m_browser_options.enable_content_blocker == EnableContentBlocker::Yes
+        && (m_web_content_options.is_test_mode == IsTestMode::Yes || m_settings->content_blocker_enabled());
+}
+
+bool Application::has_content_blocking_rules() const
+{
+    return m_content_blocker_list_buffer.has_value() && m_content_blocker_list_buffer->size() > 0;
+}
+
+void Application::apply_content_blocking_policy(WebContentPage& page)
+{
+    auto disabled_sites = m_web_content_options.is_test_mode == IsTestMode::Yes ? Vector<String> {} : m_settings->content_blocker_disabled_sites().values();
+    page.async_set_content_blocking_policy(content_blocking_enabled(), disabled_sites);
+}
+
 void Application::content_blocker_settings_changed(Badge<ApplicationSettingsObserver>)
 {
     apply_content_blocker_settings();
@@ -2769,24 +2789,24 @@ void Application::content_blocker_settings_changed(Badge<ApplicationSettingsObse
 
 void Application::apply_content_blocker_settings()
 {
-    bool lists_loaded = false;
+    bool rules_changed = false;
     if (m_web_content_options.is_test_mode == IsTestMode::No) {
         rebuild_content_blocker_list_paths();
         if (auto result = load_content_blocker_lists(); result.is_error())
             warnln("Unable to apply content blocker settings: {}", result.error());
         else
-            lists_loaded = true;
+            rules_changed = result.release_value();
     }
 
-    auto enabled = m_browser_options.enable_content_blocker == EnableContentBlocker::Yes
-        && (m_web_content_options.is_test_mode == IsTestMode::Yes || m_settings->content_blocker_enabled());
+    auto enabled = content_blocking_enabled();
+    auto disabled_sites = m_web_content_options.is_test_mode == IsTestMode::Yes ? Vector<String> {} : m_settings->content_blocker_disabled_sites().values();
 
     WebContentClient::for_each_client([&](WebContentClient& client) {
         client.for_each_page([&](WebContentPage& page) {
-            client.async_set_content_blocking_enabled(page.id(), enabled);
+            client.async_set_content_blocking_policy(page.id(), enabled, disabled_sites);
             return IterationDecision::Continue;
         });
-        if (lists_loaded)
+        if (rules_changed)
             client.async_set_content_blockers(*m_content_blocker_list_buffer);
         return IterationDecision::Continue;
     });

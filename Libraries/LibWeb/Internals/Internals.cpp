@@ -1149,7 +1149,7 @@ WebIDL::ExceptionOr<void> Internals::set_site_compatibility_data(Utf16String con
 
 void Internals::set_content_blocking_enabled(bool enabled)
 {
-    page().set_content_blocking_enabled(enabled);
+    page().set_content_blocking_policy(enabled, {});
 }
 
 WebIDL::UnsignedLongLong Internals::partial_layout_count()

@@ -2314,6 +2314,11 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     load_request.set_source_url(content_blocker_source_url_for_request(*request));
     load_request.set_network_isolation_key(Infrastructure::determine_the_network_partition_key(*request));
 
+    if (auto environment = request->reserved_client())
+        load_request.set_top_level_creation_url(environment->top_level_creation_url);
+    else if (auto client = request->client())
+        load_request.set_top_level_creation_url(client->top_level_creation_url);
+
     if (auto const* body = request->body().get_pointer<GC::Ref<Infrastructure::Body>>()) {
         (*body)->source().visit(
             [&](ByteBuffer const& byte_buffer) {
