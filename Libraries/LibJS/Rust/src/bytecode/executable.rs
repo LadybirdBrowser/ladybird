@@ -193,8 +193,11 @@ impl Default for PropertyLookupCacheEntry {
 }
 
 pub const MAX_NUMBER_OF_SHAPES_TO_REMEMBER: usize = 4;
-pub const MEGAMORPHIC_PRIMARY_CACHE_SIZE: usize = 64;
-pub const MEGAMORPHIC_SECONDARY_CACHE_SIZE: usize = 64;
+pub const MEGAMORPHIC_INDEX_BITS: u32 = 6;
+pub const MEGAMORPHIC_PRIMARY_CACHE_SIZE: usize = 1 << MEGAMORPHIC_INDEX_BITS;
+pub const MEGAMORPHIC_SECONDARY_CACHE_SIZE: usize = 1 << MEGAMORPHIC_INDEX_BITS;
+/// Fibonacci hashing (see megamorphic_hash()).
+pub const MEGAMORPHIC_HASH_MULTIPLIER: u32 = 0x9e37_79b9;
 const POLYMORPHIC_DATA_TAG: usize = 1;
 const MEGAMORPHIC_DATA_TAG: usize = 2;
 /// How many (shape, key) pairs a megamorphic cache of a keyed access may miss and learn before it gives up (see
@@ -233,20 +236,19 @@ const _: () = assert!(core::mem::offset_of!(MonomorphicData, entry) == 0);
 const _: () = assert!(core::mem::offset_of!(PolymorphicData, entries) == 0);
 const _: () = assert!(core::mem::offset_of!(MegamorphicData, entry) == 0);
 
-fn megamorphic_hash(shape: Gc<Shape>, key: u64) -> usize {
-    let hash = u64_hash(shape.as_ptr().addr() as u64);
-    if key == 0 {
-        return hash as usize;
-    }
-    pair_int_hash(hash, u64_hash(key)) as usize
+/// Fibonacci hashing of the low 32 bits of the shape pointer, mixed with the key of keyed caches: the indices are the
+/// top bits of the product, which takes a multiply and a shift.
+fn megamorphic_hash(shape: Gc<Shape>, key: u64) -> u32 {
+    ((shape.as_ptr().addr() as u64 ^ key) as u32).wrapping_mul(MEGAMORPHIC_HASH_MULTIPLIER)
 }
 
 fn megamorphic_primary_index(shape: Gc<Shape>, key: u64) -> usize {
-    megamorphic_hash(shape, key) & (MEGAMORPHIC_PRIMARY_CACHE_SIZE - 1)
+    (megamorphic_hash(shape, key) >> (32 - MEGAMORPHIC_INDEX_BITS)) as usize
 }
 
 fn megamorphic_secondary_index(shape: Gc<Shape>, key: u64) -> usize {
-    (megamorphic_hash(shape, key) >> 8) & (MEGAMORPHIC_SECONDARY_CACHE_SIZE - 1)
+    (megamorphic_hash(shape, key) >> (32 - 2 * MEGAMORPHIC_INDEX_BITS)) as usize
+        & (MEGAMORPHIC_SECONDARY_CACHE_SIZE - 1)
 }
 
 fn insert_megamorphic_entry(data: &MegamorphicData, entry: &PropertyLookupCacheEntryData) {
