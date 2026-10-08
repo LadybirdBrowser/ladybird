@@ -159,3 +159,48 @@ describe("array resized before elements are copied", () => {
         expect(2 in slice).toBeFalse();
     });
 });
+
+describe("species", () => {
+    test("arrays with the intrinsic constructor and species", () => {
+        const array = [1, 2, 3, 4];
+        const result = array.slice(1, 3);
+        expect(result).toEqual([2, 3]);
+        expect(Object.getPrototypeOf(result)).toBe(Array.prototype);
+        expect(array.slice(2, 1)).toEqual([]);
+        expect(array.slice()).not.toBe(array);
+    });
+
+    test("a redefined species getter is called", () => {
+        const descriptor = Object.getOwnPropertyDescriptor(Array, Symbol.species);
+        let calls = 0;
+        class Other extends Array {}
+        Object.defineProperty(Array, Symbol.species, {
+            get() {
+                ++calls;
+                return Other;
+            },
+            configurable: true,
+        });
+        try {
+            const result = [1, 2, 3].slice(1);
+            expect(calls).toBe(1);
+            expect(result instanceof Other).toBeTrue();
+            expect(Array.from(result)).toEqual([2, 3]);
+        } finally {
+            Object.defineProperty(Array, Symbol.species, descriptor);
+        }
+        expect(Object.getPrototypeOf([1].slice())).toBe(Array.prototype);
+    });
+
+    test("a species constructor that returns the array itself", () => {
+        const array = [1, 2, 3, 4];
+        array.constructor = {
+            [Symbol.species]: function () {
+                return array;
+            },
+        };
+        const result = array.slice(1, 3);
+        expect(result).toBe(array);
+        expect(Array.from(result)).toEqual([2, 3]);
+    });
+});

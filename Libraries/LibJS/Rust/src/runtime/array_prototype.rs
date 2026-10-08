@@ -1599,25 +1599,26 @@ impl ArrayPrototype {
             && can_use_packed_array_fast_path(&array)
             && u64::from(array.indexed_array_like_size()) == initial_length
             && let Some(result_array) = fast_array_species_result(new_array)
+            && result_array != array
         {
             let start = actual_start as u32;
             let end = final_ as u32;
+            // NB: The result ends up with exactly the elements of the slice, as packed data properties with the
+            //     default attributes: a species constructor can return an array with more elements, which setting
+            //     the length at the end removes, and its storage holds no other attributes.
+            let result_length = end.saturating_sub(start);
+            result_array.set_indexed_property_elements_to_undefined(result_length);
             for i in start..end {
-                result_array.indexed_put(
+                result_array.set_packed_indexed_element(
                     i - start,
                     array
                         .indexed_get(i)
                         .expect("a packed array has every element below its size")
                         .value,
-                    DEFAULT_ATTRIBUTES,
                 );
             }
-
-            // NB: A species constructor can return an array with more elements than the slice. The spec sets the
-            //     length of the result at the end, which removes them.
-            let result_length = end.saturating_sub(start);
-            if result_array.indexed_array_like_size() != result_length {
-                assert!(result_array.set_indexed_array_like_size(result_length as usize));
+            if result_length == 0 {
+                assert!(result_array.set_indexed_array_like_size(0));
             }
             return Ok(Value::from_object(result_array));
         }
@@ -2436,6 +2437,19 @@ fn array_species_create(vm: &Vm, original_array: &Object, length: u64) -> ThrowC
         {
             constructor = Value::UNDEFINED;
         }
+    }
+
+    // OPTIMIZATION: Get(%Array%, @@species) of the intrinsic getter returns %Array% itself, and Construct(%Array%,
+    //               « length ») is ArrayCreate(length), since %Array%.prototype cannot change.
+    if constructor.is_object()
+        && let Some(realm) = vm.current_realm()
+        && constructor.as_object() == realm.intrinsics().array_constructor(vm).upcast()
+        && realm
+            .intrinsics()
+            .array_constructor(vm)
+            .has_intrinsic_symbol_species_getter(vm)
+    {
+        return Ok(Array::create(vm, realm, length, None)?.upcast());
     }
 
     if constructor.is_object() {
