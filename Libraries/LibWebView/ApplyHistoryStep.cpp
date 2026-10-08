@@ -511,9 +511,11 @@ void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& n
     //         does not model Ladybird's independently admitted UI-process navigations.
     //         See https://github.com/whatwg/html/issues/12581.
     auto is_cross_document_traversal = m_navigation_type == Web::Bindings::NavigationType::Traverse && traversal_crosses_documents;
+    auto ongoing_navigation_id = navigable.ongoing_navigation_id();
+    auto const* ongoing_navigation = ongoing_navigation_id.has_value() ? navigable.navigation_with_id(*ongoing_navigation_id) : nullptr;
     if (!is_cross_document_traversal
-        && navigable.ongoing_navigation()
-        && navigable.ongoing_navigation()->sequence_number > m_operation_sequence_number) {
+        && ongoing_navigation
+        && ongoing_navigation->sequence_number > m_operation_sequence_number) {
         if (is_same_document_traversal)
             m_same_document_traversal_yields.set(navigable.id(), { Web::HTML::TraversalYieldsTo::AdmittedNavigation, {} });
         return;
@@ -523,19 +525,19 @@ void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& n
     if (m_navigation_type.has_value()
         && first_is_one_of(*m_navigation_type, Web::Bindings::NavigationType::Push, Web::Bindings::NavigationType::Replace)
         && target_document_is_active_document
-        && navigable.ongoing_navigation()) {
+        && ongoing_navigation_id.has_value()) {
         return;
     }
 
     // AD-HOC: A navigable creation/destruction update skips a navigable already claimed by its requested navigation.
     //         See https://github.com/whatwg/html/issues/12724.
-    if (!m_navigation_type.has_value() && navigable.ongoing_navigation())
+    if (!m_navigation_type.has_value() && ongoing_navigation_id.has_value())
         return;
 
     Optional<Utf16String> canceled_navigation_id;
     if (m_navigation_type == Web::Bindings::NavigationType::Traverse) {
-        if (auto const* ongoing_navigation = navigable.ongoing_navigation(); is_same_document_traversal && ongoing_navigation)
-            canceled_navigation_id = ongoing_navigation->navigation_id;
+        if (is_same_document_traversal && ongoing_navigation_id.has_value())
+            canceled_navigation_id = *ongoing_navigation_id;
         navigable.clear_ongoing_navigation();
     }
 

@@ -91,21 +91,22 @@ public:
 
     RefPtr<CanonicalDocument> document_with_id(Web::HTML::CrossProcessId) const;
     void populate_document(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
-    void populate_document_for_ongoing_navigation(NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
+    void populate_document_for_navigation(CanonicalNavigation&, NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
     // Populates nothing for a document that would hold access the active document lacks.
-    void populate_document_for_javascript_url(NonnullRefPtr<CanonicalSessionHistoryEntry>, NonnullRefPtr<CanonicalDocument>);
+    void populate_document_for_javascript_url(CanonicalNavigation&, NonnullRefPtr<CanonicalSessionHistoryEntry>, NonnullRefPtr<CanonicalDocument>);
     void did_create_populated_document_with_an_origin_of_its_own(WebContentPage const& host, Web::HTML::CrossProcessId document_id, Web::HTML::PopulatedDocumentOrigin, Web::HTML::EnvironmentId const& environment_id);
-    bool take_navigation_to_finalize(Utf16String const& navigation_id, WebContentPage const&);
     void abandon_populated_document(CanonicalDocument const&);
     void place_populated_document(CanonicalDocument&, WebContentPage&);
 
-    // The document states holding a populated document: the ongoing navigation's history entry's, and the one a history
-    // job is to activate.
+    // The document states holding a populated document: the history entries' of the navigations under way, and the one a
+    // history job is to activate.
     template<typename Callback>
     void for_each_populated_document_state(Callback callback) const
     {
-        if (auto const* navigation = ongoing_navigation(); navigation && navigation->history_entry && navigation->history_entry->document_state->populated_document.has_value())
-            callback(*navigation->history_entry->document_state);
+        for (auto const& navigation : m_navigations) {
+            if (navigation->history_entry && navigation->history_entry->document_state->populated_document.has_value())
+                callback(*navigation->history_entry->document_state);
+        }
         if (m_document_state_populated_by_history_job)
             callback(*m_document_state_populated_by_history_job);
     }
@@ -214,10 +215,21 @@ public:
     void did_commit_navigation(CanonicalSessionHistoryEntry&, Web::HTML::HostedNavigableState, u64 operation_sequence_number, Optional<Utf16String const&> navigation_id, RefPtr<WebContentPage> host);
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#ongoing-navigation
-    // The navigation, if the navigable's ongoing navigation is a navigation ID rather than "traversal" or null.
-    CanonicalNavigation* ongoing_navigation() { return m_ongoing_navigation.get_pointer<CanonicalNavigation>(); }
-    CanonicalNavigation const* ongoing_navigation() const { return m_ongoing_navigation.get_pointer<CanonicalNavigation>(); }
-    bool ongoing_navigation_is_traversal() const { return m_ongoing_navigation.has<Traversal>(); }
+    // NB: "traversal" names the history operation that set it, so that another operation leaves it alone.
+    struct Traversal {
+        Web::HTML::CrossProcessId operation_id;
+    };
+    using OngoingNavigation = Variant<Empty, Traversal, Utf16String>;
+    OngoingNavigation const& ongoing_navigation() const { return m_ongoing_navigation; }
+    Optional<Utf16String const&> ongoing_navigation_id() const;
+
+    CanonicalNavigation* navigation_with_id(Utf16String const&);
+    CanonicalNavigation const* navigation_with_id(Utf16String const&) const;
+    // The navigation the ongoing navigation names, until its finalization is appended.
+    CanonicalNavigation* uncommitted_navigation();
+    CanonicalNavigation const* uncommitted_navigation() const;
+    bool has_uncommitted_navigation() const { return uncommitted_navigation(); }
+    CanonicalNavigation const* navigation_being_finalized() const;
 
     // Held so that revoking a blob URL cannot take the entry away from a navigation on its way to this navigable, or
     // from the document it loaded. Session history holds none, so a revoked blob URL cannot be traversed back to.
@@ -227,12 +239,8 @@ public:
     void set_ongoing_navigation_to_traversal(Web::HTML::CrossProcessId operation_id);
     void clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId operation_id);
     void clear_ongoing_navigation();
-    void clear_ongoing_navigation_state();
-    void set_navigation_host(WebContentPage&);
-    bool cancel_navigation_for_client(WebContentClient&);
-    CanonicalNavigation const* navigation_being_finalized() const { return m_navigation_being_finalized.has_value() ? &*m_navigation_being_finalized : nullptr; }
+    void cancel_navigation_for_client(WebContentClient&);
     void did_finish_finalizing_navigation(Utf16String const& navigation_id, Web::HTML::HistoryStepResult);
-    bool has_uncommitted_navigation() const { return ongoing_navigation(); }
     void did_cancel_navigation(Utf16String navigation_id);
     Optional<Utf16String> tracked_load_navigation_id() const;
 
@@ -252,11 +260,10 @@ private:
     RefPtr<CanonicalDocumentState> m_document_state_populated_by_history_job;
     RefPtr<CanonicalSessionHistoryEntry> m_current_session_history_entry;
     RefPtr<CanonicalSessionHistoryEntry> m_active_session_history_entry;
-    struct Traversal {
-        Web::HTML::CrossProcessId operation_id;
-    };
-    Variant<Empty, Traversal, CanonicalNavigation> m_ongoing_navigation;
-    Optional<CanonicalNavigation> m_navigation_being_finalized;
+    void set_the_ongoing_navigation(OngoingNavigation);
+    void end_navigation(CanonicalNavigation&);
+    OngoingNavigation m_ongoing_navigation;
+    Vector<NonnullOwnPtr<CanonicalNavigation>> m_navigations;
     Optional<Web::HTML::PreparedNavigationDescriptor> m_navigation_waiting_for_traversal;
     struct RoutedNavigation {
         Utf16String navigation_id;
