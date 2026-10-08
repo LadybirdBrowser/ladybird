@@ -8,6 +8,7 @@
 //! context trees, replaying display lists, computing their damage, and the tree builder tests use.
 
 use crate::display_list::commands::{ClipNodeIndex, ContextRef, EffectNodeIndex, SpatialNodeIndex};
+use crate::display_list::storage::storage_from_handle;
 use crate::node_slot_id::NodeSlotId;
 use std::ffi::c_void;
 
@@ -55,56 +56,44 @@ pub unsafe extern "C" fn ladybird_web_force_dark_should_filter_image(
 
 /// # Safety
 ///
-/// Both trees must be live retained tree handles and every pointer must address the stated number of
-/// bytes, runs or points for the call; each run table must be the validated table of its tape.
-/// Writes the damage rect through `out_damage_rect` and returns whether the damage is bounded;
-/// unbounded damage means the whole viewport must repaint.
+/// Both storages must be live storage handles, both trees live retained tree handles, and both
+/// offset pointers must address the stated number of points for the call. Writes the damage rect
+/// through `out_damage_rect` and returns whether the damage is bounded; unbounded damage means the
+/// whole viewport must repaint.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn display_list_compute_damage(
-    old_command_bytes: *const u8,
-    old_command_bytes_length: usize,
-    old_command_runs: *const crate::display_list::commands::DisplayListCommandRun,
-    old_command_run_count: usize,
+    old_storage: *const c_void,
     old_tree: *const c_void,
     old_scroll_offsets: *const libgfx_rust::FloatPoint,
     old_scroll_offsets_len: usize,
-    new_command_bytes: *const u8,
-    new_command_bytes_length: usize,
-    new_command_runs: *const crate::display_list::commands::DisplayListCommandRun,
-    new_command_run_count: usize,
+    new_storage: *const c_void,
     new_tree: *const c_void,
     new_scroll_offsets: *const libgfx_rust::FloatPoint,
     new_scroll_offsets_len: usize,
     viewport_rect: libgfx_rust::IntRect,
     out_damage_rect: *mut libgfx_rust::IntRect,
 ) -> bool {
-    let (old_tree, new_tree) = unsafe { (tree_from_handle(old_tree), tree_from_handle(new_tree)) };
-    // SAFETY: The caller guarantees the slices address the stated number of values.
-    let (old_command_bytes, old_command_runs, old_scroll_offsets) = unsafe {
+    // SAFETY: The caller guarantees live handles and valid slices for the duration of the call.
+    let (old_storage, old_tree, old_scroll_offsets, new_storage, new_tree, new_scroll_offsets) = unsafe {
         (
-            ffi_slice(old_command_bytes, old_command_bytes_length),
-            ffi_slice(old_command_runs, old_command_run_count),
+            storage_from_handle(old_storage),
+            tree_from_handle(old_tree),
             ffi_slice(old_scroll_offsets, old_scroll_offsets_len),
-        )
-    };
-    // SAFETY: As above, for the new frame's inputs.
-    let (new_command_bytes, new_command_runs, new_scroll_offsets) = unsafe {
-        (
-            ffi_slice(new_command_bytes, new_command_bytes_length),
-            ffi_slice(new_command_runs, new_command_run_count),
+            storage_from_handle(new_storage),
+            tree_from_handle(new_tree),
             ffi_slice(new_scroll_offsets, new_scroll_offsets_len),
         )
     };
     let damage = crate::display_list::damage::compute_display_list_damage(
         crate::display_list::damage::DisplayListFrame {
-            command_bytes: old_command_bytes,
-            command_runs: old_command_runs,
+            command_bytes: old_storage.bytes(),
+            command_runs: old_storage.command_runs(),
             visual_context_tree: old_tree,
             scroll_offsets: old_scroll_offsets,
         },
         crate::display_list::damage::DisplayListFrame {
-            command_bytes: new_command_bytes,
-            command_runs: new_command_runs,
+            command_bytes: new_storage.bytes(),
+            command_runs: new_storage.command_runs(),
             visual_context_tree: new_tree,
             scroll_offsets: new_scroll_offsets,
         },
@@ -122,24 +111,23 @@ pub unsafe extern "C" fn display_list_compute_damage(
 
 /// # Safety
 ///
-/// The tree must be a live retained handle and each pointer must address the stated number of values.
+/// The storage and the tree must be live handles and `scroll_offsets` must address
+/// `scroll_offsets_len` points.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn display_list_animated_content_may_affect_viewport(
-    command_bytes: *const u8,
-    command_bytes_length: usize,
-    command_runs: *const crate::display_list::commands::DisplayListCommandRun,
-    command_run_count: usize,
+    storage: *const c_void,
     tree: *const c_void,
     scroll_offsets: *const libgfx_rust::FloatPoint,
     scroll_offsets_len: usize,
     viewport_rect: libgfx_rust::IntRect,
     sample_time_ns: i64,
 ) -> crate::host::FfiAnimatedContentViewportEffect {
-    // SAFETY: The caller guarantees a live tree and valid slices for the duration of the call.
+    // SAFETY: The caller guarantees live handles and valid slices for the duration of the call.
     unsafe {
+        let storage = storage_from_handle(storage);
         crate::display_list::damage::animated_content_may_affect_viewport_at(
-            ffi_slice(command_bytes, command_bytes_length),
-            ffi_slice(command_runs, command_run_count),
+            storage.bytes(),
+            storage.command_runs(),
             tree_from_handle(tree),
             ffi_slice(scroll_offsets, scroll_offsets_len),
             viewport_rect,
@@ -149,74 +137,34 @@ pub unsafe extern "C" fn display_list_animated_content_may_affect_viewport(
 }
 
 /// # Safety
-/// `tree` must be a live, structurally valid tree; `command_runs` must be valid for
-/// `command_run_count` entries. The returned immutable plan is safe to share across
-/// replay threads while its owner keeps it alive.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_create_effect_clip_plan(
-    tree: *const c_void,
-    command_runs: *const crate::display_list::commands::DisplayListCommandRun,
-    command_run_count: usize,
-) -> *const c_void {
-    let tree = unsafe { tree_from_handle(tree) };
-    let runs = unsafe { ffi_slice(command_runs, command_run_count) };
-    crate::display_list::effect_clip_plan::EffectClipPlan::new(tree, runs)
-        .map_or(std::ptr::null(), |plan| Box::into_raw(Box::new(plan)).cast())
-}
-
-/// # Safety
-/// `plan` must be a plan returned by `display_list_create_effect_clip_plan`, and
-/// no thread may still be using it. This consumes ownership of the plan.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_destroy_effect_clip_plan(plan: *const c_void) {
-    if !plan.is_null() {
-        unsafe {
-            drop(Box::from_raw(
-                plan.cast_mut()
-                    .cast::<crate::display_list::effect_clip_plan::EffectClipPlan>(),
-            ));
-        }
-    }
-}
-
-/// # Safety
 ///
-/// `tree` must be a live retained tree handle, `tape` must address `tape_size` bytes of a valid
-/// tape, `command_runs` must address its `command_run_count` runs and `scroll_offsets`
-/// `scroll_offsets_len` points for the call, and `callbacks` must be
-/// live. The painter callbacks run synchronously and may re-enter this function for a nested
-/// display list. `effect_clip_plan` must remain live and must have been prepared
-/// for these runs and the tree's current structural epoch.
+/// `tree` must be a live retained tree handle of the structural epoch the storage was recorded
+/// against, `storage` a live storage handle, `scroll_offsets` must address `scroll_offsets_len`
+/// points for the call, and `callbacks` must be live. The painter callbacks run synchronously and
+/// may re-enter this function for a nested display list.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn display_list_replay(
     tree: *const c_void,
-    effect_clip_plan: *const c_void,
-    tape: *const u8,
-    tape_size: usize,
-    command_runs: *const crate::display_list::commands::DisplayListCommandRun,
-    command_run_count: usize,
+    storage: *const c_void,
     scroll_offsets: *const libgfx_rust::FloatPoint,
     scroll_offsets_len: usize,
     callbacks: *const crate::host::FfiDisplayListReplayCallbacks,
 ) {
-    let tree = unsafe { tree_from_handle(tree) };
-    // SAFETY: The caller guarantees the slices address the stated number of values.
-    let (tape, command_runs, scroll_offsets) = unsafe {
+    // SAFETY: The caller guarantees live handles and a valid slice for the duration of the call.
+    let (tree, storage, scroll_offsets) = unsafe {
         (
-            ffi_slice(tape, tape_size),
-            ffi_slice(command_runs, command_run_count),
+            tree_from_handle(tree),
+            storage_from_handle(storage),
             ffi_slice(scroll_offsets, scroll_offsets_len),
         )
     };
     // SAFETY: The caller guarantees `callbacks` is live for the call.
     let mut painter = unsafe { *callbacks };
-    let effect_clip_plan =
-        unsafe { &*effect_clip_plan.cast::<crate::display_list::effect_clip_plan::EffectClipPlan>() };
     crate::display_list::replay::replay_display_list(
         tree,
-        tape,
-        command_runs,
-        effect_clip_plan,
+        storage.bytes(),
+        storage.command_runs(),
+        storage.effect_clip_plan(tree),
         scroll_offsets,
         &mut painter,
     );
@@ -340,47 +288,17 @@ pub unsafe extern "C" fn visual_context_tree_live_node_count(tree: *const c_void
     unsafe { tree_from_handle(tree) }.live_node_count()
 }
 
-/// Checks a tape and the raw bytes of its run table, as they arrived from another process. Returns
-/// null when they are well formed, or else a static error message whose size it writes.
-///
 /// # Safety
 ///
-/// `tape` must address `tape_size` bytes and `run_bytes` must address `run_bytes_size` bytes for
-/// the call, or be null with a size of zero; `error_size` must be writable.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_validate_tape(
-    tape: *const u8,
-    tape_size: usize,
-    run_bytes: *const u8,
-    run_bytes_size: usize,
-    error_size: *mut usize,
-) -> *const u8 {
-    // SAFETY: The caller guarantees both slices address the stated number of bytes.
-    let tape = unsafe { ffi_slice(tape, tape_size) };
-    let run_bytes = unsafe { ffi_slice(run_bytes, run_bytes_size) };
-    let (message, size) = match crate::display_list::validate::validate_tape(tape, run_bytes) {
-        Ok(_) => (std::ptr::null(), 0),
-        Err(message) => (message.as_ptr(), message.len()),
-    };
-    // SAFETY: The caller guarantees `error_size` is writable.
-    unsafe { *error_size = size };
-    message
-}
-
-/// # Safety
-///
-/// `tree` must be a live retained tree handle; `command_runs` must address `command_run_count`
-/// runs for the call.
+/// `tree` must be a live retained tree handle and `storage` a live storage handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn display_list_references_only_live_visual_context_nodes(
     tree: *const c_void,
-    command_runs: *const crate::display_list::commands::DisplayListCommandRun,
-    command_run_count: usize,
+    storage: *const c_void,
 ) -> bool {
-    let tree = unsafe { tree_from_handle(tree) };
-    // SAFETY: The caller guarantees the slice addresses the stated number of runs.
-    let command_runs = unsafe { ffi_slice(command_runs, command_run_count) };
-    tree.display_list_references_only_live_nodes(command_runs)
+    // SAFETY: The caller guarantees live handles for the duration of the call.
+    let (tree, storage) = unsafe { (tree_from_handle(tree), storage_from_handle(storage)) };
+    tree.display_list_references_only_live_nodes(storage.command_runs())
 }
 
 /// # Safety

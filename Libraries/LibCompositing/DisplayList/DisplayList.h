@@ -7,8 +7,7 @@
 
 #pragma once
 
-#include <AK/Atomic.h>
-#include <AK/ByteBuffer.h>
+#include <AK/AtomicRefCounted.h>
 #include <AK/Error.h>
 #include <AK/Forward.h>
 #include <AK/NonnullRefPtr.h>
@@ -61,14 +60,11 @@ public:
     };
     static Optional<SharedBufferLayout> shared_buffer_layout(u64 tape_size, u64 run_count);
 
-    static NonnullRefPtr<DisplayList> create(AccumulatedVisualContextTree const& visual_context_tree)
-    {
-        return adopt_ref(*new DisplayList(visual_context_tree.structural_epoch()));
-    }
-
-    // Adopts a strong reference to immutable Rust command storage, including its run table.
+    // An empty list.
+    static NonnullRefPtr<DisplayList> create(AccumulatedVisualContextTree const&);
+    // Adopts a strong reference to an immutable Rust recording, including its run table.
     static NonnullRefPtr<DisplayList> adopt_rust_command_storage(AccumulatedVisualContextTree const&, void const*);
-    // Shares immutable Rust command storage that someone else holds, taking a strong reference of its own.
+    // Shares an immutable Rust recording that someone else holds, taking a strong reference of its own.
     static NonnullRefPtr<DisplayList> share_rust_command_storage(AccumulatedVisualContextTree const&, void const*);
 
     // The producer's side of sending a list: a fresh shared buffer holding the tape and the run table,
@@ -85,8 +81,11 @@ public:
     u64 compatible_visual_context_tree_structural_epoch() const { return m_compatible_visual_context_tree_structural_epoch; }
     u64 id() const { return m_id; }
 
-    ReadonlyBytes command_bytes() const { return borrows_command_bytes() ? m_borrowed_command_bytes : m_command_bytes.span(); }
-    ReadonlySpan<DisplayListCommandRun> command_runs() const { return m_rust_command_storage ? m_borrowed_command_runs : m_command_runs.span(); }
+    // The Rust storage that holds the list's tape.
+    void const* rust_handle() const { return m_storage; }
+
+    ReadonlyBytes command_bytes() const { return m_command_bytes; }
+    ReadonlySpan<DisplayListCommandRun> command_runs() const { return m_command_runs; }
     ReadonlyBytes command_bytes_of_run(DisplayListCommandRun const& run) const { return command_bytes().slice(run.offset, run.size); }
     void set_surface_clear_color(Gfx::Color color) { m_surface_clear_color = color; }
     Optional<Gfx::Color> surface_clear_color() const { return m_surface_clear_color; }
@@ -126,25 +125,17 @@ public:
     static void replay_records(ReadonlyBytes records, ScrollStateSnapshot const&, RustFFI::FfiDisplayListReplayCallbacks const&);
 
 private:
-    void const* replay_effect_clip_plan(AccumulatedVisualContextTree const&) const;
+    // Takes over the storage of a tape that came from another process and passed its checks.
+    static NonnullRefPtr<DisplayList> adopt_received_storage(Properties, void const* storage);
 
-    explicit DisplayList(u64 compatible_visual_context_tree_structural_epoch);
-    DisplayList(u64 compatible_visual_context_tree_structural_epoch, u64 id, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata>);
+    DisplayList(u64 compatible_visual_context_tree_structural_epoch, u64 id, void const* storage, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata>);
 
-    bool borrows_command_bytes() const { return m_rust_command_storage; }
-
-    // Immutable placement for this list and its compatible clip/effect topology.
-    // Atomic publication allows compositor workers to replay the list concurrently.
-    mutable Atomic<void const*> m_replay_effect_clip_plan { nullptr };
     u64 m_compatible_visual_context_tree_structural_epoch { 0 };
     u64 m_id { 0 };
-    // Received lists own their buffers here. Rust recordings instead share one immutable allocation with
-    // the cache, which the spans borrow.
-    void const* m_rust_command_storage { nullptr };
-    ReadonlyBytes m_borrowed_command_bytes;
-    ReadonlySpan<DisplayListCommandRun> m_borrowed_command_runs;
-    ByteBuffer m_command_bytes;
-    Vector<DisplayListCommandRun> m_command_runs;
+    // One strong reference to the Rust storage, which owns the tape these spans borrow.
+    void const* m_storage { nullptr };
+    ReadonlyBytes m_command_bytes;
+    ReadonlySpan<DisplayListCommandRun> m_command_runs;
     Optional<Gfx::Color> m_surface_clear_color;
     Optional<AsyncScrollingMetadata> m_async_scrolling_metadata;
 
@@ -154,12 +145,6 @@ private:
     friend ErrorOr<T> IPC::decode(IPC::Decoder&);
 };
 
-// Runs must start at offset zero, follow each other without gaps, stay aligned, and end at the tape's
-// end. This is all a list recorded in this process needs.
-COMPOSITING_API ErrorOr<void> validate_display_list_command_runs(ReadonlyBytes command_bytes, ReadonlySpan<DisplayListCommandRun>);
-// Checks a tape that came from another process: its runs, its record framing and every value whose bytes
-// could be invalid, so that every later read of it is sound.
-COMPOSITING_API ErrorOr<void> validate_received_display_list_tape(ReadonlyBytes command_bytes, ReadonlySpan<DisplayListCommandRun>);
 COMPOSITING_API ErrorOr<void> validate_display_list_references_live_visual_context_nodes(DisplayList const&, AccumulatedVisualContextTree const&);
 
 }
