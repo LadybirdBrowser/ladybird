@@ -34,7 +34,8 @@ use crate::layout::object::Object;
 pub use crate::layout::property_lookup_cache::{
     EnvironmentCoordinate, GlobalVariableCache, ObjectPropertyIteratorCache, ObjectPropertyIteratorCacheData,
     ObjectPropertyIteratorFastPath, PROPERTY_LOOKUP_CACHE_DATA_TAG_MASK, PROPERTY_LOOKUP_CACHE_KEYED_GENERIC_DATA,
-    PropertyLookupCache, PropertyLookupCacheEntry, PropertyLookupCacheEntryType,
+    PROPERTY_LOOKUP_CACHE_POLYMORPHIC_DATA_TAG, PropertyLookupCache, PropertyLookupCacheEntry,
+    PropertyLookupCacheEntryType,
 };
 use crate::layout::shape::{PrototypeChainValidity, Shape};
 use crate::layout::value::Value;
@@ -193,12 +194,14 @@ impl Default for PropertyLookupCacheEntry {
 }
 
 pub const MAX_NUMBER_OF_SHAPES_TO_REMEMBER: usize = 4;
+// NB: GetById probes the entries of polymorphic caches unrolled.
+const _: () = assert!(MAX_NUMBER_OF_SHAPES_TO_REMEMBER == 4);
 pub const MEGAMORPHIC_INDEX_BITS: u32 = 6;
 pub const MEGAMORPHIC_PRIMARY_CACHE_SIZE: usize = 1 << MEGAMORPHIC_INDEX_BITS;
 pub const MEGAMORPHIC_SECONDARY_CACHE_SIZE: usize = 1 << MEGAMORPHIC_INDEX_BITS;
 /// Fibonacci hashing (see megamorphic_hash()).
 pub const MEGAMORPHIC_HASH_MULTIPLIER: u32 = 0x9e37_79b9;
-const POLYMORPHIC_DATA_TAG: usize = 1;
+const POLYMORPHIC_DATA_TAG: usize = PROPERTY_LOOKUP_CACHE_POLYMORPHIC_DATA_TAG;
 const MEGAMORPHIC_DATA_TAG: usize = 2;
 /// How many (shape, key) pairs a megamorphic cache of a keyed access may miss and learn before it gives up (see
 /// PropertyLookupCache::is_keyed_generic()).
