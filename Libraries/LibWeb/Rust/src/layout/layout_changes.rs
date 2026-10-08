@@ -215,6 +215,15 @@ impl LayoutChange {
         }
     }
 
+    /// Applies the change to `arena` as [`Self::apply`] does, owing the host what it hears of the boxes the change binds
+    /// a node to, or unbinds it from, rather than telling it: a change streamed to the render state runs beside the
+    /// host's task, whose tables are not safe to read beside it.
+    pub(crate) fn apply_owing(self, arena: &mut LayoutNodeArena) -> HostWorkDue {
+        arena.queue_box_presence();
+        self.apply(arena);
+        OwedHostWork::default().resolve(arena)
+    }
+
     /// Applies the change to `arena`, the arena of the document it was queued for. A node freed since then has nothing
     /// left to change.
     pub(crate) fn apply(self, arena: &mut LayoutNodeArena) {
