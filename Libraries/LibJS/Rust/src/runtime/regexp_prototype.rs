@@ -24,8 +24,8 @@ use crate::layout::property_lookup_cache::PropertyLookupCache;
 use crate::layout::value::Value;
 use crate::layout_forward::RawNativeFunctionPointer;
 use crate::runtime::abstract_operations::{
-    call_function_object, checked_js_string_length_sum, construct, get_substitution, length_of_array_like,
-    species_constructor,
+    CaptureText, SubstitutionCaptures, append_substitution, call_function_object, checked_js_string_length_sum,
+    construct, get_substitution, length_of_array_like, species_constructor,
 };
 use crate::runtime::accessor::Accessor;
 use crate::runtime::array::Array;
@@ -1631,7 +1631,8 @@ impl RegExpPrototype {
 
         let string_view = string.utf16_string_view();
         let length = string_view.length_in_code_units();
-        let mut slots = Vec::with_capacity(slots_per_match);
+        // NB: Room for a few matches, since a global search usually finds more than one.
+        let mut slots = Vec::with_capacity(slots_per_match * if global { 8 } else { 1 });
         let mut last_index = 0;
         while last_index <= length {
             let exec_result =
@@ -1813,7 +1814,8 @@ impl RegExpPrototype {
         }
 
         // 13. Let accumulatedResult be the empty String.
-        let mut accumulated_result = Utf16StringBuilder::new();
+        // NB: Most results are about as long as S.
+        let mut accumulated_result = Utf16StringBuilder::with_capacity(string.length_in_utf16_code_units());
         let mut accumulated_result_length: usize = 0;
 
         // 14. Let nextSourcePosition be 0.
@@ -1829,6 +1831,50 @@ impl RegExpPrototype {
         let captures: MarkedVec<'_, Value> = MarkedVec::new(vm);
         let mut replacer_args = Vec::new();
         for result_index in 0..result_count {
+            // OPTIMIZATION: A replacement string reads the match and its captures where they are in the string, so the
+            //               results of matches that ran natively need no strings of their own, and GetSubstitution
+            //               appends its result to accumulatedResult directly.
+            if let Some(native_matches) = &native_matches
+                && let Some(replace_string) = &replace_string
+            {
+                let match_slots = &native_matches.slots[result_index * native_matches.slots_per_match
+                    ..(result_index + 1) * native_matches.slots_per_match];
+                let (start, end) = (match_slots[0] as usize, match_slots[1] as usize);
+                let position = start;
+                if position >= next_source_position {
+                    let substring = string_view.substring_view(next_source_position, position - next_source_position);
+                    accumulated_result_length = checked_js_string_length_sum(
+                        vm,
+                        accumulated_result_length,
+                        substring.length_in_code_units(),
+                        ErrorType::StringSizeMustNotOverflow,
+                    )?;
+                    accumulated_result.append(substring);
+                    let length_before_replacement = accumulated_result.len();
+                    append_substitution(
+                        vm,
+                        &mut accumulated_result,
+                        string_view.substring_view(start, end - start),
+                        string_view,
+                        position,
+                        &CapturePositions {
+                            string: string_view,
+                            slots: &match_slots[2..],
+                        },
+                        Value::UNDEFINED,
+                        Utf16View::of_string(replace_string),
+                    )?;
+                    accumulated_result_length = checked_js_string_length_sum(
+                        vm,
+                        accumulated_result_length,
+                        accumulated_result.len() - length_before_replacement,
+                        ErrorType::StringSizeMustNotOverflow,
+                    )?;
+                    next_source_position = position + (end - start);
+                }
+                continue;
+            }
+
             while captures.pop().is_some() {}
             let (matched, matched_length, position, mut named_captures) = if let Some(native_matches) = &native_matches
             {
@@ -2643,5 +2689,27 @@ impl RegExpPrototype {
 
         // 9. Return ? RegExpInitialize(O, P, F).
         Ok(Value::from_object(regexp_object.regexp_initialize(vm, pattern, flags)?))
+    }
+}
+
+/// The captures of a match that ran natively, as the start and end of each in the string, or -1 for undefined.
+struct CapturePositions<'a> {
+    string: Utf16View<'a>,
+    slots: &'a [i32],
+}
+
+impl SubstitutionCaptures for CapturePositions<'_> {
+    fn count(&self) -> usize {
+        self.slots.len() / 2
+    }
+
+    fn capture(&self, _: &Vm, index: usize) -> ThrowCompletionOr<Option<CaptureText<'_>>> {
+        let (start, end) = (self.slots[index * 2], self.slots[index * 2 + 1]);
+        if start < 0 || end < 0 {
+            return Ok(None);
+        }
+        Ok(Some(CaptureText::View(
+            self.string.substring_view(start as usize, (end - start) as usize),
+        )))
     }
 }

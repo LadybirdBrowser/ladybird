@@ -1819,6 +1819,75 @@ pub fn get_substitution(
     named_captures: Value,
     replacement_template: Utf16View<'_>,
 ) -> ThrowCompletionOr<Utf16String> {
+    // 3. Let result be the empty String.
+    let mut result = Utf16StringBuilder::new();
+    append_substitution(
+        vm,
+        &mut result,
+        matched,
+        str,
+        position,
+        &CaptureValues(captures),
+        named_captures,
+        replacement_template,
+    )?;
+
+    // 6. Return result.
+    Ok(result.to_utf16_string())
+}
+
+/// The captures GetSubstitution reads, as values or where they are in the string.
+pub trait SubstitutionCaptures {
+    fn count(&self) -> usize;
+
+    /// The capture at `index`, or None for undefined.
+    fn capture(&self, vm: &Vm, index: usize) -> ThrowCompletionOr<Option<CaptureText<'_>>>;
+}
+
+/// The text of a capture, borrowed from the string it was found in or made by ToString.
+pub enum CaptureText<'a> {
+    View(Utf16View<'a>),
+    String(Utf16String),
+}
+
+impl CaptureText<'_> {
+    fn view(&self) -> Utf16View<'_> {
+        match self {
+            CaptureText::View(view) => *view,
+            CaptureText::String(string) => Utf16View::of_string(string),
+        }
+    }
+}
+
+/// Captures that are values, as GetSubstitution takes them.
+pub struct CaptureValues<'a>(pub &'a [Value]);
+
+impl SubstitutionCaptures for CaptureValues<'_> {
+    fn count(&self) -> usize {
+        self.0.len()
+    }
+
+    fn capture(&self, vm: &Vm, index: usize) -> ThrowCompletionOr<Option<CaptureText<'_>>> {
+        let capture = self.0[index];
+        if capture.is_undefined() {
+            return Ok(None);
+        }
+        Ok(Some(CaptureText::String(capture.to_utf16_string(vm)?)))
+    }
+}
+
+/// GetSubstitution, appending the result to `result` instead of returning it.
+#[allow(clippy::too_many_arguments)]
+pub fn append_substitution(
+    vm: &Vm,
+    result: &mut Utf16StringBuilder,
+    matched: Utf16View<'_>,
+    str: Utf16View<'_>,
+    position: usize,
+    captures: &impl SubstitutionCaptures,
+    named_captures: Value,
+    replacement_template: Utf16View<'_>,
+) -> ThrowCompletionOr<()> {
     // 1. Let stringLength be the length of str.
     let string_length = str.length_in_code_units();
 
@@ -1826,7 +1895,7 @@ pub fn get_substitution(
     assert!(position <= string_length);
 
     // 3. Let result be the empty String.
-    let mut result = Utf16StringBuilder::new();
+    // NB: The caller passes the builder of the result.
 
     // 4. Let templateRemainder be replacementTemplate.
     let mut template_remainder = replacement_template;
@@ -1837,6 +1906,7 @@ pub fn get_substitution(
 
         let ref_length;
         let capture_string;
+        let capture_text;
 
         // b. If templateRemainder starts with "$$", then
         let ref_replacement = if template_remainder.starts_with(Utf16View::Ascii(b"$$")) {
@@ -1902,7 +1972,7 @@ pub fn get_substitution(
             assert!(index <= 99);
 
             // v. Let captureLen be the number of elements in captures.
-            let capture_length = captures.len();
+            let capture_length = captures.count();
 
             // vi. If index > captureLen and digitCount = 2, then
             if index > capture_length && digit_count == 2 {
@@ -1924,18 +1994,15 @@ pub fn get_substitution(
             // viii. If 1 ≤ index ≤ captureLen, then
             if 1 <= index && index <= capture_length {
                 // 1. Let capture be captures[index - 1].
-                let capture = captures[index - 1];
+                capture_text = captures.capture(vm, index - 1)?;
 
-                // 2. If capture is undefined, then
-                if capture.is_undefined() {
+                match &capture_text {
+                    // 2. If capture is undefined, then
                     // a. Let refReplacement be the empty String.
-                    Utf16View::EMPTY
-                }
-                // 3. Else,
-                else {
+                    None => Utf16View::EMPTY,
+                    // 3. Else,
                     // a. Let refReplacement be capture.
-                    capture_string = capture.to_utf16_string(vm)?;
-                    Utf16View::of_string(&capture_string)
+                    Some(capture) => capture.view(),
                 }
             }
             // ix. Else,
@@ -2010,7 +2077,7 @@ pub fn get_substitution(
     }
 
     // 6. Return result.
-    Ok(result.to_utf16_string())
+    Ok(())
 }
 
 fn is_ascii_digit_code_unit(code_unit: u16) -> bool {
