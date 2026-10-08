@@ -774,6 +774,16 @@ ErrorOr<IPC::TransportHandle> WebContentClient::connect_audio_server_client()
     return connect_new_audio_server_client(m_audio_server_client, m_audio_tab_id);
 }
 
+Messages::WebContentClient::RequestAudioServerConnectionResponse WebContentClient::request_audio_server_connection()
+{
+    auto handle = connect_audio_server_client();
+    if (handle.is_error()) {
+        warnln("Unable to connect an AudioServer client: {}", handle.error());
+        return OptionalNone {};
+    }
+    return handle.release_value();
+}
+
 Optional<u64> WebContentClient::exclusive_performance_owner() const
 {
     Optional<u64> owner;

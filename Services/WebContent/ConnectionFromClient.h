@@ -74,6 +74,7 @@ public:
 
     // Asks the Browser to spawn this process's MediaServer if it has none, and to connect a client to it.
     ErrorOr<NonnullOwnPtr<IPC::Transport>> request_media_server_transport();
+    ErrorOr<NonnullOwnPtr<IPC::Transport>> request_audio_server_transport();
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     Function<void(IPC::TransportHandle)> on_wasm_compiler_connection;
 #endif

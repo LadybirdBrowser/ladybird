@@ -486,6 +486,14 @@ ErrorOr<NonnullOwnPtr<IPC::Transport>> ConnectionFromClient::request_media_serve
     return response->take_handle()->create_transport();
 }
 
+ErrorOr<NonnullOwnPtr<IPC::Transport>> ConnectionFromClient::request_audio_server_transport()
+{
+    auto response = send_sync_but_allow_failure<Messages::WebContentClient::RequestAudioServerConnection>();
+    if (!response || !response->handle().has_value())
+        return Error::from_string_literal("The Browser did not connect an audio server");
+    return response->take_handle()->create_transport();
+}
+
 TestConnection* ConnectionFromClient::test_connection()
 {
     if (m_test_connection)

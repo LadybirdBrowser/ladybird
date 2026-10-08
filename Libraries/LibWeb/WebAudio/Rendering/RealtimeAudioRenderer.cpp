@@ -77,6 +77,13 @@ void RealtimeAudioRenderer::set_playback_stream(NonnullRefPtr<Audio::PlaybackStr
     // through the rendered frames at this rate.
     m_playhead_step = m_sample_rate / static_cast<double>(specification.sample_rate());
     m_playback_stream = stream;
+    // The device went away with the process behind it: a new stream picks the graph up where it stands.
+    stream->on_output_lost = [self = NonnullRefPtr(*this)] {
+        if (self->m_shutting_down.load())
+            return;
+        self->m_playback_stream = nullptr;
+        self->start_rendering();
+    };
 
     if (!m_suspended.load())
         stream->resume()->when_rejected([](auto&&) { });
