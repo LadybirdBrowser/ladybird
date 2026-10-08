@@ -428,7 +428,7 @@ pub(crate) fn default_host_enqueue_finalization_registry_cleanup_job(
     vm.enqueue_finalization_registry_cleanup_job(finalization_registry);
 }
 
-pub const STRING_TO_ATOM_CACHE_SIZE: usize = 2;
+pub const STRING_TO_ATOM_CACHE_SIZE: usize = 256;
 pub const FLY_STRING_CACHE_SIZE: usize = 1024;
 pub const NUMERIC_STRING_CACHE_SIZE: usize = 1000;
 pub const LARGE_NUMERIC_STRING_CACHE_SIZE: usize = 1024;
@@ -500,7 +500,7 @@ pub struct Vm {
 
     pub names: CommonPropertyNames,
     /// The strings in these two caches are weak: the sweep callback drops the ones that die.
-    string_to_atom_cache: RefCell<[StringToAtomCacheEntry; STRING_TO_ATOM_CACHE_SIZE]>,
+    string_to_atom_cache: RefCell<Box<[StringToAtomCacheEntry; STRING_TO_ATOM_CACHE_SIZE]>>,
     fly_string_cache: Box<[Cell<Option<Gc<PrimitiveString>>>; FLY_STRING_CACHE_SIZE]>,
     numeric_string_cache: Box<[Cell<Option<Gc<PrimitiveString>>>; NUMERIC_STRING_CACHE_SIZE]>,
     large_numeric_string_cache: Box<[NumericStringCacheEntry; LARGE_NUMERIC_STRING_CACHE_SIZE]>,
@@ -633,7 +633,7 @@ impl Vm {
             native_function_indices: RefCell::new(HashMap::new()),
             roots: RootSet::default(),
             names: CommonPropertyNames::new(),
-            string_to_atom_cache: RefCell::default(),
+            string_to_atom_cache: RefCell::new(Box::new(core::array::from_fn(|_| StringToAtomCacheEntry::default()))),
             fly_string_cache: Box::new([const { Cell::new(None) }; FLY_STRING_CACHE_SIZE]),
             numeric_string_cache: Box::new([const { Cell::new(None) }; NUMERIC_STRING_CACHE_SIZE]),
             large_numeric_string_cache: Box::new(
@@ -1535,7 +1535,7 @@ impl Vm {
         &self.next_private_environment_id
     }
 
-    pub fn string_to_atom_cache(&self) -> &RefCell<[StringToAtomCacheEntry; STRING_TO_ATOM_CACHE_SIZE]> {
+    pub fn string_to_atom_cache(&self) -> &RefCell<Box<[StringToAtomCacheEntry; STRING_TO_ATOM_CACHE_SIZE]>> {
         &self.string_to_atom_cache
     }
 
