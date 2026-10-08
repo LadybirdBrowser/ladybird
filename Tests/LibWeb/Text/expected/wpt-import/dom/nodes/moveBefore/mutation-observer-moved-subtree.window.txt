@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	A subtree moved out of an observed subtree by moveBefore() is observed until mutation observers are notified

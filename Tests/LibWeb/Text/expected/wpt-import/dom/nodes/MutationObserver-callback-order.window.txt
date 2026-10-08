@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Mutation observers are notified in the order they were created
+Pass	Mutation observers are notified in the order they were created, also when one observes a removed subtree
+Pass	The mutation observer microtask is only queued once a record is queued for an observer

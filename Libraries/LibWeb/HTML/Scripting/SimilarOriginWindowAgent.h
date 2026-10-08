@@ -32,6 +32,10 @@ struct SimilarOriginWindowAgent : public Agent {
     // Each similar-origin window agent also has pending mutation observers (a set of zero or more MutationObserver objects), which is initially empty.
     GC::RootVector<GC::Ref<DOM::MutationObserver>> pending_mutation_observers;
 
+    // https://dom.spec.whatwg.org/#mutation-observer-counter
+    // Each similar-origin window agent also has a mutation observer counter (a number), which is initially 0.
+    u64 mutation_observer_counter { 0 };
+
     // https://html.spec.whatwg.org/multipage/custom-elements.html#custom-element-reactions-stack
     // Each similar-origin window agent has a custom element reactions stack, which is initially empty.
     CustomElementReactionsStack custom_element_reactions_stack {};
