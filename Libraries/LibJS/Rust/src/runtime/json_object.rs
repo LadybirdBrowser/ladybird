@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use core::cell::{Cell, RefCell};
 use core::ops::ControlFlow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use ak::{Utf16FlyString, Utf16String};
@@ -14,6 +15,8 @@ use libjs_runtime_macros::Trace;
 use crate::bytecode::executable::StaticPropertyLookupCacheSite;
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::root::MarkedVec;
+use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::weak::GcWeak;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -37,7 +40,7 @@ use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, Propert
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::raw_json_object::RawJSONObject;
 use crate::runtime::realm::Realm;
-use crate::runtime::shape::Shape;
+use crate::runtime::shape::{PrototypeChainValidity, Shape};
 use crate::runtime::string_conversions::parse_first_number_f64;
 use crate::runtime::string_object::StringObject;
 use crate::runtime::value::{DecimalDigits, append_number_to_string, same_value};
@@ -116,48 +119,65 @@ fn address_of<T>(cell: Gc<T>) -> usize {
     cell.as_ptr().addr()
 }
 
+/// The objects that are being serialized, from the stack of them the VM keeps alive, which a serialization nested in
+/// a toJSON or replacer call shares with the one it is nested in.
 struct StringifyObjectStack<'vm> {
-    stack: MarkedVec<'vm, Gc<Object>>,
+    objects: &'vm RefCell<Vec<Gc<Object>>>,
+    /// Where the objects of this serialization start on the stack.
+    base: usize,
     lookup: HashSet<usize>,
 }
 
 impl<'vm> StringifyObjectStack<'vm> {
     fn new(vm: &'vm Vm) -> Self {
+        let objects = &vm.json_stringify_cache().objects;
         Self {
-            stack: MarkedVec::new(vm),
+            objects,
+            base: objects.borrow().len(),
             lookup: HashSet::new(),
         }
     }
 
+    fn len(&self) -> usize {
+        self.objects.borrow().len() - self.base
+    }
+
     fn contains(&self, object: Gc<Object>) -> bool {
         if self.lookup.is_empty() {
-            return (0..self.stack.len()).any(|index| self.stack.get(index) == Some(object));
+            return self.objects.borrow()[self.base..].contains(&object);
         }
         self.lookup.contains(&address_of(object))
     }
 
     fn push(&mut self, object: Gc<Object>) {
-        if self.stack.len() == STRINGIFY_OBJECT_STACK_LINEAR_LOOKUP_LIMIT {
-            for index in 0..self.stack.len() {
-                let seen_object = self.stack.get(index).expect("the index is in bounds");
-                self.lookup.insert(address_of(seen_object));
+        if self.len() == STRINGIFY_OBJECT_STACK_LINEAR_LOOKUP_LIMIT {
+            for seen_object in &self.objects.borrow()[self.base..] {
+                self.lookup.insert(address_of(*seen_object));
             }
         }
         if !self.lookup.is_empty() {
             self.lookup.insert(address_of(object));
         }
-        self.stack.push(object);
+        self.objects.borrow_mut().push(object);
     }
 
     fn pop(&mut self) {
-        let object = self.stack.pop().expect("an object is being serialized");
+        assert!(self.len() > 0, "an object is being serialized");
+        let object = self.objects.borrow_mut().pop().expect("an object is being serialized");
         if self.lookup.is_empty() {
             return;
         }
         self.lookup.remove(&address_of(object));
-        if self.stack.len() <= STRINGIFY_OBJECT_STACK_LINEAR_LOOKUP_LIMIT {
+        if self.len() <= STRINGIFY_OBJECT_STACK_LINEAR_LOOKUP_LIMIT {
             self.lookup.clear();
         }
+    }
+}
+
+impl Drop for StringifyObjectStack<'_> {
+    fn drop(&mut self) {
+        // NB: A serialization that throws leaves the objects it was serializing.
+        self.objects.borrow_mut().truncate(self.base);
     }
 }
 
@@ -167,76 +187,133 @@ struct StringifyCachedProperty {
     serialized_key: Utf16String,
 }
 
-struct StringifyShapeCacheEntry {
-    shape: usize,
+/// What JSON.stringify knows of the objects of a shape that have no other properties than those of the shape.
+struct StringifyShapeInfo {
+    /// The properties it serializes: their keys as JSON strings followed by a colon, and where their values are.
     properties: Vec<StringifyCachedProperty>,
+    /// The validity of the shape of the prototype of the objects when neither they nor their prototypes had a "toJSON"
+    /// property, which stops being valid when a prototype changes its properties.
+    to_json_absence: Option<GcWeak<PrototypeChainValidity>>,
 }
 
-const STRINGIFY_SHAPE_CACHE_LINEAR_LOOKUP_LIMIT: usize = 4;
-const STRINGIFY_SHAPE_CACHE_MAXIMUM_ENTRIES: usize = 64;
+impl StringifyShapeInfo {
+    fn new(vm: &Vm, shape: Gc<Shape>) -> Self {
+        let mut properties = Vec::with_capacity(shape.property_count() as usize);
+        shape.for_each_property_in_insertion_order(|property_key, metadata| {
+            if property_key.is_symbol() || !metadata.attributes.is_enumerable() {
+                return ControlFlow::Continue(());
+            }
+            assert!(property_key.is_string());
 
-struct StringifyShapeCache<'vm> {
-    shape_roots: MarkedVec<'vm, Gc<Shape>>,
-    entries: Vec<Rc<StringifyShapeCacheEntry>>,
-    lookup: HashMap<usize, usize>,
-}
+            let mut key_builder = Utf16StringBuilder::new();
+            key_builder.append_quoted_escaped_for_json(Utf16View::of_fly_string(property_key.as_string()));
+            key_builder.append_ascii(":");
 
-impl<'vm> StringifyShapeCache<'vm> {
-    fn new(vm: &'vm Vm) -> Self {
+            properties.push(StringifyCachedProperty {
+                property: property_key.clone(),
+                offset: metadata.offset,
+                serialized_key: key_builder.to_utf16_string(),
+            });
+            ControlFlow::Continue(())
+        });
         Self {
-            shape_roots: MarkedVec::new(vm),
-            entries: Vec::new(),
-            lookup: HashMap::new(),
+            properties,
+            to_json_absence: Self::to_json_absence(vm, shape),
         }
     }
 
-    fn get(&self, shape: Gc<Shape>) -> Option<Rc<StringifyShapeCacheEntry>> {
-        if !self.lookup.is_empty() {
-            return self
-                .lookup
-                .get(&address_of(shape))
-                .map(|index| self.entries[*index].clone());
-        }
-        self.entries
-            .iter()
-            .find(|entry| entry.shape == address_of(shape))
-            .cloned()
-    }
-
-    /// Adds the entry of `shape`, whose properties `properties_of_shape` computes, unless the cache is full.
-    fn add(
-        &mut self,
-        shape: Gc<Shape>,
-        properties_of_shape: impl FnOnce() -> Vec<StringifyCachedProperty>,
-    ) -> Option<Rc<StringifyShapeCacheEntry>> {
-        if self.entries.len() >= STRINGIFY_SHAPE_CACHE_MAXIMUM_ENTRIES {
+    fn to_json_absence(vm: &Vm, shape: Gc<Shape>) -> Option<GcWeak<PrototypeChainValidity>> {
+        let to_json = &vm.names.toJSON;
+        if shape.lookup(to_json).is_some() {
             return None;
         }
-
-        let entry = Rc::new(StringifyShapeCacheEntry {
-            shape: address_of(shape),
-            properties: properties_of_shape(),
-        });
-
-        if self.entries.len() == STRINGIFY_SHAPE_CACHE_LINEAR_LOOKUP_LIMIT {
-            for (index, existing_entry) in self.entries.iter().enumerate() {
-                self.lookup.insert(existing_entry.shape, index);
+        let first_prototype = shape.prototype()?;
+        let validity = first_prototype.shape().prototype_chain_validity()?;
+        if !validity.is_valid() {
+            return None;
+        }
+        let object_prototype = vm.current_realm().map(|realm| realm.object_prototype());
+        let mut prototype = Some(first_prototype);
+        while let Some(current) = prototype {
+            // NB: %Object.prototype% only has an exotic [[SetPrototypeOf]].
+            let is_ordinary = Some(current) == object_prototype || current.has_ordinary_named_property_lookup();
+            if !is_ordinary || current.has_intrinsic_accessors() || current.shape().lookup(to_json).is_some() {
+                return None;
             }
+            prototype = current.shape().prototype();
         }
-        if !self.lookup.is_empty() {
-            self.lookup.insert(address_of(shape), self.entries.len());
-        }
+        Some(GcWeak::new(vm.heap(), validity))
+    }
 
-        self.shape_roots.push(shape);
-        self.entries.push(entry.clone());
-        Some(entry)
+    /// Whether Get of "toJSON" on the objects gives undefined without running any code.
+    fn has_no_to_json(&self) -> bool {
+        self.to_json_absence
+            .as_ref()
+            .and_then(GcWeak::get)
+            .is_some_and(|validity| validity.is_valid())
+    }
+}
+
+struct StringifyShapeCacheEntry {
+    shape: GcWeak<Shape>,
+    info: Rc<StringifyShapeInfo>,
+}
+
+/// What JSON.stringify keeps between the values it serializes: the properties of the shapes of the objects it
+/// serialized last, in a small table indexed by a hash of the shape. The shapes are weak, so that the table never keeps
+/// a realm alive.
+pub struct JsonStringifyCache {
+    entries: RefCell<Box<[Option<StringifyShapeCacheEntry>; JsonStringifyCache::ENTRY_COUNT]>>,
+    /// The objects that are being serialized, which the VM keeps alive.
+    objects: RefCell<Vec<Gc<Object>>>,
+    /// The length of the last JSON text, which the next one likely has too.
+    last_text_length: Cell<usize>,
+}
+
+impl Default for JsonStringifyCache {
+    fn default() -> Self {
+        Self {
+            entries: RefCell::new(Box::new([const { None }; JsonStringifyCache::ENTRY_COUNT])),
+            objects: RefCell::new(Vec::new()),
+            last_text_length: Cell::new(0),
+        }
+    }
+}
+
+impl JsonStringifyCache {
+    const ENTRY_COUNT: usize = 64;
+    /// The most that the builder of a JSON text starts out with room for.
+    const MAXIMUM_INITIAL_TEXT_CAPACITY: usize = 64 * 1024;
+
+    pub fn trace(&self, visitor: &mut Visitor) {
+        self.objects.borrow().trace(visitor);
+    }
+
+    fn slot(shape: Gc<Shape>) -> usize {
+        let address = address_of(shape) as u64;
+        (address ^ (address >> 6) ^ (address >> 12)) as usize % Self::ENTRY_COUNT
+    }
+
+    /// What JSON.stringify knows of the objects of `shape`.
+    fn info(&self, vm: &Vm, shape: Gc<Shape>) -> Rc<StringifyShapeInfo> {
+        let slot = Self::slot(shape);
+        if let Some(entry) = &self.entries.borrow()[slot]
+            && entry.shape.get() == Some(shape)
+        {
+            return entry.info.clone();
+        }
+        let info = Rc::new(StringifyShapeInfo::new(vm, shape));
+        self.entries.borrow_mut()[slot] = Some(StringifyShapeCacheEntry {
+            shape: GcWeak::new(vm.heap(), shape),
+            info: info.clone(),
+        });
+        info
     }
 }
 
 struct StringifyState<'vm> {
     replacer_function: Option<Gc<FunctionObject>>,
     object_stack: StringifyObjectStack<'vm>,
-    shape_cache: StringifyShapeCache<'vm>,
     indent_depth: usize,
     gap: Utf16String,
     property_list: Option<Rc<Vec<Utf16String>>>,
@@ -1026,11 +1103,15 @@ impl JSONObject {
         let mut state = StringifyState {
             replacer_function: None,
             object_stack: StringifyObjectStack::new(vm),
-            shape_cache: StringifyShapeCache::new(vm),
             indent_depth: 0,
             gap: Utf16String::default(),
             property_list: None,
-            builder: Utf16StringBuilder::new(),
+            builder: Utf16StringBuilder::with_capacity(
+                vm.json_stringify_cache()
+                    .last_text_length
+                    .get()
+                    .min(JsonStringifyCache::MAXIMUM_INITIAL_TEXT_CAPACITY),
+            ),
         };
 
         if replacer.is_object() {
@@ -1098,15 +1179,21 @@ impl JSONObject {
             state.gap = Utf16String::default();
         }
 
-        let wrapper = Object::create(vm, realm, Some(realm.object_prototype()));
         let empty_key = PropertyKey::from(Utf16FlyString::default());
-        wrapper.create_data_property_or_throw(vm, &empty_key, value).must();
-
-        let wrote_value = Self::serialize_json_property(vm, &mut state, &empty_key, wrapper)?;
+        let wrote_value = if state.replacer_function.is_some() {
+            let wrapper = Object::create(vm, realm, Some(realm.object_prototype()));
+            wrapper.create_data_property_or_throw(vm, &empty_key, value).must();
+            Self::serialize_json_property(vm, &mut state, &empty_key, wrapper)?
+        } else {
+            // OPTIMIZATION: Only a replacer function sees the wrapper, as the holder of the value, and Get of the empty
+            //               key on it gives the value.
+            Self::serialize_json_value(vm, &mut state, &empty_key, None, value)?
+        };
         if !wrote_value {
             return Ok(None);
         }
 
+        vm.json_stringify_cache().last_text_length.set(state.builder.len());
         Ok(Some(state.builder.to_utf16_string()))
     }
 
@@ -1139,14 +1226,14 @@ impl JSONObject {
         // 1. Let value be ? Get(holder, key).
         let value = holder.get(vm, key)?;
 
-        Self::serialize_json_value(vm, state, key, holder, value)
+        Self::serialize_json_value(vm, state, key, Some(holder), value)
     }
 
     fn serialize_json_value(
         vm: &Vm,
         state: &mut StringifyState<'_>,
         key: &PropertyKey,
-        holder: Gc<Object>,
+        holder: Option<Gc<Object>>,
         mut value: Value,
     ) -> ThrowCompletionOr<bool> {
         // OPTIMIZATION: These primitive values do not perform a toJSON lookup. Without a replacer,
@@ -1174,8 +1261,19 @@ impl JSONObject {
             }
         }
 
+        // OPTIMIZATION: What is known of the shape of an object without other properties tells whether it has a toJSON
+        //               to look up, and what to serialize of it when nothing runs before it is serialized.
+        let mut shape_info = None;
+        if value.is_object() && state.replacer_function.is_none() && can_use_direct_property_access(&value.as_object())
+        {
+            let info = vm.json_stringify_cache().info(vm, value.as_object().shape());
+            if info.has_no_to_json() {
+                shape_info = Some(info);
+            }
+        }
+
         // 2. If Type(value) is Object or BigInt, then
-        if value.is_object() || value.is_bigint() {
+        if (value.is_object() || value.is_bigint()) && shape_info.is_none() {
             // a. Let toJSON be ? GetV(value, "toJSON").
             let to_json = value.get_with_cache(
                 vm,
@@ -1195,6 +1293,7 @@ impl JSONObject {
         if let Some(replacer_function) = state.replacer_function {
             // a. Set value to ? Call(state.[[ReplacerFunction]], holder, « key, value »).
             let key_string = Value::from_string(PrimitiveString::create(vm, key.to_utf16_string()));
+            let holder = holder.expect("a replacer function has a holder to see");
             value = call_function_object(vm, replacer_function, Value::from_object(holder), &[key_string, value])?;
         }
 
@@ -1291,7 +1390,7 @@ impl JSONObject {
             }
 
             // c. Return ? SerializeJSONObject(state, value).
-            Self::serialize_json_object(vm, state, value_object)?;
+            Self::serialize_json_object(vm, state, value_object, shape_info)?;
             return Ok(true);
         }
 
@@ -1367,7 +1466,12 @@ impl JSONObject {
     }
 
     // 25.5.2.4 SerializeJSONObject ( state, value ), https://tc39.es/ecma262/#sec-serializejsonobject
-    fn serialize_json_object(vm: &Vm, state: &mut StringifyState<'_>, object: Gc<Object>) -> ThrowCompletionOr<()> {
+    fn serialize_json_object(
+        vm: &Vm,
+        state: &mut StringifyState<'_>,
+        object: Gc<Object>,
+        shape_info: Option<Rc<StringifyShapeInfo>>,
+    ) -> ThrowCompletionOr<()> {
         if vm.did_reach_stack_space_limit() {
             return vm.throw_completion(ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[]);
         }
@@ -1392,54 +1496,25 @@ impl JSONObject {
             && can_use_direct_property_access(&object)
         {
             let initial_shape = object.shape();
-            let mut shape_cache = state.shape_cache.get(initial_shape);
-            if shape_cache.is_none() {
-                shape_cache = state.shape_cache.add(initial_shape, || {
-                    let mut properties = Vec::with_capacity(initial_shape.property_count() as usize);
-                    initial_shape.for_each_property_in_insertion_order(|property_key, metadata| {
-                        if property_key.is_symbol() || !metadata.attributes.is_enumerable() {
-                            return ControlFlow::Continue(());
-                        }
-                        assert!(property_key.is_string());
+            let info = shape_info.unwrap_or_else(|| vm.json_stringify_cache().info(vm, initial_shape));
+            for property in &info.properties {
+                if object.shape() == initial_shape && !object.get_direct(property.offset).is_accessor() {
+                    let value = object.get_direct(property.offset);
 
-                        let mut key_builder = Utf16StringBuilder::new();
-                        key_builder.append_quoted_escaped_for_json(Utf16View::of_fly_string(property_key.as_string()));
-                        key_builder.append_ascii(":");
-
-                        properties.push(StringifyCachedProperty {
-                            property: property_key.clone(),
-                            offset: metadata.offset,
-                            serialized_key: key_builder.to_utf16_string(),
-                        });
-                        ControlFlow::Continue(())
-                    });
-                    properties
-                });
-            }
-
-            match shape_cache {
-                None => Self::serialize_json_own_properties(vm, state, object, &mut first)?,
-                Some(shape_cache) => {
-                    for property in &shape_cache.properties {
-                        if object.shape() == initial_shape && !object.get_direct(property.offset).is_accessor() {
-                            let value = object.get_direct(property.offset);
-
-                            let mark = state.builder.len();
-                            if !first {
-                                state.builder.append_ascii(",");
-                            }
-                            state.builder.append(Utf16View::of_string(&property.serialized_key));
-
-                            let wrote_value = Self::serialize_json_value(vm, state, &property.property, object, value)?;
-                            if wrote_value {
-                                first = false;
-                            } else {
-                                state.builder.truncate(mark);
-                            }
-                        } else {
-                            Self::serialize_json_object_property(vm, state, object, &property.property, &mut first)?;
-                        }
+                    let mark = state.builder.len();
+                    if !first {
+                        state.builder.append_ascii(",");
                     }
+                    state.builder.append(Utf16View::of_string(&property.serialized_key));
+
+                    let wrote_value = Self::serialize_json_value(vm, state, &property.property, Some(object), value)?;
+                    if wrote_value {
+                        first = false;
+                    } else {
+                        state.builder.truncate(mark);
+                    }
+                } else {
+                    Self::serialize_json_object_property(vm, state, object, &property.property, &mut first)?;
                 }
             }
         } else {
@@ -1506,7 +1581,7 @@ impl JSONObject {
                         .indexed_get(i as u32)
                         .expect("a packed array has its elements")
                         .value;
-                    Self::serialize_json_value(vm, state, &key, object, value)?
+                    Self::serialize_json_value(vm, state, &key, Some(object), value)?
                 }
                 _ => Self::serialize_json_property(vm, state, &key, object)?,
             };

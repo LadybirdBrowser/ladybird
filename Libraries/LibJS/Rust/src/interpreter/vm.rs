@@ -63,6 +63,7 @@ use crate::runtime::error_types::ErrorType;
 use crate::runtime::finalization_registry::FinalizationRegistry;
 use crate::runtime::function_environment::FunctionEnvironment;
 use crate::runtime::job_callback::{JobCallback, call_job_callback, make_job_callback};
+use crate::runtime::json_object::JsonStringifyCache;
 use crate::runtime::json_text_parser::JsonParseCache;
 use crate::runtime::module::{Module, finish_loading_imported_module};
 use crate::runtime::module_loading::{ImportedModulePayload, ImportedModuleReferrer};
@@ -515,6 +516,7 @@ pub struct Vm {
     /// The strings are weak: the sweep callback drops the ones that die.
     interned_strings: RefCell<HashMap<usize, Gc<PrimitiveString>, foldhash::fast::RandomState>>,
     json_parse_cache: JsonParseCache,
+    json_stringify_cache: JsonStringifyCache,
     empty_string: OnceCell<Gc<PrimitiveString>>,
     cached_strings: OnceCell<CachedStrings>,
     single_ascii_character_strings: OnceCell<[Gc<PrimitiveString>; SINGLE_ASCII_CHARACTER_STRING_COUNT]>,
@@ -658,6 +660,7 @@ impl Vm {
             ),
             interned_strings: RefCell::default(),
             json_parse_cache: JsonParseCache::default(),
+            json_stringify_cache: JsonStringifyCache::default(),
             empty_string: OnceCell::new(),
             cached_strings: OnceCell::new(),
             single_ascii_character_strings: OnceCell::new(),
@@ -1005,6 +1008,7 @@ impl Vm {
         self.numeric_string_cache.trace(visitor);
         self.large_numeric_string_cache.trace(visitor);
         self.json_parse_cache.trace(visitor);
+        self.json_stringify_cache.trace(visitor);
         self.cached_strings.trace(visitor);
         self.well_known_symbols.trace(visitor);
         self.global_symbol_registry.trace(visitor);
@@ -1582,6 +1586,10 @@ impl Vm {
 
     pub fn json_parse_cache(&self) -> &JsonParseCache {
         &self.json_parse_cache
+    }
+
+    pub fn json_stringify_cache(&self) -> &JsonStringifyCache {
+        &self.json_stringify_cache
     }
 
     pub fn cached_strings(&self) -> &CachedStrings {

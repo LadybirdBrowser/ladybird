@@ -322,6 +322,92 @@ describe("correct behavior", () => {
         expect(() => JSON.stringify(value)).toThrowWithMessage(TypeError, "Cannot stringify circular object");
     });
 
+    test("observes toJSON added to a prototype between serializations", () => {
+        class Point {
+            constructor(x) {
+                this.x = x;
+            }
+        }
+        expect(JSON.stringify([new Point(1), new Point(2)])).toBe('[{"x":1},{"x":2}]');
+        Point.prototype.toJSON = function () {
+            return "point " + this.x;
+        };
+        expect(JSON.stringify([new Point(1), new Point(2)])).toBe('["point 1","point 2"]');
+        delete Point.prototype.toJSON;
+        expect(JSON.stringify(new Point(3))).toBe('{"x":3}');
+
+        Object.prototype.toJSON = () => "object";
+        try {
+            expect(JSON.stringify({ x: 1 })).toBe('"object"');
+        } finally {
+            delete Object.prototype.toJSON;
+        }
+        expect(JSON.stringify({ x: 1 })).toBe('{"x":1}');
+
+        const withoutPrototype = Object.create(null);
+        withoutPrototype.x = 1;
+        expect(JSON.stringify([withoutPrototype, withoutPrototype])).toBe('[{"x":1},{"x":1}]');
+    });
+
+    test("serializations nested in toJSON", () => {
+        const inner = { value: 1 };
+        const outer = {
+            inner,
+            nested: {
+                toJSON() {
+                    return JSON.stringify({ inner, outerAgain: JSON.stringify(inner) });
+                },
+            },
+        };
+        expect(JSON.stringify(outer)).toBe(
+            '{"inner":{"value":1},"nested":"{\\"inner\\":{\\"value\\":1},\\"outerAgain\\":\\"{\\\\\\"value\\\\\\":1}\\"}"}'
+        );
+
+        // The object that is being serialized by the outer call is not part of a cycle in the inner one.
+        let depth = 0;
+        const reentered = {
+            a: {
+                toJSON() {
+                    if (depth++ > 0) return "inner";
+                    return JSON.stringify(reentered);
+                },
+            },
+        };
+        expect(JSON.stringify(reentered)).toBe('{"a":"{\\"a\\":\\"inner\\"}"}');
+    });
+
+    test("serializes again after a serialization throws", () => {
+        const cyclic = { a: { b: {} } };
+        cyclic.a.b.c = cyclic;
+        expect(() => JSON.stringify(cyclic)).toThrowWithMessage(TypeError, "Cannot stringify circular object");
+        delete cyclic.a.b.c;
+        expect(JSON.stringify(cyclic)).toBe('{"a":{"b":{}}}');
+
+        const throwing = {
+            a: {
+                get b() {
+                    throw new Error("from a getter");
+                },
+            },
+        };
+        expect(() => JSON.stringify(throwing)).toThrowWithMessage(Error, "from a getter");
+        const shared = { x: 1 };
+        expect(JSON.stringify([throwing.a.c, shared, shared])).toBe('[null,{"x":1},{"x":1}]');
+    });
+
+    test("a replacer function sees the wrapper of the value", () => {
+        const holders = [];
+        const result = JSON.stringify({ a: 1 }, function (key, value) {
+            holders.push([key, this]);
+            return value;
+        });
+        expect(result).toBe('{"a":1}');
+        expect(holders[0][0]).toBe("");
+        expect(Object.getPrototypeOf(holders[0][1])).toBe(Object.prototype);
+        expect(Object.keys(holders[0][1])).toEqual([""]);
+        expect(holders[1][0]).toBe("a");
+    });
+
     test("escape surrogate codepoints in strings", () => {
         expect(JSON.stringify("\ud83d\ude04")).toBe('"😄"');
         expect(JSON.stringify("\ud83d")).toBe('"\\ud83d"');

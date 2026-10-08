@@ -29,7 +29,7 @@ use crate::runtime::property_attributes::DEFAULT_ATTRIBUTES;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::shape::Shape;
-use crate::utf16::Utf16View;
+use crate::utf16::{Utf16View, is_json_special_code_unit, json_special_code_unit_lanes};
 
 /// The code units of a JSON text: ASCII bytes or UTF-16 code units.
 trait CodeUnit: Copy + Eq + Into<u32> + 'static {
@@ -39,24 +39,6 @@ trait CodeUnit: Copy + Eq + Into<u32> + 'static {
     /// The position of the first unit at or after `position` that is a quotation mark, a reverse solidus or a
     /// control character, or the length of `units` if there is none.
     fn skip_ordinary_string_units(units: &[Self], position: usize) -> usize;
-}
-
-/// Whether a code unit ends the ordinary code units of a string.
-fn is_special_string_unit(unit: u32) -> bool {
-    matches!(unit, 0x00..=0x1F | 0x22 | 0x5C)
-}
-
-/// OPTIMIZATION: Looks for the special code units of strings in the lanes of a word at once, where each lane holds a
-///               unit and `lowest_bits` has the lowest bit of every lane set. Returns a word with the highest bit of
-///               each lane set whose unit is special, though lanes above the first such one may be set when they are
-///               not. Units with their highest bit set are not special.
-fn special_string_unit_lanes(word: u64, lowest_bits: u64) -> u64 {
-    let highest_bits = lowest_bits << (u64::BITS / lowest_bits.count_ones() - 1);
-    let is_zero = |lanes: u64| lanes.wrapping_sub(lowest_bits) & !lanes;
-    let quotation_marks = is_zero(word ^ (lowest_bits * 0x22));
-    let reverse_solidi = is_zero(word ^ (lowest_bits * 0x5C));
-    let control_characters = word.wrapping_sub(lowest_bits * 0x20) & !word;
-    (quotation_marks | reverse_solidi | control_characters) & highest_bits
 }
 
 impl CodeUnit for u8 {
@@ -71,13 +53,13 @@ impl CodeUnit for u8 {
     fn skip_ordinary_string_units(units: &[u8], mut position: usize) -> usize {
         while let Some(chunk) = units.get(position..position + 8) {
             let word = u64::from_le_bytes(chunk.try_into().expect("the chunk has eight units"));
-            let special_lanes = special_string_unit_lanes(word, 0x0101_0101_0101_0101);
+            let special_lanes = json_special_code_unit_lanes(word, 0x0101_0101_0101_0101);
             if special_lanes != 0 {
                 return position + (special_lanes.trailing_zeros() / 8) as usize;
             }
             position += 8;
         }
-        while position < units.len() && !is_special_string_unit(u32::from(units[position])) {
+        while position < units.len() && !is_json_special_code_unit(u32::from(units[position])) {
             position += 1;
         }
         position
@@ -96,13 +78,13 @@ impl CodeUnit for u16 {
     fn skip_ordinary_string_units(units: &[u16], mut position: usize) -> usize {
         while let Some(chunk) = units.get(position..position + 4) {
             let word = chunk.iter().rev().fold(0, |word, unit| (word << 16) | u64::from(*unit));
-            let special_lanes = special_string_unit_lanes(word, 0x0001_0001_0001_0001);
+            let special_lanes = json_special_code_unit_lanes(word, 0x0001_0001_0001_0001);
             if special_lanes != 0 {
                 return position + (special_lanes.trailing_zeros() / 16) as usize;
             }
             position += 4;
         }
-        while position < units.len() && !is_special_string_unit(u32::from(units[position])) {
+        while position < units.len() && !is_json_special_code_unit(u32::from(units[position])) {
             position += 1;
         }
         position
