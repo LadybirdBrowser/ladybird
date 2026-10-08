@@ -3830,6 +3830,48 @@ mod tests {
     }
 
     #[test]
+    fn a_sheet_already_being_parsed_is_parsed_once() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::{Arc, Barrier};
+        let source = Arc::new(utf16("a { color: red } b { color: blue }"));
+        let parses = Arc::new(AtomicUsize::new(0));
+        // The first worker's parse starts, then holds until the second worker has asked for the same sheet.
+        let parse_started = Arc::new(Barrier::new(2));
+        let parse_may_finish = Arc::new(Barrier::new(2));
+        let parse = |held: Option<(Arc<Barrier>, Arc<Barrier>)>, source: Arc<Vec<u16>>, parses: Arc<AtomicUsize>| {
+            move || {
+                let context = parse_context();
+                let input = crate::css::css_tokenizer::TokenizerInput::Utf16(&source);
+                unsafe {
+                    super::super::stylesheet_cache::parse_with_cache(input, &raw const context, || {
+                        parses.fetch_add(1, Ordering::SeqCst);
+                        if let Some((started, may_finish)) = &held {
+                            started.wait();
+                            may_finish.wait();
+                        }
+                        parse_test_stylesheet(b"a { color: red } b { color: blue }")
+                    })
+                }
+            }
+        };
+        let first = std::thread::spawn(parse(
+            Some((parse_started.clone(), parse_may_finish.clone())),
+            source.clone(),
+            parses.clone(),
+        ));
+        parse_started.wait();
+        let second = std::thread::spawn(parse(None, source.clone(), parses.clone()));
+        // The second worker waits for the first's parse rather than starting its own.
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        assert_eq!(parses.load(Ordering::SeqCst), 1);
+        parse_may_finish.wait();
+        let first = first.join().unwrap();
+        let second = second.join().unwrap();
+        assert!(Arc::ptr_eq(&first, &second));
+        assert_eq!(parses.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
     fn worker_diagnostics_visit_the_native_graph() {
         use super::{FfiDeclarationRejection, FfiSyntaxDeclaration, FfiSyntaxDiagnostic};
         use crate::css::ffi_support::FfiUtf16View;

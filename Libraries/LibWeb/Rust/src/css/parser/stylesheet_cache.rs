@@ -10,9 +10,9 @@ use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::style_compute::{FfiFontMetrics, FfiLengthResolutionContext};
 use std::cell::Cell;
-use std::collections::{HashMap, hash_map::RandomState};
+use std::collections::{HashMap, HashSet, hash_map::RandomState};
 use std::hash::{BuildHasher, Hash, Hasher};
-use std::sync::{Arc, Mutex, OnceLock, Weak};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock, Weak};
 
 #[derive(PartialEq, Eq, Hash)]
 struct LengthResolutionKey {
@@ -277,6 +277,48 @@ pub(super) struct CachedParseMetadata {
 
 type Entries = HashMap<u64, Vec<Weak<ParsedStyleSheet>>>;
 
+#[derive(Default)]
+struct Cache {
+    entries: Entries,
+    /// The common hashes of the sheets a worker is parsing right now. A worker whose sheet is among them waits for
+    /// that parse to publish rather than parsing the same sheet again: documents that load one sheet at the same
+    /// time (a page's frames, e.g.) would otherwise each parse it in full, and all but one throw the result away.
+    in_flight: HashSet<u64>,
+}
+
+struct SharedCache {
+    cache: Mutex<Cache>,
+    /// Signaled whenever a parse leaves `in_flight`, published or not.
+    parse_finished: Condvar,
+}
+
+impl SharedCache {
+    fn the() -> &'static Self {
+        static CACHE: OnceLock<SharedCache> = OnceLock::new();
+        CACHE.get_or_init(|| SharedCache {
+            cache: Mutex::default(),
+            parse_finished: Condvar::new(),
+        })
+    }
+
+    fn lock(&self) -> MutexGuard<'_, Cache> {
+        self.cache.lock().unwrap()
+    }
+}
+
+/// Marks a sheet's parse as in flight for as long as it lives, so that the mark comes off however the parse ends.
+struct InFlightParse {
+    hash: u64,
+}
+
+impl Drop for InFlightParse {
+    fn drop(&mut self) {
+        let shared = SharedCache::the();
+        shared.lock().in_flight.remove(&self.hash);
+        shared.parse_finished.notify_all();
+    }
+}
+
 fn find(entries: &Entries, hash: u64, key: &StyleSheetKey) -> Option<Arc<ParsedStyleSheet>> {
     entries.get(&hash)?.iter().filter_map(Weak::upgrade).find(|sheet| {
         sheet
@@ -306,7 +348,6 @@ pub(super) unsafe fn parse_with_cache(
         context: context_key,
     };
     static HASHER: OnceLock<RandomState> = OnceLock::new();
-    static CACHE: OnceLock<Mutex<Entries>> = OnceLock::new();
     let hash = HASHER.get_or_init(RandomState::new).hash_one(&key);
     // Keep context-dependent variants in separate buckets so many documents using one
     // contextual sheet do not create a linear scan. Independent sheets use the common key.
@@ -319,10 +360,20 @@ pub(super) unsafe fn parse_with_cache(
         hasher.hash_one((hash, 2_u8, lengths)),
         hasher.hash_one((hash, 3_u8, base_url, lengths)),
     ];
-    let cache = CACHE.get_or_init(Mutex::default);
+    let shared = SharedCache::the();
     let cached = {
-        let entries = cache.lock().unwrap();
-        hashes.iter().find_map(|&hash| find(&entries, hash, &key))
+        let mut cache = shared.lock();
+        loop {
+            if let Some(sheet) = hashes.iter().find_map(|&hash| find(&cache.entries, hash, &key)) {
+                break Some(sheet);
+            }
+            // The parse in flight may publish under a context-dependent hash that this key doesn't match; the
+            // lookup above misses again then, and this worker parses for itself.
+            if cache.in_flight.insert(hash) {
+                break None;
+            }
+            cache = shared.parse_finished.wait(cache).unwrap();
+        }
     };
     if let Some(sheet) = cached {
         sheet.cache_metadata.as_ref().unwrap().dependencies.record();
@@ -338,14 +389,18 @@ pub(super) unsafe fn parse_with_cache(
     }
 
     // Never hold the cache lock while parsing. Workers parsing different sheets run independently.
+    let in_flight = InFlightParse { hash };
     let dependency_scope = ParseDependencyScope::new();
     let mut sheet = parse();
     let dependencies = dependency_scope.dependencies();
     drop(dependency_scope);
     let hash = hashes[dependencies.index()];
-    let mut entries = cache.lock().unwrap();
-    // Another worker may have published the same sheet while this worker was parsing.
-    if let Some(sheet) = find(&entries, hash, &key) {
+    let mut cache = shared.lock();
+    let entries = &mut cache.entries;
+    // A worker whose context matched this key under another dependency may have published while this one parsed.
+    if let Some(sheet) = find(entries, hash, &key) {
+        drop(cache);
+        drop(in_flight);
         return sheet;
     }
     entries.retain(|_, bucket| {
@@ -361,5 +416,7 @@ pub(super) unsafe fn parse_with_cache(
     });
     let sheet = Arc::new(sheet);
     entries.entry(hash).or_default().push(Arc::downgrade(&sheet));
+    drop(cache);
+    drop(in_flight);
     sheet
 }
