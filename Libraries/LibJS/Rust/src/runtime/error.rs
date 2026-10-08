@@ -11,14 +11,14 @@ use libjs_runtime_macros::Trace;
 
 use super::completion::{Throw, ThrowCompletionOr};
 use super::error_types::ErrorType;
-use crate::gc::class::{Class, GcCell, define_cell};
+use crate::gc::class::{Class, ExternalMemorySize, GcCell, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::aggregate_error::AggregateError;
 use crate::runtime::error_data::{CompactTraceback, ErrorData};
-use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
+use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, ObjectMethods};
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::realm::Realm;
@@ -113,7 +113,24 @@ pub struct Error {
     error_data: ErrorData,
 }
 
-define_cell!(Error, Object, extends: [Object]);
+static ERROR_METHODS: ObjectMethods = ObjectMethods {
+    initialize: Error::initialize,
+    ..ORDINARY_OBJECT_METHODS
+};
+
+define_cell!(
+    Error,
+    Object,
+    extends: [Object],
+    methods: ERROR_METHODS,
+    external_memory_size: external_memory_size
+);
+
+impl ExternalMemorySize for Error {
+    fn external_memory_size(&self) -> usize {
+        self.base.external_memory_size() + self.error_data.external_memory_size()
+    }
+}
 
 impl Deref for Error {
     type Target = Object;
@@ -140,6 +157,12 @@ impl Error {
             base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),
             error_data: ErrorData::new(vm),
         }
+    }
+
+    fn initialize(object: &Object, vm: &Vm, _realm: Gc<Realm>) {
+        let error_data = error_data_of_error(object).expect("an Error has error data");
+        vm.heap()
+            .did_allocate_external_memory(error_data.traceback_storage_size());
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<Error> {
