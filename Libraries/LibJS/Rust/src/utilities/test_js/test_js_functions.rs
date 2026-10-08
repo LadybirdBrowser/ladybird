@@ -22,7 +22,7 @@ use crate::layout::object::Object;
 use crate::layout::realm::Realm;
 use crate::layout::value::Value;
 use crate::layout_forward::RawNativeFunctionPointer;
-use crate::runtime::abstract_operations::can_be_held_weakly;
+use crate::runtime::abstract_operations::{call, can_be_held_weakly};
 use crate::runtime::array_buffer::{ArrayBuffer, Order, detach_array_buffer};
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::date::clear_system_time_zone_cache;
@@ -44,6 +44,10 @@ use crate::utf16::Utf16View;
 pub const EXPOSED_GLOBAL_FUNCTIONS: &[(&str, RawNativeFunctionPointer)] = &[
     ("canParseSource", raw_native!(can_parse_source)),
     ("gc", raw_native!(collect_garbage)),
+    (
+        "collectGarbageOnEveryAllocation",
+        raw_native!(collect_garbage_on_every_allocation),
+    ),
     ("addEnginePrivateProperty", raw_native!(add_engine_private_property)),
     ("evaluateSource", raw_native!(evaluate_source)),
     ("evaluateModule", raw_native!(evaluate_module)),
@@ -89,6 +93,15 @@ fn can_parse_source(vm: &Vm) -> ThrowCompletionOr<Value> {
 fn collect_garbage(vm: &Vm) -> ThrowCompletionOr<Value> {
     vm.heap().collect_garbage();
     Ok(Value::UNDEFINED)
+}
+
+fn collect_garbage_on_every_allocation(vm: &Vm) -> ThrowCompletionOr<Value> {
+    let heap = vm.heap();
+    let previous = heap.should_collect_on_every_allocation();
+    heap.set_should_collect_on_every_allocation(true);
+    let result = call(vm, vm.argument(0), Value::UNDEFINED, &[]);
+    heap.set_should_collect_on_every_allocation(previous);
+    result
 }
 
 fn add_engine_private_property(vm: &Vm) -> ThrowCompletionOr<Value> {

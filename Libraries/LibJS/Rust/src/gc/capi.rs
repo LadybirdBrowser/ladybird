@@ -89,6 +89,7 @@ unsafe extern "C" {
     pub fn gc_heap_is_collecting_everything(heap: *const GCHeap) -> bool;
     pub fn gc_heap_defer_gc(heap: *mut GCHeap);
     pub fn gc_heap_undefer_gc(heap: *mut GCHeap);
+    pub fn gc_heap_should_collect_on_every_allocation(heap: *const GCHeap) -> bool;
     pub fn gc_heap_set_should_collect_on_every_allocation(heap: *mut GCHeap, should_collect: bool);
     pub fn gc_heap_set_incremental_sweep_enabled(heap: *mut GCHeap, enabled: bool);
     pub fn gc_heap_uproot_cell(heap: *mut GCHeap, cell: *mut c_void);

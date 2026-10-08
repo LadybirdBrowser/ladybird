@@ -232,6 +232,11 @@ void gc_heap_undefer_gc(GCHeap* heap)
     CAPI::undefer_gc(as_heap(heap));
 }
 
+bool gc_heap_should_collect_on_every_allocation(GCHeap const* heap)
+{
+    return as_heap(heap).should_collect_on_every_allocation();
+}
+
 void gc_heap_set_should_collect_on_every_allocation(GCHeap* heap, bool should_collect)
 {
     as_heap(heap).set_should_collect_on_every_allocation(should_collect);
