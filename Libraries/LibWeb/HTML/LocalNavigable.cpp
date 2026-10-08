@@ -783,8 +783,6 @@ void LocalNavigable::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_input_method_composition_node);
     m_event_handler.visit_edges(visitor);
 
-    if (m_navigation_waiting_for_traversal.has_value())
-        m_navigation_waiting_for_traversal->visit_edges(visitor);
     for (auto& parked : m_navigations_parked_for_population) {
         if (parked.navigation.has_value())
             parked.navigation->visit_edges(visitor);
@@ -1652,18 +1650,12 @@ void LocalNavigable::set_ongoing_navigation_without_informing_navigation_api(Var
             set_delaying_load_events(false);
     }
 
-    auto was_traversal = m_ongoing_navigation.has<Traversal>();
     m_ongoing_navigation = ongoing_navigation;
 
     for (auto& navigation_observer : m_navigation_observers) {
         if (navigation_observer.ongoing_navigation_changed())
             navigation_observer.ongoing_navigation_changed()->function()();
     }
-
-    // AD-HOC: If we just finished a traversal and a navigation was deferred because the traversal was ongoing, begin
-    //         it now.
-    if (was_traversal && !ongoing_navigation.has<Traversal>())
-        begin_navigation_waiting_for_traversal();
 }
 
 void LocalNavigable::clear_ongoing_history_traversal()
@@ -1678,7 +1670,6 @@ void LocalNavigable::clear_ongoing_history_traversal()
 
 void LocalNavigable::clear_pending_navigations()
 {
-    m_navigation_waiting_for_traversal.clear();
     if (m_navigations_parked_for_population.is_empty())
         return;
     m_navigations_parked_for_population.clear();
@@ -1711,13 +1702,6 @@ Optional<LocalNavigable::NavigationParkedForPopulation> LocalNavigable::take_nav
     if (!index.has_value())
         return {};
     return m_navigations_parked_for_population.take(*index);
-}
-
-void LocalNavigable::begin_navigation_waiting_for_traversal()
-{
-    if (!m_navigation_waiting_for_traversal.has_value() || ongoing_navigation().has<Traversal>())
-        return;
-    begin_navigation(m_navigation_waiting_for_traversal.release_value());
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
@@ -3705,12 +3689,6 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
         // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id
         //    is navigationId, status is "canceled", and url is url.
 
-        // AD-HOC: The HTML Standard cancels a navigation that starts while a traversal is ongoing. We defer it
-        //         instead so UI-initiated navigations that race the tail end of a previous load are not dropped.
-        //         Match Chromium, WebKit, and Gecko's observable behavior by letting the newest navigation win.
-        //         See https://github.com/whatwg/html/issues/12581.
-        m_navigation_waiting_for_traversal = move(navigation);
-
         // 2. Return.
         return;
     }
@@ -4611,16 +4589,7 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
         return;
     }
 
-    HashTable<CrossProcessId> claimed_navigables;
-    if (pending_document) {
-        // AD-HOC: The navigation is committed from here on, and the steps finalizing it set navigable's ongoing
-        //         navigation to "traversal" only once the UI process reaches them. Set it now, so that a navigation
-        //         this process starts meanwhile waits for them instead of crossing them on its way to the UI process.
-        if (!navigable->ongoing_navigation().has<Utf16String>() || navigable->ongoing_navigation() == navigation_id) {
-            navigable->set_ongoing_navigation_without_informing_navigation_api(LocalNavigable::Traversal::Tag);
-            claimed_navigables.set(navigable->id());
-        }
-    } else {
+    if (!pending_document) {
         // 2. Set navigable's is delaying load events to false.
         // 3. If historyEntry's document is null, then return.
         navigable->set_delaying_load_events(false);
@@ -4636,7 +4605,7 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
         FinalizeCrossDocumentNavigationHistoryOperationParameters {
             .navigable_id = navigable->id(),
             .history_entry = create_pending_session_history_entry_descriptor(*history_entry),
-            .navigation_id = move(navigation_id),
+            .navigation_id = navigation_id,
             .history_handling = history_handling,
             .user_involvement = user_involvement,
             .environment_id = pending_document ? Optional<Web::HTML::EnvironmentId> { pending_document->relevant_settings_object().id } : Optional<Web::HTML::EnvironmentId> {},
@@ -4652,7 +4621,6 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
                     container->set_needs_layout_update(DOM::SetNeedsLayoutReason::FinalizeACrossDocumentNavigation);
                 on_complete->function()(result);
             }),
-            .claimed_navigables_awaiting_continuation = move(claimed_navigables),
         });
 }
 
@@ -6679,9 +6647,7 @@ void LocalNavigable::stop_loading()
     // 1. Let document be navigable's active document.
     auto document = active_document();
 
-    // AD-HOC: The HTML Standard does not cancel planned navigations here, but Chromium, WebKit, and Gecko do so when
-    //         handling window.stop(). Prevent navigations deferred behind an ongoing traversal from starting once it
-    //         completes. See https://github.com/whatwg/html/issues/12609.
+    // NB: A navigation waiting for the UI process to continue it is not continued.
     clear_pending_navigations();
 
     // NB: This is what makes step 2 of navigate to a javascript: URL return for a navigation this stops.

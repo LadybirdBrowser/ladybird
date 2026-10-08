@@ -298,7 +298,6 @@ public:
 
     void inform_the_navigation_api_about_child_navigable_destruction();
 
-    bool has_pending_navigations() const { return m_navigation_waiting_for_traversal.has_value() || !m_navigations_parked_for_population.is_empty(); }
     bool has_navigation_parked_for_population(Utf16String const& navigation_id) const;
     void clear_pending_navigations();
 
@@ -472,7 +471,6 @@ private:
     void continue_navigation_after_population_dispatch(PreparedNavigation, NavigationPopulationRequest);
     void park_navigation_for_population(Utf16String navigation_id, Optional<PreparedNavigation>, GC::Ref<GC::Function<void(Optional<PreparedNavigation>, Optional<NavigationPopulationRequest>)>> continue_steps);
     Optional<NavigationParkedForPopulation> take_navigation_parked_for_population(Utf16String const& navigation_id);
-    void begin_navigation_waiting_for_traversal();
     void navigate_to_a_javascript_url(GC::Ref<Fetch::Infrastructure::Request>, HistoryHandlingBehavior, URL::Origin const& initiator_origin, UserNavigationInvolvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion, Utf16String navigation_id);
 
     void reset_cursor_blink_cycle();
@@ -603,7 +601,6 @@ private:
 
     bool m_has_session_history_entry_and_ready_for_navigation { false };
 
-    Optional<PreparedNavigation> m_navigation_waiting_for_traversal;
     Vector<NavigationParkedForPopulation> m_navigations_parked_for_population;
 
     // The navigation IDs of javascript: URL navigations whose navigate to a javascript: URL task is queued.

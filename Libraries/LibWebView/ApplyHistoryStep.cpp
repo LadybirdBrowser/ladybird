@@ -500,6 +500,13 @@ Web::HTML::SessionHistoryEntryDescriptor ApplyHistoryStepJobs::ChangingNavigable
 
 void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& navigable, CanonicalSessionHistoryEntry const& target_entry)
 {
+    // AD-HOC: As in browsers, a push or replace leaves the ongoing navigation alone: a newer navigation goes on, and
+    //         commits after it. See https://github.com/whatwg/html/issues/12581.
+    if (m_navigation_type.has_value()
+        && first_is_one_of(*m_navigation_type, Web::Bindings::NavigationType::Push, Web::Bindings::NavigationType::Replace)) {
+        return;
+    }
+
     auto target_document_is_active_document = navigable.active_document_is(target_entry);
     auto traversal_crosses_documents = !target_document_is_active_document
         || target_entry.document_state->reload_pending;
@@ -521,14 +528,6 @@ void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& n
         return;
     }
 
-    // AD-HOC: Same-document push/replace finalization can run while its NavigateEvent handlers are settling.
-    if (m_navigation_type.has_value()
-        && first_is_one_of(*m_navigation_type, Web::Bindings::NavigationType::Push, Web::Bindings::NavigationType::Replace)
-        && target_document_is_active_document
-        && ongoing_navigation_id.has_value()) {
-        return;
-    }
-
     // AD-HOC: A navigable creation/destruction update skips a navigable already claimed by its requested navigation.
     //         See https://github.com/whatwg/html/issues/12724.
     if (!m_navigation_type.has_value() && ongoing_navigation_id.has_value())
@@ -543,7 +542,7 @@ void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& n
 
     // AD-HOC: The installed marker cancels navigation-start requests that arrive while this operation is on the
     //         traversal queue, matching navigate()'s "if navigable's ongoing navigation is 'traversal', then return".
-    //         A same-document traversal, push, or replace must not install it. A navigation racing one genuinely
+    //         A same-document traversal must not install it. A navigation racing one genuinely
     //         started before this step ran in its own process. Its navigate() saw no traversal, and the admission
     //         recheck must not misattribute that ordering and drop the navigation the step has to yield to.
     if (traversal_crosses_documents) {
