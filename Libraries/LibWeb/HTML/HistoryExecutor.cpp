@@ -120,7 +120,7 @@ void HistoryExecutor::handle_ui_history_operation_started(CrossProcessId operati
     ready->function()(Empty {});
 }
 
-void HistoryExecutor::complete_ui_history_operation(CrossProcessId operation_id, HistoryStepResult result, Optional<i32> committed_step)
+void HistoryExecutor::complete_ui_history_operation(CrossProcessId operation_id, HistoryStepResult result, Optional<i32> target_entry_step)
 {
     auto operation = m_history_operations.take(operation_id);
     if (!operation.has_value())
@@ -132,13 +132,13 @@ void HistoryExecutor::complete_ui_history_operation(CrossProcessId operation_id,
             navigable->clear_ongoing_history_traversal();
     }
 
-    if (committed_step.has_value()
+    if (target_entry_step.has_value()
         && operation->local_target_navigable_id.has_value()
         && operation->local_target_entry
         && !operation->local_target_entry->step_value().has_value()) {
         if (auto navigable = local_navigable_with_id(*operation->local_target_navigable_id);
             navigable && !navigable->is_top_level_traversable()) {
-            operation->local_target_entry->set_step(*committed_step);
+            operation->local_target_entry->set_step(*target_entry_step);
         }
     }
     if (operation->on_apply_complete)

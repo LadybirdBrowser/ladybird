@@ -158,7 +158,7 @@ private:
     virtual void container_unfullscreen_complete(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void run_traversable_close_unload_task(Web::PageId page_id, Web::HTML::CrossProcessId operation_id) override;
     virtual void update_nonchanging_navigable_history_state(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index) override;
-    virtual void complete_history_operation(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step, u64 session_history_entry_count) override;
+    virtual void complete_history_operation(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Optional<i32> target_entry_step, u64 session_history_entry_count) override;
     virtual void set_viewport(Web::PageId page_id, Web::DevicePixelSize, double device_pixel_ratio, Web::ViewportIsFullscreen is_fullscreen) override;
     virtual void set_viewport_is_fullscreen(Web::PageId page_id, Web::ViewportIsFullscreen is_fullscreen) override;
     virtual void deny_fullscreen_window(Web::PageId page_id) override;
