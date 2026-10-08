@@ -261,6 +261,9 @@ pub struct ObjectMethods {
     /// The virtual methods of NativeFunction, which only native functions have.
     pub native_function: Option<&'static NativeFunctionMethods>,
     pub is_cacheable_for_property_absence: fn(&Object) -> bool,
+    /// Whether the absence of a property from objects of this object's shape may be cached, for objects that answer
+    /// for a few names whatever their shape holds.
+    pub is_cacheable_for_absence_of: fn(&Object, &Vm, &PropertyKey) -> bool,
     pub is_cacheable_for_inherited_property: fn(&Object) -> bool,
     pub eligible_for_own_property_enumeration_fast_path: fn(&Object) -> bool,
     /// The step of a built-in iterator whose next method is the original one, which IteratorStep takes without calling
@@ -294,6 +297,7 @@ pub static ORDINARY_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     name_for_call_stack: |_| unreachable!("FunctionObject::name_for_call_stack is pure virtual"),
     native_function: None,
     is_cacheable_for_property_absence: |_| true,
+    is_cacheable_for_absence_of: |object, _, _| object.is_cacheable_for_property_absence(),
     is_cacheable_for_inherited_property: |_| true,
     eligible_for_own_property_enumeration_fast_path: |_| true,
     as_builtin_iterator_if_next_is_not_redefined: |_, _| None,
@@ -1901,6 +1905,10 @@ impl Object {
         (self.methods().is_cacheable_for_property_absence)(self)
     }
 
+    pub fn is_cacheable_for_absence_of(&self, vm: &Vm, property_key: &PropertyKey) -> bool {
+        (self.methods().is_cacheable_for_absence_of)(self, vm, property_key)
+    }
+
     pub fn is_cacheable_for_inherited_property(&self) -> bool {
         (self.methods().is_cacheable_for_inherited_property)(self)
     }
@@ -2177,7 +2185,7 @@ impl Object {
                 return vm.throw_completion(ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[]);
             }
             if let Some(cacheable_metadata) = cacheable_metadata.as_deref_mut()
-                && !parent.is_cacheable_for_property_absence()
+                && !parent.is_cacheable_for_absence_of(vm, property_key)
             {
                 cacheable_metadata.property_absence_is_cacheable = false;
             }

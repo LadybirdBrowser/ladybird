@@ -121,7 +121,7 @@ pub fn get_by_value_with_keyed_cache(
 
     let dictionary_generation = shape.dictionary_generation();
     let mut cacheable_metadata = CacheableGetPropertyMetadata {
-        property_absence_is_cacheable: base_object.is_cacheable_for_property_absence(),
+        property_absence_is_cacheable: base_object.is_cacheable_for_absence_of(vm, property_key),
         ..Default::default()
     };
     let value = base_object.internal_get(
@@ -389,7 +389,7 @@ pub fn get_by_id(
 
     let dictionary_generation = shape.dictionary_generation();
     let mut cacheable_metadata = CacheableGetPropertyMetadata {
-        property_absence_is_cacheable: base_obj.is_cacheable_for_property_absence(),
+        property_absence_is_cacheable: base_obj.is_cacheable_for_absence_of(vm, property_name),
         ..Default::default()
     };
     let value = base_obj.internal_get(
