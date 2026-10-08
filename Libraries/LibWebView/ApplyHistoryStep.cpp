@@ -539,7 +539,7 @@ void ApplyHistoryStep::set_ongoing_navigation_to_traversal(ChangingNavigable& ch
     //         See https://github.com/whatwg/html/issues/12581.
     auto is_cross_document_traversal = m_navigation_type == Web::Bindings::NavigationType::Traverse && traversal_crosses_documents;
     auto ongoing_navigation_id = navigable.ongoing_navigation_id();
-    auto const* ongoing_navigation = ongoing_navigation_id.has_value() ? navigable.navigation_with_id(*ongoing_navigation_id) : nullptr;
+    auto ongoing_navigation = ongoing_navigation_id.has_value() ? navigable.navigation_with_id(*ongoing_navigation_id) : nullptr;
     if (!is_cross_document_traversal
         && ongoing_navigation
         && ongoing_navigation->sequence_number > m_operation_sequence_number) {

@@ -210,24 +210,25 @@ public:
     // NB: "traversal" names the history operation that set it, so that another operation leaves it alone.
     struct Traversal {
         Web::HTML::CrossProcessId operation_id;
+
+        bool operator==(Traversal const&) const = default;
     };
     using OngoingNavigation = Variant<Empty, Traversal, Utf16String>;
     OngoingNavigation const& ongoing_navigation() const { return m_ongoing_navigation; }
     Optional<Utf16String const&> ongoing_navigation_id() const;
 
-    CanonicalNavigation* navigation_with_id(Utf16String const&);
-    CanonicalNavigation const* navigation_with_id(Utf16String const&) const;
+    RefPtr<CanonicalNavigation> navigation_with_id(Utf16String const&) const;
     // The navigation the ongoing navigation names, until its finalization is appended.
-    CanonicalNavigation* uncommitted_navigation();
-    CanonicalNavigation const* uncommitted_navigation() const;
+    RefPtr<CanonicalNavigation> uncommitted_navigation() const;
     bool has_uncommitted_navigation() const { return uncommitted_navigation(); }
-    CanonicalNavigation const* navigation_being_finalized() const;
+    RefPtr<CanonicalNavigation> navigation_being_finalized() const;
 
     // Held so that revoking a blob URL cannot take the entry away from a navigation on its way to this navigable, or
     // from the document it loaded. Session history holds none, so a revoked blob URL cannot be traversed back to.
     void retain_blob_url_token(URL::BlobURLEntry::Token);
 
-    void set_ongoing_navigation(CanonicalNavigation);
+    void set_ongoing_navigation(CanonicalNavigation::Start);
+    void begin_evaluating_javascript_url(URL::URL const&, Utf16String const& navigation_id, WebContentPage& host);
     void set_ongoing_navigation_to_traversal(Web::HTML::CrossProcessId operation_id);
     void clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId operation_id);
     void clear_ongoing_navigation();
@@ -255,14 +256,13 @@ private:
     void set_the_ongoing_navigation(OngoingNavigation);
     void end_navigation(CanonicalNavigation&);
     OngoingNavigation m_ongoing_navigation;
-    Vector<NonnullOwnPtr<CanonicalNavigation>> m_navigations;
+    Vector<NonnullRefPtr<CanonicalNavigation>> m_navigations;
 
     RefPtr<WebContentClient> process_to_host_for_site_isolation(CanonicalDocument const&, Optional<URL::Origin> const& initiator_origin) const;
     ErrorOr<NonnullRefPtr<WebContentPage>> obtain_page_to_host_in(RefPtr<WebContentClient> process);
 
     BlobURLStore* blob_url_store() const;
     BlobURLHandle m_pending_navigation_blob_url;
-    BlobURLHandle m_navigation_blob_url;
     BlobURLHandle m_document_blob_url;
     ActiveDocumentLoad m_active_document_load;
     Optional<Web::DevicePixelRect> m_viewport_rect;
