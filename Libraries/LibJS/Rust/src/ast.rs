@@ -1472,6 +1472,9 @@ pub struct ScopeData {
     pub uses_this_from_environment: bool,
     pub contains_direct_call_to_eval: bool,
     pub contains_access_to_arguments_object: bool,
+    /// For the body of a named function expression: whether nothing can look up the function's own name in it, so
+    /// that the environment that binds the name is never observed.
+    pub function_name_is_unused: bool,
 }
 
 /// Scope analysis data for function bodies, populated by the scope collector.

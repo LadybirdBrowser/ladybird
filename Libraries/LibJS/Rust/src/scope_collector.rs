@@ -973,6 +973,7 @@ impl ScopeCollector {
 
         // 1. Propagate eval() flags from children to parent.
         Self::propagate_eval_poisoning(&mut self.records, index);
+        Self::note_unused_function_name(&self.records, index, scopes);
         // 2. Match identifier references to declarations; optimize as locals.
         Self::resolve_identifiers(
             &mut self.records,
@@ -1017,6 +1018,34 @@ impl ScopeCollector {
             if records[index].eval_in_current_function && records[index].scope_type != ScopeType::Function {
                 records[parent_index].eval_in_current_function = true;
             }
+        }
+    }
+
+    /// Notes in the body of a named function expression whether the function's own name is unused: nothing in the
+    /// function or the functions nested in it refers to it, and no direct eval could. References are still in the
+    /// scope's identifier groups here, where the nested scopes left the ones they did not resolve.
+    fn note_unused_function_name(records: &[ScopeRecord], index: usize, scopes: &mut crate::ast::ScopeArena) {
+        let record = &records[index];
+        if record.scope_type != ScopeType::Function
+            || record.is_function_declaration
+            || record.is_arrow_function
+            || record.contains_direct_call_to_eval
+            || record.poisoned_by_eval_in_scope_chain
+        {
+            return;
+        }
+        let Some(scope_id) = record.scope_data else {
+            return;
+        };
+        let Some((name, _)) = record
+            .variables
+            .iter()
+            .find(|(_, variable)| variable.flags.intersects(VarFlags::BOUND))
+        else {
+            return;
+        };
+        if !record.identifier_groups.contains_key(name) {
+            scopes[scope_id].function_name_is_unused = true;
         }
     }
 

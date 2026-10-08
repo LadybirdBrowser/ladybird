@@ -1,16 +1,11 @@
-outer$1afca0d7 module-level-bindings.mjs:6:5
-  Registers: 7
+outer$12b0cda7 module-level-bindings.mjs:6:5
+  Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
-  [  28] CreateVariable `inner`, is_immutable:true, is_global:false, is_strict:false
-  [  38] NewFunction dst:reg6, shared_function_data_index:0
-  [  50] InitializeLexicalBinding `inner`, src:reg6
-  [  68] SetLexicalEnvironment environment:reg4
-  [  70] Return value:reg6
+  [   8] NewFunction dst:reg5, shared_function_data_index:0
+  [  20] Return value:reg5
 
 
 inner$24238fde module-level-bindings.mjs:7:18

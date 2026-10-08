@@ -14,7 +14,7 @@ block0:
   [  70] End value:reg6
 
 
-outer$61cd94e9 named-function-expression-unused-name.js:6:20
+outer$cd1004f1 named-function-expression-unused-name.js:6:20
   Registers: 9
   Blocks:    1
   Locals:    unused~0, used~1, nested~2
@@ -24,24 +24,20 @@ block0:
   [   8] GetLexicalEnvironment dst:reg4
   [  10] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
   [  20] InitializeLexicalBinding `x`, src:arg0
-  [  38] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
-  [  50] CreateVariable `f`, is_immutable:true, is_global:false, is_strict:false
-  [  60] NewFunction dst:unused~0, shared_function_data_index:0
-  [  78] InitializeLexicalBinding `f`, src:unused~0
-  [  90] SetLexicalEnvironment environment:reg4
-  [  98] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
-  [  b0] CreateVariable `g`, is_immutable:true, is_global:false, is_strict:false
-  [  c0] NewFunction dst:used~1, shared_function_data_index:1
-  [  d8] InitializeLexicalBinding `g`, src:used~1
-  [  f0] SetLexicalEnvironment environment:reg4
-  [  f8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
-  [ 110] CreateVariable `h`, is_immutable:true, is_global:false, is_strict:false
-  [ 120] NewFunction dst:nested~2, shared_function_data_index:2
-  [ 138] InitializeLexicalBinding `h`, src:nested~2
-  [ 150] SetLexicalEnvironment environment:reg4
-  [ 158] Mov3 c0_dst:reg5, c0_src:unused~0, c1_dst:reg6, c1_src:used~1, c2_dst:reg7, c2_src:nested~2
-  [ 178] NewArray dst:reg8, elements:[reg5, reg6, reg7]
-  [ 198] Return value:reg8
+  [  38] NewFunction dst:unused~0, shared_function_data_index:0
+  [  50] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
+  [  68] CreateVariable `g`, is_immutable:true, is_global:false, is_strict:false
+  [  78] NewFunction dst:used~1, shared_function_data_index:1
+  [  90] InitializeLexicalBinding `g`, src:used~1
+  [  a8] SetLexicalEnvironment environment:reg4
+  [  b0] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
+  [  c8] CreateVariable `h`, is_immutable:true, is_global:false, is_strict:false
+  [  d8] NewFunction dst:nested~2, shared_function_data_index:2
+  [  f0] InitializeLexicalBinding `h`, src:nested~2
+  [ 108] SetLexicalEnvironment environment:reg4
+  [ 110] Mov3 c0_dst:reg5, c0_src:unused~0, c1_dst:reg6, c1_src:used~1, c2_dst:reg7, c2_src:nested~2
+  [ 130] NewArray dst:reg8, elements:[reg5, reg6, reg7]
+  [ 150] Return value:reg8
 
 
 outerWithEval$fdb37c36 named-function-expression-unused-name.js:19:5
