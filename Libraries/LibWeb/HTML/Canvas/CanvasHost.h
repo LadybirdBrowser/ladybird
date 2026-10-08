@@ -34,7 +34,7 @@ public:
 
     virtual CSS::FontComputer& canvas_font_computer() = 0;
     virtual CSS::ComputationContext canvas_font_computation_context() = 0;
-    virtual CSS::ColorResolutionContext canvas_color_resolution_context() = 0;
+    virtual CSS::ColorResolutionStyle canvas_color_resolution_style() = 0;
     virtual CSSPixelRect canvas_viewport_rect() const = 0;
 
     virtual RefPtr<Gfx::Bitmap> get_bitmap_from_surface();

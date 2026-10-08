@@ -2318,20 +2318,19 @@ pub unsafe extern "C" fn rust_style_value_to_color_against_style_record(
     }
 }
 
-/// Resolves a style value to an sRGB color, or declines.
+/// Resolves an absolutized style value to an sRGB color against a style, or declines.
 ///
 /// # Safety
-/// `value` must point at live style value data and `input` at a valid resolution input whose
-/// pointers outlive the call.
+/// `value` must point at live style value data, and `style` must be null or point at a style whose group payloads
+/// outlive the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_to_color(
     value: *const core::ffi::c_void,
-    input: *const FfiColorResolutionInput,
+    style: *const FfiColorResolutionStyle,
 ) -> FfiResolvedColorValue {
     let value = unsafe { &*value.cast::<crate::css::style_value::StyleValueData>() };
-    let input = unsafe { &*input };
-    // SAFETY: The caller warrants the input's pointers outlive the call.
-    let resolution_input = unsafe { resolution_input_from_ffi(input) };
+    // SAFETY: Guaranteed by the caller.
+    let resolution_input = unsafe { ColorResolutionInput::for_ffi_style(style) };
     match to_color(value, &resolution_input) {
         Some(color) => FfiResolvedColorValue {
             resolved: true,

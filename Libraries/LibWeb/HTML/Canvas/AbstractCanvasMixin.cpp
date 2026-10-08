@@ -72,7 +72,7 @@ Optional<Color> AbstractCanvasMixin::parse_a_css_color_value(Utf16View value) co
     //         https://github.com/whatwg/html/issues/12505.
     auto computation_context = computation_context_for_drawing_state();
 
-    auto used_color = color->absolutized(computation_context)->to_color(canvas_host().canvas_color_resolution_context()).value();
+    auto used_color = color->absolutized(computation_context)->to_color(canvas_host().canvas_color_resolution_style()).value();
 
     // 3. Return used color.
     return used_color;

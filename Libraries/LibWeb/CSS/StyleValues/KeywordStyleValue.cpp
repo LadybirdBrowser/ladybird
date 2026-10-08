@@ -72,16 +72,6 @@ bool KeywordStyleValue::has_color() const
     return is_color(keyword());
 }
 
-Optional<Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolution_context) const
-{
-    Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_storage;
-    auto input = make_rust_color_resolution_input(color_resolution_context, length_storage);
-    auto resolved = StyleValueFFI::rust_style_value_to_color(m_value.operator->(), &input);
-    if (!resolved.resolved)
-        return {};
-    return Color(resolved.rgba[0], resolved.rgba[1], resolved.rgba[2], resolved.rgba[3]);
-}
-
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-ident
 GC::Ref<CSSStyleValue> KeywordStyleValue::reify(Utf16FlyString const&) const
 {

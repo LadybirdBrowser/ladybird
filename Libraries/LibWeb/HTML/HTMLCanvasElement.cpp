@@ -224,12 +224,10 @@ CSS::FontComputer& HTMLCanvasElement::canvas_font_computer()
     return document().font_computer();
 }
 
-CSS::ColorResolutionContext HTMLCanvasElement::canvas_color_resolution_context()
+CSS::ColorResolutionStyle HTMLCanvasElement::canvas_color_resolution_style()
 {
     document().update_style_for_element(*this, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
-    if (has_style())
-        return CSS::ColorResolutionContext::for_element(*this);
-    return {};
+    return CSS::ColorResolutionStyle::for_element(*this);
 }
 
 CSSPixelRect HTMLCanvasElement::canvas_viewport_rect() const

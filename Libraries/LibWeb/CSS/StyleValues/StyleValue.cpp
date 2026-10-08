@@ -396,13 +396,15 @@ bool StyleValue::has_color() const
     return false;
 }
 
-Optional<Color> StyleValue::to_color(ColorResolutionContext color_resolution_context) const
+Optional<Color> StyleValue::to_color(ColorResolutionStyle color_resolution_style) const
 {
-    if (type() == Type::Color)
-        return as_color().to_color(color_resolution_context);
-    if (type() == Type::Keyword)
-        return as_keyword().to_color(color_resolution_context);
-    return {};
+    if (type() != Type::Color && type() != Type::Keyword)
+        return {};
+    auto ffi_color_resolution_style = color_resolution_style.to_ffi();
+    auto resolved = StyleValueFFI::rust_style_value_to_color(m_value.operator->(), &ffi_color_resolution_style);
+    if (!resolved.resolved)
+        return {};
+    return Color(resolved.rgba[0], resolved.rgba[1], resolved.rgba[2], resolved.rgba[3]);
 }
 
 String StyleValue::to_string(SerializationMode mode) const

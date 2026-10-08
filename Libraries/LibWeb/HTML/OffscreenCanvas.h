@@ -64,7 +64,7 @@ public:
     virtual GC::Ptr<Bindings::Wrappable> canvas_relevant_global_impl() const override { return m_global_object; }
     virtual CSS::FontComputer& canvas_font_computer() override;
     virtual CSS::ComputationContext canvas_font_computation_context() override;
-    virtual CSS::ColorResolutionContext canvas_color_resolution_context() override;
+    virtual CSS::ColorResolutionStyle canvas_color_resolution_style() override;
     virtual CSSPixelRect canvas_viewport_rect() const override { return {}; }
     virtual void did_change_canvas_content() override;
 

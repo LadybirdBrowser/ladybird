@@ -1305,7 +1305,7 @@ Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node> node, Utf16FlyS
             auto background_color = resolved_background_color();
             if (!background_color)
                 return NumericLimits<u8>::max();
-            return background_color->to_color(CSS::ColorResolutionContext::for_element({ node_as_element() })).value().alpha();
+            return background_color->to_color(CSS::ColorResolutionStyle::for_element({ node_as_element() })).value().alpha();
         };
         while (resolved_background_alpha() == 0 && node->parent() && is<DOM::Element>(*node->parent()))
             node = node->parent();
