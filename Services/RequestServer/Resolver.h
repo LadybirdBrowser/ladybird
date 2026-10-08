@@ -9,6 +9,7 @@
 
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
+#include <AK/Utf16String.h>
 #include <AK/Weakable.h>
 #include <LibCore/Forward.h>
 #include <LibDNS/Resolver.h>
@@ -55,5 +56,10 @@ void set_default_certificate_path(ByteString);
 
 HTTP::ProxyConfiguration const& proxy_configuration();
 void set_proxy_configuration(HTTP::ProxyConfiguration);
+
+// The top-level site this RequestServer serves, when there is one per site. Only responses for that site go into its
+// disk cache; a response it fetches for another site is on its way to that site's RequestServer.
+Optional<Utf16String> const& process_top_level_site();
+void set_process_top_level_site(Optional<Utf16String>);
 
 }

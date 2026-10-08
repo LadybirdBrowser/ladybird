@@ -456,3 +456,26 @@ TEST_CASE(only_unrestricted_clients_may_move_responses)
     importer.import_request(2, exported.release_value(), true);
     EXPECT(!importer.is_open());
 }
+
+TEST_CASE(responses_for_other_sites_are_not_cached_by_a_site_request_server)
+{
+    Core::EventLoop event_loop;
+    TestServer server { "own-site"sv };
+    DrippingServer http_server { patterned_body(4 * KiB), 4 * KiB, AK::Duration::from_milliseconds(1) };
+    auto url = http_server.url();
+    auto key = navigation_key_for(url);
+
+    RequestServer::set_process_top_level_site("https://other.example"_utf16);
+    ScopeGuard reset_site = [] { RequestServer::set_process_top_level_site({}); };
+
+    TestConnection client { server };
+    for (u64 request_id : { 1u, 2u }) {
+        client.start_request(request_id, url, key, false);
+        auto headers = client.wait_for<Messages::RequestClient::HeadersBecameAvailable>(event_loop, request_id);
+        // A request that never touches the disk cache reports no cache status at all.
+        auto cache_status = headers->response_headers().first_matching([](auto const& header) { return header.name == HTTP::TEST_CACHE_STATUS_HEADER; });
+        EXPECT(!cache_status.has_value());
+        (void)client.wait_for<Messages::RequestClient::RequestFinished>(event_loop, request_id);
+    }
+    EXPECT_EQ(http_server.request_count(), 2u);
+}

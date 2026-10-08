@@ -24,6 +24,7 @@ void set_default_certificate_path(ByteString default_certificate_path)
 }
 
 static HTTP::ProxyConfiguration g_proxy_configuration;
+static Optional<Utf16String> g_process_top_level_site;
 
 HTTP::ProxyConfiguration const& proxy_configuration()
 {
@@ -33,6 +34,16 @@ HTTP::ProxyConfiguration const& proxy_configuration()
 void set_proxy_configuration(HTTP::ProxyConfiguration proxy_configuration)
 {
     g_proxy_configuration = move(proxy_configuration);
+}
+
+Optional<Utf16String> const& process_top_level_site()
+{
+    return g_process_top_level_site;
+}
+
+void set_process_top_level_site(Optional<Utf16String> site)
+{
+    g_process_top_level_site = move(site);
 }
 
 DNSInfo& DNSInfo::the()
