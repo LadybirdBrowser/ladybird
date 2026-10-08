@@ -486,7 +486,15 @@ impl Utf16StringBuilder {
                 0x22 => self.append_ascii("\\\""),
                 0x5C => self.append_ascii("\\\\"),
                 _ if code_unit < 0x20 || is_unicode_surrogate(code_unit) => {
-                    self.append_ascii(&format!("\\u{code_unit:04x}"));
+                    const HEX_DIGITS: &[u8; 16] = b"0123456789abcdef";
+                    self.append_ascii_bytes(&[
+                        b'\\',
+                        b'u',
+                        HEX_DIGITS[usize::from(code_unit >> 12)],
+                        HEX_DIGITS[usize::from((code_unit >> 8) & 0xf)],
+                        HEX_DIGITS[usize::from((code_unit >> 4) & 0xf)],
+                        HEX_DIGITS[usize::from(code_unit & 0xf)],
+                    ]);
                 }
                 _ => self.append_code_unit(code_unit),
             }
