@@ -1087,29 +1087,34 @@ impl DisplayListRecorder {
     #[allow(clippy::too_many_arguments)]
     pub fn paint_text_shadow(
         &mut self,
-        blur_radius: i32,
-        shadow_bounding_rect: IntRect,
+        layers: &[TextShadowLayer],
+        shadows_bounding_rect: IntRect,
         rect: IntRect,
         translation: FloatPoint,
         run: GlyphRunForRecording<'_>,
         glyph_run_scale: f64,
-        color: Color,
         orientation: Orientation,
         force_dark_role: ForceDarkRole,
     ) {
-        let color = self.resolve_color(color, force_dark_role);
+        let resolved_layers: Vec<TextShadowLayer> = layers
+            .iter()
+            .map(|layer| TextShadowLayer {
+                color: self.resolve_color(layer.color, force_dark_role),
+                ..*layer
+            })
+            .collect();
         let mut payload = CommandPayloadBuilder::new::<PaintTextShadow>(&self.builder);
         let glyphs = payload.append_objects(run.glyphs);
+        let layers = payload.append_objects(&resolved_layers);
         let command = PaintTextShadow {
             font_smoothing: run.font_smoothing,
             font_id: run.font_id,
             glyphs,
-            shadow_bounding_rect,
+            layers,
+            shadows_bounding_rect,
             rect,
             translation,
             scale: glyph_run_scale as f32,
-            blur_radius,
-            color,
             orientation,
         };
         self.append_command(&command, payload.inline_data());

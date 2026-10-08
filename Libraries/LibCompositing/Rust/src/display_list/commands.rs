@@ -1053,27 +1053,43 @@ impl DisplayListCommand for PaintInnerBoxShadow {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
+pub struct TextShadowLayer {
+    // Added to the glyph run's translation.
+    pub offset: FloatPoint,
+    // Added to the glyph run's rect, which is the rotation pivot of vertical text.
+    pub rounded_offset: IntPoint,
+    pub blur_radius: i32,
+    pub color: Color,
+}
+ffi_bytes_fields!(TextShadowLayer {
+    offset,
+    rounded_offset,
+    blur_radius,
+    color
+});
+
+// Every text-shadow layer of one glyph run, in painting order (the bottom-most layer first).
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
 pub struct PaintTextShadow {
     pub font_id: FontResourceId,
     pub glyphs: DisplayListDataSpan,
-    pub shadow_bounding_rect: IntRect,
+    pub layers: DisplayListDataSpan,
+    pub shadows_bounding_rect: IntRect,
     pub rect: IntRect,
     pub translation: FloatPoint,
     pub scale: f32,
-    pub blur_radius: i32,
-    pub color: Color,
     pub orientation: Orientation,
     pub font_smoothing: u8,
 }
 ffi_bytes_fields!(PaintTextShadow {
     font_id,
     glyphs,
-    shadow_bounding_rect,
+    layers,
+    shadows_bounding_rect,
     rect,
     translation,
     scale,
-    blur_radius,
-    color,
     orientation,
     font_smoothing
 });
@@ -1081,7 +1097,7 @@ ffi_bytes_fields!(PaintTextShadow {
 impl DisplayListCommand for PaintTextShadow {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::PaintTextShadow;
     fn bounding_rect(&self) -> Option<IntRect> {
-        Some(self.shadow_bounding_rect)
+        Some(self.shadows_bounding_rect)
     }
 }
 

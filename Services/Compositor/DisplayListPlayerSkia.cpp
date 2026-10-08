@@ -219,6 +219,22 @@ void DisplayListPlayerSkia::paint_scrollbar(Gfx::PaintingSurface& surface, Paint
     paint_scrollbar_into_surface(surface, command);
 }
 
+static void draw_glyph_run(SkCanvas& canvas, SkTextBlob const& blob, Gfx::IntRect const& rect, Gfx::FloatPoint translation, Gfx::Orientation orientation, SkPaint const& paint)
+{
+    switch (orientation) {
+    case Gfx::Orientation::Horizontal:
+        canvas.drawTextBlob(&blob, translation.x(), translation.y(), paint);
+        break;
+    case Gfx::Orientation::Vertical:
+        canvas.save();
+        canvas.translate(rect.width(), 0);
+        canvas.rotate(90, rect.top_left().x(), rect.top_left().y());
+        canvas.drawTextBlob(&blob, translation.x(), translation.y(), paint);
+        canvas.restore();
+        break;
+    }
+}
+
 void DisplayListPlayerSkia::play_command(DrawGlyphRun const& command)
 {
     auto glyphs = inline_objects<DisplayListGlyph>(command.glyphs);
@@ -231,22 +247,7 @@ void DisplayListPlayerSkia::play_command(DrawGlyphRun const& command)
 
     SkPaint paint;
     paint.setColor(to_skia_color(command.color));
-
-    auto& canvas = surface().canvas();
-    auto const& translation = command.translation;
-
-    switch (command.orientation) {
-    case Gfx::Orientation::Horizontal:
-        canvas.drawTextBlob(blob.get(), translation.x(), translation.y(), paint);
-        break;
-    case Gfx::Orientation::Vertical:
-        canvas.save();
-        canvas.translate(command.rect.width(), 0);
-        canvas.rotate(90, command.rect.top_left().x(), command.rect.top_left().y());
-        canvas.drawTextBlob(blob.get(), translation.x(), translation.y(), paint);
-        canvas.restore();
-        break;
-    }
+    draw_glyph_run(surface().canvas(), *blob, command.rect, command.translation, command.orientation, paint);
 }
 
 static void apply_compositing_and_blending_operator(SkPaint& paint, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)
@@ -797,27 +798,59 @@ void DisplayListPlayerSkia::play_command(PaintInnerBoxShadow const& command)
     canvas.restore();
 }
 
+// Skia rasterizes glyph coverage differently depending on the paint color, so a shadow can reuse another shadow's
+// glyph raster only when both draw the glyphs in the same color. Moving that raster by whole pixels then lands
+// exactly where drawing the glyphs at the shadow's own offset would.
+static bool draws_same_glyph_raster_shifted_by_whole_pixels(TextShadowLayer const& anchor, TextShadowLayer const& layer)
+{
+    return layer.color.with_alpha(255) == anchor.color.with_alpha(255)
+        && layer.offset - anchor.offset == (layer.rounded_offset - anchor.rounded_offset).to_type<float>();
+}
+
 void DisplayListPlayerSkia::play_command(PaintTextShadow const& command)
 {
+    auto glyphs = inline_objects<DisplayListGlyph>(command.glyphs);
+    auto layers = inline_objects<TextShadowLayer>(command.layers);
+    if (glyphs.is_empty() || layers.is_empty())
+        return;
+
+    auto blob = raster_cache().text_blob(resource_storage(), command.font_id, command.scale, glyphs, command.font_smoothing);
+    if (!blob)
+        return;
+
+    // Each saveLayer costs Skia a render pass, so consecutive shadows share one layer whenever they can be drawn as
+    // whole-pixel copies of a single glyph raster. A device transform beyond a translation would turn those
+    // whole-pixel shifts into resampling, so then every shadow keeps a layer of its own.
     auto& canvas = surface().canvas();
-    auto blur_image_filter = SkImageFilters::Blur(command.blur_radius / 2, command.blur_radius / 2, nullptr);
-    SkPaint blur_paint;
-    blur_paint.setImageFilter(blur_image_filter);
-    // Skia paints color glyphs with their own colors, ignoring the paint color, so tint the shadow layer with a kSrcIn
-    // blend to force a flat silhouette in the shadow color. The glyphs are drawn opaquely below so the shadow color's
-    // alpha is applied exactly once.
-    blur_paint.setColorFilter(SkColorFilters::Blend(to_skia_color(command.color), SkBlendMode::kSrcIn));
-    canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, &blur_paint, nullptr, 0));
-    play_command(DrawGlyphRun { .font_id = command.font_id,
-        .glyphs = command.glyphs,
-        .rect = command.rect,
-        .glyph_bounding_rect = command.shadow_bounding_rect,
-        .translation = command.translation,
-        .scale = command.scale,
-        .color = command.color.with_alpha(255),
-        .orientation = command.orientation,
-        .font_smoothing = command.font_smoothing });
-    canvas.restore();
+    bool const shadows_can_share_glyph_raster = canvas.getTotalMatrix().isTranslate();
+    size_t group_start = 0;
+    while (group_start < layers.size()) {
+        auto const& anchor = layers[group_start];
+        size_t group_end = group_start + 1;
+        while (shadows_can_share_glyph_raster && group_end < layers.size() && draws_same_glyph_raster_shifted_by_whole_pixels(anchor, layers[group_end]))
+            ++group_end;
+
+        // DropShadowOnly tints the layer with a kSrcIn blend, so color glyphs, which Skia paints with their own colors,
+        // become a flat silhouette in the shadow color. The glyphs are drawn opaquely below so each shadow color's
+        // alpha is applied exactly once.
+        Vector<sk_sp<SkImageFilter>, 8> shadow_filters;
+        for (auto const& layer : layers.slice(group_start, group_end - group_start)) {
+            auto shift_from_anchor = layer.rounded_offset - anchor.rounded_offset;
+            SkScalar blur_sigma = layer.blur_radius / 2;
+            shadow_filters.append(SkImageFilters::DropShadowOnly(shift_from_anchor.x(), shift_from_anchor.y(), blur_sigma, blur_sigma, to_skia_color(layer.color), nullptr));
+        }
+        SkPaint shadow_paint;
+        shadow_paint.setImageFilter(shadow_filters.size() == 1
+                ? shadow_filters.first()
+                : SkImageFilters::Merge(shadow_filters.data(), static_cast<int>(shadow_filters.size())));
+        canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, &shadow_paint, nullptr, 0));
+        SkPaint glyph_paint;
+        glyph_paint.setColor(to_skia_color(anchor.color.with_alpha(255)));
+        draw_glyph_run(canvas, *blob, command.rect.translated(anchor.rounded_offset), command.translation + anchor.offset, command.orientation, glyph_paint);
+        canvas.restore();
+
+        group_start = group_end;
+    }
 }
 
 void DisplayListPlayerSkia::play_command(FillRectWithRoundedCorners const& command)

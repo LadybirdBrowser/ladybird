@@ -300,16 +300,15 @@ fn display_list_commands_are_equal(a: &CommandReference<'_>, b: &CommandReferenc
                 == second.u64_at(offset_of!(PaintTextShadow, font_id))
             && first.span_bytes_at(offset_of!(PaintTextShadow, glyphs))
                 == second.span_bytes_at(offset_of!(PaintTextShadow, glyphs))
-            && first.int_rect_at(offset_of!(PaintTextShadow, shadow_bounding_rect))
-                == second.int_rect_at(offset_of!(PaintTextShadow, shadow_bounding_rect))
+            && first.span_bytes_at(offset_of!(PaintTextShadow, layers))
+                == second.span_bytes_at(offset_of!(PaintTextShadow, layers))
+            && first.int_rect_at(offset_of!(PaintTextShadow, shadows_bounding_rect))
+                == second.int_rect_at(offset_of!(PaintTextShadow, shadows_bounding_rect))
             && first.int_rect_at(offset_of!(PaintTextShadow, rect))
                 == second.int_rect_at(offset_of!(PaintTextShadow, rect))
             && first.float_point_at(offset_of!(PaintTextShadow, translation))
                 == second.float_point_at(offset_of!(PaintTextShadow, translation))
             && first.f32_at(offset_of!(PaintTextShadow, scale)) == second.f32_at(offset_of!(PaintTextShadow, scale))
-            && first.i32_at(offset_of!(PaintTextShadow, blur_radius))
-                == second.i32_at(offset_of!(PaintTextShadow, blur_radius))
-            && same_field(offset_of!(PaintTextShadow, color), 4)
             && same_field(offset_of!(PaintTextShadow, orientation), 4);
     }
 
@@ -1450,7 +1449,7 @@ mod tests {
     use crate::display_list::builder::{HEADER_SIZE, note_command};
     use crate::display_list::commands::{
         BackdropFilterRegion, CanvasId, CompositorMainThreadWheelEventRegion, DisplayListCommand, DisplayListGlyph,
-        DrawCanvas, FillRect, FontResourceId, ImageFrameResourceId, InlineClipKind, UniqueNodeId,
+        DrawCanvas, FillRect, FontResourceId, ImageFrameResourceId, InlineClipKind, TextShadowLayer, UniqueNodeId,
     };
     use crate::display_list::ffi_bytes::FfiBytes;
     use crate::node_slot_id::NodeSlotId;
@@ -1463,8 +1462,8 @@ mod tests {
     use libgfx_rust::filter::Filter;
     use libgfx_rust::path::OwnedPath;
     use libgfx_rust::{
-        Color, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, MaskKind, Orientation,
-        ScalingMode, WindingRule, translation_matrix,
+        Color, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, IntPoint, MaskKind,
+        Orientation, ScalingMode, WindingRule, translation_matrix,
     };
 
     const RED: Color = Color(0xffff0000);
@@ -1594,6 +1593,61 @@ mod tests {
             &command,
             &inline_data,
             Some(command.glyph_bounding_rect),
+            ContextRef::default(),
+            &[],
+        );
+        bytes
+    }
+
+    fn text_shadow_command_bytes(inline_padding: usize, top_layer_color: Color) -> TestDisplayList {
+        let glyph = DisplayListGlyph {
+            position: FloatPoint { x: 1.0, y: 2.0 },
+            glyph_id: 3,
+        };
+        let layers = [
+            TextShadowLayer {
+                offset: FloatPoint { x: 2.0, y: 2.0 },
+                rounded_offset: IntPoint { x: 2, y: 2 },
+                blur_radius: 0,
+                color: RED,
+            },
+            TextShadowLayer {
+                offset: FloatPoint { x: -2.0, y: -2.0 },
+                rounded_offset: IntPoint { x: -2, y: -2 },
+                blur_radius: 0,
+                color: top_layer_color,
+            },
+        ];
+        let glyphs_offset = std::mem::size_of::<PaintTextShadow>() + inline_padding;
+        let layers_offset = glyphs_offset + std::mem::size_of::<DisplayListGlyph>();
+        let command = PaintTextShadow {
+            font_smoothing: FONT_SMOOTHING_AUTO,
+            font_id: FontResourceId(1),
+            glyphs: DisplayListDataSpan {
+                offset: glyphs_offset as u32,
+                size: std::mem::size_of::<DisplayListGlyph>() as u32,
+            },
+            layers: DisplayListDataSpan {
+                offset: layers_offset as u32,
+                size: std::mem::size_of_val(&layers) as u32,
+            },
+            shadows_bounding_rect: IntRect::new(8, 8, 24, 24),
+            rect: IntRect::new(10, 10, 20, 20),
+            translation: FloatPoint { x: 10.0, y: 10.0 },
+            scale: 1.0,
+            orientation: Orientation::Horizontal,
+        };
+        let mut inline_data = vec![0u8; inline_padding];
+        inline_data.extend_from_slice(&glyph.to_ffi_bytes());
+        for layer in &layers {
+            inline_data.extend_from_slice(&layer.to_ffi_bytes());
+        }
+        let mut bytes = TestDisplayList::default();
+        append_record(
+            &mut bytes,
+            &command,
+            &inline_data,
+            Some(command.shadows_bounding_rect),
             ContextRef::default(),
             &[],
         );
@@ -1984,6 +2038,28 @@ mod tests {
         assert_eq!(
             damage(&old_display_list, &tree, &new_display_list, &tree),
             Some(IntRect::new(9, 9, 22, 22))
+        );
+    }
+
+    #[test]
+    fn inline_payload_alignment_does_not_damage_text_shadows() {
+        let tree = identity_tree();
+        let old_display_list = text_shadow_command_bytes(0, BLUE);
+        let new_display_list = text_shadow_command_bytes(4, BLUE);
+        assert_eq!(
+            damage(&old_display_list, &tree, &new_display_list, &tree),
+            Some(IntRect::default())
+        );
+    }
+
+    #[test]
+    fn changing_one_text_shadow_layer_damages_the_shadows() {
+        let tree = identity_tree();
+        let old_display_list = text_shadow_command_bytes(0, BLUE);
+        let new_display_list = text_shadow_command_bytes(0, GREEN);
+        assert_eq!(
+            damage(&old_display_list, &tree, &new_display_list, &tree),
+            Some(IntRect::new(7, 7, 26, 26))
         );
     }
 
