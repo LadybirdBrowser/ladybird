@@ -460,6 +460,13 @@ impl ScopeCollector {
             self.records[parent_index].contains_direct_call_to_eval |= eval;
             self.records[parent_index].contains_await_expression |= contains_await;
         }
+        // NB: An arrow function has no arguments object of its own, so the function it is in provides the one it uses.
+        else if let Some(parent_index) = self.records[index].parent
+            && self.records[index].is_arrow_function
+            && self.records[index].contains_access_to_arguments_object_in_non_strict_mode
+        {
+            self.records[parent_index].contains_access_to_arguments_object_in_non_strict_mode = true;
+        }
 
         self.current = self.records[index].parent;
     }

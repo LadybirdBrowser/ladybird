@@ -90,3 +90,37 @@ test("many mapped parameters preserve the last duplicate", () => {
     expect(f(...names)).toEqual(["parameter0", "last unique", "changed"]);
     expect(f("first")).toEqual(["first", undefined, undefined]);
 });
+
+test("arguments of the enclosing function in arrow functions", () => {
+    function viaArrow(a) {
+        const read = () => arguments[0];
+        a = 2;
+        return read();
+    }
+    expect(viaArrow(1)).toBe(2);
+
+    function viaNestedArrows(a) {
+        return () => () => {
+            a = 3;
+            return arguments[0];
+        };
+    }
+    expect(viaNestedArrows(1)()()).toBe(3);
+
+    function writeThroughArrow(a, b) {
+        (() => {
+            arguments[1] = "written";
+        })();
+        return b;
+    }
+    expect(writeThroughArrow(1, 2)).toBe("written");
+});
+
+test("functions whose arguments object is never used", () => {
+    const add = new Function("a", "b", "return a + b;");
+    expect(add(1, 2)).toBe(3);
+    function withParametersAndArguments(a, b) {
+        return [a, b, arguments.length];
+    }
+    expect(withParametersAndArguments(1)).toEqual([1, undefined, 1]);
+});
