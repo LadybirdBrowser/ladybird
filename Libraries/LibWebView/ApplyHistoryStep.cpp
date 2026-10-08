@@ -138,15 +138,16 @@ void ApplyHistoryStep::get_changing_and_nonchanging_navigables()
 {
     // 6. Let changingNavigables be the result of get all navigables whose current session history entry will change
     //    or reload given traversable and targetStep.
-    m_changing_navigables = m_session_history.get_all_navigables_whose_current_session_history_entry_will_change_or_reload(m_traversable_navigable, m_target_step);
+    for (auto navigable_id : m_session_history.get_all_navigables_whose_current_session_history_entry_will_change_or_reload(m_traversable_navigable, m_target_step))
+        m_changing_navigables.append({ .id = navigable_id });
 
     // 7. Let nonchangingNavigablesThatStillNeedUpdates be the result of getting all navigables that only need
     //    history object length/index update given traversable and targetStep.
     m_nonchanging_navigables_that_still_need_updates = m_session_history.get_all_navigables_that_only_need_history_object_length_index_update(m_traversable_navigable, m_target_step);
 
     // 8. For each navigable of changingNavigables:
-    for (auto navigable_id : m_changing_navigables) {
-        auto* navigable = find_navigable(navigable_id);
+    for (auto& changing_navigable : m_changing_navigables) {
+        auto* navigable = find_navigable(changing_navigable.id);
 
         // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
         auto* target_entry = navigable ? m_session_history.get_the_target_history_entry(*navigable, m_target_step) : nullptr;
@@ -159,10 +160,10 @@ void ApplyHistoryStep::get_changing_and_nonchanging_navigables()
         // 3. If targetEntry's document is not navigable's active document, then queue a global task on the navigation
         //    and traversal task source of navigable's active window to run these steps:
         if (!navigable->active_document_is(*target_entry))
-            m_jobs.queue_navigation_api_state_clear_task(navigable_id);
+            m_jobs.queue_navigation_api_state_clear_task(changing_navigable.id);
 
         // 4. Set navigable's ongoing navigation to "traversal".
-        set_ongoing_navigation_to_traversal(*navigable, *target_entry);
+        set_ongoing_navigation_to_traversal(changing_navigable, *navigable, *target_entry);
     }
 
     run_changing_navigable_jobs();
@@ -171,7 +172,8 @@ void ApplyHistoryStep::get_changing_and_nonchanging_navigables()
 void ApplyHistoryStep::run_changing_navigable_jobs()
 {
     // 12. For each navigable of changingNavigables, queue a global task on the navigation and traversal task source.
-    for (auto navigable_id : m_changing_navigables) {
+    for (auto& changing_navigable : m_changing_navigables) {
+        auto navigable_id = changing_navigable.id;
         auto const* navigable = find_navigable(navigable_id);
         auto* target_entry = navigable ? m_session_history.get_the_target_history_entry(*navigable, m_target_step) : nullptr;
         if (!target_entry) {
@@ -201,16 +203,14 @@ void ApplyHistoryStep::run_changing_navigable_jobs()
             .target_entry_reload_pending = target_entry->document_state->reload_pending,
             .user_involvement = m_user_involvement,
             .navigation_type = m_navigation_type,
+            .traversal_yields_to = changing_navigable.traversal_yields_to,
+            .canceled_navigation_id = changing_navigable.canceled_navigation_id,
         };
-        if (auto yield = m_same_document_traversal_yields.get(navigable_id); yield.has_value()) {
-            job.traversal_yields_to = yield->yields_to;
-            job.canceled_navigation_id = yield->canceled_navigation_id;
-        }
         if (!m_jobs.select_changing_navigable_history_step_job_endpoint(job)) {
             changing_navigable_job_completed(navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped);
             continue;
         }
-        m_claimed_target_entries.set(navigable_id, *target_entry);
+        changing_navigable.claimed_target_entry = target_entry;
 
         m_jobs.run_changing_navigable_history_step_job(
             move(job),
@@ -355,17 +355,18 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
         // NB: navigable's own sync navigations wait from step 8 on. So, none of them can change the entry after this.
         auto* target_entry = navigable ? m_session_history.get_the_target_history_entry(*navigable, m_target_step) : nullptr;
         RefPtr<CanonicalSessionHistoryEntry> updated_target_entry;
-        if (auto claimed_target_entry = m_claimed_target_entries.get(navigable_id); target_entry && claimed_target_entry.has_value()) {
-            auto is_in_claimed_slot = target_entry->document_state == claimed_target_entry.value()->document_state
-                && target_entry->navigation_api_key == claimed_target_entry.value()->navigation_api_key;
+        auto* changing_navigable = find_changing_navigable(navigable_id);
+        if (auto claimed_target_entry = changing_navigable ? changing_navigable->claimed_target_entry : nullptr; target_entry && claimed_target_entry) {
+            auto is_in_claimed_slot = target_entry->document_state == claimed_target_entry->document_state
+                && target_entry->navigation_api_key == claimed_target_entry->navigation_api_key;
             if (is_in_claimed_slot) {
-                if (target_entry->navigation_api_id != claimed_target_entry.value()->navigation_api_id)
+                if (target_entry->navigation_api_id != claimed_target_entry->navigation_api_id)
                     updated_target_entry = target_entry;
             } else if (m_navigation_type == Web::Bindings::NavigationType::Traverse) {
                 return_result(Web::HTML::HistoryStepResult::Applied);
                 return;
             } else if (m_navigation_type == Web::Bindings::NavigationType::Push) {
-                target_entry = append_the_claimed_target_entry_again(*navigable, *claimed_target_entry.value());
+                target_entry = append_the_claimed_target_entry_again(*navigable, *claimed_target_entry);
                 if (!target_entry) {
                     return_result(Web::HTML::HistoryStepResult::NoMatchingEntry);
                     return;
@@ -512,7 +513,7 @@ Web::HTML::SessionHistoryEntryDescriptor ApplyHistoryStepJobs::ChangingNavigable
     return descriptor;
 }
 
-void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& navigable, CanonicalSessionHistoryEntry const& target_entry)
+void ApplyHistoryStep::set_ongoing_navigation_to_traversal(ChangingNavigable& changing_navigable, CanonicalNavigable& navigable, CanonicalSessionHistoryEntry const& target_entry)
 {
     // AD-HOC: As in browsers, a push or replace leaves the ongoing navigation alone: a newer navigation goes on, and
     //         commits after it. See https://github.com/whatwg/html/issues/12581.
@@ -543,7 +544,7 @@ void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& n
         && ongoing_navigation
         && ongoing_navigation->sequence_number > m_operation_sequence_number) {
         if (is_same_document_traversal)
-            m_same_document_traversal_yields.set(navigable.id(), { Web::HTML::TraversalYieldsTo::AdmittedNavigation, {} });
+            changing_navigable.traversal_yields_to = Web::HTML::TraversalYieldsTo::AdmittedNavigation;
         return;
     }
 
@@ -562,16 +563,25 @@ void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& n
     if (traversal_crosses_documents) {
         navigable.clear_ongoing_navigation();
         navigable.set_ongoing_navigation_to_traversal(m_operation_id);
-        m_navigables_with_ongoing_history_traversal.set(navigable.id());
+        changing_navigable.has_ongoing_history_traversal = true;
     }
 
-    if (is_same_document_traversal)
-        m_same_document_traversal_yields.set(navigable.id(), { Web::HTML::TraversalYieldsTo::UnadmittedNavigation, move(canceled_navigation_id) });
+    if (is_same_document_traversal) {
+        changing_navigable.traversal_yields_to = Web::HTML::TraversalYieldsTo::UnadmittedNavigation;
+        changing_navigable.canceled_navigation_id = move(canceled_navigation_id);
+    }
+}
+
+ApplyHistoryStep::ChangingNavigable* ApplyHistoryStep::find_changing_navigable(Web::HTML::CrossProcessId navigable_id)
+{
+    auto it = m_changing_navigables.find_if([&](auto const& changing_navigable) { return changing_navigable.id == navigable_id; });
+    return it == m_changing_navigables.end() ? nullptr : &*it;
 }
 
 void ApplyHistoryStep::clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId navigable_id)
 {
-    if (!m_navigables_with_ongoing_history_traversal.remove(navigable_id))
+    auto* changing_navigable = find_changing_navigable(navigable_id);
+    if (!changing_navigable || !exchange(changing_navigable->has_ongoing_history_traversal, false))
         return;
     if (auto* navigable = find_navigable(navigable_id))
         navigable->clear_ongoing_navigation_traversal(m_operation_id);
@@ -579,11 +589,8 @@ void ApplyHistoryStep::clear_ongoing_navigation_traversal(Web::HTML::CrossProces
 
 void ApplyHistoryStep::clear_all_ongoing_navigation_traversals()
 {
-    for (auto navigable_id : m_navigables_with_ongoing_history_traversal) {
-        if (auto* navigable = find_navigable(navigable_id))
-            navigable->clear_ongoing_navigation_traversal(m_operation_id);
-    }
-    m_navigables_with_ongoing_history_traversal.clear();
+    for (auto& changing_navigable : m_changing_navigables)
+        clear_ongoing_navigation_traversal(changing_navigable.id);
 }
 
 CanonicalNavigable* ApplyHistoryStep::find_navigable(Web::HTML::CrossProcessId navigable_id)
