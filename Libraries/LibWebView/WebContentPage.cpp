@@ -301,7 +301,7 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     if (!navigable.has_value())
         return false;
 
-    auto* navigation = navigable->navigation_with_id(navigation_id);
+    auto navigation = navigable->navigation_with_id(navigation_id);
     if (!navigation || !navigation->state.has<CanonicalNavigation::AcquiringResponseBody>())
         return false;
 
@@ -330,8 +330,8 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
         auto navigable = host->traversable().top_level_traversable().find(navigable_id);
         if (!navigable.has_value())
             return;
-        auto* navigation = navigable->navigation_with_id(navigation_id);
-        if (!navigation || !navigation->state.has<CanonicalNavigation::Populating>() || navigation->loader() != weak_loader.ptr())
+        auto navigation = navigable->navigation_with_id(navigation_id);
+        if (!navigation || !navigation->state.has<CanonicalNavigation::Populating>() || navigation->loader().ptr() != weak_loader.ptr())
             return;
         if (!succeeded) {
             navigable->did_cancel_navigation(navigation_id);
@@ -1928,36 +1928,21 @@ void WebContentPage::did_request_navigation_start(Web::HTML::CrossProcessId navi
     if (start_request.has_value())
         start_request->initiator_origin = initiator_origin.release_value();
 
-    auto sequence_number = target_navigable->top_level_traversable().next_sequence_number();
-
-    // A javascript: navigation runs synchronously in the requesting process and never populates an entry.
-    // Record its admission without population state, owned by the evaluating process, so its failure or
-    // produced document is validated against that process.
     if (!start_request.has_value()) {
         if (url.scheme() != "javascript"sv) {
             client().did_misbehave("did_request_navigation_start"sv, "navigation without a start request is not to a javascript: URL"sv);
             return;
         }
-        target_navigable->set_ongoing_navigation(CanonicalNavigation {
-            .url = url,
-            .navigation_id = navigation_id,
-            .sequence_number = sequence_number,
-            .state = CanonicalNavigation::EvaluatingJavaScriptURL {},
-            .page = this,
-        });
-        if (target_navigable->is_top_level_traversable()) {
-            if (displays_tab())
-                begin_top_level_load(url);
-        }
+        target_navigable->begin_evaluating_javascript_url(url, navigation_id, *this);
         return;
     }
 
     auto retry = prepare_navigation_to_retry(*start_request);
-    target_navigable->set_ongoing_navigation(CanonicalNavigation {
+    target_navigable->set_ongoing_navigation(CanonicalNavigation::Start {
         .url = move(url),
         .navigation_id = navigation_id,
         .retry = move(retry),
-        .sequence_number = sequence_number,
+        .sequence_number = target_navigable->top_level_traversable().next_sequence_number(),
         .state = CanonicalNavigation::CheckingIfUnloadingIsCanceled { start_request.release_value() },
         .page = this,
     });
@@ -1993,7 +1978,7 @@ void WebContentPage::did_complete_navigation_unload_check(Web::HTML::CrossProces
     if (!navigable.has_value())
         return;
 
-    auto* ongoing_navigation = navigable->navigation_with_id(navigation_id);
+    auto ongoing_navigation = navigable->navigation_with_id(navigation_id);
     auto* checking = ongoing_navigation ? ongoing_navigation->state.get_pointer<CanonicalNavigation::CheckingIfUnloadingIsCanceled>() : nullptr;
     if (!checking || ongoing_navigation->worker() != this)
         return;
@@ -2023,7 +2008,7 @@ void WebContentPage::did_finish_navigation_params_creation(Web::HTML::CrossProce
         return;
     }
 
-    auto* ongoing_navigation = navigable->navigation_with_id(navigation_id);
+    auto ongoing_navigation = navigable->navigation_with_id(navigation_id);
     auto* creating = ongoing_navigation ? ongoing_navigation->state.get_pointer<CanonicalNavigation::CreatingNavigationParams>() : nullptr;
     if (!creating || ongoing_navigation->worker() != this) {
         if (result.has_value())
@@ -2040,10 +2025,10 @@ void WebContentPage::did_finish_navigation_params_creation(Web::HTML::CrossProce
     // sync with redirects before choosing the process that will run step 5.
     auto loader = move(creating->loader);
     ongoing_navigation->state = CanonicalNavigation::AcquiringResponseBody { move(loader) };
-    auto& acquiring_loader = *ongoing_navigation->loader();
-    acquiring_loader.did_finish_navigation_params_creation(result.release_value());
-    if (ongoing_navigation->history_entry->update_from_descriptor(Web::HTML::create_session_history_entry_descriptor(acquiring_loader.request().history_entry, 0)).is_error()) {
-        auto rejected_result = acquiring_loader.take_result();
+    NonnullRefPtr acquiring_loader = *ongoing_navigation->loader();
+    acquiring_loader->did_finish_navigation_params_creation(result.release_value());
+    if (ongoing_navigation->history_entry->update_from_descriptor(Web::HTML::create_session_history_entry_descriptor(acquiring_loader->request().history_entry, 0)).is_error()) {
+        auto rejected_result = acquiring_loader->take_result();
         NavigationLoader::discard(client().is_private(), rejected_result);
         navigable->did_cancel_navigation(navigation_id);
         client().did_misbehave("did_finish_navigation_params_creation"sv, "replacement document state forms a cycle"sv);
@@ -2051,7 +2036,7 @@ void WebContentPage::did_finish_navigation_params_creation(Web::HTML::CrossProce
     }
     ongoing_navigation->url = ongoing_navigation->history_entry->url;
 
-    acquiring_loader.acquire_response_body([page = NonnullRefPtr<WebContentPage>(*this), navigable_id, navigation_id = move(navigation_id)](bool succeeded) {
+    acquiring_loader->acquire_response_body([page = NonnullRefPtr<WebContentPage>(*this), navigable_id, navigation_id = move(navigation_id)](bool succeeded) {
         // The page may have closed while the body was fetched; its navigation then has nothing left to finish.
         if (!page->is_open())
             return;
@@ -2076,7 +2061,7 @@ void WebContentPage::did_fail_navigation_population(Web::HTML::CrossProcessId na
 
     // The failure must name the admitted transaction, and must come from a process that owns part of its
     // outcome: the population worker (unload check, javascript: evaluation) or the population host.
-    auto* ongoing_navigation = navigable->navigation_with_id(navigation_id);
+    auto ongoing_navigation = navigable->navigation_with_id(navigation_id);
     if (!ongoing_navigation
         || ongoing_navigation->is_finalizing()
         || (ongoing_navigation->worker() != this && ongoing_navigation->host() != this)) {
@@ -2185,7 +2170,7 @@ Messages::WebContentClient::DidStartDownloadResponse WebContentPage::did_start_d
     // received that response may claim it, and only while its population is in flight.
     bool matches_in_flight_navigation = false;
     if (auto navigable = population_worker_navigable(navigable_id); navigable.has_value()) {
-        auto const* ongoing_navigation = navigation_id.has_value() ? navigable->navigation_with_id(*navigation_id) : nullptr;
+        auto ongoing_navigation = navigation_id.has_value() ? navigable->navigation_with_id(*navigation_id) : nullptr;
         if (ongoing_navigation
             && (ongoing_navigation->state.has<CanonicalNavigation::CreatingNavigationParams>() || ongoing_navigation->state.has<CanonicalNavigation::Populating>())
             && ongoing_navigation->loader()->response_body_matches(request_server_client_id, request_server_request_id)) {

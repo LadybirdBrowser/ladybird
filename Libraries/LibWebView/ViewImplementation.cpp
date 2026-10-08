@@ -3248,7 +3248,7 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
     auto traversal = traversable().browser_history_traversal_for_testing();
 
     Optional<URL::URL> loading_url;
-    if (auto const* navigation = traversable().uncommitted_navigation())
+    if (auto navigation = traversable().uncommitted_navigation())
         loading_url = navigation->url;
 
     // The page displaying the tab can have lost its process, as when a crash recovery ends.
@@ -3375,7 +3375,7 @@ void ViewImplementation::respawn_web_content_process_after_crash()
 
 Optional<ViewImplementation::NavigationToRetry> ViewImplementation::navigation_to_retry_for_ongoing_navigation() const
 {
-    auto const* navigation = traversable().uncommitted_navigation();
+    auto navigation = traversable().uncommitted_navigation();
     if (!navigation)
         navigation = traversable().navigation_being_finalized();
     if (!navigation)

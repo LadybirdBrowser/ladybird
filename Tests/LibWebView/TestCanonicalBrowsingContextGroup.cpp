@@ -17,7 +17,7 @@
 #include <LibWebView/CanonicalWindow.h>
 
 // A navigation whose steps are checking if unloading is canceled, in no page.
-static WebView::CanonicalNavigation navigation_for_testing(Utf16String navigation_id, u64 sequence_number = 0, RefPtr<WebView::CanonicalSessionHistoryEntry> history_entry = {})
+static WebView::CanonicalNavigation::Start navigation_for_testing(Utf16String navigation_id, u64 sequence_number = 0, RefPtr<WebView::CanonicalSessionHistoryEntry> history_entry = {})
 {
     return {
         .url = URL::about_blank(),
