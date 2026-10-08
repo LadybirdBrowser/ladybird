@@ -841,7 +841,16 @@ void Application::start_next_content_blocker_list_update()
         return;
     }
 
-    auto timeout = Core::Timer::create_single_shot(30 * 1000, [this] {
+    auto timeout_ms = []() {
+        if (auto value = Core::Environment::get("LADYBIRD_CONTENT_BLOCKER_LIST_UPDATE_TIMEOUT_MS"sv); value.has_value()) {
+            if (auto parsed = value->to_number<int>(); parsed.has_value() && *parsed > 0)
+                return *parsed;
+        }
+
+        return 30 * 1000;
+    }();
+
+    auto timeout = Core::Timer::create_single_shot(timeout_ms, [this] {
         warnln("Content blocker list download timed out");
         stop_current_content_blocker_list_update_and_continue();
     });
