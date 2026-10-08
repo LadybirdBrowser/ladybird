@@ -2601,16 +2601,6 @@ static URL::URL content_blocker_source_url_for_request(Infrastructure::Request& 
     return request.current_url();
 }
 
-static NonnullRefPtr<Engine::WholeBodyTransport> create_whole_body_transport(Engine::FetchBodyDeliveryGate& delivery_gate, Engine::FetchByteChannel& channel)
-{
-    auto transport = Engine::WholeBodyTransport::create();
-    transport->set_on_stop([delivery_gate = NonnullRefPtr { delivery_gate }, channel = NonnullRefPtr { channel }] {
-        delivery_gate->detach_transport();
-        channel->cancel();
-    });
-    return transport;
-}
-
 namespace {
 
 // A network response's body stream and the objects that fill it from the transport.
@@ -2658,6 +2648,30 @@ static NetworkBodyStream create_network_body_stream(JS::Realm& realm, GC::Ptr<In
     return { stream, move(channel), move(delivery_gate), body_pump, pull_source };
 }
 
+// The gate detaches before the channel's ending reaches it.
+static void tear_down_network_body(Engine::FetchBodyDeliveryGate& delivery_gate, Engine::FetchByteChannel& channel, Requests::Request::TeardownReason reason)
+{
+    delivery_gate.detach_transport();
+    switch (reason) {
+    case Requests::Request::TeardownReason::Stopped:
+        (void)channel.cancel();
+        return;
+    case Requests::Request::TeardownReason::Transferred:
+        (void)channel.transfer_out();
+        return;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static NonnullRefPtr<Engine::WholeBodyTransport> create_whole_body_transport(Engine::FetchBodyDeliveryGate& delivery_gate, Engine::FetchByteChannel& channel)
+{
+    auto transport = Engine::WholeBodyTransport::create();
+    transport->set_on_stop([delivery_gate = NonnullRefPtr { delivery_gate }, channel = NonnullRefPtr { channel }] {
+        tear_down_network_body(*delivery_gate, *channel, Requests::Request::TeardownReason::Stopped);
+    });
+    return transport;
+}
+
 GC::Ptr<Infrastructure::Body> adopt_navigation_response_body(JS::Realm& realm, Infrastructure::Response& response, Optional<Utf16String> const& request_server_top_level_site, Requests::RequestTransferLeaseKey transfer_lease, RefPtr<Infrastructure::FetchTimingInfo> timing_info, Function<void(Optional<StringView> error)> on_network_settled)
 {
     if (!ResourceLoader::is_initialized())
@@ -2686,11 +2700,11 @@ GC::Ptr<Infrastructure::Body> adopt_navigation_response_body(JS::Realm& realm, I
     delivery_gate->attach_transport(network_transport);
     // A request either finishes or tears down, so the observer hears the body's end once.
     auto network_settled = GC::make_root(GC::create_function(GC::Heap::the(), move(on_network_settled)));
-    // The gate detaches before the cancellation reaches it.
-    network_transport->set_on_teardown([delivery_gate, channel, network_settled] {
-        delivery_gate->detach_transport();
-        channel->cancel();
-        network_settled->function()("Transferred navigation response was stopped"sv);
+    network_transport->set_on_teardown([delivery_gate, channel, network_settled](Requests::Request::TeardownReason reason) {
+        tear_down_network_body(*delivery_gate, *channel, reason);
+        // A body that moves to another owner is reported there.
+        if (reason == Requests::Request::TeardownReason::Stopped)
+            network_settled->function()("Transferred navigation response was stopped"sv);
     });
 
     auto body_pump = GC::make_root(network_body_stream.body_pump);
@@ -2728,6 +2742,7 @@ GC::Ptr<Infrastructure::Body> adopt_navigation_response_body(JS::Realm& realm, I
     response.set_network_transport({
         .handle = move(network_transport),
         .body_delivery_gate = move(delivery_gate),
+        .body_channel = move(channel),
     });
     return body;
 }
@@ -2808,7 +2823,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     // A load without a RequestServer request, such as one for a file: URL, hands over its whole body at once.
     auto whole_body_transport = create_whole_body_transport(*delivery_gate, *channel);
 
-    auto on_headers_received = GC::create_function(GC::Heap::the(), [&fetch_params, pending_response, stream, request, body_pump, delivery_gate, whole_body_transport, http_cache](Engine::NetworkTransportHandle* network_transport, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, Requests::CacheState cache_state) {
+    auto on_headers_received = GC::create_function(GC::Heap::the(), [&fetch_params, pending_response, stream, request, body_pump, channel, delivery_gate, whole_body_transport, http_cache](Engine::NetworkTransportHandle* network_transport, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, Requests::CacheState cache_state) {
         if (pending_response->is_resolved()) {
             // RequestServer will send us the response headers twice, the second time being for HTTP trailers. This
             // fetch algorithm is not interested in trailers, so just drop them here.
@@ -2846,6 +2861,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
             response->set_network_transport({
                 .handle = *network_transport,
                 .body_delivery_gate = delivery_gate,
+                .body_channel = channel,
             });
         } else {
             // A body without a RequestServer request is never held for its navigation.
@@ -2939,10 +2955,8 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     auto network_transport = ResourceLoader::the().load(load_request, on_headers_received, on_data_received, on_cached_body_available, on_complete, transfer_lease);
     if (network_transport) {
         delivery_gate->attach_transport(*network_transport);
-        // The gate detaches before the cancellation reaches it.
-        network_transport->set_on_teardown([delivery_gate, channel, body_pump = GC::Root { body_pump }] {
-            delivery_gate->detach_transport();
-            channel->cancel();
+        network_transport->set_on_teardown([delivery_gate, channel, body_pump = GC::Root { body_pump }](Requests::Request::TeardownReason reason) {
+            tear_down_network_body(*delivery_gate, *channel, reason);
             body_pump->abandon_cache_entry();
         });
         fetch_params.controller()->set_network_transport(*network_transport);

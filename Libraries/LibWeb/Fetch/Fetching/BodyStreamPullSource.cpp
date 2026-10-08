@@ -188,6 +188,7 @@ void BodyStreamPullSource::settle_stream(Engine::FetchByteChannel::TakeResult co
     result.state.visit(
         [](Engine::FetchByteChannel::Open) { },
         [](Engine::FetchByteChannel::ConsumerCancelled) { },
+        [](Engine::FetchByteChannel::Transferred) { },
         [&](Engine::FetchByteChannel::Closed) {
             // 2. Otherwise, if the bytes transmission for response’s message body is done normally and stream is
             //    readable, then close stream, and abort these in-parallel steps.
@@ -271,7 +272,7 @@ void BodyStreamPullSource::drain_into_stream()
         m_fetch_params->controller()->terminate();
 
     settle_stream(result);
-    if (result.state.has<Engine::FetchByteChannel::ConsumerCancelled>())
+    if (result.state.has<Engine::FetchByteChannel::ConsumerCancelled>() || result.state.has<Engine::FetchByteChannel::Transferred>())
         m_detached = true;
 }
 

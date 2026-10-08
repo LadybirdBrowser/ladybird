@@ -215,6 +215,23 @@ TEST_CASE(detached_transport_is_never_touched_again)
     EXPECT(harness.transport->take_calls().is_empty());
 }
 
+TEST_CASE(released_transport_is_paused_and_never_touched_again)
+{
+    // A body handed to another process leaves the transport paused for its next owner, which reads the rest.
+    GateHarness harness { NavigationHold::None };
+    harness.gate->attach_transport(harness.transport);
+    harness.gate->grant_credit(10);
+    (void)harness.transport->take_calls();
+
+    harness.gate->release_transport();
+    EXPECT_EQ(harness.transport->take_calls(), (Vector { TransportCall { TransportCall::Op::Pause } }));
+
+    harness.gate->consumer_cancelled();
+    harness.gate->grant_credit(10);
+    harness.gate->release_hold();
+    EXPECT(harness.transport->take_calls().is_empty());
+}
+
 TEST_CASE(channel_sink_posts_commands_onto_the_creating_loop)
 {
     Core::EventLoop loop;

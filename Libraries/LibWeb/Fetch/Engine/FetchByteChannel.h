@@ -58,7 +58,8 @@ public:
         ByteBuffer message;
     };
     struct ConsumerCancelled { };
-    using State = Variant<Open, Closed, Errored, ConsumerCancelled>;
+    struct Transferred { };
+    using State = Variant<Open, Closed, Errored, ConsumerCancelled, Transferred>;
 
     // Snapshotted atomically with the removal of the bytes.
     struct TakeResult {
@@ -96,6 +97,10 @@ public:
 
     // Either side may cancel; the producer hears of it unless it has already ended the body.
     TerminateResult cancel();
+
+    // Ends an open or closed channel for a body that moves to another process, returning its undrained bytes. The
+    // transport hears nothing, and later writes and endings do nothing.
+    [[nodiscard]] Vector<Core::ImmutableBytes> transfer_out();
 
     // Returns the ticket the wake will carry; a wake already due fires before this returns, outside the lock.
     WakeTicket arm_waiter();

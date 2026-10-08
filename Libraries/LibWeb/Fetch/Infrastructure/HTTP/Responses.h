@@ -64,6 +64,7 @@ public:
     struct NetworkTransport {
         NonnullRefPtr<Engine::NetworkTransportHandle> handle;
         NonnullRefPtr<Engine::FetchBodyDeliveryGate> body_delivery_gate;
+        NonnullRefPtr<Engine::FetchByteChannel> body_channel;
     };
 
     [[nodiscard]] static GC::Ref<Response> create();
@@ -149,6 +150,10 @@ public:
     virtual void release_request_transfer_lease() const;
     virtual void resume_body_delivery() const;
     virtual void resume_body_delivery_up_to(size_t) const;
+
+    // Stops this process taking the body, whose request another process adopts next, and returns the bytes that
+    // process reads before the rest.
+    virtual Vector<Core::ImmutableBytes> release_body_for_transfer() const;
 
 protected:
     explicit Response(NonnullRefPtr<HTTP::HeaderList>);
@@ -291,6 +296,7 @@ public:
     virtual void release_request_transfer_lease() const override { m_internal_response->release_request_transfer_lease(); }
     virtual void resume_body_delivery() const override { m_internal_response->resume_body_delivery(); }
     virtual void resume_body_delivery_up_to(size_t byte_count) const override { m_internal_response->resume_body_delivery_up_to(byte_count); }
+    virtual Vector<Core::ImmutableBytes> release_body_for_transfer() const override { return m_internal_response->release_body_for_transfer(); }
 
     [[nodiscard]] GC::Ref<Response> internal_response() const { return m_internal_response; }
 

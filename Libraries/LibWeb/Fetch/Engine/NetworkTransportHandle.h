@@ -32,7 +32,7 @@ public:
     void release_transfer_lease();
 
     void set_on_requires_network(Function<void()>);
-    void set_on_teardown(Function<void()>);
+    void set_on_teardown(Function<void(Requests::Request::TeardownReason)>);
 
 private:
     explicit NetworkTransportHandle(NonnullRefPtr<Requests::Request>);
