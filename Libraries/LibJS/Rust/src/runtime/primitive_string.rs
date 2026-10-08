@@ -13,7 +13,7 @@ use crate::gc::class::{Class, ExternalMemorySize, GcCell, define_cell};
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::{StringToAtomCacheEntry, Vm};
 use crate::layout::cell::{CellHeader, Gc};
-pub use crate::layout::primitive_string::{DeferredKind, PrimitiveString};
+pub use crate::layout::primitive_string::{DeferredKind, INLINE_STRING_CAPACITY, InlineString, PrimitiveString};
 use crate::layout::value::Value;
 use crate::layout_forward::Utf16StringSlot;
 use crate::runtime::completion::ThrowCompletionOr;
@@ -29,6 +29,7 @@ use crate::utf16::{
 define_cell!(PrimitiveString, PrimitiveString, external_memory_size: external_memory_size);
 define_cell!(RopeString, PrimitiveString, extends: [PrimitiveString]);
 define_cell!(Substring, PrimitiveString, extends: [PrimitiveString]);
+define_cell!(InlineString, PrimitiveString, extends: [PrimitiveString]);
 
 // PrimitiveString::external_memory_size(): the storage of the string once it has one.
 impl ExternalMemorySize for PrimitiveString {
@@ -57,6 +58,11 @@ pub struct Substring {
     base: PrimitiveString,
     source_string: Cell<Option<Gc<PrimitiveString>>>,
     code_unit_offset: usize,
+}
+
+// SAFETY: The characters hold no cells.
+unsafe impl Trace for InlineString {
+    fn trace(&self, _: &mut Visitor) {}
 }
 
 /// Mirrors AK::u64_hash, the MurmurHash3 64-bit finalizer.
@@ -116,6 +122,15 @@ impl PrimitiveString {
         vm.heap().allocate(Self::new(string))
     }
 
+    /// Creates a string of ASCII characters.
+    pub fn create_from_ascii(vm: &Vm, characters: &[u8]) -> Gc<PrimitiveString> {
+        debug_assert!(characters.is_ascii());
+        if characters.len() < size_of::<usize>() || characters.len() > INLINE_STRING_CAPACITY {
+            return Self::create(vm, Utf16String::from_ascii(characters));
+        }
+        vm.heap().allocate(InlineString::new(characters)).upcast()
+    }
+
     pub fn create_from_utf16_view(vm: &Vm, string: Utf16View<'_>) -> Gc<PrimitiveString> {
         Self::create(vm, string.to_utf16_string())
     }
@@ -173,6 +188,29 @@ impl PrimitiveString {
         cache_entry.string.get().expect("the numeric string was just cached")
     }
 
+    fn try_create_inline_concatenated_string(
+        vm: &Vm,
+        lhs: &PrimitiveString,
+        rhs: &PrimitiveString,
+    ) -> Option<Gc<PrimitiveString>> {
+        let length = lhs.length_in_utf16_code_units() + rhs.length_in_utf16_code_units();
+        if length > INLINE_STRING_CAPACITY
+            || lhs.deferred_kind.get() == DeferredKind::Rope
+            || rhs.deferred_kind.get() == DeferredKind::Rope
+        {
+            return None;
+        }
+        let (Utf16View::Ascii(lhs_characters), Utf16View::Ascii(rhs_characters)) =
+            (lhs.utf16_string_view(), rhs.utf16_string_view())
+        else {
+            return None;
+        };
+        let mut characters = [0; INLINE_STRING_CAPACITY];
+        characters[..lhs_characters.len()].copy_from_slice(lhs_characters);
+        characters[lhs_characters.len()..length].copy_from_slice(rhs_characters);
+        Some(Self::create_from_ascii(vm, &characters[..length]))
+    }
+
     pub fn create_from_concatenation(
         vm: &Vm,
         lhs: Gc<PrimitiveString>,
@@ -202,6 +240,11 @@ impl PrimitiveString {
             return Ok(short_flat_string);
         }
 
+        // OPTIMIZATION: Copying a few ASCII characters is cheaper than making a rope and resolving it later.
+        if let Some(inline_string) = Self::try_create_inline_concatenated_string(vm, &lhs, &rhs) {
+            return Ok(inline_string);
+        }
+
         Ok(vm.heap().allocate(RopeString::new(lhs, rhs)).upcast())
     }
 
@@ -228,6 +271,18 @@ impl PrimitiveString {
             if is_ascii(code_unit) {
                 return vm.single_ascii_character_string(code_unit as u8);
             }
+        }
+
+        // OPTIMIZATION: A few ASCII characters are copied rather than kept in their source, which a substring would keep
+        //               alive and copy out of when resolved.
+        if code_unit_length <= INLINE_STRING_CAPACITY
+            && string.deferred_kind.get() != DeferredKind::Rope
+            && let Utf16View::Ascii(characters) = string.utf16_string_view()
+        {
+            let mut copied_characters = [0; INLINE_STRING_CAPACITY];
+            copied_characters[..code_unit_length]
+                .copy_from_slice(&characters[code_unit_offset..code_unit_offset + code_unit_length]);
+            return Self::create_from_ascii(vm, &copied_characters[..code_unit_length]);
         }
 
         if string.deferred_kind.get() == DeferredKind::Substring {
@@ -278,13 +333,15 @@ impl PrimitiveString {
     }
 
     pub fn property_key(&self, vm: &Vm) -> PropertyKey {
-        self.resolve_if_needed();
-
-        let string = self
-            .resolved_utf16_string()
-            .expect("a resolved string has its UTF-16 string");
-        if has_fly_string_storage(string) {
-            return PropertyKey::from(to_utf16_fly_string(string));
+        // NB: The key of an inline string is made from its characters, so that it is not resolved.
+        if self.deferred_kind.get() != DeferredKind::Inline {
+            self.resolve_if_needed();
+            let string = self
+                .resolved_utf16_string()
+                .expect("a resolved string has its UTF-16 string");
+            if has_fly_string_storage(string) {
+                return PropertyKey::from(to_utf16_fly_string(string));
+            }
         }
 
         let this = core::ptr::from_ref(self);
@@ -307,15 +364,18 @@ impl PrimitiveString {
             );
         }
 
-        let fly_string = to_utf16_fly_string(string);
-        if !has_fly_string_storage(string) {
-            string_to_atom_cache[1] = core::mem::take(&mut string_to_atom_cache[0]);
-            string_to_atom_cache[0] = StringToAtomCacheEntry {
-                // SAFETY: Strings only exist as cells, since every way to create one allocates it.
-                string: Some(unsafe { Gc::from_ref(self) }),
-                atom: Some(fly_string.clone()),
-            };
-        }
+        let fly_string = match self.resolved_utf16_string() {
+            Some(string) => to_utf16_fly_string(string),
+            None => Utf16FlyString::from_utf8(
+                core::str::from_utf8(self.as_inline_string().characters()).expect("an inline string is ASCII"),
+            ),
+        };
+        string_to_atom_cache[1] = core::mem::take(&mut string_to_atom_cache[0]);
+        string_to_atom_cache[0] = StringToAtomCacheEntry {
+            // SAFETY: Strings only exist as cells, since every way to create one allocates it.
+            string: Some(unsafe { Gc::from_ref(self) }),
+            atom: Some(fly_string.clone()),
+        };
         PropertyKey::from(fly_string)
     }
 
@@ -367,6 +427,9 @@ impl PrimitiveString {
     /// from, so the view must not be held across anything that can collect garbage.
     pub fn utf16_string_view(&self) -> Utf16View<'_> {
         if !self.has_utf16_string() {
+            if self.deferred_kind.get() == DeferredKind::Inline {
+                return Utf16View::Ascii(self.as_inline_string().characters());
+            }
             if self.deferred_kind.get() == DeferredKind::Substring {
                 let substring = self.as_substring();
                 let source_string = substring.source_string();
@@ -388,6 +451,9 @@ impl PrimitiveString {
     /// A view of the string's own code units, resolving a rope or a substring first. Unlike utf16_string_view(), the
     /// view stays valid for as long as the string lives, since a resolved string never changes.
     pub fn resolved_utf16_string_view(&self) -> Utf16View<'_> {
+        if self.deferred_kind.get() == DeferredKind::Inline {
+            return Utf16View::Ascii(self.as_inline_string().characters());
+        }
         self.resolve_if_needed();
         Utf16View::of_string(
             self.resolved_utf16_string()
@@ -411,7 +477,15 @@ impl PrimitiveString {
             DeferredKind::None => {}
             DeferredKind::Rope => self.as_rope_string().resolve(),
             DeferredKind::Substring => self.as_substring().resolve(),
+            DeferredKind::Inline => self.as_inline_string().resolve(),
         }
+    }
+
+    fn as_inline_string(&self) -> &InlineString {
+        debug_assert!(self.header_class().is_subclass_of(InlineString::CLASS));
+        // SAFETY: Only InlineString creates strings that are deferred as inline strings, and it starts with its
+        //         PrimitiveString.
+        unsafe { &*core::ptr::from_ref(self).cast::<InlineString>() }
     }
 
     fn as_rope_string(&self) -> &RopeString {
@@ -584,5 +658,26 @@ impl Substring {
         self.base.set_resolved_utf16_string(string);
         self.base.deferred_kind.set(DeferredKind::None);
         self.source_string.set(None);
+    }
+}
+
+impl InlineString {
+    fn new(characters: &[u8]) -> Self {
+        let mut string = Self {
+            base: PrimitiveString::new_deferred(Self::CLASS, DeferredKind::Inline, characters.len()),
+            characters: [0; INLINE_STRING_CAPACITY],
+        };
+        string.characters[..characters.len()].copy_from_slice(characters);
+        string
+    }
+
+    fn characters(&self) -> &[u8] {
+        &self.characters[..self.base.length_in_utf16_code_units()]
+    }
+
+    fn resolve(&self) {
+        self.base
+            .set_resolved_utf16_string(Utf16String::from_ascii(self.characters()));
+        self.base.deferred_kind.set(DeferredKind::None);
     }
 }

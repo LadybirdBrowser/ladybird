@@ -4770,31 +4770,41 @@ asm_handler_GetByValue:
 1:
     and x3, x3, #0x3ffffffffff
     add x3, x3, x24
-    ldrb w9, [x3, #11]
-    cbnz w9, .Lasm_GetByValue.ssa_block_1
+    ldrb w1, [x3, #11]
+    cmp x1, #3
+    b.ne .Lasm_GetByValue.ssa_block_45
+    ldr w1, [x3, #12]
+    cmp x1, x0
+    b.ls .Lasm_GetByValue.ssa_block_7
+    add x1, x3, #24
+    ldrb w1, [x1, x0]
+    b .Lasm_GetByValue.ssa_block_46
+.Lasm_GetByValue.ssa_block_45:
+    cmp x1, #0
+    b.ne .Lasm_GetByValue.ssa_block_1
     ldr x1, [x3, #16]
     cbz x1, .Lasm_GetByValue.ssa_block_1
     ldrb w2, [x3, #16]
-    tbnz x2, #0, .Lasm_GetByValue.ssa_block_47
+    tbnz x2, #0, .Lasm_GetByValue.ssa_block_51
     ldr w2, [x1, #4]
     cmp x2, x0
     b.ls .Lasm_GetByValue.ssa_block_7
     ldr w2, [x1, #16]
-    tbz x2, #0, .Lasm_GetByValue.ssa_block_51
+    tbz x2, #0, .Lasm_GetByValue.ssa_block_55
     add x1, x1, #24
     ldrh w1, [x1, x0, lsl #1]
-    b .Lasm_GetByValue.ssa_block_48
-.Lasm_GetByValue.ssa_block_51:
+    b .Lasm_GetByValue.ssa_block_46
+.Lasm_GetByValue.ssa_block_55:
     add x1, x1, #24
     ldrb w1, [x1, x0]
-    b .Lasm_GetByValue.ssa_block_48
-.Lasm_GetByValue.ssa_block_47:
+    b .Lasm_GetByValue.ssa_block_46
+.Lasm_GetByValue.ssa_block_51:
     lsr w2, w2, #2
     cmp x0, x2
     b.hs .Lasm_GetByValue.ssa_block_7
     add x1, x3, #17
     ldrb w1, [x1, x0]
-.Lasm_GetByValue.ssa_block_48:
+.Lasm_GetByValue.ssa_block_46:
     cmp x1, #128
     b.hs .Lasm_GetByValue.ssa_block_1
     mov x0, x20
@@ -4802,7 +4812,7 @@ asm_handler_GetByValue:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
-    b.ne .Lasm_GetByValue.assert_predicate_failure_298
+    b.ne .Lasm_GetByValue.assert_predicate_failure_290
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
@@ -5769,8 +5779,8 @@ asm_handler_CallBuiltinStringPrototypeCharCodeAt:
     cmp x9, #22
     b.ne .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
     ldr w0, [x21, #12]
-    ldr x2, [x27, x0, lsl #3]
-    lsr x9, x2, #48
+    ldr x1, [x27, x0, lsl #3]
+    lsr x9, x1, #48
     mov w10, #65530
     cmp x9, x10
     b.ne .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
@@ -5783,33 +5793,43 @@ asm_handler_CallBuiltinStringPrototypeCharCodeAt:
     tbz w0, #31, 1f
     b .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_1
 1:
-    and x2, x2, #0x3ffffffffff
-    add x2, x2, x24
-    ldrb w9, [x2, #11]
-    cbnz w9, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
-    ldr x1, [x2, #16]
-    cbz x1, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
-    ldrb w3, [x2, #16]
-    tbnz x3, #0, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_12
-    ldr w2, [x1, #4]
+    and x1, x1, #0x3ffffffffff
+    add x1, x1, x24
+    ldrb w2, [x1, #11]
+    cmp x2, #3
+    b.ne .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_10
+    ldr w2, [x1, #12]
     cmp x2, x0
     b.ls .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_1
-    ldr w2, [x1, #16]
-    tbz x2, #0, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_16
-    add x1, x1, #24
-    ldrh w0, [x1, x0, lsl #1]
-    b .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_13
-.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_16:
     add x1, x1, #24
     ldrb w0, [x1, x0]
-    b .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_13
-.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_12:
+    b .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_11
+.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_10:
+    cmp x2, #0
+    b.ne .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
+    ldr x2, [x1, #16]
+    cbz x2, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
+    ldrb w3, [x1, #16]
+    tbnz x3, #0, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_16
+    ldr w1, [x2, #4]
+    cmp x1, x0
+    b.ls .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_1
+    ldr w1, [x2, #16]
+    tbz x1, #0, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_20
+    add x1, x2, #24
+    ldrh w0, [x1, x0, lsl #1]
+    b .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_11
+.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_20:
+    add x1, x2, #24
+    ldrb w0, [x1, x0]
+    b .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_11
+.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_16:
     lsr w3, w3, #2
     cmp x0, x3
     b.hs .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_1
-    add x1, x2, #17
+    add x1, x1, #17
     ldrb w0, [x1, x0]
-.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_13:
+.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_11:
     movk x0, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
@@ -5839,8 +5859,8 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     cmp x9, #23
     b.ne .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
     ldr w0, [x21, #12]
-    ldr x2, [x27, x0, lsl #3]
-    lsr x9, x2, #48
+    ldr x1, [x27, x0, lsl #3]
+    lsr x9, x1, #48
     mov w10, #65530
     cmp x9, x10
     b.ne .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
@@ -5853,33 +5873,43 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     tbz w0, #31, 1f
     b .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_2
 1:
-    and x2, x2, #0x3ffffffffff
-    add x2, x2, x24
-    ldrb w9, [x2, #11]
-    cbnz w9, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
-    ldr x1, [x2, #16]
-    cbz x1, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
-    ldrb w3, [x2, #16]
-    tbnz x3, #0, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_12
-    ldr w2, [x1, #4]
+    and x1, x1, #0x3ffffffffff
+    add x1, x1, x24
+    ldrb w2, [x1, #11]
+    cmp x2, #3
+    b.ne .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_10
+    ldr w2, [x1, #12]
     cmp x2, x0
     b.ls .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_2
-    ldr w2, [x1, #16]
-    tbz x2, #0, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_16
-    add x1, x1, #24
-    ldrh w1, [x1, x0, lsl #1]
-    b .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_13
-.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_16:
     add x1, x1, #24
     ldrb w1, [x1, x0]
-    b .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_13
-.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_12:
+    b .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_11
+.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_10:
+    cmp x2, #0
+    b.ne .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
+    ldr x2, [x1, #16]
+    cbz x2, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
+    ldrb w3, [x1, #16]
+    tbnz x3, #0, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_16
+    ldr w1, [x2, #4]
+    cmp x1, x0
+    b.ls .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_2
+    ldr w1, [x2, #16]
+    tbz x1, #0, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_20
+    add x1, x2, #24
+    ldrh w1, [x1, x0, lsl #1]
+    b .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_11
+.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_20:
+    add x1, x2, #24
+    ldrb w1, [x1, x0]
+    b .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_11
+.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_16:
     lsr w3, w3, #2
     cmp x0, x3
     b.hs .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_2
-    add x1, x2, #17
+    add x1, x1, #17
     ldrb w1, [x1, x0]
-.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_13:
+.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_11:
     cmp x1, #128
     b.hs .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
     mov x0, x20
@@ -5887,7 +5917,7 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
-    b.ne .Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_56
+    b.ne .Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_48
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
@@ -19376,7 +19406,7 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_GetByValue.assert_failure_0:
     brk #0
-.Lasm_GetByValue.assert_predicate_failure_298:
+.Lasm_GetByValue.assert_predicate_failure_290:
     brk #0
 .Lasm_GetByValue.assert_failure_2:
     brk #0
@@ -19510,7 +19540,7 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_CallBuiltinStringFromCharCode.assert_predicate_failure_8:
     brk #0
-.Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_56:
+.Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_48:
     brk #0
 .Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_8:
     brk #0

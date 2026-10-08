@@ -470,6 +470,9 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     let utf16_string_offset = offset!(w, "PRIMITIVE_STRING_UTF16_STRING", PrimitiveString, utf16_string);
     w.line("field PrimitiveString.utf16_data Utf16StringData PRIMITIVE_STRING_UTF16_STRING nullable scalar");
     w.constant("PRIMITIVE_STRING_DEFERRED_KIND_NONE", DeferredKind::None as u8);
+    w.constant("PRIMITIVE_STRING_DEFERRED_KIND_INLINE", DeferredKind::Inline as u8);
+    offset!(w, "PRIMITIVE_STRING_INLINE_STRING_STORAGE", InlineString, characters);
+    w.line("field PrimitiveString.inline_string_storage Sequence<u8> PRIMITIVE_STRING_INLINE_STRING_STORAGE embedded scalar");
 
     // A short AK string is stored inline in the string's word: a tag byte holding the flag and the byte count, then
     // the bytes themselves. That puts the tag in the word's lowest byte on the little-endian targets the

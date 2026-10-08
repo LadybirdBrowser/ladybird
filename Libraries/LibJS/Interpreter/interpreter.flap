@@ -882,29 +882,37 @@ inline fn load_primitive_string_utf16_code_unit(
     out_of_bounds: Label,
     else failure: Label
 ) -> u32 {
-    guard string.deferred_kind == PRIMITIVE_STRING_DEFERRED_KIND_NONE else failure;
-    let utf16_data = string.utf16_data;
-    guard utf16_data != 0 else failure;
-    assert(utf16_data != 0);
-
-    let short_string_info = string.utf16_short_string_byte_count_and_flag;
-    if short_string_info lacks UTF16_SHORT_STRING_FLAG {
-        let length = utf16_data.length_in_code_units;
+    let deferred_kind = string.deferred_kind;
+    if deferred_kind == PRIMITIVE_STRING_DEFERRED_KIND_INLINE {
+        let length = string.length_in_utf16_code_units;
         guard length > index else out_of_bounds;
-        if utf16_data.flags has UTF16_STRING_DATA_HAS_UTF16_STORAGE {
-            let utf16_storage: Sequence<u16> = alias(utf16_data.string_storage);
-            let code_unit: u32 = alias(utf16_storage[index]);
-            code_unit
+        let code_unit: u32 = alias(string.inline_string_storage[index]);
+        code_unit
+    } else {
+        guard deferred_kind == PRIMITIVE_STRING_DEFERRED_KIND_NONE else failure;
+        let utf16_data = string.utf16_data;
+        guard utf16_data != 0 else failure;
+        assert(utf16_data != 0);
+
+        let short_string_info = string.utf16_short_string_byte_count_and_flag;
+        if short_string_info lacks UTF16_SHORT_STRING_FLAG {
+            let length = utf16_data.length_in_code_units;
+            guard length > index else out_of_bounds;
+            if utf16_data.flags has UTF16_STRING_DATA_HAS_UTF16_STORAGE {
+                let utf16_storage: Sequence<u16> = alias(utf16_data.string_storage);
+                let code_unit: u32 = alias(utf16_storage[index]);
+                code_unit
+            } else {
+                let code_unit: u32 = alias(utf16_data.string_storage[index]);
+                code_unit
+            }
         } else {
-            let code_unit: u32 = alias(utf16_data.string_storage[index]);
+            let wide_short_string_info: u32 = alias(short_string_info);
+            let byte_count = wide_short_string_info >> UTF16_SHORT_STRING_BYTE_COUNT_SHIFT_COUNT;
+            guard index < byte_count else out_of_bounds;
+            let code_unit: u32 = alias(string.utf16_short_string_storage[index]);
             code_unit
         }
-    } else {
-        let wide_short_string_info: u32 = alias(short_string_info);
-        let byte_count = wide_short_string_info >> UTF16_SHORT_STRING_BYTE_COUNT_SHIFT_COUNT;
-        guard index < byte_count else out_of_bounds;
-        let code_unit: u32 = alias(string.utf16_short_string_storage[index]);
-        code_unit
     }
 }
 
