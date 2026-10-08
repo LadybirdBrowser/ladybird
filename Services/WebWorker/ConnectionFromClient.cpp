@@ -28,10 +28,10 @@ Messages::WebWorkerServer::InitTransportResponse ConnectionFromClient::init_tran
     VERIFY_NOT_REACHED();
 }
 
-void ConnectionFromClient::connect_to_request_server(IPC::TransportHandle handle)
+void ConnectionFromClient::connect_to_request_server(IPC::TransportHandle handle, int client_id)
 {
     if (on_request_server_connection)
-        on_request_server_connection(handle);
+        on_request_server_connection(handle, client_id);
 
     // A real connection loss defers this callback. Exercise the case where the replacement connection arrives before
     // that deferred callback runs.
@@ -39,13 +39,13 @@ void ConnectionFromClient::connect_to_request_server(IPC::TransportHandle handle
         request_server_died_callback();
 }
 
-void ConnectionFromClient::simulate_request_server_connection_loss_and_reconnect_for_testing(IPC::TransportHandle replacement_handle)
+void ConnectionFromClient::simulate_request_server_connection_loss_and_reconnect_for_testing(IPC::TransportHandle replacement_handle, int client_id)
 {
     auto disconnected_client = move(Web::ResourceLoader::the().request_client());
     m_request_server_died_callback_for_testing = move(disconnected_client->on_request_server_died);
     disconnected_client = nullptr;
 
-    connect_to_request_server(move(replacement_handle));
+    connect_to_request_server(move(replacement_handle), client_id);
 }
 
 void ConnectionFromClient::connect_to_image_decoder(IPC::TransportHandle handle)
