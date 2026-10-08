@@ -80,6 +80,50 @@ static ErrorOr<void const*> receive_display_list_tape(u64 tape_size, u64 run_cou
     return storage;
 }
 
+DisplayList::ReferencedResourceIds DisplayList::referenced_resource_ids() const
+{
+    auto ids = RustFFI::display_list_storage_referenced_resource_ids(m_storage);
+    return {
+        .fonts = { ids.font_ids, ids.font_id_count },
+        .image_frames = { ids.image_frame_ids, ids.image_frame_id_count },
+        .video_sinks = { ids.video_sink_ids, ids.video_sink_id_count },
+        .display_lists = { ids.display_list_ids, ids.display_list_id_count },
+    };
+}
+
+bool DisplayList::requires_direct_replay_without_nested_lists(AccumulatedVisualContextTree const& visual_context_tree) const
+{
+    VERIFY(m_compatible_visual_context_tree_structural_epoch == visual_context_tree.structural_epoch());
+    return RustFFI::display_list_storage_requires_direct_replay_without_nested_lists(m_storage, visual_context_tree.rust_handle());
+}
+
+void DisplayList::for_each_compositor_metadata(Function<void(ContextRef, DisplayListCommandType, ReadonlyBytes)> const& callback) const
+{
+    RustFFI::display_list_storage_for_each_compositor_metadata(m_storage, const_cast<void*>(static_cast<void const*>(&callback)), [](void* context, ContextRef run_context, DisplayListCommandType command_type, u8 const* payload, size_t payload_size) {
+        (*static_cast<Function<void(ContextRef, DisplayListCommandType, ReadonlyBytes)> const*>(context))(run_context, command_type, { payload, payload_size });
+    });
+}
+
+template<typename Command>
+static void for_each_indexed_record(void const* storage, RustFFI::FfiIndexedRecordKind kind, Function<void(ContextRef, Optional<Gfx::IntRect>, Command const&)> const& callback)
+{
+    RustFFI::display_list_storage_for_each_indexed_record(storage, kind, const_cast<void*>(static_cast<void const*>(&callback)), [](void* context, ContextRef run_context, bool has_bounding_rect, Gfx::IntRect bounding_rect, u8 const* payload, size_t payload_size) {
+        auto command = read_display_list_object<Command>({ payload, payload_size });
+        auto rect = has_bounding_rect ? Optional<Gfx::IntRect> { bounding_rect } : Optional<Gfx::IntRect> {};
+        (*static_cast<Function<void(ContextRef, Optional<Gfx::IntRect>, Command const&)> const*>(context))(run_context, rect, command);
+    });
+}
+
+void DisplayList::for_each_drawn_canvas(Function<void(ContextRef, Optional<Gfx::IntRect>, DrawCanvas const&)> const& callback) const
+{
+    for_each_indexed_record<DrawCanvas>(m_storage, RustFFI::FfiIndexedRecordKind::DrawnCanvas, callback);
+}
+
+void DisplayList::for_each_caret(Function<void(ContextRef, Optional<Gfx::IntRect>, PaintCaret const&)> const& callback) const
+{
+    for_each_indexed_record<PaintCaret>(m_storage, RustFFI::FfiIndexedRecordKind::Caret, callback);
+}
+
 void DisplayList::replay(AccumulatedVisualContextTree const& visual_context_tree, ScrollStateSnapshot const& scroll_state, RustFFI::FfiDisplayListReplayCallbacks const& callbacks) const
 {
     VERIFY(m_compatible_visual_context_tree_structural_epoch == visual_context_tree.structural_epoch());

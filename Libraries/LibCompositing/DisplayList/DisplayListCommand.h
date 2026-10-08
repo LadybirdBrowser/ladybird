@@ -15,23 +15,6 @@
 
 namespace Compositing {
 
-constexpr bool display_list_command_is_compositor_metadata(DisplayListCommandType type)
-{
-    switch (type) {
-    case DisplayListCommandType::CompositorScrollNode:
-    case DisplayListCommandType::CompositorWheelHitTestTarget:
-    case DisplayListCommandType::CompositorWheelHitTestTargetWithCornerRadii:
-    case DisplayListCommandType::CompositorMainThreadWheelEventRegion:
-    case DisplayListCommandType::CompositorScrollbar:
-    case DisplayListCommandType::CompositorBlockingWheelEventRegion:
-    case DisplayListCommandType::CompositorSnapContainer:
-    case DisplayListCommandType::CompositorSnapArea:
-        return true;
-    default:
-        return false;
-    }
-}
-
 constexpr i64 caret_blink_interval_ns = 500'000'000;
 inline bool caret_is_visible_at_time(PaintCaret const& caret, i64 monotonic_time_ns)
 {
@@ -63,36 +46,6 @@ T read_display_list_object(ReadonlyBytes bytes)
     T object;
     __builtin_memcpy(&object, bytes.data(), sizeof(T));
     return object;
-}
-
-template<DisplayListCommand Command>
-Command read_display_list_command_payload(ReadonlyBytes payload)
-{
-    return read_display_list_object<Command>(payload);
-}
-
-template<typename Callback>
-decltype(auto) visit_display_list_command_type(DisplayListCommandType command_type, Callback&& callback)
-{
-    switch (command_type) {
-#define VISIT_DISPLAY_LIST_COMMAND_TYPE(command) \
-    case DisplayListCommandType::command:        \
-        return callback.template operator()<command>();
-        ENUMERATE_DISPLAY_LIST_COMMANDS(VISIT_DISPLAY_LIST_COMMAND_TYPE)
-#undef VISIT_DISPLAY_LIST_COMMAND_TYPE
-    }
-    VERIFY_NOT_REACHED();
-}
-
-template<typename Callback>
-decltype(auto) visit_display_list_command(
-    DisplayListCommandType command_type,
-    ReadonlyBytes payload,
-    Callback&& callback)
-{
-    return visit_display_list_command_type(command_type, [&]<DisplayListCommand Command>() -> decltype(auto) {
-        return callback(read_display_list_command_payload<Command>(payload));
-    });
 }
 
 static_assert(IsTriviallyCopyable<DisplayListCommandHeader>);
