@@ -85,6 +85,7 @@ interface Internals {
     DOMString currentCursor();
     // The color of one pixel of the current image cursor's bitmap, or null when the cursor is no image.
     DOMString? currentCursorPixel(long x, long y);
+    DOMString themeColor();
 
     // Returns the text that would be placed on the clipboard if the user copied the current selection now.
     // Excludes nodes whose used value of user-select is 'none' — mirroring what browsers actually copy.

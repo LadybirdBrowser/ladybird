@@ -2815,8 +2815,13 @@ void Document::obtain_supported_color_schemes()
     set_supported_color_schemes(move(supported_color_schemes), supported_color_schemes_are_only);
 }
 
-// https://html.spec.whatwg.org/multipage/semantics.html#meta-theme-color
 void Document::obtain_theme_color(Layout::BegunRead const& read)
+{
+    page().client().page_did_change_theme_color(theme_color(read));
+}
+
+// https://html.spec.whatwg.org/multipage/semantics.html#meta-theme-color
+Color Document::theme_color(Layout::BegunRead const& read)
 {
     Color theme_color = Color::Transparent;
 
@@ -2845,13 +2850,12 @@ void Document::obtain_theme_color(Layout::BegunRead const& read)
 
             // 4. If color is not failure, then return color.
             if (!css_value.is_null() && css_value->has_color()) {
-                CSS::ColorResolutionContext color_resolution_context {};
-                // NB: Called during theme color computation, layout may be stale.
-                if (html_element() && html_element()->unsafe_layout_node(read)) {
-                    color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*html_element()->unsafe_layout_node(read));
-                }
-
-                theme_color = css_value->to_color(color_resolution_context).value();
+                // The parsed value is no computed one, so it resolves against the root element's style the way that
+                // style computes its own values, lengths included.
+                auto root_element_style_record = html_element() ? html_element()->style_record_identity() : CSS::StyleRecordID {};
+                auto resolved = CSS::StyleValueFFI::rust_style_value_to_color_against_style_record(style_computer().style_engine().host(), &read, root_element_style_record.value(), css_value->rust_style_value_data());
+                VERIFY(resolved.resolved);
+                theme_color = Color(resolved.rgba[0], resolved.rgba[1], resolved.rgba[2], resolved.rgba[3]);
                 return TraversalDecision::Break;
             }
         }
@@ -2860,7 +2864,7 @@ void Document::obtain_theme_color(Layout::BegunRead const& read)
     });
 
     // 3. Return nothing(the page has no theme color).
-    document().page().client().page_did_change_theme_color(theme_color);
+    return theme_color;
 }
 
 Layout::Viewport const* Document::layout_node(Layout::BegunRead const& read) const

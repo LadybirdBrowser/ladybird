@@ -1,0 +1,5 @@
+rgb(calc(10em / 1px) 0 0): rgb(200, 0, 0)
+light-dark(red, rgb(0 0 200)): rgb(0, 0, 200)
+currentcolor: rgb(0, 128, 0)
+rgb(from currentcolor r g 100): rgb(0, 128, 100)
+Canvas: rgb(20, 20, 20)

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html style="font-size: 20px; color: rgb(0 128 0); color-scheme: dark">
+<meta name="theme-color" id="theme-color" content="red">
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        getComputedStyle(document.documentElement).color;
+        for (const content of [
+            "rgb(calc(10em / 1px) 0 0)",
+            "light-dark(red, rgb(0 0 200))",
+            "currentcolor",
+            "rgb(from currentcolor r g 100)",
+            "Canvas",
+        ]) {
+            document.getElementById("theme-color").setAttribute("content", content);
+            println(`${content}: ${internals.themeColor()}`);
+        }
+    });
+</script>
