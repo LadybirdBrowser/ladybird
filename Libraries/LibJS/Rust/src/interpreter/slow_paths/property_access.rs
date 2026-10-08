@@ -1217,6 +1217,8 @@ pub fn try_inline_get_by_id_accessor(vm: &Vm, pc: u32, instruction: &op::GetById
         return false;
     }
 
+    // NB: Stack traces show the caller at its program counter.
+    vm.running_execution_context_ref().program_counter.set(pc);
     vm.push_inline_frame(
         getter_function,
         getter_function.inline_call_executable(),
