@@ -23,6 +23,7 @@
 #include <LibCompositing/Export.h>
 #include <LibCompositing/Forward.h>
 #include <LibGfx/DecodedImageFrame.h>
+#include <LibGfx/Font/Font.h>
 #include <LibGfx/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibMedia/Sinks/VideoSink.h>

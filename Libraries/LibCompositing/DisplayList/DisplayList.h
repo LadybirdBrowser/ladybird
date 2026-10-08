@@ -11,92 +11,26 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Error.h>
 #include <AK/Forward.h>
-#include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Span.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Export.h>
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Types.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Color.h>
-#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/PaintStyle.h>
-#include <LibGfx/TextLayout.h>
 #include <LibIPC/Forward.h>
 
 namespace Compositing {
 
-class COMPOSITING_API DisplayListPlayer {
-public:
-    virtual ~DisplayListPlayer() = default;
+namespace RustFFI {
 
-    void execute(DisplayList const&, AccumulatedVisualContextTree const&, DisplayListResourceStorage const&, ScrollStateSnapshot const&, RefPtr<Gfx::PaintingSurface>, CanvasSurfaceRegistry const* = nullptr);
-    virtual void flush(Gfx::PaintingSurface&) = 0;
+struct FfiDisplayListReplayCallbacks;
 
-protected:
-    Gfx::PaintingSurface& surface() const { return *m_surface; }
-    DisplayList const& active_display_list() const { return *m_active_display_list; }
-    AccumulatedVisualContextTree const& active_visual_context_tree() const { return *m_active_visual_context_tree; }
-    DisplayListResourceStorage const& resource_storage() const { return *m_resource_storage; }
-    CanvasSurfaceRegistry const* canvas_surface_registry() const { return m_canvas_surface_registry; }
-    ReadonlyBytes inline_data(DisplayListDataSpan span) const
-    {
-        VERIFY(static_cast<size_t>(span.offset) + span.size <= m_current_command_payload.size());
-        return m_current_command_payload.slice(span.offset, span.size);
-    }
-    template<typename T>
-    ReadonlySpan<T> inline_objects(DisplayListDataSpan span) const
-    {
-        static_assert(alignof(T) <= display_list_payload_alignment);
-        auto bytes = inline_data(span);
-        VERIFY(bytes.size() % sizeof(T) == 0);
-        VERIFY(reinterpret_cast<FlatPtr>(bytes.data()) % alignof(T) == 0);
-        return { reinterpret_cast<T const*>(bytes.data()), bytes.size() / sizeof(T) };
-    }
-    void execute_impl(DisplayList const&, ScrollStateSnapshot const& scroll_state);
-    void execute_command_bytes(ReadonlyBytes, ScrollStateSnapshot const& scroll_state);
-    ScrollStateSnapshot const& active_scroll_state() const { return *m_active_scroll_state; }
-    void execute_display_list_into_surface(DisplayList const&, AccumulatedVisualContextTree const&, Gfx::PaintingSurface&);
-    void execute_command_bytes_into_surface(ReadonlyBytes, Gfx::PaintingSurface&);
-    void declare_mask_content(EffectNodeIndex, ReadonlyBytes content);
-    Optional<ReadonlyBytes> declared_mask_content(EffectNodeIndex) const;
-    void execute_nested_display_list(DisplayList const&, AccumulatedVisualContextTree const&, ScrollStateSnapshot const&);
-
-private:
-    struct ReplayCallbacks;
-    void play_command_bytes(DisplayListCommandType, u8 const* command, ReadonlyBytes payload);
-
-#define DECLARE_PLAY_COMMAND(command_type) \
-    virtual void play_command(command_type const&) = 0;
-    ENUMERATE_DISPLAY_LIST_COMMANDS(DECLARE_PLAY_COMMAND)
-#undef DECLARE_PLAY_COMMAND
-    virtual void set_matrix(Gfx::FloatMatrix4x4 const&) = 0;
-    virtual Gfx::FloatMatrix4x4 canvas_matrix() const = 0;
-    virtual bool would_be_fully_clipped_by_painter(Gfx::IntRect) const = 0;
-
-    virtual void push_clip(ReplayClip const&) = 0;
-    virtual void push_clip_path(Gfx::Path const&, Gfx::WindingRule) = 0;
-    virtual void push_transform(Gfx::AffineTransform const&) = 0;
-    virtual void push_layer(ReplayLayer const&) = 0;
-    virtual void push_mask(ReplayMask const&) = 0;
-    virtual void pop_mask(ReplayMask const&, EffectNodeIndex) = 0;
-    virtual void pop() = 0;
-    virtual void push_device_space_plane_clip(Gfx::Path const&) = 0;
-
-    DisplayList const* m_active_display_list { nullptr };
-    AccumulatedVisualContextTree const* m_active_visual_context_tree { nullptr };
-    DisplayListResourceStorage const* m_resource_storage { nullptr };
-    CanvasSurfaceRegistry const* m_canvas_surface_registry { nullptr };
-    RefPtr<Gfx::PaintingSurface> m_surface;
-    ReadonlyBytes m_current_command_payload;
-    ScrollStateSnapshot const* m_active_scroll_state { nullptr };
-    HashMap<u32, ReadonlyBytes> m_declared_mask_contents;
-};
+}
 
 class COMPOSITING_API DisplayList : public AtomicRefCounted<DisplayList> {
 public:
@@ -186,8 +120,12 @@ public:
         }
     }
 
+    // Replays the list through a player's callbacks, against the visual context tree it was made for.
+    void replay(AccumulatedVisualContextTree const&, ScrollStateSnapshot const&, RustFFI::FfiDisplayListReplayCallbacks const&) const;
+    // Replays a stream of records that a command of a list being replayed nests.
+    static void replay_records(ReadonlyBytes records, ScrollStateSnapshot const&, RustFFI::FfiDisplayListReplayCallbacks const&);
+
 private:
-    friend class DisplayListPlayer;
     void const* replay_effect_clip_plan(AccumulatedVisualContextTree const&) const;
 
     explicit DisplayList(u64 compatible_visual_context_tree_structural_epoch);

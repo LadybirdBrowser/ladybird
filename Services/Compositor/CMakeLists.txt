@@ -3,6 +3,7 @@ set(SOURCES
     CanvasHost.cpp
     CompositorState.cpp
     ContextState.cpp
+    DisplayListPlayer.cpp
     DisplayListPlayerSkia.cpp
     DisplayListRasterCache.cpp
     ConnectionFromClient.cpp
