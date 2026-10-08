@@ -52,6 +52,7 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
         libssl-dev \
         libstdc++-${GCC_VERSION}-dev \
         libtool \
+        libxcb-icccm4-dev \
         libclang-${LLVM_VERSION}-dev \
         libclang-rt-${LLVM_VERSION}-dev \
         lld-${LLVM_VERSION} \
