@@ -12,7 +12,7 @@
 #include <LibCore/Process.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
-#include <LibSandbox/ConnectBroker.h>
+#include <LibMedia/Audio/ClientConnection.h>
 #include <MediaServer/ConnectionFromClient.h>
 #include <MediaServer/Sandbox.h>
 
@@ -25,14 +25,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     AK::set_rich_debug_enabled(true);
 
     int crash_report_fd = -1;
-    int connect_broker_fd = -1;
     StringView mach_server_name;
     bool wait_for_debugger = false;
     bool disable_sandbox = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(crash_report_fd, "Descriptor for anonymous crash diagnostics", "crash-report-fd", 0, "fd");
-    args_parser.add_option(connect_broker_fd, "Descriptor for the sandbox connection broker", "connect-broker-fd", 0, "fd");
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
@@ -54,8 +52,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto& event_loop = Core::EventLoop::initialize_for_current_thread();
 
 #if defined(AK_OS_LINUX)
-    if (connect_broker_fd != -1)
-        Sandbox::set_connect_broker_fd(connect_broker_fd);
     // The system library's dependencies make syscalls the sandbox will not allow, so it loads first.
     (void)Media::FFmpeg::SystemFFmpeg::the();
 #endif
@@ -65,6 +61,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<MediaServer::ConnectionFromClient>(
         mach_server_name, MediaServer::ConnectionFromClient::Role::Controller));
+
+    // Every playback stream opens through the AudioServer; this process never reaches a device itself.
+    Audio::ClientConnection::set_transport_factory([client] {
+        return client->request_audio_server_transport();
+    });
 
     return event_loop.exec();
 }

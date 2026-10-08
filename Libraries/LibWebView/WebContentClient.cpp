@@ -24,6 +24,7 @@
 #include <LibWebCommon/WebView/ProcessHandle.h>
 #include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/AudioServerControlClient.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
@@ -110,6 +111,7 @@ WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, IsPr
     , m_session(Application::existing_session(is_private))
     , m_unassigned_initial_page_id(initial_page_id)
     , m_root_navigable_id(root_navigable_id)
+    , m_audio_tab_id(allocate_audio_tab_id())
 {
     VERIFY(initial_page_id > 0);
     VERIFY(m_session);
@@ -759,12 +761,17 @@ Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentCli
 
 Messages::WebContentClient::RequestMediaServerConnectionResponse WebContentClient::request_media_server_connection()
 {
-    auto handle = connect_new_media_server_client(m_media_server_client);
+    auto handle = connect_new_media_server_client(m_media_server_client, [this] { return connect_audio_server_client(); });
     if (handle.is_error()) {
         warnln("Unable to connect a MediaServer client: {}", handle.error());
         return OptionalNone {};
     }
     return handle.release_value();
+}
+
+ErrorOr<IPC::TransportHandle> WebContentClient::connect_audio_server_client()
+{
+    return connect_new_audio_server_client(m_audio_server_client, m_audio_tab_id);
 }
 
 Optional<u64> WebContentClient::exclusive_performance_owner() const

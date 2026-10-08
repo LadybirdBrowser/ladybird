@@ -56,9 +56,15 @@ struct RequestServerClientConnection {
 
 // The new client uses the cookies of the given session. That must be the session of the process the client is for.
 WEBVIEW_API ErrorOr<RequestServerClientConnection> connect_new_request_server_client(BrowsingSession&, RequestServer::SiteBinding);
+// Names a tab's mix in the AudioServer. Every renderer and worker process gets one of its own, and every process
+// that plays on its behalf plays into the same mix.
+WEBVIEW_API u64 allocate_audio_tab_id();
+// Launches the AudioServer for a renderer if it has none, keeping its controller connection in the given slot, and
+// connects a new client to it as a member of the given tab's mix.
+WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_audio_server_client(RefPtr<AudioServerControlClient>& controller, u64 audio_tab_id);
 // Launches the MediaServer for a renderer if it has none, keeping its controller connection in the given slot, and
-// connects a new client to it.
-WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller);
+// connects a new client to it. The server gets its AudioServer connection through connect_audio_server.
+WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller, Function<ErrorOr<IPC::TransportHandle>()> connect_audio_server);
 #if defined(HAVE_WASM_COMPILER_SERVICE)
 WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_wasm_compiler_client();
 #endif

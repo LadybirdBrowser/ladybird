@@ -343,7 +343,14 @@ void AudioPlaybackSink::create_playback_stream()
                 return;
             }
         }
-        self->m_output_thread_data->m_playback_stream = stream;
+        {
+            MutexLocker locker { self->m_output_thread_data->m_output_mutex };
+            self->m_output_thread_data->m_playback_stream = stream;
+        }
+        stream->on_output_lost = [weak_self = self->make_weak_ref()] {
+            if (auto self = weak_self.strong_ref())
+                self->reopen_playback_stream_after_loss();
+        };
         self->set_volume(self->m_volume);
 
         if (self->m_seek_target_awaiting_discard.has_value()) {
@@ -578,6 +585,25 @@ void AudioPlaybackSink::update_playback_stream_state()
     resume_playback_stream();
 }
 
+void AudioPlaybackSink::reopen_playback_stream_after_loss()
+{
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): The audio output is gone; opening a new one", this);
+    {
+        MutexLocker locker { m_output_thread_data->m_output_mutex };
+        m_output_thread_data->m_playback_stream = nullptr;
+    }
+    m_stream_state = StreamState::Suspended;
+    m_started_creating_playback_stream = false;
+    // With no stream this only records the target; the new stream seeks there once it opens, and plays on if we were.
+    seek(m_time_reader.current_time());
+    create_playback_stream();
+}
+
+bool AudioPlaybackSink::playback_stream_is_current(Audio::PlaybackStream const& stream) const
+{
+    return m_output_thread_data->m_playback_stream.ptr() == &stream;
+}
+
 void AudioPlaybackSink::resume_playback_stream()
 {
     if (m_stream_state == StreamState::Playing)
@@ -587,9 +613,12 @@ void AudioPlaybackSink::resume_playback_stream()
 
     dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Resuming the playback stream", this);
     m_stream_state = StreamState::Playing;
-    m_output_thread_data->m_playback_stream->resume()
-        ->when_resolved([self = NonnullRefPtr(*this)]() {
-            self->m_main_thread_event_loop.deferred_invoke([self]() {
+    auto stream = NonnullRefPtr(*m_output_thread_data->m_playback_stream);
+    stream->resume()
+        ->when_resolved([self = NonnullRefPtr(*this), stream]() {
+            self->m_main_thread_event_loop.deferred_invoke([self, stream]() {
+                if (!self->playback_stream_is_current(stream))
+                    return;
                 dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Playback stream resumed", self.ptr());
                 self->dispatch_waiting_status_once_played_out();
             });
@@ -608,17 +637,20 @@ void AudioPlaybackSink::pause_playback_stream()
 
     dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Discarding and suspending the playback stream", this);
     m_stream_state = StreamState::Suspended;
-    m_output_thread_data->m_playback_stream->discard_buffer_and_suspend()
-        ->when_resolved([self = NonnullRefPtr(*this)]() {
+    auto stream = NonnullRefPtr(*m_output_thread_data->m_playback_stream);
+    stream->discard_buffer_and_suspend()
+        ->when_resolved([self = NonnullRefPtr(*this), stream]() {
             // The frames the stream still held were never heard, so the clock stops where the device got to and the
             // input is read again from there.
             i64 played_frame = 0;
             {
                 MutexLocker locker { self->m_output_thread_data->m_output_mutex };
+                if (self->m_output_thread_data->m_playback_stream != stream)
+                    return;
                 played_frame = self->m_output_thread_data->stop_clock_at_played_frame_while_locked(self->m_time_reader);
             }
-            self->m_main_thread_event_loop.deferred_invoke([self, played_frame]() {
-                if (self->m_seek_target_awaiting_discard.has_value())
+            self->m_main_thread_event_loop.deferred_invoke([self, stream, played_frame]() {
+                if (!self->playback_stream_is_current(stream) || self->m_seek_target_awaiting_discard.has_value())
                     return;
                 self->reseek_input_continuing_at_output_frame(played_frame);
             });
@@ -719,9 +751,13 @@ void AudioPlaybackSink::seek(AK::Duration time)
 
     dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Discarding the playback stream's buffer for a seek to {}", this, time);
     m_stream_state = StreamState::Suspended;
-    m_output_thread_data->m_playback_stream->discard_buffer_and_suspend()
-        ->when_resolved([self = NonnullRefPtr(*this)]() {
-            self->m_main_thread_event_loop.deferred_invoke([self]() {
+    auto stream = NonnullRefPtr(*m_output_thread_data->m_playback_stream);
+    stream->discard_buffer_and_suspend()
+        ->when_resolved([self = NonnullRefPtr(*this), stream]() {
+            self->m_main_thread_event_loop.deferred_invoke([self, stream]() {
+                // The target waits for the stream that replaced this one, which seeks there as it opens.
+                if (!self->playback_stream_is_current(stream))
+                    return;
                 dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Playback stream stopped for the seek", self.ptr());
                 self->m_seek_target_awaiting_discard.clear();
                 self->update_playback_stream_state();

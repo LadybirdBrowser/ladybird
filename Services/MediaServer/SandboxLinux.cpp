@@ -5,8 +5,6 @@
  */
 
 #include <AK/LexicalPath.h>
-#include <LibCore/Directory.h>
-#include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibSandbox/Sandbox.h>
 #include <LibSandbox/Seccomp.h>
@@ -28,14 +26,6 @@ ErrorOr<void> apply_sandbox(StringView)
     TRY(Sandbox::add_landlock_path_if_exists(paths, LexicalPath::join(build_root, "lib"sv).string(), Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/proc/self"sv, Sandbox::LandlockPath::Access::ReadOnly));
 
-    // NB: Connecting is not a path operation, so the broker is what reaches the audio socket. libpulse still has to
-    //     find it, and pa_make_secure_dir() opens the directory the socket lives in before it will use one, so the
-    //     directory has to be readable or discovery stops there.
-    auto pulse_runtime_path = LexicalPath::join(TRY(Core::StandardPaths::runtime_directory()), "pulse"sv).string();
-    TRY(Core::Directory::create(pulse_runtime_path, Core::Directory::CreateDirectories::Yes, 0700));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, pulse_runtime_path, Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, LexicalPath::join(Core::StandardPaths::config_directory(), "pulse"sv).string(), Sandbox::LandlockPath::Access::ReadOnly));
-
     TRY(Sandbox::restrict_filesystem_with_landlock(paths.span()));
 
     Sandbox::SeccompPolicy policy;
@@ -44,8 +34,6 @@ ErrorOr<void> apply_sandbox(StringView)
     policy.allow_file_descriptor_operations();
     policy.allow_ipc();
     policy.allow_socket_pairs();
-    policy.broker_unix_socket_connections();
-    policy.allow_pulseaudio_client_file_operations();
     policy.allow_common_runtime();
     TRY(policy.install());
 

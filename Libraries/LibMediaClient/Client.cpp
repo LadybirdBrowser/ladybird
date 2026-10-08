@@ -74,6 +74,20 @@ void Client::die()
         promise->reject(Error::from_string_literal("The media server is gone"));
 }
 
+Messages::MediaClient::RequestAudioServerConnectionResponse Client::request_audio_server_connection()
+{
+    if (!on_request_audio_server_connection) {
+        dbgln("A MediaServer asked a non-controller for an AudioServer connection");
+        return OptionalNone {};
+    }
+    auto handle = on_request_audio_server_connection();
+    if (handle.is_error()) {
+        warnln("Unable to connect a MediaServer to the AudioServer: {}", handle.error());
+        return OptionalNone {};
+    }
+    return handle.release_value();
+}
+
 u64 Client::allocate_id()
 {
     return m_next_id++;
