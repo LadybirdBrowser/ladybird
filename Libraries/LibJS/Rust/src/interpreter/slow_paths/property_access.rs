@@ -15,8 +15,8 @@ use libjs_abi::value as nan_box;
 
 use crate::bytecode::encoding::{IdentifierTableIndex, OptionalIndex};
 use crate::bytecode::executable::{
-    Executable, ObjectPropertyIteratorCache, ObjectPropertyIteratorCacheData, ObjectPropertyIteratorFastPath,
-    PropertyLookupCache, PropertyLookupCacheEntryType,
+    Executable, KeyedPropertyLookup, KeyedPropertyLookupCache, ObjectPropertyIteratorCache,
+    ObjectPropertyIteratorCacheData, ObjectPropertyIteratorFastPath, PropertyLookupCache, PropertyLookupCacheEntryType,
 };
 use crate::bytecode::op;
 use crate::bytecode::property_access::{
@@ -479,6 +479,14 @@ pub fn put_by_value(
         );
         return SlowPathControl::continue_at(pc + op::PutByValue::LENGTH);
     }
+    if base.is_object() && property_key.is_string() && put_kind_from_operand(instruction.kind) == PutKind::Normal {
+        asm_try!(
+            vm,
+            pc,
+            put_by_value_with_keyed_store_cache(vm, instruction, base, property, value, &property_key)
+        );
+        return SlowPathControl::continue_at(pc + op::PutByValue::LENGTH);
+    }
     asm_try!(
         vm,
         pc,
@@ -496,6 +504,102 @@ pub fn put_by_value(
         )
     );
     SlowPathControl::continue_at(pc + op::PutByValue::LENGTH)
+}
+
+/// A plain string-keyed put into an object that the instruction's own cache does not take: through the VM's keyed
+/// property store cache, which remembers the writable own data properties such puts change and the properties they
+/// add by shape and name, like the keyed property lookup cache does for gets. A put it does not know is made with an
+/// empty cache of its own, and remembered: as a change or an addition if that cache could have made it, or as a put
+/// to make generically otherwise, so that other puts it cannot make only pay for the lookup.
+fn put_by_value_with_keyed_store_cache(
+    vm: &Vm,
+    instruction: &op::PutByValue,
+    base: Value,
+    key: Value,
+    value: Value,
+    property_key: &PropertyKey,
+) -> ThrowCompletionOr<()> {
+    let object = base.as_object();
+    let name = property_key.as_string();
+    let shape = object.shape();
+    let store_cache = vm.keyed_property_store_cache();
+    let index = KeyedPropertyLookupCache::entry_index_for(shape, name);
+    let generic_put = |cache: Option<&PropertyLookupCache>, cache_key: u64| {
+        put_by_property_key(
+            vm,
+            base,
+            base,
+            value,
+            || optional_identifier(vm, &instruction.base_identifier),
+            property_key,
+            PutKind::Normal,
+            strict_of(instruction.header.strict),
+            cache,
+            cache_key,
+        )
+    };
+    if let Some(entry) = store_cache.lookup(index, shape, name) {
+        match entry.entry_type {
+            PropertyLookupCacheEntryType::ChangeOwnProperty => {
+                if (!shape.is_dictionary() || shape.dictionary_generation() == entry.shape_dictionary_generation)
+                    && !object.get_direct(entry.property_offset).is_accessor()
+                {
+                    object.put_direct(entry.property_offset, value);
+                    return Ok(());
+                }
+            }
+            PropertyLookupCacheEntryType::AddOwnProperty => {
+                // NB: These are the checks of an addition through the cache of a put (see put_by_property_key()).
+                let new_shape = entry.new_shape.expect("additions have a new shape");
+                if property_addition_is_cacheable(vm, &object, property_key)
+                    && object.internal_is_extensible(vm)?
+                    && (!new_shape.is_dictionary()
+                        || shape.dictionary_generation() == entry.shape_dictionary_generation)
+                    && entry
+                        .prototype_chain_validity
+                        .is_none_or(|validity| validity.is_valid())
+                {
+                    object.unsafe_set_shape(new_shape);
+                    object.put_direct(entry.property_offset, value);
+                    return Ok(());
+                }
+            }
+            _ => {
+                if !shape.is_dictionary() || shape.dictionary_generation() == entry.shape_dictionary_generation {
+                    return generic_put(None, 0);
+                }
+            }
+        }
+    }
+
+    let shape_dictionary_generation = shape.dictionary_generation();
+    let scratch_cache = vm.keyed_property_store_scratch_cache();
+    scratch_cache.forget_entries();
+    generic_put(Some(scratch_cache), key.0)?;
+    let entry = scratch_cache.first_entry().unwrap_or_default();
+    scratch_cache.forget_entries();
+    // NB: Puts the cache does not make are remembered with another type, for the shape they found.
+    let mut lookup = KeyedPropertyLookup {
+        shape_dictionary_generation,
+        shape: Some(shape),
+        ..Default::default()
+    };
+    match entry.entry_type {
+        PropertyLookupCacheEntryType::ChangeOwnProperty if entry.writes_data_property && entry.shape == Some(shape) => {
+            lookup.entry_type = PropertyLookupCacheEntryType::ChangeOwnProperty;
+            lookup.property_offset = entry.property_offset;
+        }
+        PropertyLookupCacheEntryType::AddOwnProperty if entry.from_shape == Some(shape) && entry.shape.is_some() => {
+            lookup.entry_type = PropertyLookupCacheEntryType::AddOwnProperty;
+            lookup.property_offset = entry.property_offset;
+            lookup.shape_dictionary_generation = entry.shape_dictionary_generation;
+            lookup.prototype_chain_validity = entry.prototype_chain_validity;
+            lookup.new_shape = entry.shape;
+        }
+        _ => {}
+    }
+    store_cache.set_entry(index, lookup, name);
+    Ok(())
 }
 
 pub fn put_by_value_with_this(

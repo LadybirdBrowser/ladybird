@@ -516,6 +516,13 @@ pub struct Vm {
     static_property_lookup_caches: StaticPropertyLookupCaches,
     keyed_property_lookup_cache: KeyedPropertyLookupCache,
     prototype_transition_cache: Box<PrototypeTransitionCache>,
+    /// Like the keyed property lookup cache, how string-keyed PutByValue instructions whose own caches gave up put
+    /// properties: the writable own data properties they change and the properties they add, by shape and name (see
+    /// put_by_value_with_keyed_store_cache()).
+    keyed_property_store_cache: KeyedPropertyLookupCache,
+    /// An empty cache that PutByValue fills for one put at a time, to find out how to remember it in the keyed
+    /// property store cache.
+    keyed_property_store_scratch_cache: PropertyLookupCache,
     host_ensure_can_add_private_element: Cell<HostEnsureCanAddPrivateElement>,
     host_get_code_for_eval: Cell<HostGetCodeForEval>,
     host_ensure_can_compile_strings: Cell<HostEnsureCanCompileStrings>,
@@ -643,6 +650,8 @@ impl Vm {
             static_property_lookup_caches: StaticPropertyLookupCaches::new(),
             keyed_property_lookup_cache: KeyedPropertyLookupCache::new(),
             prototype_transition_cache: Box::new(PrototypeTransitionCache::new()),
+            keyed_property_store_cache: KeyedPropertyLookupCache::new(),
+            keyed_property_store_scratch_cache: PropertyLookupCache::new(),
             host_ensure_can_add_private_element: Cell::new(default_host_ensure_can_add_private_element),
             host_get_code_for_eval: Cell::new(default_host_get_code_for_eval),
             host_ensure_can_compile_strings: Cell::new(default_host_ensure_can_compile_strings),
@@ -1209,6 +1218,7 @@ impl Vm {
         self.static_property_lookup_caches.remove_dead_entries();
         self.keyed_property_lookup_cache.remove_dead_entries();
         self.prototype_transition_cache.remove_dead_entries();
+        self.keyed_property_store_cache.remove_dead_entries();
     }
 
     pub fn register_executable(&self, executable: Gc<Executable>) {
@@ -1225,6 +1235,14 @@ impl Vm {
 
     pub fn prototype_transition_cache(&self) -> &PrototypeTransitionCache {
         &self.prototype_transition_cache
+    }
+
+    pub fn keyed_property_store_cache(&self) -> &KeyedPropertyLookupCache {
+        &self.keyed_property_store_cache
+    }
+
+    pub fn keyed_property_store_scratch_cache(&self) -> &PropertyLookupCache {
+        &self.keyed_property_store_scratch_cache
     }
 
     /// Stores the value the running frame returns and clears its exception, for the slow paths that leave the

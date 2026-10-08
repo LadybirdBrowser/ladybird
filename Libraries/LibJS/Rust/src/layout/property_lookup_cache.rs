@@ -54,6 +54,7 @@ pub struct KeyedPropertyLookupCacheEntryLayout {
     pub shape: Option<Gc<Shape>>,
     pub prototype: Option<Gc<Object>>,
     pub prototype_chain_validity: Option<Gc<PrototypeChainValidity>>,
+    pub new_shape: Option<Gc<Shape>>,
     /// The identity of the name of the property, the word of a fly string, or 0.
     pub property_name: u64,
 }
