@@ -23,26 +23,6 @@
 
 namespace Compositor {
 
-template<typename Callback>
-static void for_each_drawn_canvas(Compositing::DisplayList const& display_list, Callback callback)
-{
-    display_list.for_each_command_header([&](Compositing::ContextRef context, Compositing::DisplayListCommandHeader const& header, ReadonlyBytes payload) {
-        if (header.command_type != Compositing::DisplayListCommandType::DrawCanvas)
-            return;
-        callback(context, header, Compositing::read_display_list_object<Compositing::DrawCanvas>(payload));
-    });
-}
-
-template<typename Callback>
-static void for_each_caret(Compositing::DisplayList const& display_list, Callback callback)
-{
-    display_list.for_each_command_header([&](Compositing::ContextRef context, Compositing::DisplayListCommandHeader const& header, ReadonlyBytes payload) {
-        if (header.command_type != Compositing::DisplayListCommandType::PaintCaret)
-            return;
-        callback(context, header, Compositing::read_display_list_object<Compositing::PaintCaret>(payload));
-    });
-}
-
 static void set_or_append_pending_scroll_offset(
     Vector<Compositing::AsyncScrollOffset>& pending_scroll_offsets,
     Compositing::AsyncScrollOffset const& scroll_offset)
@@ -244,7 +224,7 @@ void ContextState::install_display_list_update(
 void ContextState::update_caret_blink_timer()
 {
     Optional<i64> blink_cycle_start_time_ns;
-    for_each_caret(*m_display_list, [&](auto const&, auto const&, auto const& caret) {
+    m_display_list->for_each_caret([&](auto, auto, auto const& caret) {
         if (caret.should_blink)
             blink_cycle_start_time_ns = caret.blink_cycle_start_time_ns;
     });
@@ -290,10 +270,10 @@ Gfx::IntRect ContextState::caret_damage_rect()
 
     auto const& visual_context_tree = visual_context_tree_for_compositing();
     Gfx::IntRect damage_rect;
-    for_each_caret(*m_display_list, [&](auto context, auto const& header, auto const& caret) {
+    m_display_list->for_each_caret([&](auto context, auto bounding_rect, auto const& caret) {
         if (!caret.should_blink)
             return;
-        auto rect = visual_context_tree.transform_rect_to_viewport(context.spatial, header.bounding_rect.template to_type<float>(), m_scroll_state_snapshot);
+        auto rect = visual_context_tree.transform_rect_to_viewport(context.spatial, bounding_rect.value_or({}).template to_type<float>(), m_scroll_state_snapshot);
         if (!isfinite(rect.x()) || !isfinite(rect.y()) || !isfinite(rect.width()) || !isfinite(rect.height())) {
             damage_rect = { {}, m_viewport_size };
             return;
@@ -1985,15 +1965,15 @@ Gfx::IntRect ContextState::damage_since_last_raster(Gfx::IntSize viewport_size)
             continue;
         damage_rect.unite(scrollbar.gutter_rect.united(scrollbar.expanded_gutter_rect));
     }
-    for_each_drawn_canvas(*m_display_list, [&](auto context, auto const& header, auto const& draw_canvas) {
+    m_display_list->for_each_drawn_canvas([&](auto context, auto bounding_rect, auto const& draw_canvas) {
         auto last_content_generation = last_frame.canvas_content_generations.get(draw_canvas.canvas_id);
         if (last_content_generation.has_value() && *last_content_generation == m_canvas_surface_registry.canvas_content_generation(draw_canvas.canvas_id))
             return;
-        if (!header.has_bounding_rect) {
+        if (!bounding_rect.has_value()) {
             damage_rect = viewport_rect;
             return;
         }
-        auto canvas_rect = visual_context_tree.transform_rect_to_viewport(context.spatial, header.bounding_rect.template to_type<float>(), m_scroll_state_snapshot);
+        auto canvas_rect = visual_context_tree.transform_rect_to_viewport(context.spatial, bounding_rect->template to_type<float>(), m_scroll_state_snapshot);
         if (!isfinite(canvas_rect.x()) || !isfinite(canvas_rect.y()) || !isfinite(canvas_rect.width()) || !isfinite(canvas_rect.height())) {
             damage_rect = viewport_rect;
             return;
@@ -2010,7 +1990,7 @@ Gfx::IntRect ContextState::damage_since_last_raster(Gfx::IntSize viewport_size)
 void ContextState::remember_rasterized_frame(Gfx::IntSize viewport_size)
 {
     HashMap<Compositing::CanvasId, u64> canvas_content_generations;
-    for_each_drawn_canvas(*m_display_list, [&](auto const&, auto const&, auto const& draw_canvas) {
+    m_display_list->for_each_drawn_canvas([&](auto, auto, auto const& draw_canvas) {
         canvas_content_generations.set(draw_canvas.canvas_id, m_canvas_surface_registry.canvas_content_generation(draw_canvas.canvas_id));
     });
     m_last_rasterized_frame = RasterizedFrame {

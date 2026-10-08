@@ -185,30 +185,6 @@ Gfx::DecodedImageFrame const& DisplayListResourceStorage::image_frame(ImageFrame
     return m_image_frames.get(id.value()).value()->frame;
 }
 
-static ReadonlyBytes inline_data(ReadonlyBytes payload, DisplayListDataSpan span)
-{
-    VERIFY(static_cast<size_t>(span.offset) + span.size <= payload.size());
-    return payload.slice(span.offset, span.size);
-}
-
-template<typename Command, typename Callback>
-static void for_each_command_byte_range_inside(Command const& command, ReadonlyBytes payload, Callback&& callback)
-{
-    if constexpr (IsSame<Command, DrawIsolatedGroup>) {
-        callback(inline_data(payload, command.content));
-        if (command.mask.size != 0)
-            callback(inline_data(payload, command.mask));
-    } else if constexpr (IsSame<Command, DrawRepeatedTile>) {
-        callback(inline_data(payload, command.tile));
-    } else if constexpr (IsSame<Command, DeclareMaskContent>) {
-        callback(inline_data(payload, command.content));
-    } else if constexpr (requires { command.paint_style; command.paint_kind; }) {
-        if (command.paint_kind == decltype(command.paint_kind)::PaintStyle
-            && command.paint_style.paint_style_type == DisplayListPaintStyleType::Pattern)
-            callback(inline_data(payload, command.paint_style.pattern_tile));
-    }
-}
-
 bool DisplayListResourceStorage::display_list_requires_direct_replay(DisplayListResourceId id) const
 {
     HashTable<u64> visited_display_lists;
@@ -231,93 +207,36 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
     visited_display_lists.set(id.value());
     auto const& list_resource = display_list_resource(id);
 
-    auto const& visual_context_tree = list_resource.visual_context_tree;
-    bool requires_direct_replay = visual_context_tree.has_unisolated_destination_reading_effect();
-
-    auto recurse_into_nested_display_list = [&](DisplayListResourceId nested_display_list_id) {
+    bool requires_direct_replay = list_resource.display_list->requires_direct_replay_without_nested_lists(list_resource.visual_context_tree);
+    // NB: A nested list's live content matters at any depth, and its unisolated destination reads matter when its
+    //     command is not enclosed in a layer; recursing unconditionally is slightly conservative for the latter.
+    for (auto nested_id : list_resource.display_list->referenced_resource_ids().display_lists) {
+        if (requires_direct_replay)
+            break;
+        DisplayListResourceId nested_display_list_id { nested_id };
         if (visited_display_lists.set(nested_display_list_id.value()) != HashSetResult::InsertedNewEntry)
-            return;
+            continue;
         if (has_display_list(nested_display_list_id))
-            requires_direct_replay = requires_direct_replay || nested_display_list_requires_direct_replay(nested_display_list_id, visited_display_lists);
-    };
-
-    Function<void(ReadonlyBytes, ContextRef, bool)> scan_records = [&](ReadonlyBytes command_bytes, ContextRef context, bool inside_isolated_group) {
-        DisplayList::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
-            if (requires_direct_replay)
-                return;
-            visit_display_list_command(header.command_type, payload, [&](auto const& command) {
-                using Command = RemoveCVReference<decltype(command)>;
-                if constexpr (IsSame<Command, DrawVideoFrame> || IsSame<Command, DrawCanvas> || IsSame<Command, DrawCompositedContext>) {
-                    requires_direct_replay = true;
-                } else if constexpr (IsSame<Command, PaintNestedDisplayList>) {
-                    // NB: A nested list's live content matters at any depth, and its unisolated destination reads
-                    //     matter when this command is not enclosed in a layer; recursing unconditionally is slightly
-                    //     conservative for the latter. Pattern tile display lists are always rasterized into
-                    //     standalone surfaces and cannot read the destination, so they are not followed.
-                    recurse_into_nested_display_list(command.display_list_id);
-                }
-                if constexpr (requires { command.compositing_and_blending_operator; }) {
-                    bool blends_with_isolated_backdrop_color = false;
-                    if constexpr (requires { command.isolated_backdrop_color; })
-                        blends_with_isolated_backdrop_color = command.isolated_backdrop_color.has_value();
-                    if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal
-                        && !blends_with_isolated_backdrop_color
-                        && !inside_isolated_group
-                        && !visual_context_tree.effect_is_isolated_by_layer(context.effect))
-                        requires_direct_replay = true;
-                }
-                for_each_command_byte_range_inside(command, payload, [&](ReadonlyBytes nested_records) {
-                    scan_records(nested_records, context, true);
-                });
-            });
-        });
-    };
-    for (auto const& run : list_resource.display_list->command_runs())
-        scan_records(list_resource.display_list->command_bytes_of_run(run), run.context, false);
+            requires_direct_replay = nested_display_list_requires_direct_replay(nested_display_list_id, visited_display_lists);
+    }
 
     m_display_list_requires_direct_replay.set(id.value(), requires_direct_replay);
     return requires_direct_replay;
 }
 
 void DisplayListResourceStorage::collect_referenced_resources(
-    ReadonlyBytes command_bytes,
-    DisplayListResourceSet& referenced_resources) const
-{
-    auto add_display_list_resource = [&](DisplayListResourceId id) {
-        add_referenced_display_list(id, referenced_resources);
-    };
-
-    DisplayList::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
-        visit_display_list_command(header.command_type, payload, [&](auto const& command) {
-            using Command = RemoveCVReference<decltype(command)>;
-            if constexpr (requires { command.font_id; })
-                referenced_resources.fonts.set(command.font_id, AK::HashSetExistingEntryBehavior::Keep);
-            if constexpr (requires { command.frame_id; })
-                referenced_resources.image_frames.set(command.frame_id, AK::HashSetExistingEntryBehavior::Keep);
-            if constexpr (requires { command.video_sink_id; })
-                referenced_resources.video_sinks.set(command.video_sink_id, AK::HashSetExistingEntryBehavior::Keep);
-            if constexpr (IsSame<Command, DrawIsolatedGroup>) {
-                if (command.filter.size != 0) {
-                    Gfx::for_each_filter_image_frame_id(inline_data(payload, command.filter), [&](u64 image_id) {
-                        referenced_resources.image_frames.set(ImageFrameResourceId { image_id }, AK::HashSetExistingEntryBehavior::Keep);
-                    });
-                }
-            }
-            if constexpr (requires { command.display_list_id; }) {
-                add_display_list_resource(command.display_list_id);
-            }
-            for_each_command_byte_range_inside(command, payload, [&](ReadonlyBytes nested_records) {
-                collect_referenced_resources(nested_records, referenced_resources);
-            });
-        });
-    });
-}
-
-void DisplayListResourceStorage::collect_referenced_resources(
     DisplayList const& display_list,
     DisplayListResourceSet& referenced_resources) const
 {
-    collect_referenced_resources(display_list.command_bytes(), referenced_resources);
+    auto ids = display_list.referenced_resource_ids();
+    for (auto id : ids.fonts)
+        referenced_resources.fonts.set(FontResourceId { id }, AK::HashSetExistingEntryBehavior::Keep);
+    for (auto id : ids.image_frames)
+        referenced_resources.image_frames.set(ImageFrameResourceId { id }, AK::HashSetExistingEntryBehavior::Keep);
+    for (auto id : ids.video_sinks)
+        referenced_resources.video_sinks.set(VideoSinkResourceId { id }, AK::HashSetExistingEntryBehavior::Keep);
+    for (auto id : ids.display_lists)
+        add_referenced_display_list(DisplayListResourceId { id }, referenced_resources);
 }
 
 void DisplayListResourceStorage::add_referenced_display_list(DisplayListResourceId id, DisplayListResourceSet& referenced_resources) const

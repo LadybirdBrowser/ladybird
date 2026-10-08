@@ -9,8 +9,12 @@
 //! it back to the entry points of this crate.
 
 use super::builder::RecordedDisplayList;
-use super::commands::DisplayListCommandRun;
+use super::commands::{ContextRef, DisplayListCommandRun, DisplayListCommandType};
 use super::effect_clip_plan::EffectClipPlan;
+use super::summary::{
+    DisplayListSummary, for_each_compositor_metadata, for_each_indexed_record,
+    requires_direct_replay_without_nested_lists, summarize,
+};
 use super::validate::validate_tape;
 use crate::visual_context::VisualContextTree;
 use std::ffi::c_void;
@@ -85,6 +89,7 @@ pub struct DisplayListStorage {
     // The placement of the runs' clips and effects. The C++ list that owns this storage replays it
     // against trees of one structural epoch only, so one plan serves every replay.
     effect_clip_plan: OnceLock<EffectClipPlan>,
+    summary: OnceLock<DisplayListSummary>,
 }
 
 // SAFETY: The view's pointers address the tape the storage owns, and nothing changes the tape.
@@ -103,6 +108,7 @@ impl DisplayListStorage {
             view,
             tape,
             effect_clip_plan: OnceLock::new(),
+            summary: OnceLock::new(),
         })
     }
 
@@ -120,6 +126,11 @@ impl DisplayListStorage {
             Tape::Recorded(recorded) => &recorded.command_runs,
             Tape::Received { command_runs, .. } => command_runs,
         }
+    }
+
+    pub fn summary(&self) -> &DisplayListSummary {
+        self.summary
+            .get_or_init(|| summarize(self.bytes(), self.command_runs()))
     }
 
     pub fn effect_clip_plan(&self, tree: &VisualContextTree) -> &EffectClipPlan {
@@ -183,6 +194,120 @@ pub unsafe extern "C" fn display_list_storage_view(storage: *const c_void) -> Ff
     assert!(!storage.is_null());
     // SAFETY: The view is the first field of the #[repr(C)] storage.
     unsafe { *storage.cast::<FfiRecordedDisplayList>() }
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiReferencedResourceIds {
+    pub font_ids: *const u64,
+    pub font_id_count: usize,
+    pub image_frame_ids: *const u64,
+    pub image_frame_id_count: usize,
+    pub video_sink_ids: *const u64,
+    pub video_sink_id_count: usize,
+    pub display_list_ids: *const u64,
+    pub display_list_id_count: usize,
+}
+
+/// The ids of the resources the commands of the list reference, including the commands nested in
+/// others, each once. The spans remain valid while the storage lives.
+///
+/// # Safety
+/// `storage` must be a live storage handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_storage_referenced_resource_ids(
+    storage: *const c_void,
+) -> FfiReferencedResourceIds {
+    let summary = unsafe { storage_from_handle(storage) }.summary();
+    FfiReferencedResourceIds {
+        font_ids: summary.font_ids.as_ptr(),
+        font_id_count: summary.font_ids.len(),
+        image_frame_ids: summary.image_frame_ids.as_ptr(),
+        image_frame_id_count: summary.image_frame_ids.len(),
+        video_sink_ids: summary.video_sink_ids.as_ptr(),
+        video_sink_id_count: summary.video_sink_ids.len(),
+        display_list_ids: summary.display_list_ids.as_ptr(),
+        display_list_id_count: summary.display_list_ids.len(),
+    }
+}
+
+/// # Safety
+/// `storage` must be a live storage handle and `tree` a live retained tree handle whose nodes the
+/// list's runs name.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_storage_requires_direct_replay_without_nested_lists(
+    storage: *const c_void,
+    tree: *const c_void,
+) -> bool {
+    let storage = unsafe { storage_from_handle(storage) };
+    let tree = unsafe { crate::ffi::tree_from_handle(tree) };
+    requires_direct_replay_without_nested_lists(storage.bytes(), storage.command_runs(), tree)
+}
+
+/// Calls `visit` with each compositor metadata command, its run's context and its payload.
+///
+/// # Safety
+/// `storage` must be a live storage handle. `visit` runs synchronously.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_storage_for_each_compositor_metadata(
+    storage: *const c_void,
+    context: *mut c_void,
+    visit: unsafe extern "C" fn(*mut c_void, ContextRef, DisplayListCommandType, *const u8, usize),
+) {
+    let storage = unsafe { storage_from_handle(storage) };
+    for_each_compositor_metadata(
+        storage.bytes(),
+        storage.command_runs(),
+        |run_context, command_type, payload| {
+            // SAFETY: The caller reads the payload synchronously.
+            unsafe { visit(context, run_context, command_type, payload.as_ptr(), payload.len()) };
+        },
+    );
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiIndexedRecordKind {
+    DrawnCanvas,
+    Caret,
+}
+
+/// Calls `visit` with each top-level DrawCanvas or PaintCaret record of the list: its run's context,
+/// whether it has a bounding rect and that rect, and its payload.
+///
+/// # Safety
+/// `storage` must be a live storage handle. `visit` runs synchronously.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_storage_for_each_indexed_record(
+    storage: *const c_void,
+    kind: FfiIndexedRecordKind,
+    context: *mut c_void,
+    visit: unsafe extern "C" fn(*mut c_void, ContextRef, bool, libgfx_rust::IntRect, *const u8, usize),
+) {
+    let storage = unsafe { storage_from_handle(storage) };
+    let summary = storage.summary();
+    let records = match kind {
+        FfiIndexedRecordKind::DrawnCanvas => &summary.drawn_canvases,
+        FfiIndexedRecordKind::Caret => &summary.carets,
+    };
+    for_each_indexed_record(
+        storage.bytes(),
+        storage.command_runs(),
+        records,
+        |run_context, header, payload| {
+            // SAFETY: The caller reads the payload synchronously.
+            unsafe {
+                visit(
+                    context,
+                    run_context,
+                    header.has_bounding_rect,
+                    header.bounding_rect,
+                    payload.as_ptr(),
+                    payload.len(),
+                );
+            }
+        },
+    );
 }
 
 // A tape and run table that C++ writes into before they are checked.

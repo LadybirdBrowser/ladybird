@@ -140,7 +140,6 @@ public:
 
 private:
     void set_image_frame(ImageFrameResourceId, Gfx::DecodedImageFrame);
-    void collect_referenced_resources(ReadonlyBytes command_bytes, DisplayListResourceSet&) const;
     void collect_referenced_resources(DisplayList const&, DisplayListResourceSet&) const;
     void collect_referenced_resources(AccumulatedVisualContextTree const&, DisplayListResourceSet&) const;
     void add_referenced_display_list(DisplayListResourceId, DisplayListResourceSet&) const;
