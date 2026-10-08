@@ -2986,7 +2986,9 @@ handler Call(
     frame.caller_is_construct = false;
     frame.frame_initialized = false;
     frame.caller_frame = exec_ctx;
-    let [_, return_pc, return_destination] = call_site_info(length, dst);
+    let [current_pc, return_pc, return_destination] = call_site_info(length, dst);
+    # NB: Stack traces show the caller at its program counter.
+    exec_ctx.program_counter = current_pc;
     frame.caller_return_pc = return_pc;
     frame.caller_dst_raw = return_destination;
     let actual_argument_count = load(argument_count);

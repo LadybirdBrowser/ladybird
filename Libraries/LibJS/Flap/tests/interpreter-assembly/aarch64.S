@@ -4998,13 +4998,14 @@ asm_handler_Call:
     strb wzr, [x0, #78]
     strb wzr, [x0, #79]
     str x28, [x0, #96]
-    ldp w5, w4, [x21, #4]
+    ldp w4, w5, [x21, #4]
     sub w1, w21, w26
-    adds x1, x1, x5
-    stp w1, w4, [x0, #108]
+    adds x4, x4, x1
+    str w1, [x28, #64]
+    stp w4, w5, [x0, #108]
     ldr w4, [x21, #20]
     cmp x2, x4
-    b.lo .Lasm_Call.assert_predicate_failure_386
+    b.lo .Lasm_Call.assert_predicate_failure_389
     add x5, x0, #128
     add x6, x28, #128
     add x7, x21, #28
@@ -18855,7 +18856,7 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_Call.assert_failure_8:
     brk #0
-.Lasm_Call.assert_predicate_failure_386:
+.Lasm_Call.assert_predicate_failure_389:
     brk #0
 .Lasm_Call.assert_predicate_failure_212:
     brk #0

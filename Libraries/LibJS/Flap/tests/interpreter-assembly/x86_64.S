@@ -5138,15 +5138,16 @@ asm_handler_Call:
     mov BYTE PTR [rax + 79], 0
     lea r11, [rbx - 128]
     mov QWORD PTR [rax + 96], r11
-    mov r8d, DWORD PTR [r14 + r13 + 4]
-    mov edi, DWORD PTR [r14 + r13 + 8]
+    mov edi, DWORD PTR [r14 + r13 + 4]
+    mov r8d, DWORD PTR [r14 + r13 + 8]
     mov ecx, r13d
-    add rcx, r8
-    mov DWORD PTR [rax + 108], ecx
-    mov DWORD PTR [rax + 112], edi
+    add rdi, rcx
+    mov DWORD PTR [rbx - 64], ecx
+    mov DWORD PTR [rax + 108], edi
+    mov DWORD PTR [rax + 112], r8d
     mov edi, DWORD PTR [r14 + r13 + 20]
     cmp rdx, rdi
-    jb .Lasm_Call.assert_predicate_failure_386
+    jb .Lasm_Call.assert_predicate_failure_389
     lea r8, [rax + 128]
     lea r9, [rbx]
     lea r10, [r14 + r13 + 28]
@@ -18455,7 +18456,7 @@ asm_assertion_failure_traps:
     ud2
 .Lasm_Call.assert_failure_8:
     ud2
-.Lasm_Call.assert_predicate_failure_386:
+.Lasm_Call.assert_predicate_failure_389:
     ud2
 .Lasm_Call.assert_predicate_failure_212:
     ud2
