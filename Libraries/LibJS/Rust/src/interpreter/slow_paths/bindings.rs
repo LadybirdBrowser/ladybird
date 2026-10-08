@@ -29,7 +29,7 @@ use crate::runtime::declarative_environment::DeclarativeEnvironment;
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::environment::{Environment, InitializeBindingHint};
 use crate::runtime::environment_coordinate::EnvironmentCoordinate;
-use crate::runtime::environment_shape::EnvironmentShapeCache;
+use crate::runtime::environment_shape::{EnvironmentShape, EnvironmentShapeCache};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_environment::FunctionEnvironment;
@@ -163,6 +163,17 @@ fn running_execution_context_environment(vm: &Vm, mode: EnvironmentMode) -> Gc<E
     .expect("the running execution context has its environments")
 }
 
+/// The flags of the binding CreateVariable creates in a declarative environment: those of
+/// CreateImmutableBinding(name, is_strict) or CreateMutableBinding(name, is_strict).
+pub fn create_variable_binding_flags(is_immutable: bool, is_strict: bool) -> u8 {
+    match (is_immutable, is_strict) {
+        (true, true) => EnvironmentShape::BINDING_FLAG_STRICT,
+        (true, false) => 0,
+        (false, true) => EnvironmentShape::BINDING_FLAG_MUTABLE | EnvironmentShape::BINDING_FLAG_CAN_BE_DELETED,
+        (false, false) => EnvironmentShape::BINDING_FLAG_MUTABLE,
+    }
+}
+
 /// What CreateVariable does.
 pub fn create_variable(
     vm: &Vm,
@@ -172,6 +183,15 @@ pub fn create_variable(
     is_immutable: bool,
     is_strict: bool,
 ) -> ThrowCompletionOr<()> {
+    // OPTIMIZATION: An environment that has its final shape from the start gets the bindings its shape has, in order,
+    //               whose names it has no other bindings of.
+    if !is_global
+        && let Some(environment) = running_execution_context_environment(vm, mode).as_declarative_environment()
+        && environment.create_next_binding_of_shape(name, create_variable_binding_flags(is_immutable, is_strict))
+    {
+        return Ok(());
+    }
+
     if mode == EnvironmentMode::Lexical {
         assert!(!is_global);
 

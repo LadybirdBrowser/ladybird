@@ -51,6 +51,7 @@ impl EnvironmentShape {
         Self {
             header: CellHeader::for_class(Self::CLASS),
             binding_flags,
+            has_unique_binding_names: binding_indices.len() == binding_names.len(),
             storage: EnvironmentShapeStorage {
                 binding_names,
                 binding_indices,

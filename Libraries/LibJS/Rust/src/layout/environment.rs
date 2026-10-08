@@ -60,5 +60,7 @@ pub struct PrivateEnvironment {
 pub struct EnvironmentShape {
     pub header: CellHeader,
     pub binding_flags: InterpreterBuffer<u8>,
+    /// Whether no two bindings have the same name, and none has the empty name.
+    pub has_unique_binding_names: bool,
     pub storage: EnvironmentShapeStorage,
 }
