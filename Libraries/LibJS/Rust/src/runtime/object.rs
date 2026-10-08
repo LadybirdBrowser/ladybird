@@ -535,7 +535,7 @@ fn remove_intrinsic_accessor(vm: &Vm, object: &Object, property_key: &PropertyKe
 }
 
 const SPARSE_ARRAY_HOLE_THRESHOLD: u32 = 200;
-const MAX_TRANSITIONS_BEFORE_CONVERTING_TO_DICTIONARY: u32 = 64;
+pub(crate) const MAX_TRANSITIONS_BEFORE_CONVERTING_TO_DICTIONARY: u32 = 64;
 
 /// Moves an object into the heap and finishes what its constructor could not do before it had an address: its named
 /// properties start out in its inline storage. Every object, of any class, is allocated through this.

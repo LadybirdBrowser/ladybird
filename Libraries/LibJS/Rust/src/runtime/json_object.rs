@@ -26,6 +26,7 @@ use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_object::FunctionObject;
+use crate::runtime::json_text_parser::parse_json_text;
 use crate::runtime::native_function::raw_native;
 use crate::runtime::number_object::NumberObject;
 use crate::runtime::object::{
@@ -460,12 +461,6 @@ impl<'vm> JSONParseState<'_, '_, 'vm> {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum TrackCodeUnitOffsets {
-    No,
-    Yes,
-}
-
 fn append_code_unit_offsets(
     offsets: &mut Vec<usize>,
     byte_count: usize,
@@ -498,7 +493,7 @@ fn append_code_unit_offsets_of_utf8(offsets: &mut Vec<usize>, utf8: &[u8], code_
     }
 }
 
-fn json_text_bytes(text: Utf16View<'_>, track_code_unit_offsets: TrackCodeUnitOffsets) -> Option<JSONTextBytes<'_>> {
+fn json_text_bytes(text: Utf16View<'_>) -> Option<JSONTextBytes<'_>> {
     let maximum_length = if text.has_ascii_storage() {
         text.length_in_code_units()
     } else {
@@ -510,19 +505,14 @@ fn json_text_bytes(text: Utf16View<'_>, track_code_unit_offsets: TrackCodeUnitOf
     match text {
         Utf16View::Ascii(bytes) => utf8.extend_from_slice(bytes),
         Utf16View::Utf16(code_units) => {
-            let track_offsets = track_code_unit_offsets == TrackCodeUnitOffsets::Yes;
             let mut code_unit_offset = 0;
-            if track_offsets {
-                offsets.push(0);
-            }
+            offsets.push(0);
 
             let mut remaining = code_units;
             loop {
                 let length_before = utf8.len();
                 let valid_code_units = ak::append_utf16_as_utf8_up_to_unpaired_surrogate(&mut utf8, remaining);
-                if track_offsets {
-                    append_code_unit_offsets_of_utf8(&mut offsets, &utf8[length_before..], &mut code_unit_offset);
-                }
+                append_code_unit_offsets_of_utf8(&mut offsets, &utf8[length_before..], &mut code_unit_offset);
                 if valid_code_units == remaining.len() {
                     break;
                 }
@@ -533,9 +523,7 @@ fn json_text_bytes(text: Utf16View<'_>, track_code_unit_offsets: TrackCodeUnitOf
                 }
                 let length_before = utf8.len();
                 utf8.extend_from_slice(format!("\\u{:04X}", remaining[valid_code_units]).as_bytes());
-                if track_offsets {
-                    append_code_unit_offsets(&mut offsets, utf8.len() - length_before, 1, &mut code_unit_offset);
-                }
+                append_code_unit_offsets(&mut offsets, utf8.len() - length_before, 1, &mut code_unit_offset);
                 remaining = &remaining[valid_code_units + 1..];
             }
         }
@@ -1596,12 +1584,14 @@ impl JSONObject {
             return json_malformed(vm);
         }
 
-        let track_code_unit_offsets = if root_record.is_some() {
-            TrackCodeUnitOffsets::Yes
-        } else {
-            TrackCodeUnitOffsets::No
-        };
-        let Some(text_bytes) = json_text_bytes(text, track_code_unit_offsets) else {
+        // OPTIMIZATION: Without a reviver, nothing needs the parse nodes but their values, so the values are made while
+        //               the text is read.
+        if root_record.is_none() {
+            let realm = vm.current_realm().expect("JSON is parsed in a realm");
+            return parse_json_text(vm, realm, text);
+        }
+
+        let Some(text_bytes) = json_text_bytes(text) else {
             return json_malformed(vm);
         };
 
