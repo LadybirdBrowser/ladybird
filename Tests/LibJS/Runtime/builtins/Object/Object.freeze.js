@@ -108,3 +108,72 @@ test("freeze with TypedArray", () => {
         }).toThrowWithMessage(TypeError, "Could not freeze object");
     });
 });
+
+test("objects of the same shape frozen one after another", () => {
+    const make = i => ({ a: i, b: "b", [Symbol.iterator]: null });
+    for (let i = 0; i < 5; ++i) {
+        const object = Object.freeze(make(i));
+        expect(Object.isFrozen(object)).toBeTrue();
+        expect(Object.isExtensible(object)).toBeFalse();
+        object.a = 42;
+        expect(object.a).toBe(i);
+        expect(Object.getOwnPropertyDescriptor(object, "b")).toEqual({
+            value: "b",
+            writable: false,
+            enumerable: true,
+            configurable: false,
+        });
+        expect(delete object.a).toBeFalse();
+    }
+
+    // Objects of the same shape that are not frozen keep their attributes.
+    const unfrozen = make(1);
+    unfrozen.a = 2;
+    expect(unfrozen.a).toBe(2);
+    expect(Object.isFrozen(unfrozen)).toBeFalse();
+
+    // Sealing an object of the same shape keeps its properties writable.
+    const sealed = Object.seal(make(3));
+    sealed.a = 4;
+    expect(sealed.a).toBe(4);
+    expect(Object.isSealed(sealed)).toBeTrue();
+    expect(Object.isFrozen(sealed)).toBeFalse();
+    expect(Object.isFrozen(Object.freeze(sealed))).toBeTrue();
+});
+
+test("objects with accessors, non-enumerable and already frozen properties", () => {
+    let value = 1;
+    const withAccessor = {
+        get a() {
+            return value;
+        },
+        set a(v) {
+            value = v;
+        },
+        b: 2,
+    };
+    Object.freeze(withAccessor);
+    withAccessor.a = 5;
+    expect(value).toBe(5);
+    expect(Object.getOwnPropertyDescriptor(withAccessor, "a").configurable).toBeFalse();
+    expect(Object.isFrozen(withAccessor)).toBeTrue();
+
+    const partly = { a: 1 };
+    Object.defineProperty(partly, "b", { value: 2, writable: false, enumerable: false, configurable: true });
+    Object.freeze(partly);
+    expect(Object.getOwnPropertyDescriptor(partly, "b")).toEqual({
+        value: 2,
+        writable: false,
+        enumerable: false,
+        configurable: false,
+    });
+    expect(Object.isFrozen(partly)).toBeTrue();
+
+    const empty = Object.freeze([]);
+    expect(Object.isFrozen(empty)).toBeTrue();
+    expect(() => {
+        "use strict";
+        empty.push(1);
+    }).toThrow(TypeError);
+    expect(Object.getOwnPropertyDescriptor(empty, "length").writable).toBeFalse();
+});
