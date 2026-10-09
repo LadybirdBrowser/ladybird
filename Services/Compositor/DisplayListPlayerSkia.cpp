@@ -1244,8 +1244,7 @@ void DisplayListPlayerSkia::play_command(DrawIsolatedGroup const& command)
 {
     auto& canvas = surface().canvas();
     canvas.save();
-    if (command.clip_rect.has_value())
-        canvas.clipRect(to_skia_rect(*command.clip_rect), true);
+    canvas.clipRect(to_skia_rect(command.clip_rect), true);
     SkPaint group_paint;
     if (command.opacity < 1.0f)
         group_paint.setAlphaf(command.opacity);

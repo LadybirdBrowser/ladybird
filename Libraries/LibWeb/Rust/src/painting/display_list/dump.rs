@@ -537,9 +537,7 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
         }
         DisplayListCommandType::DrawIsolatedGroup => {
             let command = read_command::<DrawIsolatedGroup>(payload);
-            if let Some(clip_rect) = command.clip_rect.get() {
-                write_field(output, "clip_rect", clip_rect);
-            }
+            write_field(output, "clip_rect", command.clip_rect);
             if command.opacity != 1.0 {
                 write!(output, " opacity={}", format_float_like_ak(command.opacity)).unwrap();
             }
