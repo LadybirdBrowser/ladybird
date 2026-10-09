@@ -13,6 +13,7 @@
 #include <LibMedia/Audio/AudioClientEndpoint.h>
 #include <LibMedia/Audio/AudioDevices.h>
 #include <LibMedia/Audio/AudioServerEndpoint.h>
+#include <LibMedia/Audio/CaptureDevices.h>
 #include <LibMedia/Audio/PlaybackStreamMixer.h>
 #include <LibMedia/Export.h>
 
@@ -30,16 +31,20 @@ public:
         None,
     };
 
+    // Asks the Browser whether the client's tab may capture from the device; the answer comes once, on this thread.
+    using CapturePermissionRequest = Function<void(ByteString const& device_id, Function<void(bool allowed)> on_decided)>;
+
     virtual ~ServerConnection() override;
 
     // Runs when the client disconnects, after its streams have left the mixer.
     Function<void()> on_death;
 
 private:
-    ServerConnection(NonnullOwnPtr<IPC::Transport>, int client_id, NonnullRefPtr<PlaybackStreamMixer>, DeviceEnumeration);
+    ServerConnection(NonnullOwnPtr<IPC::Transport>, int client_id, NonnullRefPtr<PlaybackStreamMixer>, DeviceEnumeration, NonnullRefPtr<CaptureDevices>, CapturePermissionRequest);
 
     virtual void die() override;
     void remove_streams_from_mixer();
+    void remove_record_streams();
     void stop_listening_for_device_changes();
 
     virtual Messages::AudioServer::InitTransportResponse init_transport(int peer_pid) override;
@@ -51,9 +56,13 @@ private:
     virtual void discard_stream(u64 stream_id, u64 request_id) override;
     virtual void set_stream_volume(u64 stream_id, float volume) override;
     virtual void watch_devices() override;
+    virtual void create_record_stream(u64 stream_id, ByteString device_id) override;
+    virtual void destroy_record_stream(u64 stream_id) override;
 
     void devices_changed();
     void send_device_list();
+    void capture_permission_decided(u64 stream_id, ByteString const& device_id, bool allowed);
+    void capture_device_ready(u64 stream_id, CaptureSubscriberId, ErrorOr<SampleSpecification> const&);
 
     struct StreamState {
         MixerClientId mixer_client_id { 0 };
@@ -62,8 +71,17 @@ private:
     };
     StreamState* find_stream(u64 stream_id, StringView operation);
 
+    // No subscriber while the Browser is being asked.
+    struct RecordStreamState {
+        Optional<CaptureSubscriberId> subscriber_id;
+    };
+
     NonnullRefPtr<PlaybackStreamMixer> m_mixer;
     HashMap<u64, StreamState> m_streams;
+
+    NonnullRefPtr<CaptureDevices> m_capture_devices;
+    CapturePermissionRequest m_request_capture_permission;
+    HashMap<u64, RecordStreamState> m_record_streams;
 
     DeviceEnumeration m_device_enumeration { DeviceEnumeration::None };
     Optional<Media::AudioDevices::ListenerId> m_devices_changed_listener_id;

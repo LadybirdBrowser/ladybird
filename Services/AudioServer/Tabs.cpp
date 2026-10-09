@@ -6,11 +6,13 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/NeverDestroyed.h>
-#include <AudioServer/TabMixers.h>
+#include <AudioServer/ControlConnection.h>
+#include <AudioServer/Tabs.h>
 #include <LibCore/EventLoop.h>
 #include <LibIPC/Transport.h>
 #include <LibMedia/Audio/NullPlaybackStream.h>
 #include <LibMedia/Audio/PlaybackStream.h>
+#include <LibMedia/Audio/RecordStream.h>
 
 namespace AudioServer {
 
@@ -18,10 +20,15 @@ namespace AudioServer {
 // below the lookahead the clients keep in their rings.
 static constexpr u32 DEVICE_TARGET_LATENCY_MS = 40;
 
-TabMixers& TabMixers::the()
+Tabs& Tabs::the()
 {
-    static NeverDestroyed<TabMixers> instance;
+    static NeverDestroyed<Tabs> instance;
     return *instance;
+}
+
+void Tabs::set_control_connection(ControlConnection& connection)
+{
+    m_control_connection = connection.make_weak_ptr<ControlConnection>();
 }
 
 // The platform factory copies its callback for the null fallback, and the mixer's callback is not copyable.
@@ -46,7 +53,7 @@ static NonnullRefPtr<Audio::PlaybackStream::CreatePromise> create_device_stream(
     });
 }
 
-TabMixers::Tab& TabMixers::tab_for(u64 tab_id)
+Tabs::Tab& Tabs::tab_for(u64 tab_id)
 {
     return m_tabs.ensure(tab_id, [audio_output = m_audio_output] {
         auto mixer = Audio::PlaybackStreamMixer::create(Core::EventLoop::current(), DEVICE_TARGET_LATENCY_MS, [audio_output](Audio::OutputState state, u32 target_latency_ms, Audio::PlaybackStream::AudioDataRequestCallback callback) {
@@ -56,7 +63,19 @@ TabMixers::Tab& TabMixers::tab_for(u64 tab_id)
     });
 }
 
-ErrorOr<IPC::TransportHandle> TabMixers::connect_client(u64 tab_id)
+Audio::CaptureDevices& Tabs::capture_devices()
+{
+    if (!m_capture_devices) {
+        m_capture_devices = Audio::CaptureDevices::create([audio_output = m_audio_output](Audio::SampleSpecification const& specification, u32 fragment_size_bytes, StringView device_id, Audio::RecordStream::RecordCallback callback) {
+            if (audio_output == Media::AudioOutput::Null)
+                return Audio::RecordStream::CreatePromise::rejected(Error::from_string_literal("A headless AudioServer has no capture devices"));
+            return Audio::RecordStream::create_platform(specification, fragment_size_bytes, device_id, move(callback));
+        });
+    }
+    return *m_capture_devices;
+}
+
+ErrorOr<IPC::TransportHandle> Tabs::connect_client(u64 tab_id)
 {
     auto paired_transports = TRY(IPC::Transport::create_paired());
     auto handle = move(paired_transports.remote_handle);
@@ -66,15 +85,35 @@ ErrorOr<IPC::TransportHandle> TabMixers::connect_client(u64 tab_id)
     auto device_enumeration = Audio::ServerConnection::DeviceEnumeration::Platform;
     if (m_audio_output == Media::AudioOutput::Null)
         device_enumeration = Audio::ServerConnection::DeviceEnumeration::None;
-    auto connection = Audio::ServerConnection::construct(move(paired_transports.local), client_id, tab.mixer, device_enumeration);
+    auto connection = Audio::ServerConnection::construct(move(paired_transports.local), client_id, tab.mixer, device_enumeration, capture_devices(), [tab_id](ByteString const& device_id, Function<void(bool)> on_decided) {
+        Tabs::the().request_capture_permission(tab_id, device_id, move(on_decided));
+    });
     connection->on_death = [tab_id, client_id] {
-        TabMixers::the().connection_died(tab_id, client_id);
+        Tabs::the().connection_died(tab_id, client_id);
     };
     tab.connections.set(client_id, move(connection));
     return handle;
 }
 
-void TabMixers::connection_died(u64 tab_id, int client_id)
+void Tabs::request_capture_permission(u64 tab_id, ByteString const& device_id, Function<void(bool)> on_decided)
+{
+    auto control_connection = m_control_connection.strong_ref();
+    if (!control_connection) {
+        on_decided(false);
+        return;
+    }
+    auto request_id = m_next_capture_request_id++;
+    m_pending_capture_decisions.set(request_id, move(on_decided));
+    control_connection->async_capture_requested(tab_id, request_id, device_id);
+}
+
+void Tabs::capture_decided(u64 request_id, bool allowed)
+{
+    if (auto on_decided = m_pending_capture_decisions.take(request_id); on_decided.has_value())
+        on_decided.value()(allowed);
+}
+
+void Tabs::connection_died(u64 tab_id, int client_id)
 {
     auto tab = m_tabs.get(tab_id);
     if (!tab.has_value())

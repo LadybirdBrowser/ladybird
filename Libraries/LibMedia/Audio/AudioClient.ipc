@@ -1,5 +1,6 @@
 #include <LibMedia/Audio/AudioDevices.h>
 #include <LibMedia/Audio/SampleSpecification.h>
+#include <LibMedia/Audio/SharedAudioFrameRing.h>
 
 endpoint AudioClient {
     stream_created(u64 stream_id, Audio::SampleSpecification sample_specification, u32 device_latency_ms) =|
@@ -7,4 +8,7 @@ endpoint AudioClient {
     stream_request_completed(u64 stream_id, u64 request_id) =|
 
     devices_changed(Vector<Media::AudioDeviceInfo> inputs, Vector<Media::AudioDeviceInfo> outputs) =|
+
+    record_stream_created(u64 stream_id, Audio::SharedAudioFrameRing ring) =|
+    record_stream_creation_failed(u64 stream_id) =|
 }

@@ -37,6 +37,7 @@ set(TEST_SOURCES
     TestPlaybackStream.cpp
     TestPlaybackStreamMixer.cpp
     TestRemotePlaybackStream.cpp
+    TestRemoteRecordStream.cpp
     TestRemoteVideoNode.cpp
     TestSharedAudioFrameRing.cpp
     TestSourceBufferDemuxer.cpp
@@ -76,6 +77,7 @@ target_link_libraries(TestMediaTime PRIVATE LibThreading)
 target_link_libraries(TestVideoFramePool PRIVATE LibThreading)
 target_link_libraries(TestIncrementallyPopulatedStream PRIVATE LibThreading)
 target_link_libraries(TestRemotePlaybackStream PRIVATE LibThreading LibIPC)
+target_link_libraries(TestRemoteRecordStream PRIVATE LibThreading LibIPC)
 target_link_libraries(TestRemoteVideoNode PRIVATE LibThreading LibGfx LibIPC)
 target_link_libraries(TestSharedAudioFrameRing PRIVATE LibThreading)
 target_link_libraries(TestSpscAudioFrameRing PRIVATE LibThreading)

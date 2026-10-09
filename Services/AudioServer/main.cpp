@@ -6,7 +6,7 @@
 
 #include <AudioServer/ControlConnection.h>
 #include <AudioServer/Sandbox.h>
-#include <AudioServer/TabMixers.h>
+#include <AudioServer/Tabs.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/CrashHandler.h>
 #include <LibCore/EventLoop.h>
@@ -61,9 +61,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         TRY(AudioServer::apply_sandbox(mach_server_name));
 
     if (is_headless)
-        AudioServer::TabMixers::the().set_audio_output(Media::AudioOutput::Null);
+        AudioServer::Tabs::the().set_audio_output(Media::AudioOutput::Null);
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<AudioServer::ControlConnection>(mach_server_name));
+    AudioServer::Tabs::the().set_control_connection(*client);
 
     return event_loop.exec();
 }

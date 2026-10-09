@@ -40,7 +40,7 @@ static ErrorOr<NonnullRefPtr<RecordStream>> create_pulse_audio_record_stream(Sam
     return stream;
 }
 
-NonnullRefPtr<RecordStream::CreatePromise> RecordStream::create(SampleSpecification const& specification, u32 fragment_size_bytes, StringView device_id, RecordCallback callback)
+NonnullRefPtr<RecordStream::CreatePromise> RecordStream::create_platform(SampleSpecification const& specification, u32 fragment_size_bytes, StringView device_id, RecordCallback callback)
 {
     auto promise = CreatePromise::construct();
 

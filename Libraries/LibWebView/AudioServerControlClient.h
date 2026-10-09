@@ -25,8 +25,12 @@ public:
     explicit AudioServerControlClient(NonnullOwnPtr<IPC::Transport>);
     virtual ~AudioServerControlClient() override;
 
+    // A client of the tab asks to capture from the device; the holder answers with capture_decided.
+    Function<void(u64 tab_id, u64 request_id, ByteString const& device_id)> on_capture_requested;
+
 private:
     virtual void die() override;
+    virtual void capture_requested(u64 tab_id, u64 request_id, ByteString device_id) override;
 };
 
 }
