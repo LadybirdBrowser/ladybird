@@ -2251,6 +2251,9 @@ unsafe fn publish_sampled_animation_overlay(
     let Some(node) = StyleNodeID::from_raw(input.style_node) else {
         return Ok(FfiAnimationOverlayPublication::missing());
     };
+    let Some(installed_style_record) = super::computed::FinalStyleRecordID::from_raw(input.style_record) else {
+        return Ok(FfiAnimationOverlayPublication::missing());
+    };
     // SAFETY: Guaranteed by the caller.
     let (table, overlay) = unsafe {
         (
@@ -2286,6 +2289,7 @@ unsafe fn publish_sampled_animation_overlay(
     };
     let publication = match engine.publish_animation_overlay_impl(
         super::computed::ComputedStyleTarget::new(node, input.pseudo_kind),
+        installed_style_record,
         input.animation_overlay_identity,
         HostShared::new(animated_overlay).cast(),
         SharedPayload::from_pointer_slice(overlay_payloads),

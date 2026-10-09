@@ -1263,7 +1263,12 @@ impl ComputedGroupSets {
     /// What `detach_composition` does for an element, for any target.
     pub(super) fn detach_composition_of(&mut self, target: ComputedStyleTarget) -> Option<DetachedComposition> {
         let (_, slot) = self.assigned_record_and_overlay_slot(target)?;
-        let slot = slot?;
+        let detached = self.detach_animation_overlay_slot(slot?)?;
+        self.set_animation_overlay_slot_of(target, None);
+        Some(detached)
+    }
+
+    fn detach_animation_overlay_slot(&mut self, slot: u32) -> Option<DetachedComposition> {
         let overlay = self.animation_overlay_slots.get(slot)?;
         let detached = DetachedComposition {
             record: overlay.final_style_record,
@@ -1272,7 +1277,6 @@ impl ComputedGroupSets {
         };
         self.pin_style_record(detached.record.raw());
         self.release_animation_overlay_assignment(slot);
-        self.set_animation_overlay_slot_of(target, None);
         Some(detached)
     }
 
@@ -1848,7 +1852,7 @@ impl ComputedGroupSets {
         let Some(current) = self.style_record_column.get(index).copied().flatten() else {
             return;
         };
-        if self.final_base_style_record(current) != derived_style_record {
+        if self.final_style_record(current, self.columns.animation_overlay_slot(index)) != derived_style_record {
             return;
         }
         // A first record never installed leaves the node the way it was: unassigned, with what
@@ -2140,28 +2144,14 @@ impl ComputedGroupSets {
         payloads: &[SharedPayload],
         parent_in_display_none_subtree: bool,
     ) -> Option<AnimationOverlayUpdate> {
-        let (base_style_record, current_slot) = if target.is_pseudo() {
-            let assignment = self.pseudo_row(target.node, target.pseudo_kind)?.assignment?;
-            (assignment.style_record, assignment.animation_overlay_slot)
-        } else {
-            let index = target.node.element_index()? as usize;
-            (
-                *self.style_record_column.get(index)?.as_ref()?,
-                self.columns.animation_overlay_slot(index),
-            )
-        };
+        let (base_style_record, current_slot) = self.assigned_record_and_overlay_slot(target)?;
         let previous_style_record = self.final_style_record(base_style_record, current_slot);
         let animated_overlay = unsafe { animated_overlay.as_ref() };
-        // The base computed its flag from its own display, which the sampled display overrides.
-        let in_display_none_subtree = self
-            .style_records
-            .get_index(base_style_record.index())
-            .and_then(|record| record.longhand_table)
-            .and_then(|identity| self.computed_longhand_tables.get_index(identity.0 as usize))
-            .map(|table| {
-                parent_in_display_none_subtree
-                    || crate::css::style_compute::effective_display(table.table(), animated_overlay).is_none()
-            });
+        let in_display_none_subtree = self.animation_overlay_in_display_none_subtree(
+            base_style_record,
+            animated_overlay,
+            parent_in_display_none_subtree,
+        );
         let publication = self.update_animation_overlay(
             current_slot,
             base_style_record,
@@ -2187,6 +2177,84 @@ impl ComputedGroupSets {
             record_updated: publication.record_updated,
             live_records: self.live_animation_overlay_assignments,
         })
+    }
+
+    pub(super) fn assigned_underlying_style_record(&self, target: ComputedStyleTarget) -> Option<FinalStyleRecordID> {
+        let (base_style_record, _) = self.assigned_record_and_overlay_slot(target)?;
+        Some(self.final_base_style_record(base_style_record))
+    }
+
+    pub(super) fn compose_detached_animation_overlay(
+        &mut self,
+        installed_style_record: FinalStyleRecordID,
+        source_identity: u64,
+        animated_overlay: HostShared<crate::css::animated_overlay::AnimatedOverlay>,
+        payloads: &[SharedPayload],
+        parent_in_display_none_subtree: bool,
+    ) -> Option<(AnimationOverlayUpdate, Option<DetachedComposition>)> {
+        let base = self.underlying_style_record(installed_style_record)?;
+        let base_style_record = base.base_record()?;
+        let live_records = self.live_animation_overlay_assignments;
+        let unchanged = |style_record| AnimationOverlayUpdate {
+            previous_style_record: installed_style_record,
+            style_record,
+            slot_allocated: false,
+            slot_released: false,
+            record_updated: false,
+            live_records,
+        };
+        if source_identity == 0 {
+            return Some((unchanged(base), None));
+        }
+        if let Some(&slot) = self.animation_overlay_slots_by_record.get(&installed_style_record)
+            && let Some(installed) = self.animation_overlay_slots.get(slot)
+            && installed.source_identity == source_identity
+            && installed.payloads.as_ref() == payloads
+        {
+            return Some((unchanged(installed_style_record), None));
+        }
+        let animated_overlay = unsafe { animated_overlay.as_ref() };
+        let in_display_none_subtree = self.animation_overlay_in_display_none_subtree(
+            base_style_record,
+            animated_overlay,
+            parent_in_display_none_subtree,
+        );
+        let (slot, final_style_record, slot_allocated) = self.allocate_animation_overlay(
+            base_style_record,
+            source_identity,
+            animated_overlay,
+            payloads,
+            in_display_none_subtree,
+        );
+        let composition = self.detach_animation_overlay_slot(slot);
+        Some((
+            AnimationOverlayUpdate {
+                previous_style_record: installed_style_record,
+                style_record: final_style_record,
+                slot_allocated,
+                slot_released: false,
+                record_updated: true,
+                live_records,
+            },
+            composition,
+        ))
+    }
+
+    fn animation_overlay_in_display_none_subtree(
+        &self,
+        base_style_record: StyleRecordID,
+        animated_overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
+        parent_in_display_none_subtree: bool,
+    ) -> Option<bool> {
+        // The base computed its flag from its own display, which the sampled display overrides.
+        self.style_records
+            .get_index(base_style_record.index())
+            .and_then(|record| record.longhand_table)
+            .and_then(|identity| self.computed_longhand_tables.get_index(identity.0 as usize))
+            .map(|table| {
+                parent_in_display_none_subtree
+                    || crate::css::style_compute::effective_display(table.table(), animated_overlay).is_none()
+            })
     }
 
     #[cfg(test)]
