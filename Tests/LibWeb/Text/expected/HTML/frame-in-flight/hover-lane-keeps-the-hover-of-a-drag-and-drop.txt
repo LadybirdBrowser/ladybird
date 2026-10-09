@@ -1,0 +1,8 @@
+-- drag in the document
+events: none
+hovered: source
+cursor: Drag
+-- drag in an iframe
+events: none
+hovered: source
+cursor: Drag
