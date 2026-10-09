@@ -5,6 +5,7 @@ set(SOURCES
     Audio/AudioFrameRingBase.cpp
     Audio/AudioRingBuffer.cpp
     Audio/AudioServerPath.cpp
+    Audio/CaptureDevices.cpp
     Audio/ClientConnection.cpp
     Audio/NullPlaybackStream.cpp
     Audio/PlaybackStream.cpp
