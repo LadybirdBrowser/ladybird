@@ -12,7 +12,6 @@
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Platform.h>
-#include <AK/Vector.h>
 #include <AK/kmalloc.h>
 
 #if defined(AK_OS_LINUX)
@@ -55,8 +54,10 @@ struct ConnectBrokerResponse {
 // Seccomp cannot read the address that connect() is given, and Landlock does not mediate UNIX
 // sockets, so a helper that may connect at all may reach every socket in the user's session.
 // Helpers therefore get no socket() and no connect() of their own. They ask the Browser, which is
-// not sandboxed, to connect on their behalf, and it hands back a connected descriptor only for a
-// path that it put on the allowlist itself.
+// not sandboxed, to connect on their behalf.
+//
+// The helper connects to one name of the Browser's choosing, and the Browser connects the socket to
+// the endpoint that name stands for, looked up at that moment. Any other name is refused.
 //
 // Firefox answers the same problem the same way; see security/sandbox/linux/broker in its tree.
 class ConnectBroker {
@@ -66,20 +67,17 @@ class ConnectBroker {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    // The allowed paths are worked out before a helper starts, and what a helper asks for can only
-    // be known later. When a request names something not on the list, the broker asks for the list
-    // again, a bounded number of times, so an endpoint that could not be named at the start is
-    // still reachable once it can be.
-    using RefreshAllowedPaths = Function<Vector<ByteString>()>;
+    // Runs on the broker's thread for every connect, so an endpoint that moves is found again.
+    using ResolveEndpoint = Function<ErrorOr<ByteString>()>;
 
-    static ErrorOr<NonnullOwnPtr<ConnectBroker>> create(Vector<ByteString> allowed_paths, RefreshAllowedPaths = {});
+    static ErrorOr<NonnullOwnPtr<ConnectBroker>> create(ByteString endpoint_name, ResolveEndpoint);
     ~ConnectBroker();
 
     // Hand this to the helper process, which passes it to set_connect_broker_fd().
     int helper_fd() const { return m_helper_fd; }
 
 private:
-    ConnectBroker(int broker_fd, int helper_fd, Vector<ByteString> allowed_paths, RefreshAllowedPaths);
+    ConnectBroker(int broker_fd, int helper_fd, ByteString endpoint_name, ResolveEndpoint);
 
     enum class WaitResult {
         Ready,
@@ -90,10 +88,9 @@ private:
 
     static void* run(void*);
     void serve();
-    bool is_allowed(StringView path);
     WaitResult wait_until_ready(int fd, short events);
     int create_socket(Detail::ConnectBrokerRequest const&);
-    i32 connect_socket(int socket_fd, Detail::ConnectBrokerRequest const&);
+    i32 connect_socket(int socket_fd);
     void send_response(int reply_fd, i32 error, int passed_fd);
 
     int m_broker_fd { -1 };
@@ -101,9 +98,8 @@ private:
     // Written to when the broker is going away, so a connection that is taking too long can be
     // abandoned instead of holding the thread, and with it whoever is waiting to join it.
     int m_shutdown_pipe[2] { -1, -1 };
-    Vector<ByteString> m_allowed_paths;
-    RefreshAllowedPaths m_refresh_allowed_paths;
-    int m_refreshes_remaining { 4 };
+    ByteString m_endpoint_name;
+    ResolveEndpoint m_resolve_endpoint;
     pthread_t m_thread {};
     bool m_thread_started { false };
 };

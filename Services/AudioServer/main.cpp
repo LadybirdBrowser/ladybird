@@ -4,11 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AudioServer/BrokeredAudioDaemon.h>
 #include <AudioServer/ControlConnection.h>
 #include <AudioServer/Sandbox.h>
 #include <AudioServer/Tabs.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/CrashHandler.h>
+#include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Platform/TaskRole.h>
 #include <LibCore/Platform/ThreadQoS.h>
@@ -53,8 +55,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto& event_loop = Core::EventLoop::initialize_for_current_thread();
 
 #if defined(AK_OS_LINUX)
-    if (connect_broker_fd != -1)
+    // Without the sandbox there is no redirect to the broker, so libpulse finds the daemon the usual way.
+    if (connect_broker_fd != -1 && !disable_sandbox) {
         Sandbox::set_connect_broker_fd(connect_broker_fd);
+        // The broker connects this name to the audio daemon, so libpulse neither looks for one nor starts one.
+        TRY(Core::Environment::set("PULSE_SERVER"sv, AudioServer::brokered_audio_daemon_path, Core::Environment::Overwrite::Yes));
+    }
 #endif
 
     if (!disable_sandbox)

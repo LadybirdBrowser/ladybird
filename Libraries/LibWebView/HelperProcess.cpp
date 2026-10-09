@@ -10,7 +10,6 @@
 #include <LibCore/File.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
-#include <LibMedia/Audio/AudioServerPath.h>
 #include <LibSandbox/ConnectBroker.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/AudioServerControlClient.h>
@@ -25,6 +24,8 @@
 #    include <signal.h>
 #    include <sys/wait.h>
 #elif defined(AK_OS_LINUX)
+#    include <AudioServer/BrokeredAudioDaemon.h>
+#    include <LibWebView/AudioDaemonSocket.h>
 #    include <signal.h>
 #    include <sys/socket.h>
 #    include <sys/wait.h>
@@ -217,26 +218,23 @@ static ErrorOr<pid_t> launch_helper_process(StringView server_name, Vector<ByteS
         OwnPtr<Sandbox::ConnectBroker> connect_broker;
         OwnPtr<Core::File> connect_broker_child_file;
 
-        // The AudioServer cannot create a socket of its own, so the one endpoint it is allowed to reach is
-        // opened here and handed over as a connected descriptor.
+        // The AudioServer cannot create a socket of its own. It connects to a name nothing listens on, and the
+        // broker connects that socket to the audio daemon wherever it is at the time, so the daemon is found
+        // without anyone knowing its address in advance, and found again should it move.
         if (process_type == ProcessType::AudioServer) {
-            if (auto audio_server_paths = Audio::audio_server_path_candidates(); !audio_server_paths.is_empty()) {
-                // Asking again covers an audio server that was not reachable when the renderer
-                // started, and a configured fallback the audio library had not got to yet.
-                auto broker = Sandbox::ConnectBroker::create(move(audio_server_paths), [] {
-                    return Audio::audio_server_path_candidates();
-                });
-                if (broker.is_error()) {
-                    warnln("Could not start the {} connection broker: {}", server_name, broker.error());
-                } else {
-                    connect_broker = broker.release_value();
-                    // Reserve a distinct destination so dup2 clears close-on-exec in the child.
-                    auto child_fd = TRY(Core::System::fcntl(connect_broker->helper_fd(), F_DUPFD_CLOEXEC, 0));
-                    connect_broker_child_file = TRY(Core::File::adopt_fd(child_fd, Core::File::OpenMode::ReadWrite));
-                    options.file_actions.append(Core::FileAction::DupFd { .write_fd = connect_broker->helper_fd(), .fd = child_fd });
-                    process_arguments.append("--connect-broker-fd"sv);
-                    process_arguments.append(ByteString::number(connect_broker_child_file->fd()));
-                }
+            auto broker = Sandbox::ConnectBroker::create(ByteString { AudioServer::brokered_audio_daemon_path }, [] {
+                return audio_daemon_socket_path();
+            });
+            if (broker.is_error()) {
+                warnln("Could not start the {} connection broker: {}", server_name, broker.error());
+            } else {
+                connect_broker = broker.release_value();
+                // Reserve a distinct destination so dup2 clears close-on-exec in the child.
+                auto child_fd = TRY(Core::System::fcntl(connect_broker->helper_fd(), F_DUPFD_CLOEXEC, 0));
+                connect_broker_child_file = TRY(Core::File::adopt_fd(child_fd, Core::File::OpenMode::ReadWrite));
+                options.file_actions.append(Core::FileAction::DupFd { .write_fd = connect_broker->helper_fd(), .fd = child_fd });
+                process_arguments.append("--connect-broker-fd"sv);
+                process_arguments.append(ByteString::number(connect_broker_child_file->fd()));
             }
         }
 #endif

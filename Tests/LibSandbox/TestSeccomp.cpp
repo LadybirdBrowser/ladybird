@@ -920,19 +920,27 @@ static int connect_to_unix_socket(ByteString const& path)
     return fd;
 }
 
-TEST_CASE(the_broker_connects_only_to_paths_on_its_allowlist)
+// A broker whose one name is the path itself, for tests about the mechanics of connecting rather than the lookup.
+static NonnullOwnPtr<Sandbox::ConnectBroker> broker_for(ByteString const& path)
+{
+    return MUST(Sandbox::ConnectBroker::create(path, [path]() -> ErrorOr<ByteString> { return path; }));
+}
+
+TEST_CASE(the_broker_connects_only_the_name_it_was_given)
 {
     char directory_template[] = "/tmp/ladybird-broker-XXXXXX";
     auto* directory = mkdtemp(directory_template);
     VERIFY(directory);
 
-    auto allowed_path = ByteString::formatted("{}/allowed", directory);
+    // The helper connects to a name nothing listens on; the broker is what knows where that leads.
+    auto endpoint_name = ByteString::formatted("{}/endpoint", directory);
+    auto endpoint_path = ByteString::formatted("{}/daemon", directory);
     auto denied_path = ByteString::formatted("{}/denied", directory);
 
-    auto allowed_listener = MUST(listen_on_unix_socket(allowed_path));
+    auto endpoint_listener = MUST(listen_on_unix_socket(endpoint_path));
     auto denied_listener = MUST(listen_on_unix_socket(denied_path));
 
-    auto broker = MUST(Sandbox::ConnectBroker::create({ allowed_path }));
+    auto broker = MUST(Sandbox::ConnectBroker::create(endpoint_name, [endpoint_path]() -> ErrorOr<ByteString> { return endpoint_path; }));
 
     auto status = run_with_policy(
         [&](Sandbox::SeccompPolicy& policy) {
@@ -941,21 +949,22 @@ TEST_CASE(the_broker_connects_only_to_paths_on_its_allowlist)
             policy.broker_unix_socket_connections();
         },
         [&] {
-            auto allowed_fd = connect_to_unix_socket(allowed_path);
-            VERIFY(allowed_fd >= 0);
-            VERIFY(send(allowed_fd, "k", 1, 0) == 1);
-            VERIFY(close(allowed_fd) == 0);
+            auto endpoint_fd = connect_to_unix_socket(endpoint_name);
+            VERIFY(endpoint_fd >= 0);
+            VERIFY(send(endpoint_fd, "k", 1, 0) == 1);
+            VERIFY(close(endpoint_fd) == 0);
 
-            // The broker refuses the path, so this fails rather than reaching the listener.
+            // A listener the helper names itself is out of reach, even one that exists.
             VERIFY(connect_to_unix_socket(denied_path) == -1);
+            VERIFY(connect_to_unix_socket(endpoint_path) == -1);
         });
 
     EXPECT(WIFEXITED(status));
     if (WIFEXITED(status))
         EXPECT_EQ(WEXITSTATUS(status), 0);
 
-    VERIFY(wait_until_readable(allowed_listener));
-    auto accepted = accept4(allowed_listener, nullptr, nullptr, SOCK_CLOEXEC);
+    VERIFY(wait_until_readable(endpoint_listener));
+    auto accepted = accept4(endpoint_listener, nullptr, nullptr, SOCK_CLOEXEC);
     EXPECT(accepted >= 0);
     if (accepted >= 0) {
         char byte = 0;
@@ -964,9 +973,9 @@ TEST_CASE(the_broker_connects_only_to_paths_on_its_allowlist)
         VERIFY(close(accepted) == 0);
     }
 
-    VERIFY(close(allowed_listener) == 0);
+    VERIFY(close(endpoint_listener) == 0);
     VERIFY(close(denied_listener) == 0);
-    VERIFY(unlink(allowed_path.characters()) == 0);
+    VERIFY(unlink(endpoint_path.characters()) == 0);
     VERIFY(unlink(denied_path.characters()) == 0);
     VERIFY(rmdir(directory) == 0);
 }
@@ -1084,7 +1093,7 @@ static i32 await_broker_error(int reply_fd)
 
 TEST_CASE(the_broker_refuses_datagrams_even_without_the_seccomp_policy)
 {
-    auto broker = MUST(Sandbox::ConnectBroker::create({}));
+    auto broker = MUST(Sandbox::ConnectBroker::create(ByteString { "/unused" }, []() -> ErrorOr<ByteString> { return Error::from_string_literal("unused"); }));
     for (auto type : Array<int, 5> { SOCK_DGRAM, SOCK_RAW, SOCK_STREAM | 0x100, SOCK_STREAM, SOCK_SEQPACKET }) {
         for (auto flags : Array<int, 4> { 0, SOCK_CLOEXEC, SOCK_NONBLOCK, SOCK_CLOEXEC | SOCK_NONBLOCK }) {
             Sandbox::Detail::ConnectBrokerRequest request {};
@@ -1169,7 +1178,7 @@ TEST_CASE(a_wedged_endpoint_is_refused_rather_than_waited_on)
     auto fillers = fill_listener_backlog(wedged_path);
     EXPECT(!fillers.is_empty());
 
-    OwnPtr<Sandbox::ConnectBroker> broker = MUST(Sandbox::ConnectBroker::create({ wedged_path }));
+    OwnPtr<Sandbox::ConnectBroker> broker = broker_for(wedged_path);
 
     auto first_socket = make_unconnected_socket();
     auto reply_fd = submit_broker_request(broker->helper_fd(), wedged_path, first_socket);
@@ -1199,19 +1208,19 @@ TEST_CASE(a_reply_socket_that_cannot_be_written_to_does_not_stall_the_broker)
     auto* directory = mkdtemp(directory_template);
     VERIFY(directory);
 
-    auto allowed_path = ByteString::formatted("{}/allowed", directory);
-    auto listener = MUST(listen_on_unix_socket(allowed_path));
+    auto endpoint_path = ByteString::formatted("{}/endpoint", directory);
+    auto listener = MUST(listen_on_unix_socket(endpoint_path));
 
-    OwnPtr<Sandbox::ConnectBroker> broker = MUST(Sandbox::ConnectBroker::create({ allowed_path }));
+    OwnPtr<Sandbox::ConnectBroker> broker = broker_for(endpoint_path);
 
     // A helper is free to hand over a reply socket it has already filled. The broker must give up
     // on answering it rather than hand over its thread.
     auto stalled_socket = make_unconnected_socket();
-    auto stalled_reply_fd = submit_broker_request(broker->helper_fd(), allowed_path, stalled_socket, 1024);
+    auto stalled_reply_fd = submit_broker_request(broker->helper_fd(), endpoint_path, stalled_socket, 1024);
 
     // If the broker were stuck on the request above, this answer would never arrive.
     auto socket_fd = make_unconnected_socket();
-    auto reply_fd = submit_broker_request(broker->helper_fd(), allowed_path, socket_fd);
+    auto reply_fd = submit_broker_request(broker->helper_fd(), endpoint_path, socket_fd);
     EXPECT_EQ(await_broker_error(reply_fd), 0);
 
     VERIFY(close(reply_fd) == 0);
@@ -1221,7 +1230,7 @@ TEST_CASE(a_reply_socket_that_cannot_be_written_to_does_not_stall_the_broker)
     broker = nullptr;
 
     VERIFY(close(listener) == 0);
-    VERIFY(unlink(allowed_path.characters()) == 0);
+    VERIFY(unlink(endpoint_path.characters()) == 0);
     VERIFY(rmdir(directory) == 0);
 }
 
@@ -1296,10 +1305,10 @@ TEST_CASE(a_malformed_request_leaves_no_descriptors_behind_and_keeps_the_broker_
     auto* directory = mkdtemp(directory_template);
     VERIFY(directory);
 
-    auto allowed_path = ByteString::formatted("{}/allowed", directory);
-    auto listener = MUST(listen_on_unix_socket(allowed_path));
+    auto endpoint_path = ByteString::formatted("{}/endpoint", directory);
+    auto listener = MUST(listen_on_unix_socket(endpoint_path));
 
-    OwnPtr<Sandbox::ConnectBroker> broker = MUST(Sandbox::ConnectBroker::create({ allowed_path }));
+    OwnPtr<Sandbox::ConnectBroker> broker = broker_for(endpoint_path);
 
     auto descriptors_before = count_open_descriptors();
 
@@ -1308,7 +1317,7 @@ TEST_CASE(a_malformed_request_leaves_no_descriptors_behind_and_keeps_the_broker_
     // Answering this proves the broker dealt with the request above and is still serving, which is
     // what makes the count below meaningful without waiting on the clock.
     auto socket_fd = make_unconnected_socket();
-    auto reply_fd = submit_broker_request(broker->helper_fd(), allowed_path, socket_fd);
+    auto reply_fd = submit_broker_request(broker->helper_fd(), endpoint_path, socket_fd);
     EXPECT_EQ(await_broker_error(reply_fd), 0);
     await_broker_finishing_with_the_request(reply_fd);
     VERIFY(close(reply_fd) == 0);
@@ -1318,7 +1327,7 @@ TEST_CASE(a_malformed_request_leaves_no_descriptors_behind_and_keeps_the_broker_
 
     broker = nullptr;
     VERIFY(close(listener) == 0);
-    VERIFY(unlink(allowed_path.characters()) == 0);
+    VERIFY(unlink(endpoint_path.characters()) == 0);
     VERIFY(rmdir(directory) == 0);
 }
 
@@ -1328,8 +1337,8 @@ TEST_CASE(a_brokered_connection_behaves_like_a_real_one)
     auto* directory = mkdtemp(directory_template);
     VERIFY(directory);
 
-    auto allowed_path = ByteString::formatted("{}/allowed", directory);
-    auto listener = MUST(listen_on_unix_socket(allowed_path));
+    auto endpoint_path = ByteString::formatted("{}/endpoint", directory);
+    auto listener = MUST(listen_on_unix_socket(endpoint_path));
 
     // Mapped here, so the child does not need to be allowed to map anything itself. The second page
     // is unreadable, which is what lets an address be placed so that it runs off the end of the
@@ -1339,7 +1348,7 @@ TEST_CASE(a_brokered_connection_behaves_like_a_real_one)
     VERIFY(pages != MAP_FAILED);
     VERIFY(mprotect(static_cast<char*>(pages) + page_size, page_size, PROT_NONE) == 0);
 
-    OwnPtr<Sandbox::ConnectBroker> broker = MUST(Sandbox::ConnectBroker::create({ allowed_path }));
+    OwnPtr<Sandbox::ConnectBroker> broker = broker_for(endpoint_path);
 
     auto status = run_with_policy(
         [&](Sandbox::SeccompPolicy& policy) {
@@ -1365,7 +1374,7 @@ TEST_CASE(a_brokered_connection_behaves_like_a_real_one)
 
             sockaddr_un address {};
             address.sun_family = AF_UNIX;
-            memcpy(address.sun_path, allowed_path.characters(), allowed_path.length());
+            memcpy(address.sun_path, endpoint_path.characters(), endpoint_path.length());
             VERIFY(connect(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0);
 
             // The option the caller set before connecting still applies afterwards.
@@ -1416,59 +1425,90 @@ TEST_CASE(a_brokered_connection_behaves_like_a_real_one)
     broker = nullptr;
     VERIFY(munmap(pages, page_size * 2) == 0);
     VERIFY(close(listener) == 0);
-    VERIFY(unlink(allowed_path.characters()) == 0);
+    VERIFY(unlink(endpoint_path.characters()) == 0);
     VERIFY(rmdir(directory) == 0);
 }
 
-TEST_CASE(the_broker_asks_again_for_a_path_it_did_not_know_about)
+static bool accept_one_connection(int listener)
+{
+    if (!wait_until_readable(listener))
+        return false;
+    auto accepted = accept4(listener, nullptr, nullptr, SOCK_CLOEXEC);
+    if (accepted < 0)
+        return false;
+    VERIFY(close(accepted) == 0);
+    return true;
+}
+
+TEST_CASE(the_broker_looks_the_endpoint_up_for_every_connect)
 {
     char directory_template[] = "/tmp/ladybird-broker-XXXXXX";
     auto* directory = mkdtemp(directory_template);
     VERIFY(directory);
 
-    auto known_path = ByteString::formatted("{}/known", directory);
-    auto later_path = ByteString::formatted("{}/later", directory);
-    auto known_listener = MUST(listen_on_unix_socket(known_path));
-    auto later_listener = MUST(listen_on_unix_socket(later_path));
+    auto endpoint_name = ByteString::formatted("{}/endpoint", directory);
+    auto first_path = ByteString::formatted("{}/first", directory);
+    auto second_path = ByteString::formatted("{}/second", directory);
+    auto first_listener = MUST(listen_on_unix_socket(first_path));
+    auto second_listener = MUST(listen_on_unix_socket(second_path));
 
-    // Stands for an endpoint the Browser could not name when the renderer started, such as a server
-    // that was not running yet or one further down a fallback list.
-    // Written by the broker's own thread and read here. Passing descriptors back and forth does not
-    // order those two against each other, so the counter has to do it itself.
-    Atomic<size_t> refresh_count { 0 };
-    OwnPtr<Sandbox::ConnectBroker> broker = MUST(Sandbox::ConnectBroker::create({ known_path }, [&] {
-        ++refresh_count;
-        return Vector<ByteString> { later_path };
+    // Stands for a daemon that has moved, or gone away, between two connects. Written here and read on the
+    // broker's thread, which passing descriptors back and forth does not order, so the selector does it itself.
+    enum class Endpoint {
+        First,
+        Second,
+        Nowhere,
+    };
+    Atomic<Endpoint> endpoint { Endpoint::First };
+    Atomic<size_t> lookup_count { 0 };
+    OwnPtr<Sandbox::ConnectBroker> broker = MUST(Sandbox::ConnectBroker::create(endpoint_name, [&]() -> ErrorOr<ByteString> {
+        ++lookup_count;
+        switch (endpoint.load()) {
+        case Endpoint::First:
+            return first_path;
+        case Endpoint::Second:
+            return second_path;
+        case Endpoint::Nowhere:
+            return Error::from_string_literal("No daemon");
+        }
+        VERIFY_NOT_REACHED();
     }));
 
-    auto connect_to = [&](ByteString const& path) {
+    auto connect_to = [&](ByteString const& name) {
         auto socket_fd = make_unconnected_socket();
-        auto reply_fd = submit_broker_request(broker->helper_fd(), path, socket_fd);
+        auto reply_fd = submit_broker_request(broker->helper_fd(), name, socket_fd);
         auto error = await_broker_error(reply_fd);
         VERIFY(close(reply_fd) == 0);
         VERIFY(close(socket_fd) == 0);
         return error;
     };
 
-    EXPECT_EQ(connect_to(later_path), 0);
-    EXPECT(refresh_count.load() > 0);
+    EXPECT_EQ(connect_to(endpoint_name), 0);
+    EXPECT(accept_one_connection(first_listener));
 
-    // What was already allowed stays allowed, so a later answer cannot take an endpoint away.
-    EXPECT_EQ(connect_to(known_path), 0);
+    endpoint.store(Endpoint::Second);
+    EXPECT_EQ(connect_to(endpoint_name), 0);
+    EXPECT(accept_one_connection(second_listener));
 
-    // A helper cannot spend the Browser's time guessing: asking again runs out.
-    auto refreshes_after_success = refresh_count.load();
-    for (int i = 0; i < 8; ++i)
-        EXPECT_EQ(connect_to(ByteString::formatted("{}/never-{}", directory, i)), EACCES);
-    EXPECT(refresh_count.load() - refreshes_after_success <= 4u);
+    // A daemon that cannot be found is a refused connection, which is what a library expects of one that is down.
+    endpoint.store(Endpoint::Nowhere);
+    EXPECT_EQ(connect_to(endpoint_name), ECONNREFUSED);
+
+    // Any other name is refused before the lookup comes into it, so a helper cannot spend the Browser's time on it.
+    auto lookups_before = lookup_count.load();
+    EXPECT_EQ(connect_to(first_path), EACCES);
+    EXPECT_EQ(connect_to(ByteString::formatted("{}/guess", directory)), EACCES);
+    EXPECT_EQ(lookup_count.load(), lookups_before);
 
     // And the broker is still serving afterwards.
-    EXPECT_EQ(connect_to(known_path), 0);
+    endpoint.store(Endpoint::First);
+    EXPECT_EQ(connect_to(endpoint_name), 0);
+    EXPECT(accept_one_connection(first_listener));
 
     broker = nullptr;
-    VERIFY(close(known_listener) == 0);
-    VERIFY(close(later_listener) == 0);
-    VERIFY(unlink(known_path.characters()) == 0);
-    VERIFY(unlink(later_path.characters()) == 0);
+    VERIFY(close(first_listener) == 0);
+    VERIFY(close(second_listener) == 0);
+    VERIFY(unlink(first_path.characters()) == 0);
+    VERIFY(unlink(second_path.characters()) == 0);
     VERIFY(rmdir(directory) == 0);
 }

@@ -6,7 +6,6 @@ set(TEST_SOURCES
     TestADTSReader.cpp
     TestAudioBlockTimingRing.cpp
     TestAudioDiscardIntervals.cpp
-    TestAudioServerPath.cpp
     TestBitReader.cpp
     TestBufferedRanges.cpp
     TestCaptureDevices.cpp
@@ -83,7 +82,6 @@ target_link_libraries(TestSharedAudioFrameRing PRIVATE LibThreading)
 target_link_libraries(TestSpscAudioFrameRing PRIVATE LibThreading)
 
 if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")
-    target_compile_definitions(TestAudioServerPath PRIVATE HAVE_PULSEAUDIO=1)
     target_compile_definitions(TestPlaybackStream PRIVATE HAVE_PULSEAUDIO=1)
     target_link_libraries(TestPlaybackStream PRIVATE PkgConfig::PULSEAUDIO)
 endif()
