@@ -109,8 +109,9 @@ GC::Ref<WebIDL::Promise> BodyStreamPullSource::pull()
     VERIFY(!m_pending_pull_promise);
     m_pending_pull_promise = promise;
     if (!m_detached) {
-        BodyStreamWakeRegistry::the().arm(m_registry_token, *this);
-        m_expected_ticket = m_channel->arm_waiter();
+        if (auto push_ticket = exchange(m_push_ticket, {}); push_ticket.has_value())
+            m_channel->disarm_waiter(*push_ticket);
+        m_pull_ticket = arm_waiter(Engine::FetchByteChannel::BufferedAtLeast { 1 });
     }
 
     // 3. Return promise.
@@ -123,6 +124,9 @@ GC::Ref<WebIDL::Promise> BodyStreamPullSource::cancel(JS::Value reason)
     m_channel->cancel();
     BodyStreamWakeRegistry::the().disarm(m_registry_token);
     m_detached = true;
+    m_end_ticket = {};
+    m_pull_ticket = {};
+    m_push_ticket = {};
 
     // A pull promise created before the cancellation still settles.
     if (auto promise = exchange(m_pending_pull_promise, nullptr))
@@ -134,18 +138,47 @@ GC::Ref<WebIDL::Promise> BodyStreamPullSource::cancel(JS::Value reason)
     return WebIDL::create_resolved_promise(realm, JS::js_undefined());
 }
 
+void BodyStreamPullSource::watch_channel()
+{
+    m_end_ticket = arm_waiter(Engine::FetchByteChannel::EndOnly {});
+    push_while_paused();
+}
+
+Engine::WakeTicket BodyStreamPullSource::arm_waiter(Engine::FetchByteChannel::WakeOn wake_on)
+{
+    BodyStreamWakeRegistry::the().arm(m_registry_token, *this);
+    return m_channel->arm_waiter(wake_on);
+}
+
 BodyStreamPullSource::WakeResult BodyStreamPullSource::on_wake(Engine::WakeTicket ticket)
 {
-    if (!m_pending_pull_promise)
-        return WakeResult::Consumed;
-    // This waiter's wake is still owed; the source stays rooted for it.
-    if (ticket != m_expected_ticket)
+    if (ticket == m_pull_ticket) {
+        m_pull_ticket = {};
+        on_pull_wake();
+    } else if (ticket == m_push_ticket) {
+        m_push_ticket = {};
+        on_push_wake();
+    } else if (ticket == m_end_ticket) {
+        m_end_ticket = {};
+        on_end_wake();
+    }
+
+    // The source stays rooted while any of its waiters is still owed a wake.
+    if (m_end_ticket.has_value() || m_pull_ticket.has_value() || m_push_ticket.has_value())
         return WakeResult::StillAwaited;
+    return WakeResult::Consumed;
+}
+
+void BodyStreamPullSource::on_pull_wake()
+{
+    if (!m_pending_pull_promise)
+        return;
 
     // AD-HOC: While a sync XHR send() pauses the HTML event loop, the pull runs now rather than in a fetch task.
     if (HTML::main_thread_event_loop().execution_paused()) {
         run_pull_task();
-        return WakeResult::Consumed;
+        push_while_paused();
+        return;
     }
 
     // 3. Queue a fetch task to run the following steps, with fetchParams’s task destination:
@@ -155,26 +188,46 @@ BodyStreamPullSource::WakeResult BodyStreamPullSource::on_wake(Engine::WakeTicke
     });
     if (m_fetch_params) {
         Infrastructure::queue_fetch_task(m_fetch_params->task_destination(), steps);
-        return WakeResult::Consumed;
+        return;
     }
 
     // AD-HOC: The tasks of a navigation body adopted from another process are queued without a document, since the
     //         previous document's tasks stop running once the new document replaces it.
     HTML::queue_a_task(HTML::Task::Source::Networking, HTML::main_thread_event_loop(), nullptr, steps);
-    return WakeResult::Consumed;
+}
+
+// AD-HOC: A sync XHR send() pauses the HTML event loop while it waits for exactly these bytes, and a stream set up
+//         under that pause never starts pulling: the start promise's reaction is a microtask. So while the loop is
+//         paused, bytes are pushed into the stream as they arrive, the way the specification's in-parallel steps
+//         would deliver them (see the sync XHR body path in fetch_response_handover()).
+void BodyStreamPullSource::push_while_paused()
+{
+    if (m_detached || m_pending_pull_promise || m_push_ticket.has_value() || !HTML::main_thread_event_loop().execution_paused())
+        return;
+    if (!m_fetch_params || m_fetch_params->algorithms()->body_intent() != Engine::BodyIntent::SyncAccumulate)
+        return;
+    m_push_ticket = arm_waiter(Engine::FetchByteChannel::BufferedAtLeast { 1 });
+}
+
+void BodyStreamPullSource::on_push_wake()
+{
+    if (m_detached || m_pending_pull_promise)
+        return;
+    drain_into_stream();
+    push_while_paused();
+}
+
+// A pending pull or the push while paused carries the body's end itself.
+void BodyStreamPullSource::on_end_wake()
+{
+    if (m_detached || m_pending_pull_promise || m_push_ticket.has_value())
+        return;
+    settle_without_reading();
 }
 
 // A failed transmission errors the stream regardless of read demand, and an empty completed body closes without one.
-void BodyStreamPullSource::handle_network_settled()
+void BodyStreamPullSource::settle_without_reading()
 {
-    if (m_pending_pull_promise)
-        return;
-
-    if (HTML::main_thread_event_loop().execution_paused()) {
-        deliver_while_paused();
-        return;
-    }
-
     auto& realm = *m_realm;
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -207,19 +260,6 @@ void BodyStreamPullSource::settle_stream(Engine::FetchByteChannel::TakeResult co
             }
             m_detached = true;
         });
-}
-
-// AD-HOC: A sync XHR send() pauses the HTML event loop while it waits for exactly these bytes, and a stream set up
-//         under that pause never starts pulling: the start promise's reaction is a microtask. So while the loop is
-//         paused, bytes are pushed into the stream as they arrive, the way the specification's in-parallel steps
-//         would deliver them (see the sync XHR body path in fetch_response_handover()).
-void BodyStreamPullSource::deliver_while_paused()
-{
-    // A pending pull's wake carries these bytes to run_pull_task() itself.
-    if (m_detached || m_pending_pull_promise)
-        return;
-
-    drain_into_stream();
 }
 
 void BodyStreamPullSource::run_pull_task()
@@ -274,6 +314,31 @@ void BodyStreamPullSource::drain_into_stream()
     settle_stream(result);
     if (result.state.has<Engine::FetchByteChannel::ConsumerCancelled>() || result.state.has<Engine::FetchByteChannel::Transferred>())
         m_detached = true;
+}
+
+// https://fetch.spec.whatwg.org/#concept-http-network-fetch
+// NB: Steps 10 to 13 of HTTP-network fetch.
+GC::Ref<Streams::ReadableStream> create_body_stream_from_channel(JS::Realm& realm, GC::Ptr<Infrastructure::FetchParams const> fetch_params, NonnullRefPtr<Engine::FetchByteChannel> channel, BodyStreamWakeSink const& wake_sink)
+{
+    // 10. Let stream be a new ReadableStream.
+    auto stream = Streams::ReadableStream::create(realm);
+    auto pull_source = GC::Heap::the().allocate<BodyStreamPullSource>(realm, fetch_params, stream, move(channel), wake_sink);
+
+    // 11. Let pullAlgorithm be the following steps:
+    auto pull_algorithm = GC::create_function(GC::Heap::the(), [pull_source]() {
+        return pull_source->pull();
+    });
+
+    // 12. Let cancelAlgorithm be an algorithm that aborts fetchParams’s controller with reason, given reason.
+    auto cancel_algorithm = GC::create_function(GC::Heap::the(), [pull_source](JS::Value reason) {
+        return pull_source->cancel(reason);
+    });
+
+    // 13. Set up stream with byte reading support with pullAlgorithm set to pullAlgorithm, cancelAlgorithm set to cancelAlgorithm.
+    stream->set_up_with_byte_reading_support(realm, pull_algorithm, cancel_algorithm);
+    pull_source->watch_channel();
+
+    return stream;
 }
 
 }
