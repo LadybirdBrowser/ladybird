@@ -3535,14 +3535,24 @@ void ConnectionFromClient::request_close(Web::PageId page_id)
 {
     // Browser user agents should offer users the ability to arbitrarily close any top-level traversable in their top-level traversable set.
     // For example, by clicking a "close tab" button.
-    if (auto page = this->page(page_id); page.has_value())
-        as<Web::HTML::LocalTraversableNavigable>(*page->page().top_level_traversable()).close_top_level_traversable();
+    if (auto page = this->page(page_id); page.has_value()) {
+        // NB: A close queued before a process switch can arrive after this page has stopped hosting the traversable.
+        if (auto* traversable = as_if<Web::HTML::LocalTraversableNavigable>(page->page().top_level_traversable().ptr()))
+            traversable->close_top_level_traversable();
+        else
+            discard_embedded_page(page_id);
+    }
 }
 
 void ConnectionFromClient::force_close(Web::PageId page_id)
 {
-    if (auto page = this->page(page_id); page.has_value())
-        as<Web::HTML::LocalTraversableNavigable>(*page->page().top_level_traversable()).close_top_level_traversable(Web::HTML::LocalTraversableNavigable::PromptToUnload::No);
+    if (auto page = this->page(page_id); page.has_value()) {
+        // NB: A close queued before a process switch can arrive after this page has stopped hosting the traversable.
+        if (auto* traversable = as_if<Web::HTML::LocalTraversableNavigable>(page->page().top_level_traversable().ptr()))
+            traversable->close_top_level_traversable(Web::HTML::LocalTraversableNavigable::PromptToUnload::No);
+        else
+            discard_embedded_page(page_id);
+    }
 }
 
 void ConnectionFromClient::exit_fullscreen(Web::PageId page_id)
