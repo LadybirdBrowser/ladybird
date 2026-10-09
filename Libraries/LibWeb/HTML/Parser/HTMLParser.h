@@ -28,6 +28,8 @@ struct RustFfiHtmlParserAttribute;
 
 namespace Web::HTML {
 
+class IncrementalDocumentParser;
+
 class WEB_API HTMLParser final : public JS::Cell {
     GC_CELL(HTMLParser, JS::Cell);
     GC_DECLARE_ALLOCATOR(HTMLParser);
@@ -69,6 +71,8 @@ public:
     static Utf16String serialize_html_fragment(DOM::Node const&, SerializableShadowRoots, ReadonlySpan<GC::Ref<DOM::ShadowRoot>>, DOM::FragmentSerializationMode = DOM::FragmentSerializationMode::Inner);
 
     HTMLTokenizer& tokenizer() { return m_tokenizer; }
+    bool streaming_body_is_exhausted() const { return m_streaming_body_is_exhausted; }
+    void did_exhaust_streaming_body(Badge<IncrementalDocumentParser>) { m_streaming_body_is_exhausted = true; }
 
     void set_allow_declarative_shadow_roots(AllowDeclarativeShadowRoots allow) { m_allow_declarative_shadow_roots = allow; }
 
@@ -138,6 +142,7 @@ private:
     void invoke_post_parse_action();
     static void the_end(GC::Ref<DOM::Document>, GC::Ptr<HTMLParser>, u64 parser_generation);
 
+    bool m_streaming_body_is_exhausted { false };
     HTMLTokenizer m_tokenizer;
     RustFfiHtmlParserHandle* m_rust_parser { nullptr };
 

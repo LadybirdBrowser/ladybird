@@ -30,6 +30,8 @@ Description:
 
 Endpoints:
     - POST /echo <json body>, Creates an echo response for later use. See "Echo" class below for body properties.
+    - Echo responses accept chunks=<byte-counts> and chunk_unblock_tokens=<tokens> query parameters.
+      Each named token holds the response after the corresponding chunk until GET /unblock/<token>.
     - GET <any path> with an "Upgrade: websocket" header: Performs a WebSocket handshake and then echoes
       every text/binary frame back to the client verbatim. With a "send-binary=<size>" query parameter, the
       server first sends a binary frame of that many bytes: a 1, zeros, and then a 2.
@@ -566,10 +568,14 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if chunks:
             chunk_sizes = [int(chunk_size) for chunk_size in chunks[0].split(",") if chunk_size]
             offset = 0
-            for chunk_size in chunk_sizes:
+            chunk_unblock_tokens = query.get("chunk_unblock_tokens", [""])[0].split(",")
+            for chunk_index, chunk_size in enumerate(chunk_sizes):
                 self.wfile.write(response_body_bytes[offset : offset + chunk_size])
                 self.wfile.flush()
                 offset += chunk_size
+                if chunk_index < len(chunk_unblock_tokens) and chunk_unblock_tokens[chunk_index]:
+                    token = chunk_unblock_tokens[chunk_index]
+                    unblock_events.setdefault(token, threading.Event()).wait()
                 if chunk_delay_ms > 0:
                     time.sleep(chunk_delay_ms / 1000)
             if offset < len(response_body_bytes):
