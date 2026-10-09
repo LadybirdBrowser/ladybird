@@ -13,6 +13,7 @@ namespace Compositing {
 
 void AsyncScrollTree::set_state(AsyncScrollingState&& state)
 {
+    m_document_id = state.document_id;
     m_scroll_nodes = move(state.scroll_nodes);
     m_snap_containers = move(state.snap_containers);
     m_device_pixels_per_css_pixel = state.device_pixels_per_css_pixel;
@@ -283,7 +284,7 @@ Optional<Web::UniqueNodeID> AsyncScrollTree::document_id() const
 {
     // The scroll nodes belong to the same document, whose viewport need not itself be scrollable.
     if (m_scroll_nodes.is_empty())
-        return {};
+        return m_document_id;
     return m_scroll_nodes.first().node_id.document_id;
 }
 

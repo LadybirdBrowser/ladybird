@@ -193,6 +193,7 @@ namespace IPC {
 template<>
 ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayList::AsyncScrollingMetadata const& metadata)
 {
+    TRY(encoder.encode(metadata.document_id));
     TRY(encoder.encode(metadata.viewport_rect));
     TRY(encoder.encode(metadata.wheel_event_listener_state_generation));
     TRY(encoder.encode(metadata.has_blocking_wheel_event_listeners));
@@ -206,6 +207,7 @@ template<>
 ErrorOr<Compositing::DisplayList::AsyncScrollingMetadata> decode(Decoder& decoder)
 {
     return Compositing::DisplayList::AsyncScrollingMetadata {
+        .document_id = TRY(decoder.decode<Optional<Web::UniqueNodeID>>()),
         .viewport_rect = TRY(decoder.decode<Gfx::IntRect>()),
         .wheel_event_listener_state_generation = TRY(decoder.decode<u64>()),
         .has_blocking_wheel_event_listeners = TRY(decoder.decode<bool>()),

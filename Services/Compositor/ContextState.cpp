@@ -1082,7 +1082,10 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
 {
     if (!presents_to_client())
         return {};
-    if (!m_can_accept_async_wheel_events)
+    // A page without scroll nodes still has a visual viewport to pan once it is zoomed in.
+    auto can_pan_zoomed_visual_viewport = m_wheel_routing_admission == Compositing::WheelRoutingAdmission::NoScrollNode
+        && visual_viewport_scale_for_compositing().value_or(1.0f) > 1.0f;
+    if (!m_can_accept_async_wheel_events && !can_pan_zoomed_visual_viewport)
         return {};
 
     auto now = now_for_testing.value_or(MonotonicTime::now());
@@ -1673,13 +1676,21 @@ Optional<ContextState::VisualViewportScrollDelta> ContextState::apply_visual_vie
     if (!m_visual_context_tree.has_value())
         return {};
 
-    auto viewport_node_id = m_async_scroll_tree.viewport_scroll_node_id();
-    if (!viewport_node_id.has_value())
+    // A page whose viewport cannot be scrolled records no viewport scroll node, and its viewport stays where it is.
+    Web::AsyncScrollNodeStableID viewport_stable_id;
+    Gfx::FloatPoint viewport_scroll_offset;
+    if (auto viewport_node_id = m_async_scroll_tree.viewport_scroll_node_id(); viewport_node_id.has_value()) {
+        auto scroll_offset = m_async_scroll_tree.scroll_offset_for_node(*viewport_node_id, m_scroll_state_snapshot);
+        if (!scroll_offset.has_value())
+            return {};
+        viewport_stable_id = viewport_stable_id_from(*viewport_node_id);
+        viewport_scroll_offset = *scroll_offset;
+    } else if (auto document_id = m_async_scroll_tree.document_id(); document_id.has_value()) {
+        viewport_stable_id = { .node_id = *document_id, .kind = Web::AsyncScrollNodeKind::Viewport };
+        viewport_scroll_offset = m_async_scrolling_viewport_rect.location().to_type<float>();
+    } else {
         return {};
-
-    auto viewport_scroll_offset = m_async_scroll_tree.scroll_offset_for_node(*viewport_node_id, m_scroll_state_snapshot);
-    if (!viewport_scroll_offset.has_value())
-        return {};
+    }
 
     auto transform = m_async_visual_viewport_transform.value_or(m_visual_context_tree->visual_viewport_transform());
     auto scale = transform.matrix[0, 0];
@@ -1705,8 +1716,8 @@ Optional<ContextState::VisualViewportScrollDelta> ContextState::apply_visual_vie
 
     return VisualViewportScrollDelta {
         .scroll_offset = {
-            .stable_node_id = viewport_stable_id_from(*viewport_node_id),
-            .compositor_scroll_offset = *viewport_scroll_offset,
+            .stable_node_id = viewport_stable_id,
+            .compositor_scroll_offset = viewport_scroll_offset,
             .unadopted_scroll_delta = consumed_delta.scaled(1.0f / scale),
             .last_relative_scroll_delta = {},
         },

@@ -651,6 +651,7 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
     Optional<Compositing::DisplayList::AsyncScrollingMetadata> async_scrolling_metadata;
     if (auto navigable = document.navigable()) {
         async_scrolling_metadata = Compositing::DisplayList::AsyncScrollingMetadata {
+            .document_id = document.unique_id(),
             .viewport_rect = device_viewport_rect.to_type<int>(),
             .wheel_event_listener_state_generation = navigable->page().wheel_event_listener_state_generation(),
             .has_blocking_wheel_event_listeners = wheel_event_region_state.has_blocking_wheel_event_listeners,

@@ -45,6 +45,7 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
     u32 next_paint_order_index = 0;
 
     if (auto const& metadata = display_list.async_scrolling_metadata(); metadata.has_value()) {
+        async_scrolling_state.document_id = metadata->document_id;
         async_scrolling_state.viewport_rect = metadata->viewport_rect;
         async_scrolling_state.wheel_event_listener_state_generation = metadata->wheel_event_listener_state_generation;
         async_scrolling_state.has_blocking_wheel_event_listeners = metadata->has_blocking_wheel_event_listeners;

@@ -124,6 +124,7 @@ struct AsyncSnapContainer {
 };
 
 struct AsyncScrollingState {
+    Optional<Web::UniqueNodeID> document_id;
     Vector<AsyncScrollNode> scroll_nodes;
     Vector<AsyncSnapContainer> snap_containers;
     Vector<WheelHitTestTarget> wheel_hit_test_targets;
