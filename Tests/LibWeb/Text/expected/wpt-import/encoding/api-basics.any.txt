@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Default encodings
+Pass	Default inputs
+Pass	Encode/decode round trip: utf-8
+Pass	Decode sample: utf-16le
+Pass	Decode sample: utf-16be
+Pass	Decode sample: utf-16

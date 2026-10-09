@@ -1,0 +1,34 @@
+TextEncoder.prototype:
+    encoding { get: function "get encoding" length 0, enumerable: true, configurable: true }
+    encode { value: function "encode" length 0, writable: true, enumerable: true, configurable: true }
+    encodeInto { value: function "encodeInto" length 2, writable: true, enumerable: true, configurable: true }
+    constructor { value: function "TextEncoder" length 0, writable: true, enumerable: false, configurable: true }
+    Symbol(Symbol.toStringTag) { value: TextEncoder, writable: false, enumerable: false, configurable: true }
+TextEncoder:
+    length { value: 0, writable: false, enumerable: false, configurable: true }
+    name { value: TextEncoder, writable: false, enumerable: false, configurable: true }
+prototype of TextEncoder.prototype is Object.prototype: true
+Object.prototype.toString of an instance: [object TextEncoder]
+own keys of an instance: 0
+encode(): []
+encode(undefined): []
+encode(null): [110,117,108,108]
+encode of a lone surrogate: [97,239,191,189,98]
+encode of a symbol: TypeError: Cannot convert symbol to string
+calling without new: TypeError: TextEncoder constructor must be called with 'new'
+encode on a plain object: TypeError: Not an object of type TextEncoder
+encode on undefined: TypeError: Not an object of type TextEncoder
+encoding getter on a TextDecoder: TypeError: Not an object of type TextEncoder
+encodeInto with one argument: TypeError: encodeInto() needs 2 arguments
+encodeInto into an ArrayBuffer: TypeError: Not an object of type Uint8Array
+encodeInto into an Int8Array: TypeError: Not an object of type Uint8Array
+encodeInto into a resizable buffer: TypeError: Not an object of type fixed-length Uint8Array
+encodeInto into a detached buffer: {"read":0,"written":0}
+encodeInto stops before a code point that does not fit: [{"read":2,"written":2},[97,98,0,0,0]]
+encodeInto at an offset: [{"read":1,"written":2},[0,0,195,169,0,0]]
+structuredClone: DataCloneError: Cannot serialize platform objects
+passed as a Node: TypeError: Not an object of type Node
+subclass: true true [2,"utf-8"]
+prototype from the realm of newTarget: true
+encode result realm: true false
+encoders work after a garbage collection: true
