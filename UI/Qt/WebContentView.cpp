@@ -486,19 +486,23 @@ struct WheelDelta {
     Web::WheelDeltaPrecision precision { Web::WheelDeltaPrecision::Discrete };
 };
 
-static bool wheel_event_scrolls_continuously(QWheelEvent const& wheel_event)
-{
-    if (wheel_event.phase() != Qt::NoScrollPhase)
-        return true;
-    // Some platforms deliver touchpad scrolling without scroll phases, so fall back to the type of the device.
-    auto const* pointing_device = wheel_event.pointingDevice();
-    return pointing_device && pointing_device->type() == QInputDevice::DeviceType::TouchPad;
-}
-
 static bool is_running_on_wayland()
 {
     static bool const is_wayland = QGuiApplication::platformName().startsWith(QStringLiteral("wayland"));
     return is_wayland;
+}
+
+bool wheel_event_scrolls_continuously(QWheelEvent const& wheel_event)
+{
+    if (wheel_event.phase() != Qt::NoScrollPhase)
+        return true;
+    // Qt on Wayland reports every pointer device as a touchpad, but marks touchpad and continuous scrolling as
+    // synthesized by the system.
+    if (is_running_on_wayland())
+        return wheel_event.source() != Qt::MouseEventNotSynthesized;
+    // Some platforms deliver touchpad scrolling without scroll phases, so fall back to the type of the device.
+    auto const* pointing_device = wheel_event.pointingDevice();
+    return pointing_device && pointing_device->type() == QInputDevice::DeviceType::TouchPad;
 }
 
 // Qt on Wayland gives touchpad scroll distances in axis units, at 1 pixel per unit. This scrolls too slowly, so we

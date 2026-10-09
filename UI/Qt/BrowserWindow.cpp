@@ -37,7 +37,6 @@
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
-#include <QInputDevice>
 #include <QMenuBar>
 #include <QMouseEvent>
 #include <QPainter>
@@ -1587,7 +1586,7 @@ void BrowserWindow::wheelEvent(QWheelEvent* event)
     if (!m_current_tab)
         return;
 
-    if (event->phase() != Qt::NoScrollPhase || event->device()->type() == QInputDevice::DeviceType::TouchPad)
+    if (wheel_event_scrolls_continuously(*event))
         return;
 
     if ((event->modifiers() & Qt::ControlModifier) != 0) {

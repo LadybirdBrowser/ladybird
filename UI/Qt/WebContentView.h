@@ -320,4 +320,6 @@ private:
 #endif
 };
 
+bool wheel_event_scrolls_continuously(QWheelEvent const&);
+
 }
