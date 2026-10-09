@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 #include <LibMedia/Audio/AudioDevices.h>
+#include <LibMedia/Audio/ClientConnection.h>
 
 namespace Media {
 
@@ -30,7 +33,26 @@ void AudioDevices::ensure_watching()
     if (m_watching)
         return;
     m_watching = true;
-    watch_platform_audio_devices([this](ErrorOr<AudioDeviceEnumeration> enumeration) {
+
+    if (!Audio::ClientConnection::has_transport_factory()) {
+        watch_platform_audio_devices([this](ErrorOr<AudioDeviceEnumeration> enumeration) {
+            report_device_list(move(enumeration));
+        });
+        return;
+    }
+
+    auto connection = Audio::ClientConnection::acquire();
+    if (connection.is_error()) {
+        // Listeners hear of the failure first, since they may well come back here looking for the list.
+        report_device_list(connection.release_error());
+        m_watching = false;
+        return;
+    }
+    connection.value()->watch_devices([this](ErrorOr<AudioDeviceEnumeration> enumeration) {
+        if (enumeration.is_error()) {
+            m_watching = false;
+            return;
+        }
         report_device_list(move(enumeration));
     });
 }
@@ -83,6 +105,35 @@ void AudioDevices::notify_listeners()
             continue;
         callback.value()();
     }
+}
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Media::AudioDeviceInfo const& device)
+{
+    TRY(encoder.encode(device.dom_device_id));
+    TRY(encoder.encode(device.label));
+    TRY(encoder.encode(device.group_id));
+    TRY(encoder.encode(device.sample_rate_hz));
+    TRY(encoder.encode(device.channel_count));
+    TRY(encoder.encode(device.is_default));
+    return {};
+}
+
+template<>
+ErrorOr<Media::AudioDeviceInfo> decode(Decoder& decoder)
+{
+    Media::AudioDeviceInfo device;
+    device.dom_device_id = TRY(decoder.decode<ByteString>());
+    device.label = TRY(decoder.decode<ByteString>());
+    device.group_id = TRY(decoder.decode<ByteString>());
+    device.sample_rate_hz = TRY(decoder.decode<u32>());
+    device.channel_count = TRY(decoder.decode<u32>());
+    device.is_default = TRY(decoder.decode<bool>());
+    return device;
 }
 
 }

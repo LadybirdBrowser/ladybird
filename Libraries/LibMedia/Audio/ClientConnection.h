@@ -17,6 +17,7 @@
 #include <LibCore/Promise.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibMedia/Audio/AudioClientEndpoint.h>
+#include <LibMedia/Audio/AudioDevices.h>
 #include <LibMedia/Audio/AudioServerEndpoint.h>
 #include <LibMedia/Audio/PlaybackStream.h>
 #include <LibMedia/Export.h>
@@ -63,12 +64,16 @@ public:
     // Any thread.
     void wake_pump();
 
+    // Reports the server's devices now and on every change, and an error once when the connection dies.
+    void watch_devices(Media::AudioDeviceListCallback);
+
 private:
     virtual void die() override;
 
     virtual void stream_created(u64 stream_id, SampleSpecification sample_specification, u32 device_latency_ms) override;
     virtual void stream_creation_failed(u64 stream_id) override;
     virtual void stream_request_completed(u64 stream_id, u64 request_id) override;
+    virtual void devices_changed(Vector<Media::AudioDeviceInfo> inputs, Vector<Media::AudioDeviceInfo> outputs) override;
 
     void pump_thread_main();
     RefPtr<RemotePlaybackStream> find_live_stream(u64 stream_id);
@@ -90,6 +95,7 @@ private:
     u64 m_next_request_id { 1 };
     HashMap<u64, PendingStream> m_pending_streams;
     HashMap<u64, PendingRequest> m_pending_requests;
+    Media::AudioDeviceListCallback m_on_device_list;
     bool m_is_dead { false };
 
     // Streams register themselves for their lifetime; the pump takes a reference only if one is still alive.

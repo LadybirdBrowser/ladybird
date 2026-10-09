@@ -12,14 +12,18 @@ namespace Audio {
 
 static MixerClientId s_next_mixer_client_id { 1 };
 
-ServerConnection::ServerConnection(NonnullOwnPtr<IPC::Transport> transport, int client_id, NonnullRefPtr<PlaybackStreamMixer> mixer)
+ServerConnection::ServerConnection(NonnullOwnPtr<IPC::Transport> transport, int client_id, NonnullRefPtr<PlaybackStreamMixer> mixer, DeviceEnumeration device_enumeration)
     : IPC::ConnectionFromClient<AudioClientEndpoint, AudioServerEndpoint>(*this, move(transport), client_id)
     , m_mixer(move(mixer))
+    , m_device_enumeration(device_enumeration)
 {
+    if (m_device_enumeration == DeviceEnumeration::Platform)
+        m_devices_changed_listener_id = Media::AudioDevices::the().add_devices_changed_listener([this] { devices_changed(); });
 }
 
 ServerConnection::~ServerConnection()
 {
+    stop_listening_for_device_changes();
     // Removing the streams settles their drains, which must not find a connection that is going away.
     revoke_weak_ptrs();
     remove_streams_from_mixer();
@@ -27,9 +31,16 @@ ServerConnection::~ServerConnection()
 
 void ServerConnection::die()
 {
+    stop_listening_for_device_changes();
     remove_streams_from_mixer();
     if (on_death)
         on_death();
+}
+
+void ServerConnection::stop_listening_for_device_changes()
+{
+    if (m_devices_changed_listener_id.has_value())
+        Media::AudioDevices::the().remove_devices_changed_listener(m_devices_changed_listener_id.release_value());
 }
 
 void ServerConnection::remove_streams_from_mixer()
@@ -158,6 +169,30 @@ void ServerConnection::set_stream_volume(u64 stream_id, float volume)
     stream->volume = volume;
     if (stream->has_ring)
         m_mixer->set_client_gain(stream->mixer_client_id, volume);
+}
+
+void ServerConnection::watch_devices()
+{
+    m_client_watches_devices = true;
+    // A list not yet available follows as soon as the platform reports one.
+    if (m_device_enumeration == DeviceEnumeration::None || Media::AudioDevices::the().has_device_list())
+        send_device_list();
+}
+
+void ServerConnection::send_device_list()
+{
+    if (m_device_enumeration == DeviceEnumeration::None) {
+        async_devices_changed({}, {});
+        return;
+    }
+    auto& devices = Media::AudioDevices::the();
+    async_devices_changed(devices.input_devices(), devices.output_devices());
+}
+
+void ServerConnection::devices_changed()
+{
+    if (m_client_watches_devices)
+        send_device_list();
 }
 
 }

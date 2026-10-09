@@ -95,6 +95,27 @@ void ClientConnection::die()
     auto pending_requests = move(m_pending_requests);
     for (auto& [request_id, request] : pending_requests)
         request.on_complete(find_live_stream(request.stream_id).ptr());
+
+    // Whatever the server knew went with it; the watcher hears so once.
+    if (auto on_device_list = move(m_on_device_list))
+        on_device_list(Error::from_string_literal("Audio server connection died"));
+}
+
+void ClientConnection::watch_devices(Media::AudioDeviceListCallback on_device_list)
+{
+    VERIFY(!m_on_device_list);
+    if (m_is_dead) {
+        on_device_list(Error::from_string_literal("Audio server connection has died"));
+        return;
+    }
+    m_on_device_list = move(on_device_list);
+    async_watch_devices();
+}
+
+void ClientConnection::devices_changed(Vector<Media::AudioDeviceInfo> inputs, Vector<Media::AudioDeviceInfo> outputs)
+{
+    if (m_on_device_list)
+        m_on_device_list(Media::AudioDeviceEnumeration { .inputs = move(inputs), .outputs = move(outputs) });
 }
 
 RefPtr<RemotePlaybackStream> ClientConnection::find_live_stream(u64 stream_id)

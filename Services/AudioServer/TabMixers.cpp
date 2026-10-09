@@ -63,7 +63,10 @@ ErrorOr<IPC::TransportHandle> TabMixers::connect_client(u64 tab_id)
 
     auto& tab = tab_for(tab_id);
     auto client_id = m_next_client_id++;
-    auto connection = Audio::ServerConnection::construct(move(paired_transports.local), client_id, tab.mixer);
+    auto device_enumeration = Audio::ServerConnection::DeviceEnumeration::Platform;
+    if (m_audio_output == Media::AudioOutput::Null)
+        device_enumeration = Audio::ServerConnection::DeviceEnumeration::None;
+    auto connection = Audio::ServerConnection::construct(move(paired_transports.local), client_id, tab.mixer, device_enumeration);
     connection->on_death = [tab_id, client_id] {
         TabMixers::the().connection_died(tab_id, client_id);
     };
