@@ -34,6 +34,7 @@ use crate::utf16::{Utf16View, is_json_special_code_unit, json_special_code_unit_
 /// The code units of a JSON text: ASCII bytes or UTF-16 code units.
 trait CodeUnit: Copy + Eq + Into<u32> + 'static {
     fn make_string(units: &[Self]) -> Utf16String;
+    fn make_primitive_string(vm: &Vm, units: &[Self]) -> Gc<PrimitiveString>;
     fn make_fly_string(units: &[Self]) -> Utf16FlyString;
 
     /// The position of the first unit at or after `position` that is a quotation mark, a reverse solidus or a
@@ -44,6 +45,10 @@ trait CodeUnit: Copy + Eq + Into<u32> + 'static {
 impl CodeUnit for u8 {
     fn make_string(units: &[u8]) -> Utf16String {
         Utf16String::from_ascii(units)
+    }
+
+    fn make_primitive_string(vm: &Vm, units: &[u8]) -> Gc<PrimitiveString> {
+        PrimitiveString::create_from_ascii(vm, units)
     }
 
     fn make_fly_string(units: &[u8]) -> Utf16FlyString {
@@ -69,6 +74,10 @@ impl CodeUnit for u8 {
 impl CodeUnit for u16 {
     fn make_string(units: &[u16]) -> Utf16String {
         Utf16String::from_utf16(units)
+    }
+
+    fn make_primitive_string(vm: &Vm, units: &[u16]) -> Gc<PrimitiveString> {
+        PrimitiveString::create(vm, Utf16String::from_utf16(units))
     }
 
     fn make_fly_string(units: &[u16]) -> Utf16FlyString {
@@ -365,6 +374,12 @@ impl<'a, 'vm, C: CodeUnit> Parser<'a, 'vm, C> {
             Some(0x5B) => self.parse_array(),
             Some(0x22) => {
                 let token = self.scan_string()?;
+                if !token.has_escapes {
+                    return Ok(Value::from_string(C::make_primitive_string(
+                        self.vm,
+                        &self.units[token.start..token.end],
+                    )));
+                }
                 Ok(Value::from_string(PrimitiveString::create(
                     self.vm,
                     self.make_string(&token)?,
