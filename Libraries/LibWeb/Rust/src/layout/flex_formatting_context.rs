@@ -2127,46 +2127,56 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
+    /// Whether `alignment` puts `item` at the physical end of its flex line in the cross axis, its right or bottom
+    /// edge, rather than at the physical start. None for an alignment that is not toward either edge.
+    fn cross_alignment_is_at_physical_end(&self, item: Node, alignment: u8) -> Option<bool> {
+        // https://drafts.csswg.org/css-flexbox/#flex-wrap-property
+        // When flex-wrap is wrap-reverse, the cross-start and cross-end directions are swapped. The writing mode of the
+        // container decides where 'start' and 'end' are, without that swap.
+        let flex_cross_axis_is_reverse = self.cross_axis_is_reverse();
+        let wrap_reverse = self.used_flex_wrap() == flex_wrap::WRAP_REVERSE;
+        let container_cross_axis_is_reverse = flex_cross_axis_is_reverse != wrap_reverse;
+        let item_cross_axis_is_reverse = if self.inline_axis_is_horizontal(item) == self.cross_axis_is_horizontal() {
+            self.inline_axis_is_reverse(item)
+        } else {
+            self.block_axis_is_reverse(item)
+        };
+        Some(match alignment {
+            align_items::NORMAL | align_items::STRETCH | align_items::FLEX_START => flex_cross_axis_is_reverse,
+            align_items::FLEX_END => !flex_cross_axis_is_reverse,
+            align_items::START => container_cross_axis_is_reverse,
+            align_items::END => !container_cross_axis_is_reverse,
+            align_items::SELF_START => item_cross_axis_is_reverse,
+            align_items::SELF_END => !item_cross_axis_is_reverse,
+            _ => return None,
+        })
+    }
+
     fn align_all_flex_items_along_the_cross_axis(&mut self) {
         // FIXME: Take better care of margins
-        let wrap_reverse = self.used_flex_wrap() == flex_wrap::WRAP_REVERSE;
         for line_index in 0..self.flex_lines.len() {
             let half_line = self.flex_lines[line_index].cross_size / 2;
             for item_position in 0..self.flex_lines[line_index].items.len() {
                 let index = self.flex_lines[line_index].items[item_position];
                 let alignment = self.alignment_for_item(self.flex_items[index].box_);
                 let item = &self.flex_items[index];
+                // The offsets are from the center of the line, toward the physical right or bottom.
+                let at_physical_start =
+                    -half_line + item.margins.cross_before + item.borders.cross_before + item.padding.cross_before;
+                let at_physical_end = half_line
+                    - item.cross_size.unwrap()
+                    - item.margins.cross_after
+                    - item.borders.cross_after
+                    - item.padding.cross_after;
                 let offset = match alignment {
-                    // https://drafts.csswg.org/css-flexbox/#flex-wrap-property
-                    // When flex-wrap is wrap-reverse, the cross-start and cross-end directions are swapped.
-                    align_items::NORMAL if wrap_reverse => {
-                        half_line
-                            - item.cross_size.unwrap()
-                            - item.margins.cross_after
-                            - item.borders.cross_after
-                            - item.padding.cross_after
-                    }
-                    align_items::NORMAL => {
-                        -half_line + item.margins.cross_before + item.borders.cross_before + item.padding.cross_before
-                    }
                     align_items::BASELINE => {
                         // https://drafts.csswg.org/css-flexbox-1/#valdef-align-items-baseline
                         // NB: Baseline-aligned items are initially placed at the cross-start edge (like flex-start). Their
                         //     positions are adjusted after layout in resolve_baseline_aligned_items().
+                        // FIXME: Baseline alignment takes the top as the cross-start edge, also when the cross axis is
+                        //        reversed.
                         self.flex_lines[line_index].has_baseline_aligned_items = true;
-                        -half_line + item.margins.cross_before + item.borders.cross_before + item.padding.cross_before
-                    }
-                    align_items::START | align_items::FLEX_START | align_items::SELF_START | align_items::STRETCH => {
-                        // FIXME: 'start', 'flex-start' and 'self-start' have subtly different behavior.
-                        //        The same goes for the end values.
-                        -half_line + item.margins.cross_before + item.borders.cross_before + item.padding.cross_before
-                    }
-                    align_items::END | align_items::FLEX_END | align_items::SELF_END => {
-                        half_line
-                            - item.cross_size.unwrap()
-                            - item.margins.cross_after
-                            - item.borders.cross_after
-                            - item.padding.cross_after
+                        at_physical_start
                     }
                     align_items::CENTER => {
                         // https://drafts.csswg.org/css-flexbox/#align-items-property
@@ -2180,7 +2190,11 @@ impl<'pass> FlexFormattingContext<'pass> {
                             - item.padding.cross_after)
                             / 2
                     }
-                    _ => item.cross_offset,
+                    _ => match self.cross_alignment_is_at_physical_end(item.box_, alignment) {
+                        Some(true) => at_physical_end,
+                        Some(false) => at_physical_start,
+                        None => item.cross_offset,
+                    },
                 };
                 self.flex_items[index].cross_offset = offset;
             }

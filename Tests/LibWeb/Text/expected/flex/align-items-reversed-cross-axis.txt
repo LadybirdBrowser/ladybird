@@ -1,0 +1,8 @@
+horizontal-tb rtl column nowrap: start=60,0 end=0,0 flex-start=60,0 flex-end=0,0 normal=60,0 self-start=60,0 self-end=0,0
+horizontal-tb rtl column wrap-reverse: start=60,0 end=0,0 flex-start=0,0 flex-end=60,0 normal=0,0 self-start=60,0 self-end=0,0
+vertical-rl ltr row nowrap: start=60,0 end=0,0 flex-start=60,0 flex-end=0,0 normal=60,0 self-start=60,0 self-end=0,0
+vertical-rl ltr row wrap-reverse: start=60,0 end=0,0 flex-start=0,0 flex-end=60,0 normal=0,0 self-start=60,0 self-end=0,0
+vertical-lr rtl column nowrap: start=0,60 end=0,0 flex-start=0,60 flex-end=0,0 normal=0,60 self-start=0,60 self-end=0,0
+vertical-lr rtl column wrap-reverse: start=0,60 end=0,0 flex-start=0,0 flex-end=0,60 normal=0,0 self-start=0,60 self-end=0,0
+horizontal-tb ltr column nowrap: start=0,0 end=60,0 flex-start=0,0 flex-end=60,0 normal=0,0 self-start=0,0 self-end=60,0
+horizontal-tb ltr column wrap-reverse: start=0,0 end=60,0 flex-start=60,0 flex-end=0,0 normal=60,0 self-start=0,0 self-end=60,0
