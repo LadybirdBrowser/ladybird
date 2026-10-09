@@ -36,6 +36,10 @@ if (APPLE)
     list(APPEND TEST_SOURCES TestProcessReaper.cpp)
 endif()
 
+if (LINUX)
+    list(APPEND TEST_SOURCES TestAudioDaemonSocket.cpp)
+endif()
+
 if (APPLE AND NOT IOS)
     ladybird_test(TestWebDriverMachBootstrap.cpp LibWebView LIBS LibGfx LibIPC LibURL LibWebCommon OpenSSL::Crypto OpenSSL::SSL)
     target_sources(TestWebDriverMachBootstrap PRIVATE
@@ -63,6 +67,13 @@ endforeach()
 
 if (TARGET TestProcessReaper)
     add_dependencies(TestProcessReaper ProcessReaper)
+endif()
+
+if (TARGET TestAudioDaemonSocket)
+    include(audio)
+    if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")
+        target_compile_definitions(TestAudioDaemonSocket PRIVATE HAVE_PULSEAUDIO=1)
+    endif()
 endif()
 
 if (TARGET TestCrashReport AND cpptrace_FOUND AND LADYBIRD_ENABLE_CPPTRACE)

@@ -1553,8 +1553,8 @@ void SeccompPolicy::allow_socket_pairs()
 }
 
 // socket(AF_UNIX) asks the Browser for a stream or seqpacket socket. connect() goes to the
-// Browser too, and it connects only to a path it put on its own allowlist. Every other domain is
-// refused outright, so this cannot become a way onto the network either.
+// Browser too, which connects only to the one endpoint it brokers. Every other domain is refused
+// outright, so this cannot become a way onto the network either.
 void SeccompPolicy::broker_unix_socket_connections()
 {
     // Each request to the broker carries a socket pair of its own for the answer.

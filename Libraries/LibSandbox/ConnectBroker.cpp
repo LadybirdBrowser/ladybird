@@ -111,13 +111,15 @@ static ReceiveResult receive_request(int fd, ConnectBrokerRequest& request, int&
     return ReceiveResult::Received;
 }
 
-ErrorOr<NonnullOwnPtr<ConnectBroker>> ConnectBroker::create(Vector<ByteString> allowed_paths, RefreshAllowedPaths refresh_allowed_paths)
+ErrorOr<NonnullOwnPtr<ConnectBroker>> ConnectBroker::create(ByteString endpoint_name, ResolveEndpoint resolve_endpoint)
 {
+    VERIFY(resolve_endpoint);
+
     int fds[2] {};
     if (socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, fds) < 0)
         return Error::from_syscall("socketpair"sv, errno);
 
-    auto broker = adopt_own(*new ConnectBroker(fds[0], fds[1], move(allowed_paths), move(refresh_allowed_paths)));
+    auto broker = adopt_own(*new ConnectBroker(fds[0], fds[1], move(endpoint_name), move(resolve_endpoint)));
 
     if (pipe2(broker->m_shutdown_pipe, O_CLOEXEC) < 0)
         return Error::from_syscall("pipe2"sv, errno);
@@ -129,11 +131,11 @@ ErrorOr<NonnullOwnPtr<ConnectBroker>> ConnectBroker::create(Vector<ByteString> a
     return broker;
 }
 
-ConnectBroker::ConnectBroker(int broker_fd, int helper_fd, Vector<ByteString> allowed_paths, RefreshAllowedPaths refresh_allowed_paths)
+ConnectBroker::ConnectBroker(int broker_fd, int helper_fd, ByteString endpoint_name, ResolveEndpoint resolve_endpoint)
     : m_broker_fd(broker_fd)
     , m_helper_fd(helper_fd)
-    , m_allowed_paths(move(allowed_paths))
-    , m_refresh_allowed_paths(move(refresh_allowed_paths))
+    , m_endpoint_name(move(endpoint_name))
+    , m_resolve_endpoint(move(resolve_endpoint))
 {
 }
 
@@ -217,7 +219,7 @@ ConnectBroker::~ConnectBroker()
     // This runs on the event loop, so the thread has to be on its way out before we join it.
     // Shutting the socket down releases a recvmsg() that is already blocked on it, which closing
     // the descriptor would not do, and the pipe releases a connection that is still being waited
-    // on. Between them there is nothing left for the thread to be stuck in.
+    // on.
     if (m_broker_fd >= 0)
         shutdown(m_broker_fd, SHUT_RDWR);
     if (m_shutdown_pipe[1] >= 0) {
@@ -260,7 +262,7 @@ int ConnectBroker::create_socket(ConnectBrokerRequest const& request)
 
 // Connects the socket the helper was given and has since configured, so whatever it set on that
 // socket still applies and no descriptor of its own is replaced underneath it.
-i32 ConnectBroker::connect_socket(int socket_fd, ConnectBrokerRequest const& request)
+i32 ConnectBroker::connect_socket(int socket_fd)
 {
     // Only a socket of the kind we hand out, and only one that is not connected already.
     int domain = 0;
@@ -275,9 +277,18 @@ i32 ConnectBroker::connect_socket(int socket_fd, ConnectBrokerRequest const& req
     if (getpeername(socket_fd, reinterpret_cast<sockaddr*>(&peer), &peer_length) == 0)
         return EISCONN;
 
+    // Looked up now rather than remembered, so an endpoint that has moved since the last connect is
+    // still found. Not finding it is the same answer as finding nothing listening there.
+    auto endpoint = m_resolve_endpoint();
+    if (endpoint.is_error())
+        return ECONNREFUSED;
+    auto const& path = endpoint.value();
+    if (path.is_empty() || path.length() >= sizeof(sockaddr_un::sun_path) || path.view().contains('\0'))
+        return ENAMETOOLONG;
+
     sockaddr_un address {};
     address.sun_family = AF_UNIX;
-    memcpy(address.sun_path, request.path, request.path_length);
+    memcpy(address.sun_path, path.characters(), path.length());
 
     // The helper may have asked for a blocking socket. Connecting is ours to do, so it happens
     // without blocking either way, and the flag it chose is put back before we answer.
@@ -327,42 +338,6 @@ void* ConnectBroker::run(void* self)
     return nullptr;
 }
 
-bool ConnectBroker::is_allowed(StringView path)
-{
-    // Exact matches only. The Browser worked these paths out itself, so there is nothing here that
-    // a helper could talk it into widening.
-    auto matches = [&] {
-        for (auto const& allowed_path : m_allowed_paths) {
-            if (allowed_path.view() == path)
-                return true;
-        }
-        return false;
-    };
-
-    if (matches())
-        return true;
-
-    // A helper can name an endpoint the Browser could not see when the list was built: an audio
-    // server that was not running yet, or one further down a fallback list than the address the
-    // audio library reported. Asking again is bounded, so a helper cannot spend our time by
-    // guessing paths.
-    while (m_refreshes_remaining > 0 && m_refresh_allowed_paths) {
-        --m_refreshes_remaining;
-
-        // Added to what we already allow rather than replacing it. A later answer that is shorter,
-        // because a server went away between asking, must not take away an endpoint that works.
-        for (auto& refreshed_path : m_refresh_allowed_paths()) {
-            if (!m_allowed_paths.contains_slow(refreshed_path))
-                m_allowed_paths.append(move(refreshed_path));
-        }
-
-        if (matches())
-            return true;
-    }
-
-    return false;
-}
-
 void ConnectBroker::serve()
 {
     for (;;) {
@@ -408,13 +383,15 @@ void ConnectBroker::serve()
             continue;
         }
 
-        auto path = StringView { request.path, request.path_length };
-        if (path.contains('\0') || !is_allowed(path)) {
+        // The one name there is, exactly. The helper's library may well try other addresses on the
+        // way to it, an X display among them, and those must fail as they would without a broker.
+        auto name = StringView { request.path, request.path_length };
+        if (name != m_endpoint_name.view()) {
             send_response(reply_fd, EACCES, -1);
             continue;
         }
 
-        auto error = connect_socket(socket_fd, request);
+        auto error = connect_socket(socket_fd);
         send_response(reply_fd, error, -1);
         if (error == ECANCELED)
             break;
