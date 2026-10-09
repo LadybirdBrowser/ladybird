@@ -2612,18 +2612,14 @@ struct NetworkBodyStream {
     NonnullRefPtr<Engine::FetchByteChannel> channel;
     NonnullRefPtr<Engine::FetchBodyDeliveryGate> delivery_gate;
     GC::Ref<NetworkBodyPump> body_pump;
-    GC::Ref<BodyStreamPullSource> pull_source;
 };
 
 }
 
 // https://fetch.spec.whatwg.org/#concept-http-network-fetch
-// NB: Steps 9 to 13 of HTTP-network fetch.
+// NB: Step 9 of HTTP-network fetch; steps 10 to 13 run in create_body_stream_from_channel().
 static NetworkBodyStream create_network_body_stream(JS::Realm& realm, GC::Ptr<Infrastructure::FetchParams const> fetch_params, Engine::FetchBodyDeliveryGate::NavigationHold navigation_hold, RefPtr<HTTP::MemoryCache> http_cache)
 {
-    // 10. Let stream be a new ReadableStream.
-    auto stream = Streams::ReadableStream::create(realm);
-
     // 9. Let buffer be an empty byte sequence.
     // NB: The buffer is the FetchByteChannel; its watermarks are the user-agent-chosen lower and upper limits.
     static constexpr Engine::FetchByteChannel::Watermarks network_body_watermarks { .low = 256 * KiB, .high = 1 * MiB };
@@ -2633,22 +2629,9 @@ static NetworkBodyStream create_network_body_stream(JS::Realm& realm, GC::Ptr<In
     delivery_gate->grant_credit(channel->initial_credit());
 
     auto body_pump = GC::Heap::the().allocate<NetworkBodyPump>(fetch_params, channel, delivery_gate, move(http_cache));
-    auto pull_source = GC::Heap::the().allocate<BodyStreamPullSource>(realm, fetch_params, stream, channel, *wake_sink);
+    auto stream = create_body_stream_from_channel(realm, fetch_params, channel, *wake_sink);
 
-    // 11. Let pullAlgorithm be the following steps:
-    auto pull_algorithm = GC::create_function(GC::Heap::the(), [pull_source]() {
-        return pull_source->pull();
-    });
-
-    // 12. Let cancelAlgorithm be an algorithm that aborts fetchParams’s controller with reason, given reason.
-    auto cancel_algorithm = GC::create_function(GC::Heap::the(), [pull_source](JS::Value reason) {
-        return pull_source->cancel(reason);
-    });
-
-    // 13. Set up stream with byte reading support with pullAlgorithm set to pullAlgorithm, cancelAlgorithm set to cancelAlgorithm.
-    stream->set_up_with_byte_reading_support(realm, pull_algorithm, cancel_algorithm);
-
-    return { stream, move(channel), move(delivery_gate), body_pump, pull_source };
+    return { stream, move(channel), move(delivery_gate), body_pump };
 }
 
 // The gate detaches before the channel's ending reaches it.
@@ -2711,7 +2694,6 @@ GC::Ptr<Infrastructure::Body> adopt_navigation_response_body(JS::Realm& realm, I
     });
 
     auto body_pump = GC::make_root(network_body_stream.body_pump);
-    auto pull_source = GC::make_root(network_body_stream.pull_source);
     auto cross_origin_isolated_capability = Bindings::principal_host_defined_environment_settings_object(realm).cross_origin_isolated_capability();
     request->set_unbuffered_request_callbacks(
         [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState) { },
@@ -2721,8 +2703,7 @@ GC::Ptr<Infrastructure::Body> adopt_navigation_response_body(JS::Realm& realm, I
         [body_pump](Core::ImmutableBytes data) {
             body_pump->set_cached_response_body(move(data));
         },
-        [&realm, body_pump, pull_source, delivery_gate, timing_info, cross_origin_isolated_capability, network_settled](u64, Requests::RequestTimingInfo const& request_timing_info, Optional<Requests::NetworkError> network_error) {
-            HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        [body_pump, delivery_gate, timing_info, cross_origin_isolated_capability, network_settled](u64, Requests::RequestTimingInfo const& request_timing_info, Optional<Requests::NetworkError> network_error) {
             delivery_gate->detach_transport();
 
             if (network_error.has_value()) {
@@ -2738,8 +2719,6 @@ GC::Ptr<Infrastructure::Body> adopt_navigation_response_body(JS::Realm& realm, I
                 body_pump->handle_network_complete(static_cast<u64>(max<i64>(request_timing_info.encoded_body_size, 0)));
                 network_settled->function()({});
             }
-
-            pull_source->handle_network_settled();
         });
 
     response.set_network_transport({
@@ -2821,7 +2800,6 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     auto channel = network_body_stream.channel;
     auto delivery_gate = network_body_stream.delivery_gate;
     auto body_pump = network_body_stream.body_pump;
-    auto pull_source = network_body_stream.pull_source;
 
     // A load without a RequestServer request, such as one for a file: URL, hands over its whole body at once.
     auto whole_body_transport = create_whole_body_transport(*delivery_gate, *channel);
@@ -2902,10 +2880,8 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     });
 
     // 16. Run these steps in parallel:
-    auto deliver_body_data = GC::create_function(GC::Heap::the(), [body_pump, pull_source](Requests::ResponseData data) {
+    auto deliver_body_data = GC::create_function(GC::Heap::the(), [body_pump](Requests::ResponseData data) {
         body_pump->handle_network_data(move(data));
-        if (HTML::main_thread_event_loop().execution_paused())
-            pull_source->deliver_while_paused();
     });
 
     auto on_data_received = GC::create_function(GC::Heap::the(), [deliver_body_data, whole_body_transport](Requests::ResponseData data) {
@@ -2924,7 +2900,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         body_pump->set_cached_response_body(move(data));
     });
 
-    auto complete_load = GC::create_function(GC::Heap::the(), [&realm, pending_response, body_pump, pull_source, delivery_gate, request, fetch_timing_info, cross_origin_isolated_capability](bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message) {
+    auto complete_load = GC::create_function(GC::Heap::the(), [&realm, pending_response, body_pump, delivery_gate, request, fetch_timing_info, cross_origin_isolated_capability](bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message) {
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         delivery_gate->detach_transport();
 
@@ -2938,8 +2914,6 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
             if (!pending_response->is_resolved())
                 pending_response->resolve(Infrastructure::Response::network_error(error.to_utf8_but_should_be_ported_to_utf16()));
         }
-
-        pull_source->handle_network_settled();
     });
 
     auto on_complete = GC::create_function(GC::Heap::the(), [complete_load, whole_body_transport](bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message) {

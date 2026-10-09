@@ -44,9 +44,10 @@ ALLOWED_REALM_MENTIONS = {
     "DOM": (10, 33, "DOM abort plumbing and node helpers still have callback/materialization realm use"),
     "Fetch": (
         22,
-        57,
+        59,
         "Fetch bodies, headers, requests, responses, response views, and controllers still materialize JS values/streams; "
-        "BodyStreamPullSource materializes stream pulls and errors on the consumer side, in its stream's realm",
+        "BodyStreamPullSource creates body streams and materializes their pulls and errors on the consumer side, each in "
+        "its stream's realm",
     ),
     "FileAPI": (4, 11, "File/Blob/FileReader algorithms still create streams, buffers, and events in selected realms"),
     "HTML": (
