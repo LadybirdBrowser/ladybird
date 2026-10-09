@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	USVString handling: lone surrogate lead
+Pass	USVString handling: lone surrogate trail
+Pass	USVString handling: unmatched surrogate lead
+Pass	USVString handling: unmatched surrogate trail
+Pass	USVString handling: swapped surrogate pair
+Pass	USVString handling: properly encoded MUSICAL SYMBOL G CLEF (U+1D11E)
+Pass	USVString default

@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Invalid surrogates encoded into UTF-8: Sanity check
+Pass	Invalid surrogates encoded into UTF-8: Surrogate half (low)
+Pass	Invalid surrogates encoded into UTF-8: Surrogate half (high)
+Pass	Invalid surrogates encoded into UTF-8: Surrogate half (low), in a string
+Pass	Invalid surrogates encoded into UTF-8: Surrogate half (high), in a string
+Pass	Invalid surrogates encoded into UTF-8: Wrong order

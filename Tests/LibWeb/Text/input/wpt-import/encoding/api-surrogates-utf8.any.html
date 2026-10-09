@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Encoding API: Invalid UTF-16 surrogates with UTF-8 encoding</title>
+<script>
+self.GLOBAL = {
+  isWindow: function() { return true; },
+  isWorker: function() { return false; },
+  isShadowRealm: function() { return false; },
+};
+</script>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+
+<div id=log></div>
+<script src="../encoding/api-surrogates-utf8.any.js"></script>

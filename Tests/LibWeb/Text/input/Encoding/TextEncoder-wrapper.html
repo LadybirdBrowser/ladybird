@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+    function describe(f) {
+        try {
+            return JSON.stringify(f());
+        } catch (e) {
+            return `${e.name}: ${e.message}`;
+        }
+    }
+
+    function describeProperty(object, key) {
+        const descriptor = Object.getOwnPropertyDescriptor(object, key);
+        const parts = [];
+        for (const [name, value] of Object.entries(descriptor)) {
+            if (typeof value === "function")
+                parts.push(`${name}: function "${value.name}" length ${value.length}`);
+            else if (value !== undefined)
+                parts.push(`${name}: ${String(value)}`);
+        }
+        return `${String(key)} { ${parts.join(", ")} }`;
+    }
+
+    test(() => {
+        println("TextEncoder.prototype:");
+        for (const key of Reflect.ownKeys(TextEncoder.prototype))
+            println(`    ${describeProperty(TextEncoder.prototype, key)}`);
+        println("TextEncoder:");
+        for (const key of Reflect.ownKeys(TextEncoder)) {
+            if (key !== "prototype")
+                println(`    ${describeProperty(TextEncoder, key)}`);
+        }
+        println(`prototype of TextEncoder.prototype is Object.prototype: ${Object.getPrototypeOf(TextEncoder.prototype) === Object.prototype}`);
+        println(`Object.prototype.toString of an instance: ${Object.prototype.toString.call(new TextEncoder())}`);
+        println(`own keys of an instance: ${Reflect.ownKeys(new TextEncoder()).length}`);
+
+        println(`encode(): ${describe(() => Array.from(new TextEncoder().encode()))}`);
+        println(`encode(undefined): ${describe(() => Array.from(new TextEncoder().encode(undefined)))}`);
+        println(`encode(null): ${describe(() => Array.from(new TextEncoder().encode(null)))}`);
+        println(`encode of a lone surrogate: ${describe(() => Array.from(new TextEncoder().encode("a\uD800b")))}`);
+        println(`encode of a symbol: ${describe(() => new TextEncoder().encode(Symbol("s")))}`);
+
+        println(`calling without new: ${describe(() => TextEncoder())}`);
+        println(`encode on a plain object: ${describe(() => TextEncoder.prototype.encode.call({}, "x"))}`);
+        println(`encode on undefined: ${describe(() => TextEncoder.prototype.encode.call(undefined, "x"))}`);
+        println(`encoding getter on a TextDecoder: ${describe(() => Object.getOwnPropertyDescriptor(TextEncoder.prototype, "encoding").get.call(new TextDecoder()))}`);
+        println(`encodeInto with one argument: ${describe(() => new TextEncoder().encodeInto("x"))}`);
+        println(`encodeInto into an ArrayBuffer: ${describe(() => new TextEncoder().encodeInto("x", new ArrayBuffer(4)))}`);
+        println(`encodeInto into an Int8Array: ${describe(() => new TextEncoder().encodeInto("x", new Int8Array(4)))}`);
+        println(`encodeInto into a resizable buffer: ${describe(() => new TextEncoder().encodeInto("x", new Uint8Array(new ArrayBuffer(4, { maxByteLength: 8 }))))}`);
+        println(`encodeInto into a detached buffer: ${describe(() => {
+            const buffer = new ArrayBuffer(4);
+            const view = new Uint8Array(buffer);
+            structuredClone(buffer, { transfer: [buffer] });
+            return new TextEncoder().encodeInto("x", view);
+        })}`);
+        println(`encodeInto stops before a code point that does not fit: ${describe(() => {
+            const view = new Uint8Array(5);
+            const result = new TextEncoder().encodeInto("ab\u{1F600}c", view);
+            return [result, Array.from(view)];
+        })}`);
+        println(`encodeInto at an offset: ${describe(() => {
+            const view = new Uint8Array(new ArrayBuffer(6), 2, 3);
+            const result = new TextEncoder().encodeInto("éé", view);
+            return [result, Array.from(new Uint8Array(view.buffer))];
+        })}`);
+
+        println(`structuredClone: ${describe(() => structuredClone(new TextEncoder()))}`);
+        println(`passed as a Node: ${describe(() => document.body.appendChild(new TextEncoder()))}`);
+
+        class SubEncoder extends TextEncoder {
+            lengths(string) {
+                return [this.encode(string).length, this.encoding];
+            }
+        }
+        const sub = new SubEncoder();
+        println(`subclass: ${sub instanceof SubEncoder} ${sub instanceof TextEncoder} ${JSON.stringify(sub.lengths("ab"))}`);
+
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const otherWindow = iframe.contentWindow;
+        const newTarget = new otherWindow.Function();
+        newTarget.prototype = 1;
+        const constructed = Reflect.construct(TextEncoder, [], newTarget);
+        println(`prototype from the realm of newTarget: ${Object.getPrototypeOf(constructed) === otherWindow.TextEncoder.prototype}`);
+        const encoded = TextEncoder.prototype.encode.call(constructed, "x");
+        println(`encode result realm: ${encoded instanceof Uint8Array} ${encoded instanceof otherWindow.Uint8Array}`);
+        iframe.remove();
+
+        const encoders = [];
+        for (let i = 0; i < 100; ++i) {
+            const encoder = new TextEncoder();
+            encoder.expando = i;
+            encoders.push(encoder);
+        }
+        Object.setPrototypeOf(encoders[1], null);
+        Object.preventExtensions(encoders[2]);
+        internals.gc();
+        const allWork = encoders.every((encoder, i) => encoder.expando === i && TextEncoder.prototype.encode.call(encoder, "ab").length === 2);
+        println(`encoders work after a garbage collection: ${allWork}`);
+    });
+</script>
