@@ -465,70 +465,75 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
         GC::Ref<MediaStream> stream = MediaStream::create();
 
         // 11.5 For each media type kind in requestedMediaTypes, run the following sub steps, preferably at the same time.
-
         // 11.5.1 Request permission to use a PermissionDescriptor with its name member set to the permission name associated with kind.
-        auto microphone_permission_result = PermissionsAPI::permission_state(microphone_permission);
-        // FIXME: Wire this up to a real microphone permission prompt. Until then, do not turn
-        //        a prompt state into a persisted denied state without a user decision.
-        if (HTML::Window::in_test_mode() && microphone_permission_result == PermissionsAPI::PermissionState::Prompt)
-            microphone_permission_result = PermissionsAPI::request_permission(microphone_permission);
-        // 11.5.2 If the result of the request is "denied", jump to the step labeled Permission Failure below.
-        if (microphone_permission_result == PermissionsAPI::PermissionState::Denied) {
-            reject_permission_failure();
-            return;
-        }
+        auto& settings_object = HTML::relevant_settings_object(*media_devices->m_window);
+        PermissionsAPI::request_permission_with_user_prompt(microphone_permission, settings_object, GC::create_function(GC::Heap::the(), [promise, media_devices, final_set = move(final_set), stream](PermissionsAPI::PermissionState microphone_permission_result) {
+            auto& realm = WebIDL::promise_realm(*promise);
+            HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
-        // 11.8 Set the device information exposure on mediaDevices with requestedMediaTypes and true.
-        media_devices->set_device_information_exposure(true, false, true);
+            // AD-HOC: The prompt may outlive the document, and capture must not start for one the user has left.
+            if (!media_devices->m_window->associated_document().is_fully_active()) {
+                WebIDL::reject_promise(*promise, WebIDL::InvalidStateError::create("Document is not fully active"_utf16));
+                return;
+            }
 
-        // 11.9 For each media type kind in requestedMediaTypes, run the following sub steps.
-        // 11.9.1 Let finalCandidate be the provided media, which MUST be precisely one candidate of type kind from finalSet.
-        Optional<Media::AudioDeviceInfo> final_candidate;
-        for (auto const& device : final_set) {
-            if (!final_candidate.has_value())
+            // 11.5.2 If the result of the request is "denied", jump to the step labeled Permission Failure below.
+            if (microphone_permission_result == PermissionsAPI::PermissionState::Denied) {
+                // 11.15 Permission Failure: Reject p with a new DOMException object whose name attribute has the value "NotAllowedError".
+                WebIDL::reject_promise(*promise, WebIDL::NotAllowedError::create("Permission denied"_utf16));
+                return;
+            }
+
+            // 11.8 Set the device information exposure on mediaDevices with requestedMediaTypes and true.
+            media_devices->set_device_information_exposure(true, false, true);
+
+            // 11.9 For each media type kind in requestedMediaTypes, run the following sub steps.
+            // 11.9.1 Let finalCandidate be the provided media, which MUST be precisely one candidate of type kind from finalSet.
+            Optional<Media::AudioDeviceInfo> final_candidate;
+            for (auto const& device : final_set) {
+                if (!final_candidate.has_value())
+                    final_candidate = device;
+                if (!device.is_default)
+                    continue;
                 final_candidate = device;
-            if (!device.is_default)
-                continue;
-            final_candidate = device;
-            break;
-        }
-        if (!final_candidate.has_value()) {
-            WebIDL::reject_promise(*promise, WebIDL::NotReadableError::create("No readable audio input devices available"_utf16));
-            return;
-        }
+                break;
+            }
+            if (!final_candidate.has_value()) {
+                WebIDL::reject_promise(*promise, WebIDL::NotReadableError::create("No readable audio input devices available"_utf16));
+                return;
+            }
 
-        // 11.9.2 The result of the request is "granted".
-        // 11.9.3 Let grantedDevice be finalCandidate's source device.
-        Media::AudioDeviceInfo const& granted_device = final_candidate.value();
+            // 11.9.2 The result of the request is "granted".
+            // 11.9.3 Let grantedDevice be finalCandidate's source device.
+            Media::AudioDeviceInfo const& granted_device = final_candidate.value();
 
-        // 11.9.4 Using grantedDevice's deviceId, deviceId, set mediaDevices.[[devicesLiveMap]][deviceId] to true, if it isn't already true, and set mediaDevices.[[devicesAccessibleMap]][deviceId] to true, if it isn't already true.
-        auto granted_device_id = Utf16String::from_utf8_with_replacement_character(granted_device.dom_device_id.view());
-        media_devices->m_devices_live_map.set(granted_device_id, true);
-        media_devices->m_devices_accessible_map.set(granted_device_id, true);
+            // 11.9.4 Using grantedDevice's deviceId, deviceId, set mediaDevices.[[devicesLiveMap]][deviceId] to true, if it isn't already true, and set mediaDevices.[[devicesAccessibleMap]][deviceId] to true, if it isn't already true.
+            auto granted_device_id = Utf16String::from_utf8_with_replacement_character(granted_device.dom_device_id.view());
+            media_devices->m_devices_live_map.set(granted_device_id, true);
+            media_devices->m_devices_accessible_map.set(granted_device_id, true);
 
-        // 11.9.5 Let track be the result of creating a MediaStreamTrack with grantedDevice and mediaDevices. The source of the MediaStreamTrack MUST NOT change.
-        GC::Ref<MediaStreamTrack> track = MediaStreamTrack::create(
-            MediaStreamTrackKind::Audio,
-            Utf16String::from_utf8_with_replacement_character(granted_device.label.view()));
+            // 11.9.5 Let track be the result of creating a MediaStreamTrack with grantedDevice and mediaDevices. The source of the MediaStreamTrack MUST NOT change.
+            GC::Ref<MediaStreamTrack> track = MediaStreamTrack::create(
+                MediaStreamTrackKind::Audio,
+                Utf16String::from_utf8_with_replacement_character(granted_device.label.view()));
 
-        MediaTrackSettings settings;
-        settings.device_id = granted_device_id;
-        settings.sample_rate = granted_device.sample_rate_hz;
-        settings.channel_count = granted_device.channel_count;
-        track->set_settings(move(settings));
+            MediaTrackSettings settings;
+            settings.device_id = granted_device_id;
+            settings.sample_rate = granted_device.sample_rate_hz;
+            settings.channel_count = granted_device.channel_count;
+            track->set_settings(move(settings));
 
-        // 11.9.6 Add track to stream's track set.
-        stream->append_track(track);
+            // 11.9.6 Add track to stream's track set.
+            stream->append_track(track);
 
-        // FIXME: 11.10 Run the ApplyConstraints algorithm on all tracks in stream with the appropriate constraints.
+            // FIXME: 11.10 Run the ApplyConstraints algorithm on all tracks in stream with the appropriate constraints.
 
-        // 11.11 For each track in stream, tie track source to MediaDevices with track.[[Source]] and mediaDevices.
-        media_devices->m_media_stream_track_sources.set(track->provider_id());
+            // 11.11 For each track in stream, tie track source to MediaDevices with track.[[Source]] and mediaDevices.
+            media_devices->m_media_stream_track_sources.set(track->provider_id());
 
-        // 11.12 Resolve p with stream and abort these steps.
-        resolve_media_stream_promise(*promise, stream);
-
-        // 11.15 Permission Failure: Reject p with a new DOMException object whose name attribute has the value "NotAllowedError".
+            // 11.12 Resolve p with stream and abort these steps.
+            resolve_media_stream_promise(*promise, stream);
+        }));
     }));
 }
 

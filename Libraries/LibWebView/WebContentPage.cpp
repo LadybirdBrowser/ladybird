@@ -1408,6 +1408,25 @@ void WebContentPage::did_request_geolocation_position(u64 request_id)
         view().on_request_geolocation_position(*this, request_id);
 }
 
+void WebContentPage::did_request_permission(u64 request_id, Utf16String name)
+{
+    if (name != "microphone"_utf16) {
+        client().did_misbehave("did_request_permission"sv, "unknown permission name"sv);
+        return;
+    }
+
+    if (!view().on_request_permission) {
+        async_permission_request_completed(request_id, false);
+        return;
+    }
+
+    view().on_request_permission(name, view().url().origin(), [page = NonnullRefPtr(*this), request_id](bool granted) {
+        if (!page->is_open())
+            return;
+        page->async_permission_request_completed(request_id, granted);
+    });
+}
+
 void WebContentPage::did_cancel_geolocation_position_request(u64 request_id)
 {
     if (view().on_cancel_geolocation_position_request)

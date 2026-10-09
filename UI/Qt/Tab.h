@@ -7,7 +7,11 @@
 
 #pragma once
 
+#include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <AK/Optional.h>
+#include <AK/String.h>
+#include <AK/Vector.h>
 #include <AK/kmalloc.h>
 #include <LibWakeLock/DisplaySleepInhibitor.h>
 #include <LibWebCommon/HTML/AudioPlayState.h>
@@ -203,6 +207,12 @@ private:
     QPointer<QColorDialog> m_color_picker_dialog;
     QPointer<QFileDialog> m_file_picker_dialog;
     QPointer<QMessageBox> m_external_url_confirmation_dialog;
+    // Requests the same dialog would answer wait on the one open, so a page cannot stack dialogs by asking again.
+    struct PendingPermissionRequests {
+        QPointer<QMessageBox> dialog;
+        Vector<Function<void(bool granted)>> on_decided;
+    };
+    HashMap<String, PendingPermissionRequests> m_pending_permission_requests;
 
     bool m_suppress_javascript_dialogs_until_navigation { false };
     bool m_already_requested_close { false };

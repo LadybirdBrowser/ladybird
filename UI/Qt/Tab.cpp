@@ -871,6 +871,11 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
         }
         if (m_external_url_confirmation_dialog)
             m_external_url_confirmation_dialog->close();
+        auto pending_permission_requests = AK::move(m_pending_permission_requests);
+        for (auto& it : pending_permission_requests) {
+            if (it.value.dialog)
+                it.value.dialog->close();
+        }
     };
 
     view().on_request_external_url_confirmation = [this](auto const& url, auto const& initiator_origin, auto const& handler, auto on_complete) {
@@ -903,6 +908,40 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
             if (m_external_url_confirmation_dialog == dialog)
                 m_external_url_confirmation_dialog = nullptr;
             on_complete(accepted);
+        });
+
+        dialog->open();
+    };
+
+    view().on_request_permission = [this](auto const& name, auto const& origin, auto on_decided) {
+        auto requester = origin.is_opaque() ? "this page"_string : origin.serialize();
+        auto question = MUST(String::formatted("Allow {} to use your {}?", requester, name));
+        if (auto pending = m_pending_permission_requests.get(question); pending.has_value()) {
+            pending.value().on_decided.append(AK::move(on_decided));
+            return;
+        }
+
+        auto* dialog = new QMessageBox(&view());
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->setIcon(QMessageBox::Icon::Question);
+        dialog->setWindowTitle("Ladybird");
+        dialog->setTextFormat(Qt::PlainText);
+        dialog->setText(qstring_from_ak_string(question));
+        auto* allow_button = dialog->addButton("Allow", QMessageBox::ButtonRole::AcceptRole);
+        auto* block_button = dialog->addButton("Block", QMessageBox::ButtonRole::RejectRole);
+        dialog->setDefaultButton(block_button);
+
+        PendingPermissionRequests pending { .dialog = dialog, .on_decided = {} };
+        pending.on_decided.append(AK::move(on_decided));
+        m_pending_permission_requests.set(question, AK::move(pending));
+
+        QObject::connect(dialog, &QDialog::finished, this, [this, dialog = QPointer<QMessageBox> { dialog }, allow_button, question](auto) {
+            auto pending = m_pending_permission_requests.take(question);
+            if (!pending.has_value())
+                return;
+            auto granted = dialog && dialog->clickedButton() == allow_button;
+            for (auto& on_decided : pending.value().on_decided)
+                on_decided(granted);
         });
 
         dialog->open();

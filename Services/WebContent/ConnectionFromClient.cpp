@@ -3186,6 +3186,12 @@ void ConnectionFromClient::geolocation_position_response(Web::PageId page_id, u6
         page->geolocation_position_response(request_id, position, error_code);
 }
 
+void ConnectionFromClient::permission_request_completed(Web::PageId page_id, u64 request_id, bool granted)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->permission_request_completed(request_id, granted);
+}
+
 void ConnectionFromClient::set_has_focus(Web::PageId page_id, bool has_focus)
 {
     if (auto page = this->page(page_id); page.has_value())

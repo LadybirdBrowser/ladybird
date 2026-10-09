@@ -136,6 +136,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_offscreen_canvases_pending_placeholder_commit);
     for (auto const& request : m_pending_geolocation_requests)
         visitor.visit(request.value.callback);
+    visitor.visit(m_pending_permission_requests);
     m_pending_fullscreen_operations.for_each([&](auto const& operation) {
         operation.visit([&](PendingFullscreenEnter const& enter_operation) {
                 visitor.visit(enter_operation.element);
@@ -1287,6 +1288,19 @@ u64 Page::register_emulated_position_data_observer(GC::Ref<GC::Function<void()>>
 void Page::unregister_emulated_position_data_observer(u64 observer_id)
 {
     m_emulated_position_data_observers.remove(observer_id);
+}
+
+void Page::request_permission(Utf16String const& name, PermissionPromptCallback callback)
+{
+    auto request_id = m_next_permission_request_id++;
+    m_pending_permission_requests.set(request_id, callback);
+    client().page_did_request_permission(request_id, name);
+}
+
+void Page::permission_request_completed(u64 request_id, bool granted)
+{
+    if (auto callback = m_pending_permission_requests.take(request_id); callback.has_value())
+        callback.value()->function()(granted);
 }
 
 u64 Page::request_geolocation_position(GeolocationPositionCallback callback, GeolocationRequestType type)
