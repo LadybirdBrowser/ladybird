@@ -27,7 +27,6 @@ set(TEST_SOURCES
     TestEventLoop.cpp
     TestFaviconDecoding.cpp
     TestFetchBodyDeliveryGate.cpp
-    TestFetchBodySniffBytes.cpp
     TestFetchBodyStream.cpp
     TestFetchByteChannel.cpp
     TestFetchEngineMessages.cpp
@@ -94,7 +93,6 @@ endif()
 target_link_libraries(TestDownloadReader PRIVATE LibGC LibJS LibURL)
 target_link_libraries(TestFaviconDecoding PRIVATE LibCore LibGC LibGfx LibJS)
 target_link_libraries(TestFetchBodyDeliveryGate PRIVATE LibCore LibThreading)
-target_link_libraries(TestFetchBodySniffBytes PRIVATE LibCore LibGC LibJS)
 target_link_libraries(TestFetchBodyStream PRIVATE LibCore LibGC LibJS)
 target_link_libraries(TestFetchByteChannel PRIVATE LibThreading)
 target_link_libraries(TestFetchResponse PRIVATE LibGC LibHTTP LibJS LibRequests LibURL)

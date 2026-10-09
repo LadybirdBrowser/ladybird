@@ -12,7 +12,6 @@
 #include <AK/Time.h>
 #include <LibRequests/Request.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Fetch/BodyInit.h>
 #include <LibWeb/Fetch/Infrastructure/ClientContextSnapshot.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
@@ -52,7 +51,6 @@ void NetworkContinuation::visit_edges(JS::Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(fetch_params);
     visitor.visit(response);
-    visitor.visit(global_object);
     visitor.visit_possible_values(m_callback.raw_capture_range());
 }
 
@@ -73,7 +71,6 @@ void NetworkContinuation::clear_blocked_state()
     fetch_params = nullptr;
     original_request = nullptr;
     response = nullptr;
-    global_object = nullptr;
 }
 
 static HashMap<String, GC::Root<NetworkContinuation>>& blocked_requests()
@@ -484,7 +481,7 @@ static JsonObject get_the_response_data(Response const& response, FetchTimingInf
     auto mime_type = extract_mime_type(response.header_list());
     result.set("mimeType"sv, mime_type.has_value() ? mime_type->essence() : String {});
     auto body_info = response.body_info();
-    if (auto body = response.body(); body && body->source().has_value() && body_info.decoded_size == 0) {
+    if (auto body = response.body(); body.has_value() && body->source().has_value() && body_info.decoded_size == 0) {
         body_info.decoded_size = body->source()->size();
         if (url.has_value() && url->scheme() == "data"sv)
             body_info.encoded_size = body_info.decoded_size;
@@ -525,7 +522,7 @@ static JsonObject process_a_network_event(HTML::Navigable const& navigable, Requ
     return params;
 }
 
-void block_network_request(JS::Object& global_object, FetchParams const& fetch_params, GC::Ptr<Fetch::Infrastructure::Response> response, String phase, JsonArray intercepts, GC::Ref<NetworkContinuation> continuation, RefPtr<Fetch::Infrastructure::Request> original_request)
+void block_network_request(FetchParams const& fetch_params, GC::Ptr<Fetch::Infrastructure::Response> response, String phase, JsonArray intercepts, GC::Ref<NetworkContinuation> continuation, RefPtr<Fetch::Infrastructure::Request> original_request)
 {
     auto request = fetch_params.request();
     // NB: Cancellation runs through the controller's original parameters, rather than a prepared HTTP clone.
@@ -556,7 +553,6 @@ void block_network_request(JS::Object& global_object, FetchParams const& fetch_p
     continuation->fetch_params = fetch_params;
     continuation->original_request = original_request;
     continuation->response = response;
-    continuation->global_object = global_object;
     if (original_request)
         original_request->set_webdriver_bidi_network_request(state);
     blocked_requests().set(state->id, GC::make_root(continuation));
@@ -680,12 +676,12 @@ static ErrorOr<JsonValue, Error> continue_network_request_impl(StringView method
             replacement->set_status_message(response->status_message());
             replacement->set_header_list(response->header_list());
             response = replacement;
-            auto bytes = overrides.body.release_value();
-            auto body = Fetch::safely_extract_body(HTML::relevant_realm(*blocked->global_object), ReadonlyBytes { bytes.bytes() }).body;
-            response->set_body(body);
+            auto body = ResponseBody::from_bytes(Core::ImmutableBytes::adopt(overrides.body.release_value()));
+            auto length = *body.length();
+            response->set_body(move(body));
             auto info = response->body_info();
-            info.encoded_size = *body->length();
-            info.decoded_size = *body->length();
+            info.encoded_size = length;
+            info.decoded_size = length;
             response->set_body_info(info);
         }
     }

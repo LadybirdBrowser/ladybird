@@ -65,7 +65,7 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::LocalNav
         move(navigation_id),
         navigable,
         nullptr,
-        Fetch::Infrastructure::ResponseView::create(response),
+        Fetch::Infrastructure::ResponseView::create(response, nullptr),
         nullptr,
         nullptr,
         move(coop_enforcement_result),

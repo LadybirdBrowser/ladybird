@@ -95,8 +95,8 @@ public:
     virtual NonnullRefPtr<HTTP::HeaderList> const& header_list() const { return m_header_list; }
     virtual void set_header_list(NonnullRefPtr<HTTP::HeaderList> header_list) { m_header_list = move(header_list); }
 
-    [[nodiscard]] virtual GC::Ptr<Body> body() const { return m_body; }
-    virtual void set_body(GC::Ptr<Body> body) { m_body = body; }
+    [[nodiscard]] virtual Optional<ResponseBody const&> body() const { return m_body; }
+    virtual void set_body(Optional<ResponseBody> body) { m_body = move(body); }
 
     [[nodiscard]] virtual Optional<CacheState> const& cache_state() const { return m_cache_state; }
     virtual void set_cache_state(Optional<CacheState> cache_state) { m_cache_state = move(cache_state); }
@@ -135,7 +135,7 @@ public:
     [[nodiscard]] Optional<URL::URL const&> url() const;
     [[nodiscard]] ErrorOr<Optional<URL::URL>> location_url(Optional<StringView> request_fragment) const;
 
-    [[nodiscard]] GC::Ref<Response> clone(JS::Realm&) const;
+    [[nodiscard]] GC::Ref<Response> clone() const;
 
     [[nodiscard]] GC::Ref<Response> unsafe_response();
 
@@ -157,8 +157,6 @@ public:
 
 protected:
     explicit Response(NonnullRefPtr<HTTP::HeaderList>);
-
-    virtual void visit_edges(JS::Cell::Visitor&) override;
 
 private:
     // https://fetch.spec.whatwg.org/#concept-response-type
@@ -187,7 +185,7 @@ private:
 
     // https://fetch.spec.whatwg.org/#concept-response-body
     // A response has an associated body (null or a body). Unless stated otherwise it is null.
-    GC::Ptr<Body> m_body;
+    Optional<ResponseBody> m_body;
 
     // https://fetch.spec.whatwg.org/#concept-response-cache-state
     // A response has an associated cache state (the empty string, "local", or "validated"). Unless stated otherwise, it is the empty string.
@@ -265,8 +263,8 @@ public:
     virtual NonnullRefPtr<HTTP::HeaderList> const& header_list() const override { return m_internal_response->header_list(); }
     virtual void set_header_list(NonnullRefPtr<HTTP::HeaderList> header_list) override { m_internal_response->set_header_list(header_list); }
 
-    [[nodiscard]] virtual GC::Ptr<Body> body() const override { return m_internal_response->body(); }
-    virtual void set_body(GC::Ptr<Body> body) override { m_internal_response->set_body(body); }
+    [[nodiscard]] virtual Optional<ResponseBody const&> body() const override { return m_internal_response->body(); }
+    virtual void set_body(Optional<ResponseBody> body) override { m_internal_response->set_body(move(body)); }
 
     [[nodiscard]] virtual Optional<CacheState> const& cache_state() const override { return m_internal_response->cache_state(); }
     virtual void set_cache_state(Optional<CacheState> cache_state) override { m_internal_response->set_cache_state(move(cache_state)); }
@@ -356,7 +354,7 @@ public:
     [[nodiscard]] virtual Status status() const override { return 0; }
     [[nodiscard]] virtual ByteString const& status_message() const override { return m_method; }
     virtual NonnullRefPtr<HTTP::HeaderList> const& header_list() const override { return m_header_list; }
-    [[nodiscard]] virtual GC::Ptr<Body> body() const override { return nullptr; }
+    [[nodiscard]] virtual Optional<ResponseBody const&> body() const override { return {}; }
 
 private:
     OpaqueFilteredResponse(GC::Ref<Response>, NonnullRefPtr<HTTP::HeaderList>);
@@ -378,7 +376,7 @@ public:
     [[nodiscard]] virtual Status status() const override { return 0; }
     [[nodiscard]] virtual ByteString const& status_message() const override { return m_method; }
     virtual NonnullRefPtr<HTTP::HeaderList> const& header_list() const override { return m_header_list; }
-    [[nodiscard]] virtual GC::Ptr<Body> body() const override { return nullptr; }
+    [[nodiscard]] virtual Optional<ResponseBody const&> body() const override { return {}; }
 
 private:
     OpaqueRedirectFilteredResponse(GC::Ref<Response>, NonnullRefPtr<HTTP::HeaderList>);

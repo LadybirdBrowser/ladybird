@@ -1030,14 +1030,14 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetc
     // 11. Set controller to the result of fetching request, with processResponseConsumeBody set to the following steps
     //     given a response response and null, failure, or a byte sequence bodyBytes:
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
-    fetch_algorithms_input.process_response_consume_body = [&realm, options = GC::Ref { options }, process_response = move(process_response), entry, report_timing](GC::Ref<Fetch::Infrastructure::ResponseView> response_view, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
+    fetch_algorithms_input.process_response_consume_body = [options = GC::Ref { options }, process_response = move(process_response), entry, report_timing](GC::Ref<Fetch::Infrastructure::ResponseView> response_view, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
         //        https://github.com/whatwg/html/issues/9355
         auto response = response_view->record()->unsafe_response();
 
         // 1. If bodyBytes is a byte sequence, then set response's body to bodyBytes as a body.
         if (auto* byte_sequence = body_bytes.get_pointer<Core::ImmutableBytes>())
-            response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, byte_sequence->bytes()));
+            response->set_body(Fetch::Infrastructure::ResponseBody::from_bytes(*byte_sequence));
         // 2. Otherwise, set response to a network error.
         else
             response = Fetch::Infrastructure::Response::network_error("Expected preload response to contain a body"_string);

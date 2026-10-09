@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The redirect's empty body finishes as its headers arrive. The final response's timing waits for its own body,
+    // which the server holds after its first byte, and is reported once that body has arrived, before it is read.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const token = crypto.randomUUID();
+        const unblockURL = `${server.baseURL}/unblock/${token}`;
+        const corsHeaders = { "Access-Control-Allow-Origin": "*", "Timing-Allow-Origin": "*" };
+
+        const body = "x".repeat(4000);
+        const finalURL = new URL(await server.createEcho("GET", `/unread-resource-timing-after-a-redirect-${token}/final`, {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "text/plain", "Content-Length": `${body.length}` },
+            body,
+        }));
+        finalURL.search = `?chunks=1&chunk_unblock_tokens=${token}`;
+
+        const redirectURL = await server.createEcho("GET", `/unread-resource-timing-after-a-redirect-${token}/redirect`, {
+            status: 302,
+            headers: { ...corsHeaders, "Location": finalURL.href, "Content-Length": "0" },
+            body: "",
+        });
+
+        const isEntryOfTheFetch = entry => entry.name === redirectURL || entry.name === finalURL.href;
+        const entriesOfTheFetch = () => performance.getEntriesByType("resource").filter(isEntryOfTheFetch).length;
+
+        try {
+            const response = await fetch(redirectURL);
+            println(`entries while the final body is held: ${entriesOfTheFetch()}`);
+
+            const observed = new Promise(resolve => {
+                const observer = new PerformanceObserver(list => {
+                    const entry = list.getEntries().find(isEntryOfTheFetch);
+                    if (entry) {
+                        observer.disconnect();
+                        resolve(entry);
+                    }
+                });
+                observer.observe({ type: "resource", buffered: true });
+            });
+            await fetch(unblockURL);
+            const entry = await observed;
+            println(`body used before timing: ${response.bodyUsed}`);
+            println(`sizes: ${entry.encodedBodySize}/${entry.decodedBodySize}`);
+
+            println(`body length: ${(await response.text()).length}`);
+            println(`entries after reading the body: ${entriesOfTheFetch()}`);
+        } finally {
+            await fetch(unblockURL);
+        }
+        done();
+    });
+</script>

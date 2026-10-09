@@ -2165,7 +2165,7 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
     response->url_list().append(URL::about_srcdoc());
     response->header_list()->append({ "Content-Type"sv, "text/html"sv });
     auto document_resource_utf8 = MUST(document_resource.get<Utf16String>().utf16_view().to_utf8());
-    response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, document_resource_utf8.bytes()));
+    response->set_body(Fetch::Infrastructure::byte_sequence_as_response_body(document_resource_utf8.bytes()));
 
     // 3. Let responseOrigin be the result of determining the origin given response's URL, targetSnapshotParams's sandboxing flags, and entry's document state's origin.
     auto response_origin = determine_the_origin(response->url(), target_snapshot_params.sandboxing_flags, origin);
@@ -2224,7 +2224,7 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
         move(navigation_id),
         navigable,
         nullptr,
-        Fetch::Infrastructure::ResponseView::create(response),
+        Fetch::Infrastructure::ResponseView::create(realm, response),
         nullptr,
         nullptr,
         move(coop_enforcement_result),
@@ -3205,20 +3205,20 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
 
             // Get sniff bytes for MIME type detection. For streaming responses where bytes
             // haven't arrived yet, we must wait asynchronously.
-            auto sniff_bytes = body ? body->sniff_bytes_if_available() : Optional<Fetch::Infrastructure::FetchBody::SniffBytes> { Fetch::Infrastructure::FetchBody::SniffBytes {} };
+            auto sniff_bytes = body ? body->sniff_bytes_if_available() : Optional<Fetch::Infrastructure::Body::SniffBytes> { Fetch::Infrastructure::Body::SniffBytes {} };
             if (!sniff_bytes.has_value()) {
                 // Async path: bytes not yet available, wait for them
                 nav_params->response->resume_body_delivery_up_to(Fetch::Infrastructure::MAX_SNIFF_BYTES);
                 body->wait_for_sniff_bytes(GC::create_function(heap(),
-                    [output, nav_params, navigation_params, completion_steps, source_allows_downloading, source_interface_origin, url](Fetch::Infrastructure::FetchBody::SniffBytes sniff_bytes) {
+                    [output, nav_params, navigation_params, completion_steps, source_allows_downloading, source_interface_origin, url](Fetch::Infrastructure::Body::SniffBytes sniff_bytes) {
                         // AD-HOC: The document may have been destroyed between when the fetch started and when the
                         //         bytes arrived. A response that failed mid-sniff must not be loaded as a document
                         //         off its partial bytes either.
-                        if (nav_params->navigable->active_browsing_context() && sniff_bytes.outcome == Fetch::Infrastructure::FetchBody::SniffOutcome::Complete) {
+                        if (nav_params->navigable->active_browsing_context() && sniff_bytes.outcome == Fetch::Infrastructure::Body::SniffOutcome::Complete) {
                             load_document_or_handle_download(nav_params, sniff_bytes.bytes, url, source_allows_downloading, source_interface_origin, *output);
                         } else {
                             stop_response_body_delivery(navigation_params);
-                            if (sniff_bytes.outcome == Fetch::Infrastructure::FetchBody::SniffOutcome::Failed)
+                            if (sniff_bytes.outcome == Fetch::Infrastructure::Body::SniffOutcome::Failed)
                                 output->save_extra_document_state = false;
                         }
                         output->navigation_params = navigation_params;
@@ -3230,7 +3230,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
             }
 
             // Sync path: bytes available immediately
-            if (sniff_bytes->outcome == Fetch::Infrastructure::FetchBody::SniffOutcome::Complete) {
+            if (sniff_bytes->outcome == Fetch::Infrastructure::Body::SniffOutcome::Complete) {
                 load_document_or_handle_download(nav_params, sniff_bytes->bytes, url, source_allows_downloading, source_interface_origin, *output);
             } else {
                 stop_response_body_delivery(navigation_params);
@@ -4070,7 +4070,7 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
     auto response = Fetch::Infrastructure::Response::create(vm);
     response->url_list().append(active_document()->url());
     response->header_list()->append({ "Content-Type"sv, "text/html;charset=utf-8"sv });
-    response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, result_utf8.bytes()));
+    response->set_body(Fetch::Infrastructure::byte_sequence_as_response_body(result_utf8.bytes()));
 
     // 12. Let policyContainer be targetNavigable's active document's policy container.
     auto const& policy_container = active_document()->policy_container();
@@ -4115,7 +4115,7 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
         navigation_id,
         this,
         nullptr,
-        Fetch::Infrastructure::ResponseView::create(response),
+        Fetch::Infrastructure::ResponseView::create(realm, response),
         nullptr,
         nullptr,
         move(coop_enforcement_result),

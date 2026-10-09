@@ -12,6 +12,7 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Engine/FetchByteChannel.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Fetch::Fetching {
@@ -59,6 +60,10 @@ public:
     // Waits for the channel to end, and while the HTML event loop is paused for its bytes too.
     void watch_channel();
 
+    // Reads the resource header once the channel buffers it or ends, leaving its bytes in the channel. It is read
+    // before any byte is taken from the channel.
+    void read_resource_header(Infrastructure::Body::ResourceHeaderCallback);
+
 private:
     virtual void visit_edges(Visitor& visitor) override;
 
@@ -67,6 +72,7 @@ private:
     void push_while_paused();
     void on_push_wake();
     void on_end_wake();
+    void on_resource_header_wake(Engine::WakeTicket);
     void settle_without_reading();
     void settle_stream(Engine::FetchByteChannel::TakeResult const&);
     void run_pull_task();
@@ -84,12 +90,15 @@ private:
     Optional<Engine::WakeTicket> m_end_ticket;
     Optional<Engine::WakeTicket> m_pull_ticket;
     Optional<Engine::WakeTicket> m_push_ticket;
+    Optional<Engine::WakeTicket> m_resource_header_ticket;
+    GC::Ptr<GC::Function<void(Core::ImmutableBytes, Infrastructure::Body::SniffOutcome)>> m_on_resource_header;
+    bool m_has_taken_bytes { false };
 
     // Once the channel has ended, later pulls stay pending.
     bool m_detached { false };
 };
 
-// A response body's stream read from channel, which becomes the channel's consumer.
-WEB_API GC::Ref<Streams::ReadableStream> create_body_stream_from_channel(JS::Realm&, GC::Ptr<Infrastructure::FetchParams const>, NonnullRefPtr<Engine::FetchByteChannel>);
+// The view of a body whose bytes arrive through the channel; its stream's pull source is the channel's consumer.
+WEB_API GC::Ref<Infrastructure::Body> create_body_from_channel(JS::Realm&, GC::Ptr<Infrastructure::FetchParams const>, NonnullRefPtr<Engine::FetchByteChannel>);
 
 }

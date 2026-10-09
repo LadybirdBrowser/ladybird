@@ -932,6 +932,50 @@ def check_network_failed_response_transport(bidi, context, server):
             bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
 
 
+def check_network_provided_body_at_response_started(bidi, context, server):
+    url = f"http://127.0.0.1:{server.server_port}/network-interception/fail-body"
+    provided = "provided body"
+    server.interception_transport_closed.clear()
+    subscription = bidi.command(
+        "session.subscribe", {"events": ["network.responseStarted", "network.responseCompleted"]}
+    )["subscription"]
+    intercept = bidi.command(
+        "network.addIntercept",
+        {
+            "phases": ["responseStarted"],
+            "urlPatterns": [{"type": "string", "pattern": url}],
+        },
+    )["intercept"]
+    try:
+        pending = bidi.send(
+            "script.evaluate",
+            {
+                "target": {"context": context},
+                "awaitPromise": True,
+                "expression": f"fetch({json.dumps(url)}).then(response => response.text())",
+            },
+        )
+        # The original body is still arriving when the provided one replaces it.
+        event = intercepted_event(bidi, "network.responseStarted", url)
+        bidi.command(
+            "network.provideResponse",
+            {"request": event["request"]["request"], "body": {"type": "string", "value": provided}},
+        )
+        result = bidi.response(pending)
+        assert result["type"] == "success" and result["result"]["result"]["value"] == provided, result
+        assert server.interception_transport_closed.wait(30), "The provided body left the original transport open"
+        completed = bidi.event("network.responseCompleted")
+        while completed["request"]["url"] != url:
+            completed = bidi.event("network.responseCompleted")
+        response = completed["response"]
+        assert response["bodySize"] == len(provided), response
+        assert response["content"]["size"] == len(provided), response
+    finally:
+        if sys.exc_info()[0] is None:
+            bidi.command("network.removeIntercept", {"intercept": intercept})
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+
+
 def check_network_scoped_headers(bidi, context, server):
     other = bidi.command("browsingContext.create", {"type": "tab"})["context"]
 
@@ -1064,6 +1108,8 @@ def check_network_interception(bidi, context, server, case="all"):
         check_network_scoped_headers(bidi, context, server)
     if case in ["all", "fail-transport"]:
         check_network_failed_response_transport(bidi, context, server)
+    if case in ["all", "provided-body-at-response-started"]:
+        check_network_provided_body_at_response_started(bidi, context, server)
     for action in ["cancel", "default"]:
         if case in ["all", "auth-response-matrix", "auth-action-extras", f"auth-{action}-extra"]:
             for credentials in [{"type": "password", "username": "user", "password": "pass"}, {}]:
@@ -2155,6 +2201,7 @@ if __name__ == "__main__":
             "navigation",
             "scoped-headers",
             "fail-transport",
+            "provided-body-at-response-started",
             "auth-gates",
             "auth-omit",
             "auth-cors",

@@ -132,14 +132,15 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::create_with_body(ResponseInit c
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Response with null body status cannot have a body"_utf16 };
 
         // 2. Set response’s body to body’s body.
-        response->set_body(body->body);
+        response->set_body(Infrastructure::ResponseBody::from_extracted_body(body->body));
 
         // 3. If body’s type is non-null and response’s header list does not contain `Content-Type`, then append (`Content-Type`, body’s type) to response’s header list.
         if (body->type.has_value() && !response->header_list()->contains("Content-Type"sv))
             response->header_list()->append(HTTP::Header::isomorphic_encode("Content-Type"sv, *body->type));
     }
 
-    auto response_object = create(Infrastructure::ResponseView::create(response));
+    auto body_view = body.has_value() ? GC::Ptr<Infrastructure::Body> { body->body } : nullptr;
+    auto response_object = create(Infrastructure::ResponseView::create(response, body_view));
     response_object->m_headers = headers;
     return response_object;
 }
@@ -182,7 +183,7 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::redirect(Utf16String const& url
     response->header_list()->append(move(header));
 
     // 4. Let responseObject be the result of creating a Response object, given a new response, "immutable", and the current realm.
-    auto response_object = Response::create(Infrastructure::ResponseView::create(response), Headers::Guard::Immutable);
+    auto response_object = Response::create(Infrastructure::ResponseView::create(response, nullptr), Headers::Guard::Immutable);
 
     // 8. Return responseObject.
     return response_object;

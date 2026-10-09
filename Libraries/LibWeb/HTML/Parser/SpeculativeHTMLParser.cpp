@@ -146,7 +146,7 @@ void issue_speculative_fetch(JS::Realm& realm, DOM::Document& document, URL::URL
     //         speculative fetch succeeds, offer its response to the normal parser's fetch the way a preload is, through
     //         the document's map of preloaded resources. That fetch still runs main fetch's checks before using it.
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
-    fetch_algorithms_input.process_response_consume_body = [&realm, document = GC::Ref { document }, parser = GC::Weak { document.active_parser() }, request](GC::Ref<Fetch::Infrastructure::ResponseView> response_view, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
+    fetch_algorithms_input.process_response_consume_body = [document = GC::Ref { document }, parser = GC::Weak { document.active_parser() }, request](GC::Ref<Fetch::Infrastructure::ResponseView> response_view, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
         auto response = response_view->record();
         auto* byte_sequence = body_bytes.get_pointer<Core::ImmutableBytes>();
         if (response->is_network_error() || !byte_sequence)
@@ -174,7 +174,7 @@ void issue_speculative_fetch(JS::Realm& realm, DOM::Document& document, URL::URL
             return;
 
         // NB: Keep the filtered response, which main fetch uses as is. Unfiltered, it would be treated as same-origin.
-        internal_response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, byte_sequence->bytes()));
+        internal_response->set_body(Fetch::Infrastructure::ResponseBody::from_bytes(*byte_sequence));
 
         auto entry = PreloadEntry::create();
         entry->response = response;

@@ -41,6 +41,8 @@ void FetchController::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_report_timing_steps);
+    if (m_awaited_network_completion.has_value())
+        visitor.visit(m_awaited_network_completion->steps);
     visitor.visit(m_next_manual_redirect_steps);
     visitor.visit(m_fetch_params);
     visitor.visit(m_pending_preloaded_response);
@@ -92,6 +94,19 @@ void FetchController::process_next_manual_redirect() const
 
     // 2. Call controller’s next manual redirect steps.
     m_next_manual_redirect_steps->function()();
+}
+
+void FetchController::when_network_completes_body(Engine::FetchByteChannel const& body, GC::Ref<GC::Function<void()>> steps)
+{
+    m_awaited_network_completion = AwaitedNetworkCompletion { body, steps };
+}
+
+void FetchController::did_complete_network_body(Engine::FetchByteChannel const& body)
+{
+    if (!m_awaited_network_completion.has_value() || m_awaited_network_completion->body.ptr() != &body)
+        return;
+    auto steps = m_awaited_network_completion.release_value().steps;
+    steps->function()();
 }
 
 // https://fetch.spec.whatwg.org/#extract-full-timing-info
@@ -200,6 +215,7 @@ void FetchController::stop_request()
 {
     end_rendering_pending_operation(this);
     VERIFY(m_state != State::Ongoing);
+    m_awaited_network_completion.clear();
     stop_body_transport();
 }
 

@@ -55,7 +55,6 @@ public:
     GC::Ptr<Fetch::Infrastructure::FetchParams const> fetch_params;
     RefPtr<Fetch::Infrastructure::Request> original_request;
     GC::Ptr<Fetch::Infrastructure::Response> response;
-    GC::Ptr<JS::Object> global_object;
 
 private:
     explicit NetworkContinuation(Callback);
@@ -98,7 +97,7 @@ void apply_network_cache_behavior(Fetch::Infrastructure::Request&);
 void apply_network_extra_headers(Fetch::Infrastructure::Request&);
 void apply_network_request_header_overrides(Fetch::Infrastructure::Request&);
 JsonArray get_network_intercepts(Fetch::Infrastructure::FetchParams const&, StringView phase);
-void block_network_request(JS::Object&, Fetch::Infrastructure::FetchParams const&, GC::Ptr<Fetch::Infrastructure::Response>, String phase, JsonArray intercepts, GC::Ref<NetworkContinuation>, RefPtr<Fetch::Infrastructure::Request> original_request = nullptr);
+void block_network_request(Fetch::Infrastructure::FetchParams const&, GC::Ptr<Fetch::Infrastructure::Response>, String phase, JsonArray intercepts, GC::Ref<NetworkContinuation>, RefPtr<Fetch::Infrastructure::Request> original_request = nullptr);
 WEB_API Response continue_network_request(StringView method, JsonObject const&);
 
 void initialize_network_request(Fetch::Infrastructure::Request&, GC::Ptr<HTML::Navigable> = nullptr, Optional<Utf16String> const& navigation = {});

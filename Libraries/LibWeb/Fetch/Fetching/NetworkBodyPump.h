@@ -20,8 +20,8 @@
 
 namespace Web::Fetch::Fetching {
 
-// The producer half of a streamed response body: sniff capture, memory-cache accumulation, and the writes into
-// the channel the stream pulls from.
+// The producer half of a streamed response body: memory-cache accumulation, and the writes into the channel the
+// stream pulls from.
 class NetworkBodyPump final : public JS::Cell {
     GC_CELL(NetworkBodyPump, JS::Cell);
     GC_DECLARE_ALLOCATOR(NetworkBodyPump);
@@ -30,7 +30,6 @@ public:
     virtual ~NetworkBodyPump() override;
 
     void set_response(GC::Ref<Fetch::Infrastructure::Response>);
-    void set_body(GC::Ref<Fetch::Infrastructure::Body> body);
 
     void handle_network_data(Requests::ResponseData);
     void handle_network_complete(Optional<u64> encoded_body_size = {});
@@ -50,15 +49,11 @@ private:
 
     GC::Ptr<Infrastructure::FetchParams const> m_fetch_params;
     GC::Ptr<Fetch::Infrastructure::Response> m_response;
-    GC::Ptr<Fetch::Infrastructure::Body> m_body;
 
     NonnullRefPtr<Engine::FetchByteChannel> m_channel;
     NonnullRefPtr<Engine::FetchBodyDeliveryGate> m_delivery_gate;
 
     RefPtr<HTTP::MemoryCache> m_http_cache;
-
-    // Bytes received before set_body(), flushed into the body's sniff buffer once it is attached.
-    ByteBuffer m_pre_body_sniff_buffer;
 
     // Whole-response buffer retained only when m_http_cache is non-null, for finalize_entry().
     ByteBuffer m_cache_buffer;
@@ -68,7 +63,6 @@ private:
     u64 m_encoded_body_size { 0 };
     u64 m_decoded_body_size { 0 };
     bool m_network_complete { false };
-    bool m_network_failed { false };
 };
 
 }
