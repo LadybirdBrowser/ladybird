@@ -38,6 +38,7 @@ FlatPtr ladybird_utf16_fly_string_from_utf16_string(FlatPtr);
 void ladybird_utf16_string_unref(FlatPtr);
 bool ladybird_utf16_validate(u16 const*, size_t);
 bool ladybird_utf16_validate_prefix(u16 const*, size_t, size_t* valid_code_units);
+size_t ladybird_utf8_length_from_valid_utf16(u16 const*, size_t);
 size_t ladybird_convert_valid_utf16_to_utf8(u16 const*, size_t, u8* output);
 FlatPtr ladybird_utf16_string_from_utf8(u8 const*, size_t);
 FlatPtr ladybird_utf16_string_to_well_formed(u16 const*, size_t);

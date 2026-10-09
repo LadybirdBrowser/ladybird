@@ -88,6 +88,11 @@ extern "C" bool ladybird_utf16_validate_prefix(u16 const* data, size_t length, s
     return AK::Utf16View { reinterpret_cast<char16_t const*>(data), length }.validate(*valid_code_units);
 }
 
+extern "C" size_t ladybird_utf8_length_from_valid_utf16(u16 const* data, size_t length)
+{
+    return simdutf::utf8_length_from_utf16(reinterpret_cast<char16_t const*>(data), length);
+}
+
 extern "C" size_t ladybird_convert_valid_utf16_to_utf8(u16 const* data, size_t length, u8* output)
 {
     return simdutf::convert_valid_utf16_to_utf8(reinterpret_cast<char16_t const*>(data), length, reinterpret_cast<char*>(output));
