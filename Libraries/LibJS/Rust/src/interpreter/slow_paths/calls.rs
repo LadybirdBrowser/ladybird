@@ -1113,7 +1113,7 @@ pub fn create_arguments(
         create_mapped_arguments_object(
             vm,
             function,
-            &ecmascript_function.parameter_names_for_mapped_arguments(),
+            ecmascript_function.mapped_argument_names(),
             passed_arguments,
             environment,
         )

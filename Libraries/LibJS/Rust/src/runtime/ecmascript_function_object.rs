@@ -757,9 +757,9 @@ impl EcmascriptFunctionObject {
         self.shared_data().formal_parameter_count()
     }
 
-    /// A copy of the parameter names, since the arguments object they are for is allocated while they are in use.
-    pub fn parameter_names_for_mapped_arguments(&self) -> Vec<Utf16FlyString> {
-        self.shared_data().parameter_names_for_mapped_arguments().to_vec()
+    /// Shares the cached parameter map with an arguments object.
+    pub fn mapped_argument_names(&self) -> Rc<[Utf16FlyString]> {
+        self.shared_data().mapped_argument_names()
     }
 
     pub fn set_is_class_constructor(&self) {
