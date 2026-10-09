@@ -11,9 +11,9 @@ namespace Media {
 #if !defined(LIBMEDIA_AUDIO_DEVICE_ENUMERATION)
 
 // FIXME: Implement device enumeration for the WASAPI (Windows) backend.
-NonnullRefPtr<AudioDeviceEnumerationPromise> enumerate_platform_audio_devices()
+void watch_platform_audio_devices(AudioDeviceListCallback on_device_list)
 {
-    return AudioDeviceEnumerationPromise::resolved(AudioDeviceEnumeration {});
+    on_device_list(AudioDeviceEnumeration {});
 }
 
 #endif
@@ -21,36 +21,31 @@ NonnullRefPtr<AudioDeviceEnumerationPromise> enumerate_platform_audio_devices()
 AudioDevices& AudioDevices::the()
 {
     static AudioDevices& devices = *new AudioDevices;
-
-    static bool did_initial_refresh = false;
-    if (!did_initial_refresh) {
-        did_initial_refresh = true;
-        devices.refresh();
-    }
-
+    devices.ensure_watching();
     return devices;
 }
 
-void AudioDevices::refresh()
+void AudioDevices::ensure_watching()
 {
-    if (m_refresh_in_progress)
+    if (m_watching)
         return;
+    m_watching = true;
+    watch_platform_audio_devices([this](ErrorOr<AudioDeviceEnumeration> enumeration) {
+        report_device_list(move(enumeration));
+    });
+}
 
-    m_refresh_in_progress = true;
-    auto promise = enumerate_platform_audio_devices();
-    promise->when_resolved([this](AudioDeviceEnumeration& enumeration) {
-        m_cached_input_devices = move(enumeration.inputs);
-        m_cached_output_devices = move(enumeration.outputs);
-        m_refresh_in_progress = false;
-        m_has_completed_refresh = true;
-        notify_listeners();
-    });
-    promise->when_rejected([this](Error& error) {
-        warnln("Failed to enumerate audio devices: {}", error);
-        m_refresh_in_progress = false;
-        m_has_completed_refresh = true;
-        notify_listeners();
-    });
+void AudioDevices::report_device_list(ErrorOr<AudioDeviceEnumeration> enumeration)
+{
+    if (enumeration.is_error()) {
+        // The last list stands until the source manages a new one.
+        warnln("Failed to enumerate audio devices: {}", enumeration.error());
+    } else {
+        m_cached_input_devices = move(enumeration.value().inputs);
+        m_cached_output_devices = move(enumeration.value().outputs);
+    }
+    m_has_device_list = true;
+    notify_listeners();
 }
 
 Vector<AudioDeviceInfo> AudioDevices::input_devices() const

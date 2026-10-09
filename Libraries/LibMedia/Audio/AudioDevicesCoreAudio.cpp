@@ -4,10 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Format.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/ScopeGuard.h>
 #include <AK/kmalloc.h>
 #include <CoreAudio/CoreAudio.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <LibCore/EventLoop.h>
 #include <LibMedia/Audio/AudioDevices.h>
 
 namespace Media {
@@ -125,12 +128,44 @@ static ErrorOr<AudioDeviceEnumeration> enumerate_core_audio_devices()
     return enumeration;
 }
 
-NonnullRefPtr<AudioDeviceEnumerationPromise> enumerate_platform_audio_devices()
+struct AudioDeviceWatch {
+    Core::EventLoop* event_loop { nullptr };
+    AudioDeviceListCallback on_device_list;
+};
+
+// The watch lasts for the rest of the process, so the listeners are never removed.
+static NeverDestroyed<AudioDeviceWatch> s_audio_device_watch;
+
+static void report_devices()
 {
-    auto enumeration_or_error = enumerate_core_audio_devices();
-    if (enumeration_or_error.is_error())
-        return AudioDeviceEnumerationPromise::rejected(enumeration_or_error.release_error());
-    return AudioDeviceEnumerationPromise::resolved(enumeration_or_error.release_value());
+    s_audio_device_watch->on_device_list(enumerate_core_audio_devices());
+}
+
+// Core Audio runs listeners on a thread of its own, so the listing hops back to the loop that asked.
+static OSStatus on_audio_hardware_property_changed(AudioObjectID, UInt32, AudioObjectPropertyAddress const*, void*)
+{
+    s_audio_device_watch->event_loop->deferred_invoke([] { report_devices(); });
+    return noErr;
+}
+
+void watch_platform_audio_devices(AudioDeviceListCallback on_device_list)
+{
+    // Without an event loop there is nobody to tell of changes, so this is a one-off listing.
+    if (!Core::EventLoop::is_running()) {
+        on_device_list(enumerate_core_audio_devices());
+        return;
+    }
+
+    VERIFY(s_audio_device_watch->event_loop == nullptr);
+    s_audio_device_watch->event_loop = &Core::EventLoop::current();
+    s_audio_device_watch->on_device_list = move(on_device_list);
+
+    for (AudioObjectPropertySelector selector : { kAudioHardwarePropertyDevices, kAudioHardwarePropertyDefaultInputDevice, kAudioHardwarePropertyDefaultOutputDevice }) {
+        AudioObjectPropertyAddress address { selector, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain };
+        if (AudioObjectAddPropertyListener(kAudioObjectSystemObject, &address, on_audio_hardware_property_changed, nullptr) != noErr)
+            warnln("Unable to watch Core Audio devices for changes");
+    }
+    report_devices();
 }
 
 }

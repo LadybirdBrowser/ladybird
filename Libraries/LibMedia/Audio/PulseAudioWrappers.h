@@ -80,6 +80,8 @@ public:
     void request_device_sample_specification();
 
     ErrorOr<void> enumerate_audio_devices(Vector<Media::AudioDeviceInfo>& inputs, Vector<Media::AudioDeviceInfo>& outputs);
+    // Invoked on the main-loop thread when a sink or source appears or disappears or a server default changes.
+    ErrorOr<void> watch_devices(Function<void()> on_devices_changed);
     ErrorOr<NonnullRefPtr<PulseAudioStream>> create_stream(OutputState, u32 target_latency_ms, PulseAudioDataRequestCallback);
     ErrorOr<NonnullRefPtr<PulseAudioRecordStream>> create_record_stream(SampleSpecification const&, u32 fragment_size_bytes, char const* device_name, PulseAudioRecordCallback);
 
@@ -95,6 +97,7 @@ private:
     pa_context* m_context;
 
     SampleSpecification m_device_sample_specification;
+    Function<void()> m_on_devices_changed;
 };
 
 enum class PulseAudioStreamState {

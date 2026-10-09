@@ -7,11 +7,11 @@
 #pragma once
 
 #include <AK/ByteString.h>
+#include <AK/Error.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
-#include <LibCore/Promise.h>
 #include <LibMedia/Export.h>
 
 namespace Media {
@@ -30,32 +30,36 @@ struct AudioDeviceEnumeration {
     Vector<AudioDeviceInfo> outputs;
 };
 
-using AudioDeviceEnumerationPromise = Core::Promise<AudioDeviceEnumeration>;
+// Reports the devices once a list is available and again on every change; an error is a report that could not be made.
+using AudioDeviceListCallback = Function<void(ErrorOr<AudioDeviceEnumeration>)>;
+void watch_platform_audio_devices(AudioDeviceListCallback);
 
-NonnullRefPtr<AudioDeviceEnumerationPromise> enumerate_platform_audio_devices();
-
+// The process's view of the audio devices, kept current by watching their source from first use on.
 class MEDIA_API AudioDevices {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
     static AudioDevices& the();
 
-    void refresh();
-    bool has_completed_refresh() const { return m_has_completed_refresh; }
+    bool has_device_list() const { return m_has_device_list; }
     Vector<AudioDeviceInfo> input_devices() const;
     Vector<AudioDeviceInfo> output_devices() const;
+
+    // The watched source's latest word, which the listeners then hear of.
+    void report_device_list(ErrorOr<AudioDeviceEnumeration>);
 
     using ListenerId = u64;
     ListenerId add_devices_changed_listener(Function<void()>);
     void remove_devices_changed_listener(ListenerId);
 
 private:
+    void ensure_watching();
     void notify_listeners();
 
     Vector<AudioDeviceInfo> m_cached_input_devices;
     Vector<AudioDeviceInfo> m_cached_output_devices;
-    bool m_refresh_in_progress { false };
-    bool m_has_completed_refresh { false };
+    bool m_watching { false };
+    bool m_has_device_list { false };
 
     ListenerId m_next_listener_id { 1 };
     HashMap<ListenerId, Function<void()>> m_listeners;

@@ -236,9 +236,8 @@ void MediaDevices::enumerate_devices(GC::Ref<WebIDL::Promise> promise)
         return;
     }
 
-    if (!HTML::Window::in_test_mode() && !Media::AudioDevices::the().has_completed_refresh()) {
+    if (!HTML::Window::in_test_mode() && !Media::AudioDevices::the().has_device_list()) {
         m_pending_enumerate_devices_requests.append({ promise });
-        Media::AudioDevices::the().refresh();
         return;
     }
 
@@ -555,10 +554,8 @@ void MediaDevices::process_pending_enumerate_devices_requests()
 {
     if (!device_enumeration_can_proceed())
         return;
-    if (!HTML::Window::in_test_mode() && !Media::AudioDevices::the().has_completed_refresh()) {
-        Media::AudioDevices::the().refresh();
+    if (!HTML::Window::in_test_mode() && !Media::AudioDevices::the().has_device_list())
         return;
-    }
 
     run_device_change_notification_steps(current_audio_device_snapshot());
 
@@ -571,10 +568,8 @@ void MediaDevices::process_pending_get_user_media_requests()
 {
     if (!get_user_media_can_proceed())
         return;
-    if (!HTML::Window::in_test_mode() && !Media::AudioDevices::the().has_completed_refresh()) {
-        Media::AudioDevices::the().refresh();
+    if (!HTML::Window::in_test_mode() && !Media::AudioDevices::the().has_device_list())
         return;
-    }
 
     auto pending_requests = move(m_pending_get_user_media_requests);
     for (auto& request : pending_requests)
@@ -711,8 +706,7 @@ void MediaDevices::get_user_media(Optional<MediaStreamConstraints> const& constr
         return;
     }
 
-    if (!HTML::Window::in_test_mode() && !Media::AudioDevices::the().has_completed_refresh()) {
-        Media::AudioDevices::the().refresh();
+    if (!HTML::Window::in_test_mode() && !Media::AudioDevices::the().has_device_list()) {
         m_pending_get_user_media_requests.append({ .promise = promise, .requested_device_ids = move(requested_device_ids) });
         return;
     }
