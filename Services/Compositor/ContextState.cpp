@@ -2039,7 +2039,7 @@ bool ContextState::visual_animations_need_frame()
 
 bool ContextState::advance_visual_animations(MonotonicTime now)
 {
-    if (!has_active_visual_animations())
+    if (!m_visual_context_tree->has_visual_animations())
         return false;
     discard_sampled_visual_context_tree();
     m_visual_animation_sample_time_ns = now.nanoseconds();
