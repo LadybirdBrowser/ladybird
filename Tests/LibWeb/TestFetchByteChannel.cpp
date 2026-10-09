@@ -1063,3 +1063,45 @@ TEST_CASE(peek_reports_how_the_channel_ended)
     EXPECT(errored_peek.taken.is_empty());
     EXPECT_EQ(StringView { errored_peek.state.get<Errored>().message }, "failed"sv);
 }
+
+TEST_CASE(whole_body_is_kept_through_close_and_reads)
+{
+    ChannelHarness harness;
+    auto whole_body = bytes_of("whole body"sv);
+    harness.channel->keep_whole_body(whole_body);
+    harness.channel->keep_whole_body(bytes_of("later"sv));
+    EXPECT_EQ(harness.channel->write(bytes_of("whole"sv)), WriteResult::Accepted);
+    EXPECT_EQ(harness.channel->close(), TerminateResult::Terminated);
+    EXPECT_EQ(flatten(harness.channel->take_all()), "whole"sv);
+
+    auto kept = harness.channel->whole_body();
+    EXPECT(kept.has_value());
+    EXPECT_EQ(kept->bytes().data(), whole_body.bytes().data());
+    EXPECT(harness.channel->whole_body().has_value());
+}
+
+TEST_CASE(whole_body_is_dropped_when_the_body_errors_is_cancelled_or_is_transferred)
+{
+    ChannelHarness errored;
+    errored.channel->keep_whole_body(bytes_of("whole body"sv));
+    EXPECT_EQ(errored.channel->error({}), TerminateResult::Terminated);
+    EXPECT(!errored.channel->whole_body().has_value());
+
+    ChannelHarness cancelled;
+    cancelled.channel->keep_whole_body(bytes_of("whole body"sv));
+    EXPECT_EQ(cancelled.channel->cancel(), TerminateResult::Terminated);
+    EXPECT(!cancelled.channel->whole_body().has_value());
+
+    ChannelHarness transferred;
+    transferred.channel->keep_whole_body(bytes_of("whole body"sv));
+    (void)transferred.channel->transfer_out();
+    EXPECT(!transferred.channel->whole_body().has_value());
+}
+
+TEST_CASE(whole_body_handed_over_after_the_body_ends_is_ignored)
+{
+    ChannelHarness harness;
+    EXPECT_EQ(harness.channel->cancel(), TerminateResult::Terminated);
+    harness.channel->keep_whole_body(bytes_of("whole body"sv));
+    EXPECT(!harness.channel->whole_body().has_value());
+}

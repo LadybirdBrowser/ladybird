@@ -38,7 +38,6 @@ public:
     }
 
     [[nodiscard]] Optional<Core::ImmutableBytes> const& source() const { return m_source; }
-    void set_source(Core::ImmutableBytes, Optional<u64> length);
     [[nodiscard]] Optional<u64> const& length() const { return m_length; }
 
     // https://mimesniff.spec.whatwg.org/#reading-the-resource-header
@@ -99,7 +98,6 @@ public:
     void set_stream(GC::Ref<Streams::ReadableStream> value) { m_stream = value; }
     [[nodiscard]] FetchBody const& fetch_body() const { return m_fetch_body; }
     [[nodiscard]] Optional<Core::ImmutableBytes> const& source() const { return m_fetch_body.source(); }
-    void set_source(Core::ImmutableBytes, Optional<u64> length);
     [[nodiscard]] Optional<u64> const& length() const { return m_fetch_body.length(); }
 
     using SniffBytesCallback = GC::Ref<GC::Function<void(FetchBody::SniffBytes)>>;
