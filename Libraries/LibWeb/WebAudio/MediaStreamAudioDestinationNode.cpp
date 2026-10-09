@@ -61,7 +61,7 @@ WebIDL::ExceptionOr<GC::Ref<MediaStreamAudioDestinationNode>> MediaStreamAudioDe
     // the control thread drains on a deferred-invoke cadence after each burst; 8192 frames
     // (~170 ms at 48 kHz) absorb a full burst plus scheduling jitter.
     static constexpr size_t ring_capacity_in_frames = 8192;
-    auto ring = adopt_ref(*new Media::SpscAudioFrameRing(ring_capacity_in_frames, node->channel_count()));
+    auto ring = adopt_ref(*new Audio::SpscAudioFrameRing(ring_capacity_in_frames, node->channel_count()));
     node->m_shared_state = adopt_ref(*new Rendering::MediaStreamDestinationSharedState(move(ring)));
 
     // The drain callback runs (and is later cleared) exclusively on the control thread; it is

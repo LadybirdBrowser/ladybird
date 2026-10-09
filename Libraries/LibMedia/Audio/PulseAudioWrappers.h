@@ -18,13 +18,9 @@
 #include <LibMedia/Export.h>
 #include <pulse/pulseaudio.h>
 
-namespace Media {
+namespace Audio {
 
 struct AudioDeviceInfo;
-
-}
-
-namespace Audio {
 
 class PulseAudioStream;
 class PulseAudioRecordStream;
@@ -79,7 +75,7 @@ public:
 
     void request_device_sample_specification();
 
-    ErrorOr<void> enumerate_audio_devices(Vector<Media::AudioDeviceInfo>& inputs, Vector<Media::AudioDeviceInfo>& outputs);
+    ErrorOr<void> enumerate_audio_devices(Vector<AudioDeviceInfo>& inputs, Vector<AudioDeviceInfo>& outputs);
     // Invoked on the main-loop thread when a sink or source appears or disappears or a server default changes.
     ErrorOr<void> watch_devices(Function<void()> on_devices_changed);
     ErrorOr<NonnullRefPtr<PulseAudioStream>> create_stream(OutputState, u32 target_latency_ms, PulseAudioDataRequestCallback);

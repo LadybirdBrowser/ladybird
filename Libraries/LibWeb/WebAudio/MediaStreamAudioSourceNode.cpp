@@ -22,7 +22,7 @@ namespace Web::WebAudio {
 GC_DEFINE_ALLOCATOR(MediaStreamAudioSourceNode);
 
 // Drop whole incoming blocks that cannot fit so the producer never mutates the consumer index.
-static void push_frames_if_enough_room(Media::SpscAudioFrameRing& ring, ReadonlySpan<float> interleaved_samples)
+static void push_frames_if_enough_room(Audio::SpscAudioFrameRing& ring, ReadonlySpan<float> interleaved_samples)
 {
     auto channel_count = ring.channel_count();
     auto frame_count = interleaved_samples.size() / channel_count;
@@ -90,7 +90,7 @@ void MediaStreamAudioSourceNode::attach_input_track()
     // fragment.
     static constexpr size_t ring_capacity_in_frames = 3 * 960;
     auto channel_count = m_input_track->channel_count() == 1 ? 1u : 2u;
-    m_ring = adopt_ref(*new Media::SpscAudioFrameRing(ring_capacity_in_frames, channel_count));
+    m_ring = adopt_ref(*new Audio::SpscAudioFrameRing(ring_capacity_in_frames, channel_count));
 
     context()->queue_control_message(NodeMessage { SetMediaStreamSourceRing { node_id(), m_ring, channel_count } });
 

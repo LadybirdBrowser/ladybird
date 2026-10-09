@@ -78,7 +78,7 @@ MediaDevices::MediaDevices(HTML::Window& window)
     if (HTML::Window::in_test_mode())
         return;
 
-    m_audio_device_cache_listener_id = Media::AudioDevices::the().add_devices_changed_listener([this] {
+    m_audio_device_cache_listener_id = Audio::AudioDevices::the().add_devices_changed_listener([this] {
         did_observe_audio_device_cache_update();
     });
 
@@ -112,7 +112,7 @@ void MediaDevices::finalize()
 
     Base::finalize();
     if (m_audio_device_cache_listener_id.has_value())
-        Media::AudioDevices::the().remove_devices_changed_listener(m_audio_device_cache_listener_id.release_value());
+        Audio::AudioDevices::the().remove_devices_changed_listener(m_audio_device_cache_listener_id.release_value());
 }
 
 void MediaDevices::visit_edges(Cell::Visitor& visitor)
@@ -237,7 +237,7 @@ void MediaDevices::enumerate_devices(GC::Ref<WebIDL::Promise> promise)
         return;
     }
 
-    if (!HTML::Window::in_test_mode() && !Media::AudioDevices::the().has_device_list()) {
+    if (!HTML::Window::in_test_mode() && !Audio::AudioDevices::the().has_device_list()) {
         m_pending_enumerate_devices_requests.append({ promise });
         return;
     }
@@ -389,9 +389,9 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
     GC::Ref<MediaDevices> media_devices = *this;
 
     // FIXME: Add camera/video
-    Vector<Media::AudioDeviceInfo> audio_input_devices;
+    Vector<Audio::AudioDeviceInfo> audio_input_devices;
     if (!HTML::Window::in_test_mode())
-        audio_input_devices = Media::AudioDevices::the().input_devices();
+        audio_input_devices = Audio::AudioDevices::the().input_devices();
 
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [promise = GC::Root(promise), media_devices, requested_device_ids = move(requested_device_ids), audio_input_devices = move(audio_input_devices)] mutable {
         auto& realm = WebIDL::promise_realm(*promise);
@@ -411,12 +411,12 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
         // AD-HOC: Requests stay pending until both conditions are true, then continue here.
 
         // 11.2 Let finalSet be an (initially) empty set.
-        Vector<Media::AudioDeviceInfo> final_set;
+        Vector<Audio::AudioDeviceInfo> final_set;
 
         // 11.3 For each media type kind in requestedMediaTypes, run the following steps.
         // 11.3.1 For each possible configuration of each possible source device of media of type kind, conceive a candidate as a placeholder for an eventual MediaStreamTrack holding a source device and configured with a settings dictionary comprised of its specific settings.
         //      Call this set of candidates the candidateSet.
-        Vector<Media::AudioDeviceInfo> candidate_set = audio_input_devices;
+        Vector<Audio::AudioDeviceInfo> candidate_set = audio_input_devices;
 
         // 11.3.1 If candidateSet is the empty set, jump to the step labeled NotFound Failure below.
         if (candidate_set.is_empty()) {
@@ -430,7 +430,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
         // 11.3.4 If CS contains a member that is a required constraint and whose name is not in the list of allowed required constraints for device selection, then reject p with a TypeError, and abort these steps.
         // 11.3.5 Run the SelectSettings algorithm on each candidate in candidateSet with CS as the constraint set.
         if (requested_device_ids.has_value() && !requested_device_ids->is_empty()) {
-            Vector<Media::AudioDeviceInfo> filtered_candidates;
+            Vector<Audio::AudioDeviceInfo> filtered_candidates;
             for (auto const& device : candidate_set) {
                 auto device_id = Utf16String::from_utf8_with_replacement_character(device.dom_device_id.view());
                 for (auto const& requested_id : *requested_device_ids) {
@@ -489,7 +489,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
 
             // 11.9 For each media type kind in requestedMediaTypes, run the following sub steps.
             // 11.9.1 Let finalCandidate be the provided media, which MUST be precisely one candidate of type kind from finalSet.
-            Optional<Media::AudioDeviceInfo> final_candidate;
+            Optional<Audio::AudioDeviceInfo> final_candidate;
             for (auto const& device : final_set) {
                 if (!final_candidate.has_value())
                     final_candidate = device;
@@ -505,7 +505,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
 
             // 11.9.2 The result of the request is "granted".
             // 11.9.3 Let grantedDevice be finalCandidate's source device.
-            Media::AudioDeviceInfo const& granted_device = final_candidate.value();
+            Audio::AudioDeviceInfo const& granted_device = final_candidate.value();
 
             // 11.9.4 Using grantedDevice's deviceId, deviceId, set mediaDevices.[[devicesLiveMap]][deviceId] to true, if it isn't already true, and set mediaDevices.[[devicesAccessibleMap]][deviceId] to true, if it isn't already true.
             auto granted_device_id = Utf16String::from_utf8_with_replacement_character(granted_device.dom_device_id.view());
@@ -555,7 +555,7 @@ void MediaDevices::process_pending_enumerate_devices_requests()
 {
     if (!device_enumeration_can_proceed())
         return;
-    if (!HTML::Window::in_test_mode() && !Media::AudioDevices::the().has_device_list())
+    if (!HTML::Window::in_test_mode() && !Audio::AudioDevices::the().has_device_list())
         return;
 
     run_device_change_notification_steps(current_audio_device_snapshot());
@@ -569,7 +569,7 @@ void MediaDevices::process_pending_get_user_media_requests()
 {
     if (!get_user_media_can_proceed())
         return;
-    if (!HTML::Window::in_test_mode() && !Media::AudioDevices::the().has_device_list())
+    if (!HTML::Window::in_test_mode() && !Audio::AudioDevices::the().has_device_list())
         return;
 
     auto pending_requests = move(m_pending_get_user_media_requests);
@@ -707,7 +707,7 @@ void MediaDevices::get_user_media(Optional<MediaStreamConstraints> const& constr
         return;
     }
 
-    if (!HTML::Window::in_test_mode() && !Media::AudioDevices::the().has_device_list()) {
+    if (!HTML::Window::in_test_mode() && !Audio::AudioDevices::the().has_device_list()) {
         m_pending_get_user_media_requests.append({ .promise = promise, .requested_device_ids = move(requested_device_ids) });
         return;
     }
@@ -732,8 +732,8 @@ Vector<MediaDevices::StoredDevice> MediaDevices::current_audio_device_snapshot()
     if (HTML::Window::in_test_mode())
         return stored_devices;
 
-    auto input_devices = Media::AudioDevices::the().input_devices();
-    auto output_devices = Media::AudioDevices::the().output_devices();
+    auto input_devices = Audio::AudioDevices::the().input_devices();
+    auto output_devices = Audio::AudioDevices::the().output_devices();
     stored_devices.ensure_capacity(input_devices.size() + output_devices.size());
 
     for (auto const& device : input_devices) {
@@ -770,7 +770,7 @@ void MediaDevices::did_observe_audio_device_cache_update()
 void MediaDevices::end_tracks_of_removed_devices()
 {
     Vector<Utf16String> present_device_ids;
-    for (auto const& device : Media::AudioDevices::the().input_devices())
+    for (auto const& device : Audio::AudioDevices::the().input_devices())
         present_device_ids.append(Utf16String::from_utf8_with_replacement_character(device.dom_device_id.view()));
 
     GC::RootVector<GC::Ref<MediaStreamTrack>> tracks_to_end;

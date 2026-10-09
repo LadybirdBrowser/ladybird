@@ -11,7 +11,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 
-namespace Media {
+namespace Audio {
 
 class SpscAudioFrameRing;
 
@@ -60,7 +60,7 @@ private:
 
     // Carries the track's audio from the producing thread to the render thread; the sink is
     // registered on the input track and only ever references the ring, never this GC node.
-    RefPtr<Media::SpscAudioFrameRing> m_ring;
+    RefPtr<Audio::SpscAudioFrameRing> m_ring;
     RefPtr<MediaCapture::AudioFrameSink> m_sink;
 };
 

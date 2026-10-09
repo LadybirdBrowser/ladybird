@@ -9,7 +9,7 @@
 
 namespace Web::WebAudio::Rendering {
 
-AnalyserRenderNode::AnalyserRenderNode(NodeID node_id, size_t quantum_size, NonnullRefPtr<Media::SpscAudioFrameRing> time_domain_ring)
+AnalyserRenderNode::AnalyserRenderNode(NodeID node_id, size_t quantum_size, NonnullRefPtr<Audio::SpscAudioFrameRing> time_domain_ring)
     : RenderNode(node_id, 1, 1, quantum_size)
     , m_time_domain_ring(move(time_domain_ring))
 {

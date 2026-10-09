@@ -15,7 +15,7 @@
 #include <LibIPC/Forward.h>
 #include <LibMedia/Export.h>
 
-namespace Media {
+namespace Audio {
 
 struct AudioDeviceInfo {
     ByteString dom_device_id;
@@ -71,9 +71,9 @@ private:
 namespace IPC {
 
 template<>
-MEDIA_API ErrorOr<void> encode(Encoder&, Media::AudioDeviceInfo const&);
+MEDIA_API ErrorOr<void> encode(Encoder&, Audio::AudioDeviceInfo const&);
 
 template<>
-MEDIA_API ErrorOr<Media::AudioDeviceInfo> decode(Decoder&);
+MEDIA_API ErrorOr<Audio::AudioDeviceInfo> decode(Decoder&);
 
 }

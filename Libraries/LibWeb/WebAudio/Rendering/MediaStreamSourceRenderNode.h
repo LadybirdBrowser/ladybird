@@ -22,7 +22,7 @@ public:
     virtual void handle_message(NodeMessage const&) override;
 
 private:
-    RefPtr<Media::SpscAudioFrameRing> m_ring;
+    RefPtr<Audio::SpscAudioFrameRing> m_ring;
     u32 m_channel_count { 1 };
     Vector<float> m_interleaved_scratch;
 };

@@ -68,7 +68,7 @@ public:
     void wake_pump();
 
     // Reports the server's devices now and on every change, and an error once when the connection dies.
-    void watch_devices(Media::AudioDeviceListCallback);
+    void watch_devices(AudioDeviceListCallback);
 
     // Resolves with a RemoteRecordStream carrying the device's frames in the device's own format. Streams on one
     // device share the server's capture stream and one ring. Rejects if the server cannot open the device or the
@@ -84,7 +84,7 @@ private:
     virtual void stream_created(u64 stream_id, SampleSpecification sample_specification, u32 device_latency_ms) override;
     virtual void stream_creation_failed(u64 stream_id) override;
     virtual void stream_request_completed(u64 stream_id, u64 request_id) override;
-    virtual void devices_changed(Vector<Media::AudioDeviceInfo> inputs, Vector<Media::AudioDeviceInfo> outputs) override;
+    virtual void devices_changed(Vector<AudioDeviceInfo> inputs, Vector<AudioDeviceInfo> outputs) override;
     virtual void record_stream_created(u64 stream_id, SharedAudioFrameRing ring) override;
     virtual void record_stream_creation_failed(u64 stream_id) override;
 
@@ -123,7 +123,7 @@ private:
     u64 m_next_request_id { 1 };
     HashMap<u64, PendingStream> m_pending_streams;
     HashMap<u64, PendingRequest> m_pending_requests;
-    Media::AudioDeviceListCallback m_on_device_list;
+    AudioDeviceListCallback m_on_device_list;
     HashMap<u64, CaptureSource> m_capture_sources;
     bool m_is_dead { false };
 

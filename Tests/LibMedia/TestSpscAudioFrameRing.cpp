@@ -31,19 +31,19 @@ static Vector<float> make_frames(u64 first_frame_index, size_t frame_count)
 
 TEST_CASE(capacity_is_rounded_up_to_a_power_of_two)
 {
-    auto ring = make_ref_counted<Media::SpscAudioFrameRing>(3, CHANNEL_COUNT);
+    auto ring = make_ref_counted<Audio::SpscAudioFrameRing>(3, CHANNEL_COUNT);
     EXPECT_EQ(ring->frame_capacity(), 4u);
     EXPECT_EQ(ring->channel_count(), CHANNEL_COUNT);
     EXPECT_EQ(ring->frames_available(), 0u);
     EXPECT_EQ(ring->frames_free(), 4u);
 
-    auto exact_ring = make_ref_counted<Media::SpscAudioFrameRing>(8, 1u);
+    auto exact_ring = make_ref_counted<Audio::SpscAudioFrameRing>(8, 1u);
     EXPECT_EQ(exact_ring->frame_capacity(), 8u);
 }
 
 TEST_CASE(fill_and_drain)
 {
-    auto ring = make_ref_counted<Media::SpscAudioFrameRing>(8, CHANNEL_COUNT);
+    auto ring = make_ref_counted<Audio::SpscAudioFrameRing>(8, CHANNEL_COUNT);
 
     auto input = make_frames(0, 8);
     EXPECT_EQ(ring->try_push(input), 8u);
@@ -65,7 +65,7 @@ TEST_CASE(fill_and_drain)
 
 TEST_CASE(partial_push_and_pop)
 {
-    auto ring = make_ref_counted<Media::SpscAudioFrameRing>(4, CHANNEL_COUNT);
+    auto ring = make_ref_counted<Audio::SpscAudioFrameRing>(4, CHANNEL_COUNT);
 
     auto three_frames = make_frames(0, 3);
     EXPECT_EQ(ring->try_push(three_frames), 3u);
@@ -85,7 +85,7 @@ TEST_CASE(partial_push_and_pop)
 
 TEST_CASE(wraparound_preserves_frame_order)
 {
-    auto ring = make_ref_counted<Media::SpscAudioFrameRing>(8, CHANNEL_COUNT);
+    auto ring = make_ref_counted<Audio::SpscAudioFrameRing>(8, CHANNEL_COUNT);
 
     // Push and pop 5 frames at a time; 5 does not divide 8, so the writes and reads keep
     // crossing the wraparound boundary at different offsets.
@@ -104,7 +104,7 @@ TEST_CASE(wraparound_preserves_frame_order)
 
 TEST_CASE(two_thread_stress)
 {
-    auto ring = make_ref_counted<Media::SpscAudioFrameRing>(64, CHANNEL_COUNT);
+    auto ring = make_ref_counted<Audio::SpscAudioFrameRing>(64, CHANNEL_COUNT);
 
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> producer_done { false };
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<u64> frames_pushed { 0 };

@@ -10,7 +10,7 @@
 #include <LibMedia/Audio/PulseAudioWrappers.h>
 #include <LibThreading/ThreadPool.h>
 
-namespace Media {
+namespace Audio {
 
 static ErrorOr<AudioDeviceEnumeration> enumerate_pulse_audio_devices()
 {

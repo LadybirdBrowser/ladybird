@@ -20,7 +20,7 @@ ServerConnection::ServerConnection(NonnullOwnPtr<IPC::Transport> transport, int 
     , m_device_enumeration(device_enumeration)
 {
     if (m_device_enumeration == DeviceEnumeration::Platform)
-        m_devices_changed_listener_id = Media::AudioDevices::the().add_devices_changed_listener([this] { devices_changed(); });
+        m_devices_changed_listener_id = AudioDevices::the().add_devices_changed_listener([this] { devices_changed(); });
 }
 
 ServerConnection::~ServerConnection()
@@ -53,7 +53,7 @@ void ServerConnection::remove_record_streams()
 void ServerConnection::stop_listening_for_device_changes()
 {
     if (m_devices_changed_listener_id.has_value())
-        Media::AudioDevices::the().remove_devices_changed_listener(m_devices_changed_listener_id.release_value());
+        AudioDevices::the().remove_devices_changed_listener(m_devices_changed_listener_id.release_value());
 }
 
 void ServerConnection::remove_streams_from_mixer()
@@ -188,7 +188,7 @@ void ServerConnection::watch_devices()
 {
     m_client_watches_devices = true;
     // A list not yet available follows as soon as the platform reports one.
-    if (m_device_enumeration == DeviceEnumeration::None || Media::AudioDevices::the().has_device_list())
+    if (m_device_enumeration == DeviceEnumeration::None || AudioDevices::the().has_device_list())
         send_device_list();
 }
 
@@ -198,7 +198,7 @@ void ServerConnection::send_device_list()
         async_devices_changed({}, {});
         return;
     }
-    auto& devices = Media::AudioDevices::the();
+    auto& devices = AudioDevices::the();
     async_devices_changed(devices.input_devices(), devices.output_devices());
 }
 
