@@ -1,7 +1,10 @@
 <!doctype html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    async function checkSVGImages() {
+        const output = [];
+        const println = line => output.push(line);
+
         const countCells = () => {
             const counts = { environments: 0, images: 0 };
             for (const cell of Object.values(JSON.parse(internals.dumpGCGraph()))) {
@@ -46,6 +49,40 @@
         }
         println(`Environment collected: ${collected.environments === initial.environments}`);
         println(`Images collected: ${collected.images === initial.images}`);
-        done();
+
+        return output;
+    }
+
+    promiseTest(async () => {
+        // Cell counts must belong to this test, rather than documents left over in a reused WebContent process.
+        const server = httpTestServer();
+        const url = new URL(await server.createEcho("GET", "/svg-image-environments", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!doctype html><body><script>
+                (${checkSVGImages.toString()})().then(
+                    output => parent.postMessage({ output }, "*"),
+                    error => parent.postMessage({ error: String(error) }, "*")
+                );
+            <\/script>`,
+        }));
+        url.hostname = uniqueLocalhostHostname("svg-environments");
+        const frame = document.createElement("iframe");
+        const result = new Promise(resolve => {
+            window.addEventListener("message", function receive(event) {
+                if (event.source !== frame.contentWindow) return;
+                window.removeEventListener("message", receive);
+                resolve(event.data);
+            });
+        });
+        frame.src = url;
+        document.body.append(frame);
+        try {
+            const { output, error } = await result;
+            if (error) throw new Error(error);
+            for (const line of output) println(line);
+        } finally {
+            frame.remove();
+        }
     });
 </script>

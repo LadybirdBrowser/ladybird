@@ -9,13 +9,12 @@
         const observer = new frame.contentWindow.ResizeObserver(() => {});
         observer.observe(frame.contentDocument.getElementById("target"));
         println(`root before destroy: ${internals.hasActivityRoot(observer)}`);
-        frame.remove();
-        // Child destruction now completes asynchronously through the UI process.
-        let hasRoot = true;
-        for (let i = 0; i < 100 && hasRoot; ++i) {
-            await internals.gcAsync();
-            hasRoot = internals.hasActivityRoot(observer);
-        }
-        println(`root after destroy: ${hasRoot}`);
+        await new Promise(resolve => {
+            frame.contentWindow.addEventListener("unload", resolve, { once: true });
+            frame.remove();
+        });
+        // Collect after the unload task has finished destroying the document.
+        await internals.gcAsync();
+        println(`root after destroy: ${internals.hasActivityRoot(observer)}`);
     });
 </script>
