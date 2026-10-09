@@ -10,6 +10,7 @@
 #include <AK/Time.h>
 #include <AK/Traits.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/ServiceWorkerRegistration.h>
 #include <LibWeb/Forward.h>
@@ -25,6 +26,7 @@ namespace Web::ServiceWorker {
 class Registration {
     AK_MAKE_NONCOPYABLE(Registration);
     AK_MAKE_DEFAULT_MOVABLE(Registration);
+    AK_ALLOC_WITH_KMALLOC;
 
 public:
     // https://w3c.github.io/ServiceWorker/#get-registration-algorithm

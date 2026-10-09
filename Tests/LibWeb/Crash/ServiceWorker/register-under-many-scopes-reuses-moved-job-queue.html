@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<script>
+    window.addEventListener("load", () => setTimeout(async () => {
+        internals.spoofCurrentURL("https://example.com/register-under-many-scopes.html");
+
+        const registrations = [];
+        for (let i = 0; i < 8; ++i)
+            registrations.push(navigator.serviceWorker.register("service-worker.js", { scope: `./scope${i}/` }));
+
+        await Promise.allSettled(registrations);
+        document.documentElement.classList.remove("test-wait");
+    }, 0));
+</script>
+</html>
