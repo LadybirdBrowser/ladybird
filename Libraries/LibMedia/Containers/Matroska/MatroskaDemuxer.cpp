@@ -7,11 +7,11 @@
 #include <AK/Assertions.h>
 #include <AK/Debug.h>
 #include <AK/Utf16String.h>
-#include <LibMedia/CodedFrame.h>
 #include <LibMedia/Containers/Matroska/Utilities.h>
-#include <LibMedia/DecoderError.h>
 #include <LibMedia/MediaStream.h>
 #include <LibMedia/SeekMode.h>
+#include <LibMediaCodecs/CodedFrame.h>
+#include <LibMediaCodecs/DecoderError.h>
 
 #include "MatroskaDemuxer.h"
 

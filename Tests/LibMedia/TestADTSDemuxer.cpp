@@ -7,10 +7,10 @@
 #include <AK/Array.h>
 #include <AK/Vector.h>
 #include <LibCore/File.h>
-#include <LibMedia/CodedFrame.h>
 #include <LibMedia/Containers/ADTS/ADTSDemuxer.h>
 #include <LibMedia/DemuxerRegistry.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
+#include <LibMediaCodecs/CodedFrame.h>
 #include <LibTest/TestCase.h>
 
 static constexpr size_t FRAME_BYTE_SIZE = 256;

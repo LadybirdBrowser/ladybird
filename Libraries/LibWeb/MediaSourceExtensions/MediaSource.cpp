@@ -5,11 +5,11 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibMedia/CodecParameters.h>
 #include <LibMedia/MediaSourceExtensions/ISOBMFFByteStreamParser.h>
 #include <LibMedia/MediaSourceExtensions/WebMByteStreamParser.h>
 #include <LibMediaClient/Client.h>
 #include <LibMediaClient/RemotePlaybackManager.h>
+#include <LibMediaCodecs/CodecParameters.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/AudioTrackList.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>

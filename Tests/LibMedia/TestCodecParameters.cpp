@@ -6,11 +6,11 @@
 
 #include <AK/FixedArray.h>
 #include <LibCore/File.h>
-#include <LibMedia/CodecParameters.h>
-#include <LibMedia/CodedFrame.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/DemuxerRegistry.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
+#include <LibMediaCodecs/CodecParameters.h>
+#include <LibMediaCodecs/CodedFrame.h>
 #include <LibTest/TestCase.h>
 
 namespace {

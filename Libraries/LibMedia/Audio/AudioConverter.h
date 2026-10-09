@@ -8,8 +8,8 @@
 
 #include <AK/Span.h>
 #include <LibAudio/SampleSpecification.h>
-#include <LibMedia/AudioBlock.h>
-#include <LibMedia/DecoderError.h>
+#include <LibMediaCodecs/AudioBlock.h>
+#include <LibMediaCodecs/DecoderError.h>
 
 namespace Audio {
 

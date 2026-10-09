@@ -12,15 +12,15 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
-#include <LibMedia/CodecID.h>
-#include <LibMedia/CodecParameters.h>
-#include <LibMedia/Codecs/VP9.h>
-#include <LibMedia/DecoderCapabilities.h>
 #include <LibMedia/Export.h>
-#include <LibMedia/Subsampling.h>
-#include <LibMedia/VideoDecoder.h>
-#include <LibMedia/VideoFramePool.h>
-#include <LibMedia/VideoSurface.h>
+#include <LibMediaCodecs/CodecID.h>
+#include <LibMediaCodecs/CodecParameters.h>
+#include <LibMediaCodecs/Codecs/VP9.h>
+#include <LibMediaCodecs/DecoderCapabilities.h>
+#include <LibMediaCodecs/Subsampling.h>
+#include <LibMediaCodecs/VideoDecoder.h>
+#include <LibMediaCodecs/VideoFramePool.h>
+#include <LibMediaCodecs/VideoSurface.h>
 
 namespace Media::VideoToolbox {
 

@@ -12,7 +12,7 @@
 #include <AK/Vector.h>
 #include <LibCore/Promise.h>
 #include <LibGC/Ptr.h>
-#include <LibMedia/DecoderCapabilities.h>
+#include <LibMediaCodecs/DecoderCapabilities.h>
 #include <LibWeb/Bindings/MediaCapabilities.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/EncryptedMediaExtensions/EncryptedMediaExtensions.h>

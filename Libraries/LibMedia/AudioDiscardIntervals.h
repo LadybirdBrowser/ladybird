@@ -8,9 +8,9 @@
 
 #include <AK/Time.h>
 #include <AK/Vector.h>
-#include <LibMedia/AudioBlock.h>
-#include <LibMedia/CodedFrame.h>
 #include <LibMedia/Export.h>
+#include <LibMediaCodecs/AudioBlock.h>
+#include <LibMediaCodecs/CodedFrame.h>
 
 namespace Media {
 

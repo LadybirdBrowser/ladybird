@@ -14,10 +14,10 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibMedia/Containers/ContainerNavigator.h>
-#include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/MediaStream.h>
 #include <LibMedia/TimeRanges.h>
+#include <LibMediaCodecs/DecoderError.h>
 
 namespace Media {
 

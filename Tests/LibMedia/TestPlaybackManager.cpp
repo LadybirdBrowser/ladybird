@@ -9,6 +9,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibCore/Timer.h>
+#include <LibMedia/DecoderRegistrations.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibTest/TestCase.h>
@@ -16,6 +17,11 @@
 #include "TestMediaCommon.h"
 
 namespace {
+
+TEST_SETUP
+{
+    Media::install_audio_decoders({ Media::audio_decoders() });
+}
 
 ByteBuffer read_fixture(StringView path)
 {

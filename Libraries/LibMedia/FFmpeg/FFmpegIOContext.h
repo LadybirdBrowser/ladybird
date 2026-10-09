@@ -9,8 +9,8 @@
 #include <AK/Error.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
-#include <LibMedia/FFmpeg/FFmpegForward.h>
 #include <LibMedia/Forward.h>
+#include <LibMediaCodecs/FFmpeg/FFmpegForward.h>
 
 namespace Media::FFmpeg {
 

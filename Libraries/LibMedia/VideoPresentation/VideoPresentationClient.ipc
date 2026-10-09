@@ -1,8 +1,8 @@
 #include <LibMedia/InvalidateHeldData.h>
 #include <LibMedia/MediaTime.h>
 #include <LibMedia/VideoEdgeQueue.h>
-#include <LibMedia/VideoFramePool.h>
-#include <LibMedia/VideoSurface.h>
+#include <LibMediaCodecs/VideoFramePool.h>
+#include <LibMediaCodecs/VideoSurface.h>
 #include <LibMedia/VideoPresentation/PresentedFramePage.h>
 
 endpoint VideoPresentationClient {

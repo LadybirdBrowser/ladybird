@@ -13,13 +13,13 @@
 #include <AK/RefPtr.h>
 #include <LibAudio/Forward.h>
 #include <LibAudio/SampleSpecification.h>
-#include <LibMedia/AudioBlock.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Processors/AudioProcessor.h>
 #include <LibMedia/Producers/AudioProducer.h>
 #include <LibMedia/SynchronizedWakeHandler.h>
+#include <LibMediaCodecs/AudioBlock.h>
 
 namespace Media {
 

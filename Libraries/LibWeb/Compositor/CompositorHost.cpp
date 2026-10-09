@@ -9,7 +9,7 @@
 #include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibGfx/CanvasCommandList.h>
-#include <LibMedia/VideoFrame.h>
+#include <LibMediaCodecs/VideoFrame.h>
 #include <LibWeb/Compositor/CompositorConnection.h>
 #include <LibWeb/Compositor/CompositorFrame.h>
 #include <LibWeb/Compositor/CompositorHost.h>

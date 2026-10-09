@@ -12,7 +12,7 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibIPC/Forward.h>
 #include <LibMedia/Export.h>
-#include <LibMedia/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFrameHandle.h>
 
 namespace Media {
 

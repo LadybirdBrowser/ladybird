@@ -1,7 +1,7 @@
 #include <AK/Time.h>
 #include <LibMedia/InvalidateHeldData.h>
 #include <LibMedia/PipelineStatus.h>
-#include <LibMedia/VideoFramePool.h>
+#include <LibMediaCodecs/VideoFramePool.h>
 #include <LibMedia/VideoSinkHandle.h>
 
 endpoint VideoPresentationServer {

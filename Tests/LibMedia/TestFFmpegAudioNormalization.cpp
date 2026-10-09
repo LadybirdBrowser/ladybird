@@ -9,6 +9,7 @@
 #include <AK/StringView.h>
 #include <AK/Time.h>
 #include <LibCore/EventLoop.h>
+#include <LibMedia/DecoderRegistrations.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/PipelineStatus.h>
@@ -16,6 +17,12 @@
 #include <LibTest/TestCase.h>
 
 #include "TestMediaCommon.h"
+
+TEST_SETUP
+{
+    Media::install_video_decoders({ Media::hardware_video_decoders(), Media::ffmpeg_video_decoders() });
+    Media::install_audio_decoders({ Media::audio_decoders() });
+}
 
 template<typename Integer>
 requires(IsIntegral<Integer>)

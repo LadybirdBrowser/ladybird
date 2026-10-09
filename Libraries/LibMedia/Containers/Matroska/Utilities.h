@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include <LibMedia/CodecID.h>
 #include <LibMedia/ContainerID.h>
 #include <LibMedia/Containers/Matroska/Document.h>
+#include <LibMediaCodecs/CodecID.h>
 
 namespace Media::Matroska {
 

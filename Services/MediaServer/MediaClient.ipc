@@ -1,8 +1,8 @@
 #include <AK/Time.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibMedia/DecoderCapabilities.h>
-#include <LibMedia/DecoderError.h>
+#include <LibMediaCodecs/DecoderCapabilities.h>
+#include <LibMediaCodecs/DecoderError.h>
 #include <LibMedia/DemuxerScanState.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
 #include <LibMedia/MediaSupport.h>
@@ -11,7 +11,7 @@
 #include <LibMedia/PlaybackStates/PlaybackState.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
-#include <LibMedia/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFrameHandle.h>
 #include <LibMedia/VideoPresentation/PresentedFramePage.h>
 #include <LibMedia/VideoSinkHandle.h>
 

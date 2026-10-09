@@ -5,9 +5,9 @@
  */
 
 #include <LibCore/File.h>
-#include <LibMedia/CodedFrame.h>
 #include <LibMedia/Containers/MP3/MP3Demuxer.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
+#include <LibMediaCodecs/CodedFrame.h>
 #include <LibTest/TestCase.h>
 
 static NonnullRefPtr<Media::Demuxer> create_demuxer(StringView path)

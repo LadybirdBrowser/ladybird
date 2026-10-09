@@ -16,8 +16,8 @@
 #include <LibMedia/Producers/VideoProducer.h>
 #include <LibMedia/SynchronizedWakeHandler.h>
 #include <LibMedia/VideoEdgeQueue.h>
-#include <LibMedia/VideoFrameHandle.h>
-#include <LibMedia/VideoFramePool.h>
+#include <LibMediaCodecs/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFramePool.h>
 
 namespace Media {
 

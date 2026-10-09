@@ -12,10 +12,10 @@
 #include <LibJS/Runtime/Promise.h>
 #include <LibMedia/MediaSupport.h>
 #include <LibMedia/Track.h>
-#include <LibMedia/VideoFrame.h>
 #include <LibMediaClient/Client.h>
 #include <LibMediaClient/RemoteMediaStream.h>
 #include <LibMediaClient/RemotePlaybackManager.h>
+#include <LibMediaCodecs/VideoFrame.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/HTMLMediaElement.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>

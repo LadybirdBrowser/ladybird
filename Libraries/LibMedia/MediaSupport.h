@@ -11,10 +11,10 @@
 #include <AK/StringView.h>
 #include <AK/Types.h>
 #include <LibIPC/Forward.h>
-#include <LibMedia/CodecID.h>
 #include <LibMedia/ContainerID.h>
-#include <LibMedia/DecoderCapabilities.h>
 #include <LibMedia/Export.h>
+#include <LibMediaCodecs/CodecID.h>
+#include <LibMediaCodecs/DecoderCapabilities.h>
 
 namespace Media {
 

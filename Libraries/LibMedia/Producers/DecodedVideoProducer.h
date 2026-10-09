@@ -16,9 +16,6 @@
 #include <AK/ThreadID.h>
 #include <AK/Time.h>
 #include <LibCore/Forward.h>
-#include <LibMedia/CodedFrame.h>
-#include <LibMedia/DecoderError.h>
-#include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
@@ -28,7 +25,10 @@
 #include <LibMedia/SynchronizedWakeHandler.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
-#include <LibMedia/VideoDecoder.h>
+#include <LibMediaCodecs/CodedFrame.h>
+#include <LibMediaCodecs/DecoderError.h>
+#include <LibMediaCodecs/VideoDecoder.h>
+#include <LibMediaCodecs/VideoDecoderRegistry.h>
 
 namespace Media {
 

@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/Span.h>
-#include <LibMedia/DecoderError.h>
 #include <LibMedia/MediaStream.h>
+#include <LibMediaCodecs/DecoderError.h>
 
 namespace Media {
 

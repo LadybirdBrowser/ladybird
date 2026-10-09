@@ -6,8 +6,8 @@
 
 #include <LibMedia/DemuxerRegistry.h>
 #include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
-#include <LibMedia/FFmpeg/SystemFFmpeg.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
+#include <LibMediaCodecs/FFmpeg/SystemFFmpeg.h>
 
 #include "TestMediaCommon.h"
 

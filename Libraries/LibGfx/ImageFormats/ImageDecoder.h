@@ -15,7 +15,7 @@
 #include <LibGfx/CMYKBitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Size.h>
-#include <LibMedia/Color/CodingIndependentCodePoints.h>
+#include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
 
 namespace Gfx {
 

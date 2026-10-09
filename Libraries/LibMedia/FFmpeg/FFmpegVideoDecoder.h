@@ -7,14 +7,14 @@
 #pragma once
 
 #include <AK/HashMap.h>
-#include <LibMedia/CodecID.h>
-#include <LibMedia/CodecParameters.h>
-#include <LibMedia/DecoderCapabilities.h>
 #include <LibMedia/Export.h>
-#include <LibMedia/VideoDecoder.h>
-#include <LibMedia/VideoFramePool.h>
+#include <LibMediaCodecs/CodecID.h>
+#include <LibMediaCodecs/CodecParameters.h>
+#include <LibMediaCodecs/DecoderCapabilities.h>
+#include <LibMediaCodecs/VideoDecoder.h>
+#include <LibMediaCodecs/VideoFramePool.h>
 
-#include "FFmpegForward.h"
+#include <LibMediaCodecs/FFmpeg/FFmpegForward.h>
 
 namespace Media::FFmpeg {
 

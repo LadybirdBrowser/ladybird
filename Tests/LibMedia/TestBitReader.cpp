@@ -5,7 +5,7 @@
  */
 
 #include <AK/Array.h>
-#include <LibMedia/BitReader.h>
+#include <LibMediaCodecs/BitReader.h>
 #include <LibTest/TestCase.h>
 
 TEST_CASE(reads_fields_across_byte_boundaries)

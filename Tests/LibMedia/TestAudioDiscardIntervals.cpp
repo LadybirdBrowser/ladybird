@@ -6,11 +6,17 @@
 
 #include <AK/FixedArray.h>
 #include <AK/Vector.h>
-#include <LibMedia/AudioBlock.h>
 #include <LibMedia/AudioDiscardIntervals.h>
-#include <LibMedia/CodedFrame.h>
-#include <LibMedia/DecoderRegistry.h>
+#include <LibMedia/DecoderRegistrations.h>
+#include <LibMediaCodecs/AudioBlock.h>
+#include <LibMediaCodecs/CodedFrame.h>
 #include <LibTest/TestCase.h>
+
+TEST_SETUP
+{
+    Media::install_video_decoders({ Media::hardware_video_decoders(), Media::ffmpeg_video_decoders() });
+    Media::install_audio_decoders({ Media::audio_decoders() });
+}
 
 namespace {
 

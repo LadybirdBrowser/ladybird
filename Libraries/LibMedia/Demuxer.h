@@ -15,13 +15,13 @@
 #include <LibCore/EventReceiver.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 
-#include "CodecID.h"
-#include "CodedFrame.h"
-#include "DecoderError.h"
 #include "DemuxerScanState.h"
 #include "SeekMode.h"
 #include "TimeRanges.h"
 #include "Track.h"
+#include <LibMediaCodecs/CodecID.h>
+#include <LibMediaCodecs/CodedFrame.h>
+#include <LibMediaCodecs/DecoderError.h>
 
 namespace Media {
 

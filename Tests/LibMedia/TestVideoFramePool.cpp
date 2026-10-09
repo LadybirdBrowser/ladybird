@@ -8,10 +8,10 @@
 #include <AK/Mutex.h>
 #include <AK/Time.h>
 #include <LibCore/System.h>
-#include <LibMedia/VideoFrame.h>
-#include <LibMedia/VideoFrameHandle.h>
-#include <LibMedia/VideoFramePool.h>
-#include <LibMedia/VideoSurface.h>
+#include <LibMediaCodecs/VideoFrame.h>
+#include <LibMediaCodecs/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFramePool.h>
+#include <LibMediaCodecs/VideoSurface.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 

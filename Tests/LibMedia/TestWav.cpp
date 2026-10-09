@@ -5,9 +5,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibMedia/DecoderRegistrations.h>
 #include <Tests/LibMedia/TestMediaCommon.h>
 
 // 5 seconds, 16-bit audio samples
+
+TEST_SETUP
+{
+    Media::install_video_decoders({ Media::hardware_video_decoders(), Media::ffmpeg_video_decoders() });
+    Media::install_audio_decoders({ Media::audio_decoders() });
+}
 
 TEST_CASE(mono_8khz)
 {

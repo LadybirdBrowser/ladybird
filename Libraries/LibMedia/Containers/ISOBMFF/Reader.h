@@ -8,9 +8,9 @@
 
 #include <AK/Function.h>
 #include <AK/IterationDecision.h>
-#include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMediaCodecs/DecoderError.h>
 
 #include "Boxes.h"
 

@@ -8,7 +8,7 @@
 
 #include <AK/FixedArray.h>
 #include <LibAudio/SampleSpecification.h>
-#include <LibMedia/AudioBlock.h>
+#include <LibMediaCodecs/AudioBlock.h>
 
 namespace Audio {
 

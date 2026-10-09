@@ -15,8 +15,8 @@
 #include <LibMedia/Forward.h>
 #include <LibMedia/MediaTime.h>
 #include <LibMedia/Sinks/VideoSink.h>
-#include <LibMedia/VideoFrameHandle.h>
-#include <LibMedia/VideoFramePool.h>
+#include <LibMediaCodecs/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFramePool.h>
 #include <LibThreading/Forward.h>
 
 namespace Media {

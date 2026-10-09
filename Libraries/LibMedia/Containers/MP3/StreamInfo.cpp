@@ -5,9 +5,9 @@
  */
 
 #include <AK/StringView.h>
-#include <LibMedia/BitReader.h>
 #include <LibMedia/Containers/MP3/FrameHeader.h>
 #include <LibMedia/Containers/MP3/StreamInfo.h>
+#include <LibMediaCodecs/BitReader.h>
 
 namespace Media::MP3 {
 

@@ -30,8 +30,8 @@
 #include <LibGfx/Size.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibMedia/Forward.h>
-#include <LibMedia/VideoFramePool.h>
 #include <LibMedia/VideoSinkHandle.h>
+#include <LibMediaCodecs/VideoFramePool.h>
 
 namespace Compositor {
 

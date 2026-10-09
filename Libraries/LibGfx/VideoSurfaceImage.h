@@ -13,7 +13,7 @@
 #    include <AK/Optional.h>
 #    include <LibCore/IOSurface.h>
 #    include <LibGfx/Forward.h>
-#    include <LibMedia/Color/CodingIndependentCodePoints.h>
+#    include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
 
 namespace Gfx {
 

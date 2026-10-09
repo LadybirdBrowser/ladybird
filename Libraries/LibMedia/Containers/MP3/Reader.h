@@ -12,9 +12,9 @@
 #include <AK/Time.h>
 #include <LibMedia/Containers/MP3/FrameHeader.h>
 #include <LibMedia/Containers/MP3/StreamInfo.h>
-#include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/MediaStream.h>
+#include <LibMediaCodecs/DecoderError.h>
 
 namespace Media::MP3 {
 

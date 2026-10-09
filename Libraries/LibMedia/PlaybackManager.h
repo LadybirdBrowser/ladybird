@@ -19,7 +19,6 @@
 #include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Promise.h>
-#include <LibMedia/DecoderError.h>
 #include <LibMedia/DemuxerScanState.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
@@ -31,9 +30,10 @@
 #include <LibMedia/Sinks/RemoteVideoSink.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
-#include <LibMedia/VideoFrameHandle.h>
 #include <LibMedia/VideoPresentation/PresentedFramePage.h>
 #include <LibMedia/VideoSinkHandle.h>
+#include <LibMediaCodecs/DecoderError.h>
+#include <LibMediaCodecs/VideoFrameHandle.h>
 
 namespace Media {
 

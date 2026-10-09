@@ -9,13 +9,13 @@
 #include <AK/NonnullOwnPtr.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibMedia/DecoderError.h>
-#include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/MediaSourceExtensions/ByteStreamParser.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferDemuxer.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
 #include <LibMedia/MediaSourceExtensions/TrackBuffer.h>
 #include <LibMedia/ReadonlyBytesCursor.h>
+#include <LibMediaCodecs/DecoderCapabilities.h>
+#include <LibMediaCodecs/DecoderError.h>
 
 namespace Media::MediaSourceExtensions {
 

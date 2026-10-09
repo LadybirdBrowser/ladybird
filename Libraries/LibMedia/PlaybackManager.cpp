@@ -20,7 +20,7 @@
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/Sinks/VideoSink.h>
 #include <LibMedia/Track.h>
-#include <LibMedia/VideoFrame.h>
+#include <LibMediaCodecs/VideoFrame.h>
 #include <LibThreading/Thread.h>
 #include <LibThreading/ThreadPool.h>
 

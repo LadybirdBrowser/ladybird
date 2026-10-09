@@ -14,15 +14,15 @@
 #include <AK/SaturatingMath.h>
 #include <AK/Time.h>
 #include <AK/Utf8View.h>
-#include <LibMedia/CodecID.h>
-#include <LibMedia/Codecs/AAC.h>
-#include <LibMedia/Codecs/AV1.h>
-#include <LibMedia/Codecs/H264.h>
-#include <LibMedia/Codecs/H265.h>
 #include <LibMedia/Codecs/Opus.h>
 #include <LibMedia/Containers/Matroska/ElementIDs.h>
 #include <LibMedia/Containers/Matroska/Utilities.h>
 #include <LibMedia/MediaStream.h>
+#include <LibMediaCodecs/CodecID.h>
+#include <LibMediaCodecs/Codecs/AAC.h>
+#include <LibMediaCodecs/Codecs/AV1.h>
+#include <LibMediaCodecs/Codecs/H264.h>
+#include <LibMediaCodecs/Codecs/H265.h>
 
 #include "Reader.h"
 

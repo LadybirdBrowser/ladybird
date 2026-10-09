@@ -10,7 +10,7 @@
 #include <LibAudio/SampleSpecification.h>
 #include <LibMedia/Audio/AudioConverter.h>
 #include <LibMedia/Export.h>
-#include <LibMedia/FFmpeg/FFmpegForward.h>
+#include <LibMediaCodecs/FFmpeg/FFmpegForward.h>
 
 namespace Media::FFmpeg {
 

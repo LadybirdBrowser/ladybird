@@ -12,12 +12,12 @@
 #include <AK/OwnPtr.h>
 #include <AK/Time.h>
 #include <LibAudio/SampleSpecification.h>
-#include <LibMedia/AudioDecoder.h>
 #include <LibMedia/AudioDiscardIntervals.h>
-#include <LibMedia/CodecID.h>
-#include <LibMedia/CodecParameters.h>
-#include <LibMedia/DecoderCapabilities.h>
 #include <LibMedia/Export.h>
+#include <LibMediaCodecs/AudioDecoder.h>
+#include <LibMediaCodecs/CodecID.h>
+#include <LibMediaCodecs/CodecParameters.h>
+#include <LibMediaCodecs/DecoderCapabilities.h>
 
 namespace Media::AudioToolbox {
 

@@ -6,13 +6,13 @@
 
 #include <AK/Vector.h>
 #include <LibCore/File.h>
-#include <LibMedia/AudioBlock.h>
 #include <LibMedia/AudioToolbox/AudioToolboxAudioDecoder.h>
-#include <LibMedia/CodedFrame.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/DemuxerRegistry.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/Track.h>
+#include <LibMediaCodecs/AudioBlock.h>
+#include <LibMediaCodecs/CodedFrame.h>
 #include <LibTest/TestCase.h>
 
 namespace {

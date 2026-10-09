@@ -16,11 +16,6 @@
 #include <AK/Time.h>
 #include <LibCore/Forward.h>
 #include <LibMedia/Audio/AudioConverter.h>
-#include <LibMedia/AudioBlock.h>
-#include <LibMedia/CodecID.h>
-#include <LibMedia/CodedFrame.h>
-#include <LibMedia/DecoderError.h>
-#include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
@@ -28,6 +23,11 @@
 #include <LibMedia/SynchronizedWakeHandler.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
+#include <LibMediaCodecs/AudioBlock.h>
+#include <LibMediaCodecs/AudioDecoderRegistry.h>
+#include <LibMediaCodecs/CodecID.h>
+#include <LibMediaCodecs/CodedFrame.h>
+#include <LibMediaCodecs/DecoderError.h>
 #include <LibThreading/Forward.h>
 
 namespace Media {

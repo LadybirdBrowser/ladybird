@@ -11,8 +11,8 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/VideoSurfaceImage.h>
 #include <LibGfx/YUVData.h>
-#include <LibMedia/VideoFrame.h>
-#include <LibMedia/VideoSurface.h>
+#include <LibMediaCodecs/VideoFrame.h>
+#include <LibMediaCodecs/VideoSurface.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/ElementBoxKind.h>

@@ -11,9 +11,9 @@
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/Variant.h>
-#include <LibMedia/CodecID.h>
 #include <LibMedia/Codecs/FLAC.h>
 #include <LibMedia/Codecs/Vorbis.h>
+#include <LibMediaCodecs/CodecID.h>
 
 #include "ScanningContainerNavigator.h"
 

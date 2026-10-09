@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/HashMap.h>
-#include <LibMedia/CodecID.h>
 #include <LibMedia/Export.h>
+#include <LibMediaCodecs/CodecID.h>
 
 namespace Media::Matroska {
 

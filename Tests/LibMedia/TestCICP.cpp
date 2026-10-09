@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibMedia/Color/CodingIndependentCodePoints.h>
+#include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
 #include <LibTest/TestCase.h>
 
 TEST_CASE(adopt_specified_values_ignores_reserved_and_unspecified_values)

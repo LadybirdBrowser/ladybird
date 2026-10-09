@@ -15,11 +15,11 @@
 #include <LibAudio/PlaybackStream.h>
 #include <LibCore/Forward.h>
 #include <LibCore/Timer.h>
-#include <LibMedia/AudioBlock.h>
-#include <LibMedia/AudioBlockTiming.h>
 #include <LibMedia/AudioBlockTimingRing.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/AudioProducer.h>
+#include <LibMediaCodecs/AudioBlock.h>
+#include <LibMediaCodecs/AudioBlockTiming.h>
 #include <LibThreading/Thread.h>
 
 #include "AudioPlaybackSink.h"

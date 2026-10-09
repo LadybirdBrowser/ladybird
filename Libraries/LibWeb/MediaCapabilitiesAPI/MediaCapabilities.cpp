@@ -7,9 +7,9 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Object.h>
-#include <LibMedia/CodecParameters.h>
 #include <LibMedia/MediaSupport.h>
 #include <LibMediaClient/Client.h>
+#include <LibMediaCodecs/CodecParameters.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>

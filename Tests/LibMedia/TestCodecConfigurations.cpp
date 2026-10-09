@@ -5,15 +5,15 @@
  */
 
 #include <AK/Array.h>
-#include <LibMedia/CodecParameters.h>
-#include <LibMedia/Codecs/AAC.h>
-#include <LibMedia/Codecs/AV1.h>
 #include <LibMedia/Codecs/FLAC.h>
-#include <LibMedia/Codecs/H264.h>
-#include <LibMedia/Codecs/H265.h>
-#include <LibMedia/Codecs/NALUnit.h>
 #include <LibMedia/Codecs/Opus.h>
-#include <LibMedia/Codecs/VP9.h>
+#include <LibMediaCodecs/CodecParameters.h>
+#include <LibMediaCodecs/Codecs/AAC.h>
+#include <LibMediaCodecs/Codecs/AV1.h>
+#include <LibMediaCodecs/Codecs/H264.h>
+#include <LibMediaCodecs/Codecs/H265.h>
+#include <LibMediaCodecs/Codecs/NALUnit.h>
+#include <LibMediaCodecs/Codecs/VP9.h>
 #include <LibTest/TestCase.h>
 
 TEST_CASE(opus_isobmff_configuration_is_normalized_to_opus_head)

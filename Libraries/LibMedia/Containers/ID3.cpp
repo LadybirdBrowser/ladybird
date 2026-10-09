@@ -5,8 +5,8 @@
  */
 
 #include <AK/StringView.h>
-#include <LibMedia/BitReader.h>
 #include <LibMedia/Containers/ID3.h>
+#include <LibMediaCodecs/BitReader.h>
 
 namespace Media::ID3 {
 

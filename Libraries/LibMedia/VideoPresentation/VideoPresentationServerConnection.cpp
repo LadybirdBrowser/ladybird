@@ -6,8 +6,8 @@
 
 #include <AK/Debug.h>
 #include <LibGfx/Size.h>
-#include <LibMedia/VideoFramePool.h>
 #include <LibMedia/VideoPresentation/VideoPresentationServerConnection.h>
+#include <LibMediaCodecs/VideoFramePool.h>
 
 namespace Media {
 

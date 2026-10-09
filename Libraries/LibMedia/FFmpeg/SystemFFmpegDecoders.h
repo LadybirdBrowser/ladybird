@@ -8,12 +8,12 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
-#include <LibMedia/AudioDecoder.h>
-#include <LibMedia/CodecID.h>
-#include <LibMedia/CodecParameters.h>
-#include <LibMedia/DecoderCapabilities.h>
-#include <LibMedia/DecoderError.h>
-#include <LibMedia/VideoDecoder.h>
+#include <LibMediaCodecs/AudioDecoder.h>
+#include <LibMediaCodecs/CodecID.h>
+#include <LibMediaCodecs/CodecParameters.h>
+#include <LibMediaCodecs/DecoderCapabilities.h>
+#include <LibMediaCodecs/DecoderError.h>
+#include <LibMediaCodecs/VideoDecoder.h>
 
 namespace Media::FFmpeg {
 

@@ -5,9 +5,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibMedia/DecoderRegistrations.h>
 #include <LibMedia/DemuxerRegistry.h>
 #include <LibMedia/FFmpeg/FFmpegAudioDecoder.h>
 #include <Tests/LibMedia/TestMediaCommon.h>
+
+TEST_SETUP
+{
+    Media::install_video_decoders({ Media::hardware_video_decoders(), Media::ffmpeg_video_decoders() });
+    Media::install_audio_decoders({ Media::audio_decoders() });
+}
 
 TEST_CASE(44_1Khz_stereo)
 {
