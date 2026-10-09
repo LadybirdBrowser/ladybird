@@ -9,9 +9,9 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Math.h>
 #include <AK/Vector.h>
+#include <LibAudio/SpscAudioFrameRing.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibMedia/Audio/SpscAudioFrameRing.h>
 #include <LibWeb/WebAudio/AnalyserNode.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/Rendering/AnalyserRenderNode.h>

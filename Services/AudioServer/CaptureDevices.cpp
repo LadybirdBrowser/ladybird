@@ -5,7 +5,7 @@
  */
 
 #include <AudioServer/CaptureDevices.h>
-#include <LibMedia/Audio/AudioDevices.h>
+#include <LibAudio/AudioDevices.h>
 
 namespace Audio {
 

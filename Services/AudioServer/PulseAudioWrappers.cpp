@@ -8,8 +8,8 @@
 
 #include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
-#include <LibMedia/Audio/AudioDevices.h>
-#include <LibMedia/Audio/SampleSpecification.h>
+#include <LibAudio/AudioDevices.h>
+#include <LibAudio/SampleSpecification.h>
 
 namespace Audio {
 

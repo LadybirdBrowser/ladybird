@@ -1,16 +1,5 @@
 set(SOURCES
-    Audio/AudioDevices.cpp
-    Audio/AudioFrameRingBase.cpp
     Audio/AudioRingBuffer.cpp
-    Audio/ClientConnection.cpp
-    Audio/NullPlaybackStream.cpp
-    Audio/PlaybackStream.cpp
-    Audio/RecordStream.cpp
-    Audio/RemotePlaybackStream.cpp
-    Audio/RemoteRecordStream.cpp
-    Audio/SampleSpecification.cpp
-    Audio/SharedAudioFrameRing.cpp
-    Audio/SpscAudioFrameRing.cpp
     Audio/WSOLAAlgorithm.cpp
     Audio/WSOLAInternals.cpp
     Audio/WSOLATimeStretcher.cpp
@@ -92,27 +81,23 @@ set(SOURCES
 )
 
 set(GENERATED_SOURCES
-    Audio/AudioClientEndpoint.h
-    Audio/AudioServerEndpoint.h
     VideoPresentation/VideoPresentationClientEndpoint.h
     VideoPresentation/VideoPresentationServerEndpoint.h
 )
 
 if (APPLE)
     list(APPEND SOURCES
-        Audio/CoreAudioChannelLayout.cpp
         AudioToolbox/AudioToolboxAudioDecoder.cpp
         VideoToolbox/VideoToolboxVideoDecoder.mm
     )
 endif()
 
-compile_ipc(Audio/AudioClient.ipc Audio/AudioClientEndpoint.h)
-compile_ipc(Audio/AudioServer.ipc Audio/AudioServerEndpoint.h)
 compile_ipc(VideoPresentation/VideoPresentationClient.ipc VideoPresentation/VideoPresentationClientEndpoint.h)
 compile_ipc(VideoPresentation/VideoPresentationServer.ipc VideoPresentation/VideoPresentationServerEndpoint.h)
 
 ladybird_lib(LibMedia media EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibThreading LibUnicode)
+target_link_libraries(LibMedia PUBLIC LibAudio)
 
 if (APPLE)
     target_link_libraries(LibMedia PRIVATE "-framework AudioToolbox" "-framework VideoToolbox" "-framework CoreMedia" "-framework CoreVideo")

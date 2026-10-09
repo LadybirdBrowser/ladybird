@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibAudio/SpscAudioFrameRing.h>
 #include <LibCore/EventLoop.h>
 #include <LibGC/Heap.h>
-#include <LibMedia/Audio/SpscAudioFrameRing.h>
 #include <LibWeb/MediaCapture/MediaStream.h>
 #include <LibWeb/MediaCapture/MediaStreamTrack.h>
 #include <LibWeb/WebAudio/AudioContext.h>

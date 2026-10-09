@@ -10,10 +10,10 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/ThreadSafeWeakable.h>
+#include <LibAudio/AudioOutput.h>
+#include <LibAudio/Forward.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Forward.h>
-#include <LibMedia/Audio/Forward.h>
-#include <LibMedia/AudioOutput.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/MediaClock.h>
@@ -31,8 +31,8 @@ private:
     class OutputThreadData;
 
 public:
-    static ErrorOr<NonnullRefPtr<AudioPlaybackSink>> try_create(PipelineStateChangeHandler on_state_changed, AudioOutput = AudioOutput::Platform);
-    AudioPlaybackSink(NonnullRefPtr<OutputThreadData>, MediaTimeReader, PipelineStateChangeHandler, AudioOutput);
+    static ErrorOr<NonnullRefPtr<AudioPlaybackSink>> try_create(PipelineStateChangeHandler on_state_changed, Audio::AudioOutput = Audio::AudioOutput::Platform);
+    AudioPlaybackSink(NonnullRefPtr<OutputThreadData>, MediaTimeReader, PipelineStateChangeHandler, Audio::AudioOutput);
     virtual ~AudioPlaybackSink() override;
 
     virtual ErrorOr<void> connect_input(NonnullRefPtr<AudioProducer> const&) override;
@@ -73,7 +73,7 @@ private:
 
     Core::EventLoop& m_main_thread_event_loop;
     PipelineStateChangeHandler m_on_state_changed;
-    AudioOutput m_audio_output { AudioOutput::Platform };
+    Audio::AudioOutput m_audio_output { Audio::AudioOutput::Platform };
 
     bool m_started_creating_playback_stream { false };
     bool m_playing { false };

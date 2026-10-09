@@ -30,11 +30,8 @@ set(TEST_SOURCES
     TestMediaTime.cpp
     TestParseMatroska.cpp
     TestPipelineNodes.cpp
-    TestPlaybackStream.cpp
     TestRemoteVideoNode.cpp
-    TestSharedAudioFrameRing.cpp
     TestSourceBufferDemuxer.cpp
-    TestSpscAudioFrameRing.cpp
     TestTimeRanges.cpp
     TestVideoEdgeQueue.cpp
     TestVideoFramePool.cpp
@@ -57,7 +54,7 @@ if (LINUX)
 endif()
 
 foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibMedia LIBS LibMedia LibFileSystem)
+    ladybird_test("${source}" LibMedia LIBS LibAudio LibMedia LibFileSystem)
 endforeach()
 
 target_link_libraries(TestAudioBlockTimingRing PRIVATE LibThreading)
@@ -69,8 +66,6 @@ target_link_libraries(TestMediaTime PRIVATE LibThreading)
 target_link_libraries(TestVideoFramePool PRIVATE LibThreading)
 target_link_libraries(TestIncrementallyPopulatedStream PRIVATE LibThreading)
 target_link_libraries(TestRemoteVideoNode PRIVATE LibThreading LibGfx LibIPC)
-target_link_libraries(TestSharedAudioFrameRing PRIVATE LibThreading)
-target_link_libraries(TestSpscAudioFrameRing PRIVATE LibThreading)
 
 if (LINUX)
     target_link_libraries(TestH264Decode PRIVATE LibGfx)

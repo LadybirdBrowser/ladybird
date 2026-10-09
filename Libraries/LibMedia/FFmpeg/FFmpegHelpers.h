@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Span.h>
-#include <LibMedia/Audio/ChannelMap.h>
+#include <LibAudio/ChannelMap.h>
 #include <LibMedia/CodecID.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/FFmpeg/FFmpegFunctions.h>

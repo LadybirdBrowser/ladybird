@@ -8,7 +8,7 @@
 
 #include <AK/Atomic.h>
 #include <AK/Vector.h>
-#include <LibMedia/Audio/RecordStream.h>
+#include <LibAudio/RecordStream.h>
 
 // A capture stream the test feeds by hand.
 class FakeRecordStream final : public Audio::RecordStream {

@@ -5,13 +5,13 @@
  */
 
 #include <AK/AnyOf.h>
+#include <LibAudio/AudioDevices.h>
 #include <LibGC/Heap.h>
 #include <LibGC/Root.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibMedia/Audio/AudioDevices.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>

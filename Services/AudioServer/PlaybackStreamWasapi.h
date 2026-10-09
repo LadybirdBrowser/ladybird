@@ -8,7 +8,7 @@
 
 #include <AK/Error.h>
 #include <AK/NonnullRefPtr.h>
-#include <LibMedia/Audio/PlaybackStream.h>
+#include <LibAudio/PlaybackStream.h>
 
 namespace Audio {
 

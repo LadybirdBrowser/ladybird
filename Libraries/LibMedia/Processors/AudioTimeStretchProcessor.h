@@ -10,7 +10,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
-#include <LibMedia/Audio/SampleSpecification.h>
+#include <LibAudio/SampleSpecification.h>
 #include <LibMedia/Audio/TimeStretcher.h>
 #include <LibMedia/AudioBlock.h>
 #include <LibMedia/Export.h>

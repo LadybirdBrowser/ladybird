@@ -5,8 +5,8 @@
  */
 
 #include <AK/QuickSort.h>
+#include <LibAudio/SpscAudioFrameRing.h>
 #include <LibGC/Heap.h>
-#include <LibMedia/Audio/SpscAudioFrameRing.h>
 #include <LibMedia/AudioBlock.h>
 #include <LibMedia/FFmpeg/FFmpegAudioConverter.h>
 #include <LibWeb/MediaCapture/MediaStream.h>

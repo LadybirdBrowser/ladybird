@@ -15,8 +15,8 @@
 #include <AudioServer/CaptureDevices.h>
 #include <AudioServer/PlaybackStreamMixer.h>
 #include <AudioServer/ServerConnection.h>
+#include <LibAudio/AudioOutput.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibMedia/AudioOutput.h>
 
 namespace AudioServer {
 
@@ -29,7 +29,7 @@ public:
 
     // Decides what every tab's device stream is; headless instances discard their mix into a null stream and have no
     // devices to capture from.
-    void set_audio_output(Media::AudioOutput audio_output) { m_audio_output = audio_output; }
+    void set_audio_output(Audio::AudioOutput audio_output) { m_audio_output = audio_output; }
     // The Browser rules on every capture request, and is asked over this connection.
     void set_control_connection(ControlConnection&);
 
@@ -50,7 +50,7 @@ private:
     HashMap<u64, Tab> m_tabs;
     RefPtr<Audio::CaptureDevices> m_capture_devices;
     int m_next_client_id { 1 };
-    Media::AudioOutput m_audio_output { Media::AudioOutput::Platform };
+    Audio::AudioOutput m_audio_output { Audio::AudioOutput::Platform };
 
     WeakPtr<ControlConnection> m_control_connection;
     HashMap<u64, Function<void(bool)>> m_pending_capture_decisions;

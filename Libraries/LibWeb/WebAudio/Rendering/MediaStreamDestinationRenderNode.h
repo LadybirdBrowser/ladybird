@@ -11,8 +11,8 @@
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Vector.h>
+#include <LibAudio/SpscAudioFrameRing.h>
 #include <LibCore/Forward.h>
-#include <LibMedia/Audio/SpscAudioFrameRing.h>
 #include <LibWeb/WebAudio/Rendering/RenderNode.h>
 
 namespace Web::WebAudio::Rendering {

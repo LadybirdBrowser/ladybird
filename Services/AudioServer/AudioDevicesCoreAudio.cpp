@@ -11,8 +11,8 @@
 #include <AudioServer/PlatformAudio.h>
 #include <CoreAudio/CoreAudio.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <LibAudio/AudioDevices.h>
 #include <LibCore/EventLoop.h>
-#include <LibMedia/Audio/AudioDevices.h>
 
 namespace Audio {
 

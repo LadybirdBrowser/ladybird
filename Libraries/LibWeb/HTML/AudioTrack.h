@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <LibMedia/Audio/Forward.h>
+#include <LibAudio/Forward.h>
 #include <LibMedia/Track.h>
 #include <LibWeb/HTML/MediaTrackBase.h>
 

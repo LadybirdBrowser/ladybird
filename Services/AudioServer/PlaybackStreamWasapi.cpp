@@ -23,10 +23,10 @@
 #include <AK/Vector.h>
 #include <AudioServer/PlatformAudio.h>
 #include <AudioServer/PlaybackStreamWasapi.h>
+#include <LibAudio/ChannelMap.h>
+#include <LibAudio/SampleSpecification.h>
 #include <LibCore/System.h>
 #include <LibCore/ThreadedPromise.h>
-#include <LibMedia/Audio/ChannelMap.h>
-#include <LibMedia/Audio/SampleSpecification.h>
 #include <LibThreading/Thread.h>
 
 #include <AK/Windows.h>

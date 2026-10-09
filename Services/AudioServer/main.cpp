@@ -9,6 +9,7 @@
 #include <AudioServer/PlatformAudio.h>
 #include <AudioServer/Sandbox.h>
 #include <AudioServer/Tabs.h>
+#include <LibAudio/AudioDevices.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/CrashHandler.h>
 #include <LibCore/Environment.h>
@@ -18,7 +19,6 @@
 #include <LibCore/Process.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
-#include <LibMedia/Audio/AudioDevices.h>
 #include <LibSandbox/ConnectBroker.h>
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
@@ -69,7 +69,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         TRY(AudioServer::apply_sandbox(mach_server_name));
 
     if (is_headless) {
-        AudioServer::Tabs::the().set_audio_output(Media::AudioOutput::Null);
+        AudioServer::Tabs::the().set_audio_output(Audio::AudioOutput::Null);
     } else {
         // The watch reports changes on the running loop, so it starts once there is one.
         event_loop.deferred_invoke([] {

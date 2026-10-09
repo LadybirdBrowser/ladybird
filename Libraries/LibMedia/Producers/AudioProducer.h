@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Time.h>
-#include <LibMedia/Audio/SampleSpecification.h>
+#include <LibAudio/SampleSpecification.h>
 #include <LibMedia/AudioBlock.h>
 #include <LibMedia/MediaPipelineNode.h>
 #include <LibMedia/PipelineStatus.h>

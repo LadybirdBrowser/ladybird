@@ -12,10 +12,10 @@
 #include <AudioServer/CaptureDevices.h>
 #include <AudioServer/PlaybackStreamMixer.h>
 #include <AudioServer/ServerConnection.h>
+#include <LibAudio/ClientConnection.h>
+#include <LibAudio/RemoteRecordStream.h>
 #include <LibCore/EventLoop.h>
 #include <LibIPC/Transport.h>
-#include <LibMedia/Audio/ClientConnection.h>
-#include <LibMedia/Audio/RemoteRecordStream.h>
 #include <LibTest/TestCase.h>
 
 // Where a stream's frames land. Written on the pump thread, read from the test. Declared before the fixture in every

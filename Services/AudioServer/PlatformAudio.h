@@ -8,10 +8,10 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <AK/StringView.h>
-#include <LibMedia/Audio/AudioDevices.h>
-#include <LibMedia/Audio/PlaybackStream.h>
-#include <LibMedia/Audio/RecordStream.h>
-#include <LibMedia/Audio/SampleSpecification.h>
+#include <LibAudio/AudioDevices.h>
+#include <LibAudio/PlaybackStream.h>
+#include <LibAudio/RecordStream.h>
+#include <LibAudio/SampleSpecification.h>
 
 // The platform's own devices, which only the AudioServer opens. Each is defined by the audio backend that is built in,
 // and a build without one has a stand-in that rejects or reports no devices.

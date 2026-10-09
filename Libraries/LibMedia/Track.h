@@ -14,8 +14,8 @@
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
+#include <LibAudio/SampleSpecification.h>
 #include <LibIPC/Forward.h>
-#include <LibMedia/Audio/SampleSpecification.h>
 #include <LibMedia/CodecParameters.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
 #include <LibMedia/Export.h>

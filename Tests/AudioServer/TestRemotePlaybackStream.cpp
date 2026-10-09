@@ -12,11 +12,11 @@
 #include <AudioServer/CaptureDevices.h>
 #include <AudioServer/PlaybackStreamMixer.h>
 #include <AudioServer/ServerConnection.h>
+#include <LibAudio/AudioDevices.h>
+#include <LibAudio/ClientConnection.h>
+#include <LibAudio/RemotePlaybackStream.h>
 #include <LibCore/EventLoop.h>
 #include <LibIPC/Transport.h>
-#include <LibMedia/Audio/AudioDevices.h>
-#include <LibMedia/Audio/ClientConnection.h>
-#include <LibMedia/Audio/RemotePlaybackStream.h>
 #include <LibMedia/Sinks/AudioPlaybackSink.h>
 #include <LibTest/TestCase.h>
 
@@ -486,7 +486,7 @@ struct RemoteSinkFixture {
 TEST_CASE(audio_playback_sink_reopens_its_output_after_loss_with_a_seek_in_flight)
 {
     RemoteSinkFixture fixture;
-    RefPtr<Media::AudioPlaybackSink> sink = MUST(Media::AudioPlaybackSink::try_create([](Media::PipelineStatus) { }, Media::AudioOutput::Platform));
+    RefPtr<Media::AudioPlaybackSink> sink = MUST(Media::AudioPlaybackSink::try_create([](Media::PipelineStatus) { }, Audio::AudioOutput::Platform));
     sink->start();
     sink->resume();
     EXPECT(fixture.pump_until([&] { return fixture.mixer->active_client_count() == 1; }));

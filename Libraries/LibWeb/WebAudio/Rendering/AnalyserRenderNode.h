@@ -8,7 +8,7 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <AK/Vector.h>
-#include <LibMedia/Audio/SpscAudioFrameRing.h>
+#include <LibAudio/SpscAudioFrameRing.h>
 #include <LibWeb/WebAudio/Rendering/RenderNode.h>
 
 namespace Web::WebAudio::Rendering {

@@ -7,9 +7,9 @@
 #pragma once
 
 #include <AK/Vector.h>
+#include <LibAudio/PlaybackStream.h>
 #include <LibCore/System.h>
 #include <LibIPC/Transport.h>
-#include <LibMedia/Audio/PlaybackStream.h>
 #include <LibTest/TestCase.h>
 
 // Both ends of a pair made in one process are ours, and the Windows transport has to know whose handles it duplicates.

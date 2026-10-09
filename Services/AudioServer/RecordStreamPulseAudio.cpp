@@ -7,8 +7,8 @@
 #include <AK/ByteString.h>
 #include <AudioServer/PlatformAudio.h>
 #include <AudioServer/PulseAudioWrappers.h>
+#include <LibAudio/RecordStream.h>
 #include <LibCore/EventLoop.h>
-#include <LibMedia/Audio/RecordStream.h>
 #include <LibThreading/Thread.h>
 
 namespace Audio {

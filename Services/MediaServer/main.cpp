@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibAudio/ClientConnection.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/CrashHandler.h>
 #include <LibCore/EventLoop.h>
@@ -12,7 +13,6 @@
 #include <LibCore/Process.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
-#include <LibMedia/Audio/ClientConnection.h>
 #include <MediaServer/ConnectionFromClient.h>
 #include <MediaServer/Sandbox.h>
 

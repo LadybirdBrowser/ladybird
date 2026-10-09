@@ -15,8 +15,8 @@
 #include <AK/SeqLock.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <LibAudio/PlaybackStream.h>
 #include <LibCore/Forward.h>
-#include <LibMedia/Audio/PlaybackStream.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebAudio/ControlMessageQueue.h>
 #include <LibWeb/WebAudio/Rendering/RenderGraph.h>

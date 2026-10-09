@@ -11,10 +11,10 @@
 #include <AK/NonnullRefPtr.h>
 #include <AudioServer/CaptureDevices.h>
 #include <AudioServer/PlaybackStreamMixer.h>
+#include <LibAudio/AudioClientEndpoint.h>
+#include <LibAudio/AudioDevices.h>
+#include <LibAudio/AudioServerEndpoint.h>
 #include <LibIPC/ConnectionFromClient.h>
-#include <LibMedia/Audio/AudioClientEndpoint.h>
-#include <LibMedia/Audio/AudioDevices.h>
-#include <LibMedia/Audio/AudioServerEndpoint.h>
 
 namespace Audio {
 

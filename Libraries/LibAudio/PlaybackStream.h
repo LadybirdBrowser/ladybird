@@ -1,0 +1,70 @@
+/*
+ * Copyright (c) 2023-2025, Gregory Bertilson <gregory@ladybird.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <AK/AtomicRefCounted.h>
+#include <AK/Function.h>
+#include <AK/Time.h>
+#include <LibAudio/Export.h>
+#include <LibAudio/SampleSpecification.h>
+#include <LibCore/Forward.h>
+#include <LibCore/Promise.h>
+#include <LibCore/ThreadedPromise.h>
+
+namespace Audio {
+
+enum class OutputState {
+    Playing,
+    Suspended,
+};
+
+// This class implements high-level audio playback behavior. It is primarily intended as an abstract cross-platform
+// interface to be used by Ladybird (and its dependent libraries) for playback.
+//
+// The interface is designed to be simple and robust. All control functions can be called safely from any thread.
+class AUDIO_API PlaybackStream : public AtomicRefCounted<PlaybackStream> {
+public:
+    using CreatePromise = Core::Promise<NonnullRefPtr<PlaybackStream>>;
+    using AudioDataRequestCallback = Function<ReadonlySpan<float>(Span<float> buffer, MonotonicTime buffer_starts_playing_at)>;
+
+    // Begins creating a new audio output and returns a promise that is resolved when it is ready. The output is the
+    // AudioServer when this process can reach one, and otherwise a null stream that discards what it is given. The
+    // initial output state determines whether playback begins immediately. The data callback is only invoked on one
+    // thread at a time.
+    template<typename DataRequestCallback>
+    static NonnullRefPtr<CreatePromise> create(OutputState initial_output_state, u32 target_latency_ms, DataRequestCallback data_request_callback)
+    {
+        auto null_fallback_data_request_callback = data_request_callback;
+        return create(initial_output_state, target_latency_ms, AudioDataRequestCallback { move(data_request_callback) }, AudioDataRequestCallback { move(null_fallback_data_request_callback) });
+    }
+
+    virtual SampleSpecification sample_specification() const = 0;
+
+    virtual ~PlaybackStream() = default;
+
+    // Resume playback from the suspended state, requesting new data for audio buffers as soon as possible.
+    virtual NonnullRefPtr<Core::ThreadedPromise<void>> resume() = 0;
+    // Completes playback of any buffered audio data and then suspends playback and buffering.
+    virtual NonnullRefPtr<Core::ThreadedPromise<void>> drain_buffer_and_suspend() = 0;
+    // Drops any buffered audio data and then suspends playback and buffering. This can used be to stop playback
+    // as soon as possible instead of waiting for remaining audio to play.
+    virtual NonnullRefPtr<Core::ThreadedPromise<void>> discard_buffer_and_suspend() = 0;
+
+    // Notifies the stream that the data request callback may be able to provide data now. This is used to
+    // wake playback streams that have stopped requesting data due to an underrun.
+    virtual void notify_data_available() = 0;
+
+    virtual NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double volume) = 0;
+
+    // Runs once, on the creating thread, when the output device can no longer play this stream.
+    Function<void()> on_output_lost;
+
+private:
+    static NonnullRefPtr<CreatePromise> create(OutputState, u32 target_latency_ms, AudioDataRequestCallback stream_data_request_callback, AudioDataRequestCallback null_fallback_data_request_callback);
+};
+
+}
