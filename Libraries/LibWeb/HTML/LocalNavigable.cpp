@@ -6986,8 +6986,10 @@ bool LocalNavigable::note_clock_lane(ClockAnimations animations)
 // them.
 void LocalNavigable::arm_clock_lane(TickNow tick_now)
 {
-    // A test injects its ticks itself.
-    if (main_thread_event_loop().render_clock_is_manual_for_testing())
+    // A test injects its ticks itself. The lanes of a same-process iframe's document still hear of the pointer moves the
+    // lane of the document around it hands them, which wait for a tick the test injects.
+    bool const manual = Compositor::RenderClock::the().is_manual_for_testing();
+    if (manual && is_local_root())
         return;
     auto document = active_document();
     if (!document || !has_compositor_context())
@@ -6997,7 +6999,7 @@ void LocalNavigable::arm_clock_lane(TickNow tick_now)
         return;
     auto handle = adopt_ref(*new Compositor::ClockTicksHandle { Layout::RustFFI::document_host_clock_ticks(arena->host()) });
     Optional<i64> tick_now_at;
-    if (tick_now == TickNow::Yes)
+    if (tick_now == TickNow::Yes && !manual)
         tick_now_at = static_cast<i64>(HighResolutionTime::unsafe_shared_current_time() * 1'000'000.0);
     Compositor::RenderClock::the().arm_lane(compositor_context().id(), page().client().maximum_frames_per_second(), move(handle), tick_now_at);
 }

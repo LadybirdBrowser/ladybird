@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    iframe { display: block; width: 200px; height: 100px; border: 0; margin-left: 50px; }
+</style>
+<iframe srcdoc="<style>body { margin: 0 } #inner { width: 100px; height: 100px; background-color: rgb(0, 0, 255); transition: background-color 100s linear } #inner:hover { background-color: rgb(0, 128, 0) }</style><div id=inner></div>"></iframe>
+<script>
+    // Beside a task, the lane of the document hands a move over a same-process iframe to the iframe's lane, which
+    // hovers it and starts a transition. The pointer moves on over the iframe, a move no tick takes before the task
+    // ends. The rendering update after the task runs the transition the screen showed on from where it started.
+    asyncTest(async done => {
+        const iframe = document.querySelector("iframe");
+        await srcdocLoaded(iframe);
+        const inner = iframe.contentDocument.getElementById("inner");
+        let stepTime;
+        await whileLaneHovers(frameTime => {
+            stepTime = frameTime + 100000;
+            internals.injectHoverPointer(80, 50, frameTime + 16, 1);
+            iframe.contentWindow.internals.injectClockTick(stepTime);
+            internals.moveHoverPointer(90, 50, 2);
+        }, [document, iframe.contentDocument]);
+        await twoFrames();
+        println(`#inner matches :hover: ${inner.matches(":hover")}`);
+        const transitions = inner.getAnimations();
+        println(`transitions: ${transitions.length}`);
+        // The iframe's timeline starts at its own time origin.
+        const origin = iframe.contentWindow.performance.timeOrigin - performance.timeOrigin;
+        for (const transition of transitions)
+            println(`transition starts at the step beside the task: ${transition.startTime + origin >= stepTime - 1}`);
+        done();
+    });
+</script>

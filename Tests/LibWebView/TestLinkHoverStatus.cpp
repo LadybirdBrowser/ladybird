@@ -197,22 +197,21 @@ function navigate_frame() { frame.srcdoc = frame.getAttribute("srcdoc") + "<!-- 
     VERIFY(!hovered_url.has_value());
     Core::EventLoop::current().spin_until([&]() { return last_title == "frame load 2"sv; });
 
-    // The new iframe document's link is a fresh target. Then over to the page's own link: The page's handler reports
-    // it, while the iframe's handler still holds the iframe's link as the pointer's position, never having heard that
-    // the pointer left the iframe.
+    // The new iframe document's link is a fresh target. Then over to the page's own link: The iframe's handler hears
+    // that the pointer left the iframe, and reports the unhover, before the page's handler reports the page's link.
     move_mouse_to(*view, { 20, 20 });
     Core::EventLoop::current().spin_until([&]() { return hovers_reported >= 7; });
     VERIFY(hovered_url->serialize() == "https://example.com/in-iframe"sv);
     move_mouse_to(*view, { 600, 20 });
     Core::EventLoop::current().spin_until([&]() { return hovers_reported >= 8; });
     VERIFY(hovered_url->serialize() == "https://example.com/parent"sv);
-    VERIFY(unhovers_reported == 6);
+    VERIFY(unhovers_reported == 7);
 
     // So, the iframe navigating now must leave the page's link reported: The hover the client shows is the page's
     // handler's to end, not the iframe's. The iframe's load comes after any unhover its replacement would have sent.
     view->run_javascript("navigate_frame()"_string);
     Core::EventLoop::current().spin_until([&]() { return last_title == "frame load 3"sv; });
-    VERIFY(unhovers_reported == 6);
+    VERIFY(unhovers_reported == 7);
     VERIFY(hovered_url->serialize() == "https://example.com/parent"sv);
 
     // Back over the iframe's link, then a new top-level document: The iframe dies along with the old one, and its
@@ -221,7 +220,7 @@ function navigate_frame() { frame.srcdoc = frame.getAttribute("srcdoc") + "<!-- 
     Core::EventLoop::current().spin_until([&]() { return hovers_reported >= 9; });
     VERIFY(hovered_url->serialize() == "https://example.com/in-iframe"sv);
     view->load_html("<!DOCTYPE html><p>Plain</p>"sv);
-    Core::EventLoop::current().spin_until([&]() { return unhovers_reported >= 7; });
+    Core::EventLoop::current().spin_until([&]() { return unhovers_reported >= 8; });
     VERIFY(!hovered_url.has_value());
     VERIFY(hovers_reported == 9);
 

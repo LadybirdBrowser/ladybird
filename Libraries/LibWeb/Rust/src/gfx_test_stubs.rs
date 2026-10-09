@@ -145,3 +145,16 @@ extern "C" fn ladybird_gfx_path_set_fill_type(_path: *mut c_void, _winding_rule:
 extern "C" fn ladybird_gfx_process_next_path_identity() -> u64 {
     unreachable!("no unit test builds a path");
 }
+
+#[unsafe(no_mangle)]
+extern "C" fn web_render_clock_hand_pointer_move(
+    _context: u64,
+    _has_position: bool,
+    _x: f32,
+    _y: f32,
+    _buttons: u32,
+    _scrolled_since_frame: bool,
+    _input_event_id: u64,
+) {
+    unreachable!("no unit test hands a render clock a pointer move");
+}

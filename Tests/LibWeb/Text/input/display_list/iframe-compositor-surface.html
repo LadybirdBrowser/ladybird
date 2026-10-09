@@ -15,7 +15,8 @@
 <script>
     promiseTest(async () => {
         await new Promise(resolve => {
-            if (frame.contentDocument && frame.contentDocument.readyState === "complete") {
+            // The initial about:blank document is complete too, before the srcdoc document replaces it.
+            if (frame.contentDocument && frame.contentDocument.URL === "about:srcdoc" && frame.contentDocument.readyState === "complete") {
                 resolve();
                 return;
             }

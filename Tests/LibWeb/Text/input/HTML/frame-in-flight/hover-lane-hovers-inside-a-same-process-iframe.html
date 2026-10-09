@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    iframe { display: block; width: 200px; height: 100px; border: 0; margin-left: 50px; }
+</style>
+<iframe srcdoc="<style>body { margin: 0 } #inner { width: 100px; height: 100px; background-color: rgb(0, 0, 255) } #inner:hover { background-color: rgb(0, 128, 0) }</style><div id=inner></div>"></iframe>
+<script>
+    // A pointer move over a same-process iframe beside a task: the lane of the document hands it to the lane of the
+    // iframe's document, which hovers what is under it in the iframe and presents the iframe's frame. The rendering
+    // update after the task keeps that hover.
+    asyncTest(async done => {
+        const iframe = document.querySelector("iframe");
+        await srcdocLoaded(iframe);
+        const inner = iframe.contentDocument.getElementById("inner");
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(80, 50, frameTime + 16, 1);
+            internals.injectClockTick(frameTime + 16);
+            iframe.contentWindow.internals.injectClockTick(frameTime + 32);
+            return {
+                iframePresentedBy: internals.lastFramePresentedBy(iframe.contentDocument),
+                innerColor: internals.presentedColor(inner),
+            };
+        }, [document, iframe.contentDocument]);
+        println(`iframe's last frame presented by: ${result.iframePresentedBy}`);
+        await twoFrames();
+        println(`#inner matches :hover: ${inner.matches(":hover")}`);
+        done();
+    });
+</script>

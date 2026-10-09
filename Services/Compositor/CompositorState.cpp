@@ -569,7 +569,27 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
         }
         event.scrollbar_dragged_by_compositor = result.scrollbar_dragged_by_compositor;
     }
-    context->dispatch_mouse_event_to_web_content(event);
+    context->dispatch_mouse_event_to_web_content(event, nested_context_scrolled_since_last_frame(context_id));
+}
+
+// Whether a context nested in the context `context_id` scrolled since the last frame its WebContent presented: the lane
+// of the context's document hands a pointer move to the lane of a same-process iframe, which hit tests it in the iframe.
+bool CompositorState::nested_context_scrolled_since_last_frame(Web::CompositorContextId context_id) const
+{
+    for (auto const& entry : m_contexts) {
+        auto const& context = *entry.value;
+        if (!context.scrolled_since_last_frame())
+            continue;
+        for (auto parent_context_id = context.parent_context_id(); parent_context_id.has_value();) {
+            if (*parent_context_id == context_id)
+                return true;
+            auto const* parent_context = context_if_present(*parent_context_id);
+            if (!parent_context)
+                break;
+            parent_context_id = parent_context->parent_context_id();
+        }
+    }
+    return false;
 }
 
 void CompositorState::dispatch_scroll_fling_step(Web::CompositorContextId context_id, ContextState& context, Optional<ContextState::ScrollFlingStep> step)

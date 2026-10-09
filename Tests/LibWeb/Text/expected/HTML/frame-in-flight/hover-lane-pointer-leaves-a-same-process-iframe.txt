@@ -1,0 +1,4 @@
+the iframe's frame as the pointer is over it presented by: clock
+the frame once the pointer left the iframe presented by: clock
+#inner matches :hover: false
+#outer matches :hover: true

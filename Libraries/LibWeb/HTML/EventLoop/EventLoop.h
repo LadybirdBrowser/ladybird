@@ -165,8 +165,6 @@ public:
     // Waits for every frame the navigables committed to be presented, and takes it in.
     void take_committed_frames_in();
     // A test that injects its rendering opportunities injects its render clock's ticks as well.
-    void set_render_clock_is_manual_for_testing(bool manual) { m_render_clock_is_manual_for_testing = manual; }
-    bool render_clock_is_manual_for_testing() const { return m_render_clock_is_manual_for_testing; }
     // Called before a rendering update submits a recording, on a thread with a Core event loop.
     void ensure_frame_completion_registered();
     // Whether a frame flies beside the event loop, which has not taken it in yet.
@@ -273,16 +271,15 @@ private:
     // The navigables whose active document a rendering update left a plan for the lane of its frame, which the event
     // loop tells whether it runs a task.
     Vector<GC::Ref<LocalNavigable>> m_navigables_with_clock_lanes;
-    bool m_render_clock_is_manual_for_testing { false };
-    bool m_holds_next_layout_for_testing { false };
-    // The serial number of the last rendering update that began: the lanes an update takes in wait for its own plan,
-    // not for that of an update before it.
-    u64 m_rendering_update_serial { 0 };
     bool m_frame_completion_registered { false };
     bool m_holds_next_frame_for_testing { false };
+    bool m_holds_next_layout_for_testing { false };
 
     struct RenderingUpdateInFlight;
     OwnPtr<RenderingUpdateInFlight> m_rendering_update_in_flight;
+    // The serial number of the last rendering update that began: the lanes an update takes in wait for its own plan,
+    // not for that of an update before it.
+    u64 m_rendering_update_serial { 0 };
     // How deep the event loop is spun inside a task.
     size_t m_spin_depth { 0 };
 };

@@ -209,6 +209,7 @@ private:
 
     bool dispatch_chrome_widget_pointer_event(RefPtr<Painting::ChromeWidget>, Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position);
     void update_hovered_chrome_widget(RefPtr<Painting::ChromeWidget>);
+    void update_nested_navigable_under_pointer(GC::Ptr<HTML::LocalNavigable>);
 
     void update_cursor(Layout::BegunRead const& read, Layout::Node const*, GC::Ptr<DOM::Node> host_element, RefPtr<Painting::ChromeWidget>, bool hit_text_fragment = false);
     void record_last_known_mouse_position(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned buttons, unsigned modifiers);
@@ -229,6 +230,7 @@ private:
 
     GC::Weak<DOM::Node> m_last_mousedown_target;
     GC::Weak<DOM::Node> m_mousedown_target;
+    GC::Weak<HTML::LocalNavigable> m_nested_navigable_under_pointer;
     Optional<CSSPixelPoint> m_mousedown_visual_viewport_position;
     int m_mousedown_click_count { 0 };
     bool m_mousedown_target_is_drag_candidate { false };

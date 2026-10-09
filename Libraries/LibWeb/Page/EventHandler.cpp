@@ -281,6 +281,17 @@ static Optional<EventResult> dispatch_event_to_nested_navigable(EventHandler& pa
     return {};
 }
 
+// The same-process nested navigable whose content `layout_node`, a hit of `node`, shows, if it is one.
+static GC::Ptr<HTML::LocalNavigable> local_nested_navigable_at(Layout::Node const& layout_node, GC::Ptr<DOM::Node> node)
+{
+    if (!node || !Painting::is_navigable_container_viewport_paintable(layout_node))
+        return {};
+    auto* container = as_if<HTML::NavigableContainer>(*node);
+    if (!container)
+        return {};
+    return as_if<HTML::LocalNavigable>(container->content_navigable().ptr());
+}
+
 // Whether the identity names an element. The document names itself rather than a style node, and a text node's style
 // node says so in its top bit. A row that has gone stale names nothing at all. A shadow root takes an element-kind
 // StyleNodeID too, but no row and no hit test result names one.
@@ -535,6 +546,36 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         }
     }
 
+    // AD-HOC: A tick of the render clock's lane that took this move hovered an element there, which the screen shows:
+    //         the move's events go to it, where a hit test of the host's layout, which has not moved with the lane's
+    //         hover, could find another.
+    GC::Ptr<DOM::Node> lane_hover_target;
+    if (auto* arena = document->layout_node_arena_if_created(); arena && m_handling_input_event_id != 0 && !m_mousedown_target) {
+        u32 style_node = 0;
+        if (Layout::RustFFI::document_host_lane_hover_target_for(arena->host(), m_handling_input_event_id, &style_node) && style_node != 0)
+            lane_hover_target = document->style_computer().node_for_lane_style_node(CSS::StyleNodeID { style_node });
+    }
+
+    // The nested navigable the pointer leaves hears of it before anything here does, as its events may disturb the
+    // world: the move is hit tested here after them.
+    if (m_nested_navigable_under_pointer) {
+        auto nested_navigable = [&]() -> GC::Ptr<HTML::LocalNavigable> {
+            if (auto* layout_node = lane_hover_target ? lane_hover_target->unsafe_layout_node(read) : nullptr)
+                return local_nested_navigable_at(*layout_node, lane_hover_target);
+            auto hit = target_for_mouse_position(visual_viewport_position);
+            auto* layout_node = hit.has_value() ? hit->layout_node(read) : nullptr;
+            return layout_node ? local_nested_navigable_at(*layout_node, hit->dom_node()) : nullptr;
+        }();
+        if (nested_navigable != m_nested_navigable_under_pointer.ptr()) {
+            update_nested_navigable_under_pointer(nullptr);
+            if (m_navigable->active_document() != document || !document->is_fully_active())
+                return EventResult::Accepted;
+            document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);
+            if (!has_committed_root_box())
+                return EventResult::Accepted;
+        }
+    }
+
     Optional<Target> target;
     RefPtr<Painting::ChromeWidget> chrome_widget;
     GC::Ptr<DOM::Node> node;
@@ -559,15 +600,6 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
 
         auto* target_layout_node = target->layout_node(read);
 
-        // AD-HOC: A tick of the render clock's lane that took this move hovered an element there, which the screen
-        //         shows: the move's events go to it, where a hit test of the host's layout, which has not moved with
-        //         the lane's hover, could find another.
-        GC::Ptr<DOM::Node> lane_hover_target;
-        if (auto* arena = document->layout_node_arena_if_created(); arena && m_handling_input_event_id != 0 && !m_mousedown_target) {
-            u32 style_node = 0;
-            if (Layout::RustFFI::document_host_lane_hover_target_for(arena->host(), m_handling_input_event_id, &style_node) && style_node != 0)
-                lane_hover_target = document->style_computer().node_for_lane_style_node(CSS::StyleNodeID { style_node });
-        }
         bool goes_to_lane_hover_target = lane_hover_target && lane_hover_target == node;
         if (lane_hover_target && lane_hover_target != node) {
             if (auto* lane_hover_target_layout_node = lane_hover_target->unsafe_layout_node(read)) {
@@ -581,15 +613,20 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         if (!target_layout_node)
             return EventResult::Dropped;
 
-        if (!goes_to_lane_hover_target) {
+        // A move the lanes handed to a same-process iframe goes to it, whose lanes hovered what is under the pointer there.
+        if (!goes_to_lane_hover_target || Painting::is_navigable_container_viewport_paintable(*target_layout_node)) {
+            auto nested_navigable = local_nested_navigable_at(*target_layout_node, node);
             auto dispath_result = dispatch_event_to_nested_navigable(*this, *target_layout_node, node, visual_viewport_position, remote_target, [&](EventHandler& event_handler, CSSPixelPoint position) {
                 return event_handler.handle_mousemove(position, screen_position, buttons, modifiers, remote_target);
             });
             if (dispath_result.has_value()) {
+                update_nested_navigable_under_pointer(nested_navigable);
                 clear_cursor.disarm();
                 return *dispath_result;
             }
         }
+        // NB: The nested navigable the pointer left heard of it before the hit test.
+        m_nested_navigable_under_pointer = nullptr;
 
         // NB: Search for the first parent of the hit target that's an element.
         //
@@ -1209,11 +1246,22 @@ EventResult EventHandler::handle_mouseleave()
     update_hovered_chrome_widget(nullptr);
     update_cursor(read, nullptr, nullptr, nullptr);
     m_last_known_mouse_visual_viewport_position.clear();
+    update_nested_navigable_under_pointer(nullptr);
 
     if (!m_mousedown_target)
         track_the_effective_position_of_the_legacy_mouse_pointer(nullptr);
 
     return EventResult::Handled;
+}
+
+// The same-process nested navigable the pointer was over last hears that it left, as the pointer moves elsewhere: its
+// document hovers nothing more, and fires the boundary events of that.
+void EventHandler::update_nested_navigable_under_pointer(GC::Ptr<HTML::LocalNavigable> navigable)
+{
+    GC::Ptr<HTML::LocalNavigable> previous = m_nested_navigable_under_pointer.ptr();
+    m_nested_navigable_under_pointer = navigable;
+    if (previous && previous != navigable && !previous->has_been_destroyed())
+        (void)previous->event_handler().handle_mouseleave();
 }
 
 void EventHandler::update_hover_after_scroll()
@@ -1280,6 +1328,33 @@ void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_posit
     if (!has_committed_root_box())
         return;
 
+    // A hover target of a lane's keeps the hover in this document, where it may be the element of the nested navigable
+    // the pointer is over.
+    auto hover_target_nested_navigable = [&]() -> GC::Ptr<HTML::LocalNavigable> {
+        auto* layout_node = hover_target ? hover_target->unsafe_layout_node(read) : nullptr;
+        return layout_node ? local_nested_navigable_at(*layout_node, hover_target) : nullptr;
+    };
+
+    // The nested navigable the pointer leaves hears of it before anything here does, as its events may disturb the
+    // world: the hover is hit tested here after them.
+    if (m_nested_navigable_under_pointer) {
+        auto nested_navigable = [&]() -> GC::Ptr<HTML::LocalNavigable> {
+            if (hover_target)
+                return hover_target_nested_navigable();
+            auto hit = target_for_mouse_position(visual_viewport_position);
+            auto* layout_node = hit.has_value() ? hit->layout_node(read) : nullptr;
+            return layout_node ? local_nested_navigable_at(*layout_node, hit->dom_node()) : nullptr;
+        }();
+        if (nested_navigable != m_nested_navigable_under_pointer.ptr()) {
+            update_nested_navigable_under_pointer(nullptr);
+            if (m_navigable->active_document() != document || !document->is_fully_active())
+                return;
+            document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);
+            if (!has_committed_root_box())
+                return;
+        }
+    }
+
     Optional<Target> target;
     RefPtr<Painting::ChromeWidget> chrome_widget;
     GC::Ptr<DOM::Node> node;
@@ -1316,15 +1391,19 @@ void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_posit
         return;
 
     if (!hover_target) {
+        auto nested_navigable = local_nested_navigable_at(*target_layout_node, node);
         auto dispatch_result = dispatch_event_to_nested_navigable(*this, *target_layout_node, node, visual_viewport_position, nullptr, [&](EventHandler& event_handler, CSSPixelPoint position) {
             event_handler.update_hover_after_scroll(position, screen_position, button, buttons, modifiers);
             return EventResult::Handled;
         });
         if (dispatch_result.has_value()) {
+            update_nested_navigable_under_pointer(nested_navigable);
             clear_hover.disarm();
             return;
         }
     }
+    // NB: The nested navigable the pointer left heard of it before the hit test.
+    m_nested_navigable_under_pointer = hover_target ? hover_target_nested_navigable() : nullptr;
 
     Layout::Node* layout_node = nullptr;
     if (!parent_element_for_event_dispatch(*target_layout_node, node, layout_node))

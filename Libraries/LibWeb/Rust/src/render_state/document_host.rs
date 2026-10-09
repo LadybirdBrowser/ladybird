@@ -713,7 +713,7 @@ impl DocumentHost {
     /// since the host last took in what they did, which the screen shows in place of the host's. The update keeps what
     /// the screen shows: it hovers where the compositor said the pointer went last, as the lanes did, which owes the
     /// boundary events of the move until the host handles a mouse move.
-    pub(super) fn take_clock_lanes_in(&self, update: u64) -> bool {
+    pub(super) fn take_clock_lanes_in(&self, update: u64, outer_input_event: u64) -> bool {
         // The lanes present nothing from now until the update's frame: a pointer move that waits for a tick is the
         // update's to hover, as the newest the compositor told of. The owner takes them in between ticks, so no tick
         // presents a frame the report leaves out.
@@ -729,11 +729,19 @@ impl DocumentHost {
             }
             None => Some(on_render_side(move || super::clock::take_lanes_in(&ticks, update))),
         };
+        // A same-process iframe's lanes hear of the pointer from the lanes of the document around it, which handed them
+        // nothing of a newer move the compositor told that document of: the pointer may have gone elsewhere, and the
+        // host hovers nothing of the older move, nor does the next lane. It hovers where the pointer went as it handles
+        // the newer move. The transitions that hover started ran on screen all the same, which the host runs on from
+        // where they are, and decides over as it hovers.
+        let stale = self.ticks.forget_pointer_older_than(outer_input_event);
         let mut presented = false;
         if let Some(report) = report {
             presented = report.presented;
-            self.lane_move.set(report.last_move);
+            self.lane_move.set(report.last_move.filter(|_| !stale));
             *self.lane_transitions.borrow_mut() = report.transitions;
+        } else if stale {
+            self.lane_move.set(None);
         }
         if super::clock::hover::logs_hover() {
             eprintln!(
@@ -751,13 +759,16 @@ impl DocumentHost {
         // older event says the pointer was, and the newest move's own event follows.
         // Where a tick took that move last, the host hovers the element the lane hovered, which is what the screen
         // shows: a hit test of its own, in a layout that has not moved with the lane's hover, could find another.
-        // A move older than a mouse event the host handled owes nothing.
+        // A move older than a mouse event the host handled owes nothing, nor does one the lanes handed to a same-process
+        // iframe, whose lanes hovered it: the host hands the iframe the move's mouse event as it handles it, and the
+        // hover of this document stays where it is.
         let lane_move = self.lane_move.get();
         let handled = self.newest_pointer_input_event.get();
         let (newest, waits) = self.ticks.newest_pointer_and_waits();
         if let Some(newest) = newest
             && (newest.input_event_id == 0 || newest.input_event_id >= handled)
             && (newest.input_event_id > handled || waits || lane_move.is_some())
+            && !lane_move.is_some_and(|last| last.handed && last.input_event_id == newest.input_event_id && !waits)
         {
             self.newest_pointer_input_event.set(handled.max(newest.input_event_id));
             self.hover_events_owed.set(Some(HoverOwed {
@@ -768,6 +779,14 @@ impl DocumentHost {
             }));
         }
         presented
+    }
+
+    /// The input event id of the newest pointer move the host knows of, or the compositor told the render clock of.
+    pub(super) fn newest_pointer_input_event(&self) -> u64 {
+        self.ticks
+            .newest_pointer()
+            .map_or(0, |pointer| pointer.input_event_id)
+            .max(self.newest_pointer_input_event.get())
     }
 
     /// Whether the mouse event with the input event id `input_event_id` is older than the newest pointer move the host
@@ -1483,9 +1502,9 @@ mod tests {
     fn the_plan_of_an_earlier_update_leaves_a_later_take_in_standing() {
         let host = TestHost::new();
         let host = host.host();
-        host.take_clock_lanes_in(1);
+        host.take_clock_lanes_in(1, 0);
         // The update before ends as the next one runs, after the next one took the lanes in.
-        host.take_clock_lanes_in(2);
+        host.take_clock_lanes_in(2, 0);
         host.seal_clock_plan(None, 1);
         assert!(
             host.lanes_wait_for_the_update(),

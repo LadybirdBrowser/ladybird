@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; display: flex; }
+    iframe { display: block; width: 100px; height: 100px; border: 0; flex: none; }
+    div { width: 100px; height: 100px; flex: none; }
+</style>
+<iframe srcdoc="<style>body { margin: 0 } #inner { width: 100px; height: 100px }</style><div id=inner></div>"></iframe>
+<div id="first"></div>
+<div id="second"></div>
+<script>
+    // The pointer moves from a same-process iframe onto an element of the page. The iframe hears that the pointer
+    // left first, and its listener removes that element, which the page's hit test then never finds: the move goes to
+    // the element that took its place.
+    asyncTest(async done => {
+        const iframe = document.querySelector("iframe");
+        // The srcdoc document may have loaded before the page's DOMContentLoaded, as the test begins.
+        if (iframe.contentDocument?.URL !== "about:srcdoc" || iframe.contentDocument.readyState !== "complete")
+            await new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        const events = [];
+        const inner = iframe.contentDocument.getElementById("inner");
+        inner.addEventListener("mouseover", () => events.push("over inner"));
+        inner.addEventListener("mouseleave", () => {
+            events.push("leave inner");
+            first.remove();
+            document.body.offsetWidth;
+        });
+        second.addEventListener("mouseover", () => events.push("over second"));
+        internals.mouseMove(50, 50);
+        internals.mouseMove(150, 50);
+        println(events.join(", "));
+        println(`#inner matches :hover: ${inner.matches(":hover")}`);
+        println(`#second matches :hover: ${second.matches(":hover")}`);
+        done();
+    });
+</script>

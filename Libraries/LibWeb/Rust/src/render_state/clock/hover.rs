@@ -46,6 +46,22 @@ pub struct FfiHoverPlanInputs {
     pub effect_timing_count: usize,
 }
 
+unsafe extern "C" {
+    /// Hands the render clock a pointer move over the compositor context of a same-process iframe's document, as the
+    /// compositor hands it those over the page's: the context, the position in the context's device pixels, or none
+    /// where the pointer left it, the buttons held, whether the compositor scrolled since the frame, and the input
+    /// event id. Any thread may call it.
+    fn web_render_clock_hand_pointer_move(
+        context: u64,
+        has_position: bool,
+        x: f32,
+        y: f32,
+        buttons: u32,
+        scrolled_since_frame: bool,
+        input_event_id: u64,
+    );
+}
+
 /// The cursor of a page, which the host hands a hover with its plan: what the page asks its client to show, and the
 /// calls that reach it from any thread. The cursor is retained for as long as a plan holds it.
 #[repr(C)]
@@ -169,6 +185,24 @@ impl HoverPlan {
     }
 }
 
+/// Hands the render clock the pointer move `pointer` over the compositor context `context`, at `position` in its device
+/// pixels, or out of it.
+fn hand_pointer_to_context(context: u64, position: Option<FloatPoint>, pointer: PendingPointer) {
+    let position_or_origin = position.unwrap_or(FloatPoint { x: 0.0, y: 0.0 });
+    // SAFETY: The render clock takes these arguments from any thread.
+    unsafe {
+        web_render_clock_hand_pointer_move(
+            context,
+            position.is_some(),
+            position_or_origin.x,
+            position_or_origin.y,
+            pointer.buttons,
+            pointer.scrolled_since_frame,
+            pointer.input_event_id,
+        );
+    }
+}
+
 /// Where the render clock heard the pointer went.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PendingPointer {
@@ -234,6 +268,12 @@ impl PointerState {
         self.pending.is_some()
     }
 
+    /// Forgets where the pointer went, short of the mouse events the host handled.
+    pub(super) fn forget(&mut self) {
+        self.pending = None;
+        self.last = None;
+    }
+
     /// Notes that the host handled the mouse event with the input event id `input_event_id`, and forgets the move that
     /// waits for a tick, where it is older.
     pub(super) fn note_handled(&mut self, input_event_id: u64) {
@@ -264,6 +304,8 @@ pub(crate) struct LaneHover {
     /// The element the pointer moved to last whose hover the lane left to the host, or none for the pointer leaving
     /// the document: the lane hovers nothing until the pointer moves to another.
     left_to_host: Option<Option<StyleNodeID>>,
+    /// The compositor context of the same-process iframe the hover handed the pointer to last, until it left it.
+    nested: Option<u64>,
 }
 
 impl LaneHover {
@@ -273,6 +315,16 @@ impl LaneHover {
 
     pub(super) fn park(&mut self) {
         self.parked = true;
+    }
+
+    /// The compositor context of the same-process iframe the hover handed the pointer to last, until it left it.
+    pub(super) fn nested(&self) -> Option<u64> {
+        self.nested
+    }
+
+    /// Has the hover go on from the iframe the hover of a lane before it handed the pointer to last, if any.
+    pub(super) fn go_on_from_nested(&mut self, nested: Option<u64>) {
+        self.nested = nested;
     }
 
     /// Keeps `installs`, the last install of each element in place of an earlier one, whose records the engine lets go.
@@ -294,12 +346,20 @@ impl LaneHover {
 }
 
 /// Where a hit test landed, as the host's handling of a mouse move finds its target.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum HoverTarget {
     /// Where the hit landed, on an element the host's handling would hover.
     Element(CursorHit),
     /// Nothing the host would hover, so the hover stays where it is.
     Unchanged,
+    /// The content of a same-process iframe, whose document's lane hovers what is there, at this position in the
+    /// device pixels of its compositor context; the hover of this document stays where it is. `container` is the
+    /// iframe's element.
+    Nested {
+        context: u64,
+        position: FloatPoint,
+        container: StyleNodeID,
+    },
 }
 
 /// What a hit shows the cursor of, as `EventHandler::update_cursor` reads it.
@@ -342,6 +402,9 @@ pub(super) enum Hovered {
     Same,
     /// It moved nothing the lane presents, and the host hovers what is under the pointer as it handles the move.
     LeftToHost,
+    /// It handed the move to the lane of the same-process iframe whose element this is, which hovers what is under the
+    /// pointer there: the host hands the iframe the move's mouse event, and leaves this document's hover where it is.
+    Handed(StyleNodeID),
 }
 
 /// Why a hover moved nothing the lane presents.
@@ -350,8 +413,13 @@ enum HoverDeclined {
     Park(&'static str),
     /// The move hovers nothing new.
     Unmoved(&'static str),
+    /// The lane cannot tell what the move is over in the frame on screen, which the host hovers as it handles it.
+    Unplaced(&'static str),
     /// The move hovers the element the hover is on already.
     Same,
+    /// The move went to the same-process iframe whose element this is, whose lane hovers it: the host hands the iframe
+    /// the move as it handles it.
+    Handed(StyleNodeID),
 }
 
 /// Whether a lane's hover tells what it did on the standard error, for a developer: LIBWEB_HOVER_LANE_LOG=1.
@@ -440,7 +508,13 @@ impl Lane {
         } else if pointer.buttons != 0 {
             Err(HoverDeclined::Unmoved("buttons held"))
         } else {
-            self.hover_with(state, &plan, pointer, timestamp, &mut cursor_hit)
+            let hovered = self.hover_with(state, &plan, pointer, timestamp, &mut cursor_hit);
+            // The iframe the hover handed the pointer to before hears that it left, wherever else in the document the
+            // move went.
+            if !matches!(hovered, Err(HoverDeclined::Handed(_) | HoverDeclined::Unplaced(_))) {
+                self.leave_nested(pointer);
+            }
+            hovered
         };
         // The cursor shows what the pointer is over once the element the hover is on is the one under it, as the host
         // shows it as it handles the move. A move the host hovers leaves the cursor to it too.
@@ -455,8 +529,9 @@ impl Lane {
         if logs_hover() {
             let outcome = match &hovered {
                 Ok(()) => format!("hovered {:?}", self.hovered.target.flatten().map(StyleNodeID::raw)),
-                Err(HoverDeclined::Unmoved(reason)) => format!("unmoved: {reason}"),
+                Err(HoverDeclined::Unmoved(reason) | HoverDeclined::Unplaced(reason)) => format!("unmoved: {reason}"),
                 Err(HoverDeclined::Same) => "unmoved: same element".to_string(),
+                Err(HoverDeclined::Handed(_)) => "handed to a same-process iframe".to_string(),
                 Err(HoverDeclined::Park(reason)) => format!("parked: {reason}"),
             };
             eprintln!(
@@ -469,11 +544,30 @@ impl Lane {
         match hovered {
             Ok(()) => Hovered::Moved,
             Err(HoverDeclined::Same) => Hovered::Same,
-            Err(HoverDeclined::Unmoved(_)) => Hovered::LeftToHost,
+            Err(HoverDeclined::Handed(container)) => Hovered::Handed(container),
+            Err(HoverDeclined::Unmoved(_) | HoverDeclined::Unplaced(_)) => Hovered::LeftToHost,
             Err(HoverDeclined::Park(_)) => {
                 self.hovered.park();
                 Hovered::LeftToHost
             }
+        }
+    }
+
+    /// Hands the pointer move `pointer` to the lane of the same-process iframe whose compositor context is `context`, at
+    /// `position` in its device pixels, which hovers what is there, and has the iframe it handed the pointer to before
+    /// hear that the pointer left it.
+    fn hand_pointer_to_nested(&mut self, context: u64, position: FloatPoint, pointer: PendingPointer) {
+        if self.hovered.nested.is_some_and(|nested| nested != context) {
+            self.leave_nested(pointer);
+        }
+        self.hovered.nested = Some(context);
+        hand_pointer_to_context(context, Some(position), pointer);
+    }
+
+    /// Has the iframe the hover handed the pointer to last hear that the pointer left it.
+    fn leave_nested(&mut self, pointer: PendingPointer) {
+        if let Some(nested) = self.hovered.nested.take() {
+            hand_pointer_to_context(nested, None, pointer);
         }
     }
 
@@ -492,6 +586,14 @@ impl Lane {
                     Some(hit.element)
                 }
                 HoverTarget::Unchanged => return Err(HoverDeclined::Unmoved("nothing the host hovers")),
+                HoverTarget::Nested {
+                    context,
+                    position,
+                    container,
+                } => {
+                    self.hand_pointer_to_nested(context, position, pointer);
+                    return Err(HoverDeclined::Handed(container));
+                }
             },
             // The pointer left the document, which the host hovers nothing in once it handles the leave.
             None => None,
@@ -914,7 +1016,7 @@ impl Lane {
         let recorder = self.recording.0.take(WaitsForTickRecording(()));
         let published = recorder.recorder.published_hit_test_items.clone();
         self.recording = TickRecording(Riding::landed(recorder));
-        let published = published.ok_or(HoverDeclined::Unmoved("no hit-test list"))?;
+        let published = published.ok_or(HoverDeclined::Unplaced("no hit-test list"))?;
         let arena = state.arena.arena();
         let tree = arena
             .paint_state()
@@ -922,11 +1024,11 @@ impl Lane {
             .visual_context
             .tree
             .clone()
-            .ok_or(HoverDeclined::Unmoved("no visual context tree"))?;
+            .ok_or(HoverDeclined::Unplaced("no visual context tree"))?;
         // The items name the visual contexts of the tree they were recorded against, which a hit test of the host's may
         // have built anew since without presenting it.
         if published.structural_epoch != tree.structural_epoch {
-            return Err(HoverDeclined::Unmoved("visual contexts the frame does not show"));
+            return Err(HoverDeclined::Unplaced("visual contexts the frame does not show"));
         }
         let mut list = HitTestList {
             items: std::sync::Arc::clone(&published.items),
@@ -953,10 +1055,26 @@ impl Lane {
         let paintable = item.paintable;
         let paintable_kind = arena
             .node_kind_if_live(paintable)
-            .ok_or(HoverDeclined::Unmoved("a box that is gone"))?;
-        // Content of another navigable takes the move, which leaves this document's hover where it is.
+            .ok_or(HoverDeclined::Unplaced("a box that is gone"))?;
+        // Content of another navigable takes the move, which leaves this document's hover where it is. A same-process
+        // iframe's document hovers it in its own lane, where the point falls in its content.
         if paintable_kind == NodeKind::NavigableContainerViewport {
-            return Ok(HoverTarget::Unchanged);
+            let facts = arena
+                .replaced_paint_facts(paintable)
+                .and_then(|facts| facts.navigable_container())
+                .filter(|facts| facts.has_composited_context);
+            let (Some(facts), Some(container)) = (facts, arena.dom_node_style_node(paintable)) else {
+                return Ok(HoverTarget::Unchanged);
+            };
+            let origin = crate::painting::paintable_geometry::absolute_rect(arena, paintable);
+            return Ok(HoverTarget::Nested {
+                container,
+                context: facts.composited_context_id,
+                position: FloatPoint {
+                    x: (topmost.local_point.x - origin.x).to_float() * pixel_ratio,
+                    y: (topmost.local_point.y - origin.y).to_float() * pixel_ratio,
+                },
+            });
         }
         // An image map's areas are the host's to hit test.
         if paintable_kind == NodeKind::ImageBox && arena.image_map_areas().has_areas(paintable) {

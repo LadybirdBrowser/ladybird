@@ -1802,7 +1802,7 @@ void Internals::set_manual_rendering_opportunities(bool enabled)
 {
     // A test that injects its rendering opportunities injects its clock ticks too: the clock lanes tick with the display
     // no more, and the frame in flight reaches the compositor first.
-    HTML::main_thread_event_loop().set_render_clock_is_manual_for_testing(enabled);
+    Compositor::RenderClock::the().set_manual_for_testing(enabled);
     if (enabled) {
         // A lane armed before ticks with the display until it declines a tick, at the compositor's own scroll offsets.
         Compositor::RenderClock::the().disarm_all_for_testing();

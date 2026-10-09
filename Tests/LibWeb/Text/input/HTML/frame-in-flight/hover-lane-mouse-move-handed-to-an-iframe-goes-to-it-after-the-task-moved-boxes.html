@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    iframe { display: block; width: 200px; height: 100px; border: 0; margin-left: 50px; }
+    #cover { position: absolute; left: 0; top: 200px; width: 300px; height: 100px; }
+</style>
+<iframe srcdoc="<style>body { margin: 0 } #inner { width: 100px; height: 100px }</style><div id=inner></div>"></iframe>
+<div id="cover"></div>
+<script>
+    // Beside a task that moves an element over a same-process iframe, the lane of the document hands a move over the
+    // iframe, as the screen shows it, to the iframe's lane, which hovers it. The rendering update after the task
+    // handles the mouse event of that move, which goes to the iframe's element under the pointer, as the screen showed
+    // it, not to the element the task moved there.
+    asyncTest(async done => {
+        const iframe = document.querySelector("iframe");
+        await srcdocLoaded(iframe);
+        const inner = iframe.contentDocument.getElementById("inner");
+        const targets = [];
+        cover.addEventListener("mousemove", () => targets.push("cover"));
+        inner.addEventListener("mousemove", () => targets.push("inner"));
+        await whileLaneHovers(frameTime => {
+            cover.style.top = "0px";
+            const id = internals.queueMouseMove(80, 50);
+            internals.injectHoverPointer(80, 50, frameTime + 16, id);
+            iframe.contentWindow.internals.injectClockTick(frameTime + 32);
+        }, [document, iframe.contentDocument]);
+        await twoFrames();
+        println(`mousemove targets: ${targets.join(", ")}`);
+        println(`#inner matches :hover: ${inner.matches(":hover")}`);
+        done();
+    });
+</script>

@@ -1,0 +1,3 @@
+#inner matches :hover: true
+transitions: 1
+transition starts at the step beside the task: true

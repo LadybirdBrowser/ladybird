@@ -35,6 +35,9 @@ pub(crate) struct LaneSlot {
     /// lanes in.
     presented: bool,
     last_move: Option<LaneMove>,
+    /// The compositor context of the same-process iframe the lanes' hover handed the pointer to last, until it left it:
+    /// the hover of the next lane hands it that the pointer left as well.
+    nested: Option<u64>,
     /// The serial number of the last rendering update that took in what the lanes did, until it, or an update after it,
     /// seals its plan, which follows the frame it presents: a lane presents nothing meanwhile, as the update's frame
     /// shows what it took in, which no frame of the lane goes back from. The plan of an update before it, which seals
@@ -260,6 +263,7 @@ impl LaneSlot {
             lanes: Lanes::None,
             presented: false,
             last_move: None,
+            nested: None,
             taken_in: None,
         })
     }
@@ -416,11 +420,13 @@ impl LaneSlot {
         if !animations_stand {
             lane.parked = true;
         }
+        lane.hovered.go_on_from_nested(self.nested);
         let ticked = lane.tick_on_fork(
             self.ticks.latest.load(Ordering::Acquire),
             pointer,
             samples_animations && animations_stand,
         );
+        self.nested = lane.hovered.nested();
         let Some(ticked) = ticked else {
             return;
         };

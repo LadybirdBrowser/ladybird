@@ -173,6 +173,7 @@ private:
     ContextState const* context_if_present(Web::CompositorContextId) const;
     Optional<u64> display_id_for_context(ContextState const&) const;
     ContextState const* root_context_of(ContextState const&) const;
+    bool nested_context_scrolled_since_last_frame(Web::CompositorContextId) const;
     bool context_is_effectively_visible(ContextState const&) const;
     void resume_presentation_after_becoming_visible(Web::CompositorContextId root_context_id, ContextState& root_context);
     double display_refresh_rate_for_context(ContextState const&) const;
