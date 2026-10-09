@@ -19,6 +19,7 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/Clipboard/ClipboardEvent.h>
+#include <LibWeb/Compositor/NavigablePresenter.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Range.h>
@@ -60,6 +61,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ChromeWidget.h>
+#include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/Painting/Scrollbar.h>
@@ -844,6 +846,20 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     // Hands the wheel input to the compositor, which scrolls from the offsets it holds now; the operation it starts
     // for the input is the one a caller follows.
     auto enqueue_async_scroll = [&](Gfx::FloatPoint delta_in_device_pixels) {
+        // NB: Layout reads can remove scrolling boxes before their updated tree reaches the compositor.
+        //     Only fall back when the presented display list refers to an older tree structure.
+        auto local_root = m_navigable->local_root();
+        if (local_root->needs_to_record_display_list() || local_root->has_recording_in_flight()) {
+            auto display_list = local_root->presenter().compositor_display_list();
+            auto root_document = local_root->active_document();
+            if (display_list && root_document && root_document->has_paint_state()) {
+                Layout::ForcedReadScope root_read { *root_document };
+                root_document->update_paint_and_hit_testing_properties_if_needed();
+                if (display_list->compatible_visual_context_tree_structural_epoch() != root_document->paint_state().visual_context_tree_structural_epoch_without_update(root_read))
+                    return false;
+            }
+        }
+
         auto viewport_rect = m_navigable->page().css_to_device_rect(m_navigable->viewport_rect()).to_type<int>();
         auto device_position = m_navigable->page().css_to_device_point(visual_viewport_position);
         auto async_scroll_position = Gfx::FloatPoint { static_cast<float>(device_position.x().value()), static_cast<float>(device_position.y().value()) };

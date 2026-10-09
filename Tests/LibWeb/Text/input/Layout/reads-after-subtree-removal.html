@@ -1,45 +1,72 @@
-<!DOCTYPE html>
+<!doctype html>
 <script src="../include.js"></script>
+<script src="../HTML/frame-in-flight/frame-in-flight.js"></script>
 <style>
-    body { margin: 0; height: 2000px; }
-    #scroller { width: 100px; height: 100px; overflow: scroll; }
-    #scroller > div { height: 300px; }
-    .box::before { content: "before"; }
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #scroller > div {
+        height: 300px;
+    }
+    .box::before {
+        content: "before";
+    }
 </style>
 <div id="container">
     <div id="scroller"><div class="box">scrolled text</div></div>
     <p id="survivor">survivor text</p>
-    <ul><li class="box">list item</li></ul>
+    <ul>
+        <li class="box">list item</li>
+    </ul>
 </div>
 <script>
     promiseTest(async () => {
         const container = document.getElementById("container");
         const survivor = document.getElementById("survivor");
-        await animationFrame();
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        internals.setManualRenderingOpportunities(true);
+        try {
+            const frame = animationFrame();
+            internals.injectRenderingOpportunity(performance.now());
+            await frame;
+            do await nextTask();
+            while (internals.frameSchedulerState() !== "idle" || internals.clockLaneIsComing(document));
 
-        // The removed subtree's layout nodes stay in the tree, without StyleNodeIDs, until the parent is rebuilt.
-        // Each read below updates layout first, which tears them down and rebuilds the parent after the removed
-        // nodes were collected.
-        container.replaceChildren(survivor);
-        internals.gc();
-        await internals.wheel(50, 50, 0, 100);
-        println(`Scroll offset after wheel: ${document.scrollingElement.scrollTop}`);
+            // Keep the removed scroller's frame in the compositor until the forced reads update the main-thread tree.
 
-        container.innerHTML = "<div class=box>inner text</div><span>more</span>";
-        internals.gc();
-        const hit = internals.hitTest(20, 10);
-        println(`Hit test lands on: ${hit.node.nodeName}`);
+            // The removed subtree's layout nodes stay in the tree, without StyleNodeIDs, until the parent is rebuilt.
+            // Each read below updates layout first, which tears them down and rebuilds the parent after the removed
+            // nodes were collected.
+            container.replaceChildren(survivor);
+            internals.gc();
+            await internals.wheel(50, 50, 0, 100);
+            println(`Scroll offset after wheel: ${document.scrollingElement.scrollTop}`);
 
-        container.replaceChildren(survivor);
-        internals.gc();
-        println(`Survivor has client rects: ${survivor.getClientRects().length > 0}`);
+            container.innerHTML = "<div class=box>inner text</div><span>more</span>";
+            internals.gc();
+            const hit = internals.hitTest(20, 10);
+            println(`Hit test lands on: ${hit.node.nodeName}`);
 
-        container.innerHTML = "find me";
-        internals.gc();
-        println(`Find in page: ${window.find("find me")}`);
+            container.replaceChildren(survivor);
+            internals.gc();
+            println(`Survivor has client rects: ${survivor.getClientRects().length > 0}`);
 
-        container.replaceChildren(survivor);
-        internals.gc();
-        println(internals.dumpLayoutTree(container).replace(/\n$/, ""));
+            container.innerHTML = "find me";
+            internals.gc();
+            println(`Find in page: ${window.find("find me")}`);
+
+            container.replaceChildren(survivor);
+            internals.gc();
+            println(internals.dumpLayoutTree(container).replace(/\n$/, ""));
+        } finally {
+            internals.setManualRenderingOpportunities(false);
+        }
     });
 </script>
