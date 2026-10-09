@@ -135,7 +135,7 @@ public:
 
     bool is_closing() const { return m_closing; }
 
-    void initialize_policy_container(GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ref<EnvironmentSettingsObject> environment);
+    void initialize_policy_container(GC::Ref<Fetch::Infrastructure::ResponseView const> response, GC::Ref<EnvironmentSettingsObject> environment);
     [[nodiscard]] bool check_embedder_policy(EmbedderPolicy const& owner_policy) const;
     [[nodiscard]] ContentSecurityPolicy::Directives::Directive::Result run_csp_initialization() const;
 

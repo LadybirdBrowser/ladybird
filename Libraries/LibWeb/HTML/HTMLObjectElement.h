@@ -74,14 +74,14 @@ private:
     bool has_ancestor_media_element_or_object_element_not_showing_fallback_content() const;
 
     void queue_element_task_to_run_object_representation_steps();
-    void run_object_representation_handler_steps(Fetch::Infrastructure::Response const&, MimeSniff::MimeType const&, ReadonlyBytes);
+    void run_object_representation_handler_steps(Fetch::Infrastructure::ResponseView const&, MimeSniff::MimeType const&, ReadonlyBytes);
     void run_object_representation_completed_steps(Representation);
     void run_object_representation_fallback_steps();
 
     void load_image();
     void update_layout_and_child_objects(Representation);
 
-    void resource_did_load(Fetch::Infrastructure::Response const&, ReadonlyBytes);
+    void resource_did_load(Fetch::Infrastructure::ResponseView const&, ReadonlyBytes);
     void resource_did_fail();
 
     // ^DOM::Element

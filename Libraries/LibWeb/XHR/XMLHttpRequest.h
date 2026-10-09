@@ -133,7 +133,7 @@ private:
     bool should_be_kept_alive() const;
     void update_activity_root();
 
-    XMLHttpRequest(GC::Ref<DOM::EventTarget> relevant_global_object, XMLHttpRequestUpload&, NonnullRefPtr<HTTP::HeaderList>, Fetch::Infrastructure::Response&, Fetch::Infrastructure::FetchController&);
+    XMLHttpRequest(GC::Ref<DOM::EventTarget> relevant_global_object, XMLHttpRequestUpload&, NonnullRefPtr<HTTP::HeaderList>, Fetch::Infrastructure::ResponseView&, Fetch::Infrastructure::FetchController&);
 
     // https://xhr.spec.whatwg.org/#upload-object
     // upload object
@@ -204,7 +204,7 @@ private:
     // https://xhr.spec.whatwg.org/#response
     // response
     //     A response, initially a network error.
-    GC::Ref<Fetch::Infrastructure::Response> m_response;
+    GC::Ref<Fetch::Infrastructure::ResponseView> m_response;
 
     // https://xhr.spec.whatwg.org/#received-bytes
     // received bytes

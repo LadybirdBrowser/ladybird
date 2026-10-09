@@ -86,7 +86,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectList.h>
@@ -787,7 +787,7 @@ void Element::download_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTM
     //    4. Handle as a download response with subject's node navigable and null.
     auto controller_holder = Fetch::Infrastructure::FetchControllerHolder::create();
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
-    fetch_algorithms_input.process_response = [navigable = GC::Ref { *navigable }, url, proposed_filename = move(proposed_filename), interface_origin = document().origin(), controller_holder](GC::Ref<Fetch::Infrastructure::Response> response) {
+    fetch_algorithms_input.process_response = [navigable = GC::Ref { *navigable }, url, proposed_filename = move(proposed_filename), interface_origin = document().origin(), controller_holder](GC::Ref<Fetch::Infrastructure::ResponseView> response) {
         if (response->is_network_error())
             return;
         navigable->handle_as_a_download(response->unsafe_response(), url, controller_holder->controller(), proposed_filename, interface_origin);

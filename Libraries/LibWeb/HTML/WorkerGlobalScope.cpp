@@ -194,7 +194,7 @@ NonnullRefPtr<PolicyContainer> WorkerGlobalScope::policy_container() const
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#initialize-worker-policy-container
-void WorkerGlobalScope::initialize_policy_container(GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ref<EnvironmentSettingsObject> environment)
+void WorkerGlobalScope::initialize_policy_container(GC::Ref<Fetch::Infrastructure::ResponseView const> response, GC::Ref<EnvironmentSettingsObject> environment)
 {
     // 1. If workerGlobalScope's url is local but its scheme is not "blob":
     if (m_url.has_value() && Fetch::Infrastructure::is_local_url(m_url.value()) && m_url->scheme() != "blob"sv) {

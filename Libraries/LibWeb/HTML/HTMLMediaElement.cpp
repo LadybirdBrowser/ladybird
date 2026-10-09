@@ -32,7 +32,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/HTML/AudioTrack.h>
 #include <LibWeb/HTML/AudioTrackList.h>
@@ -1895,7 +1895,7 @@ void HTMLMediaElement::load_local_resource(MediaProvider const& media_provider, 
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#verify-a-media-response
-Optional<Utf16String> HTMLMediaElement::verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response> response, ByteRange const& byte_range)
+Optional<Utf16String> HTMLMediaElement::verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::ResponseView> response, ByteRange const& byte_range)
 {
     // 1. If response is a network error, then return false.
     if (response->is_network_error()) {

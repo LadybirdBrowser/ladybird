@@ -377,6 +377,7 @@ set(SOURCES
     Fetch/Infrastructure/HTTP/MIME.cpp
     Fetch/Infrastructure/HTTP/Requests.cpp
     Fetch/Infrastructure/HTTP/Responses.cpp
+    Fetch/Infrastructure/HTTP/ResponseView.cpp
     Fetch/Infrastructure/IncrementalReadLoopReadRequest.cpp
     Fetch/Infrastructure/KeepaliveQuotaAccountant.cpp
     Fetch/Infrastructure/MimeTypeBlocking.cpp

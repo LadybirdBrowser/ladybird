@@ -237,7 +237,7 @@ void FontLoader::font_did_load_or_fail(RefPtr<Gfx::Typeface const> typeface)
     m_fetch_controller = nullptr;
 }
 
-Optional<ByteString> FontLoader::try_load_font_mime_type_essence(Fetch::Infrastructure::Response const& response, ByteBuffer const& bytes)
+Optional<ByteString> FontLoader::try_load_font_mime_type_essence(Fetch::Infrastructure::ResponseView const& response, ByteBuffer const& bytes)
 {
     // FIXME: This could maybe use the format() provided in @font-face as well, since often the mime type is just application/octet-stream and we have to try every format
     auto mime_type = Fetch::Infrastructure::extract_mime_type(response.header_list());

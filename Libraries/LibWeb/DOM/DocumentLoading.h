@@ -9,6 +9,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 
@@ -64,7 +65,7 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::LocalNav
         move(navigation_id),
         navigable,
         nullptr,
-        response,
+        Fetch::Infrastructure::ResponseView::create(response),
         nullptr,
         nullptr,
         move(coop_enforcement_result),

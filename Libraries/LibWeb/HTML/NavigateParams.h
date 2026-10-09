@@ -32,7 +32,7 @@ struct NavigateParams {
     URL::URL url;
     GC::Ptr<DOM::Document> source_document = nullptr;
     DocumentResource document_resource = Empty {};
-    GC::Ptr<Fetch::Infrastructure::Response> response = nullptr;
+    GC::Ptr<Fetch::Infrastructure::ResponseView> response = nullptr;
     bool exceptions_enabled = false;
     Bindings::NavigationHistoryBehavior history_handling = Bindings::NavigationHistoryBehavior::Auto;
     Optional<StorageSerializationRecord> navigation_api_state = {};
@@ -49,7 +49,7 @@ struct NavigateParams {
 struct PreparedNavigation {
     URL::URL url;
     DocumentResource document_resource;
-    GC::Ptr<Fetch::Infrastructure::Response> response;
+    GC::Ptr<Fetch::Infrastructure::ResponseView> response;
     Bindings::NavigationHistoryBehavior history_handling;
     Optional<StorageSerializationRecord> navigation_api_state;
     Optional<GC::ConservativeVector<XHR::FormDataEntry>> form_data_entry_list;

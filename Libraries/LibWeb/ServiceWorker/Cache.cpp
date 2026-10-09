@@ -30,7 +30,7 @@ namespace Web::ServiceWorker {
 GC_DEFINE_ALLOCATOR(Cache);
 GC_DEFINE_ALLOCATOR(CacheBatchOperation);
 
-static void resolve_cache_response_list(JS::Realm& realm, WebIDL::Promise& promise, GC::Ref<GC::HeapVector<GC::Ref<Fetch::Infrastructure::Response>>> responses)
+static void resolve_cache_response_list(JS::Realm& realm, WebIDL::Promise& promise, GC::Ref<GC::HeapVector<GC::Ref<Fetch::Infrastructure::ResponseView>>> responses)
 {
     auto response_list = GC::Heap::the().allocate<GC::HeapVector<JS::Value>>();
 
@@ -156,7 +156,7 @@ void Cache::match_all(JS::Realm& realm, Optional<Fetch::RequestInfo> request, Ca
     // 5. Run these substeps in parallel:
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, &realm, inner_request, promise, request = move(request), options]() {
         // 1. Let responses be an empty list.
-        auto responses = GC::Heap::the().allocate<GC::HeapVector<GC::Ref<Fetch::Infrastructure::Response>>>();
+        auto responses = GC::Heap::the().allocate<GC::HeapVector<GC::Ref<Fetch::Infrastructure::ResponseView>>>();
 
         // 2. If the optional argument request is omitted, then:
         if (!request.has_value()) {
@@ -291,7 +291,7 @@ void Cache::add_all(JS::Realm& realm, ReadonlySpan<Fetch::RequestInfo> requests,
             Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
 
             // * To processResponse for response, run these substeps:
-            fetch_algorithms_input.process_response = [&realm, fetch_controllers, response_promise](GC::Ref<Fetch::Infrastructure::Response> response) {
+            fetch_algorithms_input.process_response = [&realm, fetch_controllers, response_promise](GC::Ref<Fetch::Infrastructure::ResponseView> response) {
                 HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
                 bool did_reject_promise = false;
 
@@ -371,7 +371,7 @@ void Cache::add_all(JS::Realm& realm, ReadonlySpan<Fetch::RequestInfo> requests,
             // 3. For each response in responses:
             for (size_t index = 0; index < responses.indexed_array_like_size(); ++index) {
                 auto response_value = TRY(responses.get(index));
-                auto& response = as<Fetch::Infrastructure::Response>(response_value.as_cell());
+                auto& response = as<Fetch::Infrastructure::ResponseView>(response_value.as_cell());
 
                 // 1. Let operation be a cache batch operation.
                 auto operation = GC::Heap::the().allocate<CacheBatchOperation>(
@@ -751,7 +751,7 @@ void Cache::keys(JS::Realm& realm, Optional<Fetch::RequestInfo> request, CacheQu
 static bool request_matches_cached_item(
     NonnullRefPtr<Fetch::Infrastructure::Request> request_query,
     NonnullRefPtr<Fetch::Infrastructure::Request> request,
-    GC::Ptr<Fetch::Infrastructure::Response> response,
+    GC::Ptr<Fetch::Infrastructure::ResponseView> response,
     CacheQueryOptions options)
 {
     // 1. If options["ignoreMethod"] is false and request’s method is not `GET`, return false.

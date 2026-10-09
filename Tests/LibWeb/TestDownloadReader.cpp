@@ -8,7 +8,7 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/FontPlugin.h>
@@ -85,7 +85,7 @@ TEST_CASE(download_reader_is_registered_with_page_client)
 
     auto response = Web::Fetch::Infrastructure::Response::create(vm);
     response->set_body(Web::Fetch::Infrastructure::byte_sequence_as_body(*realm, "download contents"sv.bytes()));
-    traversable->handle_as_a_download(response, URL::about_blank(), nullptr, "download.txt", {});
+    traversable->handle_as_a_download(Web::Fetch::Infrastructure::ResponseView::create(response), URL::about_blank(), nullptr, "download.txt", {});
 
     EXPECT(client->m_registered_download_id.has_value());
     if (!client->m_registered_download_id.has_value())

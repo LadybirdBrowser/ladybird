@@ -33,7 +33,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
@@ -140,7 +140,7 @@ static ByteBuffer take_body_bytes_as_byte_buffer(Fetch::Infrastructure::FetchAlg
     return body_bytes.get<Core::ImmutableBytes>().copy_to_byte_buffer().release_value_but_fixme_should_propagate_errors();
 }
 
-static Optional<BytecodeCacheContext> bytecode_cache_context_for_request(Fetch::Infrastructure::Request const& request, Fetch::Infrastructure::Response const& response, URL::URL const& response_url)
+static Optional<BytecodeCacheContext> bytecode_cache_context_for_request(Fetch::Infrastructure::Request const& request, Fetch::Infrastructure::ResponseView const& response, URL::URL const& response_url)
 {
     if (!Fetch::Infrastructure::is_http_or_https_scheme(response_url.scheme()))
         return {};
@@ -895,7 +895,7 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     auto& realm = settings_object.realm();
 
     // 1. Let response be null.
-    IGNORE_USE_IN_ESCAPING_LAMBDA GC::Ptr<Fetch::Infrastructure::Response> response = nullptr;
+    IGNORE_USE_IN_ESCAPING_LAMBDA GC::Ptr<Fetch::Infrastructure::ResponseView> response = nullptr;
 
     // 2. Let bodyBytes be null.
     Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes;
@@ -910,7 +910,7 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     request->set_parser_metadata(Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted);
     request->set_use_url_credentials(true);
 
-    auto process_response_consume_body = [&response, &body_bytes](GC::Ref<Fetch::Infrastructure::Response> res, Fetch::Infrastructure::FetchAlgorithms::BodyBytes bb) {
+    auto process_response_consume_body = [&response, &body_bytes](GC::Ref<Fetch::Infrastructure::ResponseView> res, Fetch::Infrastructure::FetchAlgorithms::BodyBytes bb) {
         // 1. Set bodyBytes to bb.
         body_bytes = move(bb);
 
@@ -1098,7 +1098,7 @@ void fetch_single_module_script(JS::Realm& realm,
     // 13. If performFetch was given, run performFetch with request, isTopLevel, and with processResponseConsumeBody as defined below.
     //     Otherwise, fetch request with processResponseConsumeBody set to processResponseConsumeBody as defined below.
     //     In both cases, let processResponseConsumeBody given response response and null, failure, or a byte sequence bodyBytes be the following algorithm:
-    auto process_response_consume_body = [request, &module_map, url, module_type, &settings_object, options = options](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) mutable {
+    auto process_response_consume_body = [request, &module_map, url, module_type, &settings_object, options = options](GC::Ref<Fetch::Infrastructure::ResponseView> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) mutable {
         auto internal_response = response->unsafe_response();
 
         // 1. If any of the following are true:
@@ -1124,7 +1124,7 @@ void fetch_single_module_script(JS::Realm& realm,
         // INTEROP: Other browsers also honor the header of a CORS cross-origin response, whose filtered header list
         //          hides it. The policy only applies to the fetches of this module's descendants, whose referrer is
         //          this module's own URL.
-        auto referrer_policy = ReferrerPolicy::parse_a_referrer_policy_from_a_referrer_policy_header(*internal_response);
+        auto referrer_policy = ReferrerPolicy::parse_a_referrer_policy_from_a_referrer_policy_header(internal_response->record());
 
         // 5. If referrerPolicy is not the empty string, set options's referrer policy to referrerPolicy.
         if (referrer_policy != ReferrerPolicy::ReferrerPolicy::EmptyString)

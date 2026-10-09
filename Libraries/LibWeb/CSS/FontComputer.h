@@ -174,7 +174,7 @@ public:
 private:
     virtual void visit_edges(Visitor&) override;
 
-    Optional<ByteString> try_load_font_mime_type_essence(Fetch::Infrastructure::Response const&, ByteBuffer const&);
+    Optional<ByteString> try_load_font_mime_type_essence(Fetch::Infrastructure::ResponseView const&, ByteBuffer const&);
 
     void font_did_load_or_fail(RefPtr<Gfx::Typeface const>);
 

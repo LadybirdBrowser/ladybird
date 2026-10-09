@@ -159,7 +159,7 @@ public:
         return GC::Heap::the().allocate<UpdateAlgorithmState>();
     }
 
-    OrderedHashMap<URL::URL, GC::Ref<Fetch::Infrastructure::Response>>& updated_resource_map() { return m_map; }
+    OrderedHashMap<URL::URL, GC::Ref<Fetch::Infrastructure::ResponseView>>& updated_resource_map() { return m_map; }
     bool has_updated_resources() const { return m_has_updated_resources; }
     void set_has_updated_resources(bool b) { m_has_updated_resources = b; }
 
@@ -172,7 +172,7 @@ private:
         visitor.visit(m_map);
     }
 
-    OrderedHashMap<URL::URL, GC::Ref<Fetch::Infrastructure::Response>> m_map;
+    OrderedHashMap<URL::URL, GC::Ref<Fetch::Infrastructure::ResponseView>> m_map;
     bool m_has_updated_resources { false };
 };
 
@@ -258,7 +258,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
         //        Is this actually what the spec wants us to do?
         IGNORE_USE_IN_ESCAPING_LAMBDA auto process_response_completion_result = Optional<WebIDL::ExceptionOr<void>> {};
 
-        fetch_algorithms_input.process_response = [request, job, state, newest_worker, &registration, &process_response_completion_result](GC::Ref<Fetch::Infrastructure::Response> response) mutable -> void {
+        fetch_algorithms_input.process_response = [request, job, state, newest_worker, &registration, &process_response_completion_result](GC::Ref<Fetch::Infrastructure::ResponseView> response) mutable -> void {
             // 7. Extract a MIME type from the response’s header list. If s MIME type (ignoring parameters) is not a JavaScript MIME type, then:
             auto mime_type = Fetch::Infrastructure::extract_mime_type(response->header_list());
             if (!mime_type.has_value() || !mime_type->is_javascript()) {

@@ -6,7 +6,7 @@
 
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/NavigateParams.h>
 #include <LibWeb/HTML/Navigation.h>
