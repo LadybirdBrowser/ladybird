@@ -5,6 +5,7 @@
  */
 
 use core::cell::{Cell, RefCell};
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use ak::{Utf16FlyString, Utf16String};
@@ -71,7 +72,10 @@ pub struct SharedFunctionInstanceDataStorage {
     source_text_length: Cell<usize>, // [[SourceText]]
 
     function_length: i32,
-    parameter_names_for_mapped_arguments: Vec<Utf16FlyString>,
+    /// The name each argument index of a mapped arguments object maps to, which is empty where a later parameter has
+    /// the same name.
+    #[gc(untraced)]
+    mapped_argument_names: Rc<[Utf16FlyString]>,
 
     #[gc(untraced)]
     this_mode: ThisMode, // [[ThisMode]]
@@ -148,6 +152,24 @@ unsafe impl Trace for SharedFunctionInstanceData {
     }
 }
 
+/// OPTIMIZATION: Precompute the argument indices that alias parameter bindings. Only the last occurrence of each
+///               parameter name is eligible; each arguments object also limits the mapping to its argument count.
+///               https://tc39.es/ecma262/#sec-createmappedargumentsobject
+fn mapped_argument_names(parameter_names: Vec<Utf16FlyString>) -> Rc<[Utf16FlyString]> {
+    let mut seen_names = HashSet::with_capacity(parameter_names.len());
+    let mut mapped_names: Vec<Utf16FlyString> = vec![Utf16FlyString::default(); parameter_names.len()];
+
+    for index in (0..parameter_names.len()).rev() {
+        let name = &parameter_names[index];
+        // OPTIMIZATION: A hash set avoids scanning later parameters for every name.
+        if !seen_names.insert(name) {
+            continue;
+        }
+        mapped_names[index] = name.clone();
+    }
+    mapped_names.into()
+}
+
 impl SharedFunctionInstanceData {
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -186,7 +208,7 @@ impl SharedFunctionInstanceData {
                 source_text_offset: Cell::new(0),
                 source_text_length: Cell::new(0),
                 function_length,
-                parameter_names_for_mapped_arguments,
+                mapped_argument_names: mapped_argument_names(parameter_names_for_mapped_arguments),
                 this_mode,
                 kind,
                 might_need_arguments_object: Cell::new(true),
@@ -630,8 +652,8 @@ impl SharedFunctionInstanceData {
         self.formal_parameter_count.get()
     }
 
-    pub fn parameter_names_for_mapped_arguments(&self) -> &[Utf16FlyString] {
-        &self.storage.parameter_names_for_mapped_arguments
+    pub fn mapped_argument_names(&self) -> Rc<[Utf16FlyString]> {
+        self.storage.mapped_argument_names.clone()
     }
 
     pub fn strict(&self) -> bool {

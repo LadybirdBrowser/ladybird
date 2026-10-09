@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
 use core::ops::Deref;
+use std::rc::Rc;
 
 use ak::Utf16FlyString;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{GcCell, define_cell};
-use crate::gc::gc_ref_cell::GcRefCell;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::environment::Environment;
@@ -34,7 +34,16 @@ use crate::runtime::value::same_value;
 pub struct ArgumentsObject {
     base: Object,
     environment: Cell<Gc<Environment>>,
-    mapped_names: GcRefCell<Vec<Utf16FlyString>>,
+    #[gc(untraced)]
+    parameter_map: RefCell<ParameterMap>,
+}
+
+/// The [[ParameterMap]] of an arguments object: the names of the parameters the indices below `mapped_count` map to,
+/// which it shares with every arguments object of its function, except the indices it no longer maps.
+struct ParameterMap {
+    names: Rc<[Utf16FlyString]>,
+    mapped_count: usize,
+    unmapped: Vec<bool>,
 }
 
 pub static ARGUMENTS_OBJECT_METHODS: ObjectMethods = ObjectMethods {
@@ -79,27 +88,39 @@ impl ArgumentsObject {
                     },
                 ),
                 environment: Cell::new(environment),
-                mapped_names: GcRefCell::new(Vec::new()),
+                parameter_map: RefCell::new(ParameterMap {
+                    names: Rc::from([]),
+                    mapped_count: 0,
+                    unmapped: Vec::new(),
+                }),
             },
         )
     }
 
-    pub fn set_mapped_names(&self, mapped_names: Vec<Utf16FlyString>) {
-        self.mapped_names.replace(mapped_names);
+    /// Maps the indices below `mapped_count` to the parameters `names` gives them, where they have one.
+    pub fn set_parameter_map(&self, names: Rc<[Utf16FlyString]>, mapped_count: usize) {
+        assert!(mapped_count <= names.len());
+        *self.parameter_map.borrow_mut() = ParameterMap {
+            names,
+            mapped_count,
+            unmapped: Vec::new(),
+        };
     }
 
     fn parameter_map_has(&self, property_key: &PropertyKey) -> bool {
         if !property_key.is_number() {
             return false;
         }
-        let mapped_names = self.mapped_names.borrow();
+        let parameter_map = self.parameter_map.borrow();
         let index = property_key.as_number() as usize;
-        index < mapped_names.len() && !mapped_names[index].is_empty()
+        index < parameter_map.mapped_count
+            && !parameter_map.names[index].is_empty()
+            && !parameter_map.unmapped.get(index).copied().unwrap_or(false)
     }
 
     /// The name of the parameter `property_key` is mapped to, copied out since using it calls into the environment.
     fn mapped_name(&self, property_key: &PropertyKey) -> Utf16FlyString {
-        self.mapped_names.borrow()[property_key.as_number() as usize].clone()
+        self.parameter_map.borrow().names[property_key.as_number() as usize].clone()
     }
 
     // 10.4.4.3 [[Get]] ( P, Receiver ), https://tc39.es/ecma262/#sec-arguments-exotic-objects-get-p-receiver
@@ -292,7 +313,12 @@ impl ArgumentsObject {
     }
 
     fn delete_from_parameter_map(&self, property_key: &PropertyKey) {
-        self.mapped_names.borrow_mut()[property_key.as_number() as usize] = Utf16FlyString::default();
+        let mut parameter_map = self.parameter_map.borrow_mut();
+        if parameter_map.unmapped.is_empty() {
+            let mapped_count = parameter_map.mapped_count;
+            parameter_map.unmapped.resize(mapped_count, false);
+        }
+        parameter_map.unmapped[property_key.as_number() as usize] = true;
     }
 
     fn get_from_parameter_map(&self, vm: &Vm, property_key: &PropertyKey) -> Value {
