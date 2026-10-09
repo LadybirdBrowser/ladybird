@@ -323,7 +323,7 @@ void AudioPlaybackSink::create_playback_stream()
 
     m_started_creating_playback_stream = true;
 
-    auto data_callback = [output_thread_data = m_output_thread_data](Span<float> buffer) -> ReadonlySpan<float> {
+    auto data_callback = [output_thread_data = m_output_thread_data](Span<float> buffer, MonotonicTime) -> ReadonlySpan<float> {
         return output_thread_data->move_output_to_playback_stream_buffer(buffer);
     };
     constexpr u32 target_latency_ms = 100;

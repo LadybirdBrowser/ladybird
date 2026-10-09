@@ -41,7 +41,7 @@ enum class PulseAudioContextState {
 
 enum class PulseAudioErrorCode;
 
-using PulseAudioDataRequestCallback = Function<ReadonlySpan<float>(PulseAudioStream&, Span<float> buffer)>;
+using PulseAudioDataRequestCallback = Function<ReadonlySpan<float>(PulseAudioStream&, Span<float> buffer, MonotonicTime buffer_starts_playing_at)>;
 // Receives captured audio as interleaved float32 LE samples matching the record stream's
 // sample specification. Invoked on the PulseAudio main-loop thread; implementations must
 // hand the data off to whichever thread wants to consume it without blocking.
@@ -154,6 +154,7 @@ private:
     ErrorOr<void> wait_for_operation(pa_operation*, StringView error_message);
 
     void on_write_requested(size_t bytes_to_write);
+    MonotonicTime next_write_starts_playing_at();
     void queue_a_write_while_locked();
 
     NonnullRefPtr<PulseAudioContext> m_context;

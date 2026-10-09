@@ -45,8 +45,8 @@ NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStreamPulseAudio::create(Ou
     // Create the control thread and start it.
     auto thread = MUST(Threading::Thread::try_create("Audio Control"sv, [=, &main_thread_event_loop, data_request_callback = move(data_request_callback)]() mutable {
         auto context = TRY_OR_REJECT_AND_EXIT(PulseAudioContext::the());
-        internal_state->set_stream(TRY_OR_REJECT_AND_EXIT(context->create_stream(initial_state, target_latency_ms, [data_request_callback = move(data_request_callback)](PulseAudioStream&, Span<float> buffer) {
-            return data_request_callback(buffer);
+        internal_state->set_stream(TRY_OR_REJECT_AND_EXIT(context->create_stream(initial_state, target_latency_ms, [data_request_callback = move(data_request_callback)](PulseAudioStream&, Span<float> buffer, MonotonicTime buffer_starts_playing_at) {
+            return data_request_callback(buffer, buffer_starts_playing_at);
         })));
 
         // PulseAudio retains the last volume it sets for an application. We want to consistently

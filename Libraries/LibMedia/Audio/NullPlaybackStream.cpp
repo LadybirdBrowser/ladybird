@@ -213,8 +213,12 @@ private:
     intptr_t thread_main()
     {
         auto const channel_count = sample_specification().channel_count();
+        struct DataRequest {
+            i64 frame_count;
+            MonotonicTime buffer_starts_playing_at;
+        };
         while (true) {
-            Optional<i64> frames_to_request;
+            Optional<DataRequest> data_request;
             Optional<i64> wake_at_played_frame;
             Vector<Function<void()>> ready_completions;
             bool stopped = false;
@@ -240,7 +244,8 @@ private:
                         else
                             wake_at_played_frame = m_frames_written;
                     } else if (m_frames_written - frames_played <= m_target_lookahead_frames - PERIOD_FRAMES) {
-                        frames_to_request = m_target_lookahead_frames - (m_frames_written - frames_played);
+                        auto queued_frames = m_frames_written - frames_played;
+                        data_request = DataRequest { m_target_lookahead_frames - queued_frames, now + AK::Duration::from_time_units(queued_frames, 1, NULL_OUTPUT_SAMPLE_RATE) };
                         m_data_notified = false;
                     } else {
                         wake_at_played_frame = m_frames_written - m_target_lookahead_frames + PERIOD_FRAMES;
@@ -267,10 +272,10 @@ private:
             if (stopped)
                 return 0;
 
-            if (frames_to_request.has_value()) {
-                auto requested_frames = static_cast<size_t>(frames_to_request.value());
+            if (data_request.has_value()) {
+                auto requested_frames = static_cast<size_t>(data_request.value().frame_count);
                 m_request_buffer.resize(requested_frames * channel_count);
-                auto written_samples = m_data_request_callback(m_request_buffer.span());
+                auto written_samples = m_data_request_callback(m_request_buffer.span(), data_request.value().buffer_starts_playing_at);
                 auto written_frames = min(requested_frames, written_samples.size() / channel_count);
 
                 MutexLocker locker(m_mutex);

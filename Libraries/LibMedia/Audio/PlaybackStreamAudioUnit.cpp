@@ -18,6 +18,7 @@
 
 #include <AudioToolbox/AudioFormat.h>
 #include <AudioUnit/AudioUnit.h>
+#include <mach/mach_time.h>
 
 namespace Audio {
 
@@ -299,7 +300,14 @@ private:
                 state.m_sample_time_at_resume = sample_time;
             }
 
-            auto written_buffer = state.m_data_request_callback(output_buffer);
+            auto buffer_starts_playing_at = MonotonicTime::now();
+            if (time_stamp->mFlags & kAudioTimeStampHostTimeValid) {
+                // The buffer rendered here is played at the host time stamp.
+                auto host_now = mach_absolute_time();
+                if (time_stamp->mHostTime > host_now)
+                    buffer_starts_playing_at += AK::Duration::from_nanoseconds(host_ticks_to_nanoseconds(time_stamp->mHostTime - host_now));
+            }
+            auto written_buffer = state.m_data_request_callback(output_buffer, buffer_starts_playing_at);
             state.m_frames_written += static_cast<i64>(written_buffer.size() / state.m_sample_specification.channel_count());
             output_buffer.slice(written_buffer.size()).fill(0);
 
@@ -333,6 +341,16 @@ private:
     i64 m_frames_written_at_resume { 0 };
     i64 m_frames_written { 0 };
     Atomic<i64> m_output_time { 0 };
+
+    static i64 host_ticks_to_nanoseconds(u64 ticks)
+    {
+        static mach_timebase_info_data_t const timebase = [] {
+            mach_timebase_info_data_t info;
+            VERIFY(mach_timebase_info(&info) == KERN_SUCCESS);
+            return info;
+        }();
+        return static_cast<i64>(ticks * timebase.numer / timebase.denom);
+    }
 };
 
 NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create_platform_playback_stream(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback&& data_request_callback)

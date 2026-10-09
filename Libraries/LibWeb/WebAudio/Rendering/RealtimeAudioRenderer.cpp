@@ -44,7 +44,7 @@ void RealtimeAudioRenderer::start_rendering()
 
     // The stream is created in a suspended state so the device configuration can be recorded before the first data
     // request callback runs on the audio thread.
-    auto promise = Audio::PlaybackStream::create_platform_or_null(Audio::OutputState::Suspended, TARGET_LATENCY_MS, [self = NonnullRefPtr(*this)](Span<float> buffer) { return self->fill_output_buffer(buffer); });
+    auto promise = Audio::PlaybackStream::create_platform_or_null(Audio::OutputState::Suspended, TARGET_LATENCY_MS, [self = NonnullRefPtr(*this)](Span<float> buffer, MonotonicTime) { return self->fill_output_buffer(buffer); });
     promise->when_resolved([self = NonnullRefPtr(*this)](NonnullRefPtr<Audio::PlaybackStream>& stream) {
         self->set_playback_stream(stream);
     });
@@ -53,7 +53,7 @@ void RealtimeAudioRenderer::start_rendering()
 void RealtimeAudioRenderer::start_rendering_with_null_output()
 {
     prepare_to_start_rendering();
-    set_playback_stream(Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, TARGET_LATENCY_MS, [self = NonnullRefPtr(*this)](Span<float> buffer) { return self->fill_output_buffer(buffer); }));
+    set_playback_stream(Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, TARGET_LATENCY_MS, [self = NonnullRefPtr(*this)](Span<float> buffer, MonotonicTime) { return self->fill_output_buffer(buffer); }));
 }
 
 void RealtimeAudioRenderer::prepare_to_start_rendering()

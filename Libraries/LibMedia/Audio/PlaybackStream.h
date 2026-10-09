@@ -30,7 +30,7 @@ enum class OutputState {
 class MEDIA_API PlaybackStream : public AtomicRefCounted<PlaybackStream> {
 public:
     using CreatePromise = Core::Promise<NonnullRefPtr<PlaybackStream>>;
-    using AudioDataRequestCallback = Function<ReadonlySpan<float>(Span<float> buffer)>;
+    using AudioDataRequestCallback = Function<ReadonlySpan<float>(Span<float> buffer, MonotonicTime buffer_starts_playing_at)>;
 
     // Begins creating a new audio output and returns a promise that is resolved when it is ready. This first attempts
     // the platform backend and falls back to a null stream if no usable output device is available. The initial output
