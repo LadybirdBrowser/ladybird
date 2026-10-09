@@ -11,6 +11,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/IncrementalReadLoopReadRequest.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Streams/ReadableStream.h>
@@ -136,13 +137,19 @@ void Body::wait_for_sniff_bytes(SniffBytesCallback on_ready)
 
 void Body::notify_sniff_bytes_waiter()
 {
-    if (!m_sniff_bytes_callback)
+    if (!m_sniff_bytes_callback || m_sniff_bytes_wake_queued || !sniff_bytes_if_available().has_value())
         return;
-    auto sniff_bytes = sniff_bytes_if_available();
-    if (!sniff_bytes.has_value())
-        return;
-    auto callback = exchange(m_sniff_bytes_callback, nullptr);
-    callback->function()(sniff_bytes.value());
+
+    m_sniff_bytes_wake_queued = true;
+    auto steps = GC::create_function(heap(), [body = GC::Ref { *this }] {
+        body->m_sniff_bytes_wake_queued = false;
+        auto sniff_bytes = body->sniff_bytes_if_available();
+        if (!body->m_sniff_bytes_callback || !sniff_bytes.has_value())
+            return;
+        auto callback = exchange(body->m_sniff_bytes_callback, nullptr);
+        callback->function()(sniff_bytes.value());
+    });
+    HTML::queue_a_task(HTML::Task::Source::Networking, HTML::main_thread_event_loop(), nullptr, steps);
 }
 
 void Body::when_network_complete(ProcessEndOfBodyCallback callback)
