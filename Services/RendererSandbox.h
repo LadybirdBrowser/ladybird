@@ -11,14 +11,8 @@
 
 namespace RendererSandbox {
 
-// NB: Only the renderer that hosts a Window plays or captures audio. Granting a renderer access to
-//     the audio server also grants it the whole UNIX socket namespace, so WebWorker must not ask
-//     for it.
-enum class AudioAccess {
-    No,
-    Yes,
-};
-
-[[nodiscard]] ErrorOr<void> apply_sandbox(StringView mach_server_name, AudioAccess);
+// NB: No renderer reaches the audio stack: playback, capture and device enumeration all go through the
+//     AudioServer. On Linux, reaching the audio server would mean the whole UNIX socket namespace.
+[[nodiscard]] ErrorOr<void> apply_sandbox(StringView mach_server_name);
 
 }

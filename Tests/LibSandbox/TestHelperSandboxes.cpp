@@ -134,10 +134,8 @@ TEST_CASE(compositor_sees_the_displays)
 TEST_CASE(renderer_cannot_touch_other_applications_caches)
 {
     OtherApplicationCache other_application;
-    for (auto audio_access : { RendererSandbox::AudioAccess::Yes, RendererSandbox::AudioAccess::No }) {
-        for (auto flags : { O_RDONLY, O_WRONLY })
-            EXPECT_EQ(run_in_helper_sandbox([&] { return RendererSandbox::apply_sandbox({}, audio_access); }, [&] { return can_open(other_application.file, flags); }), Outcome::Denied);
-    }
+    for (auto flags : { O_RDONLY, O_WRONLY })
+        EXPECT_EQ(run_in_helper_sandbox([&] { return RendererSandbox::apply_sandbox({}); }, [&] { return can_open(other_application.file, flags); }), Outcome::Denied);
 }
 
 TEST_CASE(renderer_cannot_touch_profile_cache)
@@ -153,10 +151,8 @@ TEST_CASE(renderer_cannot_touch_profile_cache)
         rmdir(cache_path.characters());
     };
 
-    for (auto audio_access : { RendererSandbox::AudioAccess::Yes, RendererSandbox::AudioAccess::No }) {
-        for (auto flags : { O_RDONLY, O_WRONLY })
-            EXPECT_EQ(run_in_helper_sandbox([&] { return RendererSandbox::apply_sandbox({}, audio_access); }, [&] { return can_open(cached_response, flags); }), Outcome::Denied);
-    }
+    for (auto flags : { O_RDONLY, O_WRONLY })
+        EXPECT_EQ(run_in_helper_sandbox([&] { return RendererSandbox::apply_sandbox({}); }, [&] { return can_open(cached_response, flags); }), Outcome::Denied);
 }
 
 struct HelperSignature {

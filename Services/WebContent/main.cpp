@@ -25,7 +25,6 @@
 #include <LibMedia/Audio/ClientConnection.h>
 #include <LibMediaClient/Client.h>
 #include <LibRequests/RequestClient.h>
-#include <LibSandbox/ConnectBroker.h>
 #include <LibUnicode/TimeZone.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
@@ -123,7 +122,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     StringView mach_server_name {};
     Vector<ByteString> certificates;
     int crash_report_fd = -1;
-    int connect_broker_fd = -1;
     bool enable_test_mode = false;
     bool expose_experimental_interfaces = false;
     bool expose_internals_object = false;
@@ -141,7 +139,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     Core::ArgsParser args_parser;
     args_parser.add_option(crash_report_fd, "Descriptor for anonymous crash diagnostics", "crash-report-fd", 0, "fd");
-    args_parser.add_option(connect_broker_fd, "Descriptor for the sandbox connection broker", "connect-broker-fd", 0, "fd");
     args_parser.add_option(enable_test_mode, "Enable test mode", "test-mode");
     args_parser.add_option(expose_experimental_interfaces, "Expose experimental IDL interfaces", "expose-experimental-interfaces");
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
@@ -216,13 +213,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         JS::set_log_all_js_exceptions(true);
     }
 
-#if defined(AK_OS_LINUX)
-    if (connect_broker_fd != -1)
-        Sandbox::set_connect_broker_fd(connect_broker_fd);
-#endif
-
     if (!disable_sandbox)
-        TRY(RendererSandbox::apply_sandbox(mach_server_name, RendererSandbox::AudioAccess::Yes));
+        TRY(RendererSandbox::apply_sandbox(mach_server_name));
 
 #if defined(AK_OS_MACOS)
     auto browser_port = TRY(Core::MachPort::look_up_from_bootstrap_server(ByteString { mach_server_name }));

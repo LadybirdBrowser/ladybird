@@ -59,9 +59,9 @@ TEST_CASE(helper_environment_gives_each_helper_only_its_own_configuration)
     MUST(Core::Environment::set("VK_ICD_FILENAMES"sv, "/usr/share/vulkan/icd.d/radeon_icd.json"sv, Core::Environment::Overwrite::Yes));
     MUST(Core::Environment::set("SSL_CERT_FILE"sv, "/etc/ssl/cert.pem"sv, Core::Environment::Overwrite::Yes));
 
-    // Only the renderer that hosts a Window and the AudioServer play audio.
+    // Only the AudioServer plays audio.
     auto web_content_environment = WebView::Process::helper_process_environment(WebView::ProcessType::WebContent);
-    EXPECT(web_content_environment.contains_slow("PULSE_SERVER=unix:/run/user/1000/pulse/native"sv));
+    EXPECT(!web_content_environment.contains_slow("PULSE_SERVER=unix:/run/user/1000/pulse/native"sv));
     EXPECT(!web_content_environment.contains_slow("MESA_SHADER_CACHE_DIR=/tmp/mesa"sv));
     EXPECT(!web_content_environment.contains_slow("SSL_CERT_FILE=/etc/ssl/cert.pem"sv));
     auto media_server_environment = WebView::Process::helper_process_environment(WebView::ProcessType::MediaServer);

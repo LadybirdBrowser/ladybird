@@ -217,9 +217,9 @@ static ErrorOr<pid_t> launch_helper_process(StringView server_name, Vector<ByteS
         OwnPtr<Sandbox::ConnectBroker> connect_broker;
         OwnPtr<Core::File> connect_broker_child_file;
 
-        // The audio clients cannot create a socket of their own, so the one endpoint they are allowed to
-        // reach is opened here and handed over as a connected descriptor.
-        if (process_type == ProcessType::WebContent || process_type == ProcessType::AudioServer) {
+        // The AudioServer cannot create a socket of its own, so the one endpoint it is allowed to reach is
+        // opened here and handed over as a connected descriptor.
+        if (process_type == ProcessType::AudioServer) {
             if (auto audio_server_paths = Audio::audio_server_path_candidates(); !audio_server_paths.is_empty()) {
                 // Asking again covers an audio server that was not reachable when the renderer
                 // started, and a configured fallback the audio library had not got to yet.
