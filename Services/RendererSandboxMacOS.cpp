@@ -11,7 +11,7 @@
 
 namespace RendererSandbox {
 
-ErrorOr<void> apply_sandbox(StringView mach_server_name, AudioAccess audio_access)
+ErrorOr<void> apply_sandbox(StringView mach_server_name)
 {
     TRY(Sandbox::configure_runtime());
 
@@ -25,11 +25,8 @@ ErrorOr<void> apply_sandbox(StringView mach_server_name, AudioAccess audio_acces
     if (auto bundle = Sandbox::application_bundle_for_executable(executable_path); bundle.has_value())
         TRY(Sandbox::add_seatbelt_path_if_exists(paths, *bundle, Sandbox::SeatbeltPath::Access::ReadOnly));
 
-    // Every renderer draws and runs WebAssembly. Media decodes in the MediaServer, and only the renderer that hosts a
-    // Window plays audio of its own, for WebAudio.
+    // Every renderer draws and runs WebAssembly. Media decodes in the MediaServer and audio plays in the AudioServer.
     auto system_services = Sandbox::SystemService::Fonts | Sandbox::SystemService::IOSurface | Sandbox::SystemService::JIT;
-    if (audio_access == AudioAccess::Yes)
-        system_services |= Sandbox::SystemService::Audio;
 
     return Sandbox::apply_macos_sandbox({
         .paths = paths.span(),

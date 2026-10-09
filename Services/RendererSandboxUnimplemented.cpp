@@ -8,7 +8,7 @@
 
 namespace RendererSandbox {
 
-ErrorOr<void> apply_sandbox(StringView, AudioAccess)
+ErrorOr<void> apply_sandbox(StringView)
 {
     return {};
 }
