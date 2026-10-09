@@ -1,2 +1,0 @@
-box width a tick presented: 150
-box matches :hover: true

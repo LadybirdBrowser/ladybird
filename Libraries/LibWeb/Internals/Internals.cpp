@@ -1714,19 +1714,36 @@ void Internals::inject_clock_tick(double frame_time_ms, Optional<double> viewpor
     Layout::RustFFI::document_host_inject_clock_tick(document.layout_node_arena().host(), static_cast<i64>(frame_time * 1'000'000.0), scroll_offset.has_value() ? &*scroll_offset : nullptr);
 }
 
-void Internals::inject_hover_pointer(double x, double y, Optional<double> frame_time_ms)
+void Internals::inject_hover_pointer(double x, double y, Optional<double> frame_time_ms, Optional<u64> input_event_id)
 {
     auto& document = window().associated_document();
     auto device_pixels_per_css_pixel = page().client().device_pixels_per_css_pixel();
     auto frame_time = frame_time_ms.has_value() ? document.relevant_settings_object().time_origin() + *frame_time_ms : HighResolutionTime::unsafe_shared_current_time();
-    Layout::RustFFI::document_host_inject_pointer(document.layout_node_arena().host(), static_cast<float>(x * device_pixels_per_css_pixel), static_cast<float>(y * device_pixels_per_css_pixel), static_cast<i64>(frame_time * 1'000'000.0));
+    Layout::RustFFI::document_host_inject_pointer(document.layout_node_arena().host(), static_cast<float>(x * device_pixels_per_css_pixel), static_cast<float>(y * device_pixels_per_css_pixel), static_cast<i64>(frame_time * 1'000'000.0), input_event_id.value_or(0));
 }
 
-void Internals::move_hover_pointer(double x, double y)
+u64 Internals::queue_mouse_move(double x, double y, u32 buttons)
+{
+    // NB: Above every id a UI process hands out in a test.
+    static u64 next_input_event_id = 1ull << 40;
+    auto& page = this->page();
+    auto position = page.css_to_device_point(window().navigable()->to_page_position({ x, y }));
+    Web::MouseEvent event;
+    event.type = Web::MouseEvent::Type::MouseMove;
+    event.position = position;
+    event.screen_position = position;
+    event.buttons = static_cast<UIEvents::MouseButton>(buttons);
+    event.id = next_input_event_id++;
+    auto id = event.id;
+    page.client().input_event_queue().enqueue({ page.client().id(), move(event), {}, {} });
+    return id;
+}
+
+void Internals::move_hover_pointer(double x, double y, Optional<u64> input_event_id)
 {
     auto& document = window().associated_document();
     auto device_pixels_per_css_pixel = page().client().device_pixels_per_css_pixel();
-    Layout::RustFFI::document_host_move_pointer(document.layout_node_arena().host(), static_cast<float>(x * device_pixels_per_css_pixel), static_cast<float>(y * device_pixels_per_css_pixel));
+    Layout::RustFFI::document_host_move_pointer(document.layout_node_arena().host(), static_cast<float>(x * device_pixels_per_css_pixel), static_cast<float>(y * device_pixels_per_css_pixel), input_event_id.value_or(0));
 }
 
 Utf16String Internals::clock_lane_state(DOM::Document& document)
@@ -1800,8 +1817,10 @@ Utf16String Internals::frame_scheduler_state() const
 void Internals::hold_next_frame(Utf16String const& hold)
 {
     Layout::RustFFI::render_state_hold_next_recording_for_testing();
-    if (hold == "layout"sv)
+    if (hold == "layout"sv) {
+        HTML::main_thread_event_loop().hold_next_layout_for_testing();
         return;
+    }
     HTML::main_thread_event_loop().hold_next_frame_for_testing();
 }
 
@@ -1834,6 +1853,11 @@ void Internals::release_held_frame()
 {
     Layout::RustFFI::render_state_release_held_recording_for_testing();
     HTML::main_thread_event_loop().release_held_frames_for_testing();
+}
+
+bool Internals::rendering_update_holds_tasks_of(DOM::Document& document)
+{
+    return HTML::main_thread_event_loop().rendering_update_in_flight_holds_tasks_of_for_testing(document);
 }
 
 void Internals::update_compositor_animations()

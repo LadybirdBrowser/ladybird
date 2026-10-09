@@ -179,7 +179,7 @@ static Layout::RustFFI::FfiPageCursor ffi_page_cursor(PageCursor& cursor)
     };
 }
 
-bool seal_clock_plan(DOM::Document& document, bool may_plan, bool may_animate)
+bool seal_clock_plan(DOM::Document& document, bool may_plan, bool may_animate, u64 update_serial)
 {
     auto* arena = document.layout_node_arena_if_created();
     if (!arena)
@@ -282,11 +282,11 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, bool may_animate)
         }
         if (animates || hover.has_value()) {
             auto time_origin = document.relevant_settings_object().time_origin();
-            Layout::RustFFI::render_state_seal_clock_plan(arena->host(), read, elements.data(), elements.size(), time_origin, deadline, last_end, scroll_timelines.data(), scroll_timelines.size(), hover.has_value() ? &*hover : nullptr);
+            Layout::RustFFI::render_state_seal_clock_plan(arena->host(), read, elements.data(), elements.size(), time_origin, deadline, last_end, scroll_timelines.data(), scroll_timelines.size(), hover.has_value() ? &*hover : nullptr, update_serial);
             return true;
         }
     }
-    Layout::RustFFI::document_host_drop_clock_plan(arena->host());
+    Layout::RustFFI::document_host_drop_clock_plan(arena->host(), update_serial);
     return false;
 }
 

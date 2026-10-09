@@ -1,2 +1,2 @@
 clock in the first task after the update: ticking
-last frame presented by: clock
+last frame presented by: commit

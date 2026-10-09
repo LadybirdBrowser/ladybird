@@ -18,7 +18,7 @@
 
 use super::super::owner::{self, DocumentId};
 use super::{
-    ClockPlan, ClockRecorder, ClockTicks, FfiClockLaneState, Lane, LanePublication, LaneReport, LaneState,
+    ClockPlan, ClockRecorder, ClockTicks, FfiClockLaneState, Lane, LaneMove, LanePublication, LaneReport, LaneState,
     PendingPointer, TickPresented,
 };
 use crate::painting::recording_slot::RecordingAnswer;
@@ -31,11 +31,16 @@ pub(crate) struct LaneSlot {
     /// How many frames of the document the owner sampled: the last one is the frame the next lane starts from.
     sampled: u64,
     lanes: Lanes,
-    /// How many frames the lanes' ticks presented, and how many pointer moves their hover took that the host has to
-    /// hover, and where the pointer was at the last one.
-    presented_frames: u64,
-    hover_moves: u64,
-    hovered_pointer: Option<Option<libgfx_rust::FloatPoint>>,
+    /// Whether a tick presented a frame, and the last pointer move a tick took, since a rendering update last took the
+    /// lanes in.
+    presented: bool,
+    last_move: Option<LaneMove>,
+    /// The serial number of the last rendering update that took in what the lanes did, until it, or an update after it,
+    /// seals its plan, which follows the frame it presents: a lane presents nothing meanwhile, as the update's frame
+    /// shows what it took in, which no frame of the lane goes back from. The plan of an update before it, which seals
+    /// as the later update runs, leaves it standing. The take-in and the seal both run on the owner, in the order the
+    /// host made them.
+    taken_in: Option<u64>,
 }
 
 impl Drop for LaneSlot {
@@ -76,6 +81,20 @@ impl Lanes {
             Self::None => None,
             Self::Newest(lane) => Some(lane),
             Self::Coming { earlier, .. } => earlier.as_ref(),
+        }
+    }
+
+    /// Whether the lane of the frame sampled last follows the pointer, or may once its pieces come together with the plan
+    /// they wait for.
+    fn newest_follows_pointer(&self) -> bool {
+        match self {
+            Self::None => false,
+            Self::Newest(lane) => lane.plan.follows_pointer() && !lane.hovered.is_parked(),
+            Self::Coming { pieces, .. } => match &pieces.plan {
+                FramePlan::Unsealed => true,
+                FramePlan::None => false,
+                FramePlan::Sealed(plan) => plan.follows_pointer(),
+            },
         }
     }
 
@@ -122,6 +141,12 @@ impl LaneDelivery {
     /// answered. On the Paint thread, once the frame is presented.
     pub(crate) fn deliver(&self, answer: &RecordingAnswer) {
         let Some((recorder, presentation, output)) = answer.clock_lane_recorder() else {
+            // No lane starts from the frame, and the presenter takes no frame of the lane of an earlier one after it:
+            // the moves and the animations are the host's.
+            let (ticks, frame) = (Arc::clone(&self.ticks), self.frame);
+            super::super::post_to_render_side(move || {
+                with_slot(ticks.document, |slot| slot.forget_coming_lane(frame));
+            });
             return;
         };
         let presented = match output {
@@ -159,14 +184,7 @@ fn with_slot<R>(document: DocumentId, job: impl FnOnce(&mut LaneSlot) -> R) -> O
 /// frame is presented, and answers what hands the lane its pieces then.
 pub(in crate::render_state) fn note_sampled(ticks: &Arc<ClockTicks>) -> LaneDelivery {
     owner::with_lanes(ticks.document, |slot| {
-        let slot = slot.get_or_insert_with(|| LaneSlot {
-            ticks: Arc::clone(ticks),
-            sampled: 0,
-            lanes: Lanes::None,
-            presented_frames: 0,
-            hover_moves: 0,
-            hovered_pointer: None,
-        });
+        let slot = LaneSlot::of(slot, ticks);
         slot.sampled += 1;
         let earlier = match std::mem::take(&mut slot.lanes) {
             // The state shows the new frame, which the lane before it can no longer fork.
@@ -194,7 +212,9 @@ pub(in crate::render_state) fn note_sampled(ticks: &Arc<ClockTicks>) -> LaneDeli
 /// longer is the one the frame sampled last shows. A lane that may want it forks the state first.
 pub(in crate::render_state) fn note_host_write(document: DocumentId) {
     with_slot(document, |slot| {
-        let wants_fork = slot.ticks.wants_fork();
+        // A lane that follows the pointer hovers beside the next task, which may begin as soon as this job is done,
+        // whether or not its animations run beside the idle event loop.
+        let wants_fork = slot.ticks.wants_fork() || slot.lanes.newest_follows_pointer();
         if let Some(state) = slot.lanes.newest_state() {
             if wants_fork {
                 state.fork(document);
@@ -204,10 +224,25 @@ pub(in crate::render_state) fn note_host_write(document: DocumentId) {
     });
 }
 
-/// On the render owner: hands the lane of the frame of `document` sampled last `plan`, which the rendering update that
-/// sampled it sealed, or none.
-pub(in crate::render_state) fn seal_plan(document: DocumentId, plan: Option<ClockPlan>) {
-    with_slot(document, |slot| slot.deliver_plan(plan));
+/// On the render owner: hands the lane of the frame of `document` sampled last `plan`, which the rendering update with
+/// the serial number `update` that sampled it sealed, or none.
+pub(in crate::render_state) fn seal_plan(document: DocumentId, plan: Option<ClockPlan>, update: u64) {
+    with_slot(document, |slot| slot.deliver_plan(plan, update));
+}
+
+/// On the render owner: has the lanes of the document `ticks` belong to present nothing until the rendering update with
+/// the serial number `update`, which takes them in now, seals its plan, and answers what their hover did so far. A
+/// document whose owner sampled no frame yet gets its slot now, whose first lane waits for the update's plan too.
+#[must_use]
+pub(in crate::render_state) fn take_lanes_in(ticks: &Arc<ClockTicks>, update: u64) -> LaneReport {
+    owner::with_lanes(ticks.document, |slot| {
+        let slot = LaneSlot::of(slot, ticks);
+        slot.taken_in = Some(update);
+        let report = slot.take_report();
+        slot.publish();
+        report
+    })
+    .unwrap_or_default()
 }
 
 /// On the render owner: runs the tick queued for the lanes `ticks` belong to.
@@ -217,6 +252,18 @@ pub(super) fn tick(ticks: &Arc<ClockTicks>) {
 }
 
 impl LaneSlot {
+    /// The slot `slot` holds for the lanes of the document `ticks` belong to, which it makes where it holds none yet.
+    fn of<'a>(slot: &'a mut Option<LaneSlot>, ticks: &Arc<ClockTicks>) -> &'a mut LaneSlot {
+        slot.get_or_insert_with(|| LaneSlot {
+            ticks: Arc::clone(ticks),
+            sampled: 0,
+            lanes: Lanes::None,
+            presented: false,
+            last_move: None,
+            taken_in: None,
+        })
+    }
+
     fn deliver_recorder(&mut self, frame: u64, recorder: ClockRecorder) {
         // The owner sampled a later frame since, whose lane takes this one's place.
         if frame != self.sampled {
@@ -230,7 +277,27 @@ impl LaneSlot {
         }
     }
 
-    fn deliver_plan(&mut self, plan: Option<ClockPlan>) {
+    /// Has the frame `frame`, from which no lane starts, end the lanes: a move waits for nothing more.
+    fn forget_coming_lane(&mut self, frame: u64) {
+        if frame == self.sampled && matches!(self.lanes, Lanes::Coming { .. }) {
+            self.lanes = Lanes::None;
+        }
+    }
+
+    fn deliver_plan(&mut self, plan: Option<ClockPlan>, update: u64) {
+        self.taken_in = self.taken_in.filter(|taken_in| *taken_in > update);
+        if super::hover::logs_hover() {
+            eprintln!(
+                "{} hover lane: plan sealed, lanes {}",
+                super::hover::log_time(),
+                match &self.lanes {
+                    Lanes::None => "none",
+                    Lanes::Newest(_) => "newest",
+                    Lanes::Coming { earlier: Some(_), .. } => "coming beside an earlier",
+                    Lanes::Coming { earlier: None, .. } => "coming",
+                }
+            );
+        }
         match (&mut self.lanes, plan) {
             (Lanes::Coming { pieces, .. }, plan) => {
                 pieces.plan = plan.map_or(FramePlan::None, FramePlan::Sealed);
@@ -238,14 +305,16 @@ impl LaneSlot {
             }
             // A rendering update that presented no frame of its own leaves its plan to the lane of the frame before it.
             (Lanes::Newest(lane), Some(plan)) => lane.replan(plan),
+            // One that seals no plan leaves a lane that showed no sample following nothing: a later update that presents
+            // no frame of its own has it follow its plan again, which a lane that went away could not.
+            (Lanes::Newest(lane), None) if lane.samples_nothing() => lane.unplan(),
             (_, _) => self.lanes = Lanes::None,
         }
     }
 
     /// Has the lane of the frame sampled last take the place of the lane before it, once its pieces have come with a
-    /// plan. Where the lanes hovered moves the host has not taken in yet, the lane hovers where the pointer went last at
-    /// once: the frame shows the hover of the moves the host handled, and the presenter dropped the frames the lane
-    /// before it presented once the frame was presented.
+    /// plan. The lanes presented nothing since the rendering update that sampled the frame took them in, so the frame
+    /// shows all they did, and a move that waits is the new lane's first tick's to hover.
     fn come_together(&mut self) {
         let lane = match std::mem::take(&mut self.lanes) {
             Lanes::Coming {
@@ -275,20 +344,11 @@ impl LaneSlot {
                 return;
             }
         };
-        let follows_pointer = lane.plan.follows_pointer();
         self.lanes = Lanes::Newest(lane);
-        self.take_in_scroll_offsets();
-        let rehover = self.ticks.pointer_state().last().filter(|_| follows_pointer);
-        let hovered_beyond_the_host = self.hover_moves > self.ticks.hover_moves_taken_in.load(Ordering::Relaxed);
-        if let Some(pointer) = rehover
-            && hovered_beyond_the_host
-            && !self.ticks.is_held()
-        {
-            if let Some(state) = self.lanes.newest_state() {
-                state.fork(self.ticks.document);
-            }
-            self.run_tick(Some(pointer), false);
+        if super::hover::logs_hover() {
+            eprintln!("{} hover lane: lane came together", super::hover::log_time());
         }
+        self.take_in_scroll_offsets();
     }
 
     /// Hands the current lane where the compositor scrolled to at the latest tick that said so. Where no lane came
@@ -312,6 +372,18 @@ impl LaneSlot {
         self.take_in_scroll_offsets();
         // A recording of the host's own adds to the resource storage the lane presents with: a move waits for it.
         if self.ticks.is_held() {
+            return;
+        }
+        // A rendering update took in what the lanes did, and the frame it presents shows that, at the time it took it
+        // in: the lane of the frame before it presents nothing on from there, which the update's frame would go back
+        // from, and the moves and animation times since wait for the lane of the update's frame.
+        if self.taken_in.is_some() || matches!(self.lanes, Lanes::Coming { .. }) {
+            if super::hover::logs_hover() && self.ticks.pointer_waits() {
+                eprintln!(
+                    "{} hover lane: a move waits for the update's frame",
+                    super::hover::log_time()
+                );
+            }
             return;
         }
         let samples_animations = !self.ticks.animations_held.load(Ordering::Relaxed);
@@ -344,19 +416,19 @@ impl LaneSlot {
         if !animations_stand {
             lane.parked = true;
         }
-        let Some(ticked) = lane.tick_on_fork(
+        let ticked = lane.tick_on_fork(
             self.ticks.latest.load(Ordering::Acquire),
             pointer,
             samples_animations && animations_stand,
-        ) else {
+        );
+        let Some(ticked) = ticked else {
             return;
         };
-        if let Some(position) = ticked.hovered {
-            self.hover_moves += 1;
-            self.hovered_pointer = Some(position);
+        if ticked.hover_move.is_some() {
+            self.last_move = ticked.hover_move;
         }
         if ticked.presented {
-            self.presented_frames += 1;
+            self.presented = true;
             *self.ticks.presented_boxes.lock().expect("presented boxes") = super::PresentedBoxes {
                 border_boxes: lane.presented_border_boxes.clone(),
                 colors: lane.presented_colors.clone(),
@@ -364,7 +436,23 @@ impl LaneSlot {
         }
     }
 
-    /// Publishes what the lanes do for the host and the render clock.
+    /// Takes what the lanes did since a rendering update last took them in.
+    fn take_report(&mut self) -> LaneReport {
+        LaneReport {
+            last_move: self.last_move.take(),
+            transition_starts: self.lanes.current_ref().map_or_else(Vec::new, |lane| {
+                lane.started_transitions()
+                    .map(|(transitions, start_time)| super::LaneTransitionStart {
+                        node: transitions.node,
+                        properties: transitions.properties().iter().copied().collect(),
+                        start_time,
+                    })
+                    .collect()
+            }),
+            presented: std::mem::take(&mut self.presented),
+        }
+    }
+
     fn publish(&self) {
         let lane = self.lanes.current_ref();
         *self.ticks.published() = LanePublication {
@@ -373,20 +461,6 @@ impl LaneSlot {
             transitions_run: lane.is_some_and(Lane::transitions_run),
             follows_pointer: lane.is_some_and(|lane| lane.plan.follows_pointer() && !lane.hovered.is_parked()),
             awaits_lane: matches!(self.lanes, Lanes::Coming { .. }),
-            report: LaneReport {
-                hovered_pointer: self.hovered_pointer,
-                transition_starts: lane.map_or_else(Vec::new, |lane| {
-                    lane.started_transitions()
-                        .map(|(transitions, start_time)| super::LaneTransitionStart {
-                            node: transitions.node,
-                            properties: transitions.properties().iter().copied().collect(),
-                            start_time,
-                        })
-                        .collect()
-                }),
-                presented_frames: self.presented_frames,
-                hover_moves: self.hover_moves,
-            },
         };
     }
 }

@@ -70,7 +70,7 @@ pub unsafe extern "C" fn render_state_pay_flown_round(host: &DocumentHost, read:
 /// timestamps are zero, the timestamp of the next event of the animations, past which a tick samples nothing, and the
 /// timestamp at which the sampled animations of the document timeline have all ended, the scroll timelines a tick
 /// samples where the compositor has scrolled to, and what the lane's hover reads, where its ticks follow the pointer.
-/// A document whose layout is not up to date gets no plan.
+/// `update` is the serial number of the rendering update. A document whose layout is not up to date gets no plan.
 ///
 /// # Safety
 ///
@@ -90,6 +90,7 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
     scroll_timelines: *const crate::render_state::FfiPlannedScrollTimeline,
     scroll_timeline_count: usize,
     hover: *const crate::render_state::FfiHoverPlanInputs,
+    update: u64,
 ) {
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { main_thread(host) };
@@ -107,17 +108,20 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
             unsafe { crate::render_state::HoverPlan::from_ffi(inputs) }.with_style_inputs(host.style_inputs())
         });
         let round = seal_clock_round(&main_thread, host, read);
-        host.seal_clock_plan(round.map(|round| {
-            crate::render_state::ClockPlan::new(
-                elements,
-                time_origin,
-                deadline,
-                last_end,
-                scroll_timelines.to_vec(),
-                round,
-                hover,
-            )
-        }));
+        host.seal_clock_plan(
+            round.map(|round| {
+                crate::render_state::ClockPlan::new(
+                    elements,
+                    time_origin,
+                    deadline,
+                    last_end,
+                    scroll_timelines.to_vec(),
+                    round,
+                    hover,
+                )
+            }),
+            update,
+        );
     });
 }
 

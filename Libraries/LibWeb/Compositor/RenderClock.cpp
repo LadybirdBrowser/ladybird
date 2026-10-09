@@ -43,16 +43,16 @@ private:
             m_clock.did_receive_clock_tick(context_id, frame_time_nanoseconds, scroll_offsets);
     }
 
-    virtual void pointer_moved(Web::CompositorContextId context_id, Web::DevicePixelPoint position, u32 buttons, bool scrolled_since_frame) override
+    virtual void pointer_moved(Web::CompositorContextId context_id, Web::DevicePixelPoint position, u32 buttons, bool scrolled_since_frame, u64 input_event_id) override
     {
         if (!m_detached)
-            m_clock.did_receive_pointer_move(context_id, Gfx::FloatPoint { position.x().value(), position.y().value() }, buttons, scrolled_since_frame);
+            m_clock.did_receive_pointer_move(context_id, Gfx::FloatPoint { position.x().value(), position.y().value() }, buttons, scrolled_since_frame, input_event_id);
     }
 
-    virtual void pointer_left(Web::CompositorContextId context_id) override
+    virtual void pointer_left(Web::CompositorContextId context_id, u64 input_event_id) override
     {
         if (!m_detached)
-            m_clock.did_receive_pointer_move(context_id, {}, 0, false);
+            m_clock.did_receive_pointer_move(context_id, {}, 0, false, input_event_id);
     }
 
     RenderClock& m_clock;
@@ -77,10 +77,10 @@ bool ClockTicksHandle::tick(i64 frame_time_nanoseconds, ReadonlySpan<Web::Compos
     return Layout::RustFFI::clock_ticks_tick(m_ticks, frame_time_nanoseconds, scrollers.data(), scrollers.size());
 }
 
-PointerAnswer ClockTicksHandle::pointer_moved(Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame) const
+PointerAnswer ClockTicksHandle::pointer_moved(Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame, u64 input_event_id) const
 {
     auto position = device_position.value_or({});
-    return static_cast<PointerAnswer>(Layout::RustFFI::clock_ticks_pointer_moved(m_ticks, device_position.has_value(), position.x(), position.y(), buttons, scrolled_since_frame));
+    return static_cast<PointerAnswer>(Layout::RustFFI::clock_ticks_pointer_moved(m_ticks, device_position.has_value(), position.x(), position.y(), buttons, scrolled_since_frame, input_event_id));
 }
 
 RenderClock& RenderClock::the()
@@ -226,12 +226,12 @@ void RenderClock::disarm_all_for_testing()
     done_condition.wait_while([&] { return !done; });
 }
 
-void RenderClock::did_receive_pointer_move(Web::CompositorContextId context_id, Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame)
+void RenderClock::did_receive_pointer_move(Web::CompositorContextId context_id, Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame, u64 input_event_id)
 {
     auto it = m_pointer_lanes.find(context_id);
     if (it == m_pointer_lanes.end())
         return;
-    switch (it->value.ticks->pointer_moved(device_position, buttons, scrolled_since_frame)) {
+    switch (it->value.ticks->pointer_moved(device_position, buttons, scrolled_since_frame, input_event_id)) {
     case PointerAnswer::Moves:
         return;
     case PointerAnswer::Ticks:

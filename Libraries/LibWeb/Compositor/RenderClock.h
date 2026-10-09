@@ -55,8 +55,9 @@ public:
     // Hands the lane a tick, with where the Compositor had scrolled to then, and answers whether it wants the next one.
     bool tick(i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset>) const;
 
-    // Hands the lane where the pointer went, or that it left, and answers what the lanes want next.
-    PointerAnswer pointer_moved(Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame) const;
+    // Hands the lane where the pointer went, or that it left, with the input event id of the mouse event the main thread
+    // takes beside it, and answers what the lanes want next.
+    PointerAnswer pointer_moved(Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame, u64 input_event_id) const;
 
     bool hands_on_to(ClockTicksHandle const& other) const { return m_ticks == other.m_ticks; }
 
@@ -120,7 +121,7 @@ private:
     void drop_channel();
     void request_clock_tick(Web::CompositorContextId, double maximum_frames_per_second);
     void did_receive_clock_tick(Web::CompositorContextId, i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset>);
-    void did_receive_pointer_move(Web::CompositorContextId, Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame);
+    void did_receive_pointer_move(Web::CompositorContextId, Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame, u64 input_event_id);
     void did_lose_channel();
 
     NonnullRefPtr<Threading::Thread> m_thread;

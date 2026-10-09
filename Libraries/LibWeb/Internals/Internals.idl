@@ -229,11 +229,16 @@ interface Internals {
     // With a viewport scroll offset, the compositor had scrolled the viewport down to it at the tick.
     undefined injectClockTick(double frameTimeMs, optional double viewportScrollY);
     // Hands the clock lanes of the current document a pointer move to the given point in CSS pixels as the compositor
-    // would, and waits until the tick that hovers what is under it has run, at the given frame time, or now.
-    undefined injectHoverPointer(double x, double y, optional double frameTimeMs);
+    // would, beside the mouse event with the given input event id, if any, and waits until the tick that hovers what is
+    // under it has run, at the given frame time, or now.
+    undefined injectHoverPointer(double x, double y, optional double frameTimeMs, optional unsigned long long inputEventId);
+    // Queues a mouse move to the given point in CSS pixels, with the given mouse buttons held, as the UI process would
+    // send it, which the next rendering update handles, and answers its input event id.
+    unsigned long long queueMouseMove(double x, double y, optional unsigned long buttons = 0);
     // Hands the clock lanes of the current document a pointer move to the given point in CSS pixels as the compositor
-    // would, which waits for the tick a test injects to hover what is under it.
-    undefined moveHoverPointer(double x, double y);
+    // would, beside the mouse event with the given input event id, if any, which waits for the tick a test injects to
+    // hover what is under it.
+    undefined moveHoverPointer(double x, double y, optional unsigned long long inputEventId);
     // What the clock lane of the document's presented frame does: "none" where there is none, "ticking" while it samples
     // animations, "parked" once a tick parked it, and "hovering" where it samples no animation and only follows the
     // pointer.
@@ -260,6 +265,8 @@ interface Internals {
     // Whether the last frame of the page handed the compositor the keyboard scroll state the page holds now.
     boolean lastFrameKeyboardScrollStateIsCurrent();
     undefined releaseHeldFrame();
+    // Whether the rendering update in flight holds back the tasks of the document, as it does where no test holds it.
+    boolean renderingUpdateHoldsTasksOf(Document document);
     undefined updateCompositorAnimations();
     boolean runEmptyAnimationStyleUpdateForTesting();
     undefined armCompositorAnimationTimersForTesting();

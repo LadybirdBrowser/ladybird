@@ -58,6 +58,13 @@ public:
 
     EventResult handle_mousedown(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count, Optional<Web::ScrollbarDraggedByCompositor> const& = {}, Optional<RemoteInputEventTarget>* remote_target = nullptr);
     EventResult handle_mousemove(CSSPixelPoint, CSSPixelPoint screen_position, unsigned buttons, unsigned modifiers, Optional<RemoteInputEventTarget>* remote_target = nullptr);
+
+    // Whether the event handled now is older than a pointer move whose hover the screen showed, which moves neither the
+    // hover nor the pointer.
+    void set_handling_outdated_input(bool handling_outdated_input) { m_handling_outdated_input = handling_outdated_input; }
+    void set_handling_input_event_id(u64 input_event_id) { m_handling_input_event_id = input_event_id; }
+    bool handling_outdated_input() const { return m_handling_outdated_input; }
+    u64 handling_input_event_id() const { return m_handling_input_event_id; }
     EventResult handle_mouseup(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Optional<RemoteInputEventTarget>* remote_target = nullptr);
     EventResult handle_mousewheel(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, Web::WheelDeltaPrecision = Web::WheelDeltaPrecision::Discrete, Web::ScrollGesturePhase = Web::ScrollGesturePhase::None, bool async_scroll_performed_default_action = false, Optional<AsyncScrollOperation>* async_scroll_operation = nullptr, Optional<RemoteInputEventTarget>* remote_target = nullptr);
     EventResult handle_mouseleave();
@@ -67,7 +74,7 @@ public:
     void update_hover_after_scroll();
     // Hovers what is under the pointer at `visual_viewport_position`, where a hover beside the event loop shows it
     // already: the boundary events of the move fire, with no mouse move event.
-    void update_hover_at(CSSPixelPoint visual_viewport_position);
+    void update_hover_at(CSSPixelPoint visual_viewport_position, GC::Ptr<DOM::Node> hover_target = {});
     // Shows the cursor of what is under the pointer again, where a move resolved it before it hovered that, once a
     // rendering update has applied the style of the hover.
     void update_cursor_after_rendering_update();
@@ -178,7 +185,7 @@ private:
     void clear_mousedown_tracking();
     void stop_updating_selection();
 
-    void update_hover_after_scroll(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers);
+    void update_hover_after_scroll(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, GC::Ptr<DOM::Node> hover_target = {});
     EventResult dispatch_wheel_event(Layout::BegunRead const& read, Layout::Node&, CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, bool is_cancelable);
     // Both drop the latch when what it refers to is gone from the document, so that the event is targeted afresh.
     Layout::Node* validated_wheel_scroll_latch_target_layout_node(Layout::BegunRead const& read, DOM::Document&);
@@ -239,6 +246,9 @@ private:
     Optional<CSSPixelPoint> m_last_known_mouse_visual_viewport_position;
     // Whether a move resolved the cursor before it hovered what is under the pointer, since the last rendering update.
     bool m_cursor_resolved_before_hover { false };
+    bool m_handling_outdated_input { false };
+    // The UI process's id of the input event being handled, or 0.
+    u64 m_handling_input_event_id { 0 };
     CSSPixelPoint m_last_known_mouse_screen_position;
     unsigned m_last_known_mouse_buttons { 0 };
     unsigned m_last_known_mouse_modifiers { 0 };
