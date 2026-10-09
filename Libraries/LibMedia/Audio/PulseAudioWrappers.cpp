@@ -670,7 +670,7 @@ void PulseAudioStream::on_write_requested(size_t bytes_to_write)
         auto buffer = begin_write(bytes_to_write).release_value_but_fixme_should_propagate_errors();
         auto frame_size = this->frame_size();
         VERIFY(buffer.size() % frame_size == 0);
-        auto written_buffer = m_write_callback(*this, buffer.reinterpret<float>()).reinterpret<u8 const>();
+        auto written_buffer = m_write_callback(*this, buffer.reinterpret<float>(), next_write_starts_playing_at()).reinterpret<u8 const>();
         if (written_buffer.size() == 0) {
             cancel_write().release_value_but_fixme_should_propagate_errors();
 
@@ -832,6 +832,19 @@ void PulseAudioStream::notify_data_available()
         if (callback_state == CallbackState::ActiveWithFutureData)
             return;
     }
+}
+
+MonotonicTime PulseAudioStream::next_write_starts_playing_at()
+{
+    auto now = MonotonicTime::now();
+    // Asking before the first write has started a corked stream latches a stale time in the smoother.
+    if (!m_started_playback)
+        return now;
+    pa_usec_t latency_usec = 0;
+    int latency_is_negative = 0;
+    if (pa_stream_get_latency(m_stream, &latency_usec, &latency_is_negative) != 0 || latency_is_negative)
+        return now;
+    return now + AK::Duration::from_microseconds(static_cast<i64>(latency_usec));
 }
 
 AK::Duration PulseAudioStream::total_time_played() const

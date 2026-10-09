@@ -26,7 +26,7 @@ TEST_CASE(null_playback_stream_completes_interleaved_controls_in_order)
     };
 
     RefPtr<Audio::PlaybackStream> stream;
-    stream = Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, 10, [&](Span<float>) -> ReadonlySpan<float> {
+    stream = Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, 10, [&](Span<float>, MonotonicTime) -> ReadonlySpan<float> {
         // Queue all controls from the data callback so the output thread cannot resolve any of them until the batch is ready.
         stream->drain_buffer_and_suspend()
             ->when_resolved([&] { record_completion(0); })
@@ -63,7 +63,7 @@ TEST_CASE(default_playback_stream_can_be_created_and_suspended)
     Atomic<u32> request_count { 0 };
     RefPtr<Audio::PlaybackStream> stream;
     bool created = false;
-    Audio::PlaybackStream::create_platform_or_null(Audio::OutputState::Suspended, 10, [&](Span<float> buffer) -> ReadonlySpan<float> {
+    Audio::PlaybackStream::create_platform_or_null(Audio::OutputState::Suspended, 10, [&](Span<float> buffer, MonotonicTime) -> ReadonlySpan<float> {
             buffer.fill(0);
             request_count.fetch_add(1);
             return buffer; })
@@ -98,7 +98,7 @@ TEST_CASE(null_playback_stream_pulls_and_tracks_time)
     auto& event_loop = never_destroyed_event_loop();
 
     Atomic<u32> request_count { 0 };
-    auto stream = Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, 10, [&](Span<float> buffer) -> ReadonlySpan<float> {
+    auto stream = Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, 10, [&](Span<float> buffer, MonotonicTime) -> ReadonlySpan<float> {
         request_count.fetch_add(1);
         return buffer;
     });
@@ -130,12 +130,41 @@ TEST_CASE(null_playback_stream_pulls_and_tracks_time)
     event_loop.spin_until([&] { return checked_suspension; });
 }
 
+TEST_CASE(null_playback_stream_dates_each_buffer_by_what_it_holds)
+{
+    auto& event_loop = never_destroyed_event_loop();
+
+    auto resumed_at = MonotonicTime::now();
+    Atomic<u32> request_count { 0 };
+    Atomic<bool> every_buffer_dated_by_what_it_holds { true };
+    // Only the output thread reads and writes this.
+    auto previous_buffer_ends_at = resumed_at;
+    auto stream = Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, 100, [&](Span<float> buffer, MonotonicTime buffer_starts_playing_at) -> ReadonlySpan<float> {
+        // Each buffer starts where the one before it ends, or later after an underrun, and never more than the target
+        // after it was requested, however late the output thread runs.
+        auto now = MonotonicTime::now();
+        if (buffer_starts_playing_at < previous_buffer_ends_at - AK::Duration::from_milliseconds(1) || buffer_starts_playing_at > now + AK::Duration::from_milliseconds(100))
+            every_buffer_dated_by_what_it_holds.store(false);
+        previous_buffer_ends_at = buffer_starts_playing_at + AK::Duration::from_time_units(buffer.size() / 2, 1, 44100);
+        request_count.fetch_add(1);
+        return buffer;
+    });
+
+    stream->resume()->when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
+    auto poll_timer = Core::Timer::create_repeating(1, [] { });
+    poll_timer->start();
+    event_loop.spin_until([&] { return request_count.load() > 2; });
+    EXPECT(every_buffer_dated_by_what_it_holds.load());
+    poll_timer->stop();
+    stream->discard_buffer_and_suspend()->when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
+}
+
 TEST_CASE(null_playback_stream_recovers_from_underrun)
 {
     auto& event_loop = never_destroyed_event_loop();
 
     Atomic<u32> request_count { 0 };
-    auto stream = Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, 10, [&](Span<float> buffer) -> ReadonlySpan<float> {
+    auto stream = Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, 10, [&](Span<float> buffer, MonotonicTime) -> ReadonlySpan<float> {
         if (request_count.fetch_add(1) == 0)
             return {};
         return buffer;
@@ -154,7 +183,7 @@ TEST_CASE(null_playback_stream_resume_completes_pending_drain)
 {
     auto& event_loop = never_destroyed_event_loop();
 
-    auto stream = Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, 1000, [](Span<float> buffer) -> ReadonlySpan<float> {
+    auto stream = Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, 1000, [](Span<float> buffer, MonotonicTime) -> ReadonlySpan<float> {
         return buffer;
     });
     stream->resume()->when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });

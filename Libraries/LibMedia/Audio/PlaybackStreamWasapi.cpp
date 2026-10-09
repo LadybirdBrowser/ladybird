@@ -97,6 +97,7 @@ struct PlaybackStreamWASAPI::AudioState : public AtomicRefCounted<PlaybackStream
 
     WAVEFORMATEXTENSIBLE wave_format;
     UINT32 buffer_frame_count;
+    REFERENCE_TIME stream_latency = 0;
     HANDLE buffer_event = 0;
 
     PlaybackStreamWASAPI::AudioDataRequestCallback data_request_callback;
@@ -304,6 +305,7 @@ NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStreamWASAPI::create(Output
     // For event driven buffering we can't specify the buffer duration.
     TRY_HR(state->audio_client->Initialize(AUDCLNT_SHAREMODE_SHARED, stream_flags, 0, 0, &state->wave_format.Format, &PlaybackSessionGUID));
     TRY_HR(state->audio_client->GetBufferSize(&state->buffer_frame_count));
+    TRY_HR(state->audio_client->GetStreamLatency(&state->stream_latency));
     TRY_HR(state->audio_client->GetService(IID_PPV_ARGS(&state->render_client)));
     TRY_HR(state->audio_client->GetService(IID_PPV_ARGS(&state->audio_stream_volume)));
     TRY_HR(state->audio_client->GetService(IID_PPV_ARGS(&state->clock)));
@@ -444,13 +446,14 @@ int PlaybackStreamWASAPI::AudioState::render_thread_loop(PlaybackStreamWASAPI::A
         u32 frames_available = state.buffer_frame_count - padding;
         if (frames_available == 0) [[unlikely]]
             continue;
+        auto buffer_starts_playing_at = MonotonicTime::now() + AK::Duration::from_time_units(padding, 1, state.wave_format.Format.nSamplesPerSec) + AK::Duration::from_nanoseconds(static_cast<i64>(state.stream_latency) * 100);
 
         BYTE* buffer;
         MUST_HR(state.render_client->GetBuffer(frames_available, &buffer));
 
         u32 buffer_size = frames_available * block_align;
         auto output_buffer = Bytes(buffer, buffer_size).reinterpret<float>();
-        auto floats_written = state.data_request_callback(output_buffer);
+        auto floats_written = state.data_request_callback(output_buffer, buffer_starts_playing_at);
         if (floats_written.is_empty()) [[unlikely]] {
             MUST_HR(state.render_client->ReleaseBuffer(0, AUDCLNT_BUFFERFLAGS_SILENT));
             state.paused = Paused::Underrun;
