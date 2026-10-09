@@ -106,7 +106,7 @@ public:
     Optional<FetchBody::SniffBytes> sniff_bytes_if_available() const { return m_fetch_body.sniff_bytes_if_available(); }
     void wait_for_sniff_bytes(SniffBytesCallback on_ready);
 
-    // Sniff bytes becoming available wake a pending waiter once.
+    // Sniff bytes becoming available wake a pending waiter once, from a networking task.
     void append_sniff_bytes(ReadonlyBytes bytes);
     void set_sniff_bytes_complete();
     void set_sniff_bytes_failed();
@@ -137,6 +137,7 @@ private:
     GC::Ptr<GC::Function<void(FetchBody::SniffBytes)>> m_sniff_bytes_callback;
     GC::Ptr<GC::Function<void()>> m_network_complete_callback;
     bool m_network_complete { false };
+    bool m_sniff_bytes_wake_queued { false };
 };
 
 // https://fetch.spec.whatwg.org/#body-with-type
