@@ -67,7 +67,7 @@ ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions& web_conte
     auto const script_path = LexicalPath::join(s_fixtures_path, m_script_path);
     // Path where http-test-server.py writes the AIA test root CA. Must match the certificate trusted by
     // TestWeb::Application::create_platform_options.
-    auto const ca_cert_path = LexicalPath::join(Core::StandardPaths::tempfile_directory(), "ladybird-aia-test-ca.pem"sv).string();
+    auto const ca_cert_path = LexicalPath::join(Core::StandardPaths::tempfile_directory(), ByteString::formatted("ladybird-aia-test-ca-{}.pem", Core::System::getpid())).string();
     auto const arguments = Vector { script_path.string(), "--directory", Application::the().test_root_path, "--ca-cert-output", ca_cert_path };
 
     // FIXME: Pick a more reasonable log path that is more observable
@@ -118,6 +118,8 @@ void HttpEchoServerFixture::teardown_impl()
     }
 
     m_process = {};
+    auto const ca_cert_path = LexicalPath::join(Core::StandardPaths::tempfile_directory(), ByteString::formatted("ladybird-aia-test-ca-{}.pem", Core::System::getpid())).string();
+    (void)Core::System::unlink(ca_cert_path);
 }
 
 #endif
