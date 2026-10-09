@@ -619,11 +619,13 @@ impl<O: Observer> PaintRecorder<'_, O> {
         &mut self,
         pattern: NodeSlotId,
         tile_content_transform: libgfx_rust::FloatMatrix4x4,
+        tile_surface_rect: libgfx_rust::FloatRect,
     ) -> Arc<Vec<u8>> {
         let root_transform = tile_content_transform.extract_2d_affine();
         let key = PatternTileKey {
             pattern: pattern.index,
             root_transform_bits: root_transform.values.map(f32::to_bits),
+            tile_surface_size_bits: [tile_surface_rect.width.to_bits(), tile_surface_rect.height.to_bits()],
         };
         if let Some(records) = self.scratch.pattern_tile_records.get(&key) {
             return records.clone();
@@ -633,7 +635,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         // tile shader instead, so the tiling grid repeats under it rather than the content scaling
         // twice.
         self.trace_paint(Operation::Named(Some(pattern), "svg-pattern"), |this| {
-            this.walk_svg_resource(pattern, root_transform, false, false);
+            this.walk_svg_resource(pattern, root_transform, false, false, tile_surface_rect);
         });
         let records = Arc::new(self.recorder.finish_detached_records(detached));
         self.scratch.pattern_tile_records.insert(key, records.clone());
@@ -645,4 +647,5 @@ impl<O: Observer> PaintRecorder<'_, O> {
 struct PatternTileKey {
     pattern: u32,
     root_transform_bits: [u32; 6],
+    tile_surface_size_bits: [u32; 2],
 }

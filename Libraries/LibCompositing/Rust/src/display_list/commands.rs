@@ -1304,7 +1304,7 @@ impl DisplayListCommand for PaintNestedDisplayList {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct DrawIsolatedGroup {
-    pub clip_rect: OptionalFloatRect,
+    pub clip_rect: FloatRect,
     pub content: DisplayListDataSpan,
     pub mask: DisplayListDataSpan,
     pub filter: DisplayListDataSpan,
@@ -1325,7 +1325,7 @@ ffi_bytes_fields!(DrawIsolatedGroup {
 impl DisplayListCommand for DrawIsolatedGroup {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::DrawIsolatedGroup;
     fn bounding_rect(&self) -> Option<IntRect> {
-        self.clip_rect.get().map(enclosing_int_rect)
+        Some(enclosing_int_rect(self.clip_rect))
     }
 }
 

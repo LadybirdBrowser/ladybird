@@ -238,7 +238,7 @@ pub struct GlyphRunForRecording<'a> {
 }
 
 pub struct IsolatedGroupEffects {
-    pub clip_rect: Option<FloatRect>,
+    pub clip_rect: FloatRect,
     pub opacity: f32,
     pub filter: Option<std::sync::Arc<Vec<u8>>>,
     pub compositing_and_blending_operator: CompositingAndBlendingOperator,
@@ -911,7 +911,7 @@ impl DisplayListRecorder {
         self.finish_group_with_effects(
             group,
             IsolatedGroupEffects {
-                clip_rect: Some(clip_rect),
+                clip_rect,
                 opacity: 1.0,
                 filter: None,
                 compositing_and_blending_operator,
@@ -929,7 +929,7 @@ impl DisplayListRecorder {
             None => DisplayListDataSpan::default(),
         };
         let command = DrawIsolatedGroup {
-            clip_rect: effects.clip_rect.into(),
+            clip_rect: effects.clip_rect,
             content,
             mask,
             filter,

@@ -358,8 +358,15 @@ fn pattern_paint_style<O: Observer>(
             };
         }
     }
+    // The player rasterizes the tile records into a surface of this size.
+    let tile_surface_rect = FloatRect::new(
+        0.0,
+        0.0,
+        (tile_rect.width * content_scale.width).ceil(),
+        (tile_rect.height * content_scale.height).ceil(),
+    );
     Some(PaintStyle::Pattern {
-        tile_records: recorder.pattern_tile_records(pattern_box, tile_content_transform),
+        tile_records: recorder.pattern_tile_records(pattern_box, tile_content_transform, tile_surface_rect),
         tile_rect,
         content_scale,
         pattern_transform,

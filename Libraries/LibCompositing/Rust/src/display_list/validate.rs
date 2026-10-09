@@ -430,11 +430,6 @@ fn validate_command_fields(
         T::DrawLine => p.enum_at::<LineStyle>(offset_of!(DrawLine, style))?,
         T::DrawRect => p.bool_at(offset_of!(DrawRect, rough))?,
         T::DrawIsolatedGroup => {
-            validate_optional_at(
-                p,
-                offset_of!(DrawIsolatedGroup, clip_rect),
-                offset_of!(OptionalFloatRect, has_value),
-            )?;
             nested.add(offset_of!(DrawIsolatedGroup, content))?;
             nested.add(offset_of!(DrawIsolatedGroup, mask))?;
             p.span_at(offset_of!(DrawIsolatedGroup, filter))?;
