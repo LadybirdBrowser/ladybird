@@ -1,0 +1,29 @@
+<!doctype html>
+<html class="reftest-wait">
+    <link rel="match" href="../expected/delayed-compositor-transform-screenshot-ref.html" />
+    <div id="target" style="width: 100px; height: 100px; background: green; transform: translateX(0)"></div>
+    <script>
+        window.onload = async () => {
+            // Freeze main-thread samples while the compositor's delay expires.
+            const timeline = internals.createInternalAnimationTimeline();
+            const animation = new Animation(
+                new KeyframeEffect(
+                    target,
+                    { transform: ["translateX(100px)", "translateX(100px)"] },
+                    { delay: 1000, duration: 1000, iterations: Infinity }
+                ),
+                timeline
+            );
+            animation.play();
+            timeline.setTimeForObservation(0);
+            await animation.ready;
+            await new Promise(requestAnimationFrame);
+            await new Promise(requestAnimationFrame);
+            internals.setManualRenderingOpportunities(true);
+
+            await new Promise(resolve => setTimeout(resolve, 1100));
+            document.documentElement.classList.remove("reftest-wait");
+            setInterval(() => internals.injectRenderingOpportunity(performance.now()), 10);
+        };
+    </script>
+</html>
