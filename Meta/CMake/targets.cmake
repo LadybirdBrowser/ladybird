@@ -27,8 +27,15 @@ function(ladybird_generate_dsym target_name)
     endif()
 endfunction()
 
+if (WIN32 AND BUILD_SHARED_LIBS)
+    # Executable link commands also deploy runtime DLLs, including vcpkg's app-local dependencies.
+    # They share an output directory, so concurrent deployments can open a DLL while another writes it.
+    set_property(GLOBAL APPEND PROPERTY JOB_POOLS windows_dll_deployment=1)
+endif()
+
 function(ladybird_copy_runtime_dlls target_name)
     if (WIN32 AND BUILD_SHARED_LIBS)
+        set_property(TARGET ${target_name} PROPERTY JOB_POOL_LINK windows_dll_deployment)
         add_custom_command(TARGET ${target_name} POST_BUILD
             COMMAND ${CMAKE_COMMAND}
                 -E copy_if_different
