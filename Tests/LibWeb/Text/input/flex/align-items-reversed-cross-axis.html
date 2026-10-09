@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<style>
+    .container {
+        position: relative;
+        display: flex;
+        width: 100px;
+        height: 100px;
+    }
+    .item {
+        width: 40px;
+        height: 40px;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const layouts = [
+            ["horizontal-tb", "rtl", "column"],
+            ["vertical-rl", "ltr", "row"],
+            ["vertical-lr", "rtl", "column"],
+            ["horizontal-tb", "ltr", "column"],
+        ];
+        const alignments = ["start", "end", "flex-start", "flex-end", "normal", "self-start", "self-end"];
+        for (const [writingMode, direction, flexDirection] of layouts) {
+            for (const flexWrap of ["nowrap", "wrap-reverse"]) {
+                const offsets = [];
+                for (const alignment of alignments) {
+                    const container = document.createElement("div");
+                    container.className = "container";
+                    Object.assign(container.style, { writingMode, direction, flexDirection, flexWrap, alignItems: alignment });
+                    const item = document.createElement("div");
+                    item.className = "item";
+                    container.appendChild(item);
+                    document.body.appendChild(container);
+                    offsets.push(`${alignment}=${item.offsetLeft},${item.offsetTop}`);
+                    container.remove();
+                }
+                println(`${writingMode} ${direction} ${flexDirection} ${flexWrap}: ${offsets.join(" ")}`);
+            }
+        }
+    });
+</script>

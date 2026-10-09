@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 18 tests
 
-17 Pass
-1 Fail
+18 Pass
 Pass	position of x
 Pass	position of y
 Pass	position of width
@@ -16,7 +15,7 @@ Pass	position of toJSON
 Pass	.flexbox 1
 Pass	.flexbox 2
 Pass	.flexbox 3
-Fail	.flexbox 4
+Pass	.flexbox 4
 Pass	.flexbox 5
 Pass	.flexbox 6
 Pass	.flexbox 7
