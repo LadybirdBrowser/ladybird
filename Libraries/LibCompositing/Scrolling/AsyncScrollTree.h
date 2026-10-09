@@ -97,6 +97,7 @@ private:
     Optional<AsyncScrollNodeID> scrollable_ancestor_for_node(AsyncScrollNodeID, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint delta) const;
     Gfx::FloatPoint apply_scroll_delta_to_node(AsyncScrollNode const&, Gfx::FloatPoint delta, Compositing::ScrollStateSnapshot&);
 
+    Optional<Web::UniqueNodeID> m_document_id;
     Vector<AsyncScrollNode> m_scroll_nodes;
     Vector<AsyncSnapContainer> m_snap_containers;
     double m_device_pixels_per_css_pixel { 1.0 };

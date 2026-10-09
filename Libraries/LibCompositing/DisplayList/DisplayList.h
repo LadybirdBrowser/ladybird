@@ -36,6 +36,9 @@ class COMPOSITING_API DisplayList : public AtomicRefCounted<DisplayList> {
 public:
     ~DisplayList();
     struct AsyncScrollingMetadata {
+        // The document whose viewport this is, which the compositor names when it pans the visual viewport of a page
+        // that has no scroll node.
+        Optional<Web::UniqueNodeID> document_id;
         Gfx::IntRect viewport_rect;
         u64 wheel_event_listener_state_generation { 0 };
         bool has_blocking_wheel_event_listeners { false };
