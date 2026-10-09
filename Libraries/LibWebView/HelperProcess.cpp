@@ -628,10 +628,16 @@ u64 allocate_audio_tab_id()
     return s_next_audio_tab_id++;
 }
 
-ErrorOr<IPC::TransportHandle> connect_new_audio_server_client(RefPtr<AudioServerControlClient>& controller, u64 audio_tab_id)
+ErrorOr<void> ensure_audio_server_is_running(RefPtr<AudioServerControlClient>& controller)
 {
     if (!controller || !controller->is_open())
         controller = TRY(launch_audio_server_process());
+    return {};
+}
+
+ErrorOr<IPC::TransportHandle> connect_new_audio_server_client(RefPtr<AudioServerControlClient>& controller, u64 audio_tab_id)
+{
+    TRY(ensure_audio_server_is_running(controller));
 
     auto response = controller->send_sync_but_allow_failure<Messages::AudioServerControl::ConnectNewClient>(audio_tab_id);
     if (!response || !response->handle().has_value())

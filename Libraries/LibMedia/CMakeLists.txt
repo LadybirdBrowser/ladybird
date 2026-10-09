@@ -12,6 +12,7 @@ set(SOURCES
     Audio/PlaybackStreamMixer.cpp
     Audio/RecordStream.cpp
     Audio/RemotePlaybackStream.cpp
+    Audio/RemoteRecordStream.cpp
     Audio/SampleSpecification.cpp
     Audio/ServerConnection.cpp
     Audio/SharedAudioFrameRing.cpp

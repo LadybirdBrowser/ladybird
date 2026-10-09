@@ -5,7 +5,7 @@
  */
 
 #include <AudioServer/ControlConnection.h>
-#include <AudioServer/TabMixers.h>
+#include <AudioServer/Tabs.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
 
@@ -36,12 +36,17 @@ Messages::AudioServerControl::InitTransportResponse ControlConnection::init_tran
 
 Messages::AudioServerControl::ConnectNewClientResponse ControlConnection::connect_new_client(u64 tab_id)
 {
-    auto handle = TabMixers::the().connect_client(tab_id);
+    auto handle = Tabs::the().connect_client(tab_id);
     if (handle.is_error()) {
         dbgln("Failed to connect an audio client: {}", handle.error());
         return OptionalNone {};
     }
     return handle.release_value();
+}
+
+void ControlConnection::capture_decided(u64 request_id, bool allowed)
+{
+    Tabs::the().capture_decided(request_id, allowed);
 }
 
 }

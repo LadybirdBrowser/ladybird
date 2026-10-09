@@ -771,7 +771,50 @@ Messages::WebContentClient::RequestMediaServerConnectionResponse WebContentClien
 
 ErrorOr<IPC::TransportHandle> WebContentClient::connect_audio_server_client()
 {
+    // The server asks about every capture, so it must have someone to ask before any client gets its connection.
+    TRY(ensure_audio_server_controller());
     return connect_new_audio_server_client(m_audio_server_client, m_audio_tab_id);
+}
+
+ErrorOr<void> WebContentClient::ensure_audio_server_controller()
+{
+    auto* previous_controller = m_audio_server_client.ptr();
+    TRY(ensure_audio_server_is_running(m_audio_server_client));
+    if (m_audio_server_client.ptr() == previous_controller)
+        return {};
+    m_audio_server_client->on_capture_requested = [this](u64 tab_id, u64 request_id, ByteString const&) {
+        if (tab_id == m_audio_tab_id)
+            decide_audio_capture_request(request_id);
+    };
+    return {};
+}
+
+String WebContentClient::audio_capture_permission_key(URL::URL const& url)
+{
+    // A file:// page has a new opaque origin at every look, so the permission is keyed on the file itself.
+    if (auto origin = url.origin(); !origin.is_opaque())
+        return origin.serialize();
+    return url.serialize(URL::ExcludeFragment::Yes);
+}
+
+void WebContentClient::grant_audio_capture(URL::URL const& url)
+{
+    m_audio_capture_grants.set(audio_capture_permission_key(url));
+}
+
+bool WebContentClient::audio_capture_permitted() const
+{
+    for (auto const& it : m_pages) {
+        auto const& page = it.value;
+        if (page->is_open() && m_audio_capture_grants.contains(audio_capture_permission_key(page->view().url())))
+            return true;
+    }
+    return false;
+}
+
+void WebContentClient::decide_audio_capture_request(u64 request_id)
+{
+    m_audio_server_client->async_capture_decided(request_id, audio_capture_permitted());
 }
 
 Messages::WebContentClient::RequestAudioServerConnectionResponse WebContentClient::request_audio_server_connection()

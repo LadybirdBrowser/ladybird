@@ -280,7 +280,7 @@ private:
     RecordCallback m_callback;
 };
 
-NonnullRefPtr<RecordStream::CreatePromise> RecordStream::create(SampleSpecification const& specification, u32, StringView device_id, RecordCallback callback)
+NonnullRefPtr<RecordStream::CreatePromise> RecordStream::create_platform(SampleSpecification const& specification, u32, StringView device_id, RecordCallback callback)
 {
     auto promise = CreatePromise::construct();
     auto stream_or_error = RecordStreamAudioUnit::create(specification, device_id, move(callback));

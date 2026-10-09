@@ -13,4 +13,7 @@ endpoint AudioServer {
     set_stream_volume(u64 stream_id, float volume) =|
 
     watch_devices() =|
+
+    create_record_stream(u64 stream_id, ByteString device_id) =|
+    destroy_record_stream(u64 stream_id) =|
 }

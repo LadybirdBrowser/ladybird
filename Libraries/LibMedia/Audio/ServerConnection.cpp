@@ -12,9 +12,11 @@ namespace Audio {
 
 static MixerClientId s_next_mixer_client_id { 1 };
 
-ServerConnection::ServerConnection(NonnullOwnPtr<IPC::Transport> transport, int client_id, NonnullRefPtr<PlaybackStreamMixer> mixer, DeviceEnumeration device_enumeration)
+ServerConnection::ServerConnection(NonnullOwnPtr<IPC::Transport> transport, int client_id, NonnullRefPtr<PlaybackStreamMixer> mixer, DeviceEnumeration device_enumeration, NonnullRefPtr<CaptureDevices> capture_devices, CapturePermissionRequest request_capture_permission)
     : IPC::ConnectionFromClient<AudioClientEndpoint, AudioServerEndpoint>(*this, move(transport), client_id)
     , m_mixer(move(mixer))
+    , m_capture_devices(move(capture_devices))
+    , m_request_capture_permission(move(request_capture_permission))
     , m_device_enumeration(device_enumeration)
 {
     if (m_device_enumeration == DeviceEnumeration::Platform)
@@ -27,14 +29,25 @@ ServerConnection::~ServerConnection()
     // Removing the streams settles their drains, which must not find a connection that is going away.
     revoke_weak_ptrs();
     remove_streams_from_mixer();
+    remove_record_streams();
 }
 
 void ServerConnection::die()
 {
     stop_listening_for_device_changes();
     remove_streams_from_mixer();
+    remove_record_streams();
     if (on_death)
         on_death();
+}
+
+void ServerConnection::remove_record_streams()
+{
+    for (auto& [stream_id, stream] : m_record_streams) {
+        if (stream.subscriber_id.has_value())
+            m_capture_devices->unsubscribe(stream.subscriber_id.value());
+    }
+    m_record_streams.clear();
 }
 
 void ServerConnection::stop_listening_for_device_changes()
@@ -193,6 +206,79 @@ void ServerConnection::devices_changed()
 {
     if (m_client_watches_devices)
         send_device_list();
+}
+
+void ServerConnection::create_record_stream(u64 stream_id, ByteString device_id)
+{
+    if (m_record_streams.contains(stream_id)) {
+        did_misbehave("create_record_stream: stream ID already exists");
+        return;
+    }
+
+    // The Browser rules on every request, so a client once allowed cannot simply start another.
+    m_record_streams.set(stream_id, RecordStreamState {});
+    m_request_capture_permission(device_id, [weak_self = make_weak_ptr<ServerConnection>(), stream_id, device_id](bool allowed) {
+        auto self = weak_self.strong_ref();
+        if (self)
+            self->capture_permission_decided(stream_id, device_id, allowed);
+    });
+}
+
+void ServerConnection::capture_permission_decided(u64 stream_id, ByteString const& device_id, bool allowed)
+{
+    // The client may have given up on the stream while the Browser was asked.
+    if (!m_record_streams.contains(stream_id))
+        return;
+    if (!allowed) {
+        m_record_streams.remove(stream_id);
+        async_record_stream_creation_failed(stream_id);
+        return;
+    }
+
+    // The state exists before subscribing, since a device that is already open reports at once.
+    auto subscriber_id = m_capture_devices->subscribe(device_id, [weak_self = make_weak_ptr<ServerConnection>(), stream_id](CaptureSubscriberId subscriber_id, ErrorOr<SampleSpecification> const& result) {
+        auto self = weak_self.strong_ref();
+        if (self)
+            self->capture_device_ready(stream_id, subscriber_id, result);
+    });
+    // The callback may have failed and removed the stream already.
+    if (auto stream = m_record_streams.get(stream_id); stream.has_value())
+        stream->subscriber_id = subscriber_id;
+}
+
+void ServerConnection::capture_device_ready(u64 stream_id, CaptureSubscriberId subscriber_id, ErrorOr<SampleSpecification> const& result)
+{
+    // The client may have given up on the stream while the device was opening.
+    if (!m_record_streams.contains(stream_id))
+        return;
+
+    auto fail = [&] {
+        m_capture_devices->unsubscribe(subscriber_id);
+        m_record_streams.remove(stream_id);
+        async_record_stream_creation_failed(stream_id);
+    };
+    if (result.is_error()) {
+        fail();
+        return;
+    }
+
+    // A quarter of a second of room: the client pops every fragment, so this only ever absorbs scheduling hiccups.
+    auto const& specification = result.value();
+    auto ring = SharedAudioFrameRing::create(specification.sample_rate(), specification.channel_count(), specification.sample_rate() / 4);
+    if (ring.is_error()) {
+        fail();
+        return;
+    }
+    m_capture_devices->attach_ring(subscriber_id, ring.value());
+    async_record_stream_created(stream_id, ring.release_value());
+}
+
+void ServerConnection::destroy_record_stream(u64 stream_id)
+{
+    auto stream = m_record_streams.take(stream_id);
+    if (!stream.has_value() || !stream->subscriber_id.has_value())
+        return;
+    m_capture_devices->unsubscribe(stream->subscriber_id.value());
 }
 
 }

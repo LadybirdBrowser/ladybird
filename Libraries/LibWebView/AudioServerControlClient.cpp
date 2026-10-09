@@ -21,4 +21,10 @@ void AudioServerControlClient::die()
     // their own connections.
 }
 
+void AudioServerControlClient::capture_requested(u64 tab_id, u64 request_id, ByteString device_id)
+{
+    if (on_capture_requested)
+        on_capture_requested(tab_id, request_id, device_id);
+}
+
 }

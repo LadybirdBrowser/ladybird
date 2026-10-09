@@ -4,43 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Atomic.h>
+#include "FakeRecordStream.h"
 #include <AK/Vector.h>
 #include <LibMedia/Audio/CaptureDevices.h>
 #include <LibTest/TestCase.h>
 
-static constexpr u32 SAMPLE_RATE = 48000;
-static constexpr u32 CHANNEL_COUNT = 2;
-
-// A capture stream the test feeds by hand.
-class FakeRecordStream final : public Audio::RecordStream {
-public:
-    static Atomic<size_t> live_count;
-
-    FakeRecordStream(Audio::SampleSpecification const& specification, RecordCallback callback)
-        : m_specification(specification)
-        , m_callback(move(callback))
-    {
-        live_count++;
-    }
-    virtual ~FakeRecordStream() override { live_count--; }
-
-    virtual Audio::SampleSpecification const& sample_specification() const override { return m_specification; }
-
-    void capture(size_t frame_count, float value)
-    {
-        Vector<float> samples;
-        samples.resize(frame_count * CHANNEL_COUNT);
-        samples.fill(value);
-        m_callback(ReadonlyBytes { reinterpret_cast<u8 const*>(samples.data()), samples.size() * sizeof(float) }, m_specification);
-    }
-
-private:
-    Audio::SampleSpecification m_specification;
-    RecordCallback m_callback;
-};
-
-Atomic<size_t> FakeRecordStream::live_count { 0 };
+static constexpr u32 SAMPLE_RATE = FakeRecordStream::SAMPLE_RATE;
+static constexpr u32 CHANNEL_COUNT = FakeRecordStream::CHANNEL_COUNT;
 
 struct CaptureFixture {
     Vector<Audio::SampleSpecification> requested_specifications;

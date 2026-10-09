@@ -27,6 +27,8 @@
 #include <LibRequests/CacheState.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
+#include <LibURL/Origin.h>
+#include <LibURL/URL.h>
 #include <LibWebCommon/Bindings/Navigation.h>
 #include <LibWebCommon/CSS/StyleSheetIdentifier.h>
 #include <LibWebCommon/Forward.h>
@@ -146,6 +148,9 @@ public:
     bool has_crashed_views() const { return !m_crashed_view_ids.is_empty(); }
     ErrorOr<void> reconnect_to_compositor_process(Badge<Application>);
     ErrorOr<void> recreate_compositor_contexts(Badge<Application>);
+    // The user let the page at the URL capture audio. The AudioServer asks before every capture, and is answered from
+    // the pages' current URLs, so the grant goes with a navigation away.
+    void grant_audio_capture(URL::URL const&);
     void replay_compositor_view_state_after_reconnect(Badge<Application>);
     void notify_compositor_process_reconnected(Badge<Application>);
     Web::CompositorContextId compositor_context_id_for_page(WebContentPage const&);
@@ -220,12 +225,19 @@ private:
     ProcessHandle m_process_handle;
 
     ErrorOr<IPC::TransportHandle> connect_audio_server_client();
+    ErrorOr<void> ensure_audio_server_controller();
+    static String audio_capture_permission_key(URL::URL const&);
+    bool audio_capture_permitted() const;
+    void decide_audio_capture_request(u64 request_id);
 
     // The controller connections to the MediaServer and AudioServer spawned for this process, from its first media use
     // until it exits. The AudioServer mixes for this process alone, so a compromised one hears only its own site.
     RefPtr<MediaClient::Client> m_media_server_client;
     RefPtr<AudioServerControlClient> m_audio_server_client;
     u64 m_audio_tab_id { 0 };
+    // The pages the user let capture audio. The AudioServer rules on nothing itself: it asks about every capture, and
+    // the answer is whether an open page is one of them.
+    HashTable<String> m_audio_capture_grants;
     RefPtr<Core::Timer> m_detached_page_close_timer;
 
     RefPtr<WebUI> m_web_ui;

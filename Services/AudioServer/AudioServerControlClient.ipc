@@ -1,3 +1,5 @@
 endpoint AudioServerControlClient
 {
+    // A client of the tab asks to capture from the device; the Browser rules on every request with capture_decided.
+    capture_requested(u64 tab_id, u64 request_id, ByteString device_id) =|
 }

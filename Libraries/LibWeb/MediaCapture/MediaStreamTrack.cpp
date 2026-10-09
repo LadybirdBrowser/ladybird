@@ -6,6 +6,7 @@
 
 #include <AK/ByteString.h>
 #include <LibGC/Heap.h>
+#include <LibGC/Weak.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibMedia/Audio/RecordStream.h>
 #include <LibMedia/Audio/SampleSpecification.h>
@@ -327,6 +328,14 @@ void MediaStreamTrack::ensure_audio_capture_started()
         if (track->m_state != MediaStreamTrackState::Live)
             return;
         track->m_audio_capture_stream = stream;
+        // The backend behind the stream is gone for good; a fresh stream picks the capture up again.
+        stream->on_capture_lost = [weak_track = GC::Weak<MediaStreamTrack>(track), capture_request_id] {
+            auto track = weak_track.ptr();
+            if (!track || track->m_audio_capture_request_id != capture_request_id)
+                return;
+            track->m_audio_capture_stream = nullptr;
+            track->ensure_audio_capture_started();
+        };
     });
     stream_promise->when_rejected([track = GC::Ref(*this), capture_request_id](Error& error) {
         if (track->m_audio_capture_request_id != capture_request_id)

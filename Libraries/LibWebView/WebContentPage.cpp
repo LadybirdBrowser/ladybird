@@ -1420,9 +1420,12 @@ void WebContentPage::did_request_permission(u64 request_id, Utf16String name)
         return;
     }
 
-    view().on_request_permission(name, view().url().origin(), [page = NonnullRefPtr(*this), request_id](bool granted) {
+    auto url = view().url();
+    view().on_request_permission(name, url.origin(), [page = NonnullRefPtr(*this), request_id, name, url](bool granted) {
         if (!page->is_open())
             return;
+        if (granted && name == "microphone"_utf16)
+            page->client().grant_audio_capture(url);
         page->async_permission_request_completed(request_id, granted);
     });
 }

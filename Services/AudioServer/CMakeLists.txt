@@ -1,6 +1,6 @@
 set(SOURCES
     ControlConnection.cpp
-    TabMixers.cpp
+    Tabs.cpp
 )
 
 add_library(audioserverservice STATIC ${SOURCES})
