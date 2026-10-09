@@ -7,6 +7,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/NeverDestroyed.h>
 #include <AudioServer/ControlConnection.h>
+#include <AudioServer/PlatformAudio.h>
 #include <AudioServer/Tabs.h>
 #include <LibCore/EventLoop.h>
 #include <LibIPC/Transport.h>
@@ -31,7 +32,7 @@ void Tabs::set_control_connection(ControlConnection& connection)
     m_control_connection = connection.make_weak_ptr<ControlConnection>();
 }
 
-// The platform factory copies its callback for the null fallback, and the mixer's callback is not copyable.
+// The null fallback needs the callback the failed platform stream was given, and the mixer's callback is not copyable.
 struct SharedDataRequestCallback : public AtomicRefCounted<SharedDataRequestCallback> {
     explicit SharedDataRequestCallback(Audio::PlaybackStream::AudioDataRequestCallback callback)
         : callback(move(callback))
@@ -47,10 +48,25 @@ static NonnullRefPtr<Audio::PlaybackStream::CreatePromise> create_device_stream(
         promise->resolve(Audio::NullPlaybackStream::create(state, target_latency_ms, move(callback)));
         return promise;
     }
+
     auto shared_callback = make_ref_counted<SharedDataRequestCallback>(move(callback));
-    return Audio::PlaybackStream::create_platform_or_null(state, target_latency_ms, [shared_callback](Span<float> buffer, MonotonicTime buffer_starts_playing_at) {
-        return shared_callback->callback(buffer, buffer_starts_playing_at);
+    auto make_data_request_callback = [shared_callback] {
+        return [shared_callback](Span<float> buffer, MonotonicTime buffer_starts_playing_at) {
+            return shared_callback->callback(buffer, buffer_starts_playing_at);
+        };
+    };
+
+    // A device that cannot be opened plays into nothing, so the clients' clocks run and the tab keeps working.
+    auto promise = Audio::PlaybackStream::CreatePromise::construct();
+    auto platform_promise = Audio::create_platform_playback_stream(state, target_latency_ms, make_data_request_callback());
+    platform_promise->when_resolved([promise](NonnullRefPtr<Audio::PlaybackStream>& stream) {
+        promise->resolve(stream);
     });
+    platform_promise->when_rejected([promise, make_data_request_callback, state, target_latency_ms](Error& error) {
+        warnln("Failed to open the audio output: {}; playing into nothing", error);
+        promise->resolve(Audio::NullPlaybackStream::create(state, target_latency_ms, make_data_request_callback()));
+    });
+    return promise;
 }
 
 Tabs::Tab& Tabs::tab_for(u64 tab_id)
@@ -69,7 +85,7 @@ Audio::CaptureDevices& Tabs::capture_devices()
         m_capture_devices = Audio::CaptureDevices::create([audio_output = m_audio_output](Audio::SampleSpecification const& specification, u32 fragment_size_bytes, StringView device_id, Audio::RecordStream::RecordCallback callback) {
             if (audio_output == Media::AudioOutput::Null)
                 return Audio::RecordStream::CreatePromise::rejected(Error::from_string_literal("A headless AudioServer has no capture devices"));
-            return Audio::RecordStream::create_platform(specification, fragment_size_bytes, device_id, move(callback));
+            return Audio::create_platform_record_stream(specification, fragment_size_bytes, device_id, move(callback));
         });
     }
     return *m_capture_devices;

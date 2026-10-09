@@ -84,6 +84,7 @@ if (NOT WIN32)
 endif()
 
 if (ENABLE_GUI_TARGETS)
+    add_subdirectory(AudioServer)
     add_subdirectory(Compositor)
     add_subdirectory(LibCompositing)
     add_subdirectory(LibDevTools)

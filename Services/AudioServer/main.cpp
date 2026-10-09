@@ -6,6 +6,7 @@
 
 #include <AudioServer/BrokeredAudioDaemon.h>
 #include <AudioServer/ControlConnection.h>
+#include <AudioServer/PlatformAudio.h>
 #include <AudioServer/Sandbox.h>
 #include <AudioServer/Tabs.h>
 #include <LibCore/ArgsParser.h>
@@ -17,6 +18,7 @@
 #include <LibCore/Process.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
+#include <LibMedia/Audio/AudioDevices.h>
 #include <LibSandbox/ConnectBroker.h>
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
@@ -66,8 +68,16 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (!disable_sandbox)
         TRY(AudioServer::apply_sandbox(mach_server_name));
 
-    if (is_headless)
+    if (is_headless) {
         AudioServer::Tabs::the().set_audio_output(Media::AudioOutput::Null);
+    } else {
+        // The watch reports changes on the running loop, so it starts once there is one.
+        event_loop.deferred_invoke([] {
+            Audio::watch_platform_audio_devices([](ErrorOr<Audio::AudioDeviceEnumeration> devices) {
+                Audio::AudioDevices::the().report_device_list(move(devices));
+            });
+        });
+    }
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<AudioServer::ControlConnection>(mach_server_name));
     AudioServer::Tabs::the().set_control_connection(*client);

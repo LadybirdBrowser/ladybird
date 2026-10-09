@@ -21,10 +21,11 @@
 #include <AK/Time.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
+#include <AudioServer/PlatformAudio.h>
+#include <AudioServer/PlaybackStreamWasapi.h>
 #include <LibCore/System.h>
 #include <LibCore/ThreadedPromise.h>
 #include <LibMedia/Audio/ChannelMap.h>
-#include <LibMedia/Audio/PlaybackStreamWasapi.h>
 #include <LibMedia/Audio/SampleSpecification.h>
 #include <LibThreading/Thread.h>
 
@@ -150,7 +151,7 @@ PlaybackStreamWASAPI::~PlaybackStreamWASAPI()
     SetEvent(m_state->buffer_event);
 }
 
-NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create_platform_playback_stream(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback&& data_callback)
+NonnullRefPtr<PlaybackStream::CreatePromise> create_platform_playback_stream(OutputState initial_output_state, u32 target_latency_ms, PlaybackStream::AudioDataRequestCallback data_callback)
 {
     return PlaybackStreamWASAPI::create(initial_output_state, target_latency_ms, move(data_callback));
 }

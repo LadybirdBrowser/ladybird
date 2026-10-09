@@ -12,9 +12,10 @@
 #include <AK/SourceLocation.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
+#include <AudioServer/PlatformAudio.h>
+#include <AudioServer/PlaybackStreamAudioUnit.h>
 #include <LibCore/ThreadedPromise.h>
 #include <LibMedia/Audio/CoreAudioChannelLayout.h>
-#include <LibMedia/Audio/PlaybackStreamAudioUnit.h>
 
 #include <AudioToolbox/AudioFormat.h>
 #include <AudioUnit/AudioUnit.h>
@@ -317,7 +318,7 @@ private:
     }
 };
 
-NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create_platform_playback_stream(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback&& data_request_callback)
+NonnullRefPtr<PlaybackStream::CreatePromise> create_platform_playback_stream(OutputState initial_output_state, u32 target_latency_ms, PlaybackStream::AudioDataRequestCallback data_request_callback)
 {
     return PlaybackStreamAudioUnit::create(initial_output_state, target_latency_ms, move(data_request_callback));
 }

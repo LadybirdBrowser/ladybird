@@ -5,8 +5,9 @@
  */
 
 #include <AK/ByteString.h>
+#include <AudioServer/PlatformAudio.h>
+#include <AudioServer/PulseAudioWrappers.h>
 #include <LibCore/EventLoop.h>
-#include <LibMedia/Audio/PulseAudioWrappers.h>
 #include <LibMedia/Audio/RecordStream.h>
 #include <LibThreading/Thread.h>
 
@@ -40,9 +41,9 @@ static ErrorOr<NonnullRefPtr<RecordStream>> create_pulse_audio_record_stream(Sam
     return stream;
 }
 
-NonnullRefPtr<RecordStream::CreatePromise> RecordStream::create_platform(SampleSpecification const& specification, u32 fragment_size_bytes, StringView device_id, RecordCallback callback)
+NonnullRefPtr<RecordStream::CreatePromise> create_platform_record_stream(SampleSpecification const& specification, u32 fragment_size_bytes, StringView device_id, RecordStream::RecordCallback callback)
 {
-    auto promise = CreatePromise::construct();
+    auto promise = RecordStream::CreatePromise::construct();
 
     // AudioDevices encodes PulseAudio sources as "pulse:source:<name>". Unrecognized or
     // empty ids fall through to the server's default source.

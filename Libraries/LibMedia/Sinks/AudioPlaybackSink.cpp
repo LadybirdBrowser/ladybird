@@ -324,7 +324,7 @@ void AudioPlaybackSink::create_playback_stream()
     RefPtr<Audio::PlaybackStream::CreatePromise> promise;
     switch (m_audio_output) {
     case AudioOutput::Platform:
-        promise = Audio::PlaybackStream::create_platform_or_null(Audio::OutputState::Suspended, target_latency_ms, move(data_callback));
+        promise = Audio::PlaybackStream::create(Audio::OutputState::Suspended, target_latency_ms, move(data_callback));
         break;
     case AudioOutput::Null:
         promise = Audio::PlaybackStream::CreatePromise::construct();

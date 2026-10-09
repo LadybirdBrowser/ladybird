@@ -9,18 +9,17 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
+#include <AudioServer/CaptureDevices.h>
+#include <AudioServer/PlaybackStreamMixer.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibMedia/Audio/AudioClientEndpoint.h>
 #include <LibMedia/Audio/AudioDevices.h>
 #include <LibMedia/Audio/AudioServerEndpoint.h>
-#include <LibMedia/Audio/CaptureDevices.h>
-#include <LibMedia/Audio/PlaybackStreamMixer.h>
-#include <LibMedia/Export.h>
 
 namespace Audio {
 
 // The server end of one client process's audio connection; each stream becomes a client of the tab's mixer.
-class MEDIA_API ServerConnection final
+class ServerConnection final
     : public IPC::ConnectionFromClient<AudioClientEndpoint, AudioServerEndpoint> {
     C_OBJECT(ServerConnection);
 

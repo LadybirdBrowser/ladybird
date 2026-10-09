@@ -5,9 +5,10 @@
  */
 
 #include <AK/NeverDestroyed.h>
+#include <AudioServer/PlatformAudio.h>
+#include <AudioServer/PulseAudioWrappers.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/Audio/AudioDevices.h>
-#include <LibMedia/Audio/PulseAudioWrappers.h>
 #include <LibThreading/ThreadPool.h>
 
 namespace Audio {

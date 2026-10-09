@@ -8,6 +8,7 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/ScopeGuard.h>
 #include <AK/kmalloc.h>
+#include <AudioServer/PlatformAudio.h>
 #include <CoreAudio/CoreAudio.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <LibCore/EventLoop.h>

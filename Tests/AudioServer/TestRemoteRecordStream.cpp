@@ -9,13 +9,13 @@
 #include <AK/Atomic.h>
 #include <AK/Time.h>
 #include <AK/WeakPtr.h>
+#include <AudioServer/CaptureDevices.h>
+#include <AudioServer/PlaybackStreamMixer.h>
+#include <AudioServer/ServerConnection.h>
 #include <LibCore/EventLoop.h>
 #include <LibIPC/Transport.h>
-#include <LibMedia/Audio/CaptureDevices.h>
 #include <LibMedia/Audio/ClientConnection.h>
-#include <LibMedia/Audio/PlaybackStreamMixer.h>
 #include <LibMedia/Audio/RemoteRecordStream.h>
-#include <LibMedia/Audio/ServerConnection.h>
 #include <LibTest/TestCase.h>
 
 // Where a stream's frames land. Written on the pump thread, read from the test. Declared before the fixture in every

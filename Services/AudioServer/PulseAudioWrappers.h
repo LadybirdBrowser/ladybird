@@ -6,16 +6,15 @@
 
 #pragma once
 
-#include "Forward.h"
-#include "PlaybackStream.h"
 #include <AK/Atomic.h>
 #include <AK/AtomicRefCounted.h>
 #include <AK/Error.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <LibMedia/Audio/Forward.h>
+#include <LibMedia/Audio/PlaybackStream.h>
 #include <LibMedia/Audio/SampleSpecification.h>
-#include <LibMedia/Export.h>
 #include <pulse/pulseaudio.h>
 
 namespace Audio {
@@ -45,7 +44,7 @@ using PulseAudioRecordCallback = Function<void(ReadonlyBytes, SampleSpecificatio
 
 // A wrapper around the PulseAudio main loop and context structs.
 // Generally, only one instance of this should be needed for a single process.
-class MEDIA_API PulseAudioContext
+class PulseAudioContext
     : public AtomicRefCounted<PulseAudioContext> {
 public:
     static ErrorOr<NonnullRefPtr<PulseAudioContext>> the();
@@ -173,7 +172,7 @@ private:
     Atomic<CallbackState> m_callback_state { CallbackState::Parked };
 };
 
-class MEDIA_API PulseAudioRecordStream : public AtomicRefCounted<PulseAudioRecordStream> {
+class PulseAudioRecordStream : public AtomicRefCounted<PulseAudioRecordStream> {
 public:
     ~PulseAudioRecordStream();
 

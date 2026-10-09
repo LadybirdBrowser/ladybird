@@ -43,7 +43,7 @@ void RealtimeAudioRenderer::start_rendering()
 
     // The stream is created in a suspended state so the device configuration can be recorded before the first data
     // request callback runs on the audio thread.
-    auto promise = Audio::PlaybackStream::create_platform_or_null(Audio::OutputState::Suspended, TARGET_LATENCY_MS, [self = NonnullRefPtr(*this)](Span<float> buffer, MonotonicTime buffer_starts_playing_at) { return self->fill_output_buffer(buffer, buffer_starts_playing_at); });
+    auto promise = Audio::PlaybackStream::create(Audio::OutputState::Suspended, TARGET_LATENCY_MS, [self = NonnullRefPtr(*this)](Span<float> buffer, MonotonicTime buffer_starts_playing_at) { return self->fill_output_buffer(buffer, buffer_starts_playing_at); });
     promise->when_resolved([self = NonnullRefPtr(*this)](NonnullRefPtr<Audio::PlaybackStream>& stream) {
         self->set_playback_stream(stream);
     });

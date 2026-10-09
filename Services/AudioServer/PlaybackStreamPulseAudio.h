@@ -6,11 +6,11 @@
 
 #pragma once
 
-#include "PlaybackStream.h"
-#include "PulseAudioWrappers.h"
 #include <AK/ConditionVariable.h>
 #include <AK/Mutex.h>
 #include <AK/Queue.h>
+#include <AudioServer/PulseAudioWrappers.h>
+#include <LibMedia/Audio/PlaybackStream.h>
 
 namespace Audio {
 

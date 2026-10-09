@@ -1,18 +1,22 @@
 /*
- * Copyright (c) 2025, Ryszard Goc <ryszardgoc@gmail.com>
+ * Copyright (c) 2023, Andrew Kaster <akaster@serenityos.org>
+ * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include "PlaybackStream.h"
 #include <AK/Error.h>
 #include <AK/NonnullRefPtr.h>
+#include <LibMedia/Audio/PlaybackStream.h>
 
 namespace Audio {
 
-class PlaybackStreamWASAPI final : public PlaybackStream {
+class AudioState;
+
+class PlaybackStreamAudioUnit final : public PlaybackStream {
 public:
     static NonnullRefPtr<CreatePromise> create(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback&&);
 
@@ -27,10 +31,8 @@ public:
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double) override;
 
 private:
-    struct AudioState;
-
-    explicit PlaybackStreamWASAPI(NonnullRefPtr<AudioState>);
-    ~PlaybackStreamWASAPI();
+    explicit PlaybackStreamAudioUnit(NonnullRefPtr<AudioState>);
+    ~PlaybackStreamAudioUnit();
 
     NonnullRefPtr<AudioState> m_state;
 };
