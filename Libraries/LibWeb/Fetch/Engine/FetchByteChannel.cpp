@@ -8,14 +8,13 @@
 
 namespace Web::Fetch::Engine {
 
-NonnullRefPtr<FetchByteChannel> FetchByteChannel::create(Watermarks watermarks, NonnullRefPtr<FetchByteChannelConsumerSink> consumer_sink, NonnullRefPtr<FetchByteChannelProducerSink> producer_sink)
+NonnullRefPtr<FetchByteChannel> FetchByteChannel::create(Watermarks watermarks, NonnullRefPtr<FetchByteChannelProducerSink> producer_sink)
 {
-    return adopt_ref(*new FetchByteChannel(watermarks, move(consumer_sink), move(producer_sink)));
+    return adopt_ref(*new FetchByteChannel(watermarks, move(producer_sink)));
 }
 
-FetchByteChannel::FetchByteChannel(Watermarks watermarks, NonnullRefPtr<FetchByteChannelConsumerSink> consumer_sink, NonnullRefPtr<FetchByteChannelProducerSink> producer_sink)
+FetchByteChannel::FetchByteChannel(Watermarks watermarks, NonnullRefPtr<FetchByteChannelProducerSink> producer_sink)
     : m_watermarks(watermarks)
-    , m_consumer_sink(move(consumer_sink))
     , m_producer_sink(move(producer_sink))
     , m_outstanding_transport_credit(watermarks.high)
 {
@@ -249,6 +248,12 @@ FetchByteChannel::TakeResult FetchByteChannel::take_locked(u64 limit, PendingNot
     return result;
 }
 
+void FetchByteChannel::attach_consumer(NonnullRefPtr<FetchByteChannelConsumerSink> consumer_sink)
+{
+    VERIFY(!m_consumer_sink);
+    m_consumer_sink = move(consumer_sink);
+}
+
 FetchByteChannel::TakeResult FetchByteChannel::take_up_to(u64 limit)
 {
     PendingNotifications notifications;
@@ -287,6 +292,7 @@ FetchByteChannel::TakeResult FetchByteChannel::peek_up_to(u64 limit)
 
 WakeTicket FetchByteChannel::arm_waiter(WakeOn wake_on)
 {
+    VERIFY(m_consumer_sink);
     wake_on.visit(
         [](BufferedAtLeast const& buffered_at_least) { VERIFY(buffered_at_least.byte_count > 0); },
         [](EndOnly) { });
