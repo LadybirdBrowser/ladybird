@@ -58,9 +58,7 @@ pub fn replay_records<Painter: ReplayPainter + ?Sized>(
         if header.command_type.is_compositor_metadata() {
             return;
         }
-        if header.has_bounding_rect
-            && (header.bounding_rect.is_empty() || painter.would_be_fully_clipped_by_painter(header.bounding_rect))
-        {
+        if header.bounding_rect.is_empty() || painter.would_be_fully_clipped_by_painter(header.bounding_rect) {
             return;
         }
         for clip in inline_clips_of(header, payload) {
@@ -524,9 +522,8 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
         SwitchResult::Switched
     }
 
-    // A run enters its context once. Only a run whose ink bounds are known may be skipped as a
-    // whole, and only such a run offers its bounds to the layer cull. Skipping a run with
-    // nothing to draw before entering its context spares the pushes.
+    // A run enters its context once, and offers its ink bounds to the layer cull. Skipping a run
+    // with nothing to draw before entering its context spares the pushes.
     fn execute_run(&mut self, run_index: usize) {
         let run = self.command_runs[run_index];
         if self.palette.backface_culled[run.context.spatial.0 as usize] {
@@ -535,19 +532,14 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
         if self.culling.context_culls_everything(run.context) {
             return;
         }
-        let skippable_ink_bounds = (!run.has_unbounded_draw).then_some(run.ink_bounds);
-        if let Some(bounds) = skippable_ink_bounds
-            && bounds.is_empty()
-        {
+        if run.ink_bounds.is_empty() {
             return;
         }
-        if self.switch_to_context(run.context, skippable_ink_bounds) == SwitchResult::CulledByEffect {
+        if self.switch_to_context(run.context, Some(run.ink_bounds)) == SwitchResult::CulledByEffect {
             return;
         }
         self.ensure_ctm_space(run.context.spatial);
-        if let Some(bounds) = skippable_ink_bounds
-            && self.painter.would_be_fully_clipped_by_painter(bounds)
-        {
+        if self.painter.would_be_fully_clipped_by_painter(run.ink_bounds) {
             return;
         }
         let records = &self.tape[run.offset as usize..(run.offset + run.size) as usize];
@@ -913,7 +905,6 @@ mod tests {
             size: 0,
             context: ContextRef { spatial, ..context },
             ink_bounds,
-            has_unbounded_draw: false,
             has_compositor_metadata: false,
         }
     }

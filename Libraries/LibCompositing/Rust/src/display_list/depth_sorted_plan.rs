@@ -304,8 +304,8 @@ fn partition_command_runs_into_plane_chunks(
     let mut mappings = Vec::new();
     let mut mappings_key = None;
 
-    // A run's ink bounds already leave out clips and unbounded draws; mapping their union once per
-    // level is conservative, as it can only widen a plane's bounds.
+    // A run's ink bounds already leave out clips; mapping their union once per level is
+    // conservative, as it can only widen a plane's bounds.
     let mut chunks: Vec<CommandChunk> = Vec::new();
     for (run_index, run) in command_runs.iter().enumerate() {
         let spatial = run.context.spatial;

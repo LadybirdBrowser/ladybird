@@ -227,7 +227,7 @@ fn packed_size(tape_size: usize, run_count: usize) -> Option<usize> {
 }
 
 // Writes a run field by field, so its padding is written too.
-fn write_run(run: &DisplayListCommandRun, out: &mut [u8]) {
+pub(super) fn write_run(run: &DisplayListCommandRun, out: &mut [u8]) {
     use std::mem::offset_of;
     out.fill(0);
     let mut put = |offset: usize, bytes: &[u8]| out[offset..offset + bytes.len()].copy_from_slice(bytes);
@@ -262,10 +262,6 @@ fn write_run(run: &DisplayListCommandRun, out: &mut [u8]) {
     put(
         ink_bounds + offset_of!(libgfx_rust::IntRect, height),
         &run.ink_bounds.height.to_ne_bytes(),
-    );
-    put(
-        offset_of!(DisplayListCommandRun, has_unbounded_draw),
-        &[u8::from(run.has_unbounded_draw)],
     );
     put(
         offset_of!(DisplayListCommandRun, has_compositor_metadata),
@@ -432,7 +428,7 @@ pub enum FfiIndexedRecordKind {
 }
 
 /// Calls `visit` with each top-level DrawCanvas or PaintCaret record of the list: its run's context,
-/// whether it has a bounding rect and that rect, and its payload.
+/// its bounding rect, and its payload.
 ///
 /// # Safety
 /// `storage` must be a live storage handle. `visit` runs synchronously.
@@ -441,7 +437,7 @@ pub unsafe extern "C" fn display_list_storage_for_each_indexed_record(
     storage: *const c_void,
     kind: FfiIndexedRecordKind,
     context: *mut c_void,
-    visit: unsafe extern "C" fn(*mut c_void, ContextRef, bool, libgfx_rust::IntRect, *const u8, usize),
+    visit: unsafe extern "C" fn(*mut c_void, ContextRef, libgfx_rust::IntRect, *const u8, usize),
 ) {
     let storage = unsafe { storage_from_handle(storage) };
     let summary = storage.summary();
@@ -459,7 +455,6 @@ pub unsafe extern "C" fn display_list_storage_for_each_indexed_record(
                 visit(
                     context,
                     run_context,
-                    header.has_bounding_rect,
                     header.bounding_rect,
                     payload.as_ptr(),
                     payload.len(),

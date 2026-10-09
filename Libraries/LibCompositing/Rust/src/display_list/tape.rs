@@ -85,9 +85,9 @@ pub struct DisplayListCommandRun {
     pub offset: u32,
     pub size: u32,
     pub context: ContextRef,
-    // Union of the draw commands' bounding rects in the run's spatial node space.
+    // Union of the draw commands' bounding rects in the run's spatial node space. Every draw command
+    // has one, so this bounds everything the run draws before its visual context applies.
     pub ink_bounds: IntRect,
-    pub has_unbounded_draw: bool,
     pub has_compositor_metadata: bool,
 }
 const _: () = assert!(std::mem::size_of::<DisplayListCommandRun>() == 40);
