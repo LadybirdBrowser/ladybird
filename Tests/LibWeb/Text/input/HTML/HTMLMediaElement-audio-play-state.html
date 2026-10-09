@@ -32,9 +32,9 @@
         println(`playback with an enabled audio track reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
 
         video.remove();
-        await video.play();
         const iframe = document.body.appendChild(document.createElement("iframe"));
         iframe.contentDocument.body.appendChild(iframe.contentDocument.adoptNode(video));
+        await Promise.resolve();
         println(`playback after adoption reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
 
         video.pause();

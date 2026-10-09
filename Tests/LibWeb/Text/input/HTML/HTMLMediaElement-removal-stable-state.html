@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<div id="first"><video id="video" muted loop src="../../../Assets/test-webm.webm"></video></div>
+<div id="second"></div>
+<script src="../include.js"></script>
+<script>
+internals.setAutoplayPolicy("allow-audio-and-video");
+asyncTest(async done => {
+    const video = document.getElementById("video");
+    const first = document.getElementById("first");
+    const second = document.getElementById("second");
+
+    await video.play();
+    second.appendChild(video);
+    println(`Reparented video paused synchronously: ${video.paused}`);
+    await Promise.resolve();
+    println(`Reparented video paused at stable state: ${video.paused}`);
+
+    await video.play();
+    first.appendChild(second);
+    println(`Reparented ancestor paused synchronously: ${video.paused}`);
+    await Promise.resolve();
+    println(`Reparented ancestor paused at stable state: ${video.paused}`);
+
+    await video.play();
+    video.remove();
+    second.appendChild(video);
+    await Promise.resolve();
+    println(`Removed and reinserted video paused at stable state: ${video.paused}`);
+
+    await video.play();
+    const paused = new Promise(resolve => video.addEventListener("pause", resolve, { once: true }));
+    video.remove();
+    println(`Detached video paused synchronously: ${video.paused}`);
+    await Promise.resolve();
+    println(`Detached video paused at stable state: ${video.paused}`);
+    await paused;
+    println("Detached video fired pause event");
+    done();
+});
+</script>
