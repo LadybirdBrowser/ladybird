@@ -12,10 +12,10 @@
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
 #include <AK/WeakPtr.h>
+#include <AudioServer/CaptureDevices.h>
+#include <AudioServer/PlaybackStreamMixer.h>
+#include <AudioServer/ServerConnection.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibMedia/Audio/CaptureDevices.h>
-#include <LibMedia/Audio/PlaybackStreamMixer.h>
-#include <LibMedia/Audio/ServerConnection.h>
 #include <LibMedia/AudioOutput.h>
 
 namespace AudioServer {

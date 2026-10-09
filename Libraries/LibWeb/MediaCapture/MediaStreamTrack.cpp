@@ -289,20 +289,11 @@ void MediaStreamTrack::ensure_audio_capture_started()
     m_audio_capture_start_pending = true;
     auto capture_request_id = ++m_audio_capture_request_id;
 
-    // FIXME: Support channel layouts beyond mono and stereo.
-    auto sample_rate = sample_rate_hz() != 0 ? sample_rate_hz() : 48000;
-    auto channel_map = channel_count() == 1 ? Audio::ChannelMap::mono() : Audio::ChannelMap::stereo();
-    Audio::SampleSpecification specification(sample_rate, channel_map);
-
-    // Use 20 ms fragments to balance latency and callback overhead.
-    auto fragment_frames = sample_rate / 50;
-    auto fragment_size_bytes = static_cast<u32>(fragment_frames * channel_map.channel_count() * sizeof(float));
-
     ByteString device_id_string;
     if (auto id = device_id(); id.has_value())
         device_id_string = id->to_byte_string();
 
-    auto stream_promise = Audio::RecordStream::create(specification, fragment_size_bytes, device_id_string,
+    auto stream_promise = Audio::RecordStream::create(device_id_string,
         [fanout = m_audio_fanout](ReadonlyBytes data, Audio::SampleSpecification const& stream_specification) {
             // Runs on the audio backend's capture thread. Only the ref-counted fan-out is
             // captured here: the GC may reap the track while a callback is in flight, so the

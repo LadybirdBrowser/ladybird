@@ -6,7 +6,7 @@
 
 #include "FakeRecordStream.h"
 #include <AK/Vector.h>
-#include <LibMedia/Audio/CaptureDevices.h>
+#include <AudioServer/CaptureDevices.h>
 #include <LibTest/TestCase.h>
 
 static constexpr u32 SAMPLE_RATE = FakeRecordStream::SAMPLE_RATE;

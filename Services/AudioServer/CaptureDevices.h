@@ -17,14 +17,13 @@
 #include <AK/Vector.h>
 #include <LibMedia/Audio/RecordStream.h>
 #include <LibMedia/Audio/SharedAudioFrameRing.h>
-#include <LibMedia/Export.h>
 
 namespace Audio {
 
 using CaptureSubscriberId = u64;
 
 // One RecordStream per open device, filling the ring of every subscriber recording from it. Control thread only.
-class MEDIA_API CaptureDevices : public RefCounted<CaptureDevices> {
+class CaptureDevices : public RefCounted<CaptureDevices> {
 public:
     using RecordStreamFactory = Function<NonnullRefPtr<RecordStream::CreatePromise>(SampleSpecification const& requested_specification, u32 fragment_size_bytes, StringView device_id, RecordStream::RecordCallback)>;
 

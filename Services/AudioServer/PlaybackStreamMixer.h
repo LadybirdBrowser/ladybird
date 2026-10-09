@@ -16,7 +16,6 @@
 #include <LibCore/Forward.h>
 #include <LibMedia/Audio/PlaybackStream.h>
 #include <LibMedia/Audio/SharedAudioFrameRing.h>
-#include <LibMedia/Export.h>
 
 namespace Audio {
 
@@ -24,7 +23,7 @@ using MixerClientId = u64;
 
 // Mixes the shared rings of one tab's client streams into one output device stream, which plays only while some
 // client is playing or draining.
-class MEDIA_API PlaybackStreamMixer : public AtomicRefCounted<PlaybackStreamMixer> {
+class PlaybackStreamMixer : public AtomicRefCounted<PlaybackStreamMixer> {
 public:
     using DeviceStreamFactory = Function<NonnullRefPtr<PlaybackStream::CreatePromise>(OutputState, u32 target_latency_ms, PlaybackStream::AudioDataRequestCallback)>;
 

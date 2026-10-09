@@ -11,16 +11,6 @@
 
 namespace Audio {
 
-#if !defined(LIBMEDIA_AUDIO_DEVICE_ENUMERATION)
-
-// FIXME: Implement device enumeration for the WASAPI (Windows) backend.
-void watch_platform_audio_devices(AudioDeviceListCallback on_device_list)
-{
-    on_device_list(AudioDeviceEnumeration {});
-}
-
-#endif
-
 AudioDevices& AudioDevices::the()
 {
     static AudioDevices& devices = *new AudioDevices;
@@ -30,16 +20,10 @@ AudioDevices& AudioDevices::the()
 
 void AudioDevices::ensure_watching()
 {
-    if (m_watching)
+    // The AudioServer reports its own devices; a process with no server to reach has none.
+    if (m_watching || !Audio::ClientConnection::has_transport_factory())
         return;
     m_watching = true;
-
-    if (!Audio::ClientConnection::has_transport_factory()) {
-        watch_platform_audio_devices([this](ErrorOr<AudioDeviceEnumeration> enumeration) {
-            report_device_list(move(enumeration));
-        });
-        return;
-    }
 
     auto connection = Audio::ClientConnection::acquire();
     if (connection.is_error()) {

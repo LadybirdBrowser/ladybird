@@ -7,9 +7,9 @@
 #include <AK/Math.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <AudioServer/PlaybackStreamMixer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
-#include <LibMedia/Audio/PlaybackStreamMixer.h>
 
 namespace Audio {
 

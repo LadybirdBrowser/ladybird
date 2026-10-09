@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "PulseAudioWrappers.h"
+#include <AudioServer/PulseAudioWrappers.h>
 
 #include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>

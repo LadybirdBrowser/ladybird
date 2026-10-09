@@ -6,8 +6,8 @@
 
 #include "FakeDeviceStream.h"
 #include <AK/Vector.h>
+#include <AudioServer/PlaybackStreamMixer.h>
 #include <LibCore/EventLoop.h>
-#include <LibMedia/Audio/PlaybackStreamMixer.h>
 #include <LibTest/TestCase.h>
 
 static constexpr u32 SAMPLE_RATE = FakeDeviceStream::SAMPLE_RATE;

@@ -7,6 +7,7 @@
 #include <AK/ByteString.h>
 #include <AK/ScopeGuard.h>
 #include <AK/Vector.h>
+#include <AudioServer/PlatformAudio.h>
 #include <LibMedia/Audio/RecordStream.h>
 
 #include <AudioToolbox/AudioConverter.h>
@@ -280,9 +281,9 @@ private:
     RecordCallback m_callback;
 };
 
-NonnullRefPtr<RecordStream::CreatePromise> RecordStream::create_platform(SampleSpecification const& specification, u32, StringView device_id, RecordCallback callback)
+NonnullRefPtr<RecordStream::CreatePromise> create_platform_record_stream(SampleSpecification const& specification, u32, StringView device_id, RecordStream::RecordCallback callback)
 {
-    auto promise = CreatePromise::construct();
+    auto promise = RecordStream::CreatePromise::construct();
     auto stream_or_error = RecordStreamAudioUnit::create(specification, device_id, move(callback));
     if (stream_or_error.is_error()) {
         promise->reject(stream_or_error.release_error());

@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AudioServer/CaptureDevices.h>
 #include <LibMedia/Audio/AudioDevices.h>
-#include <LibMedia/Audio/CaptureDevices.h>
 
 namespace Audio {
 

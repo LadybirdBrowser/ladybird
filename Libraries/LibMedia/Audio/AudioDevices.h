@@ -33,7 +33,6 @@ struct AudioDeviceEnumeration {
 
 // Reports the devices once a list is available and again on every change; an error is a report that could not be made.
 using AudioDeviceListCallback = Function<void(ErrorOr<AudioDeviceEnumeration>)>;
-void watch_platform_audio_devices(AudioDeviceListCallback);
 
 // The process's view of the audio devices, kept current by watching their source from first use on.
 class MEDIA_API AudioDevices {

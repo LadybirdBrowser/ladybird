@@ -27,14 +27,11 @@ public:
     using RecordCallback = Function<void(ReadonlyBytes, SampleSpecification const&)>;
 
     // Begins creating a capture stream and returns a promise that is resolved when it is ready.
-    // A process that reaches an AudioServer gets a stream whose device lives there, delivering
-    // the device's own format whatever was requested; otherwise the platform backend honors the
-    // request by converting where it can. Either way the specification passed to the callback
-    // is authoritative. The device id is a dom_device_id produced by AudioDevices, or an
-    // empty string to capture from the default input device.
-    static NonnullRefPtr<CreatePromise> create(SampleSpecification const&, u32 fragment_size_bytes, StringView device_id, RecordCallback);
-    // The platform backend's stream, device access and all; defined by the backend's translation unit.
-    static NonnullRefPtr<CreatePromise> create_platform(SampleSpecification const&, u32 fragment_size_bytes, StringView device_id, RecordCallback);
+    // The device lives in the AudioServer, which delivers its own format; the specification
+    // passed to the callback is authoritative. A process with no server to reach is refused,
+    // since only the AudioServer opens devices. The device id is a dom_device_id produced by
+    // AudioDevices, or an empty string to capture from the default input device.
+    static NonnullRefPtr<CreatePromise> create(StringView device_id, RecordCallback);
 
     virtual ~RecordStream() = default;
 

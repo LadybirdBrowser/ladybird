@@ -56,43 +56,6 @@ TEST_CASE(null_playback_stream_completes_interleaved_controls_in_order)
         EXPECT_EQ(completions[index], index);
 }
 
-TEST_CASE(default_playback_stream_can_be_created_and_suspended)
-{
-    auto& event_loop = never_destroyed_event_loop();
-
-    Atomic<u32> request_count { 0 };
-    RefPtr<Audio::PlaybackStream> stream;
-    bool created = false;
-    Audio::PlaybackStream::create_platform_or_null(Audio::OutputState::Suspended, 10, [&](Span<float> buffer, MonotonicTime) -> ReadonlySpan<float> {
-            buffer.fill(0);
-            request_count.fetch_add(1);
-            return buffer; })
-        ->when_resolved([&](auto& created_stream) {
-            stream = created_stream;
-            created = true;
-        })
-        .when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
-
-    event_loop.spin_until([&] { return created; });
-    EXPECT(stream->sample_specification().is_valid());
-
-    Atomic<bool> resumed { false };
-    stream->resume()
-        ->when_resolved([&] { resumed.store(true); })
-        .when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
-
-    auto poll_timer = Core::Timer::create_repeating(1, [] { });
-    poll_timer->start();
-    event_loop.spin_until([&] { return resumed.load() && request_count.load() > 0; });
-
-    Atomic<bool> suspended { false };
-    stream->discard_buffer_and_suspend()
-        ->when_resolved([&] { suspended.store(true); })
-        .when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
-    event_loop.spin_until([&] { return suspended.load(); });
-    poll_timer->stop();
-}
-
 TEST_CASE(null_playback_stream_pulls_only_while_playing)
 {
     auto& event_loop = never_destroyed_event_loop();

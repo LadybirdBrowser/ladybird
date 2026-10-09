@@ -8,11 +8,12 @@
 
 #include <AK/Error.h>
 #include <LibMedia/Audio/ChannelMap.h>
+#include <LibMedia/Export.h>
 
 struct AudioChannelLayout;
 
 namespace Audio {
 
-ErrorOr<ChannelMap> core_audio_channel_layout_to_channel_map(AudioChannelLayout const& channel_layout, u32 channel_layout_size);
+MEDIA_API ErrorOr<ChannelMap> core_audio_channel_layout_to_channel_map(AudioChannelLayout const& channel_layout, u32 channel_layout_size);
 
 }
