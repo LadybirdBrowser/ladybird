@@ -22,25 +22,25 @@ class PendingResponse : public JS::Cell {
     GC_DECLARE_ALLOCATOR(PendingResponse);
 
 public:
-    using Callback = Function<void(GC::Ref<Infrastructure::Response>)>;
+    using Callback = Function<void(NonnullRefPtr<Infrastructure::Response>)>;
 
     [[nodiscard]] static GC::Ref<PendingResponse> create(Infrastructure::FetchParams const&);
-    [[nodiscard]] static GC::Ref<PendingResponse> create(Infrastructure::FetchParams const&, GC::Ref<Infrastructure::Response>);
+    [[nodiscard]] static GC::Ref<PendingResponse> create(Infrastructure::FetchParams const&, NonnullRefPtr<Infrastructure::Response>);
 
     void when_loaded(Callback);
-    void resolve(GC::Ref<Infrastructure::Response>);
+    void resolve(NonnullRefPtr<Infrastructure::Response>);
     bool is_resolved() const { return m_response != nullptr; }
 
 private:
-    PendingResponse(GC::Ref<Infrastructure::FetchController>, GC::Ptr<Infrastructure::Response> = {});
+    PendingResponse(GC::Ref<Infrastructure::FetchController>, RefPtr<Infrastructure::Response> = {});
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     void run_callback();
 
-    GC::Ptr<GC::Function<void(GC::Ref<Infrastructure::Response>)>> m_callback;
+    GC::Ptr<GC::Function<void(NonnullRefPtr<Infrastructure::Response>)>> m_callback;
     GC::Ref<Infrastructure::FetchController> m_fetch_controller;
-    GC::Ptr<Infrastructure::Response> m_response;
+    RefPtr<Infrastructure::Response> m_response;
 };
 
 }

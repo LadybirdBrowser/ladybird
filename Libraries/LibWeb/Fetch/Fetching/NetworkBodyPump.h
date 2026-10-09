@@ -29,7 +29,8 @@ class NetworkBodyPump final : public JS::Cell {
 public:
     virtual ~NetworkBodyPump() override;
 
-    void set_response(GC::Ref<Fetch::Infrastructure::Response>);
+    // The pump records the body's sizes in the response once the body completes.
+    void set_response(NonnullRefPtr<Fetch::Infrastructure::Response>);
 
     void handle_network_data(Requests::ResponseData);
     void handle_network_complete(Optional<u64> encoded_body_size = {});
@@ -48,7 +49,7 @@ private:
     void update_response_body_info();
 
     GC::Ptr<Infrastructure::FetchParams const> m_fetch_params;
-    GC::Ptr<Fetch::Infrastructure::Response> m_response;
+    RefPtr<Fetch::Infrastructure::Response> m_response;
 
     NonnullRefPtr<Engine::FetchByteChannel> m_channel;
     NonnullRefPtr<Engine::FetchBodyDeliveryGate> m_delivery_gate;

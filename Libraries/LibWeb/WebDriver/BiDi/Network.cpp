@@ -50,11 +50,10 @@ void NetworkContinuation::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(fetch_params);
-    visitor.visit(response);
     visitor.visit_possible_values(m_callback.raw_capture_range());
 }
 
-void NetworkContinuation::invoke(NetworkContinuationAction action, GC::Ptr<Response> response)
+void NetworkContinuation::invoke(NetworkContinuationAction action, RefPtr<Response> response)
 {
     m_callback(action, response);
     m_callback = nullptr;
@@ -109,7 +108,7 @@ static void stop_response_transport(FetchParams const& fetch_params, Response co
     fetch_params.controller()->stop_body_transport();
 }
 
-static void resume_blocked_request(String id, NetworkContinuationAction action, GC::Ptr<Fetch::Infrastructure::Response> response)
+static void resume_blocked_request(String id, NetworkContinuationAction action, RefPtr<Fetch::Infrastructure::Response> response)
 {
     auto it = blocked_requests().find(id);
     if (it == blocked_requests().end())
@@ -522,7 +521,7 @@ static JsonObject process_a_network_event(HTML::Navigable const& navigable, Requ
     return params;
 }
 
-void block_network_request(FetchParams const& fetch_params, GC::Ptr<Fetch::Infrastructure::Response> response, String phase, JsonArray intercepts, GC::Ref<NetworkContinuation> continuation, RefPtr<Fetch::Infrastructure::Request> original_request)
+void block_network_request(FetchParams const& fetch_params, RefPtr<Fetch::Infrastructure::Response> response, String phase, JsonArray intercepts, GC::Ref<NetworkContinuation> continuation, RefPtr<Fetch::Infrastructure::Request> original_request)
 {
     auto request = fetch_params.request();
     // NB: Cancellation runs through the controller's original parameters, rather than a prepared HTTP clone.

@@ -20,6 +20,6 @@ ProhibitsMixedSecurityContexts does_settings_prohibit_mixed_security_contexts(HT
 
 WEB_API Fetch::Infrastructure::RequestOrResponseBlocking should_fetching_request_be_blocked_as_mixed_content(Fetch::Infrastructure::Request&);
 
-WEB_API Fetch::Infrastructure::RequestOrResponseBlocking should_response_to_request_be_blocked_as_mixed_content(Fetch::Infrastructure::Request&, GC::Ref<Fetch::Infrastructure::Response>&);
+WEB_API Fetch::Infrastructure::RequestOrResponseBlocking should_response_to_request_be_blocked_as_mixed_content(Fetch::Infrastructure::Request&, Fetch::Infrastructure::Response const&);
 
 }

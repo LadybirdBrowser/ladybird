@@ -54,7 +54,6 @@ void FetchParams::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_algorithms);
     visitor.visit(m_controller);
     visitor.visit(m_task_destination);
-    visitor.visit(m_preloaded_response_candidate);
 }
 
 // https://fetch.spec.whatwg.org/#fetch-params-aborted

@@ -44,9 +44,9 @@ class NetworkContinuation final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(NetworkContinuation);
 
 public:
-    using Callback = Function<void(NetworkContinuationAction, GC::Ptr<Fetch::Infrastructure::Response>)>;
+    using Callback = Function<void(NetworkContinuationAction, RefPtr<Fetch::Infrastructure::Response>)>;
     static GC::Ref<NetworkContinuation> create(GC::Heap&, Callback);
-    void invoke(NetworkContinuationAction, GC::Ptr<Fetch::Infrastructure::Response>);
+    void invoke(NetworkContinuationAction, RefPtr<Fetch::Infrastructure::Response>);
     void clear_blocked_state();
 
     String request_id;
@@ -54,7 +54,7 @@ public:
     JsonArray intercepts;
     GC::Ptr<Fetch::Infrastructure::FetchParams const> fetch_params;
     RefPtr<Fetch::Infrastructure::Request> original_request;
-    GC::Ptr<Fetch::Infrastructure::Response> response;
+    RefPtr<Fetch::Infrastructure::Response> response;
 
 private:
     explicit NetworkContinuation(Callback);
@@ -97,7 +97,7 @@ void apply_network_cache_behavior(Fetch::Infrastructure::Request&);
 void apply_network_extra_headers(Fetch::Infrastructure::Request&);
 void apply_network_request_header_overrides(Fetch::Infrastructure::Request&);
 JsonArray get_network_intercepts(Fetch::Infrastructure::FetchParams const&, StringView phase);
-void block_network_request(Fetch::Infrastructure::FetchParams const&, GC::Ptr<Fetch::Infrastructure::Response>, String phase, JsonArray intercepts, GC::Ref<NetworkContinuation>, RefPtr<Fetch::Infrastructure::Request> original_request = nullptr);
+void block_network_request(Fetch::Infrastructure::FetchParams const&, RefPtr<Fetch::Infrastructure::Response>, String phase, JsonArray intercepts, GC::Ref<NetworkContinuation>, RefPtr<Fetch::Infrastructure::Request> original_request = nullptr);
 WEB_API Response continue_network_request(StringView method, JsonObject const&);
 
 void initialize_network_request(Fetch::Infrastructure::Request&, GC::Ptr<HTML::Navigable> = nullptr, Optional<Utf16String> const& navigation = {});

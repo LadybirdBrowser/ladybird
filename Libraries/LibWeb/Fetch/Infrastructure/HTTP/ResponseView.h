@@ -20,13 +20,13 @@ class WEB_API ResponseView final : public JS::Cell {
 
 public:
     // body_view is the view of the body of record's unsafe response.
-    [[nodiscard]] static GC::Ref<ResponseView> create(GC::Ref<Response> record, GC::Ptr<Body> body_view);
+    [[nodiscard]] static GC::Ref<ResponseView> create(NonnullRefPtr<Response const> record, GC::Ptr<Body> body_view);
     // The body of record's unsafe response is null or bytes.
-    [[nodiscard]] static GC::Ref<ResponseView> create(JS::Realm&, GC::Ref<Response> record);
+    [[nodiscard]] static GC::Ref<ResponseView> create(JS::Realm&, NonnullRefPtr<Response const> record);
     [[nodiscard]] static GC::Ref<ResponseView> network_error(String message);
     [[nodiscard]] static GC::Ref<ResponseView> aborted_network_error();
 
-    [[nodiscard]] GC::Ref<Response> record() const { return m_record; }
+    [[nodiscard]] NonnullRefPtr<Response const> const& record() const { return m_record; }
 
     [[nodiscard]] Response::Type type() const { return m_record->type(); }
     [[nodiscard]] bool aborted() const { return m_record->aborted(); }
@@ -65,11 +65,11 @@ public:
     [[nodiscard]] Vector<Core::ImmutableBytes> release_body_for_transfer() const { return m_record->release_body_for_transfer(); }
 
 private:
-    ResponseView(GC::Ref<Response>, GC::Ptr<Body>);
+    ResponseView(NonnullRefPtr<Response const>, GC::Ptr<Body>);
 
     virtual void visit_edges(Visitor&) override;
 
-    GC::Ref<Response> m_record;
+    NonnullRefPtr<Response const> m_record;
     GC::Ptr<Body> m_body_view;
 };
 
