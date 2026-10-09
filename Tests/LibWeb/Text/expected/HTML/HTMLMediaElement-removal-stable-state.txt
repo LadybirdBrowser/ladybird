@@ -1,0 +1,8 @@
+Reparented video paused synchronously: false
+Reparented video paused at stable state: false
+Reparented ancestor paused synchronously: false
+Reparented ancestor paused at stable state: false
+Removed and reinserted video paused at stable state: false
+Detached video paused synchronously: false
+Detached video paused at stable state: true
+Detached video fired pause event

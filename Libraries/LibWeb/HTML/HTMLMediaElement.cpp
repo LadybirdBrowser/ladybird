@@ -318,16 +318,17 @@ void HTMLMediaElement::removed_from(IsSubtreeRoot is_subtree_root, DOM::Node* ol
 
     // When a media element is removed from a Document, the user agent must run the following steps:
 
-    // FIXME: 1. Await a stable state, allowing the task that removed the media element from the Document to continue. The
-    //           synchronous section consists of all the remaining steps of this algorithm. (Steps in the synchronous section
-    //           are marked with ⌛.)
+    // 1. Await a stable state, allowing the task that removed the media element from the Document to continue. The
+    //    synchronous section consists of all the remaining steps of this algorithm. (Steps in the synchronous section
+    //    are marked with ⌛.)
+    queue_a_microtask(&document(), GC::create_function(GC::Heap::the(), [this] {
+        // 2. ⌛ If the media element is in a document, return.
+        if (in_a_document_tree())
+            return;
 
-    // 2. ⌛ If the media element is in a document, return.
-    if (in_a_document_tree())
-        return;
-
-    // 3. ⌛ Run the internal pause steps for the media element.
-    pause_element();
+        // 3. ⌛ Run the internal pause steps for the media element.
+        pause_element();
+    }));
 }
 
 void HTMLMediaElement::adopted_from(DOM::Document& old_document)
