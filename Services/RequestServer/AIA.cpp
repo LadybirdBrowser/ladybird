@@ -7,6 +7,7 @@
 #include <LibCrypto/OpenSSL.h>
 #include <RequestServer/AIA.h>
 
+#include <AK/AnyOf.h>
 #include <AK/ByteString.h>
 #include <AK/HashMap.h>
 #include <AK/Time.h>
@@ -69,27 +70,32 @@ Vector<ByteString> ca_issuers_urls(X509* certificate)
     return urls;
 }
 
-// Process-wide cache of intermediate certs fetched via AIA. Each entry owns one reference to the X509. Bounded by
-// max_cached_intermediates with FIFO eviction.
-static Vector<Crypto::OpenSSL_X509>& intermediate_cache()
+// Separate normal and private caches to prevent browsing-history leaks. Each entry owns one X509 reference.
+static Vector<Crypto::OpenSSL_X509>& intermediate_cache(IsPrivate is_private)
 {
-    static Vector<Crypto::OpenSSL_X509> cache;
-    return cache;
+    static Vector<Crypto::OpenSSL_X509> caches[2];
+    return caches[to_underlying(is_private)];
 }
 
-// Process-wide record of caIssuers URLs whose fetch failed, mapped to when they failed — so we don't repeatedly retry a
-// dead URL. Entries older than failed_url_retry_interval are ignored (and dropped when next encountered).
-static HashMap<ByteString, MonotonicTime>& failed_urls()
+// Cache failed caIssuers fetches to avoid repeated retries, separately for normal and private clients.
+static HashMap<ByteString, MonotonicTime>& failed_urls(IsPrivate is_private)
 {
-    static HashMap<ByteString, MonotonicTime> urls;
-    return urls;
+    static HashMap<ByteString, MonotonicTime> urls[2];
+    return urls[to_underlying(is_private)];
 }
 
-void mark_aia_url_failed(ByteString url)
+void mark_aia_url_failed(IsPrivate is_private, ByteString url)
 {
-    if (failed_urls().size() >= max_failed_urls)
-        failed_urls().clear();
-    failed_urls().set(move(url), MonotonicTime::now_coarse());
+    auto& urls = failed_urls(is_private);
+    if (urls.size() >= max_failed_urls)
+        urls.clear();
+    urls.set(move(url), MonotonicTime::now_coarse());
+}
+
+void clear_aia_state(IsPrivate is_private)
+{
+    intermediate_cache(is_private).clear();
+    failed_urls(is_private).clear();
 }
 
 // Parse a fetched AIA response body into one or more certs. Real-world CAs serve a bare DER-encoded cert, a PKCS#7/
@@ -139,21 +145,48 @@ Vector<X509*> parse_certificates(ReadonlyBytes body)
     return certificates;
 }
 
-bool add_fetched_aia_intermediate(ReadonlyBytes body)
+static void add_certificate(Vector<Crypto::OpenSSL_X509>& certificates, X509* certificate)
+{
+    X509_up_ref(certificate);
+    auto owned = Crypto::OpenSSL_X509::wrap(certificate);
+    if (owned.is_error()) {
+        X509_free(certificate);
+        return;
+    }
+    certificates.append(owned.release_value());
+}
+
+bool add_fetched_aia_intermediates(ReadonlyBytes body, ReadonlySpan<NonnullRefPtr<AIACollector>> collectors)
 {
     auto certificates = parse_certificates(body);
     for (auto* certificate : certificates) {
-        auto owned = Crypto::OpenSSL_X509::wrap(certificate);
-        if (owned.is_error()) {
-            X509_free(certificate);
-            continue;
-        }
-        // take_first() drops the oldest wrapper, whose destructor frees the certificate.
-        if (intermediate_cache().size() >= max_cached_intermediates)
-            (void)intermediate_cache().take_first();
-        intermediate_cache().append(owned.release_value());
+        for (auto const& collector : collectors)
+            add_certificate(collector->fetched_intermediates, certificate);
+        X509_free(certificate);
     }
     return !certificates.is_empty();
+}
+
+static bool contains_certificate(Vector<Crypto::OpenSSL_X509> const& certificates, X509 const* certificate)
+{
+    return any_of(certificates, [&](auto const& candidate) { return X509_cmp(candidate.ptr(), certificate) == 0; });
+}
+
+static void promote_fetched_intermediates(X509_STORE_CTX* context, AIACollector& collector)
+{
+    auto* chain = X509_STORE_CTX_get0_chain(context);
+    auto& cache = intermediate_cache(collector.is_private);
+
+    for (int i = 0; chain && i < sk_X509_num(chain); ++i) {
+        auto* certificate = sk_X509_value(chain, i);
+        if (!contains_certificate(collector.fetched_intermediates, certificate) || contains_certificate(cache, certificate))
+            continue;
+
+        // take_first() drops the oldest wrapper, whose destructor frees the certificate.
+        if (cache.size() >= max_cached_intermediates)
+            (void)cache.take_first();
+        add_certificate(cache, certificate);
+    }
 }
 
 // Installed via SSL_CTX_set_cert_verify_callback. On failure, we record the failing cert's caIssuers URLs for the
@@ -161,13 +194,18 @@ bool add_fetched_aia_intermediate(ReadonlyBytes body)
 static int verify_callback(X509_STORE_CTX* context, void* collector_data)
 {
     auto* collector = static_cast<AIACollector*>(collector_data);
+    auto is_private = collector ? collector->is_private : IsPrivate::No;
 
     // Add the fetched intermediates alongside the certs the server sent, as untrusted path-building material.
     auto* server_untrusted = X509_STORE_CTX_get0_untrusted(context);
     auto* untrusted = server_untrusted ? sk_X509_dup(server_untrusted) : sk_X509_new_null();
     if (untrusted) {
-        for (auto& candidate : intermediate_cache())
+        for (auto& candidate : intermediate_cache(is_private))
             sk_X509_push(untrusted, candidate.ptr());
+        if (collector) {
+            for (auto& candidate : collector->fetched_intermediates)
+                sk_X509_push(untrusted, candidate.ptr());
+        }
         X509_STORE_CTX_set0_untrusted(context, untrusted);
     }
 
@@ -177,6 +215,9 @@ static int verify_callback(X509_STORE_CTX* context, void* collector_data)
         X509_STORE_CTX_set0_untrusted(context, server_untrusted);
         sk_X509_free(untrusted);
     }
+
+    if (result > 0 && collector && !collector->fetched_intermediates.is_empty())
+        promote_fetched_intermediates(context, *collector);
 
     // AIA can only repair a chain missing an intermediate issuer. For any other verification failure, fetching
     // caIssuers is useless — so we leave the collector's pending URLs untouched.
@@ -188,10 +229,10 @@ static int verify_callback(X509_STORE_CTX* context, void* collector_data)
             for (auto& url : ca_issuers_urls(current)) {
                 if (collector->attempted_urls.contains(url))
                     continue;
-                if (auto failed_at = failed_urls().get(url); failed_at.has_value()) {
+                if (auto failed_at = failed_urls(is_private).get(url); failed_at.has_value()) {
                     if (MonotonicTime::now_coarse() - *failed_at < failed_url_retry_interval)
                         continue;
-                    failed_urls().remove(url);
+                    failed_urls(is_private).remove(url);
                 }
                 if (!collector->pending_urls.contains_slow(url))
                     collector->pending_urls.append(move(url));

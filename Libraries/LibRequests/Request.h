@@ -79,11 +79,6 @@ private:
 class Request : public RefCounted<Request>
     , public Weakable<Request> {
 public:
-    struct CertificateAndKey {
-        ByteString certificate;
-        ByteString key;
-    };
-
     static NonnullRefPtr<Request> create_from_id(Badge<RequestClient>, RequestClient& client, u64 request_id, Optional<RequestTransferLeaseKey> transfer_lease = {})
     {
         return adopt_ref(*new Request(client, request_id, move(transfer_lease)));
@@ -123,12 +118,10 @@ public:
     void set_unbuffered_request_callbacks(HeadersReceived, DataReceived, CachedBodyAvailable, RequestFinished);
     void set_stop_callback(RequestStopped);
 
-    Function<CertificateAndKey()> on_certificate_requested;
     Function<void()> on_requires_network;
 
     void did_finish(Badge<RequestClient>, u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> const& network_error);
     void did_receive_headers(Badge<RequestClient>, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, CacheState cache_state);
-    void did_request_certificates(Badge<RequestClient>);
     void did_transfer(Badge<RequestClient>);
 
     RefPtr<Core::Notifier>& write_notifier(Badge<RequestClient>) { return m_write_notifier; }

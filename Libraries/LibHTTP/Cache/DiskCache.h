@@ -60,14 +60,20 @@ public:
     ErrorOr<bool> create_synthetic_entry(Utf16String const& partition, URL::URL const&, StringView method);
 
     void remove_entries_exceeding_cache_limit();
+    void remove_variants_exceeding_limit(Badge<CacheEntryWriter>, u64 cache_key, u64 vary_key_to_keep);
     void set_maximum_disk_cache_size(u64 maximum_disk_cache_size);
 
     Requests::CacheSizes estimate_cache_size_accessed_since(UnixDateTime since);
     void remove_entries_accessed_since(UnixDateTime since);
 
+    void invalidate(Utf16String const& partition, URL::URL const&);
+
     LexicalPath const& cache_directory() const { return m_cache_directory; }
 
     void cache_entry_closed(Badge<CacheEntry>, CacheEntry const&);
+
+    // Leaves writers for the request to finish or discard.
+    void close_entries_read_by(CacheRequest const&);
 
     // The time when any request holding open a cache entry for this URL and method last made progress — or nothing, if
     // no such request reports any. A request waiting on that entry reads it to judge whether the holder has stalled.
@@ -82,7 +88,9 @@ private:
     };
     bool check_if_cache_has_open_entry(CacheRequest&, u64 cache_key, URL::URL const&, CheckReaderEntries);
 
+    void close_entry(CacheEntry const&);
     void delete_entry(u64 cache_key, u64 vary_key);
+    void remove_entry_files(u64 cache_key, u64 vary_key);
 
     Mode m_mode;
     NonnullRefPtr<Database::Database> m_database;

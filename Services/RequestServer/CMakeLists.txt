@@ -1,5 +1,6 @@
 set(SOURCES
     AIA.cpp
+    AlternativeServices.cpp
     ConnectionFromClient.cpp
     ControlConnectionFromClient.cpp
     CURL.cpp
@@ -42,7 +43,7 @@ add_executable(RequestServer main.cpp)
 target_include_directories(requestserverservice PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../..)
 target_include_directories(requestserverservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 
-target_link_libraries(RequestServer PRIVATE requestserverservice)
+target_link_libraries(RequestServer PRIVATE requestserverservice LibFileSystem)
 target_link_libraries(requestserverservice PUBLIC LibCore LibDNS LibHTTP LibIPC LibMain LibRequests LibSandbox LibTLS LibWebSocket LibURL LibTextCodec CURL::libcurl)
 target_link_libraries(requestserverservice PRIVATE OpenSSL::Crypto OpenSSL::SSL)
 

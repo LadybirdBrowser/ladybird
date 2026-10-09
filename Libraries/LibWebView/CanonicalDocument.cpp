@@ -4,10 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibURL/Site.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/CanonicalWindow.h>
+#include <LibWebView/RequestServerManager.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentPage.h>
 
@@ -59,6 +61,11 @@ void CanonicalDocument::set_host(RefPtr<WebContentPage> host)
     m_host = move(host);
     if (m_host) {
         m_relevant_global_object->agent().set_hosting_process_if_unset(m_host->client());
+        // The process makes the document's requests through the RequestServer of the document's top-level site.
+        if (auto top_level_origin = this->top_level_origin(); top_level_origin.has_value()) {
+            if (auto top_level_site = URL::Site::serialize_for_partitioning(*top_level_origin); top_level_site.has_value())
+                RequestServerManager::the().assign_site(m_host->client(), *top_level_site);
+        }
         m_host->client().request_server_site_bindings().bind_sites_of(*this);
     }
 }

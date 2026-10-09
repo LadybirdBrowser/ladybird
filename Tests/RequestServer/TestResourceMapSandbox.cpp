@@ -85,6 +85,51 @@ TEST_CASE(resource_map_files_are_readable_without_granting_access_to_neighbors)
         EXPECT_EQ(WEXITSTATUS(status), 0);
 }
 
+TEST_CASE(certificate_files_are_readable_without_granting_access_to_neighbors)
+{
+    if (!landlock_is_available())
+        return;
+
+    char directory_template[] = "/tmp/ladybird-certificate-XXXXXX";
+    auto* directory = mkdtemp(directory_template);
+    VERIFY(directory);
+    ScopeGuard cleanup = [&] {
+        MUST(FileSystem::remove(ByteString { directory }, FileSystem::RecursionMode::Allowed));
+    };
+
+    auto certificate_path = ByteString::formatted("{}/certificate.pem", directory);
+    auto key_path = ByteString::formatted("{}/key.pem", directory);
+    auto cache_path = ByteString::formatted("{}/cache", directory);
+    auto write_file = [](ByteString const& path, StringView content) {
+        auto file = MUST(Core::File::open(path, Core::File::OpenMode::Write));
+        MUST(file->write_until_depleted(content.bytes()));
+    };
+    write_file(certificate_path, "certificate"sv);
+    write_file(key_path, "key"sv);
+
+    auto child = fork();
+    VERIFY(child >= 0);
+    if (child == 0) {
+        MUST(RequestServer::apply_sandbox({}, { certificate_path }, cache_path));
+
+        auto certificate_file = MUST(Core::File::open(certificate_path, Core::File::OpenMode::Read));
+        auto contents = MUST(certificate_file->read_until_eof());
+        VERIFY(StringView(contents) == "certificate"sv);
+
+        VERIFY(open(key_path.characters(), O_RDONLY) == -1);
+        VERIFY(errno == EACCES);
+        VERIFY(open(directory, O_RDONLY | O_DIRECTORY) == -1);
+        VERIFY(errno == EACCES);
+        _exit(0);
+    }
+
+    int status = 0;
+    VERIFY(waitpid(child, &status, 0) == child);
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
 TEST_CASE(vectored_io_and_permission_changes_work_in_the_sandbox)
 {
     if (!landlock_is_available())

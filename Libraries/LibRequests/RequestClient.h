@@ -15,6 +15,7 @@
 #include <LibHTTP/NetworkIsolationKey.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibRequests/CacheState.h>
+#include <LibRequests/ExportedRequest.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibRequests/RequestTransferLease.h>
 #include <LibRequests/WebSocket.h>
@@ -46,18 +47,23 @@ public:
     };
 
     explicit RequestClient(NonnullOwnPtr<IPC::Transport>);
+    // For a client whose ID the process that connected it already knows, so that no round trip is needed.
+    RequestClient(NonnullOwnPtr<IPC::Transport>, int client_id);
     virtual ~RequestClient() override;
 
     // Best-effort index into the resolved address pool.
     RefPtr<Request> start_request(ByteString const& method, URL::URL const&, Optional<HTTP::HeaderList const&> request_headers = {}, ReadonlyBytes request_body = {}, HTTP::CacheMode = HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials = HTTP::Cookie::IncludeCredentials::Yes, TransferLease = TransferLease::No, Optional<u32> address_selection_hint = {}, CacheMissNotification = CacheMissNotification::No, u64 originating_page_id = 0, Optional<HTTP::NetworkIsolationKey> = {});
     RefPtr<Request> adopt_request(int source_client_id, u64 source_request_id, TransferLease = TransferLease::No);
+
+    // Moves a response between RequestServers. The request leaves this client on export; the imported one is a new
+    // request of the importing client.
+    ErrorOr<ExportedRequest> export_request(Request&);
+    RefPtr<Request> import_request(ExportedRequest, TransferLease = TransferLease::No);
     bool stop_request(Badge<Request>, Request&);
     void release_request_transfer_lease(Badge<Request>, Request&, RequestTransferLeaseKey);
     void release_request_transfer_lease(RequestTransferLeaseKey);
     void ensure_connection(URL::URL const&, RequestServer::CacheLevel);
     int request_server_client_id() const { return m_request_server_client_id; }
-
-    bool set_certificate(Badge<Request>, Request&, ByteString, ByteString);
 
     RefPtr<WebSocket> websocket_connect(URL::URL const&, Optional<HTTP::NetworkIsolationKey> const&, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers);
 
@@ -79,8 +85,6 @@ private:
     virtual void headers_became_available(u64 request_id, Vector<HTTP::Header>, Optional<u32>, Optional<String>, Optional<IPC::File>, u64 javascript_bytecode_size, Optional<u64>, CacheState) override;
     virtual void request_transferred(u64 request_id) override;
 
-    virtual void certificate_requested(u64 request_id) override;
-
     virtual void websocket_connected(u64 websocket_id) override;
     virtual void websocket_received(u64 websocket_id, bool, ByteBuffer) override;
     virtual void websocket_received_shared(u64 websocket_id, bool, Core::AnonymousBuffer) override;
@@ -88,7 +92,6 @@ private:
     virtual void websocket_closed(u64 websocket_id, u16, ByteString, bool) override;
     virtual void websocket_ready_state_changed(u64 websocket_id, u32 ready_state) override;
     virtual void websocket_subprotocol(u64 websocket_id, ByteString subprotocol) override;
-    virtual void websocket_certificate_requested(u64 websocket_id) override;
 
     HashMap<u64, RefPtr<Request>> m_requests;
     u64 m_next_request_id { 0 };

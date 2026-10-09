@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibHTTP/Proxy.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/ProcessType.h>
@@ -116,6 +117,9 @@ struct RequestServerOptions {
     ByteString cache_path;
     HTTPDiskCacheMode http_disk_cache_mode { HTTPDiskCacheMode::Disabled };
     Optional<ByteString> resource_substitution_map_path;
+    HTTP::ProxyConfiguration proxy_configuration;
+    // Per-session limit, excluding the RequestServer with no site. Zero makes every process share that server.
+    size_t maximum_site_request_servers { 16 };
 };
 
 enum class IsTestMode {

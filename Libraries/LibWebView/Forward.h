@@ -44,6 +44,8 @@ class HSTSStore;
 class Menu;
 class OutOfProcessWebView;
 class ProcessManager;
+class RequestServerInstance;
+class RequestServerManager;
 class RequestServerSiteBindings;
 class SessionStore;
 class Settings;

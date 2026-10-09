@@ -16,6 +16,7 @@
 #include <LibCore/Platform/ThreadQoS.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
@@ -49,6 +50,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     StringView http_disk_cache_mode;
     StringView resource_map_path;
     StringView cache_path;
+    StringView top_level_site;
     bool wait_for_debugger = false;
     bool disable_sandbox = false;
 
@@ -60,6 +62,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(http_disk_cache_mode, "HTTP disk cache mode", "http-disk-cache-mode", 0, "mode");
     args_parser.add_option(resource_map_path, "Path to JSON file mapping URLs to local files", "resource-map", 0, "path");
     args_parser.add_option(cache_path, "Path to the profile cache", "cache-path", 0, "path");
+    args_parser.add_option(top_level_site, "The top-level site this RequestServer serves", "site", 0, "site");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
     args_parser.parse(arguments);
@@ -117,6 +120,13 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             disk_cache = cache.release_value();
     }
 
+    // Alternative services are no longer persisted, so this only holds history.
+    if (!cache_path.is_empty())
+        (void)FileSystem::remove(LexicalPath::join(cache_path, "alt-svc-cache.txt"sv).string(), FileSystem::RecursionMode::Disallowed);
+
+    if (!top_level_site.is_empty())
+        RequestServer::set_process_top_level_site(Utf16String::from_utf8(top_level_site));
+
     TRY(RequestServer::initialize_libcurl());
 
     if (!disable_sandbox)
@@ -131,8 +141,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         mach_server_name,
         connections,
         request_transfer_leases,
-        disk_cache,
-        LexicalPath::join(cache_path, "alt-svc-cache.txt"sv).string()));
+        disk_cache));
 
     return event_loop.exec();
 }

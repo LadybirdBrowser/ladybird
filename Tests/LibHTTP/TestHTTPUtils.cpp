@@ -12,6 +12,7 @@
 #include <LibHTTP/HTTP.h>
 #include <LibHTTP/Header.h>
 #include <LibHTTP/Method.h>
+#include <LibHTTP/Port.h>
 
 TEST_CASE(collect_an_http_quoted_string)
 {
@@ -142,6 +143,18 @@ TEST_CASE(token_validation)
     EXPECT(!HTTP::is_header_name(""sv));
     EXPECT(!HTTP::is_header_name("Content Type"sv));
     EXPECT(!HTTP::is_header_name("Content:Type"sv));
+}
+
+TEST_CASE(bad_port)
+{
+    EXPECT(HTTP::is_bad_port(1));
+    EXPECT(HTTP::is_bad_port(25));
+    EXPECT(HTTP::is_bad_port(6667));
+    EXPECT(HTTP::is_bad_port(10080));
+    EXPECT(!HTTP::is_bad_port(0));
+    EXPECT(!HTTP::is_bad_port(80));
+    EXPECT(!HTTP::is_bad_port(443));
+    EXPECT(!HTTP::is_bad_port(8080));
 }
 
 TEST_CASE(extract_header_values)

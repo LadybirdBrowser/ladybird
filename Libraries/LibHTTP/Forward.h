@@ -20,9 +20,11 @@ class HeaderList;
 class HttpRequest;
 class HttpResponse;
 class MemoryCache;
+class ProxyConfiguration;
 
 struct Header;
 struct NetworkIsolationKey;
+struct Proxy;
 
 }
 

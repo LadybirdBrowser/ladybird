@@ -45,9 +45,22 @@ Optional<MemoryCache::Entry const&> MemoryCache::open_entry(URL::URL const& url,
     }
 
     // - request header fields nominated by the stored response (if any) match those presented (see Section 4.1), and
-    auto cache_entry = find_value(*cache_entries, [&](auto const& entry) {
-        return entry_matches_request(request_headers, entry);
-    });
+    Optional<Entry const&> cache_entry;
+
+    for (auto const& entry : *cache_entries) {
+        if (!entry_matches_request(request_headers, entry))
+            continue;
+
+        // https://httpwg.org/specs/rfc9111.html#caching.negotiated.responses
+        // If multiple stored responses match, the cache will need to choose one to use. [...] If such a mechanism is
+        // not available, or leads to equally preferred responses, the most recent response (as determined by the Date
+        // header field) is chosen, as per Section 4.
+        //
+        // NB: Receipt time is available for every stored response.
+        if (!cache_entry.has_value() || entry.response_time > cache_entry->response_time)
+            cache_entry = entry;
+    }
+
     if (!cache_entry.has_value()) {
         dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[35;1mVary mismatch for\033[0m {}", url);
         return {};
@@ -85,16 +98,32 @@ Optional<MemoryCache::Entry const&> MemoryCache::open_entry(URL::URL const& url,
     VERIFY_NOT_REACHED();
 }
 
-void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, UnixDateTime request_time, u32 status_code, ByteString reason_phrase, HeaderList const& response_headers, Optional<Core::ImmutableBytes> javascript_bytecode_cache, Optional<u64> javascript_bytecode_cache_vary_key)
+void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, UnixDateTime request_time, u32 status_code, ByteString reason_phrase, HeaderList const& received_response_headers, Optional<Core::ImmutableBytes> javascript_bytecode_cache, Optional<u64> javascript_bytecode_cache_vary_key)
 {
+    auto response_headers_without_connection_specific_fields = remove_connection_specific_fields(received_response_headers);
+    auto const& response_headers = *response_headers_without_connection_specific_fields;
+
     if (!is_cacheable(method, request_headers))
         return;
-    if (!is_cacheable(status_code, response_headers))
+
+    // This 304 answers the client's preconditions, not the cache's validators.
+    if (status_code == 304)
         return;
 
     auto serialized_url = serialize_url_for_cache_storage(url);
     auto cache_key = create_cache_key(serialized_url, method);
+
     auto vary_key = create_vary_key(request_headers, response_headers);
+    if (!vary_key.has_value() || !is_cacheable(status_code, response_headers)) {
+        // A non-storable replacement must still retire the old response.
+        if (auto cache_entries = m_complete_entries.get(cache_key); cache_entries.has_value()) {
+            cache_entries->remove_all_matching([&](auto const& entry) { return entry_matches_request(request_headers, entry); });
+            if (cache_entries->is_empty())
+                m_complete_entries.remove(cache_key);
+        }
+
+        return;
+    }
 
     auto request_headers_copy = HeaderList::create();
     store_header_and_trailer_fields(request_headers_copy, request_headers);
@@ -103,7 +132,7 @@ void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderLis
     store_header_and_trailer_fields(response_headers_copy, response_headers);
 
     Entry cache_entry {
-        .vary_key = vary_key,
+        .vary_key = *vary_key,
         .status_code = status_code,
         .reason_phrase = move(reason_phrase),
         .request_headers = move(request_headers_copy),
@@ -121,8 +150,11 @@ void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderLis
 
 // FIXME: It would be nicer if create_entry just returned the cache and vary keys. But the call sites of create_entry and
 //        finalize_entry are pretty far apart, so passing that information along is rather awkward in Fetch.
-void MemoryCache::finalize_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, u32 status_code, HeaderList const& response_headers, Core::ImmutableBytes response_body)
+void MemoryCache::finalize_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, u32 status_code, HeaderList const& received_response_headers, Core::ImmutableBytes response_body)
 {
+    auto response_headers_without_connection_specific_fields = remove_connection_specific_fields(received_response_headers);
+    auto const& response_headers = *response_headers_without_connection_specific_fields;
+
     if (!is_cacheable(method, request_headers))
         return;
     if (!is_cacheable(status_code, response_headers))
@@ -147,7 +179,9 @@ void MemoryCache::finalize_entry(URL::URL const& url, StringView method, HeaderL
         if (cache_entries->is_empty())
             m_pending_entries.remove(cache_key);
 
-        m_complete_entries.ensure(cache_key).append(move(cache_entry));
+        auto& complete_entries = m_complete_entries.ensure(cache_key);
+        complete_entries.remove_all_matching([&](auto const& entry) { return entry.vary_key == cache_entry.vary_key; });
+        complete_entries.append(move(cache_entry));
     }
 }
 
@@ -178,6 +212,23 @@ void MemoryCache::update_javascript_bytecode_cache(URL::URL const& url, StringVi
 
     if (auto cache_entries = m_pending_entries.get(cache_key); cache_entries.has_value())
         update_entries(*cache_entries);
+}
+
+// https://httpwg.org/specs/rfc9111.html#invalidation
+void MemoryCache::invalidate(URL::URL const& url)
+{
+    // "Invalidate" means that the cache will either remove all stored responses whose target URI matches the given URI
+    // or mark them as "invalid" and in need of a mandatory validation before they can be sent in response to a
+    // subsequent request.
+    auto serialized_url = serialize_url_for_cache_storage(url);
+
+    for (auto method : { "GET"sv, "HEAD"sv }) {
+        auto cache_key = create_cache_key(serialized_url, method);
+
+        dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[33;1mInvalidated cache entries for\033[0m {} {}", method, url);
+        m_complete_entries.remove(cache_key);
+        m_pending_entries.remove(cache_key);
+    }
 }
 
 }

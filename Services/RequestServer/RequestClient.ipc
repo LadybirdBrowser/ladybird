@@ -25,8 +25,4 @@ endpoint RequestClient
     websocket_closed(u64 websocket_id, u16 code, ByteString reason, bool clean) =|
     websocket_ready_state_changed(u64 websocket_id, u32 ready_state) =|
     websocket_subprotocol(u64 websocket_id, ByteString subprotocol) =|
-    websocket_certificate_requested(u64 websocket_id) =|
-
-    // Certificate requests
-    certificate_requested(u64 request_id) =|
 }

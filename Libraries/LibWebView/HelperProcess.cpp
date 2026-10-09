@@ -17,6 +17,7 @@
 #include <LibWebView/FontService.h>
 #include <LibWebView/FontServiceHost.h>
 #include <LibWebView/HelperProcess.h>
+#include <LibWebView/RequestServerManager.h>
 #include <LibWebView/Utilities.h>
 
 #if defined(AK_OS_MACOS)
@@ -539,7 +540,23 @@ ErrorOr<NonnullRefPtr<WebWorkerClient>> launch_web_worker_process(Web::HTML::Age
     return client;
 }
 
-ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_process()
+void apply_dns_settings(Requests::RequestControlClient& client)
+{
+    Application::settings().dns_settings().visit(
+        [&](SystemDNS) {
+            client.async_set_use_system_dns();
+        },
+        [&](DNSOverTLS const& dns_over_tls) {
+            dbgln("Setting DNS server to {}:{} with TLS ({} local dnssec)", dns_over_tls.server_address, dns_over_tls.port, dns_over_tls.validate_dnssec_locally ? "with" : "without");
+            client.async_set_dns_server(dns_over_tls.server_address, dns_over_tls.port, true, dns_over_tls.validate_dnssec_locally);
+        },
+        [&](DNSOverUDP const& dns_over_udp) {
+            dbgln("Setting DNS server to {}:{} ({} local dnssec)", dns_over_udp.server_address, dns_over_udp.port, dns_over_udp.validate_dnssec_locally ? "with" : "without");
+            client.async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false, dns_over_udp.validate_dnssec_locally);
+        });
+}
+
+ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_process(ByteString const& cache_path, Optional<Utf16String> const& site, HTTPDiskCacheMode http_disk_cache_mode)
 {
     auto const& browser_options = Application::browser_options();
     auto const& request_server_options = Application::request_server_options();
@@ -547,7 +564,12 @@ ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_pro
     Vector<ByteString> arguments;
 
     arguments.append("--cache-path"sv);
-    arguments.append(request_server_options.cache_path);
+    arguments.append(cache_path);
+
+    if (site.has_value()) {
+        arguments.append("--site"sv);
+        arguments.append(site->to_byte_string());
+    }
 
     if (browser_options.disable_sandbox == DisableSandbox::Yes)
         arguments.append("--disable-sandbox"sv);
@@ -556,7 +578,7 @@ ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_pro
 
     arguments.append("--http-disk-cache-mode"sv);
 
-    switch (request_server_options.http_disk_cache_mode) {
+    switch (http_disk_cache_mode) {
     case HTTPDiskCacheMode::Disabled:
         arguments.append("disabled"sv);
         break;
@@ -580,28 +602,17 @@ ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_pro
 
     auto const& browsing_data_settings = Application::settings().browsing_data_settings();
     client->async_set_disk_cache_settings(browsing_data_settings.disk_cache_settings);
-
-    Application::settings().dns_settings().visit(
-        [](SystemDNS) {},
-        [&](DNSOverTLS const& dns_over_tls) {
-            dbgln("Setting DNS server to {}:{} with TLS ({} local dnssec)", dns_over_tls.server_address, dns_over_tls.port, dns_over_tls.validate_dnssec_locally ? "with" : "without");
-            client->async_set_dns_server(dns_over_tls.server_address, dns_over_tls.port, true, dns_over_tls.validate_dnssec_locally);
-        },
-        [&](DNSOverUDP const& dns_over_udp) {
-            dbgln("Setting DNS server to {}:{} ({} local dnssec)", dns_over_udp.server_address, dns_over_udp.port, dns_over_udp.validate_dnssec_locally ? "with" : "without");
-            client->async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false, dns_over_udp.validate_dnssec_locally);
-        });
+    client->async_set_proxy_configuration(request_server_options.proxy_configuration);
+    if (!Application::settings().dns_settings().has<SystemDNS>())
+        apply_dns_settings(*client);
 
     return client;
 }
 
 ErrorOr<RequestServerClientConnection> connect_new_request_server_client(BrowsingSession& session, RequestServer::SiteBinding site_binding)
 {
-    auto response = Application::request_server_control_client().send_sync_but_allow_failure<Messages::RequestServerControl::ConnectNewClient>(session.is_private() == IsPrivate::Yes ? RequestServer::IsPrivate::Yes : RequestServer::IsPrivate::No, site_binding);
-    if (!response || response->client_id() < 0)
-        return Error::from_string_literal("Failed to connect to RequestServer");
-    Application::the().did_connect_request_server_client(response->client_id(), session, site_binding);
-    return RequestServerClientConnection { .handle = response->take_handle(), .client_id = response->client_id() };
+    auto instance = TRY(RequestServerManager::the().browser_instance(session));
+    return RequestServerManager::the().connect_new_client(*instance, session, site_binding);
 }
 
 ErrorOr<IPC::TransportHandle> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller)

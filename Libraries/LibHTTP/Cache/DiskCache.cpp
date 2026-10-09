@@ -134,6 +134,10 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
     if (!is_cacheable(method, request_headers))
         return Optional<CacheEntryReader&> {};
 
+    // AD-HOC: Client preconditions could make a 304 refer to a different representation. Let the origin evaluate them.
+    if (has_preconditions(request_headers))
+        return Optional<CacheEntryReader&> {};
+
     auto serialized_url = serialize_url_for_cache_storage(url);
     auto cache_key = create_cache_key(partition, serialized_url, method);
 
@@ -149,7 +153,10 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
     auto cache_entry = CacheEntryReader::create(*this, m_index, cache_key, index_entry->vary_key, index_entry->response_headers, index_entry->data_size);
     if (cache_entry.is_error()) {
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to open cache entry for\033[0m {}: {}", url, cache_entry.error());
-        m_index.remove_entry(cache_key, index_entry->vary_key);
+
+        auto vary_key = index_entry->vary_key;
+        m_index.remove_entry(cache_key, vary_key);
+        remove_entry_files(cache_key, vary_key);
 
         return Optional<CacheEntryReader&> {};
     }
@@ -173,6 +180,11 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
     switch (cache_lifetime_status(request_headers, response_headers, freshness_lifetime, current_age)) {
     case CacheLifetimeStatus::Fresh:
         if (cache_mode == CacheMode::NoCache) {
+            if (!response_headers.contains("ETag"sv) && !response_headers.contains("Last-Modified"sv)) {
+                dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[33;1mCache entry cannot be revalidated for\033[0m {}", url);
+                return Optional<CacheEntryReader&> {};
+            }
+
             TRY(revalidate_cache_entry());
         } else if (open_mode == OpenMode::Read) {
             dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[32;1mOpened cache entry for\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), index_entry->data_size);
@@ -245,7 +257,11 @@ ErrorOr<bool> DiskCache::create_synthetic_entry(Utf16String const& partition, UR
     auto response_headers = HeaderList::create();
     auto now = UnixDateTime::now();
     TRY(m_index.create_entry(cache_key, synthetic_vary_key, serialized_url, request_headers, response_headers, 0, now, now));
-    return true;
+
+    // Include associated data already on disk in the size limit.
+    TRY(m_index.update_associated_data_size(cache_key, synthetic_vary_key, TRY(compute_associated_data_size(m_cache_directory, cache_key, synthetic_vary_key))));
+    remove_entries_exceeding_cache_limit();
+    return m_index.has_entry(cache_key, synthetic_vary_key);
 }
 
 ErrorOr<bool> DiskCache::store_associated_data(Utf16String const& partition, URL::URL const& url, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData associated_data, ReadonlyBytes data)
@@ -408,6 +424,13 @@ void DiskCache::remove_entries_exceeding_cache_limit()
     });
 }
 
+void DiskCache::remove_variants_exceeding_limit(Badge<CacheEntryWriter>, u64 cache_key, u64 vary_key_to_keep)
+{
+    m_index.remove_variants_exceeding_limit(cache_key, vary_key_to_keep, [&](auto cache_key, auto vary_key) {
+        delete_entry(cache_key, vary_key);
+    });
+}
+
 void DiskCache::set_maximum_disk_cache_size(u64 maximum_disk_cache_size)
 {
     m_index.set_maximum_disk_cache_size(maximum_disk_cache_size);
@@ -420,12 +443,62 @@ Requests::CacheSizes DiskCache::estimate_cache_size_accessed_since(UnixDateTime 
 
 void DiskCache::remove_entries_accessed_since(UnixDateTime since)
 {
+    // Entries being written have no index row yet.
+    for (auto const& [cache_key, open_entries] : m_open_cache_entries) {
+        for (auto const& [open_entry, _] : open_entries) {
+            if (is<CacheEntryWriter>(*open_entry))
+                open_entry->mark_for_deletion({});
+        }
+    }
+
     m_index.remove_entries_accessed_since(since, [&](auto cache_key, auto vary_key) {
         delete_entry(cache_key, vary_key);
     });
 }
 
+// https://httpwg.org/specs/rfc9111.html#invalidation
+void DiskCache::invalidate(Utf16String const& partition, URL::URL const& url)
+{
+    // "Invalidate" means that the cache will either remove all stored responses whose target URI matches the given URI
+    // or mark them as "invalid" and in need of a mandatory validation before they can be sent in response to a
+    // subsequent request.
+    auto serialized_url = serialize_url_for_cache_storage(url);
+
+    for (auto method : { "GET"sv, "HEAD"sv }) {
+        auto cache_key = create_cache_key(partition, serialized_url, method);
+
+        if (auto open_entries = m_open_cache_entries.get(cache_key); open_entries.has_value()) {
+            for (auto const& [open_entry, _] : *open_entries)
+                open_entry->mark_for_deletion({});
+        }
+
+        m_index.remove_entries_for_cache_key(cache_key, [&](auto cache_key, auto vary_key) {
+            delete_entry(cache_key, vary_key);
+        });
+    }
+}
+
 void DiskCache::cache_entry_closed(Badge<CacheEntry>, CacheEntry const& cache_entry)
+{
+    close_entry(cache_entry);
+}
+
+void DiskCache::close_entries_read_by(CacheRequest const& request)
+{
+    Vector<CacheEntry const*> entries_to_close;
+
+    for (auto const& [cache_key, open_entries] : m_open_cache_entries) {
+        for (auto const& open_entry : open_entries) {
+            if (open_entry.request.ptr() == &request && is<CacheEntryReader>(*open_entry.entry))
+                entries_to_close.append(open_entry.entry.ptr());
+        }
+    }
+
+    for (auto const* cache_entry : entries_to_close)
+        close_entry(*cache_entry);
+}
+
+void DiskCache::close_entry(CacheEntry const& cache_entry)
 {
     auto cache_key = cache_entry.cache_key();
 
@@ -462,6 +535,11 @@ void DiskCache::delete_entry(u64 cache_key, u64 vary_key)
             open_entry->mark_for_deletion({});
     }
 
+    remove_entry_files(cache_key, vary_key);
+}
+
+void DiskCache::remove_entry_files(u64 cache_key, u64 vary_key)
+{
     auto cache_path = path_for_cache_entry(m_cache_directory, cache_key, vary_key);
     (void)FileSystem::remove(cache_path.string(), FileSystem::RecursionMode::Disallowed);
     for (auto associated_data : CACHE_ENTRY_ASSOCIATED_DATA_TYPES)

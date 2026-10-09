@@ -34,7 +34,7 @@ public:
     static Optional<ControlConnectionFromClient&> the();
 
 private:
-    ControlConnectionFromClient(NonnullOwnPtr<IPC::Transport>, RequestServer::ConnectionFromClient::ConnectionMap&, RequestServer::ConnectionFromClient::RequestTransferLeaseMap&, Optional<HTTP::DiskCache&>, ByteString alt_svc_cache_path);
+    ControlConnectionFromClient(NonnullOwnPtr<IPC::Transport>, RequestServer::ConnectionFromClient::ConnectionMap&, RequestServer::ConnectionFromClient::RequestTransferLeaseMap&, Optional<HTTP::DiskCache&>);
 
     virtual Messages::RequestServerControl::InitTransportResponse init_transport(int peer_pid) override;
 
@@ -46,6 +46,8 @@ private:
 
     virtual void set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally) override;
     virtual void set_use_system_dns() override;
+
+    virtual void set_proxy_configuration(HTTP::ProxyConfiguration) override;
 
     virtual void set_performance_monitor_enabled(bool) override;
 
@@ -65,7 +67,6 @@ private:
     RequestServer::ConnectionFromClient::ConnectionMap& m_connections;
     RequestServer::ConnectionFromClient::RequestTransferLeaseMap& m_request_transfer_leases;
     Optional<HTTP::DiskCache&> m_disk_cache;
-    ByteString m_alt_svc_cache_path;
 
     NonnullRefPtr<Resolver> m_resolver;
 

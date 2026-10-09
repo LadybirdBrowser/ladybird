@@ -14,6 +14,8 @@ set(SOURCES
     HttpRequest.cpp
     Method.cpp
     NetworkIsolationKey.cpp
+    Port.cpp
+    Proxy.cpp
 )
 
 include(hsts_preload)

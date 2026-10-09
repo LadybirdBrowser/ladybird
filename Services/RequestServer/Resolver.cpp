@@ -23,6 +23,29 @@ void set_default_certificate_path(ByteString default_certificate_path)
     g_default_certificate_path = move(default_certificate_path);
 }
 
+static HTTP::ProxyConfiguration g_proxy_configuration;
+static Optional<Utf16String> g_process_top_level_site;
+
+HTTP::ProxyConfiguration const& proxy_configuration()
+{
+    return g_proxy_configuration;
+}
+
+void set_proxy_configuration(HTTP::ProxyConfiguration proxy_configuration)
+{
+    g_proxy_configuration = move(proxy_configuration);
+}
+
+Optional<Utf16String> const& process_top_level_site()
+{
+    return g_process_top_level_site;
+}
+
+void set_process_top_level_site(Optional<Utf16String> site)
+{
+    g_process_top_level_site = move(site);
+}
+
 DNSInfo& DNSInfo::the()
 {
     static DNSInfo g_dns_info;
@@ -38,14 +61,40 @@ static DNS::Resolver& system_resolver()
     return *resolver;
 }
 
+static WeakPtr<Resolver> g_default_resolver;
+static WeakPtr<Resolver> g_private_resolver;
+
 NonnullRefPtr<Resolver> Resolver::default_resolver()
 {
-    static WeakPtr<Resolver> g_resolver {};
-
-    if (auto resolver = g_resolver.strong_ref())
+    if (auto resolver = g_default_resolver.strong_ref())
         return *resolver;
 
-    auto resolver = adopt_ref(*new Resolver([] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
+    auto resolver = create();
+    g_default_resolver = resolver;
+    return resolver;
+}
+
+NonnullRefPtr<Resolver> Resolver::private_resolver()
+{
+    if (auto resolver = g_private_resolver.strong_ref())
+        return *resolver;
+
+    auto resolver = create();
+    g_private_resolver = resolver;
+    return resolver;
+}
+
+void Resolver::reset_connections()
+{
+    for (auto* weak_resolver : { &g_default_resolver, &g_private_resolver }) {
+        if (auto resolver = weak_resolver->strong_ref())
+            resolver->dns.reset_connection();
+    }
+}
+
+NonnullRefPtr<Resolver> Resolver::create()
+{
+    return adopt_ref(*new Resolver([] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
         auto& dns_info = DNSInfo::the();
 
         if (!dns_info.server_address.has_value()) {
@@ -80,9 +129,6 @@ NonnullRefPtr<Resolver> Resolver::default_resolver()
             },
         };
     }));
-
-    g_resolver = resolver;
-    return resolver;
 }
 
 Resolver::Resolver(Function<ErrorOr<Optional<DNS::Resolver::SocketResult>>()> create_socket)

@@ -7,6 +7,7 @@
 #include <AK/ByteBuffer.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/System.h>
 #include <LibHTTP/Cache/CacheRequest.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/Cache/Utilities.h>
@@ -74,6 +75,233 @@ static HTTP::CacheEntryWriter& create_cache_entry(HTTP::DiskCache& disk_cache, T
     return *writer;
 }
 
+static Optional<HTTP::CacheEntryReader&> open_cache_entry(HTTP::DiskCache& disk_cache, TestCacheRequest& request, URL::URL const& url, HTTP::HeaderList const& request_headers, HTTP::CacheMode cache_mode = HTTP::CacheMode::Default)
+{
+    Optional<HTTP::CacheEntryReader&> reader;
+
+    disk_cache.open_entry(request, test_partition(), url, "GET"sv, request_headers, cache_mode, HTTP::DiskCache::OpenMode::Read)
+        .visit(
+            [&](Optional<HTTP::CacheEntryReader&> cache_entry_reader) {
+                reader = cache_entry_reader;
+            },
+            [](HTTP::DiskCache::CacheHasOpenEntry) {
+                FAIL("Cache entry was unexpectedly open");
+            });
+
+    return reader;
+}
+
+static void store_cache_entry(HTTP::DiskCache& disk_cache, TestCacheRequest& request, URL::URL const& url, HTTP::HeaderList const& original_request_headers, NonnullRefPtr<HTTP::HeaderList> response_headers, StringView body)
+{
+    // Storage strips exempt fields from the supplied headers.
+    auto request_headers = HTTP::HeaderList::create(original_request_headers.headers());
+
+    auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
+    TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
+    TRY_OR_FAIL(writer.write_data(body.bytes()));
+    TRY_OR_FAIL(writer.flush(request_headers));
+}
+
+TEST_CASE(no_cache_request_for_fresh_entry_without_validators_goes_to_the_network)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    TestCacheRequest request;
+
+    auto url = parse_url("https://example.com/resource"sv);
+    auto request_headers = create_cacheable_request_headers();
+    store_cache_entry(disk_cache, request, url, *request_headers, create_cacheable_response_headers(), "hello"sv);
+
+    EXPECT(!open_cache_entry(disk_cache, request, url, *request_headers, HTTP::CacheMode::NoCache).has_value());
+
+    auto validated_url = parse_url("https://example.com/validated"sv);
+    auto validated_response_headers = HTTP::HeaderList::create({
+        { "Cache-Control"sv, "max-age=60"sv },
+        { "ETag"sv, "\"v1\""sv },
+    });
+    store_cache_entry(disk_cache, request, validated_url, *request_headers, validated_response_headers, "hello"sv);
+
+    auto reader = open_cache_entry(disk_cache, request, validated_url, *request_headers, HTTP::CacheMode::NoCache);
+    VERIFY(reader.has_value());
+    EXPECT_EQ(reader->revalidation_type(), HTTP::CacheEntryReader::RevalidationType::MustRevalidate);
+    reader->revalidation_failed();
+}
+
+TEST_CASE(request_with_its_own_preconditions_does_not_revalidate_stored_response)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    TestCacheRequest request;
+
+    auto url = parse_url("https://example.com/resource"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = HTTP::HeaderList::create({
+        { "Cache-Control"sv, "max-age=60"sv },
+        { "ETag"sv, "\"old\""sv },
+    });
+    store_cache_entry(disk_cache, request, url, *request_headers, response_headers, "old"sv);
+
+    auto conditional_request_headers = HTTP::HeaderList::create({
+        { HTTP::TEST_CACHE_ENABLED_HEADER, "1"sv },
+        { "If-None-Match"sv, "\"current\""sv },
+    });
+    EXPECT(!open_cache_entry(disk_cache, request, url, *conditional_request_headers, HTTP::CacheMode::NoCache).has_value());
+
+    auto& writer = create_cache_entry(disk_cache, request, url, *conditional_request_headers);
+    auto not_modified_headers = HTTP::HeaderList::create({
+        { "Cache-Control"sv, "max-age=60"sv },
+        { "ETag"sv, "\"current\""sv },
+    });
+    EXPECT(writer.write_status_and_reason(304, "Not Modified"_string, *conditional_request_headers, *not_modified_headers).is_error());
+
+    auto reader = open_cache_entry(disk_cache, request, url, *request_headers);
+    VERIFY(reader.has_value());
+    EXPECT_EQ(reader->status_code(), 200u);
+}
+
+TEST_CASE(revalidation_that_outgrows_entry_size_limit_removes_entry)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    disk_cache.set_maximum_disk_cache_size(800);
+    TestCacheRequest request;
+
+    auto url = parse_url("https://example.com/resource"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = HTTP::HeaderList::create({
+        { "Cache-Control"sv, "no-cache"sv },
+        { "ETag"sv, "\"v1\""sv },
+    });
+    store_cache_entry(disk_cache, request, url, *request_headers, response_headers, "hello"sv);
+
+    auto reader = open_cache_entry(disk_cache, request, url, *request_headers);
+    VERIFY(reader.has_value());
+    EXPECT_EQ(reader->revalidation_type(), HTTP::CacheEntryReader::RevalidationType::MustRevalidate);
+
+    reader->revalidation_succeeded(HTTP::HeaderList::create({ { "ETag"sv, "\"v1\""sv }, { "X-Large"sv, ByteString::repeated('x', 200) } }));
+    if (auto body_file = reader->take_body_file(); !body_file.is_error())
+        MUST(Core::System::close(body_file.value().fd));
+
+    EXPECT(!open_cache_entry(disk_cache, request, url, *request_headers).has_value());
+}
+
+TEST_CASE(writing_beyond_entry_size_limit_abandons_entry)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    disk_cache.set_maximum_disk_cache_size(800);
+    TestCacheRequest request;
+
+    auto url = parse_url("https://example.com/resource"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = create_cacheable_response_headers();
+
+    auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
+    TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
+    auto chunk = ByteString::repeated('x', 60);
+    TRY_OR_FAIL(writer.write_data(chunk.bytes()));
+    EXPECT(writer.write_data(chunk.bytes()).is_error());
+
+    auto& replacement_writer = create_cache_entry(disk_cache, request, url, *request_headers);
+    replacement_writer.remove_incomplete_entry();
+
+    EXPECT(!open_cache_entry(disk_cache, request, url, *request_headers).has_value());
+}
+
+TEST_CASE(fields_received_after_the_header_section_are_not_stored)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    TestCacheRequest request;
+
+    auto url = parse_url("https://example.com/resource"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto lookup_request_headers = create_cacheable_request_headers();
+    auto response_headers = create_cacheable_response_headers();
+
+    auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
+    TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
+    TRY_OR_FAIL(writer.write_data("hello"sv.bytes()));
+
+    response_headers->append({ "Vary"sv, "*"sv });
+    response_headers->append({ "X-Trailer"sv, "value"sv });
+    TRY_OR_FAIL(writer.flush(request_headers));
+
+    auto reader = open_cache_entry(disk_cache, request, url, *lookup_request_headers);
+    VERIFY(reader.has_value());
+    EXPECT(!reader->response_headers().contains("Vary"sv));
+    EXPECT(!reader->response_headers().contains("X-Trailer"sv));
+}
+
+TEST_CASE(unreadable_entry_is_removed_with_its_associated_data)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    TestCacheRequest request;
+
+    auto url = parse_url("https://example.com/script.js"sv);
+    auto request_headers = create_cacheable_request_headers();
+
+    EXPECT(TRY_OR_FAIL(disk_cache.create_synthetic_entry(test_partition(), url, "GET"sv)));
+
+    auto bytecode = TRY_OR_FAIL(ByteBuffer::copy("bytecode"sv.bytes()));
+    EXPECT(TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *request_headers, 0, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())));
+
+    // A synthetic entry has no body to read.
+    EXPECT(!open_cache_entry(disk_cache, request, url, *request_headers).has_value());
+
+    EXPECT(TRY_OR_FAIL(disk_cache.create_synthetic_entry(test_partition(), url, "GET"sv)));
+    auto retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(test_partition(), url, "GET"sv, *request_headers, 0, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
+    EXPECT(!retrieved_bytecode.has_value());
+}
+
+TEST_CASE(synthetic_entry_accounts_for_existing_associated_data)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+
+    auto url = parse_url("https://example.com/script.js"sv);
+    auto cache_key = HTTP::create_cache_key(test_partition(), HTTP::serialize_url_for_cache_storage(url), "GET"sv);
+    auto path = HTTP::path_for_cache_entry_associated_data(disk_cache.cache_directory(), cache_key, 0, HTTP::CacheEntryAssociatedData::JavaScriptBytecode);
+    {
+        auto file = TRY_OR_FAIL(Core::File::open(path.string(), Core::File::OpenMode::Write));
+        TRY_OR_FAIL(file->write_until_depleted("leftover bytecode"sv.bytes()));
+    }
+
+    EXPECT(TRY_OR_FAIL(disk_cache.create_synthetic_entry(test_partition(), url, "GET"sv)));
+    EXPECT_EQ(disk_cache.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, "leftover bytecode"sv.length());
+}
+
+TEST_CASE(clearing_the_cache_removes_responses_still_being_written)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    TestCacheRequest request;
+
+    auto url = parse_url("https://example.com/resource"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto lookup_request_headers = create_cacheable_request_headers();
+    auto response_headers = create_cacheable_response_headers();
+
+    auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
+    TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
+    TRY_OR_FAIL(writer.write_data("hello"sv.bytes()));
+
+    disk_cache.remove_entries_accessed_since(UnixDateTime::earliest());
+
+    EXPECT(writer.flush(request_headers).is_error());
+    EXPECT(!open_cache_entry(disk_cache, request, url, *lookup_request_headers).has_value());
+}
+
+TEST_CASE(connection_specific_cache_policy_does_not_allow_storage)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    TestCacheRequest request;
+
+    auto url = parse_url("https://example.com/redirect"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = HTTP::HeaderList::create({
+        { "Connection"sv, "Cache-Control"sv },
+        { "Cache-Control"sv, "max-age=3600"sv },
+        { "Location"sv, "https://example.com/target"sv },
+    });
+
+    auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
+    EXPECT(writer.write_status_and_reason(302, "Found"_string, *request_headers, *response_headers).is_error());
+}
+
 TEST_CASE(associated_data_round_trips_with_cache_entry)
 {
     auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
@@ -86,7 +314,7 @@ TEST_CASE(associated_data_round_trips_with_cache_entry)
     auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
     TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
     TRY_OR_FAIL(writer.write_data("console.log('hello');"sv.bytes()));
-    TRY_OR_FAIL(writer.flush(request_headers, response_headers));
+    TRY_OR_FAIL(writer.flush(request_headers));
 
     auto bytecode = TRY_OR_FAIL(ByteBuffer::copy("bytecode"sv.bytes()));
     EXPECT(TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())));
@@ -118,7 +346,7 @@ TEST_CASE(replacing_cache_entry_removes_associated_data)
     auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
     TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
     TRY_OR_FAIL(writer.write_data("console.log('old');"sv.bytes()));
-    TRY_OR_FAIL(writer.flush(request_headers, response_headers));
+    TRY_OR_FAIL(writer.flush(request_headers));
 
     auto bytecode = TRY_OR_FAIL(ByteBuffer::copy("bytecode"sv.bytes()));
     EXPECT(TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())));
@@ -131,7 +359,7 @@ TEST_CASE(replacing_cache_entry_removes_associated_data)
     auto& replacement_writer = create_cache_entry(disk_cache, request, url, *replacement_request_headers);
     TRY_OR_FAIL(replacement_writer.write_status_and_reason(200, "OK"_string, *replacement_request_headers, *replacement_response_headers));
     TRY_OR_FAIL(replacement_writer.write_data("console.log('new');"sv.bytes()));
-    TRY_OR_FAIL(replacement_writer.flush(replacement_request_headers, replacement_response_headers));
+    TRY_OR_FAIL(replacement_writer.flush(replacement_request_headers));
 
     retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
     EXPECT(!retrieved_bytecode.has_value());
@@ -150,7 +378,7 @@ TEST_CASE(flush_returns_mappable_body_file)
     TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
     TRY_OR_FAIL(writer.write_data("console.log('hello');"sv.bytes()));
 
-    auto body_file = TRY_OR_FAIL(writer.flush_and_take_body_file(request_headers, response_headers));
+    auto body_file = TRY_OR_FAIL(writer.flush_and_take_body_file(request_headers));
     auto body = TRY_OR_FAIL(Core::ImmutableBytes::map_from_fd_range_and_close(body_file.fd, "cache body"sv, body_file.offset, body_file.size));
     EXPECT_EQ(body.bytes(), "console.log('hello');"sv.bytes());
 }
@@ -168,7 +396,7 @@ TEST_CASE(replacing_cache_entry_keeps_existing_body_mapping_stable)
     TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
     TRY_OR_FAIL(writer.write_data("console.log('old');"sv.bytes()));
 
-    auto old_body_file = TRY_OR_FAIL(writer.flush_and_take_body_file(request_headers, response_headers));
+    auto old_body_file = TRY_OR_FAIL(writer.flush_and_take_body_file(request_headers));
     auto old_body = TRY_OR_FAIL(Core::ImmutableBytes::map_from_fd_range_and_close(old_body_file.fd, "old cache body"sv, old_body_file.offset, old_body_file.size));
     EXPECT_EQ(old_body.bytes(), "console.log('old');"sv.bytes());
 
@@ -177,7 +405,7 @@ TEST_CASE(replacing_cache_entry_keeps_existing_body_mapping_stable)
     auto& replacement_writer = create_cache_entry(disk_cache, request, url, *replacement_request_headers);
     TRY_OR_FAIL(replacement_writer.write_status_and_reason(200, "OK"_string, *replacement_request_headers, *replacement_response_headers));
     TRY_OR_FAIL(replacement_writer.write_data("console.log('new');"sv.bytes()));
-    TRY_OR_FAIL(replacement_writer.flush(replacement_request_headers, replacement_response_headers));
+    TRY_OR_FAIL(replacement_writer.flush(replacement_request_headers));
 
     EXPECT_EQ(old_body.bytes(), "console.log('old');"sv.bytes());
 }
@@ -197,12 +425,12 @@ TEST_CASE(associated_data_round_trips_with_explicit_vary_key)
         { "Cache-Control"sv, "max-age=60"sv },
         { "Vary"sv, "Origin"sv },
     });
-    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers);
+    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers).value();
 
     auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
     TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
     TRY_OR_FAIL(writer.write_data("console.log('hello');"sv.bytes()));
-    TRY_OR_FAIL(writer.flush(request_headers, response_headers));
+    TRY_OR_FAIL(writer.flush(request_headers));
 
     auto bytecode = TRY_OR_FAIL(ByteBuffer::copy("bytecode"sv.bytes()));
     EXPECT(!TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *mismatched_request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())));
@@ -225,7 +453,7 @@ TEST_CASE(associated_data_participates_in_cache_eviction)
     auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
     TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
     TRY_OR_FAIL(writer.write_data("console.log('hello');"sv.bytes()));
-    TRY_OR_FAIL(writer.flush(request_headers, response_headers));
+    TRY_OR_FAIL(writer.flush(request_headers));
 
     disk_cache.set_maximum_disk_cache_size(80);
     auto bytecode = TRY_OR_FAIL(ByteBuffer::create_zeroed(100));
@@ -267,7 +495,7 @@ TEST_CASE(cache_partitions_do_not_share_entries)
     auto& writer = create_cache_entry(disk_cache, request, url, *request_headers, partition);
     TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
     TRY_OR_FAIL(writer.write_data("console.log('hello');"sv.bytes()));
-    TRY_OR_FAIL(writer.flush(request_headers, response_headers));
+    TRY_OR_FAIL(writer.flush(request_headers));
 
     auto bytecode = TRY_OR_FAIL(ByteBuffer::copy("bytecode"sv.bytes()));
     for (auto const& other_partition : { other_top_level_site, other_frame_site, subframe_document, cross_site_main_frame_navigation }) {
@@ -303,7 +531,7 @@ static Optional<HTTP::CacheEntryReader&> open_stale_cache_entry(HTTP::DiskCache&
     auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
     MUST(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
     MUST(writer.write_data("data"sv.bytes()));
-    MUST(writer.flush(request_headers, response_headers));
+    MUST(writer.flush(request_headers));
 
     auto stale_request_headers = HTTP::HeaderList::create({
         { HTTP::TEST_CACHE_ENABLED_HEADER, "1"sv },

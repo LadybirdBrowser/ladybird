@@ -2060,7 +2060,8 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
             //    invalidate appropriate stored responses in httpCache, as per the "Invalidation" chapter of HTTP
             //    Caching, and set storedResponse to null.
             if (method_is_unsafe && forward_response->status() >= 200 && forward_response->status() <= 399) {
-                // FIXME: "invalidate appropriate stored responses in httpCache, as per the "Invalidation" chapter of HTTP Caching"
+                if (http_cache)
+                    http_cache->invalidate(http_request->current_url());
                 stored_response = nullptr;
             }
 

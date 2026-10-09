@@ -26,3 +26,9 @@ if (LINUX)
     ladybird_test(TestResourceMapSandbox.cpp RequestServer LIBS requestserverservice)
     target_include_directories(TestResourceMapSandbox PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
 endif()
+
+ladybird_test(TestAlternativeServices.cpp RequestServer LIBS requestserverservice)
+target_include_directories(TestAlternativeServices PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
+
+ladybird_test(TestExportImport.cpp RequestServer LIBS requestserverservice)
+target_include_directories(TestExportImport PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)

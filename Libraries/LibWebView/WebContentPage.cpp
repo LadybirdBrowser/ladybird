@@ -27,6 +27,7 @@
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
+#include <LibWebView/RequestServerManager.h>
 #include <LibWebView/StorageJar.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
@@ -334,6 +335,11 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     }
     auto& loader = *navigable->ongoing_navigation()->loader;
     navigable->set_navigation_host(*host);
+    // The host adopts the response from its own RequestServer, which the response reaches through the UI process.
+    if (auto client_id = host->client().request_server_site_bindings().client_id(); client_id.has_value()) {
+        if (auto request_server = RequestServerManager::the().instance_for_client(*client_id))
+            loader.move_response_body_to(*request_server);
+    }
     host->async_populate_navigation(loader.request(), loader.take_result());
     return true;
 }

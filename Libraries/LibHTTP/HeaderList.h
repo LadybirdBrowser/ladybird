@@ -38,6 +38,8 @@ public:
     Optional<ByteString> get(StringView) const;
     Optional<Vector<String>> get_decode_and_split(StringView) const;
     void append(Header);
+    // The caller must match the casing of existing headers with this name.
+    void append_with_normalized_name(Header header) { m_headers.append(move(header)); }
     void delete_(StringView name);
     void set(Header);
     void combine(Header);
@@ -80,7 +82,7 @@ public:
     void for_each_vary_header(Callback&& callback) const
     {
         for_each_header_value("Vary"sv, [&](StringView value) -> IterationDecision {
-            IterationDecision result;
+            auto result = IterationDecision::Continue;
 
             value.for_each_split_view(","sv, SplitBehavior::Nothing, [&](StringView header) -> IterationDecision {
                 result = callback(normalize_header_value(header));

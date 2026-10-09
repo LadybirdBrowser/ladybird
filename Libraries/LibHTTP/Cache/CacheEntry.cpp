@@ -116,8 +116,11 @@ CacheEntryWriter::CacheEntryWriter(DiskCache& disk_cache, CacheIndex& index, u64
 {
 }
 
-ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HeaderList const& request_headers, HeaderList const& response_headers)
+ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HeaderList const& request_headers, HeaderList const& received_response_headers)
 {
+    auto response_headers_without_connection_specific_fields = remove_connection_specific_fields(received_response_headers);
+    auto const& response_headers = *response_headers_without_connection_specific_fields;
+
     if (m_marked_for_deletion) {
         remove_incomplete_temporary_file();
         close_and_destroy_cache_entry();
@@ -136,7 +139,18 @@ ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optiona
         if (!is_cacheable(status_code, response_headers))
             return Error::from_string_literal("Response is not cacheable");
 
-        m_vary_key = create_vary_key(request_headers, response_headers);
+        // This 304 answers the client's preconditions, not the cache's validators.
+        if (status_code == 304)
+            return Error::from_string_literal("Response is not modified");
+
+        auto vary_key = create_vary_key(request_headers, response_headers);
+        if (!vary_key.has_value())
+            return Error::from_string_literal("Response cannot be selected by any request");
+
+        m_vary_key = *vary_key;
+
+        // Trailer fields were not considered when deciding cacheability.
+        m_response_headers = HeaderList::create(response_headers.headers());
         m_path = path_for_cache_entry(m_disk_cache.cache_directory(), m_cache_key, m_vary_key);
         m_temporary_path = LexicalPath::join(m_disk_cache.cache_directory().string(), ByteString::formatted("{}.tmp", m_path->basename()));
 
@@ -181,6 +195,15 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
         return Error::from_string_literal("Cache entry has been deleted");
     }
 
+    if (m_cache_footer.data_size + data.size() > m_index.maximum_disk_cache_entry_size()) {
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mCache entry exceeds allowed maximum size for\033[0m {}", m_url);
+
+        remove_incomplete_temporary_file();
+        close_and_destroy_cache_entry();
+
+        return Error::from_string_literal("Cache entry size exceeds allowed maximum");
+    }
+
     if (auto result = m_file->write_until_depleted(data); result.is_error()) {
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to write data to cache entry for\033[0m {}: {}", m_url, result.error());
 
@@ -194,19 +217,19 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
     return {};
 }
 
-ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers)
+ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> request_headers)
 {
-    return flush_impl(move(request_headers), move(response_headers), nullptr);
+    return flush_impl(move(request_headers), nullptr);
 }
 
-ErrorOr<CacheEntryBodyFile> CacheEntryWriter::flush_and_take_body_file(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers)
+ErrorOr<CacheEntryBodyFile> CacheEntryWriter::flush_and_take_body_file(NonnullRefPtr<HeaderList> request_headers)
 {
     CacheEntryBodyFile body_file;
-    TRY(flush_impl(move(request_headers), move(response_headers), &body_file));
+    TRY(flush_impl(move(request_headers), &body_file));
     return body_file;
 }
 
-ErrorOr<void> CacheEntryWriter::flush_impl(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, CacheEntryBodyFile* body_file)
+ErrorOr<void> CacheEntryWriter::flush_impl(NonnullRefPtr<HeaderList> request_headers, CacheEntryBodyFile* body_file)
 {
     ScopeGuard guard { [&]() { close_and_destroy_cache_entry(); } };
 
@@ -216,6 +239,7 @@ ErrorOr<void> CacheEntryWriter::flush_impl(NonnullRefPtr<HeaderList> request_hea
     }
     VERIFY(m_path.has_value());
     VERIFY(m_temporary_path.has_value());
+    VERIFY(m_response_headers);
 
     ArmedScopeGuard remove_temporary_file = [&]() {
         remove_incomplete_temporary_file();
@@ -252,13 +276,14 @@ ErrorOr<void> CacheEntryWriter::flush_impl(NonnullRefPtr<HeaderList> request_hea
     for (auto associated_data : CACHE_ENTRY_ASSOCIATED_DATA_TYPES)
         (void)FileSystem::remove(path_for_cache_entry_associated_data(m_disk_cache.cache_directory(), m_cache_key, m_vary_key, associated_data).string(), FileSystem::RecursionMode::Disallowed);
 
-    if (auto result = m_index.create_entry(m_cache_key, m_vary_key, m_url, move(request_headers), move(response_headers), m_cache_footer.data_size, m_request_time, m_response_time); result.is_error()) {
+    if (auto result = m_index.create_entry(m_cache_key, m_vary_key, m_url, move(request_headers), m_response_headers.release_nonnull(), m_cache_footer.data_size, m_request_time, m_response_time); result.is_error()) {
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to flush cache entry for\033[0m {} ({} bytes): {}", m_url, m_cache_footer.data_size, result.error());
         remove();
 
         return result.release_error();
     }
 
+    m_disk_cache.remove_variants_exceeding_limit({}, m_cache_key, m_vary_key);
     m_disk_cache.remove_entries_exceeding_cache_limit();
 
     dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[34;1mFinished caching\033[0m {} ({} bytes)", m_url, m_cache_footer.data_size);
@@ -343,7 +368,13 @@ void CacheEntryReader::revalidation_succeeded(HeaderList const& response_headers
     dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[34;1mCache revalidation succeeded for\033[0m {}", m_url);
 
     update_header_fields(m_response_headers, response_headers);
-    m_index.update_response_headers(m_cache_key, m_vary_key, m_response_headers);
+
+    if (auto result = m_index.update_response_headers(m_cache_key, m_vary_key, m_response_headers); result.is_error()) {
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to update cache entry for\033[0m {}: {}", m_url, result.error());
+        remove();
+    } else {
+        m_disk_cache.remove_entries_exceeding_cache_limit();
+    }
 
     if (m_revalidation_type != RevalidationType::MustRevalidate)
         close_and_destroy_cache_entry();

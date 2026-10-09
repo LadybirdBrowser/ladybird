@@ -476,10 +476,6 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
         return nullptr;
     }
 
-    protocol_request->on_certificate_requested = []() -> Requests::Request::CertificateAndKey {
-        return {};
-    };
-
     if (auto page = request.page()) {
         Optional<String> initiator_type_string;
         if (request.initiator_type().has_value())

@@ -238,7 +238,7 @@ public:
         m_remote_transport = MUST(pair.remote_handle.create_transport());
         m_connection = RequestServer::ConnectionFromClient::construct(
             move(pair.local), RequestServer::IsPrivate::No, RequestServer::SiteBinding::Unrestricted,
-            m_server.connections, m_server.request_transfer_leases, disk_cache, ByteString {});
+            m_server.connections, m_server.request_transfer_leases, disk_cache);
 #ifdef AK_OS_WINDOWS
         auto pid = Core::System::getpid();
         m_connection->transport().set_peer_pid(pid);
@@ -252,16 +252,23 @@ public:
             m_connection->shutdown();
     }
 
-    void start_request(u64 request_id, URL::URL url)
+    void start_request(u64 request_id, URL::URL url, ByteString method = "GET")
     {
         // The disk cache only stores responses to requests that opt in while it runs in test mode.
         Vector<HTTP::Header> request_headers {
             { ByteString { HTTP::TEST_CACHE_ENABLED_HEADER }, "1"sv },
         };
 
-        auto message = make<Messages::RequestServer::StartRequest>(request_id, ByteString { "GET" }, move(url), move(request_headers), ByteBuffer {}, HTTP::CacheMode::Default, test_network_isolation_key(), HTTP::Cookie::IncludeCredentials::No, false, Optional<u32> {}, false, 0, 0);
+        auto message = make<Messages::RequestServer::StartRequest>(request_id, move(method), move(url), move(request_headers), ByteBuffer {}, HTTP::CacheMode::Default, test_network_isolation_key(), HTTP::Cookie::IncludeCredentials::No, false, Optional<u32> {}, false, 0, 0);
         auto response = MUST(static_cast<RequestServerEndpoint::Stub&>(*m_connection).handle(move(message)));
         VERIFY(!response);
+    }
+
+    void stop_request(u64 request_id)
+    {
+        auto message = make<Messages::RequestServer::StopRequest>(request_id);
+        auto response = MUST(static_cast<RequestServerEndpoint::Stub&>(*m_connection).handle(move(message)));
+        VERIFY(response);
     }
 
     // Pumps the event loop until the request finishes or the budget runs out — reading every response as it comes.
@@ -518,4 +525,244 @@ TEST_CASE(request_waiting_on_a_cache_entry_a_slow_client_is_still_filling_keeps_
 
     expect_finished_without_error(connection.wait_for_request_to_finish(2, AK::Duration::from_seconds(10)), "read-from-cache"sv);
     EXPECT_EQ(http_server.connection_count(), 1u);
+}
+
+TEST_CASE(not_modified_response_that_changes_vary_fails_revalidation)
+{
+    RequestServer::Request::set_wait_for_cache_timeout(AK::Duration::from_seconds(10));
+    RequestServer::Request::set_revalidation_stall_timeout(AK::Duration::from_seconds(60));
+
+    TestServer server;
+    auto disk_cache = create_test_disk_cache();
+    TestConnection connection { server, disk_cache };
+
+    StallingServer http_server { [](size_t connection_index) -> Optional<ServerResponse> {
+        if (connection_index == 1)
+            return ServerResponse::at_once("HTTP/1.1 304 Not Modified\r\nETag: \"v1\"\r\nVary: *\r\nConnection: close\r\n\r\n");
+        return ServerResponse::at_once(http_response("no-cache"sv, "hello"sv));
+    } };
+
+    auto url = http_server.url_for_path("/resource"sv);
+    connection.start_request(1, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(1, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+
+    // The 304 names another entity than the stored one, so the response is fetched again, unconditionally.
+    connection.start_request(2, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(2, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+    EXPECT_EQ(http_server.connection_count(), 3u);
+
+    connection.start_request(3, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(3, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+    EXPECT_EQ(http_server.connection_count(), 4u);
+}
+
+TEST_CASE(not_modified_response_with_another_validator_fails_revalidation)
+{
+    RequestServer::Request::set_wait_for_cache_timeout(AK::Duration::from_seconds(10));
+    RequestServer::Request::set_revalidation_stall_timeout(AK::Duration::from_seconds(60));
+
+    TestServer server;
+    auto disk_cache = create_test_disk_cache();
+    TestConnection connection { server, disk_cache };
+
+    StallingServer http_server { [](size_t connection_index) -> Optional<ServerResponse> {
+        if (connection_index == 1)
+            return ServerResponse::at_once("HTTP/1.1 304 Not Modified\r\nETag: \"v2\"\r\nConnection: close\r\n\r\n");
+        return ServerResponse::at_once(http_response("no-cache"sv, "hello"sv));
+    } };
+
+    auto url = http_server.url_for_path("/resource"sv);
+    connection.start_request(1, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(1, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+
+    // The 304 names another entity than the stored one, so the response is fetched again, unconditionally.
+    connection.start_request(2, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(2, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+    EXPECT_EQ(http_server.connection_count(), 3u);
+
+    connection.start_request(3, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(3, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+    EXPECT_EQ(http_server.connection_count(), 4u);
+}
+
+TEST_CASE(truncated_background_revalidation_response_is_not_stored)
+{
+    RequestServer::Request::set_wait_for_cache_timeout(AK::Duration::from_seconds(10));
+    RequestServer::Request::set_revalidation_stall_timeout(AK::Duration::from_seconds(60));
+
+    TestServer server;
+    auto disk_cache = create_test_disk_cache();
+    TestConnection connection { server, disk_cache };
+
+    StallingServer http_server { [](size_t connection_index) -> Optional<ServerResponse> {
+        if (connection_index == 1)
+            return ServerResponse::at_once(ByteString::formatted("{}short", http_response_head("max-age=0, stale-while-revalidate=600"sv, 10)));
+        return ServerResponse::at_once(http_response("max-age=0, stale-while-revalidate=600"sv, "hello"sv));
+    } };
+
+    auto url = http_server.url_for_path("/resource"sv);
+    connection.start_request(1, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(1, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+
+    connection.start_request(2, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(2, AK::Duration::from_seconds(10)), "read-from-cache"sv);
+
+    // Allow background revalidation to finish.
+    (void)connection.wait_for_request_to_finish(0, AK::Duration::from_milliseconds(500));
+    EXPECT_EQ(http_server.connection_count(), 2u);
+
+    connection.start_request(3, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(3, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+    EXPECT_EQ(http_server.connection_count(), 3u);
+}
+
+TEST_CASE(trailer_fields_are_not_stored)
+{
+    RequestServer::Request::set_wait_for_cache_timeout(AK::Duration::from_seconds(10));
+    RequestServer::Request::set_revalidation_stall_timeout(AK::Duration::from_seconds(60));
+
+    TestServer server;
+    auto disk_cache = create_test_disk_cache();
+    TestConnection connection { server, disk_cache };
+
+    StallingServer http_server { [](size_t) -> Optional<ServerResponse> {
+        return ServerResponse::at_once(
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: text/plain\r\n"
+            "Cache-Control: max-age=60\r\n"
+            "Transfer-Encoding: chunked\r\n"
+            "Trailer: Vary\r\n"
+            "Connection: close\r\n"
+            "\r\n"
+            "5\r\nhello\r\n"
+            "0\r\nVary: *\r\n\r\n");
+    } };
+
+    auto url = http_server.url_for_path("/resource"sv);
+    connection.start_request(1, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(1, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+
+    connection.start_request(2, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(2, AK::Duration::from_seconds(10)), "read-from-cache"sv);
+    EXPECT_EQ(http_server.connection_count(), 1u);
+}
+
+TEST_CASE(unsafe_request_invalidates_stored_responses)
+{
+    RequestServer::Request::set_wait_for_cache_timeout(AK::Duration::from_seconds(10));
+    RequestServer::Request::set_revalidation_stall_timeout(AK::Duration::from_seconds(60));
+
+    TestServer server;
+    auto disk_cache = create_test_disk_cache();
+    TestConnection connection { server, disk_cache };
+
+    StallingServer http_server { [](size_t connection_index) -> Optional<ServerResponse> {
+        if (connection_index == 1)
+            return ServerResponse::at_once("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n");
+        return ServerResponse::at_once(http_response("max-age=60"sv, "hello"sv));
+    } };
+
+    auto url = http_server.url_for_path("/resource"sv);
+    connection.start_request(1, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(1, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+
+    connection.start_request(2, url, "POST");
+    expect_finished_without_error(connection.wait_for_request_to_finish(2, AK::Duration::from_seconds(10)), "not-cached"sv);
+
+    connection.start_request(3, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(3, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+    EXPECT_EQ(http_server.connection_count(), 3u);
+}
+
+// Vary on a revalidation validator must prevent unconditional reuse.
+TEST_CASE(response_varying_on_revalidation_validators_is_stored_with_them)
+{
+    RequestServer::Request::set_wait_for_cache_timeout(AK::Duration::from_seconds(10));
+    RequestServer::Request::set_revalidation_stall_timeout(AK::Duration::from_seconds(60));
+
+    TestServer server;
+    auto disk_cache = create_test_disk_cache();
+    TestConnection connection { server, disk_cache };
+
+    StallingServer http_server { [](size_t connection_index) -> Optional<ServerResponse> {
+        if (connection_index == 1) {
+            return ServerResponse::at_once(
+                "HTTP/1.1 200 OK\r\n"
+                "Content-Length: 11\r\n"
+                "Cache-Control: max-age=60\r\n"
+                "Vary: If-None-Match\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+                "conditional");
+        }
+        return ServerResponse::at_once(http_response("no-cache"sv, "hello"sv));
+    } };
+
+    auto url = http_server.url_for_path("/resource"sv);
+    connection.start_request(1, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(1, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+
+    connection.start_request(2, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(2, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+
+    connection.start_request(3, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(3, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+    EXPECT_EQ(http_server.connection_count(), 3u);
+}
+
+TEST_CASE(stopped_revalidation_releases_its_cache_entry)
+{
+    RequestServer::Request::set_wait_for_cache_timeout(AK::Duration::from_seconds(10));
+    RequestServer::Request::set_revalidation_stall_timeout(AK::Duration::from_seconds(60));
+
+    TestServer server;
+    auto disk_cache = create_test_disk_cache();
+    TestConnection connection { server, disk_cache };
+
+    StallingServer http_server { [](size_t connection_index) -> Optional<ServerResponse> {
+        if (connection_index == 1)
+            return {};
+        return ServerResponse::at_once(http_response("no-cache"sv, "hello"sv));
+    } };
+
+    auto url = http_server.url_for_path("/resource"sv);
+    connection.start_request(1, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(1, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+
+    connection.start_request(2, url);
+    EXPECT(!connection.wait_for_request_to_finish(2, AK::Duration::from_milliseconds(250)).has_value());
+    EXPECT_EQ(http_server.connection_count(), 2u);
+    connection.stop_request(2);
+
+    connection.start_request(3, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(3, AK::Duration::from_seconds(5)), "written-to-cache"sv);
+    EXPECT_EQ(http_server.connection_count(), 3u);
+}
+
+TEST_CASE(request_waiting_on_a_trickling_cache_entry_writer_gives_up_after_the_maximum_wait)
+{
+    RequestServer::Request::set_wait_for_cache_timeout(AK::Duration::from_seconds(1));
+    RequestServer::Request::set_maximum_wait_for_cache(AK::Duration::from_seconds(2));
+    RequestServer::Request::set_revalidation_stall_timeout(AK::Duration::from_seconds(60));
+
+    TestServer server;
+    auto disk_cache = create_test_disk_cache();
+    TestConnection connection { server, disk_cache };
+
+    StallingServer http_server { [](size_t connection_index) -> Optional<ServerResponse> {
+        if (connection_index == 0)
+            return trickled_http_response("max-age=60"sv, ByteString::repeated('x', 80), 80, AK::Duration::from_milliseconds(100));
+        return ServerResponse::at_once(http_response("max-age=60"sv, "hello"sv));
+    } };
+
+    auto url = http_server.url_for_path("/resource"sv);
+    auto started_at = MonotonicTime::now();
+    connection.start_request(1, url);
+    connection.start_request(2, url);
+
+    expect_finished_without_error(connection.wait_for_request_to_finish(2, AK::Duration::from_seconds(10)), "not-cached"sv);
+    EXPECT(MonotonicTime::now() - started_at < AK::Duration::from_seconds(5));
+    EXPECT_EQ(http_server.connection_count(), 2u);
+
+    RequestServer::Request::set_maximum_wait_for_cache(AK::Duration::from_seconds(30));
 }

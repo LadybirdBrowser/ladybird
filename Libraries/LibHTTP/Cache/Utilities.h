@@ -24,6 +24,9 @@ constexpr inline auto TEST_CACHE_REQUEST_TIME_OFFSET = "X-Ladybird-Request-Time-
 
 constexpr inline u64 DEFAULT_MAXIMUM_DISK_CACHE_SIZE = 5 * GiB;
 
+constexpr inline size_t MAXIMUM_VARY_FIELD_COUNT = 32;
+constexpr inline size_t MAXIMUM_CACHE_ENTRY_VARIANT_COUNT = 16;
+
 enum class CacheEntryAssociatedData {
     JavaScriptBytecode,
     WebAssemblyCompiledCode,
@@ -41,7 +44,8 @@ u64 create_cache_key(Utf16View const& partition, StringView url, StringView meth
 
 // For a cache that is itself one partition, such as a memory cache of one partition.
 u64 create_cache_key(StringView url, StringView method);
-u64 create_vary_key(HeaderList const& request_headers, HeaderList const& response_headers);
+Optional<Vector<ByteString>> vary_field_names(HeaderList const& response_headers);
+Optional<u64> create_vary_key(HeaderList const& request_headers, HeaderList const& response_headers);
 LexicalPath path_for_cache_entry(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key);
 LexicalPath path_for_cache_entry_associated_data(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key, CacheEntryAssociatedData);
 
@@ -53,8 +57,10 @@ struct CacheEntryData {
 Optional<CacheEntryData> cache_entry_data_for_file(LexicalPath const&);
 
 bool is_cacheable(StringView method, HeaderList const&);
+bool has_preconditions(HeaderList const& request_headers);
 bool is_cacheable(u32 status_code, HeaderList const&);
 bool is_header_exempted_from_storage(StringView name);
+NonnullRefPtr<HeaderList> remove_connection_specific_fields(HeaderList const&);
 
 AK::Duration calculate_freshness_lifetime(u32 status_code, HeaderList const&, AK::Duration current_time_offset_for_testing = {});
 AK::Duration calculate_age(HeaderList const&, UnixDateTime request_time, UnixDateTime response_time, AK::Duration current_time_offset_for_testing = {});
@@ -76,13 +82,14 @@ struct RevalidationAttributes {
 };
 
 void store_header_and_trailer_fields(HeaderList&, HeaderList const&);
+bool can_freshen_stored_response(HeaderList const& stored_headers, HeaderList const& not_modified_headers);
 void update_header_fields(HeaderList&, HeaderList const&);
 
 bool contains_cache_control_directive(StringView cache_control, StringView directive);
 Optional<StringView> extract_cache_control_directive(StringView cache_control, StringView directive);
 Optional<AK::Duration> extract_cache_control_duration_directive(StringView cache_control, StringView directive, Optional<AK::Duration> valueless_fallback = {});
 
-ByteString normalize_request_vary_header_values(StringView header, HeaderList const& request_headers);
+Optional<Vector<ByteString>> normalize_request_vary_header_values(StringView header, HeaderList const& request_headers);
 
 AK::Duration compute_current_time_offset_for_testing(Optional<DiskCache&>, HeaderList const& request_headers);
 
