@@ -2696,24 +2696,6 @@ void Application::initialize_actions()
     m_enable_scripting_action->set_checked(m_browser_options.disable_scripting == WebView::DisableScripting::No);
     m_debug_menu->add_action(*m_enable_scripting_action);
 
-    m_enable_content_blocking_action = Action::create_checkable("Enable Content Blocking"sv, ActionID::EnableContentBlocking, [this, toggle_views = check(m_enable_content_blocking_action, "content-blocking"sv)] {
-        if (m_web_content_options.is_test_mode == IsTestMode::Yes) {
-            toggle_views();
-            return;
-        }
-        m_settings->set_content_blocker_enabled(m_enable_content_blocking_action->checked());
-        if (m_enable_content_blocking_action->checked()) {
-            for (auto const& list : m_settings->content_blocker_lists()) {
-                if (list.enabled)
-                    download_content_blocker_list_if_needed({}, list.identifier);
-            }
-        }
-    });
-    // NB: Test mode supplies its own filter lists independently of profile preferences.
-    m_enable_content_blocking_action->set_checked(m_browser_options.enable_content_blocker == WebView::EnableContentBlocker::Yes
-        && (m_web_content_options.is_test_mode == IsTestMode::Yes || m_settings->content_blocker_enabled()));
-    m_debug_menu->add_action(*m_enable_content_blocking_action);
-
     m_block_pop_ups_action = Action::create_checkable("Block Pop-ups"sv, ActionID::BlockPopUps, check(m_block_pop_ups_action, "block-pop-ups"sv));
     m_block_pop_ups_action->set_checked(m_browser_options.allow_popups == AllowPopups::No);
     m_debug_menu->add_action(*m_block_pop_ups_action);
@@ -2733,12 +2715,16 @@ void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementati
     view.set_preferred_contrast(m_contrast);
     view.set_preferred_motion(m_motion);
 
+    // Test mode supplies its own filter lists independently of profile preferences.
+    auto content_blocking_enabled = m_browser_options.enable_content_blocker == EnableContentBlocker::Yes
+        && (m_web_content_options.is_test_mode == IsTestMode::Yes || m_settings->content_blocker_enabled());
+    page.async_debug_request("content-blocking"sv, content_blocking_enabled ? "on"sv : "off"sv);
+    if (m_content_blocker_list_buffer.has_value())
+        page.client().async_set_content_blockers(*m_content_blocker_list_buffer);
+
     page.async_debug_request("set-line-box-borders"sv, m_show_line_box_borders_action->checked() ? "on"sv : "off"sv);
     page.async_debug_request("set-caret-hit-test-debug-overlay"sv, m_show_caret_hit_test_debug_overlay_action->checked() ? "on"sv : "off"sv);
     page.async_debug_request("scripting"sv, m_enable_scripting_action->checked() ? "on"sv : "off"sv);
-    page.async_debug_request("content-blocking"sv, m_enable_content_blocking_action->checked() ? "on"sv : "off"sv);
-    if (m_content_blocker_list_buffer.has_value())
-        page.client().async_set_content_blockers(*m_content_blocker_list_buffer);
     page.async_debug_request("block-pop-ups"sv, m_block_pop_ups_action->checked() ? "on"sv : "off"sv);
     page.async_debug_request("spoof-user-agent"sv, m_user_agent_string);
     page.async_debug_request("navigator-compatibility-mode"sv, m_navigator_compatibility_mode);
@@ -2780,12 +2766,13 @@ void Application::content_blocker_settings_changed(Badge<ApplicationSettingsObse
 {
     if (m_web_content_options.is_test_mode == IsTestMode::Yes)
         return;
+
     auto enabled = m_browser_options.enable_content_blocker == EnableContentBlocker::Yes && m_settings->content_blocker_enabled();
-    m_enable_content_blocking_action->set_checked(enabled);
     ViewImplementation::for_each_view([enabled](ViewImplementation& view) {
         view.debug_request("content-blocking"sv, enabled ? "on"sv : "off"sv);
         return IterationDecision::Continue;
     });
+
     apply_content_blocker_settings();
 }
 

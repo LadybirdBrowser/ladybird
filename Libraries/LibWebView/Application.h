@@ -681,7 +681,6 @@ private:
     RefPtr<Action> m_show_line_box_borders_action;
     RefPtr<Action> m_show_caret_hit_test_debug_overlay_action;
     RefPtr<Action> m_enable_scripting_action;
-    RefPtr<Action> m_enable_content_blocking_action;
     RefPtr<Action> m_block_pop_ups_action;
     StringView m_user_agent_string;
     StringView m_navigator_compatibility_mode;
