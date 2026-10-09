@@ -11,6 +11,7 @@
 #include <AK/WeakPtr.h>
 #include <LibCore/EventLoop.h>
 #include <LibIPC/Transport.h>
+#include <LibMedia/Audio/AudioDevices.h>
 #include <LibMedia/Audio/ClientConnection.h>
 #include <LibMedia/Audio/PlaybackStreamMixer.h>
 #include <LibMedia/Audio/RemotePlaybackStream.h>
@@ -90,7 +91,7 @@ struct RemoteFixture {
             return promise;
         });
         auto paired = MUST(IPC::Transport::create_paired());
-        server = Audio::ServerConnection::construct(move(paired.local), 1, *mixer);
+        server = Audio::ServerConnection::construct(move(paired.local), 1, *mixer, Audio::ServerConnection::DeviceEnumeration::Platform);
         server->on_death = [this] { server_died = true; };
         server_weak = server->make_weak_ptr<Audio::ServerConnection>();
         client = adopt_ref(*new Audio::ClientConnection(MUST(paired.remote_handle.create_transport())));
@@ -357,6 +358,58 @@ TEST_CASE(losing_the_connection_reports_output_lost_and_settles_requests)
     EXPECT_EQ(source.requests.load(), requests_at_loss);
 }
 
+TEST_CASE(watching_devices_reports_the_servers_list_at_once)
+{
+    RemoteFixture fixture;
+    auto& devices = Media::AudioDevices::the();
+    EXPECT(fixture.pump_until([&] { return devices.has_device_list(); }));
+
+    Optional<Media::AudioDeviceEnumeration> enumeration;
+    fixture.client->watch_devices([&](ErrorOr<Media::AudioDeviceEnumeration> result) { enumeration = result.release_value(); });
+    EXPECT(fixture.pump_until([&] { return enumeration.has_value(); }));
+    EXPECT_EQ(enumeration->inputs.size(), devices.input_devices().size());
+    EXPECT_EQ(enumeration->outputs.size(), devices.output_devices().size());
+}
+
+TEST_CASE(a_device_change_on_the_server_reaches_a_watching_client)
+{
+    // The watcher may still be told of a change while the fixture shuts the client down.
+    size_t reports = 0;
+    Vector<Media::AudioDeviceInfo> last_inputs;
+    RemoteFixture fixture;
+    auto& devices = Media::AudioDevices::the();
+    EXPECT(fixture.pump_until([&] { return devices.has_device_list(); }));
+    Media::AudioDeviceEnumeration original { .inputs = devices.input_devices(), .outputs = devices.output_devices() };
+
+    fixture.client->watch_devices([&](ErrorOr<Media::AudioDeviceEnumeration> result) {
+        reports++;
+        last_inputs = result.release_value().inputs;
+    });
+    EXPECT(fixture.pump_until([&] { return reports == 1; }));
+
+    // The source reports a new device, and the client hears the list again.
+    Media::AudioDeviceInfo microphone { .dom_device_id = "test:input:1", .label = "Test microphone", .group_id = {}, .sample_rate_hz = 48000, .channel_count = 1, .is_default = true };
+    devices.report_device_list(Media::AudioDeviceEnumeration { .inputs = { microphone }, .outputs = {} });
+    EXPECT(fixture.pump_until([&] { return reports == 2; }));
+    EXPECT_EQ(last_inputs.size(), 1u);
+    EXPECT_EQ(last_inputs[0].label, "Test microphone"sv);
+
+    devices.report_device_list(move(original));
+}
+
+TEST_CASE(losing_the_connection_reports_an_error_to_the_watcher)
+{
+    RemoteFixture fixture;
+    bool errored = false;
+    fixture.client->watch_devices([&](ErrorOr<Media::AudioDeviceEnumeration> result) {
+        if (result.is_error())
+            errored = true;
+    });
+
+    fixture.server = nullptr;
+    EXPECT(fixture.pump_until([&] { return errored; }));
+}
+
 TEST_CASE(destroying_a_stream_removes_it_from_the_mixer)
 {
     Source source;
@@ -391,7 +444,7 @@ struct RemoteSinkFixture {
             if (!accepting_connections)
                 return Error::from_string_literal("The fixture is no longer accepting connections");
             auto paired = TRY(IPC::Transport::create_paired());
-            servers.append(Audio::ServerConnection::construct(move(paired.local), static_cast<int>(connections_requested), *mixer));
+            servers.append(Audio::ServerConnection::construct(move(paired.local), static_cast<int>(connections_requested), *mixer, Audio::ServerConnection::DeviceEnumeration::Platform));
             auto transport = TRY(paired.remote_handle.create_transport());
             introduce_paired_transports(servers.last()->transport(), *transport);
             return transport;

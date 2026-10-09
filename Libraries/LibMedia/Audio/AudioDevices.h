@@ -12,6 +12,7 @@
 #include <AK/HashMap.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
+#include <LibIPC/Forward.h>
 #include <LibMedia/Export.h>
 
 namespace Media {
@@ -64,5 +65,15 @@ private:
     ListenerId m_next_listener_id { 1 };
     HashMap<ListenerId, Function<void()>> m_listeners;
 };
+
+}
+
+namespace IPC {
+
+template<>
+MEDIA_API ErrorOr<void> encode(Encoder&, Media::AudioDeviceInfo const&);
+
+template<>
+MEDIA_API ErrorOr<Media::AudioDeviceInfo> decode(Decoder&);
 
 }

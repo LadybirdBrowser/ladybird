@@ -11,4 +11,6 @@ endpoint AudioServer {
     drain_stream(u64 stream_id, u64 request_id) =|
     discard_stream(u64 stream_id, u64 request_id) =|
     set_stream_volume(u64 stream_id, float volume) =|
+
+    watch_devices() =|
 }
