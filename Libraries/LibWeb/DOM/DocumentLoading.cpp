@@ -133,7 +133,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
     // FIXME: The additional check for a non-empty body fixes issues with loading javascript urls in iframes, which
     //        default to an "about:blank" url. Is this a spec bug?
     if (document->url().to_string() == "about:blank"_string
-        && navigation_params.response->body()->length().value_or(0) == 0) {
+        && navigation_params.response->body_length().value_or(0) == 0) {
         TRY(document->populate_with_html_head_and_body());
         if (navigation_params.navigable && navigation_params.navigable->is_top_level_traversable())
             document->set_supported_color_schemes({ "light"_utf16_fly_string, "dark"_utf16_fly_string });
@@ -143,7 +143,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
     // AD-HOC: For about:srcdoc, the body bytes are always immediately available in the response source (the srcdoc
     //         string was inlined when the navigation params were created). Bypass the async body-reading pipeline
     //         and set up a deferred parser directly, so the document is parsed as soon as scripts may run for it.
-    else if (auto const& source = navigation_params.response->body()->source();
+    else if (auto source = navigation_params.response->body_source();
         source.has_value() && document->url() == URL::about_srcdoc()) {
         auto mime_type = Fetch::Infrastructure::extract_mime_type(navigation_params.response->header_list());
         auto url = navigation_params.response->url().value();

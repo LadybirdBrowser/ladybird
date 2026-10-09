@@ -19,7 +19,10 @@ class WEB_API ResponseView final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(ResponseView);
 
 public:
-    [[nodiscard]] static GC::Ref<ResponseView> create(GC::Ref<Response>);
+    // body_view is the view of the body of record's unsafe response.
+    [[nodiscard]] static GC::Ref<ResponseView> create(GC::Ref<Response> record, GC::Ptr<Body> body_view);
+    // The body of record's unsafe response is null or bytes.
+    [[nodiscard]] static GC::Ref<ResponseView> create(JS::Realm&, GC::Ref<Response> record);
     [[nodiscard]] static GC::Ref<ResponseView> network_error(String message);
     [[nodiscard]] static GC::Ref<ResponseView> aborted_network_error();
 
@@ -31,7 +34,9 @@ public:
     [[nodiscard]] Status status() const { return m_record->status(); }
     [[nodiscard]] ByteString const& status_message() const { return m_record->status_message(); }
     [[nodiscard]] NonnullRefPtr<HTTP::HeaderList> const& header_list() const { return m_record->header_list(); }
-    [[nodiscard]] GC::Ptr<Body> body() const { return m_record->body(); }
+    [[nodiscard]] GC::Ptr<Body> body() const { return m_record->body().has_value() ? m_body_view : nullptr; }
+    [[nodiscard]] Optional<u64> body_length() const;
+    [[nodiscard]] Optional<Core::ImmutableBytes> body_source() const;
     [[nodiscard]] Optional<Response::CacheState> const& cache_state() const { return m_record->cache_state(); }
     [[nodiscard]] bool timing_allow_passed() const { return m_record->timing_allow_passed(); }
     [[nodiscard]] Vector<Vector<String>> const& navigation_timing_allow_values_list() const { return m_record->navigation_timing_allow_values_list(); }
@@ -60,11 +65,12 @@ public:
     [[nodiscard]] Vector<Core::ImmutableBytes> release_body_for_transfer() const { return m_record->release_body_for_transfer(); }
 
 private:
-    explicit ResponseView(GC::Ref<Response>);
+    ResponseView(GC::Ref<Response>, GC::Ptr<Body>);
 
     virtual void visit_edges(Visitor&) override;
 
     GC::Ref<Response> m_record;
+    GC::Ptr<Body> m_body_view;
 };
 
 }

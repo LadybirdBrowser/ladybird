@@ -8,6 +8,7 @@
 
 #include <LibHTTP/Cache/MemoryCache.h>
 #include <LibWeb/Fetch/Fetching/NetworkBodyPump.h>
+#include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
@@ -42,30 +43,11 @@ void NetworkBodyPump::update_response_body_info()
     m_response->set_body_info(move(body_info));
 }
 
-void NetworkBodyPump::set_body(GC::Ref<Fetch::Infrastructure::Body> body)
-{
-    m_body = body;
-    // Flush any bytes that were buffered before the body was set
-    if (!m_pre_body_sniff_buffer.is_empty()) {
-        m_body->append_sniff_bytes(m_pre_body_sniff_buffer);
-        m_pre_body_sniff_buffer.clear();
-    }
-    // If the stream already completed before the body was set,
-    // we missed the terminal sniff call in handle_network_complete / handle_network_error.
-    if (m_network_complete) {
-        m_body->set_sniff_bytes_complete();
-        m_body->set_network_complete();
-    }
-    if (m_network_failed)
-        m_body->set_sniff_bytes_failed();
-}
-
 void NetworkBodyPump::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_fetch_params);
     visitor.visit(m_response);
-    visitor.visit(m_body);
 }
 
 // This implements the transmission steps of HTTP-network fetch.
@@ -113,14 +95,6 @@ void NetworkBodyPump::handle_network_data(Requests::ResponseData data)
         m_channel->write_copy(bytes);
     }
 
-    // Capture bytes for MIME sniffing
-    if (m_body) {
-        m_body->append_sniff_bytes(bytes);
-    } else if (m_pre_body_sniff_buffer.size() < Infrastructure::MAX_SNIFF_BYTES) {
-        auto space_remaining = Infrastructure::MAX_SNIFF_BYTES - m_pre_body_sniff_buffer.size();
-        m_pre_body_sniff_buffer.append(bytes.slice(0, min(bytes.size(), space_remaining)));
-    }
-
     if (m_http_cache && !m_cache_body_replaces_network_buffer) {
         if (file_backed && m_cache_buffer.is_empty()) {
             if (!m_cache_body.has_value())
@@ -143,25 +117,16 @@ void NetworkBodyPump::handle_network_complete(Optional<u64> encoded_body_size)
     m_encoded_body_size = encoded_body_size.value_or(m_decoded_body_size);
     if (m_response)
         update_response_body_info();
-    // Mark sniff bytes as complete when the stream ends
-    if (m_body)
-        m_body->set_sniff_bytes_complete();
-
     finalize_cache_entry();
     m_channel->close();
-    if (m_body)
-        m_body->set_network_complete();
+    if (m_fetch_params)
+        m_fetch_params->controller()->did_complete_network_body(*m_channel);
 }
 
 void NetworkBodyPump::handle_network_error(StringView error_message)
 {
-    m_network_failed = true;
     if (WebDriver::BiDi::g_network_events_enabled && m_fetch_params)
         WebDriver::BiDi::network_fetch_error(*m_fetch_params, error_message);
-    // A response that died mid-body must not satisfy a sniff waiter with partial bytes.
-    if (m_body)
-        m_body->set_sniff_bytes_failed();
-
     abandon_cache_entry();
     m_channel->error({ .message = MUST(ByteBuffer::copy(error_message.bytes())) });
 }

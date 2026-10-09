@@ -40,12 +40,6 @@ Response::Response(NonnullRefPtr<HTTP::HeaderList> header_list)
 {
 }
 
-void Response::visit_edges(JS::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_body);
-}
-
 // https://fetch.spec.whatwg.org/#ref-for-concept-network-error%E2%91%A3
 // A network error is a response whose status is always 0, status message is always
 // the empty byte sequence, header list is always empty, and body is always null.
@@ -63,7 +57,7 @@ GC::Ref<Response> Response::network_error(String message)
     auto response = Response::create();
     response->set_status(0);
     response->set_type(Type::Error);
-    VERIFY(!response->body());
+    VERIFY(!response->body().has_value());
     response->m_network_error_message = move(message);
     return response;
 }
@@ -107,7 +101,7 @@ bool Response::is_network_error() const
         return false;
     if (!header_list()->is_empty())
         return false;
-    if (body())
+    if (body().has_value())
         return false;
     if (body_info() != BodyInfo {})
         return false;
@@ -186,12 +180,12 @@ ErrorOr<Optional<URL::URL>> Response::location_url(Optional<StringView> request_
 }
 
 // https://fetch.spec.whatwg.org/#concept-response-clone
-GC::Ref<Response> Response::clone(JS::Realm& realm) const
+GC::Ref<Response> Response::clone() const
 {
     // To clone a response response, run these steps:
     // 1. If response is a filtered response, then return a new identical filtered response whose internal response is a clone of response’s internal response.
     if (is<FilteredResponse>(*this)) {
-        auto internal_response = static_cast<FilteredResponse const&>(*this).internal_response()->clone(realm);
+        auto internal_response = static_cast<FilteredResponse const&>(*this).internal_response()->clone();
         if (is<BasicFilteredResponse>(*this))
             return BasicFilteredResponse::create(internal_response);
         if (is<CORSFilteredResponse>(*this))
@@ -229,8 +223,12 @@ GC::Ref<Response> Response::clone(JS::Realm& realm) const
     // FIXME: service worker timing info
 
     // 3. If response’s body is non-null, then set newResponse’s body to the result of cloning response’s body.
-    if (m_body)
-        new_response->set_body(m_body->clone(realm));
+    // NB: ResponseView::clone() tees the body's stream, and a response whose bytes are still in a channel is never
+    //     cloned.
+    if (m_body.has_value()) {
+        VERIFY(!m_body->bytes().has<NonnullRefPtr<Engine::FetchByteChannel>>());
+        new_response->set_body(*m_body);
+    }
 
     // 4. Return newResponse.
     return new_response;

@@ -1,0 +1,5 @@
+entries while the final body is held: 0
+body used before timing: false
+sizes: 4000/4000
+body length: 4000
+entries after reading the body: 1

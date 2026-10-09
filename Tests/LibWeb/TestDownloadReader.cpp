@@ -84,8 +84,8 @@ TEST_CASE(download_reader_is_registered_with_page_client)
     page->set_top_level_traversable(traversable);
 
     auto response = Web::Fetch::Infrastructure::Response::create(vm);
-    response->set_body(Web::Fetch::Infrastructure::byte_sequence_as_body(*realm, "download contents"sv.bytes()));
-    traversable->handle_as_a_download(Web::Fetch::Infrastructure::ResponseView::create(response), URL::about_blank(), nullptr, "download.txt", {});
+    response->set_body(Web::Fetch::Infrastructure::byte_sequence_as_response_body("download contents"sv.bytes()));
+    traversable->handle_as_a_download(Web::Fetch::Infrastructure::ResponseView::create(*realm, response), URL::about_blank(), nullptr, "download.txt", {});
 
     EXPECT(client->m_registered_download_id.has_value());
     if (!client->m_registered_download_id.has_value())

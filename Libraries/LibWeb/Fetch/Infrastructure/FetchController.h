@@ -16,6 +16,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
+#include <LibWeb/Fetch/Engine/FetchByteChannel.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
@@ -53,6 +54,11 @@ public:
 
     void report_timing(JS::Object&) const;
     void process_next_manual_redirect() const;
+
+    // Runs the steps once the network has delivered all of the body whose bytes arrive through the channel, in place of
+    // any steps set before.
+    void when_network_completes_body(Engine::FetchByteChannel const&, GC::Ref<GC::Function<void()>> steps);
+    void did_complete_network_body(Engine::FetchByteChannel const&);
     [[nodiscard]] NonnullRefPtr<FetchTimingInfo> extract_full_timing_info() const;
     void abort(JS::Realm&, Optional<JS::Value>);
     Optional<HTML::IPCSerializationRecord> const& serialized_abort_reason() const { return m_serialized_abort_reason; }
@@ -109,6 +115,12 @@ private:
     // report timing steps (default null)
     //    Null or an algorithm accepting a global object.
     GC::Ptr<GC::Function<void(JS::Object&)>> m_report_timing_steps;
+
+    struct AwaitedNetworkCompletion {
+        NonnullRefPtr<Engine::FetchByteChannel const> body;
+        GC::Ref<GC::Function<void()>> steps;
+    };
+    Optional<AwaitedNetworkCompletion> m_awaited_network_completion;
 
     // https://fetch.spec.whatwg.org/#fetch-controller-report-timing-steps
     // serialized abort reason (default null)

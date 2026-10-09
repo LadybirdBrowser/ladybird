@@ -53,13 +53,6 @@ static NavigationRequestDescriptor create_navigation_request_descriptor(Fetch::I
     };
 }
 
-static Optional<ByteBuffer> copy_body_source(Fetch::Infrastructure::Body const& body)
-{
-    if (auto const& source = body.source(); source.has_value())
-        return MUST(source->copy_to_byte_buffer());
-    return {};
-}
-
 static NavigationResponseDescriptor create_navigation_response_descriptor(Fetch::Infrastructure::ResponseView const& response, Fetch::Infrastructure::Request const* request, Fetch::Infrastructure::FetchTimingInfo const* timing_info)
 {
     Vector<HTTP::Header> headers;
@@ -78,9 +71,9 @@ static NavigationResponseDescriptor create_navigation_response_descriptor(Fetch:
         };
     }
 
-    if (body.has<Empty>() && response.body()) {
-        if (auto body_bytes = copy_body_source(*response.body()); body_bytes.has_value())
-            body = body_bytes.release_value();
+    if (body.has<Empty>()) {
+        if (auto source = response.body_source(); source.has_value())
+            body = MUST(source->copy_to_byte_buffer());
     }
 
     auto network_response = request && timing_info && response.network_transport().has_value() ? WebDriver::BiDi::network_response_for_navigation(*request, *timing_info, *response.record()) : Optional<JsonObject> {};
@@ -284,19 +277,22 @@ static ErrorOr<GC::Ref<Fetch::Infrastructure::ResponseView>> create_navigation_r
     response->set_navigation_timing_allow_values_list(move(descriptor.navigation_timing_allow_values_list));
     response->set_redirect_taint(descriptor.redirect_taint);
 
-    if (descriptor.body.has<ByteBuffer>()) {
-        response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, descriptor.body.get<ByteBuffer>().bytes()));
-    } else if (descriptor.body.has<NavigationResponseBodyHandle>()) {
+    if (descriptor.body.has<NavigationResponseBodyHandle>()) {
         auto const& handle = descriptor.body.get<NavigationResponseBodyHandle>();
         Requests::RequestTransferLeaseKey transfer_lease { handle.request_server_client_id, handle.request_server_request_id };
         auto network_response = descriptor.webdriver_bidi_network_response.is_object() ? Optional<JsonObject>(descriptor.webdriver_bidi_network_response.as_object()) : Optional<JsonObject> {};
         auto on_network_settled = network_navigation_response_observer(navigable, response, timing_info, move(network_response), move(network_response_state));
-        auto body = Fetch::Fetching::adopt_navigation_response_body(realm, response, handle.request_server_top_level_site, transfer_lease, timing_info, move(on_network_settled));
-        if (!body)
+        auto body_view = Fetch::Fetching::adopt_navigation_response_body(realm, response, handle.request_server_top_level_site, transfer_lease, timing_info, move(on_network_settled));
+        if (!body_view)
             return Error::from_string_literal("Unable to adopt transferred navigation response body");
-        response->set_body(body);
+        return Fetch::Infrastructure::ResponseView::create(response, body_view);
     }
-    return Fetch::Infrastructure::ResponseView::create(response);
+
+    if (descriptor.body.has<ByteBuffer>()) {
+        auto bytes = Core::ImmutableBytes::adopt(move(descriptor.body.get<ByteBuffer>()));
+        response->set_body(Fetch::Infrastructure::ResponseBody::from_bytes(move(bytes)));
+    }
+    return Fetch::Infrastructure::ResponseView::create(realm, response);
 }
 
 ErrorOr<NavigationParamsVariant> create_navigation_params_from_descriptor(JS::Realm& realm, LocalNavigable& navigable, NavigationParamsVariantDescriptor descriptor)
