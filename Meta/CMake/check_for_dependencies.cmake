@@ -14,6 +14,7 @@ find_package(cpptrace CONFIG)
 find_package(FastFloat CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(simdutf REQUIRED)
+find_package(zmij CONFIG REQUIRED)
 
 # LibGfx dependencies
 find_package(harfbuzz REQUIRED)
