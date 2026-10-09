@@ -1255,6 +1255,13 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
                     return;
                 }
             }
+            // A body the transport delivered as slices of one mapping keeps that mapping instead of the bytes read.
+            if (auto const& network_transport = response.network_transport(); network_transport.has_value()) {
+                if (auto whole_body = network_transport->body_channel->whole_body(); whole_body.has_value()) {
+                    (algorithms->process_response_consume_body())(response_view, whole_body.release_value());
+                    return;
+                }
+            }
             (algorithms->process_response_consume_body())(response_view, Core::ImmutableBytes::adopt(move(bytes)));
         });
 
@@ -1300,7 +1307,9 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             // NB: A body that carries its full contents as an in-memory source (data: URLs, cached responses, and such)
             //     is read from that directly: Its stream may be populated thru the event loop (Blob::get_stream()
             //     enqueues from a queued global task, e.g.) — which can't happen while the loop is paused.
-            if (internal_response->body()->source().has_value()) {
+            auto const& network_transport = internal_response->network_transport();
+            auto has_whole_body = network_transport.has_value() && network_transport->body_channel->whole_body().has_value();
+            if (internal_response->body()->source().has_value() || has_whole_body) {
                 // NB: process_body() reads the body's source itself and ignores the bytes passed here.
                 success_steps->function()({});
                 fetch_params.controller()->stop_body_transport();

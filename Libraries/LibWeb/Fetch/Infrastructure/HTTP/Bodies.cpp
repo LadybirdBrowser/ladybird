@@ -27,12 +27,6 @@ FetchBody::FetchBody(Optional<Core::ImmutableBytes> source, Optional<u64> length
 {
 }
 
-void FetchBody::set_source(Core::ImmutableBytes source, Optional<u64> length)
-{
-    m_source = move(source);
-    m_length = length;
-}
-
 void FetchBody::append_sniff_bytes(ReadonlyBytes bytes)
 {
     if (m_sniff_outcome.has_value())
@@ -98,12 +92,6 @@ void Body::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_stream);
     visitor.visit(m_sniff_bytes_callback);
     visitor.visit(m_network_complete_callback);
-}
-
-void Body::set_source(Core::ImmutableBytes source, Optional<u64> length)
-{
-    m_fetch_body.set_source(move(source), length);
-    notify_sniff_bytes_waiter();
 }
 
 void Body::append_sniff_bytes(ReadonlyBytes bytes)

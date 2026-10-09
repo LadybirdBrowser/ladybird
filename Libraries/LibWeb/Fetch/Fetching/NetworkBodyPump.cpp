@@ -106,15 +106,15 @@ void NetworkBodyPump::handle_network_data(Requests::ResponseData data)
 
     // 12. Append bytes to buffer. (Steps 12 and 13 live in FetchByteChannel's writes.)
     auto const* file_backed = data.file_backed_slice();
-    if (file_backed)
+    if (file_backed) {
         m_channel->write(file_backed->slice);
-    else
+        m_channel->keep_whole_body(file_backed->payload);
+    } else {
         m_channel->write_copy(bytes);
+    }
 
     // Capture bytes for MIME sniffing
     if (m_body) {
-        if (file_backed && !m_body->source().has_value())
-            m_body->set_source(file_backed->payload, static_cast<u64>(file_backed->payload.size()));
         m_body->append_sniff_bytes(bytes);
     } else if (m_pre_body_sniff_buffer.size() < Infrastructure::MAX_SNIFF_BYTES) {
         auto space_remaining = Infrastructure::MAX_SNIFF_BYTES - m_pre_body_sniff_buffer.size();

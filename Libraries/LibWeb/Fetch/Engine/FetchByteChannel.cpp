@@ -127,6 +127,7 @@ FetchByteChannel::TerminateResult FetchByteChannel::terminate_locked(State termi
         m_chunks.clear();
         m_copied_tail.clear();
         m_buffered_byte_count = 0;
+        m_whole_body.clear();
     }
     m_state = move(terminal_state);
     wake_due_waiters_locked(notifications);
@@ -167,6 +168,19 @@ FetchByteChannel::TerminateResult FetchByteChannel::error(Errored errored)
     return result;
 }
 
+void FetchByteChannel::keep_whole_body(Core::ImmutableBytes whole_body)
+{
+    MutexLocker locker { m_mutex };
+    if (m_state.has<Open>() && !m_whole_body.has_value())
+        m_whole_body = move(whole_body);
+}
+
+Optional<Core::ImmutableBytes> FetchByteChannel::whole_body() const
+{
+    MutexLocker locker { m_mutex };
+    return m_whole_body;
+}
+
 FetchByteChannel::TerminateResult FetchByteChannel::cancel()
 {
     PendingNotifications notifications;
@@ -179,6 +193,7 @@ FetchByteChannel::TerminateResult FetchByteChannel::cancel()
             m_chunks.clear();
             m_copied_tail.clear();
             m_buffered_byte_count = 0;
+            m_whole_body.clear();
             wake_due_waiters_locked(notifications);
             if (!m_transport_ended)
                 notifications.append(ConsumerCancelledNotice {});
@@ -201,6 +216,7 @@ Vector<Core::ImmutableBytes> FetchByteChannel::transfer_out()
         seal_copied_tail_locked();
         undrained_bytes = move(m_chunks);
         m_buffered_byte_count = 0;
+        m_whole_body.clear();
         m_state = Transferred {};
         wake_due_waiters_locked(notifications);
     }
