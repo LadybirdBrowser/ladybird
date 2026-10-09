@@ -2146,7 +2146,7 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
     //    URL: about:srcdoc
     //    header list: (`Content-Type`, `text/html`)
     //    body: the UTF-8 encoding of documentResource, as a body
-    auto response = Fetch::Infrastructure::Response::create(vm);
+    auto response = Fetch::Infrastructure::Response::create();
     response->url_list().append(URL::about_srcdoc());
     response->header_list()->append({ "Content-Type"sv, "text/html"sv });
     auto document_resource_utf8 = MUST(document_resource.get<Utf16String>().utf16_view().to_utf8());
@@ -4052,7 +4052,7 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
     //     header list: «(`Content-Type`, `text/html;charset=utf-8`)»
     //     body: the UTF-8 encoding of result, as a body
     auto result_utf8 = MUST(result->to_utf8());
-    auto response = Fetch::Infrastructure::Response::create(vm);
+    auto response = Fetch::Infrastructure::Response::create();
     response->url_list().append(active_document()->url());
     response->header_list()->append({ "Content-Type"sv, "text/html;charset=utf-8"sv });
     response->set_body(Fetch::Infrastructure::byte_sequence_as_response_body(result_utf8.bytes()));

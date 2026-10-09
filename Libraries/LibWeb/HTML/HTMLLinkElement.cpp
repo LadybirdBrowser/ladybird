@@ -1033,7 +1033,9 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetc
     fetch_algorithms_input.process_response_consume_body = [options = GC::Ref { options }, process_response = move(process_response), entry, report_timing](GC::Ref<Fetch::Infrastructure::ResponseView> response_view, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
         //        https://github.com/whatwg/html/issues/9355
-        auto response = response_view->record()->unsafe_response();
+        // NB: Step 1 sets the body of a clone of response, so the response fetch delivered never changes. Nothing can
+        //     observe the difference.
+        auto response = response_view->record()->unsafe_response()->clone();
 
         // 1. If bodyBytes is a byte sequence, then set response's body to bodyBytes as a body.
         if (auto* byte_sequence = body_bytes.get_pointer<Core::ImmutableBytes>())

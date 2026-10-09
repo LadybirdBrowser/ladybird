@@ -230,7 +230,7 @@ static RefPtr<HTTP::MemoryCache> determine_the_http_cache_partition(Infrastructu
     return HTTPCache::the().get(*partition);
 }
 
-static GC::Ptr<Infrastructure::Response> select_response_from_cache(HTTP::MemoryCache& http_cache, Infrastructure::Request const& request)
+static RefPtr<Infrastructure::Response> select_response_from_cache(HTTP::MemoryCache& http_cache, Infrastructure::Request const& request)
 {
     if (!g_http_memory_cache_enabled)
         return {};
@@ -362,7 +362,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
 
         // 2. Let onPreloadedResponseAvailable be an algorithm that runs the following step given a response
         //    response: set fetchParams’s preloaded response candidate to response.
-        auto on_preloaded_response_available = GC::create_function(GC::Heap::the(), [fetch_params](GC::Ref<Infrastructure::Response> response) {
+        auto on_preloaded_response_available = GC::create_function(GC::Heap::the(), [fetch_params](NonnullRefPtr<Infrastructure::Response> response) {
             fetch_params->set_preloaded_response_candidate(response);
 
             // NB: main fetch may already be parked on this preload result.
@@ -566,7 +566,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
         WebDriver::BiDi::initialize_network_request(*request);
 
     // 2. Let response be null.
-    GC::Ptr<Infrastructure::Response> response;
+    RefPtr<Infrastructure::Response> response;
 
     // 3. If request’s local-URLs-only flag is set and request’s current URL is not local, then set response to a
     //    network error.
@@ -652,10 +652,10 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
             }
 
             // 2. Assert: fetchParams’s preloaded response candidate is a response.
-            VERIFY(fetch_params.preloaded_response_candidate().has<GC::Ref<Infrastructure::Response>>());
+            VERIFY(fetch_params.preloaded_response_candidate().has<NonnullRefPtr<Infrastructure::Response>>());
 
             // 3. Return fetchParams’s preloaded response candidate.
-            return PendingResponse::create(fetch_params, fetch_params.preloaded_response_candidate().get<GC::Ref<Infrastructure::Response>>());
+            return PendingResponse::create(fetch_params, fetch_params.preloaded_response_candidate().get<NonnullRefPtr<Infrastructure::Response>>());
         }
 
         // -> request’s current URL’s origin is same origin with request’s origin, and request’s response tainting is "basic"
@@ -729,7 +729,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
 
             // 2. Let corsWithPreflightResponse be the result of running HTTP fetch given fetchParams and true.
             auto cors_with_preflight_response = http_fetch(realm, fetch_params, MakeCORSPreflight::Yes);
-            cors_with_preflight_response->when_loaded([request, returned_pending_response](GC::Ref<Infrastructure::Response> cors_with_preflight_response) {
+            cors_with_preflight_response->when_loaded([request, returned_pending_response](NonnullRefPtr<Infrastructure::Response> cors_with_preflight_response) {
                 dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' cors_with_preflight_response load callback");
                 // 3. If corsWithPreflightResponse is a network error, then clear cache entries using request.
                 if (cors_with_preflight_response->is_network_error()) {
@@ -770,7 +770,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
         if (!response) {
             pending_response = get_response->function()();
         }
-        pending_response->when_loaded([&realm, &fetch_params, request, response, response_was_null = !response](GC::Ref<Infrastructure::Response> resolved_response) mutable {
+        pending_response->when_loaded([&realm, &fetch_params, request, response, response_was_null = !response](NonnullRefPtr<Infrastructure::Response> resolved_response) mutable {
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' pending_response load callback");
 
             // AD-HOC: From here on, response processing captures fetchParams's task destination as it schedules work
@@ -807,7 +807,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
 
                 // 2. Set response to the following filtered response with response as its internal response, depending
                 //    on request’s response tainting:
-                response = [&]() -> GC::Ref<Infrastructure::Response> {
+                response = [&]() -> NonnullRefPtr<Infrastructure::Response> {
                     switch (request->response_tainting()) {
                     // -> "basic"
                     case Infrastructure::Request::ResponseTainting::Basic:
@@ -830,7 +830,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
             // 15. Let internalResponse be response, if response is a network error, and response’s internal response
             //     otherwise.
             auto internal_response = response->is_network_error()
-                ? GC::Ref { *response }
+                ? NonnullRefPtr { *response }
                 : static_cast<Infrastructure::FilteredResponse&>(*response).internal_response();
 
             // 16. If internalResponse’s URL list is empty, then set it to a clone of request’s URL list.
@@ -1022,12 +1022,12 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     //         within processResponseConsumeBody. So we ensure report_timing_steps is set on error too, which allows
     //         reportTiming to work without asserting, and still produces useful timing data for failed fetches.
     auto timing_reported = RefCountedFlag::create(false);
-    auto setup_report_timing_steps = [&response, &fetch_params, timing_info, timing_reported] {
+    auto setup_report_timing_steps = [response = response_view->record(), &fetch_params, timing_info, timing_reported] {
         // 1. Let unsafeEndTime be the unsafe shared current time.
         auto unsafe_end_time = HighResolutionTime::unsafe_shared_current_time();
 
         // 2. Set fetchParams’s controller’s report timing steps to the following steps given a global object global:
-        fetch_params.controller()->set_report_timing_steps([&response, &fetch_params, timing_info, unsafe_end_time, timing_reported](JS::Object& global) mutable {
+        fetch_params.controller()->set_report_timing_steps([response, &fetch_params, timing_info, unsafe_end_time, timing_reported](JS::Object& global) mutable {
             // NB: Network completion and consuming the response body can both request a timing report.
             if (timing_reported->value())
                 return;
@@ -1045,16 +1045,16 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             timing_info->set_end_time(unsafe_end_time);
 
             // 3. Let cacheState be response’s cache state.
-            auto cache_state = response.cache_state();
+            auto cache_state = response->cache_state();
 
             // 4. Let bodyInfo be response’s body info.
-            auto body_info = response.body_info();
+            auto body_info = response->body_info();
 
             // 5. If response’s timing allow passed flag is not set, then set timingInfo to the result of creating an
             //    opaque timing info for timingInfo, set bodyInfo to a new response body info, and set cacheState to
             //    the empty string.
             // NOTE: This covers the case of response being a network error.
-            if (!response.timing_allow_passed()) {
+            if (!response->timing_allow_passed()) {
                 timing_info = Infrastructure::create_opaque_timing_info(timing_info);
                 body_info = Infrastructure::Response::BodyInfo {};
                 cache_state = {};
@@ -1064,12 +1064,12 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             auto response_status = 0;
 
             // 7. If fetchParams’s request’s mode is not "navigate" or response’s redirect taint is "same-origin":
-            if (fetch_params.request()->mode() != Infrastructure::Request::Mode::Navigate || response.redirect_taint() == Infrastructure::RedirectTaint::SameOrigin) {
+            if (fetch_params.request()->mode() != Infrastructure::Request::Mode::Navigate || response->redirect_taint() == Infrastructure::RedirectTaint::SameOrigin) {
                 // 1. Set responseStatus to response’s status.
-                response_status = response.status();
+                response_status = response->status();
 
                 // 2. Let mimeType be the result of extracting a MIME type from response’s header list.
-                auto mime_type = Infrastructure::extract_mime_type(response.header_list());
+                auto mime_type = Infrastructure::extract_mime_type(response->header_list());
 
                 // 3. If mimeType is non-null, then set bodyInfo’s content type to the result of minimizing a supported MIME type given mimeType.
                 if (mime_type.has_value())
@@ -1140,7 +1140,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     }
 
     // 6. Let internalResponse be response, if response is a network error; otherwise response’s internal response.
-    auto internal_response = response.is_network_error() ? GC::Ref { response } : response.unsafe_response();
+    auto internal_response = response.is_network_error() ? NonnullRefPtr { response } : response.unsafe_response();
 
     // AD-HOC: Report a body's timing once the network has delivered it. Fetch reports it from the flush of the
     //         transform the body is piped through, which backpressure on an unread body can hold back.
@@ -1276,15 +1276,15 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     if (algorithms->process_response_consume_body()) {
         // 1. Let processBody given nullOrBytes be this step: run fetchParams’s process response consume body given
         //    response and nullOrBytes.
-        auto process_body = GC::create_function(GC::Heap::the(), [algorithms, &response, response_view](ByteBuffer bytes) {
-            if (auto body = response.body(); body.has_value()) {
+        auto process_body = GC::create_function(GC::Heap::the(), [algorithms, response = response_view->record(), response_view](ByteBuffer bytes) {
+            if (auto body = response->body(); body.has_value()) {
                 if (auto source = body->source(); source.has_value()) {
                     (algorithms->process_response_consume_body())(response_view, *source);
                     return;
                 }
             }
             // A body the transport delivered as slices of one mapping keeps that mapping instead of the bytes read.
-            if (auto const& network_transport = response.network_transport(); network_transport.has_value()) {
+            if (auto const& network_transport = response->network_transport(); network_transport.has_value()) {
                 if (auto whole_body = network_transport->body_channel->whole_body(); whole_body.has_value()) {
                     (algorithms->process_response_consume_body())(response_view, whole_body.release_value());
                     return;
@@ -1643,8 +1643,8 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
     auto request = fetch_params.request();
 
     // 2. Let response and internalResponse be null.
-    GC::Ptr<Infrastructure::Response> response;
-    GC::Ptr<Infrastructure::Response> internal_response;
+    RefPtr<Infrastructure::Response> response;
+    RefPtr<Infrastructure::Response> internal_response;
 
     // 3. If request’s service-workers mode is "all", then:
     if (request->service_workers_mode() == Infrastructure::Request::ServiceWorkersMode::All) {
@@ -1682,8 +1682,8 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
             // 3. Set internalResponse to response, if response is not a filtered response; otherwise to response’s
             //    internal response.
             internal_response = !is<Infrastructure::FilteredResponse>(*response)
-                ? GC::Ref { *response }
-                : static_cast<Infrastructure::FilteredResponse const&>(*response).internal_response();
+                ? NonnullRefPtr { *response }
+                : static_cast<Infrastructure::FilteredResponse&>(*response).internal_response();
 
             // 4. If one of the following is true
             if (
@@ -1749,7 +1749,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
 
         if (pending_preflight_response) {
             pending_actual_response = PendingResponse::create(fetch_params);
-            pending_preflight_response->when_loaded([returned_pending_response, pending_actual_response, fetch_main_content](GC::Ref<Infrastructure::Response> preflight_response) {
+            pending_preflight_response->when_loaded([returned_pending_response, pending_actual_response, fetch_main_content](NonnullRefPtr<Infrastructure::Response> preflight_response) {
                 dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP fetch' pending_preflight_response load callback");
 
                 // 2. If preflightResponse is a network error, then return preflightResponse.
@@ -1759,7 +1759,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
                 }
 
                 auto pending_main_content_response = fetch_main_content->function()();
-                pending_main_content_response->when_loaded([pending_actual_response](GC::Ref<Infrastructure::Response> main_content_response) {
+                pending_main_content_response->when_loaded([pending_actual_response](NonnullRefPtr<Infrastructure::Response> main_content_response) {
                     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP fetch' pending_main_content_response load callback");
                     pending_actual_response->resolve(main_content_response);
                 });
@@ -1771,7 +1771,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
         pending_actual_response = PendingResponse::create(fetch_params, Infrastructure::Response::create());
     }
 
-    pending_actual_response->when_loaded([&realm, &fetch_params, request, response, internal_response, returned_pending_response, response_was_null = !response](GC::Ref<Infrastructure::Response> resolved_actual_response) mutable {
+    pending_actual_response->when_loaded([&realm, &fetch_params, request, response, internal_response, returned_pending_response, response_was_null = !response](NonnullRefPtr<Infrastructure::Response> resolved_actual_response) mutable {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP fetch' pending_actual_response load callback");
         if (response_was_null) {
             response = internal_response = resolved_actual_response;
@@ -1855,7 +1855,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
         }
 
         if (inner_pending_response) {
-            inner_pending_response->when_loaded([returned_pending_response](GC::Ref<Infrastructure::Response> response) {
+            inner_pending_response->when_loaded([returned_pending_response](NonnullRefPtr<Infrastructure::Response> response) {
                 dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP fetch' inner_pending_response load callback");
                 returned_pending_response->resolve(response);
             });
@@ -1880,7 +1880,7 @@ GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::F
     // 2. Let internalResponse be response, if response is not a filtered response; otherwise response’s internal
     //    response.
     auto internal_response = !is<Infrastructure::FilteredResponse>(response)
-        ? GC::Ref { response }
+        ? NonnullRefPtr<Infrastructure::Response const> { response }
         : static_cast<Infrastructure::FilteredResponse const&>(response).internal_response();
 
     // 3. Let locationURL be internalResponse’s location URL given request’s current URL’s fragment.
@@ -2022,7 +2022,7 @@ enum class AuthenticationHandled {
 };
 
 // https://fetch.spec.whatwg.org/#concept-http-network-or-cache-fetch
-static void process_http_network_or_cache_response(JS::Object& global_object, Infrastructure::FetchParams const& fetch_params, NonnullRefPtr<Infrastructure::Request> http_request, GC::Ref<Infrastructure::Response> response, GC::Ref<PendingResponse> returned_pending_response, IsAuthenticationFetch is_authentication_fetch, IsNewConnectionFetch is_new_connection_fetch, HTTP::Cookie::IncludeCredentials include_credentials, AuthenticationHandled authentication_handled = AuthenticationHandled::No)
+static void process_http_network_or_cache_response(JS::Object& global_object, Infrastructure::FetchParams const& fetch_params, NonnullRefPtr<Infrastructure::Request> http_request, NonnullRefPtr<Infrastructure::Response> response, GC::Ref<PendingResponse> returned_pending_response, IsAuthenticationFetch is_authentication_fetch, IsNewConnectionFetch is_new_connection_fetch, HTTP::Cookie::IncludeCredentials include_credentials, AuthenticationHandled authentication_handled = AuthenticationHandled::No)
 {
     auto& realm = HTML::relevant_realm(global_object);
     auto request = fetch_params.request();
@@ -2092,7 +2092,7 @@ static void process_http_network_or_cache_response(JS::Object& global_object, In
             if (WebDriver::BiDi::g_network_events_enabled && authentication_handled == AuthenticationHandled::No) {
                 auto intercepts = WebDriver::BiDi::get_network_intercepts(fetch_params, "authRequired"sv);
                 if (!intercepts.is_empty()) {
-                    WebDriver::BiDi::block_network_request(fetch_params, response, "authRequired"_string, move(intercepts), WebDriver::BiDi::NetworkContinuation::create(realm.heap(), [&realm, &fetch_params, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials](WebDriver::BiDi::NetworkContinuationAction action, GC::Ptr<Infrastructure::Response> continued_response) {
+                    WebDriver::BiDi::block_network_request(fetch_params, response, "authRequired"_string, move(intercepts), WebDriver::BiDi::NetworkContinuation::create(realm.heap(), [&realm, &fetch_params, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials](WebDriver::BiDi::NetworkContinuationAction action, RefPtr<Infrastructure::Response> continued_response) {
                         if (action == WebDriver::BiDi::NetworkContinuationAction::ProvideCredentials) {
                             stop_discarded_response_body(*fetch_params.controller(), *continued_response);
                             auto pending_response = http_network_or_cache_fetch(realm, fetch_params, IsAuthenticationFetch::Yes);
@@ -2123,7 +2123,7 @@ static void process_http_network_or_cache_response(JS::Object& global_object, In
         inner_pending_response = http_network_or_cache_fetch(realm, fetch_params, IsAuthenticationFetch::Yes);
     }
 
-    inner_pending_response->when_loaded([&realm, &fetch_params, request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch](GC::Ref<Infrastructure::Response> response) {
+    inner_pending_response->when_loaded([&realm, &fetch_params, request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch](NonnullRefPtr<Infrastructure::Response> response) {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP network-or-cache fetch' inner_pending_response load callback");
         // 15. If response’s status is 407, then:
         if (response->status() == 407) {
@@ -2173,7 +2173,7 @@ static void process_http_network_or_cache_response(JS::Object& global_object, In
             inner_pending_response = http_network_or_cache_fetch(realm, fetch_params, is_authentication_fetch, IsNewConnectionFetch::Yes);
         }
 
-        inner_pending_response->when_loaded([returned_pending_response, is_authentication_fetch](GC::Ref<Infrastructure::Response> response) {
+        inner_pending_response->when_loaded([returned_pending_response, is_authentication_fetch](NonnullRefPtr<Infrastructure::Response> response) {
             // 17. If isAuthenticationFetch is true, then create an authentication entry for request and the given
             //     realm.
             if (is_authentication_fetch == IsAuthenticationFetch::Yes) {
@@ -2186,7 +2186,7 @@ static void process_http_network_or_cache_response(JS::Object& global_object, In
 }
 
 // https://fetch.spec.whatwg.org/#concept-http-network-or-cache-fetch
-static GC::Ref<PendingResponse> continue_http_network_or_cache_fetch(JS::Object& global_object, Infrastructure::FetchParams const& fetch_params, GC::Ref<Infrastructure::FetchParams const> http_fetch_params, GC::Ptr<Infrastructure::Response> response, GC::Ptr<Infrastructure::Response> stored_response, RefPtr<HTTP::MemoryCache> http_cache, IsAuthenticationFetch is_authentication_fetch, IsNewConnectionFetch is_new_connection_fetch, HTTP::Cookie::IncludeCredentials include_credentials)
+static GC::Ref<PendingResponse> continue_http_network_or_cache_fetch(JS::Object& global_object, Infrastructure::FetchParams const& fetch_params, GC::Ref<Infrastructure::FetchParams const> http_fetch_params, RefPtr<Infrastructure::Response> response, RefPtr<Infrastructure::Response> stored_response, RefPtr<HTTP::MemoryCache> http_cache, IsAuthenticationFetch is_authentication_fetch, IsNewConnectionFetch is_new_connection_fetch, HTTP::Cookie::IncludeCredentials include_credentials)
 {
     auto& realm = HTML::relevant_realm(global_object);
     auto request = fetch_params.request();
@@ -2213,7 +2213,7 @@ static GC::Ref<PendingResponse> continue_http_network_or_cache_fetch(JS::Object&
 
     auto returned_pending_response = PendingResponse::create(fetch_params);
 
-    pending_forward_response->when_loaded([&realm, &fetch_params, response, stored_response, http_request, http_fetch_params, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials, response_was_null = !response, http_cache](GC::Ref<Infrastructure::Response> resolved_forward_response) mutable {
+    pending_forward_response->when_loaded([&realm, &fetch_params, response, stored_response, http_request, http_fetch_params, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials, response_was_null = !response, http_cache](NonnullRefPtr<Infrastructure::Response> resolved_forward_response) mutable {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP-network-or-cache fetch' pending_forward_response load callback");
         if (response_was_null) {
             auto forward_response = resolved_forward_response;
@@ -2260,7 +2260,7 @@ static GC::Ref<PendingResponse> continue_http_network_or_cache_fetch(JS::Object&
             WebDriver::BiDi::synchronize_network_request(*fetch_params.request(), *http_request);
             auto intercepts = WebDriver::BiDi::get_network_intercepts(*http_fetch_params, "responseStarted"sv);
             if (!response->is_network_error() && !intercepts.is_empty()) {
-                WebDriver::BiDi::block_network_request(*http_fetch_params, response, "responseStarted"_string, move(intercepts), WebDriver::BiDi::NetworkContinuation::create(realm.heap(), [&realm, &fetch_params, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials](WebDriver::BiDi::NetworkContinuationAction, GC::Ptr<Infrastructure::Response> continued_response) {
+                WebDriver::BiDi::block_network_request(*http_fetch_params, response, "responseStarted"_string, move(intercepts), WebDriver::BiDi::NetworkContinuation::create(realm.heap(), [&realm, &fetch_params, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials](WebDriver::BiDi::NetworkContinuationAction, RefPtr<Infrastructure::Response> continued_response) {
                     process_http_network_or_cache_response(realm.global_object(), fetch_params, *http_request, *continued_response, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials);
                 }));
                 return;
@@ -2297,10 +2297,10 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
     RefPtr<Infrastructure::Request> http_request;
 
     // 4. Let response be null.
-    GC::Ptr<Infrastructure::Response> response;
+    RefPtr<Infrastructure::Response> response;
 
     // 5. Let storedResponse be null.
-    GC::Ptr<Infrastructure::Response> stored_response;
+    RefPtr<Infrastructure::Response> stored_response;
 
     // 6. Let httpCache be null.
     RefPtr<HTTP::MemoryCache> http_cache;
@@ -2590,7 +2590,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         auto intercepts = WebDriver::BiDi::get_network_intercepts(*http_fetch_params, "beforeRequestSent"sv);
         if (!intercepts.is_empty()) {
             auto returned_pending_response = PendingResponse::create(fetch_params);
-            WebDriver::BiDi::block_network_request(*http_fetch_params, nullptr, "beforeRequestSent"_string, move(intercepts), WebDriver::BiDi::NetworkContinuation::create(realm.heap(), [&realm, &fetch_params, http_fetch_params, response, stored_response, http_cache, is_authentication_fetch, is_new_connection_fetch, include_credentials, returned_pending_response](WebDriver::BiDi::NetworkContinuationAction action, GC::Ptr<Infrastructure::Response> continued_response) {
+            WebDriver::BiDi::block_network_request(*http_fetch_params, nullptr, "beforeRequestSent"_string, move(intercepts), WebDriver::BiDi::NetworkContinuation::create(realm.heap(), [&realm, &fetch_params, http_fetch_params, response, stored_response, http_cache, is_authentication_fetch, is_new_connection_fetch, include_credentials, returned_pending_response](WebDriver::BiDi::NetworkContinuationAction action, RefPtr<Infrastructure::Response> continued_response) {
                 // AD-HOC: The fetch can be canceled while its request is blocked.
                 if (fetch_params.is_canceled()) {
                     returned_pending_response->resolve(Infrastructure::Response::appropriate_network_error(fetch_params));
@@ -3106,7 +3106,7 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
 
     auto preflight_response = http_network_or_cache_fetch(realm, preflight_fetch_params);
 
-    preflight_response->when_loaded([request = fetch_params.request(), returned_pending_response, preflight_controller = preflight_fetch_params->controller()](GC::Ref<Infrastructure::Response> response) {
+    preflight_response->when_loaded([request = fetch_params.request(), returned_pending_response, preflight_controller = preflight_fetch_params->controller()](NonnullRefPtr<Infrastructure::Response> response) {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'CORS-preflight fetch' preflight_response load callback");
 
         if (WebDriver::BiDi::g_network_events_enabled) {

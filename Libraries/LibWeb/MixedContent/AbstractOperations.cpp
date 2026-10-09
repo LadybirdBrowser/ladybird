@@ -124,7 +124,7 @@ Fetch::Infrastructure::RequestOrResponseBlocking should_fetching_request_be_bloc
 }
 
 // https://w3c.github.io/webappsec-mixed-content/#should-block-response
-Web::Fetch::Infrastructure::RequestOrResponseBlocking should_response_to_request_be_blocked_as_mixed_content(Fetch::Infrastructure::Request& request, GC::Ref<Fetch::Infrastructure::Response>& response)
+Web::Fetch::Infrastructure::RequestOrResponseBlocking should_response_to_request_be_blocked_as_mixed_content(Fetch::Infrastructure::Request& request, Fetch::Infrastructure::Response const& response)
 {
     // 1. Return allowed if one or more of the following conditions are met:
     if (
@@ -132,7 +132,7 @@ Web::Fetch::Infrastructure::RequestOrResponseBlocking should_response_to_request
         does_client_prohibit_mixed_security_contexts(request) == ProhibitsMixedSecurityContexts::DoesNotRestrictMixedSecurityContexts
 
         // 2. response’s url is a potentially trustworthy URL.
-        || (response->url().has_value() && SecureContexts::is_url_potentially_trustworthy(response->url().value()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy)
+        || (response.url().has_value() && SecureContexts::is_url_potentially_trustworthy(response.url().value()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy)
 
         // FIXME: 3. The user agent has been instructed to allow mixed content, as described in § 7.2 User Controls).
         || false

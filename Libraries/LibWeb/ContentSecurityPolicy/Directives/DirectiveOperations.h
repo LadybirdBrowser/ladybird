@@ -34,10 +34,10 @@ MatchResult does_url_match_expression_in_origin_with_redirect_count(URL::URL con
 MatchResult does_url_match_source_list_in_origin_with_redirect_count(URL::URL const& url, Vector<Utf16String> const& source_list, URL::Origin const& origin, u8 redirect_count);
 
 MatchResult does_request_match_source_list(NonnullRefPtr<Fetch::Infrastructure::Request const> request, Vector<Utf16String> const& source_list, Policy const& policy);
-MatchResult does_response_match_source_list(GC::Ref<Fetch::Infrastructure::Response const> response, NonnullRefPtr<Fetch::Infrastructure::Request const> request, Vector<Utf16String> const& source_list, Policy const& policy);
+MatchResult does_response_match_source_list(NonnullRefPtr<Fetch::Infrastructure::Response const> response, NonnullRefPtr<Fetch::Infrastructure::Request const> request, Vector<Utf16String> const& source_list, Policy const& policy);
 MatchResult does_nonce_match_source_list(Utf16View nonce, Vector<Utf16String> const& source_list);
 
 Directive::Result script_directives_pre_request_check(NonnullRefPtr<Fetch::Infrastructure::Request const> request, Directive const& directive, Policy const& policy);
-Directive::Result script_directives_post_request_check(NonnullRefPtr<Fetch::Infrastructure::Request const> request, GC::Ref<Fetch::Infrastructure::Response const> response, Directive const& directive, Policy const& policy);
+Directive::Result script_directives_post_request_check(NonnullRefPtr<Fetch::Infrastructure::Request const> request, NonnullRefPtr<Fetch::Infrastructure::Response const> response, Directive const& directive, Policy const& policy);
 
 }

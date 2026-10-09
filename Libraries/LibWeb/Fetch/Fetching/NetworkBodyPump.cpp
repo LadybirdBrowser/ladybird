@@ -28,9 +28,9 @@ NetworkBodyPump::NetworkBodyPump(GC::Ptr<Infrastructure::FetchParams const> fetc
 
 NetworkBodyPump::~NetworkBodyPump() = default;
 
-void NetworkBodyPump::set_response(GC::Ref<Infrastructure::Response> response)
+void NetworkBodyPump::set_response(NonnullRefPtr<Infrastructure::Response> response)
 {
-    m_response = response;
+    m_response = move(response);
     if (m_network_complete)
         update_response_body_info();
 }
@@ -47,7 +47,6 @@ void NetworkBodyPump::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_fetch_params);
-    visitor.visit(m_response);
 }
 
 // This implements the transmission steps of HTTP-network fetch.

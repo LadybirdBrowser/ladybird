@@ -83,7 +83,7 @@ TEST_CASE(download_reader_is_registered_with_page_client)
     auto traversable = Web::HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {});
     page->set_top_level_traversable(traversable);
 
-    auto response = Web::Fetch::Infrastructure::Response::create(vm);
+    auto response = Web::Fetch::Infrastructure::Response::create();
     response->set_body(Web::Fetch::Infrastructure::byte_sequence_as_response_body("download contents"sv.bytes()));
     traversable->handle_as_a_download(Web::Fetch::Infrastructure::ResponseView::create(*realm, response), URL::about_blank(), nullptr, "download.txt", {});
 

@@ -24,7 +24,6 @@ GC::Ref<PreloadEntry> PreloadEntry::create()
 void PreloadEntry::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(response);
     visitor.visit(on_response_available);
     visitor.visit(controller);
 }
@@ -61,7 +60,7 @@ bool consume_a_preloaded_resource(
     Fetch::Infrastructure::Request::Mode mode,
     Fetch::Infrastructure::Request::CredentialsMode credentials_mode,
     Utf16View integrity_metadata,
-    GC::Ref<GC::Function<void(GC::Ref<Fetch::Infrastructure::Response>)>> on_response_available,
+    GC::Ref<GC::Function<void(NonnullRefPtr<Fetch::Infrastructure::Response>)>> on_response_available,
     Fetch::Engine::BodyIntent consumer_body_intent,
     bool& preload_reports_timing)
 {

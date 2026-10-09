@@ -174,10 +174,11 @@ void issue_speculative_fetch(JS::Realm& realm, DOM::Document& document, URL::URL
             return;
 
         // NB: Keep the filtered response, which main fetch uses as is. Unfiltered, it would be treated as same-origin.
-        internal_response->set_body(Fetch::Infrastructure::ResponseBody::from_bytes(*byte_sequence));
+        auto preloaded_response = response->clone();
+        preloaded_response->unsafe_response()->set_body(Fetch::Infrastructure::ResponseBody::from_bytes(*byte_sequence));
 
         auto entry = PreloadEntry::create();
-        entry->response = response;
+        entry->response = move(preloaded_response);
         entry->is_speculative = true;
         document->map_of_preloaded_resources().set(key, entry);
     };

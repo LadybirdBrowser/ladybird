@@ -254,8 +254,8 @@ static Function<void(Optional<StringView>)> network_navigation_response_observer
 {
     auto observed_navigable = network_response.has_value() ? GC::Weak<LocalNavigable> { navigable } : GC::Weak<LocalNavigable> {};
 
-    // NB: The body pump traces response. Observing its navigable must not keep the navigable alive.
-    return [response = GC::Ptr { &response }, observed_navigable = move(observed_navigable), timing_info = move(timing_info), network_response = move(network_response), network_response_state = move(network_response_state)](Optional<StringView> error) {
+    // NB: Observing its navigable must not keep the navigable alive.
+    return [response = NonnullRefPtr { response }, observed_navigable = move(observed_navigable), timing_info = move(timing_info), network_response = move(network_response), network_response_state = move(network_response_state)](Optional<StringView> error) {
         if (!network_response.has_value() || !observed_navigable || network_response_state->owner != NavigationResponseNetworkEventState::Owner::Renderer)
             return;
         network_response_state->owner = NavigationResponseNetworkEventState::Owner::Completed;
@@ -266,8 +266,8 @@ static Function<void(Optional<StringView>)> network_navigation_response_observer
 static ErrorOr<GC::Ref<Fetch::Infrastructure::ResponseView>> create_navigation_response_from_descriptor(JS::Realm& realm, LocalNavigable& navigable, NavigationResponseDescriptor descriptor, RefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, RefPtr<NavigationResponseNetworkEventState> network_response_state)
 {
     auto response = descriptor.network_error_message.has_value()
-        ? Fetch::Infrastructure::Response::network_error(realm.vm(), move(*descriptor.network_error_message))
-        : Fetch::Infrastructure::Response::create(realm.vm());
+        ? Fetch::Infrastructure::Response::network_error(move(*descriptor.network_error_message))
+        : Fetch::Infrastructure::Response::create();
     response->set_url_list(move(descriptor.url_list));
     response->set_status(descriptor.status);
     response->set_status_message(move(descriptor.status_message));

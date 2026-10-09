@@ -665,7 +665,7 @@ MatchResult does_request_match_source_list(NonnullRefPtr<Fetch::Infrastructure::
 }
 
 // https://w3c.github.io/webappsec-csp/#match-response-to-source-list
-MatchResult does_response_match_source_list(GC::Ref<Fetch::Infrastructure::Response const> response, NonnullRefPtr<Fetch::Infrastructure::Request const> request, Vector<Utf16String> const& source_list, Policy const& policy)
+MatchResult does_response_match_source_list(NonnullRefPtr<Fetch::Infrastructure::Response const> response, NonnullRefPtr<Fetch::Infrastructure::Request const> request, Vector<Utf16String> const& source_list, Policy const& policy)
 {
     // Given a request request, and a source list source list, and a policy policy, this algorithm returns the result
     // of executing § 6.7.2.7 Does url match source list in origin with redirect count? on response’s url, source list,
@@ -799,7 +799,7 @@ Directive::Result script_directives_pre_request_check(NonnullRefPtr<Fetch::Infra
 }
 
 // https://w3c.github.io/webappsec-csp/#script-post-request
-Directive::Result script_directives_post_request_check(NonnullRefPtr<Fetch::Infrastructure::Request const> request, GC::Ref<Fetch::Infrastructure::Response const> response, Directive const& directive, Policy const& policy)
+Directive::Result script_directives_post_request_check(NonnullRefPtr<Fetch::Infrastructure::Request const> request, NonnullRefPtr<Fetch::Infrastructure::Response const> response, Directive const& directive, Policy const& policy)
 {
     // 1. If request’s destination is script-like:
     if (request->destination_is_script_like()) {

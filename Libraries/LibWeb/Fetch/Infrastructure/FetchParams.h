@@ -15,6 +15,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
 #include <LibWebCommon/Loader/LoaderConfigSnapshot.h>
@@ -28,7 +29,7 @@ class WEB_API FetchParams : public JS::Cell {
 
 public:
     struct PreloadedResponseCandidatePendingTag { };
-    using PreloadedResponseCandidate = Variant<Empty, PreloadedResponseCandidatePendingTag, GC::Ref<Response>>;
+    using PreloadedResponseCandidate = Variant<Empty, PreloadedResponseCandidatePendingTag, NonnullRefPtr<Response>>;
 
     [[nodiscard]] static GC::Ref<FetchParams> create(NonnullRefPtr<Request>, GC::Ref<FetchAlgorithms const>, NonnullRefPtr<FetchTimingInfo>, NonnullRefPtr<LoaderConfigSnapshot const>);
     [[nodiscard]] static GC::Ref<FetchParams> copy(FetchParams const&);
