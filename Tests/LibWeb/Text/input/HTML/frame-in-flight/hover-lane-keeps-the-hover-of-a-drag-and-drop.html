@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 100px; }
+    iframe { display: block; width: 100px; height: 200px; border: 0; }
+</style>
+<div id="source" draggable="true"></div>
+<div id="target"></div>
+<iframe srcdoc="<style>body { margin: 0 } div { width: 100px; height: 100px }</style><div id=source draggable=true></div><div id=target></div>"></iframe>
+<script>
+    // During a drag and drop, no mouse or pointer boundary events fire, and the hover and the cursor stay as they are.
+    // A hover move shown beside a task must not change that when the next rendering update takes it in. The drag runs
+    // once in the document and once in an iframe.
+    async function dragAfterLaneHover(dragDocument, top) {
+        const source = dragDocument.getElementById("source");
+        const target = dragDocument.getElementById("target");
+        const events = [];
+        for (const element of [source, target]) {
+            for (const type of ["pointerover", "pointerout", "mouseover", "mouseout"])
+                element.addEventListener(type, () => events.push(`${type} ${element.id}`));
+        }
+        source.addEventListener("dragstart", event => event.dataTransfer.setData("text/plain", "x"));
+        internals.mouseMove(50, top + 50);
+        await nextFrame();
+        await whileLaneHovers(async frameTime => {
+            internals.injectHoverPointer(50, top + 150, frameTime + 16);
+            internals.mouseDown(50, top + 50);
+            internals.mouseMove(50, top + 60);
+            events.length = 0;
+            internals.injectRenderingOpportunity(frameTime + 32);
+            do await nextTask();
+            while (internals.frameSchedulerState() !== "idle");
+        });
+        const hovered = [source, target].filter(element => element.matches(":hover")).map(element => element.id);
+        println(`events: ${events.join(", ") || "none"}`);
+        println(`hovered: ${hovered.join(",") || "none"}`);
+        println(`cursor: ${internals.currentCursor()}`);
+        internals.mouseUp(50, top + 60);
+    }
+
+    asyncTest(async done => {
+        await new Promise(resolve => document.querySelector("iframe").addEventListener("load", resolve, { once: true }));
+        println("-- drag in the document");
+        await dragAfterLaneHover(document, 0);
+        println("-- drag in an iframe");
+        await dragAfterLaneHover(document.querySelector("iframe").contentDocument, 200);
+        done();
+    });
+</script>

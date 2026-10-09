@@ -1317,6 +1317,9 @@ void EventHandler::update_cursor_after_rendering_update()
 
 void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, GC::Ptr<DOM::Node> hover_target)
 {
+    if (should_ignore_device_input_event())
+        return;
+
     auto document = m_navigable->active_document();
     if (!document || !document->is_fully_active())
         return;
