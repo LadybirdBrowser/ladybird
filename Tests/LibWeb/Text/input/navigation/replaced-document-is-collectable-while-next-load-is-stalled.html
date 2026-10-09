@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <script src="../include.js"></script>
 <script>
     // A navigation's response body is read through a stream created in the realm of the document that started the
@@ -62,18 +62,23 @@
         // The second document's body has been read to its end once DOMContentLoaded fires in it, while its load event
         // still waits on the blocked image.
         await new Promise(resolve => {
-            window.addEventListener("message", resolve, { once: true });
+            window.addEventListener("message", function receive(event) {
+                if (event.source !== iframe.contentWindow || event.data !== "second document parsed") return;
+                window.removeEventListener("message", receive);
+                resolve();
+            });
             iframe.src = secondURL;
         });
 
-        const maximumGcRoundsWhileRequestTeardownTasksDrain = 100;
-        for (let round = 0; round < maximumGcRoundsWhileRequestTeardownTasksDrain; ++round) {
+        // Request teardown completes in asynchronous tasks. Wait for collection while the image remains blocked;
+        // a retained document fails through the test harness timeout rather than a fixed number of task turns.
+        do {
             await timeout(0);
             await internals.gcAsync();
-            if (weakFirstDocument.deref() === undefined)
-                break;
-        }
-        println(`first document collected while the second load is stalled: ${weakFirstDocument.deref() === undefined}`);
+        } while (weakFirstDocument.deref() !== undefined);
+        println(
+            `first document collected while the second load is stalled: ${weakFirstDocument.deref() === undefined}`
+        );
 
         // Let the second load finish, so the test ends with the iframe settled.
         const secondLoaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
