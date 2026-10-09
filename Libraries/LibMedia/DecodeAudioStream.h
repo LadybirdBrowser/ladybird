@@ -9,7 +9,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/Vector.h>
-#include <LibMedia/Audio/SampleSpecification.h>
+#include <LibAudio/SampleSpecification.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>

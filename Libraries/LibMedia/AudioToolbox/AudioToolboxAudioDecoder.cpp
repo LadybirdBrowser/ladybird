@@ -7,7 +7,7 @@
 #include <AK/Array.h>
 #include <AK/NumericLimits.h>
 #include <AK/Vector.h>
-#include <LibMedia/Audio/CoreAudioChannelLayout.h>
+#include <LibAudio/CoreAudioChannelLayout.h>
 #include <LibMedia/AudioBlock.h>
 #include <LibMedia/AudioToolbox/AudioToolboxAudioDecoder.h>
 #include <LibMedia/Codecs/AAC.h>

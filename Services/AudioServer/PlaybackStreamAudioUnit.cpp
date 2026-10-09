@@ -14,8 +14,8 @@
 #include <AK/kmalloc.h>
 #include <AudioServer/PlatformAudio.h>
 #include <AudioServer/PlaybackStreamAudioUnit.h>
+#include <LibAudio/CoreAudioChannelLayout.h>
 #include <LibCore/ThreadedPromise.h>
-#include <LibMedia/Audio/CoreAudioChannelLayout.h>
 
 #include <AudioToolbox/AudioFormat.h>
 #include <AudioUnit/AudioUnit.h>

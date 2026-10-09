@@ -11,8 +11,8 @@
 #include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
-#include <LibMedia/Audio/Forward.h>
-#include <LibMedia/Audio/SampleSpecification.h>
+#include <LibAudio/Forward.h>
+#include <LibAudio/SampleSpecification.h>
 #include <LibMedia/AudioBlock.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>

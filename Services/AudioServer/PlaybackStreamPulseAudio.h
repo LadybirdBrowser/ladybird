@@ -10,7 +10,7 @@
 #include <AK/Mutex.h>
 #include <AK/Queue.h>
 #include <AudioServer/PulseAudioWrappers.h>
-#include <LibMedia/Audio/PlaybackStream.h>
+#include <LibAudio/PlaybackStream.h>
 
 namespace Audio {
 

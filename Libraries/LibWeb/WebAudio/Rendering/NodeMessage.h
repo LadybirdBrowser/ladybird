@@ -10,7 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Variant.h>
-#include <LibMedia/Audio/SpscAudioFrameRing.h>
+#include <LibAudio/SpscAudioFrameRing.h>
 #include <LibWeb/Bindings/BiquadFilterNode.h>
 #include <LibWeb/Bindings/OscillatorNode.h>
 #include <LibWeb/Bindings/PannerNode.h>

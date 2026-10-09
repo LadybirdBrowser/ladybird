@@ -6,7 +6,7 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/ScopeGuard.h>
-#include <LibMedia/Audio/SampleSpecification.h>
+#include <LibAudio/SampleSpecification.h>
 #include <LibMedia/FFmpeg/FFmpegAudioConverter.h>
 #include <LibMedia/FFmpeg/FFmpegHelpers.h>
 

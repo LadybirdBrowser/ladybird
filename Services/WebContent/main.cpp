@@ -5,6 +5,7 @@
  */
 
 #include <AK/LexicalPath.h>
+#include <LibAudio/ClientConnection.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/CrashHandler.h>
 #include <LibCore/Environment.h>
@@ -22,7 +23,6 @@
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibMain/Main.h>
-#include <LibMedia/Audio/ClientConnection.h>
 #include <LibMediaClient/Client.h>
 #include <LibRequests/RequestClient.h>
 #include <LibUnicode/TimeZone.h>

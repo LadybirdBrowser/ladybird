@@ -5,8 +5,8 @@
  */
 
 #include <AK/Mutex.h>
+#include <LibAudio/SampleSpecification.h>
 #include <LibCore/EventLoop.h>
-#include <LibMedia/Audio/SampleSpecification.h>
 #include <LibMedia/CodecParameters.h>
 #include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/Demuxer.h>

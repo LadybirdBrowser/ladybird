@@ -7,8 +7,8 @@
 #include <AK/NeverDestroyed.h>
 #include <AudioServer/PlatformAudio.h>
 #include <AudioServer/PulseAudioWrappers.h>
+#include <LibAudio/AudioDevices.h>
 #include <LibCore/EventLoop.h>
-#include <LibMedia/Audio/AudioDevices.h>
 #include <LibThreading/ThreadPool.h>
 
 namespace Audio {

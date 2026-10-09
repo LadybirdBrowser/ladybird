@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibAudio/ChannelMap.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibCore/System.h>
-#include <LibMedia/Audio/ChannelMap.h>
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
@@ -531,7 +531,7 @@ TEST_CASE(audio_playback_sink_reseeks_its_input_from_the_written_output_without_
 {
     auto& loop = never_destroyed_event_loop();
 
-    auto sink = MUST(Media::AudioPlaybackSink::try_create([](Media::PipelineStatus) { }, Media::AudioOutput::Null));
+    auto sink = MUST(Media::AudioPlaybackSink::try_create([](Media::PipelineStatus) { }, Audio::AudioOutput::Null));
     auto producer = RecordingAudioProducer::create();
     MUST(sink->connect_input(producer));
     sink->start();

@@ -11,10 +11,10 @@
 #include <AK/Debug.h>
 #include <AK/Mutex.h>
 #include <AK/Time.h>
+#include <LibAudio/NullPlaybackStream.h>
+#include <LibAudio/PlaybackStream.h>
 #include <LibCore/Forward.h>
 #include <LibCore/Timer.h>
-#include <LibMedia/Audio/NullPlaybackStream.h>
-#include <LibMedia/Audio/PlaybackStream.h>
 #include <LibMedia/AudioBlock.h>
 #include <LibMedia/AudioBlockTiming.h>
 #include <LibMedia/AudioBlockTimingRing.h>
@@ -83,7 +83,7 @@ public:
     bool m_upstream_woke_since_probe { false };
 };
 
-ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(PipelineStateChangeHandler on_state_changed, AudioOutput audio_output)
+ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(PipelineStateChangeHandler on_state_changed, Audio::AudioOutput audio_output)
 {
     auto time_writer = TRY(MediaTimeWriter::create());
     auto time_reader = TRY(MediaTimeReader::create(time_writer.buffer()));
@@ -242,7 +242,7 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
     return sink;
 }
 
-AudioPlaybackSink::AudioPlaybackSink(NonnullRefPtr<OutputThreadData> output_thread_data, MediaTimeReader time_reader, PipelineStateChangeHandler on_state_changed, AudioOutput audio_output)
+AudioPlaybackSink::AudioPlaybackSink(NonnullRefPtr<OutputThreadData> output_thread_data, MediaTimeReader time_reader, PipelineStateChangeHandler on_state_changed, Audio::AudioOutput audio_output)
     : m_main_thread_event_loop(Core::EventLoop::current())
     , m_on_state_changed(move(on_state_changed))
     , m_audio_output(audio_output)
@@ -323,10 +323,10 @@ void AudioPlaybackSink::create_playback_stream()
 
     RefPtr<Audio::PlaybackStream::CreatePromise> promise;
     switch (m_audio_output) {
-    case AudioOutput::Platform:
+    case Audio::AudioOutput::Platform:
         promise = Audio::PlaybackStream::create(Audio::OutputState::Suspended, target_latency_ms, move(data_callback));
         break;
-    case AudioOutput::Null:
+    case Audio::AudioOutput::Null:
         promise = Audio::PlaybackStream::CreatePromise::construct();
         promise->resolve(Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, target_latency_ms, move(data_callback)));
         break;

@@ -28,8 +28,8 @@ add_dependencies(audioserverservice
 target_include_directories(audioserverservice PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../..)
 target_include_directories(audioserverservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 
-target_link_libraries(AudioServer PRIVATE audioserverservice LibCore LibMain LibMedia LibSandbox)
-target_link_libraries(audioserverservice PRIVATE LibCore LibIPC LibMedia LibThreading)
+target_link_libraries(AudioServer PRIVATE audioserverservice LibAudio LibCore LibMain LibSandbox)
+target_link_libraries(audioserverservice PRIVATE LibAudio LibCore LibIPC LibThreading)
 target_link_libraries(AudioServer PRIVATE LibThreading)
 
 # The platform backends: the only code in the tree that opens an audio device.

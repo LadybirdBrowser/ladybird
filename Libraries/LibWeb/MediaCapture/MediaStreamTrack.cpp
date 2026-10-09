@@ -5,11 +5,11 @@
  */
 
 #include <AK/ByteString.h>
+#include <LibAudio/RecordStream.h>
+#include <LibAudio/SampleSpecification.h>
 #include <LibGC/Heap.h>
 #include <LibGC/Weak.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibMedia/Audio/RecordStream.h>
-#include <LibMedia/Audio/SampleSpecification.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventNames.h>

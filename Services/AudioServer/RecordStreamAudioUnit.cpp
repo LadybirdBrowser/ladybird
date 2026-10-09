@@ -8,7 +8,7 @@
 #include <AK/ScopeGuard.h>
 #include <AK/Vector.h>
 #include <AudioServer/PlatformAudio.h>
-#include <LibMedia/Audio/RecordStream.h>
+#include <LibAudio/RecordStream.h>
 
 #include <AudioToolbox/AudioConverter.h>
 #include <AudioUnit/AudioUnit.h>

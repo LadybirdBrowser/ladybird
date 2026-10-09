@@ -7,5 +7,5 @@ set(TEST_SOURCES
 )
 
 foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" AudioServer LIBS audioserverservice LibCore LibIPC LibMedia LibThreading)
+    ladybird_test("${source}" AudioServer LIBS audioserverservice LibAudio LibCore LibIPC LibMedia LibThreading)
 endforeach()

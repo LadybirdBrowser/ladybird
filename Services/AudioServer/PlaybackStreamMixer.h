@@ -13,9 +13,9 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
+#include <LibAudio/PlaybackStream.h>
+#include <LibAudio/SharedAudioFrameRing.h>
 #include <LibCore/Forward.h>
-#include <LibMedia/Audio/PlaybackStream.h>
-#include <LibMedia/Audio/SharedAudioFrameRing.h>
 
 namespace Audio {
 

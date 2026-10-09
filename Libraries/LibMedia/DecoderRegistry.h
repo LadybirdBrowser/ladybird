@@ -9,7 +9,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
 #include <AK/Span.h>
-#include <LibMedia/Audio/SampleSpecification.h>
+#include <LibAudio/SampleSpecification.h>
 #include <LibMedia/AudioDecoder.h>
 #include <LibMedia/CodecParameters.h>
 #include <LibMedia/DecoderCapabilities.h>

@@ -15,8 +15,8 @@
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <AK/Vector.h>
-#include <LibMedia/Audio/RecordStream.h>
-#include <LibMedia/Audio/SharedAudioFrameRing.h>
+#include <LibAudio/RecordStream.h>
+#include <LibAudio/SharedAudioFrameRing.h>
 
 namespace Audio {
 

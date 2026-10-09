@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Span.h>
-#include <LibMedia/Audio/SampleSpecification.h>
+#include <LibAudio/SampleSpecification.h>
 #include <LibMedia/AudioBlock.h>
 #include <LibMedia/DecoderError.h>
 

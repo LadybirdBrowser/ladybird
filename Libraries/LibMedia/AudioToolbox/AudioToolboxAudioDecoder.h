@@ -11,7 +11,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/Time.h>
-#include <LibMedia/Audio/SampleSpecification.h>
+#include <LibAudio/SampleSpecification.h>
 #include <LibMedia/AudioDecoder.h>
 #include <LibMedia/AudioDiscardIntervals.h>
 #include <LibMedia/CodecID.h>

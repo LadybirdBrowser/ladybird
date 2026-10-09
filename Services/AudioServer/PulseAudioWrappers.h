@@ -12,9 +12,9 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
-#include <LibMedia/Audio/Forward.h>
-#include <LibMedia/Audio/PlaybackStream.h>
-#include <LibMedia/Audio/SampleSpecification.h>
+#include <LibAudio/Forward.h>
+#include <LibAudio/PlaybackStream.h>
+#include <LibAudio/SampleSpecification.h>
 #include <pulse/pulseaudio.h>
 
 namespace Audio {

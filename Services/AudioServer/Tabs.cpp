@@ -9,11 +9,11 @@
 #include <AudioServer/ControlConnection.h>
 #include <AudioServer/PlatformAudio.h>
 #include <AudioServer/Tabs.h>
+#include <LibAudio/NullPlaybackStream.h>
+#include <LibAudio/PlaybackStream.h>
+#include <LibAudio/RecordStream.h>
 #include <LibCore/EventLoop.h>
 #include <LibIPC/Transport.h>
-#include <LibMedia/Audio/NullPlaybackStream.h>
-#include <LibMedia/Audio/PlaybackStream.h>
-#include <LibMedia/Audio/RecordStream.h>
 
 namespace AudioServer {
 
@@ -41,9 +41,9 @@ struct SharedDataRequestCallback : public AtomicRefCounted<SharedDataRequestCall
     Audio::PlaybackStream::AudioDataRequestCallback callback;
 };
 
-static NonnullRefPtr<Audio::PlaybackStream::CreatePromise> create_device_stream(Media::AudioOutput audio_output, Audio::OutputState state, u32 target_latency_ms, Audio::PlaybackStream::AudioDataRequestCallback callback)
+static NonnullRefPtr<Audio::PlaybackStream::CreatePromise> create_device_stream(Audio::AudioOutput audio_output, Audio::OutputState state, u32 target_latency_ms, Audio::PlaybackStream::AudioDataRequestCallback callback)
 {
-    if (audio_output == Media::AudioOutput::Null) {
+    if (audio_output == Audio::AudioOutput::Null) {
         auto promise = Audio::PlaybackStream::CreatePromise::construct();
         promise->resolve(Audio::NullPlaybackStream::create(state, target_latency_ms, move(callback)));
         return promise;
@@ -83,7 +83,7 @@ Audio::CaptureDevices& Tabs::capture_devices()
 {
     if (!m_capture_devices) {
         m_capture_devices = Audio::CaptureDevices::create([audio_output = m_audio_output](Audio::SampleSpecification const& specification, u32 fragment_size_bytes, StringView device_id, Audio::RecordStream::RecordCallback callback) {
-            if (audio_output == Media::AudioOutput::Null)
+            if (audio_output == Audio::AudioOutput::Null)
                 return Audio::RecordStream::CreatePromise::rejected(Error::from_string_literal("A headless AudioServer has no capture devices"));
             return Audio::create_platform_record_stream(specification, fragment_size_bytes, device_id, move(callback));
         });
@@ -99,7 +99,7 @@ ErrorOr<IPC::TransportHandle> Tabs::connect_client(u64 tab_id)
     auto& tab = tab_for(tab_id);
     auto client_id = m_next_client_id++;
     auto device_enumeration = Audio::ServerConnection::DeviceEnumeration::Platform;
-    if (m_audio_output == Media::AudioOutput::Null)
+    if (m_audio_output == Audio::AudioOutput::Null)
         device_enumeration = Audio::ServerConnection::DeviceEnumeration::None;
     auto connection = Audio::ServerConnection::construct(move(paired_transports.local), client_id, tab.mixer, device_enumeration, capture_devices(), [tab_id](ByteString const& device_id, Function<void(bool)> on_decided) {
         Tabs::the().request_capture_permission(tab_id, device_id, move(on_decided));
