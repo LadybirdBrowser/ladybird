@@ -32,7 +32,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
@@ -1030,10 +1030,10 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetc
     // 11. Set controller to the result of fetching request, with processResponseConsumeBody set to the following steps
     //     given a response response and null, failure, or a byte sequence bodyBytes:
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
-    fetch_algorithms_input.process_response_consume_body = [&realm, options = GC::Ref { options }, process_response = move(process_response), entry, report_timing](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
+    fetch_algorithms_input.process_response_consume_body = [&realm, options = GC::Ref { options }, process_response = move(process_response), entry, report_timing](GC::Ref<Fetch::Infrastructure::ResponseView> response_view, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
         //        https://github.com/whatwg/html/issues/9355
-        response = response->unsafe_response();
+        auto response = response_view->record()->unsafe_response();
 
         // 1. If bodyBytes is a byte sequence, then set response's body to bodyBytes as a body.
         if (auto* byte_sequence = body_bytes.get_pointer<Core::ImmutableBytes>())
@@ -1330,7 +1330,7 @@ bool HTMLLinkElement::apply_link_options_from_parsed_header_attributes(LinkProce
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#process-the-linked-resource
-void HTMLLinkElement::process_linked_resource(bool success, Fetch::Infrastructure::Response const& response, CSS::StyleScope::OriginClean origin_clean, Core::ImmutableBytes const* body_bytes)
+void HTMLLinkElement::process_linked_resource(bool success, Fetch::Infrastructure::ResponseView const& response, CSS::StyleScope::OriginClean origin_clean, Core::ImmutableBytes const* body_bytes)
 {
     if (success)
         VERIFY(body_bytes);
@@ -1388,7 +1388,7 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Bitmap const>>> decode_fav
 
 // AD-HOC: The spec is underspecified for fetching and processing rel="icon" See:
 //         https://github.com/whatwg/html/issues/1769
-void HTMLLinkElement::process_icon_resource(bool success, Fetch::Infrastructure::Response const& response, ByteBuffer body_bytes)
+void HTMLLinkElement::process_icon_resource(bool success, Fetch::Infrastructure::ResponseView const& response, ByteBuffer body_bytes)
 {
     if (!success)
         return;
@@ -1412,7 +1412,7 @@ void HTMLLinkElement::process_icon_resource(bool success, Fetch::Infrastructure:
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet:process-the-linked-resource
-void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const& response, CSS::StyleScope::OriginClean origin_clean, ReadonlyBytes body_bytes)
+void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastructure::ResponseView const& response, CSS::StyleScope::OriginClean origin_clean, ReadonlyBytes body_bytes)
 {
     if (!document().is_fully_active())
         return;
@@ -1496,7 +1496,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
             // location stays the URL it was linked at.
             CSS::Parser::Parser::parse_stylesheet_off_thread(
                 CSS::Parser::ParsingParams { document() }, maybe_decoded_string.release_value(),
-                [link = GC::make_root(*this), loaded_document = GC::make_root(document()), fetch_generation = m_current_fetch_generation, location = response.url_list().first(), base_url = response.url_list().last(), origin_clean, referrer_policy = ReferrerPolicy::parse_a_referrer_policy_from_a_referrer_policy_header(response)](CSS::Parser::RustStyleSheetParse parsed) mutable {
+                [link = GC::make_root(*this), loaded_document = GC::make_root(document()), fetch_generation = m_current_fetch_generation, location = response.url_list().first(), base_url = response.url_list().last(), origin_clean, referrer_policy = ReferrerPolicy::parse_a_referrer_policy_from_a_referrer_policy_header(*response.record())](CSS::Parser::RustStyleSheetParse parsed) mutable {
                     if (fetch_generation != link->m_current_fetch_generation || !link->m_stylesheet_processing_pending)
                         return;
                     // NB: An inactive document's element tasks cannot run. Release its result here.
@@ -1572,7 +1572,7 @@ void HTMLLinkElement::associate_style_sheet(CSS::StyleSheetState& sheet, CSS::St
 // AD-HOC: The spec creates no style sheet for a link whose resource failed to load, but all major engines associate an
 //         empty one with it. Its origin-clean flag is still set only if the response was CORS-same-origin, which a
 //         network error never is.
-void HTMLLinkElement::associate_empty_style_sheet(Fetch::Infrastructure::Response const& response, CSS::StyleScope::OriginClean origin_clean)
+void HTMLLinkElement::associate_empty_style_sheet(Fetch::Infrastructure::ResponseView const& response, CSS::StyleScope::OriginClean origin_clean)
 {
     // NB: A link that was removed while its resource was being fetched no longer contributes a style sheet.
     if (!is_browsing_context_connected())
@@ -1675,7 +1675,7 @@ void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> doc
 
     // 2. Let response be the result of fetching request.
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
-    fetch_algorithms_input.process_response = [document, request](GC::Ref<Fetch::Infrastructure::Response> response) {
+    fetch_algorithms_input.process_response = [document, request](GC::Ref<Fetch::Infrastructure::ResponseView> response) {
         auto& realm = document->relevant_settings_object().realm();
         auto global = GC::Ref { realm.global_object() };
 

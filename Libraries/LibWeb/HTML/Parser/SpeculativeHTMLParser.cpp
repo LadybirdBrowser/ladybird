@@ -17,6 +17,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
@@ -145,7 +146,8 @@ void issue_speculative_fetch(JS::Realm& realm, DOM::Document& document, URL::URL
     //         speculative fetch succeeds, offer its response to the normal parser's fetch the way a preload is, through
     //         the document's map of preloaded resources. That fetch still runs main fetch's checks before using it.
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
-    fetch_algorithms_input.process_response_consume_body = [&realm, document = GC::Ref { document }, parser = GC::Weak { document.active_parser() }, request](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
+    fetch_algorithms_input.process_response_consume_body = [&realm, document = GC::Ref { document }, parser = GC::Weak { document.active_parser() }, request](GC::Ref<Fetch::Infrastructure::ResponseView> response_view, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
+        auto response = response_view->record();
         auto* byte_sequence = body_bytes.get_pointer<Core::ImmutableBytes>();
         if (response->is_network_error() || !byte_sequence)
             return;

@@ -28,13 +28,13 @@ class WEB_API IncrementalDocumentParser final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(IncrementalDocumentParser);
 
 public:
-    static GC::Ref<IncrementalDocumentParser> create(GC::Ref<DOM::Document>, Fetch::Infrastructure::Response const&, GC::Ptr<DOM::Document> container_document);
+    static GC::Ref<IncrementalDocumentParser> create(GC::Ref<DOM::Document>, Fetch::Infrastructure::ResponseView const&, GC::Ptr<DOM::Document> container_document);
 
     void start();
     void set_allow_declarative_shadow_roots(HTMLParser::AllowDeclarativeShadowRoots);
 
 private:
-    IncrementalDocumentParser(GC::Ref<DOM::Document>, Fetch::Infrastructure::Response const&, GC::Ptr<DOM::Document> container_document);
+    IncrementalDocumentParser(GC::Ref<DOM::Document>, Fetch::Infrastructure::ResponseView const&, GC::Ptr<DOM::Document> container_document);
 
     virtual void visit_edges(Cell::Visitor&) override;
 

@@ -29,7 +29,7 @@ struct CacheBatchOperation : public GC::Cell {
         Put,
     };
 
-    CacheBatchOperation(Type type, NonnullRefPtr<Fetch::Infrastructure::Request> request, GC::Ptr<Fetch::Infrastructure::Response> response = {}, CacheQueryOptions options = {})
+    CacheBatchOperation(Type type, NonnullRefPtr<Fetch::Infrastructure::Request> request, GC::Ptr<Fetch::Infrastructure::ResponseView> response = {}, CacheQueryOptions options = {})
         : type(type)
         , request(request)
         , response(response)
@@ -41,7 +41,7 @@ struct CacheBatchOperation : public GC::Cell {
 
     Type type;
     NonnullRefPtr<Fetch::Infrastructure::Request> request;
-    GC::Ptr<Fetch::Infrastructure::Response> response;
+    GC::Ptr<Fetch::Infrastructure::ResponseView> response;
     CacheQueryOptions options;
 };
 

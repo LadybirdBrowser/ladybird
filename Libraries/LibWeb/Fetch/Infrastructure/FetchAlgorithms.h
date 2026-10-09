@@ -28,10 +28,10 @@ public:
 
     using ProcessRequestBodyChunkLengthFunction = Function<void(u64)>;
     using ProcessRequestEndOfBodyFunction = Function<void()>;
-    using ProcessEarlyHintsResponseFunction = Function<void(GC::Ref<Infrastructure::Response>)>;
-    using ProcessResponseFunction = Function<void(GC::Ref<Infrastructure::Response>)>;
-    using ProcessResponseEndOfBodyFunction = Function<void(GC::Ref<Infrastructure::Response>)>;
-    using ProcessResponseConsumeBodyFunction = Function<void(GC::Ref<Infrastructure::Response>, BodyBytes)>;
+    using ProcessEarlyHintsResponseFunction = Function<void(GC::Ref<Infrastructure::ResponseView>)>;
+    using ProcessResponseFunction = Function<void(GC::Ref<Infrastructure::ResponseView>)>;
+    using ProcessResponseEndOfBodyFunction = Function<void(GC::Ref<Infrastructure::ResponseView>)>;
+    using ProcessResponseConsumeBodyFunction = Function<void(GC::Ref<Infrastructure::ResponseView>, BodyBytes)>;
 
     using ProcessRequestBodyChunkLengthHeapFunction = GC::Ref<GC::Function<ProcessRequestBodyChunkLengthFunction::FunctionType>>;
     using ProcessRequestEndOfBodyHeapFunction = GC::Ref<GC::Function<ProcessRequestEndOfBodyFunction::FunctionType>>;

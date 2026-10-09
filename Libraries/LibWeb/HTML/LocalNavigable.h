@@ -181,7 +181,7 @@ public:
     GC::Ptr<Navigable> find_a_navigable_by_target_name(Utf16View name);
     bool is_familiar_with(Navigable&);
 
-    void handle_as_a_download(GC::Ref<Fetch::Infrastructure::Response>, URL::URL const& fallback_url, GC::Ptr<Fetch::Infrastructure::FetchController>, Optional<ByteString> proposed_filename, Optional<URL::Origin> interface_origin);
+    void handle_as_a_download(GC::Ref<Fetch::Infrastructure::ResponseView>, URL::URL const& fallback_url, GC::Ptr<Fetch::Infrastructure::FetchController>, Optional<ByteString> proposed_filename, Optional<URL::Origin> interface_origin);
 
     void inform_the_navigation_api_about_aborting_navigation();
 
@@ -487,7 +487,7 @@ private:
     void clear_parent_compositor_context();
     void destroy_compositor_context();
 
-    void start_download_for_response(GC::Ref<Fetch::Infrastructure::Response>, URL::URL const& download_url, ByteString suggested_filename, GC::Ptr<Fetch::Infrastructure::FetchController>);
+    void start_download_for_response(GC::Ref<Fetch::Infrastructure::ResponseView>, URL::URL const& download_url, ByteString suggested_filename, GC::Ptr<Fetch::Infrastructure::FetchController>);
 
     // A request toward the position a scroll is already headed for joins that scroll rather than restarting it, so one
     // scroll can owe more than one promise.

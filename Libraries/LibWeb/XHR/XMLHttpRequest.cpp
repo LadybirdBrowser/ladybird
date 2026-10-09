@@ -41,7 +41,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -89,7 +89,7 @@ GC::Ref<XMLHttpRequest> XMLHttpRequest::create(GC::Ref<DOM::EventTarget> relevan
 {
     auto upload_object = GC::Heap::the().allocate<XMLHttpRequestUpload>();
     auto author_request_headers = HTTP::HeaderList::create();
-    auto response = Fetch::Infrastructure::Response::network_error("Not sent yet"_string);
+    auto response = Fetch::Infrastructure::ResponseView::network_error("Not sent yet"_string);
     auto fetch_controller = Fetch::Infrastructure::FetchController::create();
     auto xhr = GC::Heap::the().allocate<XMLHttpRequest>(relevant_global_object, *upload_object, move(author_request_headers), *response, *fetch_controller);
     live_xml_http_requests().append(xhr);
@@ -109,7 +109,7 @@ WebIDL::ExceptionOr<GC::Ref<XMLHttpRequest>> XMLHttpRequest::create_for_construc
     return XMLHttpRequest::create(global_scope->this_impl());
 }
 
-XMLHttpRequest::XMLHttpRequest(GC::Ref<DOM::EventTarget> relevant_global_object, XMLHttpRequestUpload& upload_object, NonnullRefPtr<HTTP::HeaderList> author_request_headers, Fetch::Infrastructure::Response& response, Fetch::Infrastructure::FetchController& fetch_controller)
+XMLHttpRequest::XMLHttpRequest(GC::Ref<DOM::EventTarget> relevant_global_object, XMLHttpRequestUpload& upload_object, NonnullRefPtr<HTTP::HeaderList> author_request_headers, Fetch::Infrastructure::ResponseView& response, Fetch::Infrastructure::FetchController& fetch_controller)
     : XMLHttpRequestEventTarget()
     , m_upload_object(upload_object)
     , m_global_object(relevant_global_object)
@@ -684,7 +684,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, Utf16String
     // Unset this’s upload listener flag.
     m_upload_listener = false;
     // Set this’s response to a network error.
-    m_response = Fetch::Infrastructure::Response::network_error("Not yet sent"_string);
+    m_response = Fetch::Infrastructure::ResponseView::network_error("Not yet sent"_string);
     // Set this’s received bytes to the empty byte sequence.
     m_received_bytes = {};
     // Set this’s response object to null.
@@ -958,7 +958,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
 
         // 9. Let processResponse, given a response, be these steps:
         // NOTE: `this` is kept alive by FetchAlgorithms using GC::HeapFunction.
-        auto process_response = [this](GC::Ref<Fetch::Infrastructure::Response> response) {
+        auto process_response = [this](GC::Ref<Fetch::Infrastructure::ResponseView> response) {
             // 1. Set this’s response to response.
             m_response = response;
 
@@ -1035,7 +1035,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
             // 12. Let processBodyError be these steps:
             auto process_body_error = GC::create_function(GC::Heap::the(), [this](JS::Value) {
                 // 1. Set this’s response to a network error.
-                m_response = Fetch::Infrastructure::Response::network_error("A network error occurred processing body."_string);
+                m_response = Fetch::Infrastructure::ResponseView::network_error("A network error occurred processing body."_string);
                 // 2. Run handle errors for this.
                 // NOTE: This cannot throw, as `handle_errors` only throws in a synchronous context.
                 MUST(handle_errors());
@@ -1059,7 +1059,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
             HTML::queue_global_task(HTML::Task::Source::Networking, relevant_global_object(), GC::create_function(heap(), [this, fetch_controller] {
                 if (m_fetch_controller != fetch_controller)
                     return;
-                m_response = Fetch::Infrastructure::Response::aborted_network_error();
+                m_response = Fetch::Infrastructure::ResponseView::aborted_network_error();
                 MUST(handle_errors());
             }));
         }));
@@ -1082,7 +1082,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         auto did_time_out = Fetch::Fetching::RefCountedFlag::create(false);
 
         // 2. Let processResponseConsumeBody, given a response and nullOrFailureOrBytes, be these steps:
-        auto process_response_consume_body = [this, processed_response, did_time_out](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes null_or_failure_or_bytes) {
+        auto process_response_consume_body = [this, processed_response, did_time_out](GC::Ref<Fetch::Infrastructure::ResponseView> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes null_or_failure_or_bytes) {
             // AD-HOC: Leave this's response and received bytes alone once send() returned for a timeout.
             if (did_time_out->value())
                 return;
@@ -1298,7 +1298,7 @@ void XMLHttpRequest::abort()
     // Spec Note: No readystatechange event is dispatched.
     if (m_state == State::Done) {
         m_state = State::Unsent;
-        m_response = Fetch::Infrastructure::Response::network_error("Not yet sent"_string);
+        m_response = Fetch::Infrastructure::ResponseView::network_error("Not yet sent"_string);
         update_activity_root();
     }
 }
@@ -1410,7 +1410,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::request_error_steps(Utf16FlyString con
     update_activity_root();
 
     // 3. Set xhr’s response to a network error.
-    m_response = Fetch::Infrastructure::Response::network_error("Failed to load"_string);
+    m_response = Fetch::Infrastructure::ResponseView::network_error("Failed to load"_string);
 
     // 4. If xhr’s synchronous flag is set, then throw exception.
     if (m_synchronous) {

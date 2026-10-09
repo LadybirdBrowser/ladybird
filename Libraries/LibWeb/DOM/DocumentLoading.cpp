@@ -47,7 +47,7 @@
 
 namespace Web {
 
-static void add_pdf_viewer_ready_listener(DOM::Document& document, GC::Ref<Fetch::Infrastructure::Response> response)
+static void add_pdf_viewer_ready_listener(DOM::Document& document, GC::Ref<Fetch::Infrastructure::ResponseView> response)
 {
     auto& realm = document.relevant_settings_object().realm();
     auto js_response = Fetch::Response::create(response, Fetch::Headers::Guard::Response);

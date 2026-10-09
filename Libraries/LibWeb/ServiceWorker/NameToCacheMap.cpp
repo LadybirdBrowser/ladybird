@@ -5,14 +5,14 @@
  */
 
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/ServiceWorker/NameToCacheMap.h>
 
 namespace Web::ServiceWorker {
 
 GC_DEFINE_ALLOCATOR(RequestResponse);
 
-RequestResponse::RequestResponse(NonnullRefPtr<Fetch::Infrastructure::Request> request, GC::Ref<Fetch::Infrastructure::Response> response)
+RequestResponse::RequestResponse(NonnullRefPtr<Fetch::Infrastructure::Request> request, GC::Ref<Fetch::Infrastructure::ResponseView> response)
     : request(move(request))
     , response(response)
 {

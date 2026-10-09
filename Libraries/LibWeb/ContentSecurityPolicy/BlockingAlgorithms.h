@@ -19,7 +19,7 @@ namespace Web::ContentSecurityPolicy {
 Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_content_security_policy(NonnullRefPtr<Fetch::Infrastructure::Request> navigation_request, Directives::Directive::NavigationType navigation_type);
 Directives::Directive::Result should_navigation_response_to_navigation_request_of_type_in_target_be_blocked_by_content_security_policy(
     RefPtr<Fetch::Infrastructure::Request> navigation_request,
-    GC::Ref<Fetch::Infrastructure::Response> navigation_response,
+    GC::Ref<Fetch::Infrastructure::ResponseView> navigation_response,
     ContentSecurityPolicy::PolicyList const& response_csp_list,
     Directives::Directive::NavigationType navigation_type,
     GC::Ref<HTML::LocalNavigable> target);

@@ -581,6 +581,7 @@ class IncrementalReadLoopReadRequest;
 class KeepaliveQuotaAccountant;
 class Request;
 class Response;
+class ResponseView;
 
 struct BodyWithType;
 

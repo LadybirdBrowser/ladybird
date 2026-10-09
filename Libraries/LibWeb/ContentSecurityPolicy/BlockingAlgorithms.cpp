@@ -19,7 +19,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -162,7 +162,7 @@ Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_co
 // https://w3c.github.io/webappsec-csp/#should-block-navigation-response
 Directives::Directive::Result should_navigation_response_to_navigation_request_of_type_in_target_be_blocked_by_content_security_policy(
     RefPtr<Fetch::Infrastructure::Request> navigation_request,
-    GC::Ref<Fetch::Infrastructure::Response> navigation_response,
+    GC::Ref<Fetch::Infrastructure::ResponseView> navigation_response,
     PolicyList const& response_csp_list,
     Directives::Directive::NavigationType navigation_type,
     GC::Ref<HTML::LocalNavigable> target)
@@ -196,7 +196,7 @@ Directives::Directive::Result should_navigation_response_to_navigation_request_o
         // 1. For each directive of policy:
         for (auto const& directive : policy->directives()) {
             // 1. If directive’s navigation response check returns "Allowed" when executed upon navigation request, type, navigation response, target, "response", and policy skip to the next directive.
-            auto directive_result = Directives::navigation_response_check(directive, *navigation_request, navigation_type, navigation_response, target_container_document_origins, Directives::Directive::CheckType::Response, policy);
+            auto directive_result = Directives::navigation_response_check(directive, *navigation_request, navigation_type, navigation_response->record(), target_container_document_origins, Directives::Directive::CheckType::Response, policy);
             if (directive_result == Directives::Directive::Result::Allowed)
                 continue;
 
@@ -230,7 +230,7 @@ Directives::Directive::Result should_navigation_response_to_navigation_request_o
         // 1. For each directive of policy:
         for (auto const& directive : policy->directives()) {
             // 1. If directive’s navigation response check returns "Allowed" when executed upon navigation request, type, navigation response, target, "source", and policy skip to the next directive.
-            auto directive_result = Directives::navigation_response_check(directive, *navigation_request, navigation_type, navigation_response, target_container_document_origins, Directives::Directive::CheckType::Source, policy);
+            auto directive_result = Directives::navigation_response_check(directive, *navigation_request, navigation_type, navigation_response->record(), target_container_document_origins, Directives::Directive::CheckType::Source, policy);
             if (directive_result == Directives::Directive::Result::Allowed)
                 continue;
 

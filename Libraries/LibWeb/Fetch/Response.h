@@ -15,7 +15,7 @@
 #include <LibWeb/Fetch/Body.h>
 #include <LibWeb/Fetch/BodyInit.h>
 #include <LibWeb/Fetch/Headers.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
@@ -31,8 +31,8 @@ class Response final
     GC_DECLARE_ALLOCATOR(Response);
 
 public:
-    [[nodiscard]] static GC::Ref<Response> create(GC::Ref<Infrastructure::Response>);
-    [[nodiscard]] static GC::Ref<Response> create(GC::Ref<Infrastructure::Response>, Headers::Guard);
+    [[nodiscard]] static GC::Ref<Response> create(GC::Ref<Infrastructure::ResponseView>);
+    [[nodiscard]] static GC::Ref<Response> create(GC::Ref<Infrastructure::ResponseView>, Headers::Guard);
 
     virtual ~Response() override;
 
@@ -47,7 +47,7 @@ public:
     using BodyMixin::json;
     using BodyMixin::text;
 
-    [[nodiscard]] GC::Ref<Infrastructure::Response> response() const { return m_response; }
+    [[nodiscard]] GC::Ref<Infrastructure::ResponseView> response() const { return m_response; }
 
     [[nodiscard]] static GC::Ref<Response> error();
     static WebIDL::ExceptionOr<GC::Ref<Response>> redirect(Utf16String const& url, u16 status);
@@ -64,15 +64,13 @@ public:
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<Response>> clone(JS::Realm&) const;
 
 private:
-    explicit Response(GC::Ref<Infrastructure::Response>);
+    explicit Response(GC::Ref<Infrastructure::ResponseView>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<void> initialize_response(ResponseInit const&, Optional<Infrastructure::BodyWithType> const&);
-
     // https://fetch.spec.whatwg.org/#concept-response-response
     // A Response object has an associated response (a response).
-    GC::Ref<Infrastructure::Response> m_response;
+    GC::Ref<Infrastructure::ResponseView> m_response;
 
     // https://fetch.spec.whatwg.org/#response-headers
     // A Response object also has an associated headers (null or a Headers object), initially null.

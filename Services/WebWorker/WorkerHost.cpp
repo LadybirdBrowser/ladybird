@@ -15,7 +15,7 @@
 #include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
@@ -182,7 +182,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
             // 4. If the Run CSP initialization for a global object algorithm returns "Blocked" when executed upon
             //    worker global scope, set response to a network error. [CSP]
             if (worker_global_scope->run_csp_initialization() == Web::ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
-                response = Web::Fetch::Infrastructure::Response::network_error("Blocked by Content Security Policy"_string);
+                response = Web::Fetch::Infrastructure::ResponseView::network_error("Blocked by Content Security Policy"_string);
             }
 
             // 5. If worker global scope's embedder policy's value is compatible with cross-origin isolation and is
@@ -197,7 +197,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
             // 6. If the result of checking a global object's embedder policy with worker global scope, outside settings,
             //    and response is false, then set response to a network error.
             if (!worker_global_scope->check_embedder_policy(outside_settings->settings.policy_container.embedder_policy))
-                response = Web::Fetch::Infrastructure::Response::network_error("Blocked by Cross-Origin-Embedder-Policy"_string);
+                response = Web::Fetch::Infrastructure::ResponseView::network_error("Blocked by Cross-Origin-Embedder-Policy"_string);
 
             // 7. Set worker global scope's cross-origin isolated capability to true if agent's agent cluster's
             //    cross-origin isolation mode is "concrete".

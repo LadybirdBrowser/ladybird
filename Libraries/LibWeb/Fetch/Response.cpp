@@ -25,7 +25,7 @@ static Bindings::ResponseType response_type_to_bindings(Infrastructure::Response
     return static_cast<Bindings::ResponseType>(type);
 }
 
-Response::Response(GC::Ref<Infrastructure::Response> response)
+Response::Response(GC::Ref<Infrastructure::ResponseView> response)
     : m_response(response)
 {
 }
@@ -67,12 +67,12 @@ GC::Ptr<Infrastructure::Body> Response::body_impl()
 }
 
 // https://fetch.spec.whatwg.org/#response-create
-GC::Ref<Response> Response::create(GC::Ref<Infrastructure::Response> response)
+GC::Ref<Response> Response::create(GC::Ref<Infrastructure::ResponseView> response)
 {
     return GC::Heap::the().allocate<Response>(response);
 }
 
-GC::Ref<Response> Response::create(GC::Ref<Infrastructure::Response> response, Headers::Guard guard)
+GC::Ref<Response> Response::create(GC::Ref<Infrastructure::ResponseView> response, Headers::Guard guard)
 {
     // 1. Let responseObject be a new Response object with realm.
     // 2. Set responseObject’s response to response.
@@ -99,8 +99,14 @@ static bool is_valid_status_text(String const& status_text)
 }
 
 // https://fetch.spec.whatwg.org/#initialize-a-response
-WebIDL::ExceptionOr<void> Response::initialize_response(ResponseInit const& init, Optional<Infrastructure::BodyWithType> const& body)
+// NB: This initializes a new response before the Response object holding it is created, so the object's response is
+//     complete from the start. Nothing can observe the order.
+WebIDL::ExceptionOr<GC::Ref<Response>> Response::create_with_body(ResponseInit const& init, Optional<Infrastructure::BodyWithType> const& body)
 {
+    auto response = Infrastructure::Response::create();
+    auto headers = Headers::create(response->header_list());
+    headers->set_guard(Headers::Guard::Response);
+
     // 1. If init["status"] is not in the range 200 to 599, inclusive, then throw a RangeError.
     if (init.status < 200 || init.status > 599)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Status must be in range 200-599"_utf16 };
@@ -110,30 +116,32 @@ WebIDL::ExceptionOr<void> Response::initialize_response(ResponseInit const& init
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid statusText: does not match the reason-phrase token production"_utf16 };
 
     // 3. Set response’s response’s status to init["status"].
-    m_response->set_status(init.status);
+    response->set_status(init.status);
 
     // 4. Set response’s response’s status message to init["statusText"].
-    m_response->set_status_message(init.status_text.to_byte_string());
+    response->set_status_message(init.status_text.to_byte_string());
 
     // 5. If init["headers"] exists, then fill response’s headers with init["headers"].
     if (init.headers.has_value())
-        TRY(m_headers->fill(*init.headers));
+        TRY(headers->fill(*init.headers));
 
     // 6. If body was given, then:
     if (body.has_value()) {
         // 1. If response’s status is a null body status, then throw a TypeError.
-        if (Infrastructure::is_null_body_status(m_response->status()))
+        if (Infrastructure::is_null_body_status(response->status()))
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Response with null body status cannot have a body"_utf16 };
 
         // 2. Set response’s body to body’s body.
-        m_response->set_body(body->body);
+        response->set_body(body->body);
 
         // 3. If body’s type is non-null and response’s header list does not contain `Content-Type`, then append (`Content-Type`, body’s type) to response’s header list.
-        if (body->type.has_value() && !m_response->header_list()->contains("Content-Type"sv))
-            m_response->header_list()->append(HTTP::Header::isomorphic_encode("Content-Type"sv, *body->type));
+        if (body->type.has_value() && !response->header_list()->contains("Content-Type"sv))
+            response->header_list()->append(HTTP::Header::isomorphic_encode("Content-Type"sv, *body->type));
     }
 
-    return {};
+    auto response_object = create(Infrastructure::ResponseView::create(response));
+    response_object->m_headers = headers;
+    return response_object;
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-error
@@ -141,7 +149,7 @@ GC::Ref<Response> Response::error()
 {
     // The static error() method steps are to return the result of creating a Response object, given a new network error, "immutable", and this’s relevant Realm.
     // FIXME: How can we reliably get 'this', i.e. the object the function was called on, in IDL-defined functions?
-    return Response::create(Infrastructure::Response::network_error("Response created via `Response.error()`"_string), Headers::Guard::Immutable);
+    return Response::create(Infrastructure::ResponseView::network_error("Response created via `Response.error()`"_string), Headers::Guard::Immutable);
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-redirect
@@ -159,28 +167,24 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::redirect(Utf16String const& url
     if (!Infrastructure::is_redirect_status(status))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Status must be one of 301, 302, 303, 307, or 308"_utf16 };
 
-    // 4. Let responseObject be the result of creating a Response object, given a new response, "immutable", and this’s relevant Realm.
-    // FIXME: How can we reliably get 'this', i.e. the object the function was called on, in IDL-defined functions?
-    auto response_object = Response::create(Infrastructure::Response::create(), Headers::Guard::Immutable);
+    // NB: Step 4 runs after steps 5 to 7, so the Response object's response is complete when it is created. Nothing
+    //     can observe the order.
+    auto response = Infrastructure::Response::create();
 
     // 5. Set responseObject’s response’s status to status.
-    response_object->response()->set_status(status);
+    response->set_status(status);
 
     // 6. Let value be parsedURL, serialized and isomorphic encoded.
     auto value = parsed_url->serialize();
 
     // 7. Append (`Location`, value) to responseObject’s response’s header list.
     auto header = HTTP::Header::isomorphic_encode("Location"sv, value);
-    response_object->response()->header_list()->append(move(header));
+    response->header_list()->append(move(header));
+
+    // 4. Let responseObject be the result of creating a Response object, given a new response, "immutable", and the current realm.
+    auto response_object = Response::create(Infrastructure::ResponseView::create(response), Headers::Guard::Immutable);
 
     // 8. Return responseObject.
-    return response_object;
-}
-
-WebIDL::ExceptionOr<GC::Ref<Response>> Response::create_with_body(ResponseInit const& init, Optional<Infrastructure::BodyWithType> const& body_with_type)
-{
-    auto response_object = Response::create(Infrastructure::Response::create(), Headers::Guard::Response);
-    TRY(response_object->initialize_response(init, body_with_type));
     return response_object;
 }
 

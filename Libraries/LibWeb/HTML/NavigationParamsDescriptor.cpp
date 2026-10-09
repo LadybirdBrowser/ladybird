@@ -12,7 +12,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigationParamsDescriptor.h>
@@ -60,7 +60,7 @@ static Optional<ByteBuffer> copy_body_source(Fetch::Infrastructure::Body const& 
     return {};
 }
 
-static NavigationResponseDescriptor create_navigation_response_descriptor(Fetch::Infrastructure::Response const& response, Fetch::Infrastructure::Request const* request, Fetch::Infrastructure::FetchTimingInfo const* timing_info)
+static NavigationResponseDescriptor create_navigation_response_descriptor(Fetch::Infrastructure::ResponseView const& response, Fetch::Infrastructure::Request const* request, Fetch::Infrastructure::FetchTimingInfo const* timing_info)
 {
     Vector<HTTP::Header> headers;
     headers.ensure_capacity(response.header_list()->headers().size());
@@ -83,7 +83,7 @@ static NavigationResponseDescriptor create_navigation_response_descriptor(Fetch:
             body = body_bytes.release_value();
     }
 
-    auto network_response = request && timing_info && response.network_transport().has_value() ? WebDriver::BiDi::network_response_for_navigation(*request, *timing_info, response) : Optional<JsonObject> {};
+    auto network_response = request && timing_info && response.network_transport().has_value() ? WebDriver::BiDi::network_response_for_navigation(*request, *timing_info, *response.record()) : Optional<JsonObject> {};
     return {
         .url_list = response.url_list(),
         .status = response.status(),
@@ -270,7 +270,7 @@ static Function<void(Optional<StringView>)> network_navigation_response_observer
     };
 }
 
-static ErrorOr<GC::Ref<Fetch::Infrastructure::Response>> create_navigation_response_from_descriptor(JS::Realm& realm, LocalNavigable& navigable, NavigationResponseDescriptor descriptor, RefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, RefPtr<NavigationResponseNetworkEventState> network_response_state)
+static ErrorOr<GC::Ref<Fetch::Infrastructure::ResponseView>> create_navigation_response_from_descriptor(JS::Realm& realm, LocalNavigable& navigable, NavigationResponseDescriptor descriptor, RefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, RefPtr<NavigationResponseNetworkEventState> network_response_state)
 {
     auto response = descriptor.network_error_message.has_value()
         ? Fetch::Infrastructure::Response::network_error(realm.vm(), move(*descriptor.network_error_message))
@@ -296,7 +296,7 @@ static ErrorOr<GC::Ref<Fetch::Infrastructure::Response>> create_navigation_respo
             return Error::from_string_literal("Unable to adopt transferred navigation response body");
         response->set_body(body);
     }
-    return response;
+    return Fetch::Infrastructure::ResponseView::create(response);
 }
 
 ErrorOr<NavigationParamsVariant> create_navigation_params_from_descriptor(JS::Realm& realm, LocalNavigable& navigable, NavigationParamsVariantDescriptor descriptor)

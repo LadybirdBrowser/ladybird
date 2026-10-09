@@ -49,6 +49,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CheckUnloadingCanceledState.h>
 #include <LibWeb/HTML/DocumentState.h>
@@ -156,7 +157,7 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
     {
     }
 
-    GC::Ptr<Fetch::Infrastructure::Response> response;
+    GC::Ptr<Fetch::Infrastructure::ResponseView> response;
     Optional<URL::Origin> response_origin;
     GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller;
     OpenerPolicyEnforcementResult coop_enforcement_result;
@@ -479,7 +480,7 @@ static Optional<u64> response_content_length(HTTP::HeaderList const& headers)
     return {};
 }
 
-void LocalNavigable::start_download_for_response(GC::Ref<Fetch::Infrastructure::Response> response, URL::URL const& download_url, ByteString suggested_filename, GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller)
+void LocalNavigable::start_download_for_response(GC::Ref<Fetch::Infrastructure::ResponseView> response, URL::URL const& download_url, ByteString suggested_filename, GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller)
 {
     auto active_window = this->active_window();
     if (!active_window) {
@@ -526,7 +527,7 @@ void LocalNavigable::start_download_for_response(GC::Ref<Fetch::Infrastructure::
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#handle-as-a-download
-void LocalNavigable::handle_as_a_download(GC::Ref<Fetch::Infrastructure::Response> response, URL::URL const& fallback_url, GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller, Optional<ByteString> proposed_filename, Optional<URL::Origin> interface_origin)
+void LocalNavigable::handle_as_a_download(GC::Ref<Fetch::Infrastructure::ResponseView> response, URL::URL const& fallback_url, GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller, Optional<ByteString> proposed_filename, Optional<URL::Origin> interface_origin)
 {
     if (!response->body())
         return;
@@ -563,7 +564,7 @@ static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> nav
             timing_info = navigation_params->fetch_controller->timing_info();
         if (timing_info) {
             auto metadata = WebDriver::BiDi::network_response_for_navigation(
-                *navigation_params->request, *timing_info, *response);
+                *navigation_params->request, *timing_info, *response->record());
             if (metadata.has_value())
                 network_response = metadata.release_value();
         }
@@ -578,7 +579,7 @@ static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> nav
         if (network_response.is_object() && navigation_params->navigable)
             WebDriver::BiDi::network_navigation_response_finished(
                 *navigation_params->navigable, network_response.as_object(),
-                *response, nullptr, "Navigation download was rejected"sv);
+                *response->record(), nullptr, "Navigation download was rejected"sv);
     };
 
     // FIXME: Implement the WebDriver BiDi download will begin/end hooks.
@@ -2208,7 +2209,7 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
         move(navigation_id),
         navigable,
         nullptr,
-        response,
+        Fetch::Infrastructure::ResponseView::create(response),
         nullptr,
         nullptr,
         move(coop_enforcement_result),
@@ -2261,7 +2262,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
                 //         specification assumes the parent environment is still available here, but browser engines
                 //         abandon this stale detached frame navigation instead of continuing it against a discarded
                 //         parent.
-                state_holder->response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Parent document is no longer active"_string);
+                state_holder->response = Fetch::Infrastructure::ResponseView::network_error("Parent document is no longer active"_string);
                 fetch_completion_steps->function()();
                 return;
             }
@@ -2284,7 +2285,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
 
     // 3. If the result of should navigation request of type be blocked by Content Security Policy? given request and cspNavigationType is "Blocked", then set response to a network error and break. [CSP]
     if (ContentSecurityPolicy::should_navigation_request_of_type_be_blocked_by_content_security_policy(state_holder->request, state_holder->csp_navigation_type) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
-        state_holder->response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Blocked by Content Security Policy"_string);
+        state_holder->response = Fetch::Infrastructure::ResponseView::network_error("Blocked by Content Security Policy"_string);
         fetch_completion_steps->function()();
         return;
     }
@@ -2299,7 +2300,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         // FIXME: Let processEarlyHintsResponse be the following algorithm given a response earlyResponse:
 
         // Let processResponse be the following algorithm given a response fetchedResponse:
-        auto process_response = [state_holder](GC::Ref<Fetch::Infrastructure::Response> fetch_response) {
+        auto process_response = [state_holder](GC::Ref<Fetch::Infrastructure::ResponseView> fetch_response) {
             // 1. Set response to fetchedResponse.
             state_holder->response = fetch_response;
             VERIFY(state_holder->continuation_steps);
@@ -2400,7 +2401,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
             if (state_holder->final_sandbox_flags != SandboxingFlagSet {} && state_holder->response_coop.value != OpenerPolicyValue::UnsafeNone) {
                 // AD-HOC: Stop the fetch, as nothing will consume the response this replaces.
                 state_holder->fetch_controller->stop_fetch();
-                state_holder->response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Opener policy on a sandboxed navigation response"_string);
+                state_holder->response = Fetch::Infrastructure::ResponseView::network_error("Opener policy on a sandboxed navigation response"_string);
                 fetch_completion_steps->function()();
                 return;
             }
@@ -2422,10 +2423,10 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
             if (auto parent = state_holder->navigable->parent()) {
                 auto container_document_origin = parent->active_document_origin();
                 if (container_document_origin.has_value()
-                    && Fetch::Fetching::cross_origin_resource_policy_check(*container_document_origin, state_holder->navigable->container_document_embedder_policy(), *state_holder->response, Fetch::Fetching::ForNavigation::Yes) == Fetch::Infrastructure::RequestOrResponseBlocking::Blocked) {
+                    && Fetch::Fetching::cross_origin_resource_policy_check(*container_document_origin, state_holder->navigable->container_document_embedder_policy(), *state_holder->response->record(), Fetch::Fetching::ForNavigation::Yes) == Fetch::Infrastructure::RequestOrResponseBlocking::Blocked) {
                     // AD-HOC: Stop the fetch, as nothing will consume the response this replaces.
                     state_holder->fetch_controller->stop_fetch();
-                    state_holder->response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Blocked by Cross-Origin-Resource-Policy"_string);
+                    state_holder->response = Fetch::Infrastructure::ResponseView::network_error("Blocked by Cross-Origin-Resource-Policy"_string);
                     fetch_completion_steps->function()();
                     return;
                 }
@@ -4099,7 +4100,7 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
         navigation_id,
         this,
         nullptr,
-        response,
+        Fetch::Infrastructure::ResponseView::create(response),
         nullptr,
         nullptr,
         move(coop_enforcement_result),

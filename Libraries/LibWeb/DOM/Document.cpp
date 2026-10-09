@@ -143,7 +143,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/BeforeUnloadEvent.h>
@@ -602,7 +602,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
 
             // - navigation TAO check given navigationParams's response and navigationParams's origin returns success,
             may_expose_redirect_count = (!request.client().has_value() || request_has_eligible_referrer)
-                && Fetch::Fetching::navigation_tao_check(*navigation_params.response, navigation_params.origin);
+                && Fetch::Fetching::navigation_tao_check(navigation_params.response->record(), navigation_params.origin);
         }
 
         // then set redirectCount to navigationParams's request's redirect count.
