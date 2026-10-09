@@ -195,6 +195,7 @@ interface Internals {
     Promise<undefined> flushSessionHistoryTraversalQueue();
 
     boolean hasHTMLParserEndState(Document document);
+    boolean htmlParserBodyIsExhausted(Document document);
 
     boolean hasShadowRoot(Element element);
 

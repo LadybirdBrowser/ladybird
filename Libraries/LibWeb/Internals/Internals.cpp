@@ -1608,6 +1608,12 @@ void Internals::set_geolocation_emulated_position(double latitude, double longit
     });
 }
 
+bool Internals::html_parser_body_is_exhausted(DOM::Document& document)
+{
+    auto parser = document.parser();
+    return parser && parser->streaming_body_is_exhausted();
+}
+
 u64 Internals::parser_non_append_insertions()
 {
     return HTML::parser_non_append_insertions();

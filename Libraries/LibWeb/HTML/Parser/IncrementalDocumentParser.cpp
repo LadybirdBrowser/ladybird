@@ -251,6 +251,8 @@ void IncrementalDocumentParser::process_end_of_body()
     // previous document alive until the new one has finished loading. Blink, WebKit, and Gecko all do this too.
     m_body = nullptr;
     m_body_is_exhausted = true;
+    if (m_parser)
+        m_parser->did_exhaust_streaming_body({});
 
     if (!should_continue()) {
         discard_input_bytes();
