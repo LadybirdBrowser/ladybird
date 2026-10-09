@@ -2624,12 +2624,11 @@ static NetworkBodyStream create_network_body_stream(JS::Realm& realm, GC::Ptr<In
     // NB: The buffer is the FetchByteChannel; its watermarks are the user-agent-chosen lower and upper limits.
     static constexpr Engine::FetchByteChannel::Watermarks network_body_watermarks { .low = 256 * KiB, .high = 1 * MiB };
     auto delivery_gate = Engine::FetchBodyDeliveryGate::create(navigation_hold);
-    auto wake_sink = BodyStreamWakeSink::create();
-    auto channel = Engine::FetchByteChannel::create(network_body_watermarks, wake_sink, delivery_gate->create_channel_sink());
+    auto channel = Engine::FetchByteChannel::create(network_body_watermarks, delivery_gate->create_channel_sink());
     delivery_gate->grant_credit(channel->initial_credit());
 
     auto body_pump = GC::Heap::the().allocate<NetworkBodyPump>(fetch_params, channel, delivery_gate, move(http_cache));
-    auto stream = create_body_stream_from_channel(realm, fetch_params, channel, *wake_sink);
+    auto stream = create_body_stream_from_channel(realm, fetch_params, channel);
 
     return { stream, move(channel), move(delivery_gate), body_pump };
 }

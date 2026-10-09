@@ -98,10 +98,6 @@ TEST_CASE(delivered_body_requires_a_valid_handle)
 
 namespace {
 
-class IgnoringConsumerSink final : public FetchByteChannelConsumerSink {
-    virtual void wake(WakeTicket) override { }
-};
-
 class IgnoringProducerSink final : public FetchByteChannelProducerSink {
     virtual void grant_credit(u64) override { }
     virtual void consumer_cancelled() override { }
@@ -111,7 +107,7 @@ class IgnoringProducerSink final : public FetchByteChannelProducerSink {
 
 TEST_CASE(delivered_body_carries_a_channel_still_being_written)
 {
-    auto channel = FetchByteChannel::create({ .low = 1, .high = 2 }, adopt_ref(*new IgnoringConsumerSink), adopt_ref(*new IgnoringProducerSink));
+    auto channel = FetchByteChannel::create({ .low = 1, .high = 2 }, adopt_ref(*new IgnoringProducerSink));
     LocalBodyPresentation body = Delivered<NonNullLocalBodyHandle> { channel };
 
     auto const& delivered = body.get<Delivered<NonNullLocalBodyHandle>>();

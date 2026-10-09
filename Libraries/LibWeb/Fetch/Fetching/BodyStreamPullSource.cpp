@@ -318,11 +318,14 @@ void BodyStreamPullSource::drain_into_stream()
 
 // https://fetch.spec.whatwg.org/#concept-http-network-fetch
 // NB: Steps 10 to 13 of HTTP-network fetch.
-GC::Ref<Streams::ReadableStream> create_body_stream_from_channel(JS::Realm& realm, GC::Ptr<Infrastructure::FetchParams const> fetch_params, NonnullRefPtr<Engine::FetchByteChannel> channel, BodyStreamWakeSink const& wake_sink)
+GC::Ref<Streams::ReadableStream> create_body_stream_from_channel(JS::Realm& realm, GC::Ptr<Infrastructure::FetchParams const> fetch_params, NonnullRefPtr<Engine::FetchByteChannel> channel)
 {
+    auto wake_sink = BodyStreamWakeSink::create();
+    channel->attach_consumer(wake_sink);
+
     // 10. Let stream be a new ReadableStream.
     auto stream = Streams::ReadableStream::create(realm);
-    auto pull_source = GC::Heap::the().allocate<BodyStreamPullSource>(realm, fetch_params, stream, move(channel), wake_sink);
+    auto pull_source = GC::Heap::the().allocate<BodyStreamPullSource>(realm, fetch_params, stream, move(channel), *wake_sink);
 
     // 11. Let pullAlgorithm be the following steps:
     auto pull_algorithm = GC::create_function(GC::Heap::the(), [pull_source]() {
