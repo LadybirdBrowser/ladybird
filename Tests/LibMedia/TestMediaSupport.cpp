@@ -4,10 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibMedia/CodecParameters.h>
-#include <LibMedia/DecoderRegistry.h>
+#include <LibMedia/DecoderRegistrations.h>
 #include <LibMedia/MediaSupport.h>
+#include <LibMediaCodecs/CodecParameters.h>
 #include <LibTest/TestCase.h>
+
+TEST_SETUP
+{
+    Media::install_video_decoders({ Media::hardware_video_decoders(), Media::ffmpeg_video_decoders() });
+    Media::install_audio_decoders({ Media::audio_decoders() });
+}
 
 static Media::MediaSupportInfo file_media_support(StringView type, StringView subtype, Optional<StringView> codecs = {})
 {

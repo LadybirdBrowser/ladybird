@@ -5,7 +5,7 @@
  */
 
 #include <LibMedia/Producers/RemoteVideoProducer.h>
-#include <LibMedia/VideoFrame.h>
+#include <LibMediaCodecs/VideoFrame.h>
 
 namespace Media {
 

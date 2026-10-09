@@ -11,7 +11,7 @@
 #include <AK/Noncopyable.h>
 #include <AK/Optional.h>
 #include <AK/TearableAtomic.h>
-#include <LibMedia/AudioBlockTiming.h>
+#include <LibMediaCodecs/AudioBlockTiming.h>
 
 namespace Media {
 

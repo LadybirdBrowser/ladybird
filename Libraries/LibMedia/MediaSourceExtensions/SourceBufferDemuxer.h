@@ -13,11 +13,11 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
-#include <LibMedia/CodecID.h>
-#include <LibMedia/CodedFrame.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/TimeRanges.h>
+#include <LibMediaCodecs/CodecID.h>
+#include <LibMediaCodecs/CodedFrame.h>
 
 namespace Media::MediaSourceExtensions {
 

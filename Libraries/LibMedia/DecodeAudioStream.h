@@ -10,9 +10,9 @@
 #include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibAudio/SampleSpecification.h>
-#include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMediaCodecs/DecoderError.h>
 
 namespace Media {
 

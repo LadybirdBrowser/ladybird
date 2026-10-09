@@ -18,9 +18,9 @@
 #include <LibGfx/SkiaUtils.h>
 #include <LibGfx/VideoSurfaceImage.h>
 #include <LibGfx/YUVData.h>
-#include <LibMedia/VideoFrame.h>
-#include <LibMedia/VideoFrameHandle.h>
-#include <LibMedia/VideoSurface.h>
+#include <LibMediaCodecs/VideoFrame.h>
+#include <LibMediaCodecs/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoSurface.h>
 
 #include <core/SkFont.h>
 #include <core/SkImage.h>

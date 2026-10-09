@@ -7,11 +7,11 @@
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
-#include <LibMedia/CodecID.h>
 #include <LibMedia/ContainerID.h>
-#include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMediaCodecs/CodecID.h>
+#include <LibMediaCodecs/DecoderError.h>
 
 namespace Media {
 

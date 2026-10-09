@@ -10,9 +10,9 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/String.h>
 #include <LibMedia/Containers/ISOBMFF/BoxTypes.h>
-#include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/MediaStream.h>
+#include <LibMediaCodecs/DecoderError.h>
 
 namespace Media::ISOBMFF {
 

@@ -16,11 +16,11 @@
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibAudio/ChannelMap.h>
-#include <LibMedia/CodecID.h>
-#include <LibMedia/CodecParameters.h>
-#include <LibMedia/Color/CodingIndependentCodePoints.h>
 #include <LibMedia/Containers/ISOBMFF/BoxTypes.h>
 #include <LibMedia/Track.h>
+#include <LibMediaCodecs/CodecID.h>
+#include <LibMediaCodecs/CodecParameters.h>
+#include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
 
 namespace Media::ISOBMFF {
 

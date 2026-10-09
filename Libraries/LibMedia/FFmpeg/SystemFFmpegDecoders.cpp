@@ -6,8 +6,8 @@
 
 #include <LibMedia/FFmpeg/FFmpegAudioDecoder.h>
 #include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
-#include <LibMedia/FFmpeg/SystemFFmpeg.h>
 #include <LibMedia/FFmpeg/SystemFFmpegDecoders.h>
+#include <LibMediaCodecs/FFmpeg/SystemFFmpeg.h>
 
 namespace Media::FFmpeg {
 

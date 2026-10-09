@@ -29,7 +29,7 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/Size.h>
-#include <LibMedia/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFrameHandle.h>
 
 namespace Gfx {
 

@@ -8,8 +8,8 @@
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/VideoProducer.h>
-#include <LibMedia/VideoFrame.h>
-#include <LibMedia/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFrame.h>
+#include <LibMediaCodecs/VideoFrameHandle.h>
 
 #include "DisplayingVideoSink.h"
 

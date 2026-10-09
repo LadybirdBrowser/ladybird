@@ -15,15 +15,16 @@
 #include <AK/Stream.h>
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
-#include <LibMedia/Codecs/AAC.h>
 #include <LibMedia/Containers/ConstantBitrateContainerNavigator.h>
 #include <LibMedia/Containers/FLACNavigator.h>
 #include <LibMedia/Containers/IndexedContainerNavigator.h>
 #include <LibMedia/Containers/OggNavigator.h>
+#include <LibMedia/FFmpeg/FFmpegChannelLayout.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
-#include <LibMedia/FFmpeg/FFmpegHelpers.h>
 #include <LibMedia/MediaStream.h>
 #include <LibMedia/SeekMode.h>
+#include <LibMediaCodecs/Codecs/AAC.h>
+#include <LibMediaCodecs/FFmpeg/FFmpegHelpers.h>
 
 extern "C" {
 #include <libavformat/avformat.h>

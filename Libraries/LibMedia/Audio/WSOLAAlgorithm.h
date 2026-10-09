@@ -12,7 +12,7 @@
 #include <LibAudio/SampleSpecification.h>
 #include <LibMedia/Audio/AudioBuffer.h>
 #include <LibMedia/Audio/AudioRingBuffer.h>
-#include <LibMedia/AudioBlock.h>
+#include <LibMediaCodecs/AudioBlock.h>
 
 namespace Audio {
 

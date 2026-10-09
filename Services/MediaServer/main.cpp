@@ -13,11 +13,12 @@
 #include <LibCore/Process.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
+#include <LibMedia/DecoderRegistrations.h>
 #include <MediaServer/ConnectionFromClient.h>
 #include <MediaServer/Sandbox.h>
 
 #if defined(AK_OS_LINUX)
-#    include <LibMedia/FFmpeg/SystemFFmpeg.h>
+#    include <LibMediaCodecs/FFmpeg/SystemFFmpeg.h>
 #endif
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
@@ -55,6 +56,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     // The system library's dependencies make syscalls the sandbox will not allow, so it loads first.
     (void)Media::FFmpeg::SystemFFmpeg::the();
 #endif
+
+    Media::install_video_decoders({ Media::hardware_video_decoders(), Media::ffmpeg_video_decoders() });
+    Media::install_audio_decoders({ Media::audio_decoders() });
 
     if (!disable_sandbox)
         TRY(MediaServer::apply_sandbox(mach_server_name));

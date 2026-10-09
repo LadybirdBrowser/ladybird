@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibJS/Forward.h>
-#include <LibMedia/DecoderCapabilities.h>
+#include <LibMediaCodecs/DecoderCapabilities.h>
 #include <LibWeb/Bindings/MediaSource.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>

@@ -10,13 +10,13 @@
 #include <AK/GenericShorthands.h>
 #include <AK/SaturatingMath.h>
 #include <AK/StringBuilder.h>
-#include <LibMedia/Codecs/AAC.h>
 #include <LibMedia/Codecs/FLAC.h>
-#include <LibMedia/Codecs/H264.h>
-#include <LibMedia/Codecs/H265.h>
-#include <LibMedia/Codecs/MPEG4Audio.h>
 #include <LibMedia/Codecs/Opus.h>
-#include <LibMedia/Codecs/VP9.h>
+#include <LibMediaCodecs/Codecs/AAC.h>
+#include <LibMediaCodecs/Codecs/H264.h>
+#include <LibMediaCodecs/Codecs/H265.h>
+#include <LibMediaCodecs/Codecs/MPEG4Audio.h>
+#include <LibMediaCodecs/Codecs/VP9.h>
 
 #include "Reader.h"
 #include "Streamer.h"

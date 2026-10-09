@@ -10,7 +10,7 @@
 #include <AK/Error.h>
 #include <AK/Variant.h>
 #include <LibIPC/Forward.h>
-#include <LibMedia/Color/CodingIndependentCodePoints.h>
+#include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
 
 namespace Gfx {
 

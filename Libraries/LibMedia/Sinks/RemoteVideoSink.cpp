@@ -10,9 +10,9 @@
 #include <AK/Mutex.h>
 #include <LibMedia/Sinks/RemoteVideoSink.h>
 #include <LibMedia/VideoEdgeQueue.h>
-#include <LibMedia/VideoFrame.h>
 #include <LibMedia/VideoPresentation/PresentedFramePage.h>
-#include <LibMedia/VideoSurface.h>
+#include <LibMediaCodecs/VideoFrame.h>
+#include <LibMediaCodecs/VideoSurface.h>
 #include <LibThreading/Thread.h>
 
 namespace Media {

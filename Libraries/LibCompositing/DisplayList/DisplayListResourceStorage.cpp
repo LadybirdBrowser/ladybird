@@ -12,7 +12,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/Font/Font.h>
-#include <LibMedia/VideoFrame.h>
+#include <LibMediaCodecs/VideoFrame.h>
 
 namespace Compositing {
 

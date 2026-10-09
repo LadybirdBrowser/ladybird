@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibMedia/CodedFrame.h>
 #include <LibMedia/Containers/FrameScanTimeline.h>
 #include <LibMedia/Containers/MP3/MP3Demuxer.h>
 #include <LibMedia/SeekMode.h>
+#include <LibMediaCodecs/CodedFrame.h>
 
 namespace Media::MP3 {
 

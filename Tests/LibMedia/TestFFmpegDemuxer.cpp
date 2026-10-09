@@ -7,9 +7,9 @@
 #include <AK/Atomic.h>
 #include <AK/Function.h>
 #include <LibCore/File.h>
-#include <LibMedia/CodedFrame.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
+#include <LibMediaCodecs/CodedFrame.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 

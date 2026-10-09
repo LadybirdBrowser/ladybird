@@ -17,9 +17,9 @@
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
-#include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/MediaStream.h>
+#include <LibMediaCodecs/DecoderError.h>
 
 namespace Media {
 

@@ -6,11 +6,12 @@
 
 #include <AK/GenericShorthands.h>
 #include <LibCore/System.h>
-#include <LibMedia/AudioBlock.h>
-#include <LibMedia/Codecs/AAC.h>
-#include <LibMedia/CodedFrame.h>
-#include <LibMedia/FFmpeg/FFmpegFunctions.h>
-#include <LibMedia/FFmpeg/FFmpegHelpers.h>
+#include <LibMedia/FFmpeg/FFmpegChannelLayout.h>
+#include <LibMediaCodecs/AudioBlock.h>
+#include <LibMediaCodecs/Codecs/AAC.h>
+#include <LibMediaCodecs/CodedFrame.h>
+#include <LibMediaCodecs/FFmpeg/FFmpegFunctions.h>
+#include <LibMediaCodecs/FFmpeg/FFmpegHelpers.h>
 
 #include "FFmpegAudioDecoder.h"
 

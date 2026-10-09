@@ -9,9 +9,9 @@
 
 #include <AK/FixedArray.h>
 #include <AK/NonnullRefPtr.h>
-#include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMediaCodecs/DecoderError.h>
 
 namespace Media::Matroska {
 

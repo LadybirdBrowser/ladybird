@@ -19,7 +19,6 @@
 #include <AK/Weakable.h>
 #include <LibCore/Promise.h>
 #include <LibGfx/Size.h>
-#include <LibMedia/DecoderError.h>
 #include <LibMedia/DemuxerScanState.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
@@ -29,11 +28,12 @@
 #include <LibMedia/SeekMode.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
-#include <LibMedia/VideoFrameHandle.h>
-#include <LibMedia/VideoFramePool.h>
 #include <LibMedia/VideoPresentation/PresentedFramePage.h>
 #include <LibMedia/VideoSinkHandle.h>
 #include <LibMediaClient/Forward.h>
+#include <LibMediaCodecs/DecoderError.h>
+#include <LibMediaCodecs/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFramePool.h>
 
 namespace MediaClient {
 

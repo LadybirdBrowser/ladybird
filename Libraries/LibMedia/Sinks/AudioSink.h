@@ -8,11 +8,11 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
-#include <LibMedia/AudioBlock.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/MediaPipelineNode.h>
 #include <LibMedia/Producers/AudioProducer.h>
+#include <LibMediaCodecs/AudioBlock.h>
 
 namespace Media {
 

@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibMedia/Codecs/AAC.h>
-#include <LibMedia/CodedFrame.h>
 #include <LibMedia/Containers/ADTS/ADTSDemuxer.h>
 #include <LibMedia/Containers/FrameScanTimeline.h>
 #include <LibMedia/SeekMode.h>
+#include <LibMediaCodecs/Codecs/AAC.h>
+#include <LibMediaCodecs/CodedFrame.h>
 
 namespace Media::ADTS {
 

@@ -4,17 +4,9 @@ set(SOURCES
     Audio/WSOLAInternals.cpp
     Audio/WSOLATimeStretcher.cpp
     AudioDiscardIntervals.cpp
-    CodecParameters.cpp
-    Color/CodingIndependentCodePoints.cpp
-    Codecs/AAC.cpp
-    Codecs/AV1.cpp
     Codecs/FLAC.cpp
-    Codecs/H264.cpp
-    Codecs/H265.cpp
-    Codecs/MPEG4Audio.cpp
     Codecs/Opus.cpp
     Codecs/Vorbis.cpp
-    Codecs/VP9.cpp
     ContainerID.cpp
     Containers/ADTS/ADTSDemuxer.cpp
     Containers/ADTS/FrameHeader.cpp
@@ -40,8 +32,7 @@ set(SOURCES
     Containers/MP3/StreamInfo.cpp
     Containers/OggNavigator.cpp
     DecodeAudioStream.cpp
-    DecoderError.cpp
-    DecoderRegistry.cpp
+    DecoderRegistrations.cpp
     DemuxerRegistry.cpp
     DemuxerScanState.cpp
     IncrementallyPopulatedStream.cpp
@@ -73,10 +64,6 @@ set(SOURCES
     TimeRanges.cpp
     Track.cpp
     VideoEdgeQueue.cpp
-    VideoFrame.cpp
-    VideoFrameHandle.cpp
-    VideoFramePool.cpp
-    VideoSurface.cpp
     VideoPresentation/PresentedFramePage.cpp
     VideoPresentation/VideoPresentationClientConnection.cpp
     VideoPresentation/VideoPresentationServerConnection.cpp
@@ -99,7 +86,7 @@ compile_ipc(VideoPresentation/VideoPresentationServer.ipc VideoPresentation/Vide
 
 ladybird_lib(LibMedia media EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibThreading LibUnicode)
-target_link_libraries(LibMedia PUBLIC LibAudio)
+target_link_libraries(LibMedia PUBLIC LibAudio LibMediaCodecs)
 
 if (APPLE)
     target_link_libraries(LibMedia PRIVATE "-framework AudioToolbox" "-framework VideoToolbox" "-framework CoreMedia" "-framework CoreVideo")
@@ -108,9 +95,8 @@ endif()
 target_sources(LibMedia PRIVATE
         FFmpeg/FFmpegAudioConverter.cpp
         FFmpeg/FFmpegAudioDecoder.cpp
+        FFmpeg/FFmpegChannelLayout.cpp
         FFmpeg/FFmpegDemuxer.cpp
-        FFmpeg/FFmpegFunctions.cpp
-        FFmpeg/FFmpegHelpers.cpp
         FFmpeg/FFmpegIOContext.cpp
         FFmpeg/FFmpegVideoDecoder.cpp
 )
@@ -125,7 +111,6 @@ endif()
 
 if (LINUX)
     target_sources(LibMedia PRIVATE
-        FFmpeg/SystemFFmpeg.cpp
         FFmpeg/SystemFFmpegDecoders.cpp
     )
     target_link_libraries(LibMedia PRIVATE ${CMAKE_DL_LIBS})

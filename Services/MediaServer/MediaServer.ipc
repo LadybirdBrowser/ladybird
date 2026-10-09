@@ -1,14 +1,14 @@
 #include <AK/Time.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibMedia/DecoderCapabilities.h>
+#include <LibMediaCodecs/DecoderCapabilities.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
 #include <LibMedia/MediaSupport.h>
 #include <LibMedia/SeekMode.h>
 #include <LibMedia/Track.h>
-#include <LibMedia/VideoFrameHandle.h>
+#include <LibMediaCodecs/VideoFrameHandle.h>
 #include <LibMedia/VideoSinkHandle.h>
-#include <LibMedia/VideoSurface.h>
+#include <LibMediaCodecs/VideoSurface.h>
 
 endpoint MediaServer
 {

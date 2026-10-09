@@ -13,7 +13,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Stream.h>
 #include <AK/Vector.h>
-#include <LibMedia/DecoderError.h>
+#include <LibMediaCodecs/DecoderError.h>
 
 namespace Media {
 

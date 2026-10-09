@@ -6,12 +6,12 @@
 
 #include <LibCore/System.h>
 #include <LibGfx/YUVData.h>
-#include <LibMedia/CodedFrame.h>
-#include <LibMedia/VideoFrame.h>
+#include <LibMediaCodecs/CodedFrame.h>
+#include <LibMediaCodecs/VideoFrame.h>
 
-#include "FFmpegFunctions.h"
-#include "FFmpegHelpers.h"
 #include "FFmpegVideoDecoder.h"
+#include <LibMediaCodecs/FFmpeg/FFmpegFunctions.h>
+#include <LibMediaCodecs/FFmpeg/FFmpegHelpers.h>
 
 namespace Media::FFmpeg {
 

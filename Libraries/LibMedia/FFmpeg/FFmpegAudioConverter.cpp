@@ -8,7 +8,8 @@
 #include <AK/ScopeGuard.h>
 #include <LibAudio/SampleSpecification.h>
 #include <LibMedia/FFmpeg/FFmpegAudioConverter.h>
-#include <LibMedia/FFmpeg/FFmpegHelpers.h>
+#include <LibMedia/FFmpeg/FFmpegChannelLayout.h>
+#include <LibMediaCodecs/FFmpeg/FFmpegHelpers.h>
 
 extern "C" {
 #include <libswresample/swresample.h>

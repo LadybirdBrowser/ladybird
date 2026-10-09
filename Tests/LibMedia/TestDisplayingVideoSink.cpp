@@ -10,8 +10,8 @@
 #include <LibMedia/MonotonicMediaClock.h>
 #include <LibMedia/Producers/VideoProducer.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
-#include <LibMedia/VideoFrame.h>
-#include <LibMedia/VideoFramePool.h>
+#include <LibMediaCodecs/VideoFrame.h>
+#include <LibMediaCodecs/VideoFramePool.h>
 #include <LibTest/TestCase.h>
 
 #include "TestMediaCommon.h"

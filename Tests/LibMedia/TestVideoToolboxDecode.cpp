@@ -6,14 +6,14 @@
 
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
-#include <LibMedia/CodecParameters.h>
-#include <LibMedia/Codecs/AV1.h>
-#include <LibMedia/Codecs/H264.h>
 #include <LibMedia/DemuxerRegistry.h>
-#include <LibMedia/VideoFrame.h>
-#include <LibMedia/VideoFramePool.h>
-#include <LibMedia/VideoSurface.h>
 #include <LibMedia/VideoToolbox/VideoToolboxVideoDecoder.h>
+#include <LibMediaCodecs/CodecParameters.h>
+#include <LibMediaCodecs/Codecs/AV1.h>
+#include <LibMediaCodecs/Codecs/H264.h>
+#include <LibMediaCodecs/VideoFrame.h>
+#include <LibMediaCodecs/VideoFramePool.h>
+#include <LibMediaCodecs/VideoSurface.h>
 
 #include "TestMediaCommon.h"
 

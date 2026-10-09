@@ -12,7 +12,6 @@
 #include <LibAudio/ChannelMap.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
-#include <LibMedia/CodedFrame.h>
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/Containers/Matroska/Reader.h>
 #include <LibMedia/Containers/Matroska/Utilities.h>
@@ -21,8 +20,9 @@
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/DecodedAudioProducer.h>
 #include <LibMedia/Producers/VideoProducer.h>
-#include <LibMedia/VideoDecoder.h>
-#include <LibMedia/VideoFrame.h>
+#include <LibMediaCodecs/CodedFrame.h>
+#include <LibMediaCodecs/VideoDecoder.h>
+#include <LibMediaCodecs/VideoFrame.h>
 #include <LibTest/TestCase.h>
 
 static inline Core::EventLoop& never_destroyed_event_loop()

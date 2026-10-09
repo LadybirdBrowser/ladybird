@@ -9,8 +9,8 @@
 #include <AK/Error.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Time.h>
-#include <LibMedia/AudioBlock.h>
-#include <LibMedia/DecoderError.h>
+#include <LibMediaCodecs/AudioBlock.h>
+#include <LibMediaCodecs/DecoderError.h>
 
 namespace Audio {
 

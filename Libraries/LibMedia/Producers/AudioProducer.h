@@ -8,9 +8,9 @@
 
 #include <AK/Time.h>
 #include <LibAudio/SampleSpecification.h>
-#include <LibMedia/AudioBlock.h>
 #include <LibMedia/MediaPipelineNode.h>
 #include <LibMedia/PipelineStatus.h>
+#include <LibMediaCodecs/AudioBlock.h>
 
 namespace Media {
 

@@ -15,6 +15,7 @@
 #include <LibCore/System.h>
 #include <LibGfx/YUVData.h>
 #include <LibIPC/Transport.h>
+#include <LibMedia/DecoderRegistrations.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/DemuxerRegistry.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
@@ -25,15 +26,21 @@
 #include <LibMedia/Sinks/RemoteVideoSink.h>
 #include <LibMedia/Track.h>
 #include <LibMedia/VideoEdgeQueue.h>
-#include <LibMedia/VideoFrame.h>
-#include <LibMedia/VideoFramePool.h>
 #include <LibMedia/VideoPresentation/PresentedFramePage.h>
 #include <LibMedia/VideoPresentation/VideoPresentationClientConnection.h>
 #include <LibMedia/VideoPresentation/VideoPresentationServerConnection.h>
+#include <LibMediaCodecs/VideoFrame.h>
+#include <LibMediaCodecs/VideoFramePool.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 
 #include "TestMediaCommon.h"
+
+TEST_SETUP
+{
+    Media::install_video_decoders({ Media::hardware_video_decoders(), Media::ffmpeg_video_decoders() });
+    Media::install_audio_decoders({ Media::audio_decoders() });
+}
 
 using namespace Media;
 

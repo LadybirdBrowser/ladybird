@@ -15,10 +15,10 @@
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <AK/Time.h>
-#include <LibMedia/CodecParameters.h>
-#include <LibMedia/Codecs/AAC.h>
-#include <LibMedia/Color/CodingIndependentCodePoints.h>
 #include <LibMedia/Track.h>
+#include <LibMediaCodecs/CodecParameters.h>
+#include <LibMediaCodecs/Codecs/AAC.h>
+#include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
 
 namespace Media::Matroska {
 

@@ -5,9 +5,16 @@
  */
 
 #include <AK/Atomic.h>
+#include <LibMedia/DecoderRegistrations.h>
 #include <LibMedia/Producers/DecodedVideoProducer.h>
-#include <LibMedia/VideoFramePool.h>
+#include <LibMediaCodecs/VideoFramePool.h>
 #include <Tests/LibMedia/TestMediaCommon.h>
+
+TEST_SETUP
+{
+    Media::install_video_decoders({ Media::hardware_video_decoders(), Media::ffmpeg_video_decoders() });
+    Media::install_audio_decoders({ Media::audio_decoders() });
+}
 
 namespace {
 

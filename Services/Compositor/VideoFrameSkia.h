@@ -8,7 +8,7 @@
 
 #include <AK/Platform.h>
 #include <LibGfx/Forward.h>
-#include <LibMedia/Color/CodingIndependentCodePoints.h>
+#include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
 
 #ifdef AK_OS_MACOS
 #    include <LibCore/IOSurface.h>

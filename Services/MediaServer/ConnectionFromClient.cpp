@@ -9,13 +9,13 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
 #include <LibCore/Process.h>
-#include <LibMedia/CodecParameters.h>
 #include <LibMedia/DecodeAudioStream.h>
-#include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/MediaSourceExtensions/ByteStreamParser.h>
 #include <LibMedia/MediaSupport.h>
 #include <LibMedia/PlaybackManager.h>
+#include <LibMediaCodecs/CodecParameters.h>
+#include <LibMediaCodecs/DecoderCapabilities.h>
 #include <LibThreading/ThreadPool.h>
 #include <MediaServer/ConnectionFromClient.h>
 #include <MediaServer/PlaybackSession.h>

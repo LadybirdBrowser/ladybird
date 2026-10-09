@@ -5,11 +5,11 @@
  */
 
 #include <LibCore/EventLoop.h>
-#include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/Sinks/VideoSink.h>
-#include <LibMedia/VideoDecoder.h>
-#include <LibMedia/VideoFrame.h>
+#include <LibMediaCodecs/VideoDecoder.h>
+#include <LibMediaCodecs/VideoDecoderRegistry.h>
+#include <LibMediaCodecs/VideoFrame.h>
 #include <LibThreading/Thread.h>
 
 #include "DecodedVideoProducer.h"

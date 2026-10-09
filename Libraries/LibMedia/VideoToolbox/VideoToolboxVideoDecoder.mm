@@ -7,14 +7,14 @@
 #include <AK/ByteBuffer.h>
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
-#include <LibMedia/Codecs/AV1.h>
-#include <LibMedia/Codecs/H264.h>
-#include <LibMedia/Codecs/H265.h>
-#include <LibMedia/Codecs/NALUnit.h>
-#include <LibMedia/Codecs/VP9.h>
-#include <LibMedia/CodedFrame.h>
-#include <LibMedia/VideoFrame.h>
 #include <LibMedia/VideoToolbox/VideoToolboxVideoDecoder.h>
+#include <LibMediaCodecs/Codecs/AV1.h>
+#include <LibMediaCodecs/Codecs/H264.h>
+#include <LibMediaCodecs/Codecs/H265.h>
+#include <LibMediaCodecs/Codecs/NALUnit.h>
+#include <LibMediaCodecs/Codecs/VP9.h>
+#include <LibMediaCodecs/CodedFrame.h>
+#include <LibMediaCodecs/VideoFrame.h>
 
 #include <CoreMedia/CoreMedia.h>
 #include <CoreVideo/CoreVideo.h>

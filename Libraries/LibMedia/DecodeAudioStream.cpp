@@ -6,15 +6,15 @@
 
 #include <AK/Checked.h>
 #include <AK/OwnPtr.h>
-#include <LibMedia/AudioBlock.h>
-#include <LibMedia/AudioDecoder.h>
-#include <LibMedia/CodedFrame.h>
 #include <LibMedia/DecodeAudioStream.h>
-#include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/DemuxerRegistry.h>
 #include <LibMedia/FFmpeg/FFmpegAudioConverter.h>
 #include <LibMedia/Track.h>
+#include <LibMediaCodecs/AudioBlock.h>
+#include <LibMediaCodecs/AudioDecoder.h>
+#include <LibMediaCodecs/AudioDecoderRegistry.h>
+#include <LibMediaCodecs/CodedFrame.h>
 
 namespace Media {
 

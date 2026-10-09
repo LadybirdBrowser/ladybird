@@ -11,8 +11,8 @@
 #include <AK/Span.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
-#include <LibMedia/Color/CodingIndependentCodePoints.h>
-#include <LibMedia/Subsampling.h>
+#include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
+#include <LibMediaCodecs/Subsampling.h>
 
 namespace Gfx {
 

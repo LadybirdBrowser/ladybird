@@ -16,10 +16,10 @@
 #include <LibCore/Promise.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibMedia/DecoderCapabilities.h>
-#include <LibMedia/DecoderError.h>
 #include <LibMedia/MediaSupport.h>
 #include <LibMediaClient/Forward.h>
+#include <LibMediaCodecs/DecoderCapabilities.h>
+#include <LibMediaCodecs/DecoderError.h>
 #include <MediaServer/MediaClientEndpoint.h>
 #include <MediaServer/MediaServerEndpoint.h>
 

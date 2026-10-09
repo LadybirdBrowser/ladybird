@@ -7,11 +7,11 @@
 #include <AK/Mutex.h>
 #include <LibAudio/SampleSpecification.h>
 #include <LibCore/EventLoop.h>
-#include <LibMedia/CodecParameters.h>
-#include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegAudioConverter.h>
 #include <LibMedia/Sinks/AudioSink.h>
+#include <LibMediaCodecs/AudioDecoderRegistry.h>
+#include <LibMediaCodecs/CodecParameters.h>
 #include <LibThreading/Thread.h>
 
 #include "DecodedAudioProducer.h"

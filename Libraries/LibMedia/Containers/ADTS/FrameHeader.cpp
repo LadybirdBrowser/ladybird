@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibMedia/BitReader.h>
 #include <LibMedia/Containers/ADTS/FrameHeader.h>
+#include <LibMediaCodecs/BitReader.h>
 
 namespace Media::ADTS {
 

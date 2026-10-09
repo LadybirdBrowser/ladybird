@@ -27,8 +27,8 @@
 #include <LibGfx/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibMedia/Sinks/VideoSink.h>
-#include <LibMedia/VideoFrame.h>
 #include <LibMedia/VideoSinkHandle.h>
+#include <LibMediaCodecs/VideoFrame.h>
 
 namespace Compositing {
 

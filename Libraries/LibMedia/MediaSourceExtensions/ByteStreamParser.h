@@ -8,10 +8,10 @@
 
 #include <AK/Forward.h>
 #include <AK/Types.h>
-#include <LibMedia/CodecID.h>
-#include <LibMedia/CodedFrame.h>
-#include <LibMedia/DecoderError.h>
 #include <LibMedia/Forward.h>
+#include <LibMediaCodecs/CodecID.h>
+#include <LibMediaCodecs/CodedFrame.h>
+#include <LibMediaCodecs/DecoderError.h>
 
 namespace Media::MediaSourceExtensions {
 

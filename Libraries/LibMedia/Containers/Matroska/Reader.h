@@ -11,11 +11,11 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
-#include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/MediaStream.h>
 #include <LibMedia/TimeRanges.h>
+#include <LibMediaCodecs/DecoderError.h>
 
 #include "Document.h"
 #include "SampleIterator.h"

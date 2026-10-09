@@ -16,7 +16,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/SkiaUtils.h>
 #include <LibMedia/Sinks/VideoSink.h>
-#include <LibMedia/VideoFrame.h>
+#include <LibMediaCodecs/VideoFrame.h>
 #include <core/SkCanvas.h>
 #include <core/SkImage.h>
 #include <math.h>

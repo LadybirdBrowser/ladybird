@@ -12,15 +12,15 @@
 #include <AK/HashMap.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
-#include <LibMedia/CodecID.h>
 #include <LibMedia/ContainerID.h>
 #include <LibMedia/Containers/ContainerNavigator.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/DemuxerScanThread.h>
 #include <LibMedia/Export.h>
-#include <LibMedia/FFmpeg/FFmpegForward.h>
 #include <LibMedia/FFmpeg/FFmpegIOContext.h>
 #include <LibMedia/Forward.h>
+#include <LibMediaCodecs/CodecID.h>
+#include <LibMediaCodecs/FFmpeg/FFmpegForward.h>
 
 namespace Media::FFmpeg {
 

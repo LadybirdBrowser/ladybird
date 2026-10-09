@@ -5,9 +5,9 @@
  */
 
 #include <AK/BuiltinWrappers.h>
-#include <LibMedia/BitReader.h>
 #include <LibMedia/Codecs/FLAC.h>
 #include <LibMedia/MediaStream.h>
+#include <LibMediaCodecs/BitReader.h>
 
 namespace Media::Codecs {
 

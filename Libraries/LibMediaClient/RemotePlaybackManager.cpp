@@ -7,11 +7,11 @@
 #include <AK/AnyOf.h>
 #include <AK/Debug.h>
 #include <LibCore/EventLoop.h>
-#include <LibMedia/VideoFrame.h>
 #include <LibMediaClient/Client.h>
 #include <LibMediaClient/RemoteMediaStream.h>
 #include <LibMediaClient/RemotePlaybackManager.h>
 #include <LibMediaClient/RemoteSourceBuffer.h>
+#include <LibMediaCodecs/VideoFrame.h>
 
 namespace MediaClient {
 
