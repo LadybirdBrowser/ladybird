@@ -1,0 +1,6 @@
+width a quarter into the reversal: 137.5
+last frame presented by: clock
+box matches :hover: false
+transitions once the main thread took over: 1
+transition starts as the box was left: true
+transition duration: 50000

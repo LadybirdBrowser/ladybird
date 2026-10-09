@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #menu { width: 200px; height: 100px; color: rgb(0, 0, 255); transition: color 100s linear; }
+    #menu:hover { color: rgb(255, 0, 0); }
+    #item { display: block; width: 100px; height: 50px; }
+    #item:hover { color: rgb(0, 128, 0); }
+</style>
+<div id="menu"><span id="item">item</span></div>
+<script>
+    // A hover beside the task runs a color transition of an element, whose child inherits it. The pointer then moves
+    // onto the child, whose hover declares a color of its own: the child shows that color, not the transition's.
+    asyncTest(async done => {
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(150, 75, frameTime + 16);
+            internals.injectClockTick(frameTime + 16 + 50000);
+            const inheritedHalfway = internals.presentedColor(item);
+            internals.injectHoverPointer(50, 25, frameTime + 16 + 50016);
+            internals.injectClockTick(frameTime + 16 + 60000);
+            return {
+                inheritedHalfway,
+                itemColor: internals.presentedColor(item),
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`item color halfway through: ${result.inheritedHalfway}`);
+        println(`item color once hovered: ${result.itemColor ?? "no sample, its own"}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        done();
+    });
+</script>

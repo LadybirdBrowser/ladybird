@@ -1774,6 +1774,22 @@ GC::Ptr<Geometry::DOMRect> Internals::presented_border_box(DOM::Element& element
     return Geometry::DOMRect::create(rect.x().to_double(), rect.y().to_double(), rect.width().to_double(), rect.height().to_double());
 }
 
+Optional<u32> Internals::presented_compositor_animation_count(DOM::Element& element)
+{
+    u32 count = 0;
+    if (!element.style_node_id() || !Layout::RustFFI::document_host_presented_compositor_animation_count(element.document().layout_node_arena().host(), element.style_node_id().value(), &count))
+        return {};
+    return count;
+}
+
+Optional<double> Internals::presented_opacity(DOM::Element& element)
+{
+    float opacity = 0;
+    if (!element.style_node_id() || !Layout::RustFFI::document_host_presented_opacity(element.document().layout_node_arena().host(), element.style_node_id().value(), &opacity))
+        return {};
+    return opacity;
+}
+
 Optional<String> Internals::presented_color(DOM::Element& element)
 {
     u32 argb = 0;

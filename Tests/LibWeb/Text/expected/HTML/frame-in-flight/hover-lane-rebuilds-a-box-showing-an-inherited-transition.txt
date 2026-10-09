@@ -1,0 +1,3 @@
+last frame presented by: clock
+child matches :hover: true
+child height on screen once the transition ended: 30

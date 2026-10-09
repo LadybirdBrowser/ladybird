@@ -35,6 +35,10 @@ public:
     void commit_provisional_transition();
     void discard_provisional_transition();
 
+    // AD-HOC: Runs the transitions the hover of the document's clock lane left elements running beside a task, which
+    //         the screen showed, in place of those its steps ended, as the rendering update that takes them in begins.
+    static void adopt_lane_transitions(DOM::Document&);
+
     Utf16FlyString const& transition_property() const;
 
     virtual Animations::AnimationClass animation_class() const override;
@@ -106,6 +110,9 @@ private:
     GC::Ptr<CSS::CSSStyleDeclaration const> m_cached_declaration;
 
     bool m_is_provisional { true };
+
+    // Whether the transition is one the hover of a clock lane started, which the host took in.
+    bool m_adopted_from_lane { false };
 
     Phase m_previous_phase { Phase::Idle };
 };

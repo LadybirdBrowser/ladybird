@@ -55,6 +55,7 @@
 #include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleEngineEffectTiming.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/CSS/StyleScope.h>
@@ -95,7 +96,6 @@
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
@@ -438,10 +438,6 @@ void StyleComputer::for_each_provisional_transition_effect(DOM::AbstractElement 
 
 void StyleComputer::commit_transition_stabilization_epoch()
 {
-    // The transitions a hover of the render clock started beside the host showed from when it started them: those the
-    // host's own hover starts on the same elements run from then.
-    Vector<GC::Root<CSSTransition>> started_beside_host;
-    Vector<double> started_beside_host_at;
     for (auto const& state : m_provisional_transition_states) {
         VERIFY(state.element);
         auto& element = *state.element;
@@ -458,11 +454,6 @@ void StyleComputer::commit_transition_stabilization_epoch()
             VERIFY(state.proposed_transition);
             state.proposed_transition->commit_provisional_transition();
             ++document().style_invalidation_counters().committed_transitions_started;
-            double started_at = 0;
-            if (!state.pseudo_element.has_value() && StyleEngineFFI::style_engine_lane_transition_start(m_style_engine.host(), element.style_node_id().value(), to_underlying(state.property_id), &started_at)) {
-                started_beside_host.append(*state.proposed_transition);
-                started_beside_host_at.append(started_at);
-            }
         };
 
         switch (state.action) {
@@ -493,14 +484,6 @@ void StyleComputer::commit_transition_stabilization_epoch()
     m_provisional_transition_states.clear();
     m_provisional_transition_state_indices.clear();
     m_provisional_transition_state_indices_by_target.clear();
-    if (!started_beside_host.is_empty()) {
-        // Setting a transition's start time settles its promises, which a rendering update's style update runs without
-        // a script.
-        HTML::TemporaryExecutionContext execution_context { document().relevant_settings_object() };
-        for (size_t i = 0; i < started_beside_host.size(); ++i)
-            (void)started_beside_host[i]->set_start_time_for_bindings(Animations::NullableCSSNumberish { started_beside_host_at[i] });
-        StyleEngineFFI::style_engine_forget_lane_transition_starts(m_style_engine.host());
-    }
     if (exchange(m_transition_baselines_recorded, false))
         StyleEngineFFI::style_engine_release_transition_baselines(m_style_engine.host());
 }
@@ -642,10 +625,9 @@ void StyleComputer::finish_animation_refresh(Layout::BegunRead const& read, DOM:
     }
 }
 
-// The timing the style engine computes the key an effect samples its keyframes at from: what its animation contributes,
-// the effect's own timing, and its timeline's current time. The engine decides it only where every time is in one unit:
-// a duration, or a percentage of a scroll timeline's progress.
-static ComputedValuesFFI::FfiEffectTiming style_engine_effect_timing(Animations::KeyframeEffect const& effect, Animations::Animation const& animation)
+// The engine decides the timing only where every time is in one unit: a duration, or a percentage of a scroll
+// timeline's progress.
+ComputedValuesFFI::FfiEffectTiming style_engine_effect_timing(Animations::KeyframeEffect const& effect, Animations::Animation const& animation)
 {
     ComputedValuesFFI::FfiEffectTiming timing {};
     Optional<Animations::TimeValue::Type> unit;
@@ -679,6 +661,7 @@ static ComputedValuesFFI::FfiEffectTiming style_engine_effect_timing(Animations:
     }
     optional_duration(animation.start_time(), timing.has_start_time, timing.start_time);
     optional_duration(animation.hold_time(), timing.has_hold_time, timing.hold_time);
+    timing.paused = animation.play_state() == Bindings::AnimationPlayState::Paused;
     timing.playback_rate = animation.playback_rate();
     timing.start_delay = duration(effect.start_delay());
     timing.end_delay = duration(effect.end_delay());

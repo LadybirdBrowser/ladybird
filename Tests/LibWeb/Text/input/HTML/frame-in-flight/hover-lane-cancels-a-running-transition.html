@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); transition: width 100s linear; }
+    #box.wide { width: 200px; }
+    #box:hover { transition: none; }
+</style>
+<div id="box"></div>
+<script>
+    // A hover beside the task into a box whose transition the main thread runs, to a style that declares no
+    // transition, cancels the transition: the render clock shows the box at its after-change width at once, and the
+    // main thread cancels its transition in its turn, once.
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        let cancels = 0;
+        box.addEventListener("transitioncancel", () => ++cancels);
+        await twoFrames();
+        box.classList.add("wide");
+        await twoFrames();
+        println(`transitions the main thread runs before the hover: ${box.getAnimations().length}`);
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            internals.injectClockTick(frameTime + 32);
+            return {
+                width: internals.presentedBorderBox(box)?.width,
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`box shows its after-change width at once: ${result.width === 200}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        await twoFrames();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        println(`transitions once the main thread took over: ${box.getAnimations().length}`);
+        println(`transitioncancel events: ${cancels}`);
+        done();
+    });
+</script>

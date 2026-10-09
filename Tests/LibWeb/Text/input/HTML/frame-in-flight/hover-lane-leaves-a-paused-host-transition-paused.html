@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; opacity: 1; color: rgb(0, 0, 0); transition: opacity 100s linear, color 100s linear; }
+    #box.faded { opacity: 0.2; }
+    #box:hover { color: rgb(200, 0, 0); }
+</style>
+<div id="box"></div>
+<script>
+    // Script pauses a transition of the host's, and a hover beside a task then moves another property of the element.
+    // The paused transition stays paused.
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        await twoFrames();
+        box.classList.add("faded");
+        await twoFrames();
+        const fade = box.getAnimations().find(animation => animation.transitionProperty === "opacity");
+        fade.pause();
+        await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16, 1);
+        });
+        await twoFrames();
+        println(`the opacity transition is paused: ${fade.playState === "paused"}`);
+        done();
+    });
+</script>

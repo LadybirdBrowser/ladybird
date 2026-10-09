@@ -1,0 +1,3 @@
+compositor animations of the box as the hover moves its opacity: 0
+box opacity: 0.6000000238418579
+last frame presented by: clock

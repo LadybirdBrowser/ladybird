@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 200px; height: 100px; }
+    #abs { position: absolute; top: 200px; height: 20px; }
+    #box:hover #abs { position: static; }
+</style>
+<div id="box">text <div id="abs">block</div> more text</div>
+<script>
+    // A hover beside the task takes a block out of absolute positioning, among inline siblings, which wraps them in
+    // anonymous blocks around it: the boxes of its parent are built again with it.
+    asyncTest(async done => {
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(150, 50, frameTime + 16);
+            return internals.presentedBorderBox(abs)?.y;
+        });
+        println(`block on screen at y: ${result}`);
+        await twoFrames();
+        println(`block at y: ${abs.getBoundingClientRect().y}`);
+        done();
+    });
+</script>

@@ -432,6 +432,7 @@ impl LaneSlot {
             *self.ticks.presented_boxes.lock().expect("presented boxes") = super::PresentedBoxes {
                 border_boxes: lane.presented_border_boxes.clone(),
                 colors: lane.presented_colors.clone(),
+                compositor_animations: lane.presented_compositor_animations.clone(),
             };
         }
     }
@@ -440,15 +441,10 @@ impl LaneSlot {
     fn take_report(&mut self) -> LaneReport {
         LaneReport {
             last_move: self.last_move.take(),
-            transition_starts: self.lanes.current_ref().map_or_else(Vec::new, |lane| {
-                lane.started_transitions()
-                    .map(|(transitions, start_time)| super::LaneTransitionStart {
-                        node: transitions.node,
-                        properties: transitions.properties().iter().copied().collect(),
-                        start_time,
-                    })
-                    .collect()
-            }),
+            transitions: self
+                .lanes
+                .current()
+                .map_or_else(Vec::new, Lane::take_started_transitions),
             presented: std::mem::take(&mut self.presented),
         }
     }

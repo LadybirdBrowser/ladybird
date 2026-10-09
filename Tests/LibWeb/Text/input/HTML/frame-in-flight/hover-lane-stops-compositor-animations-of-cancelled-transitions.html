@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); opacity: 1; transition: opacity 100s linear; }
+    #box.faded { opacity: 0.2; }
+    #box:hover { transition: none; }
+</style>
+<div id="box"></div>
+<script>
+    // A hover beside the task into a box whose opacity transition the compositor runs for the main thread, to a style
+    // that declares no transition, cancels the transition: the frame the render clock presents drives the box with no
+    // compositor animation, and shows its after-change style.
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        await twoFrames();
+        box.classList.add("faded");
+        await twoFrames();
+        println(`transitions the main thread runs before the hover: ${box.getAnimations().length}`);
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            internals.injectClockTick(frameTime + 32);
+            return {
+                compositorAnimations: internals.presentedCompositorAnimationCount(box),
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`compositor animations of the box as the hover cancels the transition: ${result.compositorAnimations}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        done();
+    });
+</script>

@@ -1,0 +1,4 @@
+the opacity transition's play was pending: true
+lane after the tick: ticking
+last frame presented by: clock
+the presented width is the transition's at the tick: true

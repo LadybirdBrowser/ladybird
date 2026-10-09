@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #card { width: 200px; height: 40px; color: rgb(0, 0, 255); transition: color 100s linear; }
+    #card:hover { color: rgb(255, 0, 0); }
+    #icon { display: inline-block; width: 10px; height: 10px; border: 1px solid currentcolor; opacity: 0.5; transition: opacity 100s linear; }
+    #card:hover #icon { opacity: 1; }
+</style>
+<div id="card"><span id="icon"></span></div>
+<script>
+    // A hover beside the task starts transitions on an element and on a child that inherits what the element's
+    // transition animates. The child's box would show only one of the two: the main thread starts them both.
+    asyncTest(async done => {
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(150, 20, frameTime + 16);
+            internals.injectClockTick(frameTime + 16 + 50000);
+            return {
+                cardColor: internals.presentedColor(card),
+                iconColor: internals.presentedColor(icon),
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`a tick presented the last frame: ${result.presentedBy === "clock"}`);
+        if (result.presentedBy === "clock")
+            println(`card color ${result.cardColor}, icon color ${result.iconColor}`);
+        await twoFrames();
+        println(`card matches :hover: ${card.matches(":hover")}`);
+        println(`transitions: ${document.getAnimations().length}`);
+        done();
+    });
+</script>

@@ -18,6 +18,7 @@ use crate::css::css_pixels::{CssPixelPoint, CssPixels};
 use crate::css::style::hover_lane::{HoverBoxRebuild, HoverInstall, hover_row_generated_for};
 use crate::css::style::style_job::SealedStyleInputs;
 use crate::css::style::tree::StyleNodeID;
+use crate::css::style_compute::FfiEffectTiming;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::tree_mutation::{HostCalls, OwedHostWork};
 use crate::painting::ffi::FfiChromeMetrics;
@@ -37,6 +38,12 @@ pub struct FfiHoverPlanInputs {
     pub chrome_metrics: FfiChromeMetrics,
     /// The cursor of the document's page, which the hover asks to show the cursor of what it hovers.
     pub page_cursor: FfiPageCursor,
+    /// The timings the host runs the effects of elements on without sampling them, as the compositor runs them: the
+    /// element's style node, the effect's identity, and the timing, an `FfiEffectTiming`, by effect.
+    pub effect_timing_nodes: *const u32,
+    pub effect_timing_identities: *const u64,
+    pub effect_timings: *const std::ffi::c_void,
+    pub effect_timing_count: usize,
 }
 
 /// The cursor of a page, which the host hands a hover with its plan: what the page asks its client to show, and the
@@ -103,6 +110,9 @@ pub(crate) struct HoverPlan {
     style: Option<(StyleNodeID, Arc<SealedStyleInputs>)>,
     /// The cursor of the document's page.
     page_cursor: Option<PageCursor>,
+    /// The timings the host runs effects on without sampling them, which the descriptions of their elements' effects
+    /// hold from before: the step a hover decides over the transitions they run reads them.
+    effect_timings: Vec<(StyleNodeID, u64, FfiEffectTiming)>,
 }
 
 impl HoverPlan {
@@ -110,14 +120,36 @@ impl HoverPlan {
     ///
     /// # Safety
     ///
-    /// `inputs.scroll_offsets` must point at `inputs.scroll_offset_count` offsets, or be null, and
-    /// `inputs.page_cursor` must name a live page cursor, or none.
+    /// `inputs.scroll_offsets` must point at `inputs.scroll_offset_count` offsets, or be null, the effect timing
+    /// arrays at `inputs.effect_timing_count` entries each, or be null, and `inputs.page_cursor` must name a live page
+    /// cursor, or none.
     pub(crate) unsafe fn from_ffi(inputs: &FfiHoverPlanInputs) -> Self {
         let scroll_offsets = if inputs.scroll_offsets.is_null() {
             Vec::new()
         } else {
             // SAFETY: Guaranteed by the caller.
             unsafe { std::slice::from_raw_parts(inputs.scroll_offsets, inputs.scroll_offset_count) }.to_vec()
+        };
+        let effect_timings = if inputs.effect_timing_count == 0 {
+            Vec::new()
+        } else {
+            // SAFETY: Guaranteed by the caller.
+            let (nodes, identities, timings) = unsafe {
+                (
+                    std::slice::from_raw_parts(inputs.effect_timing_nodes, inputs.effect_timing_count),
+                    std::slice::from_raw_parts(inputs.effect_timing_identities, inputs.effect_timing_count),
+                    std::slice::from_raw_parts(
+                        inputs.effect_timings.cast::<FfiEffectTiming>(),
+                        inputs.effect_timing_count,
+                    ),
+                )
+            };
+            nodes
+                .iter()
+                .zip(identities)
+                .zip(timings)
+                .filter_map(|((&node, &identity), timing)| Some((StyleNodeID::from_raw(node)?, identity, *timing)))
+                .collect()
         };
         Self {
             device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
@@ -126,6 +158,7 @@ impl HoverPlan {
             style: None,
             // SAFETY: Guaranteed by the caller.
             page_cursor: unsafe { PageCursor::retained(inputs.page_cursor) },
+            effect_timings,
         }
     }
 
@@ -289,13 +322,15 @@ enum HoverInputs {
     TheLanesToo,
 }
 
-/// What a move of the hover made before it needed the host, if it did.
+/// What a move of the hover made, before it needed the host, if it did.
 #[derive(Default)]
-struct MoveMade {
+pub(super) struct MoveMade {
     /// Whether it installed anything in the boxes.
     installed: bool,
     /// The elements it started transitions on.
     started: smallvec::SmallVec<[StyleNodeID; 2]>,
+    /// The transitions the hover started before that those it started replaced.
+    replaced: Vec<super::effects::ElementEffects>,
 }
 
 /// What a lane's hover made of a pointer move.
@@ -377,6 +412,18 @@ pub(super) fn transform_reference_box(
 }
 
 impl Lane {
+    /// Has the engine hold the timings of the animations the host runs as the host runs them, where it runs them without
+    /// sampling them, as on the compositor: a tick samples them, and a hover's step decides over them, as they run.
+    pub(super) fn refresh_host_effect_timings(&self, state: &mut RenderState) {
+        let Some(plan) = self.plan.hover.as_ref() else {
+            return;
+        };
+        let engine = state.engine_mut();
+        for (node, identity, timing) in &plan.effect_timings {
+            engine.refresh_element_animation_effect_timing(*node, *identity, timing);
+        }
+    }
+
     /// Hovers the element under `pointer`, and answers whether that moved anything to lay out and present.
     pub(super) fn hover(&mut self, state: &mut RenderState, pointer: PendingPointer, timestamp: f64) -> Hovered {
         // A scroll the host has not laid out moved what is under the pointer, and a held button drags or selects,
@@ -516,9 +563,20 @@ impl Lane {
         let moved = self.make_hover_move(state, plan, target, position, timestamp, inputs, &mut made);
         if matches!(moved, Err(HoverDeclined::Park(_))) && made.installed {
             self.frame_left_to_host = true;
-            self.forget_transitions_started_at(&made.started, timestamp);
+            self.forget_transitions_started_at(&made.started, timestamp, std::mem::take(&mut made.replaced));
+        } else if moved.is_ok() {
+            self.unshown_move = Some((made, timestamp));
         }
         moved
+    }
+
+    /// Forgets the transitions the move the tick's hover made started, which the frame left to the host shows nothing
+    /// of, and has the ticks sample those they replaced again: the host decides the move's transitions as it takes the
+    /// hover in.
+    pub(super) fn forget_unshown_move(&mut self) {
+        if let Some((made, timestamp)) = self.unshown_move.take() {
+            self.forget_transitions_started_at(&made.started, timestamp, made.replaced);
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -562,22 +620,40 @@ impl Lane {
                     arena.may_have_scroll_snap_areas(),
                     timestamp,
                     |node| transform_reference_box(arena, node),
+                    |node| self.lane_transitions(node),
                 )
             };
             if wave.rows.is_empty() {
                 break;
             }
             // The box of an element whose step the wave decided over the transitions it ran shows the record the host
-            // installed again, which its row moves it from, in place of a tick's sample of those transitions.
-            for (transitions, _) in &wave.transitions {
-                if !transitions.decided_over_host_transitions {
+            // or the hover installed again, which its row moves it from, in place of a tick's sample of those
+            // transitions.
+            // So do the boxes of the descendants that inherited what those transitions animate, and the anonymous boxes
+            // below all of them: the samples after the move are those of the transitions the step decides.
+            let decided_over_running: smallvec::SmallVec<[StyleNodeID; 2]> = wave
+                .transitions
+                .iter()
+                .filter(|(transitions, _)| transitions.decided_over_running)
+                .map(|(transitions, _)| transitions.node)
+                .collect();
+            for node in decided_over_running {
+                self.samples_restored |= self.show_host_styles_of_started(state, node);
+            }
+            // So does the box of an element that shows what it inherits of a sample of an element above it, with the
+            // anonymous boxes below it: the samples after the move compose over the record the row installs.
+            for (row, _) in wave.element_rows() {
+                let Some(node) = StyleNodeID::from_raw(row.style_node) else {
                     continue;
-                }
-                let arena = state.arena.arena();
-                let row = arena.bound_row(transitions.node);
-                if let Some(position) = self.ticked.iter().position(|(ticked, _)| *ticked == row) {
-                    let (row, host_style) = self.ticked.remove(position);
-                    arena.restore_host_style(row, host_style);
+                };
+                let slot = state.arena.arena().bound_row(node);
+                let shows_sample_over_old_record = !slot.is_invalid()
+                    && self
+                        .ticked
+                        .iter()
+                        .any(|(ticked, host_style)| *ticked == slot && host_style.record() == row.old_style_record);
+                if shows_sample_over_old_record {
+                    self.samples_restored |= self.show_host_style_of_inheriting(state, node);
                 }
             }
             // An element whose move builds its boxes again is built again by the round, where a build of the boxes
@@ -625,12 +701,12 @@ impl Lane {
                 })
             };
             let boxes_take_wave = boxes_take_wave && !pseudo_elements_take_transitions;
-            // A row of an element whose transitions the hover started reverses or replaces them, which only the host
-            // decides.
-            let moves_transitions = wave
-                .rows
-                .iter()
-                .any(|row| StyleNodeID::from_raw(row.style_node).is_some_and(|node| self.transitions_run_on(node)));
+            // A row of an element whose transitions the hover started that owes no transition step leaves them to no
+            // step the hover decides, which only the host decides then.
+            let moves_transitions = wave.rows.iter().any(|row| {
+                !row.owes_a_transition_step
+                    && StyleNodeID::from_raw(row.style_node).is_some_and(|node| self.transitions_run_on(node))
+            });
             // A move back to where a hover left to the host found the hover moves each element back to the record the
             // host holds, which its boxes show: nothing is the host's to do, and the boxes stay as they are.
             let settles_back = inputs == HoverInputs::TheLanesToo && {
@@ -643,17 +719,55 @@ impl Lane {
                         })
                 })
             };
-            if !settles_back && (!wave.installable || !boxes_take_wave || moves_transitions) {
+            // The compositor runs the host's transitions of some properties itself, whose animations the lane stops
+            // where a step ends the transitions, but not where a transition the step leaves running drives one alike.
+            let compositor_animations_stop = wave
+                .transitions
+                .iter()
+                .all(|(transitions, _)| super::effects::ended_compositor_animation_kinds(transitions).is_some());
+            // A box shows the samples of one element's effects alone.
+            let samples_overlap = {
+                let started: smallvec::SmallVec<[&crate::css::transition::HoverTransitions; 2]> =
+                    wave.transitions.iter().map(|(transitions, _)| transitions).collect();
+                !started.is_empty() && self.samples_overlap(state, &started)
+            };
+            if !settles_back
+                && (!wave.installable
+                    || !boxes_take_wave
+                    || moves_transitions
+                    || !compositor_animations_stop
+                    || samples_overlap)
+            {
                 if logs_hover() {
                     if let Some(refusal) = wave.refusal {
-                        eprintln!("hover lane: wave refused: {refusal}");
+                        eprintln!("{} hover lane: wave refused: {refusal}", log_time());
+                    }
+                    if !compositor_animations_stop {
+                        eprintln!(
+                            "{} hover lane: wave refused: compositor animations a step ends and keeps alike",
+                            log_time()
+                        );
+                    }
+                    if samples_overlap {
+                        eprintln!(
+                            "{} hover lane: wave refused: an element inherits what another's samples animate",
+                            log_time()
+                        );
                     }
                     let engine = state.engine_mut();
                     for row in &wave.rows {
                         if let Some(refusal) = engine.hover_row_refusal(row) {
                             eprintln!(
-                                "hover lane: row of style node {} (reaction {:#x}) refused: {refusal}",
-                                row.style_node, row.reaction
+                                "{} hover lane: row of style node {} (reaction {:#x}, plan {}, step {}, composed {}, \
+                                 records {}->{}) refused: {refusal}",
+                                log_time(),
+                                row.style_node,
+                                row.reaction,
+                                row.owes_an_animation_plan,
+                                row.owes_a_transition_step,
+                                row.composed_by_the_host,
+                                row.old_style_record,
+                                row.new_style_record
                             );
                         }
                     }
@@ -664,7 +778,11 @@ impl Lane {
                             None => None,
                         };
                         if let Some(refusal) = refusal {
-                            eprintln!("hover lane: box of style node {} refused: {refusal}", row.style_node);
+                            eprintln!(
+                                "{} hover lane: box of style node {} refused: {refusal}",
+                                log_time(),
+                                row.style_node
+                            );
                         }
                     }
                 }
@@ -698,6 +816,13 @@ impl Lane {
             }
             // NB: What the installs owe is the fork's, which no host pays: resolving it ends the queue of box presence.
             drop(work.resolve(arena));
+            // The boxes show what the rows moved in place of the compositor animations the host published for them.
+            if !settles_back {
+                let (engine, arena) = state.engine_and_arena();
+                for install in installs.iter().filter(|install| !rebuilt(install.element.style_node)) {
+                    super::effects::stop_compositor_animations_a_row_moves(engine, arena, &install.element);
+                }
+            }
             if !settles_back {
                 rebuilt_elements.extend(rebuilds);
             }
@@ -710,7 +835,8 @@ impl Lane {
                 }
                 started_transitions = true;
                 made.started.push(transitions.node);
-                self.start_transitions(transitions, timestamp);
+                super::effects::stop_ended_compositor_animations(state.arena.arena(), &transitions);
+                made.replaced.extend(self.start_transitions(transitions, timestamp));
             }
             let engine = state.engine_mut();
             self.hovered.keep_installs(engine, installs);
@@ -719,38 +845,57 @@ impl Lane {
             }
         }
         state.engine_mut().end_hover_transaction();
+        if made.installed
+            && let Err(super::Park(reason)) = self.find_inheriting_again(state)
+        {
+            if logs_hover() {
+                eprintln!("{} hover lane: move left to the host: {reason}", log_time());
+            }
+            self.parked = true;
+            return Err(HoverDeclined::Park(reason));
+        }
         // The build of an element built again reads the records the hover moved it and the elements below it to, in
         // place of those the host holds, which the engine derives once the transactions have settled. What only the host
         // builds leaves the move for it to finish, and no tick presents it until then.
-        let animated = self.plan.elements.clone();
+        let mut marks: smallvec::SmallVec<[(StyleNodeID, super::TickRebuild); 2]> = smallvec::SmallVec::new();
         for (node, rebuild) in rebuilt_elements {
-            let marked = match state.engine_mut().show_boxes_a_hover_builds(node, rebuild) {
-                Ok(()) => {
-                    let rebuild = match rebuild {
-                        HoverBoxRebuild::GainsABox { parent } => super::TickRebuild::Insert { parent },
-                        HoverBoxRebuild::LosesItsBox { parent } => super::TickRebuild::TakeAway { parent },
-                        HoverBoxRebuild::BoxesMove => super::TickRebuild::Again,
-                    };
-                    super::mark_for_tree_build(state, node, rebuild, &animated, &mut self.ticked)
-                        .map_err(|super::Park(reason)| reason)
-                }
-                Err(_) => Err("boxes only the host builds"),
-            };
-            if let Err(reason) = marked {
+            if state.engine_mut().show_boxes_a_hover_builds(node, rebuild).is_err() {
                 if logs_hover() {
                     eprintln!(
-                        "hover lane: boxes of style node {} left to the host: {reason}",
+                        "{} hover lane: boxes of style node {} left to the host: boxes only the host builds",
+                        log_time(),
                         node.raw()
                     );
                 }
                 self.parked = true;
                 return Err(HoverDeclined::Park("a box the host builds"));
             }
+            let (root, rebuild) = match rebuild {
+                HoverBoxRebuild::GainsABox { parent } => (node, super::TickRebuild::Insert { parent }),
+                HoverBoxRebuild::LosesItsBox { parent } => (node, super::TickRebuild::TakeAway { parent }),
+                HoverBoxRebuild::BoxesMove => (node, super::TickRebuild::Again),
+                // The parent's box lays its children out in other runs, which only a build of them all makes.
+                HoverBoxRebuild::PlaceMoves { parent } => (parent, super::TickRebuild::Again),
+            };
+            marks.push((root, rebuild));
         }
-        // A transition the hover cannot show as it starts is the host's, with the move that starts it.
-        if started_transitions && let Err(super::Park(reason)) = self.sample_started_transitions(state, timestamp) {
+        let builds_boxes = !marks.is_empty();
+        let marked = self.mark_all_for_tree_build(state, marks);
+        if let Err(super::Park(reason)) = marked {
             if logs_hover() {
-                eprintln!("hover lane: transitions left to the host: {reason}");
+                eprintln!("{} hover lane: boxes left to the host: {reason}", log_time());
+            }
+            self.parked = true;
+            return Err(HoverDeclined::Park("a box the host builds"));
+        }
+        // A transition the hover cannot show as it starts is the host's, with the move that starts it. A move that builds
+        // boxes again shows its transitions once the tick built them.
+        if started_transitions
+            && !builds_boxes
+            && let Err(super::Park(reason)) = self.sample_started_transitions(state, timestamp)
+        {
+            if logs_hover() {
+                eprintln!("{} hover lane: transitions left to the host: {reason}", log_time());
             }
             self.parked = true;
             return Err(HoverDeclined::Park(reason));

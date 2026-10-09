@@ -1016,6 +1016,13 @@ impl LayoutNodeArena {
         }
     }
 
+    /// A snapshot of every row's visual context node handles, as they are now, which later writes leave as it is.
+    pub(crate) fn visual_context_node_handles_snapshot(
+        &self,
+    ) -> crate::cow_column::ColumnSnapshot<Option<Arc<BoxVisualContextNodeHandles>>, PAINTABLE_SLOTS_PER_CHUNK> {
+        self.paintable_rows.visual_context_node_handles.borrow_mut().publish()
+    }
+
     /// A row's visual context node handles, if it has a visual context record.
     pub(crate) fn paintable_visual_context_node_handles(
         &self,
@@ -1028,6 +1035,14 @@ impl LayoutNodeArena {
             column.get(id.slot_index() as usize).and_then(Option::as_deref)
         })
         .ok()
+    }
+
+    /// The effect and spatial nodes of the box `id`, which compositor animations of their kinds drive.
+    pub(crate) fn box_animation_nodes(&self, id: NodeSlotId) -> BoxAnimationNodes {
+        self.with_paintable_visual_context_node_handles(id, |handles| BoxAnimationNodes {
+            effects: handles.effects.iter().map(|index| index.0).collect(),
+            spatial: handles.spatial.iter().map(|index| index.0).collect(),
+        })
     }
 
     pub(crate) fn with_paintable_visual_context_node_handles<R>(
@@ -1278,5 +1293,23 @@ pub(crate) fn with_inline_pieces(
         if !callback(piece, data) {
             return;
         }
+    }
+}
+
+/// The effect and spatial nodes of a box, which compositor animations of their kinds drive.
+pub(crate) struct BoxAnimationNodes {
+    pub(crate) effects: smallvec::SmallVec<[u32; 2]>,
+    pub(crate) spatial: smallvec::SmallVec<[u32; 2]>,
+}
+
+impl BoxAnimationNodes {
+    /// Whether `animation` drives a node of the box: a transform animation one of its spatial nodes, any other one of
+    /// its effect nodes.
+    pub(crate) fn driven_by(&self, animation: &crate::painting::visual_animation::VisualAnimation) -> bool {
+        let nodes = match animation.target_kind {
+            crate::painting::host::FfiVisualAnimationTargetKind::Transform => &self.spatial,
+            _ => &self.effects,
+        };
+        animation.node_indices.iter().any(|node| nodes.contains(node))
     }
 }

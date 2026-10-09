@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); transition: width 100s linear; }
+    #box:hover { width: 200px; transition: none; }
+</style>
+<div id="box"></div>
+<div id="other" style="height: 100px"></div>
+<script>
+    // Hovers beside the task into a box and out of it again start the transition of the leave, which the render clock
+    // shows. The main thread, which never saw the box hovered, runs the transition on from when the hover started it.
+    asyncTest(async done => {
+        let runs = 0;
+        box.addEventListener("transitionrun", () => ++runs);
+        let leftAt;
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            leftAt = frameTime + 32;
+            internals.injectHoverPointer(50, 150, leftAt);
+            internals.injectClockTick(leftAt + 50000);
+            return {
+                width: internals.presentedBorderBox(box)?.width ?? "none",
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`width halfway through the transition of the leave: ${result.width}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        await twoFrames();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        const transitions = box.getAnimations();
+        println(`transitions once the main thread took over: ${transitions.length}`);
+        for (const transition of transitions)
+            println(`transition starts as the box was left: ${Math.abs(transition.startTime - leftAt) < 0.001}`);
+        await twoFrames();
+        println(`transitionrun events: ${runs}`);
+        done();
+    });
+</script>

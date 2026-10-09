@@ -2044,17 +2044,56 @@ impl RetainedState {
     }
 
     /// Whether moving an element from the `old` record to the `new` one moves the `animation-*`
-    /// longhands declaring its CSS animations. Every such longhand is in the animation group; a
-    /// group that moved with only transitions in it decides a plan that changes nothing.
+    /// longhands declaring its CSS animations, or the timelines they name. Every such longhand is
+    /// in the animation group, beside the `transition-*` ones: a group that moved with only
+    /// transitions in it decides a plan that changes nothing.
     fn animation_declarations_moved(&self, old: u64, new: u64) -> bool {
+        use crate::css::computed_value_types::{AnimationValues, ComputedStyleValueHandle};
         use crate::css::table_group_builder::group_index::ANIMATION;
+        if old == new {
+            return false;
+        }
         let animation_group = |record| {
             self.computed_group_sets
                 .style_record_payloads(record)
                 .and_then(|payloads| payloads.get(ANIMATION))
                 .map(|payload| payload.as_ptr())
         };
-        old != new && animation_group(old) != animation_group(new)
+        let (old_group, new_group) = (animation_group(old), animation_group(new));
+        if old_group == new_group {
+            return false;
+        }
+        let (Some(old_group), Some(new_group)) = (old_group, new_group) else {
+            return true;
+        };
+        // SAFETY: A live record's animation group payload is an `AnimationValues`.
+        let (old_values, new_values) = unsafe {
+            (
+                &*old_group.cast::<AnimationValues>(),
+                &*new_group.cast::<AnimationValues>(),
+            )
+        };
+        fn declarations(values: &AnimationValues) -> [&ComputedStyleValueHandle; 16] {
+            [
+                &values.animation_name,
+                &values.animation_composition,
+                &values.animation_delay,
+                &values.animation_direction,
+                &values.animation_duration,
+                &values.animation_fill_mode,
+                &values.animation_iteration_count,
+                &values.animation_play_state,
+                &values.animation_timeline,
+                &values.animation_timing_function,
+                &values.scroll_timeline_name,
+                &values.scroll_timeline_axis,
+                &values.timeline_scope,
+                &values.view_timeline_name,
+                &values.view_timeline_axis,
+                &values.view_timeline_inset,
+            ]
+        }
+        declarations(old_values) != declarations(new_values)
     }
 
     /// Whether the host composes animations over a record, which the engine cannot drive from: a

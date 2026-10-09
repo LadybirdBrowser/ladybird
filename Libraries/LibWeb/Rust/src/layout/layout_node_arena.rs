@@ -2497,13 +2497,83 @@ impl LayoutNodeArena {
     /// [`Self::install_sample`] would. A box the host styles in a way of its own shows no sample, and neither does one
     /// whose sample moves the style of an anonymous box: its layout node would have to hear of a style no host reads.
     pub(crate) fn takes_sample(&self, row: NodeSlotId, sample: &DerivedStyleRecord, kind: SampleKind) -> bool {
+        self.takes_sample_beside_anonymous_boxes(row, kind)
+            && !self.sample_moves_anonymous_box_style(row, sample.payloads)
+    }
+
+    /// Whether the box `row` shows a sample of `kind` of the effects of its element where the anonymous boxes below it
+    /// show what they inherit of the sample beside it (see [`Self::anonymous_child_samples`]). A table box shows none,
+    /// as its table wrapper takes properties of its own from it.
+    pub(crate) fn takes_sample_beside_anonymous_boxes(&self, row: NodeSlotId, kind: SampleKind) -> bool {
+        let parent = self.data(row).parent.get();
         matches!(
             self.data(row).kind.get(),
             NodeKind::Box | NodeKind::BlockContainer | NodeKind::InlineNode
         ) && self.style_record_pins[row.slot_index() as usize].get() != ArenaStylePin::Derived
             && (kind == SampleKind::Transition || self.node_style_record_pinned_by_host(row) == 0)
             && self.node_style_node(row).is_some()
-            && !self.sample_moves_anonymous_box_style(row, sample.payloads)
+            && (parent.is_invalid() || self.data(parent).kind.get() != NodeKind::TableWrapper)
+    }
+
+    /// The anonymous boxes below the box `row` that inherit what they show from it, as the host reinherits them (see
+    /// [`Self::reinherit_anonymous_descendants`]): the anonymous wrappers among its children, and theirs.
+    pub(crate) fn anonymous_descendants(&self, row: NodeSlotId) -> smallvec::SmallVec<[NodeSlotId; 2]> {
+        let mut descendants = smallvec::SmallVec::new();
+        let mut parents: smallvec::SmallVec<[NodeSlotId; 2]> = smallvec::smallvec![row];
+        while let Some(parent) = parents.pop() {
+            let mut child = self.data(parent).first_child.get();
+            while !child.is_invalid() {
+                let flags = self.data(child).flags.get();
+                if flags & NodeFlag::Anonymous as u32 != 0 && flags & NodeFlag::HasStyle as u32 != 0 {
+                    descendants.push(child);
+                    parents.push(child);
+                }
+                child = self.data(child).next_sibling.get();
+            }
+        }
+        descendants
+    }
+
+    /// What the anonymous boxes below the box `row` show where it shows `sample`: each inherits what it inherits of
+    /// its parent's again over `host_record` of it, the record the host installed in it. Answers none where one of
+    /// them follows a pseudo-element or styles a table wrapper, which only the host restyles.
+    pub(crate) fn anonymous_child_samples(
+        &self,
+        row: NodeSlotId,
+        sample: &DerivedStyleRecord,
+        host_record: impl Fn(NodeSlotId) -> u64,
+    ) -> Option<smallvec::SmallVec<[(NodeSlotId, DerivedStyleRecord); 2]>> {
+        let mut samples: smallvec::SmallVec<[(NodeSlotId, DerivedStyleRecord); 2]> = smallvec::SmallVec::new();
+        let mut parents: smallvec::SmallVec<[(NodeSlotId, u64); 2]> = smallvec::smallvec![(row, sample.record)];
+        while let Some((parent, parent_record)) = parents.pop() {
+            let mut child = self.data(parent).first_child.get();
+            while !child.is_invalid() {
+                let data = self.data(child);
+                let flags = data.flags.get();
+                if flags & NodeFlag::Anonymous as u32 != 0 && flags & NodeFlag::HasStyle as u32 != 0 {
+                    let wraps = matches!(data.kind.get(), NodeKind::BlockContainer | NodeKind::InlineNode)
+                        && flags & NodeFlag::IsPseudoElementPrincipalBox as u32 == 0
+                        && data.generated_for.get() == 0
+                        && matches!(
+                            self.style_record_pins[child.slot_index() as usize].get(),
+                            ArenaStylePin::Derived | ArenaStylePin::Sampled
+                        );
+                    if !wraps {
+                        self.with_style_engine(|engine| {
+                            for (_, sample) in &samples {
+                                engine.unpin_layout_style_record(sample.record);
+                            }
+                        });
+                        return None;
+                    }
+                    let derived = self.reinherit_anonymous_style_record(host_record(child), parent_record);
+                    parents.push((child, derived.record));
+                    samples.push((child, derived));
+                }
+                child = self.data(child).next_sibling.get();
+            }
+        }
+        Some(samples)
     }
 
     /// Shows `sample`, a sample of `kind` of the effects of the element whose box `row` is, in the box in place of the
@@ -2520,6 +2590,18 @@ impl LayoutNodeArena {
             self.with_style_engine(|engine| engine.unpin_layout_style_record(sample.record));
             return Err(NeedsHost);
         }
+        Ok(self.install_sample_beside_anonymous_boxes(row, sample))
+    }
+
+    /// Shows `sample` in the box `row`, which [`Self::takes_sample_beside_anonymous_boxes`] answers for, or in one of
+    /// the anonymous boxes below such a box, which shows what it inherits of the sample (see
+    /// [`Self::anonymous_child_samples`]), in place of the record the host installed. Answers the host's style where
+    /// the box held it, or nothing where it held a sample already, which `sample` replaces.
+    pub(crate) fn install_sample_beside_anonymous_boxes(
+        &self,
+        row: NodeSlotId,
+        sample: DerivedStyleRecord,
+    ) -> Option<HostStyle> {
         let index = row.slot_index() as usize;
         let host_style = match self.style_record_pins[index].get() {
             ArenaStylePin::Sampled => {
@@ -2534,7 +2616,7 @@ impl LayoutNodeArena {
         };
         self.style_record_pins[index].set(ArenaStylePin::Sampled);
         self.show_style(row, self.node_style_node(row), sample);
-        Ok(host_style)
+        host_style
     }
 
     /// Whether showing a style with `payloads` in `row` moves the style of an anonymous box: the table wrapper's, which
@@ -2553,6 +2635,19 @@ impl LayoutNodeArena {
             child = self.data(child).next_sibling.get();
         }
         false
+    }
+
+    /// Whether the style the box `row` shows differs from the record `host_record`, which the host installed for it, in
+    /// what its children inherit.
+    pub(crate) fn shows_other_inherited_style_than(&self, row: NodeSlotId, host_record: u64) -> bool {
+        let Some(host_payloads) = self.with_style_engine(|engine| {
+            engine
+                .style_record_payloads(host_record)
+                .map(|payloads| StylePayloadsRef::new(payloads.as_ptr().cast()))
+        }) else {
+            return true;
+        };
+        !style_payloads_equal_in_inherited_groups(self.data(row).style.get(), host_payloads)
     }
 
     /// Gives `row` back the style the host installed for it, which a clock tick took to show a sample in its place.
@@ -5222,6 +5317,14 @@ impl LayoutNodeArena {
             .get(&node)
             .copied()
             .filter(|&inline_box| self.slot_is_live(inline_box))
+    }
+
+    /// The live node in the slot at `index`, if there is one.
+    pub(crate) fn live_slot_at(&self, index: u32) -> Option<NodeSlotId> {
+        self.slot_metadata
+            .get(index as usize)
+            .filter(|metadata| metadata.occupied)
+            .map(|metadata| NodeSlotId::new(index, metadata.generation))
     }
 
     pub(crate) fn slot_is_live(&self, id: NodeSlotId) -> bool {

@@ -1,0 +1,4 @@
+box opacity on screen after the second move: 0.5
+last frame presented by: clock
+transitions once the main thread took over: 1
+transition starts at the first step beside the task: true

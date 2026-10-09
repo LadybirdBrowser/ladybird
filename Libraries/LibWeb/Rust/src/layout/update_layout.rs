@@ -486,15 +486,8 @@ impl ClockRound {
         state: &mut ArenaHandle,
         owed: &'a mut Vec<LayoutRoundAnswer>,
     ) -> Result<Option<&'a LayoutRoundAnswer>, ClockRoundDeclined> {
-        let arena = state.arena();
-        if arena.layout_root().is_invalid() || arena.needs_full_layout_tree_update() {
-            return Err(ClockRoundDeclined("the layout tree needs the host's update"));
-        }
-        let build = arena
-            .document_style_node()
-            .filter(|&document| arena.layout_tree_update_marks().borrow().child_needs(document))
-            .map(|document| TreeBuildJob::new(document, None));
-        if build.is_none() && arena.layout_is_up_to_date(false) {
+        let build = Self::marked_build(state.arena())?;
+        if build.is_none() && state.arena().layout_is_up_to_date(false) {
             return Ok(None);
         }
         let answer = LayoutRoundJob {
@@ -523,6 +516,75 @@ impl ClockRound {
         match declined {
             Some(reason) => Err(ClockRoundDeclined(reason)),
             None => Ok(owed.last()),
+        }
+    }
+}
+
+impl ClockRound {
+    /// The build of what the clock frame marked, where it marked anything. A tree that needs the host's update declines.
+    fn marked_build(arena: &LayoutNodeArena) -> Result<Option<TreeBuildJob>, ClockRoundDeclined> {
+        if arena.layout_root().is_invalid() || arena.needs_full_layout_tree_update() {
+            return Err(ClockRoundDeclined("the layout tree needs the host's update"));
+        }
+        Ok(arena
+            .document_style_node()
+            .filter(|&document| arena.layout_tree_update_marks().borrow().child_needs(document))
+            .map(|document| TreeBuildJob::new(document, None)))
+    }
+
+    /// Builds again what the clock frame marked, and lays out nothing: the next round lays out what the build moved,
+    /// over whatever a tick shows in the boxes it built meanwhile. Pushes what the build owes the host to `owed`, and
+    /// answers whether it built anything. A build that needs the host declines, as in [`Self::run`].
+    pub(crate) fn build(
+        &self,
+        state: &mut ArenaHandle,
+        owed: &mut Vec<LayoutRoundAnswer>,
+    ) -> Result<bool, ClockRoundDeclined> {
+        let Some(build) = Self::marked_build(state.arena())? else {
+            return Ok(false);
+        };
+        let arena = state.arena();
+        if build.lacks_document_style(arena) {
+            return Err(ClockRoundDeclined("a build that needs the document's style"));
+        }
+        // The round cannot call the host, which hears of the boxes nodes gain and lose once it is over.
+        arena.queue_box_presence();
+        let mut answer = LayoutRoundAnswer {
+            build: None,
+            work: HostWorkDue::default(),
+            commits: Vec::new(),
+            end: LayoutRoundEnd::Built {
+                needs_another_build_pass: false,
+                layout: RoundLayout::PartialIfPlanned,
+            },
+            rebuilt_roots: Vec::new(),
+            owed_images: Vec::new(),
+            clamped_scroll_offsets: Vec::new(),
+        };
+        let work = OwedHostWork::default();
+        let end = LayoutRoundJob::build(
+            state,
+            build,
+            &work,
+            &mut answer,
+            self.facts.has_stale_list_item_counters,
+        );
+        let arena = state.arena();
+        answer.work = work.resolve(arena);
+        answer.owed_images = OwedImage::take_from(arena);
+        // A box the build gave an image has none until the host attaches it.
+        let declined = match end {
+            BuildEnd::AnotherPass => Some("a build that asks for another pass"),
+            BuildEnd::ReconcileCounters => Some("a build that reconciles list item counters"),
+            BuildEnd::LayOut if answer.owed_images.iter().any(|image| image.is_shown(arena)) => {
+                Some("a box the build owes an image")
+            }
+            BuildEnd::LayOut => None,
+        };
+        owed.push(answer);
+        match declined {
+            Some(reason) => Err(ClockRoundDeclined(reason)),
+            None => Ok(true),
         }
     }
 }

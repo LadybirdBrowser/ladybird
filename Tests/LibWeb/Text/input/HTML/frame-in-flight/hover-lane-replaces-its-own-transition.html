@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #outer { padding-left: 200px; height: 100px; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); transition: width 100s linear; }
+    #outer:hover #box { width: 200px; }
+    #outer #box:hover { width: 300px; }
+</style>
+<div id="outer"><div id="box"></div></div>
+<script>
+    // A hover beside the task that moves a box to another width halfway through the transition a hover beside the same
+    // task started replaces the transition with one from where it stands, as the render clock ticks.
+    asyncTest(async done => {
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            const movedAt = frameTime + 16 + 50000;
+            internals.injectHoverPointer(250, 50, movedAt);
+            internals.injectClockTick(movedAt + 50000);
+            return {
+                width: internals.presentedBorderBox(box)?.width ?? "none",
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`width halfway through the new transition: ${result.width}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        await nextFrame();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        println(`transitions once the main thread took over: ${box.getAnimations().length}`);
+        done();
+    });
+</script>

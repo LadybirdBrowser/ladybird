@@ -1,0 +1,3 @@
+compositor animations of the box as the hover starts its transition: 0
+box opacity halfway through: 0.4000000059604645
+last frame presented by: clock

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); transition: width 100s linear; }
+    #box:hover { width: 200px; }
+</style>
+<div id="box"></div>
+<div id="other" style="height: 100px"></div>
+<script>
+    // A hover beside the task that leaves a box halfway through the transition a hover beside the same task started
+    // reverses the transition from where it stands, as the render clock ticks.
+    asyncTest(async done => {
+        let leftAt;
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            leftAt = frameTime + 16 + 50000;
+            internals.injectHoverPointer(50, 150, leftAt);
+            internals.injectClockTick(leftAt + 12500);
+            return {
+                width: internals.presentedBorderBox(box)?.width ?? "none",
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`width a quarter into the reversal: ${result.width}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        await nextFrame();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        const transitions = box.getAnimations();
+        println(`transitions once the main thread took over: ${transitions.length}`);
+        for (const transition of transitions) {
+            println(`transition starts as the box was left: ${Math.abs(transition.startTime - leftAt) < 0.001}`);
+            println(`transition duration: ${Math.round(transition.effect.getComputedTiming().duration)}`);
+        }
+        done();
+    });
+</script>

@@ -1,0 +1,2 @@
+detail color halfway through: rgb(100, 0, 0)
+last frame presented by: clock

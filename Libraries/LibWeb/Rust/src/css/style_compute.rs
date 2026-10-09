@@ -5390,6 +5390,8 @@ pub struct FfiEffectTiming {
     pub timeline_scroller: i64,
     pub has_start_time: bool,
     pub has_hold_time: bool,
+    /// The effect's animation is paused, which holds its time, as one whose play is pending does too.
+    pub paused: bool,
     /// `Bindings::FillMode`, in IDL order.
     pub fill_mode: u8,
     /// `Bindings::PlaybackDirection`, in IDL order.

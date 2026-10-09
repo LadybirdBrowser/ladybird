@@ -1,0 +1,6 @@
+width halfway through the transition of the leave: 150
+last frame presented by: clock
+box matches :hover: false
+transitions once the main thread took over: 1
+transition starts as the box was left: true
+transitionrun events: 1

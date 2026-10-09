@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; color: rgb(0, 0, 0); background-color: rgb(0, 0, 255); transition: background-color 100s linear; }
+    #box.green { background-color: rgb(0, 128, 0); }
+    #box:hover { color: rgb(200, 0, 0); transition: color 100s linear, background-color 100s linear; }
+</style>
+<div id="box"></div>
+<script>
+    // A hover beside the task starts a transition of color, and the task then starts a transition of another property
+    // on the same element. The rendering update after the task runs the hover's transition on from when the lane
+    // started it, beside the task's.
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        await twoFrames();
+        let laneStart;
+        await whileLaneHovers(frameTime => {
+            laneStart = frameTime + 1;
+            internals.injectHoverPointer(50, 50, laneStart, 1);
+            box.classList.add("green");
+            getComputedStyle(box).backgroundColor;
+            while (performance.now() < laneStart + 50) { }
+        });
+        await twoFrames();
+        const color = box.getAnimations().find(animation => animation.transitionProperty === "color");
+        const background = box.getAnimations().find(animation => animation.transitionProperty === "background-color");
+        println(`the color transition runs: ${color !== undefined}`);
+        println(`it runs from when the lane started it: ${color !== undefined && Math.abs(color.startTime - laneStart) < 1}`);
+        println(`the background-color transition runs: ${background !== undefined}`);
+        done();
+    });
+</script>

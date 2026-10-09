@@ -10,9 +10,13 @@
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/Layout/NodeArena.h>
+#include <LibWeb/StyleEngineRustFFI.h>
+#include <LibWeb/StyleValueRustFFI.h>
 
 namespace Web::CSS {
 
@@ -170,6 +174,107 @@ void CSSTransition::discard_provisional_transition()
     set_timeline({});
     discard_provisional_effect();
     m_is_provisional = false;
+}
+
+// The identity the style engine describes the effect of `transition` by, or 0.
+static u64 effect_identity(CSSTransition const& transition)
+{
+    auto effect = transition.effect();
+    if (!effect || !effect->is_keyframe_effect())
+        return 0;
+    return static_cast<Animations::KeyframeEffect const&>(*effect).animation_preparation_identity();
+}
+
+void CSSTransition::adopt_lane_transitions(DOM::Document& document)
+{
+    auto* arena = document.layout_node_arena_if_created();
+    if (!arena)
+        return;
+    auto& style_computer = document.style_computer();
+    auto adopt_value = [](StyleValueFFI::StyleValueData const* value) {
+        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(value));
+    };
+    auto adopt = [&](u32 style_node, ReadonlySpan<u64> cancelled, ReadonlySpan<u64> seen, ReadonlySpan<StyleValueFFI::FfiLaneTransition> lane_transitions) {
+        auto element = style_computer.element_for_lane_style_node(StyleNodeID { style_node });
+        if (!element || !element->is_connected())
+            return;
+        // A transition the lane started that the host took in already runs from when the lane started it.
+        auto runs_as_lane_does = [&](CSSTransition const& transition, PropertyID property_id) {
+            return any_of(lane_transitions, [&](auto const& lane_transition) {
+                if (lane_transition.property_id != to_underlying(property_id))
+                    return false;
+                if (lane_transition.host_identity != 0)
+                    return lane_transition.host_identity == effect_identity(transition);
+                return transition.m_adopted_from_lane && transition.transition_start_time() == lane_transition.start_time + lane_transition.delay;
+            });
+        };
+        // The transitions of the host's the lane's steps ended as they ran end as they did, and so does one the lane
+        // started that the host took in and the lane no longer runs. One the steps saw end by itself ends as it does,
+        // with its events. One the host started since the lane forked is its own: the lane decided nothing over it, and
+        // the host decides what becomes of it, and of its property, in its turn. So does one script finished meanwhile.
+        Vector<GC::Ref<CSSTransition>> ended;
+        Vector<PropertyID> host_decides;
+        if (auto const* existing = element->existing_transitions({})) {
+            for (auto const& [property_id, transition] : *existing) {
+                if (transition->is_idle() || transition->is_finished() || runs_as_lane_does(transition, property_id))
+                    continue;
+                auto identity = effect_identity(transition);
+                if (cancelled.contains_slow(identity)) {
+                    ended.append(transition);
+                } else if (seen.contains_slow(identity)) {
+                    continue;
+                } else if (transition->m_adopted_from_lane) {
+                    ended.append(transition);
+                } else {
+                    host_decides.append(property_id);
+                }
+            }
+        }
+        for (auto& transition : ended) {
+            transition->cancel();
+            element->remove_transition({}, transition->m_transition_property);
+        }
+        // A transition of the host's whose play is still pending runs from when the lane took it to start.
+        for (auto const& lane_transition : lane_transitions) {
+            if (lane_transition.host_identity == 0)
+                continue;
+            auto transition = element->property_transition({}, static_cast<PropertyID>(lane_transition.property_id));
+            if (transition && effect_identity(*transition) == lane_transition.host_identity && !transition->start_time().has_value()
+                && transition->pending() && transition->play_state() != Bindings::AnimationPlayState::Paused)
+                (void)transition->set_start_time_for_bindings(Animations::NullableCSSNumberish { lane_transition.start_time });
+        }
+        for (auto const& lane_transition : lane_transitions) {
+            if (lane_transition.host_identity != 0)
+                continue;
+            auto property_id = static_cast<PropertyID>(lane_transition.property_id);
+            if (host_decides.contains_slow(property_id))
+                continue;
+            if (auto current = element->property_transition({}, property_id)) {
+                if (runs_as_lane_does(*current, property_id))
+                    continue;
+                // A completed transition of the property gives way to the one the lane started. One the lane saw end,
+                // which the host's timeline has yet to reach, ends now.
+                if (!current->is_idle() && !current->is_finished())
+                    (void)current->finish();
+                element->remove_transition({}, property_id);
+            }
+            auto transition = start_a_provisional_transition(*element, property_id, document.transition_generation(),
+                lane_transition.delay, lane_transition.start_time, lane_transition.start_time + lane_transition.duration,
+                adopt_value(lane_transition.start_value), adopt_value(lane_transition.end_value), adopt_value(lane_transition.reversing_adjusted_start_value),
+                lane_transition.reversing_shortening_factor, EasingFunction::from_style_value(adopt_value(lane_transition.timing_function)));
+            transition->commit_provisional_transition();
+            transition->m_adopted_from_lane = true;
+            (void)transition->set_start_time_for_bindings(Animations::NullableCSSNumberish { lane_transition.start_time });
+        }
+    };
+    // Starting and cancelling transitions settles their promises in the document's realm. The rendering update runs
+    // their reactions once every document took in what its lanes did.
+    HTML::TemporaryExecutionContext execution_context { document.relevant_settings_object() };
+    StyleEngineFFI::style_engine_adopt_lane_transitions(
+        arena->host(), &adopt,
+        [](void* context, u32 style_node, u64 const* cancelled, size_t cancelled_count, u64 const* seen, size_t seen_count, StyleValueFFI::FfiLaneTransition const* transitions, size_t transition_count) {
+            (*static_cast<decltype(adopt)*>(context))(style_node, { cancelled, cancelled_count }, { seen, seen_count }, { transitions, transition_count });
+        });
 }
 
 void CSSTransition::visit_edges(Cell::Visitor& visitor)

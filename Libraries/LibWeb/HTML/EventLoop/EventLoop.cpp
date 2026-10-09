@@ -14,6 +14,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Animations/ScrollTimeline.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
@@ -686,6 +687,8 @@ void EventLoop::update_the_rendering()
     //         compositor told of: the move is the document's from now on, ahead of the input events that hover what is
     //         under the pointer as the host sees it. The lanes present nothing until the update's frame, which shows
     //         what the update took in, so the screen never goes back from what a lane showed.
+    //         The transitions the lanes' hover left elements running run on from when the lanes started them, in place
+    //         of those its steps ended, ahead of the update's own style changes.
     //         A lane presents frames of a fork of the document's render state, which the host's state never held: the
     //         update records and presents the host's frame again.
     bool tick_presented = false;
@@ -710,6 +713,13 @@ void EventLoop::update_the_rendering()
     }
     if (tick_presented)
         m_last_render_opportunity_time = max(m_last_render_opportunity_time, HighResolutionTime::unsafe_shared_current_time());
+    if (!documents_with_lanes.is_empty()) {
+        // Starting and cancelling transitions settles their promises, which a rendering update runs without a script:
+        // their reactions run once every document took in what its lanes did.
+        HTML::TemporaryExecutionContext execution_context { documents_with_lanes.first()->relevant_settings_object() };
+        for (auto& document : documents_with_lanes)
+            CSS::CSSTransition::adopt_lane_transitions(*document);
+    }
 
     process_input_events();
 

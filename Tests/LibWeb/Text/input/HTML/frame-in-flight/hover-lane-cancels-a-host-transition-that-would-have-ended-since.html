@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background-color: rgb(0, 0, 255); transition: background-color 10ms linear; }
+    #box.green { background-color: rgb(0, 128, 0); }
+    #box:hover { background-color: rgb(200, 0, 0); transition: none; }
+</style>
+<div id="box"></div>
+<script>
+    // The host starts a short transition, and a hover beside a task cancels it while it runs. The task runs on past the
+    // time the transition would have ended. The rendering update after the task cancels the transition, as the hover
+    // did, rather than let it end.
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        await twoFrames();
+        const events = [];
+        for (const type of ["transitionend", "transitioncancel"])
+            box.addEventListener(type, event => events.push(`${event.type} ${event.propertyName}`));
+        // The rendering update that the lane follows starts the short transition.
+        box.classList.add("green");
+        await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 1, 1);
+            while (performance.now() < frameTime + 50) { }
+        });
+        await twoFrames();
+        println(`transition events: ${events.join(", ")}`);
+        println(`#box matches :hover: ${box.matches(":hover")}`);
+        done();
+    });
+</script>

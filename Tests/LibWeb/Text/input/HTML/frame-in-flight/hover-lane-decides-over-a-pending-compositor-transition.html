@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); opacity: 1; transition: opacity 50ms linear; }
+    #box.faded { opacity: 0.2; }
+    #box.faded:hover { opacity: 0.6; transition: opacity 100s linear; }
+</style>
+<div id="box"></div>
+<script>
+    // A rendering update starts a transition of opacity, whose play stays pending as the compositor runs it from the
+    // time of the style change event, and no rendering update follows before it ends. A hover beside the task then
+    // starts a transition of opacity from where the compositor showed the box, at the end of the first one.
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        await twoFrames();
+        box.classList.add("faded");
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 200);
+            internals.injectClockTick(frameTime + 200 + 50000);
+            return {
+                opacity: internals.presentedOpacity(box),
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`box opacity halfway through: ${result.opacity}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        done();
+    });
+</script>

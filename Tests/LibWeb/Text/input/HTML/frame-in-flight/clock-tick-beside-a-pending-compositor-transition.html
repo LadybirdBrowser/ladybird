@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #drawer {
+        width: 0;
+        height: 10px;
+        background: green;
+        transition: width 1000ms linear;
+    }
+    #drawer.open {
+        width: 100px;
+    }
+    #fader {
+        width: 10px;
+        height: 10px;
+        background: blue;
+        opacity: 0.5;
+        transition: opacity 1000ms linear;
+    }
+    #fader.open {
+        opacity: 1;
+    }
+</style>
+<div id="drawer"></div>
+<div id="fader"></div>
+<script>
+    // A rendering update starts a transition of width and one of opacity, which the compositor runs and whose play
+    // stays pending past the update. The render clock still moves the drawer beside the task after it.
+    asyncTest(async done => {
+        await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        await document.fonts.ready;
+        internals.setManualRenderingOpportunities(true);
+        try {
+            await nextTask();
+            drawer.classList.add("open");
+            fader.classList.add("open");
+            const frameTime = performance.now();
+            internals.injectRenderingOpportunity(frameTime);
+            do await nextTask();
+            while (internals.frameSchedulerState() !== "idle");
+            const fade = fader.getAnimations()[0];
+            const fadePending = fade.pending;
+            internals.injectClockTick(frameTime + 250);
+            const lane = internals.clockLaneState(document);
+            const presentedBy = internals.lastFramePresentedBy(document);
+            const presented = internals.presentedBorderBox(drawer);
+            const transition = drawer.getAnimations()[0];
+            const expectedWidth = (frameTime + 250 - transition.startTime) / 10;
+            println(`the opacity transition's play was pending: ${fadePending}`);
+            println(`lane after the tick: ${lane}`);
+            println(`last frame presented by: ${presentedBy}`);
+            println(`the presented width is the transition's at the tick: ${presented !== null && Math.abs(presented.width - expectedWidth) < 0.02}`);
+        } finally {
+            internals.setManualRenderingOpportunities(false);
+        }
+        done();
+    });
+</script>

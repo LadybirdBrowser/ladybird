@@ -1,0 +1,3 @@
+item color halfway through: rgb(128, 0, 128)
+item color once hovered: no sample, its own
+last frame presented by: clock

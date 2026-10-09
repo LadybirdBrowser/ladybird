@@ -1,0 +1,1 @@
+the opacity transition is paused: true
