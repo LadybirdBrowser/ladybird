@@ -1,14 +1,28 @@
-<!DOCTYPE html>
+<!doctype html>
 <script src="../include.js"></script>
+<script src="frame-in-flight/frame-in-flight.js"></script>
 <video id="video" muted loop></video>
 <script>
     const video = document.getElementById("video");
+
+    async function committedFrame() {
+        internals.setManualRenderingOpportunities(true);
+        try {
+            const frame = animationFrame();
+            internals.injectRenderingOpportunity(performance.now());
+            await frame;
+            do await nextTask();
+            while (internals.frameSchedulerState() !== "idle" || internals.clockLaneIsComing(document));
+        } finally {
+            internals.setManualRenderingOpportunities(false);
+        }
+    }
 
     asyncTest(async done => {
         video.src = "../../../Assets/test-webm.webm";
         await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
         await video.play();
-        await animationFrame();
+        await committedFrame();
         println(`ticking while visible: ${internals.mediaElementVideoSinkIsTicking(video)}`);
 
         await setSystemVisibilityState("hidden");
@@ -18,16 +32,21 @@
         const videoCreatedWhileHidden = document.createElement("video");
         videoCreatedWhileHidden.muted = true;
         videoCreatedWhileHidden.src = "../../../Assets/test-webm.webm";
-        await new Promise(resolve => videoCreatedWhileHidden.addEventListener("loadedmetadata", resolve, { once: true }));
-        println(`ticking for a sink created while hidden: ${internals.mediaElementVideoSinkIsTicking(videoCreatedWhileHidden)}`);
+        await new Promise(resolve =>
+            videoCreatedWhileHidden.addEventListener("loadedmetadata", resolve, { once: true })
+        );
+        println(
+            `ticking for a sink created while hidden: ${internals.mediaElementVideoSinkIsTicking(videoCreatedWhileHidden)}`
+        );
 
         video.getBoundingClientRect();
         await setSystemVisibilityState("visible");
         println(`ticking after becoming visible: ${internals.mediaElementVideoSinkIsTicking(video)}`);
         document.body.appendChild(videoCreatedWhileHidden);
-        await animationFrame();
-        await animationFrame();
-        println(`ticking for the late sink after two frames: ${internals.mediaElementVideoSinkIsTicking(videoCreatedWhileHidden)}`);
+        await committedFrame();
+        println(
+            `ticking for the late sink after a committed frame: ${internals.mediaElementVideoSinkIsTicking(videoCreatedWhileHidden)}`
+        );
         done();
     });
 </script>
