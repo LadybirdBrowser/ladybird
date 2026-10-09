@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 100px; }
+    #first:hover, #second:hover { background: rgb(0, 0, 255); }
+    html:has(#second:hover) { color: rgb(0, 128, 0); }
+</style>
+<div id="first"></div>
+<div id="second"></div>
+<script>
+    // The compositor told the render clock of a newer pointer move than a mouse move the main thread queued, which the
+    // hover of a lane leaves to the main thread, as it restyles the document element. The rendering update hovers where the newer move went, and drops the older move:
+    // neither the hover nor script ever sees the pointer where it was before.
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        const events = [];
+        for (const element of [first, second]) {
+            for (const type of ["mouseover", "mouseout", "mousemove"])
+                element.addEventListener(type, () => events.push(`${type} ${element.id}`));
+        }
+        await twoFrames();
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        const queued = internals.queueMouseMove(50, 50);
+        internals.moveHoverPointer(50, 150, queued + 1);
+        internals.setManualRenderingOpportunities(false);
+        await twoFrames();
+        println(`first matches :hover: ${first.matches(":hover")}`);
+        println(`second matches :hover: ${second.matches(":hover")}`);
+        println(`events: ${events.join(", ")}`);
+        done();
+    });
+</script>

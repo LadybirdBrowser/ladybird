@@ -293,9 +293,22 @@ void StyleComputer::unregister_style_node(StyleNodeID style_node_id)
     }
     if (index < m_element_style_nodes.size()) {
         m_element_style_nodes[index] = nullptr;
+        m_style_nodes_retired_beside_lanes.set(style_node_id);
         StyleEngineFFI::style_engine_consume_element_style_input(m_style_engine.host(), style_node_id);
         m_style_engine.note_style_node_arrived_or_retired(style_node_id);
     }
+}
+
+GC::Ptr<DOM::Node> StyleComputer::node_for_lane_style_node(StyleNodeID style_node_id) const
+{
+    if (m_style_nodes_retired_beside_lanes.contains(style_node_id))
+        return nullptr;
+    return node_for_style_node(style_node_id);
+}
+
+GC::Ptr<DOM::Element> StyleComputer::element_for_lane_style_node(StyleNodeID style_node_id) const
+{
+    return as_if<DOM::Element>(node_for_lane_style_node(style_node_id).ptr());
 }
 
 GC::Ptr<DOM::Element> StyleComputer::element_for_style_node(StyleNodeID style_node_id) const

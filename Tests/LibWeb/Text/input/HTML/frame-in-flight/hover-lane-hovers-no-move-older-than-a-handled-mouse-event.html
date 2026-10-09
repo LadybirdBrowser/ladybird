@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 50px; background-color: rgb(0, 0, 255); }
+    div:hover { background-color: rgb(0, 128, 0); }
+</style>
+<div id="a"></div>
+<div id="b"></div>
+<script>
+    // A rendering update handles a mouse move over #b. The render clock then hears of a move over #a that is older
+    // than it, which reached it late: no lane hovers it, and the hover stays on #b.
+    asyncTest(async done => {
+        const id = await whileLaneHovers(() => internals.queueMouseMove(50, 75));
+        await twoFrames();
+        println(`#b matches :hover once the update handled its move: ${b.matches(":hover")}`);
+        const presentedBy = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 25, frameTime + 16, id - 1);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`a tick presented the last frame: ${presentedBy === "clock"}`);
+        await twoFrames();
+        println(`#a matches :hover: ${a.matches(":hover")}`);
+        println(`#b matches :hover: ${b.matches(":hover")}`);
+        done();
+    });
+</script>

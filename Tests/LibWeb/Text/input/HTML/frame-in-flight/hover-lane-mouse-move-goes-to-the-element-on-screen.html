@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; display: flex; }
+    #a, #b { width: 100px; height: 100px; flex: none; }
+    #a:hover { width: 300px; }
+</style>
+<div id="a"></div><div id="b"></div>
+<script>
+    // A hover beside the task widens #a, and the pointer moves on over the widened #a. The rendering update after the
+    // task handles the mouse event of that move, which goes to #a, as the screen shows, though the update's own layout,
+    // which has not moved with the lane's hover, has #b under the pointer.
+    asyncTest(async done => {
+        const targets = [];
+        for (const element of [a, b])
+            element.addEventListener("mousemove", () => targets.push(element.id));
+        await whileLaneHovers(frameTime => {
+            const id = internals.queueMouseMove(150, 50);
+            internals.injectHoverPointer(50, 50, frameTime + 16, id - 1);
+            internals.injectHoverPointer(150, 50, frameTime + 32, id);
+        });
+        await twoFrames();
+        println(`mousemove targets: ${targets.join(", ")}`);
+        println(`#a matches :hover: ${a.matches(":hover")}`);
+        println(`#b matches :hover: ${b.matches(":hover")}`);
+        done();
+    });
+</script>

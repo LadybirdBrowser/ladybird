@@ -8,10 +8,11 @@
 <div id="box" style="width: 10px; height: 0px; background: green"></div>
 <div id="other"></div>
 <script>
-    // A task that begins while the last rendering update's layout is still being computed beside the event loop runs
-    // the page's animations: the update's last steps, which leave the plan for them, run before the task, rather than
-    // leave the animations still until a later task. Showing #other builds a box, which the update lays out beside the
-    // event loop only once its style has been computed.
+    // A task that begins while the last rendering update's layout is still being computed beside the event loop has the
+    // plan for the page's animations, which the update's last steps leave before the task. The lane presents nothing
+    // until the update's frame lands, which shows the animations as the update took the lanes in: no frame of the lane
+    // of the frame before goes on from there. Showing #other builds a box, which the update lays out beside the event
+    // loop only once its style has been computed.
     asyncTest(async done => {
         internals.setManualRenderingOpportunities(true);
         await nextTask();

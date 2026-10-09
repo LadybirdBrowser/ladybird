@@ -396,6 +396,32 @@ void EventLoop::process_input_events() const
                 continue;
             }
 
+            // AD-HOC: The screen showed the hover of a newer pointer move than a mouse event that reached the queue
+            //         before the task the hover of a clock lane took that move beside, which the host keeps where it
+            //         took in what the lanes did: the pointer never moves back to where the event says it was. A move
+            //         or leave is dropped, as the queue coalesces the moves it holds, and the newer move's own event
+            //         follows. Any other event is handled, without moving the hover or the pointer.
+            bool input_is_outdated = false;
+            if (auto const* mouse_event = event.event.get_pointer<Web::MouseEvent>()) {
+                auto document = root->active_document();
+                auto* arena = document ? document->layout_node_arena_if_created() : nullptr;
+                input_is_outdated = arena && Layout::RustFFI::document_host_mouse_event_is_outdated(arena->host(), mouse_event->id);
+                // A move with a button held is a drag's, whose script hears every move: it is handled, as outdated.
+                if (input_is_outdated && mouse_event->buttons == 0 && first_is_one_of(mouse_event->type, Web::MouseEvent::Type::MouseMove, Web::MouseEvent::Type::MouseLeave)) {
+                    for (auto coalesced_event_id : event.coalesced_event_ids)
+                        page_client.report_finished_handling_input_event(event.page_id, coalesced_event_id, EventResult::Dropped);
+                    page_client.report_finished_handling_input_event(event.page_id, mouse_event->id, EventResult::Dropped);
+                    continue;
+                }
+            }
+            root->event_handler().set_handling_outdated_input(input_is_outdated);
+            auto const* handled_mouse_event = event.event.get_pointer<Web::MouseEvent>();
+            root->event_handler().set_handling_input_event_id(handled_mouse_event ? handled_mouse_event->id : 0);
+            ScopeGuard end_outdated_input = [&] {
+                root->event_handler().set_handling_outdated_input(false);
+                root->event_handler().set_handling_input_event_id(0);
+            };
+
             Optional<RemoteInputEventTarget> remote_target;
             auto result = event.event.visit(
                 [&](Web::KeyEvent const& key_event) {
@@ -502,6 +528,8 @@ struct EventLoop::RenderingUpdateInFlight {
 
     Vector<GC::Root<DOM::Document>> docs;
     double frame_timestamp { 0 };
+    // The serial number of the update, which the plans it seals carry.
+    u64 serial { 0 };
     // The event loop does not take the transaction in while a test holds it.
     bool held_for_testing { false };
     // Whose tasks wait for the whole of the update rather than run beside it.
@@ -560,17 +588,35 @@ enum class StyleTakenIn : u8 {
     Yes,
 };
 
+enum class LayoutHeldForTesting : bool {
+    No,
+    Yes,
+};
+
 // Which tasks a rendering update whose style transaction flies for its last doc holds back until the whole of it has
 // run, as the steps after its style and layout deliver to script what comes before any task: the intersection
 // observations of every doc, whose roots and targets the script of any document may reach, rendered or not, the resize
 // observations the last doc's layout answers, and the animations it samples and transitions it starts, whose timing
 // script sees follow the update. Once the transaction is taken in, those are the ones its style began.
-static HeldTasks tasks_rendering_update_holds(Vector<GC::Root<DOM::Document>> const& docs, StyleTakenIn style_taken_in)
+// AD-HOC: The render clock's lanes of the docs the update took in present nothing until its frame: a task beside the
+//         update would leave the pointer unhovered and the animations still for as long as it runs, where the lanes
+//         would hover or animate beside it. A test that holds the layout that flies runs the doc's tasks beside it.
+
+static HeldTasks tasks_rendering_update_holds(Vector<GC::Root<DOM::Document>> const& docs, StyleTakenIn style_taken_in, LayoutHeldForTesting layout_held_for_testing)
 {
     if (any_of(docs, [](auto const& document) { return document->has_intersection_observation_targets(); }))
         return HeldTasks::All;
+    // The lanes of a doc the update took in present nothing until it seals their plan, which its tasks would hold up.
+    auto lanes_wait = [&](DOM::Document const& document) {
+        auto* arena = document.layout_node_arena_if_created();
+        return arena && layout_held_for_testing == LayoutHeldForTesting::No && Layout::RustFFI::document_host_lanes_wait_for_the_update(arena->host());
+    };
+    if (any_of(docs.span().slice(0, docs.size() - 1), [&](auto const& document) { return lanes_wait(*document); }))
+        return HeldTasks::All;
     auto& document = *docs.last();
     if (document.has_resize_observers())
+        return HeldTasks::OfLastDocument;
+    if (lanes_wait(document))
         return HeldTasks::OfLastDocument;
     for (auto const& timeline : document.associated_animation_timelines()) {
         for (auto const& animation : timeline->associated_animations()) {
@@ -624,6 +670,7 @@ void EventLoop::update_the_rendering()
         page->client().will_begin_rendering_update();
     auto update_start_time = HighResolutionTime::unsafe_shared_current_time();
     ++m_rendering_scheduler_counters.updates_run;
+    ++m_rendering_update_serial;
 
     // AD-HOC: The last rendering update may have ended as its style transaction flew. Its layout runs beside this
     //         update's steps up to step 16, which takes the rest of it in, or the rest of it runs now.
@@ -635,25 +682,31 @@ void EventLoop::update_the_rendering()
     //         last update, at display ticks later than the opportunity this update renders for, which reached the event
     //         loop only after those tasks. An update after a lane's tick presented a frame renders at the time it runs,
     //         so nothing moves back from where the tick showed it.
-    //         A pointer move the next tick would hover hovers first, so that the screen shows it before the update's
-    //         steps run the document's script. The update keeps the hover the lanes moved what the screen shows to: the
-    //         move is the document's from now on, ahead of the input events that hover what is under the pointer as the
-    //         host sees it.
+    //         The update keeps the hover the lanes moved what the screen shows to, and hovers the newest pointer move the
+    //         compositor told of: the move is the document's from now on, ahead of the input events that hover what is
+    //         under the pointer as the host sees it. The lanes present nothing until the update's frame, which shows
+    //         what the update took in, so the screen never goes back from what a lane showed.
     //         A lane presents frames of a fork of the document's render state, which the host's state never held: the
     //         update records and presents the host's frame again.
     bool tick_presented = false;
+    Vector<GC::Root<DOM::Document>> documents_with_lanes;
     for (auto& navigable : all_local_navigables()) {
         auto document = navigable->active_document();
-        if (!document || !is_renderable(*document))
+        if (!document)
             continue;
         auto* arena = document->layout_node_arena_if_created();
         if (!arena)
             continue;
-        if (Layout::RustFFI::document_host_take_clock_lanes_in(arena->host(), static_cast<i64>(HighResolutionTime::unsafe_shared_current_time() * 1'000'000.0))) {
+        // A document the update does not render may still have lanes that follow the last plan it sealed: the update
+        // takes them in all the same, and drops their plan as it leaves the document out of docs.
+        if (!is_renderable(*document) && !Layout::RustFFI::document_host_may_have_lanes(arena->host()))
+            continue;
+        if (Layout::RustFFI::document_host_take_clock_lanes_in(arena->host(), m_rendering_update_serial)) {
             tick_presented = true;
             navigable->set_needs_to_record_display_list();
             navigable->set_needs_repaint();
         }
+        documents_with_lanes.append(*document);
     }
     if (tick_presented)
         m_last_render_opportunity_time = max(m_last_render_opportunity_time, HighResolutionTime::unsafe_shared_current_time());
@@ -665,6 +718,7 @@ void EventLoop::update_the_rendering()
     struct HoverEventsOwed {
         GC::Root<LocalNavigable> navigable;
         Optional<DevicePixelPoint> pointer;
+        GC::Root<DOM::Node> hover_target;
     };
     Vector<HoverEventsOwed> hover_events_owed;
     for (auto& navigable : all_local_navigables()) {
@@ -673,21 +727,39 @@ void EventLoop::update_the_rendering()
         bool has_pointer = false;
         float pointer_x = 0;
         float pointer_y = 0;
-        if (!arena || !Layout::RustFFI::document_host_take_hover_events_owed(arena->host(), &has_pointer, &pointer_x, &pointer_y))
+        bool has_target = false;
+        u32 target = 0;
+        if (!arena || !Layout::RustFFI::document_host_take_hover_events_owed(arena->host(), &has_pointer, &pointer_x, &pointer_y, &has_target, &target))
             continue;
         Optional<DevicePixelPoint> pointer;
         if (has_pointer)
             pointer = DevicePixelPoint { static_cast<i32>(pointer_x), static_cast<i32>(pointer_y) };
-        hover_events_owed.append({ navigable, pointer });
+        // The element the lane hovered there, which the screen shows.
+        GC::Ptr<DOM::Node> hover_target;
+        if (has_target && target != 0)
+            hover_target = document->style_computer().node_for_lane_style_node(CSS::StyleNodeID { target });
+        hover_events_owed.append({ navigable, pointer, hover_target });
     }
     for (auto& owed : hover_events_owed) {
         auto document = owed.navigable->active_document();
         if (!document || !document->is_fully_active() || owed.navigable->has_been_destroyed())
             continue;
+        // Script that ran for an earlier navigable's events may have moved the element the lane hovered elsewhere.
+        GC::Ptr<DOM::Node> hover_target = owed.hover_target.ptr();
+        if (hover_target && &hover_target->document() != document.ptr())
+            hover_target = nullptr;
         if (owed.pointer.has_value())
-            owed.navigable->event_handler().update_hover_at(owed.navigable->page().device_to_css_point(*owed.pointer));
+            owed.navigable->event_handler().update_hover_at(owed.navigable->page().device_to_css_point(*owed.pointer), hover_target);
         else
             owed.navigable->event_handler().handle_mouseleave();
+    }
+    // What the lanes reported has been taken in: the style node ids that left their nodes since name nothing of theirs.
+    // A document with no lanes has none that report any.
+    for (auto& document : documents_in_this_event_loop_matching([](auto const&) { return true; })) {
+        auto* arena = document->layout_node_arena_if_created();
+        bool const lanes_taken_in = any_of(documents_with_lanes, [&](auto const& taken_in) { return taken_in.ptr() == document.ptr(); });
+        if (lanes_taken_in || !arena || !Layout::RustFFI::document_host_may_have_lanes(arena->host()))
+            document->style_computer().forget_style_nodes_retired_beside_lanes();
     }
 
     // 1. Let frameTimestamp be eventLoop's last render opportunity time.
@@ -765,6 +837,16 @@ void EventLoop::update_the_rendering()
     // AD-HOC: The rest of the last rendering update runs before anything of this one's style and layout.
     finish_ended_rendering_update_in_flight();
 
+    // AD-HOC: A doc the update took the lanes of in, which was not renderable or which script left unrenderable since,
+    //         seals no plan: its lanes present nothing more, and hold none of its tasks. The plan the last rendering
+    //         update sealed as it finished goes before.
+    for (auto& document : documents_with_lanes) {
+        if (any_of(docs, [&](auto const& rendered) { return rendered.ptr() == document.ptr(); }))
+            continue;
+        if (auto* arena = document->layout_node_arena_if_created())
+            Layout::RustFFI::document_host_drop_clock_plan(arena->host(), m_rendering_update_serial);
+    }
+
     // 16. For each doc of docs:
     for (size_t document_index = 0; document_index < docs.size(); ++document_index) {
         // AD-HOC: The style transaction of the last doc of docs flies beside the event loop where nothing keeps it in
@@ -787,8 +869,9 @@ void EventLoop::update_the_rendering()
                     // The rendering task ends here: a rendering opportunity meanwhile queues the next one, which keeps
                     // its place in the queue until this update has finished.
                     m_running_rendering_task = false;
-                    auto held_tasks = tasks_rendering_update_holds(docs, style_taken_in);
-                    m_rendering_update_in_flight = make<RenderingUpdateInFlight>(move(docs), frame_timestamp, exchange(m_holds_next_frame_for_testing, false), held_tasks, style_taken_in == StyleTakenIn::Yes);
+                    auto layout_held_for_testing = style_taken_in == StyleTakenIn::Yes && exchange(m_holds_next_layout_for_testing, false) ? LayoutHeldForTesting::Yes : LayoutHeldForTesting::No;
+                    auto held_tasks = tasks_rendering_update_holds(docs, style_taken_in, layout_held_for_testing);
+                    m_rendering_update_in_flight = make<RenderingUpdateInFlight>(move(docs), frame_timestamp, m_rendering_update_serial, exchange(m_holds_next_frame_for_testing, false), held_tasks, style_taken_in == StyleTakenIn::Yes);
                     // The next rendering opportunity is asked for now, so that the next update can begin as soon as
                     // this one has run, or has ended.
                     finish_rendering_update(update_start_time);
@@ -799,7 +882,7 @@ void EventLoop::update_the_rendering()
         update_style_and_layout_for_rendering(document);
     }
 
-    update_the_rendering_after_style_and_layout(docs, frame_timestamp);
+    update_the_rendering_after_style_and_layout(docs, frame_timestamp, m_rendering_update_serial);
     finish_rendering_update(update_start_time);
 }
 
@@ -942,7 +1025,7 @@ static void update_style_and_layout_for_rendering(DOM::Document& document)
 }
 
 // Steps 17 to 23 of updating the rendering, once step 16 has laid out every doc of docs.
-void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM::Document>> const& docs, double frame_timestamp, TakenLayout taken_layout)
+void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM::Document>> const& docs, double frame_timestamp, u64 update_serial, TakenLayout taken_layout)
 {
     auto relative_frame_timestamp_for = [&](DOM::Document const& document) {
         return max(0.0, HighResolutionTime::relative_high_resolution_time(frame_timestamp, relevant_global_object(document)));
@@ -1070,7 +1153,7 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
     for (auto& document : docs) {
         auto* navigable = as_if<LocalNavigable>(document->navigable().ptr());
         bool const plans = may_plan && navigable && navigable->is_local_root() && navigable->active_document().ptr() == document.ptr();
-        if (!seal_clock_plan(*document, plans, may_animate))
+        if (!seal_clock_plan(*document, plans, may_animate, update_serial))
             continue;
         navigable->arm_clock_lane(LocalNavigable::TickNow::No);
         if (!m_navigables_with_clock_lanes.contains_slow(GC::Ref { *navigable }))
@@ -1106,7 +1189,7 @@ void EventLoop::resume_rendering_update_in_flight()
         TemporaryChange running { m_running_rendering_task, true };
         // The style and layout of the doc whose transaction flew take it in, waiting for it to land.
         update_style_and_layout_for_rendering(update->document());
-        update_the_rendering_after_style_and_layout(update->docs, update->frame_timestamp);
+        update_the_rendering_after_style_and_layout(update->docs, update->frame_timestamp, update->serial);
     }
     // What the steps asked for, an animation frame of a promise they resolved for one, asks for the next rendering
     // opportunity now, unless a rendering update runs, whose end asks for it.
@@ -1137,7 +1220,7 @@ bool EventLoop::finish_ended_rendering_update_as_its_layout_flew()
     auto update = m_rendering_update_in_flight.release_nonnull();
     if (auto navigable = document.navigable())
         navigable->clamp_viewport_scroll_offset();
-    update_the_rendering_after_style_and_layout(update->docs, update->frame_timestamp, TakenLayout::AsItFlew);
+    update_the_rendering_after_style_and_layout(update->docs, update->frame_timestamp, update->serial, TakenLayout::AsItFlew);
     return true;
 }
 
@@ -1201,6 +1284,16 @@ bool EventLoop::holds_tasks_of(DOM::Document const* document) const
     // A test that holds the update in flight runs the document's tasks beside it.
     if (!m_rendering_update_in_flight || m_rendering_update_in_flight->held_for_testing)
         return false;
+    return rendering_update_in_flight_holds_tasks_of(document);
+}
+
+bool EventLoop::rendering_update_in_flight_holds_tasks_of_for_testing(DOM::Document const& document) const
+{
+    return m_rendering_update_in_flight && rendering_update_in_flight_holds_tasks_of(&document);
+}
+
+bool EventLoop::rendering_update_in_flight_holds_tasks_of(DOM::Document const* document) const
+{
     auto const& update = *m_rendering_update_in_flight;
     switch (update.held_tasks) {
     case HeldTasks::None:
@@ -1223,7 +1316,7 @@ bool EventLoop::let_layout_of_rendering_update_fly()
     if (!document.let_layout_fly(style_flight_blocker(document)))
         return false;
     update.layout_flew = true;
-    update.held_tasks = tasks_rendering_update_holds(update.docs, StyleTakenIn::Yes);
+    update.held_tasks = tasks_rendering_update_holds(update.docs, StyleTakenIn::Yes, exchange(m_holds_next_layout_for_testing, false) ? LayoutHeldForTesting::Yes : LayoutHeldForTesting::No);
     return true;
 }
 
@@ -1255,6 +1348,7 @@ void EventLoop::note_clock_lanes(ClockAnimations animations)
 void EventLoop::release_held_frames_for_testing()
 {
     m_holds_next_frame_for_testing = false;
+    m_holds_next_layout_for_testing = false;
     if (m_rendering_update_in_flight)
         m_rendering_update_in_flight->held_for_testing = false;
     schedule();

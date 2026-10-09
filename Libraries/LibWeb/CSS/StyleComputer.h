@@ -226,6 +226,13 @@ public:
     void unregister_style_node(StyleNodeID style_node_id);
     [[nodiscard]] GC::Ptr<DOM::Element> element_for_style_node(StyleNodeID style_node_id) const;
     [[nodiscard]] GC::Ptr<DOM::Node> node_for_style_node(StyleNodeID style_node_id) const;
+    // The node a style node id the render clock's lanes report names, or none where the id left its node since the
+    // rendering update the lanes follow took them in last: the id may name another node by now, which the lanes, on a
+    // fork of the render state from before, never saw.
+    [[nodiscard]] GC::Ptr<DOM::Node> node_for_lane_style_node(StyleNodeID style_node_id) const;
+    [[nodiscard]] GC::Ptr<DOM::Element> element_for_lane_style_node(StyleNodeID style_node_id) const;
+    // Forgets the style node ids that left their nodes, once a rendering update took in what the lanes reported.
+    void forget_style_nodes_retired_beside_lanes() { m_style_nodes_retired_beside_lanes.clear(); }
     void prepare_elements_for_style_computation();
     void for_each_style_node(Function<void(DOM::Element&)>) const;
 
@@ -287,6 +294,7 @@ private:
     // holds shadow roots: a root gets no style, but it has a StyleNodeID of its own.
     Vector<GC::Ptr<DOM::Node>> m_element_style_nodes;
     Vector<GC::Ptr<DOM::Text>> m_text_style_nodes;
+    HashTable<StyleNodeID> m_style_nodes_retired_beside_lanes;
     // The root each scope numbers, by scope minus one.
     Vector<GC::Weak<DOM::ShadowRoot>> m_shadow_roots_by_tree_scope;
     Vector<NonAuthorStyleSheet> m_non_author_style_sheets;

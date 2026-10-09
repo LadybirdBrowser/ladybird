@@ -76,16 +76,16 @@ void ConnectionFromWebContent::clock_tick(Web::CompositorContextId context_id, i
         m_render_clock_connection->async_clock_tick(context_id, frame_time_nanoseconds, frame_interval_milliseconds, scroll_offsets);
 }
 
-void ConnectionFromWebContent::pointer_moved(Web::CompositorContextId context_id, Web::DevicePixelPoint position, u32 buttons, bool scrolled_since_frame)
+void ConnectionFromWebContent::pointer_moved(Web::CompositorContextId context_id, Web::DevicePixelPoint position, u32 buttons, bool scrolled_since_frame, u64 input_event_id)
 {
     if (m_render_clock_connection)
-        m_render_clock_connection->async_pointer_moved(context_id, position, buttons, scrolled_since_frame);
+        m_render_clock_connection->async_pointer_moved(context_id, position, buttons, scrolled_since_frame, input_event_id);
 }
 
-void ConnectionFromWebContent::pointer_left(Web::CompositorContextId context_id)
+void ConnectionFromWebContent::pointer_left(Web::CompositorContextId context_id, u64 input_event_id)
 {
     if (m_render_clock_connection)
-        m_render_clock_connection->async_pointer_left(context_id);
+        m_render_clock_connection->async_pointer_left(context_id, input_event_id);
 }
 
 void ConnectionFromWebContent::add_video_sink(Media::VideoSinkHandle video_sink_handle)

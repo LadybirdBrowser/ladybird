@@ -1,0 +1,3 @@
+first matches :hover: false
+second matches :hover: true
+events: mouseover second

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; }
+    #other { display: none; height: 10px; }
+    #other.shown { display: block; }
+</style>
+<div id="box"></div>
+<div id="other"></div>
+<script>
+    // A rendering update whose style runs beside the event loop, with the pointer over the page, holds the tasks of the
+    // document back until it has run its steps from its style and layout on: the render clock's lanes, which the update
+    // took in, present nothing until its frame, and a task beside it would leave the pointer unhovered for as long as it
+    // runs.
+    asyncTest(async done => {
+        const result = await whileLaneHovers(async frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            requestAnimationFrame(() => {
+                internals.holdNextFrame();
+                other.classList.add("shown");
+            });
+            internals.injectRenderingOpportunity(frameTime + 32);
+            await nextTask();
+            const held = internals.renderingUpdateHoldsTasksOf(document);
+            internals.releaseHeldFrame();
+            return held;
+        });
+        println(`the update holds the document's tasks: ${result}`);
+        done();
+    });
+</script>

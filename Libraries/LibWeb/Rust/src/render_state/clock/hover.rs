@@ -145,6 +145,8 @@ pub(crate) struct PendingPointer {
     pub(crate) buttons: u32,
     /// Whether the compositor scrolled since the frame the lane presented last.
     pub(crate) scrolled_since_frame: bool,
+    /// The input event id of the mouse event the host takes beside the move, or 0 where there is none.
+    pub(crate) input_event_id: u64,
 }
 
 /// What the lanes want once they heard where the pointer went, as the render clock reads it.
@@ -162,12 +164,18 @@ pub(crate) struct PointerState {
     pending: Option<PendingPointer>,
     /// Where the pointer went last, which the next lane hovers as it comes together.
     last: Option<PendingPointer>,
+    /// The input event id of the newest mouse event the host handled.
+    handled: u64,
 }
 
 impl PointerState {
     /// Has the next tick hover where the pointer went, where a lane `follows` the pointer, and answers what the lanes
-    /// want next.
+    /// want next. A move older than a mouse event the host handled already is nobody's to hover: the hover never moves
+    /// back to where an older event says the pointer was.
     pub(super) fn moved(&mut self, pointer: PendingPointer, follows: bool) -> PointerAnswer {
+        if self.is_older_than_handled(pointer) {
+            return PointerAnswer::Moves;
+        }
         self.last = Some(pointer);
         // A move no lane follows is the host's, and so is the one an earlier move left waiting.
         if !follows {
@@ -191,6 +199,20 @@ impl PointerState {
     /// Whether a move waits for a tick to hover it.
     pub(super) fn waits(&self) -> bool {
         self.pending.is_some()
+    }
+
+    /// Notes that the host handled the mouse event with the input event id `input_event_id`, and forgets the move that
+    /// waits for a tick, where it is older.
+    pub(super) fn note_handled(&mut self, input_event_id: u64) {
+        self.handled = self.handled.max(input_event_id);
+        if self.pending.is_some_and(|pending| self.is_older_than_handled(pending)) {
+            self.pending = None;
+        }
+    }
+
+    /// Whether `pointer` is older than a mouse event the host handled. A move with id 0 matches no UI event.
+    fn is_older_than_handled(&self, pointer: PendingPointer) -> bool {
+        pointer.input_event_id != 0 && pointer.input_event_id < self.handled
     }
 }
 
@@ -298,9 +320,47 @@ enum HoverDeclined {
 }
 
 /// Whether a lane's hover tells what it did on the standard error, for a developer: LIBWEB_HOVER_LANE_LOG=1.
-pub(super) fn logs_hover() -> bool {
+pub(in crate::render_state) fn logs_hover() -> bool {
     static LOGS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *LOGS.get_or_init(|| std::env::var_os("LIBWEB_HOVER_LANE_LOG").is_some_and(|value| value == "1"))
+}
+
+/// The time a line of the hover's log tells, in milliseconds of the monotonic clock the compositor's frame times and the
+/// host's shared current time read, within the last ten thousand seconds.
+pub(in crate::render_state) fn log_time() -> String {
+    format!("{:.3}", monotonic_milliseconds() % 10_000_000.0)
+}
+
+/// The monotonic clock's time, in milliseconds.
+#[cfg(unix)]
+fn monotonic_milliseconds() -> f64 {
+    #[repr(C)]
+    struct Timespec {
+        seconds: i64,
+        nanoseconds: i64,
+    }
+    unsafe extern "C" {
+        fn clock_gettime(clock: i32, time: *mut Timespec) -> i32;
+    }
+    #[cfg(target_os = "macos")]
+    const CLOCK_MONOTONIC: i32 = 6;
+    #[cfg(not(target_os = "macos"))]
+    const CLOCK_MONOTONIC: i32 = 1;
+    let mut time = Timespec {
+        seconds: 0,
+        nanoseconds: 0,
+    };
+    // SAFETY: `time` is valid for writes.
+    unsafe { clock_gettime(CLOCK_MONOTONIC, &raw mut time) };
+    time.seconds as f64 * 1000.0 + time.nanoseconds as f64 / 1_000_000.0
+}
+
+/// The wall clock's time, in milliseconds, where no clock_gettime reads the monotonic clock.
+#[cfg(not(unix))]
+fn monotonic_milliseconds() -> f64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0.0, |time| time.as_secs_f64() * 1000.0)
 }
 
 /// The transform reference box of the box of the element `node` names, as the frame the lane presented last laid it
@@ -353,7 +413,8 @@ impl Lane {
                 Err(HoverDeclined::Park(reason)) => format!("parked: {reason}"),
             };
             eprintln!(
-                "hover lane: pointer {:?}: {outcome} in {} us",
+                "{} hover lane: pointer {:?}: {outcome} in {} us",
+                log_time(),
                 pointer.position,
                 started.elapsed().as_micros()
             );
@@ -427,7 +488,7 @@ impl Lane {
                     return Err(HoverDeclined::Park(reason));
                 }
                 if logs_hover() {
-                    eprintln!("hover lane: move left to the host: {reason}");
+                    eprintln!("{} hover lane: move left to the host: {reason}", log_time());
                 }
                 self.parked = parked;
                 self.hovered.target = target_before;
@@ -902,7 +963,8 @@ fn cursor_for_hit(state: &mut RenderState, hit: CursorHit) -> Option<u8> {
 }
 
 /// Hands the clock lane `ticks` belong to where the pointer went: to `x`, `y` in device pixels where `has_position`,
-/// or out of the context, and answers what the lane wants next, as a `PointerAnswer`.
+/// or out of the context, beside the mouse event with the input event id `input_event_id`, and answers what the lane
+/// wants next, as a `PointerAnswer`.
 ///
 /// # Safety
 ///
@@ -915,6 +977,7 @@ pub unsafe extern "C" fn clock_ticks_pointer_moved(
     y: f32,
     buttons: u32,
     scrolled_since_frame: bool,
+    input_event_id: u64,
 ) -> u8 {
     // SAFETY: Guaranteed by the caller, whose reference this borrows.
     let ticks = std::mem::ManuallyDrop::new(unsafe { std::sync::Arc::from_raw(ticks) });
@@ -922,27 +985,35 @@ pub unsafe extern "C" fn clock_ticks_pointer_moved(
         position: has_position.then_some(FloatPoint { x, y }),
         buttons,
         scrolled_since_frame,
+        input_event_id,
     }) as u8
 }
 
 /// Hands the clock lanes of `host`'s document a pointer move to `x`, `y` in device pixels, as the compositor would,
-/// which the next tick hovers. For a test, whose clock ticks only where it injects them.
+/// beside the mouse event with the input event id `input_event_id`, or none for 0, which the next tick hovers. For a
+/// test, whose clock ticks only where it injects them.
 ///
 /// # Safety
 ///
 /// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_move_pointer(host: &crate::render_state::DocumentHost, x: f32, y: f32) {
+pub unsafe extern "C" fn document_host_move_pointer(
+    host: &crate::render_state::DocumentHost,
+    x: f32,
+    y: f32,
+    input_event_id: u64,
+) {
     let _ = host.clock_ticks().pointer_moved(PendingPointer {
         position: Some(FloatPoint { x, y }),
         buttons: 0,
         scrolled_since_frame: false,
+        input_event_id,
     });
 }
 
-/// Hands the clock lanes of `host`'s document a pointer move to `x`, `y` in device pixels, ticks them at
-/// `frame_time_nanoseconds`, and waits until the StyleLayout thread has run the tick and the Paint thread the recording
-/// of the frame it presents. For a test.
+/// Hands the clock lanes of `host`'s document a pointer move to `x`, `y` in device pixels, beside the mouse event with
+/// the input event id `input_event_id`, or none for 0, ticks them at `frame_time_nanoseconds`, and waits until the
+/// StyleLayout thread has run the tick and the Paint thread the recording of the frame it presents. For a test.
 ///
 /// # Safety
 ///
@@ -953,6 +1024,7 @@ pub unsafe extern "C" fn document_host_inject_pointer(
     x: f32,
     y: f32,
     frame_time_nanoseconds: i64,
+    input_event_id: u64,
 ) {
     super::settle_lanes_for_testing();
     host.clock_ticks().inject_pointer(
@@ -960,6 +1032,7 @@ pub unsafe extern "C" fn document_host_inject_pointer(
             position: Some(FloatPoint { x, y }),
             buttons: 0,
             scrolled_since_frame: false,
+            input_event_id,
         },
         frame_time_nanoseconds,
     );

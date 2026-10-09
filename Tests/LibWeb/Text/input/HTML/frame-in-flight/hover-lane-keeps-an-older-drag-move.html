@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 200px; height: 100px; }
+</style>
+<div id="box"></div>
+<script>
+    // A mouse move with a button held waits in the queue as the hover of a lane takes a newer move. The rendering update
+    // after the task still hands script the drag's move, whose position it needs.
+    asyncTest(async done => {
+        const drags = [];
+        box.addEventListener("mousemove", event => {
+            if (event.buttons)
+                drags.push(event.clientX);
+        });
+        await whileLaneHovers(frameTime => {
+            const id = internals.queueMouseMove(60, 50, 1);
+            internals.injectHoverPointer(80, 50, frameTime + 16, id + 1);
+        });
+        await twoFrames();
+        println(`drag moves script heard: ${drags.join(", ")}`);
+        done();
+    });
+</script>

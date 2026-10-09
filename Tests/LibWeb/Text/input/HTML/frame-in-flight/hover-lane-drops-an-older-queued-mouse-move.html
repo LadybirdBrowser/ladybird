@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 100px; }
+    #first:hover, #second:hover { background: rgb(0, 0, 255); }
+</style>
+<div id="first"></div>
+<div id="second"></div>
+<script>
+    // A mouse move the main thread queued before a task, older than the move a hover beside the task took, never moves
+    // the hover back to where it went: the rendering update keeps the hover the screen shows, and drops the older move.
+    asyncTest(async done => {
+        const events = [];
+        for (const element of [first, second]) {
+            for (const type of ["mouseover", "mouseout", "mousemove"])
+                element.addEventListener(type, () => events.push(`${type} ${element.id}`));
+        }
+        const presentedBy = await whileLaneHovers(frameTime => {
+            const queued = internals.queueMouseMove(50, 50);
+            internals.injectHoverPointer(50, 150, frameTime + 16, queued + 1);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`last frame presented by: ${presentedBy}`);
+        await twoFrames();
+        println(`first matches :hover: ${first.matches(":hover")}`);
+        println(`second matches :hover: ${second.matches(":hover")}`);
+        println(`events: ${events.join(", ")}`);
+        done();
+    });
+</script>

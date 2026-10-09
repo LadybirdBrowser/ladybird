@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; display: flex; }
+    #a, #b { width: 100px; height: 100px; flex: none; }
+    #a:hover { width: 300px; }
+</style>
+<div id="a"></div><div id="b"></div>
+<script>
+    // A hover beside the task widens #a, and the pointer moves on over the widened #a. The rendering update after the
+    // task keeps the hover on #a, which the screen shows, though its own layout, which has not moved with the lane's
+    // hover, has #b under the pointer.
+    asyncTest(async done => {
+        await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16, 1);
+            internals.injectHoverPointer(150, 50, frameTime + 32, 2);
+        });
+        await twoFrames();
+        println(`#a matches :hover: ${a.matches(":hover")}`);
+        println(`#b matches :hover: ${b.matches(":hover")}`);
+        done();
+    });
+</script>
