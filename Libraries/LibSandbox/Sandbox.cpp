@@ -312,6 +312,7 @@ static ErrorOr<void> append_allowed_mach_services(StringBuilder& builder, Seatbe
     (global-name "com.apple.audio.audiohald")
     (global-name "com.apple.audio.AudioSession")
     (xpc-service-name "com.apple.audio.SandboxHelper"))
+(allow device-microphone)
 )~~~"sv);
     }
 
