@@ -14,6 +14,7 @@
 #include <AK/Vector.h>
 #include <LibGC/Forward.h>
 #include <LibGC/Root.h>
+#include <LibGC/Weak.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/MediaStreamConstraints.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -83,6 +84,7 @@ private:
     void run_device_change_notification_steps(Vector<StoredDevice> const& device_list);
     static Vector<StoredDevice> current_audio_device_snapshot();
     void did_observe_audio_device_cache_update();
+    void end_tracks_of_removed_devices();
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ref<HTML::Window> m_window;
@@ -100,8 +102,8 @@ private:
     // [[canExposeMicrophoneInfo]]
     bool m_can_expose_microphone_info { false };
     // [[mediaStreamTrackSources]]
-    // FIXME: Replace provider IDs with concrete source objects when MediaCapture source modeling lands.
-    HashTable<u64> m_media_stream_track_sources;
+    // FIXME: Replace the tracks with concrete source objects when MediaCapture source modeling lands.
+    Vector<GC::Weak<MediaStreamTrack>> m_media_stream_track_sources;
     Vector<PendingEnumerateDevicesRequest> m_pending_enumerate_devices_requests;
     Vector<PendingGetUserMediaRequest> m_pending_get_user_media_requests;
     GC::Ptr<DOM::IDLEventListener> m_pending_request_state_change_listener;

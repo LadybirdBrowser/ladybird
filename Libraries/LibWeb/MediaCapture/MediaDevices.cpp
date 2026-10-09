@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <LibGC/Heap.h>
 #include <LibGC/Root.h>
 #include <LibJS/Runtime/Array.h>
@@ -528,7 +529,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
             // FIXME: 11.10 Run the ApplyConstraints algorithm on all tracks in stream with the appropriate constraints.
 
             // 11.11 For each track in stream, tie track source to MediaDevices with track.[[Source]] and mediaDevices.
-            media_devices->m_media_stream_track_sources.set(track->provider_id());
+            media_devices->m_media_stream_track_sources.append(track);
 
             // 11.12 Resolve p with stream and abort these steps.
             resolve_media_stream_promise(*promise, stream);
@@ -760,8 +761,44 @@ Vector<MediaDevices::StoredDevice> MediaDevices::current_audio_device_snapshot()
 
 void MediaDevices::did_observe_audio_device_cache_update()
 {
+    end_tracks_of_removed_devices();
     process_pending_enumerate_devices_requests();
     process_pending_get_user_media_requests();
+}
+
+// https://w3c.github.io/mediacapture-main/#track-ended
+void MediaDevices::end_tracks_of_removed_devices()
+{
+    Vector<Utf16String> present_device_ids;
+    for (auto const& device : Media::AudioDevices::the().input_devices())
+        present_device_ids.append(Utf16String::from_utf8_with_replacement_character(device.dom_device_id.view()));
+
+    GC::RootVector<GC::Ref<MediaStreamTrack>> tracks_to_end;
+    m_media_stream_track_sources.remove_all_matching([&](GC::Weak<MediaStreamTrack> const& weak_track) {
+        auto track = weak_track.ptr();
+        if (!track || track->track_ready_state() == MediaStreamTrackState::Ended)
+            return true;
+        auto device_id = track->device_id();
+        if (!device_id.has_value() || present_device_ids.contains_slow(device_id.value()))
+            return false;
+        tracks_to_end.append(*track);
+        return true;
+    });
+    if (tracks_to_end.is_empty())
+        return;
+
+    // When a MediaStreamTrack track ends for any reason other than the stop() method being invoked, the User Agent
+    // MUST queue a task that runs the following steps:
+    HTML::queue_global_task(HTML::Task::Source::DOMManipulation, HTML::relevant_global_object(*m_window),
+        GC::create_function(heap(), [tracks = move(tracks_to_end), window = m_window] {
+            HTML::TemporaryExecutionContext execution_context { window->principal_realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+            // 1. If the track's [[ReadyState]] slot has the value "ended", abort these steps.
+            // 2. Set track's [[ReadyState]] slot to "ended".
+            // 3. Notify track's source that track is ended so that the source may be stopped, unless other MediaStreamTrack objects depend on it.
+            // 4. Fire an event named ended at the object.
+            for (auto const& track : tracks)
+                track->end();
+        }));
 }
 
 static Optional<Vector<Utf16String>> dom_string_values_from_variant(Variant<Utf16String, Vector<Utf16String>> const& value)
