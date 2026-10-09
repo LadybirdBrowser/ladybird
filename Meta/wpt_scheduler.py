@@ -752,7 +752,8 @@ def main():
         default=None,
         metavar="PREFIX",
         help="hold tests under this path back until the slow, timeout-heavy opening is over "
-        "(default: /wasm/, which is CPU-heavy and timing-sensitive); repeatable",
+        "(default: /wasm/, which is CPU-heavy and timing-sensitive, and /encoding/legacy-mb-,"
+        "which can get OOM-killed if batched too tightly); repeatable",
     )
     run.add_argument(
         "--slow-test-seconds",
@@ -806,7 +807,8 @@ def main():
     run.add_argument(
         "--instance-memory-max-gib",
         type=float,
-        default=10.0,
+        # WebContent doesn't give memory back between tests, so a runner going through the heavier tests can sit at 2-3GiB.
+        default=16.0,
         help="memory limit for each instance (via a systemd user scope), 0 to disable",
     )
     run.add_argument("--retries", type=int, default=1, help="times to requeue tests left unrun by a dead instance")
@@ -835,7 +837,7 @@ def main():
 
     if args.command == "run":
         if args.defer is None:
-            args.defer = ["/wasm/"]
+            args.defer = ["/wasm/", "/encoding/legacy-mb-"]
         return command_run(args, wpt_args)
     return command_durations(args)
 
