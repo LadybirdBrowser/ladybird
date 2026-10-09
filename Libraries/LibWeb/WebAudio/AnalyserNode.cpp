@@ -54,7 +54,7 @@ WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> AnalyserNode::create(GC::Ref<BaseAudi
     TRY(node->initialize_audio_node_options(options, default_options));
 
     node->m_history.resize(MAX_FFT_SIZE);
-    node->m_time_domain_ring = adopt_ref(*new Media::SpscAudioFrameRing(MAX_FFT_SIZE, 1));
+    node->m_time_domain_ring = adopt_ref(*new Audio::SpscAudioFrameRing(MAX_FFT_SIZE, 1));
     node->queue_render_node_creation(make<Rendering::AnalyserRenderNode>(node->node_id(), BaseAudioContext::render_quantum_size(), *node->m_time_domain_ring));
 
     return node;

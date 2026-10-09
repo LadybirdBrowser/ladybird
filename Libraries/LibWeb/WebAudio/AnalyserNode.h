@@ -95,7 +95,7 @@ private:
     // https://webaudio.github.io/web-audio-api/#conversion-to-db
     Vector<f32> conversion_to_dB(Vector<f32> const& X_hat) const;
 
-    RefPtr<Media::SpscAudioFrameRing> m_time_domain_ring;
+    RefPtr<Audio::SpscAudioFrameRing> m_time_domain_ring;
 
     Vector<f32> m_history;
     size_t m_history_write_index { 0 };

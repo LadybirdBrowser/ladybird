@@ -290,12 +290,12 @@ ErrorOr<void> PulseAudioContext::watch_devices(Function<void()> on_devices_chang
     return wait_for_operation(operation, "Subscribing to PulseAudio device changes failed"sv);
 }
 
-ErrorOr<void> PulseAudioContext::enumerate_audio_devices(Vector<Media::AudioDeviceInfo>& inputs, Vector<Media::AudioDeviceInfo>& outputs)
+ErrorOr<void> PulseAudioContext::enumerate_audio_devices(Vector<AudioDeviceInfo>& inputs, Vector<AudioDeviceInfo>& outputs)
 {
     struct EnumerationState {
         PulseAudioContext& context;
-        Vector<Media::AudioDeviceInfo> inputs;
-        Vector<Media::AudioDeviceInfo> outputs;
+        Vector<AudioDeviceInfo> inputs;
+        Vector<AudioDeviceInfo> outputs;
         ByteString default_source_name;
         ByteString default_sink_name;
         bool list_query_failed { false };
@@ -336,7 +336,7 @@ ErrorOr<void> PulseAudioContext::enumerate_audio_devices(Vector<Media::AudioDevi
                                    }
                                    if (info == nullptr || info->name == nullptr)
                                        return;
-                                   Media::AudioDeviceInfo entry {
+                                   AudioDeviceInfo entry {
                                        .dom_device_id = ByteString::formatted("pulse:source:{}", info->name),
                                        .label = info->description != nullptr ? ByteString { info->description } : ByteString { info->name },
                                        .group_id = {},
@@ -365,7 +365,7 @@ ErrorOr<void> PulseAudioContext::enumerate_audio_devices(Vector<Media::AudioDevi
                                    }
                                    if (info == nullptr || info->name == nullptr)
                                        return;
-                                   Media::AudioDeviceInfo entry {
+                                   AudioDeviceInfo entry {
                                        .dom_device_id = ByteString::formatted("pulse:sink:{}", info->name),
                                        .label = info->description != nullptr ? ByteString { info->description } : ByteString { info->name },
                                        .group_id = {},

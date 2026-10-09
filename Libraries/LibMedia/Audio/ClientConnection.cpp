@@ -118,7 +118,7 @@ void ClientConnection::die()
         on_device_list(Error::from_string_literal("Audio server connection died"));
 }
 
-void ClientConnection::watch_devices(Media::AudioDeviceListCallback on_device_list)
+void ClientConnection::watch_devices(AudioDeviceListCallback on_device_list)
 {
     VERIFY(!m_on_device_list);
     if (m_is_dead) {
@@ -129,10 +129,10 @@ void ClientConnection::watch_devices(Media::AudioDeviceListCallback on_device_li
     async_watch_devices();
 }
 
-void ClientConnection::devices_changed(Vector<Media::AudioDeviceInfo> inputs, Vector<Media::AudioDeviceInfo> outputs)
+void ClientConnection::devices_changed(Vector<AudioDeviceInfo> inputs, Vector<AudioDeviceInfo> outputs)
 {
     if (m_on_device_list)
-        m_on_device_list(Media::AudioDeviceEnumeration { .inputs = move(inputs), .outputs = move(outputs) });
+        m_on_device_list(AudioDeviceEnumeration { .inputs = move(inputs), .outputs = move(outputs) });
 }
 
 NonnullRefPtr<RecordStream::CreatePromise> ClientConnection::create_record_stream(StringView device_id, RecordStream::RecordCallback callback)

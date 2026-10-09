@@ -13,7 +13,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibMedia/Audio/AudioDevices.h>
 
-namespace Media {
+namespace Audio {
 
 static ByteString core_foundation_string_to_byte_string(CFStringRef string)
 {

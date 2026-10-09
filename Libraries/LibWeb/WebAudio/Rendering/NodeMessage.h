@@ -83,7 +83,7 @@ struct SetPannerParameters {
 // argument so the ring can be replaced without rebuilding the render node.
 struct SetMediaStreamSourceRing {
     NodeID node_id { 0 };
-    RefPtr<Media::SpscAudioFrameRing> ring;
+    RefPtr<Audio::SpscAudioFrameRing> ring;
     u32 channel_count { 0 };
 };
 

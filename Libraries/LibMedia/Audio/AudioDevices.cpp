@@ -9,7 +9,7 @@
 #include <LibMedia/Audio/AudioDevices.h>
 #include <LibMedia/Audio/ClientConnection.h>
 
-namespace Media {
+namespace Audio {
 
 #if !defined(LIBMEDIA_AUDIO_DEVICE_ENUMERATION)
 
@@ -112,7 +112,7 @@ void AudioDevices::notify_listeners()
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Media::AudioDeviceInfo const& device)
+ErrorOr<void> encode(Encoder& encoder, Audio::AudioDeviceInfo const& device)
 {
     TRY(encoder.encode(device.dom_device_id));
     TRY(encoder.encode(device.label));
@@ -124,9 +124,9 @@ ErrorOr<void> encode(Encoder& encoder, Media::AudioDeviceInfo const& device)
 }
 
 template<>
-ErrorOr<Media::AudioDeviceInfo> decode(Decoder& decoder)
+ErrorOr<Audio::AudioDeviceInfo> decode(Decoder& decoder)
 {
-    Media::AudioDeviceInfo device;
+    Audio::AudioDeviceInfo device;
     device.dom_device_id = TRY(decoder.decode<ByteString>());
     device.label = TRY(decoder.decode<ByteString>());
     device.group_id = TRY(decoder.decode<ByteString>());

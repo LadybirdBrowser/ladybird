@@ -30,7 +30,7 @@ public:
     // A process that reaches an AudioServer gets a stream whose device lives there, delivering
     // the device's own format whatever was requested; otherwise the platform backend honors the
     // request by converting where it can. Either way the specification passed to the callback
-    // is authoritative. The device id is a dom_device_id produced by Media::AudioDevices, or an
+    // is authoritative. The device id is a dom_device_id produced by AudioDevices, or an
     // empty string to capture from the default input device.
     static NonnullRefPtr<CreatePromise> create(SampleSpecification const&, u32 fragment_size_bytes, StringView device_id, RecordCallback);
     // The platform backend's stream, device access and all; defined by the backend's translation unit.

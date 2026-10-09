@@ -26,8 +26,8 @@ CaptureDevices::~CaptureDevices() = default;
 // The device's own format as enumeration reports it, so the backend has nothing to convert.
 static SampleSpecification native_specification_for(StringView device_id)
 {
-    Optional<Media::AudioDeviceInfo> device;
-    for (auto const& candidate : Media::AudioDevices::the().input_devices()) {
+    Optional<AudioDeviceInfo> device;
+    for (auto const& candidate : AudioDevices::the().input_devices()) {
         bool is_the_device = device_id.is_empty() ? candidate.is_default : candidate.dom_device_id == device_id;
         if (is_the_device) {
             device = candidate;

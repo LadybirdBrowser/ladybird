@@ -6,7 +6,7 @@
 
 #include <LibMedia/Audio/SpscAudioFrameRing.h>
 
-namespace Media {
+namespace Audio {
 
 SpscAudioFrameRing::SpscAudioFrameRing(size_t frame_capacity, u32 channel_count)
     : m_owned_samples(MUST(FixedArray<float>::create(round_up_to_a_power_of_two(frame_capacity) * channel_count)))
