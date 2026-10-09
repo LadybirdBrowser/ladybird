@@ -51,12 +51,14 @@ public:
     virtual bool should_coordinate_browser_process() const override { return false; }
 };
 
-// Answers a request for its page with a small document, and every other request with the same response.
+// Answers a request for its page with a small document, and every other request with the same response, pausing
+// after the first pause_after bytes of its body when given.
 class TestHttpServer {
 public:
-    TestHttpServer(ByteString headers, ByteBuffer body)
+    TestHttpServer(ByteString headers, ByteBuffer body, Optional<size_t> pause_after)
         : m_headers(move(headers))
         , m_body(move(body))
+        , m_pause_after(pause_after)
     {
         m_socket = MUST(Core::System::socket(AF_INET, SOCK_STREAM, 0));
 
@@ -147,8 +149,17 @@ private:
         m_request_count.fetch_add(1);
 
         auto head = ByteString::formatted("HTTP/1.1 200 OK\r\n{}Content-Length: {}\r\nConnection: close\r\n\r\n", m_headers, m_body.size());
-        if (write_all(client, head.bytes()))
-            (void)write_all(client, m_body.bytes());
+        if (!write_all(client, head.bytes()))
+            return;
+
+        auto body = m_body.bytes();
+        if (m_pause_after.has_value()) {
+            if (!write_all(client, body.trim(*m_pause_after)))
+                return;
+            MUST(Core::System::sleep_ms(1000));
+            body = body.slice(*m_pause_after);
+        }
+        (void)write_all(client, body);
     }
 
     static bool write_all(int fd, ReadonlyBytes bytes)
@@ -164,6 +175,7 @@ private:
 
     ByteString m_headers;
     ByteBuffer m_body;
+    Optional<size_t> m_pause_after;
     int m_socket { -1 };
     u16 m_port { 0 };
     RefPtr<Threading::Thread> m_thread;
@@ -241,16 +253,16 @@ void expect_download_holds_body(StringView what, WebView::FileDownloader::Downlo
     }
 }
 
-void expect_navigation_downloads_body(Core::AnonymousBuffer const& theme, StringView what, ByteString headers, ByteBuffer const& body)
+void expect_navigation_downloads_body(Core::AnonymousBuffer const& theme, StringView what, ByteString headers, ByteBuffer const& body, Optional<size_t> pause_after = {})
 {
-    TestHttpServer server { move(headers), body };
+    TestHttpServer server { move(headers), body, pause_after };
     auto view = WebView::HeadlessWebView::create(theme, { 800, 600 });
     expect_download_holds_body(what, download_navigation_response(*view, server.url()), body);
 }
 
 void expect_navigation_downloads_cached_body(Core::AnonymousBuffer const& theme, StringView what, ByteString headers, ByteBuffer const& body)
 {
-    TestHttpServer server { move(headers), body };
+    TestHttpServer server { move(headers), body, {} };
 
     // Both downloads start from a document of the server's site, whose process reads and writes that site's cache.
     auto view = WebView::HeadlessWebView::create(theme, { 800, 600 });
@@ -293,6 +305,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto body = make_body(1 * MiB);
     expect_navigation_downloads_body(theme, "an attachment"sv, "Content-Disposition: attachment; filename=\"attachment.bin\"\r\n"sv, body);
     expect_navigation_downloads_body(theme, "a response sniffed as unrenderable"sv, "Content-Type: application/octet-stream\r\n"sv, body);
+    expect_navigation_downloads_body(theme, "a response sniffed from bytes that arrive in parts"sv, "Content-Type: application/octet-stream\r\n"sv, body, 500);
     expect_navigation_downloads_cached_body(theme, "a response sniffed from the disk cache"sv, "Cache-Control: max-age=3600\r\nContent-Type: application/octet-stream\r\n"sv, body);
     expect_navigation_downloads_cached_body(theme, "an attachment from the disk cache"sv, "Cache-Control: max-age=3600\r\nContent-Disposition: attachment; filename=\"attachment.bin\"\r\n"sv, body);
 
