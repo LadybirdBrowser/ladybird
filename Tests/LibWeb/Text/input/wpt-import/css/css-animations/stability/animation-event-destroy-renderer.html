@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Destroy and Hide Element in Animation Event</title>
+  <!-- Note: this is effectively a crashtest, but as crashtests do not
+       support variants, authoring as a promise test -->
+  <meta name="variant" content="?animationstart">
+  <meta name="variant" content="?animationiteration">
+  <link rel="help" href="https://bugs.webkit.org/show_bug.cgi?id=22635">
+  <style>
+    .box {
+      height: 100px;
+      width: 100px;
+      margin: 10px;
+      background-color: blue;
+      /* Use a long duration and delay for precise control over when animation
+         events are triggered. With short animations, the animation-iteration
+         event could be dropped if the animation finishes too son. An
+         animation-iteration event does not fire when completing the last
+         iteration.
+      */
+      animation-name: move;
+      animation-duration: 10000s;
+      animation-delay: 5000s;
+      animation-iteration-count: 2;
+    }
+
+    @keyframes move {
+      from { transform: translate(0px, 0px); }
+      to { transform: translate(100px, 0px); }
+    }
+  </style>
+  <div id="container">
+    <div id="box1" class="box"></div>
+    <div id="box2" class="box"></div>
+  </div>
+  <script src="../../../resources/testharness.js"></script>
+  <script src="../../../resources/testharnessreport.js"></script>
+  <script src="../../../common/gc.js"></script>
+  <script>
+  'use strict';
+
+  function eventPromise(target, event, callback) {
+    return new Promise(resolve => {
+      const listener = () => {
+        callback();
+        resolve();
+      };
+      target.addEventListener(event, listener,
+                              { once: true });
+    });
+  }
+
+  function setAnimationTime(time) {
+    document.getAnimations().forEach(a => a.currentTime = time);
+  }
+
+  promise_test(async t => {
+    const eventType = location.search.substring(1);
+    var box1 = document.getElementById('box1');
+    var box2 = document.getElementById('box2');
+
+    const promises = [];
+    promises.push(eventPromise(box1, eventType, () => {
+      box1.parentNode.removeChild(box1);
+    }));
+    promises.push(eventPromise(box2, eventType, () => {
+      box2.style.display = 'none';
+    }));
+
+    await Promise.all(document.getAnimations().map(a => a.ready));
+
+    promises.push(new Promise(resolve => {
+      requestAnimationFrame(() => {
+        // trip animationstart.
+        setAnimationTime(6000000);
+        requestAnimationFrame(() => {
+          // trip animationiteration on any animations that are still running.
+          setAnimationTime(16000000);
+          resolve();
+        });
+      });
+    }));
+
+    await Promise.all(promises);
+
+    // Garbage collection is best effort.
+    if (window.garbageCollect) {
+      await garbageCollect();
+    }
+
+    assert_equals(document.getAnimations().length, 0);
+  }, 'Triggering the cancel of an animation during event handling does not ' +
+     'crash.');
+
+  </script>
+</head>
+</html>

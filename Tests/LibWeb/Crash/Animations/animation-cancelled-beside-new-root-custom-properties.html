@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html><head><script>
+    const animation = document.documentElement.animate({ opacity: [0.5, 1] }, { duration: 100000 });
+    getComputedStyle(document.documentElement).opacity;
+    const style = document.createElement("style");
+    style.textContent = ":root { --x: 1; }";
+    document.head.append(style);
+    animation.cancel();
+    const body = document.createElement("body");
+    document.documentElement.append(body);
+    document.documentElement.offsetWidth;
+</script></head></html>

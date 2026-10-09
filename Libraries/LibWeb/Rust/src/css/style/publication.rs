@@ -4064,6 +4064,7 @@ impl StyleEngine {
     pub(super) fn publish_animation_overlay_impl(
         &mut self,
         target: computed::ComputedStyleTarget,
+        installed_style_record: computed::FinalStyleRecordID,
         source_identity: u64,
         animated_overlay: HostShared<crate::css::animated_overlay::AnimatedOverlay>,
         payloads: &[SharedPayload],
@@ -4082,13 +4083,24 @@ impl StyleEngine {
                     .style_record_dependency_flags(record.raw())
             })
             .is_some_and(|flags| flags & computed::IN_DISPLAY_NONE_SUBTREE != 0);
-        let publication = self.retained.computed_group_sets.publish_animation_overlay(
-            target,
-            source_identity,
-            animated_overlay,
-            payloads,
-            parent_in_display_none_subtree,
-        )?;
+        let publication = self
+            .publish_animation_overlay_beneath_derivation(
+                target,
+                installed_style_record,
+                source_identity,
+                animated_overlay,
+                payloads,
+                parent_in_display_none_subtree,
+            )
+            .or_else(|| {
+                self.retained.computed_group_sets.publish_animation_overlay(
+                    target,
+                    source_identity,
+                    animated_overlay,
+                    payloads,
+                    parent_in_display_none_subtree,
+                )
+            })?;
         self.settle_computed_memory();
         if publication.slot_allocated {
             self.retained.counters.bump(Counter::AnimationOverlaySlotsAllocated);
@@ -4102,6 +4114,55 @@ impl StyleEngine {
         self.retained
             .counters
             .set(Counter::LiveAnimationOverlayRecords, publication.live_records as u64);
+        Some(publication)
+    }
+
+    fn publish_animation_overlay_beneath_derivation(
+        &mut self,
+        target: computed::ComputedStyleTarget,
+        installed_style_record: computed::FinalStyleRecordID,
+        source_identity: u64,
+        animated_overlay: HostShared<crate::css::animated_overlay::AnimatedOverlay>,
+        payloads: &[SharedPayload],
+        parent_in_display_none_subtree: bool,
+    ) -> Option<computed::AnimationOverlayUpdate> {
+        let computed_group_sets = &self.retained.computed_group_sets;
+        if computed_group_sets.assigned_final_style_record(target)? == installed_style_record {
+            return None;
+        }
+        let assigned = computed_group_sets.assigned_underlying_style_record(target)?;
+        let derivation = self
+            .retained
+            .engine_computed_records_pending
+            .get_mut(&target.node())
+            .and_then(|pending| {
+                pending.iter_mut().find(|pending| {
+                    pending.pseudo_kind == target.pseudo_kind()
+                        && computed_group_sets.underlying_style_record(pending.new_style_record) == Some(assigned)
+                })
+            });
+        debug_assert!(
+            derivation.is_some()
+                || computed_group_sets
+                    .underlying_style_record(installed_style_record)
+                    .is_none_or(|installed| installed == assigned),
+            "only a pending derivation moves an assignment off the base of the record the host installed"
+        );
+        let derivation = derivation?;
+        let (publication, composition) = self.retained.computed_group_sets.compose_detached_animation_overlay(
+            installed_style_record,
+            source_identity,
+            animated_overlay,
+            payloads,
+            parent_in_display_none_subtree,
+        )?;
+        if publication.style_record != installed_style_record {
+            derivation.old_style_record = publication.style_record;
+            let replaced = std::mem::replace(&mut derivation.detached_composition, composition);
+            if let Some(replaced) = replaced {
+                self.retained.computed_group_sets.release_detached_composition(replaced);
+            }
+        }
         Some(publication)
     }
 }
@@ -5433,6 +5494,165 @@ mod tests {
                 .pseudo_style_record(node, pseudo_kind::BEFORE),
             Some(composition)
         );
+    }
+
+    #[test]
+    fn an_animation_sampled_beneath_a_pending_derivation_composes_over_the_installed_record() {
+        let mut engine = StyleEngine::new();
+        let mut raw_node = [0];
+        engine.allocate_style_nodes(&mut raw_node);
+        let node = StyleNodeID::from_raw(raw_node[0]).unwrap();
+        let target = computed::ComputedStyleTarget::new(node, u8::MAX);
+        let animated_overlay = crate::css::animated_overlay::AnimatedOverlay::default();
+        let overlay = HostShared::new(std::ptr::from_ref(&animated_overlay));
+        let metadata =
+            |counter_style_environment_identity, animated_overlay: HostShared<_>| computed::ComputedMetadataInput {
+                pseudo_element_styles: 0,
+                dependency_flags: 0,
+                counter_style_environment_identity,
+                animation_overlay_identity: u64::from(!animated_overlay.is_null()),
+                animated_overlay,
+                animation_overlay_payloads: &[],
+                longhand_table: HostShared::null(),
+            };
+        let installed = engine
+            .publish_computed_groups(target, &[], 0, 0, metadata(1, overlay))
+            .style_record_identity;
+        let installed_base = engine.computed_group_sets.underlying_style_record(installed).unwrap();
+        let derive = |engine: &mut StyleEngine, old_style_record| {
+            let detached_composition = engine.computed_group_sets.detach_composition(node);
+            let replaced = engine.computed_group_sets.replaced_columns(node);
+            let derived = engine
+                .publish_computed_groups(target, &[], 0, 0, metadata(2, HostShared::null()))
+                .style_record_identity;
+            engine
+                .engine_computed_records_pending
+                .entry(node)
+                .or_default()
+                .push(PendingEngineComputedRecord {
+                    node,
+                    pseudo_kind: u8::MAX,
+                    old_style_record,
+                    new_style_record: derived,
+                    replaced: Some(replaced),
+                    cascade_state: None,
+                    longhand_evaluations: 0,
+                    owes_a_transition_step: false,
+                    detached_composition,
+                });
+            derived
+        };
+        let derived = derive(&mut engine, installed);
+
+        let sampled = engine
+            .publish_animation_overlay_impl(target, installed, 2, overlay, &[])
+            .unwrap()
+            .style_record;
+        assert_eq!(
+            engine.computed_group_sets.underlying_style_record(sampled),
+            Some(installed_base)
+        );
+        assert_eq!(engine.computed_group_sets.assigned_style_record(node), Some(derived));
+
+        engine.discard_engine_computed_records();
+        assert_eq!(engine.computed_group_sets.assigned_style_record(node), Some(sampled));
+
+        let derived = derive(&mut engine, sampled);
+        let cancelled = engine
+            .publish_animation_overlay_impl(target, sampled, 0, HostShared::null(), &[])
+            .unwrap()
+            .style_record;
+        assert_eq!(cancelled, installed_base);
+        assert_eq!(engine.computed_group_sets.assigned_style_record(node), Some(derived));
+        assert!(engine.computed_group_sets.underlying_style_record(sampled).is_none());
+    }
+
+    #[test]
+    fn animations_sampled_beneath_a_derivation_of_the_installed_base_survive_its_discard() {
+        let animated_overlay = crate::css::animated_overlay::AnimatedOverlay::default();
+        let overlay = HostShared::new(std::ptr::from_ref(&animated_overlay));
+        let metadata = |animated_overlay: HostShared<_>| computed::ComputedMetadataInput {
+            pseudo_element_styles: 0,
+            dependency_flags: 0,
+            counter_style_environment_identity: 0,
+            animation_overlay_identity: u64::from(!animated_overlay.is_null()),
+            animated_overlay,
+            animation_overlay_payloads: &[],
+            longhand_table: HostShared::null(),
+        };
+        let derive_installed_base = |source_identities: &[u64]| {
+            let mut engine = StyleEngine::new();
+            let mut raw_node = [0];
+            engine.allocate_style_nodes(&mut raw_node);
+            let node = StyleNodeID::from_raw(raw_node[0]).unwrap();
+            let target = computed::ComputedStyleTarget::new(node, u8::MAX);
+            let installed = engine
+                .publish_computed_groups(target, &[], 0, 0, metadata(overlay))
+                .style_record_identity;
+            let detached_composition = engine.computed_group_sets.detach_composition(node);
+            let replaced = engine.computed_group_sets.replaced_columns(node);
+            let derived = engine
+                .publish_computed_groups(target, &[], 0, 0, metadata(HostShared::null()))
+                .style_record_identity;
+            assert_eq!(
+                engine.computed_group_sets.underlying_style_record(installed),
+                Some(derived)
+            );
+            engine
+                .engine_computed_records_pending
+                .entry(node)
+                .or_default()
+                .push(PendingEngineComputedRecord {
+                    node,
+                    pseudo_kind: u8::MAX,
+                    old_style_record: installed,
+                    new_style_record: derived,
+                    replaced: Some(replaced),
+                    cascade_state: None,
+                    longhand_evaluations: 0,
+                    owes_a_transition_step: false,
+                    detached_composition,
+                });
+            let mut sampled = installed;
+            for &source_identity in source_identities {
+                let animated_overlay = if source_identity == 0 {
+                    HostShared::null()
+                } else {
+                    overlay
+                };
+                sampled = engine
+                    .publish_animation_overlay_impl(target, sampled, source_identity, animated_overlay, &[])
+                    .unwrap()
+                    .style_record;
+            }
+            (engine, node, derived, sampled)
+        };
+
+        for source_identities in [&[2][..], &[1], &[0], &[0, 2], &[2, 0, 3]] {
+            let (mut engine, node, _, sampled) = derive_installed_base(source_identities);
+            engine.discard_engine_computed_records();
+            assert_eq!(engine.computed_group_sets.assigned_style_record(node), Some(sampled));
+            assert_eq!(
+                engine.computed_group_sets.live_animation_overlay_records(),
+                usize::from(source_identities.last() != Some(&0))
+            );
+            engine.computed_group_sets.remove(node);
+            assert_eq!(engine.computed_group_sets.live_animation_overlay_records(), 0);
+        }
+
+        let (mut engine, node, derived, _) = derive_installed_base(&[0, 2]);
+        engine.acknowledge_engine_computed_record(node);
+        let target = computed::ComputedStyleTarget::new(node, u8::MAX);
+        let sampled = engine
+            .publish_animation_overlay_impl(target, derived, 3, overlay, &[])
+            .unwrap()
+            .style_record;
+        assert_eq!(
+            engine.computed_group_sets.underlying_style_record(sampled),
+            Some(derived)
+        );
+        assert_eq!(engine.computed_group_sets.assigned_style_record(node), Some(sampled));
+        assert_eq!(engine.computed_group_sets.live_animation_overlay_records(), 1);
     }
 }
 
