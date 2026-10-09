@@ -124,15 +124,16 @@ void ContextState::request_rendering_update()
     m_web_content_client.request_rendering_update();
 }
 
-void ContextState::dispatch_mouse_event_to_web_content(Web::MouseEvent const& event)
+void ContextState::dispatch_mouse_event_to_web_content(Web::MouseEvent const& event, bool nested_context_scrolled_since_last_frame)
 {
     VERIFY(m_page_id.has_value());
     m_web_content_client.dispatch_mouse_event_to_web_content(*m_page_id, event);
 
     // The render clock hears where the pointer went too, without waiting for WebContent's main thread, so that hover
-    // can follow the pointer while that thread runs a task.
+    // can follow the pointer while that thread runs a task. The lanes hit test it in the frames on screen, which a
+    // scroll since, here or in a nested context, has moved.
     if (event.type == Web::MouseEvent::Type::MouseMove)
-        m_web_content_client.pointer_moved(m_context_id, event.position, to_underlying(event.buttons), scrolled_since_last_frame(), event.id);
+        m_web_content_client.pointer_moved(m_context_id, event.position, to_underlying(event.buttons), scrolled_since_last_frame() || nested_context_scrolled_since_last_frame, event.id);
     else if (event.type == Web::MouseEvent::Type::MouseLeave)
         m_web_content_client.pointer_left(m_context_id, event.id);
 }

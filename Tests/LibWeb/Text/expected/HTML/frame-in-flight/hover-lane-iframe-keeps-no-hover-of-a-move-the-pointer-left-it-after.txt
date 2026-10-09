@@ -1,0 +1,3 @@
+mouseover targets in the iframe: 
+#outer matches :hover: true
+#inner matches :hover: false

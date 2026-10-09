@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; display: flex; }
+    #outer { width: 50px; height: 100px; flex: none; }
+    iframe { display: block; width: 200px; height: 100px; border: 0; flex: none; }
+</style>
+<div id="outer"></div>
+<iframe srcdoc="<style>body { margin: 0 } #inner { width: 100px; height: 100px }</style><div id=inner></div>"></iframe>
+<script>
+    // Beside a task, the lane of the document hands a move over a same-process iframe to the iframe's lane, which
+    // hovers it. The pointer then moves out of the iframe, a move no tick hovers before the task ends, so the iframe's
+    // lane never hears that the pointer left. The rendering update after the task hovers nothing in the iframe.
+    asyncTest(async done => {
+        const iframe = document.querySelector("iframe");
+        await srcdocLoaded(iframe);
+        const inner = iframe.contentDocument.getElementById("inner");
+        const entered = [];
+        inner.addEventListener("mouseover", () => entered.push("inner"));
+        await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(80, 50, frameTime + 16, 1);
+            iframe.contentWindow.internals.injectClockTick(frameTime + 32);
+            internals.moveHoverPointer(20, 50, 2);
+        }, [document, iframe.contentDocument]);
+        await twoFrames();
+        println(`mouseover targets in the iframe: ${entered.join(", ")}`);
+        println(`#outer matches :hover: ${outer.matches(":hover")}`);
+        println(`#inner matches :hover: ${inner.matches(":hover")}`);
+        done();
+    });
+</script>

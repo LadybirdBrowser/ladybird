@@ -1,0 +1,3 @@
+mousemove targets: inner
+#outer matches :hover: false
+#inner matches :hover: true

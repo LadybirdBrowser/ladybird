@@ -1,0 +1,3 @@
+over inner, leave inner, over second
+#inner matches :hover: false
+#second matches :hover: true

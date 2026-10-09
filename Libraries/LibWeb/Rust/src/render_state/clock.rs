@@ -254,8 +254,10 @@ struct Ticked {
 pub(crate) struct LaneMove {
     pub(crate) input_event_id: u64,
     /// The element the hover is on after the move, or nothing; none where the lane left the move to the host, which
-    /// hovers what is under the pointer itself.
+    /// hovers what is under the pointer itself. For a move `handed` to a same-process iframe, the iframe's element.
     pub(crate) target: Option<Option<StyleNodeID>>,
+    /// Whether the lane handed the move to the lane of a same-process iframe, which hovers it.
+    pub(crate) handed: bool,
 }
 
 // A lane is assembled from pieces made on the Paint thread and the host's.
@@ -630,6 +632,17 @@ impl ClockTicks {
     /// Where the compositor said the pointer went last, beside the mouse event the host takes, if it said so.
     pub(super) fn newest_pointer(&self) -> Option<PendingPointer> {
         self.pointer_state().last()
+    }
+
+    /// Forgets where the compositor said the pointer went, where its last move is older than the move with the input
+    /// event id `input_event_id`: no tick hovers it, and no lane that comes together. Answers whether it did.
+    pub(super) fn forget_pointer_older_than(&self, input_event_id: u64) -> bool {
+        let mut pointer = self.pointer_state();
+        let older = pointer.last().is_some_and(|last| last.input_event_id < input_event_id);
+        if older {
+            pointer.forget();
+        }
+        older
     }
 
     /// Whether a pointer move waits for a tick to hover it.
@@ -1188,8 +1201,10 @@ impl Lane {
                 input_event_id: pointer.input_event_id,
                 target: match hovered {
                     hover::Hovered::LeftToHost => None,
+                    hover::Hovered::Handed(container) => Some(Some(container)),
                     _ => self.hovered.target,
                 },
+                handed: matches!(hovered, hover::Hovered::Handed(_)),
             });
             moved |= hovered == hover::Hovered::Moved;
             // The boxes the move builds again are built first. The boxes a move installed records in show the
@@ -1595,14 +1610,20 @@ pub unsafe extern "C" fn document_host_note_animation_change(host: &DocumentHost
 /// presented a frame since the last rendering update, which the screen shows in place of the host's. The update keeps
 /// the hover the lanes moved, and hovers the newest pointer move the compositor told of, which owe the boundary events
 /// of the move until the host handles a mouse move. The lanes present nothing more until the update's frame: `update` is
-/// the update's serial number, which its plan seals with.
+/// the update's serial number, which its plan seals with. `outer_input_event` is the input event id of the newest
+/// pointer move the document around a same-process iframe's knows of, or 0: what the iframe's lanes did with an older
+/// move is stale.
 ///
 /// # Safety
 ///
 /// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_take_clock_lanes_in(host: &DocumentHost, update: u64) -> bool {
-    host.take_clock_lanes_in(update)
+pub unsafe extern "C" fn document_host_take_clock_lanes_in(
+    host: &DocumentHost,
+    update: u64,
+    outer_input_event: u64,
+) -> bool {
+    host.take_clock_lanes_in(update, outer_input_event)
 }
 
 /// Whether the lanes of `host`'s document may hover or run transitions beside the tasks: the last plan the host sealed for
@@ -1614,6 +1635,17 @@ pub unsafe extern "C" fn document_host_take_clock_lanes_in(host: &DocumentHost, 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn document_host_may_have_lanes(host: &DocumentHost) -> bool {
     host.may_have_lanes()
+}
+
+/// The input event id of the newest pointer move `host`'s document knows of, from a mouse event it handled or from the
+/// compositor.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_newest_pointer_input_event(host: &DocumentHost) -> u64 {
+    host.newest_pointer_input_event()
 }
 
 /// Whether the lanes of `host`'s document wait for the rendering update that took them in to seal its plan, presenting

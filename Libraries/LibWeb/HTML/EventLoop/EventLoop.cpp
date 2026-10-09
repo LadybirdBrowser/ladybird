@@ -704,7 +704,14 @@ void EventLoop::update_the_rendering()
         // takes them in all the same, and drops their plan as it leaves the document out of docs.
         if (!is_renderable(*document) && !Layout::RustFFI::document_host_may_have_lanes(arena->host()))
             continue;
-        if (Layout::RustFFI::document_host_take_clock_lanes_in(arena->host(), m_rendering_update_serial)) {
+        // A same-process iframe's lanes hear of the pointer from the lanes of its local root's document.
+        u64 outer_input_event = 0;
+        if (!navigable->is_local_root()) {
+            auto root_document = navigable->local_root()->active_document();
+            if (auto* root_arena = root_document ? root_document->layout_node_arena_if_created() : nullptr)
+                outer_input_event = Layout::RustFFI::document_host_newest_pointer_input_event(root_arena->host());
+        }
+        if (Layout::RustFFI::document_host_take_clock_lanes_in(arena->host(), m_rendering_update_serial, outer_input_event)) {
             tick_presented = true;
             navigable->set_needs_to_record_display_list();
             navigable->set_needs_repaint();
@@ -1162,7 +1169,9 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
     bool const may_animate = may_plan && docs.size() == 1;
     for (auto& document : docs) {
         auto* navigable = as_if<LocalNavigable>(document->navigable().ptr());
-        bool const plans = may_plan && navigable && navigable->is_local_root() && navigable->active_document().ptr() == document.ptr();
+        // A same-process iframe's document presents into a compositor context of its own, whose lane hovers what the
+        // lane of the document around it hands it of the pointer.
+        bool const plans = may_plan && navigable && (navigable->is_local_root() || navigable->has_compositor_context()) && navigable->active_document().ptr() == document.ptr();
         if (!seal_clock_plan(*document, plans, may_animate, update_serial))
             continue;
         navigable->arm_clock_lane(LocalNavigable::TickNow::No);
