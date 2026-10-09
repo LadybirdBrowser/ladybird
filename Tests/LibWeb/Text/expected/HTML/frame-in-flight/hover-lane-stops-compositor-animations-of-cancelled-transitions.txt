@@ -1,0 +1,3 @@
+transitions the main thread runs before the hover: 1
+compositor animations of the box as the hover cancels the transition: 0
+last frame presented by: clock

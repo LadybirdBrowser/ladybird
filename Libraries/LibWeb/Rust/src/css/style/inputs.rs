@@ -1484,6 +1484,18 @@ impl RetainedState {
         self.animation_effect_descriptions.effects(node, slot)
     }
 
+    /// Has one of an element's described effects take `timing`, the one the host runs it on without sampling it (see
+    /// [`super::effect_descriptions::AnimationEffectDescriptions::refresh_timing`]).
+    pub(crate) fn refresh_element_animation_effect_timing(
+        &mut self,
+        node: StyleNodeID,
+        identity: u64,
+        timing: &crate::css::style_compute::FfiEffectTiming,
+    ) {
+        self.animation_effect_descriptions
+            .refresh_timing(node, identity, timing);
+    }
+
     /// Keeps the timing the host samples one of an element's described effects with, and answers the
     /// key the effect samples its keyframes at (see
     /// [`super::effect_descriptions::AnimationEffectDescriptions::time_effect`]).

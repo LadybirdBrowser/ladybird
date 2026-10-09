@@ -365,6 +365,25 @@ fn computed_value(
         .pointer()
 }
 
+/// Whether the records `first` and `second` compute `property_id` to different values, without their animations.
+pub(crate) fn records_compute_differently(
+    engine: &crate::css::style::StyleEngine,
+    first: u64,
+    second: u64,
+    property_id: u16,
+) -> bool {
+    let value = |record| {
+        let view = engine.style_record_view(record)?;
+        // SAFETY: A live record's table lives as long as the record.
+        let table = unsafe { view.longhand_table.as_ref() }?;
+        Some(table.get(property_id)?.pointer())
+    };
+    match (value(first), value(second)) {
+        (Some(first), Some(second)) => !values_equal(first, second),
+        _ => true,
+    }
+}
+
 fn originates_from_current_color(
     table: &crate::css::computed_longhand_table::ComputedLonghandTable,
     property_id: u16,
@@ -472,7 +491,7 @@ impl TransitionDecision {
         entries: &[TransitionEntry],
         existing: &[FfiExistingTransition],
     ) -> Vec<FfiTransitionAction> {
-        self.decide_over(engine, reference_box, None, entries, existing)
+        self.decide_over(engine, reference_box, None, entries, existing, &[])
     }
 
     /// As `decide_entries`, with `after_overlay` in place of the after-change record's overlay where it is given: the
@@ -484,6 +503,7 @@ impl TransitionDecision {
         after_overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
         entries: &[TransitionEntry],
         existing: &[FfiExistingTransition],
+        ended: &[u16],
     ) -> Vec<FfiTransitionAction> {
         let Self { before, after, element } = self;
         let length_resolution_context = engine.transition_length_resolution_context(after);
@@ -543,6 +563,16 @@ impl TransitionDecision {
                     inherited_animation,
                     &mut property,
                 );
+                // A transition that ended by the time of the style change event no longer moves the before-change
+                // style, whose record may hold a value of it from before it ended.
+                if ended.contains(&property_id)
+                    && std::ptr::eq(
+                        property.before_change_value,
+                        computed_value(before_table, before_overlay, property_id),
+                    )
+                {
+                    property.before_change_value = computed_value(before_table, None, property_id);
+                }
                 decide_transition(&context, &property, values_originate_from_current_color)
             })
             .collect()
@@ -556,19 +586,27 @@ pub(crate) struct RowTransitions {
     pub(crate) before: u64,
     pub(crate) after: u64,
     actions: Vec<FfiTransitionAction>,
-    /// The transitions the host runs on the element, as they stood when the step was decided.
-    host_transitions: Vec<HostTransitionAt>,
+    /// The time of the style change event, in the document timeline's milliseconds, where the caller knew it.
+    at: Option<f64>,
+    /// The transitions the element runs, the host's or those a lane's hover started, as they stood when the step was
+    /// decided.
+    running: Vec<RunningTransitionAt>,
+    /// The host's transitions the earlier steps of a lane's hover on the element saw.
+    host_seen_before: HostTransitionsSeen,
     /// The values of the running transitions over the after-change style, which the decision read their current values
     /// from, kept until the values it compared are retained.
     #[expect(dead_code, reason = "the actions point into it")]
     after_overlay: Option<Box<crate::css::animated_overlay::AnimatedOverlay>>,
 }
 
-/// A transition the host runs on an element, as the engine's description of its effect says it stands at the time a
-/// step decides at.
-struct HostTransitionAt {
+/// A transition an element runs, as it stands at the time a step decides at: one the host runs, as the engine's
+/// description of its effect says, or one a lane's hover started, as the lane runs it.
+struct RunningTransitionAt {
+    /// The identity and generation of its effect, which a sample of it composes: the host's, or the lane's own.
     identity: u64,
     generation: u64,
+    /// The identity of the host's effect, where the host runs it.
+    host_identity: Option<u64>,
     property_id: u16,
     /// The key its keyframes are sampled at then, or none once it has ended.
     key: Option<f64>,
@@ -579,6 +617,11 @@ struct HostTransitionAt {
     end_value: *const StyleValueData,
     reversing_adjusted_start_value: *const StyleValueData,
     reversing_shortening_factor: f64,
+    /// The timing function it eases with, where a lane's hover started it: the host keeps that of its own.
+    timing_function: *const StyleValueData,
+    /// The time it started at, in the document timeline's milliseconds: that of the style change event that started it,
+    /// where a lane's hover started it.
+    started_at: f64,
 }
 
 /// The key a published keyframe at 100% sits at: `KeyframeEffect::AnimationKeyFrameKeyScaleFactor` times 100.
@@ -590,9 +633,8 @@ fn host_transitions_at(
     engine: &crate::css::style::StyleEngine,
     node: crate::css::style::tree::StyleNodeID,
     at: f64,
-) -> Result<Vec<HostTransitionAt>, &'static str> {
+) -> Result<Vec<RunningTransitionAt>, &'static str> {
     use crate::css::style::animations::AnimationTimelineSamples;
-    use crate::css::style::effect_descriptions::PublishedValue;
     let effects = engine.element_animation_effects(node, 0);
     if effects.is_empty() {
         return Err("an element with animations the host has not described");
@@ -600,51 +642,86 @@ fn host_transitions_at(
     let samples = AnimationTimelineSamples::at_tick(at, &[]);
     effects
         .iter()
-        .map(|effect| {
+        .filter_map(|effect| {
             if !effect.is_transition {
-                return Err("an element with animations");
+                return Some(Err("an element with animations"));
             }
-            let reversing = effect
-                .reversing
-                .as_ref()
-                .ok_or("a transition the host has not described")?;
-            let timing = effect.timing.clone().ok_or("a transition the host has not sampled")?;
-            let key = timing
-                .key_at(samples)
-                .ok_or("a transition whose timing the engine cannot decide")?;
-            let local_time = timing
-                .local_time_at(samples)
-                .ok_or("a transition whose timing the engine cannot decide")?;
-            let [start, end] = effect.keyframes.as_ref() else {
-                return Err("a transition the host has not described");
+            let Some(timing) = effect.timing.clone() else {
+                return Some(Err("a transition the host has not sampled"));
             };
-            let value = |keyframe| match effect.declarations_of(keyframe) {
-                [declaration] => match &declaration.value {
-                    PublishedValue::Declared(value) => Some((declaration.property_id, value.pointer())),
-                    PublishedValue::ElementValue => None,
-                },
-                _ => None,
-            };
-            let ((property_id, start_value), (end_property_id, end_value)) = value(start)
-                .zip(value(end))
-                .ok_or("a transition the host has not described")?;
-            if property_id != end_property_id {
-                return Err("a transition the host has not described");
+            // An idle transition, one with neither a start time nor a hold time, runs nothing.
+            if timing.timing.decidable && !timing.timing.has_start_time && !timing.timing.has_hold_time {
+                return None;
             }
-            Ok(HostTransitionAt {
-                identity: effect.identity,
-                generation: effect.generation,
-                property_id,
-                key,
-                local_time,
-                timing,
-                start_value,
-                end_value,
-                reversing_adjusted_start_value: reversing.adjusted_start_value.pointer(),
-                reversing_shortening_factor: reversing.shortening_factor,
-            })
+            Some(host_transition_at(effect, timing, samples, at))
         })
         .collect()
+}
+
+/// The transition the host runs of the effect `effect`, with `timing`, as it stands with its timeline at `samples`, the
+/// time `at` a step decides at. A transition whose play is pending holds its start until the host's next rendering
+/// update resolves its start time: it runs from the time the step decides at, which the host takes in. One that script
+/// paused, or set to run at another rate, the lane cannot run on as the host does.
+fn host_transition_at(
+    effect: &crate::css::style::effect_descriptions::PublishedEffect,
+    timing: crate::css::style::animations::EffectTiming,
+    samples: crate::css::style::animations::AnimationTimelineSamples<'_>,
+    at: f64,
+) -> Result<RunningTransitionAt, &'static str> {
+    if timing.timing.paused {
+        return Err("a paused transition");
+    }
+    if timing.timing.playback_rate != 1.0 {
+        return Err("a transition that runs at another rate");
+    }
+    let reversing = effect
+        .reversing
+        .as_ref()
+        .ok_or("a transition the host has not described")?;
+    let key = timing
+        .key_at(samples)
+        .ok_or("a transition whose timing the engine cannot decide")?;
+    let local_time = timing
+        .local_time_at(samples)
+        .ok_or("a transition whose timing the engine cannot decide")?;
+    let (property_id, start_value, end_value) =
+        transition_values(effect).ok_or("a transition the host has not described")?;
+    Ok(RunningTransitionAt {
+        identity: effect.identity,
+        generation: effect.generation,
+        host_identity: Some(effect.identity),
+        property_id,
+        key,
+        local_time,
+        timing,
+        start_value,
+        end_value,
+        reversing_adjusted_start_value: reversing.adjusted_start_value.pointer(),
+        reversing_shortening_factor: reversing.shortening_factor,
+        timing_function: std::ptr::null(),
+        started_at: at - local_time,
+    })
+}
+
+/// The property a transition's effect animates, and the values it runs between, where its two keyframes each declare a
+/// value of the same property.
+fn transition_values(
+    effect: &crate::css::style::effect_descriptions::PublishedEffect,
+) -> Option<(u16, *const StyleValueData, *const StyleValueData)> {
+    use crate::css::style::effect_descriptions::PublishedValue;
+    let [start, end] = effect.keyframes.as_ref() else {
+        return None;
+    };
+    let value = |keyframe| match effect.declarations_of(keyframe) {
+        [declaration] => match &declaration.value {
+            PublishedValue::Declared(value) => Some((declaration.property_id, value.pointer())),
+            PublishedValue::ElementValue => None,
+        },
+        _ => None,
+    };
+    let (property_id, start_value) = value(start)?;
+    let (end_property_id, end_value) = value(end)?;
+    (property_id == end_property_id).then_some((property_id, start_value, end_value))
 }
 
 impl RowTransitions {
@@ -674,12 +751,15 @@ impl RowTransitions {
     ///
     /// `at`, the time of the style change event in the document timeline's milliseconds where the caller knows it,
     /// decides the step of an element whose animations are all transitions the engine describes, as they stand then,
-    /// and of one whose transitions name values it inherits from ancestors that run none.
+    /// and of one whose transitions name values it inherits from ancestors that run none. `lane` names the transitions
+    /// a lane's hover started on the element, which it runs in place of the host's, where it runs any: the step decides
+    /// over those as they stand at `at`.
     fn decide(
         engine: &mut crate::css::style::StyleEngine,
         row: &crate::css::style::bridge::FfiStyleDelta,
         reference_box: Option<crate::css::css_pixels::CssPixelRect>,
         at: Option<f64>,
+        lane: Option<LaneTransitions<'_>>,
     ) -> Result<Self, &'static str> {
         use crate::css::property_metadata::property_id as prop;
         use crate::css::style::bridge::element_adjustment_fact::HAS_ANIMATIONS;
@@ -688,11 +768,22 @@ impl RowTransitions {
             return Err("a row that owes no step of its own");
         }
         let node = crate::css::style::tree::StyleNodeID::from_raw(row.style_node).ok_or("no style node")?;
-        let host_transitions = match (engine.element_adjustment_facts(node) & HAS_ANIMATIONS != 0, at) {
-            (false, _) => Vec::new(),
-            (true, Some(at)) => host_transitions_at(engine, node, at)?,
-            (true, None) => return Err("an element with animations"),
-        };
+        let (running, lane_effects, host_seen_before) =
+            match (lane, engine.element_adjustment_facts(node) & HAS_ANIMATIONS != 0, at) {
+                (Some(lane), _, Some(at)) => (
+                    lane.transitions.running_at(at - lane.start_time)?,
+                    Some(&lane.transitions.effects[..]),
+                    lane.transitions.host_seen.clone(),
+                ),
+                (Some(_), _, None) => return Err("transitions a lane runs"),
+                (None, false, _) => (Vec::new(), None, HostTransitionsSeen::default()),
+                (None, true, Some(at)) => (
+                    host_transitions_at(engine, node, at)?,
+                    None,
+                    HostTransitionsSeen::default(),
+                ),
+                (None, true, None) => return Err("an element with animations"),
+            };
         let before = match engine.transition_baseline(node, u8::MAX) {
             0 => row.old_style_record,
             baseline => baseline,
@@ -708,13 +799,15 @@ impl RowTransitions {
         if !after_view.animated_overlay.is_null() {
             return Err("an animated record");
         }
-        if crate::css::style_compute::transition_delay_and_duration_are_single_zero(after_table) {
-            return Err("no transition");
-        }
-        let entries = crate::css::style_compute::transition_entries(after_table);
-        if entries.is_empty() {
-            return Err("no transition");
-        }
+        // A declaration whose delay and duration are each the single value 0s starts nothing, so it matters only to an
+        // element running transitions it could cancel, as `TransitionDecision::decide` has it.
+        let entries = if running.is_empty()
+            && crate::css::style_compute::transition_delay_and_duration_are_single_zero(after_table)
+        {
+            Vec::new()
+        } else {
+            crate::css::style_compute::transition_entries(after_table)
+        };
         // A transform interpolates against the box it transforms.
         if reference_box.is_none() && entries.iter().any(|entry| entry.property_id == prop::TRANSFORM) {
             return Err("a transition of transform");
@@ -727,7 +820,7 @@ impl RowTransitions {
             return Err("a transition of an inherited value");
         }
         // The transitions the element runs, as the host's step hands them to the decision.
-        let existing: Vec<_> = host_transitions
+        let existing: Vec<_> = running
             .iter()
             .map(|transition| FfiExistingTransition {
                 property_id: transition.property_id,
@@ -741,11 +834,11 @@ impl RowTransitions {
             .collect();
         // The after-change style holds the current values of the transitions the element runs, as the overlay of the
         // record the host installed holds them.
-        let after_overlay = match (host_transitions.is_empty(), at) {
+        let after_overlay = match (running.is_empty(), at) {
             (false, Some(_)) => {
                 use crate::css::animation::{FfiAnimationPreparationEffect, FfiSampledAnimationEffect};
                 let mut composed = crate::css::style_compute::SampledEffects::new();
-                for transition in &host_transitions {
+                for transition in &running {
                     if let Some(current_key) = transition.key {
                         composed.push(FfiSampledAnimationEffect {
                             effect: FfiAnimationPreparationEffect {
@@ -758,27 +851,62 @@ impl RowTransitions {
                 }
                 let mut overlay = Box::new(crate::css::animated_overlay::AnimatedOverlay::default());
                 engine
-                    .sample_over_record(node, after, &mut overlay, None, composed, reference_box)
+                    .sample_over_record(node, after, &mut overlay, lane_effects, composed, reference_box)
                     .map_err(|_| "a transition sample the host composes")?;
                 Some(overlay)
             }
             _ => None,
         };
+        let ended: smallvec::SmallVec<[u16; 4]> = running
+            .iter()
+            .filter(|transition| {
+                let timing = &transition.timing.timing;
+                transition.key.is_none() && transition.local_time >= timing.start_delay + timing.iteration_duration
+            })
+            .map(|transition| transition.property_id)
+            .collect();
         let actions = TransitionDecision {
             before,
             after,
             element: Some(node),
         }
-        .decide_over(engine, reference_box, after_overlay.as_deref(), &entries, &existing);
+        .decide_over(
+            engine,
+            reference_box,
+            after_overlay.as_deref(),
+            &entries,
+            &existing,
+            &ended,
+        );
         Ok(Self {
             node,
             before,
             after,
             actions,
-            host_transitions,
+            at,
+            running,
+            host_seen_before,
             after_overlay,
         })
     }
+}
+
+/// The host's transitions the steps of a lane's hover on an element saw, by their effects' identities.
+#[derive(Clone, Default)]
+pub(crate) struct HostTransitionsSeen {
+    /// Those a step ended as they ran, in place of which the host runs what the steps decided.
+    pub(crate) cancelled: smallvec::SmallVec<[u64; 2]>,
+    /// Every one a step decided beside, whether it ran then, ended by itself, or a step ended it: one the steps neither
+    /// ended nor left running ended by itself.
+    pub(crate) seen: smallvec::SmallVec<[u64; 2]>,
+}
+
+/// The transitions a lane's hover started on an element, which the lane runs in place of those the host runs on it,
+/// with when it started them, in the document timeline's milliseconds.
+#[derive(Clone, Copy)]
+pub(crate) struct LaneTransitions<'a> {
+    pub(crate) transitions: &'a HoverTransitions,
+    pub(crate) start_time: f64,
 }
 
 /// The transition step a style transaction decided beside the row of an element that owes one, which the host's step
@@ -813,7 +941,7 @@ impl DecidedTransitionStep {
             after,
             actions,
             ..
-        } = RowTransitions::decide(engine, row, None, None).ok()?;
+        } = RowTransitions::decide(engine, row, None, None, None).ok()?;
         let fresh_sample = FreshTransitionSample::of_step(engine, node, after, &actions);
         Some(Self {
             node: row.style_node,
@@ -975,32 +1103,7 @@ fn started_transition_effects(
         let easing = crate::css::style::effect_descriptions::easing_from_computed_timing_function(unsafe {
             &*action.timing_function
         })?;
-        timings.push(crate::css::style::animations::EffectTiming {
-            timing: crate::css::style_compute::FfiEffectTiming {
-                decidable: true,
-                has_timeline_time: false,
-                has_timeline_origin_time: false,
-                has_timeline_scroller: false,
-                timeline_scroller_is_vertical: false,
-                timeline_scroller: 0,
-                has_start_time: false,
-                has_hold_time: true,
-                // `Bindings::FillMode::Backwards` and `Bindings::PlaybackDirection::Normal`.
-                fill_mode: 2,
-                playback_direction: 0,
-                timeline_time: 0.0,
-                timeline_origin_time: 0.0,
-                start_time: 0.0,
-                hold_time: 0.0,
-                playback_rate: 1.0,
-                start_delay: action.delay,
-                end_delay: 0.0,
-                iteration_duration: action.active_duration,
-                iteration_count: 1.0,
-                iteration_start: 0.0,
-            },
-            easing,
-        });
+        timings.push(started_transition_timing(action, easing));
         let identity = effects.len() as u64 + 1;
         // SAFETY: The decision compared live values, which the records it decided over hold.
         let [start, end] = [action.start_value, action.end_value]
@@ -1010,24 +1113,28 @@ fn started_transition_effects(
     Some((effects, timings))
 }
 
-/// The transitions the move of a hover's row starts, which the render owner shows in the element's box, sampling them
-/// itself, until the host starts them in its turn as it installs the row, from the time they started here.
+/// The transitions the move of a hover's row leaves its element running, which the render owner shows in the element's
+/// box, sampling them itself: those the move started, and those it ran before that run on. The host takes them in from
+/// the time they started here.
+#[derive(Clone)]
 pub(crate) struct HoverTransitions {
     pub(crate) node: crate::css::style::tree::StyleNodeID,
     /// The record the row moved its element to, the after-change style, which the transitions sample over.
     pub(crate) after: u64,
     effects: Vec<crate::css::style::effect_descriptions::PublishedEffect>,
-    timings: Vec<crate::css::style::animations::EffectTiming>,
-    /// The local time of each effect as the transitions start: none for one they start, and how far the host ran one
-    /// they run on.
-    local_times: Vec<f64>,
+    /// How each of the effects runs.
+    runs: Vec<HoverTransitionRun>,
     /// The properties the transitions animate.
     properties: Vec<u16>,
     /// How long after they start the transitions have all ended, in milliseconds.
     pub(crate) duration: f64,
-    /// Whether the render owner decided the step over transitions the host runs on the element, as they stood when it
-    /// started.
-    pub(crate) decided_over_host_transitions: bool,
+    /// Whether the render owner decided the step over transitions the element ran, the host's or those a hover started,
+    /// as they stood when it started.
+    pub(crate) decided_over_running: bool,
+    /// The host's transitions the hover's steps on the element saw, this one's and those before it.
+    pub(crate) host_seen: HostTransitionsSeen,
+    /// The properties of the running transitions of the host's that the step ended.
+    pub(crate) ended_host_properties: smallvec::SmallVec<[u16; 2]>,
     /// The element's descendants that inherit an inherited property the transitions animate, in tree order, each with
     /// the properties it inherits, whose values the render owner composes over them as it samples the transitions.
     pub(crate) inheriting: crate::css::style::hover_lane::InheritingDescendants,
@@ -1036,36 +1143,91 @@ pub(crate) struct HoverTransitions {
     pub(crate) inheriting_covers_subtree: bool,
 }
 
-/// The effects of the transitions a step decided over the transitions an element runs: those it starts, between the
-/// values its actions name, and those that run on, as the host runs them, each with its timing and local time as the
-/// step happens.
-type HoverTransitionEffects = (
-    Vec<crate::css::style::effect_descriptions::PublishedEffect>,
-    Vec<crate::css::style::animations::EffectTiming>,
-    Vec<f64>,
-);
+/// How a transition a hover's step leaves its element running runs.
+#[derive(Clone)]
+struct HoverTransitionRun {
+    timing: crate::css::style::animations::EffectTiming,
+    /// Its local time as the step happens: none for one the step starts, and how far it ran for one that runs on.
+    local_time: f64,
+    reversing_adjusted_start_value: crate::css::style_value::RetainedStyleValueData,
+    reversing_shortening_factor: f64,
+    /// The timing function it eases with, where a hover started it.
+    timing_function: Option<crate::css::style_value::RetainedStyleValueData>,
+    /// The identity of the host's effect, where the host runs it.
+    host_identity: Option<u64>,
+    /// The time it started at, in the document timeline's milliseconds: that of the style change event that started it,
+    /// where a hover started it.
+    started_at: f64,
+}
 
-fn hover_transition_effects(decision: &RowTransitions) -> Result<HoverTransitionEffects, &'static str> {
+/// A timing a transition starts with: delayed, filling backwards, and held at its start.
+fn started_transition_timing(
+    action: &FfiTransitionAction,
+    easing: crate::css::easing::Easing,
+) -> crate::css::style::animations::EffectTiming {
+    crate::css::style::animations::EffectTiming {
+        timing: crate::css::style_compute::FfiEffectTiming {
+            decidable: true,
+            has_timeline_time: false,
+            has_timeline_origin_time: false,
+            has_timeline_scroller: false,
+            timeline_scroller_is_vertical: false,
+            timeline_scroller: 0,
+            has_start_time: false,
+            has_hold_time: true,
+            paused: false,
+            // `Bindings::FillMode::Backwards` and `Bindings::PlaybackDirection::Normal`.
+            fill_mode: 2,
+            playback_direction: 0,
+            timeline_time: 0.0,
+            timeline_origin_time: 0.0,
+            start_time: 0.0,
+            hold_time: 0.0,
+            playback_rate: 1.0,
+            start_delay: action.delay,
+            end_delay: 0.0,
+            iteration_duration: action.active_duration,
+            iteration_count: 1.0,
+            iteration_start: 0.0,
+        },
+        easing,
+    }
+}
+
+/// The effects of the transitions a step decided over the transitions an element runs leaves it running, each with how
+/// it runs: those it starts, between the values its actions name, and those that run on, as they ran.
+fn hover_transition_effects(
+    decision: &RowTransitions,
+) -> Result<
+    (
+        Vec<crate::css::style::effect_descriptions::PublishedEffect>,
+        Vec<HoverTransitionRun>,
+    ),
+    &'static str,
+> {
     use crate::css::style::effect_descriptions::PublishedEffect;
     use crate::css::style_value::{RetainedStyleValueData, retain_style_value};
     use FfiTransitionActionKind as Kind;
-    // SAFETY: The values a decision compared live in the records it decided over, which the caller keeps live.
+    // SAFETY: The values a decision compared live in the records it decided over, or in the effects of the transitions
+    //         it decided over, which the caller keeps live.
     let retain = |value: *const StyleValueData| {
         (!value.is_null()).then(|| unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(value)) })
     };
     let mut effects = Vec::new();
-    let mut timings = Vec::new();
-    let mut local_times = Vec::new();
+    let mut runs = Vec::new();
     for action in &decision.actions {
-        let host_transition = decision
-            .host_transitions
+        let running = decision
+            .running
             .iter()
             .find(|transition| transition.property_id == action.property_id);
         let identity = effects.len() as u64 + 1;
         match action.kind {
             Kind::None => {
-                // A running transition the step leaves runs on as the host runs it.
-                if let Some(transition) = host_transition.filter(|transition| transition.key.is_some()) {
+                // A running transition the step leaves runs on as it ran. So does one a hover started that has ended,
+                // which the host takes in as the screen showed it, a completed transition of the property.
+                if let Some(transition) =
+                    running.filter(|transition| transition.key.is_some() || transition.host_identity.is_none())
+                {
                     let mut timing = transition.timing.clone();
                     timing.timing.has_hold_time = true;
                     effects.push(PublishedEffect::transition(
@@ -1074,8 +1236,16 @@ fn hover_transition_effects(decision: &RowTransitions) -> Result<HoverTransition
                         retain(transition.start_value).ok_or("a transition without values")?,
                         retain(transition.end_value).ok_or("a transition without values")?,
                     ));
-                    timings.push(timing);
-                    local_times.push(transition.local_time);
+                    runs.push(HoverTransitionRun {
+                        timing,
+                        local_time: transition.local_time,
+                        reversing_adjusted_start_value: retain(transition.reversing_adjusted_start_value)
+                            .ok_or("a transition without values")?,
+                        reversing_shortening_factor: transition.reversing_shortening_factor,
+                        timing_function: retain(transition.timing_function),
+                        host_identity: transition.host_identity,
+                        started_at: transition.started_at,
+                    });
                 }
                 continue;
             }
@@ -1087,92 +1257,185 @@ fn hover_transition_effects(decision: &RowTransitions) -> Result<HoverTransition
             &*action.timing_function
         })
         .ok_or("a timing function the engine cannot read")?;
-        timings.push(crate::css::style::animations::EffectTiming {
-            timing: crate::css::style_compute::FfiEffectTiming {
-                decidable: true,
-                has_timeline_time: false,
-                has_timeline_origin_time: false,
-                has_timeline_scroller: false,
-                timeline_scroller_is_vertical: false,
-                timeline_scroller: 0,
-                has_start_time: false,
-                has_hold_time: true,
-                // `Bindings::FillMode::Backwards` and `Bindings::PlaybackDirection::Normal`.
-                fill_mode: 2,
-                playback_direction: 0,
-                timeline_time: 0.0,
-                timeline_origin_time: 0.0,
-                start_time: 0.0,
-                hold_time: 0.0,
-                playback_rate: 1.0,
-                start_delay: action.delay,
-                end_delay: 0.0,
-                iteration_duration: action.active_duration,
-                iteration_count: 1.0,
-                iteration_start: 0.0,
-            },
-            easing,
-        });
-        local_times.push(0.0);
         effects.push(PublishedEffect::transition(
             identity,
             action.property_id,
             retain(action.start_value).ok_or("a transition without values")?,
             retain(action.end_value).ok_or("a transition without values")?,
         ));
+        runs.push(HoverTransitionRun {
+            timing: started_transition_timing(action, easing),
+            local_time: 0.0,
+            reversing_adjusted_start_value: retain(action.reversing_adjusted_start_value)
+                .ok_or("a transition without values")?,
+            reversing_shortening_factor: action.reversing_shortening_factor,
+            timing_function: retain(action.timing_function),
+            host_identity: None,
+            started_at: decision.at.ok_or("a step at no time")?,
+        });
     }
-    Ok((effects, timings, local_times))
+    Ok((effects, runs))
 }
 
 // SAFETY: The effects retain the values they interpolate, which nothing writes, and the render owner alone reads them.
 unsafe impl Send for HoverTransitions {}
 
+// SAFETY: Nothing writes the transitions once the lane runs them, which the host reads beside it as it takes them in.
+unsafe impl Sync for HoverTransitions {}
+
+/// One transition a lane's hover leaves an element running, as the host takes it in.
+#[repr(C)]
+pub struct FfiLaneTransition {
+    pub property_id: u16,
+    /// The identity of the effect of the host's transition it is, which the host keeps, or 0 for one the lane started.
+    pub host_identity: u64,
+    /// The time it started at, in the document timeline's milliseconds: that of the style change event that started it,
+    /// where the lane started it, and where the lane took one the host runs to start, which the host takes in where its
+    /// play is still pending.
+    pub start_time: f64,
+    pub delay: f64,
+    pub duration: f64,
+    pub start_value: *const StyleValueData,
+    pub end_value: *const StyleValueData,
+    pub reversing_adjusted_start_value: *const StyleValueData,
+    pub reversing_shortening_factor: f64,
+    /// The timing function it eases with, or null where the host runs it.
+    pub timing_function: *const StyleValueData,
+}
+
 impl HoverTransitions {
-    /// The transitions the move of `row` starts, decided as the host's step decides them where nothing but the engine's
-    /// records decides it, none where the move starts none, or why the host has to decide them.
+    /// The transitions the move of `row` leaves its element running, decided as the host's step decides them where
+    /// nothing but the engine's records decides it, none where the move starts none and the element runs none, or why
+    /// the host has to decide them.
     ///
     /// `at` is the time of the style change event in the document timeline's milliseconds, at which the decision reads
-    /// the transitions the host runs on the element.
+    /// the transitions the element runs: those `lane` names, which a lane's hover started on it, where it does, and
+    /// those the host runs on it otherwise.
     pub(crate) fn of_row(
         engine: &mut crate::css::style::StyleEngine,
         row: &crate::css::style::bridge::FfiStyleDelta,
         reference_box: Option<crate::css::css_pixels::CssPixelRect>,
         at: f64,
+        lane: Option<LaneTransitions<'_>>,
     ) -> Result<Option<Self>, &'static str> {
         // NB: As the host's step, a move from a style under `display: none` starts no transition, and an element there
         //     runs none.
         if RowTransitions::moves_from_display_none(engine, row) {
             return Ok(None);
         }
-        let decision = RowTransitions::decide(engine, row, reference_box, Some(at))?;
-        let (effects, timings, local_times) = hover_transition_effects(&decision)?;
+        let decision = RowTransitions::decide(engine, row, reference_box, Some(at), lane)?;
+        let (effects, runs) = hover_transition_effects(&decision)?;
         let (node, after) = (decision.node, decision.after);
-        let decided_over_host_transitions = !decision.host_transitions.is_empty();
-        if effects.is_empty() && !decided_over_host_transitions {
+        let decided_over_running = !decision.running.is_empty();
+        if effects.is_empty() && !decided_over_running {
             return Ok(None);
         }
-        let duration = timings
+        let duration = runs
             .iter()
-            .zip(&local_times)
-            .map(|(timing, local_time)| timing.timing.start_delay + timing.timing.iteration_duration - local_time)
+            .map(|run| run.timing.timing.start_delay + run.timing.timing.iteration_duration - run.local_time)
             .fold(0.0, f64::max);
         let properties = effects
             .iter()
             .filter_map(|effect| effect.declarations_of(effect.keyframes.first()?).first())
             .map(|declaration| declaration.property_id)
             .collect();
+        // A running transition of the host's the step leaves no run of ended with the step.
+        let mut host_seen = decision.host_seen_before;
+        let mut ended_host_properties = smallvec::SmallVec::new();
+        for transition in &decision.running {
+            let Some(identity) = transition.host_identity else {
+                continue;
+            };
+            if !host_seen.seen.contains(&identity) {
+                host_seen.seen.push(identity);
+            }
+            if transition.key.is_some() && runs.iter().all(|run| run.host_identity != Some(identity)) {
+                ended_host_properties.push(transition.property_id);
+                if !host_seen.cancelled.contains(&identity) {
+                    host_seen.cancelled.push(identity);
+                }
+            }
+        }
         Ok(Some(Self {
             node,
             after,
             effects,
-            timings,
-            local_times,
+            runs,
             properties,
             duration,
-            decided_over_host_transitions,
+            decided_over_running,
+            host_seen,
+            ended_host_properties,
             inheriting: Vec::new(),
             inheriting_covers_subtree: false,
         }))
+    }
+
+    /// The transitions as they stand `elapsed` milliseconds after they started, as a step then decides over them.
+    fn running_at(&self, elapsed: f64) -> Result<Vec<RunningTransitionAt>, &'static str> {
+        self.effects
+            .iter()
+            .zip(&self.runs)
+            .map(|(effect, run)| {
+                let (property_id, start_value, end_value) =
+                    transition_values(effect).ok_or("a transition without values")?;
+                let local_time = run.local_time + elapsed;
+                let mut timing = run.timing.clone();
+                timing.timing.hold_time = local_time;
+                let key = timing
+                    .key_at(Default::default())
+                    .ok_or("a transition whose timing the engine cannot decide")?;
+                Ok(RunningTransitionAt {
+                    identity: effect.identity,
+                    generation: 0,
+                    host_identity: run.host_identity,
+                    property_id,
+                    key,
+                    local_time,
+                    timing: run.timing.clone(),
+                    start_value,
+                    end_value,
+                    reversing_adjusted_start_value: run.reversing_adjusted_start_value.pointer(),
+                    reversing_shortening_factor: run.reversing_shortening_factor,
+                    timing_function: run
+                        .timing_function
+                        .as_ref()
+                        .map_or(std::ptr::null(), |timing_function| timing_function.pointer()),
+                    started_at: run.started_at,
+                })
+            })
+            .collect()
+    }
+
+    /// Each transition, as the host runs it from the update that takes it in.
+    pub(crate) fn lane_transitions(&self) -> impl Iterator<Item = FfiLaneTransition> + '_ {
+        self.effects.iter().zip(&self.runs).filter_map(|(effect, run)| {
+            let (property_id, start_value, end_value) = transition_values(effect)?;
+            Some(FfiLaneTransition {
+                property_id,
+                host_identity: run.host_identity.unwrap_or(0),
+                start_time: run.started_at,
+                delay: run.timing.timing.start_delay,
+                duration: run.timing.timing.iteration_duration,
+                start_value,
+                end_value,
+                reversing_adjusted_start_value: run.reversing_adjusted_start_value.pointer(),
+                reversing_shortening_factor: run.reversing_shortening_factor,
+                timing_function: run
+                    .timing_function
+                    .as_ref()
+                    .map_or(std::ptr::null(), |timing_function| timing_function.pointer()),
+            })
+        })
+    }
+
+    /// The properties of the running transitions of the host's that the step leaves running.
+    pub(crate) fn kept_host_properties(&self) -> impl Iterator<Item = u16> + '_ {
+        self.effects
+            .iter()
+            .zip(&self.runs)
+            .filter(|(_, run)| run.host_identity.is_some())
+            .filter_map(|(effect, _)| transition_values(effect).map(|(property, _, _)| property))
     }
 
     /// The properties the transitions animate.
@@ -1219,9 +1482,9 @@ impl HoverTransitions {
         use crate::css::animation::{FfiAnimationPreparationEffect, FfiSampledAnimationEffect};
         use crate::css::style::engine_sample::NeedsHost;
         let mut composed = crate::css::style_compute::SampledEffects::new();
-        for ((effect, timing), local_time) in self.effects.iter().zip(&self.timings).zip(&self.local_times) {
-            let mut timing = timing.clone();
-            timing.timing.hold_time = local_time + elapsed;
+        for (effect, run) in self.effects.iter().zip(&self.runs) {
+            let mut timing = run.timing.clone();
+            timing.timing.hold_time = run.local_time + elapsed;
             let Some(current_key) = timing.key_at(Default::default()).ok_or(NeedsHost)? else {
                 continue;
             };

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #first, #second { width: 100px; height: 50px; }
+    #box { width: 100px; height: 100px; background-color: rgb(0, 0, 255); transition: opacity 100ms linear; }
+    #first:hover ~ #box { opacity: 0.5; }
+    #second:hover ~ #box { opacity: 0.5; color: rgb(255, 0, 0); }
+</style>
+<div id="first"></div>
+<div id="second"></div>
+<div id="box"></div>
+<script>
+    // A hover beside the task starts a transition of opacity, which ends on screen. The next move restyles the element
+    // again, and leaves its opacity where the transition ended. The rendering update after the task takes in the
+    // transition the screen showed, from when the lane started it, and starts no other.
+    asyncTest(async done => {
+        let stepTime;
+        const result = await whileLaneHovers(frameTime => {
+            stepTime = frameTime + 100000;
+            internals.injectHoverPointer(50, 25, stepTime);
+            internals.injectClockTick(stepTime + 200);
+            internals.injectHoverPointer(50, 75, stepTime + 300);
+            return {
+                opacity: internals.presentedOpacity(box),
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`box opacity on screen after the second move: ${result.opacity}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        await twoFrames();
+        const transitions = box.getAnimations();
+        println(`transitions once the main thread took over: ${transitions.length}`);
+        for (const transition of transitions)
+            println(`transition starts at the first step beside the task: ${Math.abs(transition.startTime - stepTime) < 1}`);
+        done();
+    });
+</script>

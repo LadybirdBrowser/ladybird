@@ -1,0 +1,6 @@
+transitions the main thread runs before the hover: 1
+box shows its after-change width at once: true
+last frame presented by: clock
+box matches :hover: true
+transitions once the main thread took over: 0
+transitioncancel events: 1

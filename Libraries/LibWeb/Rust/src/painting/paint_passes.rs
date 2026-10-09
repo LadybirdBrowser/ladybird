@@ -57,7 +57,7 @@ pub(crate) struct RenderingPreparation {
 }
 
 /// What a clock tick's round changed that only the host settles: a root background, scrollability or SVG paint
-/// resource, a visual context tree built anew, or a compositor animation whose node went away.
+/// resource, a visual context tree built anew, or a compositor animation of a box the round built again.
 pub(crate) struct VisualContextsNeedHost(pub(crate) &'static str);
 
 /// The visual context tree a clock tick's frame takes to the compositor, with the scroll offsets of its nodes where its
@@ -70,8 +70,8 @@ pub(crate) struct ClockTickVisualContexts {
 /// Brings the paint state of `arena` up to date with what a clock tick's round laid out, for the tick's frame, as the
 /// host's rendering update does before it records, where the round moved no root background, flipped no scrollability
 /// and asks the host to resolve no SVG paint resource, and the update changes the tree incrementally. Answers the tree
-/// where the update ran. A tree of a new structure takes over the compositor animations the host published for the old
-/// one, whose nodes it holds still. The rest of paint preparation, the scroll offsets new overflow clamps above all, is
+/// where the update ran. A tree of a new structure carries the compositor animations the host published for the old one
+/// over to the nodes of the same boxes. The rest of paint preparation, the scroll offsets new overflow clamps above all, is
 /// the host's, in its next rendering update.
 pub(crate) fn prepare_for_clock_tick(
     arena: &mut LayoutNodeArena,
@@ -88,8 +88,8 @@ pub(crate) fn prepare_for_clock_tick(
         ));
     }
     let (inputs, compositor_animations) = {
-        let paint_state = arena.paint_state().borrow();
-        let state = &paint_state.visual_context;
+        let mut paint_state = arena.paint_state().borrow_mut();
+        let state = &mut paint_state.visual_context;
         let (Some(inputs), Some(tree)) = (state.last_tree_inputs, state.tree.as_deref()) else {
             return Err(VisualContextsNeedHost("no visual context tree"));
         };
@@ -97,10 +97,28 @@ pub(crate) fn prepare_for_clock_tick(
             return Err(VisualContextsNeedHost("every box rebuilds its visual contexts"));
         }
         if state.dirty_boxes.boxes.is_empty() && state.dirty_boxes.removed.is_empty() {
-            return Ok(None);
+            // A tick that stopped compositor animations of the host's takes the tree without them to the compositor.
+            if tree.visual_animations() == state.published_compositor_animations.as_slice() {
+                return Ok(None);
+            }
+            state.published_compositor_animations = tree.visual_animations().to_vec();
+            return Ok(Some(ClockTickVisualContexts {
+                tree: state.tree.clone().expect("the tree is there"),
+                restructured_scroll_offsets: None,
+            }));
         }
         (inputs, tree.shared_visual_animations())
     };
+    // The boxes the compositor animations drive nodes of, as the tree before the update holds them, which a tree of a
+    // new structure gives other nodes.
+    let before = (!compositor_animations.is_empty()).then(|| {
+        let tree = arena.paint_state().borrow().visual_context.tree.clone();
+        (
+            arena.visual_context_node_handles_snapshot(),
+            tree.expect("the tree is there"),
+        )
+    });
+    keep_nodes_compositor_animations_drive(arena);
     let outcome = update_accumulated_visual_contexts(arena, viewport, inputs);
     if outcome.performed_full_build {
         return Err(VisualContextsNeedHost("a full visual context tree build"));
@@ -115,10 +133,13 @@ pub(crate) fn prepare_for_clock_tick(
             restructured_scroll_offsets: None,
         }));
     }
-    // The update dropped the animations, which name nodes of the old structure: the host publishes them again in its
-    // rendering update, and an animation whose node went away needs it to.
-    if !Arc::make_mut(tree).carry_visual_animations_over(compositor_animations) {
-        return Err(VisualContextsNeedHost("animations of a node that went away"));
+    // The update dropped the animations, which name nodes of the old structure: each goes on driving the nodes of its
+    // box in the new one. An animation of a box that has no node of its kind any more drives nothing the frame shows,
+    // as the tick gave the box a style of its own for what it animates.
+    if let Some((handles_before, tree_before)) = before {
+        let animations =
+            carry_visual_animations_to_new_nodes(arena, &handles_before, &tree_before, tree, &compositor_animations)?;
+        Arc::make_mut(tree).set_visual_animations(animations);
     }
     let tree = tree.clone();
     // The host refreshes its own copy of the scroll state still.
@@ -127,6 +148,98 @@ pub(crate) fn prepare_for_clock_tick(
         tree,
         restructured_scroll_offsets: Some(scroll_offsets),
     }))
+}
+
+/// The compositor animations `animations`, which drive nodes of `tree_before`, whose boxes `handles_before` held, driving
+/// the nodes of the same boxes in `tree`, a tree of a new structure. An animation of a box that has no node of its kind
+/// in `tree` is dropped. One of a box the update built again, or took away, is the host's to go on with.
+fn carry_visual_animations_to_new_nodes(
+    arena: &LayoutNodeArena,
+    handles_before: &crate::cow_column::ColumnSnapshot<
+        Option<Arc<crate::painting::visual_context::records::BoxVisualContextNodeHandles>>,
+        { crate::painting::paintable_rows::PAINTABLE_SLOTS_PER_CHUNK },
+    >,
+    tree_before: &VisualContextTree,
+    tree: &VisualContextTree,
+    animations: &[crate::painting::visual_animation::VisualAnimation],
+) -> Result<Vec<crate::painting::visual_animation::VisualAnimation>, VisualContextsNeedHost> {
+    use crate::painting::host::FfiVisualAnimationTargetKind;
+    let mut effect_owners = std::collections::HashMap::new();
+    let mut spatial_owners = std::collections::HashMap::new();
+    for index in 0..handles_before.slot_capacity() {
+        let Some(Some(handles)) = handles_before.get(index) else {
+            continue;
+        };
+        for effect in &handles.effects {
+            effect_owners.insert(effect.0, index as u32);
+        }
+        for spatial in &handles.spatial {
+            spatial_owners.insert(spatial.0, index as u32);
+        }
+    }
+    let mut carried = Vec::with_capacity(animations.len());
+    for animation in animations {
+        let owners = match animation.target_kind {
+            FfiVisualAnimationTargetKind::Transform => &spatial_owners,
+            _ => &effect_owners,
+        };
+        let mut targets = animation
+            .node_indices
+            .iter()
+            .filter(|&&node| tree_before.visual_animation_target_is_valid(animation.target_kind, node))
+            .peekable();
+        // An animation that drove no node of the tree before drives nothing the frame shows.
+        if targets.peek().is_none() {
+            continue;
+        }
+        let owner = targets
+            .find_map(|node| owners.get(node))
+            .and_then(|&owner| arena.live_slot_at(owner))
+            .ok_or(VisualContextsNeedHost("animations of a box built again"))?;
+        let node_indices = arena.paintable_visual_animation_target_indices(owner, Some(tree), animation.target_kind);
+        if !node_indices.is_empty() {
+            carried.push(crate::painting::visual_animation::VisualAnimation {
+                node_indices,
+                ..animation.clone()
+            });
+        }
+    }
+    Ok(carried)
+}
+
+/// Has each box a clock tick restyled keep the effect node a compositor animation the host published drives, as the
+/// host's frame had it: the host gave the box the node for a value its style held as the animation ran, which the tick's
+/// style need not hold, where it did not force one for the animation.
+fn keep_nodes_compositor_animations_drive(arena: &mut LayoutNodeArena) {
+    use crate::layout::node_data::CompositorAnimationFrameKind;
+    use crate::painting::host::FfiVisualAnimationTargetKind;
+    let (dirty, animations) = {
+        let paint_state = arena.paint_state().borrow();
+        let state = &paint_state.visual_context;
+        let Some(tree) = state.tree.as_deref().filter(|tree| tree.has_visual_animations()) else {
+            return;
+        };
+        let dirty: Vec<NodeSlotId> = state.dirty_boxes.boxes.keys().copied().collect();
+        (dirty, tree.shared_visual_animations())
+    };
+    for slot in dirty {
+        let nodes = arena.box_animation_nodes(slot);
+        if nodes.effects.is_empty() {
+            continue;
+        }
+        for animation in animations.iter() {
+            let kind = match animation.target_kind {
+                FfiVisualAnimationTargetKind::Opacity | FfiVisualAnimationTargetKind::Filter => {
+                    CompositorAnimationFrameKind::Opacity
+                }
+                FfiVisualAnimationTargetKind::BackgroundColor => CompositorAnimationFrameKind::BackgroundColor,
+                FfiVisualAnimationTargetKind::Transform => continue,
+            };
+            if nodes.driven_by(animation) && !arena.node_has_compositor_animation_frame(slot, kind) {
+                arena.set_node_needs_compositor_animation_frame(slot, kind, true);
+            }
+        }
+    }
 }
 
 /// Runs `pass` over the render state of `host`'s document in `read`, as the host prepares to paint, and answers what it

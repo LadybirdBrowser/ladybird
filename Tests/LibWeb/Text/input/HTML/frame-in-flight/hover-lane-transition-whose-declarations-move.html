@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); transition: width 100s linear; }
+    #box:hover { width: 200px; transition: width 50s linear; }
+</style>
+<div id="box"></div>
+<script>
+    // A hover beside the task whose style change moves the transition declarations, and no animation declaration,
+    // starts the transition the new declarations give, as the render clock ticks.
+    asyncTest(async done => {
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            internals.injectClockTick(frameTime + 16 + 25000);
+            return {
+                halfway: internals.presentedBorderBox(box)?.width ?? "none",
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`width halfway through: ${result.halfway}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        await nextFrame();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        println(`transitions once the main thread took over: ${box.getAnimations().length}`);
+        done();
+    });
+</script>

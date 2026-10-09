@@ -7,7 +7,7 @@
 //! What the host keeps of a document's render state, which the render owner holds: its name, the frame that may fly
 //! beside the host, and what the host reads between the jobs it hands the owner.
 
-use super::clock::{ClockPlan, ClockTicks, CommittedFrame, LaneTransitionStarts};
+use super::clock::{ClockPlan, ClockTicks, CommittedFrame};
 use super::owner::{self, DocumentId, SharedWithHost, StateSeed};
 use super::wait::{BegunRead, NodeRead};
 use super::{
@@ -18,6 +18,7 @@ use crate::css::style::flight_style_rows::FlightStyleRow;
 use crate::css::style::rule_writes::{PublishedRules, RuleWrite};
 use crate::css::style::style_job::{SealedStyleInputs, StyleJobAnswer};
 use crate::css::style::tree::StyleNodeID;
+use crate::css::transition::HoverTransitions;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::row_reads::{RowIdentities, RowSnapshot, RowStyles};
 use crate::layout::tree_update_marks::{LayoutTreeUpdateMarkWrite, LayoutTreeUpdateMarks};
@@ -110,9 +111,9 @@ pub struct DocumentHost {
     selector_tested_attribute_names: RefCell<crate::css::style::SelectorAttributeNames>,
     /// The ticks the render clock hands the lanes of the document's presented frames.
     ticks: Arc<ClockTicks>,
-    /// The transitions the hover of the lane that follows the presented frame started: those the host's own hover starts
-    /// of the same properties of the same elements run from then, as the screen showed them.
-    lane_transition_starts: RefCell<LaneTransitionStarts>,
+    /// The steps the hover of the lanes decided that the last rendering update took in, which the host runs as the lanes
+    /// do from then.
+    lane_transitions: RefCell<Vec<Arc<HoverTransitions>>>,
     /// Whether the frame in flight waits for a test to release it.
     frame_held_for_testing: Cell<bool>,
     /// The root and the sealed document computation inputs of the last style transaction the host took or let fly,
@@ -202,7 +203,7 @@ impl DocumentHost {
             selector_value_text_names: RefCell::default(),
             selector_tested_attribute_names: RefCell::default(),
             ticks: ClockTicks::new(document),
-            lane_transition_starts: RefCell::default(),
+            lane_transitions: RefCell::default(),
             frame_held_for_testing: Cell::default(),
             style_inputs: RefCell::default(),
             hover_target: Cell::default(),
@@ -403,15 +404,10 @@ impl DocumentHost {
         }
     }
 
-    /// When the hover of the lane started a transition of `property` of the element `node` names, where it did. See
-    /// [`Self::lane_transition_starts`].
-    pub(crate) fn lane_transition_start(&self, node: StyleNodeID, property: u16) -> Option<f64> {
-        self.lane_transition_starts.borrow_mut().start_of(node, property)
-    }
-
-    /// Forgets when the hover of the lane started transitions, once the host started its own.
-    pub(crate) fn forget_lane_transition_starts(&self) {
-        self.lane_transition_starts.borrow_mut().forget();
+    /// Takes the transitions the hover of the lane leaves elements running that the host has yet to run as the lane does,
+    /// which it runs from now on.
+    pub(crate) fn take_lane_transitions(&self) -> Vec<Arc<HoverTransitions>> {
+        std::mem::take(&mut *self.lane_transitions.borrow_mut())
     }
 
     /// Keeps the root and the sealed inputs of a style transaction the host takes or lets fly, for the hover of a lane
@@ -737,15 +733,14 @@ impl DocumentHost {
         if let Some(report) = report {
             presented = report.presented;
             self.lane_move.set(report.last_move);
-            self.lane_transition_starts
-                .borrow_mut()
-                .take_in(report.transition_starts);
+            *self.lane_transitions.borrow_mut() = report.transitions;
         }
         if super::clock::hover::logs_hover() {
             eprintln!(
-                "{} hover lane: update takes the lanes in: moved {}, presented {presented}, newest pointer {:?}",
+                "{} hover lane: update takes the lanes in: moved {}, presented {presented}, {} steps to adopt, newest pointer {:?}",
                 super::clock::hover::log_time(),
                 self.lane_move.get().is_some(),
+                self.lane_transitions.borrow().len(),
                 self.ticks
                     .newest_pointer()
                     .map(|pointer| (pointer.position, pointer.input_event_id))

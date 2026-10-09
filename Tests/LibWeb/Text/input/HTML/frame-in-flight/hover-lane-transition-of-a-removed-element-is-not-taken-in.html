@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    .box { width: 100px; height: 100px; color: rgb(0, 0, 0); }
+    #first:hover { color: rgb(200, 0, 0); transition: color 100s linear; }
+</style>
+<div class="box" id="first"></div>
+<script>
+    // A hover beside the task starts a transition on an element, which the task then removes, and an element it inserts
+    // in its place may take the style node id the removed one had. The rendering update after the task runs the hover's
+    // transition on no other element.
+    asyncTest(async done => {
+        let second;
+        await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16, 1);
+            first.remove();
+            getComputedStyle(document.body).color;
+            second = document.createElement("div");
+            second.className = "box";
+            second.id = "second";
+            document.body.appendChild(second);
+            getComputedStyle(second).color;
+        });
+        await twoFrames();
+        println(`transitions of the element inserted in its place: ${second.getAnimations().length}`);
+        println(`its color: ${getComputedStyle(second).color}`);
+        done();
+    });
+</script>

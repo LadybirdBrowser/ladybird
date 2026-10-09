@@ -243,6 +243,8 @@ public:
     Utf16String clock_lane_state(DOM::Document&);
     bool clock_lane_is_coming(DOM::Document&);
     GC::Ptr<Geometry::DOMRect> presented_border_box(DOM::Element&);
+    Optional<u32> presented_compositor_animation_count(DOM::Element&);
+    Optional<double> presented_opacity(DOM::Element&);
     Optional<String> presented_color(DOM::Element&);
     bool last_frame_keyboard_scroll_state_is_current();
     void release_held_frame();

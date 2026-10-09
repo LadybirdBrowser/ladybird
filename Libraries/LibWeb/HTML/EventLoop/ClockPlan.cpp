@@ -10,8 +10,11 @@
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/Animations/ScrollTimeline.h>
+#include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
+#include <LibWeb/CSS/StyleEngineEffectTiming.h>
+#include <LibWeb/Compositor/RenderClock.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/EventLoop/ClockPlan.h>
@@ -205,8 +208,8 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, bool may_animate, u
                 return false;
             auto plan_animation = [&](Animations::Animation const& animation, Animations::ScrollTimeline const* scroll_timeline, Animations::KeyframeEffect const& effect, DOM::Element const& target) {
                 // A tick moves the document's timeline, at the rate it runs, and the scroll timelines, to where the
-                // compositor has scrolled.
-                if (animation.pending() || !(animation.playback_rate() > 0))
+                // compositor has scrolled. What the compositor runs already runs there while its play is pending.
+                if ((animation.pending() && !runs_on_compositor(effect)) || !(animation.playback_rate() > 0))
                     return false;
                 // A scroll timeline with nothing to scroll holds still, and so do its animations.
                 if (scroll_timeline && !scroll_timeline->followed_scroller().has_value())
@@ -270,7 +273,33 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, bool may_animate, u
         // The lane's ticks may also follow the pointer, and hover what is under it while a task runs.
         Optional<Layout::RustFFI::FfiHoverPlanInputs> hover;
         Span<Gfx::FloatPoint const> scroll_offsets;
+        Vector<u32> effect_timing_nodes;
+        Vector<u64> effect_timing_identities;
+        Vector<CSS::ComputedValuesFFI::FfiEffectTiming> effect_timings;
         if (hover_lane_is_enabled() && document.is_fully_active() && !document.hidden() && document.window()) {
+            // A hover decides over the transitions the host runs as they run, where the host runs them without
+            // sampling them, which leaves the timing the engine holds of them behind.
+            for (auto const& associated_timeline : document.associated_animation_timelines()) {
+                for (auto& animation : associated_timeline->associated_animations()) {
+                    auto const* effect = as_if<Animations::KeyframeEffect>(animation.effect().ptr());
+                    auto target = effect ? effect->target() : nullptr;
+                    if (!effect || !target || effect->pseudo_element_type().has_value() || !target->style_node_id()
+                        || !effect->can_skip_per_frame_style_update())
+                        continue;
+                    auto timing = CSS::style_engine_effect_timing(*effect, animation);
+                    // The compositor runs a transition whose play is still pending from the time of the style change
+                    // event that started it.
+                    if (auto const* transition = as_if<CSS::CSSTransition>(animation); transition && animation.pending()
+                        && !animation.start_time().has_value() && effect->is_compositor_driven()) {
+                        timing.has_start_time = true;
+                        timing.start_time = transition->transition_start_time() - effect->start_delay().value;
+                        timing.has_hold_time = false;
+                    }
+                    effect_timing_nodes.append(target->style_node_id().value());
+                    effect_timing_identities.append(effect->animation_preparation_identity());
+                    effect_timings.append(timing);
+                }
+            }
             scroll_offsets = document.scroll_state_snapshot().device_offsets();
             hover = Layout::RustFFI::FfiHoverPlanInputs {
                 .device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel(),
@@ -278,6 +307,10 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, bool may_animate, u
                 .scroll_offset_count = scroll_offsets.size(),
                 .chrome_metrics = document.page().chrome_metrics(),
                 .page_cursor = ffi_page_cursor(document.page().cursor()),
+                .effect_timing_nodes = effect_timing_nodes.data(),
+                .effect_timing_identities = effect_timing_identities.data(),
+                .effect_timings = effect_timings.data(),
+                .effect_timing_count = effect_timings.size(),
             };
         }
         if (animates || hover.has_value()) {

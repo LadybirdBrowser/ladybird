@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); opacity: 0.5; transition: opacity 100s linear; }
+    #box:hover { opacity: 1; }
+</style>
+<div id="box"></div>
+<script>
+    // A hover beside the task starts a transition of opacity, which the render clock shows in the opacity of the
+    // box's visual context at each tick, not only in its style.
+    asyncTest(async done => {
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            internals.injectClockTick(frameTime + 16 + 50000);
+            return {
+                opacity: internals.presentedOpacity(box),
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`box opacity halfway through: ${result.opacity}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        done();
+    });
+</script>

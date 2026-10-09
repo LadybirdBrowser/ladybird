@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; color: rgb(0, 0, 0); transition: width 10ms linear; }
+    #box.wide { width: 150px; }
+    #box:hover { color: rgb(200, 0, 0); }
+</style>
+<div id="box"></div>
+<script>
+    // The host starts a short transition, and a hover beside a task moves another property, which leaves the transition
+    // running. It ends before the pointer leaves again. The rendering update after the task lets it end, as it did.
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        await twoFrames();
+        const events = [];
+        for (const type of ["transitionend", "transitioncancel"])
+            box.addEventListener(type, event => events.push(`${event.type} ${event.propertyName}`));
+        // The rendering update that the lane follows starts the short transition.
+        box.classList.add("wide");
+        await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 1, 1);
+            internals.injectHoverPointer(50, 300, frameTime + 30, 2);
+            while (performance.now() < frameTime + 50) { }
+        });
+        await twoFrames();
+        println(`transition events: ${events.join(", ")}`);
+        done();
+    });
+</script>

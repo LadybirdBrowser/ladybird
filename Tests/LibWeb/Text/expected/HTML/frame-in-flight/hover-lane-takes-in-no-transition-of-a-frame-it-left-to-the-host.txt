@@ -1,0 +1,4 @@
+a tick presented the last frame: false
+link matches :hover: true
+transitions: 1
+transition starts at the step beside the task: false

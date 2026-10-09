@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 200px; padding-top: 50px; font: 10px/1 sans-serif; transition: font-size 1s linear; }
+    #box:hover { font-size: 30px; }
+    #child:hover { display: block; }
+</style>
+<div id="box"><span id="child">item</span></div>
+<script>
+    // A hover beside the task starts a transition of an inherited property, and the next one turns an inline element
+    // that shows what it inherits of it into a block, which builds the boxes around it again. Once the transition
+    // ends, the boxes show the end of it, not what they showed as they were built.
+    asyncTest(async done => {
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(150, 20, frameTime + 16);
+            internals.injectClockTick(frameTime + 16 + 500);
+            internals.injectHoverPointer(5, 55, frameTime + 16 + 516);
+            internals.injectClockTick(frameTime + 16 + 2000);
+            return {
+                height: internals.presentedBorderBox(child)?.height,
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`last frame presented by: ${result.presentedBy}`);
+        await twoFrames();
+        println(`child matches :hover: ${child.matches(":hover")}`);
+        println(`child height on screen once the transition ended: ${result.height}`);
+        done();
+    });
+</script>

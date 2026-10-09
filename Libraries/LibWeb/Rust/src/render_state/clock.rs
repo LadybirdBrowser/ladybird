@@ -32,6 +32,7 @@ use crate::css::css_pixels::CssPixelRect;
 use crate::css::style::animations::{AnimationTimelineSamples, ScrollProgress};
 use crate::css::style::engine_sample::{DependentRestyle, NeedsHost, TickShownRecords};
 use crate::css::style::tree::StyleNodeID;
+use crate::css::transition::HoverTransitions;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::tree_update_marks::{FfiLayoutTreeUpdateMark, layout_tree_update_reuse_reason};
 use crate::layout::used_values::FfiCssPixelRect;
@@ -180,12 +181,18 @@ pub(crate) struct Lane {
     effects: Vec<effects::ElementEffects>,
     /// The boxes the ticks showed samples in, with the styles the frame showed in them.
     ticked: Vec<(NodeSlotId, HostStyle)>,
+    /// The elements whose boxes the next build makes again, which showed the records a size query decided for them,
+    /// each with that record, which the boxes it makes show in turn (see [`restore_samples_for_build`]).
+    restyles_built_again: Vec<(StyleNodeID, u64)>,
     /// The records the boxes the ticks built again show, which the engine keeps for them.
     shown: TickShownRecords,
     /// The border boxes of the plan's elements, and of those the hover restyled, in the last frame a tick presented.
     presented_border_boxes: Vec<(StyleNodeID, CssPixelRect)>,
     /// The color each box the ticks showed samples in showed in that frame, as `0xAARRGGBB`. For a test.
     presented_colors: Vec<(StyleNodeID, u32)>,
+    /// How many compositor animations of the frame drive each box of `presented_border_boxes`, and the opacity its
+    /// effect nodes give it. For a test.
+    presented_compositor_animations: Vec<(StyleNodeID, u32, f32)>,
     /// Where the compositor had scrolled to at the latest tick that said so, which the plan's scroll timelines follow,
     /// and the hit tests of its hover.
     scroll_offsets: Vec<FfiScrollOffset>,
@@ -201,6 +208,12 @@ pub(crate) struct Lane {
     frame_left_to_host: bool,
     /// What the lane's hover moved.
     hovered: hover::LaneHover,
+    /// What the move a tick's hover made started, with the time it made it at, until the tick presents the frame that
+    /// shows it: a frame left to the host shows nothing of it.
+    unshown_move: Option<(hover::MoveMade, f64)>,
+    /// Whether a move of the hover had boxes show the styles the host installed in them again in place of samples, which
+    /// the tick shows again.
+    samples_restored: bool,
 }
 
 /// What the ticks of a lane write: the render state of the render owner while it still shows the lane's frame, which
@@ -517,11 +530,13 @@ pub struct ClockTicks {
     presented_boxes: Mutex<PresentedBoxes>,
 }
 
-/// The border boxes and colors of the last frame a tick of a lane presented. See [`ClockTicks::presented_boxes`].
+/// The border boxes and colors of the last frame a tick of a lane presented, and how many compositor animations drive
+/// each box. See [`ClockTicks::presented_boxes`].
 #[derive(Default)]
 struct PresentedBoxes {
     border_boxes: Vec<(StyleNodeID, CssPixelRect)>,
     colors: Vec<(StyleNodeID, u32)>,
+    compositor_animations: Vec<(StyleNodeID, u32, f32)>,
 }
 
 /// What the lanes of a document do, as the render owner publishes it after every job on them: the render clock reads it
@@ -540,75 +555,14 @@ pub(crate) struct LanePublication {
     pub(super) awaits_lane: bool,
 }
 
-/// Transitions the hover of a lane started on an element.
-#[derive(Clone)]
-pub(crate) struct LaneTransitionStart {
-    pub(crate) node: StyleNodeID,
-    /// The properties the transitions animate.
-    pub(crate) properties: SmallVec<[u16; 2]>,
-    /// When the hover started them, in the document's milliseconds.
-    pub(crate) start_time: f64,
-}
-
-impl LaneTransitionStart {
-    /// Whether `other` reports the same start.
-    fn same_start_as(&self, other: &Self) -> bool {
-        self.node == other.node && self.start_time == other.start_time
-    }
-}
-
-/// The transitions the hover of the lane that follows the presented frame started, as the host takes in what the lanes
-/// report: those the host's own hover starts of the same properties of the same elements run from then, and those it
-/// started its own of stay its own however long the lane still reports them.
-#[derive(Default)]
-pub(crate) struct LaneTransitionStarts {
-    /// The starts the host has yet to start its own transitions of, each with whether a transition the host starts
-    /// runs from it since the host last forgot the ones it started.
-    pending: Vec<(LaneTransitionStart, bool)>,
-    /// The starts the lane still reports that the host started its own transitions of.
-    taken: Vec<LaneTransitionStart>,
-}
-
-impl LaneTransitionStarts {
-    /// Takes in `reported`, the starts the lanes report now, in place of those they reported before.
-    pub(crate) fn take_in(&mut self, reported: Vec<LaneTransitionStart>) {
-        self.taken
-            .retain(|taken| reported.iter().any(|start| start.same_start_as(taken)));
-        self.pending = reported
-            .into_iter()
-            .filter(|start| !self.taken.iter().any(|taken| taken.same_start_as(start)))
-            .map(|start| (start, false))
-            .collect();
-    }
-
-    /// When the hover started a transition of `property` of the element `node` names that the host has yet to start its
-    /// own of, which the host's transition runs from.
-    pub(crate) fn start_of(&mut self, node: StyleNodeID, property: u16) -> Option<f64> {
-        let (start, runs_a_host_transition) = self
-            .pending
-            .iter_mut()
-            .find(|(start, _)| start.node == node && start.properties.contains(&property))?;
-        *runs_a_host_transition = true;
-        Some(start.start_time)
-    }
-
-    /// Notes that the host started its own transitions of the starts its transitions ran from.
-    pub(crate) fn forget(&mut self) {
-        let (taken, pending): (Vec<_>, Vec<_>) = std::mem::take(&mut self.pending)
-            .into_iter()
-            .partition(|(_, runs_a_host_transition)| *runs_a_host_transition);
-        self.pending = pending;
-        self.taken.extend(taken.into_iter().map(|(start, _)| start));
-    }
-}
-
 /// What the lanes did since a rendering update last took them in, as the next one takes them in.
 #[derive(Clone, Default)]
 pub(crate) struct LaneReport {
     /// The last pointer move a tick took.
     pub(crate) last_move: Option<LaneMove>,
-    /// The transitions the hover of the lane that follows the presented frame started.
-    pub(crate) transition_starts: Vec<LaneTransitionStart>,
+    /// The steps the hover of the lane that follows the presented frame decided, with the transitions each leaves its
+    /// element running.
+    pub(crate) transitions: Vec<Arc<HoverTransitions>>,
     /// Whether a tick presented a frame, which the screen shows in place of the host's.
     pub(crate) presented: bool,
 }
@@ -785,6 +739,26 @@ impl ClockTicks {
             .find_map(|&(presented, rect)| (presented == element).then_some(rect))
     }
 
+    /// How many compositor animations drove the box of `element` in the last frame a tick presented, where the frame
+    /// showed its border box.
+    pub(super) fn presented_compositor_animation_count(&self, element: StyleNodeID) -> Option<u32> {
+        let presented = self.presented_boxes.lock().expect("presented boxes");
+        presented
+            .compositor_animations
+            .iter()
+            .find_map(|&(presented, count, _)| (presented == element).then_some(count))
+    }
+
+    /// The opacity the effect nodes of the box of `element` gave it in the last frame a tick presented, where the frame
+    /// showed its border box.
+    pub(super) fn presented_opacity(&self, element: StyleNodeID) -> Option<f32> {
+        let presented = self.presented_boxes.lock().expect("presented boxes");
+        presented
+            .compositor_animations
+            .iter()
+            .find_map(|&(presented, _, opacity)| (presented == element).then_some(opacity))
+    }
+
     /// The color the box of `element` showed in the last frame a tick presented, where a tick showed a sample in it.
     pub(super) fn presented_color(&self, element: StyleNodeID) -> Option<u32> {
         let presented = self.presented_boxes.lock().expect("presented boxes");
@@ -843,149 +817,214 @@ fn style_change_mark(reuse_reason: u8) -> FfiLayoutTreeUpdateMark {
 /// stabilizes them.
 const SIZE_QUERY_ROUND_LIMIT: usize = 8;
 
-/// Shows in their boxes the styles of the elements whose style a size query or container-relative unit decided below
-/// the containers in `resized`, against their new sizes, keeping each box's host style in `ticked`, and marks the boxes
-/// those styles move for the round's tree build to build again. An element whose animations `animated` samples
-/// composes over its host's style, which only the host restyles.
-fn restyle_size_query_dependents(
-    state: &mut RenderState,
-    resized: &[StyleNodeID],
-    animated: &[StyleNodeID],
-    ticked: &mut Vec<(NodeSlotId, HostStyle)>,
-) -> Result<(), Park> {
-    let mut seen: smallvec::SmallVec<[StyleNodeID; 8]> = smallvec::SmallVec::new();
-    let mut rebuilt: smallvec::SmallVec<[(StyleNodeID, TickRebuild); 2]> = smallvec::SmallVec::new();
-    for &container in resized {
-        for dependent in state.engine_mut().size_container_query_dependents(container) {
-            let Some(dependent) = state.engine_mut().size_query_restyle_target(dependent) else {
-                continue;
-            };
-            if seen.contains(&dependent) {
-                continue;
-            }
-            seen.push(dependent);
-            if animated.contains(&dependent) {
-                return Err(Park("a size query dependent animates"));
-            }
-            let row = state.arena.arena().bound_row(dependent);
-            let restyled = match state
-                .engine_mut()
-                .restyle_size_query_dependent(dependent, !row.is_invalid())?
-            {
-                DependentRestyle::Unmoved => continue,
-                DependentRestyle::InBox(restyled) => restyled,
-                DependentRestyle::PseudoElementsMove(restyled) => {
-                    rebuilt.push((dependent, TickRebuild::PseudoElements));
-                    restyled
-                }
-                DependentRestyle::LosesItsBox { parent } => {
-                    rebuilt.push((dependent, TickRebuild::TakeAway { parent }));
+impl Lane {
+    /// Shows in their boxes the styles of the elements whose style a size query or container-relative unit decided below
+    /// the containers in `resized`, against their new sizes, keeping each box's host style in `ticked`, and marks the boxes
+    /// those styles move for the round's tree build to build again. An element whose animations `animated` samples
+    /// composes over its host's style, which only the host restyles.
+    fn restyle_size_query_dependents(&mut self, state: &mut RenderState, resized: &[StyleNodeID]) -> Result<(), Park> {
+        // An element whose box shows a sample, or what it inherits of one, shows it over the record the host installed,
+        // which a restyle would replace.
+        let animated: SmallVec<[StyleNodeID; 8]> = self
+            .sampled_elements()
+            .chain(self.plan.elements.iter().copied())
+            .collect();
+        let mut seen: smallvec::SmallVec<[StyleNodeID; 8]> = smallvec::SmallVec::new();
+        let mut rebuilt: smallvec::SmallVec<[(StyleNodeID, TickRebuild); 2]> = smallvec::SmallVec::new();
+        for &container in resized {
+            for dependent in state.engine_mut().size_container_query_dependents(container) {
+                let Some(dependent) = state.engine_mut().size_query_restyle_target(dependent) else {
+                    continue;
+                };
+                if seen.contains(&dependent) {
                     continue;
                 }
-                DependentRestyle::GainsABox { parent } => {
-                    rebuilt.push((dependent, TickRebuild::Insert { parent }));
-                    continue;
+                seen.push(dependent);
+                if animated.contains(&dependent) {
+                    return Err(Park("a size query dependent animates"));
                 }
-                DependentRestyle::BuiltBoxesMove => {
-                    rebuilt.push((dependent, TickRebuild::Again));
-                    continue;
+                let row = state.arena.arena().bound_row(dependent);
+                let restyled = match state
+                    .engine_mut()
+                    .restyle_size_query_dependent(dependent, !row.is_invalid())?
+                {
+                    DependentRestyle::Unmoved => continue,
+                    DependentRestyle::InBox(restyled) => restyled,
+                    DependentRestyle::PseudoElementsMove(restyled) => {
+                        rebuilt.push((dependent, TickRebuild::PseudoElements));
+                        restyled
+                    }
+                    DependentRestyle::LosesItsBox { parent } => {
+                        rebuilt.push((dependent, TickRebuild::TakeAway { parent }));
+                        continue;
+                    }
+                    DependentRestyle::GainsABox { parent } => {
+                        rebuilt.push((dependent, TickRebuild::Insert { parent }));
+                        continue;
+                    }
+                    DependentRestyle::BuiltBoxesMove => {
+                        rebuilt.push((dependent, TickRebuild::Again));
+                        continue;
+                    }
+                };
+                let arena = state.arena.arena();
+                if let Some(host_style) = arena.install_sample(row, restyled, crate::layout::SampleKind::Animation)? {
+                    self.ticked.push((row, host_style));
                 }
-            };
-            let arena = state.arena.arena();
-            if let Some(host_style) = arena.install_sample(row, restyled, crate::layout::SampleKind::Animation)? {
-                ticked.push((row, host_style));
+                arena.push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
             }
-            arena.push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
         }
+        self.mark_all_for_tree_build(state, rebuilt)
     }
-    for (node, rebuild) in rebuilt {
-        mark_for_tree_build(state, node, rebuild, animated, ticked)?;
+
+    /// Marks what each of `rebuilds` builds again for the round's tree build (see [`Lane::mark_for_tree_build`]). A mark
+    /// may have the build make other boxes again than another mark judged it would keep: where there are several, every
+    /// box shows the style the host installed in it again first, and the tick shows the samples again once the boxes
+    /// are built.
+    fn mark_all_for_tree_build(
+        &mut self,
+        state: &mut RenderState,
+        rebuilds: impl IntoIterator<Item = (StyleNodeID, TickRebuild)>,
+    ) -> Result<(), Park> {
+        let rebuilds: SmallVec<[(StyleNodeID, TickRebuild); 2]> = rebuilds.into_iter().collect();
+        if rebuilds.len() > 1 {
+            let resampled: SmallVec<[StyleNodeID; 8]> = self.resampled_elements().collect();
+            let (ticked, restyles) = (&mut self.ticked, &mut self.restyles_built_again);
+            restore_samples_for_build(state.arena.arena(), ticked, Some(&resampled), restyles, |_, _| true)?;
+            self.samples_restored = true;
+        }
+        for (node, rebuild) in rebuilds {
+            self.mark_for_tree_build(state, node, rebuild)?;
+        }
+        Ok(())
+    }
+
+    /// Marks what `rebuild` builds again for `node` for the round's tree build, as the host marks it for a style change. The
+    /// build makes boxes from the host's records and the hover's alone: the boxes it builds, and a parent it inserts a box
+    /// into, show the styles the host installed again first, and the tick shows the samples of its effects over the boxes
+    /// once they are built (see [`Lane::build_marked_boxes`]). The build keeps the box whose pseudo-elements it regenerates,
+    /// and the parent box it inserts a box into or takes one out of, in place. Where it cannot, as where an anonymous box
+    /// wraps a neighbor, the build builds the parent's box again with every box below it.
+    ///
+    /// `resampled` names the elements whose samples the tick's effects show again. An element whose box showed another, the
+    /// record a size query decided for it, goes in `restyles` with it, for the box the build makes to show it again.
+    fn mark_for_tree_build(
+        &mut self,
+        state: &mut RenderState,
+        node: StyleNodeID,
+        rebuild: TickRebuild,
+    ) -> Result<(), Park> {
+        use layout_tree_update_reuse_reason::{CHILD_LIST_INSERTION, PSEUDO_ELEMENT_CHANGE};
+        let resampled: SmallVec<[StyleNodeID; 8]> = self.resampled_elements().collect();
+        let (ticked, restyles) = (&mut self.ticked, &mut self.restyles_built_again);
+        let arena = state.arena.arena_mut();
+        let in_place = match rebuild {
+            TickRebuild::PseudoElements => {
+                let in_place = build_keeps_box(arena, node, PSEUDO_ELEMENT_CHANGE);
+                if in_place {
+                    arena.mark_layout_tree_update(Some(node), style_change_mark(PSEUDO_ELEMENT_CHANGE));
+                }
+                in_place
+            }
+            TickRebuild::Insert { parent } => {
+                // The build reads which children of the parent it inserts boxes for from their marks.
+                arena.mark_layout_tree_update(Some(node), FfiLayoutTreeUpdateMark::NODE_INSERT);
+                let parent_row = arena.bound_row(parent);
+                let in_place = !parent_row.is_invalid() && build_keeps_box(arena, parent, CHILD_LIST_INSERTION);
+                if in_place {
+                    // The anonymous boxes the build makes in the parent's box inherit what it shows.
+                    restore_samples_for_build(arena, ticked, Some(&resampled), restyles, |row, host_style| {
+                        nearest_element_box(arena, row) == Some(parent_row)
+                            && arena.shows_other_inherited_style_than(row, host_style.record())
+                    })?;
+                    arena.mark_layout_tree_update(Some(parent), FfiLayoutTreeUpdateMark::NODE_INSERT);
+                }
+                in_place
+            }
+            TickRebuild::TakeAway { parent } => {
+                let in_place = arena.can_take_box_away_in_place(parent, node);
+                if in_place {
+                    // The boxes the build takes away show nothing more.
+                    let row = arena.bound_row(node);
+                    restore_samples_for_build(arena, ticked, None, restyles, |inner, _| box_holds(arena, row, inner))?;
+                    arena.mark_layout_tree_update(Some(node), style_change_mark(0));
+                }
+                in_place
+            }
+            TickRebuild::Again => false,
+        };
+        if in_place {
+            return Ok(());
+        }
+        let root = match rebuild {
+            TickRebuild::PseudoElements | TickRebuild::Again => node,
+            TickRebuild::Insert { parent } | TickRebuild::TakeAway { parent } => parent,
+        };
+        mark_region_for_tree_build(state, root, &resampled, ticked, restyles)
+    }
+}
+
+/// Whether the box `inner` is the box `root` or below it.
+fn box_holds(arena: &LayoutNodeArena, root: NodeSlotId, inner: NodeSlotId) -> bool {
+    let live = |box_: NodeSlotId| (!box_.is_invalid()).then_some(box_);
+    std::iter::successors(live(inner), |&box_| live(arena.data(box_).parent.get())).any(|box_| box_ == root)
+}
+
+/// The box of the element `row` or the nearest anonymous box above it belongs to, or none.
+fn nearest_element_box(arena: &LayoutNodeArena, row: NodeSlotId) -> Option<NodeSlotId> {
+    let live = |box_: NodeSlotId| (!box_.is_invalid()).then_some(box_);
+    std::iter::successors(live(row), |&box_| live(arena.data(box_).parent.get()))
+        .find(|&box_| arena.dom_node_style_node(box_).is_some())
+}
+
+/// Has the boxes `holds` answers for that show samples, with the styles the host installed in them, show those styles
+/// again, out of `ticked`, for a build to build boxes from the host's records alone. Where the boxes stay, `resampled`
+/// names the elements whose samples the tick's effects show again once the build is done; an element whose box showed
+/// another, the record a size query decided for it, goes in `restyles` with that record, which the box the build makes
+/// for it shows again. An anonymous box that shows such a record only the host builds.
+fn restore_samples_for_build(
+    arena: &LayoutNodeArena,
+    ticked: &mut Vec<(NodeSlotId, HostStyle)>,
+    resampled: Option<&[StyleNodeID]>,
+    restyles: &mut Vec<(StyleNodeID, u64)>,
+    holds: impl Fn(NodeSlotId, &HostStyle) -> bool,
+) -> Result<(), Park> {
+    if let Some(resampled) = resampled {
+        let mut kept_restyles: SmallVec<[(StyleNodeID, u64); 4]> = SmallVec::new();
+        for (row, _) in ticked.iter().filter(|(row, host_style)| holds(*row, host_style)) {
+            let element = nearest_element_box(arena, *row).and_then(|box_| arena.dom_node_style_node(box_));
+            if element.is_some_and(|element| resampled.contains(&element)) {
+                continue;
+            }
+            match arena.dom_node_style_node(*row) {
+                Some(element) => kept_restyles.push((element, arena.node_style_record(*row))),
+                None => return Err(Park("an anonymous box shows a restyle only the host builds again")),
+            }
+        }
+        arena.with_style_engine(|engine| {
+            for &(_, record) in &kept_restyles {
+                engine.pin_layout_style_record(record);
+            }
+        });
+        restyles.extend(kept_restyles);
+    }
+    for (row, host_style) in ticked.extract_if(.., |(row, host_style)| holds(*row, host_style)) {
+        arena.restore_host_style(row, host_style);
+        arena.push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
     }
     Ok(())
 }
 
-/// Marks what `rebuild` builds again for `node` for the round's tree build, as the host marks it for a style change,
-/// from what the clock shows. The build keeps every box a sample shows in: the box whose pseudo-elements it
-/// regenerates, and the parent box it inserts a box into or takes one out of, in place. Where it cannot, as where an
-/// anonymous box wraps a neighbor, the build builds the parent's box again with every box below it (see
-/// [`mark_region_for_tree_build`]).
-fn mark_for_tree_build(
-    state: &mut RenderState,
-    node: StyleNodeID,
-    rebuild: TickRebuild,
-    animated: &[StyleNodeID],
-    ticked: &mut Vec<(NodeSlotId, HostStyle)>,
-) -> Result<(), Park> {
-    use layout_tree_update_reuse_reason::{CHILD_LIST_INSERTION, PSEUDO_ELEMENT_CHANGE};
-    let arena = state.arena.arena_mut();
-    let in_place = match rebuild {
-        TickRebuild::PseudoElements => {
-            let in_place = build_keeps_box(arena, node, PSEUDO_ELEMENT_CHANGE);
-            if in_place {
-                arena.mark_layout_tree_update(Some(node), style_change_mark(PSEUDO_ELEMENT_CHANGE));
-            }
-            in_place
-        }
-        TickRebuild::Insert { parent } => {
-            // The build reads which children of the parent it inserts boxes for from their marks.
-            arena.mark_layout_tree_update(Some(node), FfiLayoutTreeUpdateMark::NODE_INSERT);
-            let in_place =
-                !arena.bound_row(parent).is_invalid() && build_keeps_box(arena, parent, CHILD_LIST_INSERTION);
-            if in_place {
-                arena.mark_layout_tree_update(Some(parent), FfiLayoutTreeUpdateMark::NODE_INSERT);
-            }
-            in_place
-        }
-        TickRebuild::TakeAway { parent } => {
-            let in_place = arena.can_take_box_away_in_place(parent, node);
-            if in_place {
-                for (box_, host_style) in sampled_boxes_in(arena, arena.bound_row(node), animated, ticked)? {
-                    arena.restore_host_style(box_, host_style);
-                }
-                arena.mark_layout_tree_update(Some(node), style_change_mark(0));
-            }
-            in_place
-        }
-        TickRebuild::Again => false,
-    };
-    if in_place {
-        return Ok(());
-    }
-    let root = match rebuild {
-        TickRebuild::PseudoElements | TickRebuild::Again => node,
-        TickRebuild::Insert { parent } | TickRebuild::TakeAway { parent } => parent,
-    };
-    mark_region_for_tree_build(state, root, animated, ticked)
-}
-
-/// Takes out of `ticked` the boxes in the subtree of `root` the clock showed samples in, with the styles the host
-/// installed for them. A box an animated element's samples show in only the host builds again.
-fn sampled_boxes_in(
-    arena: &LayoutNodeArena,
-    root: NodeSlotId,
-    animated: &[StyleNodeID],
-    ticked: &mut Vec<(NodeSlotId, HostStyle)>,
-) -> Result<smallvec::SmallVec<[(NodeSlotId, HostStyle); 8]>, Park> {
-    let live = |box_: NodeSlotId| (!box_.is_invalid()).then_some(box_);
-    let holds = |inner: NodeSlotId| {
-        std::iter::successors(live(inner), |&box_| live(arena.data(box_).parent.get())).any(|box_| box_ == root)
-    };
-    if animated.iter().any(|&element| holds(arena.bound_row(element))) {
-        return Err(Park("a rebuilt box holds an animated element"));
-    }
-    Ok(ticked.extract_if(.., |(box_, _)| holds(*box_)).collect())
-}
-
-/// Marks the box of `root` for the round's tree build to build again with every box below it, from what the clock
-/// shows, as the host marks a parent whose children's boxes it cannot build again in place: the samples the clock
-/// showed in those boxes are shown to the build as their elements' records. The root's box is its parent's child, which
-/// no anonymous box wraps with its neighbors, and neither the document's root nor its body, whose boxes the build
-/// places otherwise.
+/// Marks the box of `root` for the round's tree build to build again with every box below it, as the host marks a
+/// parent whose children's boxes it cannot build again in place. The root's box is its parent's child, which no
+/// anonymous box wraps with its neighbors, and neither the document's root nor its body, whose boxes the build places
+/// otherwise.
 fn mark_region_for_tree_build(
     state: &mut RenderState,
     root: StyleNodeID,
-    animated: &[StyleNodeID],
+    resampled: &[StyleNodeID],
     ticked: &mut Vec<(NodeSlotId, HostStyle)>,
+    restyles: &mut Vec<(StyleNodeID, u64)>,
 ) -> Result<(), Park> {
     use crate::css::style::bridge::element_adjustment_fact::{
         IS_DOCUMENT_ELEMENT, IS_HTML_BODY_ELEMENT, RENDERED_IN_TOP_LAYER,
@@ -1003,18 +1042,9 @@ fn mark_region_for_tree_build(
     {
         return Err(Park("a rebuilt box the host places"));
     }
-    let sampled = sampled_boxes_in(arena, row, animated, ticked)?;
-    let samples: smallvec::SmallVec<[(StyleNodeID, u64); 8]> = sampled
-        .iter()
-        .filter_map(|&(box_, _)| Some((arena.dom_node_style_node(box_)?, arena.node_style_record(box_))))
-        .collect();
-    for (element, record) in samples {
-        state.engine_mut().show_sample_in_rebuilt_box(element, record);
-    }
-    let arena = state.arena.arena();
-    for (box_, host_style) in sampled {
-        arena.restore_host_style(box_, host_style);
-    }
+    restore_samples_for_build(arena, ticked, Some(resampled), restyles, |inner, _| {
+        box_holds(arena, row, inner)
+    })?;
     arena.mark_layout_tree_update(Some(root), style_change_mark(0));
     Ok(())
 }
@@ -1038,15 +1068,19 @@ impl Lane {
             plan,
             state,
             ticked: Vec::new(),
+            restyles_built_again: Vec::new(),
             shown: TickShownRecords::default(),
             presented_border_boxes: Vec::new(),
             presented_colors: Vec::new(),
+            presented_compositor_animations: Vec::new(),
             scroll_offsets: Vec::new(),
             shown_at: f64::NEG_INFINITY,
             shown_scroll_progress,
             parked,
             frame_left_to_host: false,
             hovered: hover::LaneHover::default(),
+            unshown_move: None,
+            samples_restored: false,
         }
     }
 
@@ -1142,6 +1176,7 @@ impl Lane {
             return ticked;
         }
         state.engine_mut().lend_tick_shown(std::mem::take(&mut self.shown));
+        self.refresh_host_effect_timings(state);
         let mut moved = false;
         if transitions {
             // NB: Transitions a tick left to the host keep what their boxes showed, beside what the others moved.
@@ -1157,6 +1192,36 @@ impl Lane {
                 },
             });
             moved |= hovered == hover::Hovered::Moved;
+            // The boxes the move builds again are built first. The boxes a move installed records in show the
+            // transitions again, over those records. Where one of them takes no sample, it shows the end of the
+            // transitions, which the host's frame would go back from: the frame is the host's. So do the boxes a move
+            // had show the host's styles again before it went to the host.
+            if hovered == hover::Hovered::Moved || self.samples_restored {
+                let shown = self
+                    .build_marked_boxes(state, None)
+                    .and_then(|()| match self.transitions_run() {
+                        true => self.sample_started_transitions(state, sampled_at.0),
+                        false => Ok(false),
+                    });
+                match shown {
+                    Ok(sampled) => moved |= sampled,
+                    Err(Park(reason)) => {
+                        if hover::logs_hover() {
+                            eprintln!("{} hover lane: frame left to the host: {reason}", hover::log_time());
+                        }
+                        self.parked = true;
+                        self.frame_left_to_host = true;
+                        self.hovered.park();
+                        self.forget_unshown_move();
+                    }
+                }
+            }
+            // A move half made leaves the frame to the host, which no tick presents a part of.
+            if self.frame_left_to_host {
+                self.unshown_move = None;
+                self.shown = state.engine_mut().take_tick_shown();
+                return ticked;
+            }
         }
         if let Some(progress) = progress {
             let samples = AnimationTimelineSamples::at_tick(sampled_at.0, &progress);
@@ -1173,7 +1238,7 @@ impl Lane {
             }
         }
         if moved {
-            match self.lay_out_and_present(state, &turn) {
+            match self.lay_out_and_present(state, &turn, sampled_at.0) {
                 Ok(()) => {
                     if hover::logs_hover() {
                         eprintln!(
@@ -1193,9 +1258,11 @@ impl Lane {
                     self.parked = true;
                     self.frame_left_to_host = true;
                     self.hovered.park();
+                    self.forget_unshown_move();
                 }
             }
         }
+        self.unshown_move = None;
         self.shown = state.engine_mut().take_tick_shown();
         ticked
     }
@@ -1214,28 +1281,81 @@ impl Lane {
         Ok(Some(scroll_progress))
     }
 
-    /// Lays out what the tick moved and presents the frame.
-    fn lay_out_and_present(&mut self, state: &mut RenderState, turn: &SamplingTurn) -> Result<(), Park> {
-        let Self { plan, ticked, .. } = self;
+    /// Lays out what the tick moved, whose effects it sampled at `sampled_at`, and presents the frame.
+    fn lay_out_and_present(
+        &mut self,
+        state: &mut RenderState,
+        turn: &SamplingTurn,
+        sampled_at: f64,
+    ) -> Result<(), Park> {
         // What the rounds owe goes with the fork, which no host takes back.
         let mut owed = Vec::new();
         // A container the round resized restyles what its size decides, as the host's style update after a layout
         // does, and lays it out again, until the containers stand.
         for _ in 0..SIZE_QUERY_ROUND_LIMIT {
-            let Some(answer) = plan.round.run(&mut state.arena, &mut owed)? else {
+            let Some(answer) = self.plan.round.run(&mut state.arena, &mut owed)? else {
                 return self.present(state, turn);
             };
             let resized: smallvec::SmallVec<[StyleNodeID; 4]> = answer.resized_size_containers().collect();
             if resized.is_empty() {
                 return self.present(state, turn);
             }
-            restyle_size_query_dependents(state, &resized, &plan.elements, ticked)?;
+            self.restyle_size_query_dependents(state, &resized)?;
+            self.build_marked_boxes(state, Some(sampled_at))?;
         }
         // The last restyle may have left nothing to lay out again.
         match state.arena.arena().layout_is_up_to_date(false) {
             true => self.present(state, turn),
             false => Err(Park("size containers did not settle")),
         }
+    }
+
+    /// Builds the boxes the tick marked to build again, from the host's records and the hover's, and shows the samples
+    /// of the tick's effects over the boxes it built, as it showed them over the boxes they replaced: those of the host's
+    /// animations as the tick showed them last, and those of the transitions the hover started at `started_at`, where
+    /// the caller does not show them itself. The next round lays out what the build moved.
+    fn build_marked_boxes(&mut self, state: &mut RenderState, started_at: Option<f64>) -> Result<(), Park> {
+        // What the build owes goes with the fork, which no host takes back.
+        let mut owed = Vec::new();
+        let built = self.plan.round.build(&mut state.arena, &mut owed);
+        let restyles = std::mem::take(&mut self.restyles_built_again);
+        let arena = state.arena.arena();
+        let mut shown = Ok(());
+        for (element, record) in restyles {
+            let row = arena.bound_row(element);
+            if built.is_ok() && shown.is_ok() && arena.slot_is_live(row) {
+                let restyle = arena.with_style_engine(|engine| {
+                    crate::css::style::layout_style::DerivedStyleRecord::pin(engine, record)
+                });
+                match arena.install_sample(row, restyle, crate::layout::SampleKind::Animation) {
+                    Ok(host_style) => self.ticked.extend(host_style.map(|host_style| (row, host_style))),
+                    Err(_) => shown = Err(Park("a rebuilt box takes no restyle")),
+                }
+                arena.push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
+            }
+            arena.with_style_engine(|engine| engine.unpin_layout_style_record(record));
+        }
+        shown?;
+        let restored = std::mem::take(&mut self.samples_restored);
+        if !built? && !restored {
+            return Ok(());
+        }
+        if let Some(started_at) = started_at
+            && self.transitions_run()
+        {
+            self.sample_started_transitions(state, started_at)?;
+        }
+        if self.shown_at.is_finite() && self.effects.iter().any(effects::ElementEffects::is_host) {
+            let progress = self.shown_scroll_progress.clone();
+            self.sample_host_animations(state, AnimationTimelineSamples::at_tick(self.shown_at, &progress))?;
+        }
+        debug_assert!(
+            self.ticked
+                .iter()
+                .all(|&(row, _)| state.arena.arena().slot_is_live(row)),
+            "a box the build took away shows no sample"
+        );
+        Ok(())
     }
 
     /// Takes in the frame the last tick presented, and has the Paint thread record the document's frame again, with the
@@ -1284,6 +1404,26 @@ impl Lane {
                         .then(|| (element, absolute_border_box_rect(&rows, row)))
                 }),
         );
+        self.presented_compositor_animations.clear();
+        if let Some(tree) = arena.paint_state().borrow().visual_context.tree.as_deref() {
+            self.presented_compositor_animations
+                .extend(self.presented_border_boxes.iter().map(|&(element, _)| {
+                    let nodes = arena.box_animation_nodes(arena.bound_row(element));
+                    let count = tree
+                        .visual_animations()
+                        .iter()
+                        .filter(|animation| nodes.driven_by(animation))
+                        .count();
+                    let opacity = nodes
+                        .effects
+                        .iter()
+                        .filter_map(|&node| {
+                            tree.effects_opacity(crate::painting::visual_context::EffectNodeIndex(node))
+                        })
+                        .product();
+                    (element, count as u32, opacity)
+                }));
+        }
         self.presented_colors.clear();
         let restyled: SmallVec<[StyleNodeID; 4]> = self.sampled_elements().collect();
         // NB: A descendant that inherits what the effects animate may have no box, as under `display: none`.
@@ -1672,6 +1812,50 @@ pub unsafe extern "C" fn document_host_mouse_event_is_outdated(host: &DocumentHo
     outdated
 }
 
+/// Writes how many compositor animations drove the box of `element` in the last frame a tick of a lane of `host`'s
+/// document presented to `count`, and answers whether the frame showed the box's border box. For a test.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread, and `count` must be
+/// valid for writes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_presented_compositor_animation_count(
+    host: &DocumentHost,
+    element: u32,
+    count: *mut u32,
+) -> bool {
+    crate::stage_thread::style_layout_thread().run(|| ());
+    let Some(presented) = StyleNodeID::from_raw(element)
+        .and_then(|element| host.clock_ticks().presented_compositor_animation_count(element))
+    else {
+        return false;
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { count.write(presented) };
+    true
+}
+
+/// Writes the opacity the effect nodes of the box of `element` gave it in the last frame a tick of a lane of `host`'s
+/// document presented to `opacity`, and answers whether the frame showed the box's border box. For a test.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread, and `opacity` must
+/// be valid for writes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_presented_opacity(host: &DocumentHost, element: u32, opacity: *mut f32) -> bool {
+    crate::stage_thread::style_layout_thread().run(|| ());
+    let Some(presented) =
+        StyleNodeID::from_raw(element).and_then(|element| host.clock_ticks().presented_opacity(element))
+    else {
+        return false;
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { opacity.write(presented) };
+    true
+}
+
 /// Writes the border box of `element` in the last frame a tick of a lane of `host`'s document presented to `rect`, and
 /// answers whether a tick presented one. For a test.
 ///
@@ -1694,67 +1878,4 @@ pub unsafe extern "C" fn document_host_presented_border_box(
     // SAFETY: Guaranteed by the caller.
     unsafe { rect.write(presented.into()) };
     true
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{LaneTransitionStart, LaneTransitionStarts};
-    use crate::css::style::tree::StyleNodeID;
-
-    const COLOR: u16 = 1;
-    const WIDTH: u16 = 2;
-
-    fn start(node: u32, properties: &[u16], start_time: f64) -> LaneTransitionStart {
-        LaneTransitionStart {
-            node: StyleNodeID::from_raw(node).unwrap(),
-            properties: properties.iter().copied().collect(),
-            start_time,
-        }
-    }
-
-    fn node(raw: u32) -> StyleNodeID {
-        StyleNodeID::from_raw(raw).unwrap()
-    }
-
-    #[test]
-    fn a_lane_start_backdates_only_the_properties_it_started() {
-        let mut starts = LaneTransitionStarts::default();
-        starts.take_in(vec![start(1, &[COLOR], 1000.0)]);
-        assert_eq!(starts.start_of(node(1), COLOR), Some(1000.0));
-        assert_eq!(starts.start_of(node(1), WIDTH), None);
-        assert_eq!(starts.start_of(node(2), COLOR), None);
-    }
-
-    #[test]
-    fn a_lane_start_the_host_took_over_backdates_nothing_after() {
-        let mut starts = LaneTransitionStarts::default();
-        starts.take_in(vec![start(1, &[COLOR], 1000.0)]);
-        assert_eq!(starts.start_of(node(1), COLOR), Some(1000.0));
-        starts.forget();
-        // The lane still reports the start until the frame it follows is replaced.
-        starts.take_in(vec![start(1, &[COLOR], 1000.0)]);
-        assert_eq!(starts.start_of(node(1), COLOR), None);
-        // A later hover of the lane starts the transition again.
-        starts.take_in(vec![start(1, &[COLOR], 1000.0), start(1, &[COLOR], 5000.0)]);
-        assert_eq!(starts.start_of(node(1), COLOR), Some(5000.0));
-    }
-
-    #[test]
-    fn a_lane_start_the_host_did_not_take_over_backdates_later() {
-        let mut starts = LaneTransitionStarts::default();
-        starts.take_in(vec![start(1, &[COLOR], 1000.0), start(2, &[COLOR], 1000.0)]);
-        assert_eq!(starts.start_of(node(1), COLOR), Some(1000.0));
-        starts.forget();
-        starts.take_in(vec![start(1, &[COLOR], 1000.0), start(2, &[COLOR], 1000.0)]);
-        assert_eq!(starts.start_of(node(1), COLOR), None);
-        assert_eq!(starts.start_of(node(2), COLOR), Some(1000.0));
-    }
-
-    #[test]
-    fn a_lane_start_no_lane_reports_backdates_nothing() {
-        let mut starts = LaneTransitionStarts::default();
-        starts.take_in(vec![start(1, &[COLOR], 1000.0)]);
-        starts.take_in(Vec::new());
-        assert_eq!(starts.start_of(node(1), COLOR), None);
-    }
 }

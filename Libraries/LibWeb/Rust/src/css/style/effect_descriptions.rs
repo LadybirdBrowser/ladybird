@@ -453,6 +453,20 @@ impl AnimationEffectDescriptions {
         }
     }
 
+    /// Has one of an element's described effects that the host sampled before take `timing`, keeping its easing: the
+    /// timing the host runs it on since, where it runs it without sampling it.
+    pub(crate) fn refresh_timing(&mut self, node: StyleNodeID, identity: u64, timing: &FfiEffectTiming) {
+        if let Some(kept) = self
+            .rows
+            .get_mut(&node)
+            .and_then(|lists| lists.iter_mut().find(|(list_slot, _)| *list_slot == 0))
+            .and_then(|(_, effects)| effects.iter_mut().find(|effect| effect.identity == identity))
+            .and_then(|effect| effect.timing.as_mut())
+        {
+            kept.timing = *timing;
+        }
+    }
+
     /// Give up the lists of an identity that retires. An identity can be minted again for another
     /// element, so a list left behind would be read as that element's.
     pub(crate) fn retire(&mut self, node: StyleNodeID) {

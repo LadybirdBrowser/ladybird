@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    a { display: block; width: 200px; height: 40px; color: rgb(0, 0, 255); transition: color 100s linear; }
+    a:hover { color: rgb(255, 0, 0); }
+    a:hover #label { display: block; }
+    svg { width: 20px; height: 20px; }
+</style>
+<a id="link" href="#"><svg viewBox="0 0 10 10"><path d="M0 0h10v10H0z" fill="currentColor"/></svg><span id="label">Link</span></a>
+<script>
+    // A hover beside the task builds boxes again and starts a transition of the color an SVG icon inherits, which no
+    // tick shows in the icon's boxes: the frame is the main thread's, which shows nothing of the transition before it
+    // starts it itself, from when it does.
+    asyncTest(async done => {
+        let stepTime;
+        const presentedBy = await whileLaneHovers(frameTime => {
+            stepTime = frameTime + 100000;
+            internals.injectHoverPointer(150, 20, stepTime);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`a tick presented the last frame: ${presentedBy === "clock"}`);
+        await twoFrames();
+        println(`link matches :hover: ${link.matches(":hover")}`);
+        const transitions = link.getAnimations();
+        println(`transitions: ${transitions.length}`);
+        for (const transition of transitions)
+            println(`transition starts at the step beside the task: ${transition.startTime >= stepTime - 1}`);
+        done();
+    });
+</script>

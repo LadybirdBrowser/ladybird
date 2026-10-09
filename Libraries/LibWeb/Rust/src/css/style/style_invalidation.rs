@@ -857,6 +857,33 @@ impl RetainedState {
                 || self.tree.first_element_child(node).is_none())
     }
 
+    /// What moving a box from the record `old_style_record` to `new_style_record` damages, of `properties` alone, read
+    /// from the records' payloads: a sample of animations over a record keeps the record's longhand table, and holds
+    /// the values it animates only in its payloads.
+    pub(crate) fn sampled_properties_damage(
+        &self,
+        old_style_record: u64,
+        new_style_record: u64,
+        properties: &[u16],
+    ) -> u32 {
+        if properties.is_empty() || old_style_record == new_style_record {
+            return 0;
+        }
+        let (Some(old_record), Some(new_record)) = (
+            self.computed_group_sets.style_record_view(old_style_record),
+            self.computed_group_sets.style_record_view(new_style_record),
+        ) else {
+            return unreadable_record_damage();
+        };
+        let old_values = ComputedValuesView::new(SharedPayload::as_pointer_slice(old_record.payloads));
+        let new_values = ComputedValuesView::new(SharedPayload::as_pointer_slice(new_record.payloads));
+        let mut result = StyleInvalidation::default();
+        for &property in properties {
+            result.merge(property_invalidation(property, old_values, new_values));
+        }
+        result.pack()
+    }
+
     pub(crate) fn compare_style_records(
         &mut self,
         old_style_record: u64,

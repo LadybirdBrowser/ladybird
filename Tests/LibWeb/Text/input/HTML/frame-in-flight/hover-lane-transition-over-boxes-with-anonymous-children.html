@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #menu { width: 200px; height: 100px; }
+    #drop { color: rgb(0, 0, 0); transition: color 100s linear; }
+    #menu:hover #drop { color: rgb(0, 0, 200); }
+    b { display: block; }
+</style>
+<div id="menu"><div id="drop"><div id="item"><b>title</b><span id="detail">detail</span></div></div></div>
+<script>
+    // A hover beside the task starts a transition of an inherited property over an element with an anonymous block
+    // below it, which wraps an inline beside a block. The render clock shows the transition in every box below it,
+    // anonymous ones included.
+    asyncTest(async done => {
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(150, 80, frameTime + 16);
+            internals.injectClockTick(frameTime + 16 + 50000);
+            return {
+                color: internals.presentedColor(detail),
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`detail color halfway through: ${result.color}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        done();
+    });
+</script>

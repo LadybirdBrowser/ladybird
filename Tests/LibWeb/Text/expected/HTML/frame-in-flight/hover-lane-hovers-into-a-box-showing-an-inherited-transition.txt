@@ -1,0 +1,3 @@
+item height shows the hover: true
+item color halfway through: rgb(0, 0, 100)
+last frame presented by: clock

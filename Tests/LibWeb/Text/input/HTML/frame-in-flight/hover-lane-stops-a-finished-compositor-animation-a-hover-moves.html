@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); opacity: 1; transition: opacity 50ms linear; }
+    #box.faded { opacity: 0.2; }
+    #box.faded:hover { opacity: 0.6; transition: none; }
+</style>
+<div id="box"></div>
+<script>
+    // A transition of opacity runs on the compositor, and no rendering update follows before it ends. A hover beside the
+    // task then moves the opacity at once: the frame the render clock presents shows it with no compositor animation of
+    // the box, which would hold the box at the end of the transition.
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        await twoFrames();
+        box.classList.add("faded");
+        await nextFrame();
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 200);
+            return {
+                compositorAnimations: internals.presentedCompositorAnimationCount(box),
+                opacity: internals.presentedOpacity(box),
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`compositor animations of the box as the hover moves its opacity: ${result.compositorAnimations}`);
+        println(`box opacity: ${result.opacity}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        done();
+    });
+</script>

@@ -1,0 +1,2 @@
+box opacity halfway through: 0.75
+last frame presented by: clock

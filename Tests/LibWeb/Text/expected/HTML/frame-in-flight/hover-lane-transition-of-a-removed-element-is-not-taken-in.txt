@@ -1,0 +1,2 @@
+transitions of the element inserted in its place: 0
+its color: rgb(0, 0, 0)

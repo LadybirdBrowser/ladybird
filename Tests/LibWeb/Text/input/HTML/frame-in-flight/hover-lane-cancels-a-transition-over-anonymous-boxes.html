@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    .e { width: 200px; height: 100px; color: rgb(0, 0, 0); }
+    .e:hover { color: rgb(200, 0, 0); transition: color 100s linear; }
+    p { margin: 0; }
+</style>
+<div class="e" id="e">Title<p id="detail">detail</p></div>
+<script>
+    // A hover beside the task starts a transition of an inherited property over an element whose text sits in an
+    // anonymous block, and the next one leaves it to a style that declares no transition, which cancels it. The boxes
+    // below the element, anonymous ones included, show the after-change style again.
+    asyncTest(async done => {
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            internals.injectClockTick(frameTime + 16 + 50000);
+            const halfway = internals.presentedColor(detail);
+            internals.injectHoverPointer(500, 50, frameTime + 16 + 50016);
+            internals.injectClockTick(frameTime + 16 + 50032);
+            return {
+                halfway,
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`detail color halfway through: ${result.halfway}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        done();
+    });
+</script>

@@ -1,0 +1,3 @@
+last frame presented by: clock
+compositor animations of #a: null
+compositor animations of #b: 0
