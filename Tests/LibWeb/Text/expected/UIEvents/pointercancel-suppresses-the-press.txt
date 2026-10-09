@@ -1,0 +1,10 @@
+hover: pointerover at target, mouseover at target, pointerenter at target, mouseenter at target
+press: pointerdown at target, mousedown at target
+cancel: pointercancel at target cancelable=false, mouseup at window, pointerout at target, mouseout at target, pointerleave at target, mouseleave at target
+active after cancel: false
+move after cancel: pointerover at target, mouseover at target, pointerenter at target, mouseenter at target
+leave after cancel: pointerout at target, mouseout at target, pointerleave at target, mouseleave at target
+cancel while dragging: dragend at link
+cancel in nested document: pointercancel at nested cancelable=false, mouseup at window, pointerout at nested, mouseout at nested, pointerleave at nested, mouseleave at nested
+scrolled while pressed: true
+coordinates: pointerdown at client (50, 50), page (50, 50), pointercancel at client (50, 50), page (50, 50)

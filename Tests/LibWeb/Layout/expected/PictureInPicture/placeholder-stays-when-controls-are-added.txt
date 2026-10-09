@@ -1,0 +1,46 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 862x600]
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 499.203125 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 483.203125 0+0+8] children: inline
+      frag 0 from VideoBox start: 0, length: 0, rect: [8,8 854x480] baseline: 480
+      VideoBox <video> at [8,8] inline-block [0+0+0 854 0+0+0] [0+0+0 480 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [8,8] inline-block [0+0+0 854 0+0+0] [0+0+0 480 0+0+0] [BFC] children: not-inline
+          BlockContainer <div.container.video.picture-in-picture> at [8,8] positioned [0+0+0 854 0+0+0] [0+0+0 480 0+0+0] [BFC] children: not-inline
+            Box <div.picture-in-picture-placeholder> at [8,8] flex-container(column) [0+0+0 854 0+0+0] [0+0+0 480 0+0+0] [FFC] children: not-inline
+              SVGSVGBox <svg.picture-in-picture-placeholder-icon> at [411,213] flex-item [0+0+0 48 0+0+0] [0+0+0 48 0+0+0] viewport-transform=[2 0 0 2 0 0] [SVG] children: not-inline
+                SVGGeometryBox <path> at [2,4] [0+0+0 20 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+              BlockContainer <span> at [334.515625,269] flex-item [0+0+0 200.96875 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 29, rect: [334.515625,269 200.96875x14] baseline: 11.203125
+                    "Playing in Picture-in-Picture"
+                TextNode <#text> (not painted)
+            Box <div.video-overlay> at [8,8] positioned flex-container(row) [0+0+0 854 0+0+0] [0+0+0 480 0+0+0] [FFC] children: not-inline
+            Box <div.controls.visible> at [8,445] positioned flex-container(column) [0+0+0 854 0+0+0] [0+0+0 43 0+0+0] [FFC] children: not-inline
+              BlockContainer <div.timeline> at [8,445] flex-item [0+0+0 854 0+0+0] [-5+0+5 5 5+0+-5] [BFC] children: not-inline
+                BlockContainer <div.timeline-track> at [8,445] positioned [0+0+0 854 0+0+0] [0+0+0 5 0+0+0] children: not-inline
+                  BlockContainer <div.timeline-fill> at [8,445] [0+0+0 0 0+0+854] [0+0+0 5 0+0+0] children: not-inline
+                  BlockContainer <div.timeline-buffered> at [8,445] positioned [0+0+0 854 0+0+0] [0+0+0 5 0+0+0] [BFC] children: not-inline
+              Box <div.button-bar> at [16,454] flex-container(row) flex-item [0+0+8 838 8+0+0] [0+0+4 30 4+0+0] [FFC] children: not-inline
+                Box <button.control-button.play-pause-button> at [16,457] flex-container(row) flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [FFC] children: not-inline
+                  SVGSVGBox <svg.icon.play-pause-icon> at [16,457] flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
+                    SVGGeometryBox <path.play-path> at [6,5] [0+0+0 13 0+0+0] [0+0+0 14 0+0+0] children: not-inline
+                BlockContainer <span.timestamp> at [48,463] flex-item [0+0+0 77.8125 0+0+0] [0+0+0 12 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 13, rect: [48,463 77.8125x12] baseline: 9.59375
+                      "00:00 / 00:12"
+                  TextNode <#text> (not painted)
+                Box <button.control-button.mute-button.high> at [730,457] flex-container(row) flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [FFC] children: not-inline
+                  SVGSVGBox <svg.icon> at [730,457] flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
+                    SVGGeometryBox <path.volume-high> at [14,4.078125] [0+0+0 6 0+0+0] [0+0+0 15.84375 0+0+0] children: not-inline
+                    SVGGeometryBox <path.volume-low> at [14,7.671875] [0+0+0 2.03125 0+0+0] [0+0+0 8.65625 0+0+0] children: not-inline
+                    SVGGeometryBox <path.speaker> at [4,4] [0+0+0 8 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+                BlockContainer <div.volume-area> at [762,466] flex-item [-5+0+5 60 5+0+-5] [-5+0+5 6 5+0+-5] [BFC] children: not-inline
+                  BlockContainer <div.volume> at [762,466] positioned [0+0+0 60 0+0+0] [0+0+0 6 0+0+0] [BFC] children: not-inline
+                    BlockContainer <div.volume-fill> at [762,466] [0+0+0 60 0+0+0] [0+0+0 6 0+0+0] children: not-inline
+                Box <button.control-button.fullscreen-button> at [830,457] flex-container(row) flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [FFC] children: not-inline
+                  SVGSVGBox <svg.icon.fullscreen-icon> at [830,457] flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
+                    SVGGeometryBox <path.fullscreen-maximize-path> at [3,3] [0+0+0 18 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+      TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x499.203125] (z-index: auto)
+  SC for BlockContainer<DIV>.timeline [8,445 854x5] (z-index: 1)
+   SC for BlockContainer<DIV>.timeline-buffered [8,445 854x5] (z-index: auto)

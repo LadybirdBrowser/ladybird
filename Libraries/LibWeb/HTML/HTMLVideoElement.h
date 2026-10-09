@@ -56,6 +56,27 @@ public:
 
     Optional<Gfx::DecodedImageFrame> current_decoded_image_frame() const;
 
+    GC::Ref<WebIDL::Promise> request_picture_in_picture();
+    // Whether requestPictureInPicture() would enter Picture-in-Picture if it were given a user activation.
+    bool can_enter_picture_in_picture() const;
+
+    GC::Ptr<PictureInPicture::PictureInPictureWindow> picture_in_picture_window() const { return m_picture_in_picture_window; }
+    void set_picture_in_picture_window(GC::Ptr<PictureInPicture::PictureInPictureWindow> window) { m_picture_in_picture_window = window; }
+
+    bool has_pending_picture_in_picture_promise(WebIDL::Promise const&) const;
+    bool take_pending_picture_in_picture_promise(WebIDL::Promise const&);
+
+    // The element whose frames this element shows in place of its own, such as in a Picture-in-Picture window.
+    GC::Ptr<HTMLVideoElement> visual_source() const { return m_visual_source; }
+    void set_visual_source(GC::Ptr<HTMLVideoElement>);
+    void for_each_visual_clone(Function<void(HTMLVideoElement&)> const&) const;
+    void clear_visual_clones();
+
+    WebIDL::CallbackType* onenterpictureinpicture();
+    void set_onenterpictureinpicture(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onleavepictureinpicture();
+    void set_onleavepictureinpicture(WebIDL::CallbackType*);
+
 private:
     HTMLVideoElement(DOM::Document&, DOM::QualifiedName);
     virtual void finalize() override;
@@ -68,10 +89,13 @@ private:
     virtual bool supports_dimension_attributes() const override { return true; }
 
     virtual bool is_html_video_element() const override { return true; }
+    virtual bool is_shown_elsewhere() const override;
+    virtual HTMLMediaElement& media_element_for_controls() override;
 
     virtual CSS::ElementBoxKind box_kind() const override;
 
     WebIDL::ExceptionOr<void> determine_element_poster_frame(Optional<Utf16String> const& poster);
+    void run_disable_picture_in_picture_steps();
 
     GC::Ptr<HTML::VideoTrack> m_video_track;
     VideoFrame m_current_frame;
@@ -82,6 +106,12 @@ private:
 
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
+
+    GC::Ptr<PictureInPicture::PictureInPictureWindow> m_picture_in_picture_window;
+    Vector<GC::Ref<WebIDL::Promise>> m_pending_picture_in_picture_promises;
+
+    GC::Ptr<HTMLVideoElement> m_visual_source;
+    Vector<GC::Weak<HTMLVideoElement>> m_visual_clones;
 };
 
 }

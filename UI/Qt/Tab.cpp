@@ -540,6 +540,7 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
         .is_private = window->is_private(),
         .maximum_frames_per_second = window->refresh_rate(),
         .display_id = window->display_id(),
+        .owner_view = nullptr,
     };
 
     m_view = new WebContentView(this, traversable, AK::move(view_initial_state));

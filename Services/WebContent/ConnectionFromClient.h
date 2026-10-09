@@ -274,6 +274,7 @@ private:
     virtual void toggle_media_mute_state(Web::PageId page_id) override;
     virtual void toggle_media_loop_state(Web::PageId page_id) override;
     virtual void toggle_media_fullscreen_state(Web::PageId page_id) override;
+    virtual void toggle_media_picture_in_picture_state(Web::PageId page_id) override;
     virtual void toggle_media_controls_state(Web::PageId page_id) override;
 
     virtual void set_page_mute_state(Web::PageId page_id, Web::HTML::MuteState mute_state) override;
@@ -327,6 +328,11 @@ private:
     virtual void force_close(Web::PageId page_id) override;
 
     virtual void exit_fullscreen(Web::PageId page_id) override;
+
+    virtual void set_has_picture_in_picture_support(Web::PageId page_id, bool has_support) override;
+    virtual void did_open_picture_in_picture_window(Web::PageId page_id, Gfx::IntSize window_size) override;
+    virtual void picture_in_picture_window_did_resize(Web::PageId page_id, Gfx::IntSize window_size) override;
+    virtual void picture_in_picture_window_did_close(Web::PageId page_id) override;
 
     RefPtr<TestConnection> m_test_connection;
     RefPtr<Web::Compositor::CompositorConnection> m_compositor_connection;

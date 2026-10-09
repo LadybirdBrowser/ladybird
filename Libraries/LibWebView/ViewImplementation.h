@@ -107,6 +107,10 @@ public:
 
     u64 view_id() const { return m_view_id; }
 
+    // A view that shows a page on behalf of another view, such as a Picture-in-Picture window, is part of that view's
+    // tab rather than a tab or window of its own.
+    Optional<u64> owner_view_id() const { return m_owner_view_id; }
+
     CanonicalTraversable& traversable() const;
     virtual void prepare_page_for_tab(WebContentPage&);
     void did_change_display_page(Badge<CanonicalNavigable>, RefPtr<WebContentPage> previous_page);
@@ -184,6 +188,7 @@ public:
     double device_pixel_ratio() const { return m_device_pixel_ratio; }
     Optional<u64> display_id() const { return m_display_id; }
     double maximum_frames_per_second() const { return m_maximum_frames_per_second; }
+    void set_scales_frames_to_fit(bool scales_frames_to_fit) { m_scales_frames_to_fit = scales_frames_to_fit; }
     void enqueue_input_event(Web::InputEvent);
     void did_finish_handling_input_event(Badge<WebContentPage>, u64 event_id, Web::EventResult event_result);
     void did_forward_input_event(Badge<WebContentPage>, u64 event_id, WebContentPage& endpoint);
@@ -486,6 +491,7 @@ public:
     Function<void(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles)> on_request_file_picker;
     Function<void(Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)> on_request_select_dropdown;
     Function<void(Web::KeyEvent const&)> on_finish_handling_key_event;
+    Function<void(Web::MouseEvent const&, Web::EventResult)> on_finish_handling_mouse_event;
     Function<void(Web::DragEvent const&)> on_finish_handling_drag_event;
     Function<void(String const&)> on_test_finish;
     Function<void(double milliseconds)> on_set_test_timeout;
@@ -517,7 +523,7 @@ public:
     void did_request_page_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target);
     void did_request_link_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor);
     void did_request_image_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor, Optional<Gfx::ShareableBitmap> bitmap);
-    void did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu menu, Web::HTML::PreparedNavigationDescriptor);
+    void did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu menu, Optional<Web::HTML::PreparedNavigationDescriptor>);
     void send_to_media_context_menu_page(Function<void(WebContentPage&)> const&);
 
     void did_request_color_picker(Badge<WebContentPage>, WebContentPage& requesting_page, Color current_color);
@@ -552,6 +558,8 @@ protected:
     static constexpr auto ZOOM_STEP = 0.1;
 
     explicit ViewImplementation(IsPrivate = IsPrivate::No);
+
+    void set_owner_view(ViewImplementation const& owner_view) { m_owner_view_id = owner_view.view_id(); }
 
     void set_url(URL::URL);
     void did_start_navigation(Optional<Utf16String> navigation_id, URL::URL const&);
@@ -639,6 +647,7 @@ protected:
     void complete_external_url_request();
     void process_next_external_url_request();
     void update_look_up_selected_text_action(Optional<DictionaryLookup> const& lookup, Gfx::IntPoint content_position);
+    void set_context_menu_url_actions_enabled(bool);
     void request_context_menu_dictionary_lookup(Function<void(Optional<DictionaryLookup> const&)> on_complete);
     NonnullRefPtr<Core::Promise<bool>> select_word_for_dictionary_lookup(Gfx::IntPoint widget_position);
     void reject_pending_selection_requests();
@@ -682,6 +691,7 @@ protected:
     double m_device_pixel_ratio { 1.0 };
     Optional<u64> m_display_id;
     double m_maximum_frames_per_second { 60.0 };
+    bool m_scales_frames_to_fit { false };
 
     RefPtr<Menu> m_page_context_menu;
     RefPtr<Menu> m_link_context_menu;
@@ -742,6 +752,8 @@ protected:
     RefPtr<Action> m_media_loop_action;
     RefPtr<Action> m_media_enter_fullscreen_action;
     RefPtr<Action> m_media_exit_fullscreen_action;
+    RefPtr<Action> m_media_enter_picture_in_picture_action;
+    RefPtr<Action> m_media_exit_picture_in_picture_action;
 
     struct PendingInputEvent {
         Web::InputEvent event;
@@ -900,6 +912,7 @@ protected:
     // FIXME: Reconcile this ID with `page_id`. The latter is only unique per WebContent connection, whereas the view ID
     //        is required to be globally unique for Firefox DevTools.
     u64 m_view_id { 0 };
+    Optional<u64> m_owner_view_id;
 
     HashMap<u64, NavigationListener> m_navigation_listeners;
     u64 m_next_navigation_listener_id { 1 };

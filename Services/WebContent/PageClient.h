@@ -234,6 +234,8 @@ private:
     virtual void page_did_request_minimize_window() override;
     virtual void page_did_request_fullscreen_window() override;
     virtual void page_did_request_exit_fullscreen() override;
+    virtual void page_did_exit_picture_in_picture() override;
+    virtual void page_did_change_picture_in_picture_video_size(Gfx::IntSize) override;
     virtual void page_did_request_tooltip_override(Web::CSSPixelPoint, ByteString const&) override;
     virtual void page_did_stop_tooltip_override() override;
     virtual void page_did_enter_tooltip_area(ByteString const&) override;
@@ -246,7 +248,7 @@ private:
     virtual void page_did_request_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, Web::ContextMenuForInputEventsTarget) override;
     virtual void page_did_request_link_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, Web::HTML::PreparedNavigationDescriptor, ByteString const& target, unsigned modifiers) override;
     virtual void page_did_request_image_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, Web::HTML::PreparedNavigationDescriptor, ByteString const& target, unsigned modifiers, Optional<Gfx::Bitmap const*>) override;
-    virtual void page_did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const&, Web::HTML::PreparedNavigationDescriptor) override;
+    virtual void page_did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const&, Optional<Web::HTML::PreparedNavigationDescriptor>) override;
     virtual void page_did_create_new_document(Web::DOM::Document&) override;
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) override;
     virtual void page_did_finish_loading(Web::HTML::CrossProcessId, Optional<Utf16String> const&) override;

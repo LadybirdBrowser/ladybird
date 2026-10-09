@@ -84,6 +84,7 @@ struct WebContentViewInitialState {
     WebView::IsPrivate is_private { WebView::IsPrivate::No };
     double maximum_frames_per_second { 60.0 };
     Optional<u64> display_id;
+    WebView::ViewImplementation const* owner_view { nullptr };
 };
 
 class WebContentView final
@@ -135,6 +136,7 @@ public:
     void prepare_for_window_move();
     void finish_window_move();
     void close_select_dropdown_after_crash();
+    void cancel_mouse_press();
     void review_hidden_crash_report(ByteString const& report_name);
 
     enum class PaletteMode {
@@ -152,6 +154,10 @@ public:
 #endif
 
     QPoint map_point_to_global_position(Gfx::IntPoint) const;
+
+    // On macOS, Qt ignores mouse movement while Ladybird is inactive, so a view that should still follow it opts in.
+    bool follows_mouse_while_inactive() const { return m_follows_mouse_while_inactive; }
+    void set_follows_mouse_while_inactive(bool follows) { m_follows_mouse_while_inactive = follows; }
 
 signals:
     void ready_to_paint();
@@ -179,6 +185,7 @@ private:
     };
 
     Optional<Paintable> current_paintable() const;
+    static Gfx::IntRect rect_fitting_frame(Gfx::IntSize frame_size, Gfx::IntSize target_size);
 
     void update_viewport_size();
     void update_cursor(Gfx::Cursor cursor);
@@ -235,6 +242,8 @@ private:
     // Set when an assistive technology turns up mid-page: The next tree to arrive reports the focus to it.
     bool m_report_accessibility_focus_with_next_tree { false };
 #endif
+
+    bool m_follows_mouse_while_inactive { false };
 
     bool m_tooltip_override { false };
     Optional<ByteString> m_tooltip_text;

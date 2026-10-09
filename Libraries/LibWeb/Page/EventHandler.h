@@ -61,6 +61,7 @@ public:
     EventResult handle_mouseup(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Optional<RemoteInputEventTarget>* remote_target = nullptr);
     EventResult handle_mousewheel(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, Web::WheelDeltaPrecision = Web::WheelDeltaPrecision::Discrete, Web::ScrollGesturePhase = Web::ScrollGesturePhase::None, bool async_scroll_performed_default_action = false, Optional<AsyncScrollOperation>* async_scroll_operation = nullptr, Optional<RemoteInputEventTarget>* remote_target = nullptr);
     EventResult handle_mouseleave();
+    EventResult handle_mousecancel();
 #if defined(AK_OS_MACOS)
     bool select_word_for_dictionary_lookup(CSSPixelPoint visual_viewport_position);
 #endif
@@ -242,6 +243,13 @@ private:
     CSSPixelPoint m_last_known_mouse_screen_position;
     unsigned m_last_known_mouse_buttons { 0 };
     unsigned m_last_known_mouse_modifiers { 0 };
+
+    // Where the last pointer event dispatched to the page was, which a pointercancel repeats.
+    struct PointerEventPosition {
+        MouseEventCoordinates coordinates;
+        CSSPixelPoint screen_position;
+    };
+    Optional<PointerEventPosition> m_last_dispatched_pointer_event_position;
 
     OwnPtr<AutoScrollHandler> m_auto_scroll_handler;
     OwnPtr<MiddleButtonScrollHandler> m_middle_button_scroll_handler;

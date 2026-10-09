@@ -19,6 +19,7 @@
 #include <UI/Qt/FullscreenDebounce.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/TabBar.h>
+#include <UI/Qt/WindowScreenObserver.h>
 
 #include <QMainWindow>
 #include <QPushButton>
@@ -169,8 +170,8 @@ public:
     void move_tab_to_window(int index, BrowserWindow& target_window, int target_index);
     void adopt_tab(Tab&, int index);
 
-    double refresh_rate() const { return m_refresh_rate; }
-    Optional<u64> display_id() const { return m_display_id; }
+    double refresh_rate() const { return m_screen_observer->refresh_rate(); }
+    Optional<u64> display_id() const { return m_screen_observer->display_id(); }
 
     void on_devtools_enabled();
     void on_devtools_disabled();
@@ -178,8 +179,6 @@ public:
     void set_window_rect(Optional<Web::DevicePixels> x, Optional<Web::DevicePixels> y, Optional<Web::DevicePixels> width, Optional<Web::DevicePixels> height);
 
 public slots:
-    void device_pixel_ratio_changed(qreal dpi);
-    void refresh_rate_changed(qreal refresh_rate);
     void tab_title_changed(int index, QString const&);
     void tab_favicon_changed(int index, QIcon const& icon);
     void tab_audio_play_state_changed(int index, Web::HTML::AudioPlayState);
@@ -200,7 +199,6 @@ private:
     virtual bool event(QEvent*) override;
     virtual bool eventFilter(QObject*, QEvent*) override;
     virtual void resizeEvent(QResizeEvent*) override;
-    virtual void showEvent(QShowEvent*) override;
     virtual void changeEvent(QEvent* event) override;
     virtual void moveEvent(QMoveEvent*) override;
     virtual void paintEvent(QPaintEvent*) override;
@@ -245,21 +243,11 @@ private:
     static bool uses_client_side_decorations();
     void toggle_window_maximized();
     bool start_window_move();
-    bool connect_window_screen_changed_signal();
-    void disconnect_window_screen_changed_signal();
-    void connect_screen_signals(QScreen*);
-    void disconnect_screen_signals(QScreen*);
-    void screen_changed(QScreen*);
-    void display_metadata_changed(Optional<u64> display_id, qreal refresh_rate);
 
     QIcon icon_for_page_mute_state(Tab&) const;
     QString tool_tip_for_page_mute_state(Tab&) const;
 
-    QScreen* m_current_screen { nullptr };
-    QWindow* m_window_screen_changed_signal_window { nullptr };
-    Optional<u64> m_display_id;
-    double m_device_pixel_ratio { 0 };
-    double m_refresh_rate { 60.0 };
+    WindowScreenObserver* m_screen_observer { nullptr };
 
     WebView::IsPrivate m_is_private { WebView::IsPrivate::No };
     NonnullRefPtr<WebView::BrowsingSession> m_session;

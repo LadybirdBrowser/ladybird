@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<title>Test exit Picture-in-Picture</title>
+<script src="../common/media.js"></script>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="resources/picture-in-picture-helpers.js"></script>
+<body></body>
+<script>
+promise_test(async t => {
+  const video = await loadVideo();
+  return requestPictureInPictureWithTrustedClick(video)
+  .then(() => document.exitPictureInPicture());
+}, 'Exit Picture-in-Picture resolves when there is a Picture-in-Picture video');
+
+promise_test(t => {
+  return promise_rejects_dom(t, 'InvalidStateError',
+      document.exitPictureInPicture());
+}, 'Exit Picture-in-Picture rejects when there is no Picture-in-Picture video');
+</script>

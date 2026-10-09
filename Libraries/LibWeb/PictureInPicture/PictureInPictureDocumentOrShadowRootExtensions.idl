@@ -1,0 +1,4 @@
+// https://w3c.github.io/picture-in-picture/#documentorshadowroot-extension
+partial interface mixin DocumentOrShadowRoot {
+    [ImplementedAs=retargeted_picture_in_picture_element] readonly attribute Element? pictureInPictureElement;
+};

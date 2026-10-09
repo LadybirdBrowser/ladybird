@@ -43,6 +43,8 @@ interface Internals {
     XMLHttpRequest createXMLHttpRequestForDocument(Document document);
     [ImplementedAs=hit_test_result] object hitTest(double x, double y);
     object? takeContextMenuRequest();
+    // Enters or exits Picture-in-Picture for the media context menu's video, as the menu's item does.
+    undefined toggleMediaContextMenuPictureInPicture();
 
     const unsigned short MOD_NONE = 0;
     const unsigned short MOD_ALT = 1;
@@ -74,6 +76,7 @@ interface Internals {
     undefined mouseUp(double x, double y, optional unsigned short button = 0, optional unsigned short modifiers = 0);
     undefined mouseMove(double x, double y, optional unsigned short modifiers = 0);
     undefined mouseLeave();
+    undefined mouseCancel();
 
     // High-level mouse conveniences
     undefined click(double x, double y, optional unsigned short clickCount = 1, optional unsigned short button = 0, optional unsigned short modifiers = 0);
@@ -166,9 +169,11 @@ interface Internals {
 
     readonly attribute boolean headless;
     readonly attribute boolean screenWakeLockActive;
+    readonly attribute DOMString pictureInPictureWindowState;
 
     readonly attribute boolean needsRepaint;
     readonly attribute boolean needsDisplayListRecord;
+    readonly attribute boolean hasAnimationFrameCallbacks;
 
     DOMString dumpDisplayList();
     DOMString dumpAccessibilityTree();

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<video src="../../../Assets/test-webm.webm"></video>
+<script>
+    const video = document.querySelector("video");
+    const isWhollyBuffered = () => video.buffered.length === 1 && video.buffered.start(0) === 0 && video.buffered.end(0) >= video.duration;
+
+    (async () => {
+        // The new controls draw the buffered range, which can still grow after the video can play through.
+        while (!isWhollyBuffered())
+            await new Promise(resolve => requestAnimationFrame(resolve));
+
+        internals.grantTransientActivation();
+        await video.requestPictureInPicture();
+        video.controls = true;
+        document.documentElement.classList.remove("test-wait");
+    })();
+</script>
+</html>

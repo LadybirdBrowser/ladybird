@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    video { display: block; width: 320px; height: 180px }
+</style>
+<video src="../../../Assets/test-webm.webm"></video>
+<script>
+    function rightClick(element) {
+        const rect = element.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        internals.mouseDown(x, y, 1, 2);
+        internals.mouseUp(x, y, 2);
+    }
+
+    function describeMenu(element) {
+        rightClick(element);
+        const request = internals.takeContextMenuRequest();
+        return `canEnterPictureInPicture=${request.canEnterPictureInPicture} isPictureInPicture=${request.isPictureInPicture}`;
+    }
+
+    asyncTest(async done => {
+        let unhandled_rejections = 0;
+        window.addEventListener("unhandledrejection", () => ++unhandled_rejections);
+
+        const video = document.querySelector("video");
+        if (video.readyState === HTMLMediaElement.HAVE_NOTHING)
+            await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        println(`menu before Picture-in-Picture: ${describeMenu(video)}`);
+        const entered = new Promise(resolve => video.addEventListener("enterpictureinpicture", resolve, { once: true }));
+        internals.toggleMediaContextMenuPictureInPicture();
+        await entered;
+        println(`in Picture-in-Picture after the menu's item: ${document.pictureInPictureElement === video}`);
+
+        println(`menu in Picture-in-Picture: ${describeMenu(video)}`);
+        const left = new Promise(resolve => video.addEventListener("leavepictureinpicture", resolve, { once: true }));
+        internals.toggleMediaContextMenuPictureInPicture();
+        await left;
+        println(`in Picture-in-Picture after the menu's exit item: ${document.pictureInPictureElement === video}`);
+
+        video.disablePictureInPicture = true;
+        println(`menu with disablePictureInPicture: ${describeMenu(video)}`);
+        internals.toggleMediaContextMenuPictureInPicture();
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        println(`in Picture-in-Picture after the item while disabled: ${document.pictureInPictureElement === video}`);
+        println(`unhandled rejections: ${unhandled_rejections}`);
+
+        done();
+    });
+</script>

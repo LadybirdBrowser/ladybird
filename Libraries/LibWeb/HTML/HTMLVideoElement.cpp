@@ -13,6 +13,8 @@
 #include <LibGfx/YUVData.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibMedia/VideoSurface.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -27,12 +29,19 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/VideoTrack.h>
 #include <LibWeb/HTML/VideoTrackList.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintFacts.h>
+#include <LibWeb/PictureInPicture/PictureInPictureController.h>
+#include <LibWeb/PictureInPicture/PictureInPictureWindow.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
+#include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::HTML {
 
@@ -55,6 +64,56 @@ void HTMLVideoElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_video_track);
     visitor.visit(m_fetch_controller);
+    visitor.visit(m_picture_in_picture_window);
+    visitor.visit(m_pending_picture_in_picture_promises);
+    visitor.visit(m_visual_source);
+}
+
+void HTMLVideoElement::set_visual_source(GC::Ptr<HTMLVideoElement> source)
+{
+    if (m_visual_source == source)
+        return;
+
+    if (auto previous_source = exchange(m_visual_source, source)) {
+        previous_source->m_visual_clones.remove_all_matching([&](auto const& clone) { return !clone || clone.ptr().ptr() == this; });
+        previous_source->video_sink_ticking_inputs_changed();
+    }
+    if (source) {
+        source->m_visual_clones.append(*this);
+        source->video_sink_ticking_inputs_changed();
+    }
+    Painting::push_video_paint_facts(*this);
+    media_element_for_controls_changed();
+}
+
+void HTMLVideoElement::for_each_visual_clone(Function<void(HTMLVideoElement&)> const& callback) const
+{
+    for (auto const& clone : m_visual_clones) {
+        if (clone)
+            callback(*clone);
+    }
+}
+
+void HTMLVideoElement::clear_visual_clones()
+{
+    auto clones = move(m_visual_clones);
+    for (auto const& clone : clones) {
+        if (clone)
+            clone->set_visual_source(nullptr);
+    }
+}
+
+bool HTMLVideoElement::is_shown_elsewhere() const
+{
+    return any_of(m_visual_clones, [](auto const& clone) { return clone.ptr() != nullptr; });
+}
+
+// The controls of an element that shows another element's frames play that element's media.
+HTMLMediaElement& HTMLVideoElement::media_element_for_controls()
+{
+    if (m_visual_source)
+        return *m_visual_source;
+    return *this;
 }
 
 void HTMLVideoElement::adopted_from(DOM::Document& old_document)
@@ -71,6 +130,10 @@ void HTMLVideoElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
 
     if (name == HTML::AttributeNames::poster) {
         determine_element_poster_frame(value).release_value_but_fixme_should_propagate_errors();
+    } else if (name == HTML::AttributeNames::disablepictureinpicture) {
+        // When the disablePictureInPicture attribute is added to a video element, the user agent MAY run these steps:
+        if (!old_value.has_value() && value.has_value())
+            run_disable_picture_in_picture_steps();
     }
 }
 
@@ -97,6 +160,8 @@ void HTMLVideoElement::set_intrinsic_video_dimensions(Optional<Gfx::Size<u32>> d
         queue_a_media_element_task([](HTMLMediaElement& self) {
             self.dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::resize));
         });
+
+        document().page().picture_in_picture_controller().video_size_did_change(*this, dimensions->to_type<int>());
     }
 
     update_natural_dimensions();
@@ -353,6 +418,130 @@ Optional<Gfx::DecodedImageFrame> HTMLVideoElement::current_decoded_image_frame()
     if (auto color_space_result = Gfx::ColorSpace::from_cicp(current_frame->cicp()); !color_space_result.is_error())
         color_space = color_space_result.release_value();
     return Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { *bitmap }, move(color_space) };
+}
+
+// https://w3c.github.io/picture-in-picture/#request-picture-in-picture
+GC::Ref<WebIDL::Promise> HTMLVideoElement::request_picture_in_picture()
+{
+    auto& realm = HTML::relevant_realm(*this);
+    auto& controller = document().page().picture_in_picture_controller();
+
+    // 1. If Picture-in-Picture support is false, return a promise rejected with NotSupportedError DOMException.
+    if (!controller.has_picture_in_picture_support())
+        return WebIDL::create_rejected_promise(realm, WebIDL::NotSupportedError::create("Picture-in-Picture is not supported"_utf16));
+
+    // 2. Let doc be this's node document.
+    auto& document = this->document();
+
+    // 3. If doc is not allowed to use the policy-controlled feature named "picture-in-picture", return a promise
+    //    rejected with NotAllowedError DOMException.
+    if (!document.is_allowed_to_use_feature(DOM::PolicyControlledFeature::PictureInPicture))
+        return WebIDL::create_rejected_promise(realm, WebIDL::NotAllowedError::create("Picture-in-Picture is not allowed in this document"_utf16));
+
+    // 4. If this's readyState attribute is HAVE_NOTHING, return a promise rejected with InvalidStateError DOMException.
+    if (ready_state() == ReadyState::HaveNothing)
+        return WebIDL::create_rejected_promise(realm, WebIDL::InvalidStateError::create("The video has no data"_utf16));
+
+    // 5. If this has no video track, return a promise rejected with InvalidStateError DOMException.
+    if (video_tracks()->length() == 0)
+        return WebIDL::create_rejected_promise(realm, WebIDL::InvalidStateError::create("The video has no video track"_utf16));
+
+    // 6. If this's disablePictureInPicture is true, user agent may return a promise rejected with InvalidStateError
+    //    DOMException.
+    if (has_attribute(AttributeNames::disablepictureinpicture))
+        return WebIDL::create_rejected_promise(realm, WebIDL::InvalidStateError::create("Picture-in-Picture is disabled for the video"_utf16));
+
+    // 7. If doc's Picture-in-Picture element is null:
+    if (!document.picture_in_picture_element()) {
+        auto& window = relevant_window(*this);
+
+        // 1. If this's relevant global object does not have a transient activation, then return a promise rejected
+        //    with NotAllowedError DOMException.
+        if (!window.has_transient_activation())
+            return WebIDL::create_rejected_promise(realm, WebIDL::NotAllowedError::create("Picture-in-Picture requires a user gesture"_utf16));
+
+        // 2. Consume user activation given this's relevant global object.
+        window.consume_user_activation();
+    }
+
+    // 8. If this is doc's Picture-in-Picture element:
+    if (is_picture_in_picture_element()) {
+        // 1. Return a promise resolved with the Picture-in-Picture window associated with doc's Picture-in-Picture
+        //    element.
+        return WebIDL::create_resolved_promise(realm, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *m_picture_in_picture_window }));
+    }
+
+    // 9. Let global be this's relevant global object.
+    // NB: The controller takes the global from this when it queues its tasks.
+
+    // 10. Let p be a new promise created in this's relevant realm.
+    auto promise = WebIDL::create_promise(realm);
+    m_pending_picture_in_picture_promises.append(promise);
+
+    // 11. Return p, and enqueue the following steps to doc's picture-in-picture parallel queue:
+    controller.enqueue_request(*this, promise);
+    return promise;
+}
+
+// NB: These are the checks of requestPictureInPicture() that come before the one for user activation.
+bool HTMLVideoElement::can_enter_picture_in_picture() const
+{
+    return document().picture_in_picture_enabled()
+        && ready_state() != ReadyState::HaveNothing
+        && video_tracks()->length() != 0
+        && !has_attribute(AttributeNames::disablepictureinpicture);
+}
+
+bool HTMLVideoElement::has_pending_picture_in_picture_promise(WebIDL::Promise const& promise) const
+{
+    return any_of(m_pending_picture_in_picture_promises, [&](auto const& pending_promise) {
+        return pending_promise.ptr() == &promise;
+    });
+}
+
+bool HTMLVideoElement::take_pending_picture_in_picture_promise(WebIDL::Promise const& promise)
+{
+    return m_pending_picture_in_picture_promises.remove_first_matching([&](auto const& pending_promise) {
+        return pending_promise.ptr() == &promise;
+    });
+}
+
+// https://w3c.github.io/picture-in-picture/#disable-pip
+void HTMLVideoElement::run_disable_picture_in_picture_steps()
+{
+    // 1. Reject any pending promises returned by the requestPictureInPicture() method with InvalidStateError.
+    auto pending_promises = move(m_pending_picture_in_picture_promises);
+    for (auto const& promise : pending_promises) {
+        auto& realm = WebIDL::promise_realm(promise);
+        TemporaryExecutionContext execution_context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+        WebIDL::reject_promise(promise, WebIDL::InvalidStateError::create("Picture-in-Picture was disabled for the video"_utf16));
+    }
+
+    // 2. If video is pictureInPictureElement, run the exit Picture-in-Picture algorithm.
+    // AD-HOC: The overhaul proposed in https://github.com/w3c/picture-in-picture/pull/260 runs the exit algorithm on
+    //         the picture-in-picture parallel queue, given the document and no promise.
+    if (is_picture_in_picture_element())
+        document().page().picture_in_picture_controller().enqueue_exit(document(), nullptr);
+}
+
+WebIDL::CallbackType* HTMLVideoElement::onenterpictureinpicture()
+{
+    return event_handler_attribute(HTML::EventNames::enterpictureinpicture);
+}
+
+void HTMLVideoElement::set_onenterpictureinpicture(WebIDL::CallbackType* event_handler)
+{
+    set_event_handler_attribute(HTML::EventNames::enterpictureinpicture, event_handler);
+}
+
+WebIDL::CallbackType* HTMLVideoElement::onleavepictureinpicture()
+{
+    return event_handler_attribute(HTML::EventNames::leavepictureinpicture);
+}
+
+void HTMLVideoElement::set_onleavepictureinpicture(WebIDL::CallbackType* event_handler)
+{
+    set_event_handler_attribute(HTML::EventNames::leavepictureinpicture, event_handler);
 }
 
 }

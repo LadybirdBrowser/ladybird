@@ -88,6 +88,7 @@
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
+#include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/Selection/Selection.h>
@@ -3379,6 +3380,12 @@ void ConnectionFromClient::toggle_media_fullscreen_state(Web::PageId page_id)
         page->page().toggle_media_fullscreen_state();
 }
 
+void ConnectionFromClient::toggle_media_picture_in_picture_state(Web::PageId page_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().toggle_media_picture_in_picture_state();
+}
+
 void ConnectionFromClient::toggle_media_controls_state(Web::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
@@ -3551,6 +3558,30 @@ void ConnectionFromClient::exit_fullscreen(Web::PageId page_id)
         Web::HTML::TemporaryExecutionContext context(page->page().local_traversable()->active_document()->relevant_settings_object(), Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         page->page().local_traversable()->active_document()->fully_exit_fullscreen();
     }
+}
+
+void ConnectionFromClient::set_has_picture_in_picture_support(Web::PageId page_id, bool has_support)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().picture_in_picture_controller().set_has_picture_in_picture_support(has_support);
+}
+
+void ConnectionFromClient::did_open_picture_in_picture_window(Web::PageId page_id, Gfx::IntSize window_size)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().picture_in_picture_controller().did_open_window(window_size);
+}
+
+void ConnectionFromClient::picture_in_picture_window_did_resize(Web::PageId page_id, Gfx::IntSize window_size)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().picture_in_picture_controller().window_did_resize(window_size);
+}
+
+void ConnectionFromClient::picture_in_picture_window_did_close(Web::PageId page_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().picture_in_picture_controller().window_did_close();
 }
 
 }

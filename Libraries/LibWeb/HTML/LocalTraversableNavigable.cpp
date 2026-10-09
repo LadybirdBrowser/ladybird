@@ -117,6 +117,18 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
     return traversable;
 }
 
+// Creates a new top-level traversable in the page that the UI process created for it, adopting the identity the UI
+// process assigned to it.
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_for_new_web_view(PageClient::NewWebViewResult&& new_web_view, GC::Ptr<BrowsingContext> opener)
+{
+    auto traversable = create_a_new_top_level_traversable(*new_web_view.page, opener, new_web_view.initial_history_entry.release_value());
+    traversable->active_document()->relevant_settings_object().id = new_web_view.initial_environment_id.release_value();
+    traversable->active_browsing_context()->set_browsing_context_group_id(new_web_view.browsing_context_group_id);
+    new_web_view.page->set_top_level_traversable(traversable);
+    traversable->set_window_handle(Utf16String::from_ascii_without_validation(new_web_view.window_handle.bytes()));
+    return traversable;
+}
+
 // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-fresh-top-level-traversable
 GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, SessionHistoryEntryDescriptor initial_history_entry)
 {

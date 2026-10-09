@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<title>Test CSS selector :picture-in-picture</title>
+<script src="../common/media.js"></script>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="resources/picture-in-picture-helpers.js"></script>
+<style>
+  video {
+    color: rgb(0, 0, 255);
+  }
+  :picture-in-picture {
+    color: rgb(0, 255, 0);
+  }
+  /* illegal selector list */
+  video, :picture-in-picture(*) {
+    color: rgb(255, 0, 0);
+  }
+</style>
+<body></body>
+<script>
+promise_test(async t => {
+  const video = await loadVideo();
+  document.body.appendChild(video);
+  assert_equals(getComputedStyle(video).color, 'rgb(0, 0, 255)');
+
+  await requestPictureInPictureWithTrustedClick(video);
+  assert_equals(getComputedStyle(video).color, 'rgb(0, 255, 0)');
+
+  await document.exitPictureInPicture();
+  assert_equals(getComputedStyle(video).color, 'rgb(0, 0, 255)');
+}, 'Entering and leaving Picture-in-Picture toggles CSS selector');
+</script>

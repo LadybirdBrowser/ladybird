@@ -1,0 +1,7 @@
+menu before Picture-in-Picture: canEnterPictureInPicture=true isPictureInPicture=false
+in Picture-in-Picture after the menu's item: true
+menu in Picture-in-Picture: canEnterPictureInPicture=true isPictureInPicture=true
+in Picture-in-Picture after the menu's exit item: false
+menu with disablePictureInPicture: canEnterPictureInPicture=false isPictureInPicture=false
+in Picture-in-Picture after the item while disabled: false
+unhandled rejections: 0

@@ -99,6 +99,7 @@
 #include <LibWeb/Painting/HitTestResult.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/Scrolling.h>
+#include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -719,6 +720,11 @@ void Internals::mouse_leave()
     this->page().handle_mouseleave();
 }
 
+void Internals::mouse_cancel()
+{
+    this->page().handle_mousecancel();
+}
+
 void Internals::click(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers)
 {
     click_and_hold(x, y, click_count, button, modifiers);
@@ -1275,6 +1281,11 @@ bool Internals::needs_repaint()
     return local_root && local_root->needs_repaint();
 }
 
+bool Internals::has_animation_frame_callbacks()
+{
+    return window().has_animation_frame_callbacks();
+}
+
 bool Internals::needs_display_list_record()
 {
     Layout::ForcedReadScope read { window().associated_document() };
@@ -1286,6 +1297,16 @@ bool Internals::needs_display_list_record()
 bool Internals::screen_wake_lock_active()
 {
     return page().is_screen_wake_lock_active();
+}
+
+Utf16String Internals::picture_in_picture_window_state()
+{
+    auto const& controller = page().picture_in_picture_controller();
+    if (controller.is_waiting_for_window_to_open())
+        return "opening"_utf16;
+    if (controller.has_open_window())
+        return "open"_utf16;
+    return "none"_utf16;
 }
 
 static Utf16String dump_string_to_utf16(String const& string)
@@ -2464,7 +2485,16 @@ GC::Ptr<JS::Object> Internals::take_context_menu_request()
     object->define_direct_property("kind"_utf16_fly_string, JS::PrimitiveString::create(vm(), context_menu_kind_to_string(request->kind)), JS::default_attributes);
     auto target = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, request->target);
     object->define_direct_property("target"_utf16_fly_string, target, JS::default_attributes);
+    if (request->media.has_value()) {
+        object->define_direct_property("isPictureInPicture"_utf16_fly_string, JS::Value(request->media->is_picture_in_picture), JS::default_attributes);
+        object->define_direct_property("canEnterPictureInPicture"_utf16_fly_string, JS::Value(request->media->can_enter_picture_in_picture), JS::default_attributes);
+    }
     return object;
+}
+
+void Internals::toggle_media_context_menu_picture_in_picture()
+{
+    page().toggle_media_picture_in_picture_state();
 }
 
 GC::Ptr<JS::Object> Internals::hit_test_result(double x, double y)

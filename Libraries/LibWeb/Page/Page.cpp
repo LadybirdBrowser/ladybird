@@ -41,8 +41,10 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintFacts.h>
+#include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/WebIDL/Promise.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>
 #include <LibWebCommon/HTML/SelectedFile.h>
@@ -59,6 +61,7 @@ GC::Ref<Page> Page::create(GC::Ref<PageClient> page_client)
 Page::Page(GC::Ref<PageClient> client)
     : m_client(client)
     , m_history_executor(GC::Heap::the().allocate<HTML::HistoryExecutor>(*this))
+    , m_picture_in_picture_controller(GC::Heap::the().allocate<PictureInPicture::PictureInPictureController>(*this))
 {
 }
 
@@ -127,6 +130,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_top_level_traversable);
     visitor.visit(m_navigables_being_destroyed);
     visitor.visit(m_history_executor);
+    visitor.visit(m_picture_in_picture_controller);
     visitor.visit(m_client);
     visitor.visit(m_window_rect_observer);
     visitor.visit(m_on_pending_dialog_closed);
@@ -470,6 +474,21 @@ EventResult Page::handle_mouseleave(HTML::LocalNavigable& root)
 EventResult Page::handle_mouseleave()
 {
     return handle_mouseleave(local_traversable());
+}
+
+EventResult Page::handle_mousecancel(HTML::LocalNavigable& root)
+{
+    // The press that is cancelled is tracked by the navigable it began in, which may be nested in the root.
+    GC::Ptr<HTML::LocalNavigable> navigable = m_mouse_event_tracking_navigable.ptr();
+    m_mouse_event_tracking_navigable = nullptr;
+    if (!navigable)
+        navigable = root;
+    return navigable->event_handler().handle_mousecancel();
+}
+
+EventResult Page::handle_mousecancel()
+{
+    return handle_mousecancel(local_traversable());
 }
 
 #if defined(AK_OS_MACOS)
@@ -1493,7 +1512,7 @@ Optional<Page::ContextMenuRequest> Page::take_context_menu_request()
     return request;
 }
 
-void Page::did_request_media_context_menu(UniqueNodeID media_id, HTML::CrossProcessId local_root_id, CSSPixelPoint position, ByteString const& target, unsigned modifiers, MediaContextMenu const& menu, HTML::PreparedNavigationDescriptor navigation)
+void Page::did_request_media_context_menu(UniqueNodeID media_id, HTML::CrossProcessId local_root_id, CSSPixelPoint position, ByteString const& target, unsigned modifiers, MediaContextMenu const& menu, Optional<HTML::PreparedNavigationDescriptor> navigation)
 {
     m_media_context_menu_element_id = media_id;
     client().page_did_request_media_context_menu(local_root_id, position, target, modifiers, menu, move(navigation));
@@ -1546,6 +1565,25 @@ void Page::toggle_media_fullscreen_state()
 
     HTML::TemporaryExecutionContext execution_context { media_element->document().relevant_settings_object() };
     media_element->toggle_fullscreen();
+}
+
+void Page::toggle_media_picture_in_picture_state()
+{
+    auto* video_element = as_if<HTML::HTMLVideoElement>(media_context_menu_element().ptr());
+    if (!video_element)
+        return;
+
+    auto& document = video_element->document();
+    if (video_element->is_picture_in_picture_element()) {
+        picture_in_picture_controller().enqueue_exit(document, nullptr);
+        return;
+    }
+
+    // AD-HOC: An execution context is required for Promise creation hooks.
+    HTML::TemporaryExecutionContext execution_context { document.relevant_settings_object() };
+
+    // The request is the page's own, so a page that has changed since the menu opened can still reject it.
+    WebIDL::mark_promise_as_handled(video_element->request_picture_in_picture());
 }
 
 void Page::toggle_media_controls_state()

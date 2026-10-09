@@ -81,6 +81,7 @@ public:
     Optional<Painting::HitTestResult> hit_test(double x, double y);
     GC::Ptr<JS::Object> hit_test_result(double x, double y);
     GC::Ptr<JS::Object> take_context_menu_request();
+    void toggle_media_context_menu_picture_in_picture();
 
     void send_text(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers);
     void send_text_through_ui_process(Utf16String const&);
@@ -99,6 +100,7 @@ public:
     void mouse_up(double x, double y, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
     void mouse_move(double x, double y, WebIDL::UnsignedShort modifiers);
     void mouse_leave();
+    void mouse_cancel();
 
     // High-level mouse conveniences
     void click(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
@@ -182,9 +184,11 @@ public:
 
     bool headless();
     bool screen_wake_lock_active();
+    Utf16String picture_in_picture_window_state();
 
     bool needs_repaint();
     bool needs_display_list_record();
+    bool has_animation_frame_callbacks();
 
     Utf16String dump_display_list();
     Utf16String dump_accessibility_tree();

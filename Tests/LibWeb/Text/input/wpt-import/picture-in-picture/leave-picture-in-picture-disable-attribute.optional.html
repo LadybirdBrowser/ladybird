@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<title>Test that leavepictureinpicture is seen when setting disablePictureInPicture=true</title>
+<meta name="timeout" content="long">
+<script src="../common/media.js"></script>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="resources/picture-in-picture-helpers.js"></script>
+<body></body>
+<script>
+promise_test(async () => {
+  const video = await loadVideo();
+
+  const enterPipEventPromise = new Promise((resolve) =>
+    video.addEventListener('enterpictureinpicture', resolve),
+  );
+
+  const leavePipEventPromise = new Promise((resolve) =>
+    video.addEventListener('leavepictureinpicture', resolve),
+  );
+
+  await requestPictureInPictureWithTrustedClick(video);
+  const { pictureInPictureWindow } = await enterPipEventPromise;
+
+  video.disablePictureInPicture = true;
+
+  const event = await leavePipEventPromise;
+  assert_equals(pictureInPictureWindow, event.pictureInPictureWindow);
+  assert_equals(event.target, video);
+  assert_equals(event.bubbles, true);
+  assert_equals(event.cancelable, false);
+  assert_equals(event.composed, false);
+  assert_equals(document.pictureInPictureElement, null);
+}, 'leavepictureinpicture event is fired if video.disablePictureInPicture is set to true');
+</script>

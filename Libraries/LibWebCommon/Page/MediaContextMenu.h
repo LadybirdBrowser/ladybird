@@ -13,13 +13,15 @@
 namespace Web {
 
 struct MediaContextMenu {
-    URL::URL media_url;
+    Optional<URL::URL> media_url;
     bool is_video { false };
     bool is_playing { false };
     bool is_muted { false };
     bool has_user_agent_controls { false };
     bool is_looping { false };
     bool is_fullscreen { false };
+    bool is_picture_in_picture { false };
+    bool can_enter_picture_in_picture { false };
 };
 
 }

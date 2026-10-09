@@ -64,8 +64,10 @@ void TabPerformanceMonitor::config_variable_changed(ConfigVariableID id)
             WebContentClient::for_each_client([&](WebContentClient& client) {
                 if (client.pid() != entry.process_id)
                     return IterationDecision::Continue;
-                if (auto* page = client.page(entry.page_id))
-                    owner = page->view().view_id();
+                if (auto* page = client.page(entry.page_id)) {
+                    auto const& view = page->view();
+                    owner = view.owner_view_id().value_or(view.view_id());
+                }
                 return IterationDecision::Break;
             });
             if (!owner.has_value())
@@ -103,6 +105,8 @@ void TabPerformanceMonitor::sample()
     });
     auto now = MonotonicTime::now();
     ViewImplementation::for_each_view([&](ViewImplementation& view) {
+        if (view.owner_view_id().has_value())
+            return IterationDecision::Continue;
         auto stats = m_tabs.ensure(view.view_id()).sample(now, processes.ensure(view.view_id()));
         if (view.on_performance_stats)
             view.on_performance_stats(stats);

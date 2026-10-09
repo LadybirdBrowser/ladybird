@@ -25,14 +25,17 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TimeRanges.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Page/Page.h>
+#include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 
 namespace Web::HTML {
 
-MediaControls::MediaControls(HTMLMediaElement& media_element)
-    : m_media_element(media_element)
+MediaControls::MediaControls(HTMLMediaElement& host, HTMLMediaElement& media_element)
+    : m_host(host)
+    , m_media_element(media_element)
 {
     create_shadow_tree();
     set_up_event_listeners();
@@ -41,8 +44,8 @@ MediaControls::MediaControls(HTMLMediaElement& media_element)
 MediaControls::~MediaControls()
 {
     remove_event_listeners();
-    if (m_media_element)
-        m_media_element->set_shadow_root(nullptr);
+    if (m_host)
+        m_host->set_shadow_root(nullptr);
 }
 
 void MediaControls::visit_edges(GC::Cell::Visitor& visitor)
@@ -50,18 +53,41 @@ void MediaControls::visit_edges(GC::Cell::Visitor& visitor)
     (void)visitor;
 }
 
+void MediaControls::update_visibility()
+{
+    auto& host = *m_host;
+
+    MUST(m_dom->container->class_list()->toggle("controls-hidden"_utf16, !host.should_expose_user_interface()));
+    MUST(m_dom->container->class_list()->toggle("picture-in-picture"_utf16, host.is_picture_in_picture_element()));
+    update_placeholder_visibility();
+
+    update_timeline();
+    update_timestamp();
+    request_timeline_update();
+}
+
 void MediaControls::create_shadow_tree()
 {
-    auto& media_element = *m_media_element;
-    auto& document = media_element.document();
+    auto& host = *m_host;
+    auto& document = host.document();
 
-    bool is_video = is<HTMLVideoElement>(media_element);
+    bool is_video = is<HTMLVideoElement>(host);
 
-    auto shadow_root = DOM::ShadowRoot::create(document, media_element, Web::DOM::ShadowRootMode::Closed);
+    auto shadow_root = DOM::ShadowRoot::create(document, host, Web::DOM::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
-    media_element.set_shadow_root(shadow_root);
+    host.set_shadow_root(shadow_root);
 
-    m_dom = MediaControlsDOM(document, *shadow_root, is_video ? MediaControlsDOM::Options::Video : MediaControlsDOM::Options::None);
+    auto options = MediaControlsDOM::Options::None;
+    if (is_video) {
+        options |= MediaControlsDOM::Options::Video;
+        // Only an element that shows its own media can show it fullscreen. One that shows another element's media is
+        // the player of a Picture-in-Picture window.
+        if (&host == m_media_element.ptr().ptr())
+            options |= MediaControlsDOM::Options::Fullscreen;
+        else
+            options |= MediaControlsDOM::Options::PictureInPictureWindow;
+    }
+    m_dom = MediaControlsDOM(document, *shadow_root, options);
 
     if (is_video)
         MUST(m_dom->container->class_list()->add("video"_utf16));
@@ -73,7 +99,7 @@ void MediaControls::create_shadow_tree()
     update_timestamp();
     update_volume_and_mute_indicator();
     update_fullscreen_icon();
-    update_placeholder_visibility();
+    update_visibility();
 
     show_controls();
 }
@@ -140,72 +166,76 @@ void MediaControls::remove_event_listeners()
     }
     m_registered_event_listeners.clear();
 
-    if (m_media_element) {
-        auto& window = relevant_window(HTML::relevant_realm(*m_media_element).global_object());
+    if (m_host) {
+        auto& window = relevant_window(HTML::relevant_realm(*m_host).global_object());
         window.cancel_animation_frame(m_request_animation_frame_id);
     }
 }
 
 void MediaControls::set_up_event_listeners()
 {
+    auto& host = *m_host;
     auto& media_element = *m_media_element;
-    auto& realm = HTML::relevant_realm(media_element);
+
+    // Listeners on the media element and its tracks belong to its realm, and the rest to the host's.
+    auto& realm = HTML::relevant_realm(host);
+    auto& media_realm = HTML::relevant_realm(media_element);
 
     // Media element state events
-    add_event_listener(realm, media_element, HTML::EventNames::play, [this]() {
+    add_event_listener(media_realm, media_element, HTML::EventNames::play, [this]() {
         update_play_pause_icon();
         update_placeholder_visibility();
         return true;
     });
-    add_event_listener(realm, media_element, HTML::EventNames::pause, [this] {
+    add_event_listener(media_realm, media_element, HTML::EventNames::pause, [this] {
         update_play_pause_icon();
         update_placeholder_visibility();
         return true;
     });
-    add_event_listener(realm, media_element, HTML::EventNames::playing, [this] {
+    add_event_listener(media_realm, media_element, HTML::EventNames::playing, [this] {
         update_play_pause_icon();
         update_placeholder_visibility();
         request_timeline_update();
         return true;
     });
-    add_event_listener(realm, media_element, HTML::EventNames::seeked, [this] {
+    add_event_listener(media_realm, media_element, HTML::EventNames::seeked, [this] {
         update_placeholder_visibility();
         if (m_scrubbing_timeline != Scrubbing::No)
             submit_pending_scrub_seek();
         return true;
     });
-    add_event_listener(realm, media_element, HTML::EventNames::timeupdate, [this] {
+    add_event_listener(media_realm, media_element, HTML::EventNames::timeupdate, [this] {
         update_timeline();
         update_timestamp();
         return true;
     });
-    add_event_listener(realm, media_element, HTML::EventNames::progress, [this] {
+    add_event_listener(media_realm, media_element, HTML::EventNames::progress, [this] {
         update_timeline();
         return true;
     });
-    add_event_listener(realm, media_element, HTML::EventNames::durationchange, [this] {
+    add_event_listener(media_realm, media_element, HTML::EventNames::durationchange, [this] {
         update_timeline();
         update_timestamp();
         return true;
     });
-    add_event_listener(realm, media_element, HTML::EventNames::volumechange, [this] {
+    add_event_listener(media_realm, media_element, HTML::EventNames::volumechange, [this] {
         update_volume_and_mute_indicator();
         return true;
     });
-    add_event_listener(realm, media_element, HTML::EventNames::loadedmetadata, [this] {
+    add_event_listener(media_realm, media_element, HTML::EventNames::loadedmetadata, [this] {
         update_timestamp();
         update_volume_and_mute_indicator();
         return true;
     });
-    add_event_listener(realm, *media_element.audio_tracks(), HTML::EventNames::addtrack, [this] {
+    add_event_listener(media_realm, *media_element.audio_tracks(), HTML::EventNames::addtrack, [this] {
         update_volume_and_mute_indicator();
         return true;
     });
-    add_event_listener(realm, *media_element.audio_tracks(), HTML::EventNames::removetrack, [this] {
+    add_event_listener(media_realm, *media_element.audio_tracks(), HTML::EventNames::removetrack, [this] {
         update_volume_and_mute_indicator();
         return true;
     });
-    add_event_listener(realm, media_element, HTML::EventNames::emptied, [this] {
+    add_event_listener(media_realm, media_element, HTML::EventNames::emptied, [this] {
         update_placeholder_visibility();
         update_timeline();
         update_timestamp();
@@ -214,7 +244,7 @@ void MediaControls::set_up_event_listeners()
     });
 
     if (m_dom->fullscreen_button) {
-        add_event_listener(realm, media_element.document(), HTML::EventNames::fullscreenchange, [this] {
+        add_event_listener(realm, host.document(), HTML::EventNames::fullscreenchange, [this] {
             update_fullscreen_icon();
             return true;
         });
@@ -261,7 +291,7 @@ void MediaControls::set_up_event_listeners()
         set_timeline_progress(progress);
         set_timestamp(range->time_at(progress), m_media_element->duration());
 
-        auto& realm = HTML::relevant_realm(*m_media_element);
+        auto& realm = HTML::relevant_realm(*m_host);
         auto& window = relevant_window(realm.global_object());
 
         auto mousemove_listener = add_event_listener(realm, window, UIEvents::EventNames::mousemove, [this](UIEvents::MouseEvent const& event) {
@@ -297,7 +327,7 @@ void MediaControls::set_up_event_listeners()
 
             update_play_pause_icon();
 
-            auto& window_inner = relevant_window(*m_media_element);
+            auto& window_inner = relevant_window(*m_host);
             window_inner.remove_event_listener_without_options(UIEvents::EventNames::mousemove, mousemove_listener);
             return true;
         });
@@ -330,7 +360,7 @@ void MediaControls::set_up_event_listeners()
 
         set_volume(*volume);
 
-        auto& realm = HTML::relevant_realm(*m_media_element);
+        auto& realm = HTML::relevant_realm(*m_host);
         auto& window = relevant_window(realm.global_object());
 
         auto mousemove_listener = add_event_listener(realm, window, UIEvents::EventNames::mousemove, [this](UIEvents::MouseEvent const& event) {
@@ -355,7 +385,7 @@ void MediaControls::set_up_event_listeners()
             if (volume.has_value())
                 set_volume(*volume);
 
-            auto& window_inner = relevant_window(*m_media_element);
+            auto& window_inner = relevant_window(*m_host);
             window_inner.remove_event_listener_without_options(UIEvents::EventNames::mousemove, mousemove_listener);
             return true;
         });
@@ -377,35 +407,60 @@ void MediaControls::set_up_event_listeners()
         });
     }
 
-    // Hover detection for video controls visibility
-    if (is<HTMLVideoElement>(media_element)) {
-        add_event_listener(realm, media_element, UIEvents::EventNames::mouseenter, [this] {
-            show_controls();
+    // Picture-in-Picture window buttons
+    if (m_dom->back_to_tab_button) {
+        add_event_listener(realm, *m_dom->back_to_tab_button, UIEvents::EventNames::click, [this] {
+            return_to_tab();
             return true;
         });
-        add_event_listener(realm, media_element, UIEvents::EventNames::mousemove, [this] {
-            show_controls();
-            return true;
-        });
-        add_event_listener(realm, media_element, UIEvents::EventNames::mouseleave, [this] {
-            hide_controls();
-            return true;
-        });
-        add_event_listener(realm, *m_dom->control_bar, UIEvents::EventNames::mouseenter, [this] {
-            m_hovering_controls = true;
-            show_controls();
-            return true;
-        });
-        add_event_listener(realm, *m_dom->control_bar, UIEvents::EventNames::mouseleave, [this] {
-            m_hovering_controls = false;
-            show_controls();
+
+        VERIFY(m_dom->close_button);
+        add_event_listener(realm, *m_dom->close_button, UIEvents::EventNames::click, [this] {
+            close_picture_in_picture_window();
             return true;
         });
     }
 
+    // Hover detection for video controls visibility
+    if (is<HTMLVideoElement>(host)) {
+        add_event_listener(realm, host, UIEvents::EventNames::mouseenter, [this] {
+            show_controls();
+            return true;
+        });
+        add_event_listener(realm, host, UIEvents::EventNames::mousemove, [this] {
+            show_controls();
+            return true;
+        });
+        add_event_listener(realm, host, UIEvents::EventNames::mouseleave, [this] {
+            hide_controls();
+            return true;
+        });
+
+        auto keep_controls_shown_while_hovered = [&](DOM::Element& element) {
+            add_event_listener(realm, element, UIEvents::EventNames::mouseenter, [this] {
+                m_hovering_controls = true;
+                show_controls();
+                return true;
+            });
+            add_event_listener(realm, element, UIEvents::EventNames::mouseleave, [this] {
+                m_hovering_controls = false;
+                show_controls();
+                return true;
+            });
+        };
+        keep_controls_shown_while_hovered(*m_dom->control_bar);
+        if (m_dom->back_to_tab_button) {
+            keep_controls_shown_while_hovered(*m_dom->back_to_tab_button);
+            keep_controls_shown_while_hovered(*m_dom->close_button);
+        }
+    }
+
     // Keyboard handling
-    add_event_listener(realm, media_element, UIEvents::EventNames::keydown, [this](UIEvents::KeyboardEvent const& event) {
+    add_event_listener(realm, host, UIEvents::EventNames::keydown, [this](UIEvents::KeyboardEvent const& event) {
         VERIFY(m_media_element);
+
+        if (!m_host->should_expose_user_interface())
+            return false;
 
         constexpr double arrow_time_step = 5.0;
         constexpr double arrow_volume_step = 0.1;
@@ -514,8 +569,31 @@ void MediaControls::toggle_mute()
 
 void MediaControls::toggle_fullscreen()
 {
+    VERIFY(m_host);
+    m_host->toggle_fullscreen();
+}
+
+void MediaControls::return_to_tab()
+{
+    VERIFY(m_host);
+    // The window belongs to the tab of the video's page, so its page asks for its own tab to be activated.
+    m_host->document().page().client().page_did_request_activate_tab();
+    exit_picture_in_picture();
+}
+
+void MediaControls::close_picture_in_picture_window()
+{
     VERIFY(m_media_element);
-    m_media_element->toggle_fullscreen();
+    m_media_element->pause();
+    exit_picture_in_picture();
+}
+
+void MediaControls::exit_picture_in_picture()
+{
+    VERIFY(m_media_element);
+    auto& document = m_media_element->document();
+    if (m_media_element->is_picture_in_picture_element())
+        document.page().picture_in_picture_controller().enqueue_exit(document, nullptr);
 }
 
 void MediaControls::update_play_pause_icon()
@@ -559,6 +637,9 @@ void MediaControls::update_timeline()
     VERIFY(m_dom->timeline_track);
     VERIFY(m_dom->timeline_fill);
 
+    if (!timeline_is_shown())
+        return;
+
     auto range = timeline_range();
     if (m_scrubbing_timeline == Scrubbing::No) {
         double progress = 0.0;
@@ -579,7 +660,7 @@ void MediaControls::update_timeline()
     }
 
     while (m_buffered_ranges.size() < range_count) {
-        auto element = MUST(DOM::create_element(m_media_element->document(), HTML::TagNames::div, Namespace::HTML));
+        auto element = MUST(DOM::create_element(m_host->document(), HTML::TagNames::div, Namespace::HTML));
         MUST(element->class_list()->toggle("timeline-buffered"_utf16, true));
         MUST(element->style()->set_property(CSS::PropertyID::Display, "block"_utf16));
         m_dom->timeline_track->insert_before(element, nullptr);
@@ -617,14 +698,23 @@ void MediaControls::set_timeline_progress(double progress)
     m_last_timeline_progress = progress;
 }
 
+// A hidden video control bar is not kept up to date, so that a playing video does not need a rendering update every
+// frame. It catches up when it shows.
+bool MediaControls::timeline_is_shown() const
+{
+    if (!is<HTMLVideoElement>(*m_host))
+        return true;
+    return m_control_bar_is_shown && m_host->should_expose_user_interface();
+}
+
 void MediaControls::request_timeline_update()
 {
     if (m_request_animation_frame_id != 0)
         return;
-    if (!m_media_element->potentially_playing())
+    if (!m_media_element->potentially_playing() || !timeline_is_shown())
         return;
 
-    auto& realm = HTML::relevant_realm(*m_media_element);
+    auto& realm = HTML::relevant_realm(*m_host);
     auto& window = relevant_window(realm.global_object());
     m_request_animation_frame_id = window.request_animation_frame([this](double) {
         m_request_animation_frame_id = 0;
@@ -636,6 +726,9 @@ void MediaControls::request_timeline_update()
 void MediaControls::update_timestamp()
 {
     VERIFY(m_media_element);
+    if (!timeline_is_shown())
+        return;
+
     double time = static_cast<double>(m_last_timestamp_time);
     if (m_scrubbing_timeline == Scrubbing::No)
         time = m_media_element->current_time();
@@ -726,9 +819,9 @@ void MediaControls::update_fullscreen_icon()
     if (!m_dom->fullscreen_icon)
         return;
 
-    VERIFY(m_media_element);
+    VERIFY(m_host);
 
-    auto is_fullscreen_element = m_media_element->document().fullscreen_element() == m_media_element;
+    auto is_fullscreen_element = m_host->document().fullscreen_element() == m_host;
     MUST(m_dom->fullscreen_icon->class_list()->toggle("fullscreen"_utf16, is_fullscreen_element));
 }
 
@@ -748,6 +841,9 @@ bool MediaControls::should_show_placeholder() const
     VERIFY(m_media_element);
     VERIFY(m_dom->placeholder_circle);
 
+    if (m_host->is_picture_in_picture_element())
+        return false;
+
     auto const& video_element = as<HTMLVideoElement>(*m_media_element);
     return video_element.current_representation() != HTMLVideoElement::Representation::VideoFrame;
 }
@@ -763,6 +859,12 @@ void MediaControls::show_controls()
     VERIFY(m_dom->control_bar);
 
     MUST(m_dom->control_bar->class_list()->add(visible_class()));
+
+    if (!exchange(m_control_bar_is_shown, true)) {
+        update_timeline();
+        update_timestamp();
+        request_timeline_update();
+    }
 
     if (!m_hover_timer) {
         constexpr int hover_timeout_ms = 1000;
@@ -787,6 +889,7 @@ void MediaControls::hide_controls()
 
     MUST(m_dom->control_bar->class_list()->remove(visible_class()));
     m_hover_timer.clear();
+    m_control_bar_is_shown = false;
 }
 
 }

@@ -74,6 +74,7 @@ public:
 
     // NOTE: The function is wrapped in a GC::HeapFunction immediately.
     void queue_a_media_element_task(Function<void(HTMLMediaElement&)>);
+    Task::Source media_element_event_task_source() const { return m_media_element_event_task_source.source; }
 
     void cancel_the_fetching_process();
     bool is_fetching() const;
@@ -165,6 +166,7 @@ public:
 
     void add_current_video_sink();
     void sync_video_sink_ticking() const;
+    void video_sink_ticking_inputs_changed() const;
     void detach_video_sink_edge();
 
     GC::Ref<TextTrack> add_text_track(Bindings::TextTrackKind kind, Utf16View label, Utf16View language);
@@ -180,8 +182,9 @@ public:
         return *m_playback_manager;
     }
 
-    void create_controls();
-    void destroy_controls();
+    bool should_expose_user_interface() const;
+    void update_controls();
+    void media_element_for_controls_changed();
 
     CORSSettingAttribute crossorigin() const { return m_crossorigin; }
 
@@ -217,8 +220,6 @@ private:
         u64 first;
     };
     using ByteRange = Variant<EntireResource, UntilEnd>;
-
-    Task::Source media_element_event_task_source() const { return m_media_element_event_task_source.source; }
 
     WebIDL::ExceptionOr<void> load_element();
     void select_resource_for_current_load();
@@ -287,6 +288,8 @@ private:
     void attach_selected_video_track_sink(Media::Track const&);
 
     bool video_sink_should_tick() const;
+    virtual bool is_shown_elsewhere() const { return false; }
+    virtual HTMLMediaElement& media_element_for_controls() { return *this; }
 
     // Mirrors what PlaybackManager and the compositor were last told; a freshly reserved sink is assumed to tick.
     mutable bool m_video_sink_is_ticking { true };

@@ -1,0 +1,2 @@
+paused after Space without controls: true
+paused after Space with controls: false

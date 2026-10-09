@@ -232,6 +232,8 @@ private:
     virtual void did_request_minimize_window() override;
     virtual void did_request_fullscreen_window() override;
     virtual void did_request_exit_fullscreen() override;
+    virtual void did_exit_picture_in_picture() override;
+    virtual void did_change_picture_in_picture_video_size(Gfx::IntSize video_size) override;
     virtual void did_request_file(ByteString path, i32 request_id) override;
     virtual void did_request_color_picker(Color current_color) override;
     virtual void did_request_geolocation_position(u64 request_id) override;
@@ -302,7 +304,7 @@ private:
     virtual void did_request_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target) override;
     virtual void did_request_link_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString, unsigned) override;
     virtual void did_request_image_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString, unsigned, Optional<Gfx::ShareableBitmap> bitmap) override;
-    virtual void did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::MediaContextMenu menu, Web::HTML::PreparedNavigationDescriptor navigation) override;
+    virtual void did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::MediaContextMenu menu, Optional<Web::HTML::PreparedNavigationDescriptor> navigation) override;
     virtual void did_get_highlighted_source(String html) override;
     virtual void did_get_debugger_environments(u64 request_id, Optional<String> error, Vector<DebuggerEnvironment> environments) override;
     virtual void did_evaluate_javascript_in_debugger_frame(u64 request_id, Optional<String> error, DebuggerEvaluationResult result) override;

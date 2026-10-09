@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<iframe style="width: 200px; height: 200px; border: none" src="data:text/html,<body style='margin: 0'><video style='width: 100px; height: 100px'></video>"></iframe>
+<script>
+    const iframe = document.querySelector("iframe");
+    iframe.addEventListener("load", () => {
+        const rect = iframe.getBoundingClientRect();
+        internals.click(rect.left + 50, rect.top + 50, 1, internals.BUTTON_RIGHT);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            document.documentElement.classList.remove("test-wait");
+        }));
+    });
+</script>
+</html>

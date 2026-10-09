@@ -6,11 +6,53 @@
 
 #include <LibCore/EventLoop.h>
 #include <LibWebView/HeadlessWebView.h>
+#include <LibWebView/PictureInPictureWindow.h>
 
 namespace WebView {
 
 static Web::DevicePixelRect const screen_rect { 0, 0, 1920, 1080 };
 static constexpr auto child_close_timeout_ms = 1000;
+
+// A headless window is never shown, so it only changes size to keep the aspect ratio of its video.
+class HeadlessPictureInPictureWindow final : public PictureInPictureWindow {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    HeadlessPictureInPictureWindow(Gfx::IntSize size, NonnullOwnPtr<HeadlessWebView> view)
+        : m_size(size)
+        , m_view(move(view))
+    {
+        report_page_close_of(*m_view);
+    }
+
+    virtual Gfx::IntSize size() const override { return m_size; }
+    virtual String handle() const override { return m_view->handle(); }
+    virtual void hide() override { }
+
+    virtual void set_video_size(Gfx::IntSize video_size) override
+    {
+        auto size = size_for_video_size(m_size, video_size, screen_rect.size().to_type<int>());
+        if (size == m_size)
+            return;
+
+        m_size = size;
+        m_view->reset_viewport_size(size.to_type<Web::DevicePixels>());
+        if (on_resize)
+            on_resize(size);
+    }
+
+private:
+    Gfx::IntSize m_size;
+    NonnullOwnPtr<HeadlessWebView> m_view;
+};
+
+NonnullOwnPtr<PictureInPictureWindow> HeadlessWebView::create_picture_in_picture_window(HeadlessWebView& requesting_view, CanonicalTraversable& traversable, Gfx::IntSize video_size)
+{
+    auto size = PictureInPictureWindow::initial_size(video_size, screen_rect.size().to_type<int>());
+    auto view = create_child(requesting_view, traversable, IsOwnedByParent::Yes);
+    view->reset_viewport_size(size.to_type<Web::DevicePixels>());
+    return make<HeadlessPictureInPictureWindow>(size, move(view));
+}
 
 NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size, IsPrivate is_private)
 {
@@ -20,9 +62,12 @@ NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer the
     return view;
 }
 
-NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView& parent, CanonicalTraversable& traversable)
+NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView& parent, CanonicalTraversable& traversable, IsOwnedByParent is_owned_by_parent)
 {
     auto view = adopt_own(*new HeadlessWebView(parent.m_theme, parent.m_viewport_size, parent.is_private()));
+    if (is_owned_by_parent == IsOwnedByParent::Yes)
+        view->set_owner_view(parent);
+
     view->initialize_tab(Web::HTML::VisibilityState::Visible, traversable);
 
     return view;

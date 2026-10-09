@@ -17,6 +17,7 @@
 #include <UI/Qt/EventLoopImplementationQt.h>
 #include <UI/Qt/ExternalURLHandler.h>
 #include <UI/Qt/Menu.h>
+#include <UI/Qt/PictureInPictureWindow.h>
 #include <UI/Qt/ProcessManagerWindow.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
@@ -853,6 +854,13 @@ bool Application::confirm_stop_active_downloads(QWidget* parent)
 
     downloader.pause_active_downloads();
     return true;
+}
+
+OwnPtr<WebView::PictureInPictureWindow> Application::create_picture_in_picture_window(WebView::WebContentPage& requesting_page, WebView::CanonicalTraversable& traversable, Gfx::IntSize video_size)
+{
+    if (browser_options().headless_mode.has_value())
+        return WebView::Application::create_picture_in_picture_window(requesting_page, traversable, video_size);
+    return Ladybird::create_picture_in_picture_window(traversable, requesting_page.view(), video_size);
 }
 
 Optional<WebView::ViewImplementation&> Application::active_web_view() const

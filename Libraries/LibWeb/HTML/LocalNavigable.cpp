@@ -1892,13 +1892,8 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
             name = new_name;
             window_type = new_window_type;
 
-            auto create_new_traversable = [&](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalTraversableNavigable> {
-                auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*new_web_view.page, opener, new_web_view.initial_history_entry.release_value());
-                traversable->active_document()->relevant_settings_object().id = new_web_view.initial_environment_id.release_value();
-                traversable->active_browsing_context()->set_browsing_context_group_id(new_web_view.browsing_context_group_id);
-                new_web_view.page->set_top_level_traversable(traversable);
-                traversable->set_window_handle(Utf16String::from_ascii_without_validation(new_web_view.window_handle.bytes()));
-                return traversable;
+            auto create_new_traversable = [&](GC::Ptr<BrowsingContext> opener) {
+                return LocalTraversableNavigable::create_for_new_web_view(move(new_web_view), opener);
             };
 
             // 7. If noopener is true, then set chosen to the result of creating a new top-level traversable given null and targetName.

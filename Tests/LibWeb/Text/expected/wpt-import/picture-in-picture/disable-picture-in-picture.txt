@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Test disablePictureInPicture IDL attribute
+Pass	Request Picture-in-Picture rejects if disablePictureInPicture is true
+Pass	Request Picture-in-Picture rejects if disablePictureInPicture becomes true before promise resolves.
+Pass	pictureInPictureElement is unset if disablePictureInPicture becomes true
+Pass	pictureInPictureElement is unchanged if disablePictureInPicture becomes false
+Pass	pictureInPictureElement is unchanged if disablePictureInPicture becomes true for another video

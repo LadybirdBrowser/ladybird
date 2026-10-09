@@ -93,7 +93,7 @@ ViewImplementation::~ViewImplementation()
         m_top_level_traversable->clear_ongoing_navigation();
     cancel_all_native_geolocation_requests();
 
-    if (!m_window_handle.is_empty())
+    if (!m_window_handle.is_empty() && !m_owner_view_id.has_value())
         Application::the().notify_webdriver_window_closed(m_window_handle);
 
     all_views().remove(m_view_id);
@@ -905,6 +905,14 @@ void ViewImplementation::did_finish_handling_input_event(Badge<WebContentPage>, 
         return;
     auto event = m_pending_input_events.take(*index).event;
 
+    // A view can decide what a mouse event goes on to do by whether the page handled it, such as whether the page
+    // claimed the press that starts a drag.
+    if (auto const* mouse_event = event.get_pointer<Web::MouseEvent>()) {
+        if (on_finish_handling_mouse_event)
+            on_finish_handling_mouse_event(*mouse_event, event_result);
+        return;
+    }
+
     if (event_result == Web::EventResult::Handled || event_result == Web::EventResult::Cancelled)
         return;
 
@@ -1044,6 +1052,7 @@ void ViewImplementation::send_preferences_to_page(WebContentPage& page)
     send_autoplay_settings(page);
     send_global_privacy_control(page);
     send_geolocation_emulated_position(page);
+    page.async_set_has_picture_in_picture_support(Application::the().supports_picture_in_picture());
 }
 
 void ViewImplementation::notify_cookies_changed(HashTable<String> const& changed_domains, ReadonlySpan<HTTP::Cookie::Cookie> page_cookies, ReadonlySpan<HTTP::Cookie::Cookie> host_cookies)
@@ -2201,7 +2210,12 @@ void ViewImplementation::apply_zoom_for_current_host()
 void ViewImplementation::handle_resize()
 {
     page().async_set_viewport(viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
-    Application::the().update_compositor_viewport(page().compositor_context_id(), viewport_size().to_type<int>(), Compositing::WindowResizingInProgress::Yes);
+
+    // The page forwards its new size to the compositor once it has laid it out. Until then, scaling frames to fit needs
+    // the compositor to keep presenting them whole at the size they were laid out for.
+    if (!m_scales_frames_to_fit)
+        Application::the().update_compositor_viewport(page().compositor_context_id(), viewport_size().to_type<int>(), Compositing::WindowResizingInProgress::Yes);
+
     if (m_debugger_paused) {
         m_debugger_overlay_pointer_state.cancel();
         if (m_debugger_overlay_hovered_action.has_value())
@@ -2225,7 +2239,8 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
 
     if (m_window_handle.is_empty()) {
         m_window_handle = generate_random_uuid();
-        Application::the().notify_webdriver_window_created(m_window_handle);
+        if (!m_owner_view_id.has_value())
+            Application::the().notify_webdriver_window_created(m_window_handle);
     }
     prepare_page_for_tab(page());
     display_page_changed({});
@@ -2791,7 +2806,7 @@ void ViewImplementation::did_close_browsing_context(Badge<WebContentPage>)
     traversable().discard_pending_host();
     traversable().discard_representing_pages();
 
-    if (!window_handle.is_empty())
+    if (!window_handle.is_empty() && !m_owner_view_id.has_value())
         Application::the().notify_webdriver_window_closed(window_handle);
 
     auto pending_user_prompt_requests = move(m_pending_webdriver_user_prompt_requests);
@@ -3787,6 +3802,12 @@ void ViewImplementation::initialize_context_menus()
     m_media_exit_fullscreen_action = Action::create("Exit Full Screen"sv, ActionID::ExitFullscreen, [this]() {
         send_to_media_context_menu_page([](auto& page) { page.async_toggle_media_fullscreen_state(); });
     });
+    m_media_enter_picture_in_picture_action = Action::create("Picture-in-Picture"sv, ActionID::EnterPictureInPicture, [this]() {
+        send_to_media_context_menu_page([](auto& page) { page.async_toggle_media_picture_in_picture_state(); });
+    });
+    m_media_exit_picture_in_picture_action = Action::create("Exit Picture-in-Picture"sv, ActionID::ExitPictureInPicture, [this]() {
+        send_to_media_context_menu_page([](auto& page) { page.async_toggle_media_picture_in_picture_state(); });
+    });
 
     auto add_open_url_actions = [this](Menu& menu) {
         menu.add_action(*m_open_in_new_tab_action);
@@ -3856,6 +3877,8 @@ void ViewImplementation::initialize_context_menus()
     m_media_context_menu->add_action(*m_media_loop_action);
     m_media_context_menu->add_action(*m_media_enter_fullscreen_action);
     m_media_context_menu->add_action(*m_media_exit_fullscreen_action);
+    m_media_context_menu->add_action(*m_media_enter_picture_in_picture_action);
+    m_media_context_menu->add_action(*m_media_exit_picture_in_picture_action);
     m_media_context_menu->add_separator();
     m_media_context_menu->add_action(*m_open_audio_action);
     m_media_context_menu->add_action(*m_open_video_action);
@@ -4068,6 +4091,7 @@ void ViewImplementation::did_request_page_context_menu(Badge<WebContentPage>, Gf
             }
 
             if (selected_text_url.has_value() && weak_this->m_selected_text_link_context_menu->on_activation) {
+                weak_this->set_context_menu_url_actions_enabled(true);
                 weak_this->m_context_menu_url = selected_text_url.release_value();
                 weak_this->m_context_menu_navigation.clear();
                 weak_this->m_open_in_new_tab_action->set_text("Open in New Tab"sv);
@@ -4098,6 +4122,7 @@ void ViewImplementation::did_request_link_context_menu(Badge<WebContentPage>, Gf
         if (!weak_this || request_id != weak_this->m_context_menu_request_id)
             return;
 
+        weak_this->set_context_menu_url_actions_enabled(true);
         weak_this->m_context_menu_url = navigation.url;
         weak_this->m_context_menu_navigation = move(navigation);
         weak_this->update_look_up_selected_text_action(lookup, content_position);
@@ -4143,6 +4168,7 @@ void ViewImplementation::did_request_image_context_menu(Badge<WebContentPage>, G
         if (!weak_this || request_id != weak_this->m_context_menu_request_id)
             return;
 
+        weak_this->set_context_menu_url_actions_enabled(true);
         weak_this->m_context_menu_url = navigation.url;
         weak_this->m_context_menu_navigation = move(navigation);
         weak_this->m_image_context_menu_bitmap = move(bitmap);
@@ -4165,7 +4191,16 @@ void ViewImplementation::send_to_media_context_menu_page(Function<void(WebConten
         send(target);
 }
 
-void ViewImplementation::did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu menu, Web::HTML::PreparedNavigationDescriptor navigation)
+// The context menus share these actions, and only a media element can leave them without a URL to act on.
+void ViewImplementation::set_context_menu_url_actions_enabled(bool enabled)
+{
+    m_open_in_new_tab_action->set_enabled(enabled);
+    m_copy_url_action->set_enabled(enabled);
+    m_open_audio_action->set_enabled(enabled);
+    m_open_video_action->set_enabled(enabled);
+}
+
+void ViewImplementation::did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu menu, Optional<Web::HTML::PreparedNavigationDescriptor> navigation)
 {
     m_media_context_menu_page = requesting_page;
     auto request_id = ++m_context_menu_request_id;
@@ -4174,7 +4209,8 @@ void ViewImplementation::did_request_media_context_menu(Badge<WebContentPage>, W
         if (!weak_this || request_id != weak_this->m_context_menu_request_id)
             return;
 
-        weak_this->m_context_menu_url = move(menu.media_url);
+        weak_this->set_context_menu_url_actions_enabled(menu.media_url.has_value());
+        weak_this->m_context_menu_url = move(menu.media_url).value_or({});
         weak_this->m_context_menu_navigation = move(navigation);
         weak_this->update_look_up_selected_text_action(lookup, content_position);
 
@@ -4197,6 +4233,8 @@ void ViewImplementation::did_request_media_context_menu(Badge<WebContentPage>, W
 
         weak_this->m_media_enter_fullscreen_action->set_visible(menu.is_video && !menu.is_fullscreen);
         weak_this->m_media_exit_fullscreen_action->set_visible(menu.is_video && menu.is_fullscreen);
+        weak_this->m_media_enter_picture_in_picture_action->set_visible(menu.can_enter_picture_in_picture && !menu.is_picture_in_picture);
+        weak_this->m_media_exit_picture_in_picture_action->set_visible(menu.is_picture_in_picture);
 
         if (weak_this->m_media_context_menu->on_activation)
             weak_this->m_media_context_menu->on_activation(weak_this->to_widget_position(content_position));

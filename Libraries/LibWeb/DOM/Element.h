@@ -547,6 +547,8 @@ public:
     GC::Ptr<WebIDL::CallbackType> onwebkitfullscreenerror();
     void set_onwebkitfullscreenerror(GC::Ptr<WebIDL::CallbackType>);
 
+    bool is_picture_in_picture_element() const;
+
     WebIDL::ExceptionOr<Utf16String> outer_html() const;
     WebIDL::ExceptionOr<void> set_outer_html(StringView html);
 

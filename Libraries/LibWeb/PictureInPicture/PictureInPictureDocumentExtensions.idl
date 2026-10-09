@@ -1,0 +1,6 @@
+// https://w3c.github.io/picture-in-picture/#document-extensions
+partial interface Document {
+    readonly attribute boolean pictureInPictureEnabled;
+
+    [NewObject] Promise<undefined> exitPictureInPicture();
+};

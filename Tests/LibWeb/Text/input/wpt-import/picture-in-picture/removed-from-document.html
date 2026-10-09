@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>Test Picture-in-Picture when removed from document</title>
+<script src="../common/media.js"></script>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="resources/picture-in-picture-helpers.js"></script>
+<body></body>
+<script>
+promise_test(async t => {
+  const video = await loadVideo();
+  document.body.appendChild(video);
+  video.muted = true;
+  await video.play();
+  await requestPictureInPictureWithTrustedClick(video);
+
+  assert_false(video.paused);
+  document.body.offsetLeft;
+  document.body.removeChild(video);
+  await new Promise(resolve => step_timeout(resolve, 1000));
+  assert_false(video.paused);
+}, 'Picture-in-Picture video does not pause when removed from document');
+</script>

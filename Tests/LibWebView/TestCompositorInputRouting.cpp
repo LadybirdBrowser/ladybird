@@ -64,11 +64,35 @@ void move_mouse_to(WebView::ViewImplementation& view, Web::DevicePixelPoint posi
     });
 }
 
+void press_mouse_at(WebView::ViewImplementation& view, Web::DevicePixelPoint position)
+{
+    view.enqueue_input_event(Web::MouseEvent {
+        .type = Web::MouseEvent::Type::MouseDown,
+        .position = position,
+        .screen_position = position,
+        .button = Web::UIEvents::MouseButton::Primary,
+        .buttons = Web::UIEvents::MouseButton::Primary,
+        .click_count = 1,
+        .browser_data = nullptr,
+    });
+}
+
+void cancel_mouse_press(WebView::ViewImplementation& view)
+{
+    view.enqueue_input_event(Web::MouseEvent {
+        .type = Web::MouseEvent::Type::MouseCancel,
+        .position = {},
+        .screen_position = {},
+        .browser_data = nullptr,
+    });
+}
+
 }
 
 // Mouse input reaches the compositor without the UI waiting for it. A wheel step is scrolled by the compositor and then
 // forwarded to WebContent, whose acknowledgement settles the UI's pending entry; a plain move is forwarded and settled
-// the same way. Either way the pending queue drains, which is what lets later compositor key scrolling proceed.
+// the same way. Either way the pending queue drains, which is what lets later compositor key scrolling proceed. A press
+// that the UI cancels reaches the page along the same route, so the page sees its pointer stream suppressed.
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
@@ -99,11 +123,15 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Utf16String last_title;
     view->on_title_change = [&](auto const& title) { last_title = title; };
 
-    // A page three viewports tall that reports its scroll position through its title.
+    // A page three viewports tall that reports its scroll position, and presses being cancelled, through its title.
     view->load_html(R"~~~(<!DOCTYPE html>
 <title>unscrolled</title>
 <body style="margin:0;height:3000px">
-<script>addEventListener("scroll", () => { document.title = "scrolled to " + scrollY; });</script>
+<script>
+addEventListener("scroll", () => { document.title = "scrolled to " + scrollY; });
+addEventListener("pointerdown", () => { document.title = "pressed"; });
+addEventListener("pointercancel", () => { document.title = "press cancelled"; });
+</script>
 </body>)~~~"sv);
     Core::EventLoop::current().spin_until([&]() { return loads_finished >= 2; });
     VERIFY(last_title == "unscrolled"sv);
@@ -119,6 +147,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(view->pending_input_event_count_for_testing() == 1);
     Core::EventLoop::current().spin_until([&]() { return view->pending_input_event_count_for_testing() == 0; });
 
-    outln("PASS: mouse input routed through the compositor scrolls the page and settles the UI's pending events");
+    press_mouse_at(*view, { 100, 100 });
+    Core::EventLoop::current().spin_until([&]() { return last_title == "pressed"sv; });
+    cancel_mouse_press(*view);
+    Core::EventLoop::current().spin_until([&]() { return last_title == "press cancelled"sv; });
+    Core::EventLoop::current().spin_until([&]() { return view->pending_input_event_count_for_testing() == 0; });
+
+    outln("PASS: mouse input routed through the compositor scrolls the page, reaches it and settles the UI's pending events");
     return 0;
 }

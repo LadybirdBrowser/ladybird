@@ -512,6 +512,7 @@ void PageClient::did_handle_input_event(Web::PageId page_id, Web::InputEvent con
             switch (mouse_event.type) {
             case Web::MouseEvent::Type::MouseDown:
             case Web::MouseEvent::Type::MouseUp:
+            case Web::MouseEvent::Type::MouseCancel:
                 return true;
             case Web::MouseEvent::Type::MouseMove:
                 return mouse_event.buttons != Web::UIEvents::MouseButton::None;
@@ -885,6 +886,16 @@ void PageClient::page_did_request_exit_fullscreen()
     client().async_did_request_exit_fullscreen(m_id);
 }
 
+void PageClient::page_did_exit_picture_in_picture()
+{
+    client().async_did_exit_picture_in_picture(m_id);
+}
+
+void PageClient::page_did_change_picture_in_picture_video_size(Gfx::IntSize video_size)
+{
+    client().async_did_change_picture_in_picture_video_size(m_id, video_size);
+}
+
 void PageClient::page_did_request_tooltip_override(Web::CSSPixelPoint position, ByteString const& title)
 {
     auto device_position = page().css_to_device_point(position);
@@ -1134,7 +1145,7 @@ void PageClient::page_did_request_image_context_menu(Web::HTML::CrossProcessId l
     client().async_did_request_image_context_menu(m_id, local_root_id, page().css_to_device_point(content_position).to_type<int>(), move(navigation), target, modifiers, bitmap);
 }
 
-void PageClient::page_did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const& menu, Web::HTML::PreparedNavigationDescriptor navigation)
+void PageClient::page_did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const& menu, Optional<Web::HTML::PreparedNavigationDescriptor> navigation)
 {
     client().async_did_request_media_context_menu(m_id, local_root_id, page().css_to_device_point(content_position).to_type<int>(), target, modifiers, menu, move(navigation));
 }

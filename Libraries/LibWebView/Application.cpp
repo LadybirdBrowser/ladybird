@@ -58,6 +58,7 @@
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
+#include <LibWebView/PictureInPictureWindow.h>
 #include <LibWebView/ProcessType.h>
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/SiteCompatibility.h>
@@ -2309,6 +2310,21 @@ bool Application::supports_clipboard_type(ClipboardType type) const
     return type == ClipboardType::Text;
 }
 
+bool Application::supports_picture_in_picture() const
+{
+    return browser_options().headless_mode.has_value();
+}
+
+OwnPtr<PictureInPictureWindow> Application::create_picture_in_picture_window(WebContentPage& requesting_page, CanonicalTraversable& traversable, Gfx::IntSize video_size)
+{
+    if (!browser_options().headless_mode.has_value())
+        return {};
+
+    // Every view in a headless browser is a HeadlessWebView.
+    auto& requesting_view = static_cast<HeadlessWebView&>(requesting_page.view());
+    return HeadlessWebView::create_picture_in_picture_window(requesting_view, traversable, video_size);
+}
+
 Utf16String Application::clipboard_text(ClipboardType) const
 {
     for (auto const& representation : m_clipboard.system_clipboard_representations) {
@@ -3081,7 +3097,8 @@ Vector<DevTools::TabDescription> Application::tab_list() const
     Vector<DevTools::TabDescription> tabs;
 
     ViewImplementation::for_each_view([&](ViewImplementation& view) {
-        tabs.empend(view.view_id(), view.title().to_utf8(), view.url().to_string());
+        if (!view.owner_view_id().has_value())
+            tabs.empend(view.view_id(), view.title().to_utf8(), view.url().to_string());
         return IterationDecision::Continue;
     });
 

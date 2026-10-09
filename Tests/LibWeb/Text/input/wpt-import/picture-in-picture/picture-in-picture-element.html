@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>Test Picture-in-Picture element</title>
+<script src="../common/media.js"></script>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="resources/picture-in-picture-helpers.js"></script>
+<body></body>
+<script>
+promise_test(async t => {
+  assert_equals(document.pictureInPictureElement, null);
+  const video = await loadVideo();
+
+  return requestPictureInPictureWithTrustedClick(video)
+  .then(() => {
+    assert_equals(document.pictureInPictureElement, video);
+    return document.exitPictureInPicture();
+  })
+  .then(() => {
+    assert_equals(document.pictureInPictureElement, null);
+  });
+});
+</script>
