@@ -53,6 +53,12 @@ static bool visual_viewport_transforms_match(Compositing::TransformWithOrigin co
         && AK::fabs(a.origin.y() - b.origin.y()) <= translation_epsilon;
 }
 
+// Pinch zoom scales the visual viewport, which a page whose viewport cannot be scrolled has too.
+static bool admits_async_pinch(Compositing::WheelRoutingAdmission wheel_routing_admission)
+{
+    return first_is_one_of(wheel_routing_admission, Compositing::WheelRoutingAdmission::Accepted, Compositing::WheelRoutingAdmission::NoScrollNode);
+}
+
 static void update_visual_animation_sampling_state(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Optional<i64>& sample_time_ns, bool& has_active_animations)
 {
     auto now = MonotonicTime::now();
@@ -202,7 +208,7 @@ void ContextState::install_display_list_update(
     m_wheel_routing_admission = wheel_routing_admission;
     m_can_accept_async_wheel_events = wheel_routing_admission == Compositing::WheelRoutingAdmission::Accepted;
     m_has_blocking_wheel_event_listeners = async_scrolling_state.has_blocking_wheel_event_listeners;
-    if (m_async_visual_viewport_transform.has_value() && (!m_can_accept_async_wheel_events || m_has_blocking_wheel_event_listeners)) {
+    if (m_async_visual_viewport_transform.has_value() && (!admits_async_pinch(wheel_routing_admission) || m_has_blocking_wheel_event_listeners)) {
         invalidate_visual_context_tree_for_compositing();
         m_async_visual_viewport_transform.clear();
     }
@@ -608,7 +614,7 @@ ContextState::ContextUpdateResult ContextState::handle_pinch_event(Web::PinchEve
 {
     if (!presents_to_client())
         return {};
-    if (!m_can_accept_async_wheel_events)
+    if (!admits_async_pinch(m_wheel_routing_admission))
         return {};
     if (m_has_blocking_wheel_event_listeners)
         return {};
