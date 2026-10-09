@@ -4,10 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/Audio/AudioDevices.h>
 #include <LibMedia/Audio/PulseAudioWrappers.h>
-#include <LibThreading/Thread.h>
+#include <LibThreading/ThreadPool.h>
 
 namespace Media {
 
@@ -19,38 +20,53 @@ static ErrorOr<AudioDeviceEnumeration> enumerate_pulse_audio_devices()
     return enumeration;
 }
 
-NonnullRefPtr<AudioDeviceEnumerationPromise> enumerate_platform_audio_devices()
+struct AudioDeviceWatch {
+    Core::EventLoop* event_loop { nullptr };
+    AudioDeviceListCallback on_device_list;
+    // The subscription dies with the context, which is otherwise released along with the last stream.
+    RefPtr<PulseAudioContext> context;
+};
+
+// The watch lasts for the rest of the process.
+static NeverDestroyed<AudioDeviceWatch> s_audio_device_watch;
+
+// Listing blocks on round trips to the daemon, so it happens on the pool and reports back on the watching loop.
+static void report_devices_from_the_pool()
 {
-    auto promise = AudioDeviceEnumerationPromise::construct();
-
-    if (!Core::EventLoop::is_running()) {
-        auto enumeration_or_error = enumerate_pulse_audio_devices();
-        if (enumeration_or_error.is_error())
-            promise->reject(enumeration_or_error.release_error());
-        else
-            promise->resolve(enumeration_or_error.release_value());
-        return promise;
-    }
-
-    auto& main_thread_event_loop = Core::EventLoop::current();
-    auto thread_or_error = Threading::Thread::try_create("AudioDevEnum"sv, [&main_thread_event_loop, promise]() mutable {
-        auto enumeration_or_error = enumerate_pulse_audio_devices();
-        main_thread_event_loop.deferred_invoke([promise, enumeration_or_error = move(enumeration_or_error)]() mutable {
-            if (enumeration_or_error.is_error())
-                promise->reject(enumeration_or_error.release_error());
-            else
-                promise->resolve(enumeration_or_error.release_value());
+    Threading::ThreadPool::the().submit([] {
+        auto enumeration = enumerate_pulse_audio_devices();
+        s_audio_device_watch->event_loop->deferred_invoke([enumeration = move(enumeration)]() mutable {
+            s_audio_device_watch->on_device_list(move(enumeration));
         });
-        return 0;
     });
-    if (thread_or_error.is_error()) {
-        promise->reject(thread_or_error.release_error());
-        return promise;
+}
+
+void watch_platform_audio_devices(AudioDeviceListCallback on_device_list)
+{
+    // Without an event loop there is nobody to tell of changes, so this is a one-off listing.
+    if (!Core::EventLoop::is_running()) {
+        on_device_list(enumerate_pulse_audio_devices());
+        return;
     }
-    auto thread = thread_or_error.release_value();
-    thread->start();
-    thread->detach();
-    return promise;
+
+    VERIFY(s_audio_device_watch->event_loop == nullptr);
+    s_audio_device_watch->event_loop = &Core::EventLoop::current();
+    s_audio_device_watch->on_device_list = move(on_device_list);
+
+    // Connecting to the daemon blocks too.
+    Threading::ThreadPool::the().submit([] {
+        auto context = Audio::PulseAudioContext::the();
+        if (!context.is_error()) {
+            if (auto result = context.value()->watch_devices([] { report_devices_from_the_pool(); }); result.is_error())
+                warnln("Unable to watch PulseAudio devices for changes: {}", result.error());
+            else
+                s_audio_device_watch->context = context.value();
+        }
+        auto enumeration = enumerate_pulse_audio_devices();
+        s_audio_device_watch->event_loop->deferred_invoke([enumeration = move(enumeration)]() mutable {
+            s_audio_device_watch->on_device_list(move(enumeration));
+        });
+    });
 }
 
 }

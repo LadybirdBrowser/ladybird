@@ -135,6 +135,7 @@ PulseAudioContext::~PulseAudioContext()
     {
         auto loop_locker = main_loop_locker();
         pa_context_set_state_callback(m_context, nullptr, nullptr);
+        pa_context_set_subscribe_callback(m_context, nullptr, nullptr);
         pa_context_disconnect(m_context);
         pa_context_unref(m_context);
     }
@@ -261,6 +262,32 @@ ErrorOr<void> PulseAudioContext::wait_for_operation(pa_operation* operation, Str
     }
 
     return {};
+}
+
+ErrorOr<void> PulseAudioContext::watch_devices(Function<void()> on_devices_changed)
+{
+    auto locker = main_loop_locker();
+    m_on_devices_changed = move(on_devices_changed);
+
+    pa_context_set_subscribe_callback(
+        m_context, [](pa_context*, pa_subscription_event_type_t event_type, uint32_t, void* user_data) {
+            auto& context = *static_cast<PulseAudioContext*>(user_data);
+            auto facility = event_type & PA_SUBSCRIPTION_EVENT_FACILITY_MASK;
+            auto change = event_type & PA_SUBSCRIPTION_EVENT_TYPE_MASK;
+            // A sink or source "change" is mostly volume; only the server's defaults changing counts.
+            bool is_device_change = facility == PA_SUBSCRIPTION_EVENT_SERVER || change != PA_SUBSCRIPTION_EVENT_CHANGE;
+            if (is_device_change && context.m_on_devices_changed)
+                context.m_on_devices_changed();
+        },
+        this);
+
+    auto mask = static_cast<pa_subscription_mask_t>(PA_SUBSCRIPTION_MASK_SINK | PA_SUBSCRIPTION_MASK_SOURCE | PA_SUBSCRIPTION_MASK_SERVER);
+    auto* operation = pa_context_subscribe(
+        m_context, mask, [](pa_context*, int, void* user_data) {
+            static_cast<PulseAudioContext*>(user_data)->signal_to_wake();
+        },
+        this);
+    return wait_for_operation(operation, "Subscribing to PulseAudio device changes failed"sv);
 }
 
 ErrorOr<void> PulseAudioContext::enumerate_audio_devices(Vector<Media::AudioDeviceInfo>& inputs, Vector<Media::AudioDeviceInfo>& outputs)
