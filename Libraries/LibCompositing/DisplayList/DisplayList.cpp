@@ -101,21 +101,20 @@ void DisplayList::for_each_compositor_metadata(Function<void(ContextRef, Display
 }
 
 template<typename Command>
-static void for_each_indexed_record(void const* storage, RustFFI::FfiIndexedRecordKind kind, Function<void(ContextRef, Optional<Gfx::IntRect>, Command const&)> const& callback)
+static void for_each_indexed_record(void const* storage, RustFFI::FfiIndexedRecordKind kind, Function<void(ContextRef, Gfx::IntRect, Command const&)> const& callback)
 {
-    RustFFI::display_list_storage_for_each_indexed_record(storage, kind, const_cast<void*>(static_cast<void const*>(&callback)), [](void* context, ContextRef run_context, bool has_bounding_rect, Gfx::IntRect bounding_rect, u8 const* payload, size_t payload_size) {
+    RustFFI::display_list_storage_for_each_indexed_record(storage, kind, const_cast<void*>(static_cast<void const*>(&callback)), [](void* context, ContextRef run_context, Gfx::IntRect bounding_rect, u8 const* payload, size_t payload_size) {
         auto command = read_display_list_object<Command>({ payload, payload_size });
-        auto rect = has_bounding_rect ? Optional<Gfx::IntRect> { bounding_rect } : Optional<Gfx::IntRect> {};
-        (*static_cast<Function<void(ContextRef, Optional<Gfx::IntRect>, Command const&)> const*>(context))(run_context, rect, command);
+        (*static_cast<Function<void(ContextRef, Gfx::IntRect, Command const&)> const*>(context))(run_context, bounding_rect, command);
     });
 }
 
-void DisplayList::for_each_drawn_canvas(Function<void(ContextRef, Optional<Gfx::IntRect>, DrawCanvas const&)> const& callback) const
+void DisplayList::for_each_drawn_canvas(Function<void(ContextRef, Gfx::IntRect, DrawCanvas const&)> const& callback) const
 {
     for_each_indexed_record<DrawCanvas>(m_storage, RustFFI::FfiIndexedRecordKind::DrawnCanvas, callback);
 }
 
-void DisplayList::for_each_caret(Function<void(ContextRef, Optional<Gfx::IntRect>, PaintCaret const&)> const& callback) const
+void DisplayList::for_each_caret(Function<void(ContextRef, Gfx::IntRect, PaintCaret const&)> const& callback) const
 {
     for_each_indexed_record<PaintCaret>(m_storage, RustFFI::FfiIndexedRecordKind::Caret, callback);
 }

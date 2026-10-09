@@ -279,7 +279,7 @@ Gfx::IntRect ContextState::caret_damage_rect()
     m_display_list->for_each_caret([&](auto context, auto bounding_rect, auto const& caret) {
         if (!caret.should_blink)
             return;
-        auto rect = visual_context_tree.transform_rect_to_viewport(context.spatial, bounding_rect.value_or({}).template to_type<float>(), m_scroll_state_snapshot);
+        auto rect = visual_context_tree.transform_rect_to_viewport(context.spatial, bounding_rect.template to_type<float>(), m_scroll_state_snapshot);
         if (!isfinite(rect.x()) || !isfinite(rect.y()) || !isfinite(rect.width()) || !isfinite(rect.height())) {
             damage_rect = { {}, m_viewport_size };
             return;
@@ -1986,11 +1986,7 @@ Gfx::IntRect ContextState::damage_since_last_raster(Gfx::IntSize viewport_size)
         auto last_content_generation = last_frame.canvas_content_generations.get(draw_canvas.canvas_id);
         if (last_content_generation.has_value() && *last_content_generation == m_canvas_surface_registry.canvas_content_generation(draw_canvas.canvas_id))
             return;
-        if (!bounding_rect.has_value()) {
-            damage_rect = viewport_rect;
-            return;
-        }
-        auto canvas_rect = visual_context_tree.transform_rect_to_viewport(context.spatial, bounding_rect->template to_type<float>(), m_scroll_state_snapshot);
+        auto canvas_rect = visual_context_tree.transform_rect_to_viewport(context.spatial, bounding_rect.template to_type<float>(), m_scroll_state_snapshot);
         if (!isfinite(canvas_rect.x()) || !isfinite(canvas_rect.y()) || !isfinite(canvas_rect.width()) || !isfinite(canvas_rect.height())) {
             damage_rect = viewport_rect;
             return;

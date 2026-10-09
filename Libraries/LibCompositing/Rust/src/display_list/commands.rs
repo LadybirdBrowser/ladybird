@@ -621,7 +621,14 @@ ffi_bytes_fields!(Repeat { x, y });
 
 pub trait DisplayListCommand: Copy + FfiBytes {
     const COMMAND_TYPE: DisplayListCommandType;
+    // Encloses everything the command draws. Only compositor metadata, which draws nothing, has none.
     fn bounding_rect(&self) -> Option<IntRect> {
+        const {
+            assert!(
+                Self::COMMAND_TYPE.is_compositor_metadata(),
+                "a draw command must report its bounding rect"
+            );
+        };
         None
     }
 }

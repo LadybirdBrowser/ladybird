@@ -649,7 +649,6 @@ mod section_dump_tests {
             size: 0,
             context: ContextRef { spatial, ..context },
             ink_bounds: IntRect::default(),
-            has_unbounded_draw: false,
             has_compositor_metadata: false,
         }
     }

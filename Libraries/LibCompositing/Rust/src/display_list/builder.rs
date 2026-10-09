@@ -487,7 +487,6 @@ fn push_or_merge_run(runs: &mut Vec<DisplayListCommandRun>, run: DisplayListComm
         debug_assert_eq!(last.offset + last.size, run.offset);
         last.size += run.size;
         last.has_compositor_metadata |= run.has_compositor_metadata;
-        last.has_unbounded_draw |= run.has_unbounded_draw;
         last.ink_bounds = last.ink_bounds.united(run.ink_bounds);
         return;
     }
@@ -515,10 +514,9 @@ pub(crate) fn note_command(
     run.size += record_size;
     if header.command_type.is_compositor_metadata() {
         run.has_compositor_metadata = true;
-    } else if header.has_bounding_rect {
-        run.ink_bounds = run.ink_bounds.united(header.bounding_rect);
     } else {
-        run.has_unbounded_draw = true;
+        debug_assert!(header.has_bounding_rect, "a draw command must report its bounding rect");
+        run.ink_bounds = run.ink_bounds.united(header.bounding_rect);
     }
 }
 
@@ -674,7 +672,6 @@ mod tests {
         assert_eq!(runs.len(), 1);
         assert_eq!(runs[0].context, root);
         assert_eq!(runs[0].ink_bounds, IntRect::new(0, 0, 30, 30));
-        assert!(!runs[0].has_unbounded_draw);
         assert!(!runs[0].has_compositor_metadata);
     }
 
@@ -723,7 +720,6 @@ mod tests {
         let run = builder.command_runs()[0];
         assert_eq!(run.ink_bounds, IntRect::new(5, 5, 10, 10));
         assert!(run.has_compositor_metadata);
-        assert!(!run.has_unbounded_draw);
     }
 
     fn inline_clip_entries(builder: &DisplayListBuilder, record_offset: usize) -> Vec<DisplayListInlineClip> {

@@ -860,11 +860,8 @@ impl DamageAccumulator {
         if culling.context_culls_everything(context) {
             return;
         }
+        // Only compositor metadata, which draws nothing, has no bounding rect.
         if !command.header.has_bounding_rect {
-            if command.header.command_type.is_compositor_metadata() {
-                return;
-            }
-            self.changed_unbounded_command = true;
             return;
         }
         let bounding_rect = command.header.bounding_rect;
@@ -1268,10 +1265,6 @@ pub fn animated_content_may_affect_viewport(
             }
             // Filters can expand the output beyond the command bounds.
             if has_filter {
-                may_affect_viewport = true;
-                return;
-            }
-            if !header.has_bounding_rect {
                 may_affect_viewport = true;
                 return;
             }
@@ -2138,32 +2131,6 @@ mod tests {
     }
 
     #[test]
-    fn changed_unbounded_commands_require_full_repaint() {
-        let tree = identity_tree();
-        let old_display_list = command_bytes(
-            &FillRect {
-                rect: IntRect::new(0, 0, 10, 10),
-                color: RED,
-                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                background_color_animation_effect: EffectNodeIndex::NONE,
-            },
-            None,
-            ContextRef::default(),
-        );
-        let new_display_list = command_bytes(
-            &FillRect {
-                rect: IntRect::new(0, 0, 10, 10),
-                color: BLUE,
-                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                background_color_animation_effect: EffectNodeIndex::NONE,
-            },
-            None,
-            ContextRef::default(),
-        );
-        assert_eq!(damage(&old_display_list, &tree, &new_display_list, &tree), None);
-    }
-
-    #[test]
     fn changed_compositor_metadata_has_no_raster_damage() {
         let tree = identity_tree();
         let old_display_list = command_bytes(
@@ -2732,26 +2699,36 @@ mod tests {
     #[test]
     fn damage_covering_the_viewport_ends_the_diff() {
         let viewport = IntRect::new(0, 0, 100, 100);
-        let scene = |cover_color, unbounded_color| {
-            let mut bytes = fill_command_bytes(viewport, cover_color);
-            bytes.extend_from_slice(&command_bytes(
-                &FillRect {
-                    rect: IntRect::new(10, 10, 20, 20),
-                    color: unbounded_color,
-                    compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                    background_color_animation_effect: EffectNodeIndex::NONE,
-                },
-                None,
-                ContextRef::default(),
-            ));
-            bytes
+        let scene = |cover_color, blur_radius| {
+            let mut tree = identity_tree();
+            let context = context_in(
+                VISUAL_VIEWPORT_NODE_INDEX,
+                effect_context(&mut tree, effects(blur_filter(blur_radius))),
+            );
+            let fill = |rect, color| FillRect {
+                rect,
+                color,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                background_color_animation_effect: EffectNodeIndex::NONE,
+            };
+            let blurred_rect = IntRect::new(10, 10, 20, 20);
+            let mut bytes = command_bytes(&fill(viewport, cover_color), Some(viewport), context);
+            bytes.extend_from_slice(&command_bytes(&fill(blurred_rect, BLUE), Some(blurred_rect), context));
+            (bytes, tree)
         };
-        let tree = identity_tree();
-        // The unbounded change alone requires a full repaint; a covering change reported first
-        // means the same thing.
-        assert_eq!(damage(&scene(RED, BLUE), &tree, &scene(RED, GREEN), &tree), None);
+        let (old_bytes, old_tree) = scene(RED, 1.0);
+        let (wider_blur_bytes, wider_blur_tree) = scene(RED, 10.0);
+        let (wider_blur_and_new_cover_bytes, wider_blur_and_new_cover_tree) = scene(GREEN, 10.0);
+        // The filter change alone requires a full repaint; a covering change reported first means
+        // the same thing.
+        assert_eq!(damage(&old_bytes, &old_tree, &wider_blur_bytes, &wider_blur_tree), None);
         assert_eq!(
-            damage(&scene(RED, BLUE), &tree, &scene(GREEN, YELLOW), &tree),
+            damage(
+                &old_bytes,
+                &old_tree,
+                &wider_blur_and_new_cover_bytes,
+                &wider_blur_and_new_cover_tree
+            ),
             Some(viewport)
         );
     }

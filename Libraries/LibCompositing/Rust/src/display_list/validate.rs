@@ -490,7 +490,6 @@ fn validate_inline_clip(payload: Payload, offset: usize) -> Result<(), Validatio
 #[derive(Default)]
 struct RunSummary {
     ink_bounds: IntRect,
-    has_unbounded_draw: bool,
     has_compositor_metadata: bool,
 }
 
@@ -498,10 +497,8 @@ impl RunSummary {
     fn note(&mut self, header: &DisplayListCommandHeader) {
         if header.command_type.is_compositor_metadata() {
             self.has_compositor_metadata = true;
-        } else if header.has_bounding_rect {
-            self.ink_bounds = self.ink_bounds.united(header.bounding_rect);
         } else {
-            self.has_unbounded_draw = true;
+            self.ink_bounds = self.ink_bounds.united(header.bounding_rect);
         }
     }
 
@@ -510,9 +507,7 @@ impl RunSummary {
         // means the same thing.
         let ink_bounds_match =
             self.ink_bounds == run.ink_bounds || (self.ink_bounds.is_empty() && run.ink_bounds.is_empty());
-        ink_bounds_match
-            && self.has_unbounded_draw == run.has_unbounded_draw
-            && self.has_compositor_metadata == run.has_compositor_metadata
+        ink_bounds_match && self.has_compositor_metadata == run.has_compositor_metadata
     }
 }
 
@@ -528,7 +523,11 @@ fn validate_header_bytes(bytes: &[u8]) -> Result<DisplayListCommandHeader, Valid
     {
         return Err("Display list command header has an invalid bool");
     }
-    Ok(read_header(bytes))
+    let header = read_header(bytes);
+    if !header.has_bounding_rect && !header.command_type.is_compositor_metadata() {
+        return Err("Display list draw command has no bounding rect");
+    }
+    Ok(header)
 }
 
 // Checks one stream of records, and pushes the nested record streams its commands hold onto `pending`.
@@ -613,7 +612,6 @@ fn read_run(bytes: &[u8]) -> Result<DisplayListCommandRun, ValidationError> {
             i32_at(ink_bounds + offset_of!(IntRect, width)),
             i32_at(ink_bounds + offset_of!(IntRect, height)),
         ),
-        has_unbounded_draw: bool_at(offset_of!(DisplayListCommandRun, has_unbounded_draw))?,
         has_compositor_metadata: bool_at(offset_of!(DisplayListCommandRun, has_compositor_metadata))?,
     })
 }
@@ -660,4 +658,66 @@ pub fn validate_tape(tape: &[u8], run_bytes: &[u8]) -> Result<Vec<DisplayListCom
         return Err("Display list command runs do not cover the tape");
     }
     Ok(runs)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::display_list::builder::DisplayListBuilder;
+    use crate::display_list::storage::write_run;
+    use libgfx_rust::FloatRect;
+
+    fn fill_rect() -> FillRect {
+        FillRect {
+            rect: IntRect::new(0, 0, 10, 10),
+            color: Color::default(),
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            background_color_animation_effect: EffectNodeIndex::NONE,
+        }
+    }
+
+    fn run_table_bytes(runs: &[DisplayListCommandRun]) -> Vec<u8> {
+        let mut bytes = vec![0; runs.len() * RUN_SIZE];
+        for (run, out) in runs.iter().zip(bytes.chunks_exact_mut(RUN_SIZE)) {
+            write_run(run, out);
+        }
+        bytes
+    }
+
+    #[test]
+    fn a_draw_command_without_a_bounding_rect_is_rejected_at_any_depth() {
+        let context = ContextRef::default();
+        let mut builder = DisplayListBuilder::new();
+        builder.append(&fill_rect(), &[], context);
+        let nested_record_offset =
+            builder.byte_size() + HEADER_SIZE + size_of::<DrawIsolatedGroup>().next_multiple_of(COMMAND_ALIGNMENT);
+        let group = builder.begin_group::<DrawIsolatedGroup>(Vec::new());
+        builder.append(&fill_rect(), &[], context);
+        let content = builder.group_content_span(&group);
+        builder.finish_group(
+            group,
+            &DrawIsolatedGroup {
+                clip_rect: FloatRect::new(0.0, 0.0, 10.0, 10.0),
+                content,
+                mask: DisplayListDataSpan::default(),
+                filter: DisplayListDataSpan::default(),
+                opacity: 1.0,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                mask_kind: MaskKind::Alpha,
+            },
+            context,
+        );
+        let recorded = builder.finish();
+        let run_bytes = run_table_bytes(&recorded.command_runs);
+        assert!(validate_tape(&recorded.bytes, &run_bytes).is_ok());
+
+        for record_offset in [0, nested_record_offset] {
+            let mut tape = recorded.bytes.clone();
+            tape[record_offset + offset_of!(DisplayListCommandHeader, has_bounding_rect)] = 0;
+            assert_eq!(
+                validate_tape(&tape, &run_bytes),
+                Err("Display list draw command has no bounding rect")
+            );
+        }
+    }
 }
