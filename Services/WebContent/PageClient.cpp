@@ -1164,6 +1164,16 @@ void PageClient::page_did_request_geolocation_position(u64 request_id)
     client().async_did_request_geolocation_position(m_id, request_id);
 }
 
+void PageClient::page_did_request_permission(u64 request_id, Utf16String const& name)
+{
+    client().async_did_request_permission(m_id, request_id, name);
+}
+
+void PageClient::permission_request_completed(u64 request_id, bool granted)
+{
+    page().permission_request_completed(request_id, granted);
+}
+
 void PageClient::page_did_cancel_geolocation_position_request(u64 request_id)
 {
     client().async_did_cancel_geolocation_position_request(m_id, request_id);

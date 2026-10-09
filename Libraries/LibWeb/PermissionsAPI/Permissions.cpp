@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/PermissionsAPI/PermissionStatus.h>
 #include <LibWeb/PermissionsAPI/PermissionStore.h>
 #include <LibWeb/PermissionsAPI/Permissions.h>
@@ -28,6 +29,23 @@ bool is_permission_supported(Utf16View name)
         return true;
     }
     return false;
+}
+
+// Steps 6 and 7 of https://w3c.github.io/permissions/#dfn-request-permission-to-use
+static void store_permission_decision(PermissionDescriptor const& descriptor, HTML::EnvironmentSettingsObject& settings, PermissionState current_state)
+{
+    // 6. Let key be the result of generating a permission key for descriptor with settings's top-level origin and settings's origin.
+    VERIFY(settings.top_level_origin.has_value());
+    auto key = permission_key_generation_algorithm(settings.top_level_origin.value(), settings.origin());
+
+    // AD-HOC: Our permission state is backed by PermissionStore, so update it before returning to make the new current
+    //         state observable to callers that continue synchronously.
+    PermissionStore::the().set_permission_store_entry(descriptor, key, current_state);
+
+    // 7. Queue a task on the current settings object's responsible event loop to set a permission store entry with descriptor, key, and current state.
+    HTML::queue_global_task(HTML::Task::Source::Permissions, settings.global_object(), GC::create_function(GC::Heap::the(), [descriptor, key, current_state] {
+        PermissionStore::the().set_permission_store_entry(descriptor, key, current_state);
+    }));
 }
 
 // https://w3c.github.io/permissions/#dfn-request-permission-to-use
@@ -51,23 +69,56 @@ PermissionState request_permission(PermissionDescriptor const& descriptor)
     }
 
     // 5. Let settings be the current settings object.
-    auto& settings = HTML::current_settings_object();
-
     // 6. Let key be the result of generating a permission key for descriptor with settings's top-level origin and settings's origin.
-    VERIFY(settings.top_level_origin.has_value());
-    auto key = permission_key_generation_algorithm(settings.top_level_origin.value(), settings.origin());
-
-    // AD-HOC: Our permission state is backed by PermissionStore, so update it before returning to make the new current
-    //         state observable to callers that continue synchronously.
-    PermissionStore::the().set_permission_store_entry(descriptor, key, current_state);
-
     // 7. Queue a task on the current settings object's responsible event loop to set a permission store entry with descriptor, key, and current state.
-    HTML::queue_global_task(HTML::Task::Source::Permissions, settings.global_object(), GC::create_function(GC::Heap::the(), [descriptor, key, current_state] {
-        PermissionStore::the().set_permission_store_entry(descriptor, key, current_state);
-    }));
+    // NB: store_permission_decision() carries out steps 6 and 7 for both request algorithms.
+    store_permission_decision(descriptor, HTML::current_settings_object(), current_state);
 
     // 8. Return current state.
     return current_state;
+}
+
+// https://w3c.github.io/permissions/#dfn-request-permission-to-use
+void request_permission_with_user_prompt(PermissionDescriptor const& descriptor, HTML::EnvironmentSettingsObject& settings, PermissionDecisionCallback on_decided)
+{
+    // 1. Let current state be the descriptor's permission state.
+    auto current_state = permission_state(descriptor, settings);
+
+    // 2. If current state is not "prompt", return current state and abort these steps.
+    if (current_state != PermissionState::Prompt) {
+        on_decided->function()(current_state);
+        return;
+    }
+
+    auto settle = GC::create_function(GC::Heap::the(), [descriptor, settings = GC::Ref(settings), on_decided](bool granted) {
+        // 4. If the user gives express permission to use the powerful feature, set current state to "granted"; otherwise to "denied".
+        auto current_state = granted ? PermissionState::Granted : PermissionState::Denied;
+
+        // 5. Let settings be the current settings object.
+        // NB: The user's answer arrives outside any script, so the requester's settings object was captured instead.
+        // 6. Let key be the result of generating a permission key for descriptor with settings's top-level origin and settings's origin.
+        // 7. Queue a task on the current settings object's responsible event loop to set a permission store entry with descriptor, key, and current state.
+        // NB: store_permission_decision() carries out steps 6 and 7 for both request algorithms.
+        store_permission_decision(descriptor, settings, current_state);
+
+        // 8. Return current state.
+        on_decided->function()(current_state);
+    });
+
+    // Tests have no user to ask, so they are granted as the synchronous path grants them.
+    if (HTML::Window::in_test_mode()) {
+        settle->function()(true);
+        return;
+    }
+
+    // 3. Ask the user for express permission for the calling algorithm to use the powerful feature described by descriptor.
+    // Only windows have a page to ask through; a worker's request is denied.
+    auto* window = HTML::window_from_global_object(settings.global_object());
+    if (!window) {
+        settle->function()(false);
+        return;
+    }
+    window->page().request_permission(descriptor.name, settle);
 }
 
 // https://w3c.github.io/permissions/#dfn-permission-state

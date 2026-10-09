@@ -103,6 +103,7 @@ public:
 
     void set_geolocation_emulated_position(WebView::GeolocationPositionData const&, Optional<u16> error_code);
     void geolocation_position_response(u64 request_id, WebView::GeolocationPositionData const&, Optional<u16> error_code);
+    void permission_request_completed(u64 request_id, bool granted);
 
     void alert_closed();
     void confirm_closed(bool accepted);
@@ -333,6 +334,7 @@ private:
     virtual void page_did_cancel_geolocation_position_request(u64 request_id) override;
     virtual void page_did_start_geolocation_position_watch(u64 request_id) override;
     virtual void page_did_stop_geolocation_position_watch(u64 request_id) override;
+    virtual void page_did_request_permission(u64 request_id, Utf16String const& name) override;
     virtual void page_did_finish_test(Utf16String const& text) override;
     virtual void page_did_set_test_timeout(double milliseconds) override;
     virtual void page_did_receive_reference_test_metadata(JsonValue) override;
