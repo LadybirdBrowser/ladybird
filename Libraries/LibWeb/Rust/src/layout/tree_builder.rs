@@ -2343,10 +2343,8 @@ fn construct_principal_layout_node(
                 .with_style_store(|engine| engine.element_published_style_record(element))
         };
         let Some(record) = published_record() else {
-            assert!(
-                should_create_layout_node,
-                "an element whose box stays has published its style"
-            );
+            // NB: An existing box does not guarantee a current published style. Let the caller
+            //     discard any stale box while the document settles the missing style.
             // Nothing published a style for the element, so a bypass path reached it without the
             // style update settling it. It gets no box in this build: the document styles it once
             // the build is over, and builds its box in the next one.
@@ -5364,6 +5362,83 @@ mod tests {
         arena
             .free_subtree(parent)
             .destroy_shells_and_invoke_callbacks(&main_thread);
+    }
+
+    #[test]
+    fn an_unstyled_element_with_an_existing_box_requests_style_and_discards_the_box() {
+        use crate::css::style::tree::StyleNodeID;
+        use crate::layout::LayoutNodeArena;
+        use crate::layout::node_data::{NodeConstructionFacts, NodeKind};
+        use crate::stage::MainThread;
+
+        let mut engine = crate::css::style::StyleEngine::new();
+        let mut arena = LayoutNodeArena::new();
+        arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
+        let mut raw = [0_u32];
+        engine.allocate_style_nodes(&mut raw);
+        let element = StyleNodeID::from_raw(raw[0]).unwrap();
+        let facts = NodeConstructionFacts {
+            kind: NodeKind::BlockContainer,
+            is_anonymous: false,
+            is_html_input_element: false,
+            is_html_html_element: false,
+            is_document_element: false,
+            is_in_user_agent_shadow_tree: false,
+            uses_button_layout: false,
+            is_editing_host: false,
+            is_body: false,
+            dom_paint_facts: 0,
+            style_node: element.raw(),
+        };
+        let element_box = arena.allocate(facts);
+        let mut parent_facts = facts;
+        parent_facts.is_anonymous = true;
+        parent_facts.style_node = 0;
+        let parent = arena.allocate(parent_facts);
+        arena.attach_child(parent, super::UnplacedLayoutNode::new(element_box), NodeSlotId::INVALID);
+        arena.bind_row(element_box);
+        arena.queue_box_presence();
+        let work = crate::layout::tree_mutation::OwedHostWork::default();
+        let mut host = super::TreeBuilderHost {
+            arena: &mut arena,
+            work: &work,
+        };
+        let mut state = super::TreeBuilderState::default();
+        let mut context = TreeBuilderContext::default();
+        let mut update = super::PrincipalNodeUpdate {
+            kind: PrincipalNodeKind::Element,
+            reuse: LayoutNodeReuse::default(),
+            host: &mut host,
+            state: &mut state,
+            old_layout_node: element_box,
+            identity: element,
+            style_node: Some(element),
+            element_type_facts: 0,
+            context: &mut context,
+            must_create_subtree: false,
+            insertion_mode: super::FfiInsertionMode::Append,
+        };
+        let facts = PrincipalNodeEntryFacts {
+            must_create_subtree: false,
+            needs_layout_tree_update: false,
+            has_layout_node: true,
+            layout_node_is_attached: true,
+        };
+        let decision = principal_node_entry_decision(facts, update.reuse, update.kind, 0, update.context);
+        assert!(!decision.should_create_layout_node);
+        super::update_principal_node_after_entry(&mut update, facts, decision);
+        work.resolve(&arena).pay(&MainThread::for_test());
+
+        assert!(state.reached_unstyled_element);
+        assert_eq!(state.reports.len(), 1);
+        assert_eq!(state.reports[0].style_node, element.raw());
+        assert!(state.reports[0].kind == crate::layout::commit::FfiCommitMessageKind::UnstyledElementReached);
+        assert!(!arena.slot_is_live(element_box));
+        assert!(arena.bound_row(element).is_invalid());
+        assert!(arena.data(parent).first_child.get().is_invalid());
+        arena
+            .free_subtree(parent)
+            .destroy_shells_and_invoke_callbacks(&MainThread::for_test());
     }
 
     fn code_point_facts(code_point: u32) -> FfiCodePointCategoryFacts {
