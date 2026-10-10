@@ -5,12 +5,56 @@
  */
 
 #include <AK/Atomic.h>
+#include <AK/ConditionVariable.h>
+#include <AK/Mutex.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
 #include <LibMedia/Audio/NullPlaybackStream.h>
 #include <LibTest/TestSuite.h>
 
 #include "TestMediaCommon.h"
+
+TEST_CASE(null_playback_stream_completes_interleaved_controls_in_order)
+{
+    Mutex mutex;
+    ConditionVariable condition { mutex };
+    Vector<u32> completions;
+    auto record_completion = [&](u32 index) {
+        MutexLocker locker(mutex);
+        completions.append(index);
+        condition.signal();
+    };
+
+    RefPtr<Audio::PlaybackStream> stream;
+    stream = Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, 10, [&](Span<float>) -> ReadonlySpan<float> {
+        // Queue all controls from the data callback so the output thread cannot resolve any of them until the batch is ready.
+        stream->drain_buffer_and_suspend()
+            ->when_resolved([&] { record_completion(0); })
+            .when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
+        stream->resume()
+            ->when_resolved([&](auto) { record_completion(1); })
+            .when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
+        stream->set_volume(0.5)
+            ->when_resolved([&] { record_completion(2); })
+            .when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
+        stream->discard_buffer_and_suspend()
+            ->when_resolved([&] { record_completion(3); })
+            .when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
+        stream->resume()
+            ->when_resolved([&](auto) { record_completion(4); })
+            .when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
+        stream->discard_buffer_and_suspend()
+            ->when_resolved([&] { record_completion(5); })
+            .when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
+        return {};
+    });
+    stream->resume()->when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
+
+    MutexLocker locker(mutex);
+    condition.wait_while([&] { return completions.size() < 6; });
+    for (u32 index = 0; index < completions.size(); ++index)
+        EXPECT_EQ(completions[index], index);
+}
 
 TEST_CASE(default_playback_stream_can_be_created_and_suspended)
 {
