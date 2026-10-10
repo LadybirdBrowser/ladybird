@@ -77,12 +77,17 @@ profilingTest("loads and calls record the kinds of the values they produce", () 
         return f();
     }
     jit.prepare(call);
-    call(() => null);
-    expect(feedbackOf(call, "Call")).toBe("value#0: Null call#0: target=function <anonymous> flags=none");
-    call(() => 1.5);
+    // NB: The feedback only holds its targets weakly, so the functions stay alive until the end of the test.
+    const returnsNull = () => null;
+    const returnsDouble = () => 1.5;
+    call(returnsNull);
+    expect(feedbackOf(call, "Call")).toBe("value#0: Null call#0: target=function returnsNull flags=none");
+    call(returnsDouble);
     expect(feedbackOf(call, "Call")).toBe(
-        "value#0: Double|Null call#0: target=function <anonymous> flags=Polymorphic|OtherFunctions"
+        "value#0: Double|Null call#0: target=function returnsNull flags=Polymorphic|OtherFunctions"
     );
+    expect(returnsDouble()).toBe(1.5);
+    expect(returnsNull()).toBeNull();
 });
 
 profilingTest("calls record their first callee and how the others differ", () => {
@@ -109,11 +114,13 @@ profilingTest("calls record their first callee and how the others differ", () =>
     }
     const makeClosure = value => () => value;
     jit.prepare(callClosure);
-    callClosure(makeClosure(1));
-    callClosure(makeClosure(2));
+    const closures = [makeClosure(1), makeClosure(2)];
+    callClosure(closures[0]);
+    callClosure(closures[1]);
     expect(feedbackOf(callClosure, "Call")).toBe(
         "value#0: Int32 call#0: target=function <anonymous> flags=Polymorphic"
     );
+    expect(closures.length).toBe(2);
 
     function construct(C) {
         return new C();
@@ -138,11 +145,13 @@ profilingTest("calls record where their callee forwarded them to", () => {
     function viaBound(f) {
         return f(2);
     }
+    let sum = 0;
+    function add(value) {
+        sum += value;
+    }
     function viaCallback(values) {
-        let sum = 0;
-        values.forEach(function add(value) {
-            sum += value;
-        });
+        sum = 0;
+        values.forEach(add);
         return sum;
     }
     for (const f of [viaCall, viaApply, viaBound, viaCallback]) jit.prepare(f);
@@ -160,7 +169,7 @@ profilingTest("calls record where their callee forwarded them to", () => {
         "value#0: Int32 call#0: target=function target flags=SawNative forwarded by bound with 2 arguments to function target"
     );
     expect(feedbackOf(viaCallback, "Call")).toBe(
-        "value#1: none call#0: target=native function forEach flags=SawNative forwarded by callback with 0 arguments to function add"
+        "value#2: none call#0: target=native function forEach flags=SawNative forwarded by callback with 0 arguments to function add"
     );
 
     function other(a, b) {
@@ -170,6 +179,8 @@ profilingTest("calls record where their callee forwarded them to", () => {
     expect(feedbackOf(viaCall, "Call")).toBe(
         "value#1: Int32 call#0: target=native function call flags=SawNative|ForwardedPolymorphic forwarded by call with 2 arguments to function target"
     );
+    // NB: The feedback only holds its targets weakly, so `add` stays alive until here.
+    expect(add.name).toBe("add");
 });
 
 profilingTest("keyed accesses record their keys and elements", () => {
@@ -212,14 +223,20 @@ profilingTest("feedback forgets callees and keys that died", () => {
     }
     jit.prepare(call);
     jit.prepare(get);
+    // NB: The feedback only holds its targets weakly, so the holder keeps them alive until it is emptied.
+    const holder = [];
     (() => {
-        call(function temporary() {});
-        get({}, Symbol("temporary"));
+        const temporary = function temporary() {};
+        const symbol = Symbol("temporary");
+        holder.push(temporary, symbol);
+        call(temporary);
+        get({}, symbol);
     })();
     expect(feedbackOf(call, "Call")).toBe("value#0: Undefined call#0: target=function temporary flags=none");
     expect(feedbackOf(get, "GetByValue")).toBe(
         "value#0: Undefined keyed#0: keys=Symbol elements=Other last_key=Symbol(temporary)"
     );
+    holder.length = 0;
     gc();
     expect(feedbackOf(call, "Call")).toBe("value#0: Undefined call#0: target=none flags=none");
     expect(feedbackOf(get, "GetByValue")).toBe("value#0: Undefined keyed#0: keys=Symbol elements=Other");

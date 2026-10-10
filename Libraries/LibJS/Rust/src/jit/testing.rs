@@ -7,8 +7,8 @@
 //! The `jit` object that test-js (and js with --expose-jit-testing) define on the global object, so that tests can
 //! compile functions at the points they choose and check that compiled code ran, exited or was discarded:
 //!
-//! - `jit.enabled`: whether the JIT is on (LIBJS_JIT=on). Without it, functions are never compiled and every function
-//!   below answers as if the JIT never got to them.
+//! - `jit.enabled`: whether the JIT is on (it is, unless LIBJS_JIT=off). With it off, functions are never compiled and
+//!   every function below answers as if the JIT never got to them.
 //! - `jit.forcesExits`: whether compiled code exits at random checks (LIBJS_JIT=stress-exits), so that it may run in
 //!   the interpreter at any point. These exits are not counted.
 //! - `jit.prepare(f)`: the interpreter collects feedback for `f` from now on, and `f` is only compiled by
