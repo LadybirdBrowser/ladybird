@@ -857,6 +857,7 @@ name = "libjs_jit"
 version = "0.1.0"
 dependencies = [
  "fARM64",
+ "flapc",
  "iced-x86",
  "libc",
 ]

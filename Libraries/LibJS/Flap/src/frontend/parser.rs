@@ -427,7 +427,7 @@ impl<'a> Parser<'a> {
             let (annotation, span) = self.consume_identifier("handler annotation")?;
             match annotation.as_str() {
                 "cold" => temperature = BlockTemperature::Cold,
-                "terminator" => {}
+                "terminator" | "fallthrough" => {}
                 _ => {
                     return Err(Diagnostic::new(
                         self.filename,
