@@ -1,0 +1,4 @@
+First slide through nested slots: isIntersecting=true, ratio=1, width=100
+Offscreen second slide: isIntersecting=false, ratio=0, width=100
+Absolute target escaping root: isIntersecting=false, ratio=0, width=0
+Root observing itself: isIntersecting=false, ratio=0, width=0

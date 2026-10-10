@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #positioned { position: relative; }
+    #root { width: 100px; height: 100px; }
+    #escaped { position: absolute; top: 0; width: 50px; height: 50px; }
+</style>
+<div id="host">
+    <div style="display: flex; gap: 8px; margin: 0; padding: 0">
+        <div id="first" style="flex: 0 0 100px; height: 100px; visibility: hidden"></div>
+        <div id="second" style="flex: 0 0 100px; height: 100px"></div>
+    </div>
+</div>
+<div id="positioned"><div id="root"><div id="escaped"></div></div></div>
+<script>
+    asyncTest(async done => {
+        const shadow = document.getElementById("host").attachShadow({ mode: "open" });
+        shadow.innerHTML = `<div id="carousel"><slot></slot></div>`;
+        const carouselShadow = shadow.getElementById("carousel").attachShadow({ mode: "open" });
+        carouselShadow.innerHTML = `<div id="list" style="width: 100px; height: 100px; overflow: hidden"><slot></slot></div>`;
+        const list = carouselShadow.getElementById("list");
+
+        async function observe(label, root, target) {
+            const entry = await new Promise(resolve => {
+                const observer = new IntersectionObserver(entries => {
+                    observer.disconnect();
+                    resolve(entries[0]);
+                }, { root });
+                observer.observe(target);
+            });
+            println(`${label}: isIntersecting=${entry.isIntersecting}, ratio=${entry.intersectionRatio}, width=${entry.boundingClientRect.width}`);
+        }
+
+        await observe("First slide through nested slots", list, document.getElementById("first"));
+        await observe("Offscreen second slide", list, document.getElementById("second"));
+        await observe("Absolute target escaping root", document.getElementById("root"), document.getElementById("escaped"));
+        await observe("Root observing itself", document.getElementById("root"), document.getElementById("root"));
+        done();
+    });
+</script>
