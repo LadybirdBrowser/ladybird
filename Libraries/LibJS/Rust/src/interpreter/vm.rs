@@ -35,8 +35,8 @@ use crate::gc::heap_function::HeapFunction;
 use crate::gc::root::{MarkedVec, RootSet};
 use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak_container::WeakContainer;
-use crate::jit::JitState;
 use crate::jit::options::Options as JitOptions;
+use crate::jit::{JitState, tier_up};
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::Environment;
 use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
@@ -1259,7 +1259,9 @@ impl Vm {
     }
 
     pub fn register_executable(&self, executable: Gc<Executable>) {
-        executable.set_interpreter_tier(self.jit.initial_tier());
+        let (tier, tier_up_budget) = tier_up::initial_tier(&self.jit);
+        executable.set_interpreter_tier(tier);
+        executable.head.tier_up_budget.set(tier_up_budget);
         self.executables.borrow_mut().push(executable);
     }
 

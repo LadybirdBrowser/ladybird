@@ -42,6 +42,13 @@ impl RuntimeFunctions for Runtime {
         operators::helper_math_exp(encoded_value)
     }
 
+    /// The profiling interpreter calls this when the running frame's executable has used up its tier-up budget. The
+    /// pc is shifted left by one, and the low bit says whether a loop back edge (rather than a function entry) used up
+    /// the budget.
+    fn helper_tier_up_check(vm: u64, encoded_pc: u64) -> u64 {
+        crate::jit::tier_up::tier_up_check(vm_from_helper_argument(vm), encoded_pc) as u64
+    }
+
     fn helper_empty_string(vm: u64) -> u64 {
         operators::helper_empty_string(vm_from_helper_argument(vm))
     }

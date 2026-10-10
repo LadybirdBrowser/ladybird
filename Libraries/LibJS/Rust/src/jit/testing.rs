@@ -58,8 +58,9 @@ fn prepare(vm: &Vm) -> ThrowCompletionOr<Value> {
     if !vm.jit.collects_feedback() {
         return Ok(Value::UNDEFINED);
     }
-    function
-        .compiled_executable(vm)
-        .set_interpreter_tier(InterpreterTier::Profiling);
+    let executable = function.compiled_executable(vm);
+    executable.set_interpreter_tier(InterpreterTier::Profiling);
+    // NB: A prepared function stays in the profiling tier.
+    executable.head.tier_up_budget.set(i32::MAX);
     Ok(Value::UNDEFINED)
 }
