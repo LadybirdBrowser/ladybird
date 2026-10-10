@@ -6,3 +6,5 @@ set(TEST_SOURCES
 foreach(source IN LISTS TEST_SOURCES)
     ladybird_test("${source}" LibTLS LIBS LibTLS LibCrypto)
 endforeach()
+
+ladybird_test(TestTLSHostname.cpp LibTLS LIBS LibTLS LibCrypto LibThreading)
