@@ -6,6 +6,7 @@
 
 #include <AK/Atomic.h>
 #include <AK/ConditionVariable.h>
+#include <AK/Function.h>
 #include <AK/Math.h>
 #include <AK/Mutex.h>
 #include <LibMedia/Audio/NullPlaybackStream.h>
@@ -57,10 +58,11 @@ public:
                 promise->reject(Error::from_string_literal("Null playback stream has stopped"));
                 return promise;
             }
-            m_ready_void_promises.extend(move(m_drain_promises));
+            complete_pending_drains_while_locked();
             set_state_while_locked(StreamState::Playing);
             m_awaiting_data = false;
-            m_resume_promises.append(promise);
+            auto resume_time = AK::Duration::from_time_units(m_anchor_frames_played, 1, NULL_OUTPUT_SAMPLE_RATE);
+            m_ready_completions.append([promise, resume_time]() mutable { promise->resolve(move(resume_time)); });
             signal_while_locked();
         }
         return promise;
@@ -93,8 +95,8 @@ public:
             }
             set_state_while_locked(StreamState::Suspended);
             m_frames_written = m_anchor_frames_played;
-            m_ready_void_promises.extend(move(m_drain_promises));
-            m_ready_void_promises.append(promise);
+            complete_pending_drains_while_locked();
+            m_ready_completions.append([promise] { promise->resolve(); });
             signal_while_locked();
         }
         return promise;
@@ -125,7 +127,7 @@ public:
                 promise->reject(Error::from_string_literal("Null playback stream has stopped"));
                 return promise;
             }
-            m_ready_void_promises.append(promise);
+            m_ready_completions.append([promise] { promise->resolve(); });
             signal_while_locked();
         }
         return promise;
@@ -138,7 +140,7 @@ public:
             if (m_state == StreamState::Stopped)
                 return;
             set_state_while_locked(StreamState::Stopped);
-            m_ready_void_promises.extend(move(m_drain_promises));
+            complete_pending_drains_while_locked();
             m_signal_count++;
             m_wake_condition.broadcast();
         }
@@ -152,6 +154,13 @@ private:
         Underrun,
         Stopped,
     };
+
+    void complete_pending_drains_while_locked()
+    {
+        for (auto& promise : m_drain_promises)
+            m_ready_completions.append([promise] { promise->resolve(); });
+        m_drain_promises.clear();
+    }
 
     void signal_while_locked()
     {
@@ -207,23 +216,19 @@ private:
         while (true) {
             Optional<i64> frames_to_request;
             Optional<i64> wake_at_played_frame;
-            Vector<NonnullRefPtr<Core::ThreadedPromise<AK::Duration>>> resume_promises;
-            Vector<NonnullRefPtr<Core::ThreadedPromise<void>>> ready_void_promises;
-            Vector<NonnullRefPtr<Core::ThreadedPromise<void>>> drain_promises;
+            Vector<Function<void()>> ready_completions;
             bool stopped = false;
             u64 signal_count_at_decision;
 
             {
                 MutexLocker locker(m_mutex);
                 signal_count_at_decision = m_signal_count;
-                resume_promises = move(m_resume_promises);
-                ready_void_promises = move(m_ready_void_promises);
 
                 auto now = MonotonicTime::now();
                 auto frames_played = frames_played_while_locked(now);
                 switch (m_state) {
                 case StreamState::Stopped:
-                    ready_void_promises.extend(move(m_drain_promises));
+                    complete_pending_drains_while_locked();
                     stopped = true;
                     break;
                 case StreamState::Playing:
@@ -244,7 +249,7 @@ private:
                 case StreamState::Draining:
                     if (frames_played >= m_frames_written) {
                         set_state_while_locked(StreamState::Suspended);
-                        drain_promises = move(m_drain_promises);
+                        complete_pending_drains_while_locked();
                     } else {
                         wake_at_played_frame = m_frames_written;
                     }
@@ -253,14 +258,11 @@ private:
                 case StreamState::Underrun:
                     break;
                 }
+                ready_completions = move(m_ready_completions);
             }
 
-            for (auto& promise : resume_promises)
-                promise->resolve(total_time_played());
-            for (auto& promise : ready_void_promises)
-                promise->resolve();
-            for (auto& promise : drain_promises)
-                promise->resolve();
+            for (auto& completion : ready_completions)
+                completion();
 
             if (stopped)
                 return 0;
@@ -303,9 +305,9 @@ private:
     mutable Mutex m_mutex;
     ConditionVariable m_wake_condition { m_mutex };
     StreamState m_state { StreamState::Suspended };
-    Vector<NonnullRefPtr<Core::ThreadedPromise<AK::Duration>>> m_resume_promises;
     Vector<NonnullRefPtr<Core::ThreadedPromise<void>>> m_drain_promises;
-    Vector<NonnullRefPtr<Core::ThreadedPromise<void>>> m_ready_void_promises;
+    // NB: Keep all ready controls in one queue so a resume cannot overtake the drain it completes.
+    Vector<Function<void()>> m_ready_completions;
 
     i64 m_frames_written { 0 };
     i64 m_anchor_frames_played { 0 };
