@@ -2769,6 +2769,11 @@ void Application::initialize_actions()
     create_platform_actions();
 }
 
+bool Application::blocks_pop_ups() const
+{
+    return m_block_pop_ups_action->checked();
+}
+
 // The options every page hosting the tab's document runs with.
 void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementation& view, WebContentPage& page)
 {

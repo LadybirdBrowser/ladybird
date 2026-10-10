@@ -12,6 +12,7 @@
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/String.h>
+#include <AK/Time.h>
 #include <AK/WeakPtr.h>
 #include <LibCompositing/Types.h>
 #include <LibGfx/Point.h>
@@ -106,6 +107,14 @@ public:
     void owe_reply(OwedReply);
     bool take_owed_reply(OwedReply);
 
+    // The user activation the UI process gives a page when it delivers input the user produced. Unlike the activation
+    // a renderer reports, a compromised renderer cannot claim it.
+    void give_user_activation();
+    bool has_transient_user_activation() const;
+    // Consumes the activation of every page of the tab, as consuming a window's activation does for the windows of its
+    // top-level traversable. Returns false, consuming nothing, when the page has no transient activation.
+    bool consume_transient_user_activation();
+
     bool needs_beforeunload_check() const { return m_needs_beforeunload_check; }
     bool detached_close_pending() const { return m_detached_close_pending; }
     void set_detached_close_pending(bool pending) { m_detached_close_pending = pending; }
@@ -142,6 +151,7 @@ public:
     void reset_session_history_for_testing();
 
 private:
+    void relay_finished_input_event(WebContentPage const& reporting_page, u64 event_id, Web::EventResult);
     Optional<CanonicalNavigable&> population_worker_navigable(Web::HTML::CrossProcessId navigable_id) const;
     bool continue_navigation_population_in_selected_process(Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id);
     void for_each_hosted_document(Function<IterationDecision(CanonicalDocument&)> const&) const;
@@ -357,6 +367,7 @@ private:
     Optional<String> m_history_recorded_url_for_current_load;
     HashTable<u64> m_renderer_owned_downloads;
     HashTable<OwedReply> m_owed_replies;
+    Optional<MonotonicTime> m_last_user_activation;
 };
 
 }

@@ -881,6 +881,11 @@ void WebContentPage::did_click_link(Web::HTML::PreparedNavigationDescriptor navi
     auto open_in_background = modifiers == Web::UIEvents::Mod_PlatformCtrl;
     auto open_in_foreground = modifiers == (Web::UIEvents::Mod_PlatformCtrl | Web::UIEvents::Mod_Shift);
     if (open_in_background || open_in_foreground || target == "_blank"sv) {
+        // NB: The renderer sends a link to open in a new tab only for the user's own click, which the view delivered.
+        //     That click opens the link whatever activation the page used up for other things, such as a popup its
+        //     click handler opened.
+        if (!view().take_input_to_open_link_in_new_tab({}))
+            return;
         view().open_navigation_in_new_tab(verified_navigation.release_value(), open_in_background ? Web::HTML::ActivateTab::No : Web::HTML::ActivateTab::Yes);
     } else {
         view().load(verified_navigation.release_value());
@@ -898,6 +903,10 @@ void WebContentPage::did_middle_click_link(Web::HTML::PreparedNavigationDescript
         view().handle_external_url({}, verified_navigation->url, verified_navigation->initiator_origin_snapshot, verified_navigation->source_snapshot_params.has_transient_activation);
         return;
     }
+    // NB: The renderer sends a link to open in a new tab only for the user's own click, which the view delivered.
+    //     That click opens the link whatever activation the page used up for other things.
+    if (!view().take_input_to_open_link_in_new_tab({}))
+        return;
     view().open_navigation_in_new_tab(verified_navigation.release_value(), Web::HTML::ActivateTab::No);
 }
 
@@ -1201,6 +1210,50 @@ void WebContentPage::did_change_needs_beforeunload_check(bool needs_beforeunload
     m_needs_beforeunload_check = needs_beforeunload_check;
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#transient-activation-duration
+static constexpr auto transient_activation_duration = AK::Duration::from_seconds(5);
+
+void WebContentPage::give_user_activation()
+{
+    m_last_user_activation = MonotonicTime::now();
+}
+
+bool WebContentPage::has_transient_user_activation() const
+{
+    // NB: Automation lets a renderer synthesize the input that gives it activation.
+    if (WebContentClient::renderers_may_synthesize_input())
+        return true;
+    if (m_last_user_activation.has_value() && MonotonicTime::now() - *m_last_user_activation < transient_activation_duration)
+        return true;
+    auto view = traversable().view();
+    return view.has_value() && view->is_delivering_user_activation_to(*this);
+}
+
+// NB: The UI process consumes its activation only where the renderer consumes the activation of its windows too, so
+//     the two agree on what is left of it. As the renderer does, it consumes the activation every page of the tab has
+//     from input they finished handling, along with that of the input the page is handling, which the renderer gave
+//     the activation it consumes. A page whose activation comes only from input it has yet to finish handling consumes
+//     that of the earliest such input. Input queued behind keeps its activation either way, as the renderer gives
+//     activation anew for each press it handles.
+bool WebContentPage::consume_transient_user_activation()
+{
+    if (!has_transient_user_activation())
+        return false;
+
+    auto has_activation_of_handled_input = m_last_user_activation.has_value() && MonotonicTime::now() - *m_last_user_activation < transient_activation_duration;
+    auto& top_level_traversable = traversable().top_level_traversable();
+    top_level_traversable.for_each_hosting_page([](WebContentPage& page) {
+        page.m_last_user_activation.clear();
+    });
+    if (auto view = top_level_traversable.view(); view.has_value()) {
+        if (has_activation_of_handled_input)
+            view->consume_user_activation_of_input_handled_by({}, *this);
+        else
+            view->consume_user_activation_of_input_in_flight_to({}, *this);
+    }
+    return true;
+}
+
 void WebContentPage::did_consume_user_activation(Web::HTML::UserActivationConsumption consumption)
 {
     auto& page_host = this->traversable();
@@ -1354,15 +1407,20 @@ void WebContentPage::did_request_file_picker(Web::HTML::FileFilter accepted_file
 
 void WebContentPage::did_finish_handling_input_event(u64 event_id, Web::EventResult event_result)
 {
+    relay_finished_input_event(*this, event_id, event_result);
+}
+
+void WebContentPage::relay_finished_input_event(WebContentPage const& reporting_page, u64 event_id, Web::EventResult event_result)
+{
     if (displays_tab()) {
-        view().did_finish_handling_input_event({}, event_id, event_result);
+        view().did_finish_handling_input_event({}, reporting_page, event_id, event_result);
         return;
     }
 
     // The view displaying the tab handed the event down; it hears the result.
     if (auto display_page = traversable().display_page(); display_page) {
         if (display_page->is_open() && display_page.ptr() != this)
-            display_page->did_finish_handling_input_event(event_id, event_result);
+            display_page->relay_finished_input_event(reporting_page, event_id, event_result);
     }
 }
 
@@ -2086,7 +2144,7 @@ void WebContentPage::did_forward_mouse_event_to_child_frame(Web::HTML::CrossProc
     }
 
     auto& host = child_frame->remote_host();
-    view().did_forward_input_event({}, event.id, host);
+    view().did_forward_input_event({}, *this, event.id, host);
     host.async_mouse_event_in_hosted_root(frame_id, move(event));
 }
 
@@ -2420,6 +2478,11 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
         if (!opener.has_value())
             return { {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
     }
+
+    // The popup blocker runs in the renderer, which a compromised renderer skips. Each popup takes the activation of
+    // input the UI process delivered to the page, as the renderer's popup consumes the activation of its window.
+    if (Application::the().blocks_pop_ups() && !consume_transient_user_activation())
+        return { {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
 
     auto root_navigable_id = Application::the().allocate_ui_process_cross_process_id();
     auto initial_history_entry = Web::HTML::create_initial_session_history_entry_descriptor(
