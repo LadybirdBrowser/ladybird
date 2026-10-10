@@ -875,7 +875,7 @@ void WebContentPage::did_click_link(Web::HTML::PreparedNavigationDescriptor navi
     // NB: A link the browser does not handle itself is an external application's. The page asking to open it is not
     //     the browser's UI, so the request takes the page's path, which honors only input the UI process saw.
     if (!is_url_handled_internally(verified_navigation->url)) {
-        view().handle_external_url({}, verified_navigation->url, verified_navigation->initiator_origin_snapshot, verified_navigation->source_snapshot_params.has_transient_activation);
+        view().handle_external_url({}, verified_navigation->url, verified_navigation->initiator_origin_snapshot, verified_navigation->source_snapshot_params.has_transient_activation && has_transient_user_activation());
         return;
     }
     auto open_in_background = modifiers == Web::UIEvents::Mod_PlatformCtrl;
@@ -900,7 +900,7 @@ void WebContentPage::did_middle_click_link(Web::HTML::PreparedNavigationDescript
     // NB: A link the browser does not handle itself is an external application's. The page asking to open it is not
     //     the browser's UI, so the request takes the page's path, which honors only input the UI process saw.
     if (!is_url_handled_internally(verified_navigation->url)) {
-        view().handle_external_url({}, verified_navigation->url, verified_navigation->initiator_origin_snapshot, verified_navigation->source_snapshot_params.has_transient_activation);
+        view().handle_external_url({}, verified_navigation->url, verified_navigation->initiator_origin_snapshot, verified_navigation->source_snapshot_params.has_transient_activation && has_transient_user_activation());
         return;
     }
     // NB: The renderer sends a link to open in a new tab only for the user's own click, which the view delivered.
@@ -912,7 +912,8 @@ void WebContentPage::did_middle_click_link(Web::HTML::PreparedNavigationDescript
 
 void WebContentPage::did_request_external_url(URL::URL url, URL::Origin initiator_origin, bool has_transient_activation)
 {
-    view().handle_external_url({}, move(url), move(initiator_origin), has_transient_activation);
+    // NB: The page's own claim of activation counts only along with input the UI process delivered to it.
+    view().handle_external_url({}, move(url), move(initiator_origin), has_transient_activation && has_transient_user_activation());
 }
 
 void WebContentPage::did_inspect_storage(u64 request_id, String storage_items)
