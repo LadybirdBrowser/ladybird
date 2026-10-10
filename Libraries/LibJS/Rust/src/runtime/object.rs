@@ -380,10 +380,7 @@ unsafe impl Trace for Object {
 impl Drop for Object {
     fn drop(&mut self) {
         // OPTIMIZATION: Most objects own nothing outside the GC heap.
-        if self.flags.get() & (object_flag::HAS_MALLOC_NAMED_STORAGE | object_flag::HAS_MALLOC_INDEXED_STORAGE) == 0
-            && self.indexed_storage_kind() != IndexedStorageKind::Dictionary
-            && self.private_elements.get().is_none()
-        {
+        if self.owns_nothing_outside_the_heap() {
             return;
         }
         self.free_storage_outside_the_heap();
@@ -391,6 +388,13 @@ impl Drop for Object {
 }
 
 impl Object {
+    /// Whether the object has no malloc storage, dictionary elements or private elements, which the object frees.
+    pub(crate) fn owns_nothing_outside_the_heap(&self) -> bool {
+        self.flags.get() & (object_flag::HAS_MALLOC_NAMED_STORAGE | object_flag::HAS_MALLOC_INDEXED_STORAGE) == 0
+            && self.indexed_storage_kind() != IndexedStorageKind::Dictionary
+            && self.private_elements.get().is_none()
+    }
+
     #[cold]
     fn free_storage_outside_the_heap(&mut self) {
         let flags = self.flags.get();
@@ -481,11 +485,11 @@ fn remove_intrinsic_accessor(vm: &Vm, object: &Object, property_key: &PropertyKe
 /// Plain objects (exactly an Object, as create() and create_with_premade_shape() make them) come in size classes by how
 /// many named property values they hold inline: the smallest one that fits the properties of their shape at creation,
 /// so that most of them never need named property storage of their own. The first size class is an Object's own cell.
-const PLAIN_OBJECT_INLINE_CAPACITIES: [u8; 6] = [2, 4, 6, 8, 12, 16];
+pub const PLAIN_OBJECT_INLINE_CAPACITIES: [u8; 6] = [2, 4, 6, 8, 12, 16];
 
 /// The inline capacity of plain objects created without properties. More would keep the properties many of them get
 /// right away (like `this` in constructors) inline, but makes the cells of all of them larger.
-const EMPTY_PLAIN_OBJECT_INLINE_CAPACITY: u8 = PLAIN_OBJECT_INLINE_CAPACITIES[0];
+pub const EMPTY_PLAIN_OBJECT_INLINE_CAPACITY: u8 = PLAIN_OBJECT_INLINE_CAPACITIES[0];
 
 const _: () = assert!(PLAIN_OBJECT_INLINE_CAPACITIES[0] as usize == INLINE_NAMED_STORAGE_CAPACITY);
 
@@ -504,7 +508,7 @@ const PLAIN_OBJECT_SIZE_CLASS_CELL_SIZES: [u32; PLAIN_OBJECT_INLINE_CAPACITIES.l
 
 /// The size class (an index into PLAIN_OBJECT_INLINE_CAPACITIES) of plain objects created with a shape of that many
 /// properties.
-fn plain_object_size_class(property_count: u32) -> usize {
+pub fn plain_object_size_class(property_count: u32) -> usize {
     let inline_values = if property_count == 0 {
         u32::from(EMPTY_PLAIN_OBJECT_INLINE_CAPACITY)
     } else {
@@ -516,8 +520,9 @@ fn plain_object_size_class(property_count: u32) -> usize {
         .unwrap_or(PLAIN_OBJECT_INLINE_CAPACITIES.len() - 1)
 }
 
-/// The allocators of the plain object size classes beyond the first, which is Object's own allocator.
-fn plain_object_size_classes(heap: &Heap) -> &[SizeClassAllocator] {
+/// The allocators of the plain object size classes beyond the first, which is Object's own allocator, for JIT code
+/// that allocates plain objects itself.
+pub fn plain_object_size_classes(heap: &Heap) -> &[SizeClassAllocator] {
     heap.size_classes(Object::CLASS, &PLAIN_OBJECT_SIZE_CLASS_CELL_SIZES)
 }
 
@@ -707,6 +712,12 @@ impl Object {
         }
         let reserve = shared_data.construct_reserve(shape);
         Self::create_in_size_class(vm, shape, reserve)
+    }
+
+    /// Like create_with_premade_shape(), in the size class for at least `reserve` properties, for properties that will
+    /// be added right away.
+    pub fn create_with_premade_shape_and_reserve(vm: &Vm, shape: Gc<Shape>, reserve: u32) -> Gc<Object> {
+        Self::create_in_size_class(vm, shape, shape.property_count().max(reserve))
     }
 
     /// A plain object of the shape, in the size class for that many properties.
@@ -3534,7 +3545,7 @@ impl Object {
             .cast_mut()
     }
 
-    fn named_storage_is_inline(&self) -> bool {
+    pub(crate) fn named_storage_is_inline(&self) -> bool {
         core::ptr::eq(self.named_properties.get(), self.inline_named_storage_pointer())
     }
 
@@ -3730,7 +3741,7 @@ impl Object {
 
     /// Makes room for `capacity` elements in packed or holey indexed storage up front, so that filling them in does not
     /// grow the storage.
-    pub fn reserve_indexed_elements(&self, capacity: u32) {
+    pub(crate) fn reserve_indexed_elements(&self, capacity: u32) {
         if matches!(
             self.indexed_storage_kind(),
             IndexedStorageKind::Packed | IndexedStorageKind::Holey

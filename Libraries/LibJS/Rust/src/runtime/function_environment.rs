@@ -12,7 +12,7 @@ use libjs_runtime_macros::Trace;
 use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
-use crate::layout::function_object::FunctionObject;
+use crate::layout::function_object::{FUNCTION_ENVIRONMENT_WORDS, FunctionObject};
 use crate::layout::value::Value;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::declarative_environment::{
@@ -63,8 +63,18 @@ pub const FUNCTION_ENVIRONMENT_METHODS: EnvironmentMethods = EnvironmentMethods 
     ..DECLARATIVE_ENVIRONMENT_METHODS
 };
 
-const FUNCTION_ENVIRONMENT_CELL_SIZES: [u32; INLINE_BINDING_CAPACITIES.len()] =
+/// The cell sizes of the size classes of function environments.
+pub const FUNCTION_ENVIRONMENT_CELL_SIZES: [u32; INLINE_BINDING_CAPACITIES.len()] =
     inline_binding_cell_sizes(size_of::<FunctionEnvironment>());
+
+const _: () = assert!(size_of::<FunctionEnvironment>() == 8 * FUNCTION_ENVIRONMENT_WORDS);
+
+/// Where a function environment's [[FunctionObject]] is.
+pub const FUNCTION_ENVIRONMENT_FUNCTION_OBJECT_OFFSET: usize =
+    core::mem::offset_of!(FunctionEnvironment, function_object);
+
+/// Where a function environment's [[ThisValue]] is.
+pub const FUNCTION_ENVIRONMENT_THIS_VALUE_OFFSET: usize = core::mem::offset_of!(FunctionEnvironment, this_value);
 
 impl FunctionEnvironment {
     /// A new environment with room for `binding_capacity` bindings in its cell, if a size class has that much.

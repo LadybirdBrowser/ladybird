@@ -7,7 +7,7 @@
 use core::cell::Cell;
 
 use super::cell::{CellHeader, Gc};
-use super::environment::{Environment, PrivateEnvironment};
+use super::environment::{DeclarativeEnvironment, Environment, PrivateEnvironment};
 use super::executable::ExecutableHead;
 use super::execution_context::ScriptOrModule;
 use super::object::Object;
@@ -99,5 +99,26 @@ pub struct SharedFunctionInstanceData {
     pub function_environment_needed: Cell<bool>,
     pub uses_this: Cell<bool>,
     pub can_inline_call: Cell<bool>,
+    /// How JIT code allocates the function environments of calls of the functions, once the runtime made one.
+    pub call_environment_template: Cell<Option<Gc<CallEnvironmentTemplate>>>,
     pub storage: SharedFunctionInstanceDataStorage,
+}
+
+/// The number of words of a FunctionEnvironment: a DeclarativeEnvironment and three more fields.
+pub const FUNCTION_ENVIRONMENT_WORDS: usize = size_of::<DeclarativeEnvironment>() / 8 + 3;
+
+/// A function environment like the ones the calls of a function get, with its final shape and room for its binding
+/// values in its cell, for JIT code to allocate from the local free list of its `size_class` (cells of `cell_size`
+/// bytes, see `jit::allocation::FunctionEnvironmentFreeLists`) and fill with `words`. The words have no binding values pointer, outer environment, function object or this
+/// value, which differ between calls: the binding values start `binding_values_offset` bytes into the cell (0 if they
+/// are not in the cell), and the call binds `this` in the environment if `binds_this` is not 0. Templates are cells, so
+/// that JIT code decodes the pointer to one into the GC heap like any other cell pointer.
+#[repr(C)]
+pub struct CallEnvironmentTemplate {
+    pub header: CellHeader,
+    pub size_class: u64,
+    pub cell_size: u64,
+    pub binding_values_offset: u64,
+    pub binds_this: u64,
+    pub words: [u64; FUNCTION_ENVIRONMENT_WORDS],
 }

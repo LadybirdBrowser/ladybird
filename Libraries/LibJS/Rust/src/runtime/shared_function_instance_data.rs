@@ -27,6 +27,7 @@ use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::run::should_dump_bytecode;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
+use crate::layout::function_object::CallEnvironmentTemplate;
 pub use crate::layout::function_object::{SharedFunctionInstanceData, asm_call_metadata};
 use crate::runtime::environment_shape::{EnvironmentShape, EnvironmentShapeCache};
 use crate::runtime::private_environment::PrivateName;
@@ -160,12 +161,21 @@ pub fn discard_precompiled_function(mut precompiled: Box<PrecompiledFunction>) {
 
 define_cell!(SharedFunctionInstanceData, Other);
 
-// SAFETY: Visits the executable and every cell the storage holds.
+// SAFETY: Visits the executable, the call environment template and every cell the storage holds.
 unsafe impl Trace for SharedFunctionInstanceData {
     fn trace(&self, visitor: &mut Visitor) {
         self.executable.trace(visitor);
+        self.call_environment_template.trace(visitor);
         self.storage.trace(visitor);
     }
+}
+
+define_cell!(CallEnvironmentTemplate, Other);
+
+// SAFETY: The words of a template refer to the environment's shape, which the shared function instance data keeps
+//         alive, and to no other cell.
+unsafe impl Trace for CallEnvironmentTemplate {
+    fn trace(&self, _visitor: &mut Visitor) {}
 }
 
 fn parameter_binding_names(parameter_names: &[Utf16FlyString]) -> Rc<[Utf16FlyString]> {
@@ -228,6 +238,7 @@ impl SharedFunctionInstanceData {
             function_environment_needed: Cell::new(false),
             uses_this: Cell::new(false),
             can_inline_call: Cell::new(false),
+            call_environment_template: Cell::new(None),
             storage: SharedFunctionInstanceDataStorage {
                 name,
                 source_code: RefCell::new(None),
@@ -743,6 +754,11 @@ impl SharedFunctionInstanceData {
         }
         storage.construct_count.set(count.saturating_add(1));
         storage.construct_reserve.get()
+    }
+
+    /// The reserve of the last construct_reserve(), without asking for it.
+    pub fn current_construct_reserve(&self) -> u32 {
+        self.storage.construct_reserve.get()
     }
 
     pub fn function_environment_needed(&self) -> bool {

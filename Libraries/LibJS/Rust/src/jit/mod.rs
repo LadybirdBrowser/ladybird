@@ -8,6 +8,7 @@
 //! warm, the tier-up policy, and the glue between the runtime and the `libjs_jit` compiler: snapshots of executables
 //! for compile jobs, the compile thread, installing the code, and entering and leaving it.
 
+pub mod allocation;
 pub mod calls;
 pub mod code;
 pub mod compile_queue;

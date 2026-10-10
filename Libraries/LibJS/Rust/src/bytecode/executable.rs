@@ -1331,6 +1331,10 @@ impl Executable {
         &self.property_lookup_caches
     }
 
+    pub fn object_shape_caches(&self) -> &[ObjectShapeCache] {
+        &self.object_shape_caches
+    }
+
     pub fn object_shape_cache(&self, index: u32) -> &ObjectShapeCache {
         &self.object_shape_caches[index as usize]
     }
@@ -1948,6 +1952,10 @@ impl Executable {
 
     pub fn jit_state(&self) -> &ExecutableJitState {
         &self.jit
+    }
+
+    pub fn environment_shape_cache_count(&self) -> u32 {
+        u32::try_from(self.environment_shape_caches.len()).expect("the cache count fits in u32")
     }
 
     pub fn environment_shape_cache(&self, index: u32) -> EnvironmentShapeCache {

@@ -23,7 +23,7 @@ use crate::layout::cell::Gc;
 use crate::layout::environment::{Environment, PrivateEnvironment};
 use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
 pub use crate::layout::function_object::EcmascriptFunctionObject;
-use crate::layout::object::Object;
+use crate::layout::object::{IndexedStorageKind, Object};
 use crate::layout::value::Value;
 use crate::layout_forward::FlyStringSlot;
 use crate::runtime::abstract_operations::{
@@ -682,6 +682,17 @@ impl EcmascriptFunctionObject {
             .get()
             .expect("an ECMAScript function has its name string once initialized")
             .utf16_string()
+    }
+
+    /// Whether a copy of the function's bytes is a function of its own: it has no name of its own, no class data,
+    /// nothing outside the heap as an object, and no property storage outside its cell.
+    pub fn can_be_copied(&self) -> bool {
+        let object = &self.base.base;
+        self.name.get().is_none()
+            && self.storage.class_data.borrow().is_none()
+            && object.owns_nothing_outside_the_heap()
+            && object.named_storage_is_inline()
+            && object.indexed_storage_kind() == IndexedStorageKind::None
     }
 
     pub fn name(&self) -> Utf16FlyString {

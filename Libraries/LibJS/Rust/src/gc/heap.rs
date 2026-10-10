@@ -38,15 +38,16 @@ struct SizeClassTable {
     _type_infos: Box<[CellTypeInfo]>,
 }
 
-/// What the heap needs to know to allocate cells from its local free lists itself, besides the address of the list:
-/// where the heap's allocation counters are, and where a free cell keeps the link to the next free cell and which bits
-/// of it count. See gc_heap_allocator_local_free_list() for how to allocate with them.
-struct InlineAllocationInfo {
-    allocated_bytes_since_last_gc: NonNull<usize>,
-    gc_bytes_threshold: NonNull<usize>,
-    total_allocated_bytes: NonNull<usize>,
-    free_cell_next_offset: usize,
-    free_cell_link_mask: usize,
+/// What code that allocates cells from the local free lists of a heap itself, like JIT code, needs to know besides the
+/// address of the list: where the heap's allocation counters are, and where a free cell keeps the link to the next free
+/// cell and which bits of it count. See gc_heap_allocator_local_free_list() for how to allocate with them.
+#[derive(Clone, Copy, Debug)]
+pub struct InlineAllocationInfo {
+    pub allocated_bytes_since_last_gc: NonNull<usize>,
+    pub gc_bytes_threshold: NonNull<usize>,
+    pub total_allocated_bytes: NonNull<usize>,
+    pub free_cell_next_offset: usize,
+    pub free_cell_link_mask: usize,
 }
 
 /// An allocator of a heap, with the address of its local free list in the heap, which is null if every cell has to be
@@ -74,6 +75,11 @@ pub struct RuntimeClassAllocator {
 impl RuntimeClassAllocator {
     pub fn class(&self) -> &'static Class {
         self.class
+    }
+
+    /// Where the head of the allocator's local free list is, for code that allocates its cells itself.
+    pub fn local_free_list(&self) -> Option<NonNull<*mut c_void>> {
+        self.allocator.local_free_list()
     }
 }
 
@@ -104,6 +110,11 @@ impl SizeClassAllocator {
     /// The size of each cell, including the part beyond the type of the class.
     pub fn cell_size(&self) -> u32 {
         self.cell_size
+    }
+
+    /// Where the head of the allocator's local free list is, for code that allocates its cells itself.
+    pub fn local_free_list(&self) -> Option<NonNull<*mut c_void>> {
+        self.allocator.local_free_list()
     }
 }
 
@@ -150,6 +161,15 @@ impl Heap {
                 free_cell_link_mask: layout.free_cell_link_mask as usize,
             },
         }
+    }
+
+    pub fn inline_allocation_info(&self) -> InlineAllocationInfo {
+        self.inline_allocation_info
+    }
+
+    /// Where the head of the local free list of the allocator of `class` is, for code that allocates its cells itself.
+    pub fn local_free_list_of(&self, class: &'static Class) -> Option<NonNull<*mut c_void>> {
+        self.allocator_for(class).local_free_list()
     }
 
     pub fn raw(&self) -> *mut GCHeap {

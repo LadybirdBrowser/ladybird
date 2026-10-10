@@ -241,7 +241,8 @@ pub fn allocate_environment<T: GcCell>(
     environment
 }
 
-const DECLARATIVE_ENVIRONMENT_CELL_SIZES: [u32; INLINE_BINDING_CAPACITIES.len()] =
+/// The cell sizes of the size classes of declarative environments.
+pub const DECLARATIVE_ENVIRONMENT_CELL_SIZES: [u32; INLINE_BINDING_CAPACITIES.len()] =
     inline_binding_cell_sizes(size_of::<DeclarativeEnvironment>());
 
 impl Deref for DeclarativeEnvironment {

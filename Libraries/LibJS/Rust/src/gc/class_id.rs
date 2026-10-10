@@ -51,6 +51,7 @@ define_class_ids! {
     CapturingNativeFunction,
     EcmascriptFunctionObject,
     SharedFunctionInstanceData,
+    CallEnvironmentTemplate,
     BoundFunction,
     ArgumentsObject,
     ObjectEnvironment,

@@ -53,6 +53,14 @@ pub struct RopeString {
     rhs: Cell<Option<Gc<PrimitiveString>>>,
 }
 
+/// Where a rope string keeps its two halves, for JIT code that creates rope strings itself.
+pub const ROPE_STRING_LHS_OFFSET: usize = core::mem::offset_of!(RopeString, lhs);
+pub const ROPE_STRING_RHS_OFFSET: usize = core::mem::offset_of!(RopeString, rhs);
+
+/// Concatenations of two non-empty strings with at least this many code units together are rope strings: anything
+/// shorter may be a short ASCII string instead.
+pub const ROPE_STRING_MIN_LENGTH: u32 = crate::utf16::MAX_SHORT_STRING_BYTE_COUNT as u32 + 1;
+
 #[repr(C)]
 #[derive(Trace)]
 pub struct Substring {

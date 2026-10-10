@@ -8,7 +8,7 @@
 //!
 //! Objects point at the first value. The 8 bytes in front of it hold the capacity (u32) and the kind of the storage
 //! (u32): normally a ValueStorage cell, and a malloc allocation for capacities too large for a cell. The interpreter
-//! reads the capacity there.
+//! and JIT code read the capacity there.
 //!
 //! The object that owns the storage visits the values it uses and the ValueStorage cell, which visits nothing itself.
 //! A cell is owned by one object at a time, and is collected once its object drops it. Storage allocation never
@@ -92,8 +92,34 @@ const SIZE_CLASS_CELL_SIZES: [u32; SIZE_CLASS_CAPACITIES.len()] = {
     cell_sizes
 };
 
-/// The size classes of ValueStorage cells in `heap`, in the order of SIZE_CLASS_CAPACITIES.
-fn size_classes(heap: &Heap) -> &[SizeClassAllocator] {
+/// Where a ValueStorage cell keeps its capacity.
+pub const CAPACITY_OFFSET: usize = core::mem::offset_of!(ValueStorage, capacity);
+
+/// The bytes every ValueStorage cell starts with, up to its values, as u64 words, with a capacity of zero, for JIT code
+/// that allocates storage itself.
+pub fn cell_header_template() -> [u64; VALUES_OFFSET / 8] {
+    let storage = ValueStorage {
+        header: CellHeader::for_class(ValueStorage::CLASS),
+        _padding: [0; 5],
+        capacity: 0,
+        kind: ValueStorageKind::Cell,
+        values: [],
+    };
+    let mut words = [0; VALUES_OFFSET / 8];
+    // SAFETY: The cell is VALUES_OFFSET bytes of fields without padding, which the words have room for.
+    unsafe {
+        core::ptr::copy_nonoverlapping(
+            core::ptr::from_ref(&storage).cast::<u8>(),
+            words.as_mut_ptr().cast::<u8>(),
+            VALUES_OFFSET,
+        );
+    }
+    words
+}
+
+/// The size classes of ValueStorage cells in `heap`, in the order of SIZE_CLASS_CAPACITIES, for JIT code that
+/// allocates storage itself.
+pub fn size_classes(heap: &Heap) -> &[SizeClassAllocator] {
     heap.size_classes(ValueStorage::CLASS, &SIZE_CLASS_CELL_SIZES)
 }
 
