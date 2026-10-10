@@ -4,12 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The `jit` object that test-js defines on the global object, so that tests can choose which functions the
-//! interpreter profiles:
+//! The `jit` object that test-js (and js with --expose-jit-testing) define on the global object, so that tests can
+//! choose which functions the interpreter profiles and check what it recorded:
 //!
 //! - `jit.prepare(f)`: the interpreter runs `f` with the profiling handlers from now on, if it collects feedback
 //!   (LIBJS_JIT=on). Without it, `f` stays on the plain handlers.
+//! - `jit.feedback(f)`: the feedback the interpreter collected for `f` (see `feedback_dump::describe_feedback()`), or
+//!   undefined if it collected none.
 
+use super::feedback_dump::describe_feedback;
 use crate::interpreter::vm::Vm;
 use crate::jit::InterpreterTier;
 use crate::layout::cell::Gc;
@@ -21,12 +24,16 @@ use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::native_function::raw_native;
+use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use ak::Utf16FlyString;
 
-const FUNCTIONS: &[(&str, RawNativeFunctionPointer, i32)] = &[("prepare", raw_native!(prepare), 1)];
+const FUNCTIONS: &[(&str, RawNativeFunctionPointer, i32)] = &[
+    ("prepare", raw_native!(prepare), 1),
+    ("feedback", raw_native!(feedback), 1),
+];
 
 fn key(name: &str) -> PropertyKey {
     PropertyKey::from(Utf16FlyString::from_utf8(name))
@@ -63,4 +70,14 @@ fn prepare(vm: &Vm) -> ThrowCompletionOr<Value> {
     // NB: A prepared function stays in the profiling tier.
     executable.head.tier_up_budget.set(i32::MAX);
     Ok(Value::UNDEFINED)
+}
+
+fn feedback(vm: &Vm) -> ThrowCompletionOr<Value> {
+    let function = function_argument(vm)?;
+    let description = function
+        .bytecode_executable()
+        .and_then(|executable| describe_feedback(&executable));
+    Ok(description.map_or(Value::UNDEFINED, |description| {
+        Value::from_string(PrimitiveString::create_from_utf8(vm, &description))
+    }))
 }

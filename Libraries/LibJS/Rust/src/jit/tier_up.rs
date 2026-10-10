@@ -50,6 +50,12 @@ fn on_budget_exhausted(vm: &Vm) {
         .feedback()
         .expect("executables in the profiling tier have feedback")
         .update_value_feedback();
+    if vm.jit.options.dump_feedback && !executable.has_dumped_feedback() {
+        executable.set_has_dumped_feedback();
+        if let Some(description) = super::feedback_dump::describe_feedback(&executable) {
+            eprintln!("{description}");
+        }
+    }
     executable.head.tier_up_budget.set(threshold_budget(&vm.jit));
 }
 
