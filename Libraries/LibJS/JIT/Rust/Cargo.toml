@@ -8,6 +8,9 @@ crate-type = ["rlib"]
 
 # After changing dependencies, regenerate the Flatpak sources:
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py
+[build-dependencies]
+flapc = { path = "../../Flap" }
+
 # The host's disassembler, for `dump-asm`. Tests use both.
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 iced-x86 = { version = "1.21", default-features = false, features = ["decoder", "intel", "std"] }

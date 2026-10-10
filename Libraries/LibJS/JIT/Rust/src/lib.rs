@@ -13,6 +13,7 @@
 
 pub mod asm;
 pub mod bitset;
+pub mod bytecode;
 pub mod fast_hash;
 pub mod inline_vec;
 pub mod options;
