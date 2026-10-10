@@ -7,6 +7,7 @@
 #include <AK/String.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
+#include <LibIPC/Connection.h>
 #include <LibWebView/ProcessManager.h>
 
 namespace WebView {
@@ -134,6 +135,30 @@ Optional<Process> ProcessManager::remove_process(pid_t pid)
         return (info->pid == pid);
     });
     return m_processes.take(pid);
+}
+
+void ProcessManager::remove_all_processes()
+{
+    verify_event_loop();
+
+    // NB: Shutting down a connection runs its die() handler, which looks up its process, for example to end a worker
+    //     that did not notice the connection closing. Shut the connections down while the table is intact.
+    Vector<pid_t> pids;
+    pids.ensure_capacity(m_processes.size());
+    for (auto const& entry : m_processes)
+        pids.unchecked_append(entry.key);
+    for (auto pid : pids) {
+        auto process = m_processes.get(pid);
+        if (!process.has_value())
+            continue;
+        if (auto connection = process->client<IPC::ConnectionBase>())
+            connection->shutdown();
+    }
+
+    // Destroying a process may run a die() handler too, so take the processes out first. Lookups then see an empty
+    // table rather than one being destroyed.
+    auto processes = move(m_processes);
+    processes.clear();
 }
 
 void ProcessManager::cancel_forced_exit(pid_t pid)

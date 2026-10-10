@@ -243,6 +243,10 @@ Application::~Application()
     }
 
     m_spare_web_content_process = nullptr;
+
+    // NB: Connection die() handlers use the process manager, so destroy the processes while it is still reachable.
+    if (m_process_manager)
+        m_process_manager->remove_all_processes();
     m_process_manager = nullptr;
     m_browser_process = nullptr;
 
