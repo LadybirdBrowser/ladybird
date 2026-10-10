@@ -2,11 +2,18 @@
 <script src="../include.js"></script>
 <script>
     promiseTest(async () => {
+        // NB: The iframe gets a document of its own first. Its initial about:blank would have pushState() replace its
+        //     entry, and history.back() would then traverse the top-level traversable instead of the iframe.
         const iframe = document.createElement("iframe");
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = "child";
         document.body.append(iframe);
+        await loaded;
 
-        iframe.contentWindow.history.pushState({}, "", "about:blank#child");
+        const lengthBeforePush = history.length;
+        iframe.contentWindow.history.pushState({}, "", "about:srcdoc#child");
         await internals.flushSessionHistoryTraversalQueue();
+        println(`pushState() added an entry: ${history.length === lengthBeforePush + 1}`);
 
         iframe.contentWindow.history.back();
         iframe.remove();
