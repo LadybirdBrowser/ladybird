@@ -1439,6 +1439,12 @@ void WebContentPage::did_change_focused_navigable(Web::HTML::CrossProcessId navi
 
 void WebContentPage::did_request_key_event_for_testing(Web::KeyEvent event)
 {
+    // NB: The event enters the tab's input path as the user's own, reaching the focused navigable in whatever process
+    //     hosts it and granting user activation, so only automation may ask for one.
+    if (!WebContentClient::renderers_may_synthesize_input()) {
+        client().did_misbehave("did_request_key_event_for_testing"sv, "not driven by WebDriver or a test"sv);
+        return;
+    }
     view().enqueue_input_event(move(event));
 }
 
@@ -2482,6 +2488,11 @@ void WebContentPage::did_update_session_history_entry_scroll_restoration_mode(We
 
 void WebContentPage::did_request_webdriver_mouse_event(u64 request_id, Web::HTML::CrossProcessId local_root_id, Web::MouseEvent event)
 {
+    // NB: As for a key event for testing, the event is dispatched as the user's own.
+    if (!WebContentClient::renderers_may_synthesize_input()) {
+        client().did_misbehave("did_request_webdriver_mouse_event"sv, "not driven by WebDriver or a test"sv);
+        return;
+    }
     auto on_handled = [page = NonnullRefPtr<WebContentPage>(*this), request_id]() {
         page->async_did_handle_webdriver_mouse_event(request_id);
     };
