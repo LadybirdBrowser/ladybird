@@ -60,13 +60,11 @@ private:
     };
 
     void create_playback_stream();
-    void publish_clock_anchor(MonotonicTime now) const;
     bool effectively_paused() const;
     void update_playback_stream_state();
     void resume_playback_stream();
     void pause_playback_stream();
     void resume_input_from_suspension();
-    i64 played_output_frame_index() const;
     void dispatch_waiting_status_once_played_out();
 
     Core::EventLoop& m_main_thread_event_loop;
@@ -78,12 +76,9 @@ private:
     StreamState m_stream_state { StreamState::Suspended };
     double m_volume { 1 };
 
-    AK::Duration m_anchor_stream_time;
-    i64 m_anchor_output_frame_index { 0 };
     Optional<AK::Duration> m_seek_target_awaiting_drain;
 
     NonnullRefPtr<OutputThreadData> m_output_thread_data;
-    RefPtr<Core::Timer> m_clock_refresh_timer;
     RefPtr<Core::Timer> m_played_out_timer;
     MediaTimeReader m_time_reader;
 };

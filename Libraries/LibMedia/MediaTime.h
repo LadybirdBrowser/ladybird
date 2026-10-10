@@ -154,6 +154,19 @@ public:
     AK::Duration current_time() const { return current_time(MonotonicTime::now()); }
     AK::Duration current_time(MonotonicTime now) const { return time_state(now).time; }
 
+    // The output frame playing now, extrapolated from the audio anchor. Empty until audio has anchored the clock.
+    Optional<i64> output_frame_index(MonotonicTime now) const
+    {
+        auto maybe_record = m_data->record.read();
+        if (!maybe_record.has_value() || maybe_record.value().mode != MediaTimeMode::AudioDriven)
+            return {};
+        auto const& record = maybe_record.value();
+        auto frame_index = record.anchor_output_frame_index;
+        if (record.playing)
+            frame_index += AK::Duration::from_nanoseconds(now.nanoseconds() - record.anchor_monotonic_nanoseconds).to_time_units(1, record.sample_rate);
+        return frame_index;
+    }
+
     // The time and whether it is advancing, from a single consistent read of the clock record.
     TimeState time_state(MonotonicTime now) const
     {
