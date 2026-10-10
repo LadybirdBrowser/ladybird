@@ -1002,7 +1002,7 @@ impl FreshTransitionSample {
                     identity: effect.identity,
                     generation: 0,
                 },
-                current_key: timing.key(0.0)?,
+                current_key: timing.key(Some(0.0))?,
             });
         }
         if composed.is_empty() {
@@ -1063,7 +1063,7 @@ impl FreshTransitionSample {
             .zip(&self.keys)
             .all(|(((_, timing), effect), key)| {
                 timing
-                    .key(effect.current_key)
+                    .key(effect.current_key.into())
                     .is_some_and(|host_key| host_key.to_bits() == key.to_bits())
             });
         if !samples_alike {

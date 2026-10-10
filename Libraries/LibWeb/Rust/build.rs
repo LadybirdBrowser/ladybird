@@ -2709,6 +2709,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     expose_css_pixel_types_as_web_types(&mut computed_values_config);
     // An effect the host samples carries its easing as the compositing crate describes one.
     expose_compositing_types_as_cpp_types(&mut computed_values_config);
+    computed_values_config.export.exclude.push("OptionalF64".to_string());
+    computed_values_config
+        .export
+        .rename
+        .insert("OptionalF64".to_string(), "Optional<double>".to_string());
+    computed_values_config.includes.push("AK/Optional.h".to_string());
     computed_values_config.export.rename.insert(
         "DeclarationBlockData".to_string(),
         "Web::CSS::Parser::ValueParserFFI::DeclarationBlockData".to_string(),

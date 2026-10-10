@@ -418,7 +418,7 @@ impl AnimationEffectDescriptions {
         identity: u64,
         timing: &FfiEffectTiming,
         easing: &FfiEasingDescriptor,
-        host_key: f64,
+        host_key: Option<f64>,
     ) -> Option<f64> {
         let effect = self
             .rows

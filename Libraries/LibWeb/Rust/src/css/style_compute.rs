@@ -5408,6 +5408,21 @@ pub struct FfiEffectTiming {
     pub iteration_start: f64,
 }
 
+/// ABI mirror of `AK::Optional<double>`.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct OptionalF64 {
+    value: std::mem::MaybeUninit<f64>,
+    has_value: bool,
+}
+
+impl From<OptionalF64> for Option<f64> {
+    fn from(value: OptionalF64) -> Self {
+        // SAFETY: The host's Optional initializes its storage whenever it has a value.
+        value.has_value.then(|| unsafe { value.value.assume_init() })
+    }
+}
+
 /// One effect the host samples: which of the element's described effects it is, which version of
 /// it, and its timing, from which the engine computes how far along it is on the scale the host keys
 /// keyframes by. Where the engine cannot decide the timing, the host computes that key itself.
@@ -5418,7 +5433,7 @@ pub struct FfiSampledAnimationEffect {
     pub timing: FfiEffectTiming,
     pub easing: crate::css::easing::FfiEasingDescriptor,
     /// The host's key, for a timing the engine cannot decide.
-    pub current_key: f64,
+    pub current_key: OptionalF64,
 }
 
 /// The length-resolution contexts keyframe values compute in: a font's, a line height's, and every
@@ -5818,7 +5833,7 @@ unsafe fn host_sampled_effects(
                     effect.identity,
                     &effect.timing,
                     &effect.easing,
-                    effect.current_key,
+                    effect.current_key.into(),
                 )
             };
             let description = engine

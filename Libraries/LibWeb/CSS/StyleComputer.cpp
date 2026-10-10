@@ -700,12 +700,10 @@ NonnullOwnPtr<StyleComputer::AnimationSample> StyleComputer::begin_animation_sam
         if (!animation)
             continue;
         auto timing = style_engine_effect_timing(*effect, *animation);
-        double current_key = 0;
+        Optional<double> current_key;
         if (!timing.decidable) {
-            auto output_progress = effect->transformed_progress();
-            if (!output_progress.has_value())
-                continue;
-            current_key = clamp(*output_progress * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor, static_cast<double>(NumericLimits<i64>::min()), static_cast<double>(NumericLimits<i64>::max()));
+            if (auto output_progress = effect->transformed_progress(); output_progress.has_value())
+                current_key = clamp(*output_progress * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor, static_cast<double>(NumericLimits<i64>::min()), static_cast<double>(NumericLimits<i64>::max()));
         }
         easing_points.unchecked_append({});
         sampled_effects.unchecked_append({
