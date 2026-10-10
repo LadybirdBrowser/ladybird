@@ -21,6 +21,9 @@ pub struct ExecutableHead {
     pub asm_constants_data: Cell<*const Value>,
     pub bytecode_data: Cell<*const u8>,
     pub bytecode_size: Cell<usize>,
+    /// Which of the VM's dispatch tables (see `VmHead::dispatch_tables`) the interpreter runs this executable's frames
+    /// with, which it switches to whenever it enters one of them.
+    pub dispatch_table_index: Cell<u8>,
     pub constants: InterpreterBuffer<Value>,
     pub property_lookup_caches: InterpreterBuffer<PropertyLookupCache>,
     pub global_variable_caches: InterpreterBuffer<GlobalVariableCache>,

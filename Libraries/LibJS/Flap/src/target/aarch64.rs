@@ -866,14 +866,22 @@ fn generate_entry_point(out: &mut String, program: &Program, fmt: ObjectFormat) 
     emit_ldr64(out, "x24", "x3", heap_region_base);
     emit_ldr64(out, "x28", "x3", interp_ctx);
     w!(out, "    // x28 = exec_ctx");
-    let vm_breakpoint_controller = runtime[KnownLayoutConstant::VmBreakpointController];
-    emit_ldr64(out, "x9", "x3", vm_breakpoint_controller);
-    w!(out, "    cbz x9, .Lnormal_dispatch_table");
-    emit_symbol_addr(out, "x19", "asm_debug_dispatch_table", fmt);
-    w!(out, "    b .Ldispatch_table_ready");
-    w!(out, ".Lnormal_dispatch_table:");
-    emit_symbol_addr(out, "x19", "asm_dispatch_table", fmt);
-    w!(out, ".Ldispatch_table_ready:");
+    // Every executable names the dispatch table its frames run with, so the
+    // handlers reload it whenever they switch to another frame.
+    let exec_executable = runtime[KnownLayoutConstant::ExecutionContextExecutable];
+    let dispatch_table_index = runtime[KnownLayoutConstant::ExecutableDispatchTableIndex];
+    let vm_dispatch_tables = runtime[KnownLayoutConstant::VmDispatchTables];
+    let dispatch_table_index_mask = runtime[KnownLayoutConstant::DispatchTableIndexMask];
+    emit_ldr64(out, "x10", "x28", exec_executable);
+    if (0..=4095).contains(&dispatch_table_index) {
+        w!(out, "    ldrb w10, [x10, #{dispatch_table_index}]");
+    } else {
+        emit_add_imm(out, "x10", "x10", dispatch_table_index);
+        w!(out, "    ldrb w10, [x10]");
+    }
+    w!(out, "    and w10, w10, #{dispatch_table_index_mask}");
+    emit_add_imm(out, "x11", "x3", vm_dispatch_tables);
+    w!(out, "    ldr x19, [x11, x10, lsl #3]");
     w!(out, "    // x19 = dispatch table");
     // Pin canonical NaN bits in d8 (callee-saved FP register).
     // Used by canonicalize_nan to avoid materializing the constant each time.
@@ -1282,6 +1290,9 @@ mod tests {
                     ("EXECUTION_CONTEXT_EXECUTABLE".into(), 16),
                     ("EXECUTION_CONTEXT_PROGRAM_COUNTER".into(), 20),
                     ("EXECUTABLE_BYTECODE_DATA".into(), 24),
+                    ("EXECUTABLE_DISPATCH_TABLE_INDEX".into(), 32),
+                    ("VM_DISPATCH_TABLES".into(), 40),
+                    ("DISPATCH_TABLE_INDEX_MASK".into(), 7),
                     ("SIZEOF_EXECUTION_CONTEXT".into(), 32),
                 ]),
             ),
@@ -1319,8 +1330,13 @@ mod tests {
         assert!(output.contains("    .seh_startepilogue"));
         assert!(output.contains("    .seh_endepilogue"));
         assert!(output.contains("    .seh_endproc"));
-        assert!(output.contains("    adrp x19, asm_dispatch_table"));
-        assert!(output.contains("    add x19, x19, :lo12:asm_dispatch_table"));
+        assert!(output.contains("    adrp x10, asm_dispatch_table"));
+        assert!(output.contains("    add x10, x10, :lo12:asm_dispatch_table"));
+        // The entry runs the frame with the VM's dispatch table its
+        // executable names.
+        assert!(output.contains(
+            "    ldrb w10, [x10, #32]\n    and w10, w10, #7\n    add x11, x3, #40\n    ldr x19, [x11, x10, lsl #3]"
+        ));
         assert!(!output.contains(".p2align 4\nasm_handler_fallback:"));
         assert!(!output.contains(".p2align 4\nasm_handler_Call:"));
         assert!(!output.contains(".cfi_"));

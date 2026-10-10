@@ -325,6 +325,9 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.line("field VM.primitive_storage_cage_base u64 VM_PRIMITIVE_STORAGE_CAGE_BASE nonnull scalar");
     w.line("field VM.heap_region_base u64 VM_HEAP_REGION_BASE nonnull scalar");
     w.line("field VM.native_function_table Sequence<NativeFunctionTableEntry> VM_NATIVE_FUNCTION_TABLE_DATA nonnull scalar");
+    offset!(w, "VM_DISPATCH_TABLES", VmHead, dispatch_tables);
+    w.line("field VM.dispatch_tables Sequence<u64> VM_DISPATCH_TABLES embedded scalar");
+    w.constant("DISPATCH_TABLE_INDEX_MASK", DISPATCH_TABLE_INDEX_MASK);
     offset!(w, "VM_INTERPRETER_STACK_TOP", VmHead, interpreter_stack.top);
     offset!(w, "VM_INTERPRETER_STACK_LIMIT", VmHead, interpreter_stack.limit);
     offset!(w, "VM_INTERPRETER_STACK_NEXT_FRAME_ID", VmHead, interpreter_stack.next_frame_id);
@@ -357,6 +360,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.line("field IndexedElements.capacity u32 INDEXED_ELEMENTS_CAPACITY nullable scalar");
     offset!(w, "EXECUTABLE_BYTECODE_DATA", ExecutableHead, bytecode_data);
     w.line("field Executable.bytecode_data u64 EXECUTABLE_BYTECODE_DATA nonnull scalar");
+    field!(w, "EXECUTABLE_DISPATCH_TABLE_INDEX", "Executable.dispatch_table_index", "u8", ExecutableHead, dispatch_table_index, 1, "nullable", "scalar");
     offset!(w, "EXECUTABLE_PROPERTY_LOOKUP_CACHES_DATA", ExecutableHead, property_lookup_caches.data);
     w.line("field Executable.property_lookup_caches PropertyLookupCaches EXECUTABLE_PROPERTY_LOOKUP_CACHES_DATA nonnull scalar");
     offset!(w, "EXECUTABLE_GLOBAL_VARIABLE_CACHES_DATA", ExecutableHead, global_variable_caches.data);

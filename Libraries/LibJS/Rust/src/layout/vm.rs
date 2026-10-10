@@ -30,6 +30,12 @@ pub struct ExecutionContextStackEntry {
     pub previous_running_execution_context: Cell<*mut ExecutionContext>,
 }
 
+/// How many dispatch tables the VM has, a power of two (see `VmHead::dispatch_tables`).
+pub const DISPATCH_TABLE_COUNT: usize = 8;
+
+/// An executable's dispatch table index is masked with this, which keeps it inside the VM's dispatch tables.
+pub const DISPATCH_TABLE_INDEX_MASK: u8 = (DISPATCH_TABLE_COUNT - 1) as u8;
+
 /// The part of the VM that the interpreter reads and writes. The rest of the VM follows it.
 #[repr(C)]
 pub struct VmHead {
@@ -55,6 +61,9 @@ pub struct VmHead {
     pub type_error_realm_override_depth: Cell<usize>,
     /// The entries of the VM's keyed property lookup cache, which stay where they are for as long as the VM lives.
     pub keyed_property_lookup_cache_entries: Cell<*const KeyedPropertyLookupCacheEntryLayout>,
+    /// The dispatch tables the interpreter runs frames with, by the dispatch table index of their executable (see
+    /// `ExecutableHead::dispatch_table_index`). Indices without a table of their own have the plain one.
+    pub dispatch_tables: [Cell<*const c_void>; DISPATCH_TABLE_COUNT],
 }
 
 /// The storage an embedder reserves to construct a Vm in place, and its alignment. build.rs cannot see the Vm, only its

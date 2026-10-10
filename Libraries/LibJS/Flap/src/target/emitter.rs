@@ -218,6 +218,11 @@ pub(crate) fn emit_dispatch_tables(out: &mut String, program: &MachineProgram) {
         ObjectFormat::Coff => w!(out, ".section .rdata,\"dr\""),
     }
     w!(out, ".p2align 3");
+    // The runtime picks a dispatch table for each executable (see
+    // VmDispatchTables), so both tables are global.
+    let dispatch_table = program.global_symbol("js_interpreter_dispatch_table");
+    w!(out, ".globl CSYM({dispatch_table})");
+    w!(out, "CSYM({dispatch_table}):");
     w!(out, "asm_dispatch_table:");
 
     let handler_names = program
@@ -236,6 +241,9 @@ pub(crate) fn emit_dispatch_tables(out: &mut String, program: &MachineProgram) {
     }
     w!(out);
 
+    let debug_dispatch_table = program.global_symbol("js_interpreter_debug_dispatch_table");
+    w!(out, ".globl CSYM({debug_dispatch_table})");
+    w!(out, "CSYM({debug_dispatch_table}):");
     w!(out, "asm_debug_dispatch_table:");
     for _ in 0..DISPATCH_TABLE_SIZE {
         w!(out, "    .quad asm_debugger_trampoline");

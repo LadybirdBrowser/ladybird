@@ -71,6 +71,9 @@ define_known_layout_constants! {
     ExecutionContextExecutable => "EXECUTION_CONTEXT_EXECUTABLE";
     ExecutionContextProgramCounter => "EXECUTION_CONTEXT_PROGRAM_COUNTER";
     ExecutableBytecodeData => "EXECUTABLE_BYTECODE_DATA";
+    ExecutableDispatchTableIndex => "EXECUTABLE_DISPATCH_TABLE_INDEX";
+    VmDispatchTables => "VM_DISPATCH_TABLES";
+    DispatchTableIndexMask => "DISPATCH_TABLE_INDEX_MASK";
     SizeOfExecutionContext => "SIZEOF_EXECUTION_CONTEXT";
     CanonicalNanBits => "CANON_NAN_BITS";
     HeapRegionOffsetMask => "HEAP_REGION_OFFSET_MASK";

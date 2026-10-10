@@ -45,7 +45,7 @@ use crate::layout::function_object::{
 use crate::layout::object::Object;
 use crate::layout::realm::Realm;
 use crate::layout::value::Value;
-use crate::layout::vm::{ExecutionContextStackEntry, InterpreterStack, VmHead};
+use crate::layout::vm::{DISPATCH_TABLE_COUNT, ExecutionContextStackEntry, InterpreterStack, VmHead};
 use crate::layout_forward::RawNativeFunctionPointer;
 use crate::lexical_path;
 use crate::runtime::abstract_operations::get_this_environment;
@@ -638,6 +638,7 @@ impl Vm {
                 type_error_realm_override: Cell::new(None),
                 type_error_realm_override_depth: Cell::new(0),
                 keyed_property_lookup_cache_entries: Cell::new(core::ptr::null()),
+                dispatch_tables: [const { Cell::new(core::ptr::null()) }; DISPATCH_TABLE_COUNT],
             },
             heap: OnceCell::new(),
             _interpreter_stack_memory: interpreter_stack_memory,
@@ -719,6 +720,7 @@ impl Vm {
         vm.head
             .keyed_property_lookup_cache_entries
             .set(vm.keyed_property_lookup_cache.entries_for_interpreter());
+        vm.update_dispatch_tables();
         let context = storage.cast();
         // SAFETY: The VM stays at this address until it is dropped, and it destroys the heap before anything else.
         let heap = unsafe { Heap::new(gather_roots, context, options.become_process_default_heap) };
@@ -1028,6 +1030,7 @@ impl Vm {
         let debugger = Rc::new(Debugger::new());
         self.head.debugger.set(Rc::as_ptr(&debugger).cast_mut().cast());
         *self.debugger.borrow_mut() = Some(debugger);
+        self.update_dispatch_tables();
     }
 
     pub fn disable_debugging(&self) {
@@ -1037,6 +1040,7 @@ impl Vm {
         }
         self.head.debugger.set(core::ptr::null_mut());
         drop(debugger);
+        self.update_dispatch_tables();
     }
 
     #[inline]
