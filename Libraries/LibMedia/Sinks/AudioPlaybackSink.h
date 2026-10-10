@@ -46,6 +46,7 @@ public:
     virtual void seek(AK::Duration) override;
     // Replaces the queued output with data read again from the input, without moving the clock.
     void reseek_input_keeping_clock();
+    void reseek_input_continuing_at_output_frame(Optional<i64> output_frame);
 
     virtual void set_playback_rate(float) override;
 
@@ -76,7 +77,7 @@ private:
     StreamState m_stream_state { StreamState::Suspended };
     double m_volume { 1 };
 
-    Optional<AK::Duration> m_seek_target_awaiting_drain;
+    Optional<AK::Duration> m_seek_target_awaiting_discard;
 
     NonnullRefPtr<OutputThreadData> m_output_thread_data;
     RefPtr<Core::Timer> m_played_out_timer;
