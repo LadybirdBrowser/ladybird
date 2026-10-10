@@ -100,7 +100,10 @@ struct TestServer {
 
         // NB: Associated data can be stored only for an entry that exists.
         auto request_headers = HTTP::HeaderList::create();
-        return MUST(disk_cache->store_associated_data(*network_isolation_key.disk_cache_partition(), url, "GET"sv, *request_headers, 0, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, "data"sv.bytes()));
+        auto stored = MUST(disk_cache->store_associated_data(*network_isolation_key.disk_cache_partition(), url, "GET"sv, *request_headers, 0, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, "data"sv.bytes()));
+        if (stored.has_value())
+            (void)Core::System::close(stored->fd);
+        return stored.has_value();
     }
 
     void start_request(u64 request_id, StringView url, HTTP::NetworkIsolationKey const& network_isolation_key)

@@ -10,6 +10,7 @@
 #include <AK/NumericLimits.h>
 #include <AK/Utf16String.h>
 #include <AK/kmalloc.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibCrypto/Hash/SHA2.h>
@@ -178,33 +179,69 @@ static Optional<BytecodeCacheContext> bytecode_cache_context_for_request(Fetch::
 // entirely on a background thread and never blocks the main thread on cache generation.
 // NB: The execution-path compile only eagerly generates top-level bytecode plus direct IIFEs. Retain a parse snapshot
 //     for the cache compilation, which compiles every nested function, instead of parsing the same source again. Once
-//     the blob is back on the main thread, try to install it into the live script/module before storing it.
+//     the blob is back on the main thread, store it, and install the cache's mapping of it into the live script/module.
 static void schedule_bytecode_cache_generation(JS::ParsedProgram cache_parse, NonnullRefPtr<JS::SourceCode const> original_source_code, JS::ProgramType type, BytecodeCacheContext cache_context, BytecodeCacheInstallTarget install_target, BytecodeCacheSourceHash source_hash)
 {
     VERIFY(cache_parse);
     auto& main_thread_event_loop = Core::EventLoop::current();
-    auto* callback = new Function<void(ByteBuffer, BytecodeCacheSourceHash)>(
-        [cache_context = move(cache_context), install_target = move(install_target), original_source_code = move(original_source_code), type](ByteBuffer blob, auto source_hash) mutable {
-            if (blob.is_empty()) {
+    auto* callback = new Function<void(Optional<Core::AnonymousBuffer>, BytecodeCacheSourceHash)>(
+        [cache_context = move(cache_context), install_target = move(install_target), original_source_code = move(original_source_code), type](Optional<Core::AnonymousBuffer> blob, auto source_hash) mutable {
+            if (!blob.has_value()) {
                 install_target.finish_generation_without_install();
                 return;
             }
 
-            auto immutable_blob = Core::ImmutableBytes::adopt(move(blob));
-            install_target.install_generated_bytecode_cache(type, original_source_code, source_hash, immutable_blob);
+            // The cache didn't take the blob (an uncacheable response, the cache disabled, or no RequestServer at all),
+            // so the script keeps a heap copy of it as the only copy there is.
+            auto install_heap_copy = [&]() -> Core::ImmutableBytes {
+                auto copy = ByteBuffer::copy(blob->bytes());
+                if (copy.is_error()) {
+                    install_target.finish_generation_without_install();
+                    return {};
+                }
+                auto heap_blob = Core::ImmutableBytes::adopt(copy.release_value());
+                install_target.install_generated_bytecode_cache(type, original_source_code, source_hash, heap_blob);
+                return heap_blob;
+            };
 
-            if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client())
+            if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client()) {
+                install_heap_copy();
                 return;
-            (void)ResourceLoader::the().request_client()->store_cache_associated_data(cache_context.network_isolation_key, cache_context.url, cache_context.method, *cache_context.request_headers, cache_context.vary_key, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, immutable_blob.bytes());
+            }
+
+            // Store the blob before installing it, and install the stored copy: that copy is a read-only mapping of the
+            // cache's file, so the bytes backing the script's executables are file-backed and reclaimable for the life
+            // of the script, exactly as they are when a later load reads the blob back from the cache. The shared
+            // buffer the blob arrived in goes to RequestServer as it is, and is unmapped once the store returns.
+            Core::ImmutableBytes installed_blob;
+            auto stored_blob = ResourceLoader::the().request_client()->store_cache_associated_data(cache_context.network_isolation_key, cache_context.url, cache_context.method, *cache_context.request_headers, cache_context.vary_key, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, *blob);
+            if (!stored_blob.is_error() && stored_blob.value().has_value()) {
+                installed_blob = stored_blob.release_value().release_value();
+                install_target.install_generated_bytecode_cache(type, original_source_code, source_hash, installed_blob);
+            } else {
+                installed_blob = install_heap_copy();
+            }
+            if (!installed_blob.is_valid())
+                return;
+
             auto memory_cache_partition = cache_context.network_isolation_key.has_value() ? cache_context.network_isolation_key->disk_cache_partition() : OptionalNone {};
             if (memory_cache_partition.has_value() && cache_context.memory_cache_request_headers)
-                Fetch::Fetching::update_javascript_bytecode_cache_in_http_memory_cache(*memory_cache_partition, cache_context.url, cache_context.method, *cache_context.memory_cache_request_headers, cache_context.vary_key, immutable_blob);
+                Fetch::Fetching::update_javascript_bytecode_cache_in_http_memory_cache(*memory_cache_partition, cache_context.url, cache_context.method, *cache_context.memory_cache_request_headers, cache_context.vary_key, installed_blob);
         });
 
     Threading::ThreadPool::the().submit([cache_parse = move(cache_parse), type, callback, &main_thread_event_loop, source_hash]() mutable {
-        ByteBuffer blob;
-        if (auto compiled = JS::CompiledProgram::compile_all_functions(move(cache_parse)))
-            blob = compiled.serialize_for_bytecode_cache(type, source_hash.bytes());
+        // The serialized blob crosses to the main thread in shared memory, which RequestServer then maps as it is, and
+        // the heap buffer it was serialized into dies here, on the thread that allocated it.
+        Optional<Core::AnonymousBuffer> blob;
+        if (auto compiled = JS::CompiledProgram::compile_all_functions(move(cache_parse))) {
+            auto serialized = compiled.serialize_for_bytecode_cache(type, source_hash.bytes());
+            if (!serialized.is_empty()) {
+                if (auto buffer = Core::AnonymousBuffer::create_with_size(serialized.size()); !buffer.is_error()) {
+                    memcpy(buffer.value().data<void>(), serialized.data(), serialized.size());
+                    blob = buffer.release_value();
+                }
+            }
+        }
 
         main_thread_event_loop.deferred_invoke([blob = move(blob), source_hash, callback]() mutable {
             (*callback)(move(blob), source_hash);

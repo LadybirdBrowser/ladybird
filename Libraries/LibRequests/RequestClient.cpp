@@ -13,21 +13,21 @@
 
 namespace Requests {
 
-static Optional<Core::ImmutableBytes> map_javascript_bytecode_file(int fd, u64 size)
+static Optional<Core::ImmutableBytes> map_cache_associated_data_file(int fd, u64 size)
 {
     ArmedScopeGuard close_fd = [fd] {
         (void)Core::System::close(fd);
     };
 
     if (!AK::is_within_range<size_t>(size)) {
-        dbgln("RequestClient: Received JavaScript bytecode cache file outside mappable range");
+        dbgln("RequestClient: Received cache associated data file outside mappable range");
         return {};
     }
 
     close_fd.disarm();
-    auto payload = Core::ImmutableBytes::map_from_fd_range_and_close(fd, "javascript bytecode cache"sv, 0, static_cast<size_t>(size));
+    auto payload = Core::ImmutableBytes::map_from_fd_range_and_close(fd, "cache associated data"sv, 0, static_cast<size_t>(size));
     if (payload.is_error()) {
-        dbgln("RequestClient: Failed to map JavaScript bytecode cache file: {}", payload.error());
+        dbgln("RequestClient: Failed to map cache associated data file: {}", payload.error());
         return {};
     }
 
@@ -100,13 +100,20 @@ RefPtr<Request> RequestClient::adopt_request(int source_client_id, u64 source_re
     return request;
 }
 
-ErrorOr<bool> RequestClient::store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const& network_isolation_key, URL::URL const& url, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, ReadonlyBytes data)
+ErrorOr<Optional<Core::ImmutableBytes>> RequestClient::store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const& network_isolation_key, URL::URL const& url, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, ReadonlyBytes data)
 {
     auto buffer = TRY(Core::AnonymousBuffer::create_with_size(data.size()));
     memcpy(buffer.data<void>(), data.data(), data.size());
+    return store_cache_associated_data(network_isolation_key, url, method, request_headers, vary_key, associated_data, move(buffer));
+}
 
+ErrorOr<Optional<Core::ImmutableBytes>> RequestClient::store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const& network_isolation_key, URL::URL const& url, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, Core::AnonymousBuffer data)
+{
     auto headers = request_headers.map([](auto const& headers) { return headers.headers(); }).value_or({});
-    return IPCProxy::store_cache_associated_data(network_isolation_key, url, method, headers, vary_key, associated_data, move(buffer));
+    auto response = IPCProxy::store_cache_associated_data(network_isolation_key, url, method, headers, vary_key, associated_data, move(data));
+    if (!response.file().has_value())
+        return Optional<Core::ImmutableBytes> {};
+    return map_cache_associated_data_file(response.take_file()->take_fd(), response.size());
 }
 
 ErrorOr<Optional<Core::AnonymousBuffer>> RequestClient::retrieve_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const& network_isolation_key, URL::URL const& url, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data)
@@ -224,7 +231,7 @@ void RequestClient::headers_became_available(u64 request_id, Vector<HTTP::Header
 {
     Optional<Core::ImmutableBytes> javascript_bytecode;
     if (javascript_bytecode_file.has_value())
-        javascript_bytecode = map_javascript_bytecode_file(javascript_bytecode_file->take_fd(), javascript_bytecode_size);
+        javascript_bytecode = map_cache_associated_data_file(javascript_bytecode_file->take_fd(), javascript_bytecode_size);
 
     if (auto request = m_requests.get(request_id); request.has_value())
         (*request)->did_receive_headers({}, HTTP::HeaderList::create(move(response_headers)), status_code, reason_phrase, move(javascript_bytecode), javascript_bytecode_cache_vary_key, cache_state);

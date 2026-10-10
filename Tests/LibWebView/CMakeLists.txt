@@ -270,6 +270,11 @@ if (BUILD_TESTING AND NOT WIN32)
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-shared-stylesheet-memory.py $<TARGET_FILE:WebDriver>
         )
         set_tests_properties(TestSharedStyleSheetMemory PROPERTIES TIMEOUT 180)
+        add_test(
+            NAME TestBytecodeCacheBlobIsFileBacked
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-bytecode-cache-blob-is-file-backed.py $<TARGET_FILE:WebDriver>
+        )
+        set_tests_properties(TestBytecodeCacheBlobIsFileBacked PROPERTIES TIMEOUT 120)
     endif()
 
     add_test(

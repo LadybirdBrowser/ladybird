@@ -8,6 +8,7 @@
 
 #include <AK/HashMap.h>
 #include <LibCore/AnonymousBuffer.h>
+#include <LibCore/ImmutableBytes.h>
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibHTTP/Cookie/IncludeCredentials.h>
@@ -61,7 +62,9 @@ public:
 
     RefPtr<WebSocket> websocket_connect(URL::URL const&, Optional<HTTP::NetworkIsolationKey> const&, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers);
 
-    ErrorOr<bool> store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const&, URL::URL const&, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData, ReadonlyBytes);
+    // Stores the data in the HTTP cache, and returns it mapped read-only from the cache's file, or nothing when it wasn't stored.
+    ErrorOr<Optional<Core::ImmutableBytes>> store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const&, URL::URL const&, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData, ReadonlyBytes);
+    ErrorOr<Optional<Core::ImmutableBytes>> store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const&, URL::URL const&, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData, Core::AnonymousBuffer);
     ErrorOr<Optional<Core::AnonymousBuffer>> retrieve_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const&, URL::URL const&, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData);
 
     ErrorOr<bool> create_synthetic_cache_entry(Optional<HTTP::NetworkIsolationKey> const&, URL::URL const&, ByteString const& method);

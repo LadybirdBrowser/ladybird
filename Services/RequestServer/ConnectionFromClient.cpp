@@ -670,19 +670,21 @@ void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::Req
 Messages::RequestServer::StoreCacheAssociatedDataResponse ConnectionFromClient::store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, Core::AnonymousBuffer data)
 {
     if (network_isolation_key.has_value() && !may_use_network_isolation_key(*network_isolation_key))
-        return false;
+        return { Optional<IPC::File> {}, 0 };
 
     auto partition = network_isolation_key.has_value() ? network_isolation_key->disk_cache_partition() : OptionalNone {};
     if (!m_disk_cache.has_value() || !partition.has_value() || !data.is_valid())
-        return false;
+        return { Optional<IPC::File> {}, 0 };
 
     auto result = m_disk_cache->store_associated_data(*partition, url, method, *HTTP::HeaderList::create(move(request_headers)), vary_key, associated_data, data.bytes());
     if (result.is_error()) {
         dbgln("Failed to store cache associated data for {}: {}", url, result.error());
-        return false;
+        return { Optional<IPC::File> {}, 0 };
     }
 
-    return result.value();
+    if (!result.value().has_value())
+        return { Optional<IPC::File> {}, 0 };
+    return { IPC::File::adopt_fd(result.value()->fd), result.value()->size };
 }
 
 Messages::RequestServer::RetrieveCacheAssociatedDataResponse ConnectionFromClient::retrieve_cache_associated_data(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data)

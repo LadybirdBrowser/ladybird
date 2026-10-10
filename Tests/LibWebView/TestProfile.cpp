@@ -279,7 +279,10 @@ TEST_CASE(profile_caches_are_isolated)
     {
         auto cache = TRY_OR_FAIL(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Normal, LexicalPath { first_profile.paths().cache })).release_value();
         EXPECT(TRY_OR_FAIL(cache.create_synthetic_entry(partition, url, "GET"sv)));
-        EXPECT(TRY_OR_FAIL(cache.store_associated_data(partition, url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())));
+        auto stored = TRY_OR_FAIL(cache.store_associated_data(partition, url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes()));
+        EXPECT(stored.has_value());
+        if (stored.has_value())
+            (void)Core::System::close(stored->fd);
     }
 
     {

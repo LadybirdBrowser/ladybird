@@ -25,7 +25,7 @@ endpoint RequestServer
 
     ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level) =|
 
-    store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, Core::AnonymousBuffer data) => (bool stored)
+    store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, Core::AnonymousBuffer data) => (Optional<IPC::File> file, u64 size)
     retrieve_cache_associated_data(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data) => (Optional<Core::AnonymousBuffer> data)
 
     create_synthetic_cache_entry(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method) => (bool created)

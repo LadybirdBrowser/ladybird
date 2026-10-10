@@ -52,7 +52,7 @@ public:
     };
     Variant<Optional<CacheEntryReader&>, CacheHasOpenEntry> open_entry(CacheRequest&, Utf16String const& partition, URL::URL const&, StringView method, HeaderList const& request_headers, CacheMode, OpenMode);
 
-    ErrorOr<bool> store_associated_data(Utf16String const& partition, URL::URL const&, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData, ReadonlyBytes);
+    ErrorOr<Optional<CacheEntryBodyFile>> store_associated_data(Utf16String const& partition, URL::URL const&, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData, ReadonlyBytes);
     ErrorOr<Optional<ByteBuffer>> retrieve_associated_data(Utf16String const& partition, URL::URL const&, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData);
     ErrorOr<Optional<CacheEntryBodyFile>> retrieve_associated_data_file(Utf16String const& partition, URL::URL const&, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData);
 

@@ -7,6 +7,7 @@
 #include <AK/ByteBuffer.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/System.h>
 #include <LibHTTP/Cache/CacheRequest.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/Cache/Utilities.h>
@@ -89,7 +90,10 @@ TEST_CASE(associated_data_round_trips_with_cache_entry)
     TRY_OR_FAIL(writer.flush(request_headers, response_headers));
 
     auto bytecode = TRY_OR_FAIL(ByteBuffer::copy("bytecode"sv.bytes()));
-    EXPECT(TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())));
+    auto stored = TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes()));
+    EXPECT(stored.has_value());
+    if (stored.has_value())
+        (void)Core::System::close(stored->fd);
 
     auto retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
     VERIFY(retrieved_bytecode.has_value());
@@ -121,7 +125,10 @@ TEST_CASE(replacing_cache_entry_removes_associated_data)
     TRY_OR_FAIL(writer.flush(request_headers, response_headers));
 
     auto bytecode = TRY_OR_FAIL(ByteBuffer::copy("bytecode"sv.bytes()));
-    EXPECT(TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())));
+    auto stored = TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes()));
+    EXPECT(stored.has_value());
+    if (stored.has_value())
+        (void)Core::System::close(stored->fd);
 
     auto retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
     VERIFY(retrieved_bytecode.has_value());
@@ -205,8 +212,11 @@ TEST_CASE(associated_data_round_trips_with_explicit_vary_key)
     TRY_OR_FAIL(writer.flush(request_headers, response_headers));
 
     auto bytecode = TRY_OR_FAIL(ByteBuffer::copy("bytecode"sv.bytes()));
-    EXPECT(!TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *mismatched_request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())));
-    EXPECT(TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *mismatched_request_headers, vary_key, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())));
+    EXPECT(!TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *mismatched_request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())).has_value());
+    auto stored = TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *mismatched_request_headers, vary_key, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes()));
+    EXPECT(stored.has_value());
+    if (stored.has_value())
+        (void)Core::System::close(stored->fd);
 
     auto retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(test_partition(), url, "GET"sv, *mismatched_request_headers, vary_key, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
     VERIFY(retrieved_bytecode.has_value());
@@ -229,7 +239,7 @@ TEST_CASE(associated_data_participates_in_cache_eviction)
 
     disk_cache.set_maximum_disk_cache_size(80);
     auto bytecode = TRY_OR_FAIL(ByteBuffer::create_zeroed(100));
-    EXPECT(!TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())));
+    EXPECT(!TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())).has_value());
 
     auto retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(test_partition(), url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
     EXPECT(!retrieved_bytecode.has_value());
@@ -271,7 +281,7 @@ TEST_CASE(cache_partitions_do_not_share_entries)
 
     auto bytecode = TRY_OR_FAIL(ByteBuffer::copy("bytecode"sv.bytes()));
     for (auto const& other_partition : { other_top_level_site, other_frame_site, subframe_document, cross_site_main_frame_navigation }) {
-        EXPECT(!TRY_OR_FAIL(disk_cache.store_associated_data(other_partition, url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())));
+        EXPECT(!TRY_OR_FAIL(disk_cache.store_associated_data(other_partition, url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())).has_value());
 
         disk_cache.open_entry(request, other_partition, url, "GET"sv, *request_headers, HTTP::CacheMode::Default, HTTP::DiskCache::OpenMode::Read)
             .visit(
@@ -281,7 +291,13 @@ TEST_CASE(cache_partitions_do_not_share_entries)
                 [](HTTP::DiskCache::CacheHasOpenEntry) {});
     }
 
-    EXPECT(TRY_OR_FAIL(disk_cache.store_associated_data(partition, url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())));
+    auto stored = TRY_OR_FAIL(disk_cache.store_associated_data(partition, url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes()));
+
+    EXPECT(stored.has_value());
+
+    if (stored.has_value())
+
+        (void)Core::System::close(stored->fd);
     for (auto const& other_partition : { other_top_level_site, other_frame_site, subframe_document, cross_site_main_frame_navigation })
         EXPECT(!TRY_OR_FAIL(disk_cache.retrieve_associated_data(other_partition, url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode)).has_value());
 
