@@ -1509,7 +1509,7 @@ impl RetainedState {
         identity: u64,
         timing: &crate::css::style_compute::FfiEffectTiming,
         easing: &crate::css::easing::FfiEasingDescriptor,
-        host_key: f64,
+        host_key: Option<f64>,
     ) -> Option<f64> {
         unsafe {
             self.animation_effect_descriptions

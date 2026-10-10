@@ -408,9 +408,8 @@ impl EffectTiming {
     /// the time the host sampled its timeline, or `host_key` where the engine cannot decide the timing,
     /// or none for an unresolved progress, which samples nothing.
     #[must_use]
-    pub(crate) fn key(&self, host_key: f64) -> Option<f64> {
-        self.key_at(AnimationTimelineSamples::default())
-            .unwrap_or(Some(host_key))
+    pub(crate) fn key(&self, host_key: Option<f64>) -> Option<f64> {
+        self.key_at(AnimationTimelineSamples::default()).unwrap_or(host_key)
     }
 
     /// The local time of the effect with its timeline at `samples`, or none where it is unresolved or the engine cannot
