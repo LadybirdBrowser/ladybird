@@ -431,14 +431,7 @@ impl EffectTiming {
         }
     }
 
-    /// The key the effect's keyframes are sampled at with its timeline at `samples`, which is
-    /// `AnimationEffect::transformed_progress()` scaled the way the host scales it. The outer `None` is
-    /// a timing the engine cannot decide; the inner one is an unresolved progress, which samples nothing.
-    ///
-    /// A mirror of `Animation::current_time_at()`, `AnimationEffect::resolve_timing()` and
-    /// `transformed_progress()` with everything under it.
-    #[must_use]
-    pub(crate) fn key_at(&self, samples: AnimationTimelineSamples<'_>) -> Option<Option<f64>> {
+    fn active_time_at(&self, samples: AnimationTimelineSamples<'_>) -> Option<(Phase, Option<f64>, f64)> {
         let timing = &self.timing;
         if !timing.decidable {
             return None;
@@ -500,9 +493,22 @@ impl EffectTiming {
             }
             _ => None,
         };
+        Some((phase, active_time, active_duration))
+    }
+
+    /// The key the effect's keyframes are sampled at with its timeline at `samples`, which is
+    /// `AnimationEffect::transformed_progress()` scaled the way the host scales it. The outer `None` is
+    /// a timing the engine cannot decide; the inner one is an unresolved progress, which samples nothing.
+    ///
+    /// A mirror of `Animation::current_time_at()`, `AnimationEffect::resolve_timing()` and
+    /// `transformed_progress()` with everything under it.
+    #[must_use]
+    pub(crate) fn key_at(&self, samples: AnimationTimelineSamples<'_>) -> Option<Option<f64>> {
+        let (phase, active_time, active_duration) = self.active_time_at(samples)?;
         let Some(active_time) = active_time else {
             return Some(None);
         };
+        let timing = &self.timing;
 
         // https://www.w3.org/TR/web-animations-1/#overall-progress
         let overall_progress = match timing.iteration_duration == 0.0 {
