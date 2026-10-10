@@ -9,6 +9,10 @@ body {
     padding: 20px;
     font-size: 14px;
     line-height: 1.5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 header {
@@ -51,13 +55,6 @@ fieldset {
     grid-template-columns: 38% minmax(0, 1fr);
     gap: 32px;
     padding: 16px 24px;
-    margin-bottom: 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-}
-
-.setup-section:last-child {
-    margin-bottom: 0;
 }
 
 .section-heading {
@@ -113,12 +110,12 @@ h2 {
 }
 
 .tab-option:has(:checked) {
-    border-color: var(--violet-100);
-    box-shadow: 0 0 0 1px var(--violet-100);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
 }
 
 .tab-option:has(:focus-visible) {
-    outline: 2px solid var(--violet-100);
+    outline: 2px solid var(--accent);
     outline-offset: 4px;
 }
 
@@ -133,7 +130,7 @@ input[type="radio"] {
     flex-shrink: 0;
     width: 20px;
     height: 20px;
-    accent-color: var(--violet-100);
+    accent-color: var(--accent);
 }
 
 .tab-option p {
@@ -221,36 +218,28 @@ select {
     border: 1px solid var(--border-color);
 }
 
-.checkbox-option {
-    display: grid;
-    grid-template-columns: 18px minmax(0, 1fr);
-    align-items: start;
-    gap: 12px;
-    cursor: pointer;
-}
-
-.checkbox-option input {
-    margin-top: 4px;
-}
-
-.checkbox-option:has(input:disabled) {
-    cursor: default;
-    color: var(--secondary-text-color);
-}
-
-.search-suggestions {
-    margin-top: 12px;
-}
-
-.blocking-toggle {
+.switch-option {
     display: flex;
     align-items: center;
     gap: 12px;
     cursor: pointer;
 }
 
-.blocking-toggle input {
+.switch-option:has(input:disabled) {
+    cursor: default;
+    color: var(--secondary-text-color);
+}
+
+.switch-option input {
     flex-shrink: 0;
+}
+
+.switch-option + .description {
+    margin-left: 62px;
+}
+
+select + .switch-option {
+    margin-top: 12px;
 }
 
 #content-blocker-lists {
@@ -278,14 +267,8 @@ select {
     font-size: 12px;
 }
 
-input[type="checkbox"]:focus-visible,
-button:focus-visible {
-    outline: 2px solid var(--violet-100);
-    outline-offset: 4px;
-}
-
 footer {
-    margin-top: 36px;
+    margin-top: 16px;
     text-align: center;
 }
 

@@ -18,7 +18,10 @@ SPDX-License-Identifier: BSD-2-Clause
     <body>
         <header>
             <div class="welcome-title">
-                <img src="resource://icons/128x128/app-browser.png" alt="" />
+                <picture>
+                    <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
+                    <img src="resource://icons/128x128/app-browser-dark.png" alt="" />
+                </picture>
                 <h1>Welcome to Ladybird</h1>
             </div>
             <p>Choose a few basics to get started. You can change these later in Settings.</p>
@@ -86,12 +89,18 @@ SPDX-License-Identifier: BSD-2-Clause
                         </div>
                         <div class="section-controls">
                             <select id="search-engine" aria-labelledby="search-engine-title">
-                                <option value="">Disabled</option>
+                                <option value="">Disable search</option>
                             </select>
-                            <label class="checkbox-option search-suggestions">
-                                <input id="search-suggestions-enabled" type="checkbox" />
+                            <label class="switch-option">
+                                <input
+                                    id="search-suggestions-enabled"
+                                    type="checkbox"
+                                    switch
+                                    aria-describedby="search-suggestions-description"
+                                />
                                 <span>Show search suggestions</span>
                             </label>
+                            <p id="search-suggestions-description" class="description"></p>
                         </div>
                     </section>
                     <section class="card setup-section" aria-labelledby="ad-blocking-title">
@@ -107,7 +116,7 @@ SPDX-License-Identifier: BSD-2-Clause
                             </div>
                         </div>
                         <div class="section-controls">
-                            <label class="blocking-toggle">
+                            <label class="switch-option">
                                 <input id="enable-content-blocking" type="checkbox" switch />
                                 <span>Enable ad blocking</span>
                             </label>
