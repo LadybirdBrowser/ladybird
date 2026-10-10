@@ -1,0 +1,58 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .parent { width: 200px; position: relative; }
+    .block { height: 10px; }
+    .inserted { width: 20px; height: 15px; }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const results = [];
+        const cases = [
+            ["in-flow block", "display: block"],
+            ["inline block", "display: inline-block"],
+            ["inline", "display: inline"],
+            ["absolute block", "display: block; position: absolute"],
+            ["fixed block", "display: block; position: fixed"],
+            ["float", "display: block; float: left"],
+        ];
+        const fixtures = [
+            ["trailing run", '<div class="block"></div><span>inline</span>', "append"],
+            ["middle run", '<div class="block"></div><span>inline</span><div class="block"></div>', "middle"],
+            ["prepend", '<div class="block"></div><span>inline</span>', "prepend"],
+            ["empty trailing run", '<div class="block"></div>', "append"],
+            ["two inline runs", '<span>first</span><div class="block"></div><span>last</span>', "append"],
+        ];
+        for (const [fixtureName, markup, insertion] of fixtures) {
+            for (const [name, style] of cases) {
+                fixture.innerHTML = `<div class="parent">${markup}</div>`;
+                const parent = fixture.firstElementChild;
+                const tracked = [parent, ...parent.children];
+                parent.getBoundingClientRect();
+                const identities = tracked.map(element => internals.layoutNodeIdentity(element));
+                const inserted = document.createElement("span");
+                inserted.className = "inserted";
+                inserted.style.cssText = style;
+                inserted.textContent = "new";
+                if (insertion === "middle")
+                    parent.insertBefore(inserted, parent.children[1]);
+                else if (insertion === "prepend")
+                    parent.prepend(inserted);
+                else
+                    parent.append(inserted);
+                parent.getBoundingClientRect();
+                const preserved = tracked.every((element, index) => internals.layoutNodeIdentity(element) === identities[index]);
+                const geometry = () => [...tracked, inserted].map(element => {
+                    const rect = element.getBoundingClientRect();
+                    return [rect.x, rect.y, rect.width, rect.height];
+                });
+                const incrementalGeometry = JSON.stringify(geometry());
+                const comparison = internals.compareLayoutTreeWithFullRebuild();
+                results.push(`${fixtureName}, ${name}: boxes preserved=${preserved}, tree matches=${comparison.matches}, geometry matches=${JSON.stringify(geometry()) === incrementalGeometry}`);
+            }
+        }
+        for (const result of results)
+            println(result);
+    });
+</script>

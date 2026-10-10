@@ -1,0 +1,54 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .parent { width: 180px; height: 80px; position: relative; border: 2px solid; }
+    .float { float: left; width: 30px; height: 200px; }
+    .child { margin-top: 12px; width: 240px; height: 120px; }
+    .positioned { position: absolute; left: 190px; top: 90px; width: 10px; height: 10px; }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const cases = [
+            ["block establishes a formatting context", "block", "visible", "hidden"],
+            ["block stops establishing a formatting context", "block", "hidden", "visible"],
+            ["block adds scrollbars", "block", "hidden", "scroll"],
+            ["block stops scrolling", "block", "auto", "clip"],
+            ["auto height starts containing floats", "block; height: auto", "visible", "hidden"],
+            ["auto height stops containing floats", "block; height: auto", "hidden", "visible"],
+            ["inline block", "inline-block", "visible", "auto"],
+            ["inline", "inline", "visible", "hidden"],
+            ["flex", "flex", "visible", "hidden"],
+            ["grid", "grid", "hidden", "visible"],
+            ["table", "table", "visible", "hidden"],
+            ["table cell", "table-cell", "visible", "auto"],
+        ];
+        const results = [];
+        for (const [name, display, before, after] of cases) {
+            fixture.innerHTML = '<div class="parent"><div class="float"></div><span>inline</span><div class="child">content</div><span class="positioned"></span></div>';
+            const parent = fixture.firstElementChild;
+            parent.style.cssText = `display: ${display}; overflow: ${before}`;
+            const tracked = [parent, ...parent.children];
+            parent.getBoundingClientRect();
+            const identities = tracked.map(element => internals.layoutNodeIdentity(element));
+            parent.style.overflow = after;
+            parent.getBoundingClientRect();
+            const preserved = tracked.every((element, index) => internals.layoutNodeIdentity(element) === identities[index]);
+            const geometry = () => tracked.map(element => {
+                const rect = element.getBoundingClientRect();
+                return [rect.x, rect.y, rect.width, rect.height, element.scrollWidth, element.scrollHeight];
+            });
+            const hit = () => {
+                const rect = parent.getBoundingClientRect();
+                return tracked.indexOf(document.elementFromPoint(rect.x + 195, rect.y + 95));
+            };
+            const incrementalHit = hit();
+            const incrementalGeometry = JSON.stringify(geometry());
+            const comparison = internals.compareLayoutTreeWithFullRebuild();
+            results.push(`${name}: boxes preserved=${preserved}, tree matches=${comparison.matches}, geometry matches=${JSON.stringify(geometry()) === incrementalGeometry}, hit matches=${hit() === incrementalHit}`);
+        }
+        for (const result of results)
+            println(result);
+    });
+</script>

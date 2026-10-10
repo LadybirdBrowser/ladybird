@@ -1,0 +1,12 @@
+block establishes a formatting context: boxes preserved=false, tree matches=true, geometry matches=true, hit matches=true
+block stops establishing a formatting context: boxes preserved=false, tree matches=true, geometry matches=true, hit matches=true
+block adds scrollbars: boxes preserved=false, tree matches=true, geometry matches=true, hit matches=true
+block stops scrolling: boxes preserved=false, tree matches=true, geometry matches=true, hit matches=true
+auto height starts containing floats: boxes preserved=false, tree matches=true, geometry matches=true, hit matches=true
+auto height stops containing floats: boxes preserved=false, tree matches=true, geometry matches=true, hit matches=true
+inline block: boxes preserved=false, tree matches=true, geometry matches=true, hit matches=true
+inline: boxes preserved=false, tree matches=true, geometry matches=true, hit matches=true
+flex: boxes preserved=false, tree matches=true, geometry matches=true, hit matches=true
+grid: boxes preserved=false, tree matches=true, geometry matches=true, hit matches=true
+table: boxes preserved=false, tree matches=true, geometry matches=true, hit matches=true
+table cell: boxes preserved=false, tree matches=true, geometry matches=true, hit matches=true

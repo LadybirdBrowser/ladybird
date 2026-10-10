@@ -1,0 +1,12 @@
+block, display: block: boxes preserved=false, tree matches=true, geometry matches=true
+block, display: inline: boxes preserved=false, tree matches=true, geometry matches=true
+block, position: absolute: boxes preserved=false, tree matches=true, geometry matches=true
+block, float: left: boxes preserved=false, tree matches=true, geometry matches=true
+flex, display: block: boxes preserved=false, tree matches=true, geometry matches=true
+flex, display: inline: boxes preserved=false, tree matches=true, geometry matches=true
+flex, position: absolute: boxes preserved=false, tree matches=true, geometry matches=true
+flex, float: left: boxes preserved=false, tree matches=true, geometry matches=true
+grid, display: block: boxes preserved=false, tree matches=true, geometry matches=true
+grid, display: inline: boxes preserved=false, tree matches=true, geometry matches=true
+grid, position: absolute: boxes preserved=false, tree matches=true, geometry matches=true
+grid, float: left: boxes preserved=false, tree matches=true, geometry matches=true
