@@ -12,6 +12,7 @@ pub mod allocation;
 pub mod calls;
 pub mod code;
 pub mod compile_queue;
+pub mod dependencies;
 pub mod dispatch_tables;
 pub mod entry_exit;
 pub mod entry_table;
@@ -164,6 +165,8 @@ pub struct JitState {
     /// With the "stress-install" option, the results of finished compile jobs that are not installed yet, with how
     /// many more tier-up checks they wait for.
     held_compile_results: RefCell<Vec<(u32, u64, CompileResult)>>,
+    /// With the "stress-invalidate" option, how many more tier-up checks happen before the next invalidation.
+    stress_invalidation_countdown: Cell<u32>,
     /// With the "coverage" option, how often each coverage key was counted.
     coverage: RefCell<BTreeMap<String, u64>>,
     /// The dispatch table of executables that warm up, see `InterpreterTier::WarmingUp`. Only built while the
@@ -190,6 +193,12 @@ pub struct JitState {
     /// The call stub JIT code shares (see `libjs_jit::codegen::generate_call_stub()`), generated the first time a
     /// compile job needs it, if there is one.
     call_stub: OnceCell<Option<ExecutableMemory>>,
+    /// The installed code that depends on things staying as they are.
+    pub(crate) dependents: dependencies::Dependents,
+    /// The id the next installed code gets (see `JitCode::id()`).
+    next_code_id: Cell<u64>,
+    /// Whether an object with the `[[IsHTMLDDA]]` internal slot was ever made.
+    pub(crate) htmldda_objects_exist: Cell<bool>,
 }
 
 impl JitState {
@@ -205,6 +214,7 @@ impl JitState {
             .enabled
             .then(|| entry_table::JitEntryTable::new(not_compiled_call_entry()));
         let stress_random = StressRandom::new(options.seed);
+        let stress_invalidation_countdown = Cell::new(options.stress_invalidate);
         let stress_exit_countdown = Box::new(Cell::new(0));
         if options.stress_exits != 0 {
             stress_exit_countdown.set(stress_random.between(1, options.stress_exits));
@@ -214,6 +224,7 @@ impl JitState {
             stress_random,
             stress_exit_countdown,
             held_compile_results: RefCell::default(),
+            stress_invalidation_countdown,
             coverage: RefCell::default(),
             warming_up_dispatch_table,
             unprofiled_dispatch_table,
@@ -226,12 +237,26 @@ impl JitState {
             slow_paths: OnceCell::new(),
             entry_trampoline: OnceCell::new(),
             call_stub: OnceCell::new(),
+            dependents: dependencies::Dependents::default(),
+            next_code_id: Cell::new(1),
+            htmldda_objects_exist: Cell::new(false),
         }
     }
 
     /// Whether the interpreter collects feedback and counts down tier-up budgets.
     pub fn collects_feedback(&self) -> bool {
         self.options.collects_feedback()
+    }
+
+    pub(crate) fn htmldda_objects_exist(&self) -> bool {
+        self.htmldda_objects_exist.get()
+    }
+
+    /// An id for code to be installed, which no other code of the VM has.
+    pub(crate) fn next_code_id(&self) -> u64 {
+        let id = self.next_code_id.get();
+        self.next_code_id.set(id + 1);
+        id
     }
 
     /// The address of the countdown JIT code exits at with the "stress-exits" option, or 0 without it.
@@ -275,6 +300,21 @@ impl JitState {
             index += 1;
         }
         install
+    }
+
+    /// Whether the "stress-invalidate" option wants an invalidation at this tier-up check.
+    pub(crate) fn take_stress_invalidation(&self) -> bool {
+        if self.options.stress_invalidate == 0 {
+            return false;
+        }
+        let countdown = self.stress_invalidation_countdown.get().saturating_sub(1);
+        if countdown != 0 {
+            self.stress_invalidation_countdown.set(countdown);
+            return false;
+        }
+        self.stress_invalidation_countdown
+            .set(self.stress_random.between(1, self.options.stress_invalidate));
+        true
     }
 
     /// With the "coverage" option, counts `key`: what compiled code contained when it was installed (see

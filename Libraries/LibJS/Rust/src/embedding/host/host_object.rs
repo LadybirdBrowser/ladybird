@@ -405,7 +405,7 @@ impl HostObject {
             prototype,
             MayInterfereWithIndexedPropertyAccess::No,
         );
-        copy_host_class_flags_into_object(table, &base);
+        copy_host_class_flags_into_object(vm, table, &base);
         let host_object = HostObject {
             base,
             host_class: table,

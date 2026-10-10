@@ -155,7 +155,7 @@ impl HostArray {
         let (class, allocator) = runtime_class_and_allocator_of_host_class(vm, table, JS_HOST_CLASS_ARRAY);
         let prototype = prototype.unwrap_or_else(|| realm.intrinsics().array_prototype(vm));
         let base = Array::new_with_class(vm, class, realm, prototype);
-        copy_host_class_flags_into_object(table, &base);
+        copy_host_class_flags_into_object(vm, table, &base);
         let array = HostArray {
             base,
             host_class: table,

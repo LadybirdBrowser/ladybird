@@ -62,7 +62,7 @@ impl IsHTMLDDA {
             Utf16FlyString::from_utf8("IsHTMLDDA"),
             realm.function_prototype(),
         );
-        base.set_is_htmldda();
+        base.set_is_htmldda(vm);
         realm.create_object(vm, IsHTMLDDA { base })
     }
 

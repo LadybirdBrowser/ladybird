@@ -17,6 +17,7 @@ use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak::GcWeak;
 use crate::interpreter::vm::Vm;
+use crate::jit::dependencies::{CellId, Dependency};
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::object::Object;
 use crate::layout::property_lookup_cache::ObjectPropertyIteratorCacheData;
@@ -56,8 +57,16 @@ impl PrototypeChainValidity {
         self.valid.get()
     }
 
-    pub fn set_valid(&self, valid: bool) {
-        self.valid.set(valid);
+    /// Marks the prototype chain as changed, which invalidates the JIT code that depends on it staying as it was.
+    pub fn invalidate(&self, vm: &Vm) {
+        if !self.is_valid() {
+            return;
+        }
+        self.valid.set(false);
+        crate::jit::dependencies::invalidate_dependents(
+            vm,
+            Dependency::PrototypeChainValid(CellId(core::ptr::from_ref(self) as u64)),
+        );
     }
 }
 
@@ -73,6 +82,10 @@ mod shape_flag {
     pub const TO_STRING_TAG_KNOWN: u8 = 1 << 4;
     /// Whether the shape has a @@toStringTag property.
     pub const HAS_TO_STRING_TAG: u8 = 1 << 5;
+    /// An object may have left the shape (see `Shape::is_stable()`).
+    pub const UNSTABLE: u8 = 1 << 6;
+    /// JIT code depends on the shape staying stable.
+    pub const HAS_DEPENDENT_CODE: u8 = 1 << 7;
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -377,6 +390,7 @@ impl Shape {
     }
 
     pub fn create_dictionary_transition(&self, vm: &Vm) -> Gc<Shape> {
+        self.mark_unstable(vm);
         let new_shape = Self::create(vm, self.realm());
         new_shape.become_dictionary_shape();
         new_shape
@@ -539,6 +553,7 @@ impl Shape {
         property_key: &PropertyKey,
         attributes: PropertyAttributes,
     ) -> Gc<Shape> {
+        self.mark_unstable(vm);
         let key = TransitionKey {
             property_key: property_key.clone(),
             attributes,
@@ -579,6 +594,7 @@ impl Shape {
         property_key: &PropertyKey,
         attributes: PropertyAttributes,
     ) -> Gc<Shape> {
+        self.mark_unstable(vm);
         let key = TransitionKey {
             property_key: property_key.clone(),
             attributes,
@@ -600,6 +616,7 @@ impl Shape {
     }
 
     pub fn create_prototype_transition(&self, vm: &Vm, new_prototype: Option<Gc<Object>>) -> Gc<Shape> {
+        self.mark_unstable(vm);
         // NB: Dictionary shapes change in place, and prototype shapes have no cached transitions.
         let cache = (!self.is_dictionary() && !self.is_prototype_shape()).then(|| vm.prototype_transition_cache());
         let prototype = prototype_address(new_prototype);
@@ -638,6 +655,7 @@ impl Shape {
     }
 
     pub fn create_delete_transition(&self, vm: &Vm, property_key: &PropertyKey) -> Gc<Shape> {
+        self.mark_unstable(vm);
         if let Some(existing_shape) = self.get_or_prune_cached_delete_transition(property_key) {
             return existing_shape;
         }
@@ -840,6 +858,7 @@ impl Shape {
     }
 
     pub fn clone_for_prototype(&self, vm: &Vm) -> Gc<Shape> {
+        self.mark_unstable(vm);
         assert!(!self.is_prototype_shape());
         assert!(self.prototype_chain_validity.get().is_none());
         let new_shape = Self::create(vm, self.realm());
@@ -892,7 +911,7 @@ impl Shape {
             return;
         }
         new_prototype_shape.set_prototype_shape(vm);
-        self.prototype_shape_validity().set_valid(false);
+        self.prototype_shape_validity().invalidate(vm);
 
         self.invalidate_all_prototype_chains_leading_to_this(vm);
 
@@ -914,7 +933,7 @@ impl Shape {
         if !self.is_prototype_shape() {
             return;
         }
-        self.prototype_shape_validity().set_valid(false);
+        self.prototype_shape_validity().invalidate(vm);
         self.prototype_chain_validity
             .set(Some(PrototypeChainValidity::create(vm)));
 
@@ -965,7 +984,7 @@ impl Shape {
 
         for index in 0..shapes_to_invalidate.len() {
             let shape: Gc<Shape> = shapes_to_invalidate.get(index).expect("the index is in bounds");
-            shape.prototype_shape_validity().set_valid(false);
+            shape.prototype_shape_validity().invalidate(vm);
             shape
                 .prototype_chain_validity
                 .set(Some(PrototypeChainValidity::create(vm)));
@@ -974,6 +993,34 @@ impl Shape {
 
     pub fn is_dictionary(&self) -> bool {
         self.flags.get() & shape_flag::DICTIONARY != 0
+    }
+
+    /// Whether no object has left the shape, so that objects that have it keep it (V8's stable maps). Objects leave a
+    /// shape over a transition away from it, so creating one makes the shape unstable, as does an object adopting
+    /// another shape. Dictionary shapes change in place and are never stable. JIT code may depend on objects keeping a
+    /// stable shape (see `Dependency::StableShape`).
+    pub fn is_stable(&self) -> bool {
+        self.flags.get() & (shape_flag::UNSTABLE | shape_flag::DICTIONARY) == 0
+    }
+
+    /// Notes that an object may leave the shape, which invalidates the JIT code that depends on it staying stable.
+    pub fn mark_unstable(&self, vm: &Vm) {
+        let flags = self.flags.get();
+        if flags & shape_flag::UNSTABLE != 0 {
+            return;
+        }
+        self.flags.set(flags | shape_flag::UNSTABLE);
+        if flags & shape_flag::HAS_DEPENDENT_CODE != 0 {
+            crate::jit::dependencies::invalidate_dependents(
+                vm,
+                Dependency::StableShape(CellId(core::ptr::from_ref(self) as u64)),
+            );
+        }
+    }
+
+    /// Notes that JIT code depends on the shape staying stable.
+    pub fn set_has_dependent_code(&self) {
+        self.flags.set(self.flags.get() | shape_flag::HAS_DEPENDENT_CODE);
     }
 
     pub fn has_parameter_map(&self) -> bool {

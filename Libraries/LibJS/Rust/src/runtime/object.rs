@@ -1445,6 +1445,8 @@ impl Object {
             }
         };
 
+        // NB: The object leaves its shape without a transition away from it.
+        self.shape().mark_unstable(vm);
         self.unsafe_set_shape(copy_shape);
         let mut offset = 0;
         from_shape.for_each_property_in_insertion_order(|_, metadata| {
@@ -1499,6 +1501,8 @@ impl Object {
             && !from.requires_slow_add_own_property()
             && !from.shape().is_dictionary()
             && !from.shape().is_prototype_shape()
+            // NB: No other object may share the shape of a global object (see `Dependency::GlobalPropertyUnassigned`).
+            && !from.has_global_object_flag()
             && from.shape().realm() == current_realm()
             && from.shape().prototype() == self.shape().prototype()
         {
@@ -1512,6 +1516,8 @@ impl Object {
             });
 
             if has_only_default_data_properties {
+                // NB: The object leaves its shape without a transition away from it.
+                self.shape().mark_unstable(vm);
                 self.unsafe_set_shape(from.shape());
                 from.shape().for_each_property_in_insertion_order(|_, metadata| {
                     self.put_direct(metadata.offset, from.get_direct(metadata.offset));
@@ -2522,6 +2528,18 @@ impl Object {
                 };
                 match phase {
                     PropertyLookupPhase::OwnProperty => {
+                        // NB: Caches may only write to the slots of a global object that may have been assigned
+                        //     already, since the runtime notes assignments to them (see `storage_set()`).
+                        if writes_data_property
+                            && self.has_global_object_flag()
+                            && !crate::jit::dependencies::global_object_slot_may_have_been_assigned(
+                                vm,
+                                self,
+                                property_offset,
+                            )
+                        {
+                            return;
+                        }
                         *cacheable_metadata = CacheableSetPropertyMetadata {
                             r#type: CacheableSetPropertyMetadataType::ChangeOwnProperty,
                             property_offset: Some(property_offset),
@@ -2801,6 +2819,17 @@ impl Object {
             }
         }
 
+        // NB: JIT code may take the values of global object properties that were never assigned as constants.
+        if self.has_global_object_flag() {
+            let previous = self.get_direct(metadata.offset);
+            if !previous.is_undefined() && previous != value {
+                crate::jit::dependencies::note_global_object_slot_assignments(
+                    vm,
+                    self,
+                    metadata.offset..metadata.offset + 1,
+                );
+            }
+        }
         self.put_direct(metadata.offset, value);
         Some(metadata.offset)
     }
@@ -2851,6 +2880,15 @@ impl Object {
         }
 
         let metadata = self.shape().lookup(property_key).expect("the object has the property");
+
+        // NB: Deleting the property moves those after it to the slots before them.
+        if self.has_global_object_flag() {
+            crate::jit::dependencies::note_global_object_slot_assignments(
+                vm,
+                self,
+                metadata.offset..self.shape().property_count(),
+            );
+        }
 
         let shape = self.shape();
         if shape.is_dictionary() {
@@ -3471,8 +3509,9 @@ impl Object {
         self.has_flag(object_flag::IS_HTMLDDA)
     }
 
-    pub fn set_is_htmldda(&self) {
+    pub fn set_is_htmldda(&self, vm: &Vm) {
         self.set_flag(object_flag::IS_HTMLDDA);
+        crate::jit::dependencies::note_htmldda_object(vm);
     }
 
     pub fn has_magical_length_property(&self) -> bool {

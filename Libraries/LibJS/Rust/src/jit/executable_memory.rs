@@ -369,6 +369,27 @@ impl ExecutableMemory {
         self.address
     }
 
+    /// Overwrites the code at each offset with the bytes that go there, which the code is not running at the time.
+    pub fn patch(&self, patches: &[(u32, Vec<u8>)]) {
+        if patches.is_empty() {
+            return;
+        }
+        let writes: Vec<CodeWrite<'_>> = patches
+            .iter()
+            .map(|(offset, bytes)| {
+                assert!(*offset as usize + bytes.len() <= self.size);
+                CodeWrite {
+                    // SAFETY: The offset is within the memory, as asserted.
+                    destination: unsafe { self.address.add(*offset as usize) },
+                    code: bytes,
+                }
+            })
+            .collect();
+        let allocator = self.allocator.borrow();
+        let chunk = allocator.chunk_index_of(self.address);
+        write_codes_in_chunk(&allocator.chunks[chunk], &writes);
+    }
+
     pub fn size(&self) -> usize {
         self.size
     }

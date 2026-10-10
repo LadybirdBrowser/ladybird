@@ -8,9 +8,6 @@ The compiler is the `libjs_jit` crate (`Libraries/LibJS/JIT/Rust`). Its runtime 
 snapshots, installs code, enters it and translates its state back into interpreter frames, is in
 `Libraries/LibJS/Rust/src/jit`.
 
-NB: The runtime side does not have code that depends on things staying as they are (`jit/dependencies.rs`)
-yet. Compiled code checks what it relies on until it arrives in a later change.
-
 ## 1. Overview
 
 LibJS has two tiers: the bytecode interpreter, whose instructions keep per-site caches and

@@ -411,8 +411,7 @@ pub fn runtime_info(vm: &Vm, realm: Gc<Realm>, allocation: AllocationInfos) -> R
         function: string(strings.function),
     };
     let mut info = RuntimeInfo {
-        // NB: Nothing notes the creation of objects with the `[[IsHTMLDDA]]` slot, so code cannot rely on there being none.
-        no_htmldda_objects: false,
+        no_htmldda_objects: !vm.jit.htmldda_objects_exist(),
         slow_paths: vm.jit.slow_paths().to_vec(),
         jit_call: super::calls::libjs_jit_call as *const () as u64,
         call_forwarding_arguments: super::calls::libjs_jit_call_forwarding_arguments as *const () as u64,

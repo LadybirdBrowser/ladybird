@@ -107,6 +107,9 @@ pub fn refuse_jit_compile(vm: &Vm, executable: &Executable) {
 /// Called by the interpreter once the running frame's executable has used up its tier-up budget. `pc` is the entry pc
 /// for function entries and the pc of the loop back edge instruction for loops.
 pub fn on_budget_exhausted(vm: &Vm, pc: u32, is_loop: bool) {
+    if vm.jit.take_stress_invalidation() {
+        super::dependencies::invalidate_random_dependency(vm);
+    }
     let executable = vm.current_executable();
     let options = &vm.jit.options;
 
@@ -223,16 +226,14 @@ pub fn tier_up_check(vm: &Vm, encoded_pc: u64) -> i64 {
     }
 }
 
-/// Whether the code of a finished compile goes into executable memory. The snapshot depends on nothing that can stop
-/// holding (see the snapshot's `prototype_chain_valid`, `shape_is_stable`, `globals` and `no_htmldda_objects`), so the
-/// code has no dependencies.
+/// Whether the code of a finished compile goes into executable memory. Code whose dependencies stopped holding since
+/// the snapshot was taken is not installed; the executable may be compiled again with what it learned.
 fn should_install(vm: &Vm, result: &CompileResult) -> bool {
     result.as_ref().is_ok_and(|compiled| {
-        assert!(
-            compiled.dependencies.is_empty(),
-            "the snapshot lets code depend on nothing"
-        );
-        true
+        compiled
+            .dependencies
+            .iter()
+            .all(|dependency| super::dependencies::holds(vm, dependency))
     }) && !vm.debugging_enabled()
 }
 
@@ -251,6 +252,7 @@ fn install(
             unsafe { Gc::from_non_null(NonNull::new(cell.0 as *mut CellHeader).expect("embedded cells are not null")) }
         })
         .collect();
+    let id = vm.jit.next_code_id();
     let code = JitCode::new(
         memory,
         compiled.entry_offset,
@@ -258,7 +260,9 @@ fn install(
         compiled.sites,
         embedded_cells,
         snapshot,
-    );
+    )
+    .with_invalidation(id, compiled.invalidation_patches);
+    vm.jit.dependents.register(vm, executable, id, &compiled.dependencies);
     // NB: Code may be installed while frames of the executable loop in the interpreter, because the compile was
     //     queued (from the tier-up check of another executable, like a callee's), or because they exited from the
     //     code before. Those frames keep counting, so that they continue in the code at its on-stack replacement

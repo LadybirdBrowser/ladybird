@@ -187,7 +187,7 @@ impl HostFunction {
         let (class, allocator) = runtime_class_and_allocator_of_host_class(vm, table, JS_HOST_CLASS_FUNCTION);
         let prototype = prototype.unwrap_or_else(|| realm.function_prototype());
         let base = NativeFunction::new_with_name(vm, class, name, prototype);
-        copy_host_class_flags_into_object(table, &base);
+        copy_host_class_flags_into_object(vm, table, &base);
         let function = HostFunction {
             base,
             host_class: table,

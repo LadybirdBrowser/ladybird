@@ -29,11 +29,15 @@ pub enum InterpreterTier {
 }
 
 /// The JIT's state on a VM, which has none.
-pub struct JitState;
+pub struct JitState {
+    pub dependents: dependencies::Dependents,
+}
 
 impl JitState {
     pub fn new(_options: options::Options) -> Self {
-        Self
+        Self {
+            dependents: dependencies::Dependents,
+        }
     }
 
     pub fn collects_feedback(&self) -> bool {
@@ -209,6 +213,39 @@ pub mod calls {
     ) -> Option<SlowPathControl> {
         unreachable!("only JIT code calls its slow paths");
     }
+}
+
+pub mod dependencies {
+    use super::Vm;
+    use crate::layout::object::Object;
+
+    #[derive(Clone, Copy)]
+    pub struct CellId(pub u64);
+
+    /// What JIT code may depend on, which the runtime notes when it stops holding.
+    pub enum Dependency {
+        PrototypeChainValid(CellId),
+        GlobalDeclarations { environment: CellId, serial: u64 },
+        GlobalBindingUnassigned { environment: CellId, index: u32 },
+        StableShape(CellId),
+    }
+
+    pub struct Dependents;
+
+    impl Dependents {
+        pub fn remove_dead_entries(&self) {}
+    }
+
+    pub fn invalidate_dependents(_vm: &Vm, _dependency: Dependency) {}
+
+    /// Without the JIT, nothing depends on the slots of global objects, and the caches may write to any of them.
+    pub fn global_object_slot_may_have_been_assigned(_vm: &Vm, _object: &Object, _offset: u32) -> bool {
+        true
+    }
+
+    pub fn note_global_object_slot_assignments(_vm: &Vm, _object: &Object, _offsets: core::ops::Range<u32>) {}
+
+    pub fn note_htmldda_object(_vm: &Vm) {}
 }
 
 pub mod testing {

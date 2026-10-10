@@ -1331,6 +1331,10 @@ impl Executable {
         &self.property_lookup_caches
     }
 
+    pub fn global_variable_caches(&self) -> &[GlobalVariableCache] {
+        &self.global_variable_caches
+    }
+
     pub fn object_shape_caches(&self) -> &[ObjectShapeCache] {
         &self.object_shape_caches
     }

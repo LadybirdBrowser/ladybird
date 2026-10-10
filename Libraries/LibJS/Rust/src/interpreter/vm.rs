@@ -1360,6 +1360,7 @@ impl Vm {
         self.keyed_property_lookup_cache.remove_dead_entries();
         self.prototype_transition_cache.remove_dead_entries();
         self.keyed_property_store_cache.remove_dead_entries();
+        self.jit.dependents.remove_dead_entries();
     }
 
     pub fn register_executable(&self, executable: Gc<Executable>) {

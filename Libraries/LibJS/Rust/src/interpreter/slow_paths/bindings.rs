@@ -898,6 +898,8 @@ pub fn set_global(vm: &Vm, pc: u32, instruction: &op::SetGlobal, values: &mut op
     let mut offset = None;
     if asm_try!(vm, pc, declarative_record.has_binding(&identifier, Some(&mut offset))) {
         let offset = offset.expect("the global declarative record reports the index of its bindings");
+        // NB: Fast paths assign the binding through the cache from now on, without telling the environment.
+        declarative_record.note_binding_assignment(vm, offset);
         cache().environment_binding_index.set(offset as u32);
         cache().has_environment_binding_index.set(true);
         asm_try!(

@@ -111,8 +111,7 @@ impl InlinedFunction {
 /// `libjs_jit_exit()` finds it through the frame's executable), even once discarded.
 pub struct JitCode {
     exit_count: Cell<u32>,
-    /// Owns the machine code, which is freed with the JIT code.
-    _memory: ExecutableMemory,
+    memory: ExecutableMemory,
     entry: JitEntry,
     sites: Vec<Site>,
     /// The cells the code compares against or uses. The executable the code is attached to keeps them alive, so they
@@ -121,6 +120,13 @@ pub struct JitCode {
     snapshot_executables: Vec<SnapshotExecutable>,
     /// Where a frame running in the interpreter at the loop back edge `pc` can continue in this code.
     osr_entries: Vec<(u32, JitEntry)>,
+    /// Identifies the code among all code the VM installed, for the dependencies it registers (see
+    /// `super::dependencies`).
+    id: u64,
+    /// The bytes that invalidate the code at each offset of it: jumps to the exits of its `AssumeValid` nodes, which
+    /// are no-ops until then.
+    invalidation_patches: Vec<(u32, Vec<u8>)>,
+    invalidated: Cell<bool>,
 }
 
 impl JitCode {
@@ -144,13 +150,41 @@ impl JitCode {
             .collect();
         Self {
             exit_count: Cell::new(0),
-            _memory: memory,
+            memory,
             entry,
             sites,
             embedded_cells,
             snapshot_executables,
             osr_entries,
+            id: 0,
+            invalidation_patches: Vec::new(),
+            invalidated: Cell::new(false),
         }
+    }
+
+    /// Gives the code its id among all code the VM installed, and the bytes that invalidate it.
+    pub fn with_invalidation(mut self, id: u64, invalidation_patches: Vec<(u32, Vec<u8>)>) -> Self {
+        self.id = id;
+        self.invalidation_patches = invalidation_patches;
+        self
+    }
+
+    pub fn id(&self) -> u64 {
+        self.id
+    }
+
+    pub fn is_invalidated(&self) -> bool {
+        self.invalidated.get()
+    }
+
+    /// Makes every frame running the code exit where it relies on what it depends on next (see
+    /// `libjs_jit::code::Dependency`), which no longer holds. Only the main thread runs JIT code, which is suspended
+    /// in other code while this runs.
+    pub fn invalidate(&self) {
+        if self.invalidated.replace(true) {
+            return;
+        }
+        self.memory.patch(&self.invalidation_patches);
     }
 
     pub fn entry(&self) -> JitEntry {

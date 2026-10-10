@@ -15,8 +15,9 @@ use libjs_jit::bytecode::{ExceptionHandler, FrameLayout};
 use libjs_jit::snapshot::{
     AccessorFunctionSnapshot, CallFeedbackSnapshot, CellId, ClosureTemplateSnapshot, CompileOptions, ConstructTarget,
     DirectCallTarget, EnvironmentTemplateSnapshot, ExecutableSnapshot, FeedbackSnapshot, ForwardedCallSnapshot,
-    Forwarding, FunctionFrameFields, InlinedFunctionSnapshot, InliningLimits, Intrinsic, KeyedFeedbackSnapshot,
-    LexicalEnvironmentTemplateSnapshot, NativeCallTarget, ObjectShapeCacheSnapshot, PropertyCacheEntrySnapshot,
+    Forwarding, FunctionFrameFields, GlobalCacheSnapshot, GlobalValueSnapshot, GlobalsSnapshot,
+    InlinedFunctionSnapshot, InliningLimits, Intrinsic, KeyedFeedbackSnapshot, LexicalEnvironmentTemplateSnapshot,
+    NativeCallTarget, ObjectShapeCacheSnapshot, OrdinaryHasInstanceSnapshot, PropertyCacheEntrySnapshot,
     PropertyCacheEntryType, PropertyCacheKind, PropertyCacheSnapshot, ShapeSnapshot, Snapshot, StressOptions,
 };
 
@@ -32,10 +33,11 @@ use crate::bytecode::feedback::{CallFeedback, CallFeedbackForwarding, call_feedb
 use crate::bytecode::instruction::instruction_length_from_bytes;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
+use crate::layout::environment::DeclarativeEnvironment;
 use crate::layout::function_object::{EcmascriptFunctionObject, RawNativeFunction};
 use crate::layout::object::Object;
 use crate::layout::property_lookup_cache::{
-    PropertyLookupCache, PropertyLookupCacheEntry, PropertyLookupCacheEntryType,
+    GlobalVariableCache, PropertyLookupCache, PropertyLookupCacheEntry, PropertyLookupCacheEntryType,
 };
 use crate::layout::value::Value;
 use crate::runtime::array_constructor::ArrayConstructor;
@@ -47,6 +49,7 @@ use crate::runtime::function_prototype::FunctionPrototype;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::object_constructor::ObjectConstructor;
 use crate::runtime::object_prototype::ObjectPrototype;
+use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::shape::Shape;
 use crate::runtime::shared_function_instance_data::ConstructorKind;
@@ -339,15 +342,15 @@ impl SnapshotBuilder<'_> {
                 property_offset: entry.property_offset,
                 shape_dictionary_generation: entry.shape_dictionary_generation,
                 shape_is_dictionary: entry.shape.is_some_and(|shape| shape.is_dictionary()),
-                // NB: Nothing watches for objects leaving the shape, so no code depends on it staying stable.
-                shape_is_stable: false,
+                shape_is_stable: entry.shape.is_some_and(|shape| shape.is_stable()),
                 writes_data_property: entry.writes_data_property,
                 from_shape: self.optional_cell(entry.from_shape),
                 shape: self.optional_cell(entry.shape),
                 prototype: self.optional_cell(entry.prototype),
                 prototype_chain_validity: self.optional_cell(entry.prototype_chain_validity),
-                // NB: Code checks the validity cell, since nothing invalidates code that relied on it.
-                prototype_chain_valid: false,
+                prototype_chain_valid: entry
+                    .prototype_chain_validity
+                    .is_some_and(|validity| validity.is_valid()),
                 key: (entry.key != 0).then(|| self.cell(Value(entry.key).as_cell())),
                 key_value: entry.key,
                 prototype_property: self.optional_cell(prototype_property),
@@ -363,6 +366,111 @@ impl SnapshotBuilder<'_> {
             entries.clear();
         }
         PropertyCacheSnapshot { kind, entries }
+    }
+
+    /// What the global variable caches of `executable`, whose frames run in `realm`, know about the global variables
+    /// of the realm, as far as it still holds.
+    fn globals(&mut self, executable: Gc<Executable>, realm: Gc<Realm>) -> GlobalsSnapshot {
+        let object = realm.global_object();
+        let environment = realm.global_declarative_environment();
+        let environment_serial = environment.environment_serial_number();
+        let shape = object.shape();
+        let mut caches = Vec::with_capacity(executable.global_variable_caches().len());
+        for cache in executable.global_variable_caches() {
+            caches.push(self.global_cache(cache, realm, object, environment, environment_serial, shape));
+        }
+        GlobalsSnapshot {
+            object: self.cell(object),
+            declarative_environment: self.cell(environment),
+            environment_serial,
+            caches,
+        }
+    }
+
+    /// What a global variable cache found, like `GetGlobal` and `SetGlobal` use it, if it still applies.
+    fn global_cache(
+        &mut self,
+        cache: &GlobalVariableCache,
+        realm: Gc<Realm>,
+        object: Gc<Object>,
+        environment: Gc<DeclarativeEnvironment>,
+        environment_serial: u64,
+        shape: Gc<Shape>,
+    ) -> Option<GlobalCacheSnapshot> {
+        if cache.environment_serial_number.get() != environment_serial {
+            return None;
+        }
+        if let Some(entry) = cache.first_entry()
+            && entry.shape == Some(shape)
+            && (!shape.is_dictionary() || shape.dictionary_generation() == entry.shape_dictionary_generation)
+        {
+            let value = object.get_direct(entry.property_offset);
+            if value.is_accessor() {
+                return None;
+            }
+            return Some(GlobalCacheSnapshot::Property {
+                shape: self.cell(shape),
+                dictionary_generation: shape.is_dictionary().then(|| shape.dictionary_generation()),
+                offset: entry.property_offset,
+                writes_data_property: entry.entry_type == PropertyLookupCacheEntryType::ChangeOwnProperty
+                    && entry.writes_data_property,
+                assigned: super::dependencies::global_object_slot_may_have_been_assigned(
+                    self.vm,
+                    &object,
+                    entry.property_offset,
+                ),
+                value: self.global_value(value, realm),
+            });
+        }
+        if !cache.has_environment_binding_index.get() {
+            return None;
+        }
+        let index = cache.environment_binding_index.get();
+        let value = environment.get_initialized_binding_value_direct(index as usize);
+        Some(GlobalCacheSnapshot::Binding {
+            index,
+            mutable: environment.binding_is_mutable(index as usize),
+            assigned: environment.binding_may_have_been_assigned(index as usize),
+            value: (!value.is_empty()).then(|| self.global_value(value, realm)),
+        })
+    }
+
+    fn global_value(&mut self, value: Value, realm: Gc<Realm>) -> GlobalValueSnapshot {
+        let cell = value.is_cell().then(|| value.as_cell());
+        GlobalValueSnapshot {
+            bits: value.0,
+            cell: cell.map(|cell| self.cell(cell)),
+            intrinsic: intrinsic_of(self.vm, cell),
+            has_instance: self.ordinary_has_instance(value, realm),
+        }
+    }
+
+    /// How `instanceof` with `value` on its right-hand side runs, if `value` is a function that inherits the
+    /// `@@hasInstance` of `%Function.prototype%` of `realm`, which is neither writable nor configurable: its shape, which
+    /// tells that while the function keeps it, and where its `prototype` property is.
+    fn ordinary_has_instance(&mut self, value: Value, realm: Gc<Realm>) -> Option<OrdinaryHasInstanceSnapshot> {
+        if !value.is_function() || value.as_function().downcast::<BoundFunction>().is_some() {
+            return None;
+        }
+        let function = value.as_object();
+        let shape = function.shape();
+        let has_instance = PropertyKey::from(self.vm.well_known_symbols().has_instance);
+        if !function.has_ordinary_get_own_property_for(self.vm, &has_instance)
+            || shape.prototype() != Some(realm.function_prototype())
+            || shape.lookup(&has_instance).is_some()
+        {
+            return None;
+        }
+        // NB: ECMAScript functions create their prototype property lazily, but one in their shape is the one they have.
+        let prototype = shape.lookup(&self.vm.names.prototype)?;
+        if function.get_direct(prototype.offset).is_accessor() {
+            return None;
+        }
+        Some(OrdinaryHasInstanceSnapshot {
+            shape: self.cell(shape),
+            dictionary_generation: shape.is_dictionary().then(|| shape.dictionary_generation()),
+            prototype_offset: prototype.offset,
+        })
     }
 
     fn inlined_function(&mut self, function: Gc<EcmascriptFunctionObject>) -> InlinedFunctionSnapshot {
@@ -749,8 +857,9 @@ impl SnapshotBuilder<'_> {
             } else {
                 Vec::new()
             },
-            // NB: Nothing watches the global variables, so compiled code leaves them to the interpreter's slow paths.
-            globals: None,
+            // NB: Builtins written in JavaScript never access global variables by name.
+            globals: (!matches!(entry.function, Some(InlinedFunction::Builtin(_))))
+                .then(|| self.globals(executable, realm)),
             // NB: Only the compiled function's own code creates bindings by name.
             identifiers: if entry.function.is_none() {
                 executable

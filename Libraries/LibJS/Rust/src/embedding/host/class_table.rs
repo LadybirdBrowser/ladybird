@@ -10,6 +10,7 @@
 //! keeps `&'static` references to tables and their hook structs, and identifies a class by the address of its table.
 
 use crate::embedding::abi_types::{completion_from_abi, optional_cell_from_abi};
+use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::host_class::{
     JS_HOST_ABI_VERSION, JS_HOST_CLASS_ARRAY, JS_HOST_CLASS_FUNCTION, JS_HOST_CLASS_HAS_CONSTRUCTOR,
@@ -184,7 +185,7 @@ impl JSHostClass {
 }
 
 /// Gives a host object the flags of its class that the engine keeps in every object.
-pub fn copy_host_class_flags_into_object(table: &JSHostClass, object: &Object) {
+pub fn copy_host_class_flags_into_object(vm: &Vm, table: &JSHostClass, object: &Object) {
     if table.has_flag(JS_HOST_CLASS_IS_PLATFORM_OBJECT) {
         object.set_is_platform_object();
     }
@@ -195,7 +196,7 @@ pub fn copy_host_class_flags_into_object(table: &JSHostClass, object: &Object) {
         object.set_may_interfere_with_indexed_property_access();
     }
     if table.has_flag(JS_HOST_CLASS_IS_HTMLDDA) {
-        object.set_is_htmldda();
+        object.set_is_htmldda(vm);
     }
     if table.has_flag(JS_HOST_CLASS_IS_GLOBAL_OBJECT) {
         object.set_global_object_flag();
