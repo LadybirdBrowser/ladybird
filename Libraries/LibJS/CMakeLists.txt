@@ -4,6 +4,12 @@
 
 add_subdirectory(Rust)
 
+# The optimizing JIT's compiler, a pure Rust crate that only works on plain data. Its unit tests run without the rest of
+# LibJS.
+if (ENABLE_JS_JIT)
+    test_rust_crate(MANIFEST_PATH JIT/Rust/Cargo.toml CRATE_NAME libjs_jit)
+endif()
+
 set(SOURCES
     Console.cpp
     CyclicModule.cpp

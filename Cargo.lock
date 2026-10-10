@@ -853,6 +853,10 @@ name = "libjs_abi"
 version = "0.1.0"
 
 [[package]]
+name = "libjs_jit"
+version = "0.1.0"
+
+[[package]]
 name = "libjs_runtime_macros"
 version = "0.1.0"
 dependencies = [
