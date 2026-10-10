@@ -6734,12 +6734,21 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
 
             // 2. If the intersection root is not the implicit root, and target is not in the same document as the intersection root, skip to step 11.
             // 3. If the intersection root is an Element, and target is not a descendant of the intersection root in the containing block chain, skip to step 11.
-            // FIXME: Actually use the containing block chain.
             // NOTE: Check if target has a layout node is not in the spec but required to match other browsers.
             // AD-HOC: A target whose document was excluded from this rendering update has stale layout; treat it as
             //         not intersecting like other engines instead of reading its geometry.
             Layout::ForcedReadScope target_read { target->document() };
-            if (!root_is_hidden && target->document().layout_is_up_to_date() && target->layout_node(target_read) && (is_implicit_root || &target->document() == &intersection_root_node->document()) && !(root_is_element && !target->is_descendant_of(*intersection_root_node))) {
+            auto const* target_layout_node = target->document().layout_is_up_to_date() ? target->layout_node(target_read) : nullptr;
+            bool root_contains_target = !root_is_element;
+            if (root_is_element && root_layout_box && target_layout_node) {
+                for (auto const* containing_block = target_layout_node->containing_block(); containing_block; containing_block = containing_block->containing_block()) {
+                    if (containing_block == root_layout_box) {
+                        root_contains_target = true;
+                        break;
+                    }
+                }
+            }
+            if (!root_is_hidden && target_layout_node && (is_implicit_root || &target->document() == &intersection_root_node->document()) && root_contains_target) {
                 auto target_visual_context_tree = sampled_visual_context_tree(target->document());
                 if (!target_visual_context_tree.has_value())
                     continue;
