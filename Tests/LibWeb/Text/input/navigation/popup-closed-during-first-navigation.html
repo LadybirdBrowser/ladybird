@@ -1,0 +1,42 @@
+<!doctype html>
+<body></body>
+<script src="../include.js"></script>
+<script>
+    // Closing a popup while the fetch for its first page is still in flight stops that fetch, so the response never
+    // reaches the closed popup's navigable, which has no active document left. The server holds the response until
+    // the test releases it: the close happens once the request has reached the server, and the release only once the
+    // popup's initial about:blank has unloaded, so the response arrives for a navigable that's already destroyed.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = crypto.randomUUID();
+        const pageUrl = await server.createEcho("GET", "/popup-page", {
+            status: 200,
+            headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+            body: "<!DOCTYPE html>loaded",
+            wait_for_unblock: token,
+        });
+        const popup = window.open(pageUrl);
+        // The fixture answers 404 (without CORS headers, so fetch() rejects) until the popup's request has reached it.
+        const requestReachedServer = async () => {
+            try {
+                return (await fetch(server.recordedRequestHeadersURL(pageUrl), { cache: "no-store" })).ok;
+            } catch {
+                return false;
+            }
+        };
+        while (!(await requestReachedServer())) await new Promise(resolve => setTimeout(resolve, 0));
+        println("popup open: " + !popup.closed);
+        // The popup's initial about:blank was never shown, so pagehide doesn't fire for it; unload does. Poll for it
+        // from this page's timer tasks, so the release below runs after the task that unloaded the document and then
+        // destroyed the traversable.
+        let unloaded = false;
+        popup.addEventListener("unload", () => (unloaded = true), { once: true });
+        popup.close();
+        while (!unloaded) await new Promise(resolve => setTimeout(resolve, 0));
+        println("popup closed: " + popup.closed);
+        await fetch(`${server.baseURL}/unblock/${token}`);
+        // Leave time for the released response to reach this process, so that a crash lands in this test.
+        await new Promise(resolve => setTimeout(resolve, 500));
+        println("done");
+    });
+</script>

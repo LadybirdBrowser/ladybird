@@ -189,6 +189,7 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
     enum class ContinuationReason {
         GotResponse,
         OngoingNavigationChanged,
+        NavigableDestroyed,
     };
 
     GC::Ptr<GC::Function<void(ContinuationReason)>> continuation_steps;
@@ -709,6 +710,15 @@ void LocalNavigable::set_has_been_destroyed()
     m_has_been_destroyed = true;
     resolve_all_pending_async_scroll_operations();
     cancel_user_scroll_settlement();
+
+    // AD-HOC: Neither "destroy a top-level traversable" nor "destroy a child navigable" stops a navigation whose fetch
+    //         is still in flight, so the response would arrive for a navigable with no active document. Have "create
+    //         navigation params by fetching" stop the fetch and return, as it does when the ongoing navigation changes.
+    //         See https://github.com/whatwg/html/issues/9690
+    for (auto& navigation_observer : m_navigation_observers) {
+        if (navigation_observer.navigable_destroyed())
+            navigation_observer.navigable_destroyed()->function()();
+    }
 }
 
 Vector<GC::Root<LocalNavigable>> LocalNavigable::hosted_inclusive_descendant_navigables()
@@ -2426,30 +2436,35 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
     }
 
     // 7. Wait until either response is non-null, or navigable's ongoing navigation changes to no longer equal navigationId.
-    GC::Ptr<NavigationObserver> ongoing_navigation_changed_observer;
+    // AD-HOC: Or until navigable is destroyed, which stops the fetch the same way: see set_has_been_destroyed().
+    auto navigation_observer = NavigationObserver::create(*state_holder->navigable);
     if (state_holder->navigation_id.has_value()) {
-        ongoing_navigation_changed_observer = NavigationObserver::create(*state_holder->navigable);
-        ongoing_navigation_changed_observer->set_ongoing_navigation_changed([state_holder] {
+        navigation_observer->set_ongoing_navigation_changed([state_holder] {
             VERIFY(state_holder->continuation_steps);
             state_holder->continuation_steps->function()(NavigationParamsFetchStateHolder::ContinuationReason::OngoingNavigationChanged);
         });
     }
+    navigation_observer->set_navigable_destroyed([state_holder] {
+        VERIFY(state_holder->continuation_steps);
+        state_holder->continuation_steps->function()(NavigationParamsFetchStateHolder::ContinuationReason::NavigableDestroyed);
+    });
 
-    state_holder->continuation_steps = GC::create_function(realm.heap(), [&realm, state_holder, ongoing_navigation_changed_observer, top_level_completion_steps, fetch_completion_steps](NavigationParamsFetchStateHolder::ContinuationReason continuation_reason) {
+    state_holder->continuation_steps = GC::create_function(realm.heap(), [&realm, state_holder, navigation_observer, top_level_completion_steps, fetch_completion_steps](NavigationParamsFetchStateHolder::ContinuationReason continuation_reason) {
         // If the latter condition occurs, then abort fetchController, and return. Otherwise, proceed onward.
-        if (state_holder->navigation_id.has_value()) {
-            VERIFY(ongoing_navigation_changed_observer);
-            ongoing_navigation_changed_observer->set_ongoing_navigation_changed({});
+        navigation_observer->set_ongoing_navigation_changed({});
+        navigation_observer->set_navigable_destroyed({});
 
-            if (continuation_reason == NavigationParamsFetchStateHolder::ContinuationReason::OngoingNavigationChanged) {
-                if (state_holder->navigable->ongoing_navigation() != *state_holder->navigation_id) {
-                    state_holder->fetch_controller->abort(realm, {});
-                    auto result = realm.heap().allocate<InternalNavigationResult>();
-                    result->navigation_params = LocalNavigable::NullOrError {};
-                    top_level_completion_steps->function()(*result);
-                    return;
-                }
-            }
+        auto ongoing_navigation_changed = continuation_reason == NavigationParamsFetchStateHolder::ContinuationReason::OngoingNavigationChanged
+            && state_holder->navigable->ongoing_navigation() != *state_holder->navigation_id;
+        if (ongoing_navigation_changed || continuation_reason == NavigationParamsFetchStateHolder::ContinuationReason::NavigableDestroyed) {
+            // AD-HOC: Stop the fetch rather than abort it. Aborting only marks fetchController, and the fetch still
+            //         hands the response to processResponse, which would run these steps again after this return — on
+            //         a navigable that's gone, in the destroyed case. Stopping drops both the response and the request.
+            state_holder->fetch_controller->stop_fetch();
+            auto result = realm.heap().allocate<InternalNavigationResult>();
+            result->navigation_params = LocalNavigable::NullOrError {};
+            top_level_completion_steps->function()(*result);
+            return;
         }
 
         // 8. If request's body is null, then set entry's document state's resource to null.
@@ -3032,12 +3047,14 @@ void LocalNavigable::populate_session_history_entry_document(
 
     auto navigation_timing_type = reload_pending ? Bindings::NavigationTimingType::Reload : Bindings::NavigationTimingType::BackForward;
     auto received_navigation_params = GC::create_function(heap(), [this, url, navigation_id, navigation_timing_type, user_involvement, completion_steps, csp_navigation_type, source_snapshot_params, response_steps](GC::Ref<InternalNavigationResult> result) {
-        // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
-        if (!active_window()) {
+        // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window. And a
+        //         child navigable destroyed while its fetch was in flight still has one here: "destroy a child
+        //         navigable" marks the navigable destroyed before its document is unloaded.
+        if (has_been_destroyed() || !active_window()) {
             stop_or_resume_response_body_delivery(result->navigation_params);
             if (response_steps) {
                 response_steps->function()({
-                    .navigation_params = NavigationParamsNullOrError { "Navigable has no active window"_utf16 },
+                    .navigation_params = NavigationParamsNullOrError { has_been_destroyed() ? "Navigable has been destroyed"_utf16 : "Navigable has no active window"_utf16 },
                     .redirected_url = {},
                     .classic_history_api_state = {},
                     .replacement_document_state = {},
@@ -3143,7 +3160,8 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
     // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
     queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), [this, url, source_allows_downloading, source_interface_origin, user_involvement, navigation_id, navigation_params, csp_navigation_type, navigation_timing_type, output, completion_steps]() mutable {
         // 1. If navigable's ongoing navigation no longer equals navigationId, then run completionSteps and abort these steps.
-        if (navigation_id.has_value() && ongoing_navigation() != navigation_id) {
+        // AD-HOC: Or if navigable was destroyed meanwhile. See https://github.com/whatwg/html/issues/9690
+        if (has_been_destroyed() || (navigation_id.has_value() && ongoing_navigation() != navigation_id)) {
             stop_or_resume_response_body_delivery(navigation_params);
             if (completion_steps)
                 completion_steps->function()(nullptr);

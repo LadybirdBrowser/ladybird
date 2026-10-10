@@ -28,6 +28,9 @@ public:
     [[nodiscard]] GC::Ptr<GC::Function<void()>> ongoing_navigation_changed() const { return m_ongoing_navigation_changed; }
     void set_ongoing_navigation_changed(Function<void()>);
 
+    [[nodiscard]] GC::Ptr<GC::Function<void()>> navigable_destroyed() const { return m_navigable_destroyed; }
+    void set_navigable_destroyed(Function<void()>);
+
 private:
     explicit NavigationObserver(LocalNavigable&);
 
@@ -38,6 +41,7 @@ private:
     GC::Ref<LocalNavigable> m_navigable;
     GC::Ptr<GC::Function<void()>> m_navigation_complete;
     GC::Ptr<GC::Function<void()>> m_ongoing_navigation_changed;
+    GC::Ptr<GC::Function<void()>> m_navigable_destroyed;
 
 public:
     using NavigationObserversList = IntrusiveList<&NavigationObserver::m_list_node>;

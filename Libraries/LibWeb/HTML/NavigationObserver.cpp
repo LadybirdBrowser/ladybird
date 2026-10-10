@@ -29,6 +29,7 @@ void NavigationObserver::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_navigable);
     visitor.visit(m_navigation_complete);
     visitor.visit(m_ongoing_navigation_changed);
+    visitor.visit(m_navigable_destroyed);
 }
 
 void NavigationObserver::finalize()
@@ -51,6 +52,14 @@ void NavigationObserver::set_ongoing_navigation_changed(Function<void()> callbac
         m_ongoing_navigation_changed = GC::create_function(GC::Heap::the(), move(callback));
     else
         m_ongoing_navigation_changed = nullptr;
+}
+
+void NavigationObserver::set_navigable_destroyed(Function<void()> callback)
+{
+    if (callback)
+        m_navigable_destroyed = GC::create_function(GC::Heap::the(), move(callback));
+    else
+        m_navigable_destroyed = nullptr;
 }
 
 }
