@@ -586,6 +586,14 @@ bool WebContentClient::renderers_may_access_cookies_like_http()
         || Application::web_content_options().is_test_mode == IsTestMode::Yes;
 }
 
+bool WebContentClient::renderers_may_synthesize_input()
+{
+    // WebDriver's actions and the internals object dispatch input as though the user produced it.
+    return Application::browser_options().webdriver_browser_endpoint.has_value()
+        || Application::web_content_options().is_test_mode == IsTestMode::Yes
+        || Application::web_content_options().expose_internals_object == ExposeInternalsObject::Yes;
+}
+
 bool WebContentClient::may_read_local_files()
 {
     // WebDriver's Element Send Keys selects the files it names by path through the process hosting the file input.
