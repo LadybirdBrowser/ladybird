@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    @keyframes fade {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    #target {
+        animation: fade linear;
+        animation-timeline: scroll(nearest);
+    }
+</style>
+<div id="outer"><div id="inner"><div id="target">x</div></div></div>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            outer.style.display = "none";
+            document.body.offsetWidth;
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    document.documentElement.classList.remove("test-wait");
+                });
+            });
+        });
+    });
+</script>
+</html>
