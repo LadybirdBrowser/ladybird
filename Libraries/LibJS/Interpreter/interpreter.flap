@@ -2517,7 +2517,7 @@ handler GetById(
         let raw_native_function: RawNativeFunction = alias(function);
         let native_function_index = raw_native_function.native_function_index;
         let native_table_vm = current_vm();
-        let native_function_entry = &native_table_vm.native_function_table[native_function_index];
+        let native_function_entry = &native_table_vm.native_function_table[native_function_index & NATIVE_FUNCTION_TABLE_INDEX_MASK];
         let native_function_type = native_function_entry.type;
         assert(native_function_type < NATIVE_FUNCTION_TYPE_COUNT);
 
@@ -3290,7 +3290,7 @@ handler Call(
         values = exec_ctx.slots;
         let raw_native_function: RawNativeFunction = alias(function);
         let native_function_index = raw_native_function.native_function_index;
-        let native_function_entry = &native_running_vm.native_function_table[native_function_index];
+        let native_function_entry = &native_running_vm.native_function_table[native_function_index & NATIVE_FUNCTION_TABLE_INDEX_MASK];
         assert(native_function_entry.type < NATIVE_FUNCTION_TYPE_COUNT);
         let native_function = native_function_entry.function;
         # FIXME: Bind native_payload directly once the allocator can keep the
