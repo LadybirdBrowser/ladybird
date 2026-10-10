@@ -6,7 +6,7 @@
 
 #include <LibMedia/DecoderRegistrations.h>
 #include <LibMedia/FFmpeg/FFmpegAudioDecoder.h>
-#include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
+#include <LibMediaCodecs/FFmpeg/FFmpegVideoDecoder.h>
 #include <LibTest/TestCase.h>
 
 #ifdef AK_OS_MACOS

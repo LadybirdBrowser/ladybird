@@ -328,6 +328,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool disable_http_disk_cache = false;
     bool disable_content_blocker = false;
     bool disable_sandbox = false;
+    bool force_video_decoder_server = false;
     Vector<ByteString> content_blocker_list_paths;
     Optional<StringView> resource_substitution_map_path;
     bool enable_autoplay = false;
@@ -435,6 +436,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(maximum_site_request_servers, "How many RequestServers a session may have for the sites it visits, 0 to share one", "max-site-request-servers", 0, "count");
     args_parser.add_option(disable_content_blocker, "Disable content blocker", "disable-content-blocker");
     args_parser.add_option(disable_sandbox, "Disable helper process sandboxing", "disable-sandbox");
+    args_parser.add_option(force_video_decoder_server, "Also decode video that has no hardware decoder in the VideoDecoderServer", "force-video-decoder-server");
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
         .help_string = "Path to a content blocker list. May be specified multiple times.",
@@ -638,6 +640,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .devtools_port = devtools_port,
         .enable_content_blocker = disable_content_blocker ? EnableContentBlocker::No : EnableContentBlocker::Yes,
         .disable_sandbox = disable_sandbox ? DisableSandbox::Yes : DisableSandbox::No,
+        .force_video_decoder_server = force_video_decoder_server ? ForceVideoDecoderServer::Yes : ForceVideoDecoderServer::No,
     };
     rebuild_content_blocker_list_paths();
 
@@ -2149,6 +2152,9 @@ void Application::process_did_exit(Process&& process, Optional<int>)
     case ProcessType::AudioServer:
         // The connection's holder launches a new AudioServer when it next connects a client; the streams of the old
         // one report their loss and reopen.
+        break;
+    case ProcessType::VideoDecoderServer:
+        // The MediaServer it served asks for a new one once its decoders notice the loss.
         break;
     case ProcessType::RequestServer:
         if (auto client = process.client<Requests::RequestControlClient>()) {

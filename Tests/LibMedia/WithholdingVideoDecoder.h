@@ -46,11 +46,25 @@ public:
         return m_withheld.size();
     }
 
+    bool wait_until_withheld_count_reaches(size_t count, AK::Duration timeout)
+    {
+        auto deadline = MonotonicTime::now() + timeout;
+        MutexLocker locker { m_mutex };
+        while (m_withheld.size() < count) {
+            auto now = MonotonicTime::now();
+            if (now >= deadline)
+                return false;
+            m_withheld_changed.wait_for(deadline - now);
+        }
+        return true;
+    }
+
 private:
     friend class WithholdingVideoDecoder;
 
     mutable Mutex m_mutex;
     ConditionVariable m_released_changed { m_mutex };
+    ConditionVariable m_withheld_changed { m_mutex };
     Vector<Output> m_withheld;
     Vector<Output> m_released;
     Function<void()> m_output_arrived_callback;
@@ -105,6 +119,7 @@ public:
             m_withheld_outputs->m_caller_is_waiting_for_output = false;
         }
         m_withheld_outputs->m_withheld.append({ coded_frame.presentation_timestamp(), coded_frame.duration() });
+        m_withheld_outputs->m_withheld_changed.broadcast();
         return {};
     }
 

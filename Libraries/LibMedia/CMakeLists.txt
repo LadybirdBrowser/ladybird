@@ -60,6 +60,7 @@ set(SOURCES
     Producers/DecodedAudioProducer.cpp
     Producers/DecodedVideoProducer.cpp
     Producers/RemoteVideoProducer.cpp
+    RemoteVideoDecoder.cpp
     Sinks/AudioPlaybackSink.cpp
     Sinks/DisplayingVideoSink.cpp
     Sinks/RemoteVideoSink.cpp
@@ -79,7 +80,6 @@ set(GENERATED_SOURCES
 if (APPLE)
     list(APPEND SOURCES
         AudioToolbox/AudioToolboxAudioDecoder.cpp
-        VideoToolbox/VideoToolboxVideoDecoder.mm
     )
 endif()
 
@@ -91,14 +91,13 @@ target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibThread
 target_link_libraries(LibMedia PUBLIC LibAudio LibMediaCodecs)
 
 if (APPLE)
-    target_link_libraries(LibMedia PRIVATE "-framework AudioToolbox" "-framework VideoToolbox" "-framework CoreMedia" "-framework CoreVideo")
+    target_link_libraries(LibMedia PRIVATE "-framework AudioToolbox")
 endif()
 
 target_sources(LibMedia PRIVATE
         FFmpeg/FFmpegAudioConverter.cpp
         FFmpeg/FFmpegAudioDecoder.cpp
         FFmpeg/FFmpegChannelLayout.cpp
-        FFmpeg/FFmpegVideoDecoder.cpp
 )
 
 if (NOT ANDROID)

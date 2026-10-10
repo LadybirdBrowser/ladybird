@@ -11,6 +11,7 @@ namespace Media {
 class CodedFrame;
 class DecoderError;
 class VideoDecoder;
+class VideoDecoderServerConnection;
 class VideoFrame;
 
 }

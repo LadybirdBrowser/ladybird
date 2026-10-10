@@ -30,6 +30,7 @@ WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content
 
 WEBVIEW_API ErrorOr<NonnullRefPtr<MediaClient::Client>> launch_media_server_process();
 WEBVIEW_API ErrorOr<NonnullRefPtr<AudioServerControlClient>> launch_audio_server_process();
+WEBVIEW_API ErrorOr<NonnullRefPtr<VideoDecoderServerControlClient>> launch_video_decoder_server_process();
 WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process();
 WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::WebWorkerClient>> launch_web_worker_process(Web::HTML::AgentType, IsPrivate, Web::HTML::WorkerAgentId);
 WEBVIEW_API ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_process(ByteString const& cache_path, Optional<Utf16String> const& site, HTTPDiskCacheMode);
@@ -66,7 +67,8 @@ WEBVIEW_API ErrorOr<void> ensure_audio_server_is_running(RefPtr<AudioServerContr
 // Likewise, and connects a new client to it as a member of the given tab's mix.
 WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_audio_server_client(RefPtr<AudioServerControlClient>& controller, u64 audio_tab_id);
 // Launches the MediaServer for a renderer if it has none, keeping its controller connection in the given slot, and
-// connects a new client to it. The server gets its AudioServer connection through connect_audio_server.
+// connects a new client to it. The server gets its AudioServer connection through connect_audio_server, and its
+// VideoDecoderServer from the Browser, which launches one for it on request.
 struct MediaServerClientConnection {
     IPC::TransportHandle handle;
     int client_id { -1 };

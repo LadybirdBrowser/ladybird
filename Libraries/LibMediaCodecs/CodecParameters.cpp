@@ -6,6 +6,8 @@
 
 #include <AK/GenericLexer.h>
 #include <AK/GenericShorthands.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 #include <LibMediaCodecs/CodecParameters.h>
 #include <LibMediaCodecs/Codecs/MPEG4Audio.h>
 #include <LibMediaCodecs/CodedFrame.h>
@@ -152,6 +154,170 @@ ParsedCodec parsed_codec_for_coded_frame(CodedFrame const& coded_frame, ParsedCo
         return parsed_bitstream_config.release_value();
 
     return ParsedCodec { codec_id };
+}
+
+ParsedCodec normalize_parsed_codec_for_support_keying(ParsedCodec const& codec)
+{
+    switch (codec.codec_id()) {
+    case CodecID::VP9: {
+        auto parameters = codec.vp9_parameters().value_or({ .profile = 0, .level = 0, .bit_depth = 8, .color_parameters = {} });
+        parameters.level = 0;
+        parameters.color_parameters.cicp = {};
+        return ParsedCodec { parameters };
+    }
+    case CodecID::AV1: {
+        auto parameters = codec.av1_parameters().value_or({ .profile = 0, .level = 0, .tier = Codecs::AV1::Tier::Main, .bit_depth = 8, .optional_fields = {} });
+        parameters.level = 0;
+        parameters.tier = Codecs::AV1::Tier::Main;
+        parameters.optional_fields.cicp = {};
+        return ParsedCodec { parameters };
+    }
+    case CodecID::H264: {
+        Optional<Codecs::H264::Profile> profile = Codecs::H264::Profile::Main;
+        if (auto parameters = codec.h264_parameters(); parameters.has_value())
+            profile = parameters->profile();
+        if (!profile.has_value())
+            return codec;
+        return ParsedCodec { Codecs::H264::canonical_parameters_for_profile(*profile) };
+    }
+    case CodecID::H265: {
+        Optional<Codecs::H265::Profile> profile = Codecs::H265::Profile::Main;
+        if (auto parameters = codec.h265_parameters(); parameters.has_value())
+            profile = parameters->profile();
+        if (!profile.has_value())
+            return codec;
+        return ParsedCodec { Codecs::H265::canonical_parameters_for_profile(*profile) };
+    }
+    default:
+        return codec;
+    }
+}
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Media::ParsedCodec const& codec)
+{
+    TRY(encoder.encode(codec.codec_id()));
+    TRY(encoder.encode(codec.has_parameters()));
+    if (!codec.has_parameters())
+        return {};
+
+    switch (codec.codec_id()) {
+    case Media::CodecID::AAC: {
+        auto const& parameters = *codec.aac_parameters();
+        TRY(encoder.encode(parameters.object_type_indication));
+        TRY(encoder.encode(parameters.audio_object_type));
+        return {};
+    }
+    case Media::CodecID::H264: {
+        auto const& parameters = *codec.h264_parameters();
+        TRY(encoder.encode(parameters.profile_idc));
+        TRY(encoder.encode(parameters.constraint_set_flags));
+        TRY(encoder.encode(parameters.level_idc));
+        return {};
+    }
+    case Media::CodecID::H265: {
+        auto const& parameters = *codec.h265_parameters();
+        for (auto flags : parameters.constraint_indicator_flags)
+            TRY(encoder.encode(flags));
+        TRY(encoder.encode(parameters.profile_compatibility_flags));
+        TRY(encoder.encode(parameters.profile_space));
+        TRY(encoder.encode(parameters.profile_idc));
+        TRY(encoder.encode(parameters.level_idc));
+        TRY(encoder.encode(parameters.tier_flag));
+        return {};
+    }
+    case Media::CodecID::AV1: {
+        auto const& parameters = *codec.av1_parameters();
+        TRY(encoder.encode(parameters.profile));
+        TRY(encoder.encode(parameters.level));
+        TRY(encoder.encode(parameters.tier));
+        TRY(encoder.encode(parameters.bit_depth));
+        TRY(encoder.encode(parameters.optional_fields.monochrome));
+        TRY(encoder.encode(parameters.optional_fields.subsampling.x()));
+        TRY(encoder.encode(parameters.optional_fields.subsampling.y()));
+        TRY(encoder.encode(parameters.optional_fields.chroma_sample_position));
+        TRY(encoder.encode(parameters.optional_fields.cicp));
+        return {};
+    }
+    case Media::CodecID::VP9: {
+        auto const& parameters = *codec.vp9_parameters();
+        TRY(encoder.encode(parameters.profile));
+        TRY(encoder.encode(parameters.level));
+        TRY(encoder.encode(parameters.bit_depth));
+        TRY(encoder.encode(parameters.color_parameters.subsampling.x()));
+        TRY(encoder.encode(parameters.color_parameters.subsampling.y()));
+        TRY(encoder.encode(parameters.color_parameters.cicp));
+        return {};
+    }
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+template<>
+ErrorOr<Media::ParsedCodec> decode(Decoder& decoder)
+{
+    auto codec_id = TRY(decoder.decode<Media::CodecID>());
+    if (!TRY(decoder.decode<bool>()))
+        return Media::ParsedCodec { codec_id };
+
+    switch (codec_id) {
+    case Media::CodecID::AAC: {
+        Media::Codecs::AAC::Parameters parameters {};
+        parameters.object_type_indication = TRY(decoder.decode<u8>());
+        parameters.audio_object_type = TRY(decoder.decode<Optional<u32>>());
+        return Media::ParsedCodec { parameters };
+    }
+    case Media::CodecID::H264: {
+        Media::Codecs::H264::Parameters parameters;
+        parameters.profile_idc = TRY(decoder.decode<u8>());
+        parameters.constraint_set_flags = TRY(decoder.decode<u8>());
+        parameters.level_idc = TRY(decoder.decode<u8>());
+        return Media::ParsedCodec { parameters };
+    }
+    case Media::CodecID::H265: {
+        Media::Codecs::H265::Parameters parameters;
+        for (auto& flags : parameters.constraint_indicator_flags)
+            flags = TRY(decoder.decode<u8>());
+        parameters.profile_compatibility_flags = TRY(decoder.decode<u32>());
+        parameters.profile_space = TRY(decoder.decode<u8>());
+        parameters.profile_idc = TRY(decoder.decode<u8>());
+        parameters.level_idc = TRY(decoder.decode<u8>());
+        parameters.tier_flag = TRY(decoder.decode<bool>());
+        return Media::ParsedCodec { parameters };
+    }
+    case Media::CodecID::AV1: {
+        Media::Codecs::AV1::Parameters parameters;
+        parameters.profile = TRY(decoder.decode<u8>());
+        parameters.level = TRY(decoder.decode<u8>());
+        parameters.tier = TRY(decoder.decode<Media::Codecs::AV1::Tier>());
+        parameters.bit_depth = TRY(decoder.decode<u8>());
+        parameters.optional_fields.monochrome = TRY(decoder.decode<bool>());
+        auto subsampling_x = TRY(decoder.decode<bool>());
+        auto subsampling_y = TRY(decoder.decode<bool>());
+        parameters.optional_fields.subsampling = { subsampling_x, subsampling_y };
+        parameters.optional_fields.chroma_sample_position = TRY(decoder.decode<u8>());
+        parameters.optional_fields.cicp = TRY(decoder.decode<Media::CodingIndependentCodePoints>());
+        return Media::ParsedCodec { parameters };
+    }
+    case Media::CodecID::VP9: {
+        Media::Codecs::VP9::Parameters parameters;
+        parameters.profile = TRY(decoder.decode<u8>());
+        parameters.level = TRY(decoder.decode<u8>());
+        parameters.bit_depth = TRY(decoder.decode<u8>());
+        auto subsampling_x = TRY(decoder.decode<bool>());
+        auto subsampling_y = TRY(decoder.decode<bool>());
+        parameters.color_parameters.subsampling = { subsampling_x, subsampling_y };
+        parameters.color_parameters.cicp = TRY(decoder.decode<Media::CodingIndependentCodePoints>());
+        return Media::ParsedCodec { parameters };
+    }
+    default:
+        return Error::from_string_literal("Codec parameters for a codec that has none");
+    }
 }
 
 }

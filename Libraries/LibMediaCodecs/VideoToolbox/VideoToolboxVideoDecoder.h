@@ -12,11 +12,11 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
-#include <LibMedia/Export.h>
 #include <LibMediaCodecs/CodecID.h>
 #include <LibMediaCodecs/CodecParameters.h>
 #include <LibMediaCodecs/Codecs/VP9.h>
 #include <LibMediaCodecs/DecoderCapabilities.h>
+#include <LibMediaCodecs/Export.h>
 #include <LibMediaCodecs/Subsampling.h>
 #include <LibMediaCodecs/VideoDecoder.h>
 #include <LibMediaCodecs/VideoFramePool.h>
@@ -29,7 +29,7 @@ struct FormatState;
 
 // Decodes on the platform's media engine, which allocates the surfaces it decodes into and hands them back rather
 // than filling ones we provide.
-class MEDIA_API VideoToolboxVideoDecoder final : public VideoDecoder {
+class MEDIACODECS_API VideoToolboxVideoDecoder final : public VideoDecoder {
 public:
     AK_ALLOC_WITH_KMALLOC;
 

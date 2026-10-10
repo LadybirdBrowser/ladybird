@@ -9,11 +9,13 @@
 #include <AK/Span.h>
 #include <LibMedia/Export.h>
 #include <LibMediaCodecs/AudioDecoderRegistry.h>
+#include <LibMediaCodecs/HardwareVideoDecoders.h>
 #include <LibMediaCodecs/VideoDecoderRegistry.h>
 
 namespace Media {
 
-MEDIA_API ReadonlySpan<VideoDecoderRegistration> hardware_video_decoders();
+// The decoders hosted by the VideoDecoderServer, reached through RemoteVideoDecoder.
+MEDIA_API ReadonlySpan<VideoDecoderRegistration> remote_video_decoders();
 MEDIA_API ReadonlySpan<VideoDecoderRegistration> ffmpeg_video_decoders();
 MEDIA_API ReadonlySpan<AudioDecoderRegistration> audio_decoders();
 

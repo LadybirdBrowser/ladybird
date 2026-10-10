@@ -502,6 +502,39 @@ void DecodedVideoProducer::ThreadData::resolve_seek(u32 seek_id)
     m_last_processed_seek_id = seek_id;
 }
 
+bool DecodedVideoProducer::ThreadData::seek_to_resubmit_if_decoder_lost_its_state(DecoderError const& error)
+{
+    if (error.category() != DecoderErrorCategory::NeedsResubmission)
+        return false;
+
+    auto locker = take_lock();
+    seek_to_resubmit_while_locked();
+    return true;
+}
+
+bool DecodedVideoProducer::ThreadData::seek_to_replace_decoder_if_it_cannot_decode_the_stream(DecoderError const& error)
+{
+    if (error.category() != DecoderErrorCategory::NotImplemented)
+        return false;
+
+    auto locker = take_lock();
+    m_decoder_that_failed_due_to_missing_features = m_decoder_selection;
+    m_decoder.clear();
+    seek_to_resubmit_while_locked();
+    return true;
+}
+
+void DecodedVideoProducer::ThreadData::seek_to_resubmit_while_locked()
+{
+    m_decoder_needs_keyframe_next_seek = true;
+    m_decoder_needs_codec_configuration_next_seek = true;
+    m_held_frames_are_invalid = true;
+    if (m_last_processed_seek_id == m_seek_id)
+        m_seek_timestamp = m_earliest_available_timestamp;
+    m_seek_id++;
+    m_downstream_needs_wake = true;
+}
+
 bool DecodedVideoProducer::ThreadData::handle_seek()
 {
     VERIFY(m_decode_thread_id.is_current_thread());
@@ -545,7 +578,8 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
             m_latest_available_timestamp = timestamp;
             m_current_halting_status = PipelineStatus::Pending;
             m_frame_awaiting_decoder_replacement.clear();
-            m_decoder_that_failed_due_to_missing_features = {};
+            if (m_decoder != nullptr)
+                m_decoder_that_failed_due_to_missing_features = {};
         }
 
         auto seek_options = DemuxerSeekOptions::None;
@@ -586,6 +620,10 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
                     if (frame_result.error().category() == DecoderErrorCategory::EndOfStream) {
                         auto error_or_decoder_was_replaced = replace_drained_decoder(seek_id);
                         if (error_or_decoder_was_replaced.is_error()) {
+                            if (seek_to_resubmit_if_decoder_lost_its_state(error_or_decoder_was_replaced.error())) {
+                                new_seek_id = m_seek_id;
+                                continue;
+                            }
                             handle_error(error_or_decoder_was_replaced.release_error());
                             return true;
                         }
@@ -630,6 +668,14 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
                         continue;
                     }
 
+                    if (seek_to_resubmit_if_decoder_lost_its_state(frame_result.error())) {
+                        new_seek_id = m_seek_id;
+                        continue;
+                    }
+                    if (seek_to_replace_decoder_if_it_cannot_decode_the_stream(frame_result.error())) {
+                        new_seek_id = m_seek_id;
+                        continue;
+                    }
                     handle_error(frame_result.release_error());
                     return true;
                 }
@@ -690,6 +736,10 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
 
             auto decode_result = receive_coded_frame(coded_frame, decoding_for_output ? DecodeIntent::Output : DecodeIntent::Reference);
             if (decode_result.is_error()) {
+                if (seek_to_resubmit_if_decoder_lost_its_state(decode_result.error())) {
+                    new_seek_id = m_seek_id;
+                    continue;
+                }
                 handle_error(decode_result.release_error());
                 return true;
             }
@@ -749,9 +799,15 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
                     return;
                 continue;
             }
+            if (seek_to_resubmit_if_decoder_lost_its_state(frame_result.error()))
+                return;
+            if (seek_to_replace_decoder_if_it_cannot_decode_the_stream(frame_result.error()))
+                return;
             if (frame_result.error().category() == DecoderErrorCategory::EndOfStream) {
                 auto replaced_result = replace_drained_decoder(m_last_processed_seek_id.load(AK::MemoryOrder::memory_order_relaxed));
                 if (replaced_result.is_error()) {
+                    if (seek_to_resubmit_if_decoder_lost_its_state(replaced_result.error()))
+                        return;
                     set_halting_status_and_wait_for_seek(PipelineStatus::Error, replaced_result.release_error());
                     return;
                 }
@@ -792,8 +848,11 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
 
     auto coded_frame = sample_result.release_value();
     auto decode_result = receive_coded_frame(coded_frame, DecodeIntent::Output);
-    if (decode_result.is_error())
+    if (decode_result.is_error()) {
+        if (seek_to_resubmit_if_decoder_lost_its_state(decode_result.error()))
+            return;
         set_halting_status_and_wait_for_seek(PipelineStatus::Error, decode_result.release_error());
+    }
 }
 
 }

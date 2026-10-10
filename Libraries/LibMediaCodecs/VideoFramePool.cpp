@@ -147,13 +147,18 @@ ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> VideoFramePool::try_adopt_acquired_
     return try_adopt_slot(acquired_slot.index, acquired_slot.slot_acquisition_id, acquired_slot.allocated_buffer_id);
 }
 
-void VideoFrameEntryLedger::publish_acquisition_while_locked(Slot& slot)
+void VideoFrameEntryLedger::begin_hold_while_locked(Slot& slot, u64 slot_acquisition_id)
 {
     m_shed_storage_on_release = false;
     if (slot.surface != nullptr)
         slot.surface_use = slot.surface->begin_use();
     slot.hold_count = 1;
-    slot.last_slot_acquisition_id++;
+    slot.last_slot_acquisition_id = slot_acquisition_id;
+}
+
+void VideoFrameEntryLedger::publish_acquisition_while_locked(Slot& slot)
+{
+    begin_hold_while_locked(slot, slot.last_slot_acquisition_id + 1);
     slot_header(slot.buffer).slot_acquisition_id.store(slot.last_slot_acquisition_id);
     AK::atomic_thread_fence(AK::MemoryOrder::memory_order_seq_cst);
 }
@@ -245,6 +250,7 @@ void VideoFrameEntryLedger::release_hold(u32 slot_index)
 
     if (m_slot_freed_callback)
         m_slot_freed_callback();
+    did_free_slot(slot_index);
 }
 
 Core::AnonymousBuffer VideoFrameEntryLedger::slot_buffer(u32 slot_index) const
@@ -331,6 +337,66 @@ void VideoFrameSurfacePool::drop_slot_storage_while_locked(Slot& slot)
 ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> VideoFrameSurfacePool::try_adopt_acquired_slot(AcquiredSlot const& acquired_slot)
 {
     return try_adopt_slot(acquired_slot.index, acquired_slot.slot_acquisition_id, acquired_slot.allocated_buffer_id);
+}
+
+ErrorOr<NonnullRefPtr<VideoFrameRelayPool>> VideoFrameRelayPool::create(SlotReleasedCallback slot_released_callback)
+{
+    return adopt_nonnull_ref_or_enomem(new (nothrow) VideoFrameRelayPool(move(slot_released_callback)));
+}
+
+VideoFrameRelayPool::VideoFrameRelayPool(SlotReleasedCallback slot_released_callback)
+    : m_slot_released_callback(move(slot_released_callback))
+{
+}
+
+ErrorOr<void> VideoFrameRelayPool::set_slot_storage(u32 slot_index, Core::AnonymousBuffer buffer, RefPtr<VideoSurface> surface)
+{
+    if (slot_index >= MAX_SLOT_COUNT)
+        return Error::from_string_literal("Relayed video frame slot index is out of range");
+    if (!buffer.is_valid() || buffer.size() < slot_data_offset())
+        return Error::from_string_literal("Relayed video frame slot buffer is too small");
+
+    MutexLocker locker { m_mutex };
+    while (m_slots.size() <= slot_index)
+        TRY(m_slots.try_append({}));
+    auto& slot = m_slots[slot_index];
+    if (slot.hold_count != 0)
+        return Error::from_string_literal("Relayed video frame slot was replaced while held");
+    slot.buffer = move(buffer);
+    slot.surface = move(surface);
+    slot.allocated_buffer_id++;
+    return {};
+}
+
+ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> VideoFrameRelayPool::try_adopt_published_slot(u32 slot_index, u64 slot_acquisition_id)
+{
+    u64 allocated_buffer_id = 0;
+    {
+        MutexLocker locker { m_mutex };
+        if (slot_index >= m_slots.size())
+            return Error::from_string_literal("Relayed video frame refers to a slot that was never announced");
+        auto& slot = m_slots[slot_index];
+        if (!slot.buffer.is_valid())
+            return Error::from_string_literal("Relayed video frame refers to a slot that has no buffer");
+        if (slot.hold_count != 0)
+            return Error::from_string_literal("Relayed video frame refers to a slot that is still held");
+        if (slot_header(slot.buffer).slot_acquisition_id.load(AK::MemoryOrder::memory_order_acquire) != slot_acquisition_id)
+            return Error::from_string_literal("Relayed video frame does not match its slot's published acquisition");
+        begin_hold_while_locked(slot, slot_acquisition_id);
+        allocated_buffer_id = slot.allocated_buffer_id;
+    }
+    return try_adopt_slot(slot_index, slot_acquisition_id, allocated_buffer_id);
+}
+
+void VideoFrameRelayPool::drop_slot_storage_while_locked(Slot& slot)
+{
+    slot.buffer = {};
+    slot.surface = nullptr;
+}
+
+void VideoFrameRelayPool::did_free_slot(u32 slot_index)
+{
+    m_slot_released_callback(slot_index);
 }
 
 ResolvedVideoFrameSlot::ResolvedVideoFrameSlot(Core::AnonymousBuffer slot_buffer, RefPtr<VideoSurface> surface, VideoFramePoolID pool_id, u32 slot_index, u64 slot_acquisition_id, Function<void()> on_release)

@@ -76,6 +76,11 @@ enum class DisableSandbox {
     Yes,
 };
 
+enum class ForceVideoDecoderServer {
+    No,
+    Yes,
+};
+
 enum class ProfileTool {
     Callgrind,
     CPU,
@@ -103,6 +108,7 @@ struct BrowserOptions {
     Optional<u16> devtools_port;
     EnableContentBlocker enable_content_blocker { EnableContentBlocker::Yes };
     DisableSandbox disable_sandbox { DisableSandbox::No };
+    ForceVideoDecoderServer force_video_decoder_server { ForceVideoDecoderServer::No };
     Vector<ByteString> content_blocker_list_paths {};
 };
 

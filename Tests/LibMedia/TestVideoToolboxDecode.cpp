@@ -7,13 +7,13 @@
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <LibMedia/DemuxerRegistry.h>
-#include <LibMedia/VideoToolbox/VideoToolboxVideoDecoder.h>
 #include <LibMediaCodecs/CodecParameters.h>
 #include <LibMediaCodecs/Codecs/AV1.h>
 #include <LibMediaCodecs/Codecs/H264.h>
 #include <LibMediaCodecs/VideoFrame.h>
 #include <LibMediaCodecs/VideoFramePool.h>
 #include <LibMediaCodecs/VideoSurface.h>
+#include <LibMediaCodecs/VideoToolbox/VideoToolboxVideoDecoder.h>
 
 #include "TestMediaCommon.h"
 

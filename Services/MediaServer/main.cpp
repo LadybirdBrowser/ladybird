@@ -14,6 +14,7 @@
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
 #include <LibMedia/DecoderRegistrations.h>
+#include <LibMedia/RemoteVideoDecoder.h>
 #include <MediaServer/ConnectionFromClient.h>
 #include <MediaServer/Sandbox.h>
 
@@ -57,7 +58,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     (void)Media::FFmpeg::SystemFFmpeg::the();
 #endif
 
-    Media::install_video_decoders({ Media::hardware_video_decoders(), Media::ffmpeg_video_decoders() });
+    Media::install_video_decoders({ Media::remote_video_decoders(), Media::ffmpeg_video_decoders() });
     Media::install_audio_decoders({ Media::audio_decoders() });
 
     if (!disable_sandbox)
@@ -69,6 +70,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     // Every playback stream opens through the AudioServer; this process never reaches a device itself.
     Audio::ClientConnection::set_transport_factory([client] {
         return client->request_audio_server_transport();
+    });
+    Media::RemoteVideoDecoder::set_transport_requester([client](auto callback) {
+        client->request_video_decoder_server_transport(move(callback));
     });
 
     return event_loop.exec();

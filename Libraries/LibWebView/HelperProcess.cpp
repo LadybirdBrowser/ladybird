@@ -19,6 +19,7 @@
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/RequestServerManager.h>
 #include <LibWebView/Utilities.h>
+#include <LibWebView/VideoDecoderServerControlClient.h>
 
 #if defined(AK_OS_MACOS)
 #    include <notify.h>
@@ -461,6 +462,23 @@ ErrorOr<NonnullRefPtr<MediaClient::Client>> launch_media_server_process()
     return launch_server_process<MediaClient::Client>("MediaServer"sv, arguments);
 }
 
+ErrorOr<NonnullRefPtr<VideoDecoderServerControlClient>> launch_video_decoder_server_process()
+{
+    auto const& browser_options = WebView::Application::browser_options();
+
+    Vector<ByteString> arguments;
+    if (browser_options.disable_sandbox == DisableSandbox::Yes)
+        arguments.append("--disable-sandbox"sv);
+    if (browser_options.force_video_decoder_server == ForceVideoDecoderServer::Yes)
+        arguments.append("--host-software-decoders"sv);
+    if (auto server = mach_server_name(); server.has_value()) {
+        arguments.append("--mach-server-name"sv);
+        arguments.append(server.value());
+    }
+
+    return launch_server_process<VideoDecoderServerControlClient>("VideoDecoderServer"sv, arguments);
+}
+
 #if defined(HAVE_WASM_COMPILER_SERVICE)
 ErrorOr<NonnullRefPtr<WasmCompilerClient::Client>> launch_wasm_compiler_process()
 {
@@ -654,11 +672,26 @@ ErrorOr<IPC::TransportHandle> connect_new_audio_server_client(RefPtr<AudioServer
     return response->take_handle().release_value();
 }
 
+static ErrorOr<IPC::TransportHandle> connect_new_video_decoder_server_client(RefPtr<VideoDecoderServerControlClient>& controller)
+{
+    if (!controller || !controller->is_open())
+        controller = TRY(launch_video_decoder_server_process());
+
+    auto response = controller->send_sync_but_allow_failure<Messages::VideoDecoderServerControl::ConnectNewClient>();
+    if (!response || !response->handle().has_value())
+        return Error::from_string_literal("Failed to connect to VideoDecoderServer");
+    return response->take_handle().release_value();
+}
+
 ErrorOr<MediaServerClientConnection> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller, Function<ErrorOr<IPC::TransportHandle>()> connect_audio_server)
 {
     if (!controller || !controller->is_open()) {
         controller = TRY(launch_media_server_process());
         controller->on_request_audio_server_connection = move(connect_audio_server);
+        // Each MediaServer has a VideoDecoderServer of its own, which lives as long as the controller holding it.
+        controller->on_request_video_decoder_server_connection = [video_decoder_server = RefPtr<VideoDecoderServerControlClient> {}](auto answer) mutable {
+            answer(connect_new_video_decoder_server_client(video_decoder_server));
+        };
     }
 
     auto response = controller->send_sync_but_allow_failure<Messages::MediaServer::ConnectNewClient>();

@@ -14,6 +14,7 @@ endpoint MediaServer
 {
 
     connect_new_client() => (Optional<IPC::TransportHandle> handle, int client_id)
+    video_decoder_server_connection_ready(u64 request_id, Optional<IPC::TransportHandle> handle) =|
     connect_video_presentation_channel(int client_id, IPC::TransportHandle handle) =|
 
     request_file_media_support(u64 request_id, String type, String subtype, Optional<String> codecs_parameter) =|
