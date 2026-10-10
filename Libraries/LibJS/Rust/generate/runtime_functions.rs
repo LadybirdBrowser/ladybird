@@ -198,7 +198,17 @@ pub fn generate(functions: &[RuntimeFunction], ops: &[InstructionDefinition]) ->
     for function in functions {
         let _ = writeln!(out, "    \"{}\",", function.symbol);
     }
-    out.push_str("];\n");
+    out.push_str("];\n\n");
+    out.push_str("/// The address of every runtime function, by symbol, in the order of RUNTIME_FUNCTION_SYMBOLS.\n");
+    let _ = writeln!(
+        out,
+        "pub fn runtime_function_addresses() -> [(&'static str, usize); {}] {{\n    [",
+        functions.len()
+    );
+    for function in functions {
+        let _ = writeln!(out, "        (\"{0}\", {0} as *const () as usize),", function.symbol);
+    }
+    out.push_str("    ]\n}\n");
     out
 }
 

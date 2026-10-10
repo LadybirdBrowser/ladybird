@@ -22,6 +22,7 @@ use crate::bytecode::executable::PropertyLookupCache;
 use crate::bytecode::feedback::{call_feedback_flags, keyed_feedback_bits};
 use crate::bytecode::op;
 use crate::layout::value::Value;
+use libjs_abi::PutKind;
 use property_access::KeyedSiteCache;
 
 /// The VM a helper receives as an integer argument.
@@ -342,6 +343,48 @@ impl RuntimeFunctions for Runtime {
     fn get_by_id(vm: &Vm, pc: u32, instruction: &op::GetById, values: &mut op::GetByIdValues) -> SlowPathControl {
         let control = property_access::get_by_id(vm, pc, instruction, values);
         feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
+    }
+
+    // The slow paths of JIT code for these instructions. JIT code records no feedback.
+
+    fn get_by_id_from_jit(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::GetById,
+        values: &mut op::GetByIdValues,
+    ) -> SlowPathControl {
+        property_access::get_by_id(vm, pc, instruction, values)
+    }
+
+    fn get_by_value_from_jit(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::GetByValue,
+        values: &mut op::GetByValueValues,
+    ) -> SlowPathControl {
+        if property_access::try_get_by_value_cache(vm, instruction, values) {
+            return SlowPathControl::continue_at(pc + op::GetByValue::LENGTH);
+        }
+        property_access::get_by_value(vm, pc, instruction, values, KeyedSiteCache::Use)
+    }
+
+    fn put_by_value_from_jit(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::PutByValue,
+        values: &mut op::PutByValueValues,
+    ) -> SlowPathControl {
+        if property_access::try_put_by_value_cache(vm, instruction, values) {
+            return SlowPathControl::continue_at(pc + op::PutByValue::LENGTH);
+        }
+        // NB: Stores that fill a hole of an array, which JIT code leaves to its slow path, take the interpreter's quick
+        //     way for them.
+        if property_access::put_kind_from_operand(instruction.kind) == PutKind::Normal
+            && property_access::try_put_by_value_holey_array(values)
+        {
+            return SlowPathControl::continue_at(pc + op::PutByValue::LENGTH);
+        }
+        property_access::put_by_value(vm, pc, instruction, values, KeyedSiteCache::Use)
     }
 
     fn get_by_id_cached_accessor(
@@ -669,8 +712,8 @@ impl RuntimeFunctions for Runtime {
     ) -> bool {
         let handled = property_access::try_put_by_value_holey_array(values);
         if handled {
-            // NB: The interpreter only comes here for stores that fill a hole or need more storage, which are out of
-            //     bounds.
+            // NB: The interpreter only comes here for stores that fill a hole or need more storage, which JIT code
+            //     does not handle.
             feedback::record_keyed_bits(
                 vm,
                 instruction.keyed_feedback,
@@ -841,6 +884,33 @@ impl RuntimeFunctions for Runtime {
     ) -> SlowPathControl {
         let control = bindings::get_binding(vm, pc, instruction, values);
         feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
+    }
+
+    fn get_initialized_binding(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::GetInitializedBinding,
+        values: &mut op::GetInitializedBindingValues,
+    ) -> SlowPathControl {
+        bindings::get_initialized_binding(vm, pc, instruction, values)
+    }
+
+    fn initialize_lexical_binding(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::InitializeLexicalBinding,
+        values: &mut op::InitializeLexicalBindingValues,
+    ) -> SlowPathControl {
+        bindings::initialize_lexical_binding(vm, pc, instruction, values)
+    }
+
+    fn initialize_variable_binding(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::InitializeVariableBinding,
+        values: &mut op::InitializeVariableBindingValues,
+    ) -> SlowPathControl {
+        bindings::initialize_variable_binding(vm, pc, instruction, values)
     }
 
     fn get_callee_and_this(

@@ -95,4 +95,4 @@ mod generated {
     include!(concat!(env!("OUT_DIR"), "/runtime_functions.rs"));
 }
 
-pub use generated::{RUNTIME_FUNCTION_SYMBOLS, RuntimeFunctions};
+pub use generated::{RUNTIME_FUNCTION_SYMBOLS, RuntimeFunctions, runtime_function_addresses};

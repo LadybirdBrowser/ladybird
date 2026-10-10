@@ -220,6 +220,7 @@ fn main() {
     }
     let instructions = flapc::metadata::parse_flap_metadata(&interpreter_source_name, &interpreter_source_text)
         .unwrap_or_else(|error| panic!("parse the interpreter's bytecode definitions: {error}"));
+    add_jit_only_slow_paths(&target, &instructions, &mut functions);
     functions.sort_by(|a, b| a.symbol.cmp(&b.symbol));
     let instructions_with_values = functions
         .iter()
@@ -252,6 +253,45 @@ fn main() {
         })
         .collect::<Vec<_>>();
     assemble_interpreter(&target, &assembly_paths);
+}
+
+/// Slow paths that only the optimizing JIT's code calls, with the instruction whose operands they take. JIT code calls
+/// them with the interpreter's calling convention for that instruction's slow path, so they are generated like the
+/// interpreter's.
+const JIT_ONLY_SLOW_PATHS: &[(&str, &str)] = &[
+    ("asm_slow_path_get_initialized_binding", "GetInitializedBinding"),
+    ("asm_slow_path_initialize_lexical_binding", "InitializeLexicalBinding"),
+    ("asm_slow_path_initialize_variable_binding", "InitializeVariableBinding"),
+    ("asm_slow_path_get_by_id_from_jit", "GetById"),
+    ("asm_slow_path_get_by_value_from_jit", "GetByValue"),
+    ("asm_slow_path_put_by_value_from_jit", "PutByValue"),
+];
+
+fn add_jit_only_slow_paths(
+    target: &Target,
+    instructions: &[flapc::metadata::InstructionDefinition],
+    functions: &mut Vec<flapc::runtime_interface::RuntimeFunction>,
+) {
+    let record_form_only = matches!(target.object_format, flapc::ObjectFormat::Coff);
+    for (symbol, op) in JIT_ONLY_SLOW_PATHS {
+        assert!(
+            !functions.iter().any(|function| function.symbol == *symbol),
+            "the interpreter calls the JIT-only slow path {symbol}"
+        );
+        let definition = instructions
+            .iter()
+            .find(|definition| definition.name == *op)
+            .unwrap_or_else(|| panic!("the JIT-only slow path {symbol} is for an unknown instruction {op}"));
+        let layout = flapc::metadata::SlowPathLayout::new(definition);
+        functions.push(flapc::runtime_interface::RuntimeFunction {
+            symbol: (*symbol).to_string(),
+            kind: flapc::runtime_interface::RuntimeFunctionKind::SlowPath {
+                op: (*op).to_string(),
+                abi: layout.abi(record_form_only),
+                layout,
+            },
+        });
+    }
 }
 
 fn interpreter_compiler(target: &Target, profiling: bool) -> flapc::Compiler {

@@ -51,7 +51,7 @@ fn strict_of(header_strict: bool) -> Strict {
     if header_strict { Strict::Yes } else { Strict::No }
 }
 
-fn put_kind_from_operand(kind: u32) -> PutKind {
+pub(crate) fn put_kind_from_operand(kind: u32) -> PutKind {
     match kind {
         0 => PutKind::Normal,
         1 => PutKind::Getter,

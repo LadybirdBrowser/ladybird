@@ -555,6 +555,61 @@ pub fn get_binding(
     advance_or_continue(pc, next_pc, op::GetBinding::LENGTH)
 }
 
+/// Only JIT code calls this: the interpreter reads initialized bindings inline.
+pub fn get_initialized_binding(
+    vm: &Vm,
+    pc: u32,
+    instruction: &op::GetInitializedBinding,
+    values: &mut op::GetInitializedBindingValues,
+) -> SlowPathControl {
+    let next_pc = asm_get_binding(
+        vm,
+        pc,
+        &mut values.dst,
+        instruction.cache,
+        AsmBindingIsKnownToBeInitialized::Yes,
+    );
+    advance_or_continue(pc, next_pc, op::GetInitializedBinding::LENGTH)
+}
+
+/// Only JIT code calls this: the interpreter initializes bindings inline.
+pub fn initialize_lexical_binding(
+    vm: &Vm,
+    pc: u32,
+    instruction: &op::InitializeLexicalBinding,
+    values: &mut op::InitializeLexicalBindingValues,
+) -> SlowPathControl {
+    let next_pc = asm_initialize_or_set_binding(
+        vm,
+        pc,
+        EnvironmentMode::Lexical,
+        BindingInitializationMode::Initialize,
+        strict_of(&instruction.header),
+        values.src,
+        instruction.cache,
+    );
+    advance_or_continue(pc, next_pc, op::InitializeLexicalBinding::LENGTH)
+}
+
+/// Only JIT code calls this: the interpreter initializes bindings inline.
+pub fn initialize_variable_binding(
+    vm: &Vm,
+    pc: u32,
+    instruction: &op::InitializeVariableBinding,
+    values: &mut op::InitializeVariableBindingValues,
+) -> SlowPathControl {
+    let next_pc = asm_initialize_or_set_binding(
+        vm,
+        pc,
+        EnvironmentMode::Var,
+        BindingInitializationMode::Initialize,
+        strict_of(&instruction.header),
+        values.src,
+        instruction.cache,
+    );
+    advance_or_continue(pc, next_pc, op::InitializeVariableBinding::LENGTH)
+}
+
 pub fn dynamic_get_binding(
     vm: &Vm,
     pc: u32,
