@@ -44,7 +44,7 @@ public:
     }
 
     ReadonlySpan<float> move_output_to_playback_stream_buffer(Span<float>, MonotonicTime buffer_starts_playing_at);
-    void publish_paused_clock_anchor_while_locked();
+    i64 stop_clock_at_played_frame_while_locked(MediaTimeReader const&);
     void dispatch_state_if_changed(PipelineStatus, u32 seek_id);
     void handle_input_suspension_while_locked(u32 seek_id);
     void request_resume_from_suspension_while_locked();
@@ -346,8 +346,8 @@ void AudioPlaybackSink::create_playback_stream()
         self->m_output_thread_data->m_playback_stream = stream;
         self->set_volume(self->m_volume);
 
-        if (self->m_seek_target_awaiting_drain.has_value()) {
-            self->seek(self->m_seek_target_awaiting_drain.release_value());
+        if (self->m_seek_target_awaiting_discard.has_value()) {
+            self->seek(self->m_seek_target_awaiting_discard.release_value());
             if (input != nullptr)
                 input->start();
             return;
@@ -427,9 +427,12 @@ ReadonlySpan<float> AudioPlaybackSink::OutputThreadData::move_output_to_playback
     return buffer;
 }
 
-void AudioPlaybackSink::OutputThreadData::publish_paused_clock_anchor_while_locked()
+i64 AudioPlaybackSink::OutputThreadData::stop_clock_at_played_frame_while_locked(MediaTimeReader const& time_reader)
 {
-    m_time_writer.refresh_audio_anchor(MonotonicTime::now(), m_next_frame_to_play, m_sample_specification.sample_rate(), false);
+    auto now = MonotonicTime::now();
+    auto played_frame = min(time_reader.output_frame_index(now).value_or(m_next_frame_to_play), m_next_frame_to_play);
+    m_time_writer.refresh_audio_anchor(now, played_frame, m_sample_specification.sample_rate(), false);
+    return played_frame;
 }
 
 void AudioPlaybackSink::OutputThreadData::handle_input_suspension_while_locked(u32 seek_id)
@@ -495,7 +498,7 @@ void AudioPlaybackSink::dispatch_waiting_status_once_played_out()
     auto const& sample_specification = m_output_thread_data->m_sample_specification;
     if (!m_output_thread_data->m_playback_stream || !sample_specification.is_valid())
         return;
-    if (m_seek_target_awaiting_drain.has_value())
+    if (m_seek_target_awaiting_discard.has_value())
         return;
 
     MutexLocker locker { m_output_thread_data->m_output_mutex };
@@ -560,7 +563,7 @@ bool AudioPlaybackSink::effectively_paused() const
         return true;
     if (m_output_thread_data->m_playback_rate == 0.0f)
         return true;
-    if (m_seek_target_awaiting_drain.has_value())
+    if (m_seek_target_awaiting_discard.has_value())
         return true;
     return false;
 }
@@ -603,13 +606,22 @@ void AudioPlaybackSink::pause_playback_stream()
     if (!m_output_thread_data->m_playback_stream)
         return;
 
-    dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Draining and suspending the playback stream", this);
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Discarding and suspending the playback stream", this);
     m_stream_state = StreamState::Suspended;
-    m_output_thread_data->m_playback_stream->drain_buffer_and_suspend()
-        ->when_resolved([output_thread_data = m_output_thread_data]() {
-            // Everything written has played, so the clock stops at the next frame the sink would write.
-            MutexLocker locker { output_thread_data->m_output_mutex };
-            output_thread_data->publish_paused_clock_anchor_while_locked();
+    m_output_thread_data->m_playback_stream->discard_buffer_and_suspend()
+        ->when_resolved([self = NonnullRefPtr(*this)]() {
+            // The frames the stream still held were never heard, so the clock stops where the device got to and the
+            // input is read again from there.
+            i64 played_frame = 0;
+            {
+                MutexLocker locker { self->m_output_thread_data->m_output_mutex };
+                played_frame = self->m_output_thread_data->stop_clock_at_played_frame_while_locked(self->m_time_reader);
+            }
+            self->m_main_thread_event_loop.deferred_invoke([self, played_frame]() {
+                if (self->m_seek_target_awaiting_discard.has_value())
+                    return;
+                self->reseek_input_continuing_at_output_frame(played_frame);
+            });
         })
         .when_rejected([](auto&& error) {
             warnln("Unexpected error while pausing AudioPlaybackSink: {}", error.string_literal());
@@ -618,12 +630,18 @@ void AudioPlaybackSink::pause_playback_stream()
 
 void AudioPlaybackSink::reseek_input_keeping_clock()
 {
-    // A seek that is still draining has yet to read its data, so it can simply read the new data instead.
-    if (m_seek_target_awaiting_drain.has_value()) {
-        seek(m_seek_target_awaiting_drain.value());
+    // A seek whose stream is still stopping has yet to read its data, so it can simply read the new data instead.
+    if (m_seek_target_awaiting_discard.has_value()) {
+        seek(m_seek_target_awaiting_discard.value());
         return;
     }
 
+    // Continue from what was already written to the stream, so that neither a gap nor a repeat can be heard.
+    reseek_input_continuing_at_output_frame({});
+}
+
+void AudioPlaybackSink::reseek_input_continuing_at_output_frame(Optional<i64> continue_at_output_frame)
+{
     RefPtr<AudioProducer> input;
     AK::Duration timestamp;
     i64 output_frame = 0;
@@ -636,8 +654,8 @@ void AudioPlaybackSink::reseek_input_keeping_clock()
             return;
         input = data.m_input;
 
-        // Continue from what was already written to the stream, so that neither a gap nor a repeat can be heard.
-        output_frame = data.m_next_frame_to_play;
+        output_frame = continue_at_output_frame.value_or(data.m_next_frame_to_play);
+        data.m_next_frame_to_play = output_frame;
         timestamp = AK::Duration::from_time_units(output_frame, 1, data.m_sample_specification.sample_rate());
         if (auto timing = data.block_timings().find_timing_for_frame_index(output_frame); timing.has_value())
             timestamp = timing->media_time_at_frame_index(output_frame);
@@ -660,8 +678,8 @@ void AudioPlaybackSink::reseek_input_keeping_clock()
 
 void AudioPlaybackSink::seek(AK::Duration time)
 {
-    bool already_draining_for_seek = m_seek_target_awaiting_drain.has_value();
-    m_seek_target_awaiting_drain = time;
+    bool already_discarding_for_seek = m_seek_target_awaiting_discard.has_value();
+    m_seek_target_awaiting_discard = time;
 
     if (!m_output_thread_data->m_playback_stream) {
         MutexLocker locker { m_output_thread_data->m_output_mutex };
@@ -696,16 +714,16 @@ void AudioPlaybackSink::seek(AK::Duration time)
     if (m_output_thread_data->m_input != nullptr)
         m_output_thread_data->m_input->seek(time);
 
-    if (already_draining_for_seek)
+    if (already_discarding_for_seek)
         return;
 
-    dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Draining the playback stream for a seek to {}", this, time);
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Discarding the playback stream's buffer for a seek to {}", this, time);
     m_stream_state = StreamState::Suspended;
-    m_output_thread_data->m_playback_stream->drain_buffer_and_suspend()
+    m_output_thread_data->m_playback_stream->discard_buffer_and_suspend()
         ->when_resolved([self = NonnullRefPtr(*this)]() {
             self->m_main_thread_event_loop.deferred_invoke([self]() {
-                dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Seek drain finished", self.ptr());
-                self->m_seek_target_awaiting_drain.clear();
+                dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Playback stream stopped for the seek", self.ptr());
+                self->m_seek_target_awaiting_discard.clear();
                 self->update_playback_stream_state();
                 self->dispatch_waiting_status_once_played_out();
             });
