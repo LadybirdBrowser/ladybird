@@ -588,7 +588,7 @@ void AudioPlaybackSink::resume_playback_stream()
     dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Resuming the playback stream", this);
     m_stream_state = StreamState::Playing;
     m_output_thread_data->m_playback_stream->resume()
-        ->when_resolved([self = NonnullRefPtr(*this)](auto) {
+        ->when_resolved([self = NonnullRefPtr(*this)]() {
             self->m_main_thread_event_loop.deferred_invoke([self]() {
                 dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Playback stream resumed", self.ptr());
                 self->dispatch_waiting_status_once_played_out();
