@@ -32,19 +32,17 @@ TEST_CASE(a_missing_library_is_an_error)
     EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::NotImplemented);
 }
 
-TEST_CASE(decodes_through_the_loaded_library)
+static size_t decode_every_frame(Media::FFmpeg::SystemFFmpeg const& library, StringView path)
 {
-    auto library = load_bundled_library();
-
-    auto file = MUST(Core::File::open("./vp9_in_webm.webm"sv, Core::File::OpenMode::Read));
+    auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
     auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
     auto demuxer = MUST(Media::create_demuxer(stream));
     auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).release_value();
     MUST(demuxer->create_context_for_track(track));
 
     auto first_sample = MUST(demuxer->get_next_sample_for_track(track));
-    EXPECT(Media::FFmpeg::FFmpegVideoDecoder::capabilities(library->functions(), Media::ParsedCodec { first_sample.codec_id() }).has_value());
-    auto decoder = MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(library->functions(), first_sample.codec_id(), first_sample.new_codec_configuration().value_or({})));
+    EXPECT(Media::FFmpeg::FFmpegVideoDecoder::capabilities(library.functions(), Media::ParsedCodec { first_sample.codec_id() }).has_value());
+    auto decoder = MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(library.functions(), first_sample.codec_id(), first_sample.new_codec_configuration().value_or({})));
     MUST(decoder->receive_coded_data(first_sample, Media::DecodeIntent::Output));
 
     size_t frame_count = 0;
@@ -68,5 +66,22 @@ TEST_CASE(decodes_through_the_loaded_library)
     }
     decoder->signal_end_of_stream();
     EXPECT_EQ(drain().category(), Media::DecoderErrorCategory::EndOfStream);
-    EXPECT(frame_count > 0);
+    return frame_count;
+}
+
+TEST_CASE(decodes_through_the_loaded_library)
+{
+    auto library = load_bundled_library();
+    EXPECT(decode_every_frame(*library, "./vp9_in_webm.webm"sv) > 0);
+}
+
+// HEVC sits after codecs that newer libavcodec majors removed, so its ID differs from the bundled headers'.
+TEST_CASE(decodes_hevc_through_the_system_library)
+{
+    auto const* library = Media::FFmpeg::SystemFFmpeg::the();
+    if (library == nullptr || !library->has_decoder(Media::CodecID::H265)) {
+        warnln("No system FFmpeg decodes HEVC, skipping");
+        return;
+    }
+    EXPECT(decode_every_frame(*library, "./hevc_open_gop.mp4"sv) > 0);
 }

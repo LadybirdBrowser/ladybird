@@ -23,7 +23,7 @@ DecoderErrorOr<void> set_codec_initialization_data(FFmpegFunctions const& functi
     ScopeGuard free_parameters = [&] { functions.avcodec_parameters_free(&parameters); };
 
     parameters->codec_type = ffmpeg_media_type_from_track_type(track_type_from_codec_id(codec_id));
-    parameters->codec_id = ffmpeg_codec_id_from_media_codec_id(codec_id);
+    parameters->codec_id = functions.ffmpeg_codec_id(codec_id);
     parameters->extradata = static_cast<u8*>(functions.av_malloc(codec_initialization_data.size() + AV_INPUT_BUFFER_PADDING_SIZE));
     if (!parameters->extradata)
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate codec initialization data buffer for FFmpeg codec"sv);

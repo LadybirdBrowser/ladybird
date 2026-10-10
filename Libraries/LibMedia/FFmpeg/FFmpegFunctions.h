@@ -6,8 +6,11 @@
 
 #pragma once
 
+#include <AK/Array.h>
+#include <AK/StdLibExtras.h>
 #include <AK/Types.h>
 #include <AK/kmalloc.h>
+#include <LibMedia/CodecID.h>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -26,11 +29,13 @@ constexpr unsigned HIGHEST_VERIFIED_LIBAVCODEC_MAJOR = 63;
 static_assert(sizeof(void*) != 8 || (offsetof(AVPacket, pts) == 8 && offsetof(AVPacket, dts) == 16 && offsetof(AVPacket, data) == 24 && offsetof(AVPacket, size) == 32 && offsetof(AVPacket, duration) == 64));
 static_assert(sizeof(void*) != 8 || (offsetof(AVFrame, data) == 0 && offsetof(AVFrame, linesize) == 64 && offsetof(AVFrame, extended_data) == 96 && offsetof(AVFrame, width) == 104 && offsetof(AVFrame, height) == 108 && offsetof(AVFrame, nb_samples) == 112 && offsetof(AVFrame, format) == 116 && offsetof(AVFrame, pts) == 136));
 static_assert(sizeof(void*) != 8 || (offsetof(AVCodecParameters, codec_type) == 0 && offsetof(AVCodecParameters, codec_id) == 4 && offsetof(AVCodecParameters, extradata) == 16 && offsetof(AVCodecParameters, extradata_size) == 24));
+static_assert(offsetof(AVCodecDescriptor, id) == 0);
 static_assert(sizeof(void*) != 8 || (sizeof(AVChannelLayout) == 24 && offsetof(AVChannelLayout, nb_channels) == 4 && offsetof(AVChannelLayout, u) == 8));
 
 #define FFMPEG_ENUMERATE_FUNCTIONS(F)       \
     F(avcodec_version)                      \
     F(avcodec_find_decoder)                 \
+    F(avcodec_descriptor_get_by_name)       \
     F(avcodec_alloc_context3)               \
     F(avcodec_free_context)                 \
     F(avcodec_open2)                        \
@@ -68,6 +73,10 @@ struct FFmpegFunctions {
 #define FFMPEG_FUNCTION_POINTER(name) decltype(&::name) name;
     FFMPEG_ENUMERATE_FUNCTIONS(FFMPEG_FUNCTION_POINTER)
 #undef FFMPEG_FUNCTION_POINTER
+
+    using CodecIDTable = Array<AVCodecID, all_codec_ids.size() + 1>;
+    CodecIDTable codec_ids;
+    AVCodecID ffmpeg_codec_id(CodecID codec_id) const { return codec_ids[to_underlying(codec_id)]; }
 
     static FFmpegFunctions const& bundled();
 };
