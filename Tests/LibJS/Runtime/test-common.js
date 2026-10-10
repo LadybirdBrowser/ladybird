@@ -559,6 +559,10 @@ class ExpectationError extends Error {
         suiteMessage = defaultSuiteMessage;
     };
 
+    // test-js runs each test this many times when LIBJS_TEST_REPEAT is set, so that the functions it calls run often
+    // enough to get compiled by the JIT with the feedback the earlier runs collected.
+    const repeatCount = typeof __testRepeatCount__ === "number" ? __testRepeatCount__ : 1;
+
     test = (message, callback) => {
         __reportTest__(message, "start");
 
@@ -579,7 +583,7 @@ class ExpectationError extends Error {
         const time_ms = () => Date.now() - start;
 
         try {
-            callback();
+            for (let i = 0; i < repeatCount; ++i) callback();
             suite[message] = {
                 result: "pass",
                 duration: time_ms(),
