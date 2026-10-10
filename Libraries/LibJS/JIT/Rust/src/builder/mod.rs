@@ -1853,3 +1853,6 @@ impl<'a> GraphBuilder<'a> {
         Ok(Flow::Continue)
     }
 }
+
+#[cfg(test)]
+pub(crate) mod tests;
