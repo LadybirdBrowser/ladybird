@@ -83,6 +83,25 @@ Messages::MediaClient::RequestAudioServerConnectionResponse Client::request_audi
     return handle.release_value();
 }
 
+void Client::request_video_decoder_server_connection(u64 request_id)
+{
+    if (!on_request_video_decoder_server_connection) {
+        dbgln("A MediaServer asked a non-controller for a VideoDecoderServer connection");
+        async_video_decoder_server_connection_ready(request_id, OptionalNone {});
+        return;
+    }
+    on_request_video_decoder_server_connection([self = NonnullRefPtr(*this), request_id](ErrorOr<IPC::TransportHandle> handle) {
+        if (!self->is_open())
+            return;
+        if (handle.is_error()) {
+            warnln("Unable to connect a MediaServer to a VideoDecoderServer: {}", handle.error());
+            self->async_video_decoder_server_connection_ready(request_id, OptionalNone {});
+            return;
+        }
+        self->async_video_decoder_server_connection_ready(request_id, handle.release_value());
+    });
+}
+
 u64 Client::allocate_id()
 {
     return m_next_id++;

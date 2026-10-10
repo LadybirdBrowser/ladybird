@@ -39,9 +39,14 @@ public:
 
     // Controller only: asks the Browser for this server's connection to the AudioServer.
     ErrorOr<NonnullOwnPtr<IPC::Transport>> request_audio_server_transport();
+    // Controller only: asks the Browser for this server's connection to its VideoDecoderServer. The Browser answers
+    // once it has one, and the callback runs on this thread when the answer arrives.
+    using VideoDecoderServerTransportCallback = Function<void(ErrorOr<NonnullOwnPtr<IPC::Transport>>)>;
+    void request_video_decoder_server_transport(VideoDecoderServerTransportCallback);
 
 private:
     virtual Messages::MediaServer::ConnectNewClientResponse connect_new_client() override;
+    virtual void video_decoder_server_connection_ready(u64 request_id, Optional<IPC::TransportHandle> handle) override;
 
     virtual void connect_video_presentation_channel(int client_id, IPC::TransportHandle handle) override;
 
@@ -99,6 +104,9 @@ private:
     Media::IncrementallyPopulatedStream* find_media_stream(u64 stream_id);
 
     Role m_role { Role::Renderer };
+
+    HashMap<u64, VideoDecoderServerTransportCallback> m_video_decoder_server_transport_requests;
+    u64 m_next_video_decoder_server_transport_request_id { 1 };
 
     HashMap<u64, NonnullOwnPtr<PlaybackSession>> m_playback_sessions;
     HashMap<u64, NonnullRefPtr<Media::IncrementallyPopulatedStream>> m_media_streams;

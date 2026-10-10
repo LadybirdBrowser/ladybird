@@ -112,8 +112,8 @@ void RemoteVideoProducer::seek(AK::Duration timestamp, InvalidateHeldData invali
     }
     m_expected_seek_id = requested_seek_id;
 
-    release_all_ring_frames();
     m_delegates.request_seek(timestamp, invalidate_held_data);
+    discard_stale_ring_heads();
 }
 
 bool RemoteVideoProducer::can_satisfy_seek_locally(AK::Duration timestamp) const

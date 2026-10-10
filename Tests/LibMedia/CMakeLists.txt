@@ -33,6 +33,7 @@ set(TEST_SOURCES
     TestParseMatroska.cpp
     TestPipelineNodes.cpp
     TestPlaybackManager.cpp
+    TestRemoteVideoDecoder.cpp
     TestRemoteVideoNode.cpp
     TestSourceBufferDemuxer.cpp
     TestTimeRanges.cpp
@@ -75,6 +76,7 @@ target_link_libraries(TestISOBMFF PRIVATE LibThreading)
 target_link_libraries(TestMediaTime PRIVATE LibThreading)
 target_link_libraries(TestVideoFramePool PRIVATE LibThreading)
 target_link_libraries(TestIncrementallyPopulatedStream PRIVATE LibThreading)
+target_link_libraries(TestRemoteVideoDecoder PRIVATE LibThreading LibIPC LibMediaCodecs)
 target_link_libraries(TestRemoteVideoNode PRIVATE LibThreading LibGfx LibIPC)
 
 if (LINUX)

@@ -1,0 +1,7 @@
+#include <LibIPC/TransportHandle.h>
+
+endpoint VideoDecoderServerControl
+{
+    // The server serves one client, the MediaServer whose decoders it hosts.
+    connect_new_client() => (Optional<IPC::TransportHandle> handle)
+}

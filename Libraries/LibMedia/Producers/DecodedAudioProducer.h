@@ -98,6 +98,9 @@ private:
         DecoderErrorOr<void> retrieve_next_block(AudioBlock&);
         bool handle_seek();
         void resolve_seek(u32 seek_id);
+        bool seek_to_resubmit_if_decoder_lost_its_state(DecoderError const&);
+        bool seek_to_replace_decoder_if_it_cannot_decode_the_stream(DecoderError const&);
+        void seek_to_resubmit_while_locked();
         void push_data_and_decode_a_block();
 
         AudioProducerOutput peek();
@@ -147,6 +150,7 @@ private:
 
         size_t m_queue_max_size { 8 };
         AudioQueue m_queue;
+        AK::Duration m_earliest_available_timestamp;
         ErrorHandler m_error_handler;
         ReadBlockedChangeHandler m_read_blocked_change_handler;
         PipelineStatus m_current_halting_status { PipelineStatus::Pending };

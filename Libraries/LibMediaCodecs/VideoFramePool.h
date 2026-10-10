@@ -69,9 +69,12 @@ protected:
     Optional<u32> try_grow_while_locked();
 
     virtual void drop_slot_storage_while_locked(Slot&) = 0;
+    // Runs after the slot freed callback, from the same thread.
+    virtual void did_free_slot(u32) { }
 
     u32 held_slot_count_while_locked() const;
     void publish_acquisition_while_locked(Slot&);
+    void begin_hold_while_locked(Slot&, u64 slot_acquisition_id);
 
     mutable Mutex m_mutex;
     Vector<Slot> m_slots;
@@ -140,6 +143,30 @@ private:
     void drop_slot_storage_while_locked(Slot&) override;
 
     HashMap<u32, u32> m_slot_indices_by_surface_id;
+};
+
+// Mirrors a pool in another process, whose frames this process holds and lends onward as its own. The other process
+// publishes each acquisition in the slot's buffer and keeps the slot until this pool releases it, so this pool tracks
+// holds without publishing anything.
+class MEDIACODECS_API VideoFrameRelayPool final : public VideoFrameEntryLedger {
+public:
+    static constexpr u32 MAX_SLOT_COUNT = 16;
+
+    using SlotReleasedCallback = Function<void(u32 slot_index)>;
+    static ErrorOr<NonnullRefPtr<VideoFrameRelayPool>> create(SlotReleasedCallback);
+
+    // Takes a new buffer for a slot, as the other process announces it. Fails if the slot is still held.
+    ErrorOr<void> set_slot_storage(u32 slot_index, Core::AnonymousBuffer, RefPtr<VideoSurface>);
+    // Holds a slot for an acquisition the other process published in the slot's buffer.
+    ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> try_adopt_published_slot(u32 slot_index, u64 slot_acquisition_id);
+
+private:
+    explicit VideoFrameRelayPool(SlotReleasedCallback);
+
+    virtual void drop_slot_storage_while_locked(Slot&) override;
+    virtual void did_free_slot(u32 slot_index) override;
+
+    SlotReleasedCallback m_slot_released_callback;
 };
 
 // A strong reference to a slot in a frame pool to be used within a single process.

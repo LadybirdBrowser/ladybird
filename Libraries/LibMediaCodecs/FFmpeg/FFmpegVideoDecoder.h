@@ -7,10 +7,10 @@
 #pragma once
 
 #include <AK/HashMap.h>
-#include <LibMedia/Export.h>
 #include <LibMediaCodecs/CodecID.h>
 #include <LibMediaCodecs/CodecParameters.h>
 #include <LibMediaCodecs/DecoderCapabilities.h>
+#include <LibMediaCodecs/Export.h>
 #include <LibMediaCodecs/VideoDecoder.h>
 #include <LibMediaCodecs/VideoFramePool.h>
 
@@ -18,7 +18,7 @@
 
 namespace Media::FFmpeg {
 
-class MEDIA_API FFmpegVideoDecoder final : public VideoDecoder {
+class MEDIACODECS_API FFmpegVideoDecoder final : public VideoDecoder {
 public:
     AK_ALLOC_WITH_KMALLOC;
 

@@ -105,6 +105,9 @@ private:
         void dispatch_error(DecoderError&&);
         bool handle_seek();
         void resolve_seek(u32 seek_id);
+        bool seek_to_resubmit_if_decoder_lost_its_state(DecoderError const&);
+        bool seek_to_replace_decoder_if_it_cannot_decode_the_stream(DecoderError const&);
+        void seek_to_resubmit_while_locked();
         bool is_within_available_range_while_locked(AK::Duration) const;
         void re_emit_last_frame_if_at_end_of_stream_while_locked();
         void push_data_and_decode_some_frames();

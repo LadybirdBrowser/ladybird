@@ -18,6 +18,7 @@ HELPERS = (
     "ImageDecoder",
     "MediaServer",
     "RequestServer",
+    "VideoDecoderServer",
     "WasmCompiler",
     "WebContent",
     "WebWorker",

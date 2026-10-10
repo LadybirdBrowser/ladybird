@@ -4,6 +4,7 @@ set(ladybird_helper_processes
     ImageDecoder
     MediaServer
     RequestServer
+    VideoDecoderServer
     WebContent
     WebWorker
 )

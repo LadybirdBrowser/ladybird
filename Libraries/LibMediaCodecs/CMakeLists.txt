@@ -12,8 +12,11 @@ set(SOURCES
     DecoderError.cpp
     FFmpeg/FFmpegFunctions.cpp
     FFmpeg/FFmpegHelpers.cpp
+    FFmpeg/FFmpegVideoDecoder.cpp
+    HardwareVideoDecoders.cpp
     NonReferenceFrameDetector.cpp
     VideoDecoderRegistry.cpp
+    VideoDecoderServerConnection.cpp
     VideoFrame.cpp
     VideoFrameHandle.cpp
     VideoFramePool.cpp
@@ -24,8 +27,24 @@ if (LINUX)
     list(APPEND SOURCES FFmpeg/SystemFFmpeg.cpp)
 endif()
 
+if (APPLE)
+    list(APPEND SOURCES VideoToolbox/VideoToolboxVideoDecoder.mm)
+endif()
+
+set(GENERATED_SOURCES
+    VideoDecoderClientEndpoint.h
+    VideoDecoderServerEndpoint.h
+    ../../Services/VideoDecoderServer/VideoDecoderServerControlClientEndpoint.h
+    ../../Services/VideoDecoderServer/VideoDecoderServerControlEndpoint.h
+)
+
+compile_ipc(VideoDecoderClient.ipc VideoDecoderClientEndpoint.h)
+compile_ipc(VideoDecoderServer.ipc VideoDecoderServerEndpoint.h)
+compile_ipc(../../Services/VideoDecoderServer/VideoDecoderServerControl.ipc ../../Services/VideoDecoderServer/VideoDecoderServerControlEndpoint.h)
+compile_ipc(../../Services/VideoDecoderServer/VideoDecoderServerControlClient.ipc ../../Services/VideoDecoderServer/VideoDecoderServerControlClientEndpoint.h)
+
 ladybird_lib(LibMediaCodecs mediacodecs EXPLICIT_SYMBOL_EXPORT)
-target_link_libraries(LibMediaCodecs PRIVATE LibCore LibGfx LibIPC)
+target_link_libraries(LibMediaCodecs PRIVATE LibCore LibGfx LibIPC LibThreading)
 target_link_libraries(LibMediaCodecs PUBLIC LibAudio)
 
 if (NOT ANDROID)
@@ -38,4 +57,8 @@ endif()
 
 if (LINUX)
     target_link_libraries(LibMediaCodecs PRIVATE ${CMAKE_DL_LIBS})
+endif()
+
+if (APPLE)
+    target_link_libraries(LibMediaCodecs PRIVATE "-framework VideoToolbox" "-framework CoreMedia" "-framework CoreVideo")
 endif()

@@ -7,7 +7,6 @@
 #include <AK/ByteBuffer.h>
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
-#include <LibMedia/VideoToolbox/VideoToolboxVideoDecoder.h>
 #include <LibMediaCodecs/Codecs/AV1.h>
 #include <LibMediaCodecs/Codecs/H264.h>
 #include <LibMediaCodecs/Codecs/H265.h>
@@ -15,6 +14,7 @@
 #include <LibMediaCodecs/Codecs/VP9.h>
 #include <LibMediaCodecs/CodedFrame.h>
 #include <LibMediaCodecs/VideoFrame.h>
+#include <LibMediaCodecs/VideoToolbox/VideoToolboxVideoDecoder.h>
 
 #include <CoreMedia/CoreMedia.h>
 #include <CoreVideo/CoreVideo.h>
@@ -234,43 +234,6 @@ bool session_uses_hardware_decoder(VTDecompressionSessionRef session)
     if (VTSessionCopyProperty(session, kVTDecompressionPropertyKey_UsingHardwareAcceleratedVideoDecoder, kCFAllocatorDefault, uses_hardware.out()) != noErr)
         return false;
     return uses_hardware.ref() != nullptr && CFBooleanGetValue(uses_hardware.ref());
-}
-
-ParsedCodec normalize_parsed_codec_for_support_keying(ParsedCodec const& codec)
-{
-    switch (codec.codec_id()) {
-    case CodecID::VP9: {
-        auto parameters = codec.vp9_parameters().value_or({ .profile = 0, .level = 0, .bit_depth = 8, .color_parameters = {} });
-        parameters.level = 0;
-        parameters.color_parameters.cicp = {};
-        return ParsedCodec { parameters };
-    }
-    case CodecID::AV1: {
-        auto parameters = codec.av1_parameters().value_or({ .profile = 0, .level = 0, .tier = Codecs::AV1::Tier::Main, .bit_depth = 8, .optional_fields = {} });
-        parameters.level = 0;
-        parameters.tier = Codecs::AV1::Tier::Main;
-        parameters.optional_fields.cicp = {};
-        return ParsedCodec { parameters };
-    }
-    case CodecID::H264: {
-        Optional<Codecs::H264::Profile> profile = Codecs::H264::Profile::Main;
-        if (auto parameters = codec.h264_parameters(); parameters.has_value())
-            profile = parameters->profile();
-        if (!profile.has_value())
-            return codec;
-        return ParsedCodec { Codecs::H264::canonical_parameters_for_profile(*profile) };
-    }
-    case CodecID::H265: {
-        Optional<Codecs::H265::Profile> profile = Codecs::H265::Profile::Main;
-        if (auto parameters = codec.h265_parameters(); parameters.has_value())
-            profile = parameters->profile();
-        if (!profile.has_value())
-            return codec;
-        return ParsedCodec { Codecs::H265::canonical_parameters_for_profile(*profile) };
-    }
-    default:
-        return codec;
-    }
 }
 
 }

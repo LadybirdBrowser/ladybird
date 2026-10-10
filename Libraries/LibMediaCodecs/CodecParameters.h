@@ -11,6 +11,7 @@
 #include <AK/StdLibExtras.h>
 #include <AK/StringView.h>
 #include <AK/Traits.h>
+#include <LibIPC/Forward.h>
 #include <LibMediaCodecs/CodecID.h>
 #include <LibMediaCodecs/Codecs/AAC.h>
 #include <LibMediaCodecs/Codecs/AV1.h>
@@ -223,6 +224,10 @@ MEDIACODECS_API Optional<ParsedCodec> parse_codec_parameters_string(StringView);
 
 MEDIACODECS_API ParsedCodec parsed_codec_for_coded_frame(CodedFrame const&, ParsedCodec const& container_codec);
 
+// Keeps only what decides whether a decoder supports a format, dropping level, tier and colour, so that formats a
+// decoder handles alike share one key.
+MEDIACODECS_API ParsedCodec normalize_parsed_codec_for_support_keying(ParsedCodec const&);
+
 }
 
 namespace AK {
@@ -231,5 +236,15 @@ template<>
 struct Traits<Media::ParsedCodec> : public DefaultTraits<Media::ParsedCodec> {
     static unsigned hash(Media::ParsedCodec const& codec) { return codec.hash(); }
 };
+
+}
+
+namespace IPC {
+
+template<>
+MEDIACODECS_API ErrorOr<void> encode(Encoder&, Media::ParsedCodec const&);
+
+template<>
+MEDIACODECS_API ErrorOr<Media::ParsedCodec> decode(Decoder&);
 
 }

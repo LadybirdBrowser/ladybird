@@ -1,0 +1,26 @@
+#include <AK/ByteBuffer.h>
+#include <AK/Time.h>
+#include <LibCore/AnonymousBuffer.h>
+#include <LibMediaCodecs/CodecID.h>
+#include <LibMediaCodecs/CodecParameters.h>
+#include <LibMediaCodecs/DecoderCapabilities.h>
+#include <LibMediaCodecs/FrameFlags.h>
+#include <LibMediaCodecs/VideoDecoder.h>
+#include <LibMediaCodecs/VideoFrameHandle.h>
+
+endpoint VideoDecoderServer
+{
+    decoder_capabilities(Media::ParsedCodec codec) => (Optional<Media::DecoderCapabilities> capabilities)
+
+    // A decoder answers every frame submitted to it with coded_frame_consumed, and tags everything else it reports with
+    // the generation it was in, which each flush advances.
+    create_decoder(u64 decoder_id, u32 generation, Media::CodecID codec_id, ByteBuffer codec_initialization_data) =|
+    destroy_decoder(u64 decoder_id) =|
+    // The coded data of the frames submitted after this lives in this ring, until it is replaced again.
+    replace_coded_data_ring(u64 decoder_id, Core::AnonymousBuffer ring) =|
+    submit_coded_frame(u64 decoder_id, u32 generation, u64 ring_offset, u64 size, AK::Duration presentation_timestamp, AK::Duration decode_timestamp, AK::Duration duration, Media::FrameFlags flags, Optional<ByteBuffer> new_codec_configuration, Media::DecodeIntent intent, Optional<AK::Duration> output_target) =|
+    signal_end_of_stream(u64 decoder_id, u32 generation) =|
+    flush(u64 decoder_id, u32 generation) =|
+
+    release_frame(Media::VideoFramePoolID pool_id, u32 slot_index) =|
+}

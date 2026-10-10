@@ -58,6 +58,7 @@ class SettingsUI;
 class SpellChecker;
 class StorageJar;
 class TraversableSessionHistory;
+class VideoDecoderServerControlClient;
 class ViewImplementation;
 class WebContentClient;
 class WebContentTestClient;

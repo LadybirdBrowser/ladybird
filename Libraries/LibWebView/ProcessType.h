@@ -19,6 +19,7 @@ enum class ProcessType : u8 {
     ImageDecoder,
     MediaServer,
     AudioServer,
+    VideoDecoderServer,
     WasmCompiler,
 };
 

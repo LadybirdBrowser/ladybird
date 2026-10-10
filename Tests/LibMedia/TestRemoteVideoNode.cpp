@@ -395,6 +395,48 @@ TEST_CASE(consumer_sends_backward_seeks_upstream)
     EXPECT_EQ(upstream_seeks, 1u);
 }
 
+// The seek must reach upstream before the stale frames' slots are released, and a frame of the new seek that arrives
+// in between must stay in the ring.
+TEST_CASE(consumer_requests_seeks_before_releasing_stale_frames)
+{
+    auto producer_edge = MUST(VideoEdgeQueue::create());
+    auto ring_fd = MUST(Core::System::dup(producer_edge.ring_fd()));
+    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, producer_edge.header_buffer()));
+
+    Vector<StringView> events;
+    Vector<u32> released_slot_indices;
+    RemoteVideoProducer::Delegates delegates;
+    delegates.request_start = [] { };
+    delegates.request_seek = [&](AK::Duration, InvalidateHeldData) {
+        events.append("seek"sv);
+        VideoFrameHandle handle;
+        handle.timestamp = AK::Duration::from_milliseconds(500);
+        handle.duration = AK::Duration::from_milliseconds(100);
+        handle.slot_index = 4;
+        MUST(producer_edge.enqueue(handle, 1));
+    };
+    delegates.release_slot = [&](VideoFramePoolID, u32 slot_index) {
+        events.append("release"sv);
+        released_slot_indices.append(slot_index);
+    };
+    delegates.notify_space_available = [] { };
+    auto consumer = RemoteVideoProducer::create(move(consumer_edge), VideoFrameSlotDirectory::create(), move(delegates));
+
+    for (u32 i = 0; i < 4; i++) {
+        VideoFrameHandle handle;
+        handle.timestamp = AK::Duration::from_milliseconds(1000 + (i * 100));
+        handle.duration = AK::Duration::from_milliseconds(100);
+        handle.slot_index = i;
+        MUST(producer_edge.enqueue(handle, 0));
+    }
+
+    consumer->seek(AK::Duration::from_milliseconds(500));
+
+    EXPECT_EQ(events.size(), 5u);
+    EXPECT_EQ(events.first(), "seek"sv);
+    EXPECT_EQ(released_slot_indices, (Vector<u32> { 0, 1, 2, 3 }));
+}
+
 // With the end of stream published, no frames exist beyond the lookahead for the producer to
 // re-emit, so a seek past the end must resolve locally instead of discarding the queued tail.
 TEST_CASE(consumer_resolves_seeks_past_the_end_of_stream_locally)

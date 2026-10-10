@@ -36,6 +36,8 @@ enum class DecoderErrorCategory : u8 {
     NotImplemented,
     // A reader doesn't recognize the provided data.
     UnrecognizedFormat,
+    // The decoder lost its state, so coded data must be submitted to it again starting from a keyframe.
+    NeedsResubmission,
 };
 
 class DecoderError {
@@ -113,6 +115,8 @@ constexpr StringView decoder_error_category_to_string(DecoderErrorCategory categ
         return "NotImplemented"sv;
     case DecoderErrorCategory::UnrecognizedFormat:
         return "UnrecognizedFormat"sv;
+    case DecoderErrorCategory::NeedsResubmission:
+        return "NeedsResubmission"sv;
     }
     return "Invalid"sv;
 }

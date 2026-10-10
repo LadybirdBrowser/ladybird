@@ -5,7 +5,7 @@
  */
 
 #include <LibMedia/DemuxerRegistry.h>
-#include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
+#include <LibMediaCodecs/FFmpeg/FFmpegVideoDecoder.h>
 
 #include "TestMediaCommon.h"
 

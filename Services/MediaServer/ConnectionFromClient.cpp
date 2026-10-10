@@ -58,6 +58,32 @@ ErrorOr<NonnullOwnPtr<IPC::Transport>> ConnectionFromClient::request_audio_serve
     return response->take_handle()->create_transport();
 }
 
+void ConnectionFromClient::request_video_decoder_server_transport(VideoDecoderServerTransportCallback callback)
+{
+    VERIFY(m_role == Role::Controller);
+    auto request_id = m_next_video_decoder_server_transport_request_id++;
+    m_video_decoder_server_transport_requests.set(request_id, move(callback));
+    async_request_video_decoder_server_connection(request_id);
+}
+
+void ConnectionFromClient::video_decoder_server_connection_ready(u64 request_id, Optional<IPC::TransportHandle> handle)
+{
+    if (m_role != Role::Controller) {
+        did_misbehave("Only the controller may connect a video decoder server");
+        return;
+    }
+    auto callback = m_video_decoder_server_transport_requests.take(request_id);
+    if (!callback.has_value()) {
+        did_misbehave("A video decoder server connection answered no request");
+        return;
+    }
+    if (!handle.has_value()) {
+        (*callback)(Error::from_string_literal("The Browser did not connect a video decoder server"));
+        return;
+    }
+    (*callback)(handle->create_transport());
+}
+
 ErrorOr<ConnectionFromClient::RendererConnection> ConnectionFromClient::create_renderer_connection()
 {
     auto paired_transports = TRY(IPC::Transport::create_paired());

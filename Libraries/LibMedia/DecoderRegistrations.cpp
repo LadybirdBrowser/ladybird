@@ -7,10 +7,10 @@
 #include <AK/Array.h>
 #include <LibMedia/DecoderRegistrations.h>
 #include <LibMedia/FFmpeg/FFmpegAudioDecoder.h>
-#include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
+#include <LibMedia/RemoteVideoDecoder.h>
+#include <LibMediaCodecs/FFmpeg/FFmpegVideoDecoder.h>
 #ifdef AK_OS_MACOS
 #    include <LibMedia/AudioToolbox/AudioToolboxAudioDecoder.h>
-#    include <LibMedia/VideoToolbox/VideoToolboxVideoDecoder.h>
 #endif
 #ifdef AK_OS_LINUX
 #    include <LibMedia/FFmpeg/SystemFFmpegDecoders.h>
@@ -18,23 +18,17 @@
 
 namespace Media {
 
-#ifdef AK_OS_MACOS
-static DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_videotoolbox_video_decoder(CodecID codec_id, ReadonlyBytes codec_initialization_data)
+static DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_remote_video_decoder(CodecID codec_id, ReadonlyBytes codec_initialization_data)
 {
-    return NonnullOwnPtr<VideoDecoder> { TRY(VideoToolbox::VideoToolboxVideoDecoder::try_create(codec_id, codec_initialization_data)) };
+    return NonnullOwnPtr<VideoDecoder> { TRY(RemoteVideoDecoder::try_create(codec_id, codec_initialization_data)) };
 }
-#endif
 
-ReadonlySpan<VideoDecoderRegistration> hardware_video_decoders()
+ReadonlySpan<VideoDecoderRegistration> remote_video_decoders()
 {
-#ifdef AK_OS_MACOS
     static Array const decoders {
-        VideoDecoderRegistration { VideoToolbox::VideoToolboxVideoDecoder::capabilities, create_videotoolbox_video_decoder },
+        VideoDecoderRegistration { RemoteVideoDecoder::capabilities, create_remote_video_decoder },
     };
     return decoders;
-#else
-    return {};
-#endif
 }
 
 static DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_ffmpeg_video_decoder(CodecID codec_id, ReadonlyBytes codec_initialization_data)
