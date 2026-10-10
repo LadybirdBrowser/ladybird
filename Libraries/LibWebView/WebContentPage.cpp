@@ -1287,9 +1287,13 @@ void WebContentPage::did_request_exit_fullscreen()
 }
 
 // A navigation's population steps run in the process with its source document, which need not have hosted local file
-// content. For a navigation to a file: URL the UI process admitted, that process reads the file the URL names.
+// content. For a navigation to a file: URL the UI process admitted, that process reads the file the URL names, as it does
+// for a history step to an entry of one.
 bool WebContentPage::populates_a_navigation_to_local_file(ByteString const& path) const
 {
+    if (traversable().page_populates_a_history_entry_for_local_file(*this, path))
+        return true;
+
     bool result = false;
     traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
         auto const& ongoing_navigation = navigable.ongoing_navigation();

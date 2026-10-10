@@ -1,0 +1,6 @@
+before navigating away: message from test iframe (1)
+WebContent#0
+  iframe#0: remote WebContent#1
+after going back: message from test iframe (1)
+WebContent#0
+  iframe#0: local
