@@ -36,7 +36,7 @@ impl CompiledRegexHandle {
     }
 }
 
-/// How many inline cache slots of each kind the bytecode indexes into.
+/// How many inline cache and feedback slots of each kind the bytecode indexes into.
 #[derive(Clone, Copy)]
 pub struct ExecutableCacheCounts {
     pub property_lookup: u32,
@@ -46,6 +46,10 @@ pub struct ExecutableCacheCounts {
     pub object_shape: u32,
     pub object_property_iterator: u32,
     pub environment_shape: u32,
+    pub arith_feedback: u32,
+    pub value_feedback: u32,
+    pub call_feedback: u32,
+    pub keyed_feedback: u32,
 }
 
 /// One compiled script, module or function body.
@@ -105,6 +109,10 @@ impl ExecutableData {
                 object_shape: generator.next_object_shape_cache,
                 object_property_iterator: generator.next_object_property_iterator_cache,
                 environment_shape: generator.next_environment_shape_cache,
+                arith_feedback: generator.next_arith_feedback,
+                value_feedback: generator.next_value_feedback,
+                call_feedback: generator.next_call_feedback,
+                keyed_feedback: generator.next_keyed_feedback,
             },
             identifier_table: generator.identifier_table,
             property_key_table: generator.property_key_table,

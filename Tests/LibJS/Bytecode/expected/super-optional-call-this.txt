@@ -1,4 +1,4 @@
-$a0b8e192 super-optional-call-this.js:1:1
+$27a2bc3a super-optional-call-this.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -21,9 +21,9 @@ block0:
   [  e0] DynamicInitializeLexicalBinding `Foo`, src:reg7
   [  f0] GetGlobal dst:reg5, `Foo`
   [ 100] CallConstruct dst:reg6, callee:reg5, Foo
-  [ 118] GetById dst:reg5, base:reg6, `method`
-  [ 130] Call dst:reg7, callee:reg5, this_value:reg6, <object>.method
-  [ 150] End value:reg7
+  [ 120] GetById dst:reg5, base:reg6, `method`
+  [ 138] Call dst:reg7, callee:reg5, this_value:reg6, <object>.method
+  [ 158] End value:reg7
 
 
 Foo$9e411946 super-optional-call-this.js:4:1
@@ -52,7 +52,7 @@ block0:
   [   8] End value:Undefined
 
 
-method$2883e9c5 super-optional-call-this.js:6:9
+method$a721f13d super-optional-call-this.js:6:9
   Registers: 9
   Blocks:    3
   Constants:
@@ -74,8 +74,8 @@ block1:
 block2:
   [  70] NewArray dst:reg7
   [  80] CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
-  [  98] MovSrcUndefined dst:reg5
-  [  a0] Return value:reg6
+  [  a0] MovSrcUndefined dst:reg5
+  [  a8] Return value:reg6
 
 
 method$ed84a6f2

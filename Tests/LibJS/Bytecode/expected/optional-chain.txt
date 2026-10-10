@@ -69,7 +69,7 @@ block3:
   [  a0] Return value:reg6
 
 
-call_no_args$ef3e9eb1 optional-chain.js:13:5
+call_no_args$70a09739 optional-chain.js:13:5
   Registers: 8
   Blocks:    3
   Constants:
@@ -89,11 +89,11 @@ block2:
   [  50] GetById dst:reg6, base:reg6, `foo`
   [  68] NewArray dst:reg7
   [  78] CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
-  [  90] MovSrcUndefined dst:reg5
-  [  98] Return value:reg6
+  [  98] MovSrcUndefined dst:reg5
+  [  a0] Return value:reg6
 
 
-call_with_args$36600e97 optional-chain.js:16:5
+call_with_args$b7c2071f optional-chain.js:16:5
   Registers: 11
   Blocks:    3
   Constants:
@@ -117,8 +117,8 @@ block2:
   [  68] Mov3 c0_dst:reg8, c0_src:Int32(1), c1_dst:reg9, c1_src:Int32(2), c2_dst:reg10, c2_src:Int32(3)
   [  88] NewArray dst:reg7, elements:[reg8, reg9, reg10]
   [  a8] CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
-  [  c0] MovSrcUndefined dst:reg5
-  [  c8] Return value:reg6
+  [  c8] MovSrcUndefined dst:reg5
+  [  d0] Return value:reg6
 
 
 computed$9ef8515a optional-chain.js:19:5
@@ -143,7 +143,7 @@ block2:
   [  68] Return value:reg6
 
 
-member_then_call$349e3d5b optional-chain.js:22:5
+member_then_call$b60035e3 optional-chain.js:22:5
   Registers: 8
   Blocks:    3
   Constants:
@@ -165,5 +165,5 @@ block2:
   [  78] GetById dst:reg6, base:reg6, `foo`
   [  90] NewArray dst:reg7
   [  a0] CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
-  [  b8] MovSrcUndefined dst:reg5
-  [  c0] Return value:reg6
+  [  c0] MovSrcUndefined dst:reg5
+  [  c8] Return value:reg6

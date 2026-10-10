@@ -63,7 +63,7 @@ block3:
   [ 270] Return value:reg5
 
 
-map$34c012b6 BuiltinFile:275:28
+map$a2c673ce BuiltinFile:275:28
   Registers: 9
   Blocks:    9
   Locals:    kValue~0, mappedValue~1, k~2, object~3, length~4, array~5
@@ -107,12 +107,12 @@ block6:
 block7:
   [ 128] Mov dst:reg6, src:object~3
   [ 138] GetByValue dst:kValue~0, base:reg6, property:k~2 (object[k~2])
-  [ 150] Mov3 c0_dst:reg6, c0_src:kValue~0, c1_dst:reg7, c1_src:k~2, c2_dst:reg8, c2_src:object~3
-  [ 170] Call dst:mappedValue~1, callee:arg0, this_value:arg1, callback, arguments:[reg6, reg7, reg8]
-  [ 1a0] CreateDataPropertyOrThrow object:array~5, property:k~2, value:mappedValue~1
+  [ 158] Mov3 c0_dst:reg6, c0_src:kValue~0, c1_dst:reg7, c1_src:k~2, c2_dst:reg8, c2_src:object~3
+  [ 178] Call dst:mappedValue~1, callee:arg0, this_value:arg1, callback, arguments:[reg6, reg7, reg8]
+  [ 1a8] CreateDataPropertyOrThrow object:array~5, property:k~2, value:mappedValue~1
 
 block8:
-  [ 1b0] Jump target:block4
+  [ 1b8] Jump target:block4
 
 
 $dd56fdd7 for-loop-scoping.js:6:20

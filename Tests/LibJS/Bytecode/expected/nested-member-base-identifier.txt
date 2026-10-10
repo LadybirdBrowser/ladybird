@@ -16,7 +16,7 @@ block0:
   [  90] End value:reg5
 
 
-assign_nested$126a4010 nested-member-base-identifier.js:6:8
+assign_nested$91084788 nested-member-base-identifier.js:6:8
   Registers: 8
   Blocks:    1
   Constants:
@@ -29,5 +29,5 @@ block0:
   [   8] Mov dst:reg5, src:arg0
   [  18] SubRhsInt32 dst:reg6, lhs:arg1, rhs:1
   [  28] GetByValue dst:reg7, base:reg5, property:reg6 (arr[reg6])
-  [  40] PutById base:reg7, `shader`, src:Int32(0), kind:Normal (arr.shader)
-  [  60] End value:Undefined
+  [  48] PutById base:reg7, `shader`, src:Int32(0), kind:Normal (arr.shader)
+  [  68] End value:Undefined

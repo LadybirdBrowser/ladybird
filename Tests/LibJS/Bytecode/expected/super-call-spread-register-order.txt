@@ -1,4 +1,4 @@
-$84f4cb35 super-call-spread-register-order.js:1:1
+$0656c3bd super-call-spread-register-order.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -15,7 +15,7 @@ block0:
   [  70] DynamicInitializeLexicalBinding `C`, src:reg7
   [  80] GetGlobal dst:reg5, `C`
   [  90] CallConstruct dst:reg7, callee:reg5, C
-  [  a8] End value:reg7
+  [  b0] End value:reg7
 
 
 C$3cf8ba4b super-call-spread-register-order.js:3:14

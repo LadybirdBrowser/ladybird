@@ -11,7 +11,7 @@ block0:
   [  38] End value:reg5
 
 
-outer$2f7d7ac8 eval-scope-optimization.js:9:5
+outer$b6675570 eval-scope-optimization.js:9:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -26,4 +26,4 @@ block0:
   [  48] SetVariableBinding `inner`, src:reg5
   [  60] GetGlobal dst:reg6, `Number`
   [  70] CallConstruct dst:reg5, callee:reg6, Number, arguments:[Int32(42)]
-  [  90] Return value:reg5
+  [  98] Return value:reg5

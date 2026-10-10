@@ -1,4 +1,4 @@
-$1f56e90a super-computed-eval-order.js:1:1
+$a0b8e192 super-computed-eval-order.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -21,9 +21,9 @@ block0:
   [  d8] DynamicInitializeLexicalBinding `Derived`, src:reg7
   [  e8] GetGlobal dst:reg5, `Derived`
   [  f8] CallConstruct dst:reg6, callee:reg5, Derived
-  [ 110] GetById dst:reg5, base:reg6, `test`
-  [ 128] Call dst:reg7, callee:reg5, this_value:reg6, <object>.test
-  [ 148] End value:reg7
+  [ 118] GetById dst:reg5, base:reg6, `test`
+  [ 130] Call dst:reg7, callee:reg5, this_value:reg6, <object>.test
+  [ 150] End value:reg7
 
 
 Derived$eee8d5da super-computed-eval-order.js:4:14

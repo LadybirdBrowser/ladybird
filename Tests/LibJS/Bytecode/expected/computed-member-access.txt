@@ -16,7 +16,7 @@ block0:
   [  a8] End value:reg6
 
 
-computed_read$72516349 computed-member-access.js:5:5
+computed_read$f3b35bd1 computed-member-access.js:5:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -26,10 +26,10 @@ block0:
   [   0] Enter
   [   8] Mov dst:reg5, src:arg0
   [  18] GetByValue dst:reg6, base:reg5, property:Int32(0) (a[Int32(0)])
-  [  30] Return value:reg6
+  [  38] Return value:reg6
 
 
-computed_read_expression$42f1cc08 computed-member-access.js:9:5
+computed_read_expression$d4eb6af0 computed-member-access.js:9:5
   Registers: 7
   Blocks:    1
 
@@ -37,4 +37,4 @@ block0:
   [   0] Enter
   [   8] Mov dst:reg5, src:arg0
   [  18] GetByValue dst:reg6, base:reg5, property:arg1 (a[arg1])
-  [  30] Return value:reg6
+  [  38] Return value:reg6

@@ -47,7 +47,7 @@ fn rust_type(ty: &str) -> String {
         _ => {
             let info = field_type_info(ty);
             match info.kind {
-                "bool" | "u8" | "i32" | "u32" | "u64" => info.kind.to_string(),
+                "bool" | "u8" | "u16" | "i32" | "u32" | "u64" => info.kind.to_string(),
                 other => panic!("no Rust view for bytecode field type {ty} ({other})"),
             }
         }

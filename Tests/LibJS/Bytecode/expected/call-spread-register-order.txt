@@ -1,4 +1,4 @@
-$973653fe call-spread-register-order.js:2:1
+$13106a66 call-spread-register-order.js:2:1
   Registers: 10
   Blocks:    1
   Constants:
@@ -13,7 +13,7 @@ block0:
   [  40] NewPrimitiveArray dst:reg9, elements:[1]
   [  58] ArrayAppend dst:reg7, src:reg9, is_spread:true
   [  68] CallWithArgumentArray dst:reg5, callee:reg6, this_value:Undefined, arguments:reg7, f
-  [  80] End value:reg5
+  [  88] End value:reg5
 
 
 f$f948a77b

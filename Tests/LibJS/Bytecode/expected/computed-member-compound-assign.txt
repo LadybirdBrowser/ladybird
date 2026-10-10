@@ -19,7 +19,7 @@ block0:
   [  c0] End value:reg6
 
 
-compound_computed$7e57eccb computed-member-compound-assign.js:7:14
+compound_computed$fa320333 computed-member-compound-assign.js:7:14
   Registers: 8
   Blocks:    1
   Constants:
@@ -29,13 +29,13 @@ compound_computed$7e57eccb computed-member-compound-assign.js:7:14
 block0:
   [   0] Enter
   [   8] GetByValue dst:reg5, base:arg0, property:arg1 (obj[arg1])
-  [  20] Mov dst:reg6, src:arg1
-  [  30] AddRhsInt32 dst:reg7, lhs:reg5, rhs:1
-  [  40] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
-  [  60] End value:Undefined
+  [  28] Mov dst:reg6, src:arg1
+  [  38] AddRhsInt32 dst:reg7, lhs:reg5, rhs:1
+  [  48] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
+  [  68] End value:Undefined
 
 
-compound_then_assign$27c3b194 computed-member-compound-assign.js:11:13
+compound_then_assign$a925aa1c computed-member-compound-assign.js:11:13
   Registers: 8
   Blocks:    1
   Constants:
@@ -45,9 +45,9 @@ compound_then_assign$27c3b194 computed-member-compound-assign.js:11:13
 block0:
   [   0] Enter
   [   8] GetByValue dst:reg5, base:arg0, property:arg1 (imag[arg1])
-  [  20] Mov dst:reg6, src:arg1
-  [  30] AddRhsInt32 dst:reg7, lhs:reg5, rhs:0
-  [  40] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
-  [  60] Mov2 c0_dst:reg7, c0_src:arg0, c1_dst:reg5, c1_src:arg1
-  [  78] PutByValue base:reg7, property:reg5, src:arg1, kind:Normal (imag[reg5])
-  [  98] End value:Undefined
+  [  28] Mov dst:reg6, src:arg1
+  [  38] AddRhsInt32 dst:reg7, lhs:reg5, rhs:0
+  [  48] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
+  [  68] Mov2 c0_dst:reg7, c0_src:arg0, c1_dst:reg5, c1_src:arg1
+  [  80] PutByValue base:reg7, property:reg5, src:arg1, kind:Normal (imag[reg5])
+  [  a0] End value:Undefined

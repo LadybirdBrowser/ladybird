@@ -12,7 +12,7 @@ block0:
   [  58] End value:reg5
 
 
-test$e0c03e62 if-else-register-lifetime.js:2:5
+test$f41bd5d2 if-else-register-lifetime.js:2:5
   Registers: 13
   Blocks:    12
   Locals:    a~0, i~1, j~2
@@ -62,17 +62,17 @@ block9:
   [ 110] Mov3 c0_dst:reg6, c0_src:arg0, c1_dst:reg7, c1_src:j~2, c2_dst:reg8, c2_src:arg0
   [ 130] Add dst:reg9, lhs:i~1, rhs:j~2
   [ 140] GetByValue dst:reg10, base:reg8, property:reg9 (x[reg9])
-  [ 158] PutByValue base:reg6, property:reg7, src:reg10, kind:Normal (x[reg7])
-  [ 178] Jump target:block11
+  [ 160] PutByValue base:reg6, property:reg7, src:reg10, kind:Normal (x[reg7])
+  [ 180] Jump target:block11
 
 block10:
-  [ 180] Mov2 c0_dst:reg10, c0_src:arg0, c1_dst:reg6, c1_src:j~2
-  [ 198] GetGlobal dst:reg8, `parseInt`
-  [ 1a8] Mov dst:reg9, src:arg0
-  [ 1b8] SubRhsInt32 dst:reg11, lhs:j~2, rhs:3
-  [ 1c8] GetByValue dst:reg12, base:reg9, property:reg11 (x[reg11])
-  [ 1e0] Call dst:reg7, callee:reg8, this_value:Undefined, parseInt, arguments:[reg12, Int32(1)]
-  [ 208] PutByValue base:reg10, property:reg6, src:reg7, kind:Normal (x[reg6])
+  [ 188] Mov2 c0_dst:reg10, c0_src:arg0, c1_dst:reg6, c1_src:j~2
+  [ 1a0] GetGlobal dst:reg8, `parseInt`
+  [ 1b0] Mov dst:reg9, src:arg0
+  [ 1c0] SubRhsInt32 dst:reg11, lhs:j~2, rhs:3
+  [ 1d0] GetByValue dst:reg12, base:reg9, property:reg11 (x[reg11])
+  [ 1f0] Call dst:reg7, callee:reg8, this_value:Undefined, parseInt, arguments:[reg12, Int32(1)]
+  [ 218] PutByValue base:reg10, property:reg6, src:reg7, kind:Normal (x[reg6])
 
 block11:
-  [ 228] Jump target:block6
+  [ 238] Jump target:block6

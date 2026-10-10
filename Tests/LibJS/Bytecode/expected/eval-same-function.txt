@@ -11,7 +11,7 @@ block0:
   [  38] End value:reg5
 
 
-foo$c25bdd1c eval-same-function.js:6:9
+foo$40f9e494 eval-same-function.js:6:9
   Registers: 8
   Blocks:    1
   Constants:
@@ -26,7 +26,7 @@ block0:
   [  30] CallDirectEval dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("var x = 1")]
   [  58] DynamicGetBinding dst:reg6, `Number`
   [  68] CallConstruct dst:reg5, callee:reg6, Number, arguments:[Int32(42)]
-  [  88] Return value:reg5
+  [  90] Return value:reg5
 
 
 eval$5fd20edb line 1, column 1

@@ -1,4 +1,4 @@
-$abc8a5d2 super-constructor-call.js:1:1
+$32b2807a super-constructor-call.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -21,7 +21,7 @@ block0:
   [  d0] DynamicInitializeLexicalBinding `Derived`, src:reg7
   [  e0] GetGlobal dst:reg6, `Derived`
   [  f0] CallConstruct dst:reg7, callee:reg6, Derived, arguments:[Int32(1)]
-  [ 110] End value:reg7
+  [ 118] End value:reg7
 
 
 Derived$6ac2ec42 super-constructor-call.js:4:14

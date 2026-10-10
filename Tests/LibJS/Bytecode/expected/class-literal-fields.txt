@@ -27,7 +27,7 @@ block0:
   [ 198] End value:reg5
 
 
-test$7912604c class-literal-fields.js:2:5
+test$f7b067c4 class-literal-fields.js:2:5
   Registers: 7
   Blocks:    1
   Locals:    A~0
@@ -50,7 +50,7 @@ block0:
   [  78] Mov dst:A~0, src:reg6
   [  88] ThrowIfTDZ src:A~0
   [  90] CallConstruct dst:reg6, callee:A~0, A
-  [  a8] Return value:reg6
+  [  b0] Return value:reg6
 
 
 A$70678274

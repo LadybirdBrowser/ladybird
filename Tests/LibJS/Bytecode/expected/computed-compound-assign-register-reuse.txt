@@ -13,7 +13,7 @@ block0:
   [  80] End value:reg5
 
 
-subVector$1c99b6c3 computed-compound-assign-register-reuse.js:5:13
+subVector$1711d4a3 computed-compound-assign-register-reuse.js:5:13
   Registers: 9
   Blocks:    1
   Constants:
@@ -24,13 +24,13 @@ subVector$1c99b6c3 computed-compound-assign-register-reuse.js:5:13
 block0:
   [   0] Enter
   [   8] GetByValue dst:reg5, base:arg0, property:Int32(0) (self[Int32(0)])
-  [  20] Mov2 c0_dst:reg6, c0_src:Int32(0), c1_dst:reg7, c1_src:arg1
-  [  38] GetByValue dst:reg8, base:reg7, property:Int32(0) (v[Int32(0)])
-  [  50] Sub dst:reg7, lhs:reg5, rhs:reg8
-  [  60] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
-  [  80] GetByValue dst:reg7, base:arg0, property:Int32(1) (self[Int32(1)])
-  [  98] Mov2 c0_dst:reg5, c0_src:Int32(1), c1_dst:reg6, c1_src:arg1
-  [  b0] GetByValue dst:reg8, base:reg6, property:Int32(1) (v[Int32(1)])
-  [  c8] Sub dst:reg6, lhs:reg7, rhs:reg8
-  [  d8] PutByValue base:arg0, property:reg5, src:reg6, kind:Normal
-  [  f8] End value:Undefined
+  [  28] Mov2 c0_dst:reg6, c0_src:Int32(0), c1_dst:reg7, c1_src:arg1
+  [  40] GetByValue dst:reg8, base:reg7, property:Int32(0) (v[Int32(0)])
+  [  60] Sub dst:reg7, lhs:reg5, rhs:reg8
+  [  70] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
+  [  90] GetByValue dst:reg7, base:arg0, property:Int32(1) (self[Int32(1)])
+  [  b0] Mov2 c0_dst:reg5, c0_src:Int32(1), c1_dst:reg6, c1_src:arg1
+  [  c8] GetByValue dst:reg8, base:reg6, property:Int32(1) (v[Int32(1)])
+  [  e8] Sub dst:reg6, lhs:reg7, rhs:reg8
+  [  f8] PutByValue base:arg0, property:reg5, src:reg6, kind:Normal
+  [ 118] End value:Undefined

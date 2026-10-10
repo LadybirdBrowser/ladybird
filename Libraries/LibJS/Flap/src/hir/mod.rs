@@ -1403,6 +1403,15 @@ impl<'a> Checker<'a> {
             ) {
                 return Some((symbol.ty.clone(), Type::U32, BytecodeOperation::Load(FieldWidth::U32)));
             }
+            if matches!(
+                symbol.ty,
+                Type::ArithFeedbackIndex
+                    | Type::ValueFeedbackIndex
+                    | Type::CallFeedbackIndex
+                    | Type::KeyedFeedbackIndex
+            ) {
+                return Some((symbol.ty.clone(), Type::U32, BytecodeOperation::Load(FieldWidth::U16)));
+            }
             if !self.bytecode_fields.contains(&symbol.id) {
                 return None;
             }
