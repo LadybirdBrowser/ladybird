@@ -311,7 +311,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
                 auto max_scope = DOMURL::parse_from_byte_string(service_worker_allowed.get<Vector<ByteString>>()[0], job->script_url);
 
                 // 2. If maxScope’s origin is job’s script url's origin, then:
-                if (max_scope->origin().is_same_origin(job->script_url.origin())) {
+                if (max_scope.has_value() && max_scope->origin().is_same_origin(job->script_url.origin())) {
                     // 1. Set maxScopeString to "/", followed by the strings in maxScope’s path (including empty strings), separated from each other by "/".
                     max_scope_string = join_paths_with_slash(*max_scope);
                 }
