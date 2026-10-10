@@ -5,10 +5,15 @@ endif()
 if (ENABLE_THREAD_SANITIZER)
     list(APPEND LIBJS_RUST_FEATURES thread-sanitizer)
 endif()
+# The JIT is a default feature of the crate, so that cargo builds and lints it unless told otherwise.
+if (ENABLE_JS_JIT)
+    list(APPEND LIBJS_RUST_FEATURES jit)
+endif()
 
 import_rust_crate(
     MANIFEST_PATH Cargo.toml
     CRATE_NAME libjs_rust
+    NO_DEFAULT_FEATURES
     FEATURES ${LIBJS_RUST_FEATURES}
     FFI_OUTPUT_DIR ${CMAKE_BINARY_DIR}/Libraries
     FFI_HEADERS

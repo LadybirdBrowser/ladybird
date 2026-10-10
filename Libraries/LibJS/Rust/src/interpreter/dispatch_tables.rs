@@ -27,10 +27,15 @@ fn table_address(table: &'static DispatchTable) -> *const c_void {
     table.as_ptr().cast()
 }
 
+/// The handlers of the interpreter, indexed by opcode.
+pub fn plain_handlers() -> &'static DispatchTable {
+    // SAFETY: The table is immutable data in the assembled interpreter.
+    unsafe { &js_interpreter_dispatch_table }
+}
+
 /// The handlers of the interpreter.
 pub fn plain_dispatch_table() -> *const c_void {
-    // SAFETY: The table is immutable data in the assembled interpreter.
-    table_address(unsafe { &js_interpreter_dispatch_table })
+    table_address(plain_handlers())
 }
 
 /// The handlers that check for breakpoints, which every executable runs with while the VM is debugging.
@@ -40,16 +45,20 @@ pub fn debug_dispatch_table() -> *const c_void {
 }
 
 impl Vm {
-    /// Fills in the VM's dispatch tables: the debug table at every index while the VM is debugging, and the plain
-    /// table otherwise.
+    /// Fills in the VM's dispatch tables: the debug table at every index while the VM is debugging, and otherwise the
+    /// table of each interpreter tier at its index and the plain table at every other index.
     pub(crate) fn update_dispatch_tables(&self) {
-        let table = if self.debugging_enabled() {
-            debug_dispatch_table()
-        } else {
-            plain_dispatch_table()
-        };
-        for entry in &self.head.dispatch_tables {
-            entry.set(table);
+        if self.debugging_enabled() {
+            for table in &self.head.dispatch_tables {
+                table.set(debug_dispatch_table());
+            }
+            return;
+        }
+        for table in &self.head.dispatch_tables {
+            table.set(plain_dispatch_table());
+        }
+        for (tier, table) in self.jit.dispatch_tables() {
+            self.head.dispatch_tables[tier as usize].set(table);
         }
     }
 }

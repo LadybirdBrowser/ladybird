@@ -124,6 +124,12 @@ pub mod hash_table;
 pub mod host;
 #[cfg(not(test))]
 pub mod interpreter;
+#[cfg(all(not(test), feature = "jit"))]
+pub mod jit;
+// NB: Without the JIT, the runtime sees the same interface to it, with nothing behind it.
+#[cfg(all(not(test), not(feature = "jit")))]
+#[path = "jit/disabled.rs"]
+pub mod jit;
 #[cfg(not(test))]
 pub mod layout;
 #[cfg(not(test))]

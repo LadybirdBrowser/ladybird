@@ -7,7 +7,11 @@ edition = "2024"
 crate-type = ["staticlib", "rlib"]
 
 [features]
+default = ["jit"]
 allocator = ["dep:ladybird_allocator"]
+# The optimizing JIT and the profiling tier of the interpreter that collects feedback for it. Without it, only the
+# plain interpreter is built.
+jit = []
 address-sanitizer = []
 thread-sanitizer = []
 

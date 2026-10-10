@@ -102,6 +102,8 @@ impl TestRunnerGlobalObject {
             None,
         );
 
+        crate::jit::testing::define_jit_testing_object(vm, realm, object);
+
         // NB: The functions are defined in the order of the buckets of a HashTable of their names.
         let mut names = HashTable::default();
         for (name, _) in EXPOSED_GLOBAL_FUNCTIONS {

@@ -288,23 +288,26 @@ impl EcmascriptFunctionObject {
         unsafe { Gc::from_ref(self) }
     }
 
+    /// The function's executable, compiled first if the function never ran.
+    pub fn compiled_executable(&self, vm: &Vm) -> Gc<Executable> {
+        let shared_data = self.shared_data();
+        if let Some(executable) = shared_data.executable() {
+            return executable;
+        }
+        let rust_executable = SharedFunctionInstanceData::compile_function(vm, shared_data, false)
+            .expect("an ECMAScript function compiles to an executable");
+        shared_data.set_executable(Some(rust_executable));
+        rust_executable.set_name(self.name());
+        if should_dump_bytecode() {
+            rust_executable.dump();
+        }
+        shared_data.clear_compile_inputs();
+        rust_executable
+    }
+
     fn get_stack_frame_info(object: &Object, vm: &Vm, stack_frame_info: &mut StackFrameInfo) {
         let function = as_ecmascript_function(object);
-        let shared_data = function.shared_data();
-        let executable = match shared_data.executable() {
-            Some(executable) => executable,
-            None => {
-                let rust_executable = SharedFunctionInstanceData::compile_function(vm, shared_data, false)
-                    .expect("an ECMAScript function compiles to an executable");
-                shared_data.set_executable(Some(rust_executable));
-                rust_executable.set_name(function.name());
-                if should_dump_bytecode() {
-                    rust_executable.dump();
-                }
-                shared_data.clear_compile_inputs();
-                rust_executable
-            }
-        };
+        let executable = function.compiled_executable(vm);
         stack_frame_info.registers_and_locals_count = executable.registers_and_locals_count();
         stack_frame_info.constant_count =
             u32::try_from(executable.constants().len()).expect("the constant count fits in u32");
