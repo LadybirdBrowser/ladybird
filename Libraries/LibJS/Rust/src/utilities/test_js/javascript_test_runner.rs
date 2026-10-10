@@ -103,6 +103,18 @@ impl TestRunnerGlobalObject {
         );
 
         crate::jit::testing::define_jit_testing_object(vm, realm, object);
+        // NB: Tests that the harness runs several times to get them compiled (see test-common.js) learn how often.
+        if let Some(count) = std::env::var("LIBJS_TEST_REPEAT")
+            .ok()
+            .and_then(|count| count.parse::<i32>().ok())
+        {
+            object.define_direct_property(
+                vm,
+                &key("__testRepeatCount__"),
+                Value::from_i32(count),
+                DEFAULT_ATTRIBUTES,
+            );
+        }
 
         // NB: The functions are defined in the order of the buckets of a HashTable of their names.
         let mut names = HashTable::default();
