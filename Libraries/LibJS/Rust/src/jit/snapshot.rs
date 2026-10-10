@@ -34,7 +34,7 @@ use crate::bytecode::instruction::instruction_length_from_bytes;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::DeclarativeEnvironment;
-use crate::layout::function_object::{EcmascriptFunctionObject, RawNativeFunction};
+use crate::layout::function_object::{EcmascriptFunctionObject, FunctionObject, RawNativeFunction};
 use crate::layout::object::Object;
 use crate::layout::property_lookup_cache::{
     GlobalVariableCache, PropertyLookupCache, PropertyLookupCacheEntry, PropertyLookupCacheEntryType,
@@ -196,10 +196,10 @@ fn prototype_property_value(entry: &PropertyLookupCacheEntryData) -> Option<Valu
     Some(holder.get_direct(entry.property_offset))
 }
 
-/// The function of the accessor an entry calls, if it is an ECMAScript function: for a GetPropertyInPrototypeChain
+/// The function of the accessor an entry calls: for a GetPropertyInPrototypeChain
 /// entry, the getter of the accessor its prototype holds in the property, for a ChangePropertyInPrototypeChain entry
 /// its setter, and for a GetOwnProperty entry the getter of the accessor the interpreter last called the getter of.
-fn entry_accessor_function(slot: &PropertyLookupCacheEntry) -> Option<Gc<EcmascriptFunctionObject>> {
+fn entry_accessor_function(slot: &PropertyLookupCacheEntry) -> Option<Gc<FunctionObject>> {
     let entry = slot.get();
     let (accessor, setter) = match entry.entry_type {
         PropertyLookupCacheEntryType::GetOwnProperty if entry.key == 0 => (slot.accessor.get()?, false),
@@ -214,8 +214,7 @@ fn entry_accessor_function(slot: &PropertyLookupCacheEntry) -> Option<Gc<Ecmascr
             )
         }
     };
-    let function = if setter { accessor.setter() } else { accessor.getter() };
-    as_ecmascript_function_object(function?)
+    if setter { accessor.setter() } else { accessor.getter() }
 }
 
 /// Whether the property of an entry held an accessor: the accessor the interpreter last called the getter of for a
@@ -332,7 +331,13 @@ impl SnapshotBuilder<'_> {
                 PropertyLookupCacheEntryType::GetMissingProperty => PropertyCacheEntryType::GetMissingProperty,
             };
             let prototype_property = prototype_property_object(&entry);
+            let cached_value_offset = prototype_property_value(&entry)
+                .filter(|value| value.is_accessor() && value.as_accessor().cache_on_receiver())
+                .and_then(|value| value.as_accessor().cached_value_key())
+                .and_then(|key| entry.shape?.lookup(&PropertyKey::from_symbol(key)))
+                .map(|metadata| metadata.offset);
             let accessor_function = entry_accessor_function(slot).map(|function| AccessorFunctionSnapshot {
+                cached_value_offset,
                 function: self.cell(function),
                 inline_executable: self
                     .inline_executable_index(Some(Value::from_object(function.upcast::<Object>()).as_cell()), caller),

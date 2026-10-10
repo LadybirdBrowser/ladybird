@@ -1477,6 +1477,9 @@ impl<'a> GraphBuilder<'a> {
                 }
             }
             Instruction::GetById { dst, base, cache, .. } => {
+                if self.try_build_cached_getter(dst, base, cache)? {
+                    return Ok(Some(Flow::Continue));
+                }
                 if let Some(flow) = self.try_inline_getter(dst, base, cache)? {
                     return Ok(Some(flow));
                 }

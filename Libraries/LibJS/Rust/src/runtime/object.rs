@@ -2360,23 +2360,35 @@ impl Object {
         };
 
         let mut accessor = None;
-        let mut receiver_uses_holder_cache = false;
+        let mut cache_object = None;
         if let Some(property_offset) = descriptor.property_offset {
             let value = self.get_direct(property_offset);
             if value.is_accessor() {
                 let holder_accessor = value.as_accessor();
                 accessor = Some(holder_accessor);
-                receiver_uses_holder_cache = receiver.is_object()
-                    && (receiver.as_object() == self.as_gc() || receiver.as_object().prototype() == Some(self.as_gc()));
+                let can_cache = receiver.is_object()
+                    && (holder_accessor.cache_on_receiver()
+                        || receiver.as_object() == self.as_gc()
+                        || receiver.as_object().prototype() == Some(self.as_gc()));
+                if can_cache {
+                    cache_object = Some(if holder_accessor.cache_on_receiver() {
+                        receiver.as_object()
+                    } else {
+                        self.as_gc()
+                    });
+                }
                 if let Some(cached_value_key) = holder_accessor.cached_value_key()
-                    && receiver_uses_holder_cache
-                    && let Some(cached_value) = self.get_engine_private_property(cached_value_key)
+                    && let Some(cache_object) = cache_object
+                    && let Some(cached_value) = cache_object.get_engine_private_property(cached_value_key)
                 {
-                    update_inline_cache(
+                    // NB: An inherited receiver cache keeps the accessor's offset in the prototype lookup cache.
+                    update_inline_cache(if cache_object == self.as_gc() {
                         cached_value
                             .property_offset
-                            .expect("an engine private property is a named property"),
-                    );
+                            .expect("an engine private property is a named property")
+                    } else {
+                        property_offset
+                    });
                     return Ok(cached_value.value);
                 }
             }
@@ -2388,13 +2400,13 @@ impl Object {
         let result = call_function_object(vm, getter, receiver, &[])?;
 
         if let Some(accessor) = accessor
-            && receiver_uses_holder_cache
+            && let Some(cache_object) = cache_object
             && let Some(cached_value_key) = accessor.cached_value_key()
         {
             let property = self.storage_get(vm, property_key);
             if property.is_some_and(|property| property.value.is_accessor() && property.value.as_accessor() == accessor)
             {
-                self.set_engine_private_property(vm, cached_value_key, result);
+                cache_object.set_engine_private_property(vm, cached_value_key, result);
             }
         }
 
@@ -3189,6 +3201,7 @@ impl Object {
         getter: Option<Gc<FunctionObject>>,
         setter: Option<Gc<FunctionObject>>,
         attributes: PropertyAttributes,
+        cache_on_receiver: bool,
     ) {
         self.clear_cached_accessor_value(vm, property_key);
         self.define_direct_accessor(vm, property_key, getter, setter, attributes);
@@ -3198,7 +3211,8 @@ impl Object {
             .expect("the accessor was just defined");
         assert!(property.value.is_accessor());
         let accessor = property.value.as_accessor();
-        if accessor.cached_value_key().is_none() {
+        accessor.set_cache_on_receiver(cache_on_receiver);
+        if cache_on_receiver || accessor.cached_value_key().is_none() {
             accessor.set_cached_value_key(Some(Symbol::create_private(vm)));
         }
     }

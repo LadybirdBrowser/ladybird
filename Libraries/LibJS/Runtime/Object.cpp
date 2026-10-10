@@ -313,9 +313,9 @@ void Object::define_direct_accessor(PropertyKey const& property_key, GC::Ptr<Fun
     js_object_define_direct_accessor(vm_of(*this), object_to_abi(*this), property_key_to_abi(property_key), optional_object_to_abi(getter.ptr()), optional_object_to_abi(setter.ptr()), attributes.bits());
 }
 
-void Object::define_direct_cached_accessor(PropertyKey const& property_key, GC::Ptr<FunctionObject> getter, GC::Ptr<FunctionObject> setter, PropertyAttributes attributes)
+void Object::define_direct_cached_accessor(PropertyKey const& property_key, GC::Ptr<FunctionObject> getter, GC::Ptr<FunctionObject> setter, PropertyAttributes attributes, CachedAccessorValueLocation location)
 {
-    js_object_define_direct_cached_accessor(vm_of(*this), object_to_abi(*this), property_key_to_abi(property_key), optional_object_to_abi(getter.ptr()), optional_object_to_abi(setter.ptr()), attributes.bits());
+    js_object_define_direct_cached_accessor(vm_of(*this), object_to_abi(*this), property_key_to_abi(property_key), optional_object_to_abi(getter.ptr()), optional_object_to_abi(setter.ptr()), attributes.bits(), to_underlying(location));
 }
 
 void Object::clear_cached_accessor_value(PropertyKey const& property_key)

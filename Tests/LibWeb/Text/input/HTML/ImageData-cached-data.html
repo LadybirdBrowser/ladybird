@@ -1,0 +1,88 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const firstPixels = new Uint8ClampedArray([1, 2, 3, 4]);
+        const secondPixels = new Uint8ClampedArray([5, 6, 7, 8]);
+        const first = new ImageData(firstPixels, 1);
+        const second = new ImageData(secondPixels, 1);
+        const descriptor = Object.getOwnPropertyDescriptor(ImageData.prototype, "data");
+        const ownKeys = Reflect.ownKeys(first);
+        const makeRead = image => {
+            const read = new Function("image", "return image.data;");
+            for (let i = 0; i < 1000; ++i) read(image);
+            return read;
+        };
+        const read = makeRead(first);
+        let correct = true;
+        for (let i = 0; i < 1000; ++i) {
+            correct &&= read(first) === firstPixels && read(second) === secondPixels;
+        }
+        println(`separate receivers keep their data: ${correct}`);
+        println(`private cache adds no own keys: ${Reflect.ownKeys(first).length === ownKeys.length}`);
+        println(
+            `data remains a prototype accessor: ${!Object.hasOwn(first, "data") && typeof descriptor.get === "function"}`
+        );
+        try {
+            makeRead(first)(Object.create(ImageData.prototype));
+            println("unbranded receiver rejected: false");
+        } catch (error) {
+            println(`unbranded receiver rejected: ${error instanceof TypeError}`);
+        }
+        try {
+            Reflect.get(first, "data", {});
+            println("custom receiver rejected: false");
+        } catch (error) {
+            println(`custom receiver rejected: ${error instanceof TypeError}`);
+        }
+        const third = new ImageData(1, 1);
+        const thirdPixels = third.data;
+        println(`Reflect.get uses its receiver: ${Reflect.get(first, "data", third) === thirdPixels}`);
+        const cloned = structuredClone(second);
+        const cloneRead = makeRead(cloned);
+        const clonedPixels = cloneRead(cloned);
+        println(
+            `cloned data has its own identity: ${clonedPixels !== secondPixels && clonedPixels[0] === 5 && cloneRead(cloned) === clonedPixels}`
+        );
+        class DerivedImageData extends ImageData {}
+        const derived = new DerivedImageData(1, 1);
+        const derivedPixels = derived.data;
+        println(`subclass receiver keeps its data: ${makeRead(derived)(derived) === derivedPixels}`);
+        internals.gc();
+        println(`cache survives GC: ${read(first) === firstPixels && read(second) === secondPixels}`);
+
+        const shadowRead = makeRead(first);
+        Object.defineProperty(first, "data", { value: 42, configurable: true });
+        println(`own property shadows cache: ${shadowRead(first) === 42}`);
+        delete first.data;
+        println(`deleting shadow restores getter: ${shadowRead(first) === firstPixels}`);
+        const prototypeRead = makeRead(first);
+        Object.setPrototypeOf(first, { data: 43 });
+        println(`changed prototype shadows cache: ${prototypeRead(first) === 43}`);
+        Object.setPrototypeOf(first, ImageData.prototype);
+        println(`restored prototype restores getter: ${prototypeRead(first) === firstPixels}`);
+
+        const detachedRead = makeRead(first);
+        firstPixels.buffer.transfer();
+        println(
+            `detached data retains identity: ${detachedRead(first) === firstPixels && detachedRead(first).byteLength === 0}`
+        );
+        const getterRead = makeRead(first);
+        try {
+            let calls = 0;
+            Object.defineProperty(ImageData.prototype, "data", {
+                get() {
+                    ++calls;
+                    return 44;
+                },
+                configurable: true,
+            });
+            println(
+                `replacing getter takes effect: ${getterRead(first) === 44 && getterRead(second) === 44 && calls === 2}`
+            );
+        } finally {
+            Object.defineProperty(ImageData.prototype, "data", descriptor);
+        }
+        println(`restoring getter restores data: ${read(first) === firstPixels && read(second) === secondPixels}`);
+    });
+</script>

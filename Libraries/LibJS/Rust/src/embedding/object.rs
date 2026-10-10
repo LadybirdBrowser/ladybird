@@ -548,8 +548,9 @@ pub unsafe extern "C" fn js_object_define_direct_accessor(
     object.define_direct_accessor(vm, key, getter, setter, PropertyAttributes::new(attributes));
 }
 
-/// js_object_define_direct_accessor() for an accessor whose getter result the runtime caches in the object until
-/// js_object_clear_cached_accessor_value(). Borrows the key. Main thread only.
+/// js_object_define_direct_accessor() with cached getter results. Location 0 caches on the holder until
+/// js_object_clear_cached_accessor_value(); location 1 caches an immutable result on each receiver.
+/// Borrows the key. Main thread only.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn js_object_define_direct_cached_accessor(
     vm: *mut JSVM,
@@ -558,6 +559,7 @@ pub unsafe extern "C" fn js_object_define_direct_cached_accessor(
     getter: *mut JSObject,
     setter: *mut JSObject,
     attributes: u8,
+    location: u8,
 ) {
     // SAFETY: See the module documentation.
     let (vm, object, key, getter, setter) = unsafe {
@@ -569,7 +571,15 @@ pub unsafe extern "C" fn js_object_define_direct_cached_accessor(
             optional_function_from_abi(setter),
         )
     };
-    object.define_direct_cached_accessor(vm, key, getter, setter, PropertyAttributes::new(attributes));
+    assert!(location <= 1);
+    object.define_direct_cached_accessor(
+        vm,
+        key,
+        getter,
+        setter,
+        PropertyAttributes::new(attributes),
+        location == 1,
+    );
 }
 
 /// Forgets the getter result that a cached accessor of the key keeps, if any. Borrows the key. Main thread only.
