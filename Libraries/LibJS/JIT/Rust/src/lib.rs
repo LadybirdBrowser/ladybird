@@ -20,4 +20,5 @@ pub mod fast_hash;
 pub mod inline_vec;
 pub mod ir;
 pub mod options;
+pub mod passes;
 pub mod snapshot;
