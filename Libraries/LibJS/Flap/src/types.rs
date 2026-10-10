@@ -210,6 +210,9 @@ define_named_types! {
         GlobalVariableCache => "GlobalVariableCache", Some(8), true;
         PropertyLookupCache => "PropertyLookupCache", Some(8), true;
         KeyedPropertyLookupCacheEntry => "KeyedPropertyLookupCacheEntry", Some(8), true;
+        ExecutableFeedback => "ExecutableFeedback", Some(8), true;
+        CallFeedback => "CallFeedback", Some(8), true;
+        KeyedFeedback => "KeyedFeedback", Some(8), true;
         ObjectPropertyIteratorCacheData => "ObjectPropertyIteratorCacheData", Some(8), true;
         ObjectPropertyIteratorCache => "ObjectPropertyIteratorCache", Some(8), true;
         PrototypeChainValidity => "PrototypeChainValidity", Some(8), true;

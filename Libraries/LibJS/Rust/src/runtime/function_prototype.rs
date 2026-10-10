@@ -10,9 +10,11 @@ use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::root::MarkedVec;
+use crate::interpreter::slow_paths::feedback::record_forwarded_call_from_native;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
+use crate::layout::feedback::CallFeedbackForwarding;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{call_function_object, length_of_array_like};
@@ -150,6 +152,8 @@ impl FunctionPrototype {
 
         // 3. If argArray is undefined or null, then
         if arg_array.is_nullish() {
+            record_forwarded_call_from_native(vm, function_value.as_cell(), CallFeedbackForwarding::Apply, 0);
+
             // FIXME: a. Perform PrepareForTailCall().
 
             // b. Return ? Call(func, thisArg).
@@ -165,6 +169,12 @@ impl FunctionPrototype {
 
         // 4. Let argList be ? CreateListFromArrayLike(argArray).
         let length = length_of_array_like(vm, &arg_array_object)?;
+        record_forwarded_call_from_native(
+            vm,
+            function_value.as_cell(),
+            CallFeedbackForwarding::Apply,
+            usize::try_from(length).unwrap_or(usize::MAX),
+        );
 
         // OPTIMIZATION: If argArray has a simple indexed storage without holes and doesn't interfere with indexed property access,
         //               we can skip building argList and directly use the storage elements.
@@ -345,6 +355,12 @@ impl FunctionPrototype {
         // NB: This call's arguments are in the interpreter stack the call runs on, so they are copied first: few
         //     enough onto the stack, which the collector scans, and others into a rooted list.
         let argument_count = vm.argument_count().saturating_sub(1);
+        record_forwarded_call_from_native(
+            vm,
+            function_value.as_cell(),
+            CallFeedbackForwarding::Call,
+            argument_count,
+        );
         if argument_count <= STACK_ARGUMENT_CAPACITY {
             let mut args = [Value::UNDEFINED; STACK_ARGUMENT_CAPACITY];
             let args = &mut args[..argument_count];

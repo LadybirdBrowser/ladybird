@@ -68,6 +68,7 @@ pub(super) fn operation_signature(ty: &Type) -> Option<Signature> {
                 (In, Type::Value),
                 (In, Type::label()),
                 (In, Type::label()),
+                (In, Type::ArithFeedbackIndex),
             ],
             None,
         )),

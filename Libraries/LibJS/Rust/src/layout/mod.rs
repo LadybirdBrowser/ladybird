@@ -16,6 +16,7 @@ pub mod class;
 pub mod environment;
 pub mod executable;
 pub mod execution_context;
+pub mod feedback;
 pub mod function_object;
 pub mod host_class;
 pub mod host_object;

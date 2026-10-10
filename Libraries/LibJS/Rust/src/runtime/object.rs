@@ -3656,6 +3656,16 @@ impl Object {
         value_storage::capacity(elements)
     }
 
+    /// Whether the packed or holey indexed storage holds an element (not a hole) at `index`.
+    pub fn has_stored_indexed_element(&self, index: u32) -> bool {
+        matches!(
+            self.indexed_storage_kind(),
+            IndexedStorageKind::Packed | IndexedStorageKind::Holey
+        ) && index < self.indexed_array_like_size()
+            && index < self.indexed_elements_capacity()
+            && self.indexed_element(index) != Value::EMPTY
+    }
+
     fn indexed_element(&self, index: u32) -> Value {
         assert!(index < self.indexed_elements_capacity());
         // SAFETY: The index is within the elements buffer.

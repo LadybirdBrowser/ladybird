@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::{Cell, RefCell};
+use core::cell::{Cell, OnceCell, RefCell};
 use std::collections::HashMap;
 use std::io::Write;
 use std::rc::Rc;
@@ -18,6 +18,7 @@ use crate::bytecode::constant::{AbstractOperationKind, WellKnownSymbolKind};
 use crate::bytecode::encoding::{IdentifierTableIndex, PropertyKeyTableIndex, StringTableIndex};
 use crate::bytecode::executable_data::ExecutableCacheCounts as FrontendExecutableCacheCounts;
 use crate::bytecode::executable_data::ExecutableData;
+use crate::bytecode::feedback::{ExecutableFeedback, FeedbackSlotCounts};
 use crate::bytecode::generator::{ConstantValue, ExceptionHandler};
 use crate::bytecode::generator::{LocalVariable, PendingClassBlueprint};
 use crate::bytecode_cache::{DecodedBytecodeBytes, DecodedExecutableRecord};
@@ -31,6 +32,7 @@ use crate::jit::InterpreterTier;
 use crate::layout::buffer::InterpreterBuffer;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::executable::ExecutableHead;
+use crate::layout::feedback::ExecutableFeedbackHead;
 use crate::layout::object::Object;
 use crate::layout::property_lookup_cache::KeyedPropertyLookupCacheEntryLayout;
 pub use crate::layout::property_lookup_cache::{
@@ -1147,6 +1149,11 @@ pub struct Executable {
     object_property_iterator_caches: Box<[ObjectPropertyIteratorCache]>,
     /// Which interpreter handlers the executable's frames run with, see `head.dispatch_table_index`.
     interpreter_tier: Cell<InterpreterTier>,
+    /// How many feedback slots of each kind the bytecode indexes into.
+    feedback_slot_counts: FeedbackSlotCounts,
+    /// What the interpreter observed running the bytecode, for the optimizing JIT. Only executables that left the
+    /// plain tier collect feedback, so it is made when the executable first does.
+    feedback: OnceCell<ExecutableFeedback>,
     pub number_of_registers: u32,
     pub number_of_arguments: u32,
     pub is_strict_mode: bool,
@@ -1293,6 +1300,9 @@ impl Executable {
                 cache.shape.set(None);
             }
         }
+        if let Some(feedback) = self.feedback() {
+            feedback.remove_dead_cells();
+        }
     }
 
     pub fn new(
@@ -1353,6 +1363,7 @@ impl Executable {
             bytecode_data: Cell::new(bytecode.as_slice().as_ptr()),
             bytecode_size: Cell::new(bytecode.as_slice().len()),
             dispatch_table_index: Cell::new(InterpreterTier::Plain as u8),
+            feedback: ExecutableFeedbackHead::empty(),
             constants: interpreter_buffer(&constants),
             property_lookup_caches: interpreter_buffer(&property_lookup_caches),
             global_variable_caches: interpreter_buffer(&global_variable_caches),
@@ -1375,6 +1386,8 @@ impl Executable {
             object_shape_caches: Box::new([]),
             object_property_iterator_caches: Box::new([]),
             interpreter_tier: Cell::new(InterpreterTier::Plain),
+            feedback_slot_counts: FeedbackSlotCounts::default(),
+            feedback: OnceCell::new(),
             number_of_registers,
             number_of_arguments,
             is_strict_mode,
@@ -1559,6 +1572,12 @@ impl Executable {
             parts.cache_counts.object_shape,
             parts.cache_counts.object_property_iterator,
         );
+        executable.feedback_slot_counts = FeedbackSlotCounts {
+            arith: parts.cache_counts.arith_feedback,
+            value: parts.cache_counts.value_feedback,
+            call: parts.cache_counts.call_feedback,
+            keyed: parts.cache_counts.keyed_feedback,
+        };
         executable.length_identifier = parts.length_identifier.map(PropertyKeyTableIndex);
         executable.source_map = parts.source_map.into_boxed_slice();
         executable.local_variable_metadata = parts
@@ -1809,8 +1828,34 @@ impl Executable {
 
     /// Moves the executable's frames to the handlers of `tier`, the next time the interpreter enters one of them.
     pub fn set_interpreter_tier(&self, tier: InterpreterTier) {
+        if tier != InterpreterTier::Plain {
+            self.ensure_feedback();
+        }
         self.interpreter_tier.set(tier);
         self.head.dispatch_table_index.set(tier as u8);
+    }
+
+    /// Gives the executable its feedback arrays, if it has none yet, and points the interpreter at them.
+    fn ensure_feedback(&self) {
+        if self.feedback.get().is_some() {
+            return;
+        }
+        let feedback = ExecutableFeedback::new(self.feedback_slot_counts);
+        let head = &self.head.feedback;
+        let [arith, value_buckets, call, keyed] = feedback.array_offsets();
+        head.arith.set(arith);
+        head.value_buckets.set(value_buckets);
+        head.call.set(call);
+        head.keyed.set(keyed);
+        if self.feedback.set(feedback).is_err() {
+            unreachable!("the feedback is made once");
+        }
+    }
+
+    /// What the interpreter observed running the bytecode, indexed by the feedback slots of its instructions, if the
+    /// executable ever left the plain tier.
+    pub fn feedback(&self) -> Option<&ExecutableFeedback> {
+        self.feedback.get()
     }
 
     pub fn environment_shape_cache(&self, index: u32) -> EnvironmentShapeCache {
