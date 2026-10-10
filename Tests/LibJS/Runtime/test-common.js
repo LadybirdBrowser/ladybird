@@ -2,6 +2,8 @@ var describe;
 var test;
 var expect;
 var withinSameSecond;
+var describeForComparison;
+var compareCompiledWithInterpreter;
 
 // Stores the results of each test and suite. Has a terrible
 // name to avoid name collision.
@@ -696,6 +698,73 @@ class ExpectationError extends Error {
 
     test.xfailIf = (condition, message, callback) => {
         condition ? test.xfail(message, callback) : test(message, callback);
+    };
+
+    // Helpers for tests of the JIT, which use the jit object test-js defines.
+
+    // A description of a value that is the same for values that behave the same, so that results of code compiled by
+    // the JIT can be compared with those of the interpreter.
+    describeForComparison = (value, depth = 0) => {
+        if (typeof value === "bigint") return `${value}n`;
+        if (typeof value === "symbol") return value.toString();
+        if (typeof value === "string") return JSON.stringify(value);
+        if (typeof value === "function") return `function ${value.name}`;
+        if (Object.is(value, -0)) return "-0";
+        if (typeof value !== "object" || value === null) return String(value);
+        if (depth > 2) return "...";
+        if (Array.isArray(value)) {
+            const elements = [];
+            for (let i = 0; i < value.length && i < 16; ++i)
+                elements.push(i in value ? describeForComparison(value[i], depth + 1) : "<hole>");
+            return `[${elements.join(", ")}]`;
+        }
+        if (value instanceof Error) return `${value.constructor.name}: ${value.message}`;
+        const properties = Object.keys(value)
+            .slice(0, 16)
+            .map(key => `${key}: ${describeForComparison(value[key], depth + 1)}`);
+        return `{${properties.join(", ")}}`;
+    };
+
+    // Runs a function compiled by the JIT and one that is never compiled with the same arguments, and returns the
+    // differences between what they did. `factory` is a function without free variables that returns the function to
+    // test: each of the two gets its own copy of it, and with it its own feedback.
+    //
+    // `warmUp` and every probe in `probes` (an object of named argument makers) make the arguments of one call from
+    // the log of side effects the call records and the number of the call. The compiled function is called with the
+    // arguments of `warmUp` `warmUpCalls` times, compiled, then called with those of each probe twice, each followed by
+    // calls with the warm up arguments again. The reference function gets the same calls.
+    compareCompiledWithInterpreter = (factory, { warmUp, probes = {}, warmUpCalls = 12 }) => {
+        const copy = () => new Function(`return (${factory})`)()();
+        const reference = copy();
+        const compiled = copy();
+        jit.neverCompile(reference);
+        jit.prepare(compiled);
+
+        const outcome = (f, makeArguments, index) => {
+            const log = [];
+            let result;
+            try {
+                result = `returned ${describeForComparison(f(...makeArguments(log, index)))}`;
+            } catch (e) {
+                result = `threw ${describeForComparison(e)}`;
+            }
+            return `${result} [${log.join(", ")}]`;
+        };
+        const failures = [];
+        const compare = (label, makeArguments, index) => {
+            const expected = outcome(reference, makeArguments, index);
+            const actual = outcome(compiled, makeArguments, index);
+            if (expected !== actual) failures.push(`${label} (call ${index}): expected ${expected}, got ${actual}`);
+        };
+
+        for (let i = 0; i < warmUpCalls; ++i) compare("warm up", warmUp, i);
+        if (!jit.compile(compiled) && jit.enabled) failures.push("the function was not compiled");
+        compare("compiled", warmUp, warmUpCalls);
+        for (const [label, makeArguments] of Object.entries(probes)) {
+            for (let i = 0; i < 2; ++i) compare(label, makeArguments, i);
+            for (let i = 0; i < 2; ++i) compare(`warm up after ${label}`, warmUp, i);
+        }
+        return failures;
     };
 
     withinSameSecond = callback => {
