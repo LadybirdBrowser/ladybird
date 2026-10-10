@@ -755,3 +755,109 @@ TEST_CASE(frozen_cascade_leaves_out_a_failed_pending_face)
 
     EXPECT_EQ(&cascade->frozen_font_for_code_point('a'), local_font.ptr());
 }
+
+TEST_CASE(frozen_cascade_compares_pending_selection_snapshots)
+{
+    auto fallback = load_text_font(16);
+    auto resident = load_text_font(24);
+    u32 resolves = 0;
+    auto build = [&](u64 source_face_id, Gfx::PendingFontState state, Vector<Gfx::UnicodeRange> ranges, RefPtr<Gfx::Font const> font = {}) {
+        auto cascade = Gfx::FontCascadeList::create();
+        cascade->add_pending_face(move(ranges), [&resolves, state] { ++resolves; return state; }, [font] { return font; }, [state] { return state; }, source_face_id);
+        cascade->add(fallback);
+        cascade->set_last_resort_font(fallback);
+        cascade->freeze();
+        return cascade;
+    };
+    auto first = build(1, Gfx::PendingFontState::Visible, { { 'a', 'a' } });
+    auto same = build(1, Gfx::PendingFontState::Visible, { { 'a', 'a' } });
+    EXPECT(first->equals(*first));
+    EXPECT(first->equals(*same));
+    EXPECT(!first->equals(*build(2, Gfx::PendingFontState::Visible, { { 'a', 'a' } })));
+    EXPECT(!first->equals(*build(1, Gfx::PendingFontState::Invisible, { { 'a', 'a' } })));
+    EXPECT(!first->equals(*build(1, Gfx::PendingFontState::Visible, { { 'b', 'b' } })));
+    EXPECT(!first->equals(*build(1, Gfx::PendingFontState::Visible, { { 'a', 'a' } }, resident)));
+    EXPECT(!build(0, Gfx::PendingFontState::Visible, { { 'a', 'a' } })->equals(*build(0, Gfx::PendingFontState::Visible, { { 'a', 'a' } })));
+
+    auto loaded = Gfx::FontCascadeList::create();
+    loaded->add(resident, { { 'a', 'a' } });
+    loaded->add(fallback);
+    loaded->set_last_resort_font(fallback);
+    loaded->freeze();
+    EXPECT(loaded->equals(*build(1, Gfx::PendingFontState::Visible, { { 'a', 'a' } }, resident)));
+    EXPECT_EQ(resolves, 0u);
+}
+
+TEST_CASE(frozen_cascade_comparison_distinguishes_resident_faces_during_fallback)
+{
+    auto fallback = load_text_font(16);
+    auto resident = load_text_font(24);
+    for (auto state : { Gfx::PendingFontState::Visible, Gfx::PendingFontState::Invisible }) {
+        auto build = [&](bool completed) {
+            auto cascade = Gfx::FontCascadeList::create();
+            cascade->add_pending_face({ { 'a', 'a' } }, [state] { return state; }, {}, [state] { return state; }, 1);
+            if (completed)
+                cascade->add(resident, { { 'a', 'a' } });
+            else
+                cascade->add_pending_face({ { 'a', 'a' } }, [] { return Gfx::PendingFontState::Visible; }, [resident] { return resident; }, [] { return Gfx::PendingFontState::Visible; }, 2);
+            cascade->add(fallback);
+            cascade->set_last_resort_font(fallback);
+            cascade->freeze();
+            return cascade;
+        };
+        auto before = build(false);
+        auto after = build(true);
+        EXPECT(before->equals(*build(false)));
+        EXPECT(after->equals(*build(true)));
+        EXPECT(!before->equals(*after));
+        EXPECT(!after->equals(*before));
+        EXPECT_EQ(before->frozen_font_for_code_point('a').point_size(), fallback->point_size());
+        EXPECT_EQ(after->frozen_font_for_code_point('a').point_size(), resident->point_size());
+        EXPECT_EQ(before->frozen_font_for_code_point('a').is_invisible(), state == Gfx::PendingFontState::Invisible);
+        EXPECT_EQ(after->frozen_font_for_code_point('a').is_invisible(), state == Gfx::PendingFontState::Invisible);
+    }
+}
+
+TEST_CASE(frozen_cascade_comparison_retains_font_display_state)
+{
+    auto fallback = load_text_font(16);
+    auto state = Gfx::PendingFontState::Invisible;
+    auto before = Gfx::FontCascadeList::create();
+    before->add_pending_face({ { 'a', 'a' } }, [&state] { return state; }, {}, [&state] { return state; }, 1);
+    before->add(fallback);
+    before->set_last_resort_font(fallback);
+    before->freeze();
+    state = Gfx::PendingFontState::Visible;
+    auto after = Gfx::FontCascadeList::create();
+    after->extend(*before);
+    after->set_last_resort_font(fallback);
+    after->freeze();
+    EXPECT(!before->equals(*after));
+    EXPECT(before->frozen_font_for_code_point('a').is_invisible());
+    EXPECT(!after->frozen_font_for_code_point('a').is_invisible());
+}
+
+TEST_CASE(frozen_cascade_comparison_includes_fallback_fonts)
+{
+    auto first_font = load_text_font(16);
+    auto second_font = load_text_font(24);
+    auto first = Gfx::FontCascadeList::create();
+    first->set_last_resort_font(first_font);
+    first->freeze();
+    auto second = Gfx::FontCascadeList::create();
+    second->set_last_resort_font(second_font);
+    second->freeze();
+    EXPECT(!first->equals(*second));
+
+    auto build = [&](NonnullRefPtr<Gfx::Font> font) {
+        auto cascade = Gfx::FontCascadeList::create();
+        cascade->set_last_resort_font(first_font);
+        auto fallback = Gfx::FontCascadeList::create();
+        fallback->add(font);
+        cascade->extend_fallback(*fallback);
+        cascade->freeze();
+        return cascade;
+    };
+    EXPECT(!build(first_font)->equals(*build(second_font)));
+    EXPECT(build(first_font)->equals(*build(first_font)));
+}

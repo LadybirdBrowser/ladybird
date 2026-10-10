@@ -230,7 +230,7 @@ private:
 
     void begin_font_face_change_batch();
     void end_font_face_change_batch();
-    void clear_computed_font_cache_for_families(Vector<Utf16FlyString> const& family_names);
+    void invalidate_changed_font_cascades(Vector<Utf16FlyString> const& family_names);
     void record_font_input_changes(ReadonlySpan<Utf16FlyString> family_names, ReadonlySpan<Gfx::FontCascadeList const*> font_lists);
 
     FontFeatureValues const& font_feature_values_for_family(Utf16FlyString const& family_name, TreeScopeID) const;

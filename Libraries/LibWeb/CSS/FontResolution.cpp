@@ -95,7 +95,7 @@ static RefPtr<Gfx::FontCascadeList const> font_for_face(FontFaceSnapshot::Face c
             return Gfx::PendingFontState::Failed; }, [rendering_typeface = face.rendering_typeface, point_size, variations, shape_features]() -> RefPtr<Gfx::Font const> {
             if (auto typeface = rendering_typeface->get())
                 return typeface->font(point_size, variations, shape_features);
-            return {}; }, [state = face.rendering_state] { return state; });
+            return {}; }, [state = face.rendering_state] { return state; }, face.id);
     }
     if (font_list->is_empty())
         return {};
@@ -142,7 +142,7 @@ struct MatchingFontCandidate {
                     face.unicode_ranges, [face_id = face.id] {
                         if (auto face = FontFaceState::with_id(face_id))
                             return face->resolve_for_rendering();
-                        return Gfx::PendingFontState::Failed; }, {}, [state = face.rendering_state] { return state; });
+                        return Gfx::PendingFontState::Failed; }, {}, [state = face.rendering_state] { return state; }, face.id);
             }
         }
         if (font_list->is_empty())

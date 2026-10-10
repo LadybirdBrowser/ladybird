@@ -1,0 +1,59 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const resident = new FontFace("PendingSelection", 'url("../../../Ref/data/fonts/Ahem.ttf")', { weight: "400", unicodeRange: "U+0-7F" });
+        await resident.load();
+        document.fonts.add(resident);
+        const pending = new FontFace("PendingSelection", 'url("unused-selection-subset.woff")', { weight: "400", unicodeRange: "U+400-4FF", display: "block" });
+        document.fonts.add(pending);
+        const target = document.body.appendChild(document.createElement("span"));
+        target.style.cssText = "display: inline-block; font: 20px PendingSelection, monospace; width: 10ch";
+        target.textContent = "AA";
+        const width = target.getBoundingClientRect().width;
+        const results = [];
+
+        const layoutBefore = internals.fullLayoutCount();
+        target.style.color = "red";
+        target.getBoundingClientRect();
+        results.push(`paint change relaid out pending cascade: ${internals.fullLayoutCount() !== layoutBefore}`);
+
+        const unused = new FontFace("PendingSelection", 'url("../../../Ref/data/fonts/Ahem.ttf")', { weight: "700", unicodeRange: "U+0-7F" });
+        await unused.load();
+        let before = internals.styleEngineCounters();
+        document.fonts.add(unused);
+        internals.updateStyle();
+        let after = internals.styleEngineCounters();
+        results.push(`unused weight registration recomputed style: ${after.engineFullDrivesStarted !== before.engineFullDrivesStarted}`);
+        document.fonts.delete(unused);
+        internals.updateStyle();
+
+        const loading = new FontFace("PendingSelection", 'url("../../../Ref/data/fonts/Ahem.ttf")', { weight: "700", unicodeRange: "U+0-7F" });
+        document.fonts.add(loading);
+        target.getBoundingClientRect();
+        before = internals.styleEngineCounters();
+        await loading.load();
+        internals.updateStyle();
+        after = internals.styleEngineCounters();
+        results.push(`unused weight completion recomputed style: ${after.engineFullDrivesStarted !== before.engineFullDrivesStarted}`);
+        results.push(`unchanged selection preserves width: ${target.getBoundingClientRect().width === width}`);
+        results.push(`unused subset stays unloaded: ${pending.status === "unloaded"}`);
+
+        const replacement = new FontFace("PendingSelection", 'url("../../../Assets/HashSans.woff")', { weight: "400", unicodeRange: "U+0-7F" });
+        await replacement.load();
+        document.fonts.delete(loading);
+        document.fonts.delete(resident);
+        target.getBoundingClientRect();
+        before = internals.styleEngineCounters();
+        document.fonts.add(replacement);
+        const changedWidth = target.getBoundingClientRect().width;
+        after = internals.styleEngineCounters();
+        results.push(`matching weight registration recomputed style: ${after.engineFullDrivesStarted !== before.engineFullDrivesStarted}`);
+        results.push(`matching selection changes width: ${changedWidth !== width}`);
+        document.fonts.delete(replacement);
+        document.fonts.add(resident);
+        results.push(`removing matching face restores width: ${target.getBoundingClientRect().width === width}`);
+        for (const result of results)
+            println(result);
+    });
+</script>

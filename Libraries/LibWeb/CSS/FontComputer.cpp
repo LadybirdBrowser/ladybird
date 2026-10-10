@@ -400,20 +400,36 @@ void FontComputer::clear_computed_font_cache(Utf16FlyString const& family_name)
 {
     Vector<Utf16FlyString> family_names;
     family_names.append(family_name);
-    clear_computed_font_cache_for_families(family_names);
+    bump_environment_generation();
+    m_font_cascade_memo->forget_matching(m_environment_generation, [&](auto const& key, auto const&) {
+        return computed_font_families_reference_any_family(key.font_families, family_names);
+    });
+    record_font_input_changes(family_names, {});
 }
 
-void FontComputer::clear_computed_font_cache_for_families(Vector<Utf16FlyString> const& family_names)
+void FontComputer::invalidate_changed_font_cascades(Vector<Utf16FlyString> const& family_names)
 {
     VERIFY(!family_names.is_empty());
     bump_environment_generation();
 
-    // Only clear cache entries that reference the loaded font family.
-    m_font_cascade_memo->forget_matching(m_environment_generation, [&](auto const& key, auto const&) {
-        return computed_font_families_reference_any_family(key.font_families, family_names);
+    // NB: Font-face changes can leave a selection unchanged, including its pending subsets. Compare the frozen
+    //     selections before retiring cascades or invalidating their users.
+    Vector<Gfx::FontCascadeList const*> invalidated_font_lists;
+    RefPtr<FontFaceSnapshot const> snapshot;
+    m_font_cascade_memo->forget_matching(m_environment_generation, [&](auto const& key, auto const& font_list) {
+        if (!computed_font_families_reference_any_family(key.font_families, family_names))
+            return false;
+        if (!snapshot)
+            snapshot = font_face_snapshot();
+        auto updated_font_list = resolve_font_cascade(*snapshot, key, font_feature_values_provider(key.font_feature_values_scope));
+        if (font_list->equals(*updated_font_list))
+            return false;
+        invalidated_font_lists.append(font_list.ptr());
+        return true;
     });
-
-    record_font_input_changes(family_names, {});
+    if (!invalidated_font_lists.is_empty())
+        record_font_input_changes({}, invalidated_font_lists);
+    request_wanted_web_faces();
 }
 
 // Has the style engine record an input change for every element whose style uses a font that resolves differently
@@ -457,7 +473,7 @@ void FontComputer::did_end_flown_style_drain()
     // waits on a face the memo would no longer find it waiting on, are found here.
     auto resolutions = m_font_cascade_memo->take_resolutions_against_older_tables();
     for (auto const& [key, font_list] : resolutions) {
-        if (font_list->has_pending_faces() || !font_list->equals(*m_font_cascade_memo->resolve(*font_face_snapshot(), key, font_feature_values_provider(key.font_feature_values_scope))))
+        if (!font_list->equals(*m_font_cascade_memo->resolve(*font_face_snapshot(), key, font_feature_values_provider(key.font_feature_values_scope))))
             m_font_lists_changed_beside_flown_transaction.append(font_list.ptr());
     }
     auto family_names = move(m_font_families_changed_beside_flown_transaction);
@@ -534,46 +550,14 @@ void FontComputer::did_load_font(Utf16FlyString const& family_name)
         return;
     }
 
-    clear_computed_font_cache(family_name);
+    Vector<Utf16FlyString> family_names;
+    family_names.append(family_name);
+    invalidate_changed_font_cascades(family_names);
 }
 
 void FontComputer::did_load_font(FontFaceKey const& changed_face)
 {
-    if (m_font_face_change_batch_depth > 0) {
-        did_load_font(changed_face.family_name);
-        return;
-    }
-
-    bump_environment_generation();
-    // A family can contain many faces, but one face becoming available changes only the cached
-    // selections which now resolve to it. Compare those selections before discarding their cache
-    // entries, then find the elements holding the discarded cascade identities.
-    Vector<Gfx::FontCascadeList const*> invalidated_font_lists;
-    // NB: The table is built for the first remembered cascade that names the family, if any does.
-    RefPtr<FontFaceSnapshot const> snapshot;
-    m_font_cascade_memo->forget_matching(m_environment_generation, [&](auto const& key, auto const& font_list) {
-        if (!any_of(key.font_families, [&](ComputedFontFamily const& family) {
-                return family.has<ComputedFontFamilyName>()
-                    && family.get<ComputedFontFamilyName>().name.equals_ignoring_ascii_case(changed_face.family_name);
-            }))
-            return false;
-        if (!snapshot)
-            snapshot = font_face_snapshot();
-        auto updated_font_list = resolve_font_cascade(*snapshot, key, font_feature_values_provider(key.font_feature_values_scope));
-        if (!font_list->has_pending_faces() && font_list->equals(*updated_font_list))
-            return false;
-        invalidated_font_lists.append(font_list.ptr());
-        return true;
-    });
-    // NB: A style transaction that flew may still resolve the family against the table it was sealed with, into a
-    //     cascade the memo never holds and no list here names: did_end_flown_style_drain() finds the elements holding
-    //     one that answers differently now.
-    if (!invalidated_font_lists.is_empty())
-        record_font_input_changes({}, invalidated_font_lists);
-
-    // The selections resolved again above can want a face loaded. Outside a style update it loads now, as it did
-    // when matching loaded a face itself.
-    request_wanted_web_faces();
+    did_load_font(changed_face.family_name);
 }
 
 void FontComputer::begin_font_face_change_batch()
@@ -589,7 +573,7 @@ void FontComputer::end_font_face_change_batch()
     if (m_font_face_change_batch_depth > 0 || m_batched_font_face_change_families.is_empty())
         return;
 
-    clear_computed_font_cache_for_families(m_batched_font_face_change_families);
+    invalidate_changed_font_cascades(m_batched_font_face_change_families);
     m_batched_font_face_change_families.clear();
 }
 
