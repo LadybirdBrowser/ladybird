@@ -17,6 +17,8 @@
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <AK/kmalloc.h>
+#include <LibCore/Forward.h>
+#include <LibURL/Origin.h>
 #include <LibWebCommon/HTML/BroadcastChannelMessage.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <LibWebCommon/Page/PageId.h>
@@ -104,6 +106,7 @@ private:
     void worker_did_report_exception(Web::HTML::WorkerAgentId, Utf16String message, Utf16String filename, u32 lineno, u32 colno);
     void worker_did_close(Web::HTML::WorkerAgentId);
     void worker_did_die(Web::HTML::WorkerAgentId);
+    void worker_process_did_exit(WebWorkerClient&);
     void worker_did_request_file(Web::HTML::WorkerAgentId, ByteString path, i32 request_id);
 
     enum class AgentRemovalCause {
@@ -123,6 +126,7 @@ private:
         Optional<bool> worker_is_secure_context;
         bool closing { false };
         IsPrivate is_private { IsPrivate::No };
+        Optional<URL::Origin> top_level_origin;
         Optional<SharedWorkerKey> shared_worker_key;
         Vector<Owner> owners;
         NonnullOwnPtr<CanonicalWorkerEnvironmentSettingsObject> inside_settings;
@@ -130,6 +134,16 @@ private:
     };
 
     ErrorOr<void> reconnect_to_request_server(Function<bool(WorkerAgent const&)> should_reconnect);
+
+    // A worker whose agent is gone counts toward the workers of its top-level site until its process exits, or until its
+    // connection closes, which ends its process.
+    struct ExitingWorker {
+        NonnullRefPtr<WebWorkerClient> client;
+        IsPrivate is_private { IsPrivate::No };
+        Optional<URL::Origin> top_level_origin;
+        RefPtr<Core::Timer> termination_timer;
+    };
+    Vector<ExitingWorker> m_exiting_workers;
 
     Web::HTML::WorkerAgentId m_next_agent_id { 0 };
     HashMap<Web::HTML::WorkerAgentId, WorkerAgent> m_agents;

@@ -43,6 +43,7 @@ public:
     void remove_blob_url_entries();
 
     pid_t pid() const { return m_pid; }
+    void terminate_process();
 
     Optional<CanonicalEnvironmentSettingsObject const&> hosted_environment(Web::HTML::EnvironmentId const& environment_id) const;
     void set_pid(pid_t pid) { m_pid = pid; }

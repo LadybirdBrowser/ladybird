@@ -34,15 +34,26 @@ WebWorkerClient::~WebWorkerClient()
 void WebWorkerClient::did_misbehave(StringView message_name, StringView reason)
 {
     dbgln("WebWorkerClient: terminating helper process {}: {} rejected: {}", pid(), message_name, reason);
+    terminate_process();
+    shutdown();
+}
+
+void WebWorkerClient::terminate_process()
+{
     if (should_terminate_pid(pid()))
         (void)Core::Process::terminate_process(pid(), Core::Process::TerminationMode::Forceful);
-    shutdown();
 }
 
 void WebWorkerClient::die()
 {
     remove_blob_url_entries();
     WorkerProcessManager::the().worker_did_die(m_agent_id);
+
+    // NB: A worker whose connection is gone does no more work, so a process that outlives its connection is ended.
+    //     Until it is reaped, its process ID is still its own.
+    if (Application::process_manager().find_process(pid()).has_value())
+        terminate_process();
+    WorkerProcessManager::the().worker_process_did_exit(*this);
 
     // Otherwise nested workers we own would outlive us, in violation of the HTML spec.
     WorkerProcessManager::the().remove_web_worker_owner(*this);
