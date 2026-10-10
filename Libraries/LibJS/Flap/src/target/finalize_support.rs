@@ -33,6 +33,10 @@ pub(crate) struct Emit<'a> {
     pub(crate) object_format: ObjectFormat,
     pub(crate) enable_assertions: bool,
     pub(crate) has_jscvt: bool,
+    /// Whether this is the profiling build of the interpreter. Only its
+    /// handlers switch to the dispatch table of the frame they continue in
+    /// (see `VmDispatchTables`).
+    pub(crate) profiling: bool,
     /// Distinguishes the local labels a single function generates.
     unique_counter: u64,
     /// The operands of the most recent floating-point comparison, so that a
@@ -57,6 +61,7 @@ impl<'a> Emit<'a> {
             object_format: options.target.object_format,
             enable_assertions: options.enable_assertions,
             has_jscvt: options.has_jscvt,
+            profiling: options.profiling,
             unique_counter: 0,
             last_fp_compare: None,
         }

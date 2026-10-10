@@ -1349,6 +1349,7 @@ impl Executable {
             asm_constants_data: Cell::new(constants.as_ptr()),
             bytecode_data: Cell::new(bytecode.as_slice().as_ptr()),
             bytecode_size: Cell::new(bytecode.as_slice().len()),
+            dispatch_table_index: Cell::new(0),
             constants: interpreter_buffer(&constants),
             property_lookup_caches: interpreter_buffer(&property_lookup_caches),
             global_variable_caches: interpreter_buffer(&global_variable_caches),

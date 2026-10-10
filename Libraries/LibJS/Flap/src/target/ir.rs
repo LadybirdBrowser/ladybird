@@ -351,6 +351,9 @@ impl MachineProgram {
                     ExecutionContextExecutable,
                     ExecutionContextProgramCounter,
                     ExecutableBytecodeData,
+                    ExecutableDispatchTableIndex,
+                    VmDispatchTables,
+                    DispatchTableIndexMask,
                     SizeOfExecutionContext,
                     CanonicalNanBits,
                 ]

@@ -620,12 +620,20 @@ fn generate_entry_point(out: &mut String, program: &Program, abi: X86_64Abi) {
         "    mov r15, QWORD PTR [{vm} + {heap_region_base}]  # heap region base"
     );
     w!(out, "    mov QWORD PTR {}, {vm}  # save VM*", vm_slot(abi));
-    let vm_breakpoint_controller = runtime(program)[KnownLayoutConstant::VmBreakpointController];
-    w!(out, "    cmp QWORD PTR [{vm} + {vm_breakpoint_controller}], 0");
-    w!(out, "    lea r12, [rip + asm_dispatch_table]");
-    w!(out, "    je .Ldispatch_table_ready");
-    w!(out, "    lea r12, [rip + asm_debug_dispatch_table]");
-    w!(out, ".Ldispatch_table_ready:");
+    // Every executable names the VM's dispatch table its frames run with, so
+    // the handlers reload it whenever they switch to another frame.
+    let exec_executable = runtime(program)[KnownLayoutConstant::ExecutionContextExecutable];
+    let dispatch_table_index = runtime(program)[KnownLayoutConstant::ExecutableDispatchTableIndex];
+    let vm_dispatch_tables = runtime(program)[KnownLayoutConstant::VmDispatchTables];
+    let dispatch_table_index_mask = runtime(program)[KnownLayoutConstant::DispatchTableIndexMask];
+    w!(
+        out,
+        "    mov rax, QWORD PTR [rbx + {}]",
+        exec_executable - values_offset(program)
+    );
+    w!(out, "    movzx eax, BYTE PTR [rax + {dispatch_table_index}]");
+    w!(out, "    and eax, {dispatch_table_index_mask}");
+    w!(out, "    mov r12, QWORD PTR [{vm} + {vm_dispatch_tables} + rax * 8]");
     w!(out, "    # r12 = dispatch table");
     emit_dispatch(out);
     w!(out);

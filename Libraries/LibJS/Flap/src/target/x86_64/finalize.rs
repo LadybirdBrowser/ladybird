@@ -1009,7 +1009,7 @@ fn finish_slow_path_call(
     result_scratch: PhysicalRegister,
     state_scratch: PhysicalRegister,
 ) -> Result<(), CompileError> {
-    use crate::target::registers::x86_64::{R13, R14, RBX};
+    use crate::target::registers::x86_64::{R12, R13, R14, RBX};
 
     let [execution_context, executable, _, bytecode, values_offset] = interpreter_layout(emit.runtime, emit.handler)?;
     emit!(emit.output, X86_64;
@@ -1049,6 +1049,28 @@ fn finish_slow_path_call(
     } => [register state_scratch, address MachineMemoryAddress::offset(RBX, executable_from_values)];
     );
     push_load(emit, R14, MachineMemoryAddress::offset(state_scratch, bytecode));
+    if emit.profiling {
+        use crate::frontend::layout::KnownLayoutConstant;
+        let dispatch_table_index = emit.constant(KnownLayoutConstant::ExecutableDispatchTableIndex)?;
+        let vm_dispatch_tables = emit.constant(KnownLayoutConstant::VmDispatchTables)?;
+        let dispatch_table_index_mask = emit.constant(KnownLayoutConstant::DispatchTableIndexMask)?;
+        emit!(emit.output, X86_64;
+            Opcode::Load {
+            width: MemoryWidth::Byte,
+            signed: false,
+        } => [register state_scratch, address MachineMemoryAddress::offset(state_scratch, dispatch_table_index)];
+            Opcode::AluImmediate {
+            operation: super::AluOperation::And,
+            width: IntegerWidth::U32,
+        } => [register state_scratch, immediate dispatch_table_index_mask];
+        );
+        vm_load(emit, R12);
+        push_load(
+            emit,
+            R12,
+            MachineMemoryAddress::scaled(R12, state_scratch, 8, vm_dispatch_tables),
+        );
+    }
     emit!(emit.output, X86_64; Opcode::Move32Register => [register R13, register result_scratch];);
     dispatch_from_instruction_pointer(emit, result_scratch);
     Ok(())

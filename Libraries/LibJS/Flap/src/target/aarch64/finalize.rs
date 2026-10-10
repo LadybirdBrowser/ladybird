@@ -1361,7 +1361,7 @@ fn finish_slow_path_call(
     dispatch_register: PhysicalRegister,
     dispatch_scratch: PhysicalRegister,
 ) -> Result<(), CompileError> {
-    use crate::target::registers::aarch64::{X0, X20, X26, X27, X28};
+    use crate::target::registers::aarch64::{X0, X19, X20, X26, X27, X28};
 
     let [execution_context, executable, _, bytecode, values_offset] = interpreter_layout(emit.runtime, emit.handler)?;
     emit!(emit.output, Aarch64; Opcode::BranchBitSetToExit(63) => [register X0];);
@@ -1403,6 +1403,33 @@ fn finish_slow_path_call(
         &[dispatch_register, dispatch_scratch],
     )
     .map_err(|error| memory_address_compile_error(emit.handler, error))?;
+    if emit.profiling {
+        let dispatch_table_index = emit.constant(KnownLayoutConstant::ExecutableDispatchTableIndex)?;
+        let vm_dispatch_tables = emit.constant(KnownLayoutConstant::VmDispatchTables)?;
+        let dispatch_table_index_mask = emit.constant(KnownLayoutConstant::DispatchTableIndexMask)?;
+        load(
+            emit,
+            MemoryWidth::Byte,
+            false,
+            dispatch_scratch,
+            MachineMemoryAddress::offset(dispatch_register, dispatch_table_index),
+            &[dispatch_scratch],
+        )
+        .map_err(|error| memory_address_compile_error(emit.handler, error))?;
+        emit!(emit.output, Aarch64;
+            Opcode::LogicalImmediate { operation: super::LogicalOperation::And, width: IntegerWidth::U32 } => [register dispatch_scratch, register dispatch_scratch, immediate dispatch_table_index_mask];
+        );
+        address_offset(emit, dispatch_register, X20, vm_dispatch_tables, dispatch_register);
+        load(
+            emit,
+            MemoryWidth::DoubleWord,
+            false,
+            X19,
+            MachineMemoryAddress::scaled(dispatch_register, dispatch_scratch, 8, 0),
+            &[],
+        )
+        .map_err(|error| memory_address_compile_error(emit.handler, error))?;
+    }
     address_offset(emit, X27, X28, values_offset, dispatch_register);
     emit!(emit.output, Aarch64; Opcode::SetInstructionPointer => [register X0];);
     dispatch_from_instruction_pointer(emit, dispatch_register, dispatch_scratch)

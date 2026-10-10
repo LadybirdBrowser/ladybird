@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+pub mod dispatch_tables;
 pub mod execution_context;
 pub mod interpreter_stack;
 pub mod run;
