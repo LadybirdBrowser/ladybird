@@ -68,6 +68,12 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
     }
     request.outside_settings.origin = outside_settings->origin();
 
+    // Only dedicated and shared workers are started on an owner's request.
+    if (request.agent_type != Web::HTML::AgentType::DedicatedWorker && request.agent_type != Web::HTML::AgentType::SharedWorker) {
+        notify_worker_script_load_failure(owner);
+        return 0;
+    }
+
     // NB: A worker shares the ancestors of the environment that creates it.
     auto has_cross_site_ancestor = owner.client.visit(
         [&](WebContentOwner const& web_content_owner) {
@@ -149,38 +155,48 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
     // AD-HOC: For DedicatedWorker there is no shared worker manager step; we always launch a fresh
     //         worker process here.
     auto agent_id = ++m_next_agent_id;
-    auto client = MUST(launch_web_worker_process(request.agent_type, is_private, agent_id));
+    auto client_or_error = [&]() -> ErrorOr<NonnullRefPtr<WebWorkerClient>> {
+        auto client = TRY(launch_web_worker_process(request.agent_type, is_private, agent_id));
 
-    // The worker's RequestServer client uses the cookies of the session the worker itself belongs to.
-    auto session = client->session();
-    if (!session)
-        session = Application::session_for_new_view(is_private);
-    // The worker makes its requests for the sites its owner makes them for.
-    owner.client.visit(
-        [&](WebContentOwner const& web_content_owner) {
-            if (web_content_owner.client)
-                client->request_server_site_bindings().bind_sites_of(web_content_owner.client->request_server_site_bindings());
-        },
-        [&](WebWorkerOwner const& web_worker_owner) {
-            client->request_server_site_bindings().bind_sites_of(web_worker_owner.client->request_server_site_bindings());
-        });
+        // The worker's RequestServer client uses the cookies of the session the worker itself belongs to.
+        auto session = client->session();
+        if (!session)
+            session = Application::session_for_new_view(is_private);
+        // The worker makes its requests for the sites its owner makes them for.
+        owner.client.visit(
+            [&](WebContentOwner const& web_content_owner) {
+                if (web_content_owner.client)
+                    client->request_server_site_bindings().bind_sites_of(web_content_owner.client->request_server_site_bindings());
+            },
+            [&](WebWorkerOwner const& web_worker_owner) {
+                client->request_server_site_bindings().bind_sites_of(web_worker_owner.client->request_server_site_bindings());
+            });
 
-    auto request_server_connection = MUST(connect_new_request_server_client(*session, RequestServer::SiteBinding::Bound));
-    auto image_decoder = MUST(launch_image_decoder_process());
+        auto request_server_connection = TRY(connect_new_request_server_client(*session, RequestServer::SiteBinding::Bound));
+        auto image_decoder = TRY(launch_image_decoder_process());
 #if defined(HAVE_WASM_COMPILER_SERVICE)
-    auto wasm_compiler_handle = MUST(connect_new_wasm_compiler_client());
+        auto wasm_compiler_handle = TRY(connect_new_wasm_compiler_client());
 #endif
 
-    client->request_server_site_bindings().did_connect(request_server_connection.client_id);
-    client->async_connect_to_request_server(move(request_server_connection.handle));
-    client->async_set_site_compatibility_data(Application::the().site_compatibility_data());
-    connect_to_image_decoder(*client, move(image_decoder));
+        client->request_server_site_bindings().did_connect(request_server_connection.client_id);
+        client->async_connect_to_request_server(move(request_server_connection.handle));
+        client->async_set_site_compatibility_data(Application::the().site_compatibility_data());
+        connect_to_image_decoder(*client, move(image_decoder));
 #if defined(HAVE_WASM_COMPILER_SERVICE)
-    client->async_connect_to_wasm_compiler(wasm_compiler_handle);
+        client->async_connect_to_wasm_compiler(wasm_compiler_handle);
 #endif
 
-    if (auto compositor_handle = Application::the().connect_new_compositor_canvas_client(); !compositor_handle.is_error())
-        client->async_connect_to_compositor(compositor_handle.release_value());
+        if (auto compositor_handle = Application::the().connect_new_compositor_canvas_client(); !compositor_handle.is_error())
+            client->async_connect_to_compositor(compositor_handle.release_value());
+        return client;
+    }();
+    // A worker the system cannot give a process fails to load, as one whose script cannot be fetched does.
+    if (client_or_error.is_error()) {
+        dbgln("Unable to start a worker process: {}", client_or_error.error());
+        notify_worker_script_load_failure(owner);
+        return 0;
+    }
+    auto client = client_or_error.release_value();
 
     Vector<Owner> owners;
     owners.append(owner);
