@@ -1418,6 +1418,11 @@ pub fn try_inline_get_by_id_accessor(vm: &Vm, pc: u32, instruction: &op::GetById
     let holder = entry.prototype.unwrap_or(object);
     let value = holder.get_direct(entry.property_offset);
     assert!(value.is_accessor());
+    if entry.prototype.is_none()
+        && let Some(slot) = cache.first_entry_slot()
+    {
+        slot.accessor.set(Some(value.as_accessor()));
+    }
 
     let Some(getter) = value.as_accessor().getter() else {
         return false;
@@ -1648,7 +1653,31 @@ pub fn try_put_by_value_cache(vm: &Vm, instruction: &op::PutByValue, values: &op
 // Fast cache-only property read. Tries the entries of `cache` for own-property, prototype chain and missing property
 // lookups with the given cache key (see PropertyLookupCacheEntry::key). Returns the cached value on hit, or Empty on
 // miss.
+/// What a probe of a property lookup cache does with an accessor it finds.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum CachedAccessors {
+    /// Misses, for the slow path to call the getter.
+    Skip,
+    /// Returns the accessor, for the caller to call the getter.
+    Return,
+}
+
 fn try_get_by_property_lookup_cache(base: Value, cache: &PropertyLookupCache, cache_key: u64) -> Value {
+    try_get_by_property_lookup_cache_with(base, cache, cache_key, CachedAccessors::Skip)
+}
+
+/// The value of the property from any entry of the GetById cache, or an accessor if `accessors` says to return them,
+/// or the empty value.
+pub fn try_get_by_id_cache_with(base: Value, cache: &PropertyLookupCache, accessors: CachedAccessors) -> Value {
+    try_get_by_property_lookup_cache_with(base, cache, 0, accessors)
+}
+
+fn try_get_by_property_lookup_cache_with(
+    base: Value,
+    cache: &PropertyLookupCache,
+    cache_key: u64,
+    accessors: CachedAccessors,
+) -> Value {
     if !base.is_object() {
         return Value::EMPTY;
     }
@@ -1703,7 +1732,7 @@ fn try_get_by_property_lookup_cache(base: Value, cache: &PropertyLookupCache, ca
                 continue;
             }
             let value = cached_prototype.get_direct(entry.property_offset.get());
-            if value.is_accessor() {
+            if value.is_accessor() && accessors == CachedAccessors::Skip {
                 return Value::EMPTY;
             }
             return value;
@@ -1712,7 +1741,7 @@ fn try_get_by_property_lookup_cache(base: Value, cache: &PropertyLookupCache, ca
                 continue;
             }
             let value = object.get_direct(entry.property_offset.get());
-            if value.is_accessor() {
+            if value.is_accessor() && accessors == CachedAccessors::Skip {
                 return Value::EMPTY;
             }
             return value;

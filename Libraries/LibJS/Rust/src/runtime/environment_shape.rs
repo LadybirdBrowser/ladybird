@@ -51,6 +51,8 @@ impl EnvironmentShape {
         Self {
             header: CellHeader::for_class(Self::CLASS),
             binding_flags,
+            // NB: The names stay where they are when the storage moves into the cell.
+            binding_names: binding_names.as_ptr().cast(),
             has_unique_binding_names: binding_indices.len() == binding_names.len(),
             storage: EnvironmentShapeStorage {
                 binding_names,

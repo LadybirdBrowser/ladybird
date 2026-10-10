@@ -116,7 +116,8 @@ impl PropertyLookupCacheEntryData {
             }
             PropertyLookupCacheEntryType::ChangeOwnProperty
             | PropertyLookupCacheEntryType::GetOwnProperty
-            | PropertyLookupCacheEntryType::GetMissingProperty => self.shape == other.shape,
+            | PropertyLookupCacheEntryType::GetMissingProperty
+            | PropertyLookupCacheEntryType::MissingOwnProperty => self.shape == other.shape,
             PropertyLookupCacheEntryType::ChangePropertyInPrototypeChain
             | PropertyLookupCacheEntryType::GetPropertyInPrototypeChain => {
                 self.shape == other.shape && self.prototype == other.prototype
@@ -151,6 +152,7 @@ impl PropertyLookupCacheEntry {
             prototype: Cell::new(data.prototype),
             prototype_chain_validity: Cell::new(data.prototype_chain_validity),
             key: Cell::new(data.key),
+            accessor: Cell::new(None),
         }
     }
 
@@ -170,6 +172,7 @@ impl PropertyLookupCacheEntry {
     }
 
     pub fn set(&self, data: PropertyLookupCacheEntryData) {
+        self.accessor.set(None);
         self.entry_type.set(data.entry_type);
         self.property_offset.set(data.property_offset);
         self.shape_dictionary_generation.set(data.shape_dictionary_generation);
@@ -186,6 +189,9 @@ impl PropertyLookupCacheEntry {
     fn clear_if_it_has_a_dead_cell(&self) {
         if self.get().has_dead_cell() {
             self.set(PropertyLookupCacheEntryData::default());
+        }
+        if self.accessor.get().is_some_and(cell_is_dead) {
+            self.accessor.set(None);
         }
     }
 }
@@ -205,10 +211,19 @@ pub const MEGAMORPHIC_SECONDARY_CACHE_SIZE: usize = 1 << MEGAMORPHIC_INDEX_BITS;
 /// Fibonacci hashing (see megamorphic_hash()).
 pub const MEGAMORPHIC_HASH_MULTIPLIER: u32 = 0x9e37_79b9;
 const POLYMORPHIC_DATA_TAG: usize = PROPERTY_LOOKUP_CACHE_POLYMORPHIC_DATA_TAG;
-const MEGAMORPHIC_DATA_TAG: usize = 2;
+pub const MEGAMORPHIC_DATA_TAG: usize = 2;
 /// How many (shape, key) pairs a megamorphic cache of a keyed access may miss and learn before it gives up (see
 /// PropertyLookupCache::is_keyed_generic()).
 const MAX_KEYED_MEGAMORPHIC_MISSES: u32 = 1024;
+
+/// Which tier a property lookup cache is in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PropertyLookupCacheTier {
+    Empty,
+    Monomorphic,
+    Polymorphic,
+    Megamorphic,
+}
 
 const _: () = assert!(MEGAMORPHIC_PRIMARY_CACHE_SIZE.is_power_of_two());
 const _: () = assert!(MEGAMORPHIC_SECONDARY_CACHE_SIZE.is_power_of_two());
@@ -241,6 +256,10 @@ const _: () = assert!(align_of::<MegamorphicData>() > PROPERTY_LOOKUP_CACHE_DATA
 const _: () = assert!(core::mem::offset_of!(MonomorphicData, entry) == 0);
 const _: () = assert!(core::mem::offset_of!(PolymorphicData, entries) == 0);
 const _: () = assert!(core::mem::offset_of!(MegamorphicData, entry) == 0);
+
+/// Where the hash tables of a megamorphic cache's data are, for JIT code that probes them.
+pub const MEGAMORPHIC_PRIMARY_ENTRIES_OFFSET: usize = core::mem::offset_of!(MegamorphicData, primary_entries);
+pub const MEGAMORPHIC_SECONDARY_ENTRIES_OFFSET: usize = core::mem::offset_of!(MegamorphicData, secondary_entries);
 
 /// Fibonacci hashing of the low 32 bits of the shape pointer, mixed with the key of keyed caches: the indices are the
 /// top bits of the product, which takes a multiply and a shift.
@@ -341,7 +360,24 @@ impl PropertyLookupCache {
         None
     }
 
-    fn entries(&self) -> &[PropertyLookupCacheEntry] {
+    pub fn tier(&self) -> PropertyLookupCacheTier {
+        let data = self.data.get();
+        if data == 0 {
+            return PropertyLookupCacheTier::Empty;
+        }
+        if self.is_keyed_generic() {
+            return PropertyLookupCacheTier::Megamorphic;
+        }
+        match data & PROPERTY_LOOKUP_CACHE_DATA_TAG_MASK {
+            POLYMORPHIC_DATA_TAG => PropertyLookupCacheTier::Polymorphic,
+            MEGAMORPHIC_DATA_TAG => PropertyLookupCacheTier::Megamorphic,
+            _ => PropertyLookupCacheTier::Monomorphic,
+        }
+    }
+
+    /// The entries the interpreter looks through: every entry of a polymorphic cache, and the most recently used one
+    /// of the others.
+    pub fn entries(&self) -> &[PropertyLookupCacheEntry] {
         if let Some(data) = self.monomorphic_data() {
             return core::slice::from_ref(&data.entry);
         }
@@ -867,6 +903,18 @@ const _: () = {
 // NB: The interpreter compares the name of an entry with the identity of a string, a word.
 const _: () = assert!(size_of::<Option<Utf16FlyString>>() == size_of::<u64>());
 
+/// Where JIT code finds the parts of the VM's keyed property lookup cache it reads.
+pub struct KeyedPropertyLookupCacheLayout {
+    pub entries: u64,
+    pub index_bits: u32,
+    pub entry_size: u32,
+    pub entry_type: u32,
+    pub property_offset: u32,
+    pub shape_dictionary_generation: u32,
+    pub shape: u32,
+    pub property_name: u32,
+}
+
 /// The VM-wide cache of string-keyed GetByValue lookups. Lookups are copied out, so that no entry is borrowed while
 /// the lookup it caches runs.
 pub struct KeyedPropertyLookupCache {
@@ -890,6 +938,22 @@ impl KeyedPropertyLookupCache {
     pub fn entry_index_for(shape: Gc<Shape>, property_name: &Utf16FlyString) -> usize {
         let hash = (shape.as_ptr().addr() as u32) ^ (property_name.raw_identity() as u32);
         (hash.wrapping_mul(MEGAMORPHIC_HASH_MULTIPLIER) >> (32 - KEYED_PROPERTY_LOOKUP_CACHE_INDEX_BITS)) as usize
+    }
+
+    /// Where JIT code finds the entries and their parts. The entries stay where they are for as long as the VM lives.
+    pub fn jit_layout(&self) -> KeyedPropertyLookupCacheLayout {
+        use core::mem::offset_of;
+        let lookup = offset_of!(KeyedPropertyLookupCacheEntry, lookup);
+        KeyedPropertyLookupCacheLayout {
+            entries: self.entries.borrow().as_ptr() as u64,
+            index_bits: KEYED_PROPERTY_LOOKUP_CACHE_INDEX_BITS,
+            entry_size: size_of::<KeyedPropertyLookupCacheEntry>() as u32,
+            entry_type: (lookup + offset_of!(KeyedPropertyLookup, entry_type)) as u32,
+            property_offset: (lookup + offset_of!(KeyedPropertyLookup, property_offset)) as u32,
+            shape_dictionary_generation: (lookup + offset_of!(KeyedPropertyLookup, shape_dictionary_generation)) as u32,
+            shape: (lookup + offset_of!(KeyedPropertyLookup, shape)) as u32,
+            property_name: offset_of!(KeyedPropertyLookupCacheEntry, property_name) as u32,
+        }
     }
 
     /// The entries, for the interpreter, which looks up own data properties in them (see
@@ -1258,6 +1322,10 @@ impl Executable {
 
     pub fn template_object_cache(&self, index: u32) -> Gc<TemplateObjectCache> {
         self.template_object_caches[index as usize]
+    }
+
+    pub fn property_lookup_caches(&self) -> &[PropertyLookupCache] {
+        &self.property_lookup_caches
     }
 
     pub fn object_shape_cache(&self, index: u32) -> &ObjectShapeCache {

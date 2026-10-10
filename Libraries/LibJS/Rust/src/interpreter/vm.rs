@@ -1611,6 +1611,15 @@ impl Vm {
             .expect("the VM allocates the single ASCII character strings")[usize::from(character)]
     }
 
+    /// The address of the strings of the ASCII characters, indexed by character, for JIT code.
+    pub fn single_ascii_character_strings_address(&self) -> u64 {
+        self.single_ascii_character_strings
+            .get()
+            .expect("the VM allocates the single ASCII character strings")
+            .as_ptr()
+            .expose_provenance() as u64
+    }
+
     pub fn json_parse_cache(&self) -> &JsonParseCache {
         &self.json_parse_cache
     }

@@ -236,7 +236,8 @@ pub struct ObjectMethods {
     /// What Realm::create_object() runs once it allocates an object, which defines the properties of built-in objects.
     /// Subclasses call the method of the class they extend first.
     pub initialize: fn(&Object, &Vm, Gc<Realm>),
-    /// [[GetPrototypeOf]], unless it is OrdinaryGetPrototypeOf, which returns the prototype of the object's shape.
+    /// [[GetPrototypeOf]], unless it is OrdinaryGetPrototypeOf, which returns the prototype of the object's shape. JIT
+    /// code walks prototype chains as long as their objects have none.
     pub internal_get_prototype_of: Option<InternalGetPrototypeOf>,
     pub internal_set_prototype_of: fn(&Object, &Vm, Option<Gc<Object>>) -> ThrowCompletionOr<bool>,
     pub internal_is_extensible: fn(&Object, &Vm) -> ThrowCompletionOr<bool>,

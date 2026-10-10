@@ -668,7 +668,8 @@ pub fn put_by_property_key(
                         }
                         PropertyLookupCacheEntryType::GetOwnProperty
                         | PropertyLookupCacheEntryType::GetPropertyInPrototypeChain
-                        | PropertyLookupCacheEntryType::GetMissingProperty => {}
+                        | PropertyLookupCacheEntryType::GetMissingProperty
+                        | PropertyLookupCacheEntryType::MissingOwnProperty => {}
                     }
                 }
             }

@@ -42,6 +42,10 @@ pub struct Array {
     is_proxy_target: Cell<bool>,
 }
 
+/// The offsets of the flags JIT code checks before writing elements of an array.
+pub const ARRAY_LENGTH_WRITABLE_OFFSET: usize = core::mem::offset_of!(Array, length_writable);
+pub const ARRAY_IS_PROXY_TARGET_OFFSET: usize = core::mem::offset_of!(Array, is_proxy_target);
+
 pub static ARRAY_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     internal_get_own_property: Array::internal_get_own_property,
     is_cacheable_for_property_absence: |_| false,

@@ -15,8 +15,10 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::feedback::CallFeedbackForwarding;
+use crate::layout::function_object::RawNativeFunction;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
+use crate::layout_forward::RawNativeFunctionPointer;
 use crate::runtime::abstract_operations::{call_function_object, length_of_array_like};
 use crate::runtime::bound_function::{
     BOUND_FUNCTION_LENGTH_OFFSET, BOUND_FUNCTION_NAME_OFFSET, BoundFunction, LengthAndNameSlots,
@@ -50,7 +52,27 @@ define_object_class!(FunctionPrototype, extends: [FunctionObject, Object], metho
     ..FUNCTION_OBJECT_METHODS
 });
 
+/// The native functions of Function.prototype.apply and call, which forward their calls to other functions: call
+/// feedback records where to, and JIT code calls their targets directly.
+static APPLY_FUNCTION: RawNativeFunctionPointer = raw_native!(FunctionPrototype::apply);
+static CALL_FUNCTION: RawNativeFunctionPointer = raw_native!(FunctionPrototype::call);
+
+fn is_native_function(vm: &Vm, function: &RawNativeFunction, native_function: RawNativeFunctionPointer) -> bool {
+    let address = |pointer: RawNativeFunctionPointer| pointer.map(|pointer| pointer as usize);
+    address(function.native_function(vm)) == address(native_function)
+}
+
 impl FunctionPrototype {
+    /// Whether the function is Function.prototype.call (of any realm).
+    pub fn is_call_function(vm: &Vm, function: &RawNativeFunction) -> bool {
+        is_native_function(vm, function, CALL_FUNCTION)
+    }
+
+    /// Whether the function is Function.prototype.apply (of any realm).
+    pub fn is_apply_function(vm: &Vm, function: &RawNativeFunction) -> bool {
+        is_native_function(vm, function, APPLY_FUNCTION)
+    }
+
     pub fn new(vm: &Vm, realm: Gc<Realm>) -> FunctionPrototype {
         FunctionPrototype {
             base: FunctionObject::new_with_prototype(
@@ -69,15 +91,7 @@ impl FunctionPrototype {
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
         let names = &vm.names;
         let attr = PropertyAttributes::new(Attribute::WRITABLE | Attribute::CONFIGURABLE);
-        object.define_native_function(
-            vm,
-            realm,
-            &names.apply,
-            raw_native!(FunctionPrototype::apply),
-            2,
-            attr,
-            None,
-        );
+        object.define_native_function(vm, realm, &names.apply, APPLY_FUNCTION, 2, attr, None);
         object.define_native_function(
             vm,
             realm,
@@ -87,15 +101,7 @@ impl FunctionPrototype {
             attr,
             None,
         );
-        object.define_native_function(
-            vm,
-            realm,
-            &names.call,
-            raw_native!(FunctionPrototype::call),
-            1,
-            attr,
-            None,
-        );
+        object.define_native_function(vm, realm, &names.call, CALL_FUNCTION, 1, attr, None);
         object.define_native_function(
             vm,
             realm,

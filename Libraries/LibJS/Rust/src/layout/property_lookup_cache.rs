@@ -6,6 +6,7 @@
 
 use core::cell::Cell;
 
+use super::accessor::Accessor;
 use super::buffer::InterpreterBuffer;
 use super::cell::{CellHeader, Gc};
 use super::object::Object;
@@ -23,6 +24,10 @@ pub enum PropertyLookupCacheEntryType {
     ChangePropertyInPrototypeChain,
     GetPropertyInPrototypeChain,
     GetMissingProperty,
+    /// Only in the VM's keyed property lookup cache: objects of the shape whose own string-keyed properties are those
+    /// of the shape have no own property of the name, whatever their prototypes have. Own property checks
+    /// (`hasOwnProperty`, `in`) look for these; property gets ignore them.
+    MissingOwnProperty,
 }
 
 /// One cached property access. The shapes and objects are not traced; the VM's sweep callback clears entries whose
@@ -42,7 +47,14 @@ pub struct PropertyLookupCacheEntry {
     /// GetByValue, or 0 for the caches of named accesses like GetById, whose instruction determines the property. Like
     /// the cells above, the key is not kept alive by the cache.
     pub key: Cell<u64>,
+    /// For GetOwnProperty entries of named accesses: the accessor the property held when the interpreter last called
+    /// its getter through the entry, for JIT code to speculate on. Not kept alive either, and forgotten whenever the
+    /// entry changes. It also makes entries 64 bytes, so that JIT code finds an entry in the megamorphic tables by
+    /// masking bits of its hash (see megamorphic_hash() of the bytecode executable).
+    pub accessor: Cell<Option<Gc<Accessor>>>,
 }
+
+const _: () = assert!(size_of::<PropertyLookupCacheEntry>() == 64);
 
 /// The layout of an entry of the VM's keyed property lookup cache (KeyedPropertyLookupCacheEntry of the bytecode
 /// executable, which asserts that it matches), for the interpreter, which looks up own data properties in it.

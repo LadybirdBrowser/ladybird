@@ -180,7 +180,7 @@ pub mod keyed_feedback_bits {
     pub const HOLEY: u32 = 1 << 6;
     pub const OTHER_ELEMENTS: u32 = 1 << 7;
     /// An int32 index that was not that of an element the object's indexed storage holds: beyond its size or its
-    /// storage, or a hole.
+    /// storage, or a hole. Element accesses in JIT code handle none of those.
     pub const OUT_OF_BOUNDS: u32 = 1 << 8;
 
     // One bit per typed array kind, starting at TYPED_ARRAY_SHIFT.
