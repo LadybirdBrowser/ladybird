@@ -2573,6 +2573,12 @@ void ViewImplementation::did_change_display_page(Badge<CanonicalNavigable>, RefP
 // The tab is displayed by the page hosting its document from now on.
 void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_page)
 {
+    // Screenshot and page info requests went to the outgoing page, so only it could answer them.
+    if (auto pending_screenshot = move(m_pending_screenshot))
+        pending_screenshot->reject(Error::from_string_literal("The displayed page changed before taking the screenshot"));
+    if (auto pending_info_request = move(m_pending_info_request))
+        pending_info_request->reject(Error::from_string_literal("The displayed page changed before sending its info"));
+
     auto& page = this->page();
     if (previous_page) {
         // NB: The page has no hovered link and cannot clear the outgoing page's status label.
@@ -3563,7 +3569,11 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_dom_node_scre
 
 void ViewImplementation::did_receive_screenshot(Badge<WebContentPage>, Gfx::ShareableBitmap const& screenshot)
 {
-    VERIFY(m_pending_screenshot);
+    // A renderer answers a screenshot request; any other screenshot it sends is misbehavior.
+    if (!m_pending_screenshot) {
+        page().client().did_misbehave("did_take_screenshot"sv, "no screenshot was requested"sv);
+        return;
+    }
 
     if (auto result = save_screenshot(screenshot.bitmap()); result.is_error())
         m_pending_screenshot->reject(result.release_error());
@@ -3591,13 +3601,17 @@ NonnullRefPtr<Core::Promise<String>> ViewImplementation::request_internal_page_i
 
 void ViewImplementation::did_receive_internal_page_info(Badge<WebContentPage>, PageInfoType, Optional<Core::AnonymousBuffer> const& info)
 {
-    VERIFY(m_pending_info_request);
+    // A renderer answers a page info request; any other page info it sends is misbehavior.
+    if (!m_pending_info_request) {
+        page().client().did_misbehave("did_get_internal_page_info"sv, "no page info was requested"sv);
+        return;
+    }
 
     String info_string;
     if (!info.has_value()) {
         info_string = "(no page)"_string;
     } else {
-        info_string = MUST(String::from_utf8(info->bytes()));
+        info_string = String::from_utf8_with_replacement_character(StringView { info->bytes() });
     }
     m_pending_info_request->resolve(move(info_string));
     m_pending_info_request = nullptr;
