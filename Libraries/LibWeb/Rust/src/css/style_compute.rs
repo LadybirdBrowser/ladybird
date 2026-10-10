@@ -5378,6 +5378,8 @@ pub const SUBSTITUTION_MARK_CUSTOM_FUNCTION: u8 = 1 << 4;
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FfiEffectTiming {
     pub decidable: bool,
+    pub is_relevant: bool,
+    pub is_removed: bool,
     pub has_timeline_time: bool,
     /// The effect's animation runs on a document timeline, whose time is a timestamp less this origin
     /// time.
@@ -5718,7 +5720,14 @@ unsafe fn sample_in_engine(
     // SAFETY: Guaranteed by the caller.
     unsafe {
         let composed = host_sampled_effects(input, engine);
-        match begin_animation_sample(input, engine, described_effects(input, engine), composed, reference_box) {
+        match begin_animation_sample(
+            input,
+            engine,
+            described_effects(input, engine),
+            composed,
+            reference_box,
+            Default::default(),
+        ) {
             AnimationSampleStep::Resolved(sample) => match engine_length_contexts(input, engine, &sample) {
                 Some(length_contexts) => AnimationSampleStep::Sampled(finish_animation_sample(
                     input,
@@ -5869,6 +5878,32 @@ fn described_effects<'a>(
 /// The effects a sample composes, in composite order, each at the key it samples its keyframes at.
 pub(crate) type SampledEffects = smallvec::SmallVec<[crate::css::animation::FfiSampledAnimationEffect; 4]>;
 
+fn implicit_will_change_properties(
+    descriptions: &[crate::css::style::effect_descriptions::PublishedEffect],
+    timeline_samples: crate::css::style::animations::AnimationTimelineSamples<'_>,
+    writing_mode: u8,
+    direction: u8,
+) -> smallvec::SmallVec<[u16; 8]> {
+    let mut properties = smallvec::SmallVec::new();
+
+    let applicable_effects = descriptions.iter().filter(|effect| {
+        effect
+            .timing
+            .as_ref()
+            .is_some_and(|timing| timing.implies_will_change(timeline_samples))
+    });
+
+    for effect in applicable_effects {
+        for &property in &effect.target_properties {
+            properties.push(map_logical_alias_to_physical(property, writing_mode, direction));
+        }
+    }
+
+    properties.sort_unstable();
+    properties.dedup();
+    properties
+}
+
 /// Take a sample of `composed`, effects `descriptions` describes, as far as the style engine goes
 /// without the host: to its end, or to the length contexts its keyframes compute over.
 ///
@@ -5880,6 +5915,7 @@ unsafe fn begin_animation_sample(
     descriptions: &[crate::css::style::effect_descriptions::PublishedEffect],
     composed: SampledEffects,
     reference_box: Option<CssPixelRect>,
+    timeline_samples: crate::css::style::animations::AnimationTimelineSamples<'_>,
 ) -> AnimationSampleStep {
     use crate::css::animation as anim;
     use FfiHostAnimationSampleOutcome::{Cleared, Evaluated, Unchanged};
@@ -5889,15 +5925,34 @@ unsafe fn begin_animation_sample(
         return finished(Cleared);
     };
     let pseudo = (input.pseudo_kind != crate::css::cascaded_properties::NO_PSEUDO_ELEMENT).then_some(input.pseudo_kind);
-    let (table, overlay) = unsafe { input.working_set() };
+    let table = unsafe { input.working_set() }.0;
+    let (writing_mode, direction) = computed_writing_mode_and_direction(table);
     let description = |identity| descriptions.iter().find(|description| description.identity == identity);
-    if composed.is_empty() {
+    let new_implicit_will_change_properties =
+        implicit_will_change_properties(descriptions, timeline_samples, writing_mode, direction);
+    if composed.is_empty() && new_implicit_will_change_properties.is_empty() {
         return finished(Cleared);
+    }
+    let mutated_overlay =
+        unsafe { &mut *(input.prepare_overlay_for_mutation)(input.callback_context).cast::<AnimatedOverlay>() };
+    if composed.is_empty() {
+        *mutated_overlay = mutated_overlay.clone_inherited();
+    }
+    let old_implicit_will_change_entries = &mut mutated_overlay.implicit_will_change;
+    let implicit_will_change_entries_changed =
+        old_implicit_will_change_entries.as_slice() != new_implicit_will_change_properties.as_slice();
+    if implicit_will_change_entries_changed {
+        new_implicit_will_change_properties
+            .as_slice()
+            .clone_into(old_implicit_will_change_entries);
+    }
+    if composed.is_empty() {
+        return finished(Evaluated);
     }
 
     // A preparation the overlay already holds for exactly these effects needs no declarations and
     // no keyframe values at all.
-    if anim::animation_preparation_matches(overlay, &composed, input.custom_property_environments) {
+    if anim::animation_preparation_matches(Some(mutated_overlay), &composed, input.custom_property_environments) {
         let batch = anim::FfiComputedAnimationBatch {
             context: unsafe { input.animation_context(None, reference_box) },
             sampled_effects: composed.as_ptr(),
@@ -5919,7 +5974,6 @@ unsafe fn begin_animation_sample(
         return finished(Evaluated);
     }
 
-    let (writing_mode, direction) = computed_writing_mode_and_direction(table);
     let stores = anim::KeyframeStores {
         substitution: input.custom_property_store,
         base: input.base_custom_property_store,
@@ -5952,7 +6006,11 @@ unsafe fn begin_animation_sample(
         table.importance_bits(),
     );
     drop(selected);
-    let mut result = FfiHostAnimationSampleResult::with_outcome(Unchanged);
+    let mut result = FfiHostAnimationSampleResult::with_outcome(if implicit_will_change_entries_changed {
+        Evaluated
+    } else {
+        Unchanged
+    });
     result.substitution_marks = substitution_marks;
     result.style_query_dependencies =
         style_query_dependencies.map_or(std::ptr::null_mut(), |dependencies| Box::into_raw(dependencies).cast());
@@ -6167,15 +6225,18 @@ pub(crate) unsafe fn sample_without_host(
     fresh: Option<&[crate::css::style::effect_descriptions::PublishedEffect]>,
     composed: SampledEffects,
     reference_box: Option<CssPixelRect>,
+    timeline_samples: crate::css::style::animations::AnimationTimelineSamples<'_>,
 ) -> Result<FfiHostAnimationSampleResult, crate::css::style::engine_sample::NeedsHost> {
     use crate::css::style::engine_sample::NeedsHost;
 
     let descriptions = fresh.unwrap_or_else(|| described_effects(input, engine));
     // SAFETY: Guaranteed by the caller.
-    let sample = match unsafe { begin_animation_sample(input, engine, descriptions, composed, reference_box) } {
-        AnimationSampleStep::Sampled(result) => return Ok(result),
-        AnimationSampleStep::Resolved(sample) => sample,
-    };
+    let sample =
+        match unsafe { begin_animation_sample(input, engine, descriptions, composed, reference_box, timeline_samples) }
+        {
+            AnimationSampleStep::Sampled(result) => return Ok(result),
+            AnimationSampleStep::Resolved(sample) => sample,
+        };
     if !sample.result.style_query_dependencies.is_null() {
         // SAFETY: The sample transferred the dependencies it resolved to its result.
         drop(unsafe {

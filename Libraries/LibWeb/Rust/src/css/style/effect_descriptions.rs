@@ -179,6 +179,7 @@ pub(crate) struct PublishedEffect {
     /// The effect belongs to a CSS transition, which the interpolation treats differently.
     pub(crate) is_transition: bool,
     pub(crate) resource_context: Option<PublishedResourceContext>,
+    pub(crate) target_properties: Box<[u16]>,
     pub(crate) keyframes: Box<[PublishedKeyframe]>,
     declarations: Box<[PublishedDeclaration]>,
     custom_declarations: Box<[PublishedCustomDeclaration]>,
@@ -194,6 +195,23 @@ pub(crate) struct PublishedEffect {
 pub(crate) struct TransitionReversing {
     pub(crate) adjusted_start_value: RetainedStyleValueData,
     pub(crate) shortening_factor: f64,
+}
+
+fn target_properties(properties: impl IntoIterator<Item = u16>) -> Box<[u16]> {
+    use crate::css::property_metadata::{longhands_for_shorthand, property_animation_type, property_is_shorthand};
+
+    let mut pending: Vec<_> = properties.into_iter().collect();
+    let mut longhands = Vec::new();
+    while let Some(property) = pending.pop() {
+        if property_is_shorthand(property) {
+            pending.extend_from_slice(longhands_for_shorthand(property));
+        } else if property_animation_type(property) != crate::css::animation::ANIMATION_TYPE_NONE {
+            longhands.push(property);
+        }
+    }
+    longhands.sort_unstable();
+    longhands.dedup();
+    longhands.into_boxed_slice()
 }
 
 impl PublishedEffect {
@@ -219,6 +237,7 @@ impl PublishedEffect {
             generation: 0,
             is_transition: true,
             resource_context: None,
+            target_properties: target_properties([property_id]),
             // `KeyframeEffect::AnimationKeyFrameKeyScaleFactor` keys the end at 100%.
             keyframes: Box::new([keyframe(0, 0), keyframe(100 * 1000, 1)]),
             declarations: Box::new([start, end].map(|value| PublishedDeclaration {
@@ -309,6 +328,9 @@ impl PublishedEffectBuffers<'_> {
                         base_url: self.base_url_bytes[range(effect.base_url_offset, effect.base_url_length)].into(),
                         origin_clean: effect.resource_context_is_origin_clean,
                     }),
+                    target_properties: target_properties(
+                        declarations.iter().map(|declaration| declaration.property_id),
+                    ),
                     keyframes,
                     declarations: declarations.into(),
                     custom_declarations: custom_declarations.into(),

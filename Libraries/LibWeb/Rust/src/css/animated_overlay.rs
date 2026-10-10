@@ -24,6 +24,8 @@ use crate::css::style_value::{RetainedStyleValueData, StyleValueData, release_st
 #[derive(Default)]
 pub struct AnimatedOverlay {
     entries: Vec<FfiAnimatedOverlayEntry>,
+    /// Properties to treat as included in will-change due to animations, separate from sampled CSS values.
+    pub(crate) implicit_will_change: Vec<u16>,
     pub(crate) animation_preparation: Option<Arc<crate::css::animation::PreparedAnimationBatch>>,
 }
 
@@ -32,6 +34,7 @@ impl Clone for AnimatedOverlay {
         let entries = self.entries.clone();
         Self {
             entries,
+            implicit_will_change: self.implicit_will_change.clone(),
             animation_preparation: self.animation_preparation.clone(),
         }
     }
@@ -109,10 +112,11 @@ impl Drop for FfiAnimatedOverlayEntry {
 }
 
 impl AnimatedOverlay {
-    fn clone_inherited(&self) -> Self {
+    pub(crate) fn clone_inherited(&self) -> Self {
         let entries = self.entries.iter().filter(|entry| entry.inherited).cloned().collect();
         Self {
             entries,
+            implicit_will_change: Vec::new(),
             animation_preparation: self.animation_preparation.clone(),
         }
     }
@@ -126,7 +130,7 @@ impl AnimatedOverlay {
     }
 
     pub(crate) fn is_empty(&self) -> bool {
-        self.entries.is_empty()
+        self.entries.is_empty() && self.implicit_will_change.is_empty()
     }
 
     pub(crate) fn set_owned(
@@ -175,6 +179,7 @@ pub(crate) fn overlay_wins(entry: &FfiAnimatedOverlayEntry, base_value_is_import
 pub extern "C" fn rust_animated_overlay_create() -> *mut AnimatedOverlay {
     Box::into_raw(Box::new(AnimatedOverlay {
         entries: Vec::new(),
+        implicit_will_change: Vec::new(),
         animation_preparation: None,
     }))
 }

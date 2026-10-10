@@ -200,8 +200,8 @@ impl RetainedState {
     ) -> Option<Result<RebuiltOverlayGroups, NeedsHostFont>> {
         let view = self.computed_group_sets.style_record_view(style_record)?;
         payloads.copy_from_slice(SharedPayload::as_pointer_slice(view.base_payloads));
-        // An overlay that animates nothing leaves the base as it is: publishing it releases the
-        // element's overlay record.
+        // An overlay with no sampled values or additional properties to treat as included in will-change leaves the
+        // base as it is: publishing it releases the element's overlay record.
         let Some(overlay) = overlay.filter(|overlay| !overlay.is_empty()) else {
             return Some(Ok(RebuiltOverlayGroups {
                 groups: 0,
@@ -220,6 +220,9 @@ impl RetainedState {
         });
         let rebuilds_every_group = named_groups.is_none();
         let mut groups = named_groups.unwrap_or((1 << group_index::COUNT) - 1);
+        if !overlay.implicit_will_change.is_empty() {
+            groups |= 1 << group_index::MISC_RESET;
+        }
         // The surround group duplicates `position-anchor` for layout, so rebuilding the anchor
         // group refreshes it too.
         if groups & (1 << STYLE_GROUP_INDEX_ANCHOR) != 0 {
@@ -394,7 +397,16 @@ impl super::StyleEngine {
         {
             overlay.remove_animated(property);
         }
-        self.sample_composed_over_record(node, record, overlay, None, composed, transform_reference_box, bounds)
+        self.sample_composed_over_record(
+            node,
+            record,
+            overlay,
+            None,
+            composed,
+            transform_reference_box,
+            bounds,
+            samples,
+        )
     }
 
     /// The inherited properties the animations of the element `node` names animate, which its descendants inherit.
@@ -437,9 +449,18 @@ impl super::StyleEngine {
         composed: crate::css::style_compute::SampledEffects,
         transform_reference_box: Option<crate::css::css_pixels::CssPixelRect>,
         bounds: super::style_invalidation::SampleBounds,
+        timeline_samples: super::animations::AnimationTimelineSamples<'_>,
     ) -> Result<(super::layout_style::DerivedStyleRecord, AnimatedOverlay), NeedsHost> {
         let outcome = self
-            .sample_over_record(node, record, &mut overlay, fresh, composed, transform_reference_box)?
+            .sample_over_record(
+                node,
+                record,
+                &mut overlay,
+                fresh,
+                composed,
+                transform_reference_box,
+                timeline_samples,
+            )?
             .outcome;
         if outcome == crate::css::style_compute::FfiHostAnimationSampleOutcome::Cleared {
             overlay = AnimatedOverlay::default();
@@ -534,6 +555,7 @@ impl super::StyleEngine {
     /// Samples `composed` onto `overlay` over `record`, a record the engine holds for the element `node`
     /// names, as far as the engine goes without the host, reading the effects `fresh` describes, or the
     /// element's where it is `None`.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn sample_over_record(
         &mut self,
         node: StyleNodeID,
@@ -542,6 +564,7 @@ impl super::StyleEngine {
         fresh: Option<&[super::effect_descriptions::PublishedEffect]>,
         composed: crate::css::style_compute::SampledEffects,
         transform_reference_box: Option<crate::css::css_pixels::CssPixelRect>,
+        timeline_samples: super::animations::AnimationTimelineSamples<'_>,
     ) -> Result<crate::css::style_compute::FfiHostAnimationSampleResult, NeedsHost> {
         let table = self
             .computed_group_sets
@@ -613,7 +636,14 @@ impl super::StyleEngine {
         };
         // SAFETY: Everything `input` names lives until the sample returns.
         unsafe {
-            crate::css::style_compute::sample_without_host(&input, self, fresh, composed, transform_reference_box)
+            crate::css::style_compute::sample_without_host(
+                &input,
+                self,
+                fresh,
+                composed,
+                transform_reference_box,
+                timeline_samples,
+            )
         }
     }
 

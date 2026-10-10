@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<title>
+  Animations not in effect nor current shouldn't have side-effects (ref).
+</title>
+<link rel="help" href="https://drafts.csswg.org/web-animations-1/#side-effects-section">
+<link rel="author" href="mailto:bokan@chromium.org">
+<style>
+  .testcase {
+    position: relative;
+    margin: 2px;
+    border: 1px solid black;
+    width: 250px;
+    height: 25px;
+  }
+  .label {
+    flex-grow: 1;
+  }
+  .container {
+    background-color: lightgrey;
+    margin: 4px;
+    display: flex;
+    width: 600px;
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+  }
+  .pass {
+    width: 100%;
+    height: 100%;
+    background-color: limegreen;
+  }
+</style>
+
+<!-- before phase playing backwards -->
+<div class="container">
+  <div class="label">Before phase</div>
+  <div class="testcase" id="before">
+    <div class="pass"></div>
+  </div>
+</div>
+
+<!-- after phase playing forwards -->
+<div class="container">
+  <div class="label">After phase</div>
+  <div class="testcase" id="after">
+    <div class="pass"></div>
+  </div>
+</div>

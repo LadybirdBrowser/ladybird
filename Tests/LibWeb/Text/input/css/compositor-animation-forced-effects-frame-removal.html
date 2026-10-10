@@ -34,7 +34,7 @@
         internals.updateCompositorAnimations();
         document.elementFromPoint(0, 0);
 
-        const staleForcedEffectsFrame = staleChildren.every(child => internals.visualContextNodeIndices(child).needsCompositorEffectsLayer);
+        const staleEffectsFrame = staleChildren.every(child => internals.visualContextNodeIndices(child).effects.length > 0);
         for (const animation of staleAnimations)
             animation.cancel();
         internals.resetStyleInvalidationCounters();
@@ -42,10 +42,10 @@
         internals.updateCompositorAnimations();
 
         const counters = internals.getStyleInvalidationCounters();
-        const staleForcedEffectsFrameRemoved = staleChildren.every(child => !internals.visualContextNodeIndices(child).needsCompositorEffectsLayer);
+        const staleEffectsFrameRemoved = staleChildren.every(child => internals.visualContextNodeIndices(child).effects.length === 0);
 
-        println(`stale animation creates a forced effects frame: ${staleForcedEffectsFrame}`);
-        println(`stale forced effects frame is removed: ${staleForcedEffectsFrameRemoved}`);
+        println(`stale animation creates an effects frame: ${staleEffectsFrame}`);
+        println(`stale effects frame is removed: ${staleEffectsFrameRemoved}`);
         println(`target background-color animation remains published: ${counters.compositorVisualAnimations === 1}`);
         println(`published animation targets match the rebuilt visual tree: ${counters.compositorVisualAnimationTargetsAreValid}`);
 

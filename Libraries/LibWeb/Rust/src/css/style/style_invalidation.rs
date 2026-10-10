@@ -245,13 +245,17 @@ fn value_creates_stacking_context(property: u16, values: ComputedValuesView<'_>)
         property_id::CONTENT_VISIBILITY => {
             values.content_visibility() == crate::css::css_enums::content_visibility::AUTO
         }
-        property_id::WILL_CHANGE => will_change_creates_stacking_context(values.misc_reset().will_change.data()),
+        property_id::WILL_CHANGE => will_change_creates_stacking_context(values),
         _ => true,
     }
 }
 
-fn will_change_mentions(value: Option<&StyleValueData>, predicate: impl Fn(u16) -> bool) -> bool {
-    let Some(StyleValueData::ValueList { values, .. }) = value else {
+fn will_change_mentions(values: ComputedValuesView<'_>, predicate: impl Fn(u16) -> bool) -> bool {
+    let implicit_will_change_values = values.misc_reset().implicit_will_change.as_slice();
+    if implicit_will_change_values.iter().copied().any(&predicate) {
+        return true;
+    }
+    let Some(StyleValueData::ValueList { values, .. }) = values.misc_reset().will_change.data() else {
         return false;
     };
     values.as_slice().iter().any(|entry| {
@@ -268,8 +272,8 @@ fn will_change_mentions(value: Option<&StyleValueData>, predicate: impl Fn(u16) 
     })
 }
 
-fn will_change_creates_stacking_context(value: Option<&StyleValueData>) -> bool {
-    will_change_mentions(value, |property| {
+fn will_change_creates_stacking_context(values: ComputedValuesView<'_>) -> bool {
+    will_change_mentions(values, |property| {
         matches!(
             property,
             property_id::OPACITY
@@ -300,10 +304,9 @@ fn will_change_creates_stacking_context(value: Option<&StyleValueData>) -> bool 
 // property establishes at a non-initial value. A value change of that property leaves all three
 // in place, and only the properties below are matched against will-change in style_queries.
 fn will_change_covers_property(property: u16, values: ComputedValuesView<'_>) -> bool {
-    let will_change = values.misc_reset().will_change.data();
     match property {
         property_id::TRANSFORM | property_id::TRANSLATE | property_id::ROTATE | property_id::SCALE => {
-            will_change_mentions(will_change, |named| {
+            will_change_mentions(values, |named| {
                 matches!(
                     named,
                     property_id::TRANSFORM | property_id::TRANSLATE | property_id::ROTATE | property_id::SCALE
@@ -321,7 +324,7 @@ fn will_change_covers_property(property: u16, values: ComputedValuesView<'_>) ->
         | property_id::MASK_IMAGE
         | property_id::ISOLATION
         | property_id::CONTAIN
-        | property_id::VIEW_TRANSITION_NAME => will_change_mentions(will_change, |named| named == property),
+        | property_id::VIEW_TRANSITION_NAME => will_change_mentions(values, |named| named == property),
         _ => false,
     }
 }
@@ -715,13 +718,19 @@ fn inheritance_dependent_value_changed(
         }
 }
 
-/// Whether `new_overlay` changes any effective value of a published record whose table is `table`, in place of the
-/// record's own overlay, `old_overlay`.
+/// Whether replacing the record's `old_overlay` with `new_overlay` changes effective CSS values or the additional
+/// properties to treat as included in will-change.
 pub(crate) fn animation_overlay_changed(
     table: &ComputedLonghandTable,
     old_overlay: Option<&AnimatedOverlay>,
     new_overlay: Option<&AnimatedOverlay>,
 ) -> bool {
+    if old_overlay.map_or(&[][..], |overlay| overlay.implicit_will_change.as_slice())
+        != new_overlay.map_or(&[][..], |overlay| overlay.implicit_will_change.as_slice())
+    {
+        return true;
+    }
+
     animation_overlay_properties(old_overlay, new_overlay)
         .any(|property| animation_value_changed(table, old_overlay, new_overlay, property))
 }
@@ -748,6 +757,12 @@ impl RetainedState {
         let mut ffi_result = FfiAnimationInvalidation::default();
         let mut invalidation = StyleInvalidation::default();
         let mut text_decoration_line_animated = false;
+
+        if old_values.misc_reset().implicit_will_change != new_values.misc_reset().implicit_will_change {
+            invalidation.merge(property_invalidation(property_id::WILL_CHANGE, old_values, new_values));
+            ffi_result.changed_non_inherited_style_groups |=
+                1 << crate::css::table_group_builder::group_index::MISC_RESET;
+        }
 
         for property in animation_overlay_properties(old_overlay, new_overlay) {
             if !animation_value_changed(table, old_overlay, new_overlay, property) {
@@ -932,6 +947,9 @@ impl RetainedState {
             result.ensure_level(INVALIDATION_RELAYOUT);
         }
         if !can_skip {
+            if old_values.misc_reset().implicit_will_change != new_values.misc_reset().implicit_will_change {
+                result.merge(property_invalidation(property_id::WILL_CHANGE, old_values, new_values));
+            }
             // Equal resolved values can still inherit differently: currentcolor and an RGB color
             // may paint the same here, but resolve to different colors in an inheriting child.
             for (property, _) in old_table
