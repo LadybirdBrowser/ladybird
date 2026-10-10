@@ -1,7 +1,18 @@
 // Functions that jit.prepare() moved to the profiling handlers run alongside plain ones. The handlers switch dispatch
 // tables whenever they continue in another frame, so every frame runs with the handlers of its own executable.
 
-test("calls between profiled and plain functions", () => {
+// Without the JIT nothing is profiled, and the harness's repeated runs of a test would add to what the first run
+// recorded, so the body runs once.
+function profilingTest(name, body) {
+    let ran = false;
+    test(name, () => {
+        if (!jit.enabled || ran) return;
+        ran = true;
+        body();
+    });
+}
+
+profilingTest("calls between profiled and plain functions", () => {
     function plainCallee(a, b) {
         return a * b;
     }
@@ -24,7 +35,7 @@ test("calls between profiled and plain functions", () => {
     expect(plainCaller(5)).toBe(40);
 });
 
-test("exceptions thrown across profiled and plain frames", () => {
+profilingTest("exceptions thrown across profiled and plain frames", () => {
     function thrower(value) {
         if (value > 2) throw new Error(`too big: ${value}`);
         return value;
@@ -47,7 +58,7 @@ test("exceptions thrown across profiled and plain frames", () => {
     expect(profiledPasser(2)).toBe(3);
 });
 
-test("getters and constructors run as inline frames", () => {
+profilingTest("getters and constructors run as inline frames", () => {
     class Point {
         constructor(x, y) {
             this.x = x;
@@ -66,7 +77,7 @@ test("getters and constructors run as inline frames", () => {
     expect(make(-4, 5)).toBe(9);
 });
 
-test("generators and async functions resume with their own handlers", () => {
+profilingTest("generators and async functions resume with their own handlers", () => {
     function* counter(limit) {
         for (let i = 0; i < limit; ++i) yield i;
     }
@@ -86,7 +97,7 @@ test("generators and async functions resume with their own handlers", () => {
     expect(result).toBe(6);
 });
 
-test("only functions are prepared", () => {
+profilingTest("only functions are prepared", () => {
     expect(() => jit.prepare(Math.max)).toThrowWithMessage(TypeError, "Not an ECMAScript function");
     expect(() => jit.prepare(1)).toThrowWithMessage(TypeError, "Not an ECMAScript function");
 });

@@ -2,6 +2,17 @@
 // it: one line per instruction with feedback slots, with what each slot recorded. Loads and calls keep the last value
 // they produced, which jit.feedback() folds into the kinds of values its slot saw.
 
+// Without the JIT nothing is profiled, and the harness's repeated runs of a test would add to what the first run
+// recorded, so the body runs once.
+function profilingTest(name, body) {
+    let ran = false;
+    test(name, () => {
+        if (!jit.enabled || ran) return;
+        ran = true;
+        body();
+    });
+}
+
 // What the slots of the first instruction named `name` in the feedback of `f` recorded.
 function feedbackOf(f, name) {
     const marker = `] ${name} `;
@@ -12,7 +23,7 @@ function feedbackOf(f, name) {
     return line?.substring(line.indexOf(marker) + marker.length);
 }
 
-test("arithmetic records the kinds of its operands", () => {
+profilingTest("arithmetic records the kinds of its operands", () => {
     function add(a, b) {
         return a + b;
     }
@@ -34,7 +45,7 @@ test("arithmetic records the kinds of its operands", () => {
     expect(feedbackOf(negate, "UnaryMinus")).toBe("arith#0: Other");
 });
 
-test("comparisons record the kinds of their operands", () => {
+profilingTest("comparisons record the kinds of their operands", () => {
     function less(a, b) {
         return a < b;
     }
@@ -50,7 +61,7 @@ test("comparisons record the kinds of their operands", () => {
     expect(feedbackOf(same, "StrictlyEquals")).toBe("arith#0: String");
 });
 
-test("loads and calls record the kinds of the values they produce", () => {
+profilingTest("loads and calls record the kinds of the values they produce", () => {
     function read(object) {
         return object.value;
     }
@@ -74,7 +85,7 @@ test("loads and calls record the kinds of the values they produce", () => {
     );
 });
 
-test("calls record their first callee and how the others differ", () => {
+profilingTest("calls record their first callee and how the others differ", () => {
     function first() {}
     function second() {}
     function call(f) {
@@ -114,7 +125,7 @@ test("calls record their first callee and how the others differ", () => {
     );
 });
 
-test("calls record where their callee forwarded them to", () => {
+profilingTest("calls record where their callee forwarded them to", () => {
     function target(a, b) {
         return a + b;
     }
@@ -161,7 +172,7 @@ test("calls record where their callee forwarded them to", () => {
     );
 });
 
-test("keyed accesses record their keys and elements", () => {
+profilingTest("keyed accesses record their keys and elements", () => {
     function get(object, key) {
         return object[key];
     }
@@ -192,7 +203,7 @@ test("keyed accesses record their keys and elements", () => {
     expect(feedbackOf(fill, "PutByValue")).toBe("keyed#0: keys=Int32Index elements=Holey out-of-bounds");
 });
 
-test("feedback forgets callees and keys that died", () => {
+profilingTest("feedback forgets callees and keys that died", () => {
     function call(f) {
         return f();
     }
@@ -214,7 +225,7 @@ test("feedback forgets callees and keys that died", () => {
     expect(feedbackOf(get, "GetByValue")).toBe("value#0: Undefined keyed#0: keys=Symbol elements=Other");
 });
 
-test("functions that never ran have no feedback", () => {
+profilingTest("functions that never ran have no feedback", () => {
     function neverCalled() {
         return 1;
     }

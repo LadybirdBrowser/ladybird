@@ -18,4 +18,9 @@ set_tests_properties(test-js PROPERTIES ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYB
 if (ENABLE_JS_JIT)
     add_test(NAME test-js-profiling COMMAND test-js --suite runtime)
     set_tests_properties(test-js-profiling PROPERTIES ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR};LIBJS_JIT=on")
+
+    # The runtime tests once more with a JIT that compiles every function early, on the main thread, so that they
+    # also run compiled code.
+    add_test(NAME test-js-jit COMMAND test-js --suite runtime)
+    set_tests_properties(test-js-jit PROPERTIES ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR};LIBJS_JIT=on,warmup=0,threshold=2,sync")
 endif()

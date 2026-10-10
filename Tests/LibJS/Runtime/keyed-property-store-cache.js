@@ -1,6 +1,7 @@
 // Keyed stores whose own caches give up look in the VM's keyed property
-// store cache. The store sites here first see so many keys that their own
-// caches give up.
+// store cache, both in the interpreter and in JIT code. The store sites here
+// first see so many keys that their own caches give up; with a low JIT
+// threshold the functions are compiled.
 
 function write(object, key, value) {
     object[key] = value;

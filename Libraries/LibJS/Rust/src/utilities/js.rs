@@ -205,7 +205,7 @@ const OPTIONS: &[OptionDescription] = &[
         OptionTarget::UseTest262Global,
     ),
     option(
-        "Define the jit object that tests use to profile functions and see their feedback",
+        "Define the jit object that compiles functions on demand",
         "expose-jit-testing",
         None,
         OptionTarget::ExposeJitTesting,
@@ -1936,7 +1936,10 @@ fn ladybird_main(arguments: &[String], line_editor: Option<JSLineEditor>) -> c_i
 
     // We resolve modules as if it is the first file
 
-    match parse_and_run(vm, realm, &options, &builder, source_name, options.parse_only) {
+    let result = parse_and_run(vm, realm, &options, &builder, source_name, options.parse_only);
+    // NB: The VM lives until the process exits.
+    vm.jit.flush_coverage();
+    match result {
         Ok(true) => EXIT_CODE.load(Ordering::Relaxed),
         Ok(false) => 1,
         Err(error) => {
