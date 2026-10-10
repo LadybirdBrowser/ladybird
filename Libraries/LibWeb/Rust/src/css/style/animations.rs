@@ -563,6 +563,32 @@ impl EffectTiming {
         let key = output_progress * 100.0 * 1000.0;
         Some(Some(key.clamp(i64::MIN as f64, i64::MAX as f64)))
     }
+
+    /// https://drafts.csswg.org/web-animations-1/#side-effects-of-animation
+    /// For every property targeted by at least one animation effect that is current or in effect, and which is associated
+    /// with an animation whose replace state is not removed, the user agent must act as if the will-change property on
+    /// the effect target includes the property.
+    pub(crate) fn implies_will_change(&self, samples: AnimationTimelineSamples<'_>) -> bool {
+        let timing = &self.timing;
+
+        if timing.is_removed {
+            return false;
+        }
+
+        if let Some((phase, active_time, _)) = self.active_time_at(samples) {
+            return active_time.is_some()
+                || (timing.has_timeline_scroller && (timing.has_start_time || timing.has_hold_time))
+                || match phase {
+                    Phase::Before => timing.playback_rate > 0.0,
+                    Phase::After => timing.playback_rate < 0.0,
+                    _ => false,
+                };
+        }
+
+        // Use the associated animation's relevance as computed by C++ when Rust cannot resolve the effect's timing
+        // or sample its timeline.
+        timing.is_relevant
+    }
 }
 
 #[cfg(test)]
@@ -627,6 +653,41 @@ mod tests {
 
     fn key(timing: &EffectTiming) -> Option<Option<f64>> {
         timing.key_at(AnimationTimelineSamples::default())
+    }
+
+    #[test]
+    fn an_animation_implies_will_change_during_its_delay_and_while_filling_forwards() {
+        for fill in [0, fill_mode::BACKWARDS, fill_mode::FORWARDS, fill_mode::BOTH] {
+            let mut animation = timing_at(0.0);
+            animation.timing.is_relevant = true;
+            animation.timing.start_delay = 1000.0;
+            animation.timing.fill_mode = fill;
+            for time in [0.0, 1000.0, 1500.0] {
+                assert!(animation.implies_will_change(AnimationTimelineSamples::at_tick(time, &[])));
+            }
+            for time in [2000.0, 3000.0] {
+                assert_eq!(
+                    animation.implies_will_change(AnimationTimelineSamples::at_tick(time, &[])),
+                    matches!(fill, fill_mode::FORWARDS | fill_mode::BOTH),
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn reverse_playback_implies_will_change_when_current_or_filling_backwards() {
+        let mut animation = timing_at(0.0);
+        animation.timing.start_time = 5000.0;
+        animation.timing.start_delay = 1000.0;
+        animation.timing.playback_rate = -1.0;
+        assert!(animation.implies_will_change(AnimationTimelineSamples::at_tick(2500.0, &[])));
+        assert!(animation.implies_will_change(AnimationTimelineSamples::at_tick(3500.0, &[])));
+        assert!(!animation.implies_will_change(AnimationTimelineSamples::at_tick(4500.0, &[])));
+        animation.timing.fill_mode = fill_mode::BACKWARDS;
+        assert!(animation.implies_will_change(AnimationTimelineSamples::at_tick(4500.0, &[])));
+        animation.timing.is_removed = true;
+        assert!(!animation.implies_will_change(AnimationTimelineSamples::at_tick(2500.0, &[])));
+        assert!(!animation.implies_will_change(AnimationTimelineSamples::at_tick(4500.0, &[])));
     }
 
     #[test]

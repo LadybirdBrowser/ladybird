@@ -162,7 +162,7 @@
             .filter(element => internals.visualContextNodeIndices(element).needsCompositorEffectsLayer).length;
         println(`static opacity transition declarations do not create effects frames: ${staticTransitionEffectsFrameCount === 0}`);
 
-        const pairedNeedsEffectsFrameBefore = internals.visualContextNodeIndices(pairedTarget).needsCompositorEffectsLayer;
+        const pairedNeedsEffectsFrameBefore = internals.visualContextNodeIndices(pairedTarget).effects.length > 0;
         pairedTarget.classList.add("changed");
         internals.resetStyleInvalidationCounters();
         internals.injectRenderingOpportunity(firstFrameTime + 180);
@@ -170,7 +170,7 @@
         internals.updateCompositorAnimations();
         const pairedAnimations = pairedTarget.getAnimations();
         const pairedCounters = internals.getStyleInvalidationCounters();
-        const pairedNeedsEffectsFrameAfter = internals.visualContextNodeIndices(pairedTarget).needsCompositorEffectsLayer;
+        const pairedNeedsEffectsFrameAfter = internals.visualContextNodeIndices(pairedTarget).effects.length > 0;
         println(`paired opacity and translate transitions start on compositor: ${pairedAnimations.length === 2 && pairedCounters.compositorVisualAnimations === 2}`);
         println(`paired transitions share their provisional timing anchor: ${pairedCounters.compositorVisualAnimationsShareTimingAnchor}`);
         println(`pending fade-out creates an effects frame: ${!pairedNeedsEffectsFrameBefore && pairedNeedsEffectsFrameAfter}`);
@@ -181,13 +181,13 @@
         pairedTarget.classList.remove("changed");
         document.elementFromPoint(0, 0);
         internals.updateCompositorAnimations();
-        println(`withdrawn fade-out removes its forced effects frame: ${!internals.visualContextNodeIndices(pairedTarget).needsCompositorEffectsLayer}`);
+        println(`withdrawn fade-out removes its effects frame: ${internals.visualContextNodeIndices(pairedTarget).effects.length === 0}`);
 
         const mixedAnimation = pairedTarget.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400, fill: "backwards" });
         internals.injectRenderingOpportunity(firstFrameTime + 200);
         await nextTask();
         internals.updateCompositorAnimations();
-        const mixedOpacityNeedsEffectsFrame = internals.visualContextNodeIndices(pairedTarget).needsCompositorEffectsLayer;
+        const mixedOpacityNeedsEffectsFrame = internals.visualContextNodeIndices(pairedTarget).effects.length > 0;
         mixedAnimation.effect.setKeyframes([
             { opacity: 1, filter: "none" },
             { opacity: 0, filter: "blur(1px)" },
@@ -195,10 +195,10 @@
         internals.resetStyleInvalidationCounters();
         internals.updateCompositorAnimations();
         const mixedEffectCounters = internals.getStyleInvalidationCounters();
-        const mixedEffectNeedsEffectsFrame = internals.visualContextNodeIndices(pairedTarget).needsCompositorEffectsLayer;
+        const mixedEffectNeedsEffectsFrame = internals.visualContextNodeIndices(pairedTarget).effects.length > 0;
         println(`adding an opacity animation creates an effects frame: ${mixedOpacityNeedsEffectsFrame}`);
         println(`adding a filter keeps mixed effect on compositor: ${mixedEffectCounters.compositorVisualAnimations === 2}`);
-        println(`adding a filter retains the forced effects frame: ${mixedEffectNeedsEffectsFrame}`);
+        println(`adding a filter retains the effects frame: ${mixedEffectNeedsEffectsFrame}`);
         mixedAnimation.cancel();
 
         pairedRetargetTarget.classList.add("first");

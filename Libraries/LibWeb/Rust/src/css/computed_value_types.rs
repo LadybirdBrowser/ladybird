@@ -298,6 +298,13 @@ pub struct ComputedOverflowClipMargin {
     pub bottom: ComputedOverflowClipMarginSide,
 }
 
+/// Property IDs to treat as included in will-change due to animations.
+#[repr(C)]
+pub struct RetainedWillChangePropertyList {
+    pub pointer: *mut u16,
+    pub length: usize,
+}
+
 /// Canonical non-inherited values which do not form a more specific group.
 #[repr(C)]
 pub struct MiscResetValues {
@@ -338,6 +345,7 @@ pub struct MiscResetValues {
     pub shape_margin: ComputedStyleValueHandle,
     pub shape_outside: ComputedStyleValueHandle,
     pub will_change: ComputedStyleValueHandle,
+    pub implicit_will_change: RetainedWillChangePropertyList,
 }
 
 /// A computed text-indent value, mirroring the C++ TextIndentData layout:

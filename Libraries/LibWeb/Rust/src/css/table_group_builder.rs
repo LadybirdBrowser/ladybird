@@ -34,7 +34,7 @@ use crate::css::computed_value_types::{
     InheritedUIValues, MaskValues, MiscResetValues, RetainedComputedCursorList, RetainedComputedFilterOperationList,
     RetainedComputedResolvedTransformList, RetainedComputedShadowList, RetainedComputedSvgDashList,
     RetainedGridAreaList, RetainedGridNameIndexList, RetainedGridTrackEntryList, RetainedPositionAreaList,
-    RetainedPositionTryFallbackList, SVGResetValues, TransformValues,
+    RetainedPositionTryFallbackList, RetainedWillChangePropertyList, SVGResetValues, TransformValues,
 };
 use crate::css::computed_values::{
     GroupFieldKind, GroupValueEntry, MAX_GROUP_FIELD_COUNT, build_inherited_box_group, build_inherited_table_group,
@@ -2402,18 +2402,25 @@ unsafe fn build_misc_reset_group(
     used_color_scheme: u8,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    let generic = unsafe {
-        build_generic_group(
-            group_index::MISC_RESET,
-            values,
-            input,
-            used_color_scheme,
-            parent_payload,
-        )
-    };
-    if !generic.is_null() {
-        return generic;
+    let implicit_will_change = values
+        .animated_overlay
+        .map_or(&[][..], |overlay| overlay.implicit_will_change.as_slice());
+
+    if implicit_will_change.is_empty() {
+        let generic = unsafe {
+            build_generic_group(
+                group_index::MISC_RESET,
+                values,
+                input,
+                used_color_scheme,
+                parent_payload,
+            )
+        };
+        if !generic.is_null() {
+            return generic;
+        }
     }
+
     let Some(entries) = (unsafe { gather_group_entries(group_index::MISC_RESET, values, input, used_color_scheme) })
     else {
         return std::ptr::null();
@@ -2596,6 +2603,7 @@ unsafe fn build_misc_reset_group(
                 payload.shape_margin = retained(property_id::SHAPE_MARGIN);
                 payload.shape_outside = retained(property_id::SHAPE_OUTSIDE);
                 payload.will_change = retained(property_id::WILL_CHANGE);
+                payload.implicit_will_change = RetainedWillChangePropertyList::from_vec(implicit_will_change.to_vec());
             },
             parent_payload,
         )

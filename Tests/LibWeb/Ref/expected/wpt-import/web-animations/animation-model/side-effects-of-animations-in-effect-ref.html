@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<title>
+  In effect animations should effectively apply will-change (i.e. force a
+  stacking context) (ref)
+</title>
+<link rel="help" href="https://drafts.csswg.org/web-animations-1/#side-effects-section">
+<link rel="author" href="mailto:bokan@chromium.org">
+<style>
+  .testcase {
+    position: relative;
+    margin: 2px;
+    border: 1px solid black;
+    width: 250px;
+    height: 25px;
+  }
+  .label {
+    flex-grow: 1;
+  }
+  .container {
+    background-color: lightgrey;
+    margin: 4px;
+    display: flex;
+    width: 600px;
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+  }
+  .pass {
+    width: 100%;
+    height: 100%;
+    background-color: limegreen;
+  }
+</style>
+
+<!-- OPACITY -->
+
+<!-- Is current - before phase playing forwards -->
+<div class="container">
+  <div class="label">Opacity - before phase</div>
+  <div class="testcase" id="opacity-before">
+    <div class="pass"></div>
+  </div>
+</div>
+
+<!-- Is current - in play-->
+<div class="container">
+  <div class="label">Opacity - active phase</div>
+  <div class="testcase" id="opacity-active">
+    <div class="pass"></div>
+  </div>
+</div>
+
+<!-- Is current - after phase playing backwards-->
+<div class="container">
+  <div class="label">Opacity - after phase</div>
+  <div class="testcase" id="opacity-after">
+    <div class="pass"></div>
+  </div>
+</div>
+
+<!-- TRANSFORM -->
+
+<!-- Is current - before phase playing forwards -->
+<div class="container">
+  <div class="label">Transform - before phase</div>
+  <div class="testcase" id="transform-before">
+    <div class="pass"></div>
+  </div>
+</div>
+
+<!-- Is current - in play-->
+<div class="container">
+  <div class="label">Transform - active phase</div>
+  <div class="testcase" id="transform-active">
+    <div class="pass"></div>
+  </div>
+</div>
+
+<!-- Is current - after phase playing backwards-->
+<div class="container">
+  <div class="label">Transform - after phase</div>
+  <div class="testcase" id="transform-after">
+    <div class="pass"></div>
+  </div>
+</div>
+
+<!-- BACKGROUND COLOR -->
+<div class="container">
+  <div class="label">Background-color - before phase</div>
+  <div class="testcase" id="bgcolor-before">
+    <div class="pass"></div>
+  </div>
+</div>
+
+<!-- Is current - in play-->
+<div class="container">
+  <div class="label">Background-color - active phase</div>
+  <div class="testcase" id="bgcolor-active">
+    <div class="pass"></div>
+  </div>
+</div>
+
+<!-- Is current - after phase playing backwards-->
+<div class="container">
+  <div class="label">Background-color - after phase</div>
+  <div class="testcase" id="bgcolor-after">
+    <div class="pass"></div>
+  </div>
+</div>

@@ -16,9 +16,9 @@ static opacity transition declarations do not create effects frames: true
 paired opacity and translate transitions start on compositor: true
 paired transitions share their provisional timing anchor: true
 pending fade-out creates an effects frame: true
-withdrawn fade-out removes its forced effects frame: true
+withdrawn fade-out removes its effects frame: true
 adding an opacity animation creates an effects frame: true
 adding a filter keeps mixed effect on compositor: true
-adding a filter retains the forced effects frame: true
+adding a filter retains the effects frame: true
 retargeted opacity starts with paired translate on compositor: true
 retargeted paired transitions share their provisional timing anchor: true

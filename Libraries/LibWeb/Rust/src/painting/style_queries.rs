@@ -12,6 +12,7 @@ use crate::css::css_enums::{
 };
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::css::css_string::CssString;
+use crate::css::property_metadata::property_name;
 use crate::css::serialize::{StringUnits, with_fly_string_units};
 use crate::css::style_value::StyleValueData;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
@@ -82,6 +83,13 @@ fn fly_string_equals_ascii(string: &CssString, expected: &[u8]) -> bool {
 }
 
 fn will_change_has_any_property(style: ComputedValuesView<'_>, names: &[&[u8]]) -> bool {
+    let hints = style.misc_reset().implicit_will_change.as_slice();
+    if hints
+        .iter()
+        .any(|&property| names.contains(&property_name(property).as_bytes()))
+    {
+        return true;
+    }
     let Some(value) = handle_value(&style.misc_reset().will_change) else {
         return false;
     };

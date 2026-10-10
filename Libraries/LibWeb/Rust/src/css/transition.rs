@@ -835,7 +835,7 @@ impl RowTransitions {
         // The after-change style holds the current values of the transitions the element runs, as the overlay of the
         // record the host installed holds them.
         let after_overlay = match (running.is_empty(), at) {
-            (false, Some(_)) => {
+            (false, Some(at)) => {
                 use crate::css::animation::{FfiAnimationPreparationEffect, FfiSampledAnimationEffect};
                 let mut composed = crate::css::style_compute::SampledEffects::new();
                 for transition in &running {
@@ -851,7 +851,15 @@ impl RowTransitions {
                 }
                 let mut overlay = Box::new(crate::css::animated_overlay::AnimatedOverlay::default());
                 engine
-                    .sample_over_record(node, after, &mut overlay, lane_effects, composed, reference_box)
+                    .sample_over_record(
+                        node,
+                        after,
+                        &mut overlay,
+                        lane_effects,
+                        composed,
+                        reference_box,
+                        crate::css::style::animations::AnimationTimelineSamples::at_tick(at, &[]),
+                    )
                     .map_err(|_| "a transition sample the host composes")?;
                 Some(overlay)
             }
@@ -1011,7 +1019,15 @@ impl FreshTransitionSample {
         let keys = composed.iter().map(|effect| effect.current_key).collect();
         let mut overlay = crate::css::animated_overlay::AnimatedOverlay::default();
         let result = engine
-            .sample_over_record(node, after, &mut overlay, Some(&fresh), composed, None)
+            .sample_over_record(
+                node,
+                after,
+                &mut overlay,
+                Some(&fresh),
+                composed,
+                None,
+                crate::css::style::animations::AnimationTimelineSamples::default(),
+            )
             .ok()?;
         // The preparation is keyed by the step's own effects, which the host's are not.
         overlay.animation_preparation = None;
@@ -1168,6 +1184,8 @@ fn started_transition_timing(
 ) -> crate::css::style::animations::EffectTiming {
     crate::css::style::animations::EffectTiming {
         timing: crate::css::style_compute::FfiEffectTiming {
+            is_relevant: true,
+            is_removed: false,
             decidable: true,
             has_timeline_time: false,
             has_timeline_origin_time: false,
@@ -1513,6 +1531,7 @@ impl HoverTransitions {
                 scroll_snaps,
                 subtree_follows: self.inheriting_covers_subtree,
             },
+            Default::default(),
         )
     }
 }

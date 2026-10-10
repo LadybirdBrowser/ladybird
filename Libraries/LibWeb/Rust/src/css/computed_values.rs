@@ -42,8 +42,8 @@ pub use crate::css::computed_value_types::{
     InheritedUIValues, MaskValues, MiscResetValues, RetainedComputedCursorList, RetainedComputedFilterOperationList,
     RetainedComputedResolvedTransformList, RetainedComputedShadowList, RetainedComputedSvgDashList,
     RetainedGridAreaList, RetainedGridNameIndexList, RetainedGridTrackEntryList, RetainedPositionAreaList,
-    RetainedPositionTryFallbackList, RetainedTextDecorationLineList, SVGResetValues, SizingValues, SurroundValues,
-    TextResetValues, TransformValues,
+    RetainedPositionTryFallbackList, RetainedTextDecorationLineList, RetainedWillChangePropertyList, SVGResetValues,
+    SizingValues, SurroundValues, TextResetValues, TransformValues,
 };
 use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
 use crate::css::style::fast_hash::{FastHasher, fast_hasher};
@@ -144,7 +144,7 @@ macro_rules! impl_content_hash_integers {
     };
 }
 
-impl_content_hash_integers!(u8 => write_u8, u32 => write_u32, i32 => write_i32, u64 => write_u64, usize => write_usize);
+impl_content_hash_integers!(u8 => write_u8, u16 => write_u16, u32 => write_u32, i32 => write_i32, u64 => write_u64, usize => write_usize);
 
 impl ContentHash for bool {
     fn write_content_hash(&self, hasher: &mut FastHasher) {
@@ -586,6 +586,7 @@ macro_rules! impl_retained_computed_list {
 }
 
 impl_retained_computed_list!(RetainedComputedFilterOperationList, ComputedFilterOperation);
+impl_retained_computed_list!(RetainedWillChangePropertyList, u16);
 impl_retained_computed_list!(
     RetainedComputedShadowList,
     crate::css::computed_value_types::ComputedShadow
@@ -788,6 +789,7 @@ impl_computed_payload_clone_and_eq!(MiscResetValues {
     shape_margin,
     shape_outside,
     will_change,
+    implicit_will_change,
 });
 impl_computed_payload_clone_and_eq!(FontValues {
     font_size,
@@ -3532,6 +3534,7 @@ impl MiscResetValues {
             shape_margin: initial(property_id::SHAPE_MARGIN),
             shape_outside: initial(property_id::SHAPE_OUTSIDE),
             will_change: initial(property_id::WILL_CHANGE),
+            implicit_will_change: RetainedWillChangePropertyList::from_vec(Vec::new()),
         }
     }
 }

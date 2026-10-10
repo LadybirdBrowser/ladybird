@@ -630,6 +630,10 @@ void StyleComputer::finish_animation_refresh(Layout::BegunRead const& read, DOM:
 ComputedValuesFFI::FfiEffectTiming style_engine_effect_timing(Animations::KeyframeEffect const& effect, Animations::Animation const& animation)
 {
     ComputedValuesFFI::FfiEffectTiming timing {};
+
+    timing.is_relevant = animation.is_relevant();
+    timing.is_removed = animation.replace_state() == Animations::AnimationReplaceState::Removed;
+
     Optional<Animations::TimeValue::Type> unit;
     bool one_unit = true;
     auto duration = [&](Animations::TimeValue const& time) {
