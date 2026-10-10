@@ -44,7 +44,7 @@ void RealtimeAudioRenderer::start_rendering()
 
     // The stream is created in a suspended state so the device configuration can be recorded before the first data
     // request callback runs on the audio thread.
-    auto promise = Audio::PlaybackStream::create_platform_or_null(Audio::OutputState::Suspended, TARGET_LATENCY_MS, [self = NonnullRefPtr(*this)](Span<float> buffer, MonotonicTime) { return self->fill_output_buffer(buffer); });
+    auto promise = Audio::PlaybackStream::create_platform_or_null(Audio::OutputState::Suspended, TARGET_LATENCY_MS, [self = NonnullRefPtr(*this)](Span<float> buffer, MonotonicTime buffer_starts_playing_at) { return self->fill_output_buffer(buffer, buffer_starts_playing_at); });
     promise->when_resolved([self = NonnullRefPtr(*this)](NonnullRefPtr<Audio::PlaybackStream>& stream) {
         self->set_playback_stream(stream);
     });
@@ -53,7 +53,7 @@ void RealtimeAudioRenderer::start_rendering()
 void RealtimeAudioRenderer::start_rendering_with_null_output()
 {
     prepare_to_start_rendering();
-    set_playback_stream(Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, TARGET_LATENCY_MS, [self = NonnullRefPtr(*this)](Span<float> buffer, MonotonicTime) { return self->fill_output_buffer(buffer); }));
+    set_playback_stream(Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, TARGET_LATENCY_MS, [self = NonnullRefPtr(*this)](Span<float> buffer, MonotonicTime buffer_starts_playing_at) { return self->fill_output_buffer(buffer, buffer_starts_playing_at); }));
 }
 
 void RealtimeAudioRenderer::prepare_to_start_rendering()
@@ -70,6 +70,7 @@ void RealtimeAudioRenderer::set_playback_stream(NonnullRefPtr<Audio::PlaybackStr
     }
     auto specification = stream->sample_specification();
     m_device_channel_count = specification.channel_count();
+    m_device_sample_rate = specification.sample_rate();
     m_device_bus = make<AudioBus>(specification.channel_count(), m_quantum_size);
 
     // When the device sample rate differs from the context's, the rendered audio is resampled by advancing
@@ -107,18 +108,25 @@ void RealtimeAudioRenderer::stop()
 // The amount of audio the output device has played so far, in seconds.
 double RealtimeAudioRenderer::output_time_played() const
 {
-    if (m_playback_stream)
-        return m_playback_stream->total_time_played().to_nanoseconds() / 1e9;
-    return 0;
+    auto maybe_anchor = m_output_anchor.read();
+    if (!maybe_anchor.has_value() || m_device_sample_rate == 0)
+        return 0;
+    auto const& anchor = maybe_anchor.value();
+    auto seconds_since_buffer_started = max<i64>(0, MonotonicTime::now().nanoseconds() - anchor.plays_at_nanoseconds) / 1e9;
+    auto buffer_start_seconds = anchor.first_frame_index / static_cast<double>(m_device_sample_rate);
+    auto buffer_end_seconds = anchor.end_frame_index / static_cast<double>(m_device_sample_rate);
+    return min(buffer_start_seconds + seconds_since_buffer_started, buffer_end_seconds);
 }
 
-ReadonlySpan<float> RealtimeAudioRenderer::fill_output_buffer(Span<float> buffer)
+ReadonlySpan<float> RealtimeAudioRenderer::fill_output_buffer(Span<float> buffer, MonotonicTime buffer_starts_playing_at)
 {
     if (m_shutting_down.load() || m_device_channel_count == 0)
         return {};
 
     auto channel_count = m_device_channel_count;
     auto frames_requested = buffer.size() / channel_count;
+    m_output_anchor.store({ .first_frame_index = m_frames_output, .end_frame_index = m_frames_output + frames_requested, .plays_at_nanoseconds = buffer_starts_playing_at.nanoseconds() });
+    m_frames_output += frames_requested;
     for (size_t frame = 0; frame < frames_requested; ++frame) {
         auto first_frame = static_cast<size_t>(m_playhead);
         auto fraction = static_cast<float>(m_playhead - first_frame);
