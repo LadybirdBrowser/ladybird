@@ -30,11 +30,28 @@ pub(crate) enum Declaration {
     Handler(HandlerDeclaration),
 }
 
+impl Program {
+    /// Empties the bodies of `@profiling` inline functions, for the plain
+    /// variant of the interpreter.
+    pub(crate) fn strip_profiling_code(&mut self) {
+        for declaration in &mut self.declarations {
+            if let Declaration::InlineFunction(function) = declaration
+                && function.profiling
+            {
+                function.body.statements.clear();
+                function.body.value = None;
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct InlineFunctionDeclaration {
     pub(crate) name: String,
     pub(crate) parameters: Vec<Parameter>,
     pub(crate) return_type: Option<Type>,
+    /// Only the profiling variant of the interpreter runs the body.
+    pub(crate) profiling: bool,
     pub(crate) body: Block,
     pub(crate) span: SourceSpan,
 }

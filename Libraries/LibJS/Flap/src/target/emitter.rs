@@ -242,9 +242,10 @@ pub(crate) fn emit_dispatch_tables(out: &mut String, program: &MachineProgram) {
     }
     w!(out);
 
-    w!(out, ".globl CSYM(js_interpreter_handler_ranges)");
+    let handler_ranges = program.global_symbol("js_interpreter_handler_ranges");
+    w!(out, ".globl CSYM({handler_ranges})");
     w!(out, ".p2align 3");
-    w!(out, "CSYM(js_interpreter_handler_ranges):");
+    w!(out, "CSYM({handler_ranges}):");
     for handler in &program.dispatch_handlers {
         let handler_name = handler
             .and_then(|handler| handler_names.get(&handler).copied())
@@ -340,7 +341,12 @@ pub(crate) fn emit_program(
     emit_exit: impl FnOnce(&mut String),
 ) -> String {
     emit_dispatch_tables(&mut out, program);
-    emit_proc_start(&mut out, program.target.object_format, seh_indentation);
+    emit_proc_start(
+        &mut out,
+        program.target.object_format,
+        seh_indentation,
+        &program.global_symbol("js_interpreter"),
+    );
     emit_entry(&mut out);
     emit_fallback(&mut out);
     emit_handler_bodies(&mut out);
@@ -350,12 +356,12 @@ pub(crate) fn emit_program(
     out
 }
 
-pub(crate) fn emit_proc_start(out: &mut String, format: ObjectFormat, seh_indentation: &str) {
-    w!(out, ".globl CSYM(js_interpreter)");
+pub(crate) fn emit_proc_start(out: &mut String, format: ObjectFormat, seh_indentation: &str, entry: &str) {
+    w!(out, ".globl CSYM({entry})");
     w!(out, ".p2align 4");
-    w!(out, "CSYM(js_interpreter):");
+    w!(out, "CSYM({entry}):");
     match format {
-        ObjectFormat::Coff => w!(out, "{seh_indentation}.seh_proc CSYM(js_interpreter)"),
+        ObjectFormat::Coff => w!(out, "{seh_indentation}.seh_proc CSYM({entry})"),
         ObjectFormat::Elf | ObjectFormat::MachO => w!(out, "    .cfi_startproc"),
     }
 }

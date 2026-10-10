@@ -15,6 +15,7 @@ fn compile(body: &str, architecture: Architecture, enabled: bool) -> String {
         },
         has_jscvt: false,
         enable_assertions: enabled,
+        profiling: false,
     })
     .compile(CompilationUnit {
         source: SourceInput {

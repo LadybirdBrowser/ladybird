@@ -66,6 +66,7 @@ fn finalize_function(function: AllocatedFunction, runtime: &RuntimeConstants) ->
         },
         has_jscvt: false,
         enable_assertions: false,
+        profiling: false,
     };
     finalize_function_for_target(function, runtime, &options)
 }
@@ -92,6 +93,7 @@ pub(crate) fn finalize_program(
         runtime,
         dispatch_handlers: program.dispatch_handlers,
         target,
+        profiling: options.profiling,
         functions,
     };
     super::machine_verify::verify_program(&machine)?;
@@ -487,6 +489,7 @@ mod tests {
             },
             has_jscvt: false,
             enable_assertions: false,
+            profiling: false,
         }
     }
 

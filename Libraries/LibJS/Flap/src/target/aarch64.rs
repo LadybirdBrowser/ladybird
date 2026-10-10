@@ -1251,6 +1251,7 @@ mod tests {
             },
             has_jscvt: false,
             enable_assertions: false,
+            profiling: false,
         }
     }
 

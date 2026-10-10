@@ -834,6 +834,7 @@ mod tests {
                 object_format: ObjectFormat::MachO,
             },
             functions: Vec::new(),
+            profiling: false,
         }
     }
 
