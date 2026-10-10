@@ -2875,3 +2875,9 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.jump(resume);
     }
 }
+
+// NB: The tests that run generated code natively only exist for x86-64 hosts,
+//     and leave the machinery that runs the code unused elsewhere.
+#[cfg(test)]
+#[cfg_attr(not(target_arch = "x86_64"), allow(dead_code))]
+mod tests;

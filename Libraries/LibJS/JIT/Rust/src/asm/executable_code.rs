@@ -27,6 +27,10 @@ unsafe extern "C" {
 }
 
 impl ExecutableCode {
+    pub(crate) fn address(&self) -> u64 {
+        self.address as u64
+    }
+
     pub(crate) fn new(code: &[u8]) -> Self {
         let size = code.len().max(1).next_multiple_of(16384);
         #[cfg(target_os = "macos")]
