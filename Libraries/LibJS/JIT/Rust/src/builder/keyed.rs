@@ -328,20 +328,20 @@ impl GraphBuilder<'_> {
     }
 
     /// `value` as elements of `kind` store it, taking a slow path for
-    /// values of typed arrays that are no numbers, and for other numbers
-    /// than int32 values of integer typed arrays.
+    /// values of typed arrays that are no numbers.
     fn stored_element(&mut self, slow_paths: &mut SlowPaths, kind: ElementsKind, value: NodeId) -> NodeId {
         let int32 = self.int32_value_of(value);
         match (kind.stored_repr(), int32) {
             (Repr::Int32, Some(int32)) => int32,
             (Repr::Float64, Some(int32)) => self.int32_to_float64(int32),
-            (Repr::Int32, None) if kind == ElementsKind::TypedArray(TypedArrayElement::Uint8Clamped) => {
-                let number = self.float64_of_number(slow_paths, value);
-                self.emit(Op::Float64ToUint8Clamped, vec![number], Some(Repr::Int32))
-            }
             (Repr::Int32, None) => {
-                let value = self.branch_to_slow_path(slow_paths, BranchCondition::Int32Value, vec![value], true);
-                self.emit(Op::UnboxInt32, vec![value], Some(Repr::Int32))
+                let number = self.float64_of_number(slow_paths, value);
+                let conversion = if kind == ElementsKind::TypedArray(TypedArrayElement::Uint8Clamped) {
+                    Op::Float64ToUint8Clamped
+                } else {
+                    Op::Float64ToInt32
+                };
+                self.emit(conversion, vec![number], Some(Repr::Int32))
             }
             (Repr::Float64, None) => self.float64_of_number(slow_paths, value),
             _ => self.tagged(value),

@@ -93,15 +93,36 @@ jit.compile(float);
 // CHECK-NEXT: LoadElementAt TypedArray(Float64)
 // CHECK-NEXT: BoxFloat64
 
-// Stores into typed arrays take numbers of their kind.
+// Stores into typed arrays check that values are numbers and convert them to the kind of the elements.
+
+function storeNumber(a, i, v) {
+    a[i] = v;
+}
+jit.prepare(storeNumber);
+const integers = new Int32Array(4);
+for (let i = 0; i < 10; ++i) storeNumber(integers, i % 4, i + 0.5);
+jit.compile(storeNumber);
+
+// CHECK-FUNCTION: storeNumber
+// CHECK-PASS: frame initialization
+// CHECK: [[NUMBER:v[0-9]+]]:float64 = CheckNumber
+// CHECK-NEXT: [[INTEGER:v[0-9]+]]:int32 = Float64ToInt32 ([[NUMBER]])
+// CHECK: CheckElements TypedArray(Int32)
+// CHECK: CheckBounds
+// CHECK: StoreElementAt TypedArray(Int32)
+// CHECK-SAME: [[INTEGER]]
+
+// Stores that exited for a value that is no number take numbers of their kind once recompiled, and leave other values
+// to the slow path.
 
 function store(a, i, v) {
     a[i] = v;
 }
 jit.prepare(store);
-const integers = new Int32Array(4);
 for (let i = 0; i < 10; ++i) store(integers, i % 4, i);
+jit.compile(store);
 store(integers, 0, "x");
+jit.discard(store);
 jit.compile(store);
 
 // CHECK-FUNCTION: store
