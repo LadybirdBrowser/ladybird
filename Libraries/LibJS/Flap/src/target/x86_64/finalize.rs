@@ -1794,6 +1794,23 @@ impl Backend for X86_64Backend {
         Ok(())
     }
 
+    fn finalize_memory_update(
+        &self,
+        emit: &mut Emit<'_>,
+        operation: BinaryOperation,
+        width: MemoryWidth,
+        operands: &[AllocatedOperand],
+    ) -> Result<(), CompileError> {
+        let address = machine_address(operands.operand(0));
+        let source = match operands.operand(1) {
+            AllocatedOperand::Immediate(value) => MachineOperand::Immediate(*value),
+            source => MachineOperand::PhysicalRegister(verified_register(source)),
+        };
+        let operation = super::AluOperation::from_binary(operation).expect("memory updates use ALU operations");
+        emit!(emit.output, X86_64; Opcode::MemoryUpdate { operation, width } => [address address, operand source];);
+        Ok(())
+    }
+
     fn finalize_scalar_load(
         &self,
         emit: &mut Emit<'_>,

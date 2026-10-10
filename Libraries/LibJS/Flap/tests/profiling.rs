@@ -9,7 +9,9 @@ use flapc::{Architecture, CompilationUnit, CompileOptions, Compiler, ObjectForma
 const PROGRAM: &str = "
 inline fn count_check() @profiling {
     let vm = load_vm();
-    inc32_mem([vm, VM_EXECUTION_GENERATION]);
+    or8_mem([vm, VM_EXECUTION_GENERATION], 2);
+    or32_mem([vm, VM_EXECUTION_GENERATION], 0x30000);
+    sub32_mem([vm, VM_EXECUTION_GENERATION], 5);
 }
 
 handler Check() {
@@ -66,5 +68,31 @@ fn compiles_profiling_code_only_into_the_profiling_variant() {
         );
         assert!(!profiling.contains("CSYM(js_interpreter):"), "{profiling}");
         assert!(check_handler(&profiling).contains("48]"), "{profiling}");
+    }
+}
+
+#[test]
+fn updates_memory_with_one_instruction_on_x86_64() {
+    let assembly = compile(Architecture::X86_64, true);
+    let handler = check_handler(&assembly);
+    for instruction in ["or BYTE PTR [", "or DWORD PTR [", "sub DWORD PTR ["] {
+        assert_eq!(handler.matches(instruction).count(), 1, "{instruction}\n{handler}");
+    }
+}
+
+#[test]
+fn updates_memory_through_scratch_registers_on_aarch64() {
+    let assembly = compile(Architecture::Aarch64, true);
+    let handler = check_handler(&assembly);
+    for (instruction, count) in [
+        ("ldrb w9, [x0, #48]", 1),
+        ("orr w9, w9, #0x2", 1),
+        ("strb w9, [x0, #48]", 1),
+        ("ldr w9, [x0, #48]", 2),
+        ("orr w9, w9, #0x30000", 1),
+        ("sub x9, x9, #5", 1),
+        ("str w9, [x0, #48]", 2),
+    ] {
+        assert_eq!(handler.matches(instruction).count(), count, "{instruction}\n{handler}");
     }
 }
