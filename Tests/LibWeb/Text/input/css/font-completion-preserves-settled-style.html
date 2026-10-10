@@ -1,0 +1,59 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        const style = document.head.appendChild(document.createElement("style"));
+        style.textContent = `
+            @font-face {
+                font-family: CompletionFace;
+                src: local("Ahem");
+                font-weight: 100 900;
+                unicode-range: U+0041;
+            }
+            @font-face {
+                font-family: CompletionFace;
+                src: url("unused-completion-subset.woff");
+                font-weight: 100 900;
+                unicode-range: U+0042;
+            }
+        `;
+        const target = document.body.appendChild(document.createElement("span"));
+        target.style.cssText = "display: inline-block; font: 20px CompletionFace, monospace";
+        target.textContent = "A";
+        const width = target.getBoundingClientRect().width;
+        const faces = Array.from(document.fonts).filter(face => face.family === "CompletionFace");
+        const loadedFace = faces.find(face => face.unicodeRange === "U+41");
+        const loadingStatus = loadedFace.status;
+        const before = internals.styleEngineCounters();
+        await loadedFace.loaded;
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+        const finalWidth = target.getBoundingClientRect().width;
+        println(`resident face used before completion: ${width === 20}`);
+        println(`status before completion: ${loadingStatus}`);
+        println(`status after completion: ${loadedFace.status}`);
+        println(`completion recomputed style: ${after.engineFullDrivesStarted !== before.engineFullDrivesStarted}`);
+        println(`completion preserves geometry: ${finalWidth === width}`);
+        println(`unused subset: ${faces.find(face => face !== loadedFace).status}`);
+
+        const scriptFace = new FontFace("ScriptCompletionFace", 'url("../../../Ref/data/fonts/Ahem.ttf")');
+        document.fonts.add(scriptFace);
+        target.style.fontFamily = "ScriptCompletionFace, monospace";
+        await scriptFace.load();
+        println(`registered script face: ${scriptFace.status}, width=${target.getBoundingClientRect().width}`);
+        document.fonts.delete(scriptFace);
+        const unregisteredFace = new FontFace("UnregisteredCompletionFace", 'url("../../../Ref/data/fonts/Ahem.ttf")');
+        await unregisteredFace.load();
+        document.fonts.add(unregisteredFace);
+        target.style.fontFamily = "UnregisteredCompletionFace, monospace";
+        println(`face registered after loading: ${unregisteredFace.status}, width=${target.getBoundingClientRect().width}`);
+        const failedFace = new FontFace("FailedCompletionFace", 'url("missing-completion-font.woff")');
+        document.fonts.add(failedFace);
+        try {
+            await failedFace.load();
+        } catch (error) {
+            println(`failed face: ${failedFace.status}, rejection=${error.name}`);
+        }
+    });
+</script>
