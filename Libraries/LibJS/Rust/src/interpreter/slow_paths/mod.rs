@@ -353,6 +353,9 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::GetById,
         values: &mut op::GetByIdValues,
     ) -> SlowPathControl {
+        if let Some(control) = crate::jit::calls::get_by_id_from_jit(vm, pc, instruction, values) {
+            return control;
+        }
         property_access::get_by_id(vm, pc, instruction, values)
     }
 

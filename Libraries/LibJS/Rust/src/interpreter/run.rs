@@ -19,7 +19,6 @@ use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
 use crate::layout::function_object::EcmascriptFunctionObject;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
-use crate::runtime::abstract_operations::new_function_environment;
 use crate::runtime::completion::{Throw, ThrowCompletionOr};
 use crate::runtime::environment::Environment;
 use crate::runtime::error::ErrorKind;
@@ -145,6 +144,58 @@ impl Vm {
             return Err(exception);
         }
         Ok(return_value)
+    }
+
+    /// Runs the running execution context in the interpreter from its program counter, until it returns to a caller
+    /// waiting in native code or leaves the interpreter.
+    pub fn run_running_frame_in_interpreter(&self) {
+        let context = self.running_execution_context().expect("a frame is running");
+        // SAFETY: The running context is live.
+        let context = unsafe { context.as_ref() };
+        let executable = Executable::from_head(context.executable.get().expect("the running frame runs an executable"));
+        // SAFETY: The interpreter runs the executable in the context, whose slots follow it.
+        unsafe {
+            js_interpreter(
+                executable.head.bytecode_data.get(),
+                context.program_counter.get(),
+                context.slots().as_ptr().cast_mut().cast(),
+                core::ptr::from_ref(self).cast(),
+            );
+        }
+    }
+
+    /// Finishes the running frame the way the interpreter's Return does: an inline frame stores the return value in
+    /// its caller and is popped, continuing at the caller's return pc; any other frame stores it in its return value
+    /// register.
+    pub fn return_from_running_frame(&self, return_value: Value) {
+        let frame_pointer = self.running_execution_context().expect("a frame is running");
+        // SAFETY: The running context is live until it is deallocated below.
+        let frame = unsafe { frame_pointer.as_ref() };
+        let mut return_value = if return_value == Value::EMPTY {
+            Value::UNDEFINED
+        } else {
+            return_value
+        };
+
+        let caller_frame = frame.caller_frame.get();
+        if caller_frame.is_null() {
+            frame.register(register::RETURN_VALUE).set(return_value);
+            frame.register(register::EXCEPTION).set(Value::EMPTY);
+            return;
+        }
+
+        if frame.caller_is_construct.get() && !return_value.is_object() {
+            return_value = frame.this_value.get();
+        }
+        // SAFETY: A frame's caller outlives it.
+        let caller = unsafe { &*caller_frame };
+        caller.program_counter.set(frame.caller_return_pc.get());
+        caller.slots()[frame.caller_dst_raw.get() as usize].set(return_value);
+        self.head.running_execution_context.set(caller_frame);
+        self.interpreter_stack().deallocate(frame_pointer.as_ptr().cast());
+        self.head
+            .execution_generation
+            .set(self.head.execution_generation.get() + 1);
     }
 
     #[cold]
@@ -303,9 +354,58 @@ impl Vm {
         new_target: Option<Gc<Object>>,
         is_construct: bool,
     ) -> Option<NonNull<ExecutionContext>> {
+        let passed_argument_count = u32::try_from(arguments.len()).expect("the argument count fits in u32");
+        let callee_context_pointer = self.push_inline_frame_without_this(
+            callee_function,
+            callee_executable,
+            arguments,
+            passed_argument_count,
+            return_pc,
+            dst_raw,
+            new_target,
+            is_construct,
+        )?;
+        // SAFETY: The context was just pushed.
+        self.bind_this_in_inline_frame(callee_function, unsafe { callee_context_pointer.as_ref() }, this_value);
+        Some(callee_context_pointer)
+    }
+
+    /// The part of push_inline_frame() after pushing the frame.
+    pub fn bind_this_in_inline_frame(
+        &self,
+        callee_function: Gc<EcmascriptFunctionObject>,
+        callee_context: &ExecutionContext,
+        this_value: Value,
+    ) {
+        // Bind this if the function uses it.
+        if callee_function.uses_this() {
+            callee_function.ordinary_call_bind_this(self, callee_context, this_value);
+        }
+
+        // Set this value register.
+        callee_context
+            .register(register::THIS_VALUE)
+            .set(callee_context.this_value.get());
+    }
+
+    /// Like push_inline_frame(), but leaves `this` unbound. The arguments after the supplied ones, up to
+    /// `passed_argument_count` (and the formal parameter count), are undefined.
+    #[allow(clippy::too_many_arguments)]
+    pub fn push_inline_frame_without_this(
+        &self,
+        callee_function: Gc<EcmascriptFunctionObject>,
+        callee_executable: Gc<Executable>,
+        arguments: &[Value],
+        passed_argument_count: u32,
+        return_pc: u32,
+        dst_raw: u32,
+        new_target: Option<Gc<Object>>,
+        is_construct: bool,
+    ) -> Option<NonNull<ExecutionContext>> {
         let callee_context = self.allocate_inline_frame(
             callee_executable,
             arguments,
+            passed_argument_count,
             callee_function.formal_parameter_count(),
             return_pc,
             dst_raw,
@@ -318,59 +418,26 @@ impl Vm {
             .set(Some(callee_function.as_function_object_gc()));
         callee_context.realm.set(callee_function.realm());
         callee_context.script_or_module.set(callee_function.script_or_module());
-        if callee_function.function_environment_needed() {
-            let local_environment = new_function_environment(self, callee_function, new_target);
-            let shared_data = callee_function.shared_data();
-            let function_environment_bindings_count = shared_data.function_environment_bindings_count();
-            local_environment.set_environment_shape_cache(
-                shared_data.function_environment_shape_cache(),
-                function_environment_bindings_count,
-            );
-            local_environment.ensure_capacity(function_environment_bindings_count);
-            callee_context.lexical_environment.set(Some(local_environment.upcast()));
-            callee_context
-                .variable_environment
-                .set(Some(local_environment.upcast()));
-        } else {
-            callee_context.lexical_environment.set(callee_function.environment());
-            callee_context.variable_environment.set(callee_function.environment());
-        }
+        let environment = callee_function.inline_call_environment(self, new_target);
+        callee_context.lexical_environment.set(environment);
+        callee_context.variable_environment.set(environment);
         callee_context
             .private_environment
             .set(callee_function.private_environment());
 
-        // Inline JS-to-JS frames stay out of the VM execution context stack and
-        // are tracked through caller_frame instead.
-        let callee_context_pointer = NonNull::from(callee_context);
-        self.head.running_execution_context.set(callee_context_pointer.as_ptr());
-
-        // Bind this if the function uses it.
-        if callee_function.uses_this() {
-            callee_function.ordinary_call_bind_this(self, callee_context, this_value);
-        }
-
-        // Set up execution context fields that run_executable normally does.
-        // NB: We must use the callee's realm (not the caller's) for global_object
-        //     and global_declarative_environment, since the caller's realm may differ
-        //     in cross-realm calls (e.g. iframe <-> parent).
-        callee_context.executable.set(Some(Executable::head(callee_executable)));
-
-        // Set this value register.
-        callee_context
-            .register(register::THIS_VALUE)
-            .set(callee_context.this_value.get());
-
-        Some(callee_context_pointer)
+        Some(self.enter_inline_frame(callee_context, callee_executable))
     }
 
     /// Enters a frame for a call of a builtin written in JavaScript that the interpreter runs inline, like
     /// push_inline_frame() does for ECMAScript functions. The frame is set up like [[Call]] of a built-in function
     /// object sets up its callee context. The builtin must not need a function environment.
+    #[allow(clippy::too_many_arguments)]
     pub fn push_builtin_inline_frame(
         &self,
         callee_function: Gc<NativeJavaScriptBackedFunction>,
         callee_executable: Gc<Executable>,
         arguments: &[Value],
+        passed_argument_count: u32,
         return_pc: u32,
         dst_raw: u32,
         this_value: Value,
@@ -380,6 +447,7 @@ impl Vm {
         let callee_context = self.allocate_inline_frame(
             callee_executable,
             arguments,
+            passed_argument_count,
             callee_function.shared_data().formal_parameter_count(),
             return_pc,
             dst_raw,
@@ -412,10 +480,7 @@ impl Vm {
             .private_environment
             .set(caller_context.private_environment.get());
 
-        let callee_context_pointer = NonNull::from(callee_context);
-        self.head.running_execution_context.set(callee_context_pointer.as_ptr());
-        callee_context.executable.set(Some(Executable::head(callee_executable)));
-        Some(callee_context_pointer)
+        Some(self.enter_inline_frame(callee_context, callee_executable))
     }
 
     /// Allocates a frame for an inline call of `callee_executable`, with its arguments and its linkage to the running
@@ -424,17 +489,18 @@ impl Vm {
         &self,
         callee_executable: Gc<Executable>,
         arguments: &[Value],
+        passed_argument_count: u32,
         formal_parameter_count: u32,
         return_pc: u32,
         dst_raw: u32,
     ) -> Option<&ExecutionContext> {
+        assert!(arguments.len() <= passed_argument_count as usize);
         let stack = self.interpreter_stack();
 
-        let insn_argument_count = u32::try_from(arguments.len()).expect("the argument count fits in u32");
         let registers_and_locals_count = callee_executable.registers_and_locals_count();
         let constant_count =
             u32::try_from(callee_executable.constants().len()).expect("the constant count fits in u32");
-        let argument_count = insn_argument_count.max(formal_parameter_count);
+        let argument_count = passed_argument_count.max(formal_parameter_count);
 
         let callee_context_pointer = stack.allocate(registers_and_locals_count, constant_count, argument_count)?;
         // SAFETY: The context was just allocated, and stays allocated until the interpreter returns from it or
@@ -449,7 +515,7 @@ impl Vm {
         for slot in &callee_argument_values[arguments.len()..] {
             slot.set(Value::UNDEFINED);
         }
-        callee_context.passed_argument_count.set(insn_argument_count);
+        callee_context.passed_argument_count.set(passed_argument_count);
 
         // Set up caller linkage so Return can restore the caller frame.
         callee_context
@@ -458,6 +524,27 @@ impl Vm {
         callee_context.caller_dst_raw.set(dst_raw);
         callee_context.caller_return_pc.set(return_pc);
         Some(callee_context)
+    }
+
+    /// Makes a frame allocate_inline_frame() allocated the running one.
+    fn enter_inline_frame(
+        &self,
+        callee_context: &ExecutionContext,
+        callee_executable: Gc<Executable>,
+    ) -> NonNull<ExecutionContext> {
+        let callee_context_pointer = NonNull::from(callee_context);
+
+        // Inline JS-to-JS frames stay out of the VM execution context stack and
+        // are tracked through caller_frame instead.
+        self.head.running_execution_context.set(callee_context_pointer.as_ptr());
+
+        // Set up execution context fields that run_executable normally does.
+        // NB: We must use the callee's realm (not the caller's) for global_object
+        //     and global_declarative_environment, since the caller's realm may differ
+        //     in cross-realm calls (e.g. iframe <-> parent).
+        callee_context.executable.set(Some(Executable::head(callee_executable)));
+
+        callee_context_pointer
     }
 
     /// Leaves the running frame, which the interpreter entered inline, for the frame that called it.

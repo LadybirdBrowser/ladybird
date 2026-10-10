@@ -914,6 +914,35 @@ impl Vm {
         );
     }
 
+    /// Calls `callback` (until it breaks) with every execution context of the stack and of the stacks that
+    /// save_execution_context_stack() saved, the way the garbage collector finds them.
+    pub fn for_each_live_execution_context(&self, mut callback: impl FnMut(&ExecutionContext) -> ControlFlow<()>) {
+        let stopped = Cell::new(false);
+        let mut visit = |context: &ExecutionContext| {
+            let flow = callback(context);
+            stopped.set(flow.is_break());
+            flow
+        };
+        self.for_each_execution_context_top_to_bottom(&mut visit);
+        for saved_stack in self.saved_execution_context_stacks.borrow().iter() {
+            if stopped.get() {
+                return;
+            }
+            for_each_execution_context_top_to_bottom_of(
+                saved_stack.length,
+                |index| {
+                    let entry = saved_stack.storage[..saved_stack.length].get(index)?;
+                    Some((
+                        NonNull::new(entry.execution_context.get()).expect("every entry on the stack has its context"),
+                        entry.previous_running_execution_context.get(),
+                    ))
+                },
+                saved_stack.running_execution_context,
+                &mut visit,
+            );
+        }
+    }
+
     /// VM::last_execution_context_matching(): the topmost execution context that `predicate` accepts, in the order of
     /// for_each_execution_context_top_to_bottom().
     pub fn last_execution_context_matching(
@@ -1002,6 +1031,7 @@ impl Vm {
     }
 
     fn gather_roots(&self, visitor: &mut Visitor) {
+        self.jit.trace(visitor);
         self.for_each_execution_context_top_to_bottom(|context| {
             context.trace(visitor);
             ControlFlow::Continue(())
@@ -1051,6 +1081,14 @@ impl Vm {
         self.head.debugger.set(Rc::as_ptr(&debugger).cast_mut().cast());
         *self.debugger.borrow_mut() = Some(debugger);
         self.update_dispatch_tables();
+        // NB: Debuggers step through bytecode, so nothing enters JIT code while one is attached, not even JIT code
+        //     that runs already, which calls other JIT code only through the entries of executables.
+        let executables = self.executables.borrow().clone();
+        for executable in executables {
+            if executable.jit_compile_state() == crate::jit::code::CompileState::Installed {
+                executable.discard_jit_code(self);
+            }
+        }
     }
 
     pub fn disable_debugging(&self) {
@@ -1263,6 +1301,7 @@ impl Vm {
     fn remove_dead_cells_from_property_lookup_caches(&self) {
         self.executables.borrow_mut().retain(|executable| {
             if cell_is_dead(*executable) {
+                executable.free_jit_entry_slot(self);
                 return false;
             }
             executable.remove_dead_cells();
@@ -1278,6 +1317,7 @@ impl Vm {
         let (tier, tier_up_budget) = tier_up::initial_tier(&self.jit);
         executable.set_interpreter_tier(tier);
         executable.head.tier_up_budget.set(tier_up_budget);
+        executable.allocate_jit_entry_slot(self);
         self.executables.borrow_mut().push(executable);
     }
 
@@ -1876,6 +1916,8 @@ impl Drop for Vm {
     fn drop(&mut self) {
         // The debugger holds weak references to executables, which go away with the heap.
         drop(self.debugger.take());
+        // Compile jobs that are still running are abandoned; their results are dropped when they finish.
+        self.jit.abandon_compile_jobs();
         // The heap's final collection destroys every cell, so it has to happen while the rest of the VM exists.
         drop(self.heap.take());
     }

@@ -50,7 +50,7 @@ use crate::utf16::Utf16Display;
 
 /// Op::CallType: how a call instruction calls its callee.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum CallType {
+pub(crate) enum CallType {
     Call,
     Construct,
     DirectEval,
@@ -91,7 +91,7 @@ fn as_array_exotic_object(value: Value) -> Gc<Array> {
 }
 
 /// Throws a new error and hands it to the interpreter, the ASM_TRY of a throw completion.
-fn throw_error(
+pub(crate) fn throw_error(
     vm: &Vm,
     pc: u32,
     kind: ErrorKind,
@@ -240,7 +240,7 @@ fn throw_type_error_for_asm_callee(
     vm.throw_completion(ErrorKind::TypeError, ErrorType::IsNotA, &[&callee, &callee_type])
 }
 
-fn throw_if_needed_for_asm_call(
+pub(crate) fn throw_if_needed_for_asm_call(
     vm: &Vm,
     callee: Value,
     call_type: CallType,
@@ -286,7 +286,7 @@ fn copy_arguments_into_callee_context(callee_context: &ExecutionContext, argumen
 
 #[inline(never)]
 #[allow(clippy::too_many_arguments)]
-fn execute_asm_call(
+pub(crate) fn execute_asm_call(
     call_type: CallType,
     vm: &Vm,
     callee: Value,
@@ -375,6 +375,7 @@ pub fn call(
                 builtin,
                 executable,
                 arguments,
+                argument_count_of(arguments.len()),
                 pc + instruction.length(),
                 instruction.dst.0,
                 values.this_value,
@@ -1040,7 +1041,7 @@ pub fn super_call_with_argument_array(
 
 /// Records the function a call of a builtin written in JavaScript passes it as its first argument, which the builtins
 /// that take callbacks call back, as the call site's forwarded call.
-fn record_callback(
+pub(crate) fn record_callback(
     vm: &Vm,
     frame: &ExecutionContext,
     pc: u32,
@@ -1063,7 +1064,7 @@ fn record_callback(
 }
 
 /// `value` as a builtin written in JavaScript, if it is one.
-fn value_as_native_javascript_backed_function(value: Value) -> Option<Gc<NativeJavaScriptBackedFunction>> {
+pub(crate) fn value_as_native_javascript_backed_function(value: Value) -> Option<Gc<NativeJavaScriptBackedFunction>> {
     if !value.is_object() {
         return None;
     }

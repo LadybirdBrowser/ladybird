@@ -29,6 +29,7 @@ use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::jit::InterpreterTier;
+use crate::jit::code::ExecutableJitState;
 use crate::layout::buffer::InterpreterBuffer;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::executable::ExecutableHead;
@@ -1220,6 +1221,8 @@ pub struct Executable {
     feedback: OnceCell<ExecutableFeedback>,
     /// Whether LIBJS_JIT=dump-feedback printed the executable's feedback already.
     has_dumped_feedback: Cell<bool>,
+    /// The executable's JIT code and what its exits taught the JIT.
+    jit: ExecutableJitState,
     pub number_of_registers: u32,
     pub number_of_arguments: u32,
     pub is_strict_mode: bool,
@@ -1463,6 +1466,7 @@ impl Executable {
             feedback_slot_counts: FeedbackSlotCounts::default(),
             feedback: OnceCell::new(),
             has_dumped_feedback: Cell::new(false),
+            jit: ExecutableJitState::default(),
             number_of_registers,
             number_of_arguments,
             is_strict_mode,
@@ -1911,9 +1915,9 @@ impl Executable {
     }
 
     /// Gives the executable its feedback arrays, if it has none yet, and points the interpreter at them.
-    fn ensure_feedback(&self) {
-        if self.feedback.get().is_some() {
-            return;
+    pub fn ensure_feedback(&self) -> &ExecutableFeedback {
+        if let Some(feedback) = self.feedback.get() {
+            return feedback;
         }
         let feedback = ExecutableFeedback::new(self.feedback_slot_counts);
         let head = &self.head.feedback;
@@ -1925,6 +1929,7 @@ impl Executable {
         if self.feedback.set(feedback).is_err() {
             unreachable!("the feedback is made once");
         }
+        self.feedback.get().expect("the feedback was just made")
     }
 
     pub fn has_dumped_feedback(&self) -> bool {
@@ -1939,6 +1944,10 @@ impl Executable {
     /// executable ever left the plain tier.
     pub fn feedback(&self) -> Option<&ExecutableFeedback> {
         self.feedback.get()
+    }
+
+    pub fn jit_state(&self) -> &ExecutableJitState {
+        &self.jit
     }
 
     pub fn environment_shape_cache(&self, index: u32) -> EnvironmentShapeCache {
@@ -2245,5 +2254,6 @@ unsafe impl Trace for Executable {
         self.template_object_caches.trace(visitor);
         self.shared_function_data.trace(visitor);
         self.class_blueprints.trace(visitor);
+        self.trace_jit_code(visitor);
     }
 }

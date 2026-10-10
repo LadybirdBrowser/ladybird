@@ -593,6 +593,24 @@ impl EcmascriptFunctionObject {
         // 10. Return unused.
     }
 
+    /// The LexicalEnvironment and VariableEnvironment of a call of the function in an inline frame: a new function
+    /// environment (steps 7 to 9 of PrepareForOrdinaryCall) if the function needs one, and its [[Environment]]
+    /// otherwise.
+    pub fn inline_call_environment(&self, vm: &Vm, new_target: Option<Gc<Object>>) -> Option<Gc<Environment>> {
+        if !self.function_environment_needed() {
+            return self.environment();
+        }
+        let local_environment = new_function_environment(vm, self.as_ecmascript_function_gc(), new_target);
+        let shared_data = self.shared_data();
+        let function_environment_bindings_count = shared_data.function_environment_bindings_count();
+        local_environment.set_environment_shape_cache(
+            shared_data.function_environment_shape_cache(),
+            function_environment_bindings_count,
+        );
+        local_environment.ensure_capacity(function_environment_bindings_count);
+        Some(local_environment.upcast())
+    }
+
     // 10.2.1.4 OrdinaryCallEvaluateBody ( F, argumentsList ), https://tc39.es/ecma262/#sec-ordinarycallevaluatebody
     // 15.8.4 Runtime Semantics: EvaluateAsyncFunctionBody, https://tc39.es/ecma262/#sec-runtime-semantics-evaluatefunctionbody
     fn ordinary_call_evaluate_body(&self, vm: &Vm, context: &ExecutionContext) -> ThrowCompletionOr<Value> {

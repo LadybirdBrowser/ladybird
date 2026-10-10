@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The dispatch tables of the interpreter tiers executables move through while the interpreter collects feedback (see
-//! `InterpreterTier`), made from the handlers of the profiling build of the interpreter, which only builds with the JIT
-//! have.
+//! The dispatch tables of the interpreter tiers executables move through while the JIT is on (see `InterpreterTier`),
+//! made from the handlers of the profiling build of the interpreter, which only builds with the JIT have.
 
 use core::ffi::c_void;
 
@@ -26,10 +25,17 @@ fn profiling_dispatch_table() -> *const c_void {
 }
 
 /// The plain handlers, with the profiling build's handlers for the instructions that count the tier-up budget
-/// (function entry and loop back edges), or call or return to a frame that may run with other handlers (see
-/// `InterpreterTier::WarmingUp`).
+/// (function entry and loop back edges), enter JIT code (calls), or return to a caller that may run with other
+/// handlers (see `InterpreterTier::WarmingUp`).
 pub fn warming_up_dispatch_table() -> Box<DispatchTable> {
     mixed_dispatch_table(|name| matches!(name, "Enter" | "Call" | "Return" | "End") || name.contains("Loop"))
+}
+
+/// The plain handlers, with the profiling build's handlers for the instructions that enter JIT code (calls) or return
+/// to a caller that may run with other handlers (see `InterpreterTier::Unprofiled`). Nothing counts the tier-up
+/// budget of executables the JIT never compiles.
+pub fn unprofiled_dispatch_table() -> Box<DispatchTable> {
+    mixed_dispatch_table(|name| matches!(name, "Call" | "Return" | "End"))
 }
 
 /// The plain handlers, with the profiling build's handlers for the instructions whose names `use_profiling` selects.
@@ -49,8 +55,8 @@ impl JitState {
     /// The dispatch table the interpreter runs the frames of executables in each tier with, with the plain handlers for
     /// the tiers whose tables are not built.
     ///
-    /// NB: Executables only move to the warming up tier while the interpreter collects feedback, which builds its
-    ///     table.
+    /// NB: Executables only move to the warming up and unprofiled tiers while the JIT collects feedback, which builds
+    ///     their tables.
     pub fn dispatch_tables(&self) -> impl Iterator<Item = (InterpreterTier, *const c_void)> {
         let mixed_table = |table: &Option<Box<DispatchTable>>| {
             table
@@ -61,6 +67,7 @@ impl JitState {
             let table = match tier {
                 InterpreterTier::Plain => plain_dispatch_table(),
                 InterpreterTier::WarmingUp => mixed_table(&self.warming_up_dispatch_table),
+                InterpreterTier::Unprofiled => mixed_table(&self.unprofiled_dispatch_table),
                 InterpreterTier::Profiling => profiling_dispatch_table(),
             };
             (tier, table)

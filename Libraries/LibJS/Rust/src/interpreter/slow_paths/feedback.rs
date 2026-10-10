@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Slow paths record feedback for the optimizing JIT the way the profiling interpreter's fast paths do, while the
-//! interpreter collects feedback, for the executables that left the plain tier.
+//! Slow paths record feedback for the optimizing JIT the way the profiling interpreter's fast paths do, and only
+//! while the interpreter collects feedback, for executables that left the plain tier and are not compiled: the slow
+//! paths that JIT code calls record nothing, as nothing reads the feedback of an executable while its code is
+//! installed.
 
 use crate::bytecode::executable::Executable;
 use crate::bytecode::feedback::{
@@ -15,6 +17,7 @@ use crate::bytecode::instruction::OpCode;
 use crate::bytecode::op;
 use crate::interpreter::runtime_functions::SlowPathControl;
 use crate::interpreter::vm::Vm;
+use crate::jit::code::CompileState;
 use crate::layout::cell::CellHeader;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
@@ -29,7 +32,11 @@ fn record_for_running_executable(vm: &Vm, record: impl FnOnce(&ExecutableFeedbac
     if !vm.jit.collects_feedback() {
         return;
     }
-    if let Some(feedback) = vm.current_executable().feedback() {
+    let executable = vm.current_executable();
+    if executable.jit_compile_state() == CompileState::Installed {
+        return;
+    }
+    if let Some(feedback) = executable.feedback() {
         record(feedback);
     }
 }
