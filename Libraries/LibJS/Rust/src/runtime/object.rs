@@ -527,6 +527,11 @@ pub fn plain_object_size_classes(heap: &Heap) -> &[SizeClassAllocator] {
 }
 
 const SPARSE_ARRAY_HOLE_THRESHOLD: u32 = 200;
+
+/// Whether elements with `filled` of their `length` indices filled are dense enough for holey storage: three quarters.
+fn are_dense_enough(filled: usize, length: usize) -> bool {
+    filled >= length - length / 4
+}
 pub(crate) const MAX_TRANSITIONS_BEFORE_CONVERTING_TO_DICTIONARY: u32 = 64;
 
 /// Moves an object into the heap and finishes what its constructor could not do before it had an address: its named
@@ -3844,7 +3849,8 @@ impl Object {
     }
 
     #[cold]
-    fn transition_to_packed(&self) {
+    fn transition_to_dense(&self, kind: IndexedStorageKind) {
+        assert!(matches!(kind, IndexedStorageKind::Packed | IndexedStorageKind::Holey));
         let elements = self.allocate_indexed_elements(self.indexed_array_like_size());
         for (&index, element) in self.indexed_dictionary().borrow().sparse_elements() {
             // SAFETY: Every index of the dictionary is below its array-like size, the size of the new buffer.
@@ -3853,7 +3859,7 @@ impl Object {
 
         self.free_indexed_elements_dictionary();
         self.adopt_indexed_elements(elements);
-        self.indexed_storage_kind.set(IndexedStorageKind::Packed);
+        self.indexed_storage_kind.set(kind);
     }
 
     fn free_indexed_elements_dictionary(&self) {
@@ -3898,19 +3904,58 @@ impl Object {
     fn indexed_put_into_dictionary(&self, index: u32, value: Value, attributes: PropertyAttributes) {
         let promote = {
             let mut dictionary = self.indexed_dictionary().borrow_mut();
-            let had_missing_entries = dictionary.size() < dictionary.array_like_size();
+            let old_size = dictionary.size();
             dictionary.put(index, value, attributes);
-            self.indexed_array_like_size.set(dictionary.array_like_size() as u32);
-            had_missing_entries
-                && dictionary.size() >= dictionary.array_like_size()
+            let length = dictionary.array_like_size();
+            self.indexed_array_like_size.set(length as u32);
+            // NB: Promote once the elements are dense enough. Only scan
+            //     attributes when crossing this threshold or filling the last
+            //     hole, so sparse writes do not repeatedly scan a dictionary
+            //     that has non-default attributes.
+            let becoming_dense = !are_dense_enough(old_size, length) && are_dense_enough(dictionary.size(), length);
+            let becoming_packed = old_size < length && dictionary.size() == length;
+            if (becoming_dense || becoming_packed)
                 && dictionary
                     .sparse_elements()
                     .values()
                     .all(|element| element.attributes == DEFAULT_ATTRIBUTES && !element.value.is_empty())
+            {
+                Some(if dictionary.size() == length {
+                    IndexedStorageKind::Packed
+                } else {
+                    IndexedStorageKind::Holey
+                })
+            } else {
+                None
+            }
         };
-        if promote {
-            self.transition_to_packed();
+        if let Some(kind) = promote {
+            self.transition_to_dense(kind);
         }
+    }
+
+    /// Whether a store at `index`, past the first `materialized_elements` of the dense elements, keeps them dense
+    /// instead of making them a dictionary: where their storage has room for it already, or where they stay dense
+    /// enough (see `are_dense_enough()`), so that a dictionary would be promoted back right away.
+    ///
+    /// NB: Only stores past the room of the storage count the holes of holey elements. The storage then grows by half
+    ///     at least, and copies the elements anyway, so repeated sparse stores scan the elements in linear time overall.
+    fn keeps_dense_storage_for(&self, index: u32, materialized_elements: u32) -> bool {
+        let kind = self.indexed_storage_kind();
+        if !matches!(kind, IndexedStorageKind::Packed | IndexedStorageKind::Holey) {
+            return false;
+        }
+        if index < self.indexed_elements_capacity() {
+            return true;
+        }
+        let filled = match kind {
+            IndexedStorageKind::Packed => materialized_elements as usize,
+            IndexedStorageKind::Holey => (0..materialized_elements)
+                .filter(|index| !self.indexed_element(*index).is_empty())
+                .count(),
+            IndexedStorageKind::None | IndexedStorageKind::Dictionary => unreachable!(),
+        };
+        are_dense_enough(filled + 1, index as usize + 1)
     }
 
     fn indexed_put_dictionary_and_update_size(&self, index: u32, value: Value, attributes: PropertyAttributes) {
@@ -3940,7 +3985,9 @@ impl Object {
         }
 
         // Check for sparse threshold
-        if u64::from(index) > u64::from(materialized_elements) + u64::from(SPARSE_ARRAY_HOLE_THRESHOLD) {
+        if u64::from(index) > u64::from(materialized_elements) + u64::from(SPARSE_ARRAY_HOLE_THRESHOLD)
+            && !self.keeps_dense_storage_for(index, materialized_elements)
+        {
             self.transition_to_dictionary();
             self.indexed_put_dictionary_and_update_size(index, value, attributes);
             return;
