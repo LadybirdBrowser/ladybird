@@ -19,6 +19,12 @@ use core::ptr::NonNull;
 
 use super::code::JitCode;
 
+#[cfg(feature = "address-sanitizer")]
+unsafe extern "C" {
+    fn __lsan_register_root_region(start: *const c_void, size: usize);
+    fn __lsan_unregister_root_region(start: *const c_void, size: usize);
+}
+
 /// How many slots the table has, a power of two. Executables registered while it is full never get JIT code.
 pub const JIT_ENTRY_TABLE_CAPACITY: usize = 1 << 20;
 
@@ -70,7 +76,20 @@ impl JitEntryTable {
             free_slots: RefCell::default(),
         };
         table.entry_cell(NO_JIT_ENTRY_SLOT).set(not_compiled_entry);
+        // NB: The leak checker does not look into mappings for pointers, and would report the JIT code of a VM that
+        //     lives until the process exits (js) as leaked.
+        #[cfg(feature = "address-sanitizer")]
+        // SAFETY: The code of the table is inside its mapping, which lives as long as the table.
+        unsafe {
+            __lsan_register_root_region(table.code_start(), JIT_ENTRY_TABLE_SIZE - JIT_ENTRY_TABLE_CODE_OFFSET);
+        }
         table
+    }
+
+    #[cfg(feature = "address-sanitizer")]
+    fn code_start(&self) -> *const c_void {
+        // SAFETY: The offset is inside the mapping.
+        unsafe { self.base.as_ptr().add(JIT_ENTRY_TABLE_CODE_OFFSET).cast() }
     }
 
     /// The address of the entries, which JIT code embeds.
@@ -173,6 +192,11 @@ impl Drop for JitEntryTable {
     fn drop(&mut self) {
         for slot in 0..self.next_slot.get() {
             drop(self.code_cell(slot).take());
+        }
+        #[cfg(feature = "address-sanitizer")]
+        // SAFETY: The region registered when the table was made.
+        unsafe {
+            __lsan_unregister_root_region(self.code_start(), JIT_ENTRY_TABLE_SIZE - JIT_ENTRY_TABLE_CODE_OFFSET);
         }
         // SAFETY: The table's mapping, which nothing uses anymore.
         unsafe {
