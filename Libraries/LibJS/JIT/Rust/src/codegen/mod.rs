@@ -1596,6 +1596,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Op::Float64Binary { op } => self.emit_float64_binary(node_id, *op),
             Op::Float64Compare { comparison } => self.emit_float64_compare(node_id, *comparison),
             Op::Float64ToInt32 => self.emit_float64_to_int32(node_id),
+            Op::Float64ToUint8Clamped => self.emit_float64_to_uint8_clamped(node_id),
             Op::Uint32ShiftRight => self.emit_uint32_shift_right(node_id),
             Op::Uint32ToFloat64 => self.emit_uint32_to_float64(node_id),
             Op::StringsEqual => self.emit_strings_equal(node_id),

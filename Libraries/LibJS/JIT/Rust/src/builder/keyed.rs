@@ -31,6 +31,7 @@ use crate::ir::Comparison;
 use crate::ir::ElementsKind;
 use crate::ir::NodeId;
 use crate::ir::Op;
+use crate::ir::TypedArrayElement;
 use crate::snapshot::Forwarding;
 use crate::snapshot::Intrinsic;
 use crate::snapshot::keyed_feedback_bits::HOLEY;
@@ -334,6 +335,10 @@ impl GraphBuilder<'_> {
         match (kind.stored_repr(), int32) {
             (Repr::Int32, Some(int32)) => int32,
             (Repr::Float64, Some(int32)) => self.int32_to_float64(int32),
+            (Repr::Int32, None) if kind == ElementsKind::TypedArray(TypedArrayElement::Uint8Clamped) => {
+                let number = self.float64_of_number(slow_paths, value);
+                self.emit(Op::Float64ToUint8Clamped, vec![number], Some(Repr::Int32))
+            }
             (Repr::Int32, None) => {
                 let value = self.branch_to_slow_path(slow_paths, BranchCondition::Int32Value, vec![value], true);
                 self.emit(Op::UnboxInt32, vec![value], Some(Repr::Int32))

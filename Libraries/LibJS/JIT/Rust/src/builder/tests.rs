@@ -1285,6 +1285,44 @@ pub(crate) mod property_access {
     }
 
     #[test]
+    fn numeric_clamped_stores_use_guards_without_slow_path_calls() {
+        let program = assemble(|_| {
+            vec![
+                Instruction::PutByValue {
+                    keyed_feedback: 0,
+                    base: a(0),
+                    property: c(1),
+                    src: r(6),
+                    kind: 0,
+                    base_identifier: None,
+                    cache: 0,
+                },
+                Instruction::Return { value: a(0) },
+            ]
+        });
+        let mut snapshot = snapshot_for(&program, test_layout());
+        snapshot.runtime.layout.typed_array_kind_uint8_clamped = 2;
+        snapshot.executables[0].feedback.keyed = vec![crate::snapshot::KeyedFeedbackSnapshot {
+            bits: 1 | (1 << (9 + 2)),
+        }];
+        let text = dump(&optimized_graph(&snapshot), &test_layout());
+        for name in [
+            "CheckNumber",
+            "CheckElements TypedArray(Uint8Clamped)",
+            "CheckBounds",
+            "Float64ToUint8Clamped",
+            "StoreElementAt TypedArray(Uint8Clamped)",
+        ] {
+            assert!(text.contains(name), "{text}");
+        }
+        assert!(!text.contains("CallSlowPath"), "{text}");
+        snapshot.executables[0].exit_sites = vec![(0, ExitKind::BadType)];
+        let text = dump(&optimized_graph(&snapshot), &test_layout());
+        assert!(!text.contains("CheckNumber"), "{text}");
+        assert!(text.contains("CallSlowPath PutByValue"), "{text}");
+    }
+
+    #[test]
     fn calls_forget_shapes_and_stores_forward_to_loads() {
         let program = assemble(|_| {
             vec![
