@@ -788,6 +788,8 @@ RefPtr<CanonicalDocument> CanonicalNavigable::document_populated_for(CanonicalDo
 void CanonicalNavigable::populate_document(NonnullRefPtr<CanonicalDocumentState> document_state, NonnullRefPtr<CanonicalDocument> document, Optional<URL::Origin> inline_content_origin)
 {
     document->determine_whether_it_is_local_file_content(blob_url_store());
+    if (document->is_local_file_content())
+        document_state->held_local_file_content = true;
     abandon_populated_document(m_document_populated_by_history_job);
     m_document_populated_by_history_job = PopulatedDocument { move(document_state), move(document), move(inline_content_origin) };
 }
@@ -796,6 +798,8 @@ void CanonicalNavigable::populate_document_for_ongoing_navigation(NonnullRefPtr<
 {
     VERIFY(m_ongoing_navigation.has_value());
     document->determine_whether_it_is_local_file_content(blob_url_store());
+    if (document->is_local_file_content())
+        document_state->held_local_file_content = true;
     abandon_populated_document(m_ongoing_navigation->populated_document);
     m_ongoing_navigation->populated_document = PopulatedDocument { move(document_state), move(document), move(inline_content_origin) };
 }

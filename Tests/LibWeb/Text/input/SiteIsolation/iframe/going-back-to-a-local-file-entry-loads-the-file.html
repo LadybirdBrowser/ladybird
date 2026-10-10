@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Going back from a cross-site document to an entry of a file: URL populates the entry's document in the process
+    // hosting the cross-site document. That process reads the file the entry names, and the document created from it
+    // returns to the process holding local file content.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+
+        const crossSiteUrl = new URL(
+            await httpServer.createEcho("GET", "/going-back-to-a-local-file-entry", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>cross-site",
+            })
+        );
+        crossSiteUrl.hostname = uniqueLocalhostHostname("going-back-to-a-local-file-entry");
+
+        const iframe = document.createElement("iframe");
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        const nextLoad = () => new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+
+        let message = nextMessage();
+        let loaded = nextLoad();
+        iframe.src = "../../../data/iframe-test-content-1.html";
+        document.body.appendChild(iframe);
+        println(`before navigating away: ${await message}`);
+        await loaded;
+
+        loaded = nextLoad();
+        iframe.src = crossSiteUrl;
+        await loaded;
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+
+        message = nextMessage();
+        history.back();
+        println(`after going back: ${await message}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

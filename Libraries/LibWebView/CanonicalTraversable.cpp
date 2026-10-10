@@ -1869,6 +1869,24 @@ bool CanonicalTraversable::is_handing_navigable_to_another_page(CanonicalNavigab
     return false;
 }
 
+// A history step's changing job populates its target entry's document in the process hosting the navigable, which need
+// not have hosted local file content. For an entry whose document state held local file content, that process reads the
+// file the entry's file: URL names.
+bool CanonicalTraversable::page_populates_a_history_entry_for_local_file(WebContentPage const& page, ByteString const& path) const
+{
+    for (auto const& [operation_id, operation] : m_history_operations) {
+        for (auto const& [navigable_id, pending_job] : operation->pending_changing_jobs) {
+            auto const& target_entry = *pending_job->job.target_entry;
+            if (target_entry.document_state->held_local_file_content
+                && target_entry.url.scheme() == "file"sv
+                && target_entry.url.file_path() == path
+                && changing_job_endpoint(*operation, navigable_id) == &page)
+                return true;
+        }
+    }
+    return false;
+}
+
 RefPtr<WebContentPage> CanonicalTraversable::changing_job_endpoint(CanonicalNavigable const& navigable, CanonicalDocumentState const& target_document_state) const
 {
     if (auto document = navigable.document_populated_for(target_document_state); document && document->host())
