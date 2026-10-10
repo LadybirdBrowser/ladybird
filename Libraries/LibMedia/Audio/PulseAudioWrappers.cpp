@@ -429,7 +429,7 @@ ErrorOr<NonnullRefPtr<PulseAudioStream>> PulseAudioContext::create_stream(Output
         stream_wrapper->m_callback_state = PulseAudioStream::CallbackState::Active;
     }
 
-    // This is a workaround for an issue with starting the stream corked, see PulseAudioStream::total_time_played().
+    // This is a workaround for an issue with starting the stream corked, see PulseAudioStream::next_write_starts_playing_at().
     pa_stream_set_started_callback(
         stream, [](pa_stream* stream, void* user_data) {
             static_cast<PulseAudioStream*>(user_data)->m_started_playback = true;
@@ -845,36 +845,6 @@ MonotonicTime PulseAudioStream::next_write_starts_playing_at()
     if (pa_stream_get_latency(m_stream, &latency_usec, &latency_is_negative) != 0 || latency_is_negative)
         return now;
     return now + AK::Duration::from_microseconds(static_cast<i64>(latency_usec));
-}
-
-AK::Duration PulseAudioStream::total_time_played() const
-{
-    auto locker = m_context->main_loop_locker();
-
-    // NOTE: This is a workaround for a PulseAudio issue. When a stream is started corked,
-    //       the time smoother doesn't seem to be aware of it, so it will return the time
-    //       since the stream was connected. Once the playback actually starts, the time
-    //       resets back to zero. However, since we request monotonically-increasing time,
-    //       this means that the smoother will register that it had a larger time before,
-    //       and return that time instead, until we reach a timestamp greater than the
-    //       last-returned time. If we never call pa_stream_get_time() until after giving
-    //       the stream its first samples, the issue never occurs.
-    if (!m_started_playback)
-        return AK::Duration::zero();
-
-    pa_usec_t time = 0;
-    auto error = pa_stream_get_time(m_stream, &time);
-    if (error)
-        return AK::Duration::zero();
-    if (error != 0) {
-        warnln("Unexpected error in pa_stream_get_time(): {}", error);
-        return AK::Duration::zero();
-    }
-    if (time > NumericLimits<i64>::max()) {
-        warnln("WARNING: Audio time is too large!");
-        time -= NumericLimits<i64>::max();
-    }
-    return AK::Duration::from_microseconds(static_cast<i64>(time));
 }
 
 ErrorOr<void> PulseAudioStream::set_volume(double volume)

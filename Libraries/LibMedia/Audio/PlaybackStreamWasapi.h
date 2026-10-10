@@ -18,13 +18,11 @@ public:
 
     virtual SampleSpecification sample_specification() const override;
 
-    virtual NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> resume() override;
+    virtual NonnullRefPtr<Core::ThreadedPromise<void>> resume() override;
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> drain_buffer_and_suspend() override;
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> discard_buffer_and_suspend() override;
 
     virtual void notify_data_available() override;
-
-    virtual AK::Duration total_time_played() const override;
 
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double) override;
 
@@ -32,8 +30,6 @@ private:
     struct AudioState;
 
     explicit PlaybackStreamWASAPI(NonnullRefPtr<AudioState>);
-
-    static ALWAYS_INLINE AK::Duration total_time_played_with_com_initialized(AudioState& state);
     ~PlaybackStreamWASAPI();
 
     NonnullRefPtr<AudioState> m_state;

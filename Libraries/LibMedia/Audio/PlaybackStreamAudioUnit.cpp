@@ -44,31 +44,19 @@ struct AudioTask {
         Volume,
     };
 
-    void resolve(AK::Duration time)
+    void resolve()
     {
-        promise.visit(
-            [](Empty) { VERIFY_NOT_REACHED(); },
-            [&](NonnullRefPtr<Core::ThreadedPromise<void>>& promise) {
-                promise->resolve();
-            },
-            [&](NonnullRefPtr<Core::ThreadedPromise<AK::Duration>>& promise) {
-                promise->resolve(move(time));
-            });
+        promise->resolve();
     }
 
     void reject(OSStatus error)
     {
         log_os_error_code(error);
-
-        promise.visit(
-            [](Empty) { VERIFY_NOT_REACHED(); },
-            [error](auto& promise) {
-                promise->reject(Error::from_errno(error));
-            });
+        promise->reject(Error::from_errno(error));
     }
 
     Type type;
-    Variant<Empty, NonnullRefPtr<Core::ThreadedPromise<void>>, NonnullRefPtr<Core::ThreadedPromise<AK::Duration>>> promise;
+    NonnullRefPtr<Core::ThreadedPromise<void>> promise;
     Optional<double> data {};
 };
 
@@ -216,11 +204,6 @@ public:
 
     SampleSpecification const& sample_specification() const { return m_sample_specification; }
 
-    AK::Duration last_sample_time() const
-    {
-        return AK::Duration::from_time_units(m_output_time, 1, m_sample_specification.sample_rate());
-    }
-
 private:
     AudioState(PlaybackStream::AudioDataRequestCallback data_request_callback, OutputState initial_output_state)
         : m_paused(initial_output_state == OutputState::Playing ? Paused::No : Paused::Explicit)
@@ -249,17 +232,8 @@ private:
         auto& state = *static_cast<AudioState*>(user_data);
         VERIFY(state.m_sample_specification.is_valid());
 
-        auto was_paused = state.m_paused;
-
         if (state.m_paused == Paused::Underrun && state.m_data_notified.exchange(false))
             state.m_paused = Paused::No;
-
-        VERIFY(time_stamp->mFlags & kAudioTimeStampSampleTimeValid);
-        auto sample_time = AK::clamp_to<i64>(time_stamp->mSampleTime);
-        auto output_time = state.m_frames_written_at_resume + (sample_time - state.m_sample_time_at_resume);
-        output_time = min(output_time, state.m_frames_written);
-        auto output_timestamp = AK::Duration::from_time_units(output_time, 1, state.sample_specification().sample_rate());
-        state.m_output_time = output_time;
 
         if (auto task = state.dequeue_task(); task.has_value()) {
             OSStatus error = noErr;
@@ -285,7 +259,7 @@ private:
             }
 
             if (error == noErr)
-                task->resolve(output_timestamp);
+                task->resolve();
             else
                 task->reject(error);
         }
@@ -295,11 +269,6 @@ private:
         output_buffer = output_buffer.trim(static_cast<size_t>(frames_to_render) * state.m_sample_specification.channel_count());
 
         if (state.m_paused == Paused::No) {
-            if (was_paused != Paused::No) {
-                state.m_frames_written_at_resume = state.m_frames_written;
-                state.m_sample_time_at_resume = sample_time;
-            }
-
             auto buffer_starts_playing_at = MonotonicTime::now();
             if (time_stamp->mFlags & kAudioTimeStampHostTimeValid) {
                 // The buffer rendered here is played at the host time stamp.
@@ -308,7 +277,6 @@ private:
                     buffer_starts_playing_at += AK::Duration::from_nanoseconds(host_ticks_to_nanoseconds(time_stamp->mHostTime - host_now));
             }
             auto written_buffer = state.m_data_request_callback(output_buffer, buffer_starts_playing_at);
-            state.m_frames_written += static_cast<i64>(written_buffer.size() / state.m_sample_specification.channel_count());
             output_buffer.slice(written_buffer.size()).fill(0);
 
             if (written_buffer.is_empty())
@@ -337,10 +305,6 @@ private:
 
     PlaybackStream::AudioDataRequestCallback m_data_request_callback;
     Atomic<bool> m_data_notified { false };
-    i64 m_sample_time_at_resume { 0 };
-    i64 m_frames_written_at_resume { 0 };
-    i64 m_frames_written { 0 };
-    Atomic<i64> m_output_time { 0 };
 
     static i64 host_ticks_to_nanoseconds(u64 ticks)
     {
@@ -386,9 +350,9 @@ SampleSpecification PlaybackStreamAudioUnit::sample_specification() const
     return m_state->sample_specification();
 }
 
-NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> PlaybackStreamAudioUnit::resume()
+NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamAudioUnit::resume()
 {
-    auto promise = Core::ThreadedPromise<AK::Duration>::create();
+    auto promise = Core::ThreadedPromise<void>::create();
     m_state->queue_task({ AudioTask::Type::Play, promise });
 
     return promise;
@@ -413,11 +377,6 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamAudioUnit::discard_buff
 void PlaybackStreamAudioUnit::notify_data_available()
 {
     m_state->notify_data_available();
-}
-
-AK::Duration PlaybackStreamAudioUnit::total_time_played() const
-{
-    return m_state->last_sample_time();
 }
 
 NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamAudioUnit::set_volume(double volume)

@@ -32,7 +32,7 @@ TEST_CASE(null_playback_stream_completes_interleaved_controls_in_order)
             ->when_resolved([&] { record_completion(0); })
             .when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
         stream->resume()
-            ->when_resolved([&](auto) { record_completion(1); })
+            ->when_resolved([&] { record_completion(1); })
             .when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
         stream->set_volume(0.5)
             ->when_resolved([&] { record_completion(2); })
@@ -41,7 +41,7 @@ TEST_CASE(null_playback_stream_completes_interleaved_controls_in_order)
             ->when_resolved([&] { record_completion(3); })
             .when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
         stream->resume()
-            ->when_resolved([&](auto) { record_completion(4); })
+            ->when_resolved([&] { record_completion(4); })
             .when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
         stream->discard_buffer_and_suspend()
             ->when_resolved([&] { record_completion(5); })
@@ -78,7 +78,7 @@ TEST_CASE(default_playback_stream_can_be_created_and_suspended)
 
     Atomic<bool> resumed { false };
     stream->resume()
-        ->when_resolved([&](auto) { resumed.store(true); })
+        ->when_resolved([&] { resumed.store(true); })
         .when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
 
     auto poll_timer = Core::Timer::create_repeating(1, [] { });
@@ -93,7 +93,7 @@ TEST_CASE(default_playback_stream_can_be_created_and_suspended)
     poll_timer->stop();
 }
 
-TEST_CASE(null_playback_stream_pulls_and_tracks_time)
+TEST_CASE(null_playback_stream_pulls_only_while_playing)
 {
     auto& event_loop = never_destroyed_event_loop();
 
@@ -111,19 +111,18 @@ TEST_CASE(null_playback_stream_pulls_and_tracks_time)
     auto poll_timer = Core::Timer::create_repeating(1, [] { });
     poll_timer->start();
     event_loop.spin_until([&] { return request_count.load() > 0; });
-    event_loop.spin_until([&] { return stream->total_time_played() > AK::Duration::zero(); });
-    poll_timer->stop();
 
-    stream->discard_buffer_and_suspend()->when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
-    bool discarded = false;
-    auto timer = Core::Timer::create_single_shot(20, [&] { discarded = true; });
-    timer->start();
-    event_loop.spin_until([&] { return discarded; });
-    auto suspended_time = stream->total_time_played();
+    Atomic<bool> suspended { false };
+    stream->discard_buffer_and_suspend()
+        ->when_resolved([&] { suspended.store(true); })
+        .when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
+    event_loop.spin_until([&] { return suspended.load(); });
+    poll_timer->stop();
+    auto request_count_when_suspended = request_count.load();
 
     bool checked_suspension = false;
-    timer = Core::Timer::create_single_shot(20, [&] {
-        EXPECT_EQ(stream->total_time_played(), suspended_time);
+    auto timer = Core::Timer::create_single_shot(20, [&] {
+        EXPECT_EQ(request_count.load(), request_count_when_suspended);
         checked_suspension = true;
     });
     timer->start();
@@ -183,14 +182,16 @@ TEST_CASE(null_playback_stream_resume_completes_pending_drain)
 {
     auto& event_loop = never_destroyed_event_loop();
 
-    auto stream = Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, 1000, [](Span<float> buffer, MonotonicTime) -> ReadonlySpan<float> {
+    Atomic<u32> request_count { 0 };
+    auto stream = Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, 1000, [&](Span<float> buffer, MonotonicTime) -> ReadonlySpan<float> {
+        request_count.fetch_add(1);
         return buffer;
     });
     stream->resume()->when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
 
     auto poll_timer = Core::Timer::create_repeating(1, [] { });
     poll_timer->start();
-    event_loop.spin_until([&] { return stream->total_time_played() > AK::Duration::zero(); });
+    event_loop.spin_until([&] { return request_count.load() > 0; });
 
     Atomic<bool> drained { false };
     stream->drain_buffer_and_suspend()

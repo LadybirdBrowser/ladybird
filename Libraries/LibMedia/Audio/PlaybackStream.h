@@ -26,7 +26,6 @@ enum class OutputState {
 // interface to be used by Ladybird (and its dependent libraries) for playback.
 //
 // The interface is designed to be simple and robust. All control functions can be called safely from any thread.
-// Timing information provided by the class should allow audio timestamps to be tracked with the best accuracy possible.
 class MEDIA_API PlaybackStream : public AtomicRefCounted<PlaybackStream> {
 public:
     using CreatePromise = Core::Promise<NonnullRefPtr<PlaybackStream>>;
@@ -47,10 +46,7 @@ public:
     virtual ~PlaybackStream() = default;
 
     // Resume playback from the suspended state, requesting new data for audio buffers as soon as possible.
-    //
-    // The value provided to the promise resolution will match the `total_time_played()` at the exact moment that
-    // the stream was resumed.
-    virtual NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> resume() = 0;
+    virtual NonnullRefPtr<Core::ThreadedPromise<void>> resume() = 0;
     // Completes playback of any buffered audio data and then suspends playback and buffering.
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> drain_buffer_and_suspend() = 0;
     // Drops any buffered audio data and then suspends playback and buffering. This can used be to stop playback
@@ -60,13 +56,6 @@ public:
     // Notifies the stream that the data request callback may be able to provide data now. This is used to
     // wake playback streams that have stopped requesting data due to an underrun.
     virtual void notify_data_available() = 0;
-
-    // Returns a accurate monotonically-increasing time duration that is based on the number of samples that have
-    // been played by the output device. The value is interpolated and takes into account latency to the speakers
-    // whenever possible.
-    //
-    // This function should be able to run from any thread safely.
-    virtual AK::Duration total_time_played() const = 0;
 
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double volume) = 0;
 

@@ -49,9 +49,9 @@ public:
         return { NULL_OUTPUT_SAMPLE_RATE, ChannelMap::stereo() };
     }
 
-    NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> resume()
+    NonnullRefPtr<Core::ThreadedPromise<void>> resume()
     {
-        auto promise = Core::ThreadedPromise<AK::Duration>::create();
+        auto promise = Core::ThreadedPromise<void>::create();
         {
             MutexLocker locker(m_mutex);
             if (m_state == StreamState::Stopped) {
@@ -61,8 +61,7 @@ public:
             complete_pending_drains_while_locked();
             set_state_while_locked(StreamState::Playing);
             m_awaiting_data = false;
-            auto resume_time = AK::Duration::from_time_units(m_anchor_frames_played, 1, NULL_OUTPUT_SAMPLE_RATE);
-            m_ready_completions.append([promise, resume_time]() mutable { promise->resolve(move(resume_time)); });
+            m_ready_completions.append([promise] { promise->resolve(); });
             signal_while_locked();
         }
         return promise;
@@ -110,12 +109,6 @@ public:
         if (m_state == StreamState::Underrun)
             set_state_while_locked(StreamState::Playing);
         signal_while_locked();
-    }
-
-    AK::Duration total_time_played() const
-    {
-        MutexLocker locker(m_mutex);
-        return AK::Duration::from_time_units(frames_played_while_locked(MonotonicTime::now()), 1, NULL_OUTPUT_SAMPLE_RATE);
     }
 
     NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double)
@@ -346,7 +339,7 @@ SampleSpecification NullPlaybackStream::sample_specification() const
     return m_state->sample_specification();
 }
 
-NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> NullPlaybackStream::resume()
+NonnullRefPtr<Core::ThreadedPromise<void>> NullPlaybackStream::resume()
 {
     return m_state->resume();
 }
@@ -364,11 +357,6 @@ NonnullRefPtr<Core::ThreadedPromise<void>> NullPlaybackStream::discard_buffer_an
 void NullPlaybackStream::notify_data_available()
 {
     m_state->notify_data_available();
-}
-
-AK::Duration NullPlaybackStream::total_time_played() const
-{
-    return m_state->total_time_played();
 }
 
 NonnullRefPtr<Core::ThreadedPromise<void>> NullPlaybackStream::set_volume(double volume)

@@ -59,7 +59,7 @@ constexpr GUID PlaybackSessionGUID = { // 22f2ca89-210a-492c-a0aa-f25b1d2f33a1
 };
 
 struct TaskPlay {
-    NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> promise;
+    NonnullRefPtr<Core::ThreadedPromise<void>> promise;
 };
 
 struct TaskDrainAndSuspend {
@@ -93,7 +93,6 @@ struct PlaybackStreamWASAPI::AudioState : public AtomicRefCounted<PlaybackStream
     ComPtr<IAudioClient> audio_client;
     ComPtr<IAudioRenderClient> render_client;
     ComPtr<IAudioStreamVolume> audio_stream_volume;
-    ComPtr<IAudioClock> clock;
 
     WAVEFORMATEXTENSIBLE wave_format;
     UINT32 buffer_frame_count;
@@ -118,11 +117,10 @@ struct PlaybackStreamWASAPI::AudioState : public AtomicRefCounted<PlaybackStream
 
     static int render_thread_loop(AudioState& state);
     static void drain_buffer_and_stop(AudioState& state);
-    RefPtr<Core::ThreadedPromise<AK::Duration>> resume_promise;
+    RefPtr<Core::ThreadedPromise<void>> resume_promise;
     RefPtr<Core::ThreadedPromise<void>> suspend_promise;
 
     Vector<float, ChannelMap::capacity()> channel_volumes;
-    UINT64 audio_client_clock_frequency;
 };
 
 PlaybackStreamWASAPI::AudioState::AudioState()
@@ -137,13 +135,6 @@ PlaybackStreamWASAPI::AudioState::~AudioState()
         CloseHandle(buffer_event);
     if (task_event)
         CloseHandle(task_event);
-}
-
-ALWAYS_INLINE AK::Duration PlaybackStreamWASAPI::total_time_played_with_com_initialized(PlaybackStreamWASAPI::AudioState& state)
-{
-    UINT64 position;
-    MUST_HR(state.clock->GetPosition(&position, nullptr));
-    return AK::Duration::from_time_units(AK::clamp_to<i64>(position), 1, state.audio_client_clock_frequency);
 }
 
 PlaybackStreamWASAPI::PlaybackStreamWASAPI(NonnullRefPtr<AudioState> state)
@@ -308,7 +299,6 @@ NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStreamWASAPI::create(Output
     TRY_HR(state->audio_client->GetStreamLatency(&state->stream_latency));
     TRY_HR(state->audio_client->GetService(IID_PPV_ARGS(&state->render_client)));
     TRY_HR(state->audio_client->GetService(IID_PPV_ARGS(&state->audio_stream_volume)));
-    TRY_HR(state->audio_client->GetService(IID_PPV_ARGS(&state->clock)));
 
     state->buffer_event = CreateEvent(NULL, FALSE, FALSE, NULL);
     if (!state->buffer_event) {
@@ -317,7 +307,6 @@ NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStreamWASAPI::create(Output
     }
 
     TRY_HR(state->audio_client->SetEventHandle(state->buffer_event));
-    TRY_HR(state->clock->GetFrequency(&state->audio_client_clock_frequency));
 
     if (initial_output_state == OutputState::Playing)
         state->paused = AudioState::Paused::No;
@@ -394,7 +383,7 @@ int PlaybackStreamWASAPI::AudioState::render_thread_loop(PlaybackStreamWASAPI::A
                             dbgln_if(AUDIO_DEBUG, "PlaybackStreamWASAPI: Trying to start an already running stream.");
                         else
                             MUST_HR(move(hr));
-                        task.promise->resolve(total_time_played_with_com_initialized(state));
+                        task.promise->resolve();
                         state.paused = Paused::No;
                     },
                     [&state](TaskDrainAndSuspend const& task) {
@@ -469,9 +458,9 @@ int PlaybackStreamWASAPI::AudioState::render_thread_loop(PlaybackStreamWASAPI::A
     return 0;
 }
 
-NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> PlaybackStreamWASAPI::resume()
+NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamWASAPI::resume()
 {
-    auto promise = Core::ThreadedPromise<AK::Duration>::create();
+    auto promise = Core::ThreadedPromise<void>::create();
     TaskPlay task = { .promise = promise };
 
     m_state->task_queue_mutex.lock();
@@ -517,16 +506,6 @@ void PlaybackStreamWASAPI::notify_data_available()
     m_state->task_queue.enqueue(TaskResumeFromUnderrun {});
     SetEvent(m_state->task_event);
     m_state->task_queue_mutex.unlock();
-}
-
-AK::Duration PlaybackStreamWASAPI::total_time_played() const
-{
-    if (!s_com_uninitializer.initialized) [[unlikely]] {
-        MUST_HR(CoInitializeEx(nullptr, COINIT_MULTITHREADED));
-        s_com_uninitializer.initialized = true;
-    }
-
-    return total_time_played_with_com_initialized(m_state);
 }
 
 NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamWASAPI::set_volume(double volume)
