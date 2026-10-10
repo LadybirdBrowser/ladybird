@@ -804,6 +804,18 @@ void CanonicalNavigable::populate_document_for_ongoing_navigation(NonnullRefPtr<
     m_ongoing_navigation->populated_document = PopulatedDocument { move(document_state), move(document), move(inline_content_origin) };
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url
+// NB: newDocument's URL is the active document's, as the process hosting both reports it. Whatever URL it reports,
+//     newDocument holds no local file content unless the active document does, as its contents come from that process.
+bool CanonicalNavigable::populate_document_for_javascript_url(NonnullRefPtr<CanonicalDocumentState> document_state, NonnullRefPtr<CanonicalDocument> document)
+{
+    document->determine_whether_it_is_local_file_content(blob_url_store());
+    if (document->is_local_file_content() && !active_document().is_local_file_content())
+        return false;
+    populate_document(move(document_state), move(document));
+    return true;
+}
+
 // The process hosting a document populated for the navigable created it with an origin other than its navigation
 // params': a document for inline content in place of a response it found blocked, or the PDF viewer.
 void CanonicalNavigable::did_create_populated_document_with_an_origin_of_its_own(WebContentPage const& host, Web::HTML::PopulatedDocumentOrigin populated_document_origin, Web::HTML::EnvironmentId const& environment_id)

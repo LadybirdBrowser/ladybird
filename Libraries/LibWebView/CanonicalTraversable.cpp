@@ -2613,7 +2613,10 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
         //     initiator origin: initiatorOrigin
         //     origin: initiatorOrigin
         history_entry->document_state->origin = initiator_origin;
-        navigable->populate_document(history_entry->document_state, navigable->create_and_initialize_a_document(response_document));
+        if (!navigable->populate_document_for_javascript_url(history_entry->document_state, navigable->create_and_initialize_a_document(response_document))) {
+            finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
+            return;
+        }
     }
 
     // 1. Assert: this is running on navigable's traversable navigable's session history traversal queue.
