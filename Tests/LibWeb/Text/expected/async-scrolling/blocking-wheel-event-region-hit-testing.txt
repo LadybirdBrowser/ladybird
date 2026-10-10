@@ -17,5 +17,6 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 CompositorBlockingWheelEventRegion@s2/e0 rect=[20,20 100x100]
+CompositorScrollNode@s1/e0 scroll_node_index=s3 parent_scroll_node_index=s0 scrollport_rect=[20,160 100x100] min_scroll_offset=[0,0] max_scroll_offset=[100,0] is_viewport=false
 CompositorBlockingWheelEventRegion@s3/c0/e0 rect=[20,160 200x100]
 

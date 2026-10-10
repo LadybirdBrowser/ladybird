@@ -10,6 +10,7 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
+CompositorScrollNode@s1/e0 scroll_node_index=s3 parent_scroll_node_index=s0 scrollport_rect=[119,9 100x100] min_scroll_offset=[0,0] max_scroll_offset=[50,50] is_viewport=false
 FillRoundedRectRing@s1/e0 rect=[118,8 102x102] widths=[1,1,1,1] color=rgb(0, 0, 255)
 FillRect@s3/c0/e0 rect=[119,9 150x150] color=rgb(173, 216, 230)
 DrawGlyphRun@s3/c0/e0 rect=[119,9 55x16] translation=[119,21.796875] color=rgb(0, 0, 0)

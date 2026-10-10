@@ -205,7 +205,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
             .source
             .node_has_dom_paint_fact(paintable, DomPaintFact::NestedNavigableContainer)
             || self.data(paintable).own_scroll_node_index == VISUAL_VIEWPORT_NODE_INDEX
-            || !self.could_be_scrolled_by_wheel_event(paintable)
+            || !(self.could_be_scrolled_by_wheel_event(paintable)
+                || minimum_scroll_offset(self.source, paintable) != maximum_scroll_offset(self.source, paintable))
         {
             return None;
         }

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="scroller" style="width: 100px; height: 100px; overflow: hidden"><div style="height: 2000px"></div></div>
+<script>
+    promiseTest(async () => {
+        await waitForCondition(() => internals.asyncScrollingStateWheelRoutingAdmission() !== "no async scrolling state");
+
+        println(`scroll nodes: ${internals.asyncScrollingState().scrollNodes.length}`);
+        println(`wheel target: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 100)}`);
+
+        scroller.scrollTo({ top: 500, behavior: "smooth" });
+        await scrollendEvent(scroller);
+        println(`after a smooth scroll: ${scroller.scrollTop}`);
+    });
+</script>

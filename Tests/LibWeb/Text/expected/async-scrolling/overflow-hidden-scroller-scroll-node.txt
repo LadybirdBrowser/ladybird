@@ -1,0 +1,3 @@
+scroll nodes: 1
+wheel target: none
+after a smooth scroll: 500
