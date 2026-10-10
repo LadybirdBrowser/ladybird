@@ -27,6 +27,7 @@ use crate::gc::heap::cell_is_dead;
 use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
+use crate::jit::InterpreterTier;
 use crate::layout::buffer::InterpreterBuffer;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::executable::ExecutableHead;
@@ -1144,6 +1145,8 @@ pub struct Executable {
     template_object_caches: Box<[Gc<TemplateObjectCache>]>,
     object_shape_caches: Box<[ObjectShapeCache]>,
     object_property_iterator_caches: Box<[ObjectPropertyIteratorCache]>,
+    /// Which interpreter handlers the executable's frames run with, see `head.dispatch_table_index`.
+    interpreter_tier: Cell<InterpreterTier>,
     pub number_of_registers: u32,
     pub number_of_arguments: u32,
     pub is_strict_mode: bool,
@@ -1349,7 +1352,7 @@ impl Executable {
             asm_constants_data: Cell::new(constants.as_ptr()),
             bytecode_data: Cell::new(bytecode.as_slice().as_ptr()),
             bytecode_size: Cell::new(bytecode.as_slice().len()),
-            dispatch_table_index: Cell::new(0),
+            dispatch_table_index: Cell::new(InterpreterTier::Plain as u8),
             constants: interpreter_buffer(&constants),
             property_lookup_caches: interpreter_buffer(&property_lookup_caches),
             global_variable_caches: interpreter_buffer(&global_variable_caches),
@@ -1371,6 +1374,7 @@ impl Executable {
             template_object_caches: Box::new([]),
             object_shape_caches: Box::new([]),
             object_property_iterator_caches: Box::new([]),
+            interpreter_tier: Cell::new(InterpreterTier::Plain),
             number_of_registers,
             number_of_arguments,
             is_strict_mode,
@@ -1797,6 +1801,16 @@ impl Executable {
 
     pub fn environment_coordinate_cache(&self, index: u32) -> &Cell<EnvironmentCoordinate> {
         &self.environment_coordinate_caches[index as usize]
+    }
+
+    pub fn interpreter_tier(&self) -> InterpreterTier {
+        self.interpreter_tier.get()
+    }
+
+    /// Moves the executable's frames to the handlers of `tier`, the next time the interpreter enters one of them.
+    pub fn set_interpreter_tier(&self, tier: InterpreterTier) {
+        self.interpreter_tier.set(tier);
+        self.head.dispatch_table_index.set(tier as u8);
     }
 
     pub fn environment_shape_cache(&self, index: u32) -> EnvironmentShapeCache {

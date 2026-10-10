@@ -378,6 +378,18 @@ inline fn normalize_completion_value(initial_value: Value) -> (Value, Value) {
     (value, empty_tag)
 }
 
+# Switches to the dispatch table of the executable whose frame the interpreter
+# continues in. Only the profiling build switches: the plain build's handlers
+# run every frame unless the profiling tier is in use, and then, the plain
+# handlers' frames keep the table they run with until the next profiling
+# handler switches frames (see the executable's interpreter tier).
+inline fn switch_dispatch_table(executable: Executable) @profiling {
+    let dispatch_table_index: u32 = alias(executable.dispatch_table_index);
+    let vm = current_vm();
+    let dispatch_table = vm.dispatch_tables[dispatch_table_index & DISPATCH_TABLE_INDEX_MASK];
+    dispatch = dispatch_table;
+}
+
 inline fn return_to_caller(
     return_value: Value,
     else top_level: Label
@@ -402,6 +414,7 @@ inline fn return_to_caller(
     let executable = exec_ctx.executable;
     assert(executable != 0);
     pb = executable.bytecode_data;
+    switch_dispatch_table(executable);
     assert(pb != 0);
     values = exec_ctx.slots;
     pc = return_pc;
@@ -2713,6 +2726,7 @@ handler GetById(
         let inline_executable = exec_ctx.executable;
         assert(inline_executable != 0);
         pb = inline_executable.bytecode_data;
+        switch_dispatch_table(inline_executable);
         pc = 0;
         goto_handler(pc);
     };
@@ -2819,6 +2833,7 @@ handler GetById(
             let exception_executable = exec_ctx.executable;
             assert(exception_executable != 0);
             pb = exception_executable.bytecode_data;
+            switch_dispatch_table(exception_executable);
             pc = exec_ctx.program_counter;
             goto_handler(pc);
         };
@@ -3463,6 +3478,7 @@ handler Call(
     let direct_executable = frame.executable;
     assert(direct_executable != 0);
     pb = direct_executable.bytecode_data;
+    switch_dispatch_table(direct_executable);
     let direct_vm = current_vm();
     direct_vm.running_execution_context = frame;
     exec_ctx = frame;
@@ -3480,6 +3496,7 @@ handler Call(
         let inline_executable = exec_ctx.executable;
         assert(inline_executable != 0);
         pb = inline_executable.bytecode_data;
+        switch_dispatch_table(inline_executable);
         pc = 0;
         goto_handler(pc);
     };
@@ -3579,6 +3596,7 @@ handler Call(
             let exception_executable = exec_ctx.executable;
             assert(exception_executable != 0);
             pb = exception_executable.bytecode_data;
+            switch_dispatch_table(exception_executable);
             pc = exec_ctx.program_counter;
             goto_handler(pc);
         };

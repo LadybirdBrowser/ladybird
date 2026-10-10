@@ -9,6 +9,16 @@ option(ENABLE_ALL_THE_DEBUG_MACROS "Enable all debug macros to validate they sti
 option(INCLUDE_WASM_SPEC_TESTS "Download and include the WebAssembly spec testsuite" OFF)
 option(ENABLE_CRANELIFT_JIT "Enable Cranelift-based AOT compilation for WebAssembly" ON)
 
+# The optimizing JIT for JavaScript will generate code for x86-64 and AArch64 with the calling conventions of Linux and
+# macOS, so it and the profiling tier of the interpreter that collects feedback for it are only built there. Elsewhere,
+# LibJS runs JavaScript in its plain interpreter alone.
+if (((LINUX AND NOT ANDROID) OR APPLE) AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64|aarch64|arm64|ARM64)$")
+    set(js_jit_default ON)
+else()
+    set(js_jit_default OFF)
+endif()
+option(ENABLE_JS_JIT "Enable the optimizing JIT for JavaScript" ${js_jit_default})
+
 set(LADYBIRD_CACHE_DIR "${PROJECT_BINARY_DIR}/../caches" CACHE PATH "Location of shared cache of downloaded files")
 option(ENABLE_NETWORK_DOWNLOADS "Allow downloads of required files. If OFF, required files must already be present in LADYBIRD_CACHE_DIR" ON)
 

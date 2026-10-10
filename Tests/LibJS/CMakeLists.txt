@@ -13,3 +13,9 @@ add_custom_command(
 add_dependencies(test-js test-js-runtime test-js-script js)
 add_test(NAME test-js COMMAND test-js)
 set_tests_properties(test-js PROPERTIES ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}")
+
+# The runtime tests again, with the interpreter's profiling tier on, which the tests in jit directories need.
+if (ENABLE_JS_JIT)
+    add_test(NAME test-js-profiling COMMAND test-js --suite runtime)
+    set_tests_properties(test-js-profiling PROPERTIES ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR};LIBJS_JIT=on")
+endif()

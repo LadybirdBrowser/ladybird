@@ -35,6 +35,8 @@ use crate::gc::heap_function::HeapFunction;
 use crate::gc::root::{MarkedVec, RootSet};
 use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak_container::WeakContainer;
+use crate::jit::JitState;
+use crate::jit::options::Options as JitOptions;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::Environment;
 use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
@@ -586,6 +588,7 @@ pub struct Vm {
     agent: Cell<AgentRecord>,
     saved_execution_context_stacks: RefCell<Vec<SavedExecutionContextStack>>,
     host_classes: RefCell<HostClassRegistry>,
+    pub jit: JitState,
 }
 
 const _: () = assert!(core::mem::offset_of!(Vm, head) == 0);
@@ -712,6 +715,7 @@ impl Vm {
             agent: Cell::new(AgentRecord::default()),
             saved_execution_context_stacks: RefCell::new(Vec::new()),
             host_classes: RefCell::new(HashMap::default()),
+            jit: JitState::new(JitOptions::from_environment()),
         };
         // SAFETY: The caller provides storage for a Vm.
         unsafe { storage.write(vm) };
@@ -1255,6 +1259,7 @@ impl Vm {
     }
 
     pub fn register_executable(&self, executable: Gc<Executable>) {
+        executable.set_interpreter_tier(self.jit.initial_tier());
         self.executables.borrow_mut().push(executable);
     }
 

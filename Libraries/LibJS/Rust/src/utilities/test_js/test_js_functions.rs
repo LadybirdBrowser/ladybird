@@ -361,7 +361,8 @@ enum Expectation {
 }
 
 /// TESTJS_RUN_FILE_FUNCTION: with --test262-parser-tests, a file only has to parse, or fail to parse, as the
-/// directory it is in says.
+/// directory it is in says. The tests in jit directories need the interpreter's profiling tier, so they are skipped
+/// unless it collects feedback (LIBJS_JIT=on in a build with the JIT).
 pub fn run_file(
     vm: &Vm,
     test262_parser_tests: bool,
@@ -369,6 +370,9 @@ pub fn run_file(
     test_file: &str,
     realm: Gc<Realm>,
 ) -> Result<JSFileResult, RunFileHookResult> {
+    if !vm.jit.collects_feedback() && test_file.contains("/jit/") {
+        return Err(RunFileHookResult::SkipFile);
+    }
     if !test262_parser_tests {
         return Err(RunFileHookResult::RunAsNormal);
     }

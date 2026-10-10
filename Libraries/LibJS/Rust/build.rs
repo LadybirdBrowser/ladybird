@@ -174,28 +174,53 @@ fn main() {
 
     let interpreter_source_text = fs::read_to_string(&interpreter_source).expect("read interpreter.flap");
     let interpreter_source_name = interpreter_source.display().to_string();
-    let compiler = interpreter_compiler(&target);
-    let prepared = compiler
-        .prepare(flapc::CompilationUnit {
-            source: flapc::SourceInput {
-                name: &interpreter_source_name,
-                contents: &interpreter_source_text,
-            },
-            constants: Some(flapc::SourceInput {
-                name: "layout.conf",
-                contents: &layout.text,
-            }),
-        })
-        .unwrap_or_else(|error| panic!("flapc failed to compile the interpreter:\n{error}"));
-    let functions = compiler
-        .runtime_functions(&prepared)
-        .unwrap_or_else(|error| panic!("flapc could not list the interpreter's runtime functions:\n{error}"));
-    let assembly = compiler
-        .compile_prepared(&prepared)
-        .unwrap_or_else(|error| panic!("flapc failed to compile the interpreter:\n{error}"));
-
+    // The interpreter is built twice from interpreter.flap: the plain variant, and a profiling variant whose
+    // @profiling inline functions collect feedback for the optimizing JIT. Executables pick the variant their frames
+    // run with through their dispatch tables, so both are linked in, and the runtime defines every function either
+    // of them calls. Without the JIT, only the plain variant is assembled, but the runtime still defines the
+    // functions of both, so that its interface with the interpreter is the same in every build.
+    let jit = env::var_os("CARGO_FEATURE_JIT").is_some();
+    let source = || flapc::CompilationUnit {
+        source: flapc::SourceInput {
+            name: &interpreter_source_name,
+            contents: &interpreter_source_text,
+        },
+        constants: Some(flapc::SourceInput {
+            name: "layout.conf",
+            contents: &layout.text,
+        }),
+    };
+    let mut functions: Vec<flapc::runtime_interface::RuntimeFunction> = Vec::new();
+    let mut assemblies = Vec::new();
+    for profiling in [false, true] {
+        let compiler = interpreter_compiler(&target, profiling);
+        let prepared = compiler
+            .prepare(source())
+            .unwrap_or_else(|error| panic!("flapc failed to compile the interpreter:\n{error}"));
+        let variant_functions = compiler
+            .runtime_functions(&prepared)
+            .unwrap_or_else(|error| panic!("flapc could not list the interpreter's runtime functions:\n{error}"));
+        for function in variant_functions {
+            match functions.iter().find(|existing| existing.symbol == function.symbol) {
+                Some(existing) => assert!(
+                    *existing == function,
+                    "the interpreter variants call {} in different ways",
+                    function.symbol
+                ),
+                None => functions.push(function),
+            }
+        }
+        if profiling && !jit {
+            continue;
+        }
+        let assembly = compiler
+            .compile_prepared(&prepared)
+            .unwrap_or_else(|error| panic!("flapc failed to compile the interpreter:\n{error}"));
+        assemblies.push((profiling, assembly));
+    }
     let instructions = flapc::metadata::parse_flap_metadata(&interpreter_source_name, &interpreter_source_text)
         .unwrap_or_else(|error| panic!("parse the interpreter's bytecode definitions: {error}"));
+    functions.sort_by(|a, b| a.symbol.cmp(&b.symbol));
     let instructions_with_values = functions
         .iter()
         .filter_map(|function| match &function.kind {
@@ -213,12 +238,23 @@ fn main() {
         &runtime_functions::generate(&functions, &instructions),
     );
 
-    let assembly_path = output_directory.join("interpreter.S");
-    write_if_changed(&assembly_path, assembly.as_str());
-    assemble_interpreter(&target, &assembly_path);
+    let assembly_paths = assemblies
+        .iter()
+        .map(|(profiling, assembly)| {
+            let file_name = if *profiling {
+                "interpreter_profiling.S"
+            } else {
+                "interpreter.S"
+            };
+            let assembly_path = output_directory.join(file_name);
+            write_if_changed(&assembly_path, assembly.as_str());
+            assembly_path
+        })
+        .collect::<Vec<_>>();
+    assemble_interpreter(&target, &assembly_paths);
 }
 
-fn interpreter_compiler(target: &Target) -> flapc::Compiler {
+fn interpreter_compiler(target: &Target, profiling: bool) -> flapc::Compiler {
     flapc::Compiler::new(flapc::CompileOptions {
         target: flapc::Target {
             architecture: target.architecture,
@@ -226,7 +262,7 @@ fn interpreter_compiler(target: &Target) -> flapc::Compiler {
         },
         has_jscvt: target.is_apple && matches!(target.architecture, flapc::Architecture::Aarch64),
         enable_assertions: true,
-        profiling: false,
+        profiling,
     })
 }
 
@@ -248,9 +284,9 @@ fn rust_macos_deployment_target() -> Option<String> {
         .map(str::to_string)
 }
 
-fn assemble_interpreter(target: &Target, assembly_path: &Path) {
+fn assemble_interpreter(target: &Target, assembly_paths: &[PathBuf]) {
     let mut build = cc::Build::new();
-    build.file(assembly_path);
+    build.files(assembly_paths);
     if target.is_apple
         && env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "macos")
         && let Some(deployment_target) = rust_macos_deployment_target()
@@ -267,7 +303,9 @@ fn assemble_interpreter(target: &Target, assembly_path: &Path) {
         }
         // Given -Fo, clang-cl writes the preprocessed assembly to the working directory, which cargo makes the source
         // directory of the crate.
-        let output_directory = assembly_path.parent().expect("the assembly is in the output directory");
+        let output_directory = assembly_paths[0]
+            .parent()
+            .expect("the assembly is in the output directory");
         env::set_current_dir(output_directory)
             .unwrap_or_else(|error| panic!("enter {}: {error}", output_directory.display()));
     }
