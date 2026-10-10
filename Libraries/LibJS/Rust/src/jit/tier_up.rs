@@ -10,7 +10,7 @@ use core::ptr::NonNull;
 
 use libjs_jit::code::CompiledCode;
 
-use super::code::{CompileState, JitCode};
+use super::code::{CompileState, EntryStatus, JitCode};
 use super::compile_queue::CompileResult;
 use super::executable_memory::ExecutableMemory;
 use super::snapshot::capture_snapshot;
@@ -22,6 +22,7 @@ use crate::jit::InterpreterTier;
 use crate::jit::options::Options;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::function_object::EcmascriptFunctionObject;
+use crate::layout::value::Value;
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::shared_function_instance_data::FunctionKind;
@@ -184,21 +185,42 @@ pub fn on_budget_exhausted(vm: &Vm, pc: u32, is_loop: bool) {
 }
 
 /// `asm_helper_tier_up_check`: the interpreter calls this when the running frame's executable has used up its tier-up
-/// budget, with the pc shifted left by one and the low bit set for a loop back edge (rather than a function entry).
-/// Returns 0 to continue interpreting, and 1 to continue interpreting the running execution context at its program
-/// counter with the handlers of its executable's tier.
+/// budget, with the pc shifted left by one and the low bit set for a loop back edge (rather than a function entry). At
+/// a loop back edge, the running frame may continue in JIT code. Returns 0 to continue interpreting, 1 to continue
+/// interpreting the running execution context at its program counter (after JIT code ran, or with other handlers),
+/// and -1 to leave the interpreter.
 pub fn tier_up_check(vm: &Vm, encoded_pc: u64) -> i64 {
     let pc = (encoded_pc >> 1) as u32;
     let is_loop = encoded_pc & 1 != 0;
+    let frame = vm.running_execution_context().expect("a frame is running");
     let tier = vm.current_executable().interpreter_tier();
     on_budget_exhausted(vm, pc, is_loop);
-    // NB: A frame that loops on switches to the handlers of the executable's new tier, so that the loop collects
-    //     feedback. The back edge instruction runs again from the start; it has no effects before counting.
-    if is_loop && vm.current_executable().interpreter_tier() != tier {
-        vm.running_execution_context_ref().program_counter.set(pc);
-        return 1;
+    if !is_loop {
+        return 0;
     }
-    0
+
+    let Some(result) = super::entry_exit::enter_jit_code_at_loop(vm, frame, pc) else {
+        // NB: A frame that loops on in the interpreter switches to the handlers of the executable's new tier, so that
+        //     the loop collects feedback and can continue in JIT code later. The back edge instruction runs again from
+        //     the start; it has no effects before counting.
+        if vm.current_executable().interpreter_tier() != tier {
+            vm.running_execution_context_ref().program_counter.set(pc);
+            return 1;
+        }
+        return 0;
+    };
+    match result.status {
+        EntryStatus::Returned => {
+            // NB: Like the interpreter's Return, a frame without a caller, or whose caller waits in native code,
+            //     returns from the interpreter.
+            let frame = vm.running_execution_context_ref();
+            let exits_interpreter = frame.caller_frame.get().is_null() || frame.returns_to_native_caller.get();
+            vm.return_from_running_frame(Value(result.value));
+            if exits_interpreter { -1 } else { 1 }
+        }
+        EntryStatus::Resume => 1,
+        EntryStatus::ExitInterpreter => -1,
+    }
 }
 
 /// Whether the code of a finished compile goes into executable memory. The snapshot depends on nothing that can stop

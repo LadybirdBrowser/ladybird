@@ -1199,7 +1199,8 @@ inline fn consume_tier_up_budget(cost: i32, target_pc: u32, is_loop: u32) @profi
         # NB: When the policy moves the executable to other handlers at a
         #     function entry, the running frame keeps its handlers until the
         #     interpreter enters another frame. At a loop back edge, the frame
-        #     switches to them.
+        #     switches to them, or continues in JIT code (on-stack
+        #     replacement).
         let control: i32 = call_helper_with_two_arguments(asm_helper_tier_up_check, current_vm(), encoded_pc);
         if control != 0 {
             guard control > 0 else @cold {
@@ -1808,7 +1809,7 @@ handler JumpIfLoop(
 handler JumpTrueLoop(
     condition: in Operand,
     target: BytecodeOffset
-) @terminator {
+) @terminator @fallthrough {
     count_loop_iteration();
     jump_true(condition, target);
 }
@@ -1816,7 +1817,7 @@ handler JumpTrueLoop(
 handler JumpFalseLoop(
     condition: in Operand,
     target: BytecodeOffset
-) @terminator {
+) @terminator @fallthrough {
     count_loop_iteration();
     jump_false(condition, target);
 }
