@@ -1494,6 +1494,10 @@ fn put_by_value_on_typed_arrays() {
     let mut data = vec![0u8; 32];
     for (kind, src, expected) in [
         (0u8, value::int32(300), vec![44u8]),
+        (0, double(257.9), vec![1]),
+        (0, double(-1.9), vec![255]),
+        (0, double(f64::INFINITY), vec![0]),
+        (0, CANONICAL_NAN, vec![0]),
         (4, value::int32(-1), vec![255]),
         (1, value::int32(300), vec![255]),
         (1, value::int32(-5), vec![0]),
@@ -1509,7 +1513,11 @@ fn put_by_value_on_typed_arrays() {
         (1, double(f64::NEG_INFINITY), vec![0]),
         (1, CANONICAL_NAN, vec![0]),
         (2, value::int32(0x12345), vec![0x45, 0x23]),
+        (5, double(-2.5), vec![0xfe, 0xff]),
         (6, value::int32(-2), vec![0xfe, 0xff, 0xff, 0xff]),
+        (6, double(2_147_483_648.0), vec![0, 0, 0, 0x80]),
+        (6, double(1e300), vec![0, 0, 0, 0]),
+        (3, double(4_294_967_297.0), vec![1, 0, 0, 0]),
         (8, value::int32(2), 2.0f64.to_le_bytes().to_vec()),
         (8, double(0.5), 0.5f64.to_le_bytes().to_vec()),
         (7, value::int32(3), 3.0f32.to_le_bytes().to_vec()),
@@ -1528,17 +1536,12 @@ fn put_by_value_on_typed_arrays() {
         assert_eq!(&data[size..2 * size], expected.as_slice(), "kind {kind} {src:#x}");
         assert!(data[..size].iter().all(|byte| *byte == 0xAA), "kind {kind} {src:#x}");
     }
-    // Integer arrays only take int32 values inline, and float arrays
-    // numbers.
+    // Non-numeric values still take the slow path.
     for (kind, src) in [
-        (0u8, double(1.9)),
-        (0, value::TRUE),
-        (5, double(-2.5)),
-        (3, double(4_294_967_297.0)),
+        (0u8, value::TRUE),
         (1, value::TRUE),
         (7, value::UNDEFINED),
         (0, value::UNDEFINED),
-        (6, double(1e300)),
     ] {
         data.fill(0xAA);
         let array = fake_typed_array(kind, &data, 2);
