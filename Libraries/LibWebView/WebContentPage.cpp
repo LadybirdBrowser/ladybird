@@ -28,6 +28,7 @@
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
 #include <LibWebView/StorageJar.h>
+#include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
@@ -894,6 +895,12 @@ void WebContentPage::did_click_link(Web::HTML::PreparedNavigationDescriptor navi
     auto verified_navigation = navigation_from_page(client(), move(navigation));
     if (!verified_navigation.has_value())
         return;
+    // NB: A link the browser does not handle itself is an external application's. The page asking to open it is not
+    //     the browser's UI, so the request takes the page's path, which honors only input the UI process saw.
+    if (!is_url_handled_internally(verified_navigation->url)) {
+        view().handle_external_url({}, verified_navigation->url, verified_navigation->initiator_origin_snapshot, verified_navigation->source_snapshot_params.has_transient_activation);
+        return;
+    }
     auto open_in_background = modifiers == Web::UIEvents::Mod_PlatformCtrl;
     auto open_in_foreground = modifiers == (Web::UIEvents::Mod_PlatformCtrl | Web::UIEvents::Mod_Shift);
     if (open_in_background || open_in_foreground || target == "_blank"sv) {
@@ -908,6 +915,12 @@ void WebContentPage::did_middle_click_link(Web::HTML::PreparedNavigationDescript
     auto verified_navigation = navigation_from_page(client(), move(navigation));
     if (!verified_navigation.has_value())
         return;
+    // NB: A link the browser does not handle itself is an external application's. The page asking to open it is not
+    //     the browser's UI, so the request takes the page's path, which honors only input the UI process saw.
+    if (!is_url_handled_internally(verified_navigation->url)) {
+        view().handle_external_url({}, verified_navigation->url, verified_navigation->initiator_origin_snapshot, verified_navigation->source_snapshot_params.has_transient_activation);
+        return;
+    }
     view().open_navigation_in_new_tab(verified_navigation.release_value(), Web::HTML::ActivateTab::No);
 }
 
