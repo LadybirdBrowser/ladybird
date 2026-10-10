@@ -1,0 +1,38 @@
+$28d58d80 mapped-arguments-parameter-bindings.js:4:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
+    [2] = Int32(2)
+    [3] = Int32(3)
+
+block0:
+  [   0] Enter
+  [   8] GetGlobal value_feedback:0, dst:reg6, `forward`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, forward, arguments:[Int32(1), Int32(2), Int32(3)]
+  [  48] End value:reg5
+
+
+forward$583b919e mapped-arguments-parameter-bindings.js:2:5
+  Registers: 8
+  Blocks:    1
+  Locals:    arguments~0
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] Enter
+  [   8] CreateArguments dst:arguments~0, is_immutable:false, creates_parameter_bindings:true
+  [  18] InitializeLexicalBinding `a`, src:Undefined
+  [  30] InitializeLexicalBinding `b`, src:Undefined
+  [  48] SetLexicalBinding `a`, src:arg0
+  [  60] SetLexicalBinding `b`, src:arg1
+  [  78] SetLexicalBinding `a`, src:arg2
+  [  90] Mov dst:reg5, src:arguments~0
+  [  a0] GetLength value_feedback:0, dst:reg6, base:reg5 (arguments.length)
+  [  b8] GetBinding value_feedback:1, dst:reg5, `a`
+  [  d0] Add arith_feedback:0, dst:reg7, lhs:reg6, rhs:reg5
+  [  e0] GetBinding value_feedback:2, dst:reg6, `b`
+  [  f8] Add arith_feedback:1, dst:reg5, lhs:reg7, rhs:reg6
+  [ 108] Return value:reg5

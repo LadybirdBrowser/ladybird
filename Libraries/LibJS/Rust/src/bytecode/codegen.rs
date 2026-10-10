@@ -9051,9 +9051,25 @@ pub fn emit_function_declaration_instantiation(
         }
     }
 
+    // NB: A mapped arguments object aliases bindings of the parameters, which CreateArguments then creates in the
+    //     function environment itself, in the same order as the CreateVariables below would.
+    let arguments_object_is_mapped = arguments_object_needed
+        && !strict
+        && function_data.parameters.iter().all(|p| {
+            !p.is_rest && p.default_value.is_none() && matches!(p.binding, FunctionParameterBinding::Identifier(_))
+        });
+    // NB: When the arguments object is not used after all, the parameters may be locals, and have no bindings to make.
+    let arguments_object_creates_parameter_bindings =
+        arguments_object_is_mapped && parameter_names.iter().all(|param| !param.is_local);
+
     // --- Step 2: Create bindings for non-local parameters ---
 
     for param in &parameter_names {
+        if arguments_object_creates_parameter_bindings {
+            let id = generator.intern_identifier(&param.name);
+            generator.record_environment_binding_created_elsewhere(id);
+            continue;
+        }
         if !param.is_local {
             let id = generator.intern_identifier(&param.name);
             generator.emit(Instruction::CreateVariable {
@@ -9081,20 +9097,26 @@ pub fn emit_function_declaration_instantiation(
 
         let dst = arguments_local_index.map(|index| Operand::local(u32_from_usize(index)));
 
-        let kind = if strict
-            || !function_data.parameters.iter().all(|p| {
-                !p.is_rest && p.default_value.is_none() && matches!(p.binding, FunctionParameterBinding::Identifier(_))
-            }) {
-            ArgumentsKind::Unmapped as u32
-        } else {
+        let kind = if arguments_object_is_mapped {
             ArgumentsKind::Mapped as u32
+        } else {
+            ArgumentsKind::Unmapped as u32
         };
 
         generator.emit(Instruction::CreateArguments {
             dst,
             kind,
             is_immutable: strict,
+            creates_parameter_bindings: arguments_object_creates_parameter_bindings,
         });
+
+        if arguments_object_creates_parameter_bindings && has_duplicates {
+            for param in &parameter_names {
+                let id = generator.intern_identifier(&param.name);
+                let undef = generator.add_constant_undefined();
+                emit_initialize_lexical_binding(generator, id, undef.operand());
+            }
+        }
 
         if let Some(index) = arguments_local_index {
             generator.mark_local_initialized(u32_from_usize(index));

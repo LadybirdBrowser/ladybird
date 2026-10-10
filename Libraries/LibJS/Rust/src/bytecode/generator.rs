@@ -1293,6 +1293,12 @@ impl Generator {
         self.environment_coordinate_scope_stack.pop();
     }
 
+    /// Records a binding of the innermost environment that an instruction other than CreateVariable creates.
+    pub fn record_environment_binding_created_elsewhere(&mut self, identifier: IdentifierTableIndex) {
+        let name = self.identifier_table[identifier.0 as usize].clone();
+        self.record_environment_binding(name);
+    }
+
     fn record_environment_binding(&mut self, name: ak::Utf16FlyString) {
         let Some(scope_index) = self.environment_coordinate_scope_stack.len().checked_sub(1) else {
             return;

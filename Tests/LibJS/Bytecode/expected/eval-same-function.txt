@@ -21,7 +21,7 @@ foo$40f9e494 eval-same-function.js:6:9
 
 block0:
   [   0] Enter
-  [   8] CreateArguments is_immutable:false
+  [   8] CreateArguments is_immutable:false, creates_parameter_bindings:true
   [  18] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg6, this_value:reg7, `eval`
   [  30] CallDirectEval value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("var x = 1")]
   [  58] DynamicGetBinding value_feedback:2, dst:reg6, `Number`

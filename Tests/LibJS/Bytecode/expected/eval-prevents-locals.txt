@@ -23,7 +23,7 @@ with_eval$43ef143d eval-prevents-locals.js:6:5
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateArguments is_immutable:false
+  [  10] CreateArguments is_immutable:false, creates_parameter_bindings:true
   [  20] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  38] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
   [  48] InitializeLexicalBinding `x`, src:Int32(1)
@@ -53,7 +53,7 @@ outer_eval$e35f2ce2 eval-prevents-locals.js:14:9
 
 block0:
   [   0] Enter
-  [   8] CreateArguments is_immutable:false
+  [   8] CreateArguments is_immutable:false, creates_parameter_bindings:true
   [  18] CreateVariable `inner`, is_immutable:false, is_global:false, is_strict:false
   [  28] InitializeVariableBinding `inner`, src:Undefined
   [  40] NewFunction dst:reg5, shared_function_data_index:0

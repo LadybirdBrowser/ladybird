@@ -762,6 +762,10 @@ impl EcmascriptFunctionObject {
         self.shared_data().mapped_argument_names()
     }
 
+    pub fn parameter_binding_names(&self) -> Rc<[Utf16FlyString]> {
+        self.shared_data().parameter_binding_names()
+    }
+
     pub fn set_is_class_constructor(&self) {
         self.shared_data().set_is_class_constructor();
     }

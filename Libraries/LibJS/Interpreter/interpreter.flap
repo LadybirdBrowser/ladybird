@@ -4708,7 +4708,8 @@ handler CreateRestParams(
 handler CreateArguments(
     dst: out Optional<Operand>,
     kind: ArgumentsKind,
-    is_immutable: bool
+    is_immutable: bool,
+    creates_parameter_bindings: bool
 ) @cold = call_slow_path(create_arguments);
 
 handler CreateLexicalEnvironment(
