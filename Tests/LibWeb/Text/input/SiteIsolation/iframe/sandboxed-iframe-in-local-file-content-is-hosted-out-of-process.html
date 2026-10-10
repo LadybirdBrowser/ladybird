@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A process holding local file content may read local files, so it hosts nothing else. A sandboxed iframe's
+    // document has an opaque origin, which would otherwise keep it in the process of the page that loaded it.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", "/sandboxed-iframe-in-local-file-content", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>child",
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("sandboxed-iframe-in-local-file-content");
+
+        const iframe = document.createElement("iframe");
+        iframe.sandbox = "allow-scripts";
+        iframe.src = childUrl;
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        document.body.appendChild(iframe);
+        await loaded;
+
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>
