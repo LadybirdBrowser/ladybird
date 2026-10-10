@@ -54,7 +54,9 @@ GC::Ptr<DOM::Element const> ScrollTimeline::source() const
             case CSS::Scroller::Nearest: {
                 GC::Ptr<DOM::Element const> ancestor = anonymous_source.target.parent_element();
 
-                while (ancestor && !ancestor->is_scroll_container())
+                // NB: Elements inside a display:none subtree have no computed style. They have no box, so they
+                //     cannot be the nearest ancestor scroll container.
+                while (ancestor && !(ancestor->has_style() && ancestor->is_scroll_container()))
                     ancestor = ancestor->parent_element();
 
                 return ancestor;
