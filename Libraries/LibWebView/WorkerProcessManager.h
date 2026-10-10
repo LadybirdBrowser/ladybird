@@ -126,6 +126,7 @@ private:
         Optional<SharedWorkerKey> shared_worker_key;
         Vector<Owner> owners;
         NonnullOwnPtr<CanonicalWorkerEnvironmentSettingsObject> inside_settings;
+        bool may_read_local_files { false };
     };
 
     ErrorOr<void> reconnect_to_request_server(Function<bool(WorkerAgent const&)> should_reconnect);

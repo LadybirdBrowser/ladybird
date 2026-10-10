@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script>
+    // A file: document that replaces itself with a blob: document leaves no document created from a file: URL. The
+    // blob: document keeps the file origin, so it still loads local subresources.
+    const localScriptURL = new URL("../include.js", location.href).href;
+    const blobDocument = `<!DOCTYPE html><script>
+        const script = document.createElement("script");
+        script.src = ${JSON.stringify(localScriptURL)};
+        script.onload = () => internals.signalTestIsDone("local script loaded");
+        script.onerror = () => internals.signalTestIsDone("local script failed to load");
+        document.head.appendChild(script);
+    <\/script>`;
+    location.replace(URL.createObjectURL(new Blob([blobDocument], { type: "text/html" })));
+</script>

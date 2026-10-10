@@ -20,16 +20,24 @@ namespace WebView {
 
 using BlobURLEntryOwner = Variant<WeakPtr<WebContentClient>, WeakPtr<WebWorkerClient>>;
 
+enum class AddedByLocalFileContent : u8 {
+    No,
+    Yes,
+};
+
 // https://w3c.github.io/FileAPI/#BlobURLStore
 class WEBVIEW_API BlobURLStore : public Weakable<BlobURLStore> {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    URL::BlobURLEntry::Token add_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry, BlobURLEntryOwner added_by);
+    URL::BlobURLEntry::Token add_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry, BlobURLEntryOwner added_by, AddedByLocalFileContent = AddedByLocalFileContent::No);
     void remove_entries(Vector<Utf16String> const& urls, URL::Origin const& environment_origin, BlobURLEntryOwner const& removed_by);
     void remove_entries_added_by(BlobURLEntryOwner const&);
 
     Optional<Web::FileAPI::SerializedBlobURLEntry> resolve(Utf16String const& url, Optional<URL::BlobURLEntry::Token>) const;
+
+    // Whether url names an entry that local file content added, for documents of the entry's origin.
+    bool is_entry_of_local_file_content(Utf16String const& url, URL::Origin const&) const;
 
     // A revoked entry outlives its revocation for as long as handles are held on its token, and is dropped with the
     // last of them. Session history holds none, so a blob URL cannot be traversed back to once it is revoked.
@@ -40,6 +48,7 @@ private:
     struct Entry {
         Web::FileAPI::SerializedBlobURLEntry entry;
         BlobURLEntryOwner added_by;
+        AddedByLocalFileContent added_by_local_file_content { AddedByLocalFileContent::No };
         bool revoked { false };
         size_t handles { 0 };
     };

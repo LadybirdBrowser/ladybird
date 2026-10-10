@@ -25,7 +25,7 @@ static Optional<URL::BlobURLEntry::Token> token_of(Web::FileAPI::SerializedBlobU
 }
 
 // https://w3c.github.io/FileAPI/#add-an-entry
-URL::BlobURLEntry::Token BlobURLStore::add_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry, BlobURLEntryOwner added_by)
+URL::BlobURLEntry::Token BlobURLStore::add_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry, BlobURLEntryOwner added_by, AddedByLocalFileContent added_by_local_file_content)
 {
     // NB: Blob URLs are random, so one that is already here came from a different process. Leave it alone.
     if (m_entries.contains(url))
@@ -39,7 +39,7 @@ URL::BlobURLEntry::Token BlobURLStore::add_entry(Utf16String url, Web::FileAPI::
         m_entry_urls_by_token.set(token, url);
     }
 
-    m_entries.set(move(url), Entry { move(entry), move(added_by), false, 0 });
+    m_entries.set(move(url), Entry { move(entry), move(added_by), added_by_local_file_content, false, 0 });
     return token;
 }
 
@@ -147,6 +147,16 @@ Optional<Web::FileAPI::SerializedBlobURLEntry> BlobURLStore::resolve(Utf16String
     if (!entry.has_value() || entry->revoked)
         return {};
     return entry->entry;
+}
+
+bool BlobURLStore::is_entry_of_local_file_content(Utf16String const& url, URL::Origin const& origin) const
+{
+    auto entry = m_entries.get(url);
+    return entry.has_value()
+        && !entry->revoked
+        && entry->added_by_local_file_content == AddedByLocalFileContent::Yes
+        && entry->entry.origin.is_file_origin()
+        && entry->entry.origin.is_same_origin(origin);
 }
 
 BlobURLHandle::BlobURLHandle(BlobURLStore& store, URL::BlobURLEntry::Token token)

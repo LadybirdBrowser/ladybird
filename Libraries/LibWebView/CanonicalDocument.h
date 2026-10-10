@@ -63,6 +63,10 @@ public:
     RefPtr<WebContentPage> const& host() const { return m_host; }
     void set_host(RefPtr<WebContentPage>);
 
+    // Whether this is local file content, whose process may read local files: a document created from a file: URL, or
+    // from a blob: URL whose entry local file content added.
+    bool is_local_file_content() const { return m_is_local_file_content; }
+
     void make_active();
 
 private:
@@ -75,6 +79,7 @@ private:
     IsInitialAboutBlank m_is_initial_about_blank { IsInitialAboutBlank::No };
     Web::HTML::OpenerPolicy m_opener_policy;
     bool m_completely_loaded { false };
+    bool m_is_local_file_content { false };
     RefPtr<WebContentPage> m_host;
 };
 
