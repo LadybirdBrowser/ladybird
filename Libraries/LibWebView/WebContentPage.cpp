@@ -219,29 +219,6 @@ Optional<CanonicalNavigable&> WebContentPage::hosted_navigable(Web::HTML::CrossP
     return *navigable;
 }
 
-// A page holds local file content while it hosts such a document, or populates or is to host one for a navigation to a
-// file: URL the UI process admitted. Only such content loads its subresources from the local file system.
-bool WebContentPage::hosts_local_file_content() const
-{
-    bool result = false;
-    for_each_hosted_document([&](CanonicalDocument& document) {
-        result = document.is_local_file_content();
-        return result ? IterationDecision::Break : IterationDecision::Continue;
-    });
-    if (result)
-        return true;
-
-    traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
-        auto const& ongoing_navigation = navigable.ongoing_navigation();
-        result = ongoing_navigation.has_value()
-            && ongoing_navigation->url.has_value()
-            && ongoing_navigation->url->scheme() == "file"sv
-            && (ongoing_navigation->population_worker.ptr() == this || ongoing_navigation->host.ptr() == this);
-        return result ? IterationDecision::Break : IterationDecision::Continue;
-    });
-    return result;
-}
-
 // The environments a page names are the window environments of the documents it hosts, and of those populated for it
 // to host.
 void WebContentPage::for_each_hosted_document(Function<IterationDecision(CanonicalDocument&)> const& callback) const
@@ -1309,11 +1286,29 @@ void WebContentPage::did_request_exit_fullscreen()
         view().on_exit_fullscreen_window();
 }
 
+// A navigation's population steps run in the process with its source document, which need not have hosted local file
+// content. For a navigation to a file: URL the UI process admitted, that process reads the file the URL names.
+bool WebContentPage::populates_a_navigation_to_local_file(ByteString const& path) const
+{
+    bool result = false;
+    traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+        auto const& ongoing_navigation = navigable.ongoing_navigation();
+        result = ongoing_navigation.has_value()
+            && ongoing_navigation->population_worker.ptr() == this
+            && ongoing_navigation->url.has_value()
+            && ongoing_navigation->url->scheme() == "file"sv
+            && ongoing_navigation->url->file_path() == path;
+        return result ? IterationDecision::Break : IterationDecision::Continue;
+    });
+    return result;
+}
+
 void WebContentPage::did_request_file(ByteString path, i32 request_id)
 {
     // NB: The renderer's sandbox keeps it out of the local file system, so this is the only way it can read a file.
-    //     Answer only a process that holds local file content: any other could read every file the user can.
-    if (!client().may_read_local_files()) {
+    //     Answer only a process that has hosted local file content, or one reading the file a navigation it populates
+    //     names: any other could read every file the user can.
+    if (!client().may_read_local_files() && !populates_a_navigation_to_local_file(path)) {
         async_handle_file_return(EACCES, {}, request_id);
         return;
     }

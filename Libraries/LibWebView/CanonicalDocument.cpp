@@ -5,7 +5,6 @@
  */
 
 #include <LibWebView/BlobURLStore.h>
-#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalDocument.h>
@@ -62,15 +61,18 @@ void CanonicalDocument::set_host(RefPtr<WebContentPage> host)
     if (m_host) {
         m_relevant_global_object->agent().set_hosting_process_if_unset(m_host->client());
         m_host->client().request_server_site_bindings().bind_sites_of(*this);
-        // NB: Only a navigation the UI process admitted to a file: URL creates a document from one. A blob: URL entry
-        //     local file content added carries that content's origin, as a document created from it does. The entry
-        //     can be revoked once the document exists, so this is settled when the document is first hosted.
-        if (!m_is_local_file_content) {
-            m_is_local_file_content = m_creation_url.scheme() == "file"sv
-                || (m_creation_url.scheme() == "blob"sv
-                    && m_host->client().session().blob_url_store->is_entry_of_local_file_content(Utf16String::from_utf8(m_creation_url.serialize(URL::ExcludeFragment::Yes)), m_origin));
-        }
     }
+}
+
+// NB: Only a navigation the UI process admitted to a file: URL creates a document from one. A blob: URL entry local file
+//     content added carries that content's origin, as a document created from it does. The entry can be revoked once
+//     the document exists, so this is settled when the document is populated, before a process is chosen to host it.
+void CanonicalDocument::determine_whether_it_is_local_file_content(BlobURLStore const* blob_url_store)
+{
+    m_is_local_file_content = m_creation_url.scheme() == "file"sv
+        || (m_creation_url.scheme() == "blob"sv
+            && blob_url_store
+            && blob_url_store->is_entry_of_local_file_content(Utf16String::from_utf8(m_creation_url.serialize(URL::ExcludeFragment::Yes)), m_origin));
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#make-active

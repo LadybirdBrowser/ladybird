@@ -7,6 +7,7 @@
 #include <LibWebView/CanonicalNavigable.h>
 
 #include <AK/Random.h>
+#include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/HTML/HistoryOperation.h>
 #include <LibWebCommon/HTML/SerializationRecords.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
@@ -627,7 +628,7 @@ void CanonicalNavigable::hand_pending_webdriver_commands_to(WebContentPage& new_
         view->move_pending_webdriver_commands_to_new_host({}, id(), *old_host, new_host);
 }
 
-RefPtr<WebContentClient> CanonicalNavigable::process_to_host(CanonicalDocument const& document, Optional<URL::Origin> const& initiator_origin) const
+RefPtr<WebContentClient> CanonicalNavigable::process_to_host_for_site_isolation(CanonicalDocument const& document, Optional<URL::Origin> const& initiator_origin) const
 {
     RefPtr<WebContentPage> page_holding_navigable = parent() ? reporting_page() : top_level_traversable().page_hosting(*this);
     RefPtr<WebContentClient> process_holding_navigable = page_holding_navigable ? &page_holding_navigable->client() : nullptr;
@@ -664,10 +665,51 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host(CanonicalDocument c
     return nullptr;
 }
 
+// A process that has hosted local file content may read local files, so site isolation has it host no content a site
+// could have made: only local file content, documents of its origin, documents local file content made from what it
+// holds, and about:blank documents no other process can reach. Local file content goes to no other process.
+RefPtr<WebContentClient> CanonicalNavigable::process_to_host(CanonicalDocument const& document, Optional<URL::Origin> const& initiator_origin) const
+{
+    auto process = process_to_host_for_site_isolation(document, initiator_origin);
+
+    // NB: Without site isolation, every document stays with the process holding its navigable, local file content too,
+    //     and that process may then read local files for as long as it lives.
+    if (site_isolation_mode() == SiteIsolationMode::Disabled)
+        return process;
+    auto process_has_hosted_local_file_content = process && process->has_hosted_local_file_content();
+
+    if (document.is_local_file_content())
+        return process_has_hosted_local_file_content ? process : nullptr;
+    if (!process_has_hosted_local_file_content || document.origin().is_file_origin())
+        return process;
+
+    // An agent runs in one process, and one the process hosts was let in with the documents it has there.
+    if (document.relevant_global_object().agent().hosting_process() == process)
+        return process;
+
+    // An about:blank document of an agent no process hosts yet is empty, and nothing else can script it. The browser's
+    // UI creates one between documents.
+    auto const& url = document.creation_url();
+    if (Web::HTML::url_matches_about_blank(url))
+        return process;
+
+    auto is_made_from_what_its_initiator_holds = Web::HTML::url_matches_about_srcdoc(url) || url.scheme() == "data"sv;
+    if (is_made_from_what_its_initiator_holds && initiator_origin.has_value() && initiator_origin->is_file_origin())
+        return process;
+    return nullptr;
+}
+
 ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalNavigable::obtain_page_to_host(CanonicalDocument const& document, Optional<URL::Origin> const& initiator_origin)
 {
+    auto page = TRY(obtain_page_to_host_in(process_to_host(document, initiator_origin)));
+    if (document.is_local_file_content())
+        page->client().set_has_hosted_local_file_content();
+    return page;
+}
+
+ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalNavigable::obtain_page_to_host_in(RefPtr<WebContentClient> host)
+{
     auto& traversable = top_level_traversable();
-    auto host = process_to_host(document, initiator_origin);
     if (!parent())
         return traversable.obtain_page_to_host_traversable(move(host));
 
@@ -745,6 +787,7 @@ RefPtr<CanonicalDocument> CanonicalNavigable::document_populated_for(CanonicalDo
 
 void CanonicalNavigable::populate_document(NonnullRefPtr<CanonicalDocumentState> document_state, NonnullRefPtr<CanonicalDocument> document, Optional<URL::Origin> inline_content_origin)
 {
+    document->determine_whether_it_is_local_file_content(blob_url_store());
     abandon_populated_document(m_document_populated_by_history_job);
     m_document_populated_by_history_job = PopulatedDocument { move(document_state), move(document), move(inline_content_origin) };
 }
@@ -752,6 +795,7 @@ void CanonicalNavigable::populate_document(NonnullRefPtr<CanonicalDocumentState>
 void CanonicalNavigable::populate_document_for_ongoing_navigation(NonnullRefPtr<CanonicalDocumentState> document_state, NonnullRefPtr<CanonicalDocument> document, Optional<URL::Origin> inline_content_origin)
 {
     VERIFY(m_ongoing_navigation.has_value());
+    document->determine_whether_it_is_local_file_content(blob_url_store());
     abandon_populated_document(m_ongoing_navigation->populated_document);
     m_ongoing_navigation->populated_document = PopulatedDocument { move(document_state), move(document), move(inline_content_origin) };
 }
