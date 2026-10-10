@@ -268,6 +268,7 @@ pub(crate) use assert_encodings;
 mod tests {
     use super::super::Gpr;
     use super::super::PortableMacroAssembler;
+    use super::super::aarch64;
     use super::*;
 
     #[test]
@@ -292,7 +293,25 @@ mod tests {
     }
 
     #[test]
+    fn lists_aarch64_code_with_constants() {
+        let mut masm = aarch64::MacroAssembler::new();
+        masm.move_imm64(Gpr(9), 0x1234_0000_0000_def0);
+        let code = masm.finish().unwrap();
+        let listing = listing(Architecture::AArch64, &code);
+        assert_eq!(listing.last().unwrap().constant, Some(0x1234_0000_0000_def0));
+        assert!(listing[0].text.starts_with("mov"), "{listing:?}");
+    }
+
+    #[test]
     fn lists_loads_from_the_constant_pool() {
+        let mut masm = aarch64::MacroAssembler::new();
+        masm.move_imm64(Gpr(9), 0x1234_5678_9abc_def0);
+        let (code, data_offset) = masm.finish_with_data_offset().unwrap();
+        let listing = listing_with_data(Architecture::AArch64, &code, data_offset);
+        assert!(listing[0].text.starts_with("ldr"), "{listing:?}");
+        assert_eq!(listing[0].constant, Some(0x1234_5678_9abc_def0));
+        assert_eq!(listing.last().unwrap().text, ".quad 0x123456789abcdef0");
+
         let mut masm = super::super::x86_64::MacroAssembler::new();
         masm.move_imm64(Gpr(0), 0x1234_5678_9abc_def0);
         let (code, data_offset) = masm.finish_with_data_offset().unwrap();
