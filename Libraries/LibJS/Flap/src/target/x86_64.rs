@@ -197,6 +197,18 @@ define_machine_opcodes! {
         }
     } printing store_instruction(width);
     [Increment32Memory] => Self::Increment32Memory => [[A]] printing simple!("inc"; SimpleOperand::Resolved(0, "DWORD PTR "));
+    [MemoryUpdate { operation: AluOperation, width: MemoryWidth }] => opcode @ Self::MemoryUpdate { operation, width } => [[A, RI]] encoding {
+        let Self::MemoryUpdate { width, .. } = opcode else { unreachable!() };
+        matches!(width, MemoryWidth::Byte | MemoryWidth::Word)
+            && immediate(1).is_none_or(|value| match width {
+                MemoryWidth::Byte => (i8::MIN as i64..=u8::MAX as i64).contains(&value),
+                _ => (i32::MIN as i64..=u32::MAX as i64).contains(&value),
+            })
+    } printing match width {
+        MemoryWidth::Byte => simple!(operation.mnemonic(); SimpleOperand::Resolved(0, "BYTE PTR "), SimpleOperand::ResolvedInteger(1, IntegerWidth::U8)),
+        MemoryWidth::Word => simple!(operation.mnemonic(); SimpleOperand::Resolved(0, "DWORD PTR "), SimpleOperand::ResolvedInteger(1, IntegerWidth::U32)),
+        MemoryWidth::HalfWord | MemoryWidth::DoubleWord | MemoryWidth::Float => unreachable!("unsupported x86-64 memory update width"),
+    };
     [SignExtend32To64] => Self::SignExtend32To64 => [[R, R]] printing simple!("movsxd"; native(0), integer(1, IntegerWidth::U32));
     [Move64Register] => Self::Move64Register => [[R, R]] printing simple!("mov"; native(0), native(1));
     [MoveExecutionContext] => Self::MoveExecutionContext => [[R, R]];
@@ -434,6 +446,10 @@ impl Opcode {
             Operation::Negate => Self::Negate64,
             Operation::Not(width) => Self::BitwiseNot(width),
             Operation::Increment32Memory => Self::Increment32Memory,
+            Operation::MemoryUpdate { operation, width } => Self::MemoryUpdate {
+                operation: AluOperation::from_binary(operation).expect("memory updates use ALU operations"),
+                width,
+            },
             Operation::Memory(MemoryOperation::Load { .. } | MemoryOperation::Store(_))
             | Operation::Move(_)
             | Operation::IntegerBinary { .. } => {

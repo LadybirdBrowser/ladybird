@@ -260,9 +260,18 @@ fn operation_memory_locations(
         return access;
     }
 
-    if *operation == Operation::Intrinsic(Intrinsic::LowLevel(super::LowLevelOperation::Increment32Memory)) {
+    let updated_memory_width = match operation {
+        Operation::Intrinsic(Intrinsic::LowLevel(
+            super::LowLevelOperation::Increment32Memory
+            | super::LowLevelOperation::Or32Memory
+            | super::LowLevelOperation::Subtract32Memory,
+        )) => Some(4),
+        Operation::Intrinsic(Intrinsic::LowLevel(super::LowLevelOperation::Or8Memory)) => Some(1),
+        _ => None,
+    };
+    if let Some(width) = updated_memory_width {
         if let Some(value) = inputs.first()
-            && let Some(location) = address_location(function, *value, 4)
+            && let Some(location) = address_location(function, *value, width)
         {
             access.reads.push(location.clone());
             access.writes.push(location);

@@ -3502,6 +3502,18 @@ fn low_level_machine_operation(operation: LowLevelOperation) -> MachineOperation
         LowLevelOperation::LoadEffectiveAddress => MachineOperation::LoadEffectiveAddress,
         LowLevelOperation::LoadVm => MachineOperation::LoadVm,
         LowLevelOperation::Increment32Memory => MachineOperation::Increment32Memory,
+        LowLevelOperation::Or8Memory => MachineOperation::MemoryUpdate {
+            operation: BinaryOperation::Or,
+            width: MemoryWidth::Byte,
+        },
+        LowLevelOperation::Or32Memory => MachineOperation::MemoryUpdate {
+            operation: BinaryOperation::Or,
+            width: MemoryWidth::Word,
+        },
+        LowLevelOperation::Subtract32Memory => MachineOperation::MemoryUpdate {
+            operation: BinaryOperation::Subtract,
+            width: MemoryWidth::Word,
+        },
         LowLevelOperation::ClearBit => MachineOperation::ClearBit,
         LowLevelOperation::ToggleBit => MachineOperation::ToggleBit,
         LowLevelOperation::Negate => MachineOperation::Negate,

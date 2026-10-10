@@ -604,6 +604,9 @@ define_named_intrinsic_enum! {
         LoadEffectiveAddress => "lea" signatures [signature!([Out AnyGpr, In Memory])];
         LoadVm => "load_vm" signatures [signature!([] -> Vm), signature!([Out AnyGpr])];
         Increment32Memory => "inc32_mem" signatures [signature!([In Memory])];
+        Or8Memory => "or8_mem" signatures [signature!([In Memory, In AnyGpr])];
+        Or32Memory => "or32_mem" signatures [signature!([In Memory, In AnyGpr])];
+        Subtract32Memory => "sub32_mem" signatures [signature!([In Memory, In AnyGpr])];
         ClearBit => "clear_bit" signatures [signature!([InOut AnyGpr, In AnyGpr])];
         ToggleBit => "toggle_bit" signatures [signature!([InOut AnyGpr, In AnyGpr])];
         Negate => "neg" signatures [signature!([InOut AnyGpr])];
@@ -1079,7 +1082,12 @@ impl Intrinsic {
                 ..IntrinsicEffects::PURE
             },
             Self::Control(_) => IntrinsicEffects::UNKNOWN,
-            Self::LowLevel(LowLevelOperation::Increment32Memory) => IntrinsicEffects {
+            Self::LowLevel(
+                LowLevelOperation::Increment32Memory
+                | LowLevelOperation::Or8Memory
+                | LowLevelOperation::Or32Memory
+                | LowLevelOperation::Subtract32Memory,
+            ) => IntrinsicEffects {
                 memory: ModRef::ReadWrite,
                 ..IntrinsicEffects::PURE
             },

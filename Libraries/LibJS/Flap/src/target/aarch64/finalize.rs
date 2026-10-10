@@ -7,7 +7,10 @@
 //! AArch64 machine instruction finalization.
 
 use super::Opcode;
-use super::{AddSubtractOperation, AddressIndexShift, ConditionFlags, FlagUpdate, MemoryAddressing};
+use super::{
+    AddSubtractOperation, AddressIndexShift, ConditionFlags, FlagUpdate, ImmediateShift, LogicalOperation,
+    MemoryAddressing,
+};
 use crate::frontend::layout::KnownLayoutConstant;
 use crate::low_ir::Label;
 use crate::runtime_interface::{RawNativeReturnConvention, raw_native_return_convention};
@@ -32,7 +35,7 @@ use crate::target::registers::{
     PhysicalRegister,
     aarch64::{X21, X22, X23, X24, X25, X26, XZR},
 };
-use crate::{Architecture, CompileError, Target};
+use crate::{Architecture, CompileError, CompileStage, Target};
 
 fn machine_instruction(opcode: Opcode, operands: Vec<MachineOperand>) -> MachineInstruction {
     MachineInstruction {
@@ -2285,6 +2288,89 @@ impl Backend for Aarch64Backend {
                 width: MemoryWidth::Word,
                 addressing,
             } => [address address, register value_scratch];
+        );
+        Ok(())
+    }
+
+    fn finalize_memory_update(
+        &self,
+        emit: &mut Emit<'_>,
+        operation: BinaryOperation,
+        width: MemoryWidth,
+        operands: &[AllocatedOperand],
+    ) -> Result<(), CompileError> {
+        let address = machine_address(operands.operand(0));
+        let source = operands.operand(1);
+        let value_scratch = operands.physical_register(2);
+        let address_scratch = operands.physical_register(3);
+        let (addressing, address) = memory_address(emit, width, address, &[value_scratch], &[address_scratch])
+            .map_err(|error| memory_address_compile_error(emit.handler, error))?;
+        emit!(emit.output, Aarch64;
+            Opcode::Load {
+                width,
+                signed: false,
+                addressing,
+            } => [register value_scratch, address address.clone()];
+        );
+        match (operation, source) {
+            (BinaryOperation::Or, AllocatedOperand::Immediate(value)) => {
+                // NB: Every contiguous run of set bits is a logical immediate.
+                let mut remaining = *value as u32;
+                while remaining != 0 {
+                    let low = remaining.trailing_zeros();
+                    let run = (remaining >> low).trailing_ones();
+                    let mask = if run == 32 {
+                        u32::MAX
+                    } else {
+                        ((1u32 << run) - 1) << low
+                    };
+                    emit!(emit.output, Aarch64;
+                        Opcode::LogicalImmediate {
+                            operation: LogicalOperation::Or,
+                            width: IntegerWidth::U32,
+                        } => [register value_scratch, register value_scratch, immediate i64::from(mask)];
+                    );
+                    remaining &= !mask;
+                }
+            }
+            (BinaryOperation::Or, source) => {
+                let source = verified_register(source);
+                emit!(emit.output, Aarch64;
+                    Opcode::LogicalRegister {
+                        operation: LogicalOperation::Or,
+                        width: IntegerWidth::U32,
+                    } => [register value_scratch, register value_scratch, register source];
+                );
+            }
+            (BinaryOperation::Subtract, AllocatedOperand::Immediate(value)) if (0..=4095).contains(value) => {
+                emit!(emit.output, Aarch64;
+                    Opcode::AddSubtractImmediate {
+                        operation: AddSubtractOperation::Subtract,
+                        shift: ImmediateShift::None,
+                        flags: FlagUpdate::Preserve,
+                    } => [register value_scratch, register value_scratch, immediate *value];
+                );
+            }
+            (BinaryOperation::Subtract, AllocatedOperand::Immediate(_)) => {
+                return Err(CompileError::new(
+                    CompileStage::Finalization,
+                    Some(emit.handler),
+                    "memory subtraction immediate does not fit an AArch64 immediate",
+                ));
+            }
+            (BinaryOperation::Subtract, source) => {
+                let source = verified_register(source);
+                emit!(emit.output, Aarch64;
+                    Opcode::AddSubtractRegister {
+                        operation: AddSubtractOperation::Subtract,
+                        flags: FlagUpdate::Preserve,
+                    } => [register value_scratch, register value_scratch, register source];
+                );
+            }
+            _ => unreachable!("memory updates only OR or subtract"),
+        }
+        emit!(emit.output, Aarch64;
+            Opcode::Store { width, addressing } => [address address, register value_scratch];
         );
         Ok(())
     }

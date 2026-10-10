@@ -204,6 +204,14 @@ pub(crate) trait Backend: Sync {
     fn finalize_memory_increment(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand])
     -> Result<(), CompileError>;
 
+    fn finalize_memory_update(
+        &self,
+        emit: &mut Emit<'_>,
+        operation: BinaryOperation,
+        width: MemoryWidth,
+        operands: &[AllocatedOperand],
+    ) -> Result<(), CompileError>;
+
     fn finalize_scalar_load(
         &self,
         emit: &mut Emit<'_>,

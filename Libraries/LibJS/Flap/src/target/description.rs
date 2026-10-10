@@ -153,6 +153,12 @@ pub(crate) enum Operation {
     Store64IndexedOffset,
     StorePairIndexed(PairWidth),
     Increment32Memory,
+    /// Read-modify-write of a memory location with a register or an
+    /// immediate.
+    MemoryUpdate {
+        operation: BinaryOperation,
+        width: MemoryWidth,
+    },
     LoadEffectiveAddress,
     Move(IntegerWidth),
     IntegerBinary {
@@ -888,6 +894,7 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
             &const { plain(&[GprIn, GprIn, Imm, GprIn, GprIn]).pre_scratches(&[], &[X10]) }
         }
         Operation::Increment32Memory => &const { plain(&[Memory]).pre_scratches(&[], &[X9, X10]) },
+        Operation::MemoryUpdate { .. } => &const { plain(&[Memory, GprInOrImm]).pre_scratches(&[], &[X9, X10]) },
         Operation::LoadEffectiveAddress => &const { plain(&[GprOut, GprInOrMemory]).pre_scratches(&[], &[X9]) },
         Operation::Move(U64) => {
             &const {
