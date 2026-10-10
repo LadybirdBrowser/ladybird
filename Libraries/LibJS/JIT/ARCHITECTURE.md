@@ -8,10 +8,8 @@ The compiler is the `libjs_jit` crate (`Libraries/LibJS/JIT/Rust`). Its runtime 
 snapshots, installs code, enters it and translates its state back into interpreter frames, is in
 `Libraries/LibJS/Rust/src/jit`.
 
-NB: The runtime side does not have the optimizations that need more of the runtime yet: calling functions
-directly, inlining and allocating cells in compiled code (the call stub, `jit/allocation.rs`), and code that
-depends on things staying as they are (`jit/dependencies.rs`). Compiled code leaves those to the interpreter's
-slow paths until they arrive in later changes.
+NB: The runtime side does not have code that depends on things staying as they are (`jit/dependencies.rs`)
+yet. Compiled code checks what it relies on until it arrives in a later change.
 
 ## 1. Overview
 

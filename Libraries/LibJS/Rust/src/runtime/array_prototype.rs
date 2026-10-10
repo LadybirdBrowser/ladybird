@@ -15,6 +15,7 @@ use crate::gc::class::{GcCell, define_cell};
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
+use crate::layout::function_object::RawNativeFunction;
 use crate::layout::object::{IndexedStorageKind, Object};
 use crate::layout::value::Value;
 use crate::layout_forward::RawNativeFunctionPointer;
@@ -119,7 +120,21 @@ fn clamp(value: f64, min: f64, max: f64) -> f64 {
     value
 }
 
+/// The native functions of Array.prototype.push and slice, which JIT code knows.
+static PUSH_FUNCTION: RawNativeFunctionPointer = raw_native!(ArrayPrototype::push);
+static SLICE_FUNCTION: RawNativeFunctionPointer = raw_native!(ArrayPrototype::slice);
+
 impl ArrayPrototype {
+    /// Whether the function is Array.prototype.push (of any realm).
+    pub fn is_push_function(vm: &Vm, function: &RawNativeFunction) -> bool {
+        function.native_function(vm).map(|pointer| pointer as usize) == PUSH_FUNCTION.map(|pointer| pointer as usize)
+    }
+
+    /// Whether the function is Array.prototype.slice (of any realm).
+    pub fn is_slice_function(vm: &Vm, function: &RawNativeFunction) -> bool {
+        function.native_function(vm).map(|pointer| pointer as usize) == SLICE_FUNCTION.map(|pointer| pointer as usize)
+    }
+
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<ArrayPrototype> {
         realm.create_object(
             vm,
@@ -165,7 +180,7 @@ impl ArrayPrototype {
         define_native_function(&names.lastIndexOf, raw_native!(ArrayPrototype::last_index_of), 1);
         define_native_javascript_backed_function(&names.map, intrinsics.map_array_prototype_function(vm));
         define_native_function(&names.pop, raw_native!(ArrayPrototype::pop), 0);
-        define_native_function(&names.push, raw_native!(ArrayPrototype::push), 1);
+        define_native_function(&names.push, PUSH_FUNCTION, 1);
         define_native_javascript_backed_function(&names.reduce, intrinsics.reduce_array_prototype_function(vm));
         define_native_javascript_backed_function(
             &names.reduceRight,
@@ -173,7 +188,7 @@ impl ArrayPrototype {
         );
         define_native_function(&names.reverse, raw_native!(ArrayPrototype::reverse), 0);
         define_native_function(&names.shift, raw_native!(ArrayPrototype::shift), 0);
-        define_native_function(&names.slice, raw_native!(ArrayPrototype::slice), 2);
+        define_native_function(&names.slice, SLICE_FUNCTION, 2);
         define_native_javascript_backed_function(&names.some, intrinsics.some_array_prototype_function(vm));
         define_native_function(&names.sort, raw_native!(ArrayPrototype::sort), 1);
         define_native_function(&names.splice, raw_native!(ArrayPrototype::splice), 2);

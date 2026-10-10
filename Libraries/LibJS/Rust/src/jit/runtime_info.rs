@@ -13,8 +13,12 @@ use libjs_abi::Builtin;
 use libjs_abi::value as nan_box;
 use libjs_jit::bytecode::OpCode;
 use libjs_jit::codegen::slow_path_symbol;
-use libjs_jit::snapshot::{CellId, IntrinsicHelpers, RuntimeInfo, RuntimeLayout, RuntimeOffsets, TypeofStrings};
+use libjs_jit::snapshot::{
+    CellId, DynamicCallLayout, IntrinsicHelpers, RuntimeInfo, RuntimeLayout, RuntimeOffsets, TypeofStrings,
+};
 
+use super::allocation::{AllocationInfos, FUNCTION_ENVIRONMENT_FREE_LIST_COUNT};
+use super::entry_table::{JIT_ENTRY_SLOT_MASK, JIT_ENTRY_TABLE_OWNERS_OFFSET};
 use super::offset;
 use crate::build_configuration::{HEAP_REGION_OFFSET_MASK, PRIMITIVE_STORAGE_CAGE_OFFSET_MASK};
 use crate::bytecode::executable::{
@@ -32,7 +36,11 @@ use crate::layout::environment::{
 };
 use crate::layout::executable::ExecutableHead;
 use crate::layout::execution_context::ExecutionContext;
-use crate::layout::function_object::{EcmascriptFunctionObject, FunctionObject};
+use crate::layout::function_object::{
+    CallEnvironmentTemplate, EcmascriptFunctionObject, FUNCTION_ENVIRONMENT_WORDS, FunctionObject,
+    NATIVE_FUNCTION_TABLE_INDEX_MASK, NativeFunctionTableEntry, RawNativeFunction, SharedFunctionInstanceData,
+    asm_call_metadata,
+};
 use crate::layout::object::{
     INDEXED_ELEMENTS_HEADER_SIZE, IndexedStorageKind, Object, TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID, TypedArrayBase,
     object_flag, typed_array_kind,
@@ -48,6 +56,9 @@ use crate::layout::shape::{PrototypeChainValidity, Shape};
 use crate::layout::value::Value;
 use crate::layout::vm::VmHead;
 use crate::runtime::array::{ARRAY_IS_PROXY_TARGET_OFFSET, ARRAY_LENGTH_WRITABLE_OFFSET};
+use crate::runtime::function_environment::{
+    FUNCTION_ENVIRONMENT_FUNCTION_OBJECT_OFFSET, FUNCTION_ENVIRONMENT_THIS_VALUE_OFFSET,
+};
 use crate::runtime::module_environment::ModuleEnvironment;
 use crate::runtime::object::ObjectMethods;
 
@@ -361,8 +372,9 @@ const _: () = {
 // NB: JIT code reads the cells of the fly string cache as words, null if empty.
 const _: () = assert!(size_of::<core::cell::Cell<Option<Gc<PrimitiveString>>>>() == size_of::<u64>());
 
-/// The runtime info of a compile job for code of `realm`.
-pub fn runtime_info(vm: &Vm, realm: Gc<Realm>) -> RuntimeInfo {
+/// The runtime info of a compile job for code of `realm`, with what JIT code needs to allocate cells itself (which
+/// refers to the cells in `allocation.cells`).
+pub fn runtime_info(vm: &Vm, realm: Gc<Realm>, allocation: AllocationInfos) -> RuntimeInfo {
     let address = |symbol: &str| {
         runtime_function_addresses()
             .iter()
@@ -398,19 +410,42 @@ pub fn runtime_info(vm: &Vm, realm: Gc<Realm>) -> RuntimeInfo {
         bigint: string(strings.bigint),
         function: string(strings.function),
     };
-    RuntimeInfo {
+    let mut info = RuntimeInfo {
         // NB: Nothing notes the creation of objects with the `[[IsHTMLDDA]]` slot, so code cannot rely on there being none.
         no_htmldda_objects: false,
         slow_paths: vm.jit.slow_paths().to_vec(),
         jit_call: super::calls::libjs_jit_call as *const () as u64,
         call_forwarding_arguments: super::calls::libjs_jit_call_forwarding_arguments as *const () as u64,
+        finish_direct_call: super::calls::libjs_jit_finish_direct_call as *const () as u64,
+        raw_native_exception: if RAW_NATIVE_FUNCTIONS_RETURN_IN_REGISTERS {
+            address("asm_helper_handle_raw_native_exception")
+        } else {
+            0
+        },
+        push_inlined_call_frames: super::entry_exit::libjs_jit_push_inlined_call_frames as *const () as u64,
+        finish_inlined_direct_call: super::entry_exit::libjs_jit_finish_inlined_direct_call as *const () as u64,
+        inlined_raw_native_exception: if RAW_NATIVE_FUNCTIONS_RETURN_IN_REGISTERS {
+            super::entry_exit::libjs_jit_inlined_raw_native_exception as *const () as u64
+        } else {
+            0
+        },
+        array_push: super::calls::libjs_jit_array_push as *const () as u64,
+        slice_arguments: super::calls::libjs_jit_slice_arguments as *const () as u64,
         jit_exit: super::entry_exit::libjs_jit_exit as *const () as u64,
         to_boolean: address("asm_helper_to_boolean"),
+        primitive_to_string: super::calls::libjs_jit_primitive_to_string as *const () as u64,
+        to_object: super::calls::libjs_jit_to_object as *const () as u64,
+        array_create: super::calls::libjs_jit_array_create as *const () as u64,
         intrinsic_helpers: IntrinsicHelpers {
             has_own_property: super::intrinsics::libjs_jit_has_own_property as *const () as u64,
             has_property: super::intrinsics::libjs_jit_has_property as *const () as u64,
         },
         create_arguments: super::entry_exit::libjs_jit_create_arguments as *const () as u64,
+        object_allocation: allocation.object,
+        array_allocation: allocation.array,
+        rope_allocation: allocation.rope,
+        function_allocation: allocation.function,
+        create_lexical_environment: super::allocation::libjs_jit_create_lexical_environment as *const () as u64,
         array_prototype: CellId(realm.array_prototype().as_ptr() as u64),
         object_prototype: CellId(realm.object_prototype().as_ptr() as u64),
         no_yield_continuation: ExecutionContext::NO_YIELD_CONTINUATION,
@@ -420,6 +455,74 @@ pub fn runtime_info(vm: &Vm, realm: Gc<Realm>) -> RuntimeInfo {
         object_flag_is_function: object_flag::IS_FUNCTION,
         offsets: runtime_offsets(),
         layout,
-        ..RuntimeInfo::default()
+        dynamic_calls: dynamic_call_layout(vm),
+    };
+    info.dynamic_calls.call_stub = vm.jit.call_stub(&info);
+    info
+}
+
+/// Whether raw native functions return their completion in two registers, the way JIT code calls them. Elsewhere they
+/// return it through a pointer, and JIT code leaves calls of them to the runtime.
+pub const RAW_NATIVE_FUNCTIONS_RETURN_IN_REGISTERS: bool = !cfg!(any(
+    all(target_arch = "x86_64", target_vendor = "apple"),
+    target_os = "windows"
+));
+
+fn dynamic_call_layout(vm: &Vm) -> DynamicCallLayout {
+    let entry_table = vm
+        .jit
+        .entry_table
+        .as_ref()
+        .expect("the VM has a JIT entry table while the JIT is on");
+    DynamicCallLayout {
+        object_flag_is_ecmascript_function: object_flag::IS_ECMASCRIPT_FUNCTION_OBJECT,
+        ecmascript_function_shared_data: offset(offset_of!(EcmascriptFunctionObject, shared_data)),
+        shared_data_executable: offset(offset_of!(SharedFunctionInstanceData, executable)),
+        shared_data_asm_call_metadata: offset(offset_of!(SharedFunctionInstanceData, asm_call_metadata)),
+        executable_jit_entry_slot: offset(offset_of!(ExecutableHead, jit_entry_slot)),
+        jit_entry_table: entry_table.address(),
+        jit_entry_slot_mask: JIT_ENTRY_SLOT_MASK,
+        jit_entry_table_owners: offset(JIT_ENTRY_TABLE_OWNERS_OFFSET),
+        metadata_can_inline_call: asm_call_metadata::CAN_INLINE_CALL,
+        metadata_needs_environment_or_this_value_resolution:
+            asm_call_metadata::NEEDS_ENVIRONMENT_OR_THIS_VALUE_RESOLUTION,
+        metadata_uses_this: asm_call_metadata::USES_THIS,
+        metadata_strict: asm_call_metadata::STRICT,
+        executable_registers_and_locals_and_constants_count: offset(offset_of!(
+            ExecutableHead,
+            registers_and_locals_and_constants_count
+        )),
+        shape_realm: offset(offset_of!(Shape, realm)),
+        object_flag_is_raw_native_function: if RAW_NATIVE_FUNCTIONS_RETURN_IN_REGISTERS {
+            object_flag::IS_RAW_NATIVE_FUNCTION
+        } else {
+            0
+        },
+        raw_native_function_index: offset(offset_of!(RawNativeFunction, native_function_index)),
+        vm_native_function_table: offset(offset_of!(VmHead, native_function_table_data)),
+        native_function_table_index_mask: NATIVE_FUNCTION_TABLE_INDEX_MASK,
+        native_function_table_entry_size: offset(size_of::<NativeFunctionTableEntry>()),
+        native_function_table_entry_function: offset(offset_of!(NativeFunctionTableEntry, function)),
+        prepare_call_environment: super::calls::libjs_jit_prepare_call_environment as *const () as u64,
+        shared_data_call_environment_template: offset(offset_of!(
+            SharedFunctionInstanceData,
+            call_environment_template
+        )),
+        call_environment_template_size_class: offset(offset_of!(CallEnvironmentTemplate, size_class)),
+        function_environment_free_lists: vm.jit.function_environment_free_lists.address(vm),
+        function_environment_size_class_mask: offset(FUNCTION_ENVIRONMENT_FREE_LIST_COUNT - 1),
+        call_environment_template_cell_size: offset(offset_of!(CallEnvironmentTemplate, cell_size)),
+        call_environment_template_binding_values_offset: offset(offset_of!(
+            CallEnvironmentTemplate,
+            binding_values_offset
+        )),
+        call_environment_template_binds_this: offset(offset_of!(CallEnvironmentTemplate, binds_this)),
+        call_environment_template_words: offset(offset_of!(CallEnvironmentTemplate, words)),
+        function_environment_words: offset(FUNCTION_ENVIRONMENT_WORDS),
+        function_environment_binding_values: offset(offset_of!(DeclarativeEnvironment, binding_values.data)),
+        function_environment_outer: offset(offset_of!(Environment, outer)),
+        function_environment_function_object: offset(FUNCTION_ENVIRONMENT_FUNCTION_OBJECT_OFFSET),
+        function_environment_this_value: offset(FUNCTION_ENVIRONMENT_THIS_VALUE_OFFSET),
+        call_stub: 0,
     }
 }

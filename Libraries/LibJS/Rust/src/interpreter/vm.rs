@@ -35,6 +35,7 @@ use crate::gc::heap_function::HeapFunction;
 use crate::gc::root::{MarkedVec, RootSet};
 use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak_container::WeakContainer;
+use crate::jit::code::INLINED_CALL_SITE_BIT;
 use crate::jit::options::Options as JitOptions;
 use crate::jit::{JitState, tier_up};
 use crate::layout::cell::{CellHeader, Gc};
@@ -914,6 +915,14 @@ impl Vm {
         );
     }
 
+    /// The id of a frame, which frames that JIT code creates get when first asked (see ExecutionContext::frame_id).
+    pub fn frame_id_of(&self, frame: &ExecutionContext) -> u64 {
+        if frame.frame_id.get() == 0 {
+            frame.frame_id.set(self.interpreter_stack().take_next_frame_id());
+        }
+        frame.frame_id.get()
+    }
+
     /// Calls `callback` (until it breaks) with every execution context of the stack and of the stacks that
     /// save_execution_context_stack() saved, the way the garbage collector finds them.
     pub fn for_each_live_execution_context(&self, mut callback: impl FnMut(&ExecutionContext) -> ControlFlow<()>) {
@@ -1262,23 +1271,63 @@ impl Vm {
     /// The frames of every execution context, from the running one down, with where each is in its executable.
     pub fn stack_trace(&self) -> Vec<StackTraceElement> {
         let mut stack_trace = Vec::new();
-        self.for_each_execution_context_top_to_bottom(|context| {
+        self.for_each_stack_frame_top_to_bottom(|frame| {
             // NB: Builtins written in JavaScript show up like other builtins, without a position in their source.
-            let runs_builtin = context
+            let runs_builtin = frame
                 .function
-                .get()
                 .is_some_and(|function| function.is::<NativeJavaScriptBackedFunction>());
-            let source_range =
-                context.executable.get().filter(|_| !runs_builtin).map(|executable| {
-                    Executable::from_head(executable).get_source_range(context.program_counter.get())
-                });
+            let source_range = frame
+                .executable
+                .filter(|_| !runs_builtin)
+                .map(|executable| executable.get_source_range(frame.program_counter));
             stack_trace.push(StackTraceElement {
-                execution_context: NonNull::from(context),
+                execution_context: NonNull::from(frame.execution_context),
+                function: frame.function,
                 source_range,
             });
             ControlFlow::Continue(())
         });
         stack_trace
+    }
+
+    /// Calls `callback` with each frame from the running one down, until it breaks, like
+    /// for_each_execution_context_top_to_bottom(), and with the frames of calls that JIT code inlined and runs without
+    /// execution contexts of their own (see INLINED_CALL_SITE_BIT), between the callee frame of the call they make and
+    /// the frame of the function they are inlined in. Those all run in that function's realm and script, so walks that
+    /// only look at realms and scripts need not see them.
+    pub fn for_each_stack_frame_top_to_bottom(&self, mut callback: impl FnMut(StackFrame<'_>) -> ControlFlow<()>) {
+        self.for_each_execution_context_top_to_bottom(|context| {
+            callback(StackFrame {
+                execution_context: context,
+                function: context.function.get(),
+                executable: context.executable.get().map(Executable::from_head),
+                program_counter: context.program_counter.get(),
+                inlined_call: None,
+            })?;
+            let caller = context.caller_frame.get();
+            let return_pc = context.caller_return_pc.get();
+            if caller.is_null() || return_pc & INLINED_CALL_SITE_BIT == 0 {
+                return ControlFlow::Continue(());
+            }
+            // SAFETY: A frame's caller outlives it.
+            let caller = unsafe { &*caller };
+            let site = return_pc & !INLINED_CALL_SITE_BIT;
+            let frame_pointer = crate::jit::translate::frame_pointer_from_low_half(context.caller_dst_raw.get());
+            for frame in crate::jit::translate::call_site_frames(caller, site, frame_pointer) {
+                callback(StackFrame {
+                    execution_context: caller,
+                    function: Some(frame.function),
+                    executable: Some(frame.executable),
+                    program_counter: frame.program_counter,
+                    inlined_call: Some(InlinedCallStackFrame {
+                        site,
+                        frame_pointer,
+                        frame_state: frame.frame_state,
+                    }),
+                })?;
+            }
+            ControlFlow::Continue(())
+        });
     }
 
     /// Drops the weak cache entries of strings that died in this collection.
@@ -1966,10 +2015,34 @@ pub struct TypeErrorRealmOverride {
     pub depth: usize,
 }
 
-/// An element of VM::stack_trace(): an execution context and where it is in its executable, if it runs one.
+/// An element of VM::stack_trace(): a frame's execution context, its function and where it is in its executable, if it
+/// runs one. A frame of a call that JIT code inlined has the execution context of the function it is inlined in.
 pub struct StackTraceElement {
     pub execution_context: NonNull<ExecutionContext>,
+    pub function: Option<Gc<FunctionObject>>,
     pub source_range: Option<SourceRange>,
+}
+
+/// A frame of VM::for_each_stack_frame_top_to_bottom(): an execution context, or a frame of a call that JIT code
+/// inlined, with the execution context of the function it is inlined in.
+#[derive(Clone, Copy)]
+pub struct StackFrame<'a> {
+    pub execution_context: &'a ExecutionContext,
+    pub function: Option<Gc<FunctionObject>>,
+    pub executable: Option<Gc<Executable>>,
+    pub program_counter: u32,
+    /// For a frame of a call that JIT code inlined: where its values are.
+    pub inlined_call: Option<InlinedCallStackFrame>,
+}
+
+/// Where the values of a frame of a call that JIT code inlined are: the inlined call site of the code running the
+/// execution context of the stack frame, the JIT frame, and the frame's frame state there (see
+/// jit::translate::call_site_frame_arguments()).
+#[derive(Clone, Copy)]
+pub struct InlinedCallStackFrame {
+    pub site: u32,
+    pub frame_pointer: u64,
+    pub frame_state: usize,
 }
 
 /// TextCodec's UTF-8 decoder, unless the bytes start with a byte order mark, which picks the encoding instead. Both

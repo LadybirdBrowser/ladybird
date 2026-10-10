@@ -541,17 +541,32 @@ impl EcmascriptFunctionObject {
 
     // 10.2.1.2 OrdinaryCallBindThis ( F, calleeContext, thisArgument ), https://tc39.es/ecma262/#sec-ordinarycallbindthis
     pub fn ordinary_call_bind_this(&self, vm: &Vm, callee_context: &ExecutionContext, this_argument: Value) {
+        if let Some(this_value) =
+            self.resolve_and_bind_this(vm, callee_context.lexical_environment.get(), this_argument)
+        {
+            callee_context.this_value.set(this_value);
+        }
+    }
+
+    /// OrdinaryCallBindThis() for a call whose callee context has `local_env` as its LexicalEnvironment: binds and
+    /// returns the this value, or returns nothing if the function's this is lexical.
+    pub fn resolve_and_bind_this(
+        &self,
+        vm: &Vm,
+        local_env: Option<Gc<Environment>>,
+        this_argument: Value,
+    ) -> Option<Value> {
         // 1. Let thisMode be F.[[ThisMode]].
         // If thisMode is lexical, return unused.
         if self.this_mode() == ThisMode::Lexical {
-            return;
+            return None;
         }
 
         // 3. Let calleeRealm be F.[[Realm]].
         let callee_realm = self.realm().expect("an ECMAScript function has a realm");
 
         // 4. Let localEnv be the LexicalEnvironment of calleeContext.
-        let local_env = callee_context.lexical_environment.get();
+        // NB: The caller passes it.
 
         // 5. If thisMode is strict, let thisValue be thisArgument.
         let this_value = if self.this_mode() == ThisMode::Strict {
@@ -581,7 +596,6 @@ impl EcmascriptFunctionObject {
         // 7. Assert: localEnv is a function Environment Record.
         // 8. Assert: The next step never returns an abrupt completion because localEnv.[[ThisBindingStatus]] is not initialized.
         // 9. Perform ! localEnv.BindThisValue(thisValue).
-        callee_context.this_value.set(this_value);
         if self.function_environment_needed() {
             local_env
                 .and_then(|environment| environment.downcast::<FunctionEnvironment>())
@@ -591,6 +605,7 @@ impl EcmascriptFunctionObject {
         }
 
         // 10. Return unused.
+        Some(this_value)
     }
 
     /// The LexicalEnvironment and VariableEnvironment of a call of the function in an inline frame: a new function
@@ -609,6 +624,16 @@ impl EcmascriptFunctionObject {
         );
         local_environment.ensure_capacity(function_environment_bindings_count);
         Some(local_environment.upcast())
+    }
+
+    /// Whether calls of the function need a function environment or the resolution of their this value through the
+    /// environment, which inline frames of JIT code do not set up.
+    pub fn needs_environment_or_this_value_resolution(&self) -> bool {
+        self.function_environment_needed() || self.this_value_needs_environment_resolution()
+    }
+
+    pub fn contains_direct_call_to_eval(&self) -> bool {
+        self.shared_data().contains_direct_call_to_eval()
     }
 
     // 10.2.1.4 OrdinaryCallEvaluateBody ( F, argumentsList ), https://tc39.es/ecma262/#sec-ordinarycallevaluatebody
@@ -940,15 +965,15 @@ impl EcmascriptFunctionObject {
         let mut caller: Option<Gc<EcmascriptFunctionObject>> = None;
         let mut found_this_function = false;
 
-        vm.for_each_execution_context_top_to_bottom(|context| {
+        vm.for_each_stack_frame_top_to_bottom(|frame| {
             if !found_this_function {
-                if context.function.get() == Some(this_function) {
+                if frame.function == Some(this_function) {
                     found_this_function = true;
                 }
                 return ControlFlow::Continue(());
             }
 
-            let Some(function) = context.function.get() else {
+            let Some(function) = frame.function else {
                 return ControlFlow::Continue(());
             };
 
@@ -970,26 +995,44 @@ impl EcmascriptFunctionObject {
 
     fn legacy_arguments(&self, vm: &Vm) -> Value {
         let this_function = self.as_function_object_gc();
-        let mut active_context: Option<NonNull<ExecutionContext>> = None;
+        // NB: The arguments of a frame of an inlined call may be objects JIT code never created, which only the
+        //     arguments object holds once it exists.
+        let _defer_gc = crate::jit::DeferGc::new(vm);
+        let mut passed_arguments: Option<Vec<Cell<Value>>> = None;
 
-        vm.for_each_execution_context_top_to_bottom(|context| {
-            if context.function.get() != Some(this_function) {
+        vm.for_each_stack_frame_top_to_bottom(|frame| {
+            if frame.function != Some(this_function) {
                 return ControlFlow::Continue(());
             }
 
-            active_context = Some(NonNull::from(context));
+            // NB: The frame of a call that JIT code inlined has its arguments in the JIT frame.
+            passed_arguments = Some(match frame.inlined_call {
+                Some(inlined_call) => crate::jit::translate::call_site_frame_arguments(
+                    vm,
+                    frame.execution_context,
+                    inlined_call.site,
+                    inlined_call.frame_pointer,
+                    inlined_call.frame_state,
+                )
+                .into_iter()
+                .map(Cell::new)
+                .collect(),
+                None => {
+                    let context = frame.execution_context;
+                    context.arguments()[..context.passed_argument_count.get() as usize]
+                        .iter()
+                        .map(|argument| Cell::new(argument.get()))
+                        .collect()
+                }
+            });
             ControlFlow::Break(())
         });
 
-        let Some(active_context) = active_context else {
+        let Some(passed_arguments) = passed_arguments else {
             return Value::NULL;
         };
 
-        // SAFETY: The context is a frame of a call of this function that has not returned yet.
-        let active_context = unsafe { active_context.as_ref() };
-        let arguments = active_context.arguments();
-        let passed_arguments = &arguments[..active_context.passed_argument_count.get() as usize];
-        let arguments_object = create_unmapped_arguments_object(vm, passed_arguments);
+        let arguments_object = create_unmapped_arguments_object(vm, &passed_arguments);
         if self.has_simple_parameter_list() {
             arguments_object.define_direct_property(
                 vm,

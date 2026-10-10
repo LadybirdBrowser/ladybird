@@ -39,6 +39,8 @@ pub struct ExecutionContext {
     pub lexical_environment: Cell<Option<Gc<Environment>>>,
     pub variable_environment: Cell<Option<Gc<Environment>>>,
     pub private_environment: Cell<Option<Gc<PrivateEnvironment>>>,
+    /// Tells frames apart for the debugger. Frames that JIT code creates have none (0) until the debugger asks (see
+    /// Vm::frame_id_of()).
     pub frame_id: Cell<u64>,
     pub program_counter: Cell<u32>,
     pub skip_when_determining_incumbent_counter: Cell<u32>,

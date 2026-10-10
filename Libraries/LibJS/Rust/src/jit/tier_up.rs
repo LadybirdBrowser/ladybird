@@ -10,7 +10,7 @@ use core::ptr::NonNull;
 
 use libjs_jit::code::CompiledCode;
 
-use super::code::{CompileState, EntryStatus, JitCode};
+use super::code::{CompileState, EntryStatus, JitCode, SnapshotExecutable};
 use super::compile_queue::CompileResult;
 use super::executable_memory::ExecutableMemory;
 use super::snapshot::capture_snapshot;
@@ -236,7 +236,13 @@ fn should_install(vm: &Vm, result: &CompileResult) -> bool {
     }) && !vm.debugging_enabled()
 }
 
-fn install(vm: &Vm, executable: Gc<Executable>, compiled: CompiledCode, memory: ExecutableMemory) {
+fn install(
+    vm: &Vm,
+    executable: Gc<Executable>,
+    compiled: CompiledCode,
+    memory: ExecutableMemory,
+    snapshot: SnapshotExecutables,
+) {
     let embedded_cells = compiled
         .embedded_cells
         .iter()
@@ -251,6 +257,7 @@ fn install(vm: &Vm, executable: Gc<Executable>, compiled: CompiledCode, memory: 
         &compiled.osr_entries,
         compiled.sites,
         embedded_cells,
+        snapshot,
     );
     // NB: Code may be installed while frames of the executable loop in the interpreter, because the compile was
     //     queued (from the tier-up check of another executable, like a callee's), or because they exited from the
@@ -259,8 +266,16 @@ fn install(vm: &Vm, executable: Gc<Executable>, compiled: CompiledCode, memory: 
     executable.install_jit_code(Box::new(code), compile_wait_budget(&vm.jit.options));
 }
 
+type SnapshotExecutables = Vec<SnapshotExecutable>;
+
 /// Finishes a compile whose code, if it should be installed, is in `memory`.
-fn finish_compile(vm: &Vm, executable: Gc<Executable>, result: CompileResult, memory: Option<ExecutableMemory>) {
+fn finish_compile(
+    vm: &Vm,
+    executable: Gc<Executable>,
+    result: CompileResult,
+    memory: Option<ExecutableMemory>,
+    snapshot_executables: SnapshotExecutables,
+) {
     assert_eq!(executable.jit_compile_state(), CompileState::Queued);
     let options = &vm.jit.options;
     let compiled = match result {
@@ -287,7 +302,7 @@ fn finish_compile(vm: &Vm, executable: Gc<Executable>, result: CompileResult, me
         eprintln!("JIT code for {}:\n{dump}", super::describe_executable(&executable));
     }
     if let Some(memory) = memory {
-        install(vm, executable, compiled, memory);
+        install(vm, executable, compiled, memory, snapshot_executables);
     }
     if executable.jit_compile_state() != CompileState::Installed {
         executable.set_jit_compile_state(CompileState::None);
@@ -325,7 +340,7 @@ fn compile(
             .pop()
             .expect("one code was allocated")
         });
-        finish_compile(vm, executable, result, memory);
+        finish_compile(vm, executable, result, memory, captured.snapshot_executables);
         drop(defer_gc);
         return;
     }
@@ -333,6 +348,7 @@ fn compile(
     let job_id = vm.jit.add_job(CompileJob {
         executable,
         cells: captured.cells,
+        snapshot_executables: captured.snapshot_executables,
     });
     drop(defer_gc);
     vm.jit.compile_queue().submit(job_id, captured.snapshot);
@@ -410,6 +426,6 @@ fn install_compile_results(vm: &Vm, results: Vec<(u64, CompileResult)>) {
         } else {
             None
         };
-        finish_compile(vm, job.executable, result, memory);
+        finish_compile(vm, job.executable, result, memory, job.snapshot_executables);
     }
 }

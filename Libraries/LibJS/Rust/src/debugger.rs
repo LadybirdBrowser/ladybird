@@ -193,6 +193,10 @@ impl Debugger {
         assert!(!stack_trace.is_empty());
         let source_range = executable.source_range_at(bytecode_offset);
         stack_trace[0].source_range = source_range.clone();
+        // NB: Frames that JIT code creates get their ids when the debugger first needs them, which is when it steps
+        //     from a paused frame.
+        // SAFETY: The frames of the stack trace are live while execution is paused.
+        vm.frame_id_of(unsafe { stack_trace[0].execution_context.as_ref() });
         self.paused_execution_context
             .set(stack_trace[0].execution_context.as_ptr().cast_const());
         *self.paused_source_range.borrow_mut() = source_range.clone();

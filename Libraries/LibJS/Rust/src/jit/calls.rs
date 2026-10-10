@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Calls from JIT code: the call instructions it leaves to the runtime, and the slow paths for property accesses it
-//! leaves to the runtime.
+//! Calls from JIT code: the call instructions it leaves to the runtime, and the runtime functions its direct calls,
+//! the call stub and its call intrinsics use.
 
 use core::ptr::NonNull;
 
@@ -13,7 +13,7 @@ use libjs_abi::register;
 
 use super::code::EntryStatus;
 use super::entry_exit::{can_enter_jit_code, enter_jit_code};
-use super::frame_of;
+use super::{frame_of, frames_above};
 use crate::bytecode::encoding::Operand;
 use crate::bytecode::executable::Executable;
 use crate::bytecode::instruction::OpCode;
@@ -35,7 +35,9 @@ use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{
     create_unmapped_arguments_object, get_prototype_from_constructor, length_of_array_like,
 };
+use crate::runtime::array::Array;
 use crate::runtime::bound_function::BoundFunction;
+use crate::runtime::completion::Must;
 use crate::runtime::ecmascript_function_object::{as_ecmascript_function_object, value_as_ecmascript_function_object};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
@@ -43,8 +45,10 @@ use crate::runtime::function_prototype::FunctionPrototype;
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::iterator::get_iterator_values;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
+use crate::runtime::primitive_string::PrimitiveString;
+use crate::runtime::property_attributes::DEFAULT_ATTRIBUTES;
 use crate::runtime::property_key::PropertyKey;
-use crate::runtime::shared_function_instance_data::{ConstructorKind, FunctionKind};
+use crate::runtime::shared_function_instance_data::{ConstructorKind, FunctionKind, ThisMode};
 
 /// Calls through Function.prototype.call/apply and bound functions are unwrapped this many times before the generic
 /// call machinery takes over.
@@ -822,6 +826,198 @@ pub unsafe extern "C" fn libjs_jit_call_forwarding_arguments(
         .map(core::cell::Cell::get)
         .collect();
     call_from_jit_or_generic(vm, &site, function, this_argument, &arguments, 1).0
+}
+
+/// `i64 libjs_jit_finish_direct_call(VM*, ExecutionContext* frame, u32 pc, u64 status)`: finishes a direct call made
+/// for the Call instruction at `pc` of `frame` that did not return to JIT code: `status` is the `EntryStatus` the
+/// callee's JIT code returned (Resume or ExitInterpreter), or Returned if JIT code did not enter the callee's frame,
+/// which is the running execution context. Runs the callee's frame to completion in the interpreter as needed, and
+/// returns a slow path control word for the call, whose result is in its destination slot.
+///
+/// # Safety
+///
+/// JIT code calls this with its VM and frame, and the pc of the Call instruction.
+pub unsafe extern "C" fn libjs_jit_finish_direct_call(
+    vm: *const Vm,
+    frame: *mut ExecutionContext,
+    pc: u32,
+    status: u64,
+) -> i64 {
+    // SAFETY: JIT code passes live pointers.
+    let vm = unsafe { &*vm };
+    let frame = NonNull::new(frame).expect("JIT code passes its frame");
+    let frame_ref = frame_of(frame);
+    let executable = Executable::from_head(frame_ref.executable.get().expect("the frame runs an executable"));
+    let instruction = &executable.bytecode()[pc as usize..];
+    assert_eq!(instruction[0], OpCode::Call as u8);
+    // SAFETY: The bytes at pc are a Call instruction.
+    let call = unsafe { &*instruction.as_ptr().cast::<op::Call>() };
+
+    // NB: The callee's frame, and the frames of the calls it inlined that its exit materialized, run in the
+    //     interpreter from now on.
+    for callee_frame in frames_above(vm, frame).expect("the calling frame is on the running frame's chain") {
+        frame_of(callee_frame).runs_jit_code.set(false);
+    }
+    if status != EntryStatus::ExitInterpreter as u64 {
+        vm.run_running_frame_in_interpreter();
+    }
+    finish_call_from_jit(vm, frame, pc, pc + call.length()).0
+}
+
+/// What `libjs_jit_prepare_call_environment()` returns, in two registers.
+#[repr(C)]
+pub struct CallEnvironment {
+    pub environment: u64,
+    pub this_value: u64,
+}
+
+/// `CallEnvironment libjs_jit_prepare_call_environment(VM*, ECMAScriptFunctionObject*, u64 this_argument)`: the
+/// environment of a call of the function that needs a function environment or the resolution of its this value, and
+/// its this value (empty if it has none), or a null environment to take the generic path.
+///
+/// # Safety
+///
+/// JIT code calls this with its VM and an ECMAScript function that can be called inline.
+pub unsafe extern "C" fn libjs_jit_prepare_call_environment(
+    vm: *const Vm,
+    function: *const EcmascriptFunctionObject,
+    this_argument: u64,
+) -> CallEnvironment {
+    // SAFETY: JIT code passes live pointers.
+    let (vm, function) = unsafe {
+        (
+            &*vm,
+            Gc::from_non_null(NonNull::new(function.cast_mut()).expect("a function")),
+        )
+    };
+    let argument = Value(this_argument);
+    // NB: ToObject would make a wrapper of the caller's realm.
+    if function.uses_this()
+        && function.this_mode() == ThisMode::Global
+        && !argument.is_nullish()
+        && !argument.is_object()
+        && function.realm() != vm.current_realm()
+    {
+        return CallEnvironment {
+            environment: 0,
+            this_value: 0,
+        };
+    }
+    let environment = function.inline_call_environment(vm, None);
+    let mut this_value = Value::EMPTY;
+    if function.uses_this()
+        && let Some(bound) = function.resolve_and_bind_this(vm, environment, argument)
+    {
+        this_value = bound;
+    }
+    if let Some(environment) = environment
+        && function.function_environment_needed()
+    {
+        super::allocation::make_call_environment_template(vm, function, environment);
+    }
+    CallEnvironment {
+        environment: environment.map_or(0, |environment| environment.as_ptr() as u64),
+        this_value: this_value.0,
+    }
+}
+
+/// `u64 libjs_jit_array_push(Array*, u64 value)`: appends `value` to the array, which Array.prototype.push would
+/// append it to without any observable step, and returns the new length as a value.
+///
+/// # Safety
+///
+/// JIT code calls this with a live array whose elements are packed.
+pub unsafe extern "C" fn libjs_jit_array_push(array: *const Array, value: u64) -> u64 {
+    // SAFETY: JIT code passes a live array.
+    let array = unsafe { &*array };
+    assert!(matches!(
+        array.indexed_storage_kind(),
+        IndexedStorageKind::None | IndexedStorageKind::Packed
+    ));
+    array.indexed_append(Value(value), DEFAULT_ATTRIBUTES);
+    Value::from_f64(f64::from(array.indexed_array_like_size())).0
+}
+
+/// `u64 libjs_jit_primitive_to_string(VM*, u64 primitive)`: `String(primitive)`, which is ToString of the primitive,
+/// but the descriptive string of a symbol.
+///
+/// # Safety
+///
+/// JIT code calls this with its VM and a primitive.
+pub unsafe extern "C" fn libjs_jit_primitive_to_string(vm: *const Vm, primitive: u64) -> u64 {
+    // SAFETY: JIT code passes its VM.
+    let vm = unsafe { &*vm };
+    let primitive = Value(primitive);
+    assert!(!primitive.is_object());
+    // 22.1.1.1 String ( value ), https://tc39.es/ecma262/#sec-string-constructor-string-value
+    if primitive.is_symbol() {
+        return Value::from_string(PrimitiveString::create(vm, primitive.as_symbol().descriptive_string())).0;
+    }
+    // NB: ToString of other primitives runs no code and cannot throw.
+    Value::from_string(primitive.to_primitive_string(vm).must()).0
+}
+
+/// `u64 libjs_jit_to_object(VM*, u64 primitive, u64 function)`: ToObject of a primitive other than undefined and
+/// null, as the builtin function `function` makes it, or the empty value if that function is of another realm.
+///
+/// # Safety
+///
+/// JIT code calls this with its VM, a function object and such a primitive.
+pub unsafe extern "C" fn libjs_jit_to_object(vm: *const Vm, primitive: u64, function: u64) -> u64 {
+    // SAFETY: JIT code passes its VM.
+    let vm = unsafe { &*vm };
+    let (function, primitive) = (Value(function).as_object(), Value(primitive));
+    assert!(!primitive.is_object() && !primitive.is_nullish());
+    if vm.current_realm() != Some(function.shape().realm()) {
+        return Value::EMPTY.0;
+    }
+    // NB: ToObject of other primitives runs no code and cannot throw.
+    Value::from_object(primitive.to_object(vm).must()).0
+}
+
+/// `u64 libjs_jit_array_create(VM*, u32 length, u64 function)`: ArrayCreate(length) as the builtin function `function`
+/// (the Array constructor) makes it, or the empty value if that function is of another realm.
+///
+/// # Safety
+///
+/// JIT code calls this with its VM, a length below 2^31 and a function object.
+pub unsafe extern "C" fn libjs_jit_array_create(vm: *const Vm, length: u32, function: u64) -> u64 {
+    // SAFETY: JIT code passes its VM.
+    let vm = unsafe { &*vm };
+    let realm = Value(function).as_object().shape().realm();
+    if vm.current_realm() != Some(realm) {
+        return Value::EMPTY.0;
+    }
+    // NB: Lengths below 2^32 are valid.
+    Value::from_object(Array::create(vm, realm, u64::from(length), None).must()).0
+}
+
+/// `u64 libjs_jit_slice_arguments(VM*, ExecutionContext* frame, i32 start)`: `Array.prototype.slice.call(arguments,
+/// start)` with the arguments object of the frame, which the code never created, as an array value.
+///
+/// # Safety
+///
+/// JIT code calls this with its VM and its frame.
+pub unsafe extern "C" fn libjs_jit_slice_arguments(vm: *const Vm, frame: *const ExecutionContext, start: i32) -> u64 {
+    // SAFETY: JIT code passes live pointers.
+    let (vm, frame) = unsafe { (&*vm, &*frame) };
+    // 23.1.3.28 Array.prototype.slice ( start, end ), https://tc39.es/ecma262/#sec-array.prototype.slice
+    // NB: The arguments object has every passed argument, and its length is their count.
+    let length = i64::from(frame.passed_argument_count.get());
+    let start = i64::from(start);
+    let first = if start < 0 {
+        (length + start).max(0)
+    } else {
+        start.min(length)
+    };
+    let mut arguments = ArgumentStorage::new(
+        vm,
+        frame.arguments()[first as usize..length as usize]
+            .iter()
+            .map(core::cell::Cell::get),
+    );
+    let realm = vm.current_realm().expect("JIT code runs in a realm");
+    Value::from_object(Array::create_from(vm, realm, arguments.values())).0
 }
 
 /// The GetById slow path of JIT code, before the full one. Generic GetById nodes have no inline cache check, so this

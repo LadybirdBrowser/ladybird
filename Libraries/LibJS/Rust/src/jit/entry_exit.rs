@@ -14,7 +14,7 @@ use libjs_jit::code::SiteKind;
 
 use super::code::{CompileState, EntryStatus, JitEntry, JitResult};
 use super::translate::{self, RegisterDump};
-use super::{executable_of, frame_of};
+use super::{executable_of, frame_of, frames_above};
 use crate::bytecode::executable::Executable;
 use crate::interpreter::vm::Vm;
 use crate::layout::execution_context::ExecutionContext;
@@ -113,9 +113,10 @@ pub fn helper_enter_jit_code(vm: &Vm) -> i64 {
     }
 }
 
-/// Called by exit and leave stubs with the index of their site: translates the state of compiled code there into the
-/// interpreter's frame (see `translate::exit()` and `translate::leave()`). After an exit, the JIT function returns
-/// `EntryStatus::Resume`, and the interpreter continues in the frame.
+/// Called by exit and leave stubs, and by slow paths in inlined callees, with the index of their site: translates the
+/// state of compiled code there into interpreter frames (see `translate::exit()`, `translate::leave()` and
+/// `translate::publish()`). After an exit, the JIT function returns
+/// `EntryStatus::Resume`, and the interpreter continues in the innermost frame.
 ///
 /// # Safety
 ///
@@ -135,8 +136,92 @@ pub unsafe extern "C" fn libjs_jit_exit(
     match code.site(site).kind {
         SiteKind::Exit(_) => translate::exit(vm, root, code, site, dump),
         SiteKind::Leave => translate::leave(vm, root, code, site, dump),
-        SiteKind::Publish | SiteKind::Call => unreachable!("only code with inlined calls has these sites"),
+        SiteKind::Publish => translate::publish(vm, root, code, site, dump),
+        SiteKind::Call => unreachable!("call sites are no exits"),
     }
+}
+
+/// The frame a call at a call site in an inlined callee of the code running `root` made, from the running frame: the
+/// one linked to `root`.
+fn call_site_callee_frame(vm: &Vm, root: NonNull<ExecutionContext>) -> NonNull<ExecutionContext> {
+    *frames_above(vm, root)
+        .expect("the frame is on the running frame's chain")
+        .last()
+        .expect("the callee frame is linked to the frame")
+}
+
+/// Called by compiled code on the generic paths of a call at an inlined call site, which run in the frames of its
+/// inlined calls: pushes them (see `materialize_inlined_call_frames()`), and returns the innermost one, which runs.
+///
+/// # Safety
+///
+/// Compiled code calls this with its VM, its frame, one of its code's inlined call sites and its frame pointer.
+pub unsafe extern "C" fn libjs_jit_push_inlined_call_frames(
+    vm: *const Vm,
+    frame: *mut ExecutionContext,
+    site: u32,
+    frame_pointer: u64,
+) -> *mut ExecutionContext {
+    // SAFETY: JIT code passes live pointers.
+    let vm = unsafe { &*vm };
+    let root = NonNull::new(frame).expect("JIT code passes its frame");
+    translate::materialize_call_site_frames(vm, root, site, frame_pointer, None).as_ptr()
+}
+
+/// Called by compiled code when the callee of a direct call at an inlined call site did not return to it: materializes
+/// the frames of the call's inlined calls below the callee's frame, and finishes the call in the innermost one like
+/// `libjs_jit_finish_direct_call()`.
+///
+/// # Safety
+///
+/// Compiled code calls this with its VM, its frame, one of its code's inlined call sites, its frame pointer and the
+/// callee's status.
+pub unsafe extern "C" fn libjs_jit_finish_inlined_direct_call(
+    vm: *const Vm,
+    frame: *mut ExecutionContext,
+    site: u32,
+    frame_pointer: u64,
+    status: u64,
+) -> i64 {
+    // SAFETY: JIT code passes live pointers.
+    let vm_ref = unsafe { &*vm };
+    let root = NonNull::new(frame).expect("JIT code passes its frame");
+    let callee = call_site_callee_frame(vm_ref, root);
+    let innermost = translate::materialize_call_site_frames(vm_ref, root, site, frame_pointer, Some(callee));
+    let pc = executable_of(frame_of(root))
+        .jit_code()
+        .expect("the code is attached")
+        .site(site)
+        .frames[0]
+        .pc;
+    // SAFETY: The innermost frame of the inlined calls is the call's frame now.
+    unsafe { super::calls::libjs_jit_finish_direct_call(vm, innermost.as_ptr(), pc, status) }
+}
+
+/// Called by compiled code when the native function of a native call at an inlined call site threw: materializes the
+/// frames of the call's inlined calls below the native function's frame, and unwinds it like the runtime does for
+/// native calls.
+///
+/// # Safety
+///
+/// Compiled code calls this with its VM, its frame, one of its code's inlined call sites, its frame pointer and the
+/// exception.
+pub unsafe extern "C" fn libjs_jit_inlined_raw_native_exception(
+    vm: *const Vm,
+    frame: *mut ExecutionContext,
+    site: u32,
+    frame_pointer: u64,
+    exception: u64,
+) -> i64 {
+    // SAFETY: JIT code passes live pointers.
+    let vm = unsafe { &*vm };
+    let root = NonNull::new(frame).expect("JIT code passes its frame");
+    let native_frame = vm
+        .running_execution_context()
+        .expect("the native function's frame runs");
+    assert_eq!(frame_of(native_frame).caller_frame.get(), root.as_ptr());
+    translate::materialize_call_site_frames(vm, root, site, frame_pointer, Some(native_frame));
+    crate::interpreter::slow_paths::calls::handle_raw_native_exception(vm, Value(exception)).0
 }
 
 /// Called by JIT code that never created the arguments object of the frame (whose arguments are unchanged) when it

@@ -74,12 +74,9 @@ impl ErrorData {
         let stack_trace = vm.stack_trace();
         let mut traceback = Vec::with_capacity(stack_trace.len());
         for element in stack_trace {
-            // SAFETY: The elements of a stack trace are the live execution contexts it was taken from.
-            let context = unsafe { element.execution_context.as_ref() };
             traceback.push(TracebackFrame {
-                function_name: context
+                function_name: element
                     .function
-                    .get()
                     .map(|function| function.name_for_call_stack())
                     .unwrap_or_default(),
                 cached_source_range: element.source_range,

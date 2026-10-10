@@ -360,12 +360,8 @@ impl Console {
 
         // NOTE: Skip the first frame (console.trace() itself)
         for element in stack_trace.iter().skip(1) {
-            // SAFETY: The contexts of a stack trace are live until the running code returns.
-            let context = unsafe { element.execution_context.as_ref() };
-
-            let function_name = context
+            let function_name = element
                 .function
-                .get()
                 .map(|function| function.name_for_call_stack())
                 .unwrap_or_default();
             let function_name = if Utf16View::of_string(&function_name).is_empty() {

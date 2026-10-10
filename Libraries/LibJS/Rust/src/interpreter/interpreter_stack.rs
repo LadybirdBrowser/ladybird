@@ -74,8 +74,7 @@ impl InterpreterStack {
         if (self.limit.get() as usize) - (top as usize) < size {
             return None;
         }
-        let frame_id = self.next_frame_id.get();
-        self.next_frame_id.set(frame_id + 1);
+        let frame_id = self.take_next_frame_id();
         let context = top.cast::<ExecutionContext>();
         // SAFETY: The frame fits between top and limit, and nothing else uses that memory.
         unsafe {
@@ -89,6 +88,13 @@ impl InterpreterStack {
             self.top.set(top.add(size));
             Some(NonNull::new_unchecked(context))
         }
+    }
+
+    /// A new frame id (see ExecutionContext::frame_id).
+    pub fn take_next_frame_id(&self) -> u64 {
+        let frame_id = self.next_frame_id.get();
+        self.next_frame_id.set(frame_id + 1);
+        frame_id
     }
 
     /// Frees every context allocated after `mark` was taken.

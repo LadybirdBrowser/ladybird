@@ -39,6 +39,7 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::execution_context::ExecutionContext;
 use code::EntryTrampoline;
+use code::SnapshotExecutable;
 use compile_queue::{CompileQueue, CompileResult};
 use executable_memory::{CodeAllocator, ExecutableMemory};
 use options::Options;
@@ -50,6 +51,14 @@ pub const BUILT: bool = true;
 fn frame_of<'a>(frame: NonNull<ExecutionContext>) -> &'a ExecutionContext {
     // SAFETY: Callers pass frames that are live on the interpreter stack, which stay live while the reference is used.
     unsafe { frame.as_ref() }
+}
+
+/// The cell as a `T`, if it is one.
+fn cell_as<T: crate::gc::class::GcCell>(cell: Gc<CellHeader>) -> Option<Gc<T>> {
+    crate::gc::class::class_of(cell)
+        .is_subclass_of(T::CLASS)
+        // SAFETY: The cell was allocated as a T or a subclass of it.
+        .then(|| unsafe { Gc::from_non_null(cell.as_non_null().cast()) })
 }
 
 /// A field offset as JIT code takes it.
@@ -111,6 +120,7 @@ impl InterpreterTier {
 pub struct CompileJob {
     pub executable: Gc<Executable>,
     pub cells: Vec<Gc<CellHeader>>,
+    pub snapshot_executables: Vec<SnapshotExecutable>,
 }
 
 /// With the "stress-install" option, finished compile jobs wait for at most this many tier-up checks.
@@ -164,6 +174,8 @@ pub struct JitState {
     pub(crate) unprofiled_dispatch_table: Option<Box<DispatchTable>>,
     /// Where calls of executables enter, and their JIT code (see `entry_table`). Only made while the JIT is on.
     pub(crate) entry_table: Option<entry_table::JitEntryTable>,
+    /// The free lists call stubs pop function environments from (see `allocation::FunctionEnvironmentFreeLists`).
+    pub(crate) function_environment_free_lists: allocation::FunctionEnvironmentFreeLists,
     /// The memory the VM's JIT code lives in.
     code_allocator: Rc<RefCell<CodeAllocator>>,
     /// The compile thread, started by the first asynchronous compile job.
@@ -175,6 +187,9 @@ pub struct JitState {
     slow_paths: OnceCell<Vec<u64>>,
     /// How native code enters JIT code, generated the first time it does.
     entry_trampoline: OnceCell<(ExecutableMemory, EntryTrampoline)>,
+    /// The call stub JIT code shares (see `libjs_jit::codegen::generate_call_stub()`), generated the first time a
+    /// compile job needs it, if there is one.
+    call_stub: OnceCell<Option<ExecutableMemory>>,
 }
 
 impl JitState {
@@ -203,12 +218,14 @@ impl JitState {
             warming_up_dispatch_table,
             unprofiled_dispatch_table,
             entry_table,
+            function_environment_free_lists: allocation::FunctionEnvironmentFreeLists::default(),
             code_allocator: Rc::default(),
             compile_queue: OnceCell::new(),
             jobs: RefCell::default(),
             next_job_id: Cell::new(1),
             slow_paths: OnceCell::new(),
             entry_trampoline: OnceCell::new(),
+            call_stub: OnceCell::new(),
         }
     }
 
@@ -357,6 +374,24 @@ impl JitState {
             .1
     }
 
+    /// The address of the call stub for code with this runtime info (whose call stub address is not set yet), or 0.
+    pub(crate) fn call_stub(&self, runtime: &libjs_jit::snapshot::RuntimeInfo) -> u64 {
+        self.call_stub
+            .get_or_init(|| {
+                let code = libjs_jit::codegen::generate_call_stub::<libjs_jit::asm::MacroAssembler>(runtime)
+                    .expect("the call stub compiles")?;
+                ExecutableMemory::allocate(
+                    &self.code_allocator,
+                    &[code.as_slice()],
+                    &["call stub"],
+                    self.options.perf_map,
+                )
+                .pop()
+            })
+            .as_ref()
+            .map_or(0, |memory| memory.address() as u64)
+    }
+
     pub(crate) fn slow_paths(&self) -> &[u64] {
         self.slow_paths.get_or_init(runtime_info::slow_path_addresses)
     }
@@ -374,6 +409,12 @@ unsafe impl Trace for JitState {
             visitor.visit(job.executable);
             for cell in &job.cells {
                 visitor.visit(*cell);
+            }
+            for executable in &job.snapshot_executables {
+                visitor.visit(executable.executable);
+                if let Some(function) = executable.function {
+                    function.visit(visitor);
+                }
             }
         }
     }

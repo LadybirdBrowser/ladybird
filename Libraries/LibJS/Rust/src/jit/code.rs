@@ -9,6 +9,7 @@
 use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
 
+pub use libjs_jit::code::INLINED_CALL_SITE_BIT;
 use libjs_jit::code::{ExitKind, Site};
 
 use super::entry_table::{JIT_ENTRY_SLOT_MASK, JitEntryTable, NO_JIT_ENTRY_SLOT};
@@ -19,6 +20,8 @@ use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::execution_context::ExecutionContext;
+use crate::layout::function_object::EcmascriptFunctionObject;
+use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 
 /// The status word of what JIT code returns, `libjs_jit::code::JitStatus`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -78,6 +81,31 @@ impl CompileState {
     }
 }
 
+/// An executable of a compile job's snapshot, by index. Index 0 is the compiled executable (without a function); the
+/// others are inlining candidates, whose frames exits materialize.
+#[derive(Clone, Copy)]
+pub struct SnapshotExecutable {
+    pub executable: Gc<Executable>,
+    pub function: Option<InlinedFunction>,
+}
+
+/// The function object of an inlined executable, which its materialized frames run.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum InlinedFunction {
+    Ecmascript(Gc<EcmascriptFunctionObject>),
+    /// A builtin written in JavaScript, whose frames are set up like those of other builtins.
+    Builtin(Gc<NativeJavaScriptBackedFunction>),
+}
+
+impl InlinedFunction {
+    pub fn visit(self, visitor: &mut Visitor) {
+        match self {
+            InlinedFunction::Ecmascript(function) => visitor.visit(function),
+            InlinedFunction::Builtin(function) => visitor.visit(function),
+        }
+    }
+}
+
 /// Installed machine code for one executable, with what exits need to rebuild interpreter frames. While JIT code runs
 /// frames of its executable, it stays attached to the executable (in its slot of the JIT entry table, where
 /// `libjs_jit_exit()` finds it through the frame's executable), even once discarded.
@@ -90,6 +118,7 @@ pub struct JitCode {
     /// The cells the code compares against or uses. The executable the code is attached to keeps them alive, so they
     /// keep their addresses for as long as the code may run.
     embedded_cells: Vec<Gc<CellHeader>>,
+    snapshot_executables: Vec<SnapshotExecutable>,
     /// Where a frame running in the interpreter at the loop back edge `pc` can continue in this code.
     osr_entries: Vec<(u32, JitEntry)>,
 }
@@ -101,6 +130,7 @@ impl JitCode {
         osr_entry_offsets: &[(u32, u32)],
         sites: Vec<Site>,
         embedded_cells: Vec<Gc<CellHeader>>,
+        snapshot_executables: Vec<SnapshotExecutable>,
     ) -> Self {
         let entry_at = |offset: u32| {
             assert!((offset as usize) < memory.size());
@@ -118,6 +148,7 @@ impl JitCode {
             entry,
             sites,
             embedded_cells,
+            snapshot_executables,
             osr_entries,
         }
     }
@@ -135,6 +166,10 @@ impl JitCode {
 
     pub fn site(&self, index: u32) -> &Site {
         &self.sites[index as usize]
+    }
+
+    pub fn snapshot_executable(&self, index: u32) -> SnapshotExecutable {
+        self.snapshot_executables[index as usize]
     }
 
     /// How often the code exited.
@@ -155,6 +190,12 @@ unsafe impl Trace for JitCode {
         for cell in &self.embedded_cells {
             visitor.visit(*cell);
         }
+        for executable in &self.snapshot_executables {
+            visitor.visit(executable.executable);
+            if let Some(function) = executable.function {
+                function.visit(visitor);
+            }
+        }
     }
 }
 
@@ -163,6 +204,10 @@ unsafe impl Trace for JitCode {
 pub struct ExecutableJitState {
     /// Places where JIT code exited. Recompiles never repeat a speculation of the same kind at the same pc.
     exit_sites: RefCell<Vec<(u32, ExitKind)>>,
+    /// Places in builtins written in JavaScript where the executable's JIT code exited while running them inlined,
+    /// by the address of the builtin's executable. Builtins are inlined into all their callers, so these are kept per
+    /// caller: what failed in one caller says nothing about the others.
+    builtin_exit_sites: RefCell<Vec<(u64, u32, ExitKind)>>,
     /// How often the executable's code was discarded.
     discard_count: Cell<u32>,
 }
@@ -247,6 +292,17 @@ impl Executable {
 
     pub fn add_jit_exit_site(&self, site: (u32, ExitKind)) {
         let mut sites = self.jit_state().exit_sites.borrow_mut();
+        if !sites.contains(&site) {
+            sites.push(site);
+        }
+    }
+
+    pub fn jit_builtin_exit_sites(&self) -> Vec<(u64, u32, ExitKind)> {
+        self.jit_state().builtin_exit_sites.borrow().clone()
+    }
+
+    pub fn add_jit_builtin_exit_site(&self, site: (u64, u32, ExitKind)) {
+        let mut sites = self.jit_state().builtin_exit_sites.borrow_mut();
         if !sites.contains(&site) {
             sites.push(site);
         }
