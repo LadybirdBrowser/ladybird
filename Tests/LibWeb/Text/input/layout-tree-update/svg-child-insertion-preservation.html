@@ -1,0 +1,38 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .parent { width: 200px; position: relative; }
+    .block { height: 10px; }
+    svg { width: 30px; height: 20px; }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const results = [];
+        for (const display of ["block", "flex", "grid"]) {
+            for (const style of ["display: block", "display: inline", "position: absolute", "float: left"]) {
+                fixture.innerHTML = '<div class="parent"><div class="block"></div><span>inline</span></div>';
+                const parent = fixture.firstElementChild;
+                parent.style.display = display;
+                const tracked = [parent, ...parent.children];
+                parent.getBoundingClientRect();
+                const identities = tracked.map(element => internals.layoutNodeIdentity(element));
+                const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                svg.style.cssText = style;
+                svg.innerHTML = '<rect width="10" height="10"/><foreignObject x="10" width="20" height="20"><div xmlns="http://www.w3.org/1999/xhtml">text</div></foreignObject>';
+                parent.append(svg);
+                svg.getBoundingClientRect();
+                const preserved = tracked.every((element, index) => internals.layoutNodeIdentity(element) === identities[index]);
+                const geometry = () => [...tracked, svg].map(element => {
+                    const rect = element.getBoundingClientRect();
+                    return [rect.x, rect.y, rect.width, rect.height];
+                });
+                const incrementalGeometry = JSON.stringify(geometry());
+                const comparison = internals.compareLayoutTreeWithFullRebuild();
+                results.push(`${display}, ${style}: boxes preserved=${preserved}, tree matches=${comparison.matches}, geometry matches=${JSON.stringify(geometry()) === incrementalGeometry}`);
+            }
+        }
+        for (const result of results)
+            println(result);
+    });
+</script>
