@@ -204,6 +204,7 @@ impl PublishedEffect {
         property_id: u16,
         start: RetainedStyleValueData,
         end: RetainedStyleValueData,
+        timing: Option<EffectTiming>,
     ) -> Self {
         let keyframe = |key, index| PublishedKeyframe {
             key,
@@ -225,7 +226,7 @@ impl PublishedEffect {
                 value: PublishedValue::Declared(value),
             })),
             custom_declarations: Box::new([]),
-            timing: None,
+            timing,
             reversing: None,
         }
     }
