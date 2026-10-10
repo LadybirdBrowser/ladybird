@@ -855,6 +855,11 @@ version = "0.1.0"
 [[package]]
 name = "libjs_jit"
 version = "0.1.0"
+dependencies = [
+ "fARM64",
+ "iced-x86",
+ "libc",
+]
 
 [[package]]
 name = "libjs_runtime_macros"

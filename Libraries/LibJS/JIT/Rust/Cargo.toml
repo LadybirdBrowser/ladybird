@@ -6,5 +6,19 @@ edition = "2024"
 [lib]
 crate-type = ["rlib"]
 
+# After changing dependencies, regenerate the Flatpak sources:
+#   python3 Meta/CMake/flatpak/generate-cargo-sources.py
+# The host's disassembler, for `dump-asm`. Tests use both.
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+iced-x86 = { version = "1.21", default-features = false, features = ["decoder", "intel", "std"] }
+
+[target.'cfg(target_arch = "aarch64")'.dependencies]
+farm64 = { package = "fARM64", version = "0.0.2", features = ["alloc"] }
+
+[dev-dependencies]
+farm64 = { package = "fARM64", version = "0.0.2", features = ["alloc"] }
+iced-x86 = { version = "1.21", default-features = false, features = ["decoder", "intel", "std"] }
+libc = "0.2"
+
 [lints]
 workspace = true
