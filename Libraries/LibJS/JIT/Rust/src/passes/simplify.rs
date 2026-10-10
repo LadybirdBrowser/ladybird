@@ -121,6 +121,18 @@ fn constant_condition(graph: &Graph, condition: BranchCondition, input: NodeId, 
     }
 }
 
+/// The number a tagged constant is, if it is one.
+fn constant_number(graph: &Graph, node: NodeId) -> Option<f64> {
+    if graph.node(node).repr != Some(Repr::Tagged) {
+        return None;
+    }
+    let bits = graph.constant_value(node)?;
+    match value::as_int32(bits) {
+        Some(integer) => Some(f64::from(integer)),
+        None => value::is_double(bits).then(|| f64::from_bits(bits)),
+    }
+}
+
 pub fn run(graph: &mut Graph) {
     let mut constants = Constants::new(graph);
     let mut replacements = Replacements::new(graph);
@@ -144,6 +156,10 @@ pub fn run(graph: &mut Graph) {
                 (unrefined.op == op).then(|| unrefined.inputs[0])
             };
             let folded = match graph.node(node).op.clone() {
+                // NB: Numeric constants are numbers.
+                Op::CheckNumber if let Some(number) = constant_number(graph, inputs[0]) => {
+                    Some(constants.get_typed(graph, number.to_bits(), Repr::Float64))
+                }
                 // NB: Unboxing a boxed value is the value (where a branch
                 //     established the box holds the kind it unboxes).
                 Op::UnboxDouble | Op::CheckNumber => boxed(Op::BoxFloat64, inputs[0]),

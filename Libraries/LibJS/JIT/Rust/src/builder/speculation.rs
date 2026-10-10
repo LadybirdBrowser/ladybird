@@ -15,6 +15,11 @@
 //! as it is; readers that need a tagged value box it. Comparisons that jump
 //! branch on the raw comparison result.
 //!
+//! Instructions that only saw numbers, including doubles, check their operands
+//! once and operate on unboxed doubles. Bitwise operations convert those to
+//! int32 values. These checks let representation selection unbox loop phis,
+//! and allow check elimination and loop invariant code motion to share them.
+//!
 //! Other instructions take one path per kind of operands their feedback
 //! saw: int32 values, numbers (as doubles) and strings. A path starts with
 //! branches on the kinds of the operands, whose refinements its plain int32,
@@ -247,6 +252,9 @@ impl GraphBuilder<'_> {
         if let Some(flow) = self.try_build_int32(instruction, operation)? {
             return Ok(flow);
         }
+        if let Some(flow) = self.try_build_number(instruction, operation)? {
+            return Ok(flow);
+        }
         if let Operation::Compare {
             comparison,
             lhs,
@@ -388,6 +396,118 @@ impl GraphBuilder<'_> {
                 self.emit(Op::BoxFloat64, vec![number], Some(Repr::Tagged))
             })
             .collect()
+    }
+
+    fn box_number_result(&mut self, value: NodeId) -> NodeId {
+        if self.graph.node(value).repr == Some(Repr::Float64) {
+            self.emit(Op::BoxFloat64, vec![value], Some(Repr::Tagged))
+        } else {
+            self.tagged(value)
+        }
+    }
+
+    /// The number `value` is, as an unboxed double, checked where needed.
+    pub(super) fn number(&mut self, value: NodeId) -> NodeId {
+        if self.graph.node(value).repr == Some(Repr::Float64) {
+            return value;
+        }
+        if let Some(integer) = self.int32_value_of(value) {
+            return self.int32_to_float64(integer);
+        }
+        let value = self.tagged(value);
+        self.emit_checked(Op::CheckNumber, vec![value], Some(Repr::Float64))
+    }
+
+    /// Builds numeric instructions that saw doubles with number guards,
+    /// leaving non-numeric operands to the interpreter before any coercion.
+    fn try_build_number(
+        &mut self,
+        instruction: &Instruction,
+        operation: Operation,
+    ) -> Result<Option<Flow>, CompileFailure> {
+        let feedback = self.arith_feedback(instruction).unwrap_or(0);
+        if feedback & arith_feedback::DOUBLE == 0
+            || feedback & (arith_feedback::STRING | arith_feedback::BIG_INT | arith_feedback::OTHER) != 0
+            || !self.may_speculate(ExitKind::BadType)
+            || matches!(operation, Operation::Binary { op: BinaryOp::Mod, .. })
+        {
+            return Ok(None);
+        }
+        match operation {
+            Operation::Binary { op, dst, lhs, rhs } => {
+                let (lhs, rhs) = (self.read_input(lhs)?, self.read_input(rhs)?);
+                let lhs = self.number(lhs);
+                let rhs = self.number(rhs);
+                let result = if op.is_bitwise() {
+                    let lhs = self.emit(Op::Float64ToInt32, vec![lhs], Some(Repr::Int32));
+                    let rhs = self.emit(Op::Float64ToInt32, vec![rhs], Some(Repr::Int32));
+                    if op == BinaryOp::UnsignedRightShift {
+                        let bits = self.emit(Op::Uint32ShiftRight, vec![lhs, rhs], Some(Repr::Int32));
+                        self.emit(Op::Uint32ToFloat64, vec![bits], Some(Repr::Float64))
+                    } else {
+                        self.int32_binary(op, lhs, rhs)
+                    }
+                } else {
+                    self.emit(Op::Float64Binary { op }, vec![lhs, rhs], Some(Repr::Float64))
+                };
+                let result = self.box_number_result(result);
+                self.write(dst, result)?;
+            }
+            Operation::Unary { op, dst, src } => {
+                let value = self.read_value(src)?;
+                let number = self.number(value);
+                let result = match op {
+                    UnaryOp::Plus => number,
+                    UnaryOp::Minus => self.emit(
+                        Op::Float64Unary {
+                            op: Float64UnaryOp::Negate,
+                        },
+                        vec![number],
+                        Some(Repr::Float64),
+                    ),
+                    UnaryOp::ToInt32 | UnaryOp::BitwiseNot => {
+                        let integer = self.emit(Op::Float64ToInt32, vec![number], Some(Repr::Int32));
+                        if op == UnaryOp::BitwiseNot {
+                            let all_ones = self.int32_constant(-1);
+                            self.int32_binary(BinaryOp::BitwiseXor, integer, all_ones)
+                        } else {
+                            integer
+                        }
+                    }
+                };
+                let result = self.box_number_result(result);
+                self.write(dst, result)?;
+            }
+            Operation::Update { op, src, old_value } => {
+                let value = self.read_value(src)?;
+                let number = self.number(value);
+                let one = self.typed_constant(1f64.to_bits(), Repr::Float64);
+                let result = self.emit(
+                    Op::Float64Binary { op: op.binary_op() },
+                    vec![number, one],
+                    Some(Repr::Float64),
+                );
+                if let Some(dst) = old_value {
+                    let number = self.box_number_result(number);
+                    self.write(dst, number)?;
+                }
+                let result = self.box_number_result(result);
+                self.write(src, result)?;
+            }
+            Operation::Compare {
+                comparison,
+                lhs,
+                rhs,
+                outcome,
+            } => {
+                let (lhs, rhs) = (self.read_value(lhs)?, self.read_input(rhs)?);
+                let lhs = self.number(lhs);
+                let rhs = self.number(rhs);
+                let result = self.emit(Op::Float64Compare { comparison }, vec![lhs, rhs], Some(Repr::Bool));
+                return self.finish_comparison(result, outcome).map(Some);
+            }
+        }
+        Ok(Some(Flow::Continue))
     }
 
     // Int32 speculation.

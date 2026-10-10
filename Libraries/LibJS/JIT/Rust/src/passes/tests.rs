@@ -194,6 +194,46 @@ fn verifier_rejects_slow_path_outputs_away_from_their_call() {
     assert!(errors.contains("does not follow its slow path call"), "{errors}");
 }
 
+#[test]
+fn simplification_removes_number_checks_of_numeric_constants() {
+    use crate::ir::value;
+    for (bits, expected) in [
+        (0.5_f64.to_bits(), Some(0.5_f64)),
+        (value::int32(-3), Some(-3.0)),
+        (value::UNDEFINED, None),
+    ] {
+        let mut graph = Graph::default();
+        graph.add_block(Block::default());
+        let constant = node(&mut graph, Op::Constant(bits), vec![], Some(Repr::Tagged));
+        let check = node(&mut graph, Op::CheckNumber, vec![constant], Some(Repr::Float64));
+        graph.nodes[check.index()].frame_state = Some(graph.add_frame_state(crate::ir::FrameState {
+            executable: 0,
+            pc: 0,
+            mode: crate::code::ResumeMode::ResumeAt,
+            values: Vec::new(),
+            in_frame: Vec::new(),
+            parent: None,
+            passed_argument_count: None,
+        }));
+        let boxed = node(&mut graph, Op::BoxFloat64, vec![check], Some(Repr::Tagged));
+        let ret = node(&mut graph, Op::Return, vec![boxed], None);
+        graph.blocks[0].body = vec![check, boxed];
+        graph.blocks[0].control = Some(ret);
+        verify(&graph).unwrap();
+
+        super::simplify::run(&mut graph);
+        verify(&graph).unwrap();
+        assert_eq!(!graph.blocks[0].body.contains(&check), expected.is_some());
+        let input = graph.node(boxed).inputs[0];
+        assert_eq!(
+            graph.constant_value(input).map(f64::from_bits),
+            expected,
+            "{}",
+            value::describe(bits)
+        );
+    }
+}
+
 /// A loop that stores elements in their bounds, and loads how many elements
 /// an object it does not change has: the stores change no element count, so
 /// the load moves out of the loop.
