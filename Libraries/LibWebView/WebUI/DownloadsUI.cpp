@@ -8,6 +8,7 @@
 #include <AK/JsonObject.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebContentPage.h>
 #include <LibWebView/WebUI/DownloadsUI.h>
 
 namespace WebView {
@@ -188,6 +189,13 @@ void DownloadsUI::resume_download(JsonValue const& data)
     Application::the().file_downloader().resume_download(download->id);
 }
 
+// Opening a download can run it, so only the user's own click in the page opens one or shows it in its folder.
+static bool consume_user_activation_of_page(WebContentClient& client, Web::PageId page_id)
+{
+    auto* page = client.page(page_id);
+    return page && page->consume_transient_user_activation();
+}
+
 void DownloadsUI::open_download(JsonValue const& data)
 {
     auto download = download_from_message(data, client().is_private());
@@ -197,6 +205,8 @@ void DownloadsUI::open_download(JsonValue const& data)
     if (download->status != FileDownloader::DownloadStatus::Completed)
         return;
 
+    if (!consume_user_activation_of_page(client(), page_id()))
+        return;
     Application::the().open_download(*download);
 }
 
@@ -209,6 +219,8 @@ void DownloadsUI::show_download_in_folder(JsonValue const& data)
     if (download->status != FileDownloader::DownloadStatus::Completed)
         return;
 
+    if (!consume_user_activation_of_page(client(), page_id()))
+        return;
     Application::the().show_download_in_folder(*download);
 }
 
