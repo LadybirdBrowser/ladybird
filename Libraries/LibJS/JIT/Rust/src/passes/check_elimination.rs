@@ -105,11 +105,13 @@ pub fn run(graph: &mut Graph) {
         };
         let mut changed = false;
         let mut visited = vec![false; block_count];
+        let mut skipped = Vec::new();
         for block in 0..block_count {
             let block_id = BlockId::from_index(block);
             let Some(facts) = facts_at_entry(graph, block_id, &mut edge_facts, &visited) else {
                 // No visited predecessor reaches this block.
                 edge_facts[block].clear();
+                skipped.push(block_id);
                 continue;
             };
             visited[block] = true;
@@ -119,6 +121,19 @@ pub fn run(graph: &mut Graph) {
             }
             edge_facts[block] = visit_block(graph, &mut constants, block_id, facts, &mut decisions);
         }
+        // NB: A block that only back edges lead to (code after an entry that
+        //     comes later in the order, such as an on-stack replacement
+        //     entry) is skipped until they bring facts, which they did if a
+        //     predecessor visited later has facts along its edge. What can
+        //     be reached from it then saw other facts along the other paths
+        //     in this round.
+        changed |= skipped.iter().any(|block| {
+            graph.block(*block).predecessors.iter().any(|predecessor| {
+                edge_facts[predecessor.index()]
+                    .iter()
+                    .any(|(target, _)| target == block)
+            })
+        });
         if !changed {
             break decisions;
         }

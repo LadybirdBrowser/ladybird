@@ -295,3 +295,60 @@ fn branches_on_known_kinds_fold() {
         .count();
     assert_eq!(branches, 1, "{:?}", graph.blocks);
 }
+
+/// b4 is reached from the entry b0, which checks a constant, and from b2,
+/// which only the on-stack replacement entry b1 reaches through b3 (a block
+/// later in the order than b2). b2 is skipped until b3 has been visited, so
+/// what b4 knows must not stay what b0 checked.
+#[test]
+fn check_elimination_keeps_checks_that_a_later_entry_reaches_blocks_before_it() {
+    let mut graph = Graph::default();
+    for predecessors in [
+        vec![],
+        vec![],
+        vec![BlockId(3)],
+        vec![BlockId(1)],
+        vec![BlockId(0), BlockId(2)],
+    ] {
+        graph.add_block(Block {
+            predecessors,
+            ..Block::default()
+        });
+    }
+    graph.blocks[2].is_loop_header = true;
+    graph.osr_entries.push((0, BlockId(1)));
+    let constant = node(&mut graph, Op::Constant(0x1234), vec![], Some(Repr::Tagged));
+    let frame_state = graph.add_frame_state(crate::ir::FrameState {
+        executable: 0,
+        pc: 0,
+        mode: crate::code::ResumeMode::ResumeAt,
+        values: Vec::new(),
+        in_frame: Vec::new(),
+        parent: None,
+        passed_argument_count: None,
+    });
+    let first = node(&mut graph, Op::CheckObject, vec![constant], Some(Repr::Tagged));
+    graph.nodes[first.index()].frame_state = Some(frame_state);
+    graph.blocks[0].body.push(first);
+    for (block, target) in [(0, 4), (1, 3), (2, 4), (3, 2)] {
+        let jump = node(
+            &mut graph,
+            Op::Jump {
+                target: BlockId(target),
+            },
+            vec![],
+            None,
+        );
+        graph.blocks[block].control = Some(jump);
+    }
+    let second = node(&mut graph, Op::CheckObject, vec![constant], Some(Repr::Tagged));
+    graph.nodes[second.index()].frame_state = Some(frame_state);
+    let ret = node(&mut graph, Op::Return, vec![second], None);
+    graph.blocks[4].body.push(second);
+    graph.blocks[4].control = Some(ret);
+    verify(&graph).unwrap();
+
+    super::check_elimination::run(&mut graph);
+    verify(&graph).unwrap();
+    assert_eq!(graph.blocks[4].body, vec![second]);
+}
