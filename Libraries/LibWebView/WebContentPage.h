@@ -219,7 +219,6 @@ private:
     virtual void did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key) override;
     Messages::WebContentClient::DidRequestStorageKeysResponse did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id);
     virtual void did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id) override;
-    virtual void did_request_activate_tab() override;
     virtual void did_change_needs_beforeunload_check(bool needs_beforeunload_check) override;
     virtual void did_consume_user_activation(Web::HTML::UserActivationConsumption consumption) override;
     virtual void webdriver_user_prompt_handling_complete(u64 request_id, Web::WebDriver::Response response) override;

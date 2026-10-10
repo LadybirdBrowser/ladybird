@@ -294,7 +294,6 @@ private:
     virtual void page_did_update_indexed_database(String const& url, Web::IndexedDB::TransactionChanges const&) override;
     virtual void page_did_update_resource_count(i32) override;
     virtual NewWebViewResult page_did_request_new_web_view(Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String const& target_name, Web::HTML::SandboxingFlagSet popup_sandboxing_flag_set) override;
-    virtual void page_did_request_activate_tab() override;
     virtual void page_did_close() override;
     virtual void page_did_change_needs_beforeunload_check(bool needs_beforeunload_check) override;
     virtual void page_did_consume_user_activation(Web::HTML::UserActivationConsumption) override;

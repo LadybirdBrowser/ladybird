@@ -1527,11 +1527,6 @@ PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML
     return { &new_client.page(), response->take_handle(), response->take_initial_history_entry(), response->take_initial_environment_id(), response->browsing_context_group_id() };
 }
 
-void PageClient::page_did_request_activate_tab()
-{
-    client().async_did_request_activate_tab(m_id);
-}
-
 void PageClient::page_did_close()
 {
     if (page().has_local_traversable() && page().local_traversable()->has_compositor_context())

@@ -1196,12 +1196,6 @@ void WebContentPage::did_clear_storage(Web::StorageAPI::StorageEndpointType stor
         storage_jar->clear_storage_key(storage_endpoint, *canonical_key);
 }
 
-void WebContentPage::did_request_activate_tab()
-{
-    if (view().on_activate_tab)
-        view().on_activate_tab();
-}
-
 void WebContentPage::did_change_needs_beforeunload_check(bool needs_beforeunload_check)
 {
     m_needs_beforeunload_check = needs_beforeunload_check;
