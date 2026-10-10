@@ -2082,7 +2082,9 @@ WebContentPage& ViewImplementation::focused_navigable_host() const
 
 void ViewImplementation::paste_from_clipboard()
 {
+    // The user asked the browser to paste, which lets the page read the clipboard.
     auto& host = focused_navigable_host();
+    host.give_user_activation();
     host.async_paste_from_clipboard();
 }
 

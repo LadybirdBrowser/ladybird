@@ -1452,8 +1452,12 @@ void WebContentPage::did_change_background_color(Gfx::Color color)
         view().did_change_background_color({}, color);
 }
 
+// NB: The system clipboard belongs to the user, so a page reaches it only right after the user's own input to it, as
+//     with a copy or paste shortcut, a click on a page control, or the browser's Paste command.
 void WebContentPage::did_insert_clipboard_item(Web::Clipboard::SystemClipboardItem item, String)
 {
+    if (!has_transient_user_activation())
+        return;
     view().insert_clipboard_item(move(item));
 }
 
@@ -1747,6 +1751,10 @@ void WebContentPage::did_update_indexed_database(String update)
 void WebContentPage::did_request_clipboard_entries(u64 request_id)
 {
     Vector<Web::Clipboard::SystemClipboardItem> items;
+    if (!has_transient_user_activation()) {
+        async_retrieved_clipboard_entries(request_id, items);
+        return;
+    }
     if (auto item = view().clipboard_item(); !item.system_clipboard_representations.is_empty())
         items.append(move(item));
 
@@ -2534,6 +2542,8 @@ void WebContentPage::did_request_select_dropdown(Web::HTML::CrossProcessId local
 
 void WebContentPage::did_request_primary_paste()
 {
+    if (!has_transient_user_activation())
+        return;
     auto text = Application::the().clipboard_text(Application::ClipboardType::Selection);
     async_paste(text);
 }
