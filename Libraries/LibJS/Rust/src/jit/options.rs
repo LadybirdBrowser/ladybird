@@ -8,13 +8,32 @@
 //! VM. It holds comma-separated options, each one of `DEFINITIONS`; "LIBJS_JIT=help" lists them with the values in
 //! effect.
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Options {
     /// Whether the interpreter's profiling tier runs, which collects feedback for the JIT.
     pub enabled: bool,
 
+    /// How hot an executable must get before it tiers up, in function invocations. Loop iterations count as a
+    /// fraction of an invocation.
+    pub threshold: u32,
+
+    /// How warm an executable must get before the interpreter collects feedback for it, measured like the threshold.
+    /// The threshold counts from there.
+    pub warmup: u32,
+
     /// List the options and the values in effect on stderr.
     pub help: bool,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            threshold: 400,
+            warmup: 8,
+            help: false,
+        }
+    }
 }
 
 /// What an option sets.
@@ -23,6 +42,8 @@ enum Setting {
     Enabled(bool),
     /// A switch that the option turns on.
     Switch(fn(&mut Options) -> &mut bool),
+    /// A number, given as "name=N".
+    Number(fn(&mut Options) -> &mut u32),
 }
 
 /// An option LIBJS_JIT may hold.
@@ -48,6 +69,16 @@ const DEFINITIONS: &[Definition] = &[
         setting: Setting::Switch(|options| &mut options.help),
         description: "List the options and the values in effect.",
     },
+    Definition {
+        name: "threshold",
+        setting: Setting::Number(|options| &mut options.threshold),
+        description: "How many invocations make a function hot, after its warm-up. Loop iterations count as a fraction of one.",
+    },
+    Definition {
+        name: "warmup",
+        setting: Setting::Number(|options| &mut options.warmup),
+        description: "How many invocations a function runs before the interpreter collects feedback for it.",
+    },
 ];
 
 impl Definition {
@@ -55,6 +86,7 @@ impl Definition {
     fn syntax(&self) -> String {
         match self.setting {
             Setting::Enabled(_) | Setting::Switch(_) => self.name.to_string(),
+            Setting::Number(_) => format!("{}=N", self.name),
         }
     }
 
@@ -64,6 +96,12 @@ impl Definition {
         match (&self.setting, argument) {
             (Setting::Enabled(enabled), None) => options.enabled = *enabled,
             (Setting::Switch(field), None) => *field(options) = true,
+            (Setting::Number(field), Some(text)) => {
+                *field(options) = text
+                    .parse()
+                    .map_err(|_| format!("{syntax} needs a whole number from 0 to {}, not '{text}'", u32::MAX))?;
+            }
+            (Setting::Number(_), None) => return Err(format!("{syntax} needs a value")),
             (Setting::Enabled(_) | Setting::Switch(_), Some(_)) => {
                 return Err(format!("{syntax} takes no value"));
             }
@@ -77,6 +115,7 @@ impl Definition {
         match self.setting {
             Setting::Enabled(enabled) => (options.enabled == enabled).then(|| self.name.to_string()),
             Setting::Switch(field) => (*field(&mut options)).then(|| self.name.to_string()),
+            Setting::Number(field) => Some(format!("{}={}", self.name, *field(&mut options))),
         }
     }
 }
@@ -139,7 +178,7 @@ impl Options {
         help
     }
 
-    /// Whether the interpreter collects feedback.
+    /// Whether the interpreter collects feedback and counts down tier-up budgets.
     pub fn collects_feedback(&self) -> bool {
         self.enabled
     }

@@ -261,6 +261,9 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     field!(w, "EXECUTABLE_REGISTERS_AND_LOCALS_AND_CONSTANTS_COUNT", "Executable.registers_and_locals_and_constants_count", "u32", ExecutableHead, registers_and_locals_and_constants_count, 4, "nullable", "scalar", "slot_counts");
     field!(w, "EXECUTABLE_ASM_CONSTANTS_SIZE", "Executable.asm_constants_size", "u64", ExecutableHead, asm_constants_size, 8, "nullable", "scalar", "constants");
     field!(w, "EXECUTABLE_ASM_CONSTANTS_DATA", "Executable.asm_constants_data", "Sequence<Value>", ExecutableHead, asm_constants_data, 8, "nullable", "scalar", "constants");
+    field!(w, "EXECUTABLE_TIER_UP_BUDGET", "Executable.tier_up_budget", "i32", ExecutableHead, tier_up_budget, 4, "nullable", "scalar");
+    w.constant("TIER_UP_FUNCTION_ENTRY_COST", tier_up_costs::FUNCTION_ENTRY);
+    w.constant("TIER_UP_LOOP_ITERATION_COST", tier_up_costs::LOOP_ITERATION);
     offset!(w, "EXECUTABLE_FEEDBACK", ExecutableHead, feedback);
     w.line("field Executable.feedback ExecutableFeedback EXECUTABLE_FEEDBACK embedded scalar");
 

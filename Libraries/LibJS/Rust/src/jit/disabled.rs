@@ -6,7 +6,8 @@
 
 //! The runtime side of the optimizing JIT in builds without it (the crate's "jit" feature off): the items of
 //! `jit/mod.rs` that the rest of the runtime uses, with nothing behind them. Every executable runs with the plain
-//! handlers of the interpreter, which is the only variant of it these builds have, and nothing collects feedback.
+//! handlers of the interpreter, which is the only variant of it these builds have, and nothing collects feedback or
+//! counts tier-up budgets.
 
 use core::ffi::c_void;
 
@@ -31,10 +32,6 @@ impl JitState {
         false
     }
 
-    pub fn initial_tier(&self) -> InterpreterTier {
-        InterpreterTier::Plain
-    }
-
     pub fn dispatch_tables(&self) -> impl Iterator<Item = (InterpreterTier, *const c_void)> {
         [(InterpreterTier::Plain, plain_dispatch_table())].into_iter()
     }
@@ -55,6 +52,20 @@ pub mod options {
             }
             Self
         }
+    }
+}
+
+pub mod tier_up {
+    use super::{InterpreterTier, JitState};
+    use crate::interpreter::vm::Vm;
+
+    /// The interpreter tier and the tier-up budget a new executable starts with: it never tiers up.
+    pub fn initial_tier(_jit: &JitState) -> (InterpreterTier, i32) {
+        (InterpreterTier::Plain, i32::MAX)
+    }
+
+    pub fn tier_up_check(_vm: &Vm, _encoded_pc: u64) -> i64 {
+        unreachable!("only the profiling interpreter checks tier-up budgets");
     }
 }
 

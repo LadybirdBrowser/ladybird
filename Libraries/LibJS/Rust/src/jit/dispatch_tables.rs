@@ -25,10 +25,11 @@ fn profiling_dispatch_table() -> *const c_void {
     unsafe { js_interpreter_dispatch_table_profiling.as_ptr().cast() }
 }
 
-/// The plain handlers, with the profiling build's handlers for the instructions that call or return to a frame that
-/// may run with other handlers (see `InterpreterTier::WarmingUp`).
+/// The plain handlers, with the profiling build's handlers for the instructions that count the tier-up budget
+/// (function entry and loop back edges), or call or return to a frame that may run with other handlers (see
+/// `InterpreterTier::WarmingUp`).
 pub fn warming_up_dispatch_table() -> Box<DispatchTable> {
-    mixed_dispatch_table(|name| matches!(name, "Call" | "Return" | "End"))
+    mixed_dispatch_table(|name| matches!(name, "Enter" | "Call" | "Return" | "End") || name.contains("Loop"))
 }
 
 /// The plain handlers, with the profiling build's handlers for the instructions whose names `use_profiling` selects.

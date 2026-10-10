@@ -27,6 +27,10 @@ pub struct ExecutableHead {
     pub dispatch_table_index: Cell<u8>,
     /// Where the profiling interpreter records feedback for the optimizing JIT.
     pub feedback: ExecutableFeedbackHead,
+    /// The profiling interpreter counts this down as it enters this executable and runs its loop back edges. The
+    /// tier-up policy runs when it reaches zero; while the executable warms up, that moves it to the profiling
+    /// handlers.
+    pub tier_up_budget: Cell<i32>,
     pub constants: InterpreterBuffer<Value>,
     pub property_lookup_caches: InterpreterBuffer<PropertyLookupCache>,
     pub global_variable_caches: InterpreterBuffer<GlobalVariableCache>,

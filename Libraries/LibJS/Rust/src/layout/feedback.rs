@@ -12,6 +12,14 @@ use core::cell::Cell;
 
 use super::cell::{CellHeader, Gc};
 
+/// Every executable has a tier-up budget that the interpreter counts down: entering the executable costs
+/// `FUNCTION_ENTRY` and every loop back edge costs `LOOP_ITERATION`. A threshold of N therefore means N invocations,
+/// with every FUNCTION_ENTRY / LOOP_ITERATION loop iterations counting as one more invocation.
+pub mod tier_up_costs {
+    pub const FUNCTION_ENTRY: i32 = 16;
+    pub const LOOP_ITERATION: i32 = 1;
+}
+
 /// Where the interpreter finds an executable's feedback arrays, as offsets into the primitive storage cage, which the
 /// interpreter masks every address it forms from them into. The executable owns the arrays.
 #[repr(C)]
