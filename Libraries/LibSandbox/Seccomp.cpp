@@ -1750,6 +1750,26 @@ void SeccompPolicy::allow_writable_executable_memory_mappings()
     append(SECCOMP_LOAD_SYSCALL_NR);
 }
 
+// Memory protection keys, for JIT code whose pages are writable and executable
+// but which no thread may write unless it enables writes to the key's pages
+// in its own register. Only pages with a key may be writable and executable.
+void SeccompPolicy::allow_memory_protection_keys()
+{
+#if defined(__NR_pkey_alloc) && defined(__NR_pkey_free) && defined(__NR_pkey_mprotect)
+    SECCOMP_APPEND_ALLOW_SYSCALL(*this, pkey_alloc);
+    SECCOMP_APPEND_ALLOW_SYSCALL(*this, pkey_free);
+
+    // NB: Key 0 is the default key, which every thread may write, and -1
+    //     makes pkey_mprotect() behave like mprotect().
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_pkey_mprotect, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(3));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 2, 0));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0xFFFFFFFF, 1, 0));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+#endif
+}
+
 void SeccompPolicy::allow_threads()
 {
 #ifdef __NR_clone

@@ -56,6 +56,7 @@ ErrorOr<void> apply_sandbox(StringView, AudioAccess audio_access)
     }
     policy.allow_common_runtime();
     policy.allow_executable_memory_mappings();
+    policy.allow_memory_protection_keys();
     TRY(policy.install());
 
     return {};

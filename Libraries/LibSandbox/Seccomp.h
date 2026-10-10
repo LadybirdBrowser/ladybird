@@ -32,6 +32,7 @@ public:
     void allow_memory_without_executable_mappings();
     void allow_executable_memory_mappings();
     void allow_writable_executable_memory_mappings();
+    void allow_memory_protection_keys();
     void allow_threads();
     void allow_signals();
     void allow_clocks();
