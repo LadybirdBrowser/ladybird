@@ -1,12 +1,60 @@
-block, display: block: boxes preserved=false, tree matches=true, geometry matches=true
-block, display: inline: boxes preserved=false, tree matches=true, geometry matches=true
-block, position: absolute: boxes preserved=false, tree matches=true, geometry matches=true
-block, float: left: boxes preserved=false, tree matches=true, geometry matches=true
-flex, display: block: boxes preserved=false, tree matches=true, geometry matches=true
-flex, display: inline: boxes preserved=false, tree matches=true, geometry matches=true
-flex, position: absolute: boxes preserved=false, tree matches=true, geometry matches=true
-flex, float: left: boxes preserved=false, tree matches=true, geometry matches=true
-grid, display: block: boxes preserved=false, tree matches=true, geometry matches=true
-grid, display: inline: boxes preserved=false, tree matches=true, geometry matches=true
-grid, position: absolute: boxes preserved=false, tree matches=true, geometry matches=true
-grid, float: left: boxes preserved=false, tree matches=true, geometry matches=true
+block mixed, append, display: block: boxes preserved=true, tree matches=true, geometry matches=true
+block mixed, append, display: inline: boxes preserved=true, tree matches=true, geometry matches=true
+block mixed, append, position: absolute: boxes preserved=true, tree matches=true, geometry matches=true
+block mixed, append, float: left: boxes preserved=true, tree matches=true, geometry matches=true
+block mixed, middle, display: block: boxes preserved=false, tree matches=true, geometry matches=true
+block mixed, middle, display: inline: boxes preserved=false, tree matches=true, geometry matches=true
+block mixed, middle, position: absolute: boxes preserved=false, tree matches=true, geometry matches=true
+block mixed, middle, float: left: boxes preserved=false, tree matches=true, geometry matches=true
+block mixed, prepend, display: block: boxes preserved=false, tree matches=true, geometry matches=true
+block mixed, prepend, display: inline: boxes preserved=false, tree matches=true, geometry matches=true
+block mixed, prepend, position: absolute: boxes preserved=false, tree matches=true, geometry matches=true
+block mixed, prepend, float: left: boxes preserved=false, tree matches=true, geometry matches=true
+block inline, append, display: block: boxes preserved=false, tree matches=true, geometry matches=true
+block inline, append, display: inline: boxes preserved=true, tree matches=true, geometry matches=true
+block inline, append, position: absolute: boxes preserved=true, tree matches=true, geometry matches=true
+block inline, append, float: left: boxes preserved=false, tree matches=true, geometry matches=true
+block inline, middle, display: block: boxes preserved=false, tree matches=true, geometry matches=true
+block inline, middle, display: inline: boxes preserved=true, tree matches=true, geometry matches=true
+block inline, middle, position: absolute: boxes preserved=true, tree matches=true, geometry matches=true
+block inline, middle, float: left: boxes preserved=false, tree matches=true, geometry matches=true
+block inline, prepend, display: block: boxes preserved=false, tree matches=true, geometry matches=true
+block inline, prepend, display: inline: boxes preserved=true, tree matches=true, geometry matches=true
+block inline, prepend, position: absolute: boxes preserved=true, tree matches=true, geometry matches=true
+block inline, prepend, float: left: boxes preserved=false, tree matches=true, geometry matches=true
+inline-block inline, append, display: block: boxes preserved=false, tree matches=true, geometry matches=true
+inline-block inline, append, display: inline: boxes preserved=true, tree matches=true, geometry matches=true
+inline-block inline, append, position: absolute: boxes preserved=true, tree matches=true, geometry matches=true
+inline-block inline, append, float: left: boxes preserved=false, tree matches=true, geometry matches=true
+inline-block inline, middle, display: block: boxes preserved=false, tree matches=true, geometry matches=true
+inline-block inline, middle, display: inline: boxes preserved=true, tree matches=true, geometry matches=true
+inline-block inline, middle, position: absolute: boxes preserved=true, tree matches=true, geometry matches=true
+inline-block inline, middle, float: left: boxes preserved=false, tree matches=true, geometry matches=true
+inline-block inline, prepend, display: block: boxes preserved=false, tree matches=true, geometry matches=true
+inline-block inline, prepend, display: inline: boxes preserved=true, tree matches=true, geometry matches=true
+inline-block inline, prepend, position: absolute: boxes preserved=true, tree matches=true, geometry matches=true
+inline-block inline, prepend, float: left: boxes preserved=false, tree matches=true, geometry matches=true
+flex mixed, append, display: block: boxes preserved=true, tree matches=true, geometry matches=true
+flex mixed, append, display: inline: boxes preserved=true, tree matches=true, geometry matches=true
+flex mixed, append, position: absolute: boxes preserved=true, tree matches=true, geometry matches=true
+flex mixed, append, float: left: boxes preserved=true, tree matches=true, geometry matches=true
+flex mixed, middle, display: block: boxes preserved=true, tree matches=true, geometry matches=true
+flex mixed, middle, display: inline: boxes preserved=true, tree matches=true, geometry matches=true
+flex mixed, middle, position: absolute: boxes preserved=true, tree matches=true, geometry matches=true
+flex mixed, middle, float: left: boxes preserved=true, tree matches=true, geometry matches=true
+flex mixed, prepend, display: block: boxes preserved=false, tree matches=true, geometry matches=true
+flex mixed, prepend, display: inline: boxes preserved=false, tree matches=true, geometry matches=true
+flex mixed, prepend, position: absolute: boxes preserved=false, tree matches=true, geometry matches=true
+flex mixed, prepend, float: left: boxes preserved=false, tree matches=true, geometry matches=true
+grid mixed, append, display: block: boxes preserved=true, tree matches=true, geometry matches=true
+grid mixed, append, display: inline: boxes preserved=true, tree matches=true, geometry matches=true
+grid mixed, append, position: absolute: boxes preserved=true, tree matches=true, geometry matches=true
+grid mixed, append, float: left: boxes preserved=true, tree matches=true, geometry matches=true
+grid mixed, middle, display: block: boxes preserved=true, tree matches=true, geometry matches=true
+grid mixed, middle, display: inline: boxes preserved=true, tree matches=true, geometry matches=true
+grid mixed, middle, position: absolute: boxes preserved=true, tree matches=true, geometry matches=true
+grid mixed, middle, float: left: boxes preserved=true, tree matches=true, geometry matches=true
+grid mixed, prepend, display: block: boxes preserved=false, tree matches=true, geometry matches=true
+grid mixed, prepend, display: inline: boxes preserved=false, tree matches=true, geometry matches=true
+grid mixed, prepend, position: absolute: boxes preserved=false, tree matches=true, geometry matches=true
+grid mixed, prepend, float: left: boxes preserved=false, tree matches=true, geometry matches=true

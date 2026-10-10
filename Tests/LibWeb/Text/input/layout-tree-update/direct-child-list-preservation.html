@@ -253,18 +253,16 @@
             preserve: false,
         },
         {
-            name: "fall back for floated block child after anonymous inline run",
+            name: "append floated block child after anonymous inline run",
             markup: '<div class="parent"><i class="before child"></i><span class="inline">inline</span></div>',
             mutate: parent => parent.insertAdjacentHTML("beforeend", '<section class="target child float"><b></b></section>'),
-            tracked: ["parent"],
-            preserve: false,
+            tracked: ["parent", "before", "inline"],
         },
         {
-            name: "fall back for absolute block child after anonymous inline run",
+            name: "append absolute block child after anonymous inline run",
             markup: '<div class="parent"><i class="before child"></i><span class="inline">inline</span></div>',
             mutate: parent => parent.insertAdjacentHTML("beforeend", '<section class="target child absolute"><b></b></section>'),
-            tracked: ["parent"],
-            preserve: false,
+            tracked: ["parent", "before", "inline"],
         },
         {
             name: "fall back for display contents child in flex",
@@ -274,11 +272,10 @@
             preserve: false,
         },
         {
-            name: "fall back for SVG child in flex",
+            name: "insert SVG child in flex",
             markup: '<div class="parent flex"><i class="before child"></i><i class="after child"></i></div>',
             mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<svg class="target"><rect></rect></svg>'),
-            tracked: ["parent"],
-            preserve: false,
+            tracked: ["parent", "before", "after"],
         },
     ];
 

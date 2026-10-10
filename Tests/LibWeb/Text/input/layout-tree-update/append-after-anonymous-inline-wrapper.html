@@ -4,6 +4,8 @@
     .parent { width: 200px; position: relative; }
     .block { height: 10px; }
     .inserted { width: 20px; height: 15px; }
+    .after-inline::after { content: "after"; }
+    .after-block::after { content: "after"; display: block; }
 </style>
 <div id="fixture"></div>
 <script>
@@ -16,18 +18,26 @@
             ["absolute block", "display: block; position: absolute"],
             ["fixed block", "display: block; position: fixed"],
             ["float", "display: block; float: left"],
+            ["inline block pair", "display: inline-block", 2],
+            ["absolute block pair", "display: block; position: absolute", 2],
+            ["float pair", "display: block; float: left", 2],
         ];
         const fixtures = [
             ["trailing run", '<div class="block"></div><span>inline</span>', "append"],
             ["middle run", '<div class="block"></div><span>inline</span><div class="block"></div>', "middle"],
             ["prepend", '<div class="block"></div><span>inline</span>', "prepend"],
             ["empty trailing run", '<div class="block"></div>', "append"],
+            ["trailing whitespace", '<div class="block"></div><span>inline</span> ', "append"],
+            ["after-inline", '<div class="block"></div><span>inline</span>', "append"],
+            ["after-block", '<div class="block"></div><span>inline</span>', "append"],
             ["two inline runs", '<span>first</span><div class="block"></div><span>last</span>', "append"],
         ];
         for (const [fixtureName, markup, insertion] of fixtures) {
-            for (const [name, style] of cases) {
+            for (const [name, style, count = 1] of cases) {
                 fixture.innerHTML = `<div class="parent">${markup}</div>`;
                 const parent = fixture.firstElementChild;
+                if (fixtureName.startsWith("after-"))
+                    parent.classList.add(fixtureName);
                 const tracked = [parent, ...parent.children];
                 parent.getBoundingClientRect();
                 const identities = tracked.map(element => internals.layoutNodeIdentity(element));
@@ -41,9 +51,11 @@
                     parent.prepend(inserted);
                 else
                     parent.append(inserted);
+                const additional = Array.from({ length: count - 1 }, () => inserted.cloneNode(true));
+                inserted.after(...additional);
                 parent.getBoundingClientRect();
                 const preserved = tracked.every((element, index) => internals.layoutNodeIdentity(element) === identities[index]);
-                const geometry = () => [...tracked, inserted].map(element => {
+                const geometry = () => [...tracked, inserted, ...additional].map(element => {
                     const rect = element.getBoundingClientRect();
                     return [rect.x, rect.y, rect.width, rect.height];
                 });
