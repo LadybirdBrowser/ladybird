@@ -32,7 +32,7 @@ block1:
 
 block2:
   [  28] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg5, iterator_next:reg8, iterator_done:reg6
-  [  40] JumpIf condition:reg11, true_target:block1, false_target:block8
+  [  40] JumpIfLoop condition:reg11, true_target:block1, false_target:block8
 
 block3:
   [  50] Mov dst:reg6, src:arg0
@@ -49,7 +49,7 @@ block5:
   [  c8] NewObject dst:reg9
   [  d8] Call value_feedback:3, call_feedback:0, dst:reg7, callee:reg8, this_value:reg6, Object.entries, arguments:[reg9]
   [ 100] GetIterator dst_iterator_object:reg5, dst_iterator_next:reg8, dst_iterator_done:reg6, iterable:reg7
-  [ 118] Jump target:block2
+  [ 118] JumpLoop target:block2
 
 block6:
   [ 120] Catch dst:reg9
@@ -71,7 +71,7 @@ block9:
   [ 1a8] JumpIf condition:reg15, true_target:block22, false_target:block21
 
 block10:
-  [ 1b8] Jump target:block2
+  [ 1b8] JumpLoop target:block2
 
 block11:
   [ 1c0] Jump target:block13
@@ -82,7 +82,7 @@ block12:
 
 block13:
   [ 1d8] IteratorNextUnpack dst_value:reg18, dst_done:reg12, iterator_object:reg13, iterator_next:reg14, iterator_done:reg15
-  [ 1f0] JumpTrue condition:reg12, target:block12
+  [ 1f0] JumpTrueLoop condition:reg12, target:block12
 
 block14:
   [ 200] Mov dst:r~0, src:reg18
@@ -94,7 +94,7 @@ block15:
 
 block16:
   [ 230] IteratorNextUnpack dst_value:reg18, dst_done:reg12, iterator_object:reg13, iterator_next:reg14, iterator_done:reg15
-  [ 248] JumpTrue condition:reg12, target:block15
+  [ 248] JumpTrueLoop condition:reg12, target:block15
 
 block17:
   [ 258] Mov dst:n~1, src:reg18
@@ -103,11 +103,11 @@ block18:
   [ 268] JumpFalse condition:reg15, target:block20
 
 block19:
-  [ 278] Jump target:block10
+  [ 278] JumpLoop target:block10
 
 block20:
   [ 280] IteratorClose iterator_object:reg13, iterator_next:reg14, iterator_done:reg15, completion_value:Undefined
-  [ 298] Jump target:block19
+  [ 298] JumpLoop target:block19
 
 block21:
   [ 2a0] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg16, rhs:1, true_target:block23, false_target:block24
@@ -121,11 +121,11 @@ block23:
 
 block24:
   [ 2f0] IteratorClose iterator_object:reg13, iterator_next:reg14, iterator_done:reg15, completion_value:Undefined
-  [ 308] Jump target:block22
+  [ 308] JumpLoop target:block22
 
 block25:
   [ 310] Mov2 c0_dst:reg7, c0_src:reg16, c1_dst:reg9, c1_src:reg17
-  [ 328] Jump target:block7
+  [ 328] JumpLoop target:block7
 
 block26:
   [ 330] Throw src:reg17

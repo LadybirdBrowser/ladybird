@@ -32,7 +32,7 @@ block1:
   [  78] Mov dst:reg8, src:i~0
   [  88] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, bar, arguments:[reg8]
   [  b0] PostfixIncrement arith_feedback:1, dst:reg6, src:i~0
-  [  c0] JumpLessThanRhsInt32 arith_feedback:0, lhs:i~0, rhs:7, true_target:block1, false_target:block2
+  [  c0] JumpLessThanLoopRhsInt32 arith_feedback:0, lhs:i~0, rhs:7, true_target:block1, false_target:block2
 
 block2:
   [  d8] End value:Undefined

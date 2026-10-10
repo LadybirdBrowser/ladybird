@@ -35,7 +35,7 @@ block4:
   [  40] JumpFalse condition:reg5, target:block6
 
 block5:
-  [  50] Jump target:block1
+  [  50] JumpLoop target:block1
 
 block6:
-  [  58] Jump target:block2
+  [  58] JumpLoop target:block2

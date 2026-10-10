@@ -38,7 +38,7 @@ block1:
 
 block2:
   [  58] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  70] JumpIf condition:reg11, true_target:block1, false_target:block4
+  [  70] JumpIfLoop condition:reg11, true_target:block1, false_target:block4
 
 block3:
   [  80] Catch dst:reg9
@@ -50,7 +50,7 @@ block4:
   [  b8] ResolveThisBinding
   [  c0] ResolveSuperBase dst:reg12
   [  c8] PutByIdWithThis base:reg12, this_value:this, `prop`, src:reg10, kind:Normal
-  [  e8] Jump target:block2
+  [  e8] JumpLoop target:block2
 
 block5:
   [  f0] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9

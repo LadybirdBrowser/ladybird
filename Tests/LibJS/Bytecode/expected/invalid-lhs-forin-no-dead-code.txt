@@ -15,7 +15,7 @@ block1:
 
 block2:
   [  30] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg11, receiver:reg6, keys:reg7, cursor:reg8
-  [  48] JumpIf condition:reg11, true_target:block1, false_target:block5
+  [  48] JumpIfLoop condition:reg11, true_target:block1, false_target:block5
 
 block3:
   [  58] End value:reg9
@@ -23,7 +23,7 @@ block3:
 block4:
   [  60] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg6, object:reg5
   [  78] Mov2 c0_dst:reg8, c0_src:Int32(0), c1_dst:reg9, c1_src:Undefined
-  [  90] Jump target:block2
+  [  90] JumpLoop target:block2
 
 block5:
   [  98] GetGlobal value_feedback:0, dst:reg13, `f`

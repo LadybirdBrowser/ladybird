@@ -29,7 +29,7 @@ block1:
   [  28] PostfixIncrement arith_feedback:1, dst:reg5, src:i~0
 
 block2:
-  [  38] JumpLessThanRhsInt32 arith_feedback:0, lhs:i~0, rhs:3, true_target:block1, false_target:block3
+  [  38] JumpLessThanLoopRhsInt32 arith_feedback:0, lhs:i~0, rhs:3, true_target:block1, false_target:block3
 
 block3:
   [  50] Mov dst:i~0, src:Int32(0)
@@ -39,7 +39,7 @@ block4:
   [  68] PostfixIncrement arith_feedback:3, dst:reg5, src:i~0
 
 block5:
-  [  78] JumpLessThanRhsInt32 arith_feedback:2, lhs:i~0, rhs:3, true_target:block4, false_target:block6
+  [  78] JumpLessThanLoopRhsInt32 arith_feedback:2, lhs:i~0, rhs:3, true_target:block4, false_target:block6
 
 block6:
   [  90] End value:Undefined

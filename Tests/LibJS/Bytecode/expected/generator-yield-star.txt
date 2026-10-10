@@ -34,7 +34,7 @@ block2:
 block3:
   [  60] Mov dst:reg5, src:reg0
   [  70] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [  80] Jump target:block2
+  [  80] JumpLoop target:block2
 
 block4:
   [  88] Yield value:Undefined
@@ -50,7 +50,7 @@ block6:
 
 block7:
   [ 108] GetById value_feedback:2, dst:reg14, base:reg12, `value`
-  [ 120] Jump target:block4
+  [ 120] JumpLoop target:block4
 
 block8:
   [ 128] YieldIteratorResult continuation_label:block3, value:reg12
@@ -76,7 +76,7 @@ block12:
 
 block13:
   [ 200] GetById value_feedback:5, dst:reg14, base:reg12, `value`
-  [ 218] Jump target:block4
+  [ 218] JumpLoop target:block4
 
 block14:
   [ 220] YieldIteratorResult continuation_label:block3, value:reg12

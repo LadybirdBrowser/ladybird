@@ -26,7 +26,7 @@ block1:
 
 block2:
   [  b8] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg11, receiver:reg6, keys:reg7, cursor:reg8
-  [  d0] JumpIf condition:reg11, true_target:block1, false_target:block5
+  [  d0] JumpIfLoop condition:reg11, true_target:block1, false_target:block5
 
 block3:
   [  e0] End value:reg9
@@ -34,7 +34,7 @@ block3:
 block4:
   [  e8] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg6, object:reg5
   [ 100] Mov2 c0_dst:reg8, c0_src:Int32(0), c1_dst:reg9, c1_src:Undefined
-  [ 118] Jump target:block2
+  [ 118] JumpLoop target:block2
 
 block5:
   [ 120] SetGlobal `k`, src:reg10
@@ -47,4 +47,4 @@ block5:
   [ 1a0] Add arith_feedback:1, dst:reg13, lhs:reg12, rhs:reg14
   [ 1b0] SetGlobal `result`, src:reg13
   [ 1c0] Mov dst:reg9, src:reg13
-  [ 1d0] Jump target:block2
+  [ 1d0] JumpLoop target:block2

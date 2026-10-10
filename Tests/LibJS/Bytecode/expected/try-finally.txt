@@ -43,7 +43,7 @@ block2:
 
 block3:
   [  a0] Mov2 c0_dst:reg6, c0_src:Int32(1), c1_dst:reg5, c1_src:Int32(2)
-  [  b8] Jump target:block2
+  [  b8] JumpLoop target:block2
 
 block4:
   [  c0] End value:Undefined
@@ -87,7 +87,7 @@ block2:
   [  30] PostfixIncrement arith_feedback:1, dst:reg5, src:i~0
 
 block3:
-  [  40] JumpLessThanRhsInt32 arith_feedback:0, lhs:i~0, rhs:10, true_target:block1, false_target:block4
+  [  40] JumpLessThanLoopRhsInt32 arith_feedback:0, lhs:i~0, rhs:10, true_target:block1, false_target:block4
 
 block4:
   [  58] End value:Undefined
@@ -109,17 +109,17 @@ block7:
 
 block8:
   [ 110] Mov dst:reg5, src:Int32(3)
-  [ 120] Jump target:block6
+  [ 120] JumpLoop target:block6
 
 block9:
   [ 128] Mov dst:reg5, src:Int32(0)
-  [ 138] Jump target:block6
+  [ 138] JumpLoop target:block6
 
 block10:
-  [ 140] Jump target:block2
+  [ 140] JumpLoop target:block2
 
 block11:
-  [ 148] JumpStrictlyEqualsRhsInt32 arith_feedback:4, lhs:reg5, rhs:3, true_target:block4, false_target:block12
+  [ 148] JumpStrictlyEqualsLoopRhsInt32 arith_feedback:4, lhs:reg5, rhs:3, true_target:block4, false_target:block12
 
 block12:
   [ 160] JumpStrictlyEqualsRhsInt32 arith_feedback:5, lhs:reg5, rhs:2, true_target:block13, false_target:block14
@@ -157,7 +157,7 @@ block1:
 
 block2:
   [  28] PostfixIncrement arith_feedback:0, dst:reg5, src:i~0
-  [  38] Jump target:block1
+  [  38] JumpLoop target:block1
 
 block3:
   [  40] End value:Undefined
@@ -189,34 +189,34 @@ block8:
 
 block9:
   [ 160] Mov dst:reg7, src:Int32(3)
-  [ 170] Jump target:block8
+  [ 170] JumpLoop target:block8
 
 block10:
   [ 178] Mov dst:reg5, src:Int32(3)
-  [ 188] Jump target:block5
+  [ 188] JumpLoop target:block5
 
 block11:
   [ 190] Mov dst:reg5, src:Int32(0)
-  [ 1a0] Jump target:block5
+  [ 1a0] JumpLoop target:block5
 
 block12:
-  [ 1a8] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg7, rhs:3, true_target:block10, false_target:block13
+  [ 1a8] JumpStrictlyEqualsLoopRhsInt32 arith_feedback:2, lhs:reg7, rhs:3, true_target:block10, false_target:block13
 
 block13:
   [ 1c0] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg7, rhs:2, true_target:block14, false_target:block15
 
 block14:
   [ 1d8] Mov2 c0_dst:reg5, c0_src:reg7, c1_dst:reg6, c1_src:reg8
-  [ 1f0] Jump target:block5
+  [ 1f0] JumpLoop target:block5
 
 block15:
   [ 1f8] Throw src:reg8
 
 block16:
-  [ 200] Jump target:block2
+  [ 200] JumpLoop target:block2
 
 block17:
-  [ 208] JumpStrictlyEqualsRhsInt32 arith_feedback:5, lhs:reg5, rhs:3, true_target:block3, false_target:block18
+  [ 208] JumpStrictlyEqualsLoopRhsInt32 arith_feedback:5, lhs:reg5, rhs:3, true_target:block3, false_target:block18
 
 block18:
   [ 220] JumpStrictlyEqualsRhsInt32 arith_feedback:6, lhs:reg5, rhs:2, true_target:block19, false_target:block20

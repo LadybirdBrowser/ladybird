@@ -20,7 +20,7 @@ block1:
 
 block2:
   [  68] IteratorNextUnpack dst_value:reg11, dst_done:reg12, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  80] JumpIf condition:reg12, true_target:block1, false_target:block4
+  [  80] JumpIfLoop condition:reg12, true_target:block1, false_target:block4
 
 block3:
   [  90] Catch dst:reg10
@@ -30,7 +30,7 @@ block3:
 
 block4:
   [  c8] Mov2 c0_dst:x~0, c0_src:reg11, c1_dst:reg5, c1_src:x~0
-  [  e0] Jump target:block2
+  [  e0] JumpLoop target:block2
 
 block5:
   [  e8] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg10

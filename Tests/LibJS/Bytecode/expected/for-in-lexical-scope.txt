@@ -21,7 +21,7 @@ block1:
 
 block2:
   [  90] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg11, receiver:reg5, keys:reg7, cursor:reg8
-  [  a8] JumpIf condition:reg11, true_target:block1, false_target:block5
+  [  a8] JumpIfLoop condition:reg11, true_target:block1, false_target:block5
 
 block3:
   [  b8] End value:reg9
@@ -29,7 +29,7 @@ block3:
 block4:
   [  c0] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg5, object:reg6
   [  d8] Mov2 c0_dst:reg8, c0_src:Int32(0), c1_dst:reg9, c1_src:Undefined
-  [  f0] Jump target:block2
+  [  f0] JumpLoop target:block2
 
 block5:
   [  f8] CreateLexicalEnvironment dst:reg12, parent:reg4, capacity:1, is_catch_environment:false
@@ -43,4 +43,4 @@ block5:
   [ 1a8] DynamicSetVariableBinding `probeDecl`, src:reg14
   [ 1b8] SetLexicalEnvironment environment:reg12
   [ 1c0] SetLexicalEnvironment environment:reg4
-  [ 1c8] Jump target:block2
+  [ 1c8] JumpLoop target:block2

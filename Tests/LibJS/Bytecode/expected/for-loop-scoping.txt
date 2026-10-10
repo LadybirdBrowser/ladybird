@@ -52,7 +52,7 @@ block1:
 
 block2:
   [ 1d0] GetBinding value_feedback:1, dst:reg6, `i`
-  [ 1e8] JumpLessThanRhsInt32 arith_feedback:0, lhs:reg6, rhs:3, true_target:block1, false_target:block3
+  [ 1e8] JumpLessThanLoopRhsInt32 arith_feedback:0, lhs:reg6, rhs:3, true_target:block1, false_target:block3
 
 block3:
   [ 200] SetLexicalEnvironment environment:reg4
@@ -99,7 +99,7 @@ block4:
   [ 100] Increment arith_feedback:1, dst:k~2
 
 block5:
-  [ 108] JumpLessThan arith_feedback:0, lhs:k~2, rhs:length~4, true_target:block3, false_target:block6
+  [ 108] JumpLessThanLoop arith_feedback:0, lhs:k~2, rhs:length~4, true_target:block3, false_target:block6
 
 block6:
   [ 120] Return value:array~5
@@ -112,7 +112,7 @@ block7:
   [ 1a8] CreateDataPropertyOrThrow object:array~5, property:k~2, value:mappedValue~1
 
 block8:
-  [ 1b8] Jump target:block4
+  [ 1b8] JumpLoop target:block4
 
 
 $dd56fdd7 for-loop-scoping.js:6:20

@@ -47,7 +47,7 @@ block3:
 
 block4:
   [  e8] Mov dst:reg5, src:reg6
-  [  f8] Jump target:block2
+  [  f8] JumpLoop target:block2
 
 block5:
   [ 100] Jump target:block7
@@ -58,7 +58,7 @@ block6:
 
 block7:
   [ 118] IteratorNextUnpack dst_value:reg13, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
-  [ 130] JumpTrue condition:reg7, target:block6
+  [ 130] JumpTrueLoop condition:reg7, target:block6
 
 block8:
   [ 140] Mov dst:a~0, src:reg13
@@ -70,7 +70,7 @@ block9:
 
 block10:
   [ 170] IteratorNextUnpack dst_value:reg13, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
-  [ 188] JumpTrue condition:reg7, target:block9
+  [ 188] JumpTrueLoop condition:reg7, target:block9
 
 block11:
   [ 198] Mov dst:b~1, src:reg13
@@ -79,11 +79,11 @@ block12:
   [ 1a8] JumpFalse condition:reg10, target:block14
 
 block13:
-  [ 1b8] Jump target:block4
+  [ 1b8] JumpLoop target:block4
 
 block14:
   [ 1c0] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
-  [ 1d8] Jump target:block13
+  [ 1d8] JumpLoop target:block13
 
 block15:
   [ 1e0] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg11, rhs:1, true_target:block17, false_target:block18
@@ -97,7 +97,7 @@ block17:
 
 block18:
   [ 230] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
-  [ 248] Jump target:block16
+  [ 248] JumpLoop target:block16
 
 block19:
   [ 250] Return value:reg12

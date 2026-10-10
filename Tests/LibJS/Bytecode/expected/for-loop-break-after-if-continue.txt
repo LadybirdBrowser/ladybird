@@ -28,7 +28,7 @@ block2:
   [  18] End value:Undefined
 
 block3:
-  [  20] Jump target:block1
+  [  20] JumpLoop target:block1
 
 block4:
-  [  28] Jump target:block2
+  [  28] JumpLoop target:block2
