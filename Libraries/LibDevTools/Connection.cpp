@@ -45,10 +45,7 @@ void Connection::send_message(JsonValue const& message)
             dbgln("\x1b[1;32m<<\x1b[0m {}", serialized);
     }
 
-    // Temporarily enable blocking mode for large writes to avoid EAGAIN
-    (void)m_socket->set_blocking(true);
     auto result = m_socket->write_until_depleted(MUST(String::formatted("{}:{}", serialized.byte_count(), serialized)));
-    (void)m_socket->set_blocking(false);
 
     if (result.is_error()) {
         warnln("DevTools: Failed to send message ({} bytes): {}", serialized.byte_count(), result.error());
