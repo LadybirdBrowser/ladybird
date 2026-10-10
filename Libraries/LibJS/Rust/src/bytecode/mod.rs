@@ -24,6 +24,7 @@
 //! - `encoding` -- How instructions and their operands are laid out in an executable's bytecode
 //! - `op` -- Instruction structs the interpreter reads (generated from interpreter.flap by build.rs)
 //! - `executable` -- Executable: the cell that holds bytecode and its caches
+//! - `feedback` -- What the profiling interpreter observes for the optimizing JIT, per executable
 //! - `property_access` -- Property lookups through the inline caches
 //! - `class_blueprint`, `bytecode_cache` -- Classes and bytecode cache blobs as the runtime keeps them
 
@@ -41,6 +42,8 @@ pub mod encoding;
 #[cfg(not(test))]
 pub mod executable;
 pub mod executable_data;
+#[cfg(not(test))]
+pub mod feedback;
 pub mod generator;
 pub mod instruction;
 mod native_disassembler;

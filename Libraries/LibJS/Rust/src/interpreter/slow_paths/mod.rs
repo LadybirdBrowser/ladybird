@@ -10,6 +10,7 @@
 pub mod bindings;
 pub mod calls;
 pub mod control;
+pub mod feedback;
 pub mod operators;
 pub mod property_access;
 
@@ -18,6 +19,7 @@ use core::cell::Cell;
 use super::runtime_functions::{Runtime, RuntimeFunctions, SlowPathControl, handle_asm_exception};
 use super::vm::Vm;
 use crate::bytecode::executable::PropertyLookupCache;
+use crate::bytecode::feedback::{call_feedback_flags, keyed_feedback_bits};
 use crate::bytecode::op;
 use crate::layout::value::Value;
 use property_access::KeyedSiteCache;
@@ -331,7 +333,8 @@ impl RuntimeFunctions for Runtime {
     // Property access and its inline caches: property_access.rs.
 
     fn get_by_id(vm: &Vm, pc: u32, instruction: &op::GetById, values: &mut op::GetByIdValues) -> SlowPathControl {
-        property_access::get_by_id(vm, pc, instruction, values)
+        let control = property_access::get_by_id(vm, pc, instruction, values);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn get_by_id_cached_accessor(
@@ -340,7 +343,8 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::GetById,
         values: &mut op::GetByIdValues,
     ) -> SlowPathControl {
-        property_access::get_by_id_cached_accessor(vm, pc, instruction, values)
+        let control = property_access::get_by_id_cached_accessor(vm, pc, instruction, values);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn get_by_id_with_this(
@@ -349,7 +353,8 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::GetByIdWithThis,
         values: &mut op::GetByIdWithThisValues,
     ) -> SlowPathControl {
-        property_access::get_by_id_with_this(vm, pc, instruction, values)
+        let control = property_access::get_by_id_with_this(vm, pc, instruction, values);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn get_by_value(
@@ -358,7 +363,9 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::GetByValue,
         values: &mut op::GetByValueValues,
     ) -> SlowPathControl {
-        property_access::get_by_value(vm, pc, instruction, values, KeyedSiteCache::Use)
+        feedback::record_keyed(vm, instruction.keyed_feedback, values.base, values.property);
+        let control = property_access::get_by_value(vm, pc, instruction, values, KeyedSiteCache::Use);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn get_by_value_uncached(
@@ -367,7 +374,9 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::GetByValue,
         values: &mut op::GetByValueValues,
     ) -> SlowPathControl {
-        property_access::get_by_value(vm, pc, instruction, values, KeyedSiteCache::Skip)
+        feedback::record_keyed(vm, instruction.keyed_feedback, values.base, values.property);
+        let control = property_access::get_by_value(vm, pc, instruction, values, KeyedSiteCache::Skip);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn try_get_by_id_cache_on_primitive(
@@ -376,7 +385,11 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::GetById,
         values: &mut op::GetByIdValues,
     ) -> bool {
-        property_access::try_get_by_id_cache_on_primitive(vm, instruction, values)
+        if !property_access::try_get_by_id_cache_on_primitive(vm, instruction, values) {
+            return false;
+        }
+        feedback::record_value(vm, instruction.value_feedback, values.dst);
+        true
     }
 
     fn try_get_by_value_cache(
@@ -385,20 +398,27 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::GetByValue,
         values: &mut op::GetByValueValues,
     ) -> bool {
-        property_access::try_get_by_value_cache(vm, instruction, values)
+        if !property_access::try_get_by_value_cache(vm, instruction, values) {
+            return false;
+        }
+        feedback::record_keyed(vm, instruction.keyed_feedback, values.base, values.property);
+        feedback::record_value(vm, instruction.value_feedback, values.dst);
+        true
     }
 
     fn get_by_value_with_this(
         vm: &Vm,
         pc: u32,
-        _instruction: &op::GetByValueWithThis,
+        instruction: &op::GetByValueWithThis,
         values: &mut op::GetByValueWithThisValues,
     ) -> SlowPathControl {
-        property_access::get_by_value_with_this(vm, pc, values)
+        let control = property_access::get_by_value_with_this(vm, pc, values);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn get_length(vm: &Vm, pc: u32, instruction: &op::GetLength, values: &mut op::GetLengthValues) -> SlowPathControl {
-        property_access::get_length(vm, pc, instruction, values)
+        let control = property_access::get_length(vm, pc, instruction, values);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn get_length_with_this(
@@ -407,7 +427,8 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::GetLengthWithThis,
         values: &mut op::GetLengthWithThisValues,
     ) -> SlowPathControl {
-        property_access::get_length_with_this(vm, pc, instruction, values)
+        let control = property_access::get_length_with_this(vm, pc, instruction, values);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn get_method(vm: &Vm, pc: u32, instruction: &op::GetMethod, values: &mut op::GetMethodValues) -> SlowPathControl {
@@ -433,6 +454,7 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::PutByValue,
         values: &mut op::PutByValueValues,
     ) -> SlowPathControl {
+        feedback::record_keyed(vm, instruction.keyed_feedback, values.base, values.property);
         property_access::put_by_value(vm, pc, instruction, values, KeyedSiteCache::Use)
     }
 
@@ -442,6 +464,7 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::PutByValue,
         values: &mut op::PutByValueValues,
     ) -> SlowPathControl {
+        feedback::record_keyed(vm, instruction.keyed_feedback, values.base, values.property);
         property_access::put_by_value(vm, pc, instruction, values, KeyedSiteCache::Skip)
     }
 
@@ -451,7 +474,11 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::PutByValue,
         values: &mut op::PutByValueValues,
     ) -> bool {
-        property_access::try_put_by_value_cache(vm, instruction, values)
+        if !property_access::try_put_by_value_cache(vm, instruction, values) {
+            return false;
+        }
+        feedback::record_keyed(vm, instruction.keyed_feedback, values.base, values.property);
+        true
     }
 
     fn put_by_value_with_this(
@@ -603,10 +630,15 @@ impl RuntimeFunctions for Runtime {
     fn try_get_by_value_typed_array(
         vm: &Vm,
         _pc: u32,
-        _instruction: &op::GetByValue,
+        instruction: &op::GetByValue,
         values: &mut op::GetByValueValues,
     ) -> bool {
-        property_access::try_get_by_value_typed_array(vm, values)
+        let handled = property_access::try_get_by_value_typed_array(vm, values);
+        if handled {
+            feedback::record_keyed(vm, instruction.keyed_feedback, values.base, values.property);
+            feedback::record_value(vm, instruction.value_feedback, values.dst);
+        }
+        handled
     }
 
     fn try_inline_get_by_id_accessor(
@@ -623,21 +655,35 @@ impl RuntimeFunctions for Runtime {
     }
 
     fn try_put_by_value_holey_array(
-        _vm: &Vm,
+        vm: &Vm,
         _pc: u32,
-        _instruction: &op::PutByValue,
+        instruction: &op::PutByValue,
         values: &mut op::PutByValueValues,
     ) -> bool {
-        property_access::try_put_by_value_holey_array(values)
+        let handled = property_access::try_put_by_value_holey_array(values);
+        if handled {
+            // NB: The interpreter only comes here for stores that fill a hole or need more storage, which are out of
+            //     bounds.
+            feedback::record_keyed_bits(
+                vm,
+                instruction.keyed_feedback,
+                keyed_feedback_bits::INT32_INDEX | keyed_feedback_bits::HOLEY | keyed_feedback_bits::OUT_OF_BOUNDS,
+            );
+        }
+        handled
     }
 
     fn try_put_by_value_typed_array(
         vm: &Vm,
         _pc: u32,
-        _instruction: &op::PutByValue,
+        instruction: &op::PutByValue,
         values: &mut op::PutByValueValues,
     ) -> bool {
-        property_access::try_put_by_value_typed_array(vm, values)
+        let handled = property_access::try_put_by_value_typed_array(vm, values);
+        if handled {
+            feedback::record_keyed(vm, instruction.keyed_feedback, values.base, values.property);
+        }
+        handled
     }
 
     // Bindings and environments: bindings.rs.
@@ -702,7 +748,8 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::DynamicGetBinding,
         values: &mut op::DynamicGetBindingValues,
     ) -> SlowPathControl {
-        bindings::dynamic_get_binding(vm, pc, instruction, values)
+        let control = bindings::dynamic_get_binding(vm, pc, instruction, values);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn dynamic_get_initialized_binding(
@@ -711,7 +758,8 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::DynamicGetInitializedBinding,
         values: &mut op::DynamicGetInitializedBindingValues,
     ) -> SlowPathControl {
-        bindings::dynamic_get_initialized_binding(vm, pc, instruction, values)
+        let control = bindings::dynamic_get_initialized_binding(vm, pc, instruction, values);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn dynamic_get_callee_and_this(
@@ -720,7 +768,8 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::DynamicGetCalleeAndThisFromEnvironment,
         values: &mut op::DynamicGetCalleeAndThisFromEnvironmentValues,
     ) -> SlowPathControl {
-        bindings::dynamic_get_callee_and_this(vm, pc, instruction, values)
+        let control = bindings::dynamic_get_callee_and_this(vm, pc, instruction, values);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.callee)
     }
 
     fn dynamic_initialize_lexical_binding(
@@ -783,7 +832,8 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::GetBinding,
         values: &mut op::GetBindingValues,
     ) -> SlowPathControl {
-        bindings::get_binding(vm, pc, instruction, values)
+        let control = bindings::get_binding(vm, pc, instruction, values);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn get_callee_and_this(
@@ -792,11 +842,13 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::GetCalleeAndThisFromEnvironment,
         values: &mut op::GetCalleeAndThisFromEnvironmentValues,
     ) -> SlowPathControl {
-        bindings::get_callee_and_this(vm, pc, instruction, values)
+        let control = bindings::get_callee_and_this(vm, pc, instruction, values);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.callee)
     }
 
     fn get_global(vm: &Vm, pc: u32, instruction: &op::GetGlobal, values: &mut op::GetGlobalValues) -> SlowPathControl {
-        bindings::get_global(vm, pc, instruction, values)
+        let control = bindings::get_global(vm, pc, instruction, values);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn typeof_global(
@@ -993,7 +1045,8 @@ impl RuntimeFunctions for Runtime {
         values: &mut op::CallValues,
         arguments: &mut [Value],
     ) -> SlowPathControl {
-        calls::call(vm, pc, instruction, values, arguments)
+        let control = calls::call(vm, pc, instruction, values, arguments);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn call_direct_eval(
@@ -1003,7 +1056,9 @@ impl RuntimeFunctions for Runtime {
         values: &mut op::CallDirectEvalValues,
         arguments: &mut [Value],
     ) -> SlowPathControl {
-        calls::call_direct_eval(vm, pc, instruction, values, arguments)
+        feedback::record_call(vm, instruction.call_feedback, values.callee, call_feedback_flags::NONE);
+        let control = calls::call_direct_eval(vm, pc, instruction, values, arguments);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn call_with_argument_array(
@@ -1012,7 +1067,9 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::CallWithArgumentArray,
         values: &mut op::CallWithArgumentArrayValues,
     ) -> SlowPathControl {
-        calls::call_with_argument_array(vm, pc, instruction, values)
+        feedback::record_call(vm, instruction.call_feedback, values.callee, call_feedback_flags::NONE);
+        let control = calls::call_with_argument_array(vm, pc, instruction, values);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn call_direct_eval_with_argument_array(
@@ -1021,7 +1078,9 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::CallDirectEvalWithArgumentArray,
         values: &mut op::CallDirectEvalWithArgumentArrayValues,
     ) -> SlowPathControl {
-        calls::call_direct_eval_with_argument_array(vm, pc, instruction, values)
+        feedback::record_call(vm, instruction.call_feedback, values.callee, call_feedback_flags::NONE);
+        let control = calls::call_direct_eval_with_argument_array(vm, pc, instruction, values);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn call_builtin_math_abs(
@@ -1247,7 +1306,14 @@ impl RuntimeFunctions for Runtime {
         values: &mut op::CallConstructValues,
         arguments: &mut [Value],
     ) -> SlowPathControl {
-        calls::call_construct(vm, pc, instruction, values, arguments)
+        feedback::record_call(
+            vm,
+            instruction.call_feedback,
+            values.callee,
+            call_feedback_flags::SAW_CONSTRUCT,
+        );
+        let control = calls::call_construct(vm, pc, instruction, values, arguments);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn call_construct_with_argument_array(
@@ -1256,7 +1322,14 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::CallConstructWithArgumentArray,
         values: &mut op::CallConstructWithArgumentArrayValues,
     ) -> SlowPathControl {
-        calls::call_construct_with_argument_array(vm, pc, instruction, values)
+        feedback::record_call(
+            vm,
+            instruction.call_feedback,
+            values.callee,
+            call_feedback_flags::SAW_CONSTRUCT,
+        );
+        let control = calls::call_construct_with_argument_array(vm, pc, instruction, values);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn super_call_with_argument_array(
@@ -1265,7 +1338,14 @@ impl RuntimeFunctions for Runtime {
         instruction: &op::SuperCallWithArgumentArray,
         values: &mut op::SuperCallWithArgumentArrayValues,
     ) -> SlowPathControl {
-        calls::super_call_with_argument_array(vm, pc, instruction, values)
+        feedback::record_call(
+            vm,
+            instruction.call_feedback,
+            values.super_constructor,
+            call_feedback_flags::SAW_CONSTRUCT,
+        );
+        let control = calls::super_call_with_argument_array(vm, pc, instruction, values);
+        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
     }
 
     fn set_function_name(

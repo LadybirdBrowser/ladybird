@@ -8,6 +8,7 @@ use core::cell::Cell;
 
 use super::buffer::InterpreterBuffer;
 use super::cell::CellHeader;
+use super::feedback::ExecutableFeedbackHead;
 use super::property_lookup_cache::{EnvironmentCoordinate, GlobalVariableCache, PropertyLookupCache};
 use super::value::Value;
 
@@ -24,6 +25,8 @@ pub struct ExecutableHead {
     /// Which of the VM's dispatch tables (see `VmHead::dispatch_tables`) the interpreter runs this executable's frames
     /// with, which it switches to whenever it enters one of them.
     pub dispatch_table_index: Cell<u8>,
+    /// Where the profiling interpreter records feedback for the optimizing JIT.
+    pub feedback: ExecutableFeedbackHead,
     pub constants: InterpreterBuffer<Value>,
     pub property_lookup_caches: InterpreterBuffer<PropertyLookupCache>,
     pub global_variable_caches: InterpreterBuffer<GlobalVariableCache>,

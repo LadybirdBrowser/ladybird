@@ -1975,11 +1975,11 @@ asm_handler_JumpLessThan:
     ldr x0, [x27, x0, lsl #3]
     lsr x2, x1, #48
     cmp w2, w22
-    b.ne .Lasm_JumpLessThan.ssa_block_7
+    b.ne .Lasm_JumpLessThan.ssa_block_8
     lsr x3, x0, #48
     sxtw x2, w1
     cmp w3, w22
-    b.ne .Lasm_JumpLessThan.ssa_block_10
+    b.ne .Lasm_JumpLessThan.ssa_block_12
     cmp w2, w0
     b.ge .Lasm_JumpLessThan.ssa_block_3
 .Lasm_JumpLessThan.ssa_block_2:
@@ -2003,11 +2003,11 @@ asm_handler_JumpGreaterThan:
     ldr x0, [x27, x0, lsl #3]
     lsr x2, x1, #48
     cmp w2, w22
-    b.ne .Lasm_JumpGreaterThan.ssa_block_7
+    b.ne .Lasm_JumpGreaterThan.ssa_block_8
     lsr x3, x0, #48
     sxtw x2, w1
     cmp w3, w22
-    b.ne .Lasm_JumpGreaterThan.ssa_block_10
+    b.ne .Lasm_JumpGreaterThan.ssa_block_12
     cmp w2, w0
     b.le .Lasm_JumpGreaterThan.ssa_block_3
 .Lasm_JumpGreaterThan.ssa_block_2:
@@ -2031,11 +2031,11 @@ asm_handler_JumpLessThanEquals:
     ldr x0, [x27, x0, lsl #3]
     lsr x2, x1, #48
     cmp w2, w22
-    b.ne .Lasm_JumpLessThanEquals.ssa_block_7
+    b.ne .Lasm_JumpLessThanEquals.ssa_block_8
     lsr x3, x0, #48
     sxtw x2, w1
     cmp w3, w22
-    b.ne .Lasm_JumpLessThanEquals.ssa_block_10
+    b.ne .Lasm_JumpLessThanEquals.ssa_block_12
     cmp w2, w0
     b.gt .Lasm_JumpLessThanEquals.ssa_block_3
 .Lasm_JumpLessThanEquals.ssa_block_2:
@@ -2059,11 +2059,11 @@ asm_handler_JumpGreaterThanEquals:
     ldr x0, [x27, x0, lsl #3]
     lsr x2, x1, #48
     cmp w2, w22
-    b.ne .Lasm_JumpGreaterThanEquals.ssa_block_7
+    b.ne .Lasm_JumpGreaterThanEquals.ssa_block_8
     lsr x3, x0, #48
     sxtw x2, w1
     cmp w3, w22
-    b.ne .Lasm_JumpGreaterThanEquals.ssa_block_10
+    b.ne .Lasm_JumpGreaterThanEquals.ssa_block_12
     cmp w2, w0
     b.lt .Lasm_JumpGreaterThanEquals.ssa_block_3
 .Lasm_JumpGreaterThanEquals.ssa_block_2:
@@ -2087,24 +2087,30 @@ asm_handler_JumpLooselyEquals:
     ldr x2, [x27, x1, lsl #3]
     lsr x3, x2, #48
     cmp x3, x22
-    b.ne .Lasm_JumpLooselyEquals.ssa_block_8
+    b.ne .Lasm_JumpLooselyEquals.ssa_block_10
     lsr x3, x0, #48
     sxtw x1, w2
     cmp w3, w22
-    b.ne .Lasm_JumpLooselyEquals.ssa_block_19
+    b.ne .Lasm_JumpLooselyEquals.ssa_block_23
     sxtw x0, w0
     cmp x0, x1
     b.eq .Lasm_JumpLooselyEquals.ssa_block_2
     b .Lasm_JumpLooselyEquals.ssa_block_3
-.Lasm_JumpLooselyEquals.ssa_block_8:
+.Lasm_JumpLooselyEquals.ssa_block_23:
+    and w3, w3, #0x7ff8
+    mov w9, #32760
+    cmp w3, w9
+    b.ne .Lasm_JumpLooselyEquals.ssa_block_22
+    b .Lasm_JumpLooselyEquals.ssa_block_1
+.Lasm_JumpLooselyEquals.ssa_block_10:
     lsr x1, x0, #48
     cmp w1, w3
-    b.eq .Lasm_JumpLooselyEquals.ssa_block_9
+    b.eq .Lasm_JumpLooselyEquals.ssa_block_11
     mov x4, x1
     and w4, w4, #0xfffe
     mov w9, #32766
     cmp w4, w9
-    b.eq .Lasm_JumpLooselyEquals.ssa_block_10
+    b.eq .Lasm_JumpLooselyEquals.ssa_block_14
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
@@ -2112,15 +2118,15 @@ asm_handler_JumpLooselyEquals:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
-    b.eq .Lasm_JumpLooselyEquals.ssa_block_1
-    b .Lasm_JumpLooselyEquals.ssa_block_4
-.Lasm_JumpLooselyEquals.ssa_block_10:
+    b.ne .Lasm_JumpLooselyEquals.ssa_block_4
+    b .Lasm_JumpLooselyEquals.ssa_block_1
+.Lasm_JumpLooselyEquals.ssa_block_14:
     and w3, w3, #0xfffe
     mov w9, #32766
     cmp w3, w9
     b.eq .Lasm_JumpLooselyEquals.ssa_block_2
     b .Lasm_JumpLooselyEquals.ssa_block_1
-.Lasm_JumpLooselyEquals.ssa_block_9:
+.Lasm_JumpLooselyEquals.ssa_block_11:
     cmp x1, x22
     ccmp x1, x23, #4, ne
     mov w9, #65529
@@ -2130,7 +2136,7 @@ asm_handler_JumpLooselyEquals:
     b.eq .Lasm_JumpLooselyEquals.ssa_block_31
     mov w9, #65530
     cmp x1, x9
-    b.eq .Lasm_JumpLooselyEquals.ssa_block_29
+    b.eq .Lasm_JumpLooselyEquals.ssa_block_28
     mov w9, #65533
     cmp x1, x9
     b.eq .Lasm_JumpLooselyEquals.ssa_block_1
@@ -2145,10 +2151,10 @@ asm_handler_JumpLooselyEquals:
     b.vs .Lasm_JumpLooselyEquals.ssa_block_3
     b.eq .Lasm_JumpLooselyEquals.ssa_block_2
     b .Lasm_JumpLooselyEquals.ssa_block_3
-.Lasm_JumpLooselyEquals.ssa_block_29:
+.Lasm_JumpLooselyEquals.ssa_block_28:
     cmp x0, x2
     b.eq .Lasm_JumpLooselyEquals.ssa_block_2
-    b .Lasm_JumpLooselyEquals.ssa_block_30
+    b .Lasm_JumpLooselyEquals.ssa_block_29
 .Lasm_JumpLooselyEquals.ssa_block_31:
     cmp x0, x2
     b.ne .Lasm_JumpLooselyEquals.ssa_block_3
@@ -2173,24 +2179,30 @@ asm_handler_JumpLooselyInequals:
     ldr x2, [x27, x1, lsl #3]
     lsr x3, x2, #48
     cmp x3, x22
-    b.ne .Lasm_JumpLooselyInequals.ssa_block_8
+    b.ne .Lasm_JumpLooselyInequals.ssa_block_10
     lsr x3, x0, #48
     sxtw x1, w2
     cmp w3, w22
-    b.ne .Lasm_JumpLooselyInequals.ssa_block_19
+    b.ne .Lasm_JumpLooselyInequals.ssa_block_23
     sxtw x0, w0
     cmp x0, x1
     b.eq .Lasm_JumpLooselyInequals.ssa_block_3
     b .Lasm_JumpLooselyInequals.ssa_block_2
-.Lasm_JumpLooselyInequals.ssa_block_8:
+.Lasm_JumpLooselyInequals.ssa_block_23:
+    and w3, w3, #0x7ff8
+    mov w9, #32760
+    cmp w3, w9
+    b.ne .Lasm_JumpLooselyInequals.ssa_block_22
+    b .Lasm_JumpLooselyInequals.ssa_block_1
+.Lasm_JumpLooselyInequals.ssa_block_10:
     lsr x1, x0, #48
     cmp w1, w3
-    b.eq .Lasm_JumpLooselyInequals.ssa_block_9
+    b.eq .Lasm_JumpLooselyInequals.ssa_block_11
     mov x4, x1
     and w4, w4, #0xfffe
     mov w9, #32766
     cmp w4, w9
-    b.eq .Lasm_JumpLooselyInequals.ssa_block_10
+    b.eq .Lasm_JumpLooselyInequals.ssa_block_14
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
@@ -2198,15 +2210,15 @@ asm_handler_JumpLooselyInequals:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
-    b.eq .Lasm_JumpLooselyInequals.ssa_block_1
-    b .Lasm_JumpLooselyInequals.ssa_block_4
-.Lasm_JumpLooselyInequals.ssa_block_10:
+    b.ne .Lasm_JumpLooselyInequals.ssa_block_4
+    b .Lasm_JumpLooselyInequals.ssa_block_1
+.Lasm_JumpLooselyInequals.ssa_block_14:
     and w3, w3, #0xfffe
     mov w9, #32766
     cmp w3, w9
     b.eq .Lasm_JumpLooselyInequals.ssa_block_3
     b .Lasm_JumpLooselyInequals.ssa_block_1
-.Lasm_JumpLooselyInequals.ssa_block_9:
+.Lasm_JumpLooselyInequals.ssa_block_11:
     cmp x1, x22
     ccmp x1, x23, #4, ne
     mov w9, #65529
@@ -2216,7 +2228,7 @@ asm_handler_JumpLooselyInequals:
     b.eq .Lasm_JumpLooselyInequals.ssa_block_31
     mov w9, #65530
     cmp x1, x9
-    b.eq .Lasm_JumpLooselyInequals.ssa_block_29
+    b.eq .Lasm_JumpLooselyInequals.ssa_block_28
     mov w9, #65533
     cmp x1, x9
     b.eq .Lasm_JumpLooselyInequals.ssa_block_1
@@ -2231,10 +2243,10 @@ asm_handler_JumpLooselyInequals:
     b.vs .Lasm_JumpLooselyInequals.ssa_block_2
     b.eq .Lasm_JumpLooselyInequals.ssa_block_3
     b .Lasm_JumpLooselyInequals.ssa_block_2
-.Lasm_JumpLooselyInequals.ssa_block_29:
+.Lasm_JumpLooselyInequals.ssa_block_28:
     cmp x0, x2
     b.eq .Lasm_JumpLooselyInequals.ssa_block_3
-    b .Lasm_JumpLooselyInequals.ssa_block_30
+    b .Lasm_JumpLooselyInequals.ssa_block_29
 .Lasm_JumpLooselyInequals.ssa_block_31:
     cmp x0, x2
     b.ne .Lasm_JumpLooselyInequals.ssa_block_2
@@ -2259,21 +2271,27 @@ asm_handler_JumpStrictlyEquals:
     ldr x1, [x27, x1, lsl #3]
     lsr x3, x1, #48
     cmp x3, x22
-    b.ne .Lasm_JumpStrictlyEquals.ssa_block_8
+    b.ne .Lasm_JumpStrictlyEquals.ssa_block_10
     lsr x2, x0, #48
     sxtw x1, w1
     cmp w2, w22
-    b.ne .Lasm_JumpStrictlyEquals.ssa_block_17
+    b.ne .Lasm_JumpStrictlyEquals.ssa_block_21
     sxtw x0, w0
     cmp x0, x1
     b.eq .Lasm_JumpStrictlyEquals.ssa_block_2
     b .Lasm_JumpStrictlyEquals.ssa_block_3
-.Lasm_JumpStrictlyEquals.ssa_block_8:
+.Lasm_JumpStrictlyEquals.ssa_block_21:
+    and w2, w2, #0x7ff8
+    mov w9, #32760
+    cmp w2, w9
+    b.ne .Lasm_JumpStrictlyEquals.ssa_block_20
+    b .Lasm_JumpStrictlyEquals.ssa_block_3
+.Lasm_JumpStrictlyEquals.ssa_block_10:
     lsr x2, x0, #48
     cmp w2, w3
-    b.eq .Lasm_JumpStrictlyEquals.ssa_block_9
+    b.eq .Lasm_JumpStrictlyEquals.ssa_block_11
     cmp x2, x22
-    b.ne .Lasm_JumpStrictlyEquals.ssa_block_10
+    b.ne .Lasm_JumpStrictlyEquals.ssa_block_14
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -2284,7 +2302,7 @@ asm_handler_JumpStrictlyEquals:
     fcmp d0, d1
     b.eq .Lasm_JumpStrictlyEquals.ssa_block_2
     b .Lasm_JumpStrictlyEquals.ssa_block_3
-.Lasm_JumpStrictlyEquals.ssa_block_10:
+.Lasm_JumpStrictlyEquals.ssa_block_14:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -2292,26 +2310,26 @@ asm_handler_JumpStrictlyEquals:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
-    b.eq .Lasm_JumpStrictlyEquals.ssa_block_3
-    b .Lasm_JumpStrictlyEquals.ssa_block_4
-.Lasm_JumpStrictlyEquals.ssa_block_9:
+    b.ne .Lasm_JumpStrictlyEquals.ssa_block_4
+    b .Lasm_JumpStrictlyEquals.ssa_block_3
+.Lasm_JumpStrictlyEquals.ssa_block_11:
     cmp x2, x22
     ccmp x2, x23, #4, ne
     mov w9, #65529
     ccmp x2, x9, #4, ne
     mov w9, #65531
     ccmp x2, x9, #4, ne
-    b.eq .Lasm_JumpStrictlyEquals.ssa_block_30
+    b.eq .Lasm_JumpStrictlyEquals.ssa_block_29
     mov w9, #65530
     cmp x2, x9
-    b.eq .Lasm_JumpStrictlyEquals.ssa_block_28
+    b.eq .Lasm_JumpStrictlyEquals.ssa_block_26
     mov w9, #65533
     cmp x2, x9
     b.eq .Lasm_JumpStrictlyEquals.ssa_block_1
     and w2, w2, #0xfffe
     mov w9, #32766
     cmp x2, x9
-    b.eq .Lasm_JumpStrictlyEquals.ssa_block_30
+    b.eq .Lasm_JumpStrictlyEquals.ssa_block_29
 .Lasm_JumpStrictlyEquals.ssa_block_4:
     fmov d0, x0
     fmov d1, x1
@@ -2319,11 +2337,11 @@ asm_handler_JumpStrictlyEquals:
     b.vs .Lasm_JumpStrictlyEquals.ssa_block_3
     b.eq .Lasm_JumpStrictlyEquals.ssa_block_2
     b .Lasm_JumpStrictlyEquals.ssa_block_3
-.Lasm_JumpStrictlyEquals.ssa_block_28:
+.Lasm_JumpStrictlyEquals.ssa_block_26:
     cmp x0, x1
     b.eq .Lasm_JumpStrictlyEquals.ssa_block_2
-    b .Lasm_JumpStrictlyEquals.ssa_block_29
-.Lasm_JumpStrictlyEquals.ssa_block_30:
+    b .Lasm_JumpStrictlyEquals.ssa_block_27
+.Lasm_JumpStrictlyEquals.ssa_block_29:
     cmp x0, x1
     b.ne .Lasm_JumpStrictlyEquals.ssa_block_3
 .Lasm_JumpStrictlyEquals.ssa_block_2:
@@ -2347,21 +2365,27 @@ asm_handler_JumpStrictlyInequals:
     ldr x1, [x27, x1, lsl #3]
     lsr x3, x1, #48
     cmp x3, x22
-    b.ne .Lasm_JumpStrictlyInequals.ssa_block_8
+    b.ne .Lasm_JumpStrictlyInequals.ssa_block_10
     lsr x2, x0, #48
     sxtw x1, w1
     cmp w2, w22
-    b.ne .Lasm_JumpStrictlyInequals.ssa_block_17
+    b.ne .Lasm_JumpStrictlyInequals.ssa_block_21
     sxtw x0, w0
     cmp x0, x1
     b.eq .Lasm_JumpStrictlyInequals.ssa_block_3
     b .Lasm_JumpStrictlyInequals.ssa_block_2
-.Lasm_JumpStrictlyInequals.ssa_block_8:
+.Lasm_JumpStrictlyInequals.ssa_block_21:
+    and w2, w2, #0x7ff8
+    mov w9, #32760
+    cmp w2, w9
+    b.ne .Lasm_JumpStrictlyInequals.ssa_block_20
+    b .Lasm_JumpStrictlyInequals.ssa_block_2
+.Lasm_JumpStrictlyInequals.ssa_block_10:
     lsr x2, x0, #48
     cmp w2, w3
-    b.eq .Lasm_JumpStrictlyInequals.ssa_block_9
+    b.eq .Lasm_JumpStrictlyInequals.ssa_block_11
     cmp x2, x22
-    b.ne .Lasm_JumpStrictlyInequals.ssa_block_10
+    b.ne .Lasm_JumpStrictlyInequals.ssa_block_14
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -2372,7 +2396,7 @@ asm_handler_JumpStrictlyInequals:
     fcmp d0, d1
     b.eq .Lasm_JumpStrictlyInequals.ssa_block_3
     b .Lasm_JumpStrictlyInequals.ssa_block_2
-.Lasm_JumpStrictlyInequals.ssa_block_10:
+.Lasm_JumpStrictlyInequals.ssa_block_14:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -2380,26 +2404,26 @@ asm_handler_JumpStrictlyInequals:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
-    b.eq .Lasm_JumpStrictlyInequals.ssa_block_2
-    b .Lasm_JumpStrictlyInequals.ssa_block_4
-.Lasm_JumpStrictlyInequals.ssa_block_9:
+    b.ne .Lasm_JumpStrictlyInequals.ssa_block_4
+    b .Lasm_JumpStrictlyInequals.ssa_block_2
+.Lasm_JumpStrictlyInequals.ssa_block_11:
     cmp x2, x22
     ccmp x2, x23, #4, ne
     mov w9, #65529
     ccmp x2, x9, #4, ne
     mov w9, #65531
     ccmp x2, x9, #4, ne
-    b.eq .Lasm_JumpStrictlyInequals.ssa_block_30
+    b.eq .Lasm_JumpStrictlyInequals.ssa_block_29
     mov w9, #65530
     cmp x2, x9
-    b.eq .Lasm_JumpStrictlyInequals.ssa_block_28
+    b.eq .Lasm_JumpStrictlyInequals.ssa_block_26
     mov w9, #65533
     cmp x2, x9
     b.eq .Lasm_JumpStrictlyInequals.ssa_block_1
     and w2, w2, #0xfffe
     mov w9, #32766
     cmp x2, x9
-    b.eq .Lasm_JumpStrictlyInequals.ssa_block_30
+    b.eq .Lasm_JumpStrictlyInequals.ssa_block_29
 .Lasm_JumpStrictlyInequals.ssa_block_4:
     fmov d0, x0
     fmov d1, x1
@@ -2407,11 +2431,11 @@ asm_handler_JumpStrictlyInequals:
     b.vs .Lasm_JumpStrictlyInequals.ssa_block_2
     b.eq .Lasm_JumpStrictlyInequals.ssa_block_3
     b .Lasm_JumpStrictlyInequals.ssa_block_2
-.Lasm_JumpStrictlyInequals.ssa_block_28:
+.Lasm_JumpStrictlyInequals.ssa_block_26:
     cmp x0, x1
     b.eq .Lasm_JumpStrictlyInequals.ssa_block_3
-    b .Lasm_JumpStrictlyInequals.ssa_block_29
-.Lasm_JumpStrictlyInequals.ssa_block_30:
+    b .Lasm_JumpStrictlyInequals.ssa_block_27
+.Lasm_JumpStrictlyInequals.ssa_block_29:
     cmp x0, x1
     b.ne .Lasm_JumpStrictlyInequals.ssa_block_2
 .Lasm_JumpStrictlyInequals.ssa_block_3:
@@ -2583,11 +2607,11 @@ asm_handler_JumpLessThanLoop:
     ldr x0, [x27, x0, lsl #3]
     lsr x2, x1, #48
     cmp w2, w22
-    b.ne .Lasm_JumpLessThanLoop.ssa_block_7
+    b.ne .Lasm_JumpLessThanLoop.ssa_block_8
     lsr x3, x0, #48
     sxtw x2, w1
     cmp w3, w22
-    b.ne .Lasm_JumpLessThanLoop.ssa_block_10
+    b.ne .Lasm_JumpLessThanLoop.ssa_block_12
     cmp w2, w0
     b.ge .Lasm_JumpLessThanLoop.ssa_block_3
 .Lasm_JumpLessThanLoop.ssa_block_2:
@@ -2611,11 +2635,11 @@ asm_handler_JumpGreaterThanLoop:
     ldr x0, [x27, x0, lsl #3]
     lsr x2, x1, #48
     cmp w2, w22
-    b.ne .Lasm_JumpGreaterThanLoop.ssa_block_7
+    b.ne .Lasm_JumpGreaterThanLoop.ssa_block_8
     lsr x3, x0, #48
     sxtw x2, w1
     cmp w3, w22
-    b.ne .Lasm_JumpGreaterThanLoop.ssa_block_10
+    b.ne .Lasm_JumpGreaterThanLoop.ssa_block_12
     cmp w2, w0
     b.le .Lasm_JumpGreaterThanLoop.ssa_block_3
 .Lasm_JumpGreaterThanLoop.ssa_block_2:
@@ -2639,11 +2663,11 @@ asm_handler_JumpLessThanEqualsLoop:
     ldr x0, [x27, x0, lsl #3]
     lsr x2, x1, #48
     cmp w2, w22
-    b.ne .Lasm_JumpLessThanEqualsLoop.ssa_block_7
+    b.ne .Lasm_JumpLessThanEqualsLoop.ssa_block_8
     lsr x3, x0, #48
     sxtw x2, w1
     cmp w3, w22
-    b.ne .Lasm_JumpLessThanEqualsLoop.ssa_block_10
+    b.ne .Lasm_JumpLessThanEqualsLoop.ssa_block_12
     cmp w2, w0
     b.gt .Lasm_JumpLessThanEqualsLoop.ssa_block_3
 .Lasm_JumpLessThanEqualsLoop.ssa_block_2:
@@ -2667,11 +2691,11 @@ asm_handler_JumpGreaterThanEqualsLoop:
     ldr x0, [x27, x0, lsl #3]
     lsr x2, x1, #48
     cmp w2, w22
-    b.ne .Lasm_JumpGreaterThanEqualsLoop.ssa_block_7
+    b.ne .Lasm_JumpGreaterThanEqualsLoop.ssa_block_8
     lsr x3, x0, #48
     sxtw x2, w1
     cmp w3, w22
-    b.ne .Lasm_JumpGreaterThanEqualsLoop.ssa_block_10
+    b.ne .Lasm_JumpGreaterThanEqualsLoop.ssa_block_12
     cmp w2, w0
     b.lt .Lasm_JumpGreaterThanEqualsLoop.ssa_block_3
 .Lasm_JumpGreaterThanEqualsLoop.ssa_block_2:
@@ -2695,24 +2719,30 @@ asm_handler_JumpLooselyEqualsLoop:
     ldr x2, [x27, x1, lsl #3]
     lsr x3, x2, #48
     cmp x3, x22
-    b.ne .Lasm_JumpLooselyEqualsLoop.ssa_block_8
+    b.ne .Lasm_JumpLooselyEqualsLoop.ssa_block_10
     lsr x3, x0, #48
     sxtw x1, w2
     cmp w3, w22
-    b.ne .Lasm_JumpLooselyEqualsLoop.ssa_block_19
+    b.ne .Lasm_JumpLooselyEqualsLoop.ssa_block_23
     sxtw x0, w0
     cmp x0, x1
     b.eq .Lasm_JumpLooselyEqualsLoop.ssa_block_2
     b .Lasm_JumpLooselyEqualsLoop.ssa_block_3
-.Lasm_JumpLooselyEqualsLoop.ssa_block_8:
+.Lasm_JumpLooselyEqualsLoop.ssa_block_23:
+    and w3, w3, #0x7ff8
+    mov w9, #32760
+    cmp w3, w9
+    b.ne .Lasm_JumpLooselyEqualsLoop.ssa_block_22
+    b .Lasm_JumpLooselyEqualsLoop.ssa_block_1
+.Lasm_JumpLooselyEqualsLoop.ssa_block_10:
     lsr x1, x0, #48
     cmp w1, w3
-    b.eq .Lasm_JumpLooselyEqualsLoop.ssa_block_9
+    b.eq .Lasm_JumpLooselyEqualsLoop.ssa_block_11
     mov x4, x1
     and w4, w4, #0xfffe
     mov w9, #32766
     cmp w4, w9
-    b.eq .Lasm_JumpLooselyEqualsLoop.ssa_block_10
+    b.eq .Lasm_JumpLooselyEqualsLoop.ssa_block_14
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
@@ -2720,15 +2750,15 @@ asm_handler_JumpLooselyEqualsLoop:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
-    b.eq .Lasm_JumpLooselyEqualsLoop.ssa_block_1
-    b .Lasm_JumpLooselyEqualsLoop.ssa_block_4
-.Lasm_JumpLooselyEqualsLoop.ssa_block_10:
+    b.ne .Lasm_JumpLooselyEqualsLoop.ssa_block_4
+    b .Lasm_JumpLooselyEqualsLoop.ssa_block_1
+.Lasm_JumpLooselyEqualsLoop.ssa_block_14:
     and w3, w3, #0xfffe
     mov w9, #32766
     cmp w3, w9
     b.eq .Lasm_JumpLooselyEqualsLoop.ssa_block_2
     b .Lasm_JumpLooselyEqualsLoop.ssa_block_1
-.Lasm_JumpLooselyEqualsLoop.ssa_block_9:
+.Lasm_JumpLooselyEqualsLoop.ssa_block_11:
     cmp x1, x22
     ccmp x1, x23, #4, ne
     mov w9, #65529
@@ -2738,7 +2768,7 @@ asm_handler_JumpLooselyEqualsLoop:
     b.eq .Lasm_JumpLooselyEqualsLoop.ssa_block_31
     mov w9, #65530
     cmp x1, x9
-    b.eq .Lasm_JumpLooselyEqualsLoop.ssa_block_29
+    b.eq .Lasm_JumpLooselyEqualsLoop.ssa_block_28
     mov w9, #65533
     cmp x1, x9
     b.eq .Lasm_JumpLooselyEqualsLoop.ssa_block_1
@@ -2753,10 +2783,10 @@ asm_handler_JumpLooselyEqualsLoop:
     b.vs .Lasm_JumpLooselyEqualsLoop.ssa_block_3
     b.eq .Lasm_JumpLooselyEqualsLoop.ssa_block_2
     b .Lasm_JumpLooselyEqualsLoop.ssa_block_3
-.Lasm_JumpLooselyEqualsLoop.ssa_block_29:
+.Lasm_JumpLooselyEqualsLoop.ssa_block_28:
     cmp x0, x2
     b.eq .Lasm_JumpLooselyEqualsLoop.ssa_block_2
-    b .Lasm_JumpLooselyEqualsLoop.ssa_block_30
+    b .Lasm_JumpLooselyEqualsLoop.ssa_block_29
 .Lasm_JumpLooselyEqualsLoop.ssa_block_31:
     cmp x0, x2
     b.ne .Lasm_JumpLooselyEqualsLoop.ssa_block_3
@@ -2781,24 +2811,30 @@ asm_handler_JumpLooselyInequalsLoop:
     ldr x2, [x27, x1, lsl #3]
     lsr x3, x2, #48
     cmp x3, x22
-    b.ne .Lasm_JumpLooselyInequalsLoop.ssa_block_8
+    b.ne .Lasm_JumpLooselyInequalsLoop.ssa_block_10
     lsr x3, x0, #48
     sxtw x1, w2
     cmp w3, w22
-    b.ne .Lasm_JumpLooselyInequalsLoop.ssa_block_19
+    b.ne .Lasm_JumpLooselyInequalsLoop.ssa_block_23
     sxtw x0, w0
     cmp x0, x1
     b.eq .Lasm_JumpLooselyInequalsLoop.ssa_block_3
     b .Lasm_JumpLooselyInequalsLoop.ssa_block_2
-.Lasm_JumpLooselyInequalsLoop.ssa_block_8:
+.Lasm_JumpLooselyInequalsLoop.ssa_block_23:
+    and w3, w3, #0x7ff8
+    mov w9, #32760
+    cmp w3, w9
+    b.ne .Lasm_JumpLooselyInequalsLoop.ssa_block_22
+    b .Lasm_JumpLooselyInequalsLoop.ssa_block_1
+.Lasm_JumpLooselyInequalsLoop.ssa_block_10:
     lsr x1, x0, #48
     cmp w1, w3
-    b.eq .Lasm_JumpLooselyInequalsLoop.ssa_block_9
+    b.eq .Lasm_JumpLooselyInequalsLoop.ssa_block_11
     mov x4, x1
     and w4, w4, #0xfffe
     mov w9, #32766
     cmp w4, w9
-    b.eq .Lasm_JumpLooselyInequalsLoop.ssa_block_10
+    b.eq .Lasm_JumpLooselyInequalsLoop.ssa_block_14
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
@@ -2806,15 +2842,15 @@ asm_handler_JumpLooselyInequalsLoop:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
-    b.eq .Lasm_JumpLooselyInequalsLoop.ssa_block_1
-    b .Lasm_JumpLooselyInequalsLoop.ssa_block_4
-.Lasm_JumpLooselyInequalsLoop.ssa_block_10:
+    b.ne .Lasm_JumpLooselyInequalsLoop.ssa_block_4
+    b .Lasm_JumpLooselyInequalsLoop.ssa_block_1
+.Lasm_JumpLooselyInequalsLoop.ssa_block_14:
     and w3, w3, #0xfffe
     mov w9, #32766
     cmp w3, w9
     b.eq .Lasm_JumpLooselyInequalsLoop.ssa_block_3
     b .Lasm_JumpLooselyInequalsLoop.ssa_block_1
-.Lasm_JumpLooselyInequalsLoop.ssa_block_9:
+.Lasm_JumpLooselyInequalsLoop.ssa_block_11:
     cmp x1, x22
     ccmp x1, x23, #4, ne
     mov w9, #65529
@@ -2824,7 +2860,7 @@ asm_handler_JumpLooselyInequalsLoop:
     b.eq .Lasm_JumpLooselyInequalsLoop.ssa_block_31
     mov w9, #65530
     cmp x1, x9
-    b.eq .Lasm_JumpLooselyInequalsLoop.ssa_block_29
+    b.eq .Lasm_JumpLooselyInequalsLoop.ssa_block_28
     mov w9, #65533
     cmp x1, x9
     b.eq .Lasm_JumpLooselyInequalsLoop.ssa_block_1
@@ -2839,10 +2875,10 @@ asm_handler_JumpLooselyInequalsLoop:
     b.vs .Lasm_JumpLooselyInequalsLoop.ssa_block_2
     b.eq .Lasm_JumpLooselyInequalsLoop.ssa_block_3
     b .Lasm_JumpLooselyInequalsLoop.ssa_block_2
-.Lasm_JumpLooselyInequalsLoop.ssa_block_29:
+.Lasm_JumpLooselyInequalsLoop.ssa_block_28:
     cmp x0, x2
     b.eq .Lasm_JumpLooselyInequalsLoop.ssa_block_3
-    b .Lasm_JumpLooselyInequalsLoop.ssa_block_30
+    b .Lasm_JumpLooselyInequalsLoop.ssa_block_29
 .Lasm_JumpLooselyInequalsLoop.ssa_block_31:
     cmp x0, x2
     b.ne .Lasm_JumpLooselyInequalsLoop.ssa_block_2
@@ -2867,21 +2903,27 @@ asm_handler_JumpStrictlyEqualsLoop:
     ldr x1, [x27, x1, lsl #3]
     lsr x3, x1, #48
     cmp x3, x22
-    b.ne .Lasm_JumpStrictlyEqualsLoop.ssa_block_8
+    b.ne .Lasm_JumpStrictlyEqualsLoop.ssa_block_10
     lsr x2, x0, #48
     sxtw x1, w1
     cmp w2, w22
-    b.ne .Lasm_JumpStrictlyEqualsLoop.ssa_block_17
+    b.ne .Lasm_JumpStrictlyEqualsLoop.ssa_block_21
     sxtw x0, w0
     cmp x0, x1
     b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_2
     b .Lasm_JumpStrictlyEqualsLoop.ssa_block_3
-.Lasm_JumpStrictlyEqualsLoop.ssa_block_8:
+.Lasm_JumpStrictlyEqualsLoop.ssa_block_21:
+    and w2, w2, #0x7ff8
+    mov w9, #32760
+    cmp w2, w9
+    b.ne .Lasm_JumpStrictlyEqualsLoop.ssa_block_20
+    b .Lasm_JumpStrictlyEqualsLoop.ssa_block_3
+.Lasm_JumpStrictlyEqualsLoop.ssa_block_10:
     lsr x2, x0, #48
     cmp w2, w3
-    b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_9
+    b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_11
     cmp x2, x22
-    b.ne .Lasm_JumpStrictlyEqualsLoop.ssa_block_10
+    b.ne .Lasm_JumpStrictlyEqualsLoop.ssa_block_14
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -2892,7 +2934,7 @@ asm_handler_JumpStrictlyEqualsLoop:
     fcmp d0, d1
     b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_2
     b .Lasm_JumpStrictlyEqualsLoop.ssa_block_3
-.Lasm_JumpStrictlyEqualsLoop.ssa_block_10:
+.Lasm_JumpStrictlyEqualsLoop.ssa_block_14:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -2900,26 +2942,26 @@ asm_handler_JumpStrictlyEqualsLoop:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
-    b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_3
-    b .Lasm_JumpStrictlyEqualsLoop.ssa_block_4
-.Lasm_JumpStrictlyEqualsLoop.ssa_block_9:
+    b.ne .Lasm_JumpStrictlyEqualsLoop.ssa_block_4
+    b .Lasm_JumpStrictlyEqualsLoop.ssa_block_3
+.Lasm_JumpStrictlyEqualsLoop.ssa_block_11:
     cmp x2, x22
     ccmp x2, x23, #4, ne
     mov w9, #65529
     ccmp x2, x9, #4, ne
     mov w9, #65531
     ccmp x2, x9, #4, ne
-    b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_30
+    b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_29
     mov w9, #65530
     cmp x2, x9
-    b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_28
+    b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_26
     mov w9, #65533
     cmp x2, x9
     b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_1
     and w2, w2, #0xfffe
     mov w9, #32766
     cmp x2, x9
-    b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_30
+    b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_29
 .Lasm_JumpStrictlyEqualsLoop.ssa_block_4:
     fmov d0, x0
     fmov d1, x1
@@ -2927,11 +2969,11 @@ asm_handler_JumpStrictlyEqualsLoop:
     b.vs .Lasm_JumpStrictlyEqualsLoop.ssa_block_3
     b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_2
     b .Lasm_JumpStrictlyEqualsLoop.ssa_block_3
-.Lasm_JumpStrictlyEqualsLoop.ssa_block_28:
+.Lasm_JumpStrictlyEqualsLoop.ssa_block_26:
     cmp x0, x1
     b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_2
-    b .Lasm_JumpStrictlyEqualsLoop.ssa_block_29
-.Lasm_JumpStrictlyEqualsLoop.ssa_block_30:
+    b .Lasm_JumpStrictlyEqualsLoop.ssa_block_27
+.Lasm_JumpStrictlyEqualsLoop.ssa_block_29:
     cmp x0, x1
     b.ne .Lasm_JumpStrictlyEqualsLoop.ssa_block_3
 .Lasm_JumpStrictlyEqualsLoop.ssa_block_2:
@@ -2955,21 +2997,27 @@ asm_handler_JumpStrictlyInequalsLoop:
     ldr x1, [x27, x1, lsl #3]
     lsr x3, x1, #48
     cmp x3, x22
-    b.ne .Lasm_JumpStrictlyInequalsLoop.ssa_block_8
+    b.ne .Lasm_JumpStrictlyInequalsLoop.ssa_block_10
     lsr x2, x0, #48
     sxtw x1, w1
     cmp w2, w22
-    b.ne .Lasm_JumpStrictlyInequalsLoop.ssa_block_17
+    b.ne .Lasm_JumpStrictlyInequalsLoop.ssa_block_21
     sxtw x0, w0
     cmp x0, x1
     b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_3
     b .Lasm_JumpStrictlyInequalsLoop.ssa_block_2
-.Lasm_JumpStrictlyInequalsLoop.ssa_block_8:
+.Lasm_JumpStrictlyInequalsLoop.ssa_block_21:
+    and w2, w2, #0x7ff8
+    mov w9, #32760
+    cmp w2, w9
+    b.ne .Lasm_JumpStrictlyInequalsLoop.ssa_block_20
+    b .Lasm_JumpStrictlyInequalsLoop.ssa_block_2
+.Lasm_JumpStrictlyInequalsLoop.ssa_block_10:
     lsr x2, x0, #48
     cmp w2, w3
-    b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_9
+    b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_11
     cmp x2, x22
-    b.ne .Lasm_JumpStrictlyInequalsLoop.ssa_block_10
+    b.ne .Lasm_JumpStrictlyInequalsLoop.ssa_block_14
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -2980,7 +3028,7 @@ asm_handler_JumpStrictlyInequalsLoop:
     fcmp d0, d1
     b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_3
     b .Lasm_JumpStrictlyInequalsLoop.ssa_block_2
-.Lasm_JumpStrictlyInequalsLoop.ssa_block_10:
+.Lasm_JumpStrictlyInequalsLoop.ssa_block_14:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -2988,26 +3036,26 @@ asm_handler_JumpStrictlyInequalsLoop:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
-    b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_2
-    b .Lasm_JumpStrictlyInequalsLoop.ssa_block_4
-.Lasm_JumpStrictlyInequalsLoop.ssa_block_9:
+    b.ne .Lasm_JumpStrictlyInequalsLoop.ssa_block_4
+    b .Lasm_JumpStrictlyInequalsLoop.ssa_block_2
+.Lasm_JumpStrictlyInequalsLoop.ssa_block_11:
     cmp x2, x22
     ccmp x2, x23, #4, ne
     mov w9, #65529
     ccmp x2, x9, #4, ne
     mov w9, #65531
     ccmp x2, x9, #4, ne
-    b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_30
+    b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_29
     mov w9, #65530
     cmp x2, x9
-    b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_28
+    b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_26
     mov w9, #65533
     cmp x2, x9
     b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_1
     and w2, w2, #0xfffe
     mov w9, #32766
     cmp x2, x9
-    b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_30
+    b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_29
 .Lasm_JumpStrictlyInequalsLoop.ssa_block_4:
     fmov d0, x0
     fmov d1, x1
@@ -3015,11 +3063,11 @@ asm_handler_JumpStrictlyInequalsLoop:
     b.vs .Lasm_JumpStrictlyInequalsLoop.ssa_block_2
     b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_3
     b .Lasm_JumpStrictlyInequalsLoop.ssa_block_2
-.Lasm_JumpStrictlyInequalsLoop.ssa_block_28:
+.Lasm_JumpStrictlyInequalsLoop.ssa_block_26:
     cmp x0, x1
     b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_3
-    b .Lasm_JumpStrictlyInequalsLoop.ssa_block_29
-.Lasm_JumpStrictlyInequalsLoop.ssa_block_30:
+    b .Lasm_JumpStrictlyInequalsLoop.ssa_block_27
+.Lasm_JumpStrictlyInequalsLoop.ssa_block_29:
     cmp x0, x1
     b.ne .Lasm_JumpStrictlyInequalsLoop.ssa_block_2
 .Lasm_JumpStrictlyInequalsLoop.ssa_block_3:
@@ -3304,7 +3352,7 @@ asm_handler_GetBinding_hot_end:
 .p2align 4
 asm_handler_DynamicGetBinding:
     ldr x0, [x28, #88]
-    ldr x0, [x0, #136]
+    ldr x0, [x0, #168]
     ldr w1, [x21, #12]
     add x0, x0, x1, lsl #3
     ldp w1, w2, [x0, #0]
@@ -3371,7 +3419,7 @@ asm_handler_GetInitializedBinding_hot_end:
 .p2align 4
 asm_handler_DynamicGetInitializedBinding:
     ldr x0, [x28, #88]
-    ldr x0, [x0, #136]
+    ldr x0, [x0, #168]
     ldr w1, [x21, #12]
     add x0, x0, x1, lsl #3
     ldp w1, w2, [x0, #0]
@@ -3460,7 +3508,7 @@ asm_handler_InitializeVariableBinding_hot_end:
 .p2align 4
 asm_handler_DynamicInitializeLexicalBinding:
     ldr x0, [x28, #88]
-    ldr x0, [x0, #136]
+    ldr x0, [x0, #168]
     ldr w1, [x21, #12]
     add x0, x0, x1, lsl #3
     ldp w1, w2, [x0, #0]
@@ -3499,7 +3547,7 @@ asm_handler_DynamicInitializeLexicalBinding_hot_end:
 .p2align 4
 asm_handler_DynamicInitializeVariableBinding:
     ldr x0, [x28, #88]
-    ldr x0, [x0, #136]
+    ldr x0, [x0, #168]
     ldr w1, [x21, #12]
     add x0, x0, x1, lsl #3
     ldp w1, w2, [x0, #0]
@@ -3648,7 +3696,7 @@ asm_handler_SetVariableBinding_hot_end:
 .p2align 4
 asm_handler_DynamicSetLexicalBinding:
     ldr x0, [x28, #88]
-    ldr x0, [x0, #136]
+    ldr x0, [x0, #168]
     ldr w1, [x21, #12]
     add x0, x0, x1, lsl #3
     ldp w2, w1, [x0, #0]
@@ -3717,7 +3765,7 @@ asm_handler_DynamicSetLexicalBinding_hot_end:
 .p2align 4
 asm_handler_DynamicSetVariableBinding:
     ldr x0, [x28, #88]
-    ldr x0, [x0, #136]
+    ldr x0, [x0, #168]
     ldr w1, [x21, #12]
     add x0, x0, x1, lsl #3
     ldp w2, w1, [x0, #0]
@@ -3870,11 +3918,11 @@ asm_handler_LessThan:
     ldr x0, [x27, x0, lsl #3]
     lsr x2, x1, #48
     cmp w2, w22
-    b.ne .Lasm_LessThan.ssa_block_7
+    b.ne .Lasm_LessThan.ssa_block_8
     lsr x3, x0, #48
     sxtw x2, w1
     cmp w3, w22
-    b.ne .Lasm_LessThan.ssa_block_10
+    b.ne .Lasm_LessThan.ssa_block_12
     cmp w2, w0
     b.ge .Lasm_LessThan.ssa_block_2
 .Lasm_LessThan.ssa_block_1:
@@ -3903,11 +3951,11 @@ asm_handler_LessThanEquals:
     ldr x0, [x27, x0, lsl #3]
     lsr x2, x1, #48
     cmp w2, w22
-    b.ne .Lasm_LessThanEquals.ssa_block_7
+    b.ne .Lasm_LessThanEquals.ssa_block_8
     lsr x3, x0, #48
     sxtw x2, w1
     cmp w3, w22
-    b.ne .Lasm_LessThanEquals.ssa_block_10
+    b.ne .Lasm_LessThanEquals.ssa_block_12
     cmp w2, w0
     b.gt .Lasm_LessThanEquals.ssa_block_2
 .Lasm_LessThanEquals.ssa_block_1:
@@ -3936,11 +3984,11 @@ asm_handler_GreaterThan:
     ldr x0, [x27, x0, lsl #3]
     lsr x2, x1, #48
     cmp w2, w22
-    b.ne .Lasm_GreaterThan.ssa_block_7
+    b.ne .Lasm_GreaterThan.ssa_block_8
     lsr x3, x0, #48
     sxtw x2, w1
     cmp w3, w22
-    b.ne .Lasm_GreaterThan.ssa_block_10
+    b.ne .Lasm_GreaterThan.ssa_block_12
     cmp w2, w0
     b.le .Lasm_GreaterThan.ssa_block_2
 .Lasm_GreaterThan.ssa_block_1:
@@ -3969,11 +4017,11 @@ asm_handler_GreaterThanEquals:
     ldr x0, [x27, x0, lsl #3]
     lsr x2, x1, #48
     cmp w2, w22
-    b.ne .Lasm_GreaterThanEquals.ssa_block_7
+    b.ne .Lasm_GreaterThanEquals.ssa_block_8
     lsr x3, x0, #48
     sxtw x2, w1
     cmp w3, w22
-    b.ne .Lasm_GreaterThanEquals.ssa_block_10
+    b.ne .Lasm_GreaterThanEquals.ssa_block_12
     cmp w2, w0
     b.lt .Lasm_GreaterThanEquals.ssa_block_2
 .Lasm_GreaterThanEquals.ssa_block_1:
@@ -4232,21 +4280,27 @@ asm_handler_StrictlyEquals:
     ldr x1, [x27, x1, lsl #3]
     lsr x3, x1, #48
     cmp x3, x22
-    b.ne .Lasm_StrictlyEquals.ssa_block_8
+    b.ne .Lasm_StrictlyEquals.ssa_block_10
     lsr x2, x0, #48
     sxtw x1, w1
     cmp w2, w22
-    b.ne .Lasm_StrictlyEquals.ssa_block_17
+    b.ne .Lasm_StrictlyEquals.ssa_block_21
     sxtw x0, w0
     cmp x0, x1
     b.eq .Lasm_StrictlyEquals.ssa_block_2
     b .Lasm_StrictlyEquals.ssa_block_3
-.Lasm_StrictlyEquals.ssa_block_8:
+.Lasm_StrictlyEquals.ssa_block_21:
+    and w2, w2, #0x7ff8
+    mov w9, #32760
+    cmp w2, w9
+    b.ne .Lasm_StrictlyEquals.ssa_block_20
+    b .Lasm_StrictlyEquals.ssa_block_3
+.Lasm_StrictlyEquals.ssa_block_10:
     lsr x2, x0, #48
     cmp w2, w3
-    b.eq .Lasm_StrictlyEquals.ssa_block_9
+    b.eq .Lasm_StrictlyEquals.ssa_block_11
     cmp x2, x22
-    b.ne .Lasm_StrictlyEquals.ssa_block_10
+    b.ne .Lasm_StrictlyEquals.ssa_block_14
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -4257,7 +4311,7 @@ asm_handler_StrictlyEquals:
     fcmp d0, d1
     b.eq .Lasm_StrictlyEquals.ssa_block_2
     b .Lasm_StrictlyEquals.ssa_block_3
-.Lasm_StrictlyEquals.ssa_block_10:
+.Lasm_StrictlyEquals.ssa_block_14:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -4265,26 +4319,26 @@ asm_handler_StrictlyEquals:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
-    b.eq .Lasm_StrictlyEquals.ssa_block_3
-    b .Lasm_StrictlyEquals.ssa_block_4
-.Lasm_StrictlyEquals.ssa_block_9:
+    b.ne .Lasm_StrictlyEquals.ssa_block_4
+    b .Lasm_StrictlyEquals.ssa_block_3
+.Lasm_StrictlyEquals.ssa_block_11:
     cmp x2, x22
     ccmp x2, x23, #4, ne
     mov w9, #65529
     ccmp x2, x9, #4, ne
     mov w9, #65531
     ccmp x2, x9, #4, ne
-    b.eq .Lasm_StrictlyEquals.ssa_block_30
+    b.eq .Lasm_StrictlyEquals.ssa_block_29
     mov w9, #65530
     cmp x2, x9
-    b.eq .Lasm_StrictlyEquals.ssa_block_28
+    b.eq .Lasm_StrictlyEquals.ssa_block_26
     mov w9, #65533
     cmp x2, x9
     b.eq .Lasm_StrictlyEquals.ssa_block_1
     and w2, w2, #0xfffe
     mov w9, #32766
     cmp x2, x9
-    b.eq .Lasm_StrictlyEquals.ssa_block_30
+    b.eq .Lasm_StrictlyEquals.ssa_block_29
 .Lasm_StrictlyEquals.ssa_block_4:
     fmov d0, x0
     fmov d1, x1
@@ -4292,11 +4346,11 @@ asm_handler_StrictlyEquals:
     b.vs .Lasm_StrictlyEquals.ssa_block_3
     b.eq .Lasm_StrictlyEquals.ssa_block_2
     b .Lasm_StrictlyEquals.ssa_block_3
-.Lasm_StrictlyEquals.ssa_block_28:
+.Lasm_StrictlyEquals.ssa_block_26:
     cmp x0, x1
     b.eq .Lasm_StrictlyEquals.ssa_block_2
-    b .Lasm_StrictlyEquals.ssa_block_29
-.Lasm_StrictlyEquals.ssa_block_30:
+    b .Lasm_StrictlyEquals.ssa_block_27
+.Lasm_StrictlyEquals.ssa_block_29:
     cmp x0, x1
     b.ne .Lasm_StrictlyEquals.ssa_block_3
 .Lasm_StrictlyEquals.ssa_block_2:
@@ -4325,21 +4379,27 @@ asm_handler_StrictlyInequals:
     ldr x1, [x27, x1, lsl #3]
     lsr x3, x1, #48
     cmp x3, x22
-    b.ne .Lasm_StrictlyInequals.ssa_block_8
+    b.ne .Lasm_StrictlyInequals.ssa_block_10
     lsr x2, x0, #48
     sxtw x1, w1
     cmp w2, w22
-    b.ne .Lasm_StrictlyInequals.ssa_block_17
+    b.ne .Lasm_StrictlyInequals.ssa_block_21
     sxtw x0, w0
     cmp x0, x1
     b.eq .Lasm_StrictlyInequals.ssa_block_3
     b .Lasm_StrictlyInequals.ssa_block_2
-.Lasm_StrictlyInequals.ssa_block_8:
+.Lasm_StrictlyInequals.ssa_block_21:
+    and w2, w2, #0x7ff8
+    mov w9, #32760
+    cmp w2, w9
+    b.ne .Lasm_StrictlyInequals.ssa_block_20
+    b .Lasm_StrictlyInequals.ssa_block_2
+.Lasm_StrictlyInequals.ssa_block_10:
     lsr x2, x0, #48
     cmp w2, w3
-    b.eq .Lasm_StrictlyInequals.ssa_block_9
+    b.eq .Lasm_StrictlyInequals.ssa_block_11
     cmp x2, x22
-    b.ne .Lasm_StrictlyInequals.ssa_block_10
+    b.ne .Lasm_StrictlyInequals.ssa_block_14
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -4350,7 +4410,7 @@ asm_handler_StrictlyInequals:
     fcmp d0, d1
     b.eq .Lasm_StrictlyInequals.ssa_block_3
     b .Lasm_StrictlyInequals.ssa_block_2
-.Lasm_StrictlyInequals.ssa_block_10:
+.Lasm_StrictlyInequals.ssa_block_14:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -4358,26 +4418,26 @@ asm_handler_StrictlyInequals:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
-    b.eq .Lasm_StrictlyInequals.ssa_block_2
-    b .Lasm_StrictlyInequals.ssa_block_4
-.Lasm_StrictlyInequals.ssa_block_9:
+    b.ne .Lasm_StrictlyInequals.ssa_block_4
+    b .Lasm_StrictlyInequals.ssa_block_2
+.Lasm_StrictlyInequals.ssa_block_11:
     cmp x2, x22
     ccmp x2, x23, #4, ne
     mov w9, #65529
     ccmp x2, x9, #4, ne
     mov w9, #65531
     ccmp x2, x9, #4, ne
-    b.eq .Lasm_StrictlyInequals.ssa_block_30
+    b.eq .Lasm_StrictlyInequals.ssa_block_29
     mov w9, #65530
     cmp x2, x9
-    b.eq .Lasm_StrictlyInequals.ssa_block_28
+    b.eq .Lasm_StrictlyInequals.ssa_block_26
     mov w9, #65533
     cmp x2, x9
     b.eq .Lasm_StrictlyInequals.ssa_block_1
     and w2, w2, #0xfffe
     mov w9, #32766
     cmp x2, x9
-    b.eq .Lasm_StrictlyInequals.ssa_block_30
+    b.eq .Lasm_StrictlyInequals.ssa_block_29
 .Lasm_StrictlyInequals.ssa_block_4:
     fmov d0, x0
     fmov d1, x1
@@ -4385,11 +4445,11 @@ asm_handler_StrictlyInequals:
     b.vs .Lasm_StrictlyInequals.ssa_block_2
     b.eq .Lasm_StrictlyInequals.ssa_block_3
     b .Lasm_StrictlyInequals.ssa_block_2
-.Lasm_StrictlyInequals.ssa_block_28:
+.Lasm_StrictlyInequals.ssa_block_26:
     cmp x0, x1
     b.eq .Lasm_StrictlyInequals.ssa_block_3
-    b .Lasm_StrictlyInequals.ssa_block_29
-.Lasm_StrictlyInequals.ssa_block_30:
+    b .Lasm_StrictlyInequals.ssa_block_27
+.Lasm_StrictlyInequals.ssa_block_29:
     cmp x0, x1
     b.ne .Lasm_StrictlyInequals.ssa_block_2
 .Lasm_StrictlyInequals.ssa_block_3:
@@ -4445,7 +4505,7 @@ asm_handler_GetCalleeAndThisFromEnvironment_hot_end:
 .p2align 4
 asm_handler_DynamicGetCalleeAndThisFromEnvironment:
     ldr x0, [x28, #88]
-    ldr x0, [x0, #136]
+    ldr x0, [x0, #168]
     ldr w1, [x21, #16]
     add x0, x0, x1, lsl #3
     ldp w1, w2, [x0, #0]
@@ -4494,24 +4554,30 @@ asm_handler_LooselyEquals:
     ldr x2, [x27, x1, lsl #3]
     lsr x3, x2, #48
     cmp x3, x22
-    b.ne .Lasm_LooselyEquals.ssa_block_8
+    b.ne .Lasm_LooselyEquals.ssa_block_10
     lsr x3, x0, #48
     sxtw x1, w2
     cmp w3, w22
-    b.ne .Lasm_LooselyEquals.ssa_block_19
+    b.ne .Lasm_LooselyEquals.ssa_block_23
     sxtw x0, w0
     cmp x0, x1
     b.eq .Lasm_LooselyEquals.ssa_block_2
     b .Lasm_LooselyEquals.ssa_block_3
-.Lasm_LooselyEquals.ssa_block_8:
+.Lasm_LooselyEquals.ssa_block_23:
+    and w3, w3, #0x7ff8
+    mov w9, #32760
+    cmp w3, w9
+    b.ne .Lasm_LooselyEquals.ssa_block_22
+    b .Lasm_LooselyEquals.ssa_block_1
+.Lasm_LooselyEquals.ssa_block_10:
     lsr x1, x0, #48
     cmp w1, w3
-    b.eq .Lasm_LooselyEquals.ssa_block_9
+    b.eq .Lasm_LooselyEquals.ssa_block_11
     mov x4, x1
     and w4, w4, #0xfffe
     mov w9, #32766
     cmp w4, w9
-    b.eq .Lasm_LooselyEquals.ssa_block_10
+    b.eq .Lasm_LooselyEquals.ssa_block_14
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
@@ -4519,15 +4585,15 @@ asm_handler_LooselyEquals:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
-    b.eq .Lasm_LooselyEquals.ssa_block_1
-    b .Lasm_LooselyEquals.ssa_block_4
-.Lasm_LooselyEquals.ssa_block_10:
+    b.ne .Lasm_LooselyEquals.ssa_block_4
+    b .Lasm_LooselyEquals.ssa_block_1
+.Lasm_LooselyEquals.ssa_block_14:
     and w3, w3, #0xfffe
     mov w9, #32766
     cmp w3, w9
     b.eq .Lasm_LooselyEquals.ssa_block_2
     b .Lasm_LooselyEquals.ssa_block_1
-.Lasm_LooselyEquals.ssa_block_9:
+.Lasm_LooselyEquals.ssa_block_11:
     cmp x1, x22
     ccmp x1, x23, #4, ne
     mov w9, #65529
@@ -4537,7 +4603,7 @@ asm_handler_LooselyEquals:
     b.eq .Lasm_LooselyEquals.ssa_block_31
     mov w9, #65530
     cmp x1, x9
-    b.eq .Lasm_LooselyEquals.ssa_block_29
+    b.eq .Lasm_LooselyEquals.ssa_block_28
     mov w9, #65533
     cmp x1, x9
     b.eq .Lasm_LooselyEquals.ssa_block_1
@@ -4552,10 +4618,10 @@ asm_handler_LooselyEquals:
     b.vs .Lasm_LooselyEquals.ssa_block_3
     b.eq .Lasm_LooselyEquals.ssa_block_2
     b .Lasm_LooselyEquals.ssa_block_3
-.Lasm_LooselyEquals.ssa_block_29:
+.Lasm_LooselyEquals.ssa_block_28:
     cmp x0, x2
     b.eq .Lasm_LooselyEquals.ssa_block_2
-    b .Lasm_LooselyEquals.ssa_block_30
+    b .Lasm_LooselyEquals.ssa_block_29
 .Lasm_LooselyEquals.ssa_block_31:
     cmp x0, x2
     b.ne .Lasm_LooselyEquals.ssa_block_3
@@ -4585,24 +4651,30 @@ asm_handler_LooselyInequals:
     ldr x2, [x27, x1, lsl #3]
     lsr x3, x2, #48
     cmp x3, x22
-    b.ne .Lasm_LooselyInequals.ssa_block_8
+    b.ne .Lasm_LooselyInequals.ssa_block_10
     lsr x3, x0, #48
     sxtw x1, w2
     cmp w3, w22
-    b.ne .Lasm_LooselyInequals.ssa_block_19
+    b.ne .Lasm_LooselyInequals.ssa_block_23
     sxtw x0, w0
     cmp x0, x1
     b.eq .Lasm_LooselyInequals.ssa_block_3
     b .Lasm_LooselyInequals.ssa_block_2
-.Lasm_LooselyInequals.ssa_block_8:
+.Lasm_LooselyInequals.ssa_block_23:
+    and w3, w3, #0x7ff8
+    mov w9, #32760
+    cmp w3, w9
+    b.ne .Lasm_LooselyInequals.ssa_block_22
+    b .Lasm_LooselyInequals.ssa_block_1
+.Lasm_LooselyInequals.ssa_block_10:
     lsr x1, x0, #48
     cmp w1, w3
-    b.eq .Lasm_LooselyInequals.ssa_block_9
+    b.eq .Lasm_LooselyInequals.ssa_block_11
     mov x4, x1
     and w4, w4, #0xfffe
     mov w9, #32766
     cmp w4, w9
-    b.eq .Lasm_LooselyInequals.ssa_block_10
+    b.eq .Lasm_LooselyInequals.ssa_block_14
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
@@ -4610,15 +4682,15 @@ asm_handler_LooselyInequals:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
-    b.eq .Lasm_LooselyInequals.ssa_block_1
-    b .Lasm_LooselyInequals.ssa_block_4
-.Lasm_LooselyInequals.ssa_block_10:
+    b.ne .Lasm_LooselyInequals.ssa_block_4
+    b .Lasm_LooselyInequals.ssa_block_1
+.Lasm_LooselyInequals.ssa_block_14:
     and w3, w3, #0xfffe
     mov w9, #32766
     cmp w3, w9
     b.eq .Lasm_LooselyInequals.ssa_block_3
     b .Lasm_LooselyInequals.ssa_block_1
-.Lasm_LooselyInequals.ssa_block_9:
+.Lasm_LooselyInequals.ssa_block_11:
     cmp x1, x22
     ccmp x1, x23, #4, ne
     mov w9, #65529
@@ -4628,7 +4700,7 @@ asm_handler_LooselyInequals:
     b.eq .Lasm_LooselyInequals.ssa_block_31
     mov w9, #65530
     cmp x1, x9
-    b.eq .Lasm_LooselyInequals.ssa_block_29
+    b.eq .Lasm_LooselyInequals.ssa_block_28
     mov w9, #65533
     cmp x1, x9
     b.eq .Lasm_LooselyInequals.ssa_block_1
@@ -4643,10 +4715,10 @@ asm_handler_LooselyInequals:
     b.vs .Lasm_LooselyInequals.ssa_block_2
     b.eq .Lasm_LooselyInequals.ssa_block_3
     b .Lasm_LooselyInequals.ssa_block_2
-.Lasm_LooselyInequals.ssa_block_29:
+.Lasm_LooselyInequals.ssa_block_28:
     cmp x0, x2
     b.eq .Lasm_LooselyInequals.ssa_block_3
-    b .Lasm_LooselyInequals.ssa_block_30
+    b .Lasm_LooselyInequals.ssa_block_29
 .Lasm_LooselyInequals.ssa_block_31:
     cmp x0, x2
     b.ne .Lasm_LooselyInequals.ssa_block_2
@@ -4990,7 +5062,7 @@ asm_handler_PutByValue:
 .Lasm_PutByValue.ssa_block_4:
     ldr x0, [x28, #88]
     cbz x0, .Lasm_PutByValue.assert_predicate_failure_15
-    ldr x0, [x0, #88]
+    ldr x0, [x0, #120]
     cbz x0, .Lasm_PutByValue.assert_failure_1
     ldr w2, [x21, #24]
     ldr x0, [x0, x2, lsl #3]
@@ -5050,8 +5122,8 @@ asm_handler_GetById:
     ldr x2, [x1, #24]
     cbz x2, .Lasm_GetById.assert_failure_0
     ldr x4, [x28, #88]
-    cbz x4, .Lasm_GetById.assert_predicate_failure_126
-    ldr x3, [x4, #88]
+    cbz x4, .Lasm_GetById.assert_predicate_failure_120
+    ldr x3, [x4, #120]
     cbz x3, .Lasm_GetById.assert_failure_1
     ldr w5, [x21, #20]
     ldr x3, [x3, x5, lsl #3]
@@ -5086,7 +5158,7 @@ asm_handler_GetById:
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_GetById.ssa_block_15:
-    ldr x3, [x4, #88]
+    ldr x3, [x4, #120]
     cbz x3, .Lasm_GetById.assert_failure_3
     ldr w5, [x21, #20]
     ldr x3, [x3, x5, lsl #3]
@@ -5148,7 +5220,7 @@ asm_handler_PutById:
     cbz x1, .Lasm_PutById.assert_failure_0
     ldr x0, [x28, #88]
     cbz x0, .Lasm_PutById.assert_predicate_failure_14
-    ldr x0, [x0, #88]
+    ldr x0, [x0, #120]
     cbz x0, .Lasm_PutById.assert_failure_1
     ldr w3, [x21, #20]
     ldr x0, [x0, x3, lsl #3]
@@ -5436,7 +5508,7 @@ asm_handler_GetByValue:
     cmp x9, x10
     b.ne .Lasm_GetByValue.ssa_block_1
     ldr x0, [x28, #88]
-    ldr x3, [x0, #88]
+    ldr x3, [x0, #120]
     cbz x3, .Lasm_GetByValue.assert_failure_2
     ldr w4, [x21, #24]
     ldr x3, [x3, x4, lsl #3]
@@ -5445,7 +5517,7 @@ asm_handler_GetByValue:
     cmp x3, #3
     b.eq .Lasm_GetByValue.ssa_block_6
     cbz x0, .Lasm_GetByValue.assert_predicate_failure_226
-    ldr x0, [x0, #88]
+    ldr x0, [x0, #120]
     cbz x0, .Lasm_GetByValue.assert_failure_3
     ldr w3, [x21, #24]
     ldr x0, [x0, x3, lsl #3]
@@ -5513,7 +5585,7 @@ asm_handler_GetLength:
     cbz x2, .Lasm_GetLength.assert_failure_0
     ldr x0, [x28, #88]
     cbz x0, .Lasm_GetLength.assert_predicate_failure_21
-    ldr x0, [x0, #88]
+    ldr x0, [x0, #120]
     cbz x0, .Lasm_GetLength.assert_failure_1
     ldr w3, [x21, #16]
     ldr x0, [x0, x3, lsl #3]
@@ -5566,7 +5638,7 @@ asm_handler_GetGlobal:
     ldp x3, x2, [x0, #16]
     ldr x0, [x28, #88]
     cbz x0, .Lasm_GetGlobal.assert_predicate_failure_9
-    ldr x1, [x0, #112]
+    ldr x1, [x0, #144]
     cbz x1, .Lasm_GetGlobal.assert_failure_0
     ldr w0, [x21, #12]
     mov w9, #72
@@ -5623,7 +5695,7 @@ asm_handler_ResolveGlobalBinding:
     ldp x2, x3, [x0, #16]
     ldr x0, [x28, #88]
     cbz x0, .Lasm_ResolveGlobalBinding.assert_predicate_failure_9
-    ldr x1, [x0, #112]
+    ldr x1, [x0, #144]
     cbz x1, .Lasm_ResolveGlobalBinding.assert_failure_0
     ldr w0, [x21, #12]
     mov w9, #72
@@ -5670,7 +5742,7 @@ asm_handler_SetGlobal:
     ldp x3, x1, [x0, #16]
     ldr x0, [x28, #88]
     cbz x0, .Lasm_SetGlobal.assert_predicate_failure_9
-    ldr x2, [x0, #112]
+    ldr x2, [x0, #144]
     cbz x2, .Lasm_SetGlobal.assert_failure_0
     ldr w0, [x21, #12]
     mov w9, #72
@@ -6455,39 +6527,39 @@ asm_handler_CallBuiltinStringPrototypeCharCodeAt:
     ldrb w2, [x1, #11]
     and w2, w2, #0x3
     cmp w2, #3
-    b.ne .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_10
+    b.ne .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_6
     ldr w2, [x1, #12]
     cmp x2, x0
     b.ls .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_1
     add x1, x1, #24
     ldrb w0, [x1, x0]
-    b .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_11
-.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_10:
+    b .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_7
+.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_6:
     cmp w2, #0
     b.ne .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
     ldr x2, [x1, #16]
     cbz x2, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
     ldrb w3, [x1, #16]
-    tbnz x3, #0, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_16
+    tbnz x3, #0, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_12
     ldr w1, [x2, #4]
     cmp x1, x0
     b.ls .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_1
     ldr w1, [x2, #16]
-    tbz x1, #0, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_20
+    tbz x1, #0, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_16
     add x1, x2, #24
     ldrh w0, [x1, x0, lsl #1]
-    b .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_11
-.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_20:
+    b .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_7
+.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_16:
     add x1, x2, #24
     ldrb w0, [x1, x0]
-    b .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_11
-.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_16:
+    b .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_7
+.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_12:
     lsr w3, w3, #2
     cmp x0, x3
     b.hs .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_1
     add x1, x1, #17
     ldrb w0, [x1, x0]
-.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_11:
+.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_7:
     movk x0, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
@@ -6536,39 +6608,39 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     ldrb w2, [x1, #11]
     and w2, w2, #0x3
     cmp w2, #3
-    b.ne .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_10
+    b.ne .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_6
     ldr w2, [x1, #12]
     cmp x2, x0
     b.ls .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_2
     add x1, x1, #24
     ldrb w1, [x1, x0]
-    b .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_11
-.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_10:
+    b .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_7
+.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_6:
     cmp w2, #0
     b.ne .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
     ldr x2, [x1, #16]
     cbz x2, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
     ldrb w3, [x1, #16]
-    tbnz x3, #0, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_16
+    tbnz x3, #0, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_12
     ldr w1, [x2, #4]
     cmp x1, x0
     b.ls .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_2
     ldr w1, [x2, #16]
-    tbz x1, #0, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_20
+    tbz x1, #0, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_16
     add x1, x2, #24
     ldrh w1, [x1, x0, lsl #1]
-    b .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_11
-.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_20:
+    b .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_7
+.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_16:
     add x1, x2, #24
     ldrb w1, [x1, x0]
-    b .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_11
-.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_16:
+    b .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_7
+.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_12:
     lsr w3, w3, #2
     cmp x0, x3
     b.hs .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_2
     add x1, x1, #17
     ldrb w1, [x1, x0]
-.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_11:
+.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_7:
     cmp x1, #128
     b.hs .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
     mov x0, x20
@@ -6576,7 +6648,7 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
-    b.ne .Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_50
+    b.ne .Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_36
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
@@ -7077,7 +7149,7 @@ asm_handler_LessThanRhsInt32:
     ldr w2, [x21, #12]
     lsr x1, x0, #48
     cmp w1, w22
-    b.ne .Lasm_LessThanRhsInt32.ssa_block_7
+    b.ne .Lasm_LessThanRhsInt32.ssa_block_8
     cmp w0, w2
     b.lt .Lasm_LessThanRhsInt32.ssa_block_1
 .Lasm_LessThanRhsInt32.ssa_block_2:
@@ -7106,7 +7178,7 @@ asm_handler_LessThanEqualsRhsInt32:
     ldr w2, [x21, #12]
     lsr x1, x0, #48
     cmp w1, w22
-    b.ne .Lasm_LessThanEqualsRhsInt32.ssa_block_7
+    b.ne .Lasm_LessThanEqualsRhsInt32.ssa_block_8
     cmp w0, w2
     b.le .Lasm_LessThanEqualsRhsInt32.ssa_block_1
 .Lasm_LessThanEqualsRhsInt32.ssa_block_2:
@@ -7135,7 +7207,7 @@ asm_handler_GreaterThanRhsInt32:
     ldr w2, [x21, #12]
     lsr x1, x0, #48
     cmp w1, w22
-    b.ne .Lasm_GreaterThanRhsInt32.ssa_block_7
+    b.ne .Lasm_GreaterThanRhsInt32.ssa_block_8
     cmp w0, w2
     b.gt .Lasm_GreaterThanRhsInt32.ssa_block_1
 .Lasm_GreaterThanRhsInt32.ssa_block_2:
@@ -7164,7 +7236,7 @@ asm_handler_GreaterThanEqualsRhsInt32:
     ldr w2, [x21, #12]
     lsr x1, x0, #48
     cmp w1, w22
-    b.ne .Lasm_GreaterThanEqualsRhsInt32.ssa_block_7
+    b.ne .Lasm_GreaterThanEqualsRhsInt32.ssa_block_8
     cmp w0, w2
     b.ge .Lasm_GreaterThanEqualsRhsInt32.ssa_block_1
 .Lasm_GreaterThanEqualsRhsInt32.ssa_block_2:
@@ -7193,7 +7265,7 @@ asm_handler_JumpLessThanRhsInt32:
     ldr w2, [x21, #8]
     lsr x1, x0, #48
     cmp w1, w22
-    b.ne .Lasm_JumpLessThanRhsInt32.ssa_block_7
+    b.ne .Lasm_JumpLessThanRhsInt32.ssa_block_8
     cmp w0, w2
     b.lt .Lasm_JumpLessThanRhsInt32.ssa_block_2
 .Lasm_JumpLessThanRhsInt32.ssa_block_3:
@@ -7217,7 +7289,7 @@ asm_handler_JumpLessThanEqualsRhsInt32:
     ldr w2, [x21, #8]
     lsr x1, x0, #48
     cmp w1, w22
-    b.ne .Lasm_JumpLessThanEqualsRhsInt32.ssa_block_7
+    b.ne .Lasm_JumpLessThanEqualsRhsInt32.ssa_block_8
     cmp w0, w2
     b.le .Lasm_JumpLessThanEqualsRhsInt32.ssa_block_2
 .Lasm_JumpLessThanEqualsRhsInt32.ssa_block_3:
@@ -7241,7 +7313,7 @@ asm_handler_JumpGreaterThanRhsInt32:
     ldr w2, [x21, #8]
     lsr x1, x0, #48
     cmp w1, w22
-    b.ne .Lasm_JumpGreaterThanRhsInt32.ssa_block_7
+    b.ne .Lasm_JumpGreaterThanRhsInt32.ssa_block_8
     cmp w0, w2
     b.gt .Lasm_JumpGreaterThanRhsInt32.ssa_block_2
 .Lasm_JumpGreaterThanRhsInt32.ssa_block_3:
@@ -7265,7 +7337,7 @@ asm_handler_JumpGreaterThanEqualsRhsInt32:
     ldr w2, [x21, #8]
     lsr x1, x0, #48
     cmp w1, w22
-    b.ne .Lasm_JumpGreaterThanEqualsRhsInt32.ssa_block_7
+    b.ne .Lasm_JumpGreaterThanEqualsRhsInt32.ssa_block_8
     cmp w0, w2
     b.ge .Lasm_JumpGreaterThanEqualsRhsInt32.ssa_block_2
 .Lasm_JumpGreaterThanEqualsRhsInt32.ssa_block_3:
@@ -7291,17 +7363,23 @@ asm_handler_StrictlyEqualsRhsInt32:
     lsr x2, x0, #48
     sxtw x1, w1
     cmp w2, w22
-    b.ne .Lasm_StrictlyEqualsRhsInt32.ssa_block_17
+    b.ne .Lasm_StrictlyEqualsRhsInt32.ssa_block_21
     sxtw x0, w0
     cmp x0, x1
     b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_2
     b .Lasm_StrictlyEqualsRhsInt32.ssa_block_3
-.Lasm_StrictlyEqualsRhsInt32.ssa_block_8:
+.Lasm_StrictlyEqualsRhsInt32.ssa_block_21:
+    and w2, w2, #0x7ff8
+    mov w9, #32760
+    cmp w2, w9
+    b.ne .Lasm_StrictlyEqualsRhsInt32.ssa_block_20
+    b .Lasm_StrictlyEqualsRhsInt32.ssa_block_3
+.Lasm_StrictlyEqualsRhsInt32.ssa_block_10:
     lsr x2, x0, #48
     cmp w2, w22
-    b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_9
+    b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_11
     cmp x2, x22
-    b.ne .Lasm_StrictlyEqualsRhsInt32.ssa_block_10
+    b.ne .Lasm_StrictlyEqualsRhsInt32.ssa_block_14
     mov w2, #32762
     and w2, w2, #0x7ff8
     mov w9, #32760
@@ -7313,7 +7391,7 @@ asm_handler_StrictlyEqualsRhsInt32:
     fcmp d0, d1
     b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_2
     b .Lasm_StrictlyEqualsRhsInt32.ssa_block_3
-.Lasm_StrictlyEqualsRhsInt32.ssa_block_10:
+.Lasm_StrictlyEqualsRhsInt32.ssa_block_14:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -7322,26 +7400,26 @@ asm_handler_StrictlyEqualsRhsInt32:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
-    b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_3
-    b .Lasm_StrictlyEqualsRhsInt32.ssa_block_4
-.Lasm_StrictlyEqualsRhsInt32.ssa_block_9:
+    b.ne .Lasm_StrictlyEqualsRhsInt32.ssa_block_4
+    b .Lasm_StrictlyEqualsRhsInt32.ssa_block_3
+.Lasm_StrictlyEqualsRhsInt32.ssa_block_11:
     cmp x2, x22
     ccmp x2, x23, #4, ne
     mov w9, #65529
     ccmp x2, x9, #4, ne
     mov w9, #65531
     ccmp x2, x9, #4, ne
-    b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_30
+    b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_29
     mov w9, #65530
     cmp x2, x9
-    b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_28
+    b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_26
     mov w9, #65533
     cmp x2, x9
     b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_1
     and w2, w2, #0xfffe
     mov w9, #32766
     cmp x2, x9
-    b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_30
+    b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_29
 .Lasm_StrictlyEqualsRhsInt32.ssa_block_4:
     fmov d0, x0
     fmov d1, x1
@@ -7349,11 +7427,11 @@ asm_handler_StrictlyEqualsRhsInt32:
     b.vs .Lasm_StrictlyEqualsRhsInt32.ssa_block_3
     b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_2
     b .Lasm_StrictlyEqualsRhsInt32.ssa_block_3
-.Lasm_StrictlyEqualsRhsInt32.ssa_block_28:
+.Lasm_StrictlyEqualsRhsInt32.ssa_block_26:
     cmp x0, x1
     b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_2
-    b .Lasm_StrictlyEqualsRhsInt32.ssa_block_29
-.Lasm_StrictlyEqualsRhsInt32.ssa_block_30:
+    b .Lasm_StrictlyEqualsRhsInt32.ssa_block_27
+.Lasm_StrictlyEqualsRhsInt32.ssa_block_29:
     cmp x0, x1
     b.ne .Lasm_StrictlyEqualsRhsInt32.ssa_block_3
 .Lasm_StrictlyEqualsRhsInt32.ssa_block_2:
@@ -7384,17 +7462,23 @@ asm_handler_StrictlyInequalsRhsInt32:
     lsr x2, x0, #48
     sxtw x1, w1
     cmp w2, w22
-    b.ne .Lasm_StrictlyInequalsRhsInt32.ssa_block_17
+    b.ne .Lasm_StrictlyInequalsRhsInt32.ssa_block_21
     sxtw x0, w0
     cmp x0, x1
     b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_3
     b .Lasm_StrictlyInequalsRhsInt32.ssa_block_2
-.Lasm_StrictlyInequalsRhsInt32.ssa_block_8:
+.Lasm_StrictlyInequalsRhsInt32.ssa_block_21:
+    and w2, w2, #0x7ff8
+    mov w9, #32760
+    cmp w2, w9
+    b.ne .Lasm_StrictlyInequalsRhsInt32.ssa_block_20
+    b .Lasm_StrictlyInequalsRhsInt32.ssa_block_2
+.Lasm_StrictlyInequalsRhsInt32.ssa_block_10:
     lsr x2, x0, #48
     cmp w2, w22
-    b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_9
+    b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_11
     cmp x2, x22
-    b.ne .Lasm_StrictlyInequalsRhsInt32.ssa_block_10
+    b.ne .Lasm_StrictlyInequalsRhsInt32.ssa_block_14
     mov w2, #32762
     and w2, w2, #0x7ff8
     mov w9, #32760
@@ -7406,7 +7490,7 @@ asm_handler_StrictlyInequalsRhsInt32:
     fcmp d0, d1
     b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_3
     b .Lasm_StrictlyInequalsRhsInt32.ssa_block_2
-.Lasm_StrictlyInequalsRhsInt32.ssa_block_10:
+.Lasm_StrictlyInequalsRhsInt32.ssa_block_14:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -7415,26 +7499,26 @@ asm_handler_StrictlyInequalsRhsInt32:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
-    b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_2
-    b .Lasm_StrictlyInequalsRhsInt32.ssa_block_4
-.Lasm_StrictlyInequalsRhsInt32.ssa_block_9:
+    b.ne .Lasm_StrictlyInequalsRhsInt32.ssa_block_4
+    b .Lasm_StrictlyInequalsRhsInt32.ssa_block_2
+.Lasm_StrictlyInequalsRhsInt32.ssa_block_11:
     cmp x2, x22
     ccmp x2, x23, #4, ne
     mov w9, #65529
     ccmp x2, x9, #4, ne
     mov w9, #65531
     ccmp x2, x9, #4, ne
-    b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_30
+    b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_29
     mov w9, #65530
     cmp x2, x9
-    b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_28
+    b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_26
     mov w9, #65533
     cmp x2, x9
     b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_1
     and w2, w2, #0xfffe
     mov w9, #32766
     cmp x2, x9
-    b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_30
+    b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_29
 .Lasm_StrictlyInequalsRhsInt32.ssa_block_4:
     fmov d0, x0
     fmov d1, x1
@@ -7442,11 +7526,11 @@ asm_handler_StrictlyInequalsRhsInt32:
     b.vs .Lasm_StrictlyInequalsRhsInt32.ssa_block_2
     b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_3
     b .Lasm_StrictlyInequalsRhsInt32.ssa_block_2
-.Lasm_StrictlyInequalsRhsInt32.ssa_block_28:
+.Lasm_StrictlyInequalsRhsInt32.ssa_block_26:
     cmp x0, x1
     b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_3
-    b .Lasm_StrictlyInequalsRhsInt32.ssa_block_29
-.Lasm_StrictlyInequalsRhsInt32.ssa_block_30:
+    b .Lasm_StrictlyInequalsRhsInt32.ssa_block_27
+.Lasm_StrictlyInequalsRhsInt32.ssa_block_29:
     cmp x0, x1
     b.ne .Lasm_StrictlyInequalsRhsInt32.ssa_block_2
 .Lasm_StrictlyInequalsRhsInt32.ssa_block_3:
@@ -7477,20 +7561,26 @@ asm_handler_LooselyEqualsRhsInt32:
     lsr x3, x0, #48
     sxtw x2, w1
     cmp w3, w22
-    b.ne .Lasm_LooselyEqualsRhsInt32.ssa_block_19
+    b.ne .Lasm_LooselyEqualsRhsInt32.ssa_block_23
     sxtw x0, w0
     cmp x0, x2
     b.eq .Lasm_LooselyEqualsRhsInt32.ssa_block_2
     b .Lasm_LooselyEqualsRhsInt32.ssa_block_3
-.Lasm_LooselyEqualsRhsInt32.ssa_block_8:
+.Lasm_LooselyEqualsRhsInt32.ssa_block_23:
+    and w3, w3, #0x7ff8
+    mov w9, #32760
+    cmp w3, w9
+    b.ne .Lasm_LooselyEqualsRhsInt32.ssa_block_22
+    b .Lasm_LooselyEqualsRhsInt32.ssa_block_1
+.Lasm_LooselyEqualsRhsInt32.ssa_block_10:
     lsr x2, x0, #48
     cmp w2, w22
-    b.eq .Lasm_LooselyEqualsRhsInt32.ssa_block_9
+    b.eq .Lasm_LooselyEqualsRhsInt32.ssa_block_11
     mov x3, x2
     and w3, w3, #0xfffe
     mov w9, #32766
     cmp w3, w9
-    b.eq .Lasm_LooselyEqualsRhsInt32.ssa_block_10
+    b.eq .Lasm_LooselyEqualsRhsInt32.ssa_block_14
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -7499,11 +7589,11 @@ asm_handler_LooselyEqualsRhsInt32:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
-    b.eq .Lasm_LooselyEqualsRhsInt32.ssa_block_1
-    b .Lasm_LooselyEqualsRhsInt32.ssa_block_4
-.Lasm_LooselyEqualsRhsInt32.ssa_block_10:
+    b.ne .Lasm_LooselyEqualsRhsInt32.ssa_block_4
     b .Lasm_LooselyEqualsRhsInt32.ssa_block_1
-.Lasm_LooselyEqualsRhsInt32.ssa_block_9:
+.Lasm_LooselyEqualsRhsInt32.ssa_block_14:
+    b .Lasm_LooselyEqualsRhsInt32.ssa_block_1
+.Lasm_LooselyEqualsRhsInt32.ssa_block_11:
     cmp x2, x22
     ccmp x2, x23, #4, ne
     mov w9, #65529
@@ -7513,7 +7603,7 @@ asm_handler_LooselyEqualsRhsInt32:
     b.eq .Lasm_LooselyEqualsRhsInt32.ssa_block_31
     mov w9, #65530
     cmp x2, x9
-    b.eq .Lasm_LooselyEqualsRhsInt32.ssa_block_29
+    b.eq .Lasm_LooselyEqualsRhsInt32.ssa_block_28
     mov w9, #65533
     cmp x2, x9
     b.eq .Lasm_LooselyEqualsRhsInt32.ssa_block_1
@@ -7528,10 +7618,10 @@ asm_handler_LooselyEqualsRhsInt32:
     b.vs .Lasm_LooselyEqualsRhsInt32.ssa_block_3
     b.eq .Lasm_LooselyEqualsRhsInt32.ssa_block_2
     b .Lasm_LooselyEqualsRhsInt32.ssa_block_3
-.Lasm_LooselyEqualsRhsInt32.ssa_block_29:
+.Lasm_LooselyEqualsRhsInt32.ssa_block_28:
     cmp x0, x1
     b.eq .Lasm_LooselyEqualsRhsInt32.ssa_block_2
-    b .Lasm_LooselyEqualsRhsInt32.ssa_block_30
+    b .Lasm_LooselyEqualsRhsInt32.ssa_block_29
 .Lasm_LooselyEqualsRhsInt32.ssa_block_31:
     cmp x0, x1
     b.ne .Lasm_LooselyEqualsRhsInt32.ssa_block_3
@@ -7563,20 +7653,26 @@ asm_handler_LooselyInequalsRhsInt32:
     lsr x3, x0, #48
     sxtw x2, w1
     cmp w3, w22
-    b.ne .Lasm_LooselyInequalsRhsInt32.ssa_block_19
+    b.ne .Lasm_LooselyInequalsRhsInt32.ssa_block_23
     sxtw x0, w0
     cmp x0, x2
     b.eq .Lasm_LooselyInequalsRhsInt32.ssa_block_3
     b .Lasm_LooselyInequalsRhsInt32.ssa_block_2
-.Lasm_LooselyInequalsRhsInt32.ssa_block_8:
+.Lasm_LooselyInequalsRhsInt32.ssa_block_23:
+    and w3, w3, #0x7ff8
+    mov w9, #32760
+    cmp w3, w9
+    b.ne .Lasm_LooselyInequalsRhsInt32.ssa_block_22
+    b .Lasm_LooselyInequalsRhsInt32.ssa_block_1
+.Lasm_LooselyInequalsRhsInt32.ssa_block_10:
     lsr x2, x0, #48
     cmp w2, w22
-    b.eq .Lasm_LooselyInequalsRhsInt32.ssa_block_9
+    b.eq .Lasm_LooselyInequalsRhsInt32.ssa_block_11
     mov x3, x2
     and w3, w3, #0xfffe
     mov w9, #32766
     cmp w3, w9
-    b.eq .Lasm_LooselyInequalsRhsInt32.ssa_block_10
+    b.eq .Lasm_LooselyInequalsRhsInt32.ssa_block_14
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -7585,11 +7681,11 @@ asm_handler_LooselyInequalsRhsInt32:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
-    b.eq .Lasm_LooselyInequalsRhsInt32.ssa_block_1
-    b .Lasm_LooselyInequalsRhsInt32.ssa_block_4
-.Lasm_LooselyInequalsRhsInt32.ssa_block_10:
+    b.ne .Lasm_LooselyInequalsRhsInt32.ssa_block_4
     b .Lasm_LooselyInequalsRhsInt32.ssa_block_1
-.Lasm_LooselyInequalsRhsInt32.ssa_block_9:
+.Lasm_LooselyInequalsRhsInt32.ssa_block_14:
+    b .Lasm_LooselyInequalsRhsInt32.ssa_block_1
+.Lasm_LooselyInequalsRhsInt32.ssa_block_11:
     cmp x2, x22
     ccmp x2, x23, #4, ne
     mov w9, #65529
@@ -7599,7 +7695,7 @@ asm_handler_LooselyInequalsRhsInt32:
     b.eq .Lasm_LooselyInequalsRhsInt32.ssa_block_31
     mov w9, #65530
     cmp x2, x9
-    b.eq .Lasm_LooselyInequalsRhsInt32.ssa_block_29
+    b.eq .Lasm_LooselyInequalsRhsInt32.ssa_block_28
     mov w9, #65533
     cmp x2, x9
     b.eq .Lasm_LooselyInequalsRhsInt32.ssa_block_1
@@ -7614,10 +7710,10 @@ asm_handler_LooselyInequalsRhsInt32:
     b.vs .Lasm_LooselyInequalsRhsInt32.ssa_block_2
     b.eq .Lasm_LooselyInequalsRhsInt32.ssa_block_3
     b .Lasm_LooselyInequalsRhsInt32.ssa_block_2
-.Lasm_LooselyInequalsRhsInt32.ssa_block_29:
+.Lasm_LooselyInequalsRhsInt32.ssa_block_28:
     cmp x0, x1
     b.eq .Lasm_LooselyInequalsRhsInt32.ssa_block_3
-    b .Lasm_LooselyInequalsRhsInt32.ssa_block_30
+    b .Lasm_LooselyInequalsRhsInt32.ssa_block_29
 .Lasm_LooselyInequalsRhsInt32.ssa_block_31:
     cmp x0, x1
     b.ne .Lasm_LooselyInequalsRhsInt32.ssa_block_2
@@ -7649,17 +7745,23 @@ asm_handler_JumpStrictlyEqualsRhsInt32:
     lsr x2, x0, #48
     sxtw x1, w1
     cmp w2, w22
-    b.ne .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_17
+    b.ne .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_21
     sxtw x0, w0
     cmp x0, x1
     b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_2
     b .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_3
-.Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_8:
+.Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_21:
+    and w2, w2, #0x7ff8
+    mov w9, #32760
+    cmp w2, w9
+    b.ne .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_20
+    b .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_3
+.Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_10:
     lsr x2, x0, #48
     cmp w2, w22
-    b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_9
+    b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_11
     cmp x2, x22
-    b.ne .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_10
+    b.ne .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_14
     mov w2, #32762
     and w2, w2, #0x7ff8
     mov w9, #32760
@@ -7671,7 +7773,7 @@ asm_handler_JumpStrictlyEqualsRhsInt32:
     fcmp d0, d1
     b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_2
     b .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_3
-.Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_10:
+.Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_14:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -7680,26 +7782,26 @@ asm_handler_JumpStrictlyEqualsRhsInt32:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
-    b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_3
-    b .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_4
-.Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_9:
+    b.ne .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_4
+    b .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_3
+.Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_11:
     cmp x2, x22
     ccmp x2, x23, #4, ne
     mov w9, #65529
     ccmp x2, x9, #4, ne
     mov w9, #65531
     ccmp x2, x9, #4, ne
-    b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_30
+    b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_29
     mov w9, #65530
     cmp x2, x9
-    b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_28
+    b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_26
     mov w9, #65533
     cmp x2, x9
     b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_1
     and w2, w2, #0xfffe
     mov w9, #32766
     cmp x2, x9
-    b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_30
+    b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_29
 .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_4:
     fmov d0, x0
     fmov d1, x1
@@ -7707,11 +7809,11 @@ asm_handler_JumpStrictlyEqualsRhsInt32:
     b.vs .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_3
     b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_2
     b .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_3
-.Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_28:
+.Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_26:
     cmp x0, x1
     b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_2
-    b .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_29
-.Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_30:
+    b .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_27
+.Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_29:
     cmp x0, x1
     b.ne .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_3
 .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_2:
@@ -7737,17 +7839,23 @@ asm_handler_JumpStrictlyInequalsRhsInt32:
     lsr x2, x0, #48
     sxtw x1, w1
     cmp w2, w22
-    b.ne .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_17
+    b.ne .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_21
     sxtw x0, w0
     cmp x0, x1
     b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_3
     b .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_2
-.Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_8:
+.Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_21:
+    and w2, w2, #0x7ff8
+    mov w9, #32760
+    cmp w2, w9
+    b.ne .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_20
+    b .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_2
+.Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_10:
     lsr x2, x0, #48
     cmp w2, w22
-    b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_9
+    b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_11
     cmp x2, x22
-    b.ne .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_10
+    b.ne .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_14
     mov w2, #32762
     and w2, w2, #0x7ff8
     mov w9, #32760
@@ -7759,7 +7867,7 @@ asm_handler_JumpStrictlyInequalsRhsInt32:
     fcmp d0, d1
     b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_3
     b .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_2
-.Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_10:
+.Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_14:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -7768,26 +7876,26 @@ asm_handler_JumpStrictlyInequalsRhsInt32:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
-    b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_2
-    b .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_4
-.Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_9:
+    b.ne .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_4
+    b .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_2
+.Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_11:
     cmp x2, x22
     ccmp x2, x23, #4, ne
     mov w9, #65529
     ccmp x2, x9, #4, ne
     mov w9, #65531
     ccmp x2, x9, #4, ne
-    b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_30
+    b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_29
     mov w9, #65530
     cmp x2, x9
-    b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_28
+    b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_26
     mov w9, #65533
     cmp x2, x9
     b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_1
     and w2, w2, #0xfffe
     mov w9, #32766
     cmp x2, x9
-    b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_30
+    b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_29
 .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_4:
     fmov d0, x0
     fmov d1, x1
@@ -7795,11 +7903,11 @@ asm_handler_JumpStrictlyInequalsRhsInt32:
     b.vs .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_2
     b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_3
     b .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_2
-.Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_28:
+.Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_26:
     cmp x0, x1
     b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_3
-    b .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_29
-.Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_30:
+    b .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_27
+.Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_29:
     cmp x0, x1
     b.ne .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_2
 .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_3:
@@ -7825,20 +7933,26 @@ asm_handler_JumpLooselyEqualsRhsInt32:
     lsr x3, x0, #48
     sxtw x2, w1
     cmp w3, w22
-    b.ne .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_19
+    b.ne .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_23
     sxtw x0, w0
     cmp x0, x2
     b.eq .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_2
     b .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_3
-.Lasm_JumpLooselyEqualsRhsInt32.ssa_block_8:
+.Lasm_JumpLooselyEqualsRhsInt32.ssa_block_23:
+    and w3, w3, #0x7ff8
+    mov w9, #32760
+    cmp w3, w9
+    b.ne .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_22
+    b .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_1
+.Lasm_JumpLooselyEqualsRhsInt32.ssa_block_10:
     lsr x2, x0, #48
     cmp w2, w22
-    b.eq .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_9
+    b.eq .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_11
     mov x3, x2
     and w3, w3, #0xfffe
     mov w9, #32766
     cmp w3, w9
-    b.eq .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_10
+    b.eq .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_14
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -7847,11 +7961,11 @@ asm_handler_JumpLooselyEqualsRhsInt32:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
-    b.eq .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_1
-    b .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_4
-.Lasm_JumpLooselyEqualsRhsInt32.ssa_block_10:
+    b.ne .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_4
     b .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_1
-.Lasm_JumpLooselyEqualsRhsInt32.ssa_block_9:
+.Lasm_JumpLooselyEqualsRhsInt32.ssa_block_14:
+    b .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_1
+.Lasm_JumpLooselyEqualsRhsInt32.ssa_block_11:
     cmp x2, x22
     ccmp x2, x23, #4, ne
     mov w9, #65529
@@ -7861,7 +7975,7 @@ asm_handler_JumpLooselyEqualsRhsInt32:
     b.eq .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_31
     mov w9, #65530
     cmp x2, x9
-    b.eq .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_29
+    b.eq .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_28
     mov w9, #65533
     cmp x2, x9
     b.eq .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_1
@@ -7876,10 +7990,10 @@ asm_handler_JumpLooselyEqualsRhsInt32:
     b.vs .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_3
     b.eq .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_2
     b .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_3
-.Lasm_JumpLooselyEqualsRhsInt32.ssa_block_29:
+.Lasm_JumpLooselyEqualsRhsInt32.ssa_block_28:
     cmp x0, x1
     b.eq .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_2
-    b .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_30
+    b .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_29
 .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_31:
     cmp x0, x1
     b.ne .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_3
@@ -7906,20 +8020,26 @@ asm_handler_JumpLooselyInequalsRhsInt32:
     lsr x3, x0, #48
     sxtw x2, w1
     cmp w3, w22
-    b.ne .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_19
+    b.ne .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_23
     sxtw x0, w0
     cmp x0, x2
     b.eq .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_3
     b .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_2
-.Lasm_JumpLooselyInequalsRhsInt32.ssa_block_8:
+.Lasm_JumpLooselyInequalsRhsInt32.ssa_block_23:
+    and w3, w3, #0x7ff8
+    mov w9, #32760
+    cmp w3, w9
+    b.ne .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_22
+    b .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_1
+.Lasm_JumpLooselyInequalsRhsInt32.ssa_block_10:
     lsr x2, x0, #48
     cmp w2, w22
-    b.eq .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_9
+    b.eq .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_11
     mov x3, x2
     and w3, w3, #0xfffe
     mov w9, #32766
     cmp w3, w9
-    b.eq .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_10
+    b.eq .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_14
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -7928,11 +8048,11 @@ asm_handler_JumpLooselyInequalsRhsInt32:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
-    b.eq .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_1
-    b .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_4
-.Lasm_JumpLooselyInequalsRhsInt32.ssa_block_10:
+    b.ne .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_4
     b .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_1
-.Lasm_JumpLooselyInequalsRhsInt32.ssa_block_9:
+.Lasm_JumpLooselyInequalsRhsInt32.ssa_block_14:
+    b .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_1
+.Lasm_JumpLooselyInequalsRhsInt32.ssa_block_11:
     cmp x2, x22
     ccmp x2, x23, #4, ne
     mov w9, #65529
@@ -7942,7 +8062,7 @@ asm_handler_JumpLooselyInequalsRhsInt32:
     b.eq .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_31
     mov w9, #65530
     cmp x2, x9
-    b.eq .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_29
+    b.eq .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_28
     mov w9, #65533
     cmp x2, x9
     b.eq .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_1
@@ -7957,10 +8077,10 @@ asm_handler_JumpLooselyInequalsRhsInt32:
     b.vs .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_2
     b.eq .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_3
     b .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_2
-.Lasm_JumpLooselyInequalsRhsInt32.ssa_block_29:
+.Lasm_JumpLooselyInequalsRhsInt32.ssa_block_28:
     cmp x0, x1
     b.eq .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_3
-    b .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_30
+    b .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_29
 .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_31:
     cmp x0, x1
     b.ne .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_2
@@ -7985,7 +8105,7 @@ asm_handler_JumpLessThanLoopRhsInt32:
     ldr w2, [x21, #8]
     lsr x1, x0, #48
     cmp w1, w22
-    b.ne .Lasm_JumpLessThanLoopRhsInt32.ssa_block_7
+    b.ne .Lasm_JumpLessThanLoopRhsInt32.ssa_block_8
     cmp w0, w2
     b.lt .Lasm_JumpLessThanLoopRhsInt32.ssa_block_2
 .Lasm_JumpLessThanLoopRhsInt32.ssa_block_3:
@@ -8009,7 +8129,7 @@ asm_handler_JumpLessThanEqualsLoopRhsInt32:
     ldr w2, [x21, #8]
     lsr x1, x0, #48
     cmp w1, w22
-    b.ne .Lasm_JumpLessThanEqualsLoopRhsInt32.ssa_block_7
+    b.ne .Lasm_JumpLessThanEqualsLoopRhsInt32.ssa_block_8
     cmp w0, w2
     b.le .Lasm_JumpLessThanEqualsLoopRhsInt32.ssa_block_2
 .Lasm_JumpLessThanEqualsLoopRhsInt32.ssa_block_3:
@@ -8033,7 +8153,7 @@ asm_handler_JumpGreaterThanLoopRhsInt32:
     ldr w2, [x21, #8]
     lsr x1, x0, #48
     cmp w1, w22
-    b.ne .Lasm_JumpGreaterThanLoopRhsInt32.ssa_block_7
+    b.ne .Lasm_JumpGreaterThanLoopRhsInt32.ssa_block_8
     cmp w0, w2
     b.gt .Lasm_JumpGreaterThanLoopRhsInt32.ssa_block_2
 .Lasm_JumpGreaterThanLoopRhsInt32.ssa_block_3:
@@ -8057,7 +8177,7 @@ asm_handler_JumpGreaterThanEqualsLoopRhsInt32:
     ldr w2, [x21, #8]
     lsr x1, x0, #48
     cmp w1, w22
-    b.ne .Lasm_JumpGreaterThanEqualsLoopRhsInt32.ssa_block_7
+    b.ne .Lasm_JumpGreaterThanEqualsLoopRhsInt32.ssa_block_8
     cmp w0, w2
     b.ge .Lasm_JumpGreaterThanEqualsLoopRhsInt32.ssa_block_2
 .Lasm_JumpGreaterThanEqualsLoopRhsInt32.ssa_block_3:
@@ -8083,17 +8203,23 @@ asm_handler_JumpStrictlyEqualsLoopRhsInt32:
     lsr x2, x0, #48
     sxtw x1, w1
     cmp w2, w22
-    b.ne .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_17
+    b.ne .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_21
     sxtw x0, w0
     cmp x0, x1
     b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_2
     b .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_3
-.Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_8:
+.Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_21:
+    and w2, w2, #0x7ff8
+    mov w9, #32760
+    cmp w2, w9
+    b.ne .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_20
+    b .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_3
+.Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_10:
     lsr x2, x0, #48
     cmp w2, w22
-    b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_9
+    b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_11
     cmp x2, x22
-    b.ne .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_10
+    b.ne .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_14
     mov w2, #32762
     and w2, w2, #0x7ff8
     mov w9, #32760
@@ -8105,7 +8231,7 @@ asm_handler_JumpStrictlyEqualsLoopRhsInt32:
     fcmp d0, d1
     b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_2
     b .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_3
-.Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_10:
+.Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_14:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -8114,26 +8240,26 @@ asm_handler_JumpStrictlyEqualsLoopRhsInt32:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
-    b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_3
-    b .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_4
-.Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_9:
+    b.ne .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_4
+    b .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_3
+.Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_11:
     cmp x2, x22
     ccmp x2, x23, #4, ne
     mov w9, #65529
     ccmp x2, x9, #4, ne
     mov w9, #65531
     ccmp x2, x9, #4, ne
-    b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_30
+    b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_29
     mov w9, #65530
     cmp x2, x9
-    b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_28
+    b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_26
     mov w9, #65533
     cmp x2, x9
     b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_1
     and w2, w2, #0xfffe
     mov w9, #32766
     cmp x2, x9
-    b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_30
+    b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_29
 .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_4:
     fmov d0, x0
     fmov d1, x1
@@ -8141,11 +8267,11 @@ asm_handler_JumpStrictlyEqualsLoopRhsInt32:
     b.vs .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_3
     b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_2
     b .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_3
-.Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_28:
+.Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_26:
     cmp x0, x1
     b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_2
-    b .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_29
-.Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_30:
+    b .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_27
+.Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_29:
     cmp x0, x1
     b.ne .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_3
 .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_2:
@@ -8171,17 +8297,23 @@ asm_handler_JumpStrictlyInequalsLoopRhsInt32:
     lsr x2, x0, #48
     sxtw x1, w1
     cmp w2, w22
-    b.ne .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_17
+    b.ne .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_21
     sxtw x0, w0
     cmp x0, x1
     b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_3
     b .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_2
-.Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_8:
+.Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_21:
+    and w2, w2, #0x7ff8
+    mov w9, #32760
+    cmp w2, w9
+    b.ne .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_20
+    b .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_2
+.Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_10:
     lsr x2, x0, #48
     cmp w2, w22
-    b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_9
+    b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_11
     cmp x2, x22
-    b.ne .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_10
+    b.ne .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_14
     mov w2, #32762
     and w2, w2, #0x7ff8
     mov w9, #32760
@@ -8193,7 +8325,7 @@ asm_handler_JumpStrictlyInequalsLoopRhsInt32:
     fcmp d0, d1
     b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_3
     b .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_2
-.Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_10:
+.Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_14:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -8202,26 +8334,26 @@ asm_handler_JumpStrictlyInequalsLoopRhsInt32:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
-    b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_2
-    b .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_4
-.Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_9:
+    b.ne .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_4
+    b .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_2
+.Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_11:
     cmp x2, x22
     ccmp x2, x23, #4, ne
     mov w9, #65529
     ccmp x2, x9, #4, ne
     mov w9, #65531
     ccmp x2, x9, #4, ne
-    b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_30
+    b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_29
     mov w9, #65530
     cmp x2, x9
-    b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_28
+    b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_26
     mov w9, #65533
     cmp x2, x9
     b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_1
     and w2, w2, #0xfffe
     mov w9, #32766
     cmp x2, x9
-    b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_30
+    b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_29
 .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_4:
     fmov d0, x0
     fmov d1, x1
@@ -8229,11 +8361,11 @@ asm_handler_JumpStrictlyInequalsLoopRhsInt32:
     b.vs .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_2
     b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_3
     b .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_2
-.Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_28:
+.Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_26:
     cmp x0, x1
     b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_3
-    b .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_29
-.Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_30:
+    b .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_27
+.Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_29:
     cmp x0, x1
     b.ne .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_2
 .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_3:
@@ -8259,20 +8391,26 @@ asm_handler_JumpLooselyEqualsLoopRhsInt32:
     lsr x3, x0, #48
     sxtw x2, w1
     cmp w3, w22
-    b.ne .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_19
+    b.ne .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_23
     sxtw x0, w0
     cmp x0, x2
     b.eq .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_2
     b .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_3
-.Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_8:
+.Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_23:
+    and w3, w3, #0x7ff8
+    mov w9, #32760
+    cmp w3, w9
+    b.ne .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_22
+    b .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_1
+.Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_10:
     lsr x2, x0, #48
     cmp w2, w22
-    b.eq .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_9
+    b.eq .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_11
     mov x3, x2
     and w3, w3, #0xfffe
     mov w9, #32766
     cmp w3, w9
-    b.eq .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_10
+    b.eq .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_14
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -8281,11 +8419,11 @@ asm_handler_JumpLooselyEqualsLoopRhsInt32:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
-    b.eq .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_1
-    b .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_4
-.Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_10:
+    b.ne .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_4
     b .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_1
-.Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_9:
+.Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_14:
+    b .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_1
+.Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_11:
     cmp x2, x22
     ccmp x2, x23, #4, ne
     mov w9, #65529
@@ -8295,7 +8433,7 @@ asm_handler_JumpLooselyEqualsLoopRhsInt32:
     b.eq .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_31
     mov w9, #65530
     cmp x2, x9
-    b.eq .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_29
+    b.eq .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_28
     mov w9, #65533
     cmp x2, x9
     b.eq .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_1
@@ -8310,10 +8448,10 @@ asm_handler_JumpLooselyEqualsLoopRhsInt32:
     b.vs .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_3
     b.eq .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_2
     b .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_3
-.Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_29:
+.Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_28:
     cmp x0, x1
     b.eq .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_2
-    b .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_30
+    b .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_29
 .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_31:
     cmp x0, x1
     b.ne .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_3
@@ -8340,20 +8478,26 @@ asm_handler_JumpLooselyInequalsLoopRhsInt32:
     lsr x3, x0, #48
     sxtw x2, w1
     cmp w3, w22
-    b.ne .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_19
+    b.ne .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_23
     sxtw x0, w0
     cmp x0, x2
     b.eq .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_3
     b .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_2
-.Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_8:
+.Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_23:
+    and w3, w3, #0x7ff8
+    mov w9, #32760
+    cmp w3, w9
+    b.ne .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_22
+    b .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_1
+.Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_10:
     lsr x2, x0, #48
     cmp w2, w22
-    b.eq .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_9
+    b.eq .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_11
     mov x3, x2
     and w3, w3, #0xfffe
     mov w9, #32766
     cmp w3, w9
-    b.eq .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_10
+    b.eq .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_14
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -8362,11 +8506,11 @@ asm_handler_JumpLooselyInequalsLoopRhsInt32:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
-    b.eq .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_1
-    b .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_4
-.Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_10:
+    b.ne .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_4
     b .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_1
-.Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_9:
+.Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_14:
+    b .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_1
+.Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_11:
     cmp x2, x22
     ccmp x2, x23, #4, ne
     mov w9, #65529
@@ -8376,7 +8520,7 @@ asm_handler_JumpLooselyInequalsLoopRhsInt32:
     b.eq .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_31
     mov w9, #65530
     cmp x2, x9
-    b.eq .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_29
+    b.eq .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_28
     mov w9, #65533
     cmp x2, x9
     b.eq .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_1
@@ -8391,10 +8535,10 @@ asm_handler_JumpLooselyInequalsLoopRhsInt32:
     b.vs .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_2
     b.eq .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_3
     b .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_2
-.Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_29:
+.Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_28:
     cmp x0, x1
     b.eq .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_3
-    b .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_30
+    b .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_29
 .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_31:
     cmp x0, x1
     b.ne .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_2
@@ -8466,25 +8610,25 @@ asm_handler_Add_cold:
     fcvtzs w1, d0
     scvtf d16, w1
     fcmp d0, d16
-    b.ne .Lasm_Add.ssa_box_number_37_not_integer
-    cbz x1, .Lasm_Add.ssa_box_number_37_check_negative_zero
+    b.ne .Lasm_Add.ssa_box_number_6_not_integer
+    cbz x1, .Lasm_Add.ssa_box_number_6_check_negative_zero
     mov w0, w1
     movk x0, #0x7ffa, lsl #48
-    b .Lasm_Add.ssa_box_number_37_done
-.Lasm_Add.ssa_box_number_37_check_negative_zero:
+    b .Lasm_Add.ssa_box_number_6_done
+.Lasm_Add.ssa_box_number_6_check_negative_zero:
     fmov x0, d0
     tbz x0, #63, 1f
-    b .Lasm_Add.ssa_box_number_37_not_integer
+    b .Lasm_Add.ssa_box_number_6_not_integer
 1:
     mov w0, w1
     movk x0, #0x7ffa, lsl #48
-    b .Lasm_Add.ssa_box_number_37_done
-.Lasm_Add.ssa_box_number_37_not_integer:
+    b .Lasm_Add.ssa_box_number_6_done
+.Lasm_Add.ssa_box_number_6_not_integer:
     fmov x0, d0
     fcmp d0, d0
     b.vs .Lasm_Add.canon_nan_0
 .Lasm_Add.canon_nan_0_ret:
-.Lasm_Add.ssa_box_number_37_done:
+.Lasm_Add.ssa_box_number_6_done:
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #16]
@@ -8589,25 +8733,25 @@ asm_handler_Sub_cold:
     fcvtzs w1, d0
     scvtf d16, w1
     fcmp d0, d16
-    b.ne .Lasm_Sub.ssa_box_number_37_not_integer
-    cbz x1, .Lasm_Sub.ssa_box_number_37_check_negative_zero
+    b.ne .Lasm_Sub.ssa_box_number_6_not_integer
+    cbz x1, .Lasm_Sub.ssa_box_number_6_check_negative_zero
     mov w0, w1
     movk x0, #0x7ffa, lsl #48
-    b .Lasm_Sub.ssa_box_number_37_done
-.Lasm_Sub.ssa_box_number_37_check_negative_zero:
+    b .Lasm_Sub.ssa_box_number_6_done
+.Lasm_Sub.ssa_box_number_6_check_negative_zero:
     fmov x0, d0
     tbz x0, #63, 1f
-    b .Lasm_Sub.ssa_box_number_37_not_integer
+    b .Lasm_Sub.ssa_box_number_6_not_integer
 1:
     mov w0, w1
     movk x0, #0x7ffa, lsl #48
-    b .Lasm_Sub.ssa_box_number_37_done
-.Lasm_Sub.ssa_box_number_37_not_integer:
+    b .Lasm_Sub.ssa_box_number_6_done
+.Lasm_Sub.ssa_box_number_6_not_integer:
     fmov x0, d0
     fcmp d0, d0
     b.vs .Lasm_Sub.canon_nan_0
 .Lasm_Sub.canon_nan_0_ret:
-.Lasm_Sub.ssa_box_number_37_done:
+.Lasm_Sub.ssa_box_number_6_done:
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #16]
@@ -8679,6 +8823,14 @@ asm_handler_Mul_cold:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
+.Lasm_Mul.ssa_block_3:
+    ldr w9, [x21, #4]
+    movz x10, #0x8000, lsl #48
+    str x10, [x27, x9, lsl #3]
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
+    ldr x10, [x19, x9, lsl #3]
+    br x10
 .Lasm_Mul.ssa_block_9:
     and w2, w2, #0x7ff8
     mov w9, #32760
@@ -8696,11 +8848,11 @@ asm_handler_Mul_cold:
     lsr x2, x0, #48
     fmov d0, x1
     cmp w2, w22
-    b.ne .Lasm_Mul.ssa_block_16
+    b.ne .Lasm_Mul.ssa_block_17
     sxtw x0, w0
     scvtf d1, w0
     b .Lasm_Mul.ssa_block_2
-.Lasm_Mul.ssa_block_16:
+.Lasm_Mul.ssa_block_17:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -8711,25 +8863,25 @@ asm_handler_Mul_cold:
     fcvtzs w1, d0
     scvtf d16, w1
     fcmp d0, d16
-    b.ne .Lasm_Mul.ssa_box_number_41_not_integer
-    cbz x1, .Lasm_Mul.ssa_box_number_41_check_negative_zero
+    b.ne .Lasm_Mul.ssa_box_number_6_not_integer
+    cbz x1, .Lasm_Mul.ssa_box_number_6_check_negative_zero
     mov w0, w1
     movk x0, #0x7ffa, lsl #48
-    b .Lasm_Mul.ssa_box_number_41_done
-.Lasm_Mul.ssa_box_number_41_check_negative_zero:
+    b .Lasm_Mul.ssa_box_number_6_done
+.Lasm_Mul.ssa_box_number_6_check_negative_zero:
     fmov x0, d0
     tbz x0, #63, 1f
-    b .Lasm_Mul.ssa_box_number_41_not_integer
+    b .Lasm_Mul.ssa_box_number_6_not_integer
 1:
     mov w0, w1
     movk x0, #0x7ffa, lsl #48
-    b .Lasm_Mul.ssa_box_number_41_done
-.Lasm_Mul.ssa_box_number_41_not_integer:
+    b .Lasm_Mul.ssa_box_number_6_done
+.Lasm_Mul.ssa_box_number_6_not_integer:
     fmov x0, d0
     fcmp d0, d0
     b.vs .Lasm_Mul.canon_nan_0
 .Lasm_Mul.canon_nan_0_ret:
-.Lasm_Mul.ssa_box_number_41_done:
+.Lasm_Mul.ssa_box_number_6_done:
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #16]
@@ -8780,14 +8932,6 @@ asm_handler_Mul_cold:
     add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
-    ldr x10, [x19, x9, lsl #3]
-    br x10
-.Lasm_Mul.ssa_block_3:
-    ldr w9, [x21, #4]
-    movz x10, #0x8000, lsl #48
-    str x10, [x27, x9, lsl #3]
-    ldrb w9, [x21, #16]
-    add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_Mul.canon_nan_0:
@@ -9161,7 +9305,7 @@ asm_handler_JumpUndefined_cold:
 asm_handler_JumpUndefined_cold_end:
 asm_handler_JumpLessThan_cold:
 // Cold paths for JumpLessThan
-.Lasm_JumpLessThan.ssa_block_10:
+.Lasm_JumpLessThan.ssa_block_12:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -9169,7 +9313,7 @@ asm_handler_JumpLessThan_cold:
     fmov d1, x0
     scvtf d0, w2
     b .Lasm_JumpLessThan.ssa_block_4
-.Lasm_JumpLessThan.ssa_block_7:
+.Lasm_JumpLessThan.ssa_block_8:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -9177,11 +9321,11 @@ asm_handler_JumpLessThan_cold:
     lsr x2, x0, #48
     fmov d0, x1
     cmp w2, w22
-    b.ne .Lasm_JumpLessThan.ssa_block_17
+    b.ne .Lasm_JumpLessThan.ssa_block_22
     sxtw x0, w0
     scvtf d1, w0
     b .Lasm_JumpLessThan.ssa_block_4
-.Lasm_JumpLessThan.ssa_block_17:
+.Lasm_JumpLessThan.ssa_block_22:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -9225,7 +9369,7 @@ asm_handler_JumpLessThan_cold:
 asm_handler_JumpLessThan_cold_end:
 asm_handler_JumpGreaterThan_cold:
 // Cold paths for JumpGreaterThan
-.Lasm_JumpGreaterThan.ssa_block_10:
+.Lasm_JumpGreaterThan.ssa_block_12:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -9233,7 +9377,7 @@ asm_handler_JumpGreaterThan_cold:
     fmov d1, x0
     scvtf d0, w2
     b .Lasm_JumpGreaterThan.ssa_block_4
-.Lasm_JumpGreaterThan.ssa_block_7:
+.Lasm_JumpGreaterThan.ssa_block_8:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -9241,11 +9385,11 @@ asm_handler_JumpGreaterThan_cold:
     lsr x2, x0, #48
     fmov d0, x1
     cmp w2, w22
-    b.ne .Lasm_JumpGreaterThan.ssa_block_17
+    b.ne .Lasm_JumpGreaterThan.ssa_block_22
     sxtw x0, w0
     scvtf d1, w0
     b .Lasm_JumpGreaterThan.ssa_block_4
-.Lasm_JumpGreaterThan.ssa_block_17:
+.Lasm_JumpGreaterThan.ssa_block_22:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -9289,7 +9433,7 @@ asm_handler_JumpGreaterThan_cold:
 asm_handler_JumpGreaterThan_cold_end:
 asm_handler_JumpLessThanEquals_cold:
 // Cold paths for JumpLessThanEquals
-.Lasm_JumpLessThanEquals.ssa_block_10:
+.Lasm_JumpLessThanEquals.ssa_block_12:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -9297,7 +9441,7 @@ asm_handler_JumpLessThanEquals_cold:
     fmov d1, x0
     scvtf d0, w2
     b .Lasm_JumpLessThanEquals.ssa_block_4
-.Lasm_JumpLessThanEquals.ssa_block_7:
+.Lasm_JumpLessThanEquals.ssa_block_8:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -9305,11 +9449,11 @@ asm_handler_JumpLessThanEquals_cold:
     lsr x2, x0, #48
     fmov d0, x1
     cmp w2, w22
-    b.ne .Lasm_JumpLessThanEquals.ssa_block_17
+    b.ne .Lasm_JumpLessThanEquals.ssa_block_22
     sxtw x0, w0
     scvtf d1, w0
     b .Lasm_JumpLessThanEquals.ssa_block_4
-.Lasm_JumpLessThanEquals.ssa_block_17:
+.Lasm_JumpLessThanEquals.ssa_block_22:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -9353,7 +9497,7 @@ asm_handler_JumpLessThanEquals_cold:
 asm_handler_JumpLessThanEquals_cold_end:
 asm_handler_JumpGreaterThanEquals_cold:
 // Cold paths for JumpGreaterThanEquals
-.Lasm_JumpGreaterThanEquals.ssa_block_10:
+.Lasm_JumpGreaterThanEquals.ssa_block_12:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -9361,7 +9505,7 @@ asm_handler_JumpGreaterThanEquals_cold:
     fmov d1, x0
     scvtf d0, w2
     b .Lasm_JumpGreaterThanEquals.ssa_block_4
-.Lasm_JumpGreaterThanEquals.ssa_block_7:
+.Lasm_JumpGreaterThanEquals.ssa_block_8:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -9369,11 +9513,11 @@ asm_handler_JumpGreaterThanEquals_cold:
     lsr x2, x0, #48
     fmov d0, x1
     cmp w2, w22
-    b.ne .Lasm_JumpGreaterThanEquals.ssa_block_17
+    b.ne .Lasm_JumpGreaterThanEquals.ssa_block_22
     sxtw x0, w0
     scvtf d1, w0
     b .Lasm_JumpGreaterThanEquals.ssa_block_4
-.Lasm_JumpGreaterThanEquals.ssa_block_17:
+.Lasm_JumpGreaterThanEquals.ssa_block_22:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -9434,18 +9578,14 @@ asm_handler_JumpLooselyEquals_cold:
     tst x9, x10
     b.eq .Lasm_JumpLooselyEquals.ssa_block_1
     b .Lasm_JumpLooselyEquals.ssa_block_3
-.Lasm_JumpLooselyEquals.ssa_block_19:
-    and w3, w3, #0x7ff8
-    mov w9, #32760
-    cmp w3, w9
-    b.eq .Lasm_JumpLooselyEquals.ssa_block_1
+.Lasm_JumpLooselyEquals.ssa_block_22:
     fmov d0, x0
     scvtf d1, w1
     fcmp d0, d1
     b.vs .Lasm_JumpLooselyEquals.ssa_block_3
     b.eq .Lasm_JumpLooselyEquals.ssa_block_2
     b .Lasm_JumpLooselyEquals.ssa_block_3
-.Lasm_JumpLooselyEquals.ssa_block_30:
+.Lasm_JumpLooselyEquals.ssa_block_29:
     mov w9, #65530
     cmp w1, w9
     b.eq .Lasm_JumpLooselyEquals.ssa_block_36
@@ -9499,18 +9639,14 @@ asm_handler_JumpLooselyInequals_cold:
     tst x9, x10
     b.eq .Lasm_JumpLooselyInequals.ssa_block_1
     b .Lasm_JumpLooselyInequals.ssa_block_2
-.Lasm_JumpLooselyInequals.ssa_block_19:
-    and w3, w3, #0x7ff8
-    mov w9, #32760
-    cmp w3, w9
-    b.eq .Lasm_JumpLooselyInequals.ssa_block_1
+.Lasm_JumpLooselyInequals.ssa_block_22:
     fmov d0, x0
     scvtf d1, w1
     fcmp d0, d1
     b.vs .Lasm_JumpLooselyInequals.ssa_block_2
     b.eq .Lasm_JumpLooselyInequals.ssa_block_3
     b .Lasm_JumpLooselyInequals.ssa_block_2
-.Lasm_JumpLooselyInequals.ssa_block_30:
+.Lasm_JumpLooselyInequals.ssa_block_29:
     mov w9, #65530
     cmp w1, w9
     b.eq .Lasm_JumpLooselyInequals.ssa_block_36
@@ -9547,7 +9683,7 @@ asm_handler_JumpLooselyInequals_cold:
 asm_handler_JumpLooselyInequals_cold_end:
 asm_handler_JumpStrictlyEquals_cold:
 // Cold paths for JumpStrictlyEquals
-.Lasm_JumpStrictlyEquals.ssa_block_35:
+.Lasm_JumpStrictlyEquals.ssa_block_34:
     mov w9, #65530
     cmp w3, w9
     b.ne .Lasm_JumpStrictlyEquals.ssa_block_1
@@ -9564,21 +9700,17 @@ asm_handler_JumpStrictlyEquals_cold:
     tst x9, x10
     b.eq .Lasm_JumpStrictlyEquals.ssa_block_1
     b .Lasm_JumpStrictlyEquals.ssa_block_3
-.Lasm_JumpStrictlyEquals.ssa_block_17:
-    and w2, w2, #0x7ff8
-    mov w9, #32760
-    cmp w2, w9
-    b.eq .Lasm_JumpStrictlyEquals.ssa_block_3
+.Lasm_JumpStrictlyEquals.ssa_block_20:
     fmov d0, x0
     scvtf d1, w1
     fcmp d0, d1
     b.vs .Lasm_JumpStrictlyEquals.ssa_block_3
     b.eq .Lasm_JumpStrictlyEquals.ssa_block_2
     b .Lasm_JumpStrictlyEquals.ssa_block_3
-.Lasm_JumpStrictlyEquals.ssa_block_29:
+.Lasm_JumpStrictlyEquals.ssa_block_27:
     mov w9, #65530
     cmp w2, w9
-    b.eq .Lasm_JumpStrictlyEquals.ssa_block_35
+    b.eq .Lasm_JumpStrictlyEquals.ssa_block_34
 .Lasm_JumpStrictlyEquals.ssa_block_1:
     ldr w2, [x21, #12]
     ldr w3, [x21, #16]
@@ -9612,7 +9744,7 @@ asm_handler_JumpStrictlyEquals_cold:
 asm_handler_JumpStrictlyEquals_cold_end:
 asm_handler_JumpStrictlyInequals_cold:
 // Cold paths for JumpStrictlyInequals
-.Lasm_JumpStrictlyInequals.ssa_block_35:
+.Lasm_JumpStrictlyInequals.ssa_block_34:
     mov w9, #65530
     cmp w3, w9
     b.ne .Lasm_JumpStrictlyInequals.ssa_block_1
@@ -9629,21 +9761,17 @@ asm_handler_JumpStrictlyInequals_cold:
     tst x9, x10
     b.eq .Lasm_JumpStrictlyInequals.ssa_block_1
     b .Lasm_JumpStrictlyInequals.ssa_block_2
-.Lasm_JumpStrictlyInequals.ssa_block_17:
-    and w2, w2, #0x7ff8
-    mov w9, #32760
-    cmp w2, w9
-    b.eq .Lasm_JumpStrictlyInequals.ssa_block_2
+.Lasm_JumpStrictlyInequals.ssa_block_20:
     fmov d0, x0
     scvtf d1, w1
     fcmp d0, d1
     b.vs .Lasm_JumpStrictlyInequals.ssa_block_2
     b.eq .Lasm_JumpStrictlyInequals.ssa_block_3
     b .Lasm_JumpStrictlyInequals.ssa_block_2
-.Lasm_JumpStrictlyInequals.ssa_block_29:
+.Lasm_JumpStrictlyInequals.ssa_block_27:
     mov w9, #65530
     cmp w2, w9
-    b.eq .Lasm_JumpStrictlyInequals.ssa_block_35
+    b.eq .Lasm_JumpStrictlyInequals.ssa_block_34
 .Lasm_JumpStrictlyInequals.ssa_block_1:
     ldr w2, [x21, #12]
     ldr w3, [x21, #16]
@@ -9685,7 +9813,7 @@ asm_handler_JumpFalseLoop_cold:
 asm_handler_JumpFalseLoop_cold_end:
 asm_handler_JumpLessThanLoop_cold:
 // Cold paths for JumpLessThanLoop
-.Lasm_JumpLessThanLoop.ssa_block_10:
+.Lasm_JumpLessThanLoop.ssa_block_12:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -9693,7 +9821,7 @@ asm_handler_JumpLessThanLoop_cold:
     fmov d1, x0
     scvtf d0, w2
     b .Lasm_JumpLessThanLoop.ssa_block_4
-.Lasm_JumpLessThanLoop.ssa_block_7:
+.Lasm_JumpLessThanLoop.ssa_block_8:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -9701,11 +9829,11 @@ asm_handler_JumpLessThanLoop_cold:
     lsr x2, x0, #48
     fmov d0, x1
     cmp w2, w22
-    b.ne .Lasm_JumpLessThanLoop.ssa_block_17
+    b.ne .Lasm_JumpLessThanLoop.ssa_block_22
     sxtw x0, w0
     scvtf d1, w0
     b .Lasm_JumpLessThanLoop.ssa_block_4
-.Lasm_JumpLessThanLoop.ssa_block_17:
+.Lasm_JumpLessThanLoop.ssa_block_22:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -9749,7 +9877,7 @@ asm_handler_JumpLessThanLoop_cold:
 asm_handler_JumpLessThanLoop_cold_end:
 asm_handler_JumpGreaterThanLoop_cold:
 // Cold paths for JumpGreaterThanLoop
-.Lasm_JumpGreaterThanLoop.ssa_block_10:
+.Lasm_JumpGreaterThanLoop.ssa_block_12:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -9757,7 +9885,7 @@ asm_handler_JumpGreaterThanLoop_cold:
     fmov d1, x0
     scvtf d0, w2
     b .Lasm_JumpGreaterThanLoop.ssa_block_4
-.Lasm_JumpGreaterThanLoop.ssa_block_7:
+.Lasm_JumpGreaterThanLoop.ssa_block_8:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -9765,11 +9893,11 @@ asm_handler_JumpGreaterThanLoop_cold:
     lsr x2, x0, #48
     fmov d0, x1
     cmp w2, w22
-    b.ne .Lasm_JumpGreaterThanLoop.ssa_block_17
+    b.ne .Lasm_JumpGreaterThanLoop.ssa_block_22
     sxtw x0, w0
     scvtf d1, w0
     b .Lasm_JumpGreaterThanLoop.ssa_block_4
-.Lasm_JumpGreaterThanLoop.ssa_block_17:
+.Lasm_JumpGreaterThanLoop.ssa_block_22:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -9813,7 +9941,7 @@ asm_handler_JumpGreaterThanLoop_cold:
 asm_handler_JumpGreaterThanLoop_cold_end:
 asm_handler_JumpLessThanEqualsLoop_cold:
 // Cold paths for JumpLessThanEqualsLoop
-.Lasm_JumpLessThanEqualsLoop.ssa_block_10:
+.Lasm_JumpLessThanEqualsLoop.ssa_block_12:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -9821,7 +9949,7 @@ asm_handler_JumpLessThanEqualsLoop_cold:
     fmov d1, x0
     scvtf d0, w2
     b .Lasm_JumpLessThanEqualsLoop.ssa_block_4
-.Lasm_JumpLessThanEqualsLoop.ssa_block_7:
+.Lasm_JumpLessThanEqualsLoop.ssa_block_8:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -9829,11 +9957,11 @@ asm_handler_JumpLessThanEqualsLoop_cold:
     lsr x2, x0, #48
     fmov d0, x1
     cmp w2, w22
-    b.ne .Lasm_JumpLessThanEqualsLoop.ssa_block_17
+    b.ne .Lasm_JumpLessThanEqualsLoop.ssa_block_22
     sxtw x0, w0
     scvtf d1, w0
     b .Lasm_JumpLessThanEqualsLoop.ssa_block_4
-.Lasm_JumpLessThanEqualsLoop.ssa_block_17:
+.Lasm_JumpLessThanEqualsLoop.ssa_block_22:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -9877,7 +10005,7 @@ asm_handler_JumpLessThanEqualsLoop_cold:
 asm_handler_JumpLessThanEqualsLoop_cold_end:
 asm_handler_JumpGreaterThanEqualsLoop_cold:
 // Cold paths for JumpGreaterThanEqualsLoop
-.Lasm_JumpGreaterThanEqualsLoop.ssa_block_10:
+.Lasm_JumpGreaterThanEqualsLoop.ssa_block_12:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -9885,7 +10013,7 @@ asm_handler_JumpGreaterThanEqualsLoop_cold:
     fmov d1, x0
     scvtf d0, w2
     b .Lasm_JumpGreaterThanEqualsLoop.ssa_block_4
-.Lasm_JumpGreaterThanEqualsLoop.ssa_block_7:
+.Lasm_JumpGreaterThanEqualsLoop.ssa_block_8:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -9893,11 +10021,11 @@ asm_handler_JumpGreaterThanEqualsLoop_cold:
     lsr x2, x0, #48
     fmov d0, x1
     cmp w2, w22
-    b.ne .Lasm_JumpGreaterThanEqualsLoop.ssa_block_17
+    b.ne .Lasm_JumpGreaterThanEqualsLoop.ssa_block_22
     sxtw x0, w0
     scvtf d1, w0
     b .Lasm_JumpGreaterThanEqualsLoop.ssa_block_4
-.Lasm_JumpGreaterThanEqualsLoop.ssa_block_17:
+.Lasm_JumpGreaterThanEqualsLoop.ssa_block_22:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -9958,18 +10086,14 @@ asm_handler_JumpLooselyEqualsLoop_cold:
     tst x9, x10
     b.eq .Lasm_JumpLooselyEqualsLoop.ssa_block_1
     b .Lasm_JumpLooselyEqualsLoop.ssa_block_3
-.Lasm_JumpLooselyEqualsLoop.ssa_block_19:
-    and w3, w3, #0x7ff8
-    mov w9, #32760
-    cmp w3, w9
-    b.eq .Lasm_JumpLooselyEqualsLoop.ssa_block_1
+.Lasm_JumpLooselyEqualsLoop.ssa_block_22:
     fmov d0, x0
     scvtf d1, w1
     fcmp d0, d1
     b.vs .Lasm_JumpLooselyEqualsLoop.ssa_block_3
     b.eq .Lasm_JumpLooselyEqualsLoop.ssa_block_2
     b .Lasm_JumpLooselyEqualsLoop.ssa_block_3
-.Lasm_JumpLooselyEqualsLoop.ssa_block_30:
+.Lasm_JumpLooselyEqualsLoop.ssa_block_29:
     mov w9, #65530
     cmp w1, w9
     b.eq .Lasm_JumpLooselyEqualsLoop.ssa_block_36
@@ -10023,18 +10147,14 @@ asm_handler_JumpLooselyInequalsLoop_cold:
     tst x9, x10
     b.eq .Lasm_JumpLooselyInequalsLoop.ssa_block_1
     b .Lasm_JumpLooselyInequalsLoop.ssa_block_2
-.Lasm_JumpLooselyInequalsLoop.ssa_block_19:
-    and w3, w3, #0x7ff8
-    mov w9, #32760
-    cmp w3, w9
-    b.eq .Lasm_JumpLooselyInequalsLoop.ssa_block_1
+.Lasm_JumpLooselyInequalsLoop.ssa_block_22:
     fmov d0, x0
     scvtf d1, w1
     fcmp d0, d1
     b.vs .Lasm_JumpLooselyInequalsLoop.ssa_block_2
     b.eq .Lasm_JumpLooselyInequalsLoop.ssa_block_3
     b .Lasm_JumpLooselyInequalsLoop.ssa_block_2
-.Lasm_JumpLooselyInequalsLoop.ssa_block_30:
+.Lasm_JumpLooselyInequalsLoop.ssa_block_29:
     mov w9, #65530
     cmp w1, w9
     b.eq .Lasm_JumpLooselyInequalsLoop.ssa_block_36
@@ -10071,7 +10191,7 @@ asm_handler_JumpLooselyInequalsLoop_cold:
 asm_handler_JumpLooselyInequalsLoop_cold_end:
 asm_handler_JumpStrictlyEqualsLoop_cold:
 // Cold paths for JumpStrictlyEqualsLoop
-.Lasm_JumpStrictlyEqualsLoop.ssa_block_35:
+.Lasm_JumpStrictlyEqualsLoop.ssa_block_34:
     mov w9, #65530
     cmp w3, w9
     b.ne .Lasm_JumpStrictlyEqualsLoop.ssa_block_1
@@ -10088,21 +10208,17 @@ asm_handler_JumpStrictlyEqualsLoop_cold:
     tst x9, x10
     b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_1
     b .Lasm_JumpStrictlyEqualsLoop.ssa_block_3
-.Lasm_JumpStrictlyEqualsLoop.ssa_block_17:
-    and w2, w2, #0x7ff8
-    mov w9, #32760
-    cmp w2, w9
-    b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_3
+.Lasm_JumpStrictlyEqualsLoop.ssa_block_20:
     fmov d0, x0
     scvtf d1, w1
     fcmp d0, d1
     b.vs .Lasm_JumpStrictlyEqualsLoop.ssa_block_3
     b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_2
     b .Lasm_JumpStrictlyEqualsLoop.ssa_block_3
-.Lasm_JumpStrictlyEqualsLoop.ssa_block_29:
+.Lasm_JumpStrictlyEqualsLoop.ssa_block_27:
     mov w9, #65530
     cmp w2, w9
-    b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_35
+    b.eq .Lasm_JumpStrictlyEqualsLoop.ssa_block_34
 .Lasm_JumpStrictlyEqualsLoop.ssa_block_1:
     ldr w2, [x21, #12]
     ldr w3, [x21, #16]
@@ -10136,7 +10252,7 @@ asm_handler_JumpStrictlyEqualsLoop_cold:
 asm_handler_JumpStrictlyEqualsLoop_cold_end:
 asm_handler_JumpStrictlyInequalsLoop_cold:
 // Cold paths for JumpStrictlyInequalsLoop
-.Lasm_JumpStrictlyInequalsLoop.ssa_block_35:
+.Lasm_JumpStrictlyInequalsLoop.ssa_block_34:
     mov w9, #65530
     cmp w3, w9
     b.ne .Lasm_JumpStrictlyInequalsLoop.ssa_block_1
@@ -10153,21 +10269,17 @@ asm_handler_JumpStrictlyInequalsLoop_cold:
     tst x9, x10
     b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_1
     b .Lasm_JumpStrictlyInequalsLoop.ssa_block_2
-.Lasm_JumpStrictlyInequalsLoop.ssa_block_17:
-    and w2, w2, #0x7ff8
-    mov w9, #32760
-    cmp w2, w9
-    b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_2
+.Lasm_JumpStrictlyInequalsLoop.ssa_block_20:
     fmov d0, x0
     scvtf d1, w1
     fcmp d0, d1
     b.vs .Lasm_JumpStrictlyInequalsLoop.ssa_block_2
     b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_3
     b .Lasm_JumpStrictlyInequalsLoop.ssa_block_2
-.Lasm_JumpStrictlyInequalsLoop.ssa_block_29:
+.Lasm_JumpStrictlyInequalsLoop.ssa_block_27:
     mov w9, #65530
     cmp w2, w9
-    b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_35
+    b.eq .Lasm_JumpStrictlyInequalsLoop.ssa_block_34
 .Lasm_JumpStrictlyInequalsLoop.ssa_block_1:
     ldr w2, [x21, #12]
     ldr w3, [x21, #16]
@@ -11593,7 +11705,7 @@ asm_handler_Div_cold:
 asm_handler_Div_cold_end:
 asm_handler_LessThan_cold:
 // Cold paths for LessThan
-.Lasm_LessThan.ssa_block_10:
+.Lasm_LessThan.ssa_block_12:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -11601,7 +11713,7 @@ asm_handler_LessThan_cold:
     fmov d1, x0
     scvtf d0, w2
     b .Lasm_LessThan.ssa_block_4
-.Lasm_LessThan.ssa_block_7:
+.Lasm_LessThan.ssa_block_8:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -11609,11 +11721,11 @@ asm_handler_LessThan_cold:
     lsr x2, x0, #48
     fmov d0, x1
     cmp w2, w22
-    b.ne .Lasm_LessThan.ssa_block_17
+    b.ne .Lasm_LessThan.ssa_block_22
     sxtw x0, w0
     scvtf d1, w0
     b .Lasm_LessThan.ssa_block_4
-.Lasm_LessThan.ssa_block_17:
+.Lasm_LessThan.ssa_block_22:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -11673,7 +11785,7 @@ asm_handler_LessThan_cold:
 asm_handler_LessThan_cold_end:
 asm_handler_LessThanEquals_cold:
 // Cold paths for LessThanEquals
-.Lasm_LessThanEquals.ssa_block_10:
+.Lasm_LessThanEquals.ssa_block_12:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -11681,7 +11793,7 @@ asm_handler_LessThanEquals_cold:
     fmov d1, x0
     scvtf d0, w2
     b .Lasm_LessThanEquals.ssa_block_4
-.Lasm_LessThanEquals.ssa_block_7:
+.Lasm_LessThanEquals.ssa_block_8:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -11689,11 +11801,11 @@ asm_handler_LessThanEquals_cold:
     lsr x2, x0, #48
     fmov d0, x1
     cmp w2, w22
-    b.ne .Lasm_LessThanEquals.ssa_block_17
+    b.ne .Lasm_LessThanEquals.ssa_block_22
     sxtw x0, w0
     scvtf d1, w0
     b .Lasm_LessThanEquals.ssa_block_4
-.Lasm_LessThanEquals.ssa_block_17:
+.Lasm_LessThanEquals.ssa_block_22:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -11753,7 +11865,7 @@ asm_handler_LessThanEquals_cold:
 asm_handler_LessThanEquals_cold_end:
 asm_handler_GreaterThan_cold:
 // Cold paths for GreaterThan
-.Lasm_GreaterThan.ssa_block_10:
+.Lasm_GreaterThan.ssa_block_12:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -11761,7 +11873,7 @@ asm_handler_GreaterThan_cold:
     fmov d1, x0
     scvtf d0, w2
     b .Lasm_GreaterThan.ssa_block_4
-.Lasm_GreaterThan.ssa_block_7:
+.Lasm_GreaterThan.ssa_block_8:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -11769,11 +11881,11 @@ asm_handler_GreaterThan_cold:
     lsr x2, x0, #48
     fmov d0, x1
     cmp w2, w22
-    b.ne .Lasm_GreaterThan.ssa_block_17
+    b.ne .Lasm_GreaterThan.ssa_block_22
     sxtw x0, w0
     scvtf d1, w0
     b .Lasm_GreaterThan.ssa_block_4
-.Lasm_GreaterThan.ssa_block_17:
+.Lasm_GreaterThan.ssa_block_22:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -11833,7 +11945,7 @@ asm_handler_GreaterThan_cold:
 asm_handler_GreaterThan_cold_end:
 asm_handler_GreaterThanEquals_cold:
 // Cold paths for GreaterThanEquals
-.Lasm_GreaterThanEquals.ssa_block_10:
+.Lasm_GreaterThanEquals.ssa_block_12:
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -11841,7 +11953,7 @@ asm_handler_GreaterThanEquals_cold:
     fmov d1, x0
     scvtf d0, w2
     b .Lasm_GreaterThanEquals.ssa_block_4
-.Lasm_GreaterThanEquals.ssa_block_7:
+.Lasm_GreaterThanEquals.ssa_block_8:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -11849,11 +11961,11 @@ asm_handler_GreaterThanEquals_cold:
     lsr x2, x0, #48
     fmov d0, x1
     cmp w2, w22
-    b.ne .Lasm_GreaterThanEquals.ssa_block_17
+    b.ne .Lasm_GreaterThanEquals.ssa_block_22
     sxtw x0, w0
     scvtf d1, w0
     b .Lasm_GreaterThanEquals.ssa_block_4
-.Lasm_GreaterThanEquals.ssa_block_17:
+.Lasm_GreaterThanEquals.ssa_block_22:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -11916,7 +12028,7 @@ asm_handler_BitwiseXor_cold:
 .Lasm_BitwiseXor.ssa_block_2:
     cmp x2, x22
     ccmp x2, x23, #4, ne
-    b.eq .Lasm_BitwiseXor.ssa_block_5
+    b.eq .Lasm_BitwiseXor.ssa_block_9
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -11926,14 +12038,14 @@ asm_handler_BitwiseXor_cold:
     scvtf d16, w2
     fcmp d0, d16
     b.ne .Lasm_BitwiseXor.ssa_block_1
-    b .Lasm_BitwiseXor.ssa_block_7
-.Lasm_BitwiseXor.ssa_block_5:
+    b .Lasm_BitwiseXor.ssa_block_11
+.Lasm_BitwiseXor.ssa_block_9:
     sxtw x2, w1
-.Lasm_BitwiseXor.ssa_block_7:
+.Lasm_BitwiseXor.ssa_block_11:
     lsr x3, x0, #48
     cmp x3, x22
     ccmp x3, x23, #4, ne
-    b.eq .Lasm_BitwiseXor.ssa_block_9
+    b.eq .Lasm_BitwiseXor.ssa_block_5
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -11943,7 +12055,7 @@ asm_handler_BitwiseXor_cold:
     scvtf d16, w3
     fcmp d0, d16
     b.ne .Lasm_BitwiseXor.ssa_block_1
-    b .Lasm_BitwiseXor.ssa_block_11
+    b .Lasm_BitwiseXor.ssa_block_7
 .Lasm_BitwiseXor.ssa_block_1:
     ldr w2, [x21, #4]
     sub sp, sp, #16
@@ -11990,9 +12102,9 @@ asm_handler_BitwiseXor_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_BitwiseXor.ssa_block_9:
+.Lasm_BitwiseXor.ssa_block_5:
     sxtw x3, w0
-.Lasm_BitwiseXor.ssa_block_11:
+.Lasm_BitwiseXor.ssa_block_7:
     eor w2, w2, w3
     movk x2, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
@@ -12737,7 +12849,7 @@ asm_handler_BitwiseAnd_cold:
 .Lasm_BitwiseAnd.ssa_block_2:
     cmp x2, x22
     ccmp x2, x23, #4, ne
-    b.eq .Lasm_BitwiseAnd.ssa_block_5
+    b.eq .Lasm_BitwiseAnd.ssa_block_9
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -12747,14 +12859,14 @@ asm_handler_BitwiseAnd_cold:
     scvtf d16, w2
     fcmp d0, d16
     b.ne .Lasm_BitwiseAnd.ssa_block_1
-    b .Lasm_BitwiseAnd.ssa_block_7
-.Lasm_BitwiseAnd.ssa_block_5:
+    b .Lasm_BitwiseAnd.ssa_block_11
+.Lasm_BitwiseAnd.ssa_block_9:
     sxtw x2, w1
-.Lasm_BitwiseAnd.ssa_block_7:
+.Lasm_BitwiseAnd.ssa_block_11:
     lsr x3, x0, #48
     cmp x3, x22
     ccmp x3, x23, #4, ne
-    b.eq .Lasm_BitwiseAnd.ssa_block_9
+    b.eq .Lasm_BitwiseAnd.ssa_block_5
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -12764,7 +12876,7 @@ asm_handler_BitwiseAnd_cold:
     scvtf d16, w3
     fcmp d0, d16
     b.ne .Lasm_BitwiseAnd.ssa_block_1
-    b .Lasm_BitwiseAnd.ssa_block_11
+    b .Lasm_BitwiseAnd.ssa_block_7
 .Lasm_BitwiseAnd.ssa_block_1:
     ldr w2, [x21, #4]
     sub sp, sp, #16
@@ -12811,9 +12923,9 @@ asm_handler_BitwiseAnd_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_BitwiseAnd.ssa_block_9:
+.Lasm_BitwiseAnd.ssa_block_5:
     sxtw x3, w0
-.Lasm_BitwiseAnd.ssa_block_11:
+.Lasm_BitwiseAnd.ssa_block_7:
     and w2, w2, w3
     movk x2, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
@@ -12828,7 +12940,7 @@ asm_handler_BitwiseOr_cold:
 .Lasm_BitwiseOr.ssa_block_2:
     cmp x2, x22
     ccmp x2, x23, #4, ne
-    b.eq .Lasm_BitwiseOr.ssa_block_5
+    b.eq .Lasm_BitwiseOr.ssa_block_9
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -12838,14 +12950,14 @@ asm_handler_BitwiseOr_cold:
     scvtf d16, w2
     fcmp d0, d16
     b.ne .Lasm_BitwiseOr.ssa_block_1
-    b .Lasm_BitwiseOr.ssa_block_7
-.Lasm_BitwiseOr.ssa_block_5:
+    b .Lasm_BitwiseOr.ssa_block_11
+.Lasm_BitwiseOr.ssa_block_9:
     sxtw x2, w1
-.Lasm_BitwiseOr.ssa_block_7:
+.Lasm_BitwiseOr.ssa_block_11:
     lsr x3, x0, #48
     cmp x3, x22
     ccmp x3, x23, #4, ne
-    b.eq .Lasm_BitwiseOr.ssa_block_9
+    b.eq .Lasm_BitwiseOr.ssa_block_5
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -12855,7 +12967,7 @@ asm_handler_BitwiseOr_cold:
     scvtf d16, w3
     fcmp d0, d16
     b.ne .Lasm_BitwiseOr.ssa_block_1
-    b .Lasm_BitwiseOr.ssa_block_11
+    b .Lasm_BitwiseOr.ssa_block_7
 .Lasm_BitwiseOr.ssa_block_1:
     ldr w2, [x21, #4]
     sub sp, sp, #16
@@ -12902,9 +13014,9 @@ asm_handler_BitwiseOr_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_BitwiseOr.ssa_block_9:
+.Lasm_BitwiseOr.ssa_block_5:
     sxtw x3, w0
-.Lasm_BitwiseOr.ssa_block_11:
+.Lasm_BitwiseOr.ssa_block_7:
     orr w2, w2, w3
     movk x2, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
@@ -13073,12 +13185,14 @@ asm_handler_UnsignedRightShift_cold_end:
 asm_handler_Mod_cold:
 // Cold paths for Mod
 .Lasm_Mod.ssa_block_2:
-    lsr x1, x0, #48
-    cmp w1, w22
-    b.eq .Lasm_Mod.ssa_block_15
-    and w1, w1, #0x7ff8
+    ldr w1, [x21, #12]
+    ldr x1, [x27, x1, lsl #3]
+    lsr x2, x0, #48
+    cmp w2, w22
+    b.eq .Lasm_Mod.ssa_block_20
+    and w2, w2, #0x7ff8
     mov w9, #32760
-    cmp w1, w9
+    cmp w2, w9
     b.eq .Lasm_Mod.ssa_block_1
     fmov d0, x0
     fcvtzs x2, d0
@@ -13087,16 +13201,14 @@ asm_handler_Mod_cold:
     scvtf d16, x2
     fcmp d0, d16
     b.ne .Lasm_Mod.ssa_block_1
-    b .Lasm_Mod.ssa_block_17
-.Lasm_Mod.ssa_block_15:
-    sxtw x1, w0
-    sxtw x2, w1
-.Lasm_Mod.ssa_block_17:
-    ldr w1, [x21, #12]
-    ldr x1, [x27, x1, lsl #3]
+    b .Lasm_Mod.ssa_block_22
+.Lasm_Mod.ssa_block_20:
+    sxtw x2, w0
+    sxtw x2, w2
+.Lasm_Mod.ssa_block_22:
     lsr x3, x1, #48
     cmp w3, w22
-    b.eq .Lasm_Mod.ssa_block_19
+    b.eq .Lasm_Mod.ssa_block_16
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -13108,11 +13220,11 @@ asm_handler_Mod_cold:
     scvtf d16, x1
     fcmp d0, d16
     b.ne .Lasm_Mod.ssa_block_1
-    b .Lasm_Mod.ssa_block_21
-.Lasm_Mod.ssa_block_19:
+    b .Lasm_Mod.ssa_block_18
+.Lasm_Mod.ssa_block_16:
     sxtw x1, w1
     sxtw x1, w1
-.Lasm_Mod.ssa_block_21:
+.Lasm_Mod.ssa_block_18:
     cbz x1, .Lasm_Mod.ssa_block_1
     cmn x1, #1
     b.eq .Lasm_Mod.ssa_block_3
@@ -13212,7 +13324,7 @@ asm_handler_Mod_cold:
 asm_handler_Mod_cold_end:
 asm_handler_StrictlyEquals_cold:
 // Cold paths for StrictlyEquals
-.Lasm_StrictlyEquals.ssa_block_35:
+.Lasm_StrictlyEquals.ssa_block_34:
     mov w9, #65530
     cmp w3, w9
     b.ne .Lasm_StrictlyEquals.ssa_block_1
@@ -13229,21 +13341,17 @@ asm_handler_StrictlyEquals_cold:
     tst x9, x10
     b.eq .Lasm_StrictlyEquals.ssa_block_1
     b .Lasm_StrictlyEquals.ssa_block_3
-.Lasm_StrictlyEquals.ssa_block_17:
-    and w2, w2, #0x7ff8
-    mov w9, #32760
-    cmp w2, w9
-    b.eq .Lasm_StrictlyEquals.ssa_block_3
+.Lasm_StrictlyEquals.ssa_block_20:
     fmov d0, x0
     scvtf d1, w1
     fcmp d0, d1
     b.vs .Lasm_StrictlyEquals.ssa_block_3
     b.eq .Lasm_StrictlyEquals.ssa_block_2
     b .Lasm_StrictlyEquals.ssa_block_3
-.Lasm_StrictlyEquals.ssa_block_29:
+.Lasm_StrictlyEquals.ssa_block_27:
     mov w9, #65530
     cmp w2, w9
-    b.eq .Lasm_StrictlyEquals.ssa_block_35
+    b.eq .Lasm_StrictlyEquals.ssa_block_34
 .Lasm_StrictlyEquals.ssa_block_1:
     ldr w2, [x21, #4]
     sub sp, sp, #16
@@ -13293,7 +13401,7 @@ asm_handler_StrictlyEquals_cold:
 asm_handler_StrictlyEquals_cold_end:
 asm_handler_StrictlyInequals_cold:
 // Cold paths for StrictlyInequals
-.Lasm_StrictlyInequals.ssa_block_35:
+.Lasm_StrictlyInequals.ssa_block_34:
     mov w9, #65530
     cmp w3, w9
     b.ne .Lasm_StrictlyInequals.ssa_block_1
@@ -13310,21 +13418,17 @@ asm_handler_StrictlyInequals_cold:
     tst x9, x10
     b.eq .Lasm_StrictlyInequals.ssa_block_1
     b .Lasm_StrictlyInequals.ssa_block_2
-.Lasm_StrictlyInequals.ssa_block_17:
-    and w2, w2, #0x7ff8
-    mov w9, #32760
-    cmp w2, w9
-    b.eq .Lasm_StrictlyInequals.ssa_block_2
+.Lasm_StrictlyInequals.ssa_block_20:
     fmov d0, x0
     scvtf d1, w1
     fcmp d0, d1
     b.vs .Lasm_StrictlyInequals.ssa_block_2
     b.eq .Lasm_StrictlyInequals.ssa_block_3
     b .Lasm_StrictlyInequals.ssa_block_2
-.Lasm_StrictlyInequals.ssa_block_29:
+.Lasm_StrictlyInequals.ssa_block_27:
     mov w9, #65530
     cmp w2, w9
-    b.eq .Lasm_StrictlyInequals.ssa_block_35
+    b.eq .Lasm_StrictlyInequals.ssa_block_34
 .Lasm_StrictlyInequals.ssa_block_1:
     ldr w2, [x21, #4]
     sub sp, sp, #16
@@ -13501,18 +13605,14 @@ asm_handler_LooselyEquals_cold:
     tst x9, x10
     b.eq .Lasm_LooselyEquals.ssa_block_1
     b .Lasm_LooselyEquals.ssa_block_3
-.Lasm_LooselyEquals.ssa_block_19:
-    and w3, w3, #0x7ff8
-    mov w9, #32760
-    cmp w3, w9
-    b.eq .Lasm_LooselyEquals.ssa_block_1
+.Lasm_LooselyEquals.ssa_block_22:
     fmov d0, x0
     scvtf d1, w1
     fcmp d0, d1
     b.vs .Lasm_LooselyEquals.ssa_block_3
     b.eq .Lasm_LooselyEquals.ssa_block_2
     b .Lasm_LooselyEquals.ssa_block_3
-.Lasm_LooselyEquals.ssa_block_30:
+.Lasm_LooselyEquals.ssa_block_29:
     mov w9, #65530
     cmp w1, w9
     b.eq .Lasm_LooselyEquals.ssa_block_36
@@ -13582,18 +13682,14 @@ asm_handler_LooselyInequals_cold:
     tst x9, x10
     b.eq .Lasm_LooselyInequals.ssa_block_1
     b .Lasm_LooselyInequals.ssa_block_2
-.Lasm_LooselyInequals.ssa_block_19:
-    and w3, w3, #0x7ff8
-    mov w9, #32760
-    cmp w3, w9
-    b.eq .Lasm_LooselyInequals.ssa_block_1
+.Lasm_LooselyInequals.ssa_block_22:
     fmov d0, x0
     scvtf d1, w1
     fcmp d0, d1
     b.vs .Lasm_LooselyInequals.ssa_block_2
     b.eq .Lasm_LooselyInequals.ssa_block_3
     b .Lasm_LooselyInequals.ssa_block_2
-.Lasm_LooselyInequals.ssa_block_30:
+.Lasm_LooselyInequals.ssa_block_29:
     mov w9, #65530
     cmp w1, w9
     b.eq .Lasm_LooselyInequals.ssa_block_36
@@ -13646,30 +13742,11 @@ asm_handler_LooselyInequals_cold:
 asm_handler_LooselyInequals_cold_end:
 asm_handler_UnaryMinus_cold:
 // Cold paths for UnaryMinus
-.Lasm_UnaryMinus.ssa_block_2:
-    sxtw x0, w0
-    neg x0, x0
-    scvtf d0, x0
-    fmov x0, d0
-    ldr w9, [x21, #4]
-    str x0, [x27, x9, lsl #3]
-    ldrb w9, [x21, #16]
-    add x21, x21, #16
-    ldr x10, [x19, x9, lsl #3]
-    br x10
 .Lasm_UnaryMinus.ssa_block_6:
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
-    b.eq .Lasm_UnaryMinus.ssa_block_5
-    eor x0, x0, #0x8000000000000000
-    ldr w9, [x21, #4]
-    str x0, [x27, x9, lsl #3]
-    ldrb w9, [x21, #16]
-    add x21, x21, #16
-    ldr x10, [x19, x9, lsl #3]
-    br x10
-.Lasm_UnaryMinus.ssa_block_5:
+    b.ne .Lasm_UnaryMinus.ssa_block_4
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #64]
@@ -13711,6 +13788,25 @@ asm_handler_UnaryMinus_cold:
     add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_UnaryMinus.ssa_block_4:
+    eor x0, x0, #0x8000000000000000
+    ldr w9, [x21, #4]
+    str x0, [x27, x9, lsl #3]
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_UnaryMinus.ssa_block_2:
+    sxtw x0, w0
+    neg x0, x0
+    scvtf d0, x0
+    fmov x0, d0
+    ldr w9, [x21, #4]
+    str x0, [x27, x9, lsl #3]
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_UnaryMinus.ssa_block_1:
@@ -14081,7 +14177,7 @@ asm_handler_PutByValue_cold:
 asm_handler_PutByValue_cold_end:
 asm_handler_GetById_cold:
 // Cold paths for GetById
-.Lasm_GetById.ssa_block_23:
+.Lasm_GetById.ssa_block_24:
     ldrb w9, [x3, #12]
     cbz w9, .Lasm_GetById.ssa_block_3
     ldrh w0, [x1, #12]
@@ -14100,10 +14196,10 @@ asm_handler_GetById_cold:
     b.ne .Lasm_GetById.ssa_block_3
     ldr w1, [x2, #116]
     ldr x0, [x0, x1, lsl #3]
-    cbnz x0, .Lasm_GetById.ssa_block_49
+    cbnz x0, .Lasm_GetById.ssa_block_50
     movz x0, #0x7fff, lsl #48
-    b .Lasm_GetById.ssa_block_50
-.Lasm_GetById.ssa_block_49:
+    b .Lasm_GetById.ssa_block_51
+.Lasm_GetById.ssa_block_50:
     ldr x0, [x0, x3, lsl #3]
     cbz x0, .Lasm_GetById.ssa_block_3
     ldr x0, [x0, x4, lsl #3]
@@ -14115,14 +14211,14 @@ asm_handler_GetById_cold:
     and x0, x0, #0x3ffffffffff
     movz x1, #0xfff9, lsl #48
     orr x0, x0, x1
-.Lasm_GetById.ssa_block_50:
+.Lasm_GetById.ssa_block_51:
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
     add x21, x21, #24
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GetById.ssa_block_24:
+.Lasm_GetById.ssa_block_25:
     ldr w3, [x2, #104]
     mov x0, x20
     ldr x0, [x0, #72]
@@ -14213,6 +14309,14 @@ asm_handler_GetById_cold:
     add x21, x21, #24
     ldr x10, [x19, x9, lsl #3]
     br x10
+.Lasm_GetById.ssa_block_5:
+    movz x0, #0x7ffe, lsl #48
+    ldr w9, [x21, #4]
+    str x0, [x27, x9, lsl #3]
+    ldrb w9, [x21, #24]
+    add x21, x21, #24
+    ldr x10, [x19, x9, lsl #3]
+    br x10
 .Lasm_GetById.ssa_block_4:
     mov x0, x20
     sub w1, w21, w26
@@ -14257,14 +14361,6 @@ asm_handler_GetById_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GetById.ssa_block_5:
-    ldr w9, [x21, #4]
-    movz x10, #0x7ffe, lsl #48
-    str x10, [x27, x9, lsl #3]
-    ldrb w9, [x21, #24]
-    add x21, x21, #24
-    ldr x10, [x19, x9, lsl #3]
-    br x10
 .Lasm_GetById.ssa_block_18:
     ldr x6, [x3, #40]
     cbz x6, .Lasm_GetById.ssa_block_1
@@ -14281,9 +14377,9 @@ asm_handler_GetById_cold:
     b .Lasm_GetById.ssa_block_3
 1:
     tbnz x0, #10, 1f
-    b .Lasm_GetById.ssa_block_24
+    b .Lasm_GetById.ssa_block_25
 1:
-    b .Lasm_GetById.ssa_block_23
+    b .Lasm_GetById.ssa_block_24
 .Lasm_GetById.ssa_block_3:
     sub sp, sp, #16
     ldr w12, [x21, #8]
@@ -14331,10 +14427,10 @@ asm_handler_GetById_cold:
 1:
     mov x0, x20
     ldr x28, [x0]
-    cbz x28, .Lasm_GetById.assert_predicate_failure_46
+    cbz x28, .Lasm_GetById.assert_predicate_failure_47
     add x27, x28, #128
     ldr x0, [x28, #88]
-    cbz x0, .Lasm_GetById.assert_predicate_failure_52
+    cbz x0, .Lasm_GetById.assert_predicate_failure_53
     ldr x26, [x0, #40]
     cbz x26, .Lasm_GetById.assert_failure_20
     ldr w25, [x28, #64]
@@ -14350,7 +14446,7 @@ asm_handler_GetById_cold:
     mov x1, x2
     b .Lasm_GetById.ssa_block_13
 .Lasm_GetById.ssa_block_1:
-    ldr x1, [x4, #88]
+    ldr x1, [x4, #120]
     cbz x1, .Lasm_GetById.assert_failure_21
     ldr w2, [x21, #20]
     lsl x2, x2, #3
@@ -19412,7 +19508,7 @@ asm_handler_MulRhsInt32_cold:
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
-    b.ne .Lasm_MulRhsInt32.ssa_block_12
+    b.ne .Lasm_MulRhsInt32.ssa_block_13
     ldr w1, [x21, #12]
     movk x1, #0x7ffa, lsl #48
     ldr w2, [x21, #4]
@@ -19460,7 +19556,7 @@ asm_handler_MulRhsInt32_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_MulRhsInt32.ssa_block_12:
+.Lasm_MulRhsInt32.ssa_block_13:
     fmov d0, x0
     ldr w0, [x21, #12]
     scvtf d1, w0
@@ -19493,6 +19589,14 @@ asm_handler_MulRhsInt32_cold:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
+.Lasm_MulRhsInt32.ssa_block_3:
+    ldr w9, [x21, #4]
+    movz x10, #0x8000, lsl #48
+    str x10, [x27, x9, lsl #3]
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
+    ldr x10, [x19, x9, lsl #3]
+    br x10
 .Lasm_MulRhsInt32.ssa_block_9:
     sxtw x0, w0
     ldr w1, [x21, #12]
@@ -19502,14 +19606,6 @@ asm_handler_MulRhsInt32_cold:
     fmov x0, d0
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
-    ldrb w9, [x21, #16]
-    add x21, x21, #16
-    ldr x10, [x19, x9, lsl #3]
-    br x10
-.Lasm_MulRhsInt32.ssa_block_3:
-    ldr w9, [x21, #4]
-    movz x10, #0x8000, lsl #48
-    str x10, [x27, x9, lsl #3]
     ldrb w9, [x21, #16]
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
@@ -19629,7 +19725,7 @@ asm_handler_BitwiseXorRhsInt32_cold:
     movk x1, #0x7ffa, lsl #48
     cmp x2, x22
     ccmp x2, x23, #4, ne
-    b.eq .Lasm_BitwiseXorRhsInt32.ssa_block_5
+    b.eq .Lasm_BitwiseXorRhsInt32.ssa_block_9
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -19639,14 +19735,14 @@ asm_handler_BitwiseXorRhsInt32_cold:
     scvtf d16, w2
     fcmp d0, d16
     b.ne .Lasm_BitwiseXorRhsInt32.ssa_block_1
-    b .Lasm_BitwiseXorRhsInt32.ssa_block_7
-.Lasm_BitwiseXorRhsInt32.ssa_block_5:
+    b .Lasm_BitwiseXorRhsInt32.ssa_block_11
+.Lasm_BitwiseXorRhsInt32.ssa_block_9:
     sxtw x2, w0
-.Lasm_BitwiseXorRhsInt32.ssa_block_7:
+.Lasm_BitwiseXorRhsInt32.ssa_block_11:
     lsr x3, x1, #48
     cmp x3, x22
     ccmp x3, x23, #4, ne
-    b.eq .Lasm_BitwiseXorRhsInt32.ssa_block_9
+    b.eq .Lasm_BitwiseXorRhsInt32.ssa_block_5
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -19656,7 +19752,7 @@ asm_handler_BitwiseXorRhsInt32_cold:
     scvtf d16, w3
     fcmp d0, d16
     b.ne .Lasm_BitwiseXorRhsInt32.ssa_block_1
-    b .Lasm_BitwiseXorRhsInt32.ssa_block_11
+    b .Lasm_BitwiseXorRhsInt32.ssa_block_7
 .Lasm_BitwiseXorRhsInt32.ssa_block_1:
     ldr w2, [x21, #4]
     sub sp, sp, #16
@@ -19703,9 +19799,9 @@ asm_handler_BitwiseXorRhsInt32_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_BitwiseXorRhsInt32.ssa_block_9:
+.Lasm_BitwiseXorRhsInt32.ssa_block_5:
     sxtw x3, w1
-.Lasm_BitwiseXorRhsInt32.ssa_block_11:
+.Lasm_BitwiseXorRhsInt32.ssa_block_7:
     eor w2, w2, w3
     movk x2, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
@@ -19723,7 +19819,7 @@ asm_handler_BitwiseAndRhsInt32_cold:
     movk x1, #0x7ffa, lsl #48
     cmp x2, x22
     ccmp x2, x23, #4, ne
-    b.eq .Lasm_BitwiseAndRhsInt32.ssa_block_5
+    b.eq .Lasm_BitwiseAndRhsInt32.ssa_block_9
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -19733,14 +19829,14 @@ asm_handler_BitwiseAndRhsInt32_cold:
     scvtf d16, w2
     fcmp d0, d16
     b.ne .Lasm_BitwiseAndRhsInt32.ssa_block_1
-    b .Lasm_BitwiseAndRhsInt32.ssa_block_7
-.Lasm_BitwiseAndRhsInt32.ssa_block_5:
+    b .Lasm_BitwiseAndRhsInt32.ssa_block_11
+.Lasm_BitwiseAndRhsInt32.ssa_block_9:
     sxtw x2, w0
-.Lasm_BitwiseAndRhsInt32.ssa_block_7:
+.Lasm_BitwiseAndRhsInt32.ssa_block_11:
     lsr x3, x1, #48
     cmp x3, x22
     ccmp x3, x23, #4, ne
-    b.eq .Lasm_BitwiseAndRhsInt32.ssa_block_9
+    b.eq .Lasm_BitwiseAndRhsInt32.ssa_block_5
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -19750,7 +19846,7 @@ asm_handler_BitwiseAndRhsInt32_cold:
     scvtf d16, w3
     fcmp d0, d16
     b.ne .Lasm_BitwiseAndRhsInt32.ssa_block_1
-    b .Lasm_BitwiseAndRhsInt32.ssa_block_11
+    b .Lasm_BitwiseAndRhsInt32.ssa_block_7
 .Lasm_BitwiseAndRhsInt32.ssa_block_1:
     ldr w2, [x21, #4]
     sub sp, sp, #16
@@ -19797,9 +19893,9 @@ asm_handler_BitwiseAndRhsInt32_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_BitwiseAndRhsInt32.ssa_block_9:
+.Lasm_BitwiseAndRhsInt32.ssa_block_5:
     sxtw x3, w1
-.Lasm_BitwiseAndRhsInt32.ssa_block_11:
+.Lasm_BitwiseAndRhsInt32.ssa_block_7:
     and w2, w2, w3
     movk x2, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
@@ -19817,7 +19913,7 @@ asm_handler_BitwiseOrRhsInt32_cold:
     movk x1, #0x7ffa, lsl #48
     cmp x2, x22
     ccmp x2, x23, #4, ne
-    b.eq .Lasm_BitwiseOrRhsInt32.ssa_block_5
+    b.eq .Lasm_BitwiseOrRhsInt32.ssa_block_9
     and w2, w2, #0x7ff8
     mov w9, #32760
     cmp w2, w9
@@ -19827,14 +19923,14 @@ asm_handler_BitwiseOrRhsInt32_cold:
     scvtf d16, w2
     fcmp d0, d16
     b.ne .Lasm_BitwiseOrRhsInt32.ssa_block_1
-    b .Lasm_BitwiseOrRhsInt32.ssa_block_7
-.Lasm_BitwiseOrRhsInt32.ssa_block_5:
+    b .Lasm_BitwiseOrRhsInt32.ssa_block_11
+.Lasm_BitwiseOrRhsInt32.ssa_block_9:
     sxtw x2, w0
-.Lasm_BitwiseOrRhsInt32.ssa_block_7:
+.Lasm_BitwiseOrRhsInt32.ssa_block_11:
     lsr x3, x1, #48
     cmp x3, x22
     ccmp x3, x23, #4, ne
-    b.eq .Lasm_BitwiseOrRhsInt32.ssa_block_9
+    b.eq .Lasm_BitwiseOrRhsInt32.ssa_block_5
     and w3, w3, #0x7ff8
     mov w9, #32760
     cmp w3, w9
@@ -19844,7 +19940,7 @@ asm_handler_BitwiseOrRhsInt32_cold:
     scvtf d16, w3
     fcmp d0, d16
     b.ne .Lasm_BitwiseOrRhsInt32.ssa_block_1
-    b .Lasm_BitwiseOrRhsInt32.ssa_block_11
+    b .Lasm_BitwiseOrRhsInt32.ssa_block_7
 .Lasm_BitwiseOrRhsInt32.ssa_block_1:
     ldr w2, [x21, #4]
     sub sp, sp, #16
@@ -19891,9 +19987,9 @@ asm_handler_BitwiseOrRhsInt32_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_BitwiseOrRhsInt32.ssa_block_9:
+.Lasm_BitwiseOrRhsInt32.ssa_block_5:
     sxtw x3, w1
-.Lasm_BitwiseOrRhsInt32.ssa_block_11:
+.Lasm_BitwiseOrRhsInt32.ssa_block_7:
     orr w2, w2, w3
     movk x2, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
@@ -20070,7 +20166,7 @@ asm_handler_ModRhsInt32_cold:
 .Lasm_ModRhsInt32.ssa_block_2:
     lsr x1, x0, #48
     cmp w1, w22
-    b.eq .Lasm_ModRhsInt32.ssa_block_15
+    b.eq .Lasm_ModRhsInt32.ssa_block_18
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
@@ -20082,11 +20178,11 @@ asm_handler_ModRhsInt32_cold:
     scvtf d16, x2
     fcmp d0, d16
     b.ne .Lasm_ModRhsInt32.ssa_block_1
-    b .Lasm_ModRhsInt32.ssa_block_17
-.Lasm_ModRhsInt32.ssa_block_15:
+    b .Lasm_ModRhsInt32.ssa_block_20
+.Lasm_ModRhsInt32.ssa_block_18:
     sxtw x1, w0
     sxtw x2, w1
-.Lasm_ModRhsInt32.ssa_block_17:
+.Lasm_ModRhsInt32.ssa_block_20:
     ldr w1, [x21, #12]
     sxtw x1, w1
     cbz x1, .Lasm_ModRhsInt32.ssa_block_1
@@ -20188,11 +20284,11 @@ asm_handler_ModRhsInt32_cold:
 asm_handler_ModRhsInt32_cold_end:
 asm_handler_LessThanRhsInt32_cold:
 // Cold paths for LessThanRhsInt32
-.Lasm_LessThanRhsInt32.ssa_block_7:
+.Lasm_LessThanRhsInt32.ssa_block_8:
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
-    b.ne .Lasm_LessThanRhsInt32.ssa_block_13
+    b.ne .Lasm_LessThanRhsInt32.ssa_block_15
     ldr w1, [x21, #12]
     movk x1, #0x7ffa, lsl #48
     ldr w2, [x21, #4]
@@ -20240,7 +20336,7 @@ asm_handler_LessThanRhsInt32_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_LessThanRhsInt32.ssa_block_13:
+.Lasm_LessThanRhsInt32.ssa_block_15:
     fmov d0, x0
     ldr w0, [x21, #12]
     scvtf d1, w0
@@ -20251,11 +20347,11 @@ asm_handler_LessThanRhsInt32_cold:
 asm_handler_LessThanRhsInt32_cold_end:
 asm_handler_LessThanEqualsRhsInt32_cold:
 // Cold paths for LessThanEqualsRhsInt32
-.Lasm_LessThanEqualsRhsInt32.ssa_block_7:
+.Lasm_LessThanEqualsRhsInt32.ssa_block_8:
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
-    b.ne .Lasm_LessThanEqualsRhsInt32.ssa_block_13
+    b.ne .Lasm_LessThanEqualsRhsInt32.ssa_block_15
     ldr w1, [x21, #12]
     movk x1, #0x7ffa, lsl #48
     ldr w2, [x21, #4]
@@ -20303,7 +20399,7 @@ asm_handler_LessThanEqualsRhsInt32_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_LessThanEqualsRhsInt32.ssa_block_13:
+.Lasm_LessThanEqualsRhsInt32.ssa_block_15:
     fmov d0, x0
     ldr w0, [x21, #12]
     scvtf d1, w0
@@ -20314,11 +20410,11 @@ asm_handler_LessThanEqualsRhsInt32_cold:
 asm_handler_LessThanEqualsRhsInt32_cold_end:
 asm_handler_GreaterThanRhsInt32_cold:
 // Cold paths for GreaterThanRhsInt32
-.Lasm_GreaterThanRhsInt32.ssa_block_7:
+.Lasm_GreaterThanRhsInt32.ssa_block_8:
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
-    b.ne .Lasm_GreaterThanRhsInt32.ssa_block_13
+    b.ne .Lasm_GreaterThanRhsInt32.ssa_block_15
     ldr w1, [x21, #12]
     movk x1, #0x7ffa, lsl #48
     ldr w2, [x21, #4]
@@ -20366,7 +20462,7 @@ asm_handler_GreaterThanRhsInt32_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GreaterThanRhsInt32.ssa_block_13:
+.Lasm_GreaterThanRhsInt32.ssa_block_15:
     fmov d0, x0
     ldr w0, [x21, #12]
     scvtf d1, w0
@@ -20377,11 +20473,11 @@ asm_handler_GreaterThanRhsInt32_cold:
 asm_handler_GreaterThanRhsInt32_cold_end:
 asm_handler_GreaterThanEqualsRhsInt32_cold:
 // Cold paths for GreaterThanEqualsRhsInt32
-.Lasm_GreaterThanEqualsRhsInt32.ssa_block_7:
+.Lasm_GreaterThanEqualsRhsInt32.ssa_block_8:
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
-    b.ne .Lasm_GreaterThanEqualsRhsInt32.ssa_block_13
+    b.ne .Lasm_GreaterThanEqualsRhsInt32.ssa_block_15
     ldr w1, [x21, #12]
     movk x1, #0x7ffa, lsl #48
     ldr w2, [x21, #4]
@@ -20429,7 +20525,7 @@ asm_handler_GreaterThanEqualsRhsInt32_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GreaterThanEqualsRhsInt32.ssa_block_13:
+.Lasm_GreaterThanEqualsRhsInt32.ssa_block_15:
     fmov d0, x0
     ldr w0, [x21, #12]
     scvtf d1, w0
@@ -20440,11 +20536,11 @@ asm_handler_GreaterThanEqualsRhsInt32_cold:
 asm_handler_GreaterThanEqualsRhsInt32_cold_end:
 asm_handler_JumpLessThanRhsInt32_cold:
 // Cold paths for JumpLessThanRhsInt32
-.Lasm_JumpLessThanRhsInt32.ssa_block_7:
+.Lasm_JumpLessThanRhsInt32.ssa_block_8:
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
-    b.ne .Lasm_JumpLessThanRhsInt32.ssa_block_13
+    b.ne .Lasm_JumpLessThanRhsInt32.ssa_block_15
     ldr w1, [x21, #8]
     ldr w2, [x21, #12]
     ldr w3, [x21, #16]
@@ -20476,7 +20572,7 @@ asm_handler_JumpLessThanRhsInt32_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_JumpLessThanRhsInt32.ssa_block_13:
+.Lasm_JumpLessThanRhsInt32.ssa_block_15:
     fmov d0, x0
     ldr w0, [x21, #8]
     scvtf d1, w0
@@ -20487,11 +20583,11 @@ asm_handler_JumpLessThanRhsInt32_cold:
 asm_handler_JumpLessThanRhsInt32_cold_end:
 asm_handler_JumpLessThanEqualsRhsInt32_cold:
 // Cold paths for JumpLessThanEqualsRhsInt32
-.Lasm_JumpLessThanEqualsRhsInt32.ssa_block_7:
+.Lasm_JumpLessThanEqualsRhsInt32.ssa_block_8:
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
-    b.ne .Lasm_JumpLessThanEqualsRhsInt32.ssa_block_13
+    b.ne .Lasm_JumpLessThanEqualsRhsInt32.ssa_block_15
     ldr w1, [x21, #8]
     ldr w2, [x21, #12]
     ldr w3, [x21, #16]
@@ -20523,7 +20619,7 @@ asm_handler_JumpLessThanEqualsRhsInt32_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_JumpLessThanEqualsRhsInt32.ssa_block_13:
+.Lasm_JumpLessThanEqualsRhsInt32.ssa_block_15:
     fmov d0, x0
     ldr w0, [x21, #8]
     scvtf d1, w0
@@ -20534,11 +20630,11 @@ asm_handler_JumpLessThanEqualsRhsInt32_cold:
 asm_handler_JumpLessThanEqualsRhsInt32_cold_end:
 asm_handler_JumpGreaterThanRhsInt32_cold:
 // Cold paths for JumpGreaterThanRhsInt32
-.Lasm_JumpGreaterThanRhsInt32.ssa_block_7:
+.Lasm_JumpGreaterThanRhsInt32.ssa_block_8:
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
-    b.ne .Lasm_JumpGreaterThanRhsInt32.ssa_block_13
+    b.ne .Lasm_JumpGreaterThanRhsInt32.ssa_block_15
     ldr w1, [x21, #8]
     ldr w2, [x21, #12]
     ldr w3, [x21, #16]
@@ -20570,7 +20666,7 @@ asm_handler_JumpGreaterThanRhsInt32_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_JumpGreaterThanRhsInt32.ssa_block_13:
+.Lasm_JumpGreaterThanRhsInt32.ssa_block_15:
     fmov d0, x0
     ldr w0, [x21, #8]
     scvtf d1, w0
@@ -20581,11 +20677,11 @@ asm_handler_JumpGreaterThanRhsInt32_cold:
 asm_handler_JumpGreaterThanRhsInt32_cold_end:
 asm_handler_JumpGreaterThanEqualsRhsInt32_cold:
 // Cold paths for JumpGreaterThanEqualsRhsInt32
-.Lasm_JumpGreaterThanEqualsRhsInt32.ssa_block_7:
+.Lasm_JumpGreaterThanEqualsRhsInt32.ssa_block_8:
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
-    b.ne .Lasm_JumpGreaterThanEqualsRhsInt32.ssa_block_13
+    b.ne .Lasm_JumpGreaterThanEqualsRhsInt32.ssa_block_15
     ldr w1, [x21, #8]
     ldr w2, [x21, #12]
     ldr w3, [x21, #16]
@@ -20617,7 +20713,7 @@ asm_handler_JumpGreaterThanEqualsRhsInt32_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_JumpGreaterThanEqualsRhsInt32.ssa_block_13:
+.Lasm_JumpGreaterThanEqualsRhsInt32.ssa_block_15:
     fmov d0, x0
     ldr w0, [x21, #8]
     scvtf d1, w0
@@ -20628,7 +20724,7 @@ asm_handler_JumpGreaterThanEqualsRhsInt32_cold:
 asm_handler_JumpGreaterThanEqualsRhsInt32_cold_end:
 asm_handler_StrictlyEqualsRhsInt32_cold:
 // Cold paths for StrictlyEqualsRhsInt32
-.Lasm_StrictlyEqualsRhsInt32.ssa_block_35:
+.Lasm_StrictlyEqualsRhsInt32.ssa_block_34:
     lsr x9, x1, #48
     mov w10, #65530
     cmp x9, x10
@@ -20646,22 +20742,18 @@ asm_handler_StrictlyEqualsRhsInt32_cold:
     tst x9, x10
     b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_1
     b .Lasm_StrictlyEqualsRhsInt32.ssa_block_3
-.Lasm_StrictlyEqualsRhsInt32.ssa_block_17:
-    and w2, w2, #0x7ff8
-    mov w9, #32760
-    cmp w2, w9
-    b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_3
+.Lasm_StrictlyEqualsRhsInt32.ssa_block_20:
     fmov d0, x0
     scvtf d1, w1
     fcmp d0, d1
     b.vs .Lasm_StrictlyEqualsRhsInt32.ssa_block_3
     b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_2
     b .Lasm_StrictlyEqualsRhsInt32.ssa_block_3
-.Lasm_StrictlyEqualsRhsInt32.ssa_block_29:
+.Lasm_StrictlyEqualsRhsInt32.ssa_block_27:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
-    b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_35
+    b.eq .Lasm_StrictlyEqualsRhsInt32.ssa_block_34
 .Lasm_StrictlyEqualsRhsInt32.ssa_block_1:
     ldr w2, [x21, #4]
     sub sp, sp, #16
@@ -20711,7 +20803,7 @@ asm_handler_StrictlyEqualsRhsInt32_cold:
 asm_handler_StrictlyEqualsRhsInt32_cold_end:
 asm_handler_StrictlyInequalsRhsInt32_cold:
 // Cold paths for StrictlyInequalsRhsInt32
-.Lasm_StrictlyInequalsRhsInt32.ssa_block_35:
+.Lasm_StrictlyInequalsRhsInt32.ssa_block_34:
     lsr x9, x1, #48
     mov w10, #65530
     cmp x9, x10
@@ -20729,22 +20821,18 @@ asm_handler_StrictlyInequalsRhsInt32_cold:
     tst x9, x10
     b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_1
     b .Lasm_StrictlyInequalsRhsInt32.ssa_block_2
-.Lasm_StrictlyInequalsRhsInt32.ssa_block_17:
-    and w2, w2, #0x7ff8
-    mov w9, #32760
-    cmp w2, w9
-    b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_2
+.Lasm_StrictlyInequalsRhsInt32.ssa_block_20:
     fmov d0, x0
     scvtf d1, w1
     fcmp d0, d1
     b.vs .Lasm_StrictlyInequalsRhsInt32.ssa_block_2
     b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_3
     b .Lasm_StrictlyInequalsRhsInt32.ssa_block_2
-.Lasm_StrictlyInequalsRhsInt32.ssa_block_29:
+.Lasm_StrictlyInequalsRhsInt32.ssa_block_27:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
-    b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_35
+    b.eq .Lasm_StrictlyInequalsRhsInt32.ssa_block_34
 .Lasm_StrictlyInequalsRhsInt32.ssa_block_1:
     ldr w2, [x21, #4]
     sub sp, sp, #16
@@ -20812,18 +20900,14 @@ asm_handler_LooselyEqualsRhsInt32_cold:
     tst x9, x10
     b.eq .Lasm_LooselyEqualsRhsInt32.ssa_block_1
     b .Lasm_LooselyEqualsRhsInt32.ssa_block_3
-.Lasm_LooselyEqualsRhsInt32.ssa_block_19:
-    and w3, w3, #0x7ff8
-    mov w9, #32760
-    cmp w3, w9
-    b.eq .Lasm_LooselyEqualsRhsInt32.ssa_block_1
+.Lasm_LooselyEqualsRhsInt32.ssa_block_22:
     fmov d0, x0
     scvtf d1, w2
     fcmp d0, d1
     b.vs .Lasm_LooselyEqualsRhsInt32.ssa_block_3
     b.eq .Lasm_LooselyEqualsRhsInt32.ssa_block_2
     b .Lasm_LooselyEqualsRhsInt32.ssa_block_3
-.Lasm_LooselyEqualsRhsInt32.ssa_block_30:
+.Lasm_LooselyEqualsRhsInt32.ssa_block_29:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
@@ -20895,18 +20979,14 @@ asm_handler_LooselyInequalsRhsInt32_cold:
     tst x9, x10
     b.eq .Lasm_LooselyInequalsRhsInt32.ssa_block_1
     b .Lasm_LooselyInequalsRhsInt32.ssa_block_2
-.Lasm_LooselyInequalsRhsInt32.ssa_block_19:
-    and w3, w3, #0x7ff8
-    mov w9, #32760
-    cmp w3, w9
-    b.eq .Lasm_LooselyInequalsRhsInt32.ssa_block_1
+.Lasm_LooselyInequalsRhsInt32.ssa_block_22:
     fmov d0, x0
     scvtf d1, w2
     fcmp d0, d1
     b.vs .Lasm_LooselyInequalsRhsInt32.ssa_block_2
     b.eq .Lasm_LooselyInequalsRhsInt32.ssa_block_3
     b .Lasm_LooselyInequalsRhsInt32.ssa_block_2
-.Lasm_LooselyInequalsRhsInt32.ssa_block_30:
+.Lasm_LooselyInequalsRhsInt32.ssa_block_29:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
@@ -20960,7 +21040,7 @@ asm_handler_LooselyInequalsRhsInt32_cold:
 asm_handler_LooselyInequalsRhsInt32_cold_end:
 asm_handler_JumpStrictlyEqualsRhsInt32_cold:
 // Cold paths for JumpStrictlyEqualsRhsInt32
-.Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_35:
+.Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_34:
     lsr x9, x1, #48
     mov w10, #65530
     cmp x9, x10
@@ -20978,22 +21058,18 @@ asm_handler_JumpStrictlyEqualsRhsInt32_cold:
     tst x9, x10
     b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_1
     b .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_3
-.Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_17:
-    and w2, w2, #0x7ff8
-    mov w9, #32760
-    cmp w2, w9
-    b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_3
+.Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_20:
     fmov d0, x0
     scvtf d1, w1
     fcmp d0, d1
     b.vs .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_3
     b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_2
     b .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_3
-.Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_29:
+.Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_27:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
-    b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_35
+    b.eq .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_34
 .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_1:
     ldr w2, [x21, #12]
     ldr w3, [x21, #16]
@@ -21027,7 +21103,7 @@ asm_handler_JumpStrictlyEqualsRhsInt32_cold:
 asm_handler_JumpStrictlyEqualsRhsInt32_cold_end:
 asm_handler_JumpStrictlyInequalsRhsInt32_cold:
 // Cold paths for JumpStrictlyInequalsRhsInt32
-.Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_35:
+.Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_34:
     lsr x9, x1, #48
     mov w10, #65530
     cmp x9, x10
@@ -21045,22 +21121,18 @@ asm_handler_JumpStrictlyInequalsRhsInt32_cold:
     tst x9, x10
     b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_1
     b .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_2
-.Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_17:
-    and w2, w2, #0x7ff8
-    mov w9, #32760
-    cmp w2, w9
-    b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_2
+.Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_20:
     fmov d0, x0
     scvtf d1, w1
     fcmp d0, d1
     b.vs .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_2
     b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_3
     b .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_2
-.Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_29:
+.Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_27:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
-    b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_35
+    b.eq .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_34
 .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_1:
     ldr w2, [x21, #12]
     ldr w3, [x21, #16]
@@ -21112,18 +21184,14 @@ asm_handler_JumpLooselyEqualsRhsInt32_cold:
     tst x9, x10
     b.eq .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_1
     b .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_3
-.Lasm_JumpLooselyEqualsRhsInt32.ssa_block_19:
-    and w3, w3, #0x7ff8
-    mov w9, #32760
-    cmp w3, w9
-    b.eq .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_1
+.Lasm_JumpLooselyEqualsRhsInt32.ssa_block_22:
     fmov d0, x0
     scvtf d1, w2
     fcmp d0, d1
     b.vs .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_3
     b.eq .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_2
     b .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_3
-.Lasm_JumpLooselyEqualsRhsInt32.ssa_block_30:
+.Lasm_JumpLooselyEqualsRhsInt32.ssa_block_29:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
@@ -21179,18 +21247,14 @@ asm_handler_JumpLooselyInequalsRhsInt32_cold:
     tst x9, x10
     b.eq .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_1
     b .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_2
-.Lasm_JumpLooselyInequalsRhsInt32.ssa_block_19:
-    and w3, w3, #0x7ff8
-    mov w9, #32760
-    cmp w3, w9
-    b.eq .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_1
+.Lasm_JumpLooselyInequalsRhsInt32.ssa_block_22:
     fmov d0, x0
     scvtf d1, w2
     fcmp d0, d1
     b.vs .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_2
     b.eq .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_3
     b .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_2
-.Lasm_JumpLooselyInequalsRhsInt32.ssa_block_30:
+.Lasm_JumpLooselyInequalsRhsInt32.ssa_block_29:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
@@ -21228,11 +21292,11 @@ asm_handler_JumpLooselyInequalsRhsInt32_cold:
 asm_handler_JumpLooselyInequalsRhsInt32_cold_end:
 asm_handler_JumpLessThanLoopRhsInt32_cold:
 // Cold paths for JumpLessThanLoopRhsInt32
-.Lasm_JumpLessThanLoopRhsInt32.ssa_block_7:
+.Lasm_JumpLessThanLoopRhsInt32.ssa_block_8:
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
-    b.ne .Lasm_JumpLessThanLoopRhsInt32.ssa_block_13
+    b.ne .Lasm_JumpLessThanLoopRhsInt32.ssa_block_15
     ldr w1, [x21, #8]
     ldr w2, [x21, #12]
     ldr w3, [x21, #16]
@@ -21264,7 +21328,7 @@ asm_handler_JumpLessThanLoopRhsInt32_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_JumpLessThanLoopRhsInt32.ssa_block_13:
+.Lasm_JumpLessThanLoopRhsInt32.ssa_block_15:
     fmov d0, x0
     ldr w0, [x21, #8]
     scvtf d1, w0
@@ -21275,11 +21339,11 @@ asm_handler_JumpLessThanLoopRhsInt32_cold:
 asm_handler_JumpLessThanLoopRhsInt32_cold_end:
 asm_handler_JumpLessThanEqualsLoopRhsInt32_cold:
 // Cold paths for JumpLessThanEqualsLoopRhsInt32
-.Lasm_JumpLessThanEqualsLoopRhsInt32.ssa_block_7:
+.Lasm_JumpLessThanEqualsLoopRhsInt32.ssa_block_8:
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
-    b.ne .Lasm_JumpLessThanEqualsLoopRhsInt32.ssa_block_13
+    b.ne .Lasm_JumpLessThanEqualsLoopRhsInt32.ssa_block_15
     ldr w1, [x21, #8]
     ldr w2, [x21, #12]
     ldr w3, [x21, #16]
@@ -21311,7 +21375,7 @@ asm_handler_JumpLessThanEqualsLoopRhsInt32_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_JumpLessThanEqualsLoopRhsInt32.ssa_block_13:
+.Lasm_JumpLessThanEqualsLoopRhsInt32.ssa_block_15:
     fmov d0, x0
     ldr w0, [x21, #8]
     scvtf d1, w0
@@ -21322,11 +21386,11 @@ asm_handler_JumpLessThanEqualsLoopRhsInt32_cold:
 asm_handler_JumpLessThanEqualsLoopRhsInt32_cold_end:
 asm_handler_JumpGreaterThanLoopRhsInt32_cold:
 // Cold paths for JumpGreaterThanLoopRhsInt32
-.Lasm_JumpGreaterThanLoopRhsInt32.ssa_block_7:
+.Lasm_JumpGreaterThanLoopRhsInt32.ssa_block_8:
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
-    b.ne .Lasm_JumpGreaterThanLoopRhsInt32.ssa_block_13
+    b.ne .Lasm_JumpGreaterThanLoopRhsInt32.ssa_block_15
     ldr w1, [x21, #8]
     ldr w2, [x21, #12]
     ldr w3, [x21, #16]
@@ -21358,7 +21422,7 @@ asm_handler_JumpGreaterThanLoopRhsInt32_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_JumpGreaterThanLoopRhsInt32.ssa_block_13:
+.Lasm_JumpGreaterThanLoopRhsInt32.ssa_block_15:
     fmov d0, x0
     ldr w0, [x21, #8]
     scvtf d1, w0
@@ -21369,11 +21433,11 @@ asm_handler_JumpGreaterThanLoopRhsInt32_cold:
 asm_handler_JumpGreaterThanLoopRhsInt32_cold_end:
 asm_handler_JumpGreaterThanEqualsLoopRhsInt32_cold:
 // Cold paths for JumpGreaterThanEqualsLoopRhsInt32
-.Lasm_JumpGreaterThanEqualsLoopRhsInt32.ssa_block_7:
+.Lasm_JumpGreaterThanEqualsLoopRhsInt32.ssa_block_8:
     and w1, w1, #0x7ff8
     mov w9, #32760
     cmp w1, w9
-    b.ne .Lasm_JumpGreaterThanEqualsLoopRhsInt32.ssa_block_13
+    b.ne .Lasm_JumpGreaterThanEqualsLoopRhsInt32.ssa_block_15
     ldr w1, [x21, #8]
     ldr w2, [x21, #12]
     ldr w3, [x21, #16]
@@ -21405,7 +21469,7 @@ asm_handler_JumpGreaterThanEqualsLoopRhsInt32_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_JumpGreaterThanEqualsLoopRhsInt32.ssa_block_13:
+.Lasm_JumpGreaterThanEqualsLoopRhsInt32.ssa_block_15:
     fmov d0, x0
     ldr w0, [x21, #8]
     scvtf d1, w0
@@ -21416,7 +21480,7 @@ asm_handler_JumpGreaterThanEqualsLoopRhsInt32_cold:
 asm_handler_JumpGreaterThanEqualsLoopRhsInt32_cold_end:
 asm_handler_JumpStrictlyEqualsLoopRhsInt32_cold:
 // Cold paths for JumpStrictlyEqualsLoopRhsInt32
-.Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_35:
+.Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_34:
     lsr x9, x1, #48
     mov w10, #65530
     cmp x9, x10
@@ -21434,22 +21498,18 @@ asm_handler_JumpStrictlyEqualsLoopRhsInt32_cold:
     tst x9, x10
     b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_1
     b .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_3
-.Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_17:
-    and w2, w2, #0x7ff8
-    mov w9, #32760
-    cmp w2, w9
-    b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_3
+.Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_20:
     fmov d0, x0
     scvtf d1, w1
     fcmp d0, d1
     b.vs .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_3
     b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_2
     b .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_3
-.Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_29:
+.Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_27:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
-    b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_35
+    b.eq .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_34
 .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_1:
     ldr w2, [x21, #12]
     ldr w3, [x21, #16]
@@ -21483,7 +21543,7 @@ asm_handler_JumpStrictlyEqualsLoopRhsInt32_cold:
 asm_handler_JumpStrictlyEqualsLoopRhsInt32_cold_end:
 asm_handler_JumpStrictlyInequalsLoopRhsInt32_cold:
 // Cold paths for JumpStrictlyInequalsLoopRhsInt32
-.Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_35:
+.Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_34:
     lsr x9, x1, #48
     mov w10, #65530
     cmp x9, x10
@@ -21501,22 +21561,18 @@ asm_handler_JumpStrictlyInequalsLoopRhsInt32_cold:
     tst x9, x10
     b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_1
     b .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_2
-.Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_17:
-    and w2, w2, #0x7ff8
-    mov w9, #32760
-    cmp w2, w9
-    b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_2
+.Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_20:
     fmov d0, x0
     scvtf d1, w1
     fcmp d0, d1
     b.vs .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_2
     b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_3
     b .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_2
-.Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_29:
+.Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_27:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
-    b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_35
+    b.eq .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_34
 .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_1:
     ldr w2, [x21, #12]
     ldr w3, [x21, #16]
@@ -21568,18 +21624,14 @@ asm_handler_JumpLooselyEqualsLoopRhsInt32_cold:
     tst x9, x10
     b.eq .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_1
     b .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_3
-.Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_19:
-    and w3, w3, #0x7ff8
-    mov w9, #32760
-    cmp w3, w9
-    b.eq .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_1
+.Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_22:
     fmov d0, x0
     scvtf d1, w2
     fcmp d0, d1
     b.vs .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_3
     b.eq .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_2
     b .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_3
-.Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_30:
+.Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_29:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
@@ -21635,18 +21687,14 @@ asm_handler_JumpLooselyInequalsLoopRhsInt32_cold:
     tst x9, x10
     b.eq .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_1
     b .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_2
-.Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_19:
-    and w3, w3, #0x7ff8
-    mov w9, #32760
-    cmp w3, w9
-    b.eq .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_1
+.Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_22:
     fmov d0, x0
     scvtf d1, w2
     fcmp d0, d1
     b.vs .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_2
     b.eq .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_3
     b .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_2
-.Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_30:
+.Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_29:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
@@ -21854,7 +21902,7 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_GetById.assert_failure_0:
     brk #0
-.Lasm_GetById.assert_predicate_failure_126:
+.Lasm_GetById.assert_predicate_failure_120:
     brk #0
 .Lasm_GetById.assert_failure_1:
     brk #0
@@ -21898,9 +21946,9 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_GetById.assert_failure_19:
     brk #0
-.Lasm_GetById.assert_predicate_failure_46:
+.Lasm_GetById.assert_predicate_failure_47:
     brk #0
-.Lasm_GetById.assert_predicate_failure_52:
+.Lasm_GetById.assert_predicate_failure_53:
     brk #0
 .Lasm_GetById.assert_failure_20:
     brk #0
@@ -22062,7 +22110,7 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_CallBuiltinStringFromCharCode.assert_predicate_failure_8:
     brk #0
-.Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_50:
+.Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_36:
     brk #0
 .Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_8:
     brk #0

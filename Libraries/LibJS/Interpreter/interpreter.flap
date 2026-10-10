@@ -434,15 +434,18 @@ inline fn update_operand(
     operand: inout Operand,
     integer_operation: CheckedBinaryOperation<i32>,
     float_operation: BinaryOperation<f64>,
-    slow_path: SlowPath
+    slow_path: SlowPath,
+    feedback: ArithFeedbackIndex
 ) {
     let value = load(operand);
     guard let mut Value<i32>(integer) = value else slow;
     integer_operation(integer, 1) else overflow;
+    record_arith_feedback(feedback, ARITH_FEEDBACK_INT32);
     store(operand, box_i32(integer));
     dispatch_next;
 
     let overflow = || @cold {
+        record_arith_feedback(feedback, ARITH_FEEDBACK_INT32_OVERFLOW);
         let overflowed_integer = unbox_i32(load(operand));
         let mut result = to_f64(overflowed_integer);
         let one = unbox_f64(DOUBLE_ONE);
@@ -451,6 +454,7 @@ inline fn update_operand(
         dispatch_next;
     };
     let slow = || @cold {
+        record_arith_operand_feedback(feedback, value);
         call_slow_path(slow_path);
     };
 }
@@ -460,16 +464,19 @@ inline fn post_update_operand(
     operand: inout Operand,
     integer_operation: CheckedBinaryOperation<i32>,
     float_operation: BinaryOperation<f64>,
-    slow_path: SlowPath
+    slow_path: SlowPath,
+    feedback: ArithFeedbackIndex
 ) {
     let old = load(operand);
     guard let mut Value<i32>(integer) = old else slow;
     store(dst, old);
     integer_operation(integer, 1) else overflow;
+    record_arith_feedback(feedback, ARITH_FEEDBACK_INT32);
     store(operand, box_i32(integer));
     dispatch_next;
 
     let overflow = || @cold {
+        record_arith_feedback(feedback, ARITH_FEEDBACK_INT32_OVERFLOW);
         let overflowed_integer = unbox_i32(load(operand));
         let mut result = to_f64(overflowed_integer);
         let one = unbox_f64(DOUBLE_ONE);
@@ -478,6 +485,7 @@ inline fn post_update_operand(
         dispatch_next;
     };
     let slow = || @cold {
+        record_arith_operand_feedback(feedback, old);
         call_slow_path(slow_path);
     };
 }
@@ -506,13 +514,15 @@ inline fn bitwise_binary(
     lhs: Value,
     rhs: Value,
     operation: BinaryOperation<i32>,
-    slow_path: SlowPath
+    slow_path: SlowPath,
+    feedback: ArithFeedbackIndex
 ) {
     let slow = || @cold {
         call_binary_slow_path(slow_path, dst, lhs, rhs);
     };
 
     let non_int32 = || @cold {
+        record_arith_operands_feedback(feedback, lhs, rhs);
         guard let mut lhs_integer = numeric_value_to_i32(lhs) else slow;
         guard let rhs_integer = numeric_value_to_i32(rhs) else slow;
         operation(lhs_integer, rhs_integer);
@@ -522,6 +532,7 @@ inline fn bitwise_binary(
     guard let mut Value<i32>(lhs_integer) = lhs else non_int32;
     guard let Value<i32>(rhs_integer) = rhs else non_int32;
 
+    record_arith_feedback(feedback, ARITH_FEEDBACK_INT32);
     operation(lhs_integer, rhs_integer);
     store(dst, box_i32(lhs_integer));
     dispatch_next;
@@ -532,14 +543,17 @@ inline fn signed_shift(
     lhs: Value,
     rhs: Value,
     operation: BinaryOperation<i32>,
-    slow_path: SlowPath
+    slow_path: SlowPath,
+    feedback: ArithFeedbackIndex
 ) {
     let slow = || @cold {
+        record_arith_operands_feedback(feedback, lhs, rhs);
         call_binary_slow_path(slow_path, dst, lhs, rhs);
     };
 
     guard let mut Value<i32>(integer) = lhs else slow;
     guard let mut Value<i32>(count) = rhs else slow;
+    record_arith_feedback(feedback, ARITH_FEEDBACK_INT32);
     count = count & 31;
     operation(integer, count);
     store(dst, box_i32(integer));
@@ -552,7 +566,8 @@ inline fn store_relational_result(
     rhs: Value,
     integer_condition: IntegerCondition,
     float_condition: FloatCondition,
-    slow_path: SlowPath
+    slow_path: SlowPath,
+    feedback: ArithFeedbackIndex
 ) {
     let store_true = || {
         store(dst, Value<True>);
@@ -572,7 +587,8 @@ inline fn store_relational_result(
         integer_condition,
         float_condition,
         store_true,
-        store_false
+        store_false,
+        feedback
     ) else slow;
 }
 
@@ -583,23 +599,25 @@ inline fn equality_same_tag(
     equal: Label,
     not_equal: Label,
     compare_f64: Label,
+    feedback: ArithFeedbackIndex,
     else slow: Label
 ) {
     match lhs_tag {
-        INT32_TAG | BOOLEAN_TAG => fast_compare,
-        OBJECT_TAG | SYMBOL_TAG => fast_compare,
+        INT32_TAG | BOOLEAN_TAG => other_compare,
+        OBJECT_TAG | SYMBOL_TAG => other_compare,
         STRING_TAG => string_compare,
-        BIGINT_TAG => slow,
+        BIGINT_TAG => bigint_compare,
         _ => check_nullish,
     }
 
     let check_nullish = || {
         lhs_tag = lhs_tag & 0xfffe;
-        branch_eq(lhs_tag, UNDEFINED_TAG, fast_compare);
+        branch_eq(lhs_tag, UNDEFINED_TAG, other_compare);
         goto compare_f64;
     };
 
     let string_compare = || {
+        record_arith_feedback(feedback, ARITH_FEEDBACK_STRING);
         guard lhs is not rhs else equal;
         goto different_strings;
     };
@@ -613,7 +631,13 @@ inline fn equality_same_tag(
         goto not_equal;
     };
 
-    let fast_compare = || {
+    let bigint_compare = || {
+        record_arith_feedback(feedback, ARITH_FEEDBACK_BIGINT);
+        goto slow;
+    };
+
+    let other_compare = || {
+        record_arith_feedback(feedback, ARITH_FEEDBACK_OTHER);
         guard lhs is not rhs else equal;
         goto not_equal;
     };
@@ -635,29 +659,42 @@ inline fn strict_equality(
     rhs: Value,
     equal: Label,
     not_equal: Label,
+    feedback: ArithFeedbackIndex,
     else slow: Label
 ) {
     let mut rhs_tag = extract_tag(rhs);
     branch_eq(rhs_tag, INT32_TAG, rhs_i32);
     let mut lhs_tag = extract_tag(lhs);
     guard lhs_tag == rhs_tag else different_tags;
-    equality_same_tag(lhs, rhs, lhs_tag, equal, not_equal, compare_f64) else slow;
+    equality_same_tag(lhs, rhs, lhs_tag, equal, not_equal, compare_f64, feedback) else slow;
 
     let compare_f64 = || {
+        record_arith_feedback(feedback, ARITH_FEEDBACK_DOUBLE);
         let lhs_number = unbox_f64(lhs);
         let rhs_number = unbox_f64(rhs);
         compare_f64_equality(lhs_number, rhs_number, equal, not_equal);
     };
 
+    let other_not_equal = || {
+        record_arith_feedback(feedback, ARITH_FEEDBACK_OTHER);
+        goto not_equal;
+    };
+
     let different_tags = || {
         branch_eq(lhs_tag, INT32_TAG, lhs_i32);
-        check_tag_is_double(lhs_tag) else not_equal;
-        check_tag_is_double(rhs_tag) else not_equal;
+        check_tag_is_double(lhs_tag) else other_not_equal;
+        check_tag_is_double(rhs_tag) else other_not_equal;
         goto compare_f64;
     };
 
+    let int32_and_other_not_equal = || {
+        record_arith_feedback(feedback, ARITH_FEEDBACK_INT32_AND_OTHER);
+        goto not_equal;
+    };
+
     let lhs_i32 = || {
-        check_tag_is_double(rhs_tag) else not_equal;
+        check_tag_is_double(rhs_tag) else int32_and_other_not_equal;
+        record_arith_feedback(feedback, ARITH_FEEDBACK_INT32_AND_DOUBLE);
         let integer = unbox_i32(lhs);
         let lhs_number = to_f64(integer);
         let rhs_number = unbox_f64(rhs);
@@ -669,13 +706,15 @@ inline fn strict_equality(
         let rhs_integer = unbox_i32(rhs);
         match lhs {
             Value<i32>(lhs_integer) => {
+                record_arith_feedback(feedback, ARITH_FEEDBACK_INT32);
                 branch_eq(lhs_integer, rhs_integer, equal);
                 goto not_equal;
             },
             Value<f64>(lhs_double) => @cold {
+                record_arith_feedback(feedback, ARITH_FEEDBACK_INT32_AND_DOUBLE);
                 compare_f64_equality(lhs_double, to_f64(rhs_integer), equal, not_equal);
             },
-            _ => not_equal,
+            _ => int32_and_other_not_equal,
         }
     };
 }
@@ -685,45 +724,60 @@ inline fn loose_equality(
     rhs: Value,
     equal: Label,
     not_equal: Label,
+    feedback: ArithFeedbackIndex,
     else slow: Label
 ) {
     let mut rhs_tag = extract_tag(rhs);
     branch_eq(rhs_tag, INT32_TAG, rhs_i32);
     let mut lhs_tag = extract_tag(lhs);
     guard lhs_tag == rhs_tag else different_tags;
-    equality_same_tag(lhs, rhs, lhs_tag, equal, not_equal, compare_f64) else slow;
+    equality_same_tag(lhs, rhs, lhs_tag, equal, not_equal, compare_f64, feedback) else slow;
 
     let compare_f64 = || {
+        record_arith_feedback(feedback, ARITH_FEEDBACK_DOUBLE);
         let lhs_number = unbox_f64(lhs);
         let rhs_number = unbox_f64(rhs);
         compare_f64_equality(lhs_number, rhs_number, equal, not_equal);
     };
 
+    let other_slow = || {
+        record_arith_feedback(feedback, ARITH_FEEDBACK_OTHER);
+        goto slow;
+    };
+
     let different_tags = || {
         lhs_tag = lhs_tag & 0xfffe;
         guard lhs_tag == UNDEFINED_TAG else try_f64;
+        record_arith_feedback(feedback, ARITH_FEEDBACK_OTHER);
         rhs_tag = rhs_tag & 0xfffe;
         guard rhs_tag != UNDEFINED_TAG else equal;
         goto slow;
     };
 
     let try_f64 = || {
-        guard lhs is Value<f64> else slow;
-        guard rhs is Value<f64> else slow;
+        guard lhs is Value<f64> else other_slow;
+        guard rhs is Value<f64> else other_slow;
         goto compare_f64;
+    };
+
+    let int32_and_other_slow = || {
+        record_arith_feedback(feedback, ARITH_FEEDBACK_INT32_AND_OTHER);
+        goto slow;
     };
 
     let rhs_i32 = || {
         let rhs_integer = unbox_i32(rhs);
         match lhs {
             Value<i32>(lhs_integer) => {
+                record_arith_feedback(feedback, ARITH_FEEDBACK_INT32);
                 branch_eq(lhs_integer, rhs_integer, equal);
                 goto not_equal;
             },
             Value<f64>(lhs_double) => @cold {
+                record_arith_feedback(feedback, ARITH_FEEDBACK_INT32_AND_DOUBLE);
                 compare_f64_equality(lhs_double, to_f64(rhs_integer), equal, not_equal);
             },
-            _ => slow,
+            _ => int32_and_other_slow,
         }
     };
 }
@@ -733,9 +787,10 @@ inline fn strict_inequality(
     rhs: Value,
     not_equal: Label,
     equal: Label,
+    feedback: ArithFeedbackIndex,
     else slow: Label
 ) {
-    strict_equality(lhs, rhs, equal, not_equal) else slow;
+    strict_equality(lhs, rhs, equal, not_equal, feedback) else slow;
 }
 
 inline fn loose_inequality(
@@ -743,9 +798,10 @@ inline fn loose_inequality(
     rhs: Value,
     not_equal: Label,
     equal: Label,
+    feedback: ArithFeedbackIndex,
     else slow: Label
 ) {
-    loose_equality(lhs, rhs, equal, not_equal) else slow;
+    loose_equality(lhs, rhs, equal, not_equal, feedback) else slow;
 }
 
 inline fn store_equality_result(
@@ -753,7 +809,8 @@ inline fn store_equality_result(
     lhs: Value,
     rhs: Value,
     operation: EqualityOperation,
-    slow: SlowPath
+    slow: SlowPath,
+    feedback: ArithFeedbackIndex
 ) {
     let failure = || @cold {
         call_binary_slow_path(slow, dst, lhs, rhs);
@@ -767,7 +824,7 @@ inline fn store_equality_result(
         dispatch_next;
     };
 
-    operation(lhs, rhs, store_true, store_false) else failure;
+    operation(lhs, rhs, store_true, store_false, feedback) else failure;
 }
 
 inline fn jump_equality(
@@ -776,7 +833,8 @@ inline fn jump_equality(
     true_target: BytecodeOffset,
     false_target: BytecodeOffset,
     operation: EqualityOperation,
-    slow: SlowPath
+    slow: SlowPath,
+    feedback: ArithFeedbackIndex
 ) {
     let failure = || @cold {
         call_jump_slow_path(slow, lhs, rhs, true_target, false_target);
@@ -788,7 +846,7 @@ inline fn jump_equality(
         jump(false_target);
     };
 
-    operation(lhs, rhs, take_true, take_false) else failure;
+    operation(lhs, rhs, take_true, take_false, feedback) else failure;
 }
 
 inline fn compare_numeric_values(
@@ -798,6 +856,7 @@ inline fn compare_numeric_values(
     float_condition: FloatCondition,
     true_result: Label,
     false_result: Label,
+    feedback: ArithFeedbackIndex,
     else slow: Label
 ) {
     let compare_double = |lhs: f64, rhs: f64| @cold {
@@ -810,27 +869,40 @@ inline fn compare_numeric_values(
         Value<i32>(lhs_integer) => {
             match rhs {
                 Value<i32>(rhs_integer) => {
+                    record_arith_feedback(feedback, ARITH_FEEDBACK_INT32);
                     integer_condition(lhs_integer, rhs_integer, true_result);
                     goto false_result;
                 },
                 Value<f64>(rhs_double) => @cold {
+                    record_arith_feedback(feedback, ARITH_FEEDBACK_INT32_AND_DOUBLE);
                     goto compare_double(to_f64(lhs_integer), rhs_double);
                 },
-                _ => slow,
+                _ => @cold {
+                    record_arith_operands_feedback(feedback, lhs, rhs);
+                    goto slow;
+                },
             }
         },
         Value<f64>(lhs_double) => @cold {
             match rhs {
                 Value<i32>(rhs_integer) => {
+                    record_arith_feedback(feedback, ARITH_FEEDBACK_INT32_AND_DOUBLE);
                     goto compare_double(lhs_double, to_f64(rhs_integer));
                 },
                 Value<f64>(rhs_double) => {
+                    record_arith_feedback(feedback, ARITH_FEEDBACK_DOUBLE);
                     goto compare_double(lhs_double, rhs_double);
                 },
-                _ => slow,
+                _ => @cold {
+                    record_arith_operands_feedback(feedback, lhs, rhs);
+                    goto slow;
+                },
             }
         },
-        _ => slow,
+        _ => @cold {
+            record_arith_operands_feedback(feedback, lhs, rhs);
+            goto slow;
+        },
     }
 }
 
@@ -841,7 +913,8 @@ inline fn jump_relational(
     false_target: BytecodeOffset,
     integer_condition: IntegerCondition,
     float_condition: FloatCondition,
-    slow: SlowPath
+    slow: SlowPath,
+    feedback: ArithFeedbackIndex
 ) {
     let failure = || @cold {
         call_jump_slow_path(slow, lhs, rhs, true_target, false_target);
@@ -859,7 +932,8 @@ inline fn jump_relational(
         integer_condition,
         float_condition,
         take_true,
-        take_false
+        take_false,
+        feedback
     ) else failure;
 }
 
@@ -936,6 +1010,131 @@ inline fn load_primitive_string_utf16_code_unit(
             let code_unit: u32 = alias(string.utf16_short_string_storage[index]);
             code_unit
         }
+    }
+}
+
+# All feedback recording goes through this helper, so the feedback base can
+# later move into the frame without touching every handler.
+inline fn feedback_base() -> ExecutableFeedback {
+    let executable = exec_ctx.executable;
+    executable.feedback
+}
+
+# The address of the element `index` of `size` bytes of the feedback array at
+# `array` (an offset into the primitive storage cage), masked into the cage.
+# Shifting the bits outside PRIMITIVE_STORAGE_CAGE_OFFSET_MASK out masks them
+# without a 64-bit immediate, which takes another register on x86-64.
+inline fn feedback_address(cage_base: u64, array: u64, index: u32, size: u8) -> u64 {
+    let unmasked: u64 = array + alias(index) * alias(size);
+    cage_base + ((unmasked << PRIMITIVE_STORAGE_CAGE_OFFSET_SHIFT) >> PRIMITIVE_STORAGE_CAGE_OFFSET_SHIFT)
+}
+
+inline fn record_arith_feedback(slot: ArithFeedbackIndex, bits: i32) @profiling {
+    let feedback = feedback_base();
+    let arith = feedback_address(primitive_storage_cage_base(), feedback.arith, load(slot), 1);
+    or8_mem([arith, 0], bits);
+}
+
+inline fn arith_feedback_bits(value: Value) -> i32 {
+    let tag = extract_tag(value);
+    let mut bits: i32 = ARITH_FEEDBACK_OTHER;
+    if tag == INT32_TAG {
+        bits = ARITH_FEEDBACK_INT32;
+    } else if value is Value<f64> {
+        bits = ARITH_FEEDBACK_DOUBLE;
+    } else if tag == STRING_TAG {
+        bits = ARITH_FEEDBACK_STRING;
+    } else if tag == BIGINT_TAG {
+        bits = ARITH_FEEDBACK_BIGINT;
+    }
+    bits
+}
+
+inline fn record_arith_operand_feedback(slot: ArithFeedbackIndex, value: Value) @profiling {
+    record_arith_feedback(slot, arith_feedback_bits(value));
+}
+
+inline fn record_arith_operands_feedback(slot: ArithFeedbackIndex, lhs: Value, rhs: Value) @profiling {
+    let lhs_bits = arith_feedback_bits(lhs);
+    let rhs_bits = arith_feedback_bits(rhs);
+    let bits = lhs_bits | rhs_bits;
+    record_arith_feedback(slot, bits);
+}
+
+# Value feedback stores the bits of the produced value in the instruction's
+# bucket. The runtime classifies buckets into ValueFeedback bits later.
+inline fn record_value_feedback(slot: ValueFeedbackIndex, value: Value) @profiling {
+    let feedback = feedback_base();
+    let buckets: Sequence<Value> = alias(
+        feedback_address(primitive_storage_cage_base(), feedback.value_buckets, load(slot), 8)
+    );
+    buckets[0] = value;
+}
+
+# Call feedback only does work when the callee differs from the first one
+# recorded at the site.
+inline fn record_call_target(slot: CallFeedbackIndex, function: Object) @profiling {
+    let feedback = feedback_base();
+    let call_feedback: CallFeedback = alias(
+        feedback_address(primitive_storage_cage_base(), feedback.call, load(slot), CALL_FEEDBACK_SIZE)
+    );
+    let function_pointer: u64 = alias(function);
+    if call_feedback.target != function_pointer {
+        let mut flags: i32 = alias(call_feedback.flags);
+        if call_feedback.target == 0 {
+            call_feedback.target = function_pointer;
+        } else {
+            flags = flags | CALL_FEEDBACK_POLYMORPHIC;
+            # A closure of the first callee's function has its shared data.
+            # Without native callees, the first callee is an ECMAScript
+            # function too.
+            if function.flags lacks OBJECT_FLAG_IS_ECMASCRIPT_FUNCTION_OBJECT {
+                flags = flags | CALL_FEEDBACK_OTHER_FUNCTIONS;
+            } else if flags lacks CALL_FEEDBACK_SAW_NATIVE {
+                # The first callee is a weak reference in the feedback, which is
+                # decoded into the heap region like a cell value.
+                let first_bits = call_feedback.target;
+                let mut first_value: Value;
+                mov(first_value, first_bits);
+                let first_object: Object = unbox_object(first_value);
+                let first: ECMAScriptFunctionObject = alias(first_object);
+                let closure: ECMAScriptFunctionObject = alias(function);
+                if first.shared_data != closure.shared_data {
+                    flags = flags | CALL_FEEDBACK_OTHER_FUNCTIONS;
+                }
+            }
+        }
+        if function.flags lacks OBJECT_FLAG_IS_ECMASCRIPT_FUNCTION_OBJECT {
+            flags = flags | CALL_FEEDBACK_SAW_NATIVE;
+        }
+        call_feedback.flags = truncate_u8(flags);
+    }
+}
+
+inline fn record_keyed_feedback(slot: KeyedFeedbackIndex, bits: u32) @profiling {
+    record_keyed_feedback_with_cage_base(primitive_storage_cage_base(), slot, bits);
+}
+
+# For handlers that have the primitive storage cage base at hand already.
+inline fn record_keyed_feedback_with_cage_base(cage_base: u64, slot: KeyedFeedbackIndex, bits: u32) @profiling {
+    let feedback = feedback_base();
+    let keyed_feedback = feedback_address(cage_base, feedback.keyed, load(slot), KEYED_FEEDBACK_SIZE);
+    or32_mem([keyed_feedback, KEYED_FEEDBACK_BITS], bits);
+}
+
+inline fn record_typed_array_keyed_feedback(cage_base: u64, slot: KeyedFeedbackIndex, kind: u8) @profiling {
+    let mut bits: u32 = 1;
+    let shift: u32 = alias(kind);
+    let mut count = shift + KEYED_FEEDBACK_TYPED_ARRAY_SHIFT;
+    shl(bits, count);
+    bits = bits | KEYED_FEEDBACK_INT32_INDEX;
+    record_keyed_feedback_with_cage_base(cage_base, slot, bits);
+}
+
+inline fn record_builtin_call_feedback(slot: CallFeedbackIndex, callee: Value) @profiling {
+    if callee is Value<Object> {
+        let function: Object = unbox_object(callee);
+        record_call_target(slot, function);
     }
 }
 
@@ -1033,6 +1232,7 @@ handler Add(
     let lhs_value = load(lhs);
     let rhs_value = load(rhs);
     let slow = || @cold {
+        record_arith_operands_feedback(arith_feedback, lhs_value, rhs_value);
         call_binary_slow_path(add_values, dst, lhs_value, rhs_value);
     };
     let add_double = |lhs: f64, rhs: f64| @cold {
@@ -1044,13 +1244,16 @@ handler Add(
             match rhs_value {
                 Value<i32>(rhs_integer) => {
                     guard let sum = checked_add(lhs_integer, rhs_integer) else @cold {
+                        record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32_OVERFLOW);
                         store(dst, box_f64(to_f64(lhs_integer) + to_f64(rhs_integer)));
                         dispatch_next;
                     };
+                    record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32);
                     store(dst, box_i32(sum));
                     dispatch_next;
                 },
                 Value<f64>(rhs_double) => @cold {
+                    record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32_AND_DOUBLE);
                     goto add_double(to_f64(lhs_integer), rhs_double);
                 },
                 _ => slow,
@@ -1059,9 +1262,11 @@ handler Add(
         Value<f64>(lhs_double) => @cold {
             match rhs_value {
                 Value<i32>(rhs_integer) => {
+                    record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32_AND_DOUBLE);
                     goto add_double(lhs_double, to_f64(rhs_integer));
                 },
                 Value<f64>(rhs_double) => {
+                    record_arith_feedback(arith_feedback, ARITH_FEEDBACK_DOUBLE);
                     goto add_double(lhs_double, rhs_double);
                 },
                 _ => slow,
@@ -1080,6 +1285,7 @@ handler Sub(
     let lhs_value = load(lhs);
     let rhs_value = load(rhs);
     let slow = || @cold {
+        record_arith_operands_feedback(arith_feedback, lhs_value, rhs_value);
         call_binary_slow_path(sub_values, dst, lhs_value, rhs_value);
     };
     let subtract_double = |lhs: f64, rhs: f64| @cold {
@@ -1091,13 +1297,16 @@ handler Sub(
             match rhs_value {
                 Value<i32>(rhs_integer) => {
                     guard let difference = checked_sub(lhs_integer, rhs_integer) else @cold {
+                        record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32_OVERFLOW);
                         store(dst, box_f64(to_f64(lhs_integer) - to_f64(rhs_integer)));
                         dispatch_next;
                     };
+                    record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32);
                     store(dst, box_i32(difference));
                     dispatch_next;
                 },
                 Value<f64>(rhs_double) => @cold {
+                    record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32_AND_DOUBLE);
                     goto subtract_double(to_f64(lhs_integer), rhs_double);
                 },
                 _ => slow,
@@ -1106,9 +1315,11 @@ handler Sub(
         Value<f64>(lhs_double) => @cold {
             match rhs_value {
                 Value<i32>(rhs_integer) => {
+                    record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32_AND_DOUBLE);
                     goto subtract_double(lhs_double, to_f64(rhs_integer));
                 },
                 Value<f64>(rhs_double) => {
+                    record_arith_feedback(arith_feedback, ARITH_FEEDBACK_DOUBLE);
                     goto subtract_double(lhs_double, rhs_double);
                 },
                 _ => slow,
@@ -1127,6 +1338,7 @@ handler Mul(
     let lhs_value = load(lhs);
     let rhs_value = load(rhs);
     let slow = || @cold {
+        record_arith_operands_feedback(arith_feedback, lhs_value, rhs_value);
         call_binary_slow_path(mul_values, dst, lhs_value, rhs_value);
     };
     let multiply_double = |lhs: f64, rhs: f64| @cold {
@@ -1138,10 +1350,12 @@ handler Mul(
             match rhs_value {
                 Value<i32>(rhs_integer) => {
                     let negative_zero = || @cold {
+                        record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32_OVERFLOW);
                         store(dst, Value<NegativeZero>);
                         dispatch_next;
                     };
                     guard let product = checked_mul(lhs_integer, rhs_integer) else @cold {
+                        record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32_OVERFLOW);
                         store(dst, box_f64(to_f64(lhs_integer) * to_f64(rhs_integer)));
                         dispatch_next;
                     };
@@ -1150,10 +1364,12 @@ handler Mul(
                         guard sign_check >= 0 else negative_zero;
                     }
 
+                    record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32);
                     store(dst, box_i32(product));
                     dispatch_next;
                 },
                 Value<f64>(rhs_double) => @cold {
+                    record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32_AND_DOUBLE);
                     goto multiply_double(to_f64(lhs_integer), rhs_double);
                 },
                 _ => slow,
@@ -1162,9 +1378,11 @@ handler Mul(
         Value<f64>(lhs_double) => @cold {
             match rhs_value {
                 Value<i32>(rhs_integer) => {
+                    record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32_AND_DOUBLE);
                     goto multiply_double(lhs_double, to_f64(rhs_integer));
                 },
                 Value<f64>(rhs_double) => {
+                    record_arith_feedback(arith_feedback, ARITH_FEEDBACK_DOUBLE);
                     goto multiply_double(lhs_double, rhs_double);
                 },
                 _ => slow,
@@ -1180,7 +1398,10 @@ handler Exp(
     lhs: in Operand,
     rhs: in Operand
 ) @cold {
-    call_binary_slow_path(exp_values, dst, load(lhs), load(rhs));
+    let lhs_value = load(lhs);
+    let rhs_value = load(rhs);
+    record_arith_operands_feedback(arith_feedback, lhs_value, rhs_value);
+    call_binary_slow_path(exp_values, dst, lhs_value, rhs_value);
 }
 
 handler ConcatString(
@@ -1368,7 +1589,8 @@ handler JumpLessThan(
     false_target,
     branch_lt_signed,
     branch_fp_less,
-    jump_less_than_values
+    jump_less_than_values,
+    arith_feedback
 );
 
 handler JumpGreaterThan(
@@ -1384,7 +1606,8 @@ handler JumpGreaterThan(
     false_target,
     branch_gt_signed,
     branch_fp_greater,
-    jump_greater_than_values
+    jump_greater_than_values,
+    arith_feedback
 );
 
 handler JumpLessThanEquals(
@@ -1400,7 +1623,8 @@ handler JumpLessThanEquals(
     false_target,
     branch_le_signed,
     branch_fp_less_or_equal,
-    jump_less_than_equals_values
+    jump_less_than_equals_values,
+    arith_feedback
 );
 
 handler JumpGreaterThanEquals(
@@ -1416,7 +1640,8 @@ handler JumpGreaterThanEquals(
     false_target,
     branch_ge_signed,
     branch_fp_greater_or_equal,
-    jump_greater_than_equals_values
+    jump_greater_than_equals_values,
+    arith_feedback
 );
 
 handler JumpLooselyEquals(
@@ -1431,7 +1656,8 @@ handler JumpLooselyEquals(
     true_target,
     false_target,
     loose_equality,
-    jump_loosely_equals_values
+    jump_loosely_equals_values,
+    arith_feedback
 );
 
 handler JumpLooselyInequals(
@@ -1446,7 +1672,8 @@ handler JumpLooselyInequals(
     true_target,
     false_target,
     loose_inequality,
-    jump_loosely_inequals_values
+    jump_loosely_inequals_values,
+    arith_feedback
 );
 
 handler JumpStrictlyEquals(
@@ -1461,7 +1688,8 @@ handler JumpStrictlyEquals(
     true_target,
     false_target,
     strict_equality,
-    jump_strictly_equals_values
+    jump_strictly_equals_values,
+    arith_feedback
 );
 
 handler JumpStrictlyInequals(
@@ -1476,7 +1704,8 @@ handler JumpStrictlyInequals(
     true_target,
     false_target,
     strict_inequality,
-    jump_strictly_inequals_values
+    jump_strictly_inequals_values,
+    arith_feedback
 );
 
 # Loop back edges. The bytecode generator emits these variants for jumps to
@@ -1515,7 +1744,8 @@ handler JumpLessThanLoop(
     false_target,
     branch_lt_signed,
     branch_fp_less,
-    jump_less_than_values
+    jump_less_than_values,
+    arith_feedback
 );
 
 handler JumpGreaterThanLoop(
@@ -1531,7 +1761,8 @@ handler JumpGreaterThanLoop(
     false_target,
     branch_gt_signed,
     branch_fp_greater,
-    jump_greater_than_values
+    jump_greater_than_values,
+    arith_feedback
 );
 
 handler JumpLessThanEqualsLoop(
@@ -1547,7 +1778,8 @@ handler JumpLessThanEqualsLoop(
     false_target,
     branch_le_signed,
     branch_fp_less_or_equal,
-    jump_less_than_equals_values
+    jump_less_than_equals_values,
+    arith_feedback
 );
 
 handler JumpGreaterThanEqualsLoop(
@@ -1563,7 +1795,8 @@ handler JumpGreaterThanEqualsLoop(
     false_target,
     branch_ge_signed,
     branch_fp_greater_or_equal,
-    jump_greater_than_equals_values
+    jump_greater_than_equals_values,
+    arith_feedback
 );
 
 handler JumpLooselyEqualsLoop(
@@ -1578,7 +1811,8 @@ handler JumpLooselyEqualsLoop(
     true_target,
     false_target,
     loose_equality,
-    jump_loosely_equals_values
+    jump_loosely_equals_values,
+    arith_feedback
 );
 
 handler JumpLooselyInequalsLoop(
@@ -1593,7 +1827,8 @@ handler JumpLooselyInequalsLoop(
     true_target,
     false_target,
     loose_inequality,
-    jump_loosely_inequals_values
+    jump_loosely_inequals_values,
+    arith_feedback
 );
 
 handler JumpStrictlyEqualsLoop(
@@ -1608,7 +1843,8 @@ handler JumpStrictlyEqualsLoop(
     true_target,
     false_target,
     strict_equality,
-    jump_strictly_equals_values
+    jump_strictly_equals_values,
+    arith_feedback
 );
 
 handler JumpStrictlyInequalsLoop(
@@ -1623,18 +1859,19 @@ handler JumpStrictlyInequalsLoop(
     true_target,
     false_target,
     strict_inequality,
-    jump_strictly_inequals_values
+    jump_strictly_inequals_values,
+    arith_feedback
 );
 
 handler Increment(
     arith_feedback: ArithFeedbackIndex,
     dst: inout Operand
-) = update_operand(dst, checked_add, add_f64, increment);
+) = update_operand(dst, checked_add, add_f64, increment, arith_feedback);
 
 handler Decrement(
     arith_feedback: ArithFeedbackIndex,
     dst: inout Operand
-) = update_operand(dst, checked_sub, sub_f64, decrement);
+) = update_operand(dst, checked_sub, sub_f64, decrement, arith_feedback);
 
 handler Not(
     dst: out Operand,
@@ -1760,6 +1997,7 @@ handler GetBinding(
     guard let value = load_initialized_binding(environment.binding_values, binding_index) else @cold {
         call_slow_path(get_binding);
     };
+    record_value_feedback(value_feedback, value);
     store(dst, value);
     dispatch_next;
 }
@@ -1780,6 +2018,7 @@ handler DynamicGetBinding(
         hops
     ) else slow;
     guard let value = load_initialized_binding(environment.binding_values, binding_index) else slow;
+    record_value_feedback(value_feedback, value);
     store(dst, value);
     dispatch_next;
 }
@@ -1792,7 +2031,9 @@ handler GetInitializedBinding(
 ) {
     let [environment, binding_index] =
         walk_environment_chain(exec_ctx.lexical_environment, cache);
-    store(dst, environment.binding_values[binding_index]);
+    let value = environment.binding_values[binding_index];
+    record_value_feedback(value_feedback, value);
+    store(dst, value);
     dispatch_next;
 }
 
@@ -1811,7 +2052,9 @@ handler DynamicGetInitializedBinding(
         exec_ctx.lexical_environment,
         hops
     ) else slow;
-    store(dst, environment.binding_values[binding_index]);
+    let value = environment.binding_values[binding_index];
+    record_value_feedback(value_feedback, value);
+    store(dst, value);
     dispatch_next;
 }
 
@@ -1998,7 +2241,7 @@ handler PostfixIncrement(
     arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     src: inout Operand
-) = post_update_operand(dst, src, checked_add, add_f64, postfix_increment);
+) = post_update_operand(dst, src, checked_add, add_f64, postfix_increment, arith_feedback);
 
 handler Div(
     arith_feedback: ArithFeedbackIndex,
@@ -2008,6 +2251,7 @@ handler Div(
 ) {
     let lhs = load(lhs);
     let rhs = load(rhs);
+    record_arith_operands_feedback(arith_feedback, lhs, rhs);
 
     guard let [lhs_number, rhs_number] = numeric_pair_to_f64(lhs, rhs) else @cold {
         call_binary_slow_path(div_values, dst, lhs, rhs);
@@ -2030,6 +2274,7 @@ handler Div(
     };
 
     let store_f64 = || {
+        record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32_OVERFLOW);
         store(dst, canonicalize_nan(quotient));
         dispatch_next;
     };
@@ -2046,7 +2291,8 @@ handler LessThan(
     load(rhs),
     branch_lt_signed,
     branch_fp_less,
-    less_than_values
+    less_than_values,
+    arith_feedback
 );
 
 handler LessThanEquals(
@@ -2060,7 +2306,8 @@ handler LessThanEquals(
     load(rhs),
     branch_le_signed,
     branch_fp_less_or_equal,
-    less_than_equals_values
+    less_than_equals_values,
+    arith_feedback
 );
 
 handler GreaterThan(
@@ -2074,7 +2321,8 @@ handler GreaterThan(
     load(rhs),
     branch_gt_signed,
     branch_fp_greater,
-    greater_than_values
+    greater_than_values,
+    arith_feedback
 );
 
 handler GreaterThanEquals(
@@ -2088,7 +2336,8 @@ handler GreaterThanEquals(
     load(rhs),
     branch_ge_signed,
     branch_fp_greater_or_equal,
-    greater_than_equals_values
+    greater_than_equals_values,
+    arith_feedback
 );
 
 handler BitwiseXor(
@@ -2096,7 +2345,7 @@ handler BitwiseXor(
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
-) = bitwise_binary(dst, load(lhs), load(rhs), xor, bitwise_xor_values);
+) = bitwise_binary(dst, load(lhs), load(rhs), xor, bitwise_xor_values, arith_feedback);
 
 handler UnaryPlus(
     arith_feedback: ArithFeedbackIndex,
@@ -2106,16 +2355,19 @@ handler UnaryPlus(
     let value = load(src);
     match value {
         Value<i32> => {
+            record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32);
             store(dst, value);
             dispatch_next;
         },
 
         Value<f64> => @cold {
+            record_arith_feedback(arith_feedback, ARITH_FEEDBACK_DOUBLE);
             store(dst, value);
             dispatch_next;
         },
 
         _ => @cold {
+            record_arith_operand_feedback(arith_feedback, value);
             call_slow_path(unary_plus);
         },
     }
@@ -2204,14 +2456,17 @@ handler BitwiseNot(
     dst: out Operand,
     src: in Operand
 ) {
-    match load(src) {
+    let value = load(src);
+    match value {
         Value<i32>(integer) => {
+            record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32);
             let result = ~integer;
             store(dst, box_i32(result));
             dispatch_next;
         },
 
         _ => @cold {
+            record_arith_operand_feedback(arith_feedback, value);
             call_slow_path(bitwise_not);
         },
     }
@@ -2222,28 +2477,28 @@ handler BitwiseAnd(
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
-) = bitwise_binary(dst, load(lhs), load(rhs), and, bitwise_and_values);
+) = bitwise_binary(dst, load(lhs), load(rhs), and, bitwise_and_values, arith_feedback);
 
 handler BitwiseOr(
     arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
-) = bitwise_binary(dst, load(lhs), load(rhs), or, bitwise_or_values);
+) = bitwise_binary(dst, load(lhs), load(rhs), or, bitwise_or_values, arith_feedback);
 
 handler LeftShift(
     arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
-) = signed_shift(dst, load(lhs), load(rhs), shl, left_shift_values);
+) = signed_shift(dst, load(lhs), load(rhs), shl, left_shift_values, arith_feedback);
 
 handler RightShift(
     arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
-) = signed_shift(dst, load(lhs), load(rhs), sar, right_shift_values);
+) = signed_shift(dst, load(lhs), load(rhs), sar, right_shift_values, arith_feedback);
 
 handler UnsignedRightShift(
     arith_feedback: ArithFeedbackIndex,
@@ -2255,6 +2510,7 @@ handler UnsignedRightShift(
     let rhs = load(rhs);
 
     let slow = || @cold {
+        record_arith_operands_feedback(arith_feedback, lhs, rhs);
         call_binary_slow_path(unsigned_right_shift_values, dst, lhs, rhs);
     };
 
@@ -2262,12 +2518,14 @@ handler UnsignedRightShift(
     guard let mut Value<i32>(count) = rhs else slow;
     let mut value = u32(integer);
     let as_double = || @cold {
+        record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32_OVERFLOW);
         store(dst, box_f64(u32_to_f64(value)));
         dispatch_next;
     };
     count = count & 31;
     value = value >> u32(count);
     branch_bit_set(value, 31, as_double);
+    record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32);
     store(dst, box_i32(assume_i32(value)));
     dispatch_next;
 
@@ -2283,16 +2541,20 @@ handler Mod(
 
     let slow = || @cold {
         let rhs_value = load(rhs);
+        record_arith_operands_feedback(arith_feedback, lhs, rhs_value);
         call_binary_slow_path(mod_values, dst, lhs, rhs_value);
     };
 
     let try_int64 = || @cold {
+        let rhs_value = load(rhs);
+        record_arith_operands_feedback(arith_feedback, lhs, rhs_value);
         guard let lhs_integer = integer_value_to_i64(lhs) else slow;
         guard let rhs_integer = integer_value_to_i64(load(rhs)) else slow;
         guard rhs_integer != 0 else slow;
 
         let zero = || @cold {
             let negative_zero = || @cold {
+                record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32_OVERFLOW);
                 store(dst, Value<NegativeZero>);
                 dispatch_next;
             };
@@ -2323,6 +2585,7 @@ handler Mod(
     guard let Value<i32>(rhs_int) = load(rhs) else try_int64;
     guard rhs_int != 0 else slow;
     guard lhs_int >= 0 else try_int64;
+    record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32);
     let [_, remainder] = divmod(lhs_int, rhs_int);
     store(dst, box_i32(remainder));
     dispatch_next;
@@ -2338,7 +2601,8 @@ handler StrictlyEquals(
     load(lhs),
     load(rhs),
     strict_equality,
-    strictly_equals_values
+    strictly_equals_values,
+    arith_feedback
 );
 
 handler StrictlyInequals(
@@ -2351,7 +2615,8 @@ handler StrictlyInequals(
     load(lhs),
     load(rhs),
     strict_inequality,
-    strictly_inequals_values
+    strictly_inequals_values,
+    arith_feedback
 );
 
 handler GetCalleeAndThisFromEnvironment(
@@ -2366,6 +2631,7 @@ handler GetCalleeAndThisFromEnvironment(
     guard let value = load_initialized_binding(environment.binding_values, binding_index) else @cold {
         call_slow_path(get_callee_and_this);
     };
+    record_value_feedback(value_feedback, value);
     store(callee, value);
     store(this_value, Value<Undefined>);
     dispatch_next;
@@ -2388,6 +2654,7 @@ handler DynamicGetCalleeAndThisFromEnvironment(
         hops
     ) else slow;
     guard let value = load_initialized_binding(environment.binding_values, binding_index) else slow;
+    record_value_feedback(value_feedback, value);
     store(callee, value);
     store(this_value, Value<Undefined>);
     dispatch_next;
@@ -2403,7 +2670,8 @@ handler LooselyEquals(
     load(lhs),
     load(rhs),
     loose_equality,
-    loosely_equals_values
+    loosely_equals_values,
+    arith_feedback
 );
 
 handler LooselyInequals(
@@ -2416,7 +2684,8 @@ handler LooselyInequals(
     load(lhs),
     load(rhs),
     loose_inequality,
-    loosely_inequals_values
+    loosely_inequals_values,
+    arith_feedback
 );
 
 handler UnaryMinus(
@@ -2429,11 +2698,13 @@ handler UnaryMinus(
     match value {
         Value<i32>(mut integer) => {
             let negative_zero = || @cold {
+                record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32_OVERFLOW);
                 store(dst, Value<NegativeZero>);
                 dispatch_next;
             };
 
             let overflow = || @cold {
+                record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32_OVERFLOW);
                 neg(integer);
                 let unsigned_integer: u32 = alias(integer);
                 store(dst, box_f64(u32_to_f64(unsigned_integer)));
@@ -2442,17 +2713,20 @@ handler UnaryMinus(
 
             guard integer != 0 else negative_zero;
             neg32_overflow(integer) else overflow;
+            record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32);
             store(dst, box_i32(integer));
             dispatch_next;
         },
 
         Value<f64> => @cold {
+            record_arith_feedback(arith_feedback, ARITH_FEEDBACK_DOUBLE);
             toggle_bit(value, 63);
             store(dst, value);
             dispatch_next;
         },
 
         _ => @cold {
+            record_arith_operand_feedback(arith_feedback, value);
             call_slow_path(unary_minus);
         },
     }
@@ -2462,7 +2736,7 @@ handler PostfixDecrement(
     arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     src: inout Operand
-) = post_update_operand(dst, src, checked_sub, sub_f64, postfix_decrement);
+) = post_update_operand(dst, src, checked_sub, sub_f64, postfix_decrement, arith_feedback);
 
 handler ToInt32(
     arith_feedback: ArithFeedbackIndex,
@@ -2476,11 +2750,13 @@ handler ToInt32(
 
     let tag = extract_tag(loaded_value);
     guard tag == INT32_TAG else @cold {
+        record_arith_operand_feedback(arith_feedback, loaded_value);
         guard let integer = numeric_value_to_i32(load(value)) else slow;
         store(dst, box_i32(integer));
         dispatch_next;
     };
 
+    record_arith_feedback(arith_feedback, ARITH_FEEDBACK_INT32);
     store(dst, loaded_value);
     dispatch_next;
 }
@@ -2542,6 +2818,7 @@ handler PutByValue(
                 # The size above lives on the object while the capacity lives with the buffer, so
                 # bound the access by the buffer that is really being addressed.
                 guard index < indexed_elements.capacity else slow;
+                record_keyed_feedback(keyed_feedback, KEYED_FEEDBACK_INT32_INDEX_PACKED);
                 indexed_elements[index] = load(src);
                 dispatch_next;
             },
@@ -2552,6 +2829,7 @@ handler PutByValue(
                 guard indexed_elements != 0 else try_holey_array_slow;
                 guard index < indexed_elements.capacity else try_holey_array_slow;
                 guard indexed_elements[index] is not Value<Empty> else try_holey_array_slow;
+                record_keyed_feedback(keyed_feedback, KEYED_FEEDBACK_INT32_INDEX_HOLEY);
                 indexed_elements[index] = load(src);
                 dispatch_next;
             },
@@ -2570,6 +2848,7 @@ handler PutByValue(
     let elements = primitive_storage_cage_base();
     guard index < object.typed_array_array_length else slow;
     let typed_array_kind = object.typed_array_kind;
+    record_typed_array_keyed_feedback(elements, keyed_feedback, typed_array_kind);
     let source = load(src);
     let store_non_integer = || {
         match typed_array_kind {
@@ -2708,6 +2987,7 @@ handler GetById(
         let result: Value = call_helper_with_two_arguments(asm_try_get_by_id_cache, load(base), cache_pointer);
         guard result is not Value<Empty> else slow;
         store(dst, result);
+        record_value_feedback(value_feedback, result);
         dispatch_next;
     };
 
@@ -2735,7 +3015,9 @@ handler GetById(
         let accessor: Accessor = unbox_object(accessor_value);
         let getter = accessor.getter;
         guard getter != 0 else {
-            store(dst, Value<Undefined>);
+            let produced: Value = Value<Undefined>;
+            record_value_feedback(value_feedback, produced);
+            store(dst, produced);
             dispatch_next;
         };
         let function: Object = alias(getter);
@@ -2745,6 +3027,7 @@ handler GetById(
         if flags has OBJECT_FLAG_IS_DIRECT_GETTER_FUNCTION {
             if property_cache.direct_getter_validated != 0 {
                 guard let result = load_direct_getter_value(function, receiver_object) else invoke_accessor_slow;
+                record_value_feedback(value_feedback, result);
                 store(dst, result);
                 dispatch_next;
             }
@@ -2844,6 +3127,7 @@ handler GetById(
         return_vm.interpreter_stack_top = alias(exec_ctx);
         exec_ctx = caller_frame;
         values = exec_ctx.slots;
+        record_value_feedback(value_feedback, native_payload);
         store(dst, native_payload);
         dispatch_next;
     };
@@ -2884,6 +3168,7 @@ handler GetById(
     let load_polymorphic_value = |holder: Object, entry: PropertyLookupCache| {
         let polymorphic_value = holder.named_properties[entry.property_offset];
         guard polymorphic_value is not Value<Accessor> else try_cache;
+        record_value_feedback(value_feedback, polymorphic_value);
         store(dst, polymorphic_value);
         dispatch_next;
     };
@@ -2903,6 +3188,7 @@ handler GetById(
         guard property_cache.shape_dictionary_generation == shape.dictionary_generation else try_cache;
         let value = holder.named_properties[property_cache.property_offset];
         guard value is not Value<Accessor> else invoke_accessor(value, object, property_cache);
+        record_value_feedback(value_feedback, value);
         store(dst, value);
         dispatch_next;
     };
@@ -3001,6 +3287,9 @@ handler GetByValue(
         guard keyed_entry.shape_dictionary_generation == keyed_shape.dictionary_generation else slow_without_cache;
         let keyed_value = keyed_object.named_properties[keyed_entry.property_offset];
         guard keyed_value is not Value<Accessor> else slow_without_cache;
+        # NB: The runtime recorded multiple keys before the access gave up on its own cache.
+        record_keyed_feedback(keyed_feedback, KEYED_FEEDBACK_MULTIPLE_STRING_KEYS);
+        record_value_feedback(value_feedback, keyed_value);
         store(dst, keyed_value);
         dispatch_next;
     };
@@ -3033,6 +3322,7 @@ handler GetByValue(
         guard property_cache.prototype == 0 else try_cache;
         let value = object.named_properties[property_cache.property_offset];
         guard value is not Value<Accessor> else slow;
+        record_value_feedback(value_feedback, value);
         store(dst, value);
         dispatch_next;
     };
@@ -3050,6 +3340,8 @@ handler GetByValue(
         let signed_code_unit: i32 = alias(code_unit);
         let result: Value = call_helper_with_two_arguments(asm_helper_single_ascii_character_string, current_vm(), signed_code_unit);
         assert(extract_tag(result) == STRING_TAG);
+        record_keyed_feedback(keyed_feedback, KEYED_FEEDBACK_PRIMITIVE_BASE);
+        record_value_feedback(value_feedback, result);
         store(dst, result);
         dispatch_next;
     };
@@ -3067,7 +3359,10 @@ handler GetByValue(
                 # The size above lives on the object while the capacity lives with the buffer, so
                 # bound the access by the buffer that is really being addressed.
                 guard index < indexed_elements.capacity else slow;
-                store(dst, indexed_elements[index]);
+                let value = indexed_elements[index];
+                record_keyed_feedback(keyed_feedback, KEYED_FEEDBACK_INT32_INDEX_PACKED);
+                record_value_feedback(value_feedback, value);
+                store(dst, value);
                 dispatch_next;
             },
 
@@ -3078,6 +3373,8 @@ handler GetByValue(
                 guard index < indexed_elements.capacity else slow;
                 let value = indexed_elements[index];
                 guard value is not Value<Empty> else slow;
+                record_keyed_feedback(keyed_feedback, KEYED_FEEDBACK_INT32_INDEX_HOLEY);
+                record_value_feedback(value_feedback, value);
                 store(dst, value);
                 dispatch_next;
             },
@@ -3093,14 +3390,18 @@ handler GetByValue(
     let elements = primitive_storage_cage_base();
     guard index < object.typed_array_array_length else try_typed_array_slow;
     let kind = object.typed_array_kind;
+    record_typed_array_keyed_feedback(elements, keyed_feedback, kind);
 
     let typed_array_f64_as_int = |raw: i32| {
-        store(dst, box_i32(raw));
+        let produced: Value = box_i32(raw);
+        record_value_feedback(value_feedback, produced);
+        store(dst, produced);
         dispatch_next;
     };
 
     let typed_array_f64_as_double = |slot_f64: f64| {
         let result = canonicalize_nan(slot_f64);
+        record_value_feedback(value_feedback, result);
         store(dst, result);
         dispatch_next;
     };
@@ -3109,7 +3410,9 @@ handler GetByValue(
     #        one taken branch per load but duplicates about 30 instructions
     #        in this hot handler. Revisit with profile data or cost-aware layout.
     let typed_array_box_int32 = |raw: i32| {
-        store(dst, box_i32(raw));
+        let produced: Value = box_i32(raw);
+        record_value_feedback(value_feedback, produced);
+        store(dst, produced);
         dispatch_next;
     };
 
@@ -3117,7 +3420,9 @@ handler GetByValue(
         TYPED_ARRAY_KIND_UINT8 | TYPED_ARRAY_KIND_UINT8_CLAMPED => @hot {
             let value = load_caged_u8(elements, cached_offset, index);
             let widened: i32 = alias(value);
-            store(dst, box_i32(widened));
+            let produced: Value = box_i32(widened);
+            record_value_feedback(value_feedback, produced);
+            store(dst, produced);
             dispatch_next;
         },
 
@@ -3142,6 +3447,7 @@ handler GetByValue(
             let uint32_to_double = || @cold {
                 let slot_f64 = u32_to_f64(raw_u32);
                 let result = box_f64(slot_f64);
+                record_value_feedback(value_feedback, result);
                 store(dst, result);
                 dispatch_next;
             };
@@ -3209,7 +3515,9 @@ handler GetLength(
         guard let Value<PrimitiveString>(string) = load(base) else slow;
         let length = string.length_in_utf16_code_units;
         guard length <= INT32_MAX else slow;
-        store(dst, box_i32(assume_i32(length)));
+        let produced: Value = box_i32(assume_i32(length));
+        record_value_feedback(value_feedback, produced);
+        store(dst, produced);
         dispatch_next;
     };
 
@@ -3217,12 +3525,16 @@ handler GetLength(
     if object.flags has OBJECT_FLAG_HAS_MAGICAL_LENGTH {
         let length = object.indexed_array_like_size;
         let length_double = || @cold {
-            store(dst, box_f64(u32_to_f64(length)));
+            let produced: Value = box_f64(u32_to_f64(length));
+            record_value_feedback(value_feedback, produced);
+            store(dst, produced);
             dispatch_next;
         };
 
         guard length <= INT32_MAX else length_double;
-        store(dst, box_i32(assume_i32(length)));
+        let produced: Value = box_i32(assume_i32(length));
+        record_value_feedback(value_feedback, produced);
+        store(dst, produced);
         dispatch_next;
     }
 
@@ -3233,6 +3545,7 @@ handler GetLength(
     guard property_cache.shape_dictionary_generation == shape.dictionary_generation else slow;
     let value = object.named_properties[property_cache.property_offset];
     guard value is not Value<Accessor> else slow;
+    record_value_feedback(value_feedback, value);
     store(dst, value);
     dispatch_next;
 }
@@ -3281,6 +3594,7 @@ handler GetGlobal(
             environment.binding_values,
             global_cache.environment_binding_index
         ) else slow;
+        record_value_feedback(value_feedback, value);
         store(dst, value);
         dispatch_next;
     };
@@ -3290,6 +3604,7 @@ handler GetGlobal(
     guard global_cache.shape_dictionary_generation == shape.dictionary_generation else try_environment;
     let value = global_object.named_properties[global_cache.property_offset];
     guard value is not Value<Accessor> else slow;
+    record_value_feedback(value_feedback, value);
     store(dst, value);
     dispatch_next;
 }
@@ -3375,6 +3690,7 @@ handler Call(
     guard let Value<Object>(function) = load(callee) else slow;
     let flags = function.flags;
     guard flags has OBJECT_FLAG_IS_FUNCTION else slow;
+    record_call_target(call_feedback, function);
     guard flags has OBJECT_FLAG_IS_ECMASCRIPT_FUNCTION_OBJECT else invoke_try_native;
     let ecmascript_function: ECMAScriptFunctionObject = alias(function);
     let shared_data = ecmascript_function.shared_data;
@@ -3608,6 +3924,7 @@ handler Call(
         exec_ctx = caller_frame;
         values = exec_ctx.slots;
         store(dst, native_payload);
+        record_value_feedback(value_feedback, native_payload);
         dispatch_variable(load(length));
     };
 }
@@ -3620,6 +3937,7 @@ handler CallBuiltinMathAbs(
     argument: in Operand,
     expression_string: Optional<StringTableIndex>
 ) {
+    record_builtin_call_feedback(call_feedback, load(callee));
     let slow = || @cold {
         call_slow_path(call_builtin_math_abs);
     };
@@ -3660,6 +3978,7 @@ handler CallBuiltinMathFloor(
     argument: in Operand,
     expression_string: Optional<StringTableIndex>
 ) {
+    record_builtin_call_feedback(call_feedback, load(callee));
     guard let [_, argument_f64] = load_builtin_f64(
         callee,
         argument,
@@ -3679,6 +3998,7 @@ handler CallBuiltinMathCeil(
     argument: in Operand,
     expression_string: Optional<StringTableIndex>
 ) {
+    record_builtin_call_feedback(call_feedback, load(callee));
     guard let [_, argument_f64] = load_builtin_f64(
         callee,
         argument,
@@ -3698,6 +4018,7 @@ handler CallBuiltinMathSqrt(
     argument: in Operand,
     expression_string: Optional<StringTableIndex>
 ) {
+    record_builtin_call_feedback(call_feedback, load(callee));
     guard let [_, argument_f64] = load_builtin_f64(
         callee,
         argument,
@@ -3717,6 +4038,7 @@ handler CallBuiltinMathExp(
     argument: in Operand,
     expression_string: Optional<StringTableIndex>
 ) {
+    record_builtin_call_feedback(call_feedback, load(callee));
     guard let [argument_value, _] = load_builtin_f64(
         callee,
         argument,
@@ -3739,7 +4061,10 @@ handler CallBuiltinMathLog(
     this_value: Operand,
     argument: Operand,
     expression_string: Optional<StringTableIndex>
-) @cold = call_slow_path(call_builtin_math_log);
+) @cold {
+    record_builtin_call_feedback(call_feedback, load(callee));
+    call_slow_path(call_builtin_math_log);
+}
 
 handler CallBuiltinMathPow(
     call_feedback: CallFeedbackIndex,
@@ -3749,7 +4074,10 @@ handler CallBuiltinMathPow(
     argument0: Operand,
     argument1: Operand,
     expression_string: Optional<StringTableIndex>
-) @cold = call_slow_path(call_builtin_math_pow);
+) @cold {
+    record_builtin_call_feedback(call_feedback, load(callee));
+    call_slow_path(call_builtin_math_pow);
+}
 
 handler CallBuiltinMathImul(
     call_feedback: CallFeedbackIndex,
@@ -3759,7 +4087,10 @@ handler CallBuiltinMathImul(
     argument0: Operand,
     argument1: Operand,
     expression_string: Optional<StringTableIndex>
-) @cold = call_slow_path(call_builtin_math_imul);
+) @cold {
+    record_builtin_call_feedback(call_feedback, load(callee));
+    call_slow_path(call_builtin_math_imul);
+}
 
 handler CallBuiltinMathRandom(
     call_feedback: CallFeedbackIndex,
@@ -3767,7 +4098,10 @@ handler CallBuiltinMathRandom(
     callee: Operand,
     this_value: Operand,
     expression_string: Optional<StringTableIndex>
-) @cold = call_slow_path(call_builtin_math_random);
+) @cold {
+    record_builtin_call_feedback(call_feedback, load(callee));
+    call_slow_path(call_builtin_math_random);
+}
 
 handler CallBuiltinMathRound(
     call_feedback: CallFeedbackIndex,
@@ -3776,7 +4110,10 @@ handler CallBuiltinMathRound(
     this_value: Operand,
     argument: Operand,
     expression_string: Optional<StringTableIndex>
-) @cold = call_slow_path(call_builtin_math_round);
+) @cold {
+    record_builtin_call_feedback(call_feedback, load(callee));
+    call_slow_path(call_builtin_math_round);
+}
 
 handler CallBuiltinMathSin(
     call_feedback: CallFeedbackIndex,
@@ -3785,7 +4122,10 @@ handler CallBuiltinMathSin(
     this_value: Operand,
     argument: Operand,
     expression_string: Optional<StringTableIndex>
-) @cold = call_slow_path(call_builtin_math_sin);
+) @cold {
+    record_builtin_call_feedback(call_feedback, load(callee));
+    call_slow_path(call_builtin_math_sin);
+}
 
 handler CallBuiltinMathCos(
     call_feedback: CallFeedbackIndex,
@@ -3794,7 +4134,10 @@ handler CallBuiltinMathCos(
     this_value: Operand,
     argument: Operand,
     expression_string: Optional<StringTableIndex>
-) @cold = call_slow_path(call_builtin_math_cos);
+) @cold {
+    record_builtin_call_feedback(call_feedback, load(callee));
+    call_slow_path(call_builtin_math_cos);
+}
 
 handler CallBuiltinMathTan(
     call_feedback: CallFeedbackIndex,
@@ -3803,7 +4146,10 @@ handler CallBuiltinMathTan(
     this_value: Operand,
     argument: Operand,
     expression_string: Optional<StringTableIndex>
-) @cold = call_slow_path(call_builtin_math_tan);
+) @cold {
+    record_builtin_call_feedback(call_feedback, load(callee));
+    call_slow_path(call_builtin_math_tan);
+}
 
 handler CallBuiltinRegExpPrototypeExec(
     call_feedback: CallFeedbackIndex,
@@ -3812,7 +4158,10 @@ handler CallBuiltinRegExpPrototypeExec(
     this_value: Operand,
     argument: Operand,
     expression_string: Optional<StringTableIndex>
-) @cold = call_slow_path(call_builtin_regexp_prototype_exec);
+) @cold {
+    record_builtin_call_feedback(call_feedback, load(callee));
+    call_slow_path(call_builtin_regexp_prototype_exec);
+}
 
 handler CallBuiltinRegExpPrototypeReplace(
     call_feedback: CallFeedbackIndex,
@@ -3822,7 +4171,10 @@ handler CallBuiltinRegExpPrototypeReplace(
     argument0: Operand,
     argument1: Operand,
     expression_string: Optional<StringTableIndex>
-) @cold = call_slow_path(call_builtin_regexp_prototype_replace);
+) @cold {
+    record_builtin_call_feedback(call_feedback, load(callee));
+    call_slow_path(call_builtin_regexp_prototype_replace);
+}
 
 handler CallBuiltinRegExpPrototypeSplit(
     call_feedback: CallFeedbackIndex,
@@ -3832,7 +4184,10 @@ handler CallBuiltinRegExpPrototypeSplit(
     argument0: Operand,
     argument1: Operand,
     expression_string: Optional<StringTableIndex>
-) @cold = call_slow_path(call_builtin_regexp_prototype_split);
+) @cold {
+    record_builtin_call_feedback(call_feedback, load(callee));
+    call_slow_path(call_builtin_regexp_prototype_split);
+}
 
 handler CallBuiltinOrdinaryHasInstance(
     call_feedback: CallFeedbackIndex,
@@ -3841,7 +4196,10 @@ handler CallBuiltinOrdinaryHasInstance(
     this_value: Operand,
     argument: Operand,
     expression_string: Optional<StringTableIndex>
-) @cold = call_slow_path(call_builtin_ordinary_has_instance);
+) @cold {
+    record_builtin_call_feedback(call_feedback, load(callee));
+    call_slow_path(call_builtin_ordinary_has_instance);
+}
 
 handler CallBuiltinArrayIteratorPrototypeNext(
     call_feedback: CallFeedbackIndex,
@@ -3849,7 +4207,10 @@ handler CallBuiltinArrayIteratorPrototypeNext(
     callee: Operand,
     this_value: Operand,
     expression_string: Optional<StringTableIndex>
-) @cold = call_slow_path(call_builtin_array_iterator_prototype_next);
+) @cold {
+    record_builtin_call_feedback(call_feedback, load(callee));
+    call_slow_path(call_builtin_array_iterator_prototype_next);
+}
 
 handler CallBuiltinMapIteratorPrototypeNext(
     call_feedback: CallFeedbackIndex,
@@ -3857,7 +4218,10 @@ handler CallBuiltinMapIteratorPrototypeNext(
     callee: Operand,
     this_value: Operand,
     expression_string: Optional<StringTableIndex>
-) @cold = call_slow_path(call_builtin_map_iterator_prototype_next);
+) @cold {
+    record_builtin_call_feedback(call_feedback, load(callee));
+    call_slow_path(call_builtin_map_iterator_prototype_next);
+}
 
 handler CallBuiltinSetIteratorPrototypeNext(
     call_feedback: CallFeedbackIndex,
@@ -3865,7 +4229,10 @@ handler CallBuiltinSetIteratorPrototypeNext(
     callee: Operand,
     this_value: Operand,
     expression_string: Optional<StringTableIndex>
-) @cold = call_slow_path(call_builtin_set_iterator_prototype_next);
+) @cold {
+    record_builtin_call_feedback(call_feedback, load(callee));
+    call_slow_path(call_builtin_set_iterator_prototype_next);
+}
 
 handler CallBuiltinStringIteratorPrototypeNext(
     call_feedback: CallFeedbackIndex,
@@ -3873,7 +4240,10 @@ handler CallBuiltinStringIteratorPrototypeNext(
     callee: Operand,
     this_value: Operand,
     expression_string: Optional<StringTableIndex>
-) @cold = call_slow_path(call_builtin_string_iterator_prototype_next);
+) @cold {
+    record_builtin_call_feedback(call_feedback, load(callee));
+    call_slow_path(call_builtin_string_iterator_prototype_next);
+}
 
 handler CallBuiltinStringFromCharCode(
     call_feedback: CallFeedbackIndex,
@@ -3883,6 +4253,7 @@ handler CallBuiltinStringFromCharCode(
     argument: in Operand,
     expression_string: Optional<StringTableIndex>
 ) {
+    record_builtin_call_feedback(call_feedback, load(callee));
     let slow = || @cold {
         call_slow_path(call_builtin_string_from_char_code);
     };
@@ -3915,6 +4286,7 @@ handler CallBuiltinStringPrototypeCharCodeAt(
     argument: in Operand,
     expression_string: Optional<StringTableIndex>
 ) {
+    record_builtin_call_feedback(call_feedback, load(callee));
     let out_of_bounds = || @cold {
         let result: Value = CANON_NAN_BITS;
         store(dst, result);
@@ -3944,6 +4316,7 @@ handler CallBuiltinStringPrototypeCharAt(
     argument: in Operand,
     expression_string: Optional<StringTableIndex>
 ) {
+    record_builtin_call_feedback(call_feedback, load(callee));
     let slow = || @cold {
         call_slow_path(call_builtin_string_prototype_char_at);
     };
