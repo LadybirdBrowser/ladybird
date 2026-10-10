@@ -57,6 +57,11 @@ pub enum NativeFunctionType {
     RawNativeFunction,
 }
 
+/// The native function table never grows past this power of two, so the interpreter masks an index it reads from a
+/// function object into the table instead of trusting it.
+pub const NATIVE_FUNCTION_TABLE_CAPACITY: usize = 1 << 16;
+pub const NATIVE_FUNCTION_TABLE_INDEX_MASK: u32 = (NATIVE_FUNCTION_TABLE_CAPACITY - 1) as u32;
+
 #[repr(C)]
 pub struct NativeFunctionTableEntry {
     pub function: RawNativeFunctionPointer,

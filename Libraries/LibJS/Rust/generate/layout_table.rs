@@ -430,6 +430,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     offset!(w, "NATIVE_FUNCTION_TABLE_ENTRY_FUNCTION", NativeFunctionTableEntry, function);
     offset!(w, "NATIVE_FUNCTION_TABLE_ENTRY_TYPE", NativeFunctionTableEntry, function_type);
     w.constant("NATIVE_FUNCTION_TYPE_COUNT", NativeFunctionType::RawNativeFunction as u32 + 1);
+    w.hex_constant("NATIVE_FUNCTION_TABLE_INDEX_MASK", u64::from(NATIVE_FUNCTION_TABLE_INDEX_MASK));
     let native_function_table_entry_size = size_of::<NativeFunctionTableEntry>();
     w.assert_size("NativeFunctionTableEntry", native_function_table_entry_size);
     w.line(&format!("field NativeFunctionTableEntry.function u64 NATIVE_FUNCTION_TABLE_ENTRY_FUNCTION nonnull scalar native_function_table_entry stride {native_function_table_entry_size}"));
