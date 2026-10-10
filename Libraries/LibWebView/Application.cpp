@@ -2043,10 +2043,15 @@ static void load_page_for_info_and_exit(Core::EventLoop& event_loop, HeadlessWeb
         if (!url.equals(loaded_url, URL::ExcludeFragment::Yes))
             return;
 
-        view.request_internal_page_info(type)->when_resolved([&event_loop](auto const& text) {
-            outln("{}", text);
-            event_loop.quit(0);
-        });
+        view.request_internal_page_info(type)
+            ->when_resolved([&event_loop](auto const& text) {
+                outln("{}", text);
+                event_loop.quit(0);
+            })
+            .when_rejected([&event_loop](auto const& error) {
+                warnln("Unable to get page info: {}", error);
+                event_loop.quit(1);
+            });
     };
 
     view.load(url);
