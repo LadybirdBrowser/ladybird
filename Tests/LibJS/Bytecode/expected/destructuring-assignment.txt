@@ -6,12 +6,12 @@ $f02c5cc8 destructuring-assignment.js:28:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `array_destructuring_with_class_default`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, array_destructuring_with_class_default
-  [  38] GetGlobal dst:reg7, `object_destructuring_with_function_default`
-  [  48] Call dst:reg6, callee:reg7, this_value:Undefined, object_destructuring_with_function_default
-  [  68] GetGlobal dst:reg7, `setter_parameter_resolution`
-  [  78] Call dst:reg5, callee:reg7, this_value:Undefined, setter_parameter_resolution
+  [   8] GetGlobal value_feedback:0, dst:reg6, `array_destructuring_with_class_default`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, array_destructuring_with_class_default
+  [  38] GetGlobal value_feedback:2, dst:reg7, `object_destructuring_with_function_default`
+  [  48] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, object_destructuring_with_function_default
+  [  68] GetGlobal value_feedback:4, dst:reg7, `setter_parameter_resolution`
+  [  78] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg7, this_value:Undefined, setter_parameter_resolution
   [  98] End value:reg5
 
 
@@ -78,10 +78,10 @@ block11:
   [ 188] Jump target:block10
 
 block12:
-  [ 190] JumpStrictlyEqualsRhsInt32 lhs:reg10, rhs:1, true_target:block14, false_target:block15
+  [ 190] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg10, rhs:1, true_target:block14, false_target:block15
 
 block13:
-  [ 1a8] JumpStrictlyEqualsRhsInt32 lhs:reg10, rhs:2, true_target:block16, false_target:block17
+  [ 1a8] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg10, rhs:2, true_target:block16, false_target:block17
 
 block14:
   [ 1c0] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11
@@ -114,7 +114,7 @@ block0:
   [   8] MovSrcUndefined dst:x~0
   [  10] NewObject dst:reg5
   [  20] ThrowIfNullish src:reg5
-  [  28] GetById dst:reg6, base:reg5, `x`
+  [  28] GetById value_feedback:0, dst:reg6, base:reg5, `x`
   [  40] JumpUndefined condition:reg6, true_target:block1, false_target:block2
 
 block1:
@@ -152,7 +152,7 @@ block1:
   [  a0] JumpIf condition:reg9, true_target:block11, false_target:block10
 
 block2:
-  [  b0] GetInitializedBinding dst:reg5, `setValue`
+  [  b0] GetInitializedBinding value_feedback:0, dst:reg5, `setValue`
   [  c8] Return value:reg5
 
 block3:
@@ -183,10 +183,10 @@ block9:
   [ 1a8] Jump target:block8
 
 block10:
-  [ 1b0] JumpStrictlyEqualsRhsInt32 lhs:reg10, rhs:1, true_target:block12, false_target:block13
+  [ 1b0] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg10, rhs:1, true_target:block12, false_target:block13
 
 block11:
-  [ 1c8] JumpStrictlyEqualsRhsInt32 lhs:reg10, rhs:2, true_target:block14, false_target:block15
+  [ 1c8] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg10, rhs:2, true_target:block14, false_target:block15
 
 block12:
   [ 1e0] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11

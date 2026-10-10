@@ -7,8 +7,8 @@ $6a33dffa for-of-cond-rhs-block-order.js:6:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `f`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Null, Null]
+  [   8] GetGlobal value_feedback:0, dst:reg6, `f`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Null, Null]
   [  40] End value:reg5
 
 
@@ -36,7 +36,7 @@ block2:
 
 block3:
   [  50] Mov dst:reg6, src:arg0
-  [  60] GetById dst:reg7, base:reg6, `x` (o.x)
+  [  60] GetById value_feedback:0, dst:reg7, base:reg6, `x` (o.x)
   [  78] Mov dst:reg5, src:reg7
   [  88] Jump target:block5
 
@@ -44,10 +44,10 @@ block4:
   [  90] Mov dst:reg5, src:arg1
 
 block5:
-  [  a0] GetGlobal dst:reg6, `Object`
-  [  b0] GetById dst:reg8, base:reg6, `entries` (Object.entries)
+  [  a0] GetGlobal value_feedback:1, dst:reg6, `Object`
+  [  b0] GetById value_feedback:2, dst:reg8, base:reg6, `entries` (Object.entries)
   [  c8] NewObject dst:reg9
-  [  d8] Call dst:reg7, callee:reg8, this_value:reg6, Object.entries, arguments:[reg9]
+  [  d8] Call value_feedback:3, call_feedback:0, dst:reg7, callee:reg8, this_value:reg6, Object.entries, arguments:[reg9]
   [ 100] GetIterator dst_iterator_object:reg5, dst_iterator_next:reg8, dst_iterator_done:reg6, iterable:reg7
   [ 118] Jump target:block2
 
@@ -57,7 +57,7 @@ block6:
   [ 130] Mov dst:reg7, src:Int32(1)
 
 block7:
-  [ 140] JumpStrictlyEqualsRhsInt32 lhs:reg7, rhs:1, true_target:block27, false_target:block28
+  [ 140] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg7, rhs:1, true_target:block27, false_target:block28
 
 block8:
   [ 158] Mov dst:reg12, src:Bool(false)
@@ -110,10 +110,10 @@ block20:
   [ 298] Jump target:block19
 
 block21:
-  [ 2a0] JumpStrictlyEqualsRhsInt32 lhs:reg16, rhs:1, true_target:block23, false_target:block24
+  [ 2a0] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg16, rhs:1, true_target:block23, false_target:block24
 
 block22:
-  [ 2b8] JumpStrictlyEqualsRhsInt32 lhs:reg16, rhs:2, true_target:block25, false_target:block26
+  [ 2b8] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg16, rhs:2, true_target:block25, false_target:block26
 
 block23:
   [ 2d0] IteratorClose iterator_object:reg13, iterator_next:reg14, iterator_done:reg15, completion_value:reg17
@@ -136,7 +136,7 @@ block27:
 
 block28:
   [ 358] IteratorClose iterator_object:reg5, iterator_next:reg8, iterator_done:reg6, completion_value:Undefined
-  [ 370] JumpStrictlyEqualsRhsInt32 lhs:reg7, rhs:2, true_target:block29, false_target:block30
+  [ 370] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg7, rhs:2, true_target:block29, false_target:block30
 
 block29:
   [ 388] Return value:reg9

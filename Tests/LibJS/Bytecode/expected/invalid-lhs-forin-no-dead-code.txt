@@ -26,7 +26,7 @@ block4:
   [  90] Jump target:block2
 
 block5:
-  [  98] GetGlobal dst:reg13, `f`
-  [  a8] Call dst:reg12, callee:reg13, this_value:Undefined, f
+  [  98] GetGlobal value_feedback:0, dst:reg13, `f`
+  [  a8] Call value_feedback:1, call_feedback:0, dst:reg12, callee:reg13, this_value:Undefined, f
   [  c8] NewReferenceError dst:reg12, Invalid left-hand side in assignment
   [  d8] Throw src:reg12

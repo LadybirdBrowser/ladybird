@@ -585,6 +585,10 @@ fn generate_instruction_dump_from_bytes(
                     w,
                     "            dumper.append_piece(|dumper| dumper.append_put_kind(\"{label}\", {rname}));"
                 )?,
+                "ArithFeedbackIndex" | "ValueFeedbackIndex" | "CallFeedbackIndex" | "KeyedFeedbackIndex" => writeln!(
+                    w,
+                    "            dumper.append_piece(|dumper| dumper.append_number(\"{label}\", {rname}));"
+                )?,
                 _ if (ty == "i32" || ty == "u32" || ty == "u64" || ty == "u8")
                     && !count_fields.contains(f.name.as_str()) =>
                 {

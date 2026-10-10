@@ -16,10 +16,10 @@ block0:
   [  50] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("call")]
   [  78] LeavePrivateEnvironment
   [  80] DynamicInitializeLexicalBinding `C`, src:reg6
-  [  90] GetGlobal dst:reg7, `C`
-  [  a0] CallConstruct dst:reg5, callee:reg7, C
-  [  c0] GetById dst:reg7, base:reg5, `call`
-  [  d8] Call dst:reg6, callee:reg7, this_value:reg5, <object>.call
+  [  90] GetGlobal value_feedback:0, dst:reg7, `C`
+  [  a0] CallConstruct value_feedback:1, call_feedback:0, dst:reg5, callee:reg7, C
+  [  c0] GetById value_feedback:2, dst:reg7, base:reg5, `call`
+  [  d8] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:reg5, <object>.call
   [  f8] End value:reg6
 
 
@@ -41,7 +41,7 @@ call$4b20f1d0 private-method-call-description.js:6:9
 block0:
   [   0] Enter
   [   8] GetPrivateById dst:reg6, base:this, `#m`
-  [  18] Call dst:reg5, callee:reg6, this_value:this, this.#m
+  [  18] Call value_feedback:0, call_feedback:0, dst:reg5, callee:reg6, this_value:this, this.#m
   [  38] Return value:reg5
 
 

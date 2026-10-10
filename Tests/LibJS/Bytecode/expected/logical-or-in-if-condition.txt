@@ -7,8 +7,8 @@ $469b0790 logical-or-in-if-condition.js:12:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `blocked`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, blocked, arguments:[Bool(false)]
+  [   8] GetGlobal value_feedback:0, dst:reg6, `blocked`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, blocked, arguments:[Bool(false)]
   [  40] End value:reg5
 
 

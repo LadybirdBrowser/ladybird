@@ -7,8 +7,8 @@ $393b7f47 logical-or-preferred-dst.js:11:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `blocked`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, blocked, arguments:[Bool(false)]
+  [   8] GetGlobal value_feedback:0, dst:reg6, `blocked`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, blocked, arguments:[Bool(false)]
   [  40] End value:reg5
 
 
@@ -30,7 +30,7 @@ block2:
   [  28] End value:Undefined
 
 block3:
-  [  30] GreaterThanRhsInt32 dst:reg5, lhs:arg0, rhs:0
+  [  30] GreaterThanRhsInt32 arith_feedback:0, dst:reg5, lhs:arg0, rhs:0
 
 block4:
   [  40] JumpFalse condition:reg5, target:block6

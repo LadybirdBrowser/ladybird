@@ -6,10 +6,10 @@ $99b9a749 destructuring-let-compound-assign.js:5:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `f`
+  [   8] GetGlobal value_feedback:0, dst:reg6, `f`
   [  18] NewObject dst:reg7
   [  28] NewObject dst:reg8
-  [  38] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7, reg8]
+  [  38] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7, reg8]
   [  60] End value:reg5
 
 
@@ -25,10 +25,10 @@ block0:
   [   0] Enter
   [   8] ThrowIfNullish src:arg0
   [  10] Mov dst:reg5, src:arg0
-  [  20] GetById dst:reg6, base:reg5, `patchFlag`
+  [  20] GetById value_feedback:0, dst:reg6, base:reg5, `patchFlag`
   [  38] Mov3 c0_dst:a~0, c0_src:reg6, c1_dst:reg5, c1_src:a~0, c2_dst:reg6, c2_src:arg1
-  [  58] GetById dst:reg7, base:reg6, `patchFlag` (e.patchFlag)
-  [  70] BitwiseAnd dst:reg6, lhs:Int32(16), rhs:reg7
-  [  80] BitwiseOr dst:reg7, lhs:reg5, rhs:reg6
+  [  58] GetById value_feedback:1, dst:reg7, base:reg6, `patchFlag` (e.patchFlag)
+  [  70] BitwiseAnd arith_feedback:0, dst:reg6, lhs:Int32(16), rhs:reg7
+  [  80] BitwiseOr arith_feedback:1, dst:reg7, lhs:reg5, rhs:reg6
   [  90] Mov dst:a~0, src:reg7
   [  a0] End value:Undefined

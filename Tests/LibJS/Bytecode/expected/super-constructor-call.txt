@@ -15,12 +15,12 @@ block0:
   [  60] DynamicInitializeLexicalBinding `Base`, src:reg6
   [  70] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:1, is_catch_environment:false
   [  88] CreateVariable `Derived`, is_immutable:true, is_global:false, is_strict:true
-  [  98] GetGlobal dst:reg5, `Base`
+  [  98] GetGlobal value_feedback:0, dst:reg5, `Base`
   [  a8] SetLexicalEnvironment environment:reg4
   [  b0] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1
   [  d0] DynamicInitializeLexicalBinding `Derived`, src:reg7
-  [  e0] GetGlobal dst:reg6, `Derived`
-  [  f0] CallConstruct dst:reg7, callee:reg6, Derived, arguments:[Int32(1)]
+  [  e0] GetGlobal value_feedback:1, dst:reg6, `Derived`
+  [  f0] CallConstruct value_feedback:2, call_feedback:0, dst:reg7, callee:reg6, Derived, arguments:[Int32(1)]
   [ 118] End value:reg7
 
 
@@ -35,7 +35,7 @@ block0:
   [   8] GetSuperConstructor dst:reg5
   [  10] Mov dst:reg7, src:arg0
   [  20] NewArray dst:reg6, elements:[reg7]
-  [  38] SuperCallWithArgumentArray dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:false
+  [  38] SuperCallWithArgumentArray value_feedback:0, call_feedback:0, dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:false
   [  50] End value:Undefined
 
 

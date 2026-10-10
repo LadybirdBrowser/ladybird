@@ -8,8 +8,8 @@ $9431c529 destructuring-assignment-in-logical-and.js:5:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `f`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Null, Int32(0)]
+  [   8] GetGlobal value_feedback:0, dst:reg6, `f`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Null, Int32(0)]
   [  40] End value:reg5
 
 
@@ -31,7 +31,7 @@ block0:
 
 block1:
   [  40] Mov2 c0_dst:reg7, c0_src:arg0, c1_dst:reg8, c1_src:arg1
-  [  58] Call dst:reg6, callee:reg7, this_value:Undefined, t, arguments:[reg8]
+  [  58] Call value_feedback:0, call_feedback:0, dst:reg6, callee:reg7, this_value:Undefined, t, arguments:[reg8]
   [  80] Mov dst:reg7, src:Bool(false)
   [  90] GetIterator dst_iterator_object:reg8, dst_iterator_next:reg9, dst_iterator_done:reg10, iterable:reg6
   [  a8] Jump target:block5
@@ -86,10 +86,10 @@ block14:
   [ 1d8] Jump target:block13
 
 block15:
-  [ 1e0] JumpStrictlyEqualsRhsInt32 lhs:reg11, rhs:1, true_target:block17, false_target:block18
+  [ 1e0] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg11, rhs:1, true_target:block17, false_target:block18
 
 block16:
-  [ 1f8] JumpStrictlyEqualsRhsInt32 lhs:reg11, rhs:2, true_target:block19, false_target:block20
+  [ 1f8] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg11, rhs:2, true_target:block19, false_target:block20
 
 block17:
   [ 210] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:reg12

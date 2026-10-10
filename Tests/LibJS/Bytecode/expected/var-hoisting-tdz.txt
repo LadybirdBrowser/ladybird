@@ -6,8 +6,8 @@ $fd650eed var-hoisting-tdz.js:9:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `isect`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, isect
+  [   8] GetGlobal value_feedback:0, dst:reg6, `isect`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, isect
   [  38] End value:reg5
 
 
@@ -26,20 +26,20 @@ block0:
   [  20] Jump target:block2
 
 block1:
-  [  28] PostfixIncrement dst:reg5, src:i~0
+  [  28] PostfixIncrement arith_feedback:1, dst:reg5, src:i~0
 
 block2:
-  [  38] JumpLessThanRhsInt32 lhs:i~0, rhs:3, true_target:block1, false_target:block3
+  [  38] JumpLessThanRhsInt32 arith_feedback:0, lhs:i~0, rhs:3, true_target:block1, false_target:block3
 
 block3:
   [  50] Mov dst:i~0, src:Int32(0)
   [  60] Jump target:block5
 
 block4:
-  [  68] PostfixIncrement dst:reg5, src:i~0
+  [  68] PostfixIncrement arith_feedback:3, dst:reg5, src:i~0
 
 block5:
-  [  78] JumpLessThanRhsInt32 lhs:i~0, rhs:3, true_target:block4, false_target:block6
+  [  78] JumpLessThanRhsInt32 arith_feedback:2, lhs:i~0, rhs:3, true_target:block4, false_target:block6
 
 block6:
   [  90] End value:Undefined

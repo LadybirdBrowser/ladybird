@@ -6,8 +6,8 @@ $fd650eed destructure-array-rest.js:9:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `f`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [   8] GetGlobal value_feedback:0, dst:reg6, `f`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, f
   [  38] End value:reg5
 
 
@@ -74,10 +74,10 @@ block12:
   [ 170] Jump target:block11
 
 block13:
-  [ 178] JumpStrictlyEqualsRhsInt32 lhs:reg10, rhs:1, true_target:block15, false_target:block16
+  [ 178] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg10, rhs:1, true_target:block15, false_target:block16
 
 block14:
-  [ 190] JumpStrictlyEqualsRhsInt32 lhs:reg10, rhs:2, true_target:block17, false_target:block18
+  [ 190] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg10, rhs:2, true_target:block17, false_target:block18
 
 block15:
   [ 1a8] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11

@@ -9,10 +9,10 @@ block0:
   [   0] Enter
   [   8] NewObject dst:reg5
   [  18] SetGlobal `x`, src:reg5
-  [  28] GetGlobal dst:reg5, `x`
+  [  28] GetGlobal value_feedback:0, dst:reg5, `x`
   [  38] NewObject dst:reg6
-  [  48] PutByValue base:reg5, property:Double(1.1e-32), src:reg6, kind:Normal (x[Double(1.1e-32)])
-  [  68] GetGlobal dst:reg5, `x`
-  [  78] GetByValue dst:reg7, base:reg5, property:Double(1.1e-32) (x[Double(1.1e-32)])
+  [  48] PutByValue keyed_feedback:0, base:reg5, property:Double(1.1e-32), src:reg6, kind:Normal (x[Double(1.1e-32)])
+  [  68] GetGlobal value_feedback:1, dst:reg5, `x`
+  [  78] GetByValue value_feedback:2, keyed_feedback:1, dst:reg7, base:reg5, property:Double(1.1e-32) (x[Double(1.1e-32)])
   [  98] PutById base:reg7, `foo`, src:Int32(42), kind:Normal (x[1.1e-32].foo)
   [  b8] End value:Int32(42)

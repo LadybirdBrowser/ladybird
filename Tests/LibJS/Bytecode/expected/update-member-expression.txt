@@ -6,12 +6,12 @@ $a9ab6c09 update-member-expression.js:13:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `postfix_increment`
+  [   8] GetGlobal value_feedback:0, dst:reg6, `postfix_increment`
   [  18] NewObject dst:reg7
-  [  28] Call dst:reg5, callee:reg6, this_value:Undefined, postfix_increment, arguments:[reg7]
-  [  50] GetGlobal dst:reg7, `prefix_decrement`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, postfix_increment, arguments:[reg7]
+  [  50] GetGlobal value_feedback:2, dst:reg7, `prefix_decrement`
   [  60] NewObject dst:reg8
-  [  70] Call dst:reg6, callee:reg7, this_value:Undefined, prefix_decrement, arguments:[reg8]
+  [  70] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, prefix_decrement, arguments:[reg8]
   [  98] End value:reg6
 
 
@@ -23,8 +23,8 @@ postfix_increment$cadb66f4 update-member-expression.js:6:14
 
 block0:
   [   0] Enter
-  [   8] GetById dst:reg5, base:arg0, `count` (obj.count)
-  [  20] PostfixIncrement dst:reg6, src:reg5
+  [   8] GetById value_feedback:0, dst:reg5, base:arg0, `count` (obj.count)
+  [  20] PostfixIncrement arith_feedback:0, dst:reg6, src:reg5
   [  30] PutById base:arg0, `count`, src:reg5, kind:Normal
   [  50] End value:Undefined
 
@@ -37,7 +37,7 @@ prefix_decrement$7684d48a update-member-expression.js:10:5
 
 block0:
   [   0] Enter
-  [   8] GetById dst:reg5, base:arg0, `count` (obj.count)
-  [  20] Decrement dst:reg5
+  [   8] GetById value_feedback:0, dst:reg5, base:arg0, `count` (obj.count)
+  [  20] Decrement arith_feedback:0, dst:reg5
   [  28] PutById base:arg0, `count`, src:reg5, kind:Normal
   [  48] End value:Undefined

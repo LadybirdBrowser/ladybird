@@ -9,22 +9,22 @@ $54bb0ec1 tagged-template-if-register-order.js:2:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg5, `String`
-  [  18] GetById dst:reg6, base:reg5, `raw` (String.raw)
+  [   8] GetGlobal value_feedback:0, dst:reg5, `String`
+  [  18] GetById value_feedback:1, dst:reg6, base:reg5, `raw` (String.raw)
   [  30] GetTemplateObject dst:reg7, strings:[String("hello"), String("hello")]
-  [  50] Call dst:reg8, callee:reg6, this_value:reg5, arguments:[reg7]
+  [  50] Call value_feedback:2, call_feedback:0, dst:reg8, callee:reg6, this_value:reg5, arguments:[reg7]
   [  78] DynamicInitializeLexicalBinding `x`, src:reg8
   [  88] DynamicInitializeLexicalBinding `y`, src:Null
-  [  98] GetGlobal dst:reg8, `x`
-  [  a8] StrictlyEquals dst:reg6, lhs:reg8, rhs:String("hello")
+  [  98] GetGlobal value_feedback:3, dst:reg8, `x`
+  [  a8] StrictlyEquals arith_feedback:0, dst:reg6, lhs:reg8, rhs:String("hello")
   [  b8] MovSrcUndefined dst:reg8
   [  c0] JumpFalse condition:reg6, target:block2
 
 block1:
   [  d0] ResolveGlobalBinding dst:reg7, `y`
-  [  e0] GetGlobal dst:reg9, `x`
-  [  f0] GetById dst:reg10, base:reg9, `toUpperCase` (x.toUpperCase)
-  [ 108] Call dst:reg5, callee:reg10, this_value:reg9, x.toUpperCase
+  [  e0] GetGlobal value_feedback:4, dst:reg9, `x`
+  [  f0] GetById value_feedback:5, dst:reg10, base:reg9, `toUpperCase` (x.toUpperCase)
+  [ 108] Call value_feedback:6, call_feedback:1, dst:reg5, callee:reg10, this_value:reg9, x.toUpperCase
   [ 128] JumpIf condition:reg7, true_target:block3, false_target:block4
 
 block2:

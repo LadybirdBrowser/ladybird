@@ -8,11 +8,11 @@ $865e0fd9 baseline.js:5:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `console`
-  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  30] GetGlobal dst:reg9, `add`
-  [  40] Call dst:reg8, callee:reg9, this_value:Undefined, add, arguments:[Int32(1), Int32(2)]
-  [  68] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [   8] GetGlobal value_feedback:0, dst:reg6, `console`
+  [  18] GetById value_feedback:1, dst:reg7, base:reg6, `log` (console.log)
+  [  30] GetGlobal value_feedback:2, dst:reg9, `add`
+  [  40] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg9, this_value:Undefined, add, arguments:[Int32(1), Int32(2)]
+  [  68] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
   [  90] End value:reg5
 
 
@@ -22,7 +22,7 @@ add$1b0f3483 baseline.js:2:5
 
 block0:
   [   0] Enter
-  [   8] Add dst:reg5, lhs:arg0, rhs:arg1
+  [   8] Add arith_feedback:0, dst:reg5, lhs:arg0, rhs:arg1
   [  18] Return value:reg5
 
 

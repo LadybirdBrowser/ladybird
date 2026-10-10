@@ -13,10 +13,10 @@ block0:
   [  30] NewRegExp dst:reg5, bar, gi
   [  48] DynamicInitializeLexicalBinding `b`, src:reg5
   [  58] NewRegExp dst:reg5, baz, i
-  [  70] AddLhsInt32 dst:reg6, lhs:1, rhs:reg5
+  [  70] AddLhsInt32 arith_feedback:0, dst:reg6, lhs:1, rhs:reg5
   [  80] DynamicInitializeLexicalBinding `c`, src:reg6
-  [  90] GetGlobal dst:reg5, `matchDigits`
-  [  a0] Call dst:reg6, callee:reg5, this_value:Undefined, matchDigits, arguments:[String("abc123")]
+  [  90] GetGlobal value_feedback:0, dst:reg5, `matchDigits`
+  [  a0] Call value_feedback:1, call_feedback:0, dst:reg6, callee:reg5, this_value:Undefined, matchDigits, arguments:[String("abc123")]
   [  c8] End value:reg6
 
 
@@ -27,7 +27,7 @@ matchDigits$5149c62f regex-literals.js:8:5
 block0:
   [   0] Enter
   [   8] NewRegExp dst:reg6, \d+, g
-  [  20] GetById dst:reg7, base:reg6, `test`
+  [  20] GetById value_feedback:0, dst:reg7, base:reg6, `test`
   [  38] Mov dst:reg8, src:arg0
-  [  48] Call dst:reg5, callee:reg7, this_value:reg6, <object>.test, arguments:[reg8]
+  [  48] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg7, this_value:reg6, <object>.test, arguments:[reg8]
   [  70] Return value:reg5

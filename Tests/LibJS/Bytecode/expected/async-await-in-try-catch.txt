@@ -6,9 +6,9 @@ $793f2555 async-await-in-try-catch.js:9:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `f`
+  [   8] GetGlobal value_feedback:0, dst:reg6, `f`
   [  18] NewObject dst:reg7
-  [  28] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
   [  50] End value:reg5
 
 
@@ -44,7 +44,7 @@ block4:
 block5:
   [  88] Mov dst:reg6, src:reg0
   [  98] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
-  [  a8] JumpStrictlyEqualsRhsInt32 lhs:reg7, rhs:1, true_target:block6, false_target:block7
+  [  a8] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg7, rhs:1, true_target:block6, false_target:block7
 
 block6:
   [  c0] SetLexicalEnvironment environment:reg4

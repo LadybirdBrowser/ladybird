@@ -7,12 +7,12 @@ $fba164e3 computed-string-object-literal.js:15:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `simple_computed`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, simple_computed
-  [  38] GetGlobal dst:reg7, `mixed`
-  [  48] Call dst:reg6, callee:reg7, this_value:Undefined, mixed
-  [  68] GetGlobal dst:reg7, `dynamic`
-  [  78] Call dst:reg5, callee:reg7, this_value:Undefined, dynamic, arguments:[String("x")]
+  [   8] GetGlobal value_feedback:0, dst:reg6, `simple_computed`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, simple_computed
+  [  38] GetGlobal value_feedback:2, dst:reg7, `mixed`
+  [  48] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, mixed
+  [  68] GetGlobal value_feedback:4, dst:reg7, `dynamic`
+  [  78] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg7, this_value:Undefined, dynamic, arguments:[String("x")]
   [  a0] End value:reg5
 
 
@@ -57,5 +57,5 @@ block0:
   [   8] NewObject dst:reg5
   [  18] Mov dst:reg6, src:arg0
   [  28] ToPrimitiveWithStringHint dst:reg6, value:reg6
-  [  38] PutByValue base:reg5, property:reg6, src:Int32(1), kind:Own
+  [  38] PutByValue keyed_feedback:0, base:reg5, property:reg6, src:Int32(1), kind:Own
   [  58] Return value:reg5

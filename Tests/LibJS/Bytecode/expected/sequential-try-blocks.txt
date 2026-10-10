@@ -6,11 +6,11 @@ $bdbbce45 sequential-try-blocks.js:17:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `console`
-  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  30] GetGlobal dst:reg9, `sequentialTryCatch`
-  [  40] Call dst:reg8, callee:reg9, this_value:Undefined, sequentialTryCatch
-  [  60] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [   8] GetGlobal value_feedback:0, dst:reg6, `console`
+  [  18] GetById value_feedback:1, dst:reg7, base:reg6, `log` (console.log)
+  [  30] GetGlobal value_feedback:2, dst:reg9, `sequentialTryCatch`
+  [  40] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg9, this_value:Undefined, sequentialTryCatch
+  [  60] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
   [  88] End value:reg5
 
 
@@ -37,13 +37,13 @@ block1:
   [  28] Catch dst:reg5
   [  30] SetLexicalEnvironment environment:reg4
   [  38] Mov2 c0_dst:e~0, c0_src:reg5, c1_dst:reg6, c1_src:result~2
-  [  50] Add dst:reg7, lhs:reg6, rhs:String("b")
+  [  50] Add arith_feedback:0, dst:reg7, lhs:reg6, rhs:String("b")
   [  60] Mov dst:result~2, src:reg7
   [  70] Jump target:block4
 
 block2:
   [  78] Mov dst:reg5, src:result~2
-  [  88] Add dst:reg7, lhs:reg5, rhs:String("a")
+  [  88] Add arith_feedback:1, dst:reg7, lhs:reg5, rhs:String("a")
   [  98] Mov dst:result~2, src:reg7
   [  a8] Throw src:Int32(1)
 
@@ -51,13 +51,13 @@ block3:
   [  b0] Catch dst:reg7
   [  b8] SetLexicalEnvironment environment:reg4
   [  c0] Mov2 c0_dst:e~1, c0_src:reg7, c1_dst:reg5, c1_src:result~2
-  [  d8] Add dst:reg6, lhs:reg5, rhs:String("d")
+  [  d8] Add arith_feedback:2, dst:reg6, lhs:reg5, rhs:String("d")
   [  e8] Mov dst:result~2, src:reg6
   [  f8] Return value:result~2
 
 block4:
   [ 100] Mov dst:reg7, src:result~2
-  [ 110] Add dst:reg6, lhs:reg7, rhs:String("c")
+  [ 110] Add arith_feedback:3, dst:reg6, lhs:reg7, rhs:String("c")
   [ 120] Mov dst:result~2, src:reg6
   [ 130] Throw src:Int32(2)
 

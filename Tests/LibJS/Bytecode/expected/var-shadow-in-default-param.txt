@@ -8,10 +8,10 @@ $db17f9c3 var-shadow-in-default-param.js:7:1
 block0:
   [   0] Enter
   [   8] SetGlobal `shadow`, src:String("outer")
-  [  18] GetGlobal dst:reg6, `shadow_in_default`
-  [  28] Call dst:reg5, callee:reg6, this_value:Undefined, shadow_in_default
-  [  48] GetGlobal dst:reg7, `no_conflict`
-  [  58] Call dst:reg6, callee:reg7, this_value:Undefined, no_conflict
+  [  18] GetGlobal value_feedback:0, dst:reg6, `shadow_in_default`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, shadow_in_default
+  [  48] GetGlobal value_feedback:2, dst:reg7, `no_conflict`
+  [  58] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, no_conflict
   [  78] End value:reg6
 
 
@@ -27,7 +27,7 @@ block0:
   [   8] JumpUndefined condition:arg0, true_target:block1, false_target:block2
 
 block1:
-  [  18] DynamicGetInitializedBinding dst:reg5, `shadow`
+  [  18] DynamicGetInitializedBinding value_feedback:0, dst:reg5, `shadow`
   [  28] Mov dst:arg0, src:reg5
 
 block2:

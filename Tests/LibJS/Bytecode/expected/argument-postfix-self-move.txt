@@ -7,8 +7,8 @@ $9431c529 argument-postfix-self-move.js:5:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `f`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(10)]
+  [   8] GetGlobal value_feedback:0, dst:reg6, `f`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(10)]
   [  40] End value:reg5
 
 
@@ -18,6 +18,6 @@ f$01d98a5f argument-postfix-self-move.js:2:6
 
 block0:
   [   0] Enter
-  [   8] PostfixDecrement dst:reg5, src:arg0
+  [   8] PostfixDecrement arith_feedback:0, dst:reg5, src:arg0
   [  18] Mov dst:arg0, src:arg0
   [  28] Return value:arg0

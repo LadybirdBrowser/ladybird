@@ -9,21 +9,21 @@ $bcbab198 switch-local-only-let.js:15:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `console`
-  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  30] GetGlobal dst:reg9, `switchLocalOnly`
-  [  40] Call dst:reg8, callee:reg9, this_value:Undefined, switchLocalOnly, arguments:[Int32(1)]
-  [  68] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  90] GetGlobal dst:reg6, `console`
-  [  a0] GetById dst:reg8, base:reg6, `log` (console.log)
-  [  b8] GetGlobal dst:reg10, `switchLocalOnly`
-  [  c8] Call dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(2)]
-  [  f0] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
-  [ 118] GetGlobal dst:reg8, `console`
-  [ 128] GetById dst:reg6, base:reg8, `log` (console.log)
-  [ 140] GetGlobal dst:reg10, `switchLocalOnly`
-  [ 150] Call dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(3)]
-  [ 178] Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
+  [   8] GetGlobal value_feedback:0, dst:reg6, `console`
+  [  18] GetById value_feedback:1, dst:reg7, base:reg6, `log` (console.log)
+  [  30] GetGlobal value_feedback:2, dst:reg9, `switchLocalOnly`
+  [  40] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg9, this_value:Undefined, switchLocalOnly, arguments:[Int32(1)]
+  [  68] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  90] GetGlobal value_feedback:5, dst:reg6, `console`
+  [  a0] GetById value_feedback:6, dst:reg8, base:reg6, `log` (console.log)
+  [  b8] GetGlobal value_feedback:7, dst:reg10, `switchLocalOnly`
+  [  c8] Call value_feedback:8, call_feedback:2, dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(2)]
+  [  f0] Call value_feedback:9, call_feedback:3, dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [ 118] GetGlobal value_feedback:10, dst:reg8, `console`
+  [ 128] GetById value_feedback:11, dst:reg6, base:reg8, `log` (console.log)
+  [ 140] GetGlobal value_feedback:12, dst:reg10, `switchLocalOnly`
+  [ 150] Call value_feedback:13, call_feedback:4, dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(3)]
+  [ 178] Call value_feedback:14, call_feedback:5, dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
   [ 1a0] End value:reg5
 
 
@@ -41,10 +41,10 @@ switchLocalOnly$6a4e5c3f switch-local-only-let.js:4:5
 
 block0:
   [   0] Enter
-  [   8] JumpStrictlyEquals lhs:Int32(1), rhs:arg0, true_target:block3, false_target:block1
+  [   8] JumpStrictlyEquals arith_feedback:0, lhs:Int32(1), rhs:arg0, true_target:block3, false_target:block1
 
 block1:
-  [  20] JumpStrictlyEquals lhs:Int32(2), rhs:arg0, true_target:block4, false_target:block2
+  [  20] JumpStrictlyEquals arith_feedback:1, lhs:Int32(2), rhs:arg0, true_target:block4, false_target:block2
 
 block2:
   [  38] Return value:Int32(0)

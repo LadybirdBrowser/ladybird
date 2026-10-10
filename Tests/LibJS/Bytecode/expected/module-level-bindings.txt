@@ -14,12 +14,12 @@ inner$24238fde module-level-bindings.mjs:7:18
 
 block0:
   [   0] Enter
-  [   8] GetBinding dst:reg5, `lexical`
-  [  20] GetBinding dst:reg6, `constant`
-  [  38] Add dst:reg7, lhs:reg5, rhs:reg6
+  [   8] GetBinding value_feedback:0, dst:reg5, `lexical`
+  [  20] GetBinding value_feedback:1, dst:reg6, `constant`
+  [  38] Add arith_feedback:0, dst:reg7, lhs:reg5, rhs:reg6
   [  48] SetLexicalBinding `variable`, src:reg7
-  [  60] GetCalleeAndThisFromEnvironment callee:reg5, this_value:reg6, `declared`
-  [  78] Call dst:reg7, callee:reg5, this_value:reg6, declared
+  [  60] GetCalleeAndThisFromEnvironment value_feedback:2, callee:reg5, this_value:reg6, `declared`
+  [  78] Call value_feedback:3, call_feedback:0, dst:reg7, callee:reg5, this_value:reg6, declared
   [  98] Return value:reg7
 
 

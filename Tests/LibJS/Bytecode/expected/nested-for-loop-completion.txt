@@ -21,25 +21,25 @@ block1:
   [  40] Jump target:block6
 
 block2:
-  [  48] GetGlobal dst:reg7, `n`
-  [  58] AddRhsInt32 dst:reg6, lhs:reg7, rhs:1
+  [  48] GetGlobal value_feedback:1, dst:reg7, `n`
+  [  58] AddRhsInt32 arith_feedback:1, dst:reg6, lhs:reg7, rhs:1
   [  68] SetGlobal `n`, src:reg6
 
 block3:
-  [  78] GetGlobal dst:reg6, `n`
-  [  88] JumpLessThanEqualsRhsInt32 lhs:reg6, rhs:7, true_target:block1, false_target:block4
+  [  78] GetGlobal value_feedback:0, dst:reg6, `n`
+  [  88] JumpLessThanEqualsRhsInt32 arith_feedback:0, lhs:reg6, rhs:7, true_target:block1, false_target:block4
 
 block4:
   [  a0] End value:reg5
 
 block5:
-  [  a8] GetGlobal dst:reg8, `depth`
-  [  b8] AddRhsInt32 dst:reg7, lhs:reg8, rhs:2
+  [  a8] GetGlobal value_feedback:3, dst:reg8, `depth`
+  [  b8] AddRhsInt32 arith_feedback:3, dst:reg7, lhs:reg8, rhs:2
   [  c8] SetGlobal `depth`, src:reg7
 
 block6:
-  [  d8] GetGlobal dst:reg7, `depth`
-  [  e8] JumpLessThanEqualsRhsInt32 lhs:reg7, rhs:0, true_target:block5, false_target:block7
+  [  d8] GetGlobal value_feedback:2, dst:reg7, `depth`
+  [  e8] JumpLessThanEqualsRhsInt32 arith_feedback:2, lhs:reg7, rhs:0, true_target:block5, false_target:block7
 
 block7:
   [ 100] Mov dst:reg5, src:reg6

@@ -7,10 +7,10 @@ $cacfda54 named-function-expression-unused-name.js:24:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `outer`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, outer, arguments:[Int32(1)]
-  [  40] GetGlobal dst:reg7, `outerWithEval`
-  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, outerWithEval
+  [   8] GetGlobal value_feedback:0, dst:reg6, `outer`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, outer, arguments:[Int32(1)]
+  [  40] GetGlobal value_feedback:2, dst:reg7, `outerWithEval`
+  [  50] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, outerWithEval
   [  70] End value:reg6
 
 

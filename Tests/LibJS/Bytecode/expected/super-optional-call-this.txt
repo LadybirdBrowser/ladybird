@@ -15,14 +15,14 @@ block0:
   [  68] DynamicInitializeLexicalBinding `Base`, src:reg6
   [  78] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:1, is_catch_environment:false
   [  90] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:true
-  [  a0] GetGlobal dst:reg5, `Base`
+  [  a0] GetGlobal value_feedback:0, dst:reg5, `Base`
   [  b0] SetLexicalEnvironment environment:reg4
   [  b8] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("method")]
   [  e0] DynamicInitializeLexicalBinding `Foo`, src:reg7
-  [  f0] GetGlobal dst:reg5, `Foo`
-  [ 100] CallConstruct dst:reg6, callee:reg5, Foo
-  [ 120] GetById dst:reg5, base:reg6, `method`
-  [ 138] Call dst:reg7, callee:reg5, this_value:reg6, <object>.method
+  [  f0] GetGlobal value_feedback:1, dst:reg5, `Foo`
+  [ 100] CallConstruct value_feedback:2, call_feedback:0, dst:reg6, callee:reg5, Foo
+  [ 120] GetById value_feedback:3, dst:reg5, base:reg6, `method`
+  [ 138] Call value_feedback:4, call_feedback:1, dst:reg7, callee:reg5, this_value:reg6, <object>.method
   [ 158] End value:reg7
 
 
@@ -36,8 +36,8 @@ block0:
   [  18] CreateRestParams dst:arg0, rest_index:0
   [  28] InitializeLexicalBinding `args`, src:arg0
   [  40] GetSuperConstructor dst:reg5
-  [  48] GetBinding dst:reg6, `args`
-  [  60] SuperCallWithArgumentArray dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:true
+  [  48] GetBinding value_feedback:0, dst:reg6, `args`
+  [  60] SuperCallWithArgumentArray value_feedback:1, call_feedback:0, dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:true
   [  78] Return value:reg7
 
 
@@ -63,7 +63,7 @@ block0:
   [   8] MovSrcUndefined dst:reg5
   [  10] ResolveThisBinding
   [  18] ResolveSuperBase dst:reg7
-  [  20] GetByIdWithThis dst:reg8, base:reg7, `method`, this_value:this
+  [  20] GetByIdWithThis value_feedback:0, dst:reg8, base:reg7, `method`, this_value:this
   [  38] Mov2 c0_dst:reg5, c0_src:this, c1_dst:reg6, c1_src:reg8
   [  50] JumpNullish condition:reg6, true_target:block1, false_target:block2
 
@@ -73,7 +73,7 @@ block1:
 
 block2:
   [  70] NewArray dst:reg7
-  [  80] CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
+  [  80] CallWithArgumentArray value_feedback:1, call_feedback:0, dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
   [  a0] MovSrcUndefined dst:reg5
   [  a8] Return value:reg6
 

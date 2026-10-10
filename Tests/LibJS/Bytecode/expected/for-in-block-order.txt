@@ -6,9 +6,9 @@ $916dd419 for-in-block-order.js:5:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `foo`
+  [   8] GetGlobal value_feedback:0, dst:reg6, `foo`
   [  18] NewObject dst:reg7
-  [  28] Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
   [  50] End value:reg5
 
 

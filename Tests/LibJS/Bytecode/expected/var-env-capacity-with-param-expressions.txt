@@ -6,8 +6,8 @@ $12cfcca1 var-env-capacity-with-param-expressions.js:5:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `f`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [   8] GetGlobal value_feedback:0, dst:reg6, `f`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, f
   [  38] End value:reg5
 
 
@@ -43,8 +43,8 @@ block2:
   [  f0] MovSrcUndefined dst:reg7
   [  f8] CreateVariable `c`, is_immutable:false, is_global:false, is_strict:false
   [ 108] InitializeVariableBinding `c`, src:reg7
-  [ 120] DynamicGetCalleeAndThisFromEnvironment callee:reg8, this_value:reg9, `eval`
-  [ 138] CallDirectEval dst:reg7, callee:reg8, this_value:reg9, eval, arguments:[String("")]
+  [ 120] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg8, this_value:reg9, `eval`
+  [ 138] CallDirectEval value_feedback:1, call_feedback:0, dst:reg7, callee:reg8, this_value:reg9, eval, arguments:[String("")]
   [ 160] End value:Undefined
 
 

@@ -10,10 +10,10 @@ block0:
   [  18] ToPrimitiveWithStringHint dst:Int32(0), value:Int32(0)
   [  28] NewFunction dst:reg6, shared_function_data_index:0, home_object:reg5
   [  40] SetFunctionName function:reg6, name:Int32(0)
-  [  50] PutByValue base:reg5, property:Int32(0), src:reg6, kind:Getter
+  [  50] PutByValue keyed_feedback:0, base:reg5, property:Int32(0), src:reg6, kind:Getter
   [  70] SetGlobal `obj`, src:reg5
-  [  80] GetGlobal dst:reg5, `obj`
-  [  90] GetByValue dst:reg6, base:reg5, property:Int32(0) (obj[Int32(0)])
+  [  80] GetGlobal value_feedback:0, dst:reg5, `obj`
+  [  90] GetByValue value_feedback:1, keyed_feedback:1, dst:reg6, base:reg5, property:Int32(0) (obj[Int32(0)])
   [  b0] End value:reg6
 
 

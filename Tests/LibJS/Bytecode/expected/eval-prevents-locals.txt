@@ -6,10 +6,10 @@ $1ed4f972 eval-prevents-locals.js:22:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `with_eval`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, with_eval
-  [  38] GetGlobal dst:reg7, `outer_eval`
-  [  48] Call dst:reg6, callee:reg7, this_value:Undefined, outer_eval
+  [   8] GetGlobal value_feedback:0, dst:reg6, `with_eval`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, with_eval
+  [  38] GetGlobal value_feedback:2, dst:reg7, `outer_eval`
+  [  48] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, outer_eval
   [  68] End value:reg6
 
 
@@ -27,9 +27,9 @@ block0:
   [  20] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  38] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
   [  48] InitializeLexicalBinding `x`, src:Int32(1)
-  [  60] DynamicGetCalleeAndThisFromEnvironment callee:reg7, this_value:reg8, `eval`
-  [  78] CallDirectEval dst:reg6, callee:reg7, this_value:reg8, eval, arguments:[String("")]
-  [  a0] GetBinding dst:reg6, `x`
+  [  60] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg7, this_value:reg8, `eval`
+  [  78] CallDirectEval value_feedback:1, call_feedback:0, dst:reg6, callee:reg7, this_value:reg8, eval, arguments:[String("")]
+  [  a0] GetBinding value_feedback:2, dst:reg6, `x`
   [  b8] Return value:reg6
 
 
@@ -58,10 +58,10 @@ block0:
   [  28] InitializeVariableBinding `inner`, src:Undefined
   [  40] NewFunction dst:reg5, shared_function_data_index:0
   [  58] SetVariableBinding `inner`, src:reg5
-  [  70] DynamicGetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `eval`
-  [  88] CallDirectEval dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("")]
-  [  b0] GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `inner`
-  [  c8] Call dst:reg5, callee:reg6, this_value:reg7, inner
+  [  70] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg6, this_value:reg7, `eval`
+  [  88] CallDirectEval value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("")]
+  [  b0] GetCalleeAndThisFromEnvironment value_feedback:2, callee:reg6, this_value:reg7, `inner`
+  [  c8] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:reg7, inner
   [  e8] Return value:reg5
 
 

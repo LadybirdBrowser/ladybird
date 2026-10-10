@@ -7,42 +7,42 @@ $660d7780 lexical-env-teardown.js:13:1
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] GetGlobal dst:reg6, `console`
-  [  20] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  38] GetGlobal dst:reg9, `withTeardown`
-  [  48] Call dst:reg8, callee:reg9, this_value:Undefined, withTeardown
-  [  68] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  90] GetGlobal dst:reg6, `console`
-  [  a0] GetById dst:reg8, base:reg6, `log` (console.log)
-  [  b8] GetGlobal dst:reg10, `blockTeardown`
-  [  c8] Call dst:reg9, callee:reg10, this_value:Undefined, blockTeardown
-  [  e8] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
-  [ 110] GetGlobal dst:reg8, `console`
-  [ 120] GetById dst:reg6, base:reg8, `log` (console.log)
-  [ 138] GetGlobal dst:reg10, `forInTeardown`
-  [ 148] Call dst:reg9, callee:reg10, this_value:Undefined, forInTeardown
-  [ 168] Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
-  [ 190] GetGlobal dst:reg6, `console`
-  [ 1a0] GetById dst:reg8, base:reg6, `log` (console.log)
-  [ 1b8] GetGlobal dst:reg10, `forOfTeardown`
-  [ 1c8] Call dst:reg9, callee:reg10, this_value:Undefined, forOfTeardown
-  [ 1e8] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
-  [ 210] GetGlobal dst:reg8, `console`
-  [ 220] GetById dst:reg6, base:reg8, `log` (console.log)
-  [ 238] GetGlobal dst:reg10, `catchTeardown`
-  [ 248] Call dst:reg9, callee:reg10, this_value:Undefined, catchTeardown
-  [ 268] Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
+  [  10] GetGlobal value_feedback:0, dst:reg6, `console`
+  [  20] GetById value_feedback:1, dst:reg7, base:reg6, `log` (console.log)
+  [  38] GetGlobal value_feedback:2, dst:reg9, `withTeardown`
+  [  48] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg9, this_value:Undefined, withTeardown
+  [  68] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  90] GetGlobal value_feedback:5, dst:reg6, `console`
+  [  a0] GetById value_feedback:6, dst:reg8, base:reg6, `log` (console.log)
+  [  b8] GetGlobal value_feedback:7, dst:reg10, `blockTeardown`
+  [  c8] Call value_feedback:8, call_feedback:2, dst:reg9, callee:reg10, this_value:Undefined, blockTeardown
+  [  e8] Call value_feedback:9, call_feedback:3, dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [ 110] GetGlobal value_feedback:10, dst:reg8, `console`
+  [ 120] GetById value_feedback:11, dst:reg6, base:reg8, `log` (console.log)
+  [ 138] GetGlobal value_feedback:12, dst:reg10, `forInTeardown`
+  [ 148] Call value_feedback:13, call_feedback:4, dst:reg9, callee:reg10, this_value:Undefined, forInTeardown
+  [ 168] Call value_feedback:14, call_feedback:5, dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
+  [ 190] GetGlobal value_feedback:15, dst:reg6, `console`
+  [ 1a0] GetById value_feedback:16, dst:reg8, base:reg6, `log` (console.log)
+  [ 1b8] GetGlobal value_feedback:17, dst:reg10, `forOfTeardown`
+  [ 1c8] Call value_feedback:18, call_feedback:6, dst:reg9, callee:reg10, this_value:Undefined, forOfTeardown
+  [ 1e8] Call value_feedback:19, call_feedback:7, dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [ 210] GetGlobal value_feedback:20, dst:reg8, `console`
+  [ 220] GetById value_feedback:21, dst:reg6, base:reg8, `log` (console.log)
+  [ 238] GetGlobal value_feedback:22, dst:reg10, `catchTeardown`
+  [ 248] Call value_feedback:23, call_feedback:8, dst:reg9, callee:reg10, this_value:Undefined, catchTeardown
+  [ 268] Call value_feedback:24, call_feedback:9, dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
   [ 290] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
   [ 2a8] CreateVariable `myName`, is_immutable:true, is_global:false, is_strict:false
   [ 2b8] NewFunction dst:reg6, shared_function_data_index:0
   [ 2d0] InitializeLexicalBinding `myName`, src:reg6
   [ 2e8] SetLexicalEnvironment environment:reg4
   [ 2f0] SetGlobal `namedFn`, src:reg6
-  [ 300] GetGlobal dst:reg7, `console`
-  [ 310] GetById dst:reg8, base:reg7, `log` (console.log)
-  [ 328] GetGlobal dst:reg10, `namedFn`
-  [ 338] Call dst:reg9, callee:reg10, this_value:Undefined, namedFn
-  [ 358] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+  [ 300] GetGlobal value_feedback:25, dst:reg7, `console`
+  [ 310] GetById value_feedback:26, dst:reg8, base:reg7, `log` (console.log)
+  [ 328] GetGlobal value_feedback:27, dst:reg10, `namedFn`
+  [ 338] Call value_feedback:28, call_feedback:10, dst:reg9, callee:reg10, this_value:Undefined, namedFn
+  [ 358] Call value_feedback:29, call_feedback:11, dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
   [ 380] End value:reg6
 
 
@@ -65,11 +65,11 @@ block0:
   [  60] InitObjectLiteralProperty object:reg6, `x`, src:Int32(10), shape_cache_index:0, property_slot:0
   [  78] CacheObjectShape object:reg6
   [  88] EnterObjectEnvironment dst:reg7, object:reg6
-  [  98] DynamicGetBinding dst:reg8, `x`
-  [  a8] DynamicGetBinding dst:reg9, `outer`
-  [  b8] Add dst:inner~0, lhs:reg8, rhs:reg9
+  [  98] DynamicGetBinding value_feedback:0, dst:reg8, `x`
+  [  a8] DynamicGetBinding value_feedback:1, dst:reg9, `outer`
+  [  b8] Add arith_feedback:0, dst:inner~0, lhs:reg8, rhs:reg9
   [  c8] SetLexicalEnvironment environment:reg5
-  [  d0] GetBinding dst:reg6, `outer`
+  [  d0] GetBinding value_feedback:2, dst:reg6, `outer`
   [  e8] Return value:reg6
 
 
@@ -155,7 +155,7 @@ block3:
   [  90] Catch dst:reg9
   [  98] SetLexicalEnvironment environment:reg4
   [  a0] Mov dst:reg5, src:Int32(1)
-  [  b0] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:1, true_target:block5, false_target:block6
+  [  b0] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg5, rhs:1, true_target:block5, false_target:block6
 
 block4:
   [  c8] Mov dst:v~0, src:reg10
@@ -167,7 +167,7 @@ block5:
 
 block6:
   [ 100] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-  [ 118] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block7, false_target:block8
+  [ 118] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg5, rhs:2, true_target:block7, false_target:block8
 
 block7:
   [ 130] Return value:reg9
@@ -201,8 +201,8 @@ block1:
   [  48] Return value:outer~1
 
 block2:
-  [  50] GetGlobal dst:reg6, `Error`
-  [  60] CallConstruct dst:reg5, callee:reg6, Error, arguments:[String("test")]
+  [  50] GetGlobal value_feedback:0, dst:reg6, `Error`
+  [  60] CallConstruct value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, Error, arguments:[String("test")]
   [  88] Throw src:reg5
 
 Exception handlers:

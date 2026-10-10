@@ -7,8 +7,8 @@ $516a2e0b async-generator-yield.js:7:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `f`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
+  [   8] GetGlobal value_feedback:0, dst:reg6, `f`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
   [  40] End value:reg5
 
 
@@ -31,12 +31,12 @@ block1:
 block2:
   [  28] Mov dst:reg5, src:reg0
   [  38] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [  48] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block12, false_target:block13
+  [  48] JumpStrictlyEqualsRhsInt32 arith_feedback:4, lhs:reg6, rhs:1, true_target:block12, false_target:block13
 
 block3:
   [  60] Mov dst:reg5, src:reg0
   [  70] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [  80] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block4, false_target:block5
+  [  80] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg6, rhs:1, true_target:block4, false_target:block5
 
 block4:
   [  98] Yield continuation_label:block6, value:reg7
@@ -47,7 +47,7 @@ block5:
 block6:
   [  b0] Mov dst:reg5, src:reg0
   [  c0] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [  d0] JumpStrictlyInequalsRhsInt32 lhs:reg6, rhs:4, true_target:block2, false_target:block7
+  [  d0] JumpStrictlyInequalsRhsInt32 arith_feedback:1, lhs:reg6, rhs:4, true_target:block2, false_target:block7
 
 block7:
   [  e8] Await continuation_label:block8, argument:reg7
@@ -55,10 +55,10 @@ block7:
 block8:
   [  f8] Mov dst:reg5, src:reg0
   [ 108] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [ 118] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block9, false_target:block10
+  [ 118] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg6, rhs:1, true_target:block9, false_target:block10
 
 block9:
-  [ 130] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:5, true_target:block2, false_target:block11
+  [ 130] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg6, rhs:5, true_target:block2, false_target:block11
 
 block10:
   [ 148] Throw src:reg7
@@ -71,7 +71,7 @@ block12:
   [ 168] Yield value:Undefined
 
 block13:
-  [ 178] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:5, true_target:block14, false_target:block15
+  [ 178] JumpStrictlyEqualsRhsInt32 arith_feedback:5, lhs:reg6, rhs:5, true_target:block14, false_target:block15
 
 block14:
   [ 190] Throw src:reg7

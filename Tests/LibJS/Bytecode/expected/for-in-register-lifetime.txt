@@ -18,7 +18,7 @@ block0:
   [  58] InitObjectLiteralProperty object:reg5, `c`, src:Int32(3), shape_cache_index:0, property_slot:2
   [  70] CacheObjectShape object:reg5
   [  80] SetGlobal `obj`, src:reg5
-  [  90] GetGlobal dst:reg5, `obj`
+  [  90] GetGlobal value_feedback:0, dst:reg5, `obj`
   [  a0] JumpNullish condition:reg5, true_target:block3, false_target:block4
 
 block1:
@@ -38,13 +38,13 @@ block4:
 
 block5:
   [ 120] SetGlobal `k`, src:reg10
-  [ 130] GetGlobal dst:reg12, `result`
-  [ 140] GetGlobal dst:reg13, `k`
-  [ 150] GetGlobal dst:reg14, `obj`
-  [ 160] GetGlobal dst:reg15, `k`
-  [ 170] GetByValue dst:reg16, base:reg14, property:reg15 (obj[reg15])
-  [ 190] Add dst:reg14, lhs:reg13, rhs:reg16
-  [ 1a0] Add dst:reg13, lhs:reg12, rhs:reg14
+  [ 130] GetGlobal value_feedback:1, dst:reg12, `result`
+  [ 140] GetGlobal value_feedback:2, dst:reg13, `k`
+  [ 150] GetGlobal value_feedback:3, dst:reg14, `obj`
+  [ 160] GetGlobal value_feedback:4, dst:reg15, `k`
+  [ 170] GetByValue value_feedback:5, keyed_feedback:0, dst:reg16, base:reg14, property:reg15 (obj[reg15])
+  [ 190] Add arith_feedback:0, dst:reg14, lhs:reg13, rhs:reg16
+  [ 1a0] Add arith_feedback:1, dst:reg13, lhs:reg12, rhs:reg14
   [ 1b0] SetGlobal `result`, src:reg13
   [ 1c0] Mov dst:reg9, src:reg13
   [ 1d0] Jump target:block2
