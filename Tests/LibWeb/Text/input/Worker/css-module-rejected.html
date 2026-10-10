@@ -1,0 +1,42 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const testID = crypto.randomUUID();
+        const cssURL = await server.createEcho("GET", `/worker-css-module-${testID}.css`, {
+            status: 200,
+            headers: { "Content-Type": "text/css" },
+            body: "body {}",
+        });
+        const workerURL = await server.createEcho("GET", `/worker-css-module-${testID}.js`, {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: `import sheet from "${cssURL}" with { type: "css" }; postMessage(sheet.cssRules.length);`,
+        });
+        const pageURL = await server.createEcho("GET", `/worker-css-module-${testID}.html`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<script>new Worker("${workerURL}", { type: "module" }); top.postMessage("started", "*");<\/script>`,
+        });
+
+        const started = new Promise(resolve => addEventListener("message", resolve, { once: true }));
+        const iframe = document.createElement("iframe");
+        iframe.src = pageURL;
+        document.body.appendChild(iframe);
+        await started;
+
+        const recordedHeadersURL = new URL(`/recorded-request-headers${new URL(cssURL).pathname}`, cssURL);
+        for (let attempt = 0; attempt < 200; ++attempt) {
+            try {
+                const response = await fetch(recordedHeadersURL);
+                if (response.ok) {
+                    println("LEAK");
+                    return;
+                }
+            } catch {}
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        println("PASS");
+    });
+</script>
