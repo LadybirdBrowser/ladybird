@@ -113,7 +113,7 @@ block4:
 
 block5:
   [  c0] Call value_feedback:1, call_feedback:0, dst:reg5, callee:arg0, this_value:Undefined, callback
-  [  e0] Jump target:block4
+  [  e0] JumpLoop target:block4
 
 block6:
   [  e8] GetGlobal value_feedback:2, dst:reg8, `Error`

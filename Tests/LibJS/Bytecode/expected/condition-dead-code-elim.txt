@@ -253,16 +253,16 @@ block1:
   [  40] JumpIf condition:arg0, true_target:block4, false_target:block5
 
 block2:
-  [  50] Jump target:block1
+  [  50] JumpLoop target:block1
 
 block3:
   [  58] Jump target:block7
 
 block4:
-  [  60] Jump target:block3
+  [  60] JumpLoop target:block3
 
 block5:
-  [  68] Jump target:block2
+  [  68] JumpLoop target:block2
 
 block6:
   [  70] GetGlobal value_feedback:2, dst:reg6, `alive`
@@ -270,7 +270,7 @@ block6:
   [  a0] JumpIf condition:arg0, true_target:block9, false_target:block10
 
 block7:
-  [  b0] Jump target:block6
+  [  b0] JumpLoop target:block6
 
 block8:
   [  b8] GetGlobal value_feedback:4, dst:reg6, `alive`
@@ -278,7 +278,7 @@ block8:
   [  e8] End value:Undefined
 
 block9:
-  [  f0] Jump target:block8
+  [  f0] JumpLoop target:block8
 
 block10:
-  [  f8] Jump target:block7
+  [  f8] JumpLoop target:block7

@@ -1954,8 +1954,10 @@ impl Generator {
         // Select declarative single-instruction specializations and fused
         // sequences before operand indices are rewritten away from the
         // generator's constant table.
-        for block in &mut self.basic_blocks {
+        for (block_index, block) in self.basic_blocks.iter_mut().enumerate() {
             remove_redundant_movs(&mut block.instructions);
+
+            mark_loop_back_edge(block_index, &mut block.instructions);
 
             specialize_instructions(&mut block.instructions, &self.constants);
         }
@@ -1999,8 +2001,16 @@ impl Generator {
             Skip,
             JumpToReturn(Operand),
             JumpToEnd(Operand),
-            EmitJumpTrue { condition: Operand, target: Label },
-            EmitJumpFalse { condition: Operand, target: Label },
+            EmitJumpTrue {
+                condition: Operand,
+                target: Label,
+                loop_back_edge: bool,
+            },
+            EmitJumpFalse {
+                condition: Operand,
+                target: Label,
+                loop_back_edge: bool,
+            },
         }
         let mut actions: Vec<Vec<InstAction>> = Vec::with_capacity(num_blocks);
         let mut offset: usize = 0;
@@ -2011,7 +2021,7 @@ impl Generator {
             let mut block_actions = Vec::with_capacity(block.instructions.len());
             for (instruction, _, _) in &block.instructions {
                 match instruction {
-                    Instruction::Jump { target } => {
+                    Instruction::Jump { target } | Instruction::JumpLoop { target } => {
                         let target_block = target.0 as usize;
                         // OPTIMIZATION: Don't emit jumps that just jump to the next block.
                         if target_block == block_index + 1 {
@@ -2047,15 +2057,22 @@ impl Generator {
                         condition,
                         true_target,
                         false_target,
+                    }
+                    | Instruction::JumpIfLoop {
+                        condition,
+                        true_target,
+                        false_target,
                     } => {
                         let true_block = true_target.0 as usize;
                         let false_block = false_target.0 as usize;
+                        let loop_back_edge = matches!(instruction, Instruction::JumpIfLoop { .. });
                         // OPTIMIZATION: Replace JumpIf where one target is next block
                         // with JumpTrue or JumpFalse.
                         if true_block == block_index + 1 {
                             block_actions.push(InstAction::EmitJumpFalse {
                                 condition: *condition,
                                 target: *false_target,
+                                loop_back_edge,
                             });
                             let replacement = Instruction::JumpFalse {
                                 condition: *condition,
@@ -2068,6 +2085,7 @@ impl Generator {
                             block_actions.push(InstAction::EmitJumpTrue {
                                 condition: *condition,
                                 target: *true_target,
+                                loop_back_edge,
                             });
                             let replacement = Instruction::JumpTrue {
                                 condition: *condition,
@@ -2178,7 +2196,11 @@ impl Generator {
                         let replacement = Instruction::End { value };
                         replacement.encode(*strict, &mut bytecode);
                     }
-                    InstAction::EmitJumpFalse { condition, mut target } => {
+                    InstAction::EmitJumpFalse {
+                        condition,
+                        mut target,
+                        loop_back_edge,
+                    } => {
                         // Patch label for the target
                         let target_block = target.0 as usize;
                         target.0 = u32_from_usize(block_offsets[target_block]);
@@ -2191,10 +2213,18 @@ impl Generator {
                                 column: sm.column,
                             },
                         );
-                        let replacement = Instruction::JumpFalse { condition, target };
+                        let replacement = if loop_back_edge {
+                            Instruction::JumpFalseLoop { condition, target }
+                        } else {
+                            Instruction::JumpFalse { condition, target }
+                        };
                         replacement.encode(*strict, &mut bytecode);
                     }
-                    InstAction::EmitJumpTrue { condition, mut target } => {
+                    InstAction::EmitJumpTrue {
+                        condition,
+                        mut target,
+                        loop_back_edge,
+                    } => {
                         let target_block = target.0 as usize;
                         target.0 = u32_from_usize(block_offsets[target_block]);
                         let instruction_offset = bytecode.len();
@@ -2206,7 +2236,11 @@ impl Generator {
                                 column: sm.column,
                             },
                         );
-                        let replacement = Instruction::JumpTrue { condition, target };
+                        let replacement = if loop_back_edge {
+                            Instruction::JumpTrueLoop { condition, target }
+                        } else {
+                            Instruction::JumpTrue { condition, target }
+                        };
                         replacement.encode(*strict, &mut bytecode);
                     }
                 }
@@ -2369,6 +2403,89 @@ fn specialize_instructions(instructions: &mut Vec<(Instruction, SourceMapEntry, 
         read_index += consumed;
     }
     instructions.truncate(write_index);
+}
+
+/// A jump to the same or an earlier block is a loop back edge. Back edges use
+/// the loop variants of the jump instructions, which count loop iterations
+/// towards the executable's tier-up budget, so that ordinary jumps do not
+/// have to check their direction.
+fn mark_loop_back_edge(block_index: usize, instructions: &mut [(Instruction, SourceMapEntry, bool)]) {
+    let Some((instruction, _, _)) = instructions.last_mut() else {
+        return;
+    };
+    let mut is_back_edge = false;
+    instruction.visit_labels(&mut |label: &mut Label| {
+        if label.0 as usize <= block_index {
+            is_back_edge = true;
+        }
+    });
+    if !is_back_edge {
+        return;
+    }
+
+    macro_rules! compare_jump_loop {
+        ($from:ident, $to:ident, $instruction:expr) => {
+            if let Instruction::$from {
+                arith_feedback,
+                lhs,
+                rhs,
+                true_target,
+                false_target,
+            } = $instruction
+            {
+                return Some(Instruction::$to {
+                    arith_feedback: *arith_feedback,
+                    lhs: *lhs,
+                    rhs: *rhs,
+                    true_target: *true_target,
+                    false_target: *false_target,
+                });
+            }
+        };
+    }
+
+    let loop_variant = |instruction: &Instruction| -> Option<Instruction> {
+        match instruction {
+            Instruction::Jump { target } => return Some(Instruction::JumpLoop { target: *target }),
+            Instruction::JumpIf {
+                condition,
+                true_target,
+                false_target,
+            } => {
+                return Some(Instruction::JumpIfLoop {
+                    condition: *condition,
+                    true_target: *true_target,
+                    false_target: *false_target,
+                });
+            }
+            Instruction::JumpTrue { condition, target } => {
+                return Some(Instruction::JumpTrueLoop {
+                    condition: *condition,
+                    target: *target,
+                });
+            }
+            Instruction::JumpFalse { condition, target } => {
+                return Some(Instruction::JumpFalseLoop {
+                    condition: *condition,
+                    target: *target,
+                });
+            }
+            _ => {}
+        }
+        compare_jump_loop!(JumpLessThan, JumpLessThanLoop, instruction);
+        compare_jump_loop!(JumpGreaterThan, JumpGreaterThanLoop, instruction);
+        compare_jump_loop!(JumpLessThanEquals, JumpLessThanEqualsLoop, instruction);
+        compare_jump_loop!(JumpGreaterThanEquals, JumpGreaterThanEqualsLoop, instruction);
+        compare_jump_loop!(JumpLooselyEquals, JumpLooselyEqualsLoop, instruction);
+        compare_jump_loop!(JumpLooselyInequals, JumpLooselyInequalsLoop, instruction);
+        compare_jump_loop!(JumpStrictlyEquals, JumpStrictlyEqualsLoop, instruction);
+        compare_jump_loop!(JumpStrictlyInequals, JumpStrictlyInequalsLoop, instruction);
+        None
+    };
+
+    if let Some(replacement) = loop_variant(instruction) {
+        *instruction = replacement;
+    }
 }
 
 fn remove_redundant_movs(instructions: &mut Vec<(Instruction, SourceMapEntry, bool)>) {

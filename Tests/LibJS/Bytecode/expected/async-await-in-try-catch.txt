@@ -48,7 +48,7 @@ block5:
 
 block6:
   [  c0] SetLexicalEnvironment environment:reg4
-  [  c8] Jump target:block3
+  [  c8] JumpLoop target:block3
 
 block7:
   [  d0] SetLexicalEnvironment environment:reg4

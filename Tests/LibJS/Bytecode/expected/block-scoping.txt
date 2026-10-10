@@ -104,7 +104,7 @@ block2:
   [  b8] PostfixIncrement arith_feedback:1, dst:reg5, src:i~1
 
 block3:
-  [  c8] JumpLessThanRhsInt32 arith_feedback:0, lhs:i~1, rhs:3, true_target:block1, false_target:block4
+  [  c8] JumpLessThanLoopRhsInt32 arith_feedback:0, lhs:i~1, rhs:3, true_target:block1, false_target:block4
 
 block4:
   [  e0] Call value_feedback:1, call_feedback:0, dst:reg5, callee:result~2, this_value:Undefined, result
@@ -113,11 +113,11 @@ block4:
 block5:
   [ 108] Mov dst:result~2, src:f~0
   [ 118] SetLexicalEnvironment environment:reg4
-  [ 120] Jump target:block4
+  [ 120] JumpLoop target:block4
 
 block6:
   [ 128] SetLexicalEnvironment environment:reg4
-  [ 130] Jump target:block2
+  [ 130] JumpLoop target:block2
 
 
 f$667a1882 block-scoping.js:20:21

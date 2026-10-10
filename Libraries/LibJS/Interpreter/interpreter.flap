@@ -1002,6 +1002,14 @@ specialize JumpStrictlyEquals(rhs: Int32);
 specialize JumpStrictlyInequals(rhs: Int32);
 specialize JumpLooselyEquals(rhs: Int32);
 specialize JumpLooselyInequals(rhs: Int32);
+specialize JumpLessThanLoop(rhs: Int32);
+specialize JumpLessThanEqualsLoop(rhs: Int32);
+specialize JumpGreaterThanLoop(rhs: Int32);
+specialize JumpGreaterThanEqualsLoop(rhs: Int32);
+specialize JumpStrictlyEqualsLoop(rhs: Int32);
+specialize JumpStrictlyInequalsLoop(rhs: Int32);
+specialize JumpLooselyEqualsLoop(rhs: Int32);
+specialize JumpLooselyInequalsLoop(rhs: Int32);
 
 handler Add(
     arith_feedback: ArithFeedbackIndex,
@@ -1196,11 +1204,11 @@ handler Jump(
     target: BytecodeOffset
 ) @terminator = jump(target);
 
-handler JumpIf(
+inline fn jump_if(
     condition: in Operand,
     true_target: BytecodeOffset,
     false_target: BytecodeOffset
-) @terminator {
+) {
     let value = load(condition);
     let take_false = || {
         jump(false_target);
@@ -1232,10 +1240,16 @@ handler JumpIf(
     }
 }
 
-handler JumpTrue(
+handler JumpIf(
+    condition: in Operand,
+    true_target: BytecodeOffset,
+    false_target: BytecodeOffset
+) @terminator = jump_if(condition, true_target, false_target);
+
+inline fn jump_true(
     condition: in Operand,
     target: BytecodeOffset
-) @terminator {
+) {
     let value = load(condition);
     let take = || {
         jump(target);
@@ -1264,10 +1278,15 @@ handler JumpTrue(
     }
 }
 
-handler JumpFalse(
+handler JumpTrue(
     condition: in Operand,
     target: BytecodeOffset
-) @terminator {
+) @terminator = jump_true(condition, target);
+
+inline fn jump_false(
+    condition: in Operand,
+    target: BytecodeOffset
+) {
     let value = load(condition);
     let take = || {
         jump(target);
@@ -1295,6 +1314,11 @@ handler JumpFalse(
         },
     }
 }
+
+handler JumpFalse(
+    condition: in Operand,
+    target: BytecodeOffset
+) @terminator = jump_false(condition, target);
 
 handler JumpNullish(
     condition: in Operand,
@@ -1428,6 +1452,153 @@ handler JumpStrictlyEquals(
 );
 
 handler JumpStrictlyInequals(
+    arith_feedback: ArithFeedbackIndex,
+    lhs: in Operand,
+    rhs: in Operand,
+    true_target: BytecodeOffset,
+    false_target: BytecodeOffset
+) @terminator = jump_equality(
+    load(lhs),
+    load(rhs),
+    true_target,
+    false_target,
+    strict_inequality,
+    jump_strictly_inequals_values
+);
+
+# Loop back edges. The bytecode generator emits these variants for jumps to
+# an earlier block.
+
+handler JumpLoop(
+    target: BytecodeOffset
+) @terminator = jump(target);
+
+handler JumpIfLoop(
+    condition: in Operand,
+    true_target: BytecodeOffset,
+    false_target: BytecodeOffset
+) @terminator = jump_if(condition, true_target, false_target);
+
+handler JumpTrueLoop(
+    condition: in Operand,
+    target: BytecodeOffset
+) @terminator = jump_true(condition, target);
+
+handler JumpFalseLoop(
+    condition: in Operand,
+    target: BytecodeOffset
+) @terminator = jump_false(condition, target);
+
+handler JumpLessThanLoop(
+    arith_feedback: ArithFeedbackIndex,
+    lhs: in Operand,
+    rhs: in Operand,
+    true_target: BytecodeOffset,
+    false_target: BytecodeOffset
+) @terminator = jump_relational(
+    load(lhs),
+    load(rhs),
+    true_target,
+    false_target,
+    branch_lt_signed,
+    branch_fp_less,
+    jump_less_than_values
+);
+
+handler JumpGreaterThanLoop(
+    arith_feedback: ArithFeedbackIndex,
+    lhs: in Operand,
+    rhs: in Operand,
+    true_target: BytecodeOffset,
+    false_target: BytecodeOffset
+) @terminator = jump_relational(
+    load(lhs),
+    load(rhs),
+    true_target,
+    false_target,
+    branch_gt_signed,
+    branch_fp_greater,
+    jump_greater_than_values
+);
+
+handler JumpLessThanEqualsLoop(
+    arith_feedback: ArithFeedbackIndex,
+    lhs: in Operand,
+    rhs: in Operand,
+    true_target: BytecodeOffset,
+    false_target: BytecodeOffset
+) @terminator = jump_relational(
+    load(lhs),
+    load(rhs),
+    true_target,
+    false_target,
+    branch_le_signed,
+    branch_fp_less_or_equal,
+    jump_less_than_equals_values
+);
+
+handler JumpGreaterThanEqualsLoop(
+    arith_feedback: ArithFeedbackIndex,
+    lhs: in Operand,
+    rhs: in Operand,
+    true_target: BytecodeOffset,
+    false_target: BytecodeOffset
+) @terminator = jump_relational(
+    load(lhs),
+    load(rhs),
+    true_target,
+    false_target,
+    branch_ge_signed,
+    branch_fp_greater_or_equal,
+    jump_greater_than_equals_values
+);
+
+handler JumpLooselyEqualsLoop(
+    arith_feedback: ArithFeedbackIndex,
+    lhs: in Operand,
+    rhs: in Operand,
+    true_target: BytecodeOffset,
+    false_target: BytecodeOffset
+) @terminator = jump_equality(
+    load(lhs),
+    load(rhs),
+    true_target,
+    false_target,
+    loose_equality,
+    jump_loosely_equals_values
+);
+
+handler JumpLooselyInequalsLoop(
+    arith_feedback: ArithFeedbackIndex,
+    lhs: in Operand,
+    rhs: in Operand,
+    true_target: BytecodeOffset,
+    false_target: BytecodeOffset
+) @terminator = jump_equality(
+    load(lhs),
+    load(rhs),
+    true_target,
+    false_target,
+    loose_inequality,
+    jump_loosely_inequals_values
+);
+
+handler JumpStrictlyEqualsLoop(
+    arith_feedback: ArithFeedbackIndex,
+    lhs: in Operand,
+    rhs: in Operand,
+    true_target: BytecodeOffset,
+    false_target: BytecodeOffset
+) @terminator = jump_equality(
+    load(lhs),
+    load(rhs),
+    true_target,
+    false_target,
+    strict_equality,
+    jump_strictly_equals_values
+);
+
+handler JumpStrictlyInequalsLoop(
     arith_feedback: ArithFeedbackIndex,
     lhs: in Operand,
     rhs: in Operand,

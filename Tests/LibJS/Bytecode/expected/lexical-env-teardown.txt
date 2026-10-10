@@ -111,7 +111,7 @@ block1:
 
 block2:
   [  80] ObjectPropertyIteratorNext dst_value:reg9, dst_done:reg10, receiver:reg6, keys:reg7, cursor:reg8
-  [  98] JumpIf condition:reg10, true_target:block1, false_target:block5
+  [  98] JumpIfLoop condition:reg10, true_target:block1, false_target:block5
 
 block3:
   [  a8] Return value:outer~1
@@ -119,11 +119,11 @@ block3:
 block4:
   [  b0] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg6, object:reg5
   [  c8] Mov dst:reg8, src:Int32(0)
-  [  d8] Jump target:block2
+  [  d8] JumpLoop target:block2
 
 block5:
   [  e0] Mov dst:k~0, src:reg9
-  [  f0] Jump target:block2
+  [  f0] JumpLoop target:block2
 
 
 forOfTeardown$94a2ae97 lexical-env-teardown.js:38:5
@@ -149,7 +149,7 @@ block1:
 
 block2:
   [  68] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  80] JumpIf condition:reg11, true_target:block1, false_target:block4
+  [  80] JumpIfLoop condition:reg11, true_target:block1, false_target:block4
 
 block3:
   [  90] Catch dst:reg9
@@ -159,7 +159,7 @@ block3:
 
 block4:
   [  c8] Mov dst:v~0, src:reg10
-  [  d8] Jump target:block2
+  [  d8] JumpLoop target:block2
 
 block5:
   [  e0] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9

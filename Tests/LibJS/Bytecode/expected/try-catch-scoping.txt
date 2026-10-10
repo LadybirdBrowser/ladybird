@@ -87,7 +87,7 @@ block3:
   [ 118] Mov dst:reg11, src:e~1
   [ 128] Call value_feedback:2, call_feedback:0, dst:reg8, callee:reg10, this_value:reg9, console.log, arguments:[reg11]
   [ 150] Mov dst:reg5, src:Int32(0)
-  [ 160] Jump target:block2
+  [ 160] JumpLoop target:block2
 
 block4:
   [ 168] Mov dst:y~0, src:Int32(2)

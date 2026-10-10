@@ -36,7 +36,7 @@ block1:
 
 block2:
   [  78] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg5, iterator_next:reg6, iterator_done:reg7
-  [  90] JumpIf condition:reg11, true_target:block1, false_target:block4
+  [  90] JumpIfLoop condition:reg11, true_target:block1, false_target:block4
 
 block3:
   [  a0] Catch dst:reg9
@@ -58,7 +58,7 @@ block5:
   [ 178] GetBinding value_feedback:2, dst:reg17, `r`
   [ 190] Call value_feedback:3, call_feedback:0, dst:reg14, callee:reg15, this_value:reg16, t.push, arguments:[reg17]
   [ 1b8] SetLexicalEnvironment environment:reg4
-  [ 1c0] Jump target:block2
+  [ 1c0] JumpLoop target:block2
 
 block6:
   [ 1c8] GetById value_feedback:4, dst:reg13, base:t~1, `find` (t.find)
@@ -66,7 +66,7 @@ block6:
   [ 1f0] NewFunction dst:reg15, shared_function_data_index:0
   [ 208] Call value_feedback:5, call_feedback:1, dst:o~0, callee:reg13, this_value:reg14, t.find, arguments:[reg15]
   [ 230] SetLexicalEnvironment environment:reg4
-  [ 238] Jump target:block2
+  [ 238] JumpLoop target:block2
 
 block7:
   [ 240] IteratorClose iterator_object:reg5, iterator_next:reg6, iterator_done:reg7, completion_value:reg9

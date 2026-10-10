@@ -59,7 +59,7 @@ block8:
 block9:
   [ 110] Mov dst:reg5, src:reg0
   [ 120] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [ 130] JumpStrictlyInequalsRhsInt32 arith_feedback:2, lhs:reg6, rhs:4, true_target:block5, false_target:block10
+  [ 130] JumpStrictlyInequalsLoopRhsInt32 arith_feedback:2, lhs:reg6, rhs:4, true_target:block5, false_target:block10
 
 block10:
   [ 148] Await continuation_label:block11, argument:reg7
@@ -70,14 +70,14 @@ block11:
   [ 178] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg6, rhs:1, true_target:block12, false_target:block13
 
 block12:
-  [ 190] JumpStrictlyEqualsRhsInt32 arith_feedback:4, lhs:reg6, rhs:5, true_target:block5, false_target:block14
+  [ 190] JumpStrictlyEqualsLoopRhsInt32 arith_feedback:4, lhs:reg6, rhs:5, true_target:block5, false_target:block14
 
 block13:
   [ 1a8] Throw src:reg7
 
 block14:
   [ 1b0] SetCompletionType completion:reg5
-  [ 1c0] Jump target:block5
+  [ 1c0] JumpLoop target:block5
 
 block15:
   [ 1c8] Yield value:Undefined

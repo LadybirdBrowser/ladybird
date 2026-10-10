@@ -28,12 +28,12 @@ block3:
   [  70] SetLexicalEnvironment environment:reg4
   [  78] Mov3 c0_dst:e~0, c0_src:reg7, c1_dst:reg8, c1_src:Undefined, c2_dst:reg8, c2_src:Int32(2)
   [  98] Mov2 c0_dst:reg9, c0_src:reg8, c1_dst:reg5, c1_src:Int32(0)
-  [  b0] Jump target:block2
+  [  b0] JumpLoop target:block2
 
 block4:
   [  b8] Mov3 c0_dst:reg7, c0_src:Undefined, c1_dst:reg7, c1_src:Int32(1), c2_dst:reg8, c2_src:reg7
   [  d8] Mov dst:reg5, src:Int32(0)
-  [  e8] Jump target:block2
+  [  e8] JumpLoop target:block2
 
 block5:
   [  f0] End value:reg8

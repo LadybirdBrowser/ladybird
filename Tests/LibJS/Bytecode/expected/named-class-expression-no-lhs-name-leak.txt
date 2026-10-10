@@ -33,7 +33,7 @@ block4:
 
 block5:
   [  a0] IteratorNextUnpack dst_value:reg12, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
-  [  b8] JumpTrue condition:reg6, target:block4
+  [  b8] JumpTrueLoop condition:reg6, target:block4
 
 block6:
   [  c8] JumpUndefined condition:reg12, true_target:block7, false_target:block8
@@ -52,11 +52,11 @@ block9:
   [ 148] JumpFalse condition:reg9, target:block11
 
 block10:
-  [ 158] Jump target:block2
+  [ 158] JumpLoop target:block2
 
 block11:
   [ 160] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 178] Jump target:block10
+  [ 178] JumpLoop target:block10
 
 block12:
   [ 180] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg10, rhs:1, true_target:block14, false_target:block15
@@ -70,7 +70,7 @@ block14:
 
 block15:
   [ 1d0] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 1e8] Jump target:block13
+  [ 1e8] JumpLoop target:block13
 
 block16:
   [ 1f0] Return value:reg11

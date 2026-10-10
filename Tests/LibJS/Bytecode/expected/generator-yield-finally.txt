@@ -58,7 +58,7 @@ block8:
 
 block9:
   [  e0] Mov2 c0_dst:reg6, c0_src:reg9, c1_dst:reg5, c1_src:Int32(2)
-  [  f8] Jump target:block3
+  [  f8] JumpLoop target:block3
 
 block10:
   [ 100] Mov dst:reg9, src:reg0
@@ -67,7 +67,7 @@ block10:
 
 block11:
   [ 138] Mov dst:reg5, src:Int32(0)
-  [ 148] Jump target:block3
+  [ 148] JumpLoop target:block3
 
 block12:
   [ 150] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg7, rhs:5, true_target:block13, false_target:block14
@@ -77,7 +77,7 @@ block13:
 
 block14:
   [ 170] Mov2 c0_dst:reg6, c0_src:reg8, c1_dst:reg5, c1_src:Int32(2)
-  [ 188] Jump target:block3
+  [ 188] JumpLoop target:block3
 
 block15:
   [ 190] Mov2 c0_dst:reg1, c0_src:reg10, c1_dst:reg8, c1_src:reg0

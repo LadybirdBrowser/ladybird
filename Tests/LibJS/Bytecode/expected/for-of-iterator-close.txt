@@ -38,7 +38,7 @@ block1:
 
 block2:
   [  60] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  78] JumpIf condition:reg11, true_target:block1, false_target:block5
+  [  78] JumpIfLoop condition:reg11, true_target:block1, false_target:block5
 
 block3:
   [  88] Catch dst:reg9
@@ -54,10 +54,10 @@ block5:
 
 block6:
   [  e8] Mov dst:reg5, src:Int32(3)
-  [  f8] Jump target:block4
+  [  f8] JumpLoop target:block4
 
 block7:
-  [ 100] Jump target:block2
+  [ 100] JumpLoop target:block2
 
 block8:
   [ 108] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
@@ -65,7 +65,7 @@ block8:
 
 block9:
   [ 128] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-  [ 140] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg5, rhs:3, true_target:block1, false_target:block10
+  [ 140] JumpStrictlyEqualsLoopRhsInt32 arith_feedback:2, lhs:reg5, rhs:3, true_target:block1, false_target:block10
 
 block10:
   [ 158] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg5, rhs:2, true_target:block11, false_target:block12
@@ -101,7 +101,7 @@ block1:
 
 block2:
   [  60] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  78] JumpIf condition:reg11, true_target:block1, false_target:block5
+  [  78] JumpIfLoop condition:reg11, true_target:block1, false_target:block5
 
 block3:
   [  88] Catch dst:reg9
@@ -113,7 +113,7 @@ block4:
 
 block5:
   [  c0] Mov3 c0_dst:x~0, c0_src:reg10, c1_dst:reg9, c1_src:x~0, c2_dst:reg5, c2_src:Int32(2)
-  [  e0] Jump target:block4
+  [  e0] JumpLoop target:block4
 
 block6:
   [  e8] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
@@ -177,7 +177,7 @@ block7:
   [  f8] Mov dst:reg12, src:reg15
   [ 108] ThrowIfNotObject src:reg12
   [ 110] GetById value_feedback:0, dst:reg11, base:reg12, `done`
-  [ 128] JumpIf condition:reg11, true_target:block2, false_target:block9
+  [ 128] JumpIfLoop condition:reg11, true_target:block2, false_target:block9
 
 block8:
   [ 138] Throw src:reg15
@@ -191,10 +191,10 @@ block10:
 
 block11:
   [ 180] Mov dst:reg8, src:Int32(3)
-  [ 190] Jump target:block5
+  [ 190] JumpLoop target:block5
 
 block12:
-  [ 198] Jump target:block3
+  [ 198] JumpLoop target:block3
 
 block13:
   [ 1a0] Jump target:block25
@@ -204,7 +204,7 @@ block14:
   [ 1b8] JumpUndefined condition:reg12, true_target:block15, false_target:block16
 
 block15:
-  [ 1c8] JumpStrictlyEqualsRhsInt32 arith_feedback:4, lhs:reg8, rhs:3, true_target:block2, false_target:block20
+  [ 1c8] JumpStrictlyEqualsLoopRhsInt32 arith_feedback:4, lhs:reg8, rhs:3, true_target:block2, false_target:block20
 
 block16:
   [ 1e0] Call value_feedback:2, call_feedback:0, dst:reg13, callee:reg12, this_value:reg5
@@ -217,7 +217,7 @@ block17:
 
 block18:
   [ 248] ThrowIfNotObject src:reg16
-  [ 250] Jump target:block15
+  [ 250] JumpLoop target:block15
 
 block19:
   [ 258] Throw src:reg16
@@ -236,7 +236,7 @@ block23:
 
 block24:
   [ 290] Catch dst:reg12
-  [ 298] Jump target:block23
+  [ 298] JumpLoop target:block23
 
 block25:
   [ 2a0] GetMethod dst:reg12, object:reg5, `return`
@@ -252,7 +252,7 @@ block27:
   [ 310] JumpStrictlyEqualsRhsInt32 arith_feedback:6, lhs:reg15, rhs:1, true_target:block28, false_target:block29
 
 block28:
-  [ 328] Jump target:block23
+  [ 328] JumpLoop target:block23
 
 block29:
   [ 330] Throw src:reg16
