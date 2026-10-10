@@ -26,14 +26,17 @@ TEST_CASE(queued_bootstrap_callbacks_are_discarded_when_browser_launch_fails)
     auto buffered_socket = TRY_OR_FAIL(Core::BufferedTCPSocket::create(move(socket)));
     auto client = TRY_OR_FAIL(WebDriver::Client::try_create(move(buffered_socket), [](auto const& endpoint, bool) -> ErrorOr<Core::Process> {
         auto server_port = TRY(Core::MachPort::look_up_from_bootstrap_server(endpoint));
+        mach_port_t raw_task_name_port = MACH_PORT_NULL;
+        VERIFY(task_get_special_port(mach_task_self(), TASK_NAME_PORT, &raw_task_name_port) == KERN_SUCCESS);
+        auto task_name_port = Core::MachPort::adopt_right(raw_task_name_port, Core::MachPort::PortRight::Send);
         for (size_t i = 0; i < 2; ++i) {
-            IPC::MessageWithSelfTaskPort message {};
+            IPC::MessageWithSelfTaskNamePort message {};
             message.header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0) | MACH_MSGH_BITS_COMPLEX;
             message.header.msgh_size = sizeof(message);
             message.header.msgh_remote_port = server_port.port();
-            message.header.msgh_id = IPC::SELF_TASK_PORT_MESSAGE_ID;
+            message.header.msgh_id = IPC::SELF_TASK_NAME_PORT_MESSAGE_ID;
             message.body.msgh_descriptor_count = 1;
-            message.port_descriptor.name = mach_task_self();
+            message.port_descriptor.name = task_name_port.port();
             message.port_descriptor.disposition = MACH_MSG_TYPE_COPY_SEND;
             message.port_descriptor.type = MACH_MSG_PORT_DESCRIPTOR;
             VERIFY(mach_msg_send(&message.header) == KERN_SUCCESS);

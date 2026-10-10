@@ -18,13 +18,13 @@
 
 namespace IPC {
 
-struct MessageBodyWithSelfTaskPort {
+struct MessageBodyWithSelfTaskNamePort {
     mach_msg_body_t body;
     mach_msg_port_descriptor_t port_descriptor;
     mach_msg_audit_trailer_t trailer;
 };
 
-struct MessageWithSelfTaskPort {
+struct MessageWithSelfTaskNamePort {
     mach_msg_header_t header;
     mach_msg_body_t body;
     mach_msg_port_descriptor_t port_descriptor;
@@ -32,7 +32,7 @@ struct MessageWithSelfTaskPort {
 
 struct ReceivedMachMessage {
     mach_msg_header_t header;
-    MessageBodyWithSelfTaskPort body;
+    MessageBodyWithSelfTaskNamePort body;
 };
 
 struct MessageWithIPCChannelPorts {
@@ -50,7 +50,7 @@ struct ReceivedIPCChannelPortsMessage {
     mach_msg_trailer_t trailer;
 };
 
-static constexpr mach_msg_id_t SELF_TASK_PORT_MESSAGE_ID = 0x1234CAFE;
+static constexpr mach_msg_id_t SELF_TASK_NAME_PORT_MESSAGE_ID = 0x1234CAFE;
 static constexpr mach_msg_id_t IPC_CHANNEL_PORTS_MESSAGE_ID = 0x4950C002;
 
 }

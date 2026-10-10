@@ -537,12 +537,12 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
             return;
         }
         result.release_value().visit(
-            [this, pid = request.pid, task_port = move(request.task_port)](IPC::TransportBootstrapMachServer::ChildTransportHandled) mutable {
-                // The child sends its task port before Process::spawn() returns, so it cannot be added to the process
+            [this, pid = request.pid, task_name_port = move(request.task_name_port)](IPC::TransportBootstrapMachServer::ChildTransportHandled) mutable {
+                // The child sends its task name port before Process::spawn() returns, so it cannot be added to the process
                 // manager yet. Install the port once control returns to the browser event loop.
                 VERIFY(m_event_loop);
-                m_event_loop->deferred_invoke([this, pid, task_port = move(task_port)]() mutable {
-                    set_process_mach_port(pid, move(task_port));
+                m_event_loop->deferred_invoke([this, pid, task_name_port = move(task_name_port)]() mutable {
+                    set_process_task_name_port(pid, move(task_name_port));
                 });
             },
             [this](IPC::TransportBootstrapMachServer::OnDemandTransport& transport) {
@@ -2114,9 +2114,9 @@ void Application::add_child_process(WebView::Process&& process)
 }
 
 #if defined(AK_OS_MACH)
-void Application::set_process_mach_port(pid_t pid, Core::MachPort&& port)
+void Application::set_process_task_name_port(pid_t pid, Core::MachPort&& port)
 {
-    m_process_manager->set_process_mach_port(pid, move(port));
+    m_process_manager->set_process_task_name_port(pid, move(port));
 }
 #endif
 

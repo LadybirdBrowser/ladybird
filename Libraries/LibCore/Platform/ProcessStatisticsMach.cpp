@@ -56,14 +56,14 @@ ErrorOr<void> update_process_statistics(ProcessStatistics& statistics)
     for (auto& process : statistics.processes) {
         // A newly spawned process may be added to the process manager before its task port is delivered to the browser
         // event loop. Skip it for this sample; the port will be available on the next update.
-        if (!MACH_PORT_VALID(process->child_task_port.port())) {
+        if (!MACH_PORT_VALID(process->task_name_port.port())) {
             process->reset_cpu_time();
             continue;
         }
 
         mach_task_basic_info_data_t basic_info {};
         count = MACH_TASK_BASIC_INFO_COUNT;
-        res = task_info(process->child_task_port.port(), MACH_TASK_BASIC_INFO, reinterpret_cast<task_info_t>(&basic_info), &count);
+        res = task_info(process->task_name_port.port(), MACH_TASK_BASIC_INFO, reinterpret_cast<task_info_t>(&basic_info), &count);
         if (res != KERN_SUCCESS) {
             if (task_is_unavailable(res)) {
                 process->reset_cpu_time();
@@ -76,7 +76,7 @@ ErrorOr<void> update_process_statistics(ProcessStatistics& statistics)
 
         task_vm_info_data_t memory_info {};
         count = TASK_VM_INFO_COUNT;
-        res = task_info(process->child_task_port.port(), TASK_VM_INFO, reinterpret_cast<task_info_t>(&memory_info), &count);
+        res = task_info(process->task_name_port.port(), TASK_VM_INFO, reinterpret_cast<task_info_t>(&memory_info), &count);
         if (res != KERN_SUCCESS) {
             if (task_is_unavailable(res)) {
                 process->reset_cpu_time();
@@ -91,7 +91,7 @@ ErrorOr<void> update_process_statistics(ProcessStatistics& statistics)
 
         task_thread_times_info_data_t time_info {};
         count = TASK_THREAD_TIMES_INFO_COUNT;
-        res = task_info(process->child_task_port.port(), TASK_THREAD_TIMES_INFO, reinterpret_cast<task_info_t>(&time_info), &count);
+        res = task_info(process->task_name_port.port(), TASK_THREAD_TIMES_INFO, reinterpret_cast<task_info_t>(&time_info), &count);
         if (res != KERN_SUCCESS) {
             if (task_is_unavailable(res)) {
                 process->reset_cpu_time();
@@ -121,19 +121,19 @@ ErrorOr<void> update_process_statistics(ProcessStatistics& statistics)
 
 Optional<ProcessResourceUsage> process_resource_usage(ProcessInfo const& process)
 {
-    if (!MACH_PORT_VALID(process.child_task_port.port()))
+    if (!MACH_PORT_VALID(process.task_name_port.port()))
         return {};
     mach_task_basic_info_data_t basic {};
     mach_msg_type_number_t count = MACH_TASK_BASIC_INFO_COUNT;
-    if (task_info(process.child_task_port.port(), MACH_TASK_BASIC_INFO, reinterpret_cast<task_info_t>(&basic), &count) != KERN_SUCCESS)
+    if (task_info(process.task_name_port.port(), MACH_TASK_BASIC_INFO, reinterpret_cast<task_info_t>(&basic), &count) != KERN_SUCCESS)
         return {};
     task_thread_times_info_data_t threads {};
     count = TASK_THREAD_TIMES_INFO_COUNT;
-    if (task_info(process.child_task_port.port(), TASK_THREAD_TIMES_INFO, reinterpret_cast<task_info_t>(&threads), &count) != KERN_SUCCESS)
+    if (task_info(process.task_name_port.port(), TASK_THREAD_TIMES_INFO, reinterpret_cast<task_info_t>(&threads), &count) != KERN_SUCCESS)
         return {};
     task_vm_info_data_t memory {};
     count = TASK_VM_INFO_COUNT;
-    if (task_info(process.child_task_port.port(), TASK_VM_INFO, reinterpret_cast<task_info_t>(&memory), &count) != KERN_SUCCESS)
+    if (task_info(process.task_name_port.port(), TASK_VM_INFO, reinterpret_cast<task_info_t>(&memory), &count) != KERN_SUCCESS)
         return {};
     // NB: Basic task times contain terminated threads; thread times contain live threads.
     //     The footprint ledger charges owned memory rather than all resident mappings.

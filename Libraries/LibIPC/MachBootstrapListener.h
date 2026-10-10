@@ -36,7 +36,7 @@ public:
 
     struct BootstrapRequest {
         pid_t pid { -1 };
-        Core::MachPort task_port;
+        Core::MachPort task_name_port;
         Core::MachPort reply_port;
     };
     Function<void(BootstrapRequest)> on_bootstrap_request;

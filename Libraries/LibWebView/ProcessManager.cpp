@@ -70,10 +70,10 @@ ProcessManager::ProcessManager()
     add_process(Process(WebView::ProcessType::Browser, nullptr, Core::Process::current()));
 
 #ifdef AK_OS_MACH
-    auto self_send_port = mach_task_self();
-    auto res = mach_port_mod_refs(mach_task_self(), self_send_port, MACH_PORT_RIGHT_SEND, +1);
+    mach_port_t task_name_port = MACH_PORT_NULL;
+    auto res = task_get_special_port(mach_task_self(), TASK_NAME_PORT, &task_name_port);
     VERIFY(res == KERN_SUCCESS);
-    set_process_mach_port(getpid(), Core::MachPort::adopt_right(self_send_port, Core::MachPort::PortRight::Send));
+    set_process_task_name_port(getpid(), Core::MachPort::adopt_right(task_name_port, Core::MachPort::PortRight::Send));
 #endif
 }
 
@@ -114,12 +114,12 @@ void ProcessManager::for_each_process_statistics(Function<void(Process&, Core::P
 }
 
 #if defined(AK_OS_MACH)
-void ProcessManager::set_process_mach_port(pid_t pid, Core::MachPort&& port)
+void ProcessManager::set_process_task_name_port(pid_t pid, Core::MachPort&& port)
 {
     verify_event_loop();
     for (auto const& info : m_statistics.processes) {
         if (info->pid == pid) {
-            info->child_task_port = move(port);
+            info->task_name_port = move(port);
             return;
         }
     }

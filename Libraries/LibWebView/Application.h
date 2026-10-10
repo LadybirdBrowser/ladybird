@@ -252,7 +252,7 @@ public:
 
     // FIXME: Should these methods be part of Application, instead of deferring to ProcessManager?
 #if defined(AK_OS_MACH)
-    void set_process_mach_port(pid_t, Core::MachPort&&);
+    void set_process_task_name_port(pid_t, Core::MachPort&&);
 #endif
     Optional<Process&> find_process(pid_t);
 

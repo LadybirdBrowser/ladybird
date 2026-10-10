@@ -83,20 +83,20 @@ void MachBootstrapListener::thread_loop()
             break;
         }
 
-        if (message.header.msgh_id == SELF_TASK_PORT_MESSAGE_ID) {
-            auto const& task_port_message = message.body;
+        if (message.header.msgh_id == SELF_TASK_NAME_PORT_MESSAGE_ID) {
+            auto const& task_name_port_message = message.body;
             VERIFY(MACH_MSGH_BITS_LOCAL(message.header.msgh_bits) == MACH_MSG_TYPE_MOVE_SEND);
-            VERIFY(task_port_message.body.msgh_descriptor_count == 1);
-            VERIFY(task_port_message.port_descriptor.type == MACH_MSG_PORT_DESCRIPTOR);
-            auto pid = static_cast<pid_t>(task_port_message.trailer.msgh_audit.val[5]);
-            auto task_port = Core::MachPort::adopt_right(task_port_message.port_descriptor.name, Core::MachPort::PortRight::Send);
+            VERIFY(task_name_port_message.body.msgh_descriptor_count == 1);
+            VERIFY(task_name_port_message.port_descriptor.type == MACH_MSG_PORT_DESCRIPTOR);
+            auto pid = static_cast<pid_t>(task_name_port_message.trailer.msgh_audit.val[5]);
+            auto task_name_port = Core::MachPort::adopt_right(task_name_port_message.port_descriptor.name, Core::MachPort::PortRight::Send);
 
             // Extract reply port from the message header (kernel swaps local/remote on receive)
             auto reply_port = Core::MachPort::adopt_right(message.header.msgh_remote_port, Core::MachPort::PortRight::SendOnce);
 
-            dbgln_if(MACH_PORT_DEBUG, "Received bootstrap request from pid {} (task port {:x}, reply port {:x})", pid, task_port.port(), reply_port.port());
+            dbgln_if(MACH_PORT_DEBUG, "Received bootstrap request from pid {} (task name port {:x}, reply port {:x})", pid, task_name_port.port(), reply_port.port());
             VERIFY(on_bootstrap_request);
-            on_bootstrap_request({ pid, move(task_port), move(reply_port) });
+            on_bootstrap_request({ pid, move(task_name_port), move(reply_port) });
             continue;
         }
 

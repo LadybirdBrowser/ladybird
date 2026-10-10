@@ -41,7 +41,7 @@ public:
     void force_exit_after_timeout(pid_t, int timeout_ms);
 
 #if defined(AK_OS_MACH)
-    void set_process_mach_port(pid_t, Core::MachPort&&);
+    void set_process_task_name_port(pid_t, Core::MachPort&&);
 #endif
 
     void update_all_process_statistics();

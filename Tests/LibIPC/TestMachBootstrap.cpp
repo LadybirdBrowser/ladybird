@@ -11,6 +11,8 @@
 #include <LibIPC/MachBootstrapListener.h>
 #include <LibIPC/TransportBootstrapMach.h>
 #include <LibTest/TestCase.h>
+#include <mach/mach.h>
+#include <mach/mach_vm.h>
 #include <unistd.h>
 
 static ByteString server_name()
@@ -43,6 +45,33 @@ TEST_CASE(bootstrap_round_trip)
     EXPECT(MACH_PORT_VALID(ports.send_right.port()));
     listener.stop();
     EXPECT(server_ports.has_value());
+}
+
+TEST_CASE(bootstrap_sends_only_the_task_name_port)
+{
+    IPC::TransportBootstrapMachServer server;
+    Optional<Core::MachPort> received_task_name_port;
+    IPC::MachBootstrapListener listener { server_name() };
+    EXPECT(listener.is_initialized());
+    listener.on_bootstrap_request = [&](auto request) {
+        received_task_name_port = move(request.task_name_port);
+        (void)server.handle_bootstrap_request(request.pid, move(request.reply_port));
+    };
+
+    (void)TRY_OR_FAIL(IPC::bootstrap_transport_from_mach_server(listener.server_port_name()));
+    listener.stop();
+    VERIFY(received_task_name_port.has_value());
+    auto port = received_task_name_port->port();
+    EXPECT_NE(port, mach_task_self());
+
+    // The name port is enough for process statistics.
+    mach_task_basic_info_data_t basic_info {};
+    mach_msg_type_number_t count = MACH_TASK_BASIC_INFO_COUNT;
+    EXPECT_EQ(task_info(port, MACH_TASK_BASIC_INFO, reinterpret_cast<task_info_t>(&basic_info), &count), KERN_SUCCESS);
+
+    // It must not grant control over the sender, such as access to its memory.
+    mach_vm_address_t address = 0;
+    EXPECT_NE(mach_vm_allocate(port, &address, PAGE_SIZE, VM_FLAGS_ANYWHERE), KERN_SUCCESS);
 }
 
 TEST_CASE(bootstrap_reports_a_server_that_drops_the_reply)

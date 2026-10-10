@@ -38,7 +38,7 @@ struct ProcessInfo {
     u64 time_spent_in_process { 0 };
 
 #if defined(AK_OS_MACH)
-    Core::MachPort child_task_port;
+    Core::MachPort task_name_port;
     bool has_cpu_time_baseline { false };
 #endif
 };

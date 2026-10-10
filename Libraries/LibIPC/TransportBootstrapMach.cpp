@@ -22,14 +22,22 @@ ErrorOr<TransportBootstrapMachPorts> bootstrap_transport_from_server_port(Core::
 {
     auto reply_port = TRY(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
 
-    MessageWithSelfTaskPort message {};
+    // NB: Send only the task name port. It is enough for task_info() statistics, while the task control port from
+    //     mach_task_self() would give the server full control over this process, including its memory.
+    mach_port_t raw_task_name_port = MACH_PORT_NULL;
+    auto const name_port_result = task_get_special_port(mach_task_self(), TASK_NAME_PORT, &raw_task_name_port);
+    if (name_port_result != KERN_SUCCESS)
+        return Core::mach_error_to_error(name_port_result);
+    auto task_name_port = Core::MachPort::adopt_right(raw_task_name_port, Core::MachPort::PortRight::Send);
+
+    MessageWithSelfTaskNamePort message {};
     message.header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, MACH_MSG_TYPE_MAKE_SEND_ONCE) | MACH_MSGH_BITS_COMPLEX;
     message.header.msgh_size = sizeof(message);
     message.header.msgh_remote_port = server_port.port();
     message.header.msgh_local_port = reply_port.port();
-    message.header.msgh_id = SELF_TASK_PORT_MESSAGE_ID;
+    message.header.msgh_id = SELF_TASK_NAME_PORT_MESSAGE_ID;
     message.body.msgh_descriptor_count = 1;
-    message.port_descriptor.name = mach_task_self();
+    message.port_descriptor.name = task_name_port.port();
     message.port_descriptor.disposition = MACH_MSG_TYPE_COPY_SEND;
     message.port_descriptor.type = MACH_MSG_PORT_DESCRIPTOR;
 
