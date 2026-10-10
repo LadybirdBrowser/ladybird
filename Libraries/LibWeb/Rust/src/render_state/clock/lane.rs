@@ -92,11 +92,11 @@ impl Lanes {
     fn newest_follows_pointer(&self) -> bool {
         match self {
             Self::None => false,
-            Self::Newest(lane) => lane.plan.follows_pointer() && !lane.hovered.is_parked(),
+            Self::Newest(lane) => lane.needs_render_state() && lane.plan.follows_pointer() && !lane.hovered.is_parked(),
             Self::Coming { pieces, .. } => match &pieces.plan {
                 FramePlan::Unsealed => true,
                 FramePlan::None => false,
-                FramePlan::Sealed(plan) => plan.follows_pointer(),
+                FramePlan::Sealed(plan) => plan.needs_render_state() && plan.follows_pointer(),
             },
         }
     }
@@ -215,9 +215,28 @@ pub(in crate::render_state) fn note_sampled(ticks: &Arc<ClockTicks>) -> LaneDeli
 /// longer is the one the frame sampled last shows. A lane that may want it forks the state first.
 pub(in crate::render_state) fn note_host_write(document: DocumentId) {
     with_slot(document, |slot| {
+        // NB: The update has taken this lane in and holds it until its plan is sealed. If the lane sampled nothing,
+        //     the update either replaces its frame or leaves the host showing the same frame. Do not copy the old
+        //     state just to discard it when the update samples its replacement. A newly sampled frame's coming lane
+        //     still needs its state preserved: a task may write it before its recorder and plan arrive.
+        if slot.taken_in.is_some()
+            && let Lanes::Newest(lane) = &mut slot.lanes
+            && lane.samples_nothing()
+        {
+            lane.state.move_on();
+            return;
+        }
         // A lane that follows the pointer hovers beside the next task, which may begin as soon as this job is done,
         // whether or not its animations run beside the idle event loop.
-        let wants_fork = slot.ticks.wants_fork() || slot.lanes.newest_follows_pointer();
+        let needs_state = match &slot.lanes {
+            Lanes::Newest(lane) => lane.needs_render_state(),
+            Lanes::Coming { pieces, .. } => match &pieces.plan {
+                FramePlan::Sealed(plan) => plan.needs_render_state(),
+                _ => true,
+            },
+            Lanes::None => false,
+        };
+        let wants_fork = needs_state && (slot.ticks.wants_fork() || slot.lanes.newest_follows_pointer());
         if let Some(state) = slot.lanes.newest_state() {
             if wants_fork {
                 state.fork(document);
@@ -308,7 +327,14 @@ impl LaneSlot {
                 self.come_together();
             }
             // A rendering update that presented no frame of its own leaves its plan to the lane of the frame before it.
-            (Lanes::Newest(lane), Some(plan)) => lane.replan(plan),
+            (Lanes::Newest(lane), Some(plan)) => {
+                // NB: With no replacement frame, the completed update left the host showing this lane's frame.
+                //     Its next tick or the next task's first write can preserve that state then.
+                if self.taken_in.is_none() && matches!(lane.state, LaneState::MovedOn) && lane.samples_nothing() {
+                    lane.state = LaneState::Shown;
+                }
+                lane.replan(plan);
+            }
             // One that seals no plan leaves a lane that showed no sample following nothing: a later update that presents
             // no frame of its own has it follow its plan again, which a lane that went away could not.
             (Lanes::Newest(lane), None) if lane.samples_nothing() => lane.unplan(),
@@ -392,6 +418,16 @@ impl LaneSlot {
         }
         let samples_animations = !self.ticks.animations_held.load(Ordering::Relaxed);
         let pointer = self.ticks.pointer_state().take();
+        if let Lanes::Newest(lane) = &mut self.lanes
+            && !lane.needs_render_state()
+        {
+            if let Some(pointer) = pointer {
+                lane.hovered.go_on_from_nested(self.nested);
+                self.last_move = Some(lane.hover_read_only(pointer));
+                self.nested = lane.hovered.nested();
+            }
+            return;
+        }
         // The state still shows the frame sampled last, whose lane forks it now, whether or not it came together yet.
         if let Some(state) = self.lanes.newest_state() {
             state.fork(self.ticks.document);

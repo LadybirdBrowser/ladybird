@@ -1796,6 +1796,17 @@ impl<A: AtomSpace> SelectorProgram<A> {
         query: DispatchQuery,
         out: &mut Vec<DispatchKey>,
     ) -> bool {
+        self.dispatch_analysis_excluding(id, relation, query, out, None)
+    }
+
+    fn dispatch_analysis_excluding(
+        &self,
+        id: SelectorNodeID,
+        relation: DispatchRelation,
+        query: DispatchQuery,
+        out: &mut Vec<DispatchKey>,
+        excluded: Option<DispatchKey>,
+    ) -> bool {
         if relation != DispatchRelation::Subject {
             let operands = match self.node(id) {
                 SelectorOp::And { first, count } => self.operands(first, count),
@@ -1810,14 +1821,20 @@ impl<A: AtomSpace> SelectorProgram<A> {
                             }
                             return false;
                         }
-                        return self.dispatch_analysis(inner, DispatchRelation::Subject, query, out);
+                        return self.dispatch_analysis_excluding(
+                            inner,
+                            DispatchRelation::Subject,
+                            query,
+                            out,
+                            excluded,
+                        );
                     }
                     (
                         DispatchRelation::Parent,
                         SelectorOp::PreviousSibling(inner) | SelectorOp::PrecedingSibling(inner),
                     ) => {
                         let start = out.len();
-                        self.dispatch_analysis(inner, relation, query, out);
+                        self.dispatch_analysis_excluding(inner, relation, query, out, excluded);
                         if query != DispatchQuery::Required && out.len() != start {
                             return true;
                         }
@@ -1828,14 +1845,20 @@ impl<A: AtomSpace> SelectorProgram<A> {
                         if self.mentions_the_host(inner) {
                             continue;
                         }
-                        self.dispatch_analysis(inner, DispatchRelation::Subject, query, out);
-                        self.dispatch_analysis(inner, relation, query, out);
+                        self.dispatch_analysis_excluding(inner, DispatchRelation::Subject, query, out, excluded);
+                        self.dispatch_analysis_excluding(inner, relation, query, out, excluded);
                     }
                     (DispatchRelation::Ancestor, SelectorOp::Ancestor(inner)) => {
                         if self.mentions_the_host(inner) {
                             return false;
                         }
-                        return self.dispatch_analysis(inner, DispatchRelation::Subject, query, out);
+                        return self.dispatch_analysis_excluding(
+                            inner,
+                            DispatchRelation::Subject,
+                            query,
+                            out,
+                            excluded,
+                        );
                     }
                     (
                         DispatchRelation::Ancestor,
@@ -1844,7 +1867,7 @@ impl<A: AtomSpace> SelectorProgram<A> {
                         | SelectorOp::PrecedingSibling(inner),
                     ) => {
                         let start = out.len();
-                        self.dispatch_analysis(inner, relation, query, out);
+                        self.dispatch_analysis_excluding(inner, relation, query, out, excluded);
                         if out.len() != start {
                             return true;
                         }
@@ -1858,6 +1881,9 @@ impl<A: AtomSpace> SelectorProgram<A> {
         match self.node(id) {
             SelectorOp::Feature(test) => {
                 let key = Self::dispatch_key_for_feature(test);
+                if excluded == Some(key) {
+                    return query == DispatchQuery::Required;
+                }
                 match query {
                     DispatchQuery::Alternatives | DispatchQuery::Required if key == DispatchKey::Universal => {
                         return query == DispatchQuery::Required;
@@ -1869,7 +1895,7 @@ impl<A: AtomSpace> SelectorProgram<A> {
             SelectorOp::And { first, count } => match query {
                 DispatchQuery::Required => {
                     for &operand in self.operands(first, count) {
-                        self.dispatch_analysis(operand, relation, query, out);
+                        self.dispatch_analysis_excluding(operand, relation, query, out, excluded);
                     }
                     true
                 }
@@ -1878,7 +1904,7 @@ impl<A: AtomSpace> SelectorProgram<A> {
                     let mut candidate = Vec::new();
                     for &operand in self.operands(first, count) {
                         candidate.clear();
-                        if !self.dispatch_analysis(operand, relation, query, &mut candidate) {
+                        if !self.dispatch_analysis_excluding(operand, relation, query, &mut candidate, excluded) {
                             continue;
                         }
                         if best
@@ -1902,7 +1928,7 @@ impl<A: AtomSpace> SelectorProgram<A> {
                 DispatchQuery::Alternatives => {
                     let start = out.len();
                     for &operand in self.operands(first, count) {
-                        if !self.dispatch_analysis(operand, relation, query, out)
+                        if !self.dispatch_analysis_excluding(operand, relation, query, out, excluded)
                             || out.len() - start > MAX_DISPATCH_KEYS
                         {
                             out.truncate(start);
@@ -1922,7 +1948,9 @@ impl<A: AtomSpace> SelectorProgram<A> {
                 }
                 DispatchQuery::Required => {
                     let mut keys = Vec::new();
-                    if self.dispatch_analysis(id, relation, DispatchQuery::Alternatives, &mut keys) && keys.len() == 1 {
+                    if self.dispatch_analysis_excluding(id, relation, DispatchQuery::Alternatives, &mut keys, excluded)
+                        && keys.len() == 1
+                    {
                         out.push(keys[0]);
                     }
                     true
@@ -1931,9 +1959,11 @@ impl<A: AtomSpace> SelectorProgram<A> {
             SelectorOp::Where(inner)
             | SelectorOp::Host(inner)
             | SelectorOp::Slotted(inner)
-            | SelectorOp::ExposedToHost { parts: inner, .. } => self.dispatch_analysis(inner, relation, query, out),
+            | SelectorOp::ExposedToHost { parts: inner, .. } => {
+                self.dispatch_analysis_excluding(inner, relation, query, out, excluded)
+            }
             SelectorOp::InScope { inner, .. } if query != DispatchQuery::Required => {
-                self.dispatch_analysis(inner, relation, query, out)
+                self.dispatch_analysis_excluding(inner, relation, query, out, excluded)
             }
             SelectorOp::Part(part) => {
                 out.push(DispatchKey::Part(part));
@@ -1958,6 +1988,9 @@ impl<A: AtomSpace> SelectorProgram<A> {
             // without one names nothing, and admitting it as a candidate key would take the
             // compound away from names that do.
             SelectorOp::State(state) if query == DispatchQuery::Required || state.has_selector_posting() => {
+                if excluded == Some(DispatchKey::State(state)) {
+                    return query == DispatchQuery::Required;
+                }
                 out.push(DispatchKey::State(state));
                 true
             }
@@ -3716,7 +3749,15 @@ impl<A: AtomSpace> SelectorProgram<A> {
     ) {
         let emit = |walk: &mut TransposeWalk, key: RoutingKey, visit: &mut dyn FnMut(TransposeSite<'_>)| {
             walk.origin_dispatch.clear();
-            if !self.dispatch_keys_of(enclosing, &mut walk.origin_dispatch) {
+            // NB: The hover bit changes at the origin. Use its other features to find possible origins even before
+            //     anything is hovered, including alternatives inside :is() and :where().
+            if !self.dispatch_analysis_excluding(
+                enclosing,
+                DispatchRelation::Subject,
+                DispatchQuery::Alternatives,
+                &mut walk.origin_dispatch,
+                (key == RoutingKey::State(StateFact::Hover)).then_some(key),
+            ) {
                 walk.origin_dispatch.clear();
             }
             walk.origin_required.clear();

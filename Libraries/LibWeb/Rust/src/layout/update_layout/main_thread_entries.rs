@@ -104,10 +104,16 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
             .filter_map(|&element| StyleNodeID::from_raw(element))
             .collect();
         // SAFETY: Guaranteed by the caller.
-        let hover = unsafe { hover.as_ref() }.map(|inputs| {
+        let mut hover = unsafe { hover.as_ref() }.map(|inputs| {
             unsafe { crate::render_state::HoverPlan::from_ffi(inputs) }.with_style_inputs(host.style_inputs())
         });
         let round = seal_clock_round(&main_thread, host, read);
+        if elements.is_empty()
+            && round.is_some()
+            && let Some(hover) = &mut hover
+        {
+            host.run(read, false, |state| hover.seal_read_only_frame(state));
+        }
         host.seal_clock_plan(
             round.map(|round| {
                 crate::render_state::ClockPlan::new(

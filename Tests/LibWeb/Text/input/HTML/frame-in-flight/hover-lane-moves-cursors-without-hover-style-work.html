@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; font: 20px SerenitySans, sans-serif; line-height: 40px; }
+    div { height: 40px; }
+    #link { cursor: pointer; }
+    #moves { cursor: move; }
+    #unselectable { user-select: none; }
+    #button { cursor: pointer; user-select: none; }
+</style>
+<div id="empty"></div>
+<div><span id="link">link text</span></div>
+<div>plain text</div>
+<div id="moves">moves on hover</div>
+<div><span id="unselectable" style="display: contents"><span>unselectable text</span></span></div>
+<div contenteditable>editable text</div>
+<div><span id="button">button label</span></div>
+<div id="shadow"><span>slotted text</span></div>
+<script>
+    shadow.attachShadow({ mode: "open" }).innerHTML = '<style>slot { user-select: none }</style><slot></slot>';
+    // With no hover rules, a tick of the render clock that hovers what is under the pointer while the task runs also shows the cursor of what
+    // it hovers, as the main thread shows it as it handles a move there: the arrow over an empty box, the hand over a
+    // link, the text cursor over selectable text, a predefined cursor, the arrow over text that cannot be
+    // selected, the text cursor over editable text, and the cursor of an element over its unselectable text. The
+    // rendering update after the task keeps the cursor the last tick showed. The main thread shows the same cursors over
+    // the same rows once a rendering update applied the style of each move.
+    asyncTest(async done => {
+        const rows = [...document.querySelectorAll("body > div")].map(div => div.getBoundingClientRect().top + 20);
+        const cursors = await whileLaneHovers(() => {
+            unselectable.style.userSelect = "text";
+            println(`host user-select during the task: ${getComputedStyle(unselectable).userSelect}`);
+            const cursors = [];
+            for (const y of rows) {
+                internals.injectHoverPointer(10, y);
+                cursors.push(internals.currentCursor());
+            }
+            unselectable.style.userSelect = "none";
+            return cursors;
+        });
+        println(`cursors while the task ran: ${cursors.join(", ")}`);
+        await nextFrame();
+        println(`cursor after the task: ${internals.currentCursor()}`);
+        const mainThreadCursors = [];
+        for (const y of rows) {
+            internals.mouseMove(10, y);
+            await twoFrames();
+            mainThreadCursors.push(internals.currentCursor());
+        }
+        println(`main thread cursors: ${mainThreadCursors.join(", ")}`);
+        done();
+    });
+</script>

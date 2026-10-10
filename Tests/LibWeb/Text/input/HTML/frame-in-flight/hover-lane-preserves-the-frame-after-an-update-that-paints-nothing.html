@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; outline: 1px solid blue; }
+    #box:hover { outline-color: green; }
+</style>
+<div id="box"></div>
+<script>
+    asyncTest(async done => {
+        const result = await whileLaneHovers(async frameTime => {
+            // The update writes and reads style without changing what the presented frame shows.
+            requestAnimationFrame(() => {
+                box.style.width = "100px";
+                println(`width during the update: ${box.offsetWidth}`);
+            });
+            internals.injectRenderingOpportunity(frameTime + 16);
+            do await nextTask();
+            while (internals.frameSchedulerState() !== "idle" || internals.clockLaneIsComing(document));
+
+            // The next task changes the host's geometry. Hover must still present the preceding frame's geometry.
+            box.style.width = "120px";
+            const width = box.offsetWidth;
+            internals.injectHoverPointer(50, 50, frameTime + 32);
+            return { width, onScreen: internals.presentedBorderBox(box)?.width };
+        });
+        println(`width read in the task: ${result.width}`);
+        println(`width presented by hover: ${result.onScreen}`);
+        done();
+    });
+</script>

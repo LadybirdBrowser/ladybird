@@ -163,6 +163,11 @@ impl ClockPlan {
         !self.elements.is_empty()
     }
 
+    /// Whether the plan samples animations or needs mutable state to hover.
+    fn needs_render_state(&self) -> bool {
+        self.animates() || self.hover.as_ref().is_none_or(hover::HoverPlan::needs_render_state)
+    }
+
     /// Whether the plan follows the pointer.
     pub(crate) fn follows_pointer(&self) -> bool {
         self.hover.is_some()
@@ -1095,6 +1100,11 @@ impl Lane {
             unshown_move: None,
             samples_restored: false,
         }
+    }
+
+    /// Whether the lane may write styles or layout, rather than only hit testing immutable rows.
+    fn needs_render_state(&self) -> bool {
+        self.plan.needs_render_state() || !self.samples_nothing()
     }
 
     /// Whether no tick of the lane showed a sample in a box, nor did its hover start a transition: its fork shows the

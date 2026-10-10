@@ -1,0 +1,4 @@
+host user-select during the task: text
+cursors while the task ran: Arrow, Hand, IBeam, Move, Arrow, IBeam, Hand, Arrow
+cursor after the task: Arrow
+main thread cursors: Arrow, Hand, IBeam, Move, Arrow, IBeam, Hand, Arrow
