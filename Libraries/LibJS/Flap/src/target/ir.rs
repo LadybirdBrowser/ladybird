@@ -317,7 +317,19 @@ pub struct MachineProgram {
     pub(crate) runtime: RuntimeConstants,
     pub(crate) dispatch_handlers: Vec<Option<HandlerId>>,
     pub(crate) target: crate::Target,
+    pub(crate) profiling: bool,
     pub(crate) functions: Vec<MachineFunction>,
+}
+
+impl MachineProgram {
+    /// The name of a global interpreter symbol in this variant.
+    pub(crate) fn global_symbol(&self, name: &str) -> String {
+        if self.profiling {
+            format!("{name}_profiling")
+        } else {
+            name.to_string()
+        }
+    }
 }
 
 impl MachineProgram {

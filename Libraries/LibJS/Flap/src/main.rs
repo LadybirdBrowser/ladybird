@@ -80,12 +80,14 @@ fn parse_command_line() -> Result<CommandLine, String> {
     let mut enable_assertions = false;
     let mut optimization_report_path = None;
     let mut dump_changed_ir = false;
+    let mut profiling = false;
 
     while let Some(argument) = args.next() {
         match argument.as_str() {
             "--has-jscvt" => has_jscvt = true,
             "--enable-assertions" => enable_assertions = true,
             "--dump-changed-ir" => dump_changed_ir = true,
+            "--profiling" => profiling = true,
             "--arch" => {
                 architecture = match required_value(&mut args, "--arch")?.as_str() {
                     "x86_64" => Architecture::X86_64,
@@ -123,6 +125,7 @@ fn parse_command_line() -> Result<CommandLine, String> {
             },
             has_jscvt,
             enable_assertions,
+            profiling,
         },
         input_path: input_path.ok_or(USAGE)?,
         output_path: output_path.ok_or(USAGE)?,

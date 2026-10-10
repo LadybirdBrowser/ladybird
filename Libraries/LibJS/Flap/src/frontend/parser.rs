@@ -376,6 +376,26 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
+        let mut profiling = false;
+        while self.current().kind == TokenKind::At {
+            self.advance();
+            let (annotation, span) = self.consume_identifier("inline function annotation")?;
+            if annotation != "profiling" {
+                return Err(Diagnostic::new(
+                    self.filename,
+                    span,
+                    format!("unknown inline function annotation '@{annotation}'"),
+                ));
+            }
+            if return_type.is_some() {
+                return Err(Diagnostic::new(
+                    self.filename,
+                    span,
+                    "a @profiling inline function cannot return a value",
+                ));
+            }
+            profiling = true;
+        }
         let body = if return_type.is_some() {
             self.parse_value_block()?
         } else {
@@ -385,6 +405,7 @@ impl<'a> Parser<'a> {
             name,
             parameters,
             return_type,
+            profiling,
             span: SourceSpan {
                 start,
                 end: body.span.end,
