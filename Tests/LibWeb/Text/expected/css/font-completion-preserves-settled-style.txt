@@ -1,0 +1,9 @@
+resident face used before completion: true
+status before completion: loading
+status after completion: loaded
+completion recomputed style: false
+completion preserves geometry: true
+unused subset: unloaded
+registered script face: loaded, width=20
+face registered after loading: loaded, width=20
+failed face: error, rejection=NetworkError

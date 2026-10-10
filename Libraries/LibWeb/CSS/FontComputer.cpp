@@ -599,8 +599,9 @@ void FontComputer::register_font_face(NonnullRefPtr<FontFaceState> face)
 
     auto key = face->matching_key();
     auto& faces = m_font_faces.ensure(key);
-    if (!faces.contains_slow(face))
-        faces.append(face);
+    if (faces.contains_slow(face))
+        return;
+    faces.append(face);
     did_load_font(key);
 }
 
