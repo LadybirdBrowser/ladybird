@@ -14,6 +14,7 @@ use ak::ScopeGuard;
 
 use super::vm::Vm;
 use crate::bytecode::executable::Executable;
+use crate::jit::code::EntryStatus;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
 use crate::layout::function_object::EcmascriptFunctionObject;
@@ -108,6 +109,13 @@ impl Vm {
                 unreachable!("throw_completion always throws");
             };
             context_ref.register(register::EXCEPTION).set(throw.value());
+        } else if entry_point == 0 && crate::jit::entry_exit::can_enter_jit_code(self, executable_ref) {
+            let result = crate::jit::entry_exit::enter_jit_code(self, context);
+            match result.status {
+                EntryStatus::Returned => self.return_from_running_frame(Value(result.value)),
+                EntryStatus::Resume => self.run_running_frame_in_interpreter(),
+                EntryStatus::ExitInterpreter => {}
+            }
         } else {
             // SAFETY: The interpreter runs the executable in the context, whose slots follow it.
             unsafe {
@@ -617,6 +625,13 @@ impl Vm {
                     debugger.did_finish_exception_propagation(exception);
                 }
                 return HandleExceptionResponse::ContinueInThisExecutable;
+            }
+
+            // A caller waiting in native code for this frame handles the exception there, after leaving the
+            // interpreter.
+            if context.returns_to_native_caller.get() {
+                context.register(register::EXCEPTION).set(exception);
+                return HandleExceptionResponse::ExitFromExecutable;
             }
 
             // If we're in an inline frame, unwind to the caller and try its handlers.

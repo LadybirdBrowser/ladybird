@@ -3141,18 +3141,23 @@ asm_handler_Return:
     mov rcx, QWORD PTR [rbx - 48]
 .Lasm_Return.ssa_block_6:
     mov edx, DWORD PTR [rbx - 20]
-    mov esi, DWORD PTR [rbx - 16]
+    mov edi, DWORD PTR [rbx - 16]
+    movzx esi, BYTE PTR [rbx - 4]
     mov DWORD PTR [rax + 64], edx
-    mov QWORD PTR [rax + rsi * 8 + 128], rcx
+    mov QWORD PTR [rax + rdi * 8 + 128], rcx
     mov rcx, QWORD PTR [rbp - 48]
     mov QWORD PTR [rcx], rax
     lea r11, [rbx - 128]
     mov QWORD PTR [rcx + 16], r11
     inc DWORD PTR [rcx + 56]
+    test rsi, rsi
+    jz .Lasm_Return.ssa_block_10
+    jmp .Lexit
+.Lasm_Return.ssa_block_10:
     lea rbx, [rax + 128]
     mov rax, QWORD PTR [rbx - 40]
     test rax, rax
-    jz .Lasm_Return.assert_predicate_failure_42
+    jz .Lasm_Return.assert_predicate_failure_48
     mov r14, QWORD PTR [rax + 40]
     test r14, r14
     jz .Lasm_Return.assert_failure_0
@@ -3185,18 +3190,23 @@ asm_handler_End:
     mov rcx, QWORD PTR [rbx - 48]
 .Lasm_End.ssa_block_4:
     mov edx, DWORD PTR [rbx - 20]
-    mov esi, DWORD PTR [rbx - 16]
+    mov edi, DWORD PTR [rbx - 16]
+    movzx esi, BYTE PTR [rbx - 4]
     mov DWORD PTR [rax + 64], edx
-    mov QWORD PTR [rax + rsi * 8 + 128], rcx
+    mov QWORD PTR [rax + rdi * 8 + 128], rcx
     mov rcx, QWORD PTR [rbp - 48]
     mov QWORD PTR [rcx], rax
     lea r11, [rbx - 128]
     mov QWORD PTR [rcx + 16], r11
     inc DWORD PTR [rcx + 56]
+    test rsi, rsi
+    jz .Lasm_End.ssa_block_8
+    jmp .Lexit
+.Lasm_End.ssa_block_8:
     lea rbx, [rax + 128]
     mov rax, QWORD PTR [rbx - 40]
     test rax, rax
-    jz .Lasm_End.assert_predicate_failure_37
+    jz .Lasm_End.assert_predicate_failure_43
     mov r14, QWORD PTR [rax + 40]
     test r14, r14
     jz .Lasm_End.assert_failure_0
@@ -21207,13 +21217,13 @@ asm_assertion_failure_traps:
     ud2
 .Lasm_ToBoolean.assert_predicate_failure_3:
     ud2
-.Lasm_Return.assert_predicate_failure_42:
+.Lasm_Return.assert_predicate_failure_48:
     ud2
 .Lasm_Return.assert_failure_0:
     ud2
 .Lasm_End.assert_predicate_failure_3:
     ud2
-.Lasm_End.assert_predicate_failure_37:
+.Lasm_End.assert_predicate_failure_43:
     ud2
 .Lasm_End.assert_failure_0:
     ud2

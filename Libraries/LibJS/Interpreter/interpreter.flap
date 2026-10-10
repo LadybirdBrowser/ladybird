@@ -380,7 +380,7 @@ inline fn normalize_completion_value(initial_value: Value) -> (Value, Value) {
 
 # Switches to the dispatch table of the executable whose frame the interpreter
 # continues in. Only the profiling build switches: the plain build's handlers
-# run every frame unless the profiling tier is in use, and then, the plain
+# run every frame while the JIT is off, and while it is on, the plain
 # handlers' frames keep the table they run with until the next profiling
 # handler switches frames (see the executable's interpreter tier).
 inline fn switch_dispatch_table(executable: Executable) @profiling {
@@ -404,12 +404,17 @@ inline fn return_to_caller(
     }
     let return_pc = exec_ctx.caller_return_pc;
     let destination_index = exec_ctx.caller_dst_raw;
+    let returns_to_native_caller = exec_ctx.returns_to_native_caller;
     caller_frame.program_counter = return_pc;
     caller_frame.slots[destination_index] = result;
     let vm = current_vm();
     vm.running_execution_context = caller_frame;
     vm.interpreter_stack_top = alias(exec_ctx);
     inc32_mem([vm, VM_EXECUTION_GENERATION]);
+    # A caller waiting in native code (JIT code) continues there.
+    if returns_to_native_caller {
+        exit;
+    }
     exec_ctx = caller_frame;
     let executable = exec_ctx.executable;
     assert(executable != 0);
@@ -1138,8 +1143,29 @@ inline fn record_builtin_call_feedback(slot: CallFeedbackIndex, callee: Value) @
     }
 }
 
+# Runs the frame that just became the running execution context in its
+# executable's JIT code, if it has some. Only the profiling build checks:
+# JIT code exists only while the JIT is enabled, which selects that build.
+inline fn enter_jit_code_if_any(executable: Executable) @profiling {
+    if executable.jit_compile_state == JIT_COMPILE_STATE_INSTALLED {
+        let control: i32 = call_helper(asm_helper_enter_jit_code, current_vm());
+        guard control >= 0 else @cold {
+            exit;
+        };
+        if control > 0 {
+            # The code returned: its frame is still the running execution context, and the return value is in the
+            # frame's return value register.
+            let returned_vm = current_vm();
+            exec_ctx = returned_vm.running_execution_context;
+            values = exec_ctx.slots;
+            return_value(values[3]);
+        }
+        continue_running_execution_context();
+    }
+}
+
 # Continues interpreting the running execution context at its program
-# counter, with the handlers of its executable's tier.
+# counter, after JIT code ran.
 inline fn continue_running_execution_context() @profiling {
     let resumed_vm = current_vm();
     exec_ctx = resumed_vm.running_execution_context;
@@ -1150,6 +1176,15 @@ inline fn continue_running_execution_context() @profiling {
     pb = resumed_executable.bytecode_data;
     switch_dispatch_table(resumed_executable);
     pc = exec_ctx.program_counter;
+    goto_handler(pc);
+}
+
+# Starts running the frame that just became the running execution context,
+# at its entry: in its executable's JIT code if it has some, and in the
+# interpreter otherwise.
+inline fn enter_new_frame(executable: Executable) {
+    enter_jit_code_if_any(executable);
+    pc = 0;
     goto_handler(pc);
 }
 
@@ -3882,8 +3917,7 @@ handler Call(
     direct_vm.running_execution_context = frame;
     exec_ctx = frame;
     values = exec_ctx.slots;
-    pc = 0;
-    goto_handler(pc);
+    enter_new_frame(direct_executable);
     let invoke_interp_inline = || {
         # Let the interpreter resolve the cases that cannot use the direct
         # frame construction above, then enter the resolved callee.
@@ -3896,8 +3930,7 @@ handler Call(
         assert(inline_executable != 0);
         pb = inline_executable.bytecode_data;
         switch_dispatch_table(inline_executable);
-        pc = 0;
-        goto_handler(pc);
+        enter_new_frame(inline_executable);
     };
     let invoke_try_native = || {
         # Construct the lightweight frame used by raw native functions.

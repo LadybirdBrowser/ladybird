@@ -3218,19 +3218,23 @@ asm_handler_Return:
     b.eq .Lasm_Return.ssa_block_6
     ldr x1, [x28, #80]
 .Lasm_Return.ssa_block_6:
-    ldp w2, w3, [x28, #108]
+    ldp w2, w4, [x28, #108]
+    ldrb w3, [x28, #124]
     str w2, [x0, #64]
     add x9, x0, #128
-    str x1, [x9, x3, lsl #3]
+    str x1, [x9, x4, lsl #3]
     mov x1, x20
     str x0, [x1]
     str x28, [x1, #16]
     ldr w9, [x1, #56]
     add w9, w9, #1
     str w9, [x1, #56]
+    cbz x3, .Lasm_Return.ssa_block_10
+    b .Lexit
+.Lasm_Return.ssa_block_10:
     mov x28, x0
     ldr x0, [x28, #88]
-    cbz x0, .Lasm_Return.assert_predicate_failure_42
+    cbz x0, .Lasm_Return.assert_predicate_failure_48
     ldr x26, [x0, #40]
     cbz x26, .Lasm_Return.assert_failure_0
     add x27, x28, #128
@@ -3263,19 +3267,23 @@ asm_handler_End:
     b.eq .Lasm_End.ssa_block_4
     ldr x1, [x28, #80]
 .Lasm_End.ssa_block_4:
-    ldp w2, w3, [x28, #108]
+    ldp w2, w4, [x28, #108]
+    ldrb w3, [x28, #124]
     str w2, [x0, #64]
     add x9, x0, #128
-    str x1, [x9, x3, lsl #3]
+    str x1, [x9, x4, lsl #3]
     mov x1, x20
     str x0, [x1]
     str x28, [x1, #16]
     ldr w9, [x1, #56]
     add w9, w9, #1
     str w9, [x1, #56]
+    cbz x3, .Lasm_End.ssa_block_8
+    b .Lexit
+.Lasm_End.ssa_block_8:
     mov x28, x0
     ldr x0, [x28, #88]
-    cbz x0, .Lasm_End.assert_predicate_failure_37
+    cbz x0, .Lasm_End.assert_predicate_failure_43
     ldr x26, [x0, #40]
     cbz x26, .Lasm_End.assert_failure_0
     add x27, x28, #128
@@ -21758,13 +21766,13 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_ToBoolean.assert_predicate_failure_3:
     brk #0
-.Lasm_Return.assert_predicate_failure_42:
+.Lasm_Return.assert_predicate_failure_48:
     brk #0
 .Lasm_Return.assert_failure_0:
     brk #0
 .Lasm_End.assert_predicate_failure_3:
     brk #0
-.Lasm_End.assert_predicate_failure_37:
+.Lasm_End.assert_predicate_failure_43:
     brk #0
 .Lasm_End.assert_failure_0:
     brk #0
