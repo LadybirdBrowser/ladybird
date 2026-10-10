@@ -11,6 +11,7 @@
 //! thread). It calls nothing in the runtime and has no access to the GC heap, so
 //! it can run on a worker thread.
 
+pub mod asm;
 pub mod bitset;
 pub mod fast_hash;
 pub mod inline_vec;
