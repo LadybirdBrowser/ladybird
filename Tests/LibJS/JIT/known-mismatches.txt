@@ -1,0 +1,3 @@
+# Mismatches of open bugs, which matrix.py reports as known instead of failing: "<suite> <key> # <bug>", with
+# the key as matrix.py prints it and the bug as the JIT's miscompile list names it. Remove a line when its bug is
+# fixed; matrix.py points out listed mismatches that did not happen.
