@@ -66,6 +66,7 @@ public:
     // Whether this is local file content, whose process may read local files: a document created from a file: URL, or
     // from a blob: URL whose entry local file content added.
     bool is_local_file_content() const { return m_is_local_file_content; }
+    void determine_whether_it_is_local_file_content(BlobURLStore const*);
 
     void make_active();
 

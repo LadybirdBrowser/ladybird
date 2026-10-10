@@ -594,18 +594,13 @@ bool WebContentClient::renderers_may_synthesize_input()
         || Application::web_content_options().expose_internals_object == ExposeInternalsObject::Yes;
 }
 
-bool WebContentClient::may_read_local_files()
+bool WebContentClient::may_read_local_files() const
 {
     // WebDriver's Element Send Keys selects the files it names by path through the process hosting the file input.
     if (Application::browser_options().webdriver_browser_endpoint.has_value())
         return true;
 
-    bool result = false;
-    for_each_page([&](WebContentPage& page) {
-        result = page.hosts_local_file_content();
-        return result ? IterationDecision::Break : IterationDecision::Continue;
-    });
-    return result;
+    return m_has_hosted_local_file_content;
 }
 
 Messages::WebContentClient::DidRequestAllCookiesWebdriverResponse WebContentClient::did_request_all_cookies_webdriver(URL::URL url, Optional<HTTP::Cookie::PartitionContext> partition_context)

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A data: iframe local file content creates goes to the process holding that content. A srcdoc iframe in it shares
+    // the data: document's agent, so it goes to the same process, where it can script its parent.
+    promiseTest(async () => {
+        const message = new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        const inner = `<script>parent.parent.postMessage("srcdoc scripts its parent: " + (parent.document.body.dataset.marker === "data"), "*");<\/script>`;
+        const iframe = document.createElement("iframe");
+        iframe.src = "data:text/html," + encodeURIComponent(`<body data-marker="data"><iframe srcdoc='${inner}'></iframe></body>`);
+        document.body.appendChild(iframe);
+        println(await message);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

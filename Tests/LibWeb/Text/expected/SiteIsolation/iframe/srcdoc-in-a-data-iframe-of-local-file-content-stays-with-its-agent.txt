@@ -1,0 +1,4 @@
+srcdoc scripts its parent: true
+WebContent#0
+  iframe#0: local
+    iframe#0: local

@@ -111,7 +111,11 @@ public:
     virtual void did_misbehave(StringView message_name, StringView reason) override;
     static bool renderers_may_access_cookies_like_http();
     static bool renderers_may_synthesize_input();
-    bool may_read_local_files();
+    bool may_read_local_files() const;
+    // A process that has hosted local file content may read local files. Site isolation gives such content processes
+    // of its own, which host nothing else.
+    bool has_hosted_local_file_content() const { return m_has_hosted_local_file_content; }
+    void set_has_hosted_local_file_content() { m_has_hosted_local_file_content = true; }
     void register_embedded_page(Web::PageId page_id, CanonicalTraversable&);
     void unregister_embedded_page(Web::PageId page_id);
     Optional<Web::PageId> page_id_for_traversable(CanonicalTraversable const&) const;
@@ -191,6 +195,7 @@ private:
     RequestServerSiteBindings m_request_server_site_bindings;
     bool m_requested_close { false };
     bool m_rejected_ipc { false };
+    bool m_has_hosted_local_file_content { false };
     Vector<u64> m_crashed_view_ids;
 
     WebContentPage& open_page(Web::PageId, CanonicalTraversable&);
