@@ -10,6 +10,7 @@
 //! Both encoders are always compiled (they only produce bytes), so their tests
 //! run on any host. `MacroAssembler` is the one for the host architecture.
 
+pub mod aarch64;
 pub mod buffer;
 mod macro_assembler;
 pub mod x86_64;
@@ -19,6 +20,8 @@ pub use buffer::Label;
 pub use macro_assembler::MachineFrame;
 pub use macro_assembler::PortableMacroAssembler;
 
+#[cfg(target_arch = "aarch64")]
+pub type MacroAssembler = aarch64::MacroAssembler;
 #[cfg(target_arch = "x86_64")]
 pub type MacroAssembler = x86_64::MacroAssembler;
 
