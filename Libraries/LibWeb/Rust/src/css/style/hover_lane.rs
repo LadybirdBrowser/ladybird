@@ -42,7 +42,83 @@ pub(crate) enum HoverBoxRebuild {
     PlaceMoves { parent: StyleNodeID },
 }
 
+/// Cursor facts copied from the presented frame, including elements that have no layout box.
+pub(crate) struct HoverCursorFacts {
+    parents: Vec<Option<StyleNodeID>>,
+    editable: super::fast_hash::FastSet<StyleNodeID>,
+    user_select: Vec<Option<u8>>,
+}
+
+impl HoverCursorFacts {
+    pub(crate) fn is_editable(&self, element: StyleNodeID) -> bool {
+        self.editable.contains(&element)
+    }
+
+    pub(crate) fn text_may_be_selected(&self, mut element: StyleNodeID) -> Option<bool> {
+        use crate::css::css_enums::user_select;
+        loop {
+            if self.is_editable(element) {
+                return None;
+            }
+            let value = self.user_select.get(element.element_slot()).copied().flatten()?;
+            if value != user_select::AUTO {
+                return Some(value != user_select::NONE);
+            }
+            match self.parents.get(element.element_slot()).copied().flatten() {
+                Some(parent) if parent.element_index().is_some() => element = parent,
+                _ => return Some(true),
+            }
+        }
+    }
+}
+
 impl StyleEngine {
+    pub(crate) fn hover_cursor_facts(&self) -> HoverCursorFacts {
+        let (parents, editable) = self.tree().hover_cursor_relations();
+        HoverCursorFacts {
+            parents,
+            editable: editable.into_iter().collect(),
+            user_select: self.computed_group_sets.hover_user_select_values(),
+        }
+    }
+
+    /// Whether a hover needs the style engine to restyle an element or reject a disabled control.
+    pub(crate) fn hover_needs_style_state(&self, root: StyleNodeID) -> bool {
+        use super::index::FeatureKey;
+        use super::partial_view::Lookup;
+        if self.tree().live_nodes().any(|node| {
+            self.facts.states_of_node(node).contains(StateFact::Disabled)
+                && self.tree().is_in_shadow_including_subtree_of(node, root)
+        }) {
+            return true;
+        }
+        let may_have_elements = |key: FeatureKey| {
+            if !key.has_selector_posting() || key == FeatureKey::State(StateFact::Hover) {
+                return true;
+            }
+            match self.facts.postings().lookup(key) {
+                Lookup::Known(posting) => posting
+                    .candidates()
+                    .any(|node| self.tree().is_in_shadow_including_subtree_of(node, root)),
+                Lookup::KnownAbsent => false,
+                Lookup::Missing(_) => true,
+            }
+        };
+        self.routing
+            .routes_for(FeatureKey::State(StateFact::Hover))
+            .iter()
+            .any(|&route| {
+                let alternatives = self.routing.origin_dispatch_of(route);
+                (alternatives.is_empty() || alternatives.iter().copied().any(may_have_elements))
+                    && self
+                        .routing
+                        .origin_required_of(route)
+                        .iter()
+                        .copied()
+                        .all(may_have_elements)
+            })
+    }
+
     /// The element a mouse move aimed at `node`, an element, is dispatched to, as the host dispatches it: none where
     /// the node is gone, or where the move would be aimed at a disabled form control or anything under one, which the
     /// host dispatches no event to.

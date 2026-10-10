@@ -3817,6 +3817,15 @@ impl RetainedState {
         self.computed_group_sets.pin_style_record(style_record);
     }
 
+    pub(crate) fn has_animation_overlay_records(&self) -> bool {
+        self.computed_group_sets.live_animation_overlay_records() != 0
+            || self.computed_group_sets.retired_animation_overlay_records() != 0
+    }
+
+    pub(crate) fn lease_selected_style_records(&self, records: Vec<u64>) -> std::sync::Arc<[u64]> {
+        self.computed_group_sets.lease_selected_style_records(records)
+    }
+
     pub(crate) fn lease_style_records(&self) -> computed::StyleRecordLease {
         self.computed_group_sets.lease_style_records()
     }

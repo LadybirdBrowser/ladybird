@@ -3691,6 +3691,18 @@ impl LayoutNodeArena {
         });
     }
 
+    pub(crate) fn hover_frame_style_records(&self) -> Vec<u64> {
+        let mut records: Vec<_> = self
+            .style_records
+            .iter()
+            .map(Cell::get)
+            .filter(|&record| record != 0)
+            .collect();
+        records.sort_unstable();
+        records.dedup();
+        records
+    }
+
     pub(crate) fn refresh_style_flags(&self, slot: NodeSlotId) {
         let style = self.node_style_if_live(slot).expect("styled layout node");
         let had_preserve_3d_transform_style =

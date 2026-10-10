@@ -1,0 +1,3 @@
+width during the update: 100
+width read in the task: 120
+width presented by hover: 100

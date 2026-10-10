@@ -873,6 +873,9 @@ pub struct ComputedGroupSets {
     style_record_generations: Vec<u32>,
     style_record_column: Vec<Option<StyleRecordID>>,
     base_style_record_pins: HashMap<StyleRecordID, u64>,
+    /// Long-lived immutable readers pin only the base records they actually read. Expired readers leave weak entries
+    /// that the next publication removes, so they neither block reclamation nor need to call back into the owner.
+    selected_style_record_leases: std::sync::Arc<std::sync::Mutex<Vec<std::sync::Weak<[u64]>>>>,
     columns: PublishedComputedColumns,
     // Recyclable animation overlays are deliberately separate from the permanent base records
     // above. Dense element assignments and sparse pseudo assignments pin at most one slot each.
@@ -909,6 +912,7 @@ impl Default for ComputedGroupSets {
             style_record_generations: Vec::new(),
             style_record_column: Vec::new(),
             base_style_record_pins: HashMap::default(),
+            selected_style_record_leases: std::sync::Arc::default(),
             columns: PublishedComputedColumns::default(),
             animation_overlay_slots: animation_overlay_slots::AnimationOverlaySlots::default(),
             animation_overlay_slots_by_record: HashMap::default(),
@@ -941,6 +945,50 @@ impl ComputedGroupSets {
         StyleRecordLease {
             leases: std::sync::Arc::clone(&self.leases),
         }
+    }
+
+    /// Copies only the numeric selection values needed by an immutable hover, without retaining whole records.
+    pub(crate) fn hover_user_select_values(&self) -> Vec<Option<u8>> {
+        let values: Vec<_> = self
+            .style_records
+            .iter()
+            .enumerate()
+            .map(|(index, record)| {
+                if !self.style_record_liveness.contains(index) {
+                    return None;
+                }
+                let payloads = &self.sets[record.groups].payloads;
+                Some(
+                    crate::css::computed_value_views::ComputedValuesView::new(
+                        crate::css::host_shared::SharedPayload::as_pointer_slice(payloads),
+                    )
+                    .misc_reset()
+                    .user_select,
+                )
+            })
+            .collect();
+        self.style_record_column
+            .iter()
+            .map(|record| record.and_then(|record| values[record.index()]))
+            .collect()
+    }
+
+    pub(crate) fn lease_selected_style_records(&self, records: Vec<u64>) -> std::sync::Arc<[u64]> {
+        for &raw_record in &records {
+            let record = FinalStyleRecordID(raw_record);
+            let base = record
+                .base_record()
+                .expect("an immutable hover frame reads only base records");
+            assert!(self.style_record_generation_is_live(base, record.base_generation()));
+        }
+        let records: std::sync::Arc<[u64]> = records.into();
+        let mut leases = self
+            .selected_style_record_leases
+            .lock()
+            .expect("selected style-record leases");
+        leases.retain(|lease| lease.strong_count() != 0);
+        leases.push(std::sync::Arc::downgrade(&records));
+        records
     }
 
     fn style_records_are_leased(&self) -> bool {
@@ -3466,6 +3514,23 @@ impl ComputedGroupSets {
             for &identity in self.base_style_record_pins.keys() {
                 mark_style_record(identity);
             }
+            let leases = self
+                .selected_style_record_leases
+                .lock()
+                .expect("selected style-record leases");
+            for records in leases.iter().filter_map(std::sync::Weak::upgrade) {
+                for &raw_record in records.iter() {
+                    let record = FinalStyleRecordID(raw_record);
+                    let identity = record
+                        .base_record()
+                        .expect("an immutable hover frame reads only base records");
+                    // NB: A fork can share a reader published later by the host. It pins a record in this catalog only
+                    //     where that generation exists here too.
+                    if self.style_record_generation_is_live(identity, record.base_generation()) {
+                        mark_style_record(identity);
+                    }
+                }
+            }
         }
 
         for index in 0..self.columns.flags.len() {
@@ -3881,6 +3946,7 @@ impl Clone for ComputedGroupSets {
             style_record_generations: self.style_record_generations.clone(),
             style_record_column: self.style_record_column.clone(),
             base_style_record_pins: self.base_style_record_pins.clone(),
+            selected_style_record_leases: self.selected_style_record_leases.clone(),
             columns: self.columns.clone(),
             animation_overlay_slots: self.animation_overlay_slots.clone(),
             animation_overlay_slots_by_record: self.animation_overlay_slots_by_record.clone(),
@@ -4452,6 +4518,29 @@ mod tests {
         assert_eq!(sets.adjustment_facts(node), 0);
         assert!(!sets.node_answer_is_incomplete(node));
         assert_eq!(sets.node_pseudo_style_mask(node), None);
+    }
+
+    #[test]
+    fn a_selected_record_lease_allows_other_records_to_be_reclaimed() {
+        let mut sets = ComputedGroupSets::default();
+        let kept = sets
+            .publish_unowned(None, &[], 0, 0, metadata(1, 0, 0))
+            .style_record_identity;
+        let discarded = sets
+            .publish_unowned(None, &[], 0, 0, metadata(2, 0, 0))
+            .style_record_identity;
+        let lease = sets.lease_selected_style_records(vec![kept.raw()]);
+        let mut fork = sets.clone();
+        sets.reclaim_unreachable();
+        fork.reclaim_unreachable();
+        assert!(sets.style_record_generation_is_live(kept.base_record().unwrap(), kept.base_generation()));
+        assert!(!sets.style_record_generation_is_live(discarded.base_record().unwrap(), discarded.base_generation()));
+        assert!(fork.style_record_generation_is_live(kept.base_record().unwrap(), kept.base_generation()));
+        drop(lease);
+        sets.reclaim_unreachable();
+        fork.reclaim_unreachable();
+        assert!(!sets.style_record_generation_is_live(kept.base_record().unwrap(), kept.base_generation()));
+        assert!(!fork.style_record_generation_is_live(kept.base_record().unwrap(), kept.base_generation()));
     }
 
     #[test]

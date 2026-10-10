@@ -3177,6 +3177,41 @@ fn add_guard_sibling_target_rule(engine: &mut StyleEngine, guard: StyleAtomID, t
     rule
 }
 
+#[test]
+fn hover_requires_style_state_only_when_an_origin_may_be_present() {
+    let (mut engine, nodes) = linear_document();
+    let first = StyleAtomID(200);
+    let second = StyleAtomID(201);
+    let mut builder = selector::SelectorProgramBuilder::new();
+    let first_class = builder.push_feature(selector::FeatureTest::Class(first));
+    let second_class = builder.push_feature(selector::FeatureTest::Class(second));
+    let either_class = builder.push_any_of(&[first_class, second_class]);
+    let hover = builder.push(selector::SelectorOp::State(StateFact::Hover));
+    let subject = builder.push_compound(&[either_class, hover]);
+    builder.push_entry(subject);
+    let program = engine.programs.add(builder.finish());
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let rule = engine.append_rule(sheet, None, RuleKind::Style);
+    engine.add_routing_rule(rule, program);
+    let mut version = engine.program.rule_version(rule);
+    version.selector_program = Some(program);
+    version.declaration_block = Some(DeclarationBlockID(1));
+    engine.replace_rule_version(rule, version);
+    discard_transaction(&mut engine);
+    assert!(!engine.hover_needs_style_state(nodes[0]));
+
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(first));
+    discard_transaction(&mut engine);
+    assert!(engine.hover_needs_style_state(nodes[0]));
+    remove_feature(&mut engine, nodes[1], LocalFeatureKey::Class(first));
+    discard_transaction(&mut engine);
+    assert!(!engine.hover_needs_style_state(nodes[0]));
+
+    engine.facts.postings_mut().evict(SelectorPostingKey::Class(second));
+    assert!(engine.hover_needs_style_state(nodes[0]));
+}
+
 fn add_hover_sibling_target_rule(engine: &mut StyleEngine, target: StyleAtomID) {
     let mut builder = selector::SelectorProgramBuilder::new();
     let hover = builder.push(selector::SelectorOp::State(StateFact::Hover));

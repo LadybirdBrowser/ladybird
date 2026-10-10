@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #hand { height: 40px; cursor: pointer; }
+    iframe { display: block; width: 200px; height: 100px; border: 0; margin-left: 50px; }
+</style>
+<div id="hand"></div>
+<iframe srcdoc="<style>body { margin: 0 } div { position: absolute; top: 0; width: 100px; height: 100px } #second { left: 100px } #second::before { content: ''; position: absolute; inset: 0 }</style><div id=first></div><div id=second></div>"></iframe>
+<script>
+    asyncTest(async done => {
+        const iframe = document.querySelector("iframe");
+        await srcdocLoaded(iframe);
+        const innerDocument = iframe.contentDocument;
+        const first = innerDocument.getElementById("first");
+        const second = innerDocument.getElementById("second");
+        const targets = [];
+        first.addEventListener("mousemove", () => targets.push("first"));
+        second.addEventListener("mousemove", () => targets.push("second"));
+        // The iframe has no hover rules. Its read-only hover must still report the old frame's target, including when
+        // the hit lands on a pseudo-element, and replace the cursor the parent frame showed.
+        await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(10, 20, frameTime + 16);
+            println(`cursor over the parent: ${internals.currentCursor()}`);
+            second.style.left = "150px";
+            println(`left read in the task: ${second.offsetLeft}`);
+            const id = internals.queueMouseMove(170, 90);
+            internals.injectHoverPointer(170, 90, frameTime + 32, id);
+            iframe.contentWindow.internals.injectClockTick(frameTime + 48);
+            println(`cursor inside the iframe: ${internals.currentCursor()}`);
+        }, [document, innerDocument]);
+        await twoFrames();
+        println(`mousemove targets: ${targets.join(", ")}`);
+        println(`#second matches :hover: ${second.matches(":hover")}`);
+        done();
+    });
+</script>

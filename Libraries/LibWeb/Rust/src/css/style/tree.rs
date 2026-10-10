@@ -1752,6 +1752,24 @@ impl StyleNodeTree {
         Some(self.host_of(parent).unwrap_or(parent))
     }
 
+    /// The inheritance relations and editable identities an immutable hover reads for cursor selection.
+    pub(crate) fn hover_cursor_relations(&self) -> (Vec<Option<StyleNodeID>>, Vec<StyleNodeID>) {
+        let mut parents = self.parent.clone();
+        if self.shadow.is_some() {
+            for (index, parent) in parents.iter_mut().enumerate().skip(1) {
+                *parent = self.inheritance_parent(StyleNodeID::element(index as u32));
+            }
+        }
+        let editable = self
+            .dom_paint_facts
+            .iter()
+            .filter_map(|(&node, &facts)| {
+                (facts & crate::layout::node_data::DomPaintFact::EditableOrEditingHost as u8 != 0).then_some(node)
+            })
+            .collect();
+        (parents, editable)
+    }
+
     /// Compare nodes in the order C++ must apply style reactions.
     ///
     /// This is preorder over the style-inheritance tree, extended to keep shadow-tree children

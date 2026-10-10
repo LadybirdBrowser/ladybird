@@ -1,0 +1,5 @@
+cursor over the parent: Crosshair
+left read in the task: 150
+cursor inside the iframe: Hand
+mousemove targets: second
+#second matches :hover: true

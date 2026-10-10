@@ -116,8 +116,19 @@ impl Drop for PageCursor {
     }
 }
 
+/// The immutable inputs needed to hit test the presented frame and resolve its predefined cursors.
+struct ReadOnlyHoverFrame {
+    rows: crate::painting::published_frame::PublishedRows,
+    bound_rows: crate::layout::PublishedBoundRows,
+    cursors: crate::css::style::hover_lane::HoverCursorFacts,
+    image_map_areas: crate::painting::image_map_areas::ImageMapAreaColumn,
+    visual_context: crate::painting::visual_context::VisualContextState,
+    _style_records: Arc<[u64]>,
+}
+
 /// What a lane's ticks hit test and restyle with, sealed with the clock plan at the end of a rendering update.
 pub(crate) struct HoverPlan {
+    read_only_frame: Option<ReadOnlyHoverFrame>,
     device_pixels_per_css_pixel: f64,
     /// The scroll offsets of the frame the rendering update presented, in device pixels, by scroll frame.
     scroll_offsets: Vec<FloatPoint>,
@@ -168,6 +179,7 @@ impl HoverPlan {
                 .collect()
         };
         Self {
+            read_only_frame: None,
             device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
             scroll_offsets,
             chrome_metrics: inputs.chrome_metrics,
@@ -176,6 +188,40 @@ impl HoverPlan {
             page_cursor: unsafe { PageCursor::retained(inputs.page_cursor) },
             effect_timings,
         }
+    }
+
+    pub(crate) fn seal_read_only_frame(&mut self, state: &mut RenderState) {
+        let Some((root, _)) = self.style.as_ref() else {
+            return;
+        };
+        if !state.engine_ref().takes_hover_transactions()
+            || state.engine_ref().has_animation_overlay_records()
+            || state.engine_ref().hover_needs_style_state(*root)
+        {
+            return;
+        }
+        // NB: Keep the frame's geometry and dispatch identities even when the host moves its boxes in the next task.
+        //     Published rows share immutable columns instead of copying the mutable arena and style engine. The lease
+        //     pins only these rows' records, leaving unrelated records reclaimable. Frames with animation overlays
+        //     use the regular lane above.
+        let visual_context = state.arena.arena().paint_state().borrow().visual_context.clone();
+        if visual_context.tree.is_none() {
+            return;
+        }
+        let records = state.arena.arena().hover_frame_style_records();
+        let style_records = state.engine_ref().lease_selected_style_records(records);
+        self.read_only_frame = Some(ReadOnlyHoverFrame {
+            rows: state.arena.arena_mut().publish_rows(),
+            bound_rows: state.arena.arena_mut().bound_rows_mut().publish(),
+            cursors: state.engine_ref().hover_cursor_facts(),
+            image_map_areas: state.arena.arena().image_map_areas().clone(),
+            visual_context,
+            _style_records: style_records,
+        });
+    }
+
+    pub(super) fn needs_render_state(&self) -> bool {
+        self.read_only_frame.is_none()
     }
 
     /// Has the hover's style transactions take `inputs`, the document computation inputs the host sealed for its last
@@ -1005,6 +1051,136 @@ impl Lane {
         Ok(())
     }
 
+    /// Hit tests the preserved frame without copying mutable style and layout state.
+    pub(super) fn hover_read_only(&mut self, pointer: PendingPointer) -> super::LaneMove {
+        use crate::painting::paint_read::{GeometryRead, PaintSource};
+        if pointer.buttons != 0 {
+            return super::LaneMove {
+                input_event_id: pointer.input_event_id,
+                target: None,
+                handed: false,
+            };
+        }
+        let plan = self.plan.hover.take().expect("a read-only hover plan");
+        let mut nested = None;
+        let target = (|| {
+            let Some(position) = pointer.position else {
+                return Some(None);
+            };
+            if pointer.scrolled_since_frame && self.scroll_offsets.is_empty() {
+                return None;
+            }
+            let frame = plan.read_only_frame.as_ref()?;
+            let tree = frame.visual_context.tree.as_ref()?;
+            let recorder = self.recording.0.take(WaitsForTickRecording(()));
+            let published = recorder.recorder.published_hit_test_items.clone();
+            self.recording = TickRecording(Riding::landed(recorder));
+            let published = published?;
+            if published.structural_epoch != tree.structural_epoch {
+                return None;
+            }
+            let absolute_rects = std::cell::RefCell::default();
+            let source = PaintSource::over_rows(&frame.rows, &absolute_rects);
+            let mut list = HitTestList {
+                items: Arc::clone(&published.items),
+                ..HitTestList::default()
+            };
+            list.build_spatial_indexes_if_needed();
+            let offsets = self.scroll_offsets_on_screen(&source, &frame.visual_context, &plan);
+            let callbacks =
+                FfiHitTestQueryCallbacks::sealed(plan.device_pixels_per_css_pixel, &offsets, plan.chrome_metrics);
+            let ratio = plan.device_pixels_per_css_pixel as f32;
+            let point = CssPixelPoint::new(
+                CssPixels::nearest_value_for_f32(position.x / ratio),
+                CssPixels::nearest_value_for_f32(position.y / ratio),
+            );
+            let hit = list.find_topmost_item(&source, tree, &callbacks, point)?;
+            let item = &list.items[hit.index];
+            if item.kind == HitTestItemKind::ChromeWidget {
+                return None;
+            }
+            let kind = source.node_kind_if_live(item.paintable)?;
+            if kind == NodeKind::NavigableContainerViewport {
+                use crate::painting::paint_read::PaintRead;
+                let facts = source.replaced_paint_facts(item.paintable)?;
+                let facts = facts
+                    .navigable_container()
+                    .filter(|facts| facts.has_composited_context)?;
+                let container = source.node(item.paintable)?.style_node?;
+                let origin = crate::painting::paintable_geometry::absolute_rect(&source, item.paintable);
+                nested = Some((
+                    facts.composited_context_id,
+                    FloatPoint {
+                        x: (hit.local_point.x - origin.x).to_float() * ratio,
+                        y: (hit.local_point.y - origin.y).to_float() * ratio,
+                    },
+                    container,
+                ));
+                return None;
+            }
+            if kind == NodeKind::ImageBox && frame.image_map_areas.has_areas(item.paintable) {
+                return None;
+            }
+            let resolved = list.resolve_hit(&source, hit.index, hit.local_point);
+            let target = if kind == NodeKind::Viewport {
+                plan.style.as_ref().map(|&(root, _)| root)
+            } else {
+                let identity = if !resolved.dispatch.is_none() {
+                    resolved.dispatch
+                } else {
+                    resolved.fallback_dispatch
+                };
+                if identity.is_none() || identity.is_document {
+                    return None;
+                }
+                Self::element_for_dispatch_in(&source, item.hit_node, StyleNodeID::from_raw(identity.style_node)?)
+            }?;
+            use crate::css::css_enums::cursor_predefined;
+            let style = source.node(item.hit_node)?.style()?;
+            let cursor = style.inherited_ui().cursor.as_slice().first()?;
+            if cursor.is_cursor_value {
+                return None;
+            }
+            let boxed = !frame.bound_rows.row(target).is_invalid();
+            let shows_text = if frame.cursors.is_editable(target) {
+                true
+            } else if !resolved.is_text_fragment || !boxed {
+                false
+            } else if source.node_flags_if_live(item.hit_node) & NodeFlag::IsInUserAgentShadowTree as u32 != 0 {
+                return None;
+            } else {
+                frame.cursors.text_may_be_selected(target)?
+            };
+            let cursor = match cursor.predefined {
+                _ if !shows_text && !boxed => cursor_predefined::DEFAULT,
+                cursor_predefined::AUTO if shows_text => cursor_predefined::TEXT,
+                cursor_predefined::AUTO => cursor_predefined::DEFAULT,
+                predefined => predefined,
+            };
+            if let Some(page_cursor) = &plan.page_cursor {
+                page_cursor.request(cursor);
+            }
+            Some(Some(target))
+        })();
+        self.plan.hover = Some(plan);
+        if let Some((context, position, container)) = nested {
+            self.hand_pointer_to_nested(context, position, pointer);
+            return super::LaneMove {
+                input_event_id: pointer.input_event_id,
+                target: Some(Some(container)),
+                handed: true,
+            };
+        }
+        if target.is_some() {
+            self.leave_nested(pointer);
+        }
+        super::LaneMove {
+            input_event_id: pointer.input_event_id,
+            target,
+            handed: false,
+        }
+    }
+
     /// Hit tests `position`, in device pixels, in the frame the lane presented last.
     fn hit_test(
         &mut self,
@@ -1035,7 +1211,9 @@ impl Lane {
             ..HitTestList::default()
         };
         list.build_spatial_indexes_if_needed();
-        let scroll_offsets = self.scroll_offsets_on_screen(arena, plan);
+        let paint_state = arena.paint_state().borrow();
+        let scroll_offsets = self.scroll_offsets_on_screen(arena, &paint_state.visual_context, plan);
+        drop(paint_state);
         let callbacks =
             FfiHitTestQueryCallbacks::sealed(plan.device_pixels_per_css_pixel, &scroll_offsets, plan.chrome_metrics);
         let pixel_ratio = plan.device_pixels_per_css_pixel as f32;
@@ -1116,13 +1294,16 @@ impl Lane {
     /// The device scroll offsets of the visual context tree's nodes as the screen shows them: those of the frame the
     /// host laid out, where the compositor scrolled the scroll containers to at the latest tick, as the hit test reads
     /// them.
-    fn scroll_offsets_on_screen(&self, arena: &crate::layout::LayoutNodeArena, plan: &HoverPlan) -> Vec<FloatPoint> {
+    fn scroll_offsets_on_screen(
+        &self,
+        arena: &impl crate::painting::paint_read::PaintRead,
+        visual_context: &crate::painting::visual_context::VisualContextState,
+        plan: &HoverPlan,
+    ) -> Vec<FloatPoint> {
         let mut offsets = plan.scroll_offsets.clone();
         if self.scroll_offsets.is_empty() {
             return offsets;
         }
-        let paint_state = arena.paint_state().borrow();
-        let visual_context = &paint_state.visual_context;
         let Some(tree) = visual_context.tree.as_deref() else {
             return offsets;
         };
@@ -1133,7 +1314,7 @@ impl Lane {
                 continue;
             }
             // The compositor names a scroll container by the identity of its node, as the recording told it.
-            let identity = arena.live_paintable_data(scroller.paintable).node_identity;
+            let identity = arena.paintable_data(scroller.paintable).node_identity;
             let Some(scrolled) = self.scroll_offsets.iter().find(|offset| offset.scroller == identity) else {
                 continue;
             };
@@ -1160,8 +1341,16 @@ impl Lane {
         paintable: NodeSlotId,
         node: StyleNodeID,
     ) -> Option<StyleNodeID> {
-        use crate::painting::paint_read::{GeometryRead, PaintRow};
-        let arena = state.arena.arena();
+        let node = Self::element_for_dispatch_in(state.arena.arena(), paintable, node)?;
+        state.engine_mut().element_for_hover_dispatch(node)
+    }
+
+    fn element_for_dispatch_in(
+        arena: &impl crate::painting::paint_read::PaintRead,
+        paintable: NodeSlotId,
+        node: StyleNodeID,
+    ) -> Option<StyleNodeID> {
+        use crate::painting::paint_read::PaintRow;
         let is_anonymous = |row: NodeSlotId| arena.node_flags_if_live(row) & NodeFlag::Anonymous as u32 != 0;
         let mut row = paintable;
         let mut node = node;
@@ -1169,14 +1358,14 @@ impl Lane {
         // style node it carries.
         if is_anonymous(row)
             && arena.node(row).is_some_and(|data| data.generated_for() != 0)
-            && let Some(generator) = arena.node_style_node(row)
+            && let Some(generator) = arena.node(row).and_then(|row| row.style_node())
         {
             node = generator;
         }
         // A text node stands for the nearest element its box is in, starting with the box that admitted the hit.
         while node.text_index().is_some() {
             if !is_anonymous(row)
-                && let Some(row_node) = arena.dom_node_style_node(row)
+                && let Some(row_node) = arena.node(row).and_then(|row| row.style_node())
                 && row_node != node
             {
                 node = row_node;
@@ -1184,7 +1373,7 @@ impl Lane {
             }
             row = arena.node_parent_if_live(row)?;
         }
-        state.engine_mut().element_for_hover_dispatch(node)
+        Some(node)
     }
 }
 
