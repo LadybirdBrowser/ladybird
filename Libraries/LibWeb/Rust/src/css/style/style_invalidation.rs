@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::bridge::{FfiAnimationInvalidation, FfiStyleInvalidationField, element_adjustment_fact};
+use super::bridge::{ElementBoxKind, FfiAnimationInvalidation, FfiStyleInvalidationField, element_adjustment_fact};
 use super::{RetainedState, StyleNodeID};
 use crate::css::animated_overlay::{AnimatedOverlay, overlay_wins};
 use crate::css::computed_longhand_table::ComputedLonghandTable;
@@ -24,7 +24,6 @@ const VISUAL_CONTEXT_UPDATE_VALUES: u8 = 1;
 const VISUAL_CONTEXT_REBUILD: u8 = 2;
 const REBUILD_ROOT_PSEUDO_ELEMENTS: u8 = 0;
 const REBUILD_ROOT_SELF: u8 = 1;
-const REBUILD_ROOT_SELF_UNLESS_DOCUMENT_ELEMENT_OR_BODY: u8 = 2;
 const REBUILD_ROOT_BOX_PRESENCE_CHANGE: u8 = 3;
 const REBUILD_ROOT_PARENT: u8 = 4;
 const ALL_INHERITED_STYLE_GROUPS: u8 = (1 << 7) - 1;
@@ -516,9 +515,6 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
         property_id::DISPLAY | property_id::FLOAT | property_id::POSITION
     ) {
         return StyleInvalidation::full();
-    }
-    if matches!(property, property_id::OVERFLOW_X | property_id::OVERFLOW_Y) {
-        return StyleInvalidation::rebuild_layout_tree_from(REBUILD_ROOT_SELF_UNLESS_DOCUMENT_ELEMENT_OR_BODY);
     }
     if matches!(
         property,
@@ -1069,7 +1065,7 @@ impl RetainedState {
         old_style_record: u64,
         new_style_record: u64,
     ) -> u32 {
-        let (font_lists_equal, color_changed, stroke_uses_current_color, table_fixup_child_changed) = {
+        let (font_lists_equal, color_changed, stroke_uses_current_color, table_fixup_child_changed, overflow_changed) = {
             let (Some(old_record), Some(new_record)) = (
                 self.computed_group_sets.style_record_view(old_style_record),
                 self.computed_group_sets.style_record_view(new_style_record),
@@ -1101,6 +1097,8 @@ impl RetainedState {
                 old_values.inherited_text().color != new_values.inherited_text().color,
                 stroke_uses_current_color(old_values) || stroke_uses_current_color(new_values),
                 is_table_fixup_child(old_values) != is_table_fixup_child(new_values),
+                old_values.box_values().overflow_x != new_values.box_values().overflow_x
+                    || old_values.box_values().overflow_y != new_values.box_values().overflow_y,
             )
         };
         let is_svg_graphics_element =
@@ -1113,6 +1111,11 @@ impl RetainedState {
             !is_pseudo_element && self.element_propagates_overflow_to_viewport(node),
         );
         let mut damage = StyleInvalidation::unpack(packed);
+        // Fieldsets with a rendered legend or flex contents transfer overflow to an anonymous
+        // content box during tree construction. Rebuild to refresh both boxes' overrides.
+        if !is_pseudo_element && overflow_changed && self.element_box_kind(node) == ElementBoxKind::FieldSet {
+            damage.merge(StyleInvalidation::rebuild_layout_tree_from(REBUILD_ROOT_SELF));
+        }
         // An SVG currentColor stroke stores its resolved color alongside the fact that it came from
         // currentColor. A color-only change can therefore alter the visible stroke width and the SVG
         // container bounds without changing the stroke longhand itself.

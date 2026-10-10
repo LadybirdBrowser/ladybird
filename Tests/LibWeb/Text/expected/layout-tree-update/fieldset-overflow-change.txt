@@ -1,0 +1,12 @@
+legend, visible to hidden: tree matches=true, geometry matches=true, hit matches=true
+legend, hidden to visible: tree matches=true, geometry matches=true, hit matches=true
+legend, hidden to scroll: tree matches=true, geometry matches=true, hit matches=true
+legend, auto to clip: tree matches=true, geometry matches=true, hit matches=true
+flex without legend, visible to hidden: tree matches=true, geometry matches=true, hit matches=true
+flex without legend, hidden to visible: tree matches=true, geometry matches=true, hit matches=true
+flex without legend, hidden to scroll: tree matches=true, geometry matches=true, hit matches=true
+flex without legend, auto to clip: tree matches=true, geometry matches=true, hit matches=true
+without legend, visible to hidden: tree matches=true, geometry matches=true, hit matches=true
+without legend, hidden to visible: tree matches=true, geometry matches=true, hit matches=true
+without legend, hidden to scroll: tree matches=true, geometry matches=true, hit matches=true
+without legend, auto to clip: tree matches=true, geometry matches=true, hit matches=true

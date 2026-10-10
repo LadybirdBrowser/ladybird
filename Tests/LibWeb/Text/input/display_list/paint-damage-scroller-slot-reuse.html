@@ -106,7 +106,7 @@ displayListTest({
             mutate: () => { outer.style.overflow = "scroll"; },
             check: equal => { equal(wheelTargetAt(50, 60), "non-viewport", "wheel target on the new scroller"); },
             expect: `
-                damage: rows=5 moved=2 order=3 eligibility=0 all=false
+                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -124,32 +124,32 @@ displayListTest({
                     BlockContainer<HTML>#html/scroll-metadata RECORD
                     BlockContainer<HTML>#html/background COPY
                     BlockContainer<HTML>#html/border COPY
-                    BlockContainer<BODY>#body/descendants(background-and-borders) REPLAN
-                      BlockContainer<BODY>#body/background/hit-test RECORD
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
                       BlockContainer<BODY>#body/scroll-metadata RECORD
-                      BlockContainer<BODY>#body/background SKIP
-                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
                       BlockContainer<DIV>#keep.box.scroller/descendants(background-and-borders) COPY
-                      BlockContainer<DIV>#outer.box/descendants(background-and-borders) RECORD
+                      BlockContainer<DIV>#outer.box/descendants(background-and-borders) ASSEMBLE
                         BlockContainer<DIV>#outer.box/background/hit-test RECORD
                         BlockContainer<DIV>#outer.box/scroll-metadata RECORD
                         BlockContainer<DIV>#outer.box/background SKIP
                         BlockContainer<DIV>#outer.box/border SKIP
-                        BlockContainer<DIV>#outer-content.content/descendants(background-and-borders) RECORD
+                        BlockContainer<DIV>#outer-content.content/descendants(background-and-borders) ASSEMBLE
                           BlockContainer<DIV>#outer-content.content/background/hit-test RECORD
                           BlockContainer<DIV>#outer-content.content/scroll-metadata RECORD
                           BlockContainer<DIV>#outer-content.content/background SKIP
                           BlockContainer<DIV>#outer-content.content/border SKIP
                     BlockContainer<HTML>#html/foreground/hit-test COPY
                     BlockContainer<HTML>#html/foreground COPY
-                    BlockContainer<BODY>#body/descendants(foreground) REPLAN
-                      BlockContainer<BODY>#body/foreground/hit-test RECORD (empty)
-                      BlockContainer<BODY>#body/foreground RECORD (empty)
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
                       BlockContainer<DIV>#keep.box.scroller/descendants(foreground) COPY
-                      BlockContainer<DIV>#outer.box/descendants(foreground) RECORD
+                      BlockContainer<DIV>#outer.box/descendants(foreground) ASSEMBLE
                         BlockContainer<DIV>#outer.box/foreground/hit-test RECORD (empty)
                         BlockContainer<DIV>#outer.box/foreground RECORD (empty)
-                        BlockContainer<DIV>#outer-content.content/descendants(foreground) RECORD
+                        BlockContainer<DIV>#outer-content.content/descendants(foreground) ASSEMBLE
                           BlockContainer<DIV>#outer-content.content/foreground/hit-test RECORD
                           BlockContainer<DIV>#outer-content.content/foreground RECORD
                           BlockContainer<DIV>#outer-content.content/outline SKIP
@@ -158,7 +158,7 @@ displayListTest({
                         BlockContainer<DIV>#outer.box/outline SKIP
                         BlockContainer<DIV>#outer.box/overlay/hit-test RECORD
                         BlockContainer<DIV>#outer.box/overlay RECORD
-                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/outline COPY
                       BlockContainer<BODY>#body/overlay/hit-test RECORD (empty)
                       BlockContainer<BODY>#body/overlay SKIP
                     BlockContainer<HTML>#html/outline COPY
