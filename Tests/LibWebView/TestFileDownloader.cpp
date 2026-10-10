@@ -554,6 +554,20 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     }
 
     {
+        TestHttpServer server { body, RangeSupport::No };
+
+        // A file that appears at the destination while the download runs is not the download's to replace.
+        auto late_file_contents = "created while downloading"sv;
+        auto destination = run_download(server, test_directory, "late.bin"sv, [&](u64, DownloadWatcher&) {
+            auto file = MUST(Core::File::open(LexicalPath::join(test_directory, "late.bin"sv).string(), Core::File::OpenMode::Write | Core::File::OpenMode::MustBeNew));
+            MUST(file->write_until_depleted(late_file_contents.bytes()));
+        });
+        expect_file_matches(destination, late_file_contents.bytes());
+        expect_file_matches(LexicalPath::join(test_directory, "late (1).bin"sv).string(), body.bytes());
+        outln("download beside a file created while downloading");
+    }
+
+    {
         TestHttpServer server { body, RangeSupport::Yes };
         auto& downloader = WebView::Application::the().file_downloader();
 

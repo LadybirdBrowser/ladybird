@@ -15,6 +15,7 @@ namespace WebView {
 
 static constexpr u32 DOWNLOAD_SCHEMA_BASELINE_VERSION = 1u;
 static constexpr u32 DOWNLOAD_SCHEMA_RESTARTABILITY_VERSION = 2u;
+static constexpr u32 DOWNLOAD_SCHEMA_REPLACEMENT_VERSION = 3u;
 
 static String serialize_segments(Vector<DownloadSegmentRecord> const& segments)
 {
@@ -96,6 +97,12 @@ ErrorOr<Database::MigrationOutcome> DownloadStore::migrate_schema(Database::Data
                 ALTER TABLE Downloads ADD COLUMN can_restart_from_zero INTEGER NOT NULL DEFAULT 0;
             )#"sv,
         },
+        {
+            .version = DOWNLOAD_SCHEMA_REPLACEMENT_VERSION,
+            .sql = R"#(
+                ALTER TABLE Downloads ADD COLUMN may_replace_destination INTEGER NOT NULL DEFAULT 0;
+            )#"sv,
+        },
     });
 
     return database.migrate("Downloads"sv, migrations, mode);
@@ -117,10 +124,11 @@ ErrorOr<NonnullOwnPtr<DownloadStore>> DownloadStore::create(Database::Database& 
             last_modified,
             segments,
             can_restart_from_zero,
+            may_replace_destination,
             created_time,
             updated_time
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             url = excluded.url,
             display_url = excluded.display_url,
@@ -131,6 +139,7 @@ ErrorOr<NonnullOwnPtr<DownloadStore>> DownloadStore::create(Database::Database& 
             last_modified = excluded.last_modified,
             segments = excluded.segments,
             can_restart_from_zero = excluded.can_restart_from_zero,
+            may_replace_destination = excluded.may_replace_destination,
             updated_time = excluded.updated_time;
     )#"sv));
 
@@ -140,7 +149,7 @@ ErrorOr<NonnullOwnPtr<DownloadStore>> DownloadStore::create(Database::Database& 
     )#"sv));
 
     statements.list_downloads = TRY(database.prepare_statement(R"#(
-        SELECT id, url, display_url, destination, temporary_destination, total_size, etag, last_modified, segments, can_restart_from_zero, created_time
+        SELECT id, url, display_url, destination, temporary_destination, total_size, etag, last_modified, segments, can_restart_from_zero, created_time, may_replace_destination
         FROM Downloads
         ORDER BY id ASC;
     )#"sv));
@@ -186,6 +195,7 @@ void DownloadStore::save_download(DownloadRecord const& download, UnixDateTime u
         download.last_modified.value_or(String {}),
         serialize_segments(download.segments),
         download.can_restart_from_zero,
+        download.may_replace_destination,
         download.created_time,
         updated_at);
 }
@@ -232,6 +242,7 @@ Vector<DownloadRecord> DownloadStore::resumable_downloads()
                 .segments = segments.release_value(),
                 .created_time = m_database->result_column<UnixDateTime>(statement_id, 10),
                 .can_restart_from_zero = m_database->result_column<bool>(statement_id, 9),
+                .may_replace_destination = m_database->result_column<bool>(statement_id, 11),
             });
 
             return {};

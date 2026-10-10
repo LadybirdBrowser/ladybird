@@ -61,6 +61,10 @@ ErrorOr<void> copy_file(StringView destination_path, StringView source_path, str
 ErrorOr<void> copy_directory(StringView destination_path, StringView source_path, struct stat const& source_stat, LinkMode = LinkMode::Disallowed, PreserveMode = PreserveMode::Nothing);
 ErrorOr<void> copy_file_or_directory(StringView destination_path, StringView source_path, RecursionMode = RecursionMode::Allowed, LinkMode = LinkMode::Disallowed, AddDuplicateFileMarker = AddDuplicateFileMarker::Yes, PreserveMode = PreserveMode::Nothing);
 ErrorOr<void> move_file(StringView destination_path, StringView source_path, PreserveMode = PreserveMode::Nothing);
+// Renames a file within one file system, failing with EEXIST instead of replacing an existing destination. A file system
+// that cannot do that atomically gets a copy in a destination file created only if none exists. The file is at its
+// destination when this succeeds, even if a source the copy could not remove is left behind.
+ErrorOr<void> rename_without_replacing(StringView destination_path, StringView source_path);
 ErrorOr<void> remove(StringView path, RecursionMode);
 ErrorOr<off_t> size_from_stat(StringView path);
 ErrorOr<off_t> size_from_fstat(int fd);

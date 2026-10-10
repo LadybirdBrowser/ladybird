@@ -38,6 +38,8 @@ struct WEBVIEW_API DownloadRecord {
     UnixDateTime created_time;
 
     bool can_restart_from_zero { false };
+    // Whether the user chose to replace a file at the destination.
+    bool may_replace_destination { false };
 };
 
 class WEBVIEW_API DownloadStore {

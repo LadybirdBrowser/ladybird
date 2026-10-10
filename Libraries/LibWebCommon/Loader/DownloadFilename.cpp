@@ -58,4 +58,19 @@ ByteString sanitize_suggested_download_filename(ByteString filename)
     return sanitized;
 }
 
+ByteString numbered_download_filename(ByteString const& filename, u64 index)
+{
+    auto lexical_filename = LexicalPath { filename };
+    auto title = lexical_filename.title();
+    auto extension = lexical_filename.extension();
+    auto number = ByteString::formatted(" ({})", index);
+
+    // NB: The number always fits. The extension is shortened if the number leaves too little room for it, and the title
+    //     takes what remains.
+    auto room_for_extension_and_title = maximum_filename_byte_length - number.length();
+    auto dotted_extension = extension.is_empty() ? ByteString {} : truncate_filename_to_byte_length(ByteString::formatted(".{}", extension), room_for_extension_and_title);
+    auto truncated_title = truncate_filename_to_byte_length(title, room_for_extension_and_title - dotted_extension.length());
+    return ByteString::formatted("{}{}{}", truncated_title, number, dotted_extension);
+}
+
 }

@@ -15,5 +15,7 @@ inline constexpr size_t maximum_filename_byte_length = 255;
 
 WEBCOMMON_API ByteString truncate_filename_to_byte_length(ByteString, size_t maximum_byte_length);
 WEBCOMMON_API ByteString sanitize_suggested_download_filename(ByteString);
+// The filename with " (index)" before its extension, shortened to fit the maximum filename length.
+WEBCOMMON_API ByteString numbered_download_filename(ByteString const& filename, u64 index);
 
 }

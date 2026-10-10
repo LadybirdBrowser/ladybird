@@ -22,7 +22,14 @@
 #    if !defined(AK_OS_IOS) && defined(AK_OS_BSD_GENERIC)
 #        include <sys/disk.h>
 #    elif defined(AK_OS_LINUX)
+#        include <fcntl.h>
 #        include <linux/fs.h>
+#        include <sys/syscall.h>
+#        include <unistd.h>
+#    endif
+#    if defined(AK_OS_MACOS)
+#        include <copyfile.h>
+#        include <stdio.h>
 #    endif
 #endif
 
@@ -352,6 +359,70 @@ ErrorOr<void> move_file(StringView destination_path, StringView source_path, Pre
     return Core::System::unlink(source_path);
 }
 
+// Copies the file, with its permissions and, where the platform can, its extended attributes, to a destination that
+// fails with EEXIST if a file is already there. The destination is private to the user until the copy is complete.
+static ErrorOr<void> copy_to_new_file(StringView destination_path, StringView source_path)
+{
+    auto source = TRY(Core::File::open(source_path, Core::File::OpenMode::Read));
+    auto source_stat = TRY(Core::System::fstat(source->fd()));
+    auto destination = TRY(Core::File::open(destination_path, Core::File::OpenMode::Write | Core::File::OpenMode::MustBeNew, 0600));
+
+    auto result = [&]() -> ErrorOr<void> {
+#    if defined(AK_OS_MACOS)
+        if (::fcopyfile(source->fd(), destination->fd(), nullptr, COPYFILE_DATA | COPYFILE_XATTR) < 0)
+            return Error::from_syscall("fcopyfile"sv, errno);
+#    else
+        Array<u8, 64 * KiB> buffer;
+        while (true) {
+            auto bytes = TRY(source->read_some(buffer));
+            if (bytes.is_empty())
+                break;
+            TRY(destination->write_until_depleted(bytes));
+        }
+#    endif
+        return Core::System::fchmod(destination->fd(), source_stat.st_mode & 07777);
+    }();
+
+    // NB: A failed copy removes the file it created, but not another that has taken its place since.
+    if (result.is_error()) {
+        auto created = Core::System::fstat(destination->fd());
+        auto at_destination = Core::System::lstat(destination_path);
+        if (!created.is_error() && !at_destination.is_error()
+            && created.value().st_dev == at_destination.value().st_dev && created.value().st_ino == at_destination.value().st_ino)
+            (void)Core::System::unlink(destination_path);
+    }
+    return result;
+}
+
+ErrorOr<void> rename_without_replacing(StringView destination_path, StringView source_path)
+{
+    ByteString source { source_path };
+    ByteString destination { destination_path };
+#    if defined(AK_OS_MACOS)
+    if (::renamex_np(source.characters(), destination.characters(), RENAME_EXCL) == 0)
+        return {};
+    if (errno != ENOTSUP)
+        return Error::from_syscall("renamex_np"sv, errno);
+#    elif defined(AK_OS_LINUX) && defined(SYS_renameat2)
+    if (::syscall(SYS_renameat2, AT_FDCWD, source.characters(), AT_FDCWD, destination.characters(), RENAME_NOREPLACE) == 0)
+        return {};
+    if (errno != EINVAL && errno != ENOSYS)
+        return Error::from_syscall("renameat2"sv, errno);
+#    endif
+
+    // NB: Linking fails when the destination exists, and is left for file systems that cannot rename without replacing.
+    //     One that cannot link either gets a copy in a destination file created only if none exists.
+    if (auto result = Core::System::link(source_path, destination_path); result.is_error()) {
+        if (result.error().is_errno() && result.error().code() == EEXIST)
+            return result.release_error();
+        TRY(copy_to_new_file(destination_path, source_path));
+    }
+
+    // NB: The file is at its destination now, and a source left behind is only an extra copy of it.
+    (void)Core::System::unlink(source_path);
+    return {};
+}
+
 bool can_delete_or_move(StringView path)
 {
     VERIFY(!path.is_empty());
@@ -391,6 +462,18 @@ ErrorOr<void> move_file(StringView destination_path, StringView source_path, Pre
     if (!MoveFileExW(wide_source_path.data(), wide_destination_path.data(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED))
         return Error::from_windows_error();
     return {};
+}
+
+ErrorOr<void> rename_without_replacing(StringView destination_path, StringView source_path)
+{
+    auto wide_source_path = TRY(to_wide_string(source_path));
+    auto wide_destination_path = TRY(to_wide_string(destination_path));
+    if (MoveFileExW(wide_source_path.data(), wide_destination_path.data(), 0))
+        return {};
+    auto error = GetLastError();
+    if (error == ERROR_ALREADY_EXISTS || error == ERROR_FILE_EXISTS)
+        return Error::from_errno(EEXIST);
+    return Error::from_windows_error(error);
 }
 #endif
 

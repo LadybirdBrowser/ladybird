@@ -17,6 +17,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/Timer.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibGfx/SharedImageBuffer.h>
 #include <LibURL/Parser.h>
@@ -4243,7 +4244,11 @@ void ViewImplementation::download_context_menu_url(PromptForPath prompt_for_path
     if (download_path.is_error())
         return;
 
-    Application::the().file_downloader().download_file(is_private(), m_context_menu_url, download_path.release_value());
+    // NB: A file at a path the user chose was there when the user chose to replace it, as saving asks before replacing.
+    auto may_replace_destination = prompt_for_path == PromptForPath::Yes && FileSystem::exists(download_path.value().string())
+        ? FileDownloader::MayReplaceDestination::Yes
+        : FileDownloader::MayReplaceDestination::No;
+    Application::the().file_downloader().download_file(is_private(), m_context_menu_url, download_path.release_value(), may_replace_destination);
 }
 
 void ViewImplementation::did_request_image_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, Optional<Gfx::ShareableBitmap> bitmap)
