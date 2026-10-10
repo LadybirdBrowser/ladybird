@@ -365,6 +365,8 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
     // keep the existing layout node.
     if (is_generated_for_pseudo_element())
         pin_style_record_for_cxx_consumers();
+    if (auto const* element = as_if<DOM::Element>(dom_node()); element && element->is_viewport_propagation_source())
+        RustFFI::render_state_propagate_root_styles_to_viewport(document_host());
 }
 
 static bool style_record_holds_image_values(Layout::BegunRead const& read, CSS::StyleEngine const& style_engine, CSS::StyleRecordID style_record)

@@ -88,6 +88,18 @@ pub unsafe extern "C" fn render_state_reinherit_anonymous_descendants(
     host.queue_change(crate::render_state::ArenaChange::ReinheritAnonymousDescendants(node));
 }
 
+/// The viewport and the boxes of the root element and its body take the styles viewport propagation gives them, which
+/// their layout nodes hear of before the host goes on.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_propagate_root_styles_to_viewport(host: &DocumentHost) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { write_and_pay(host, node_read(), LayoutWrite::PropagateRootStylesToViewport) };
+}
+
 /// Gives the image box `slot` the image provider it owns, which the arena destroys with the row.
 ///
 /// # Safety

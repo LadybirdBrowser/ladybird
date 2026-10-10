@@ -1,0 +1,1 @@
+scroll snaps to the second section after a restyle of the body: PASS

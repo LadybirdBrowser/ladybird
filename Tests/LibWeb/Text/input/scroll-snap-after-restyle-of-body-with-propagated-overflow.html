@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    html {
+        scroll-snap-type: y mandatory;
+    }
+    body {
+        overflow-x: hidden;
+    }
+    section {
+        height: 100vh;
+        scroll-snap-align: start;
+    }
+    .restyled {
+        color: green;
+    }
+</style>
+<section></section>
+<section id="second"></section>
+<section></section>
+<script>
+    test(() => {
+        // The body needs a box before it is restyled.
+        document.body.offsetWidth;
+        document.body.classList.add("restyled");
+        window.scrollTo(0, window.innerHeight + 50);
+        const top = second.getBoundingClientRect().top;
+        println(`scroll snaps to the second section after a restyle of the body: ${top === 0 ? "PASS" : `FAIL (${top})`}`);
+    });
+</script>
