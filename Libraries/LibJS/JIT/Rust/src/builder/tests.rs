@@ -559,18 +559,18 @@ fn int32_feedback_builds_int32_operations_on_unboxed_phis() {
 }
 
 #[test]
-fn other_arithmetic_feedback_and_failed_speculations_branch_on_kinds() {
-    // Int32 and double operands: int32 and double paths, then the slow path.
+fn numeric_feedback_and_failed_speculations_use_double_arithmetic() {
+    // Int32 and double operands share a numeric loop after number guards.
     let text = counting_loop(3, Vec::new());
     assert!(
-        text.contains("BranchInt32Value") && text.contains("BranchDouble"),
+        text.contains("Float64LessThan") && text.contains("Float64Add"),
         "{text}"
     );
     assert!(
-        text.contains("Int32LessThan") && text.contains("Float64LessThan"),
+        !text.contains("BranchInt32Value") && !text.contains("BranchDouble"),
         "{text}"
     );
-    assert!(text.contains("CallSlowPath JumpLessThan"), "{text}");
+    assert!(!text.contains("CallSlowPath"), "{text}");
     // An overflow at the addition: it adds doubles.
     let text = counting_loop(1, vec![(48, ExitKind::Overflow)]);
     assert!(text.contains("Int32LessThan"), "{text}");
@@ -2235,4 +2235,27 @@ mod arguments {
         let aliased = |snapshot: &mut Snapshot| snapshot.executables[0].mapped_arguments_alias_parameters = true;
         assert!(build(&reads_length(true), aliased).contains("ArgumentCount"));
     }
+}
+
+#[test]
+fn numeric_feedback_uses_number_guards_instead_of_type_dispatch() {
+    let program = assemble(|_| {
+        vec![
+            Instruction::Add {
+                dst: r(5),
+                lhs: a(0),
+                rhs: r(6),
+                arith_feedback: 0,
+            },
+            Instruction::Return { value: r(5) },
+        ]
+    });
+    let mut snapshot = snapshot_for(&program, test_layout());
+    snapshot.executables[0].feedback.arith = vec![crate::snapshot::arith_feedback::DOUBLE];
+    let graph = optimized_graph(&snapshot);
+    let text = dump(&graph, &test_layout());
+    assert_eq!(text.matches("CheckNumber").count(), 2, "{text}");
+    assert!(text.contains("Float64Add"), "{text}");
+    assert!(!text.contains("BranchInt32Value"), "{text}");
+    assert!(!text.contains("CallSlowPath"), "{text}");
 }
