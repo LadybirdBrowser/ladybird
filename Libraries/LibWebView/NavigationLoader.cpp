@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
@@ -98,6 +99,24 @@ void NavigationLoader::did_finish_navigation_params_creation(Web::HTML::Navigati
     VERIFY(!m_result.has_value());
     VERIFY(!m_response_body_request);
     VERIFY(!m_completion_steps);
+
+    // NB: The process that fetched the response reports the URLs it reached. Fetching never redirects a request to a
+    //     file: URL, so one among them on a navigation the UI process did not admit to a file: URL is made up: the
+    //     document it would create could read local files. Such a navigation creates an error document instead.
+    if (m_request.history_entry.url.scheme() != "file"sv) {
+        auto is_file_url = [](URL::URL const& url) { return url.scheme() == "file"sv; };
+        auto names_a_local_file = result.redirected_url.has_value() && is_file_url(*result.redirected_url);
+        if (auto const* navigation_params = result.navigation_params.get_pointer<Web::HTML::NavigationParamsDescriptor>()) {
+            names_a_local_file |= any_of(navigation_params->response.url_list, is_file_url);
+            if (navigation_params->request.has_value())
+                names_a_local_file |= any_of(navigation_params->request->url_list, is_file_url);
+        }
+        if (names_a_local_file) {
+            discard(m_is_private, result);
+            result.navigation_params = Web::HTML::NavigationParamsNullOrError {};
+            result.redirected_url.clear();
+        }
+    }
 
     Web::HTML::apply_navigation_population_result(m_request, result);
     m_result = move(result);

@@ -1430,6 +1430,13 @@ void CanonicalTraversable::did_finish_history_navigation_params_creation(WebCont
         discard();
         return;
     }
+    // NB: The process populating the entry echoes its request. A file: URL in it that is not the entry's would give the
+    //     process a document created from another file: URL, and possibly with it local file access.
+    if (population.request.history_entry.url.scheme() == "file"sv && population.request.history_entry.url != job.value()->job.target_entry->url) {
+        discard();
+        did_fail_history_navigation_population(operation_id, navigable_id, source_page);
+        return;
+    }
     auto& loader = job.value()->population_loader;
     loader = NavigationLoader::create(source_page.client().is_private(), move(population.request));
     loader->did_finish_navigation_params_creation(move(population.result));

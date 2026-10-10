@@ -6,12 +6,12 @@
 
 #include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/File.h>
 #include <LibIPC/File.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalEnvironmentSettingsObject.h>
 #include <LibWebView/CanonicalNavigable.h>
 #include <LibWebView/HelperProcess.h>
+#include <LibWebView/Utilities.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebWorkerClient.h>
@@ -199,6 +199,21 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
     auto inside_settings = make<CanonicalWorkerEnvironmentSettingsObject>(move(origin), outside_settings->top_level_origin(), has_cross_site_ancestor, Web::HTML::EnvironmentId::generate());
     auto environment_id = inside_settings->id();
 
+    // NB: A worker's process reads local files as its owner's does. A worker of a file origin that local file content
+    //     starts is local file content too.
+    auto may_read_local_files = inside_settings->origin().is_file_origin()
+        && owner.client.visit(
+            [](WebContentOwner const& web_content_owner) {
+                return web_content_owner.client && web_content_owner.client->may_read_local_files();
+            },
+            [&](WebWorkerOwner const& web_worker_owner) {
+                for (auto const& [id, owner_agent] : m_agents) {
+                    if (owner_agent.client.ptr() == web_worker_owner.client.ptr())
+                        return owner_agent.may_read_local_files;
+                }
+                return false;
+            });
+
     // AD-HOC: Seed worker_is_secure_context with the caller's value so reuse requests arriving before
     //         the worker finishes loading still get a mismatch check.
     //         worker_did_finish_loading_script overwrites this with the worker's actual value (which
@@ -215,6 +230,7 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
         .shared_worker_key = {},
         .owners = move(owners),
         .inside_settings = move(inside_settings),
+        .may_read_local_files = may_read_local_files,
     };
 
     if (request.agent_type == Web::HTML::AgentType::SharedWorker) {
@@ -529,11 +545,18 @@ void WorkerProcessManager::worker_did_request_file(Web::HTML::WorkerAgentId agen
     if (maybe_agent == m_agents.end())
         return;
 
-    auto file = Core::File::open(path, Core::File::OpenMode::Read);
+    // NB: As a page's, a worker's process reads a local file only through this broker, and only local file content may.
+    auto& client = maybe_agent->value.client;
+    if (!maybe_agent->value.may_read_local_files) {
+        client->async_handle_file_return(EACCES, {}, request_id);
+        return;
+    }
+
+    auto file = open_local_file_for_renderer(path);
     if (file.is_error())
-        maybe_agent->value.client->async_handle_file_return(file.error().code(), {}, request_id);
+        client->async_handle_file_return(file.error().code(), {}, request_id);
     else
-        maybe_agent->value.client->async_handle_file_return(0, IPC::File::adopt_file(file.release_value()), request_id);
+        client->async_handle_file_return(0, file.release_value(), request_id);
 }
 
 void WorkerProcessManager::remove_agent(Web::HTML::WorkerAgentId agent_id, AgentRemovalCause cause)

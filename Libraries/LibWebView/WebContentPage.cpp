@@ -28,6 +28,7 @@
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
 #include <LibWebView/StorageJar.h>
+#include <LibWebView/Utilities.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentPage.h>
@@ -215,6 +216,29 @@ Optional<CanonicalNavigable&> WebContentPage::hosted_navigable(Web::HTML::CrossP
     if (!navigable.has_value() || !traversable().hosts(*navigable, *this))
         return {};
     return *navigable;
+}
+
+// A page holds local file content while it hosts such a document, or populates or is to host one for a navigation to a
+// file: URL the UI process admitted. Only such content loads its subresources from the local file system.
+bool WebContentPage::hosts_local_file_content() const
+{
+    bool result = false;
+    for_each_hosted_document([&](CanonicalDocument& document) {
+        result = document.is_local_file_content();
+        return result ? IterationDecision::Break : IterationDecision::Continue;
+    });
+    if (result)
+        return true;
+
+    traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+        auto const& ongoing_navigation = navigable.ongoing_navigation();
+        result = ongoing_navigation.has_value()
+            && ongoing_navigation->url.has_value()
+            && ongoing_navigation->url->scheme() == "file"sv
+            && (ongoing_navigation->population_worker.ptr() == this || ongoing_navigation->host.ptr() == this);
+        return result ? IterationDecision::Break : IterationDecision::Continue;
+    });
+    return result;
 }
 
 // The environments a page names are the window environments of the documents it hosts, and of those populated for it
@@ -623,8 +647,13 @@ bool WebContentPage::take_owed_reply(OwedReply owed)
     return m_owed_replies.remove(owed);
 }
 
+static bool may_navigate_to_a_local_file(WebContentClient& requesting_client, Web::HTML::NavigationSourceSnapshot const& source_snapshot_params);
+
 void WebContentPage::did_request_navigation_of_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::PreparedNavigationDescriptor navigation)
 {
+    if (navigation.url.scheme() == "file"sv && !may_navigate_to_a_local_file(client(), navigation.source_snapshot_params))
+        return;
+
     // A document that was lost with the process that hosted it is navigated from step 8 on here: no process hosts it.
     if (auto target = traversable().top_level_traversable().find(navigable_id); target.has_value() && !target->active_document().host()) {
         target->begin_navigation(move(navigation));
@@ -825,6 +854,27 @@ void WebContentPage::did_unhover_link()
 
 static Optional<URL::Origin> initiator_origin_snapshot(URL::Origin const& given_origin, Web::HTML::NavigationSourceSnapshot const& source_snapshot_params, WebContentClient* hosting_client = nullptr);
 
+// A page reaches local file content only by navigating there from local file content, or from the browser's UI: a
+// process holding none could otherwise come to host a file: document, and with it read every file the user can.
+static bool may_navigate_to_a_local_file(WebContentClient& requesting_client, Web::HTML::NavigationSourceSnapshot const& source_snapshot_params)
+{
+    if (requesting_client.may_read_local_files())
+        return true;
+
+    // A navigation a page starts in another process's navigable continues in that process, so the process hosting the
+    // fetch client vouches for it.
+    if (!source_snapshot_params.fetch_client.has_value())
+        return false;
+    bool result = false;
+    WebContentClient::for_each_client([&](WebContentClient& client) {
+        if (!client.hosted_environment(source_snapshot_params.fetch_client->id).has_value())
+            return IterationDecision::Continue;
+        result = client.may_read_local_files();
+        return IterationDecision::Break;
+    });
+    return result;
+}
+
 // A navigation a page asked the browser's UI to start for it, with the initiator origin the UI process takes from the
 // fetch client — as it does for a navigation the page starts itself, so a process names only a source it hosts.
 static Optional<Web::HTML::PreparedNavigationDescriptor> navigation_from_page(WebContentClient& requesting_client, Web::HTML::PreparedNavigationDescriptor navigation)
@@ -832,6 +882,8 @@ static Optional<Web::HTML::PreparedNavigationDescriptor> navigation_from_page(We
     // A page's own click or context menu names a document the page's process hosts, so only that process vouches for it.
     auto initiator_origin = initiator_origin_snapshot(navigation.initiator_origin_snapshot, navigation.source_snapshot_params, &requesting_client);
     if (!initiator_origin.has_value())
+        return {};
+    if (navigation.url.scheme() == "file"sv && !may_navigate_to_a_local_file(requesting_client, navigation.source_snapshot_params))
         return {};
     navigation.initiator_origin_snapshot = initiator_origin.release_value();
     return navigation;
@@ -1246,11 +1298,18 @@ void WebContentPage::did_request_exit_fullscreen()
 
 void WebContentPage::did_request_file(ByteString path, i32 request_id)
 {
-    auto file = Core::File::open(path, Core::File::OpenMode::Read);
+    // NB: The renderer's sandbox keeps it out of the local file system, so this is the only way it can read a file.
+    //     Answer only a process that holds local file content: any other could read every file the user can.
+    if (!client().may_read_local_files()) {
+        async_handle_file_return(EACCES, {}, request_id);
+        return;
+    }
+
+    auto file = open_local_file_for_renderer(path);
     if (file.is_error())
         async_handle_file_return(file.error().code(), {}, request_id);
     else
-        async_handle_file_return(0, IPC::File::adopt_file(file.release_value()), request_id);
+        async_handle_file_return(0, file.release_value(), request_id);
 }
 
 void WebContentPage::did_request_color_picker(Color current_color)
@@ -1685,6 +1744,15 @@ void WebContentPage::did_request_navigation_start(Web::HTML::CrossProcessId navi
         async_cancel_navigation_params_creation(navigable_id, navigation_id);
         return;
     }
+    // NB: Population takes the start request's URL, so it must be the URL this check and the admission record name.
+    if (start_request.has_value() && start_request->url != url) {
+        client().did_misbehave("did_request_navigation_start"sv, "start request names another URL"sv);
+        return;
+    }
+    if (start_request.has_value() && url.scheme() == "file"sv && !may_navigate_to_a_local_file(client(), start_request->source_snapshot_params)) {
+        async_cancel_navigation_params_creation(navigable_id, navigation_id);
+        return;
+    }
     if (start_request.has_value())
         start_request->initiator_origin = initiator_origin.release_value();
 
@@ -1694,6 +1762,10 @@ void WebContentPage::did_request_navigation_start(Web::HTML::CrossProcessId navi
     // Record its admission without population state, owned by the evaluating process, so its failure or
     // produced document is validated against that process.
     if (!start_request.has_value()) {
+        if (url.scheme() != "javascript"sv) {
+            client().did_misbehave("did_request_navigation_start"sv, "navigation without a start request is not to a javascript: URL"sv);
+            return;
+        }
         target_navigable->set_ongoing_navigation(CanonicalNavigation {
             .url = url,
             .navigation_id = navigation_id,
@@ -1810,6 +1882,18 @@ void WebContentPage::did_request_navigation_population(Web::HTML::CrossProcessId
         && target_navigable->ongoing_navigation()->phase == CanonicalNavigation::Phase::Populating
         && !target_navigable->ongoing_navigation()->loader
         && target_navigable->navigation_host_matches(*this);
+
+    // A population request names the URL to populate, so it reaches local file content only from local file content, or
+    // to continue a navigation to that file: URL the UI process admitted.
+    if (target_url.scheme() == "file"sv && !may_navigate_to_a_local_file(client(), request.source_snapshot_params)) {
+        auto continues_admitted_file_navigation = continues_reconstructed_child_navigation
+            && target_navigable->ongoing_navigation()->url == target_url;
+        if (!continues_admitted_file_navigation) {
+            async_cancel_navigation_params_creation(navigable_id, request.navigation_id);
+            return;
+        }
+    }
+
     if (continues_reconstructed_child_navigation) {
         auto& ongoing_navigation = *target_navigable->ongoing_navigation();
         ongoing_navigation.url = target_url;
@@ -2590,7 +2674,10 @@ Messages::WebContentClient::DidAddBlobUrlEntryResponse WebContentPage::did_add_b
     entry.origin = environment->origin();
 
     // 4. Set store[url] to entry.
-    return client().session().blob_url_store->add_entry(move(url), move(entry), WeakPtr<WebContentClient> { client() });
+    // NB: A document created from the URL in another process reads local files as local file content does, so the
+    //     store remembers whether local file content added the entry.
+    auto added_by_local_file_content = client().may_read_local_files() ? AddedByLocalFileContent::Yes : AddedByLocalFileContent::No;
+    return client().session().blob_url_store->add_entry(move(url), move(entry), WeakPtr<WebContentClient> { client() }, added_by_local_file_content);
 }
 
 // https://w3c.github.io/FileAPI/#dfn-revokeObjectURL

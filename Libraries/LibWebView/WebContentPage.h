@@ -145,6 +145,7 @@ private:
     Optional<CanonicalNavigable&> population_worker_navigable(Web::HTML::CrossProcessId navigable_id) const;
     bool continue_navigation_population_in_selected_process(Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id);
     void for_each_hosted_document(Function<IterationDecision(CanonicalDocument&)> const&) const;
+    bool hosts_local_file_content() const;
     Optional<CanonicalDocument&> document_with_hosted_environment(Web::HTML::EnvironmentId const& environment_id) const;
     StorageJar* storage_jar(Web::StorageAPI::StorageEndpointType) const;
     Optional<String> canonical_storage_key(Web::HTML::EnvironmentId const&) const;
