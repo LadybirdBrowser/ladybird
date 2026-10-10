@@ -14,13 +14,17 @@ add_dependencies(test-js test-js-runtime test-js-script js)
 add_test(NAME test-js COMMAND test-js)
 set_tests_properties(test-js PROPERTIES ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}")
 
-# The runtime tests again, with the interpreter's profiling tier on, which the tests in jit directories need.
+# The JIT's tests: the runtime tests (each run three times, so that the functions they call get compiled with
+# feedback) and the programs in Tests/LibJS/JIT/programs, under the fast tier of JIT stress modes and compared with the
+# interpreter; and the checks of the IR the JIT's passes produce. Tests/LibJS/JIT/matrix.py runs more modes and suites.
 if (ENABLE_JS_JIT)
-    add_test(NAME test-js-profiling COMMAND test-js --suite runtime)
-    set_tests_properties(test-js-profiling PROPERTIES ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR};LIBJS_JIT=on")
-
-    # The runtime tests once more with a JIT that compiles every function early, on the main thread, so that they
-    # also run compiled code.
-    add_test(NAME test-js-jit COMMAND test-js --suite runtime)
-    set_tests_properties(test-js-jit PROPERTIES ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR};LIBJS_JIT=on,warmup=0,threshold=2,sync")
+    add_test(
+        NAME test-js-jit
+        COMMAND "${Python3_EXECUTABLE}" "${ladybird_SOURCE_DIR}/Tests/LibJS/JIT/matrix.py" --build "${CMAKE_BINARY_DIR}"
+            --modes fast --suites test-js,programs --results "${CMAKE_BINARY_DIR}/Testing/jit-matrix"
+    )
+    add_test(
+        NAME test-jit-ir
+        COMMAND "${Python3_EXECUTABLE}" "${ladybird_SOURCE_DIR}/Tests/LibJS/JIT/irtest.py" --build "${CMAKE_BINARY_DIR}"
+    )
 endif()
