@@ -28,6 +28,11 @@
 
 namespace JS {
 
+enum class CachedAccessorValueLocation : u8 {
+    Holder,
+    Receiver,
+};
+
 // The runtime's inline cache metadata, which a [[Get]] or [[Set]] hook only passes on to the internal method it defers
 // to. The runtime fills it in, so C++ never creates or reads one.
 struct CacheableGetPropertyMetadata;
@@ -136,8 +141,8 @@ public:
     void define_direct_property(PropertyKey const& property_key, Value value, PropertyAttributes attributes);
     void define_unimplemented_property(Utf16FlyString const& property_name);
     void define_direct_accessor(PropertyKey const&, GC::Ptr<FunctionObject> getter, GC::Ptr<FunctionObject> setter, PropertyAttributes attributes);
-    // Cache the getter's result in an engine-private property on this object.
-    void define_direct_cached_accessor(PropertyKey const&, GC::Ptr<FunctionObject> getter, GC::Ptr<FunctionObject> setter, PropertyAttributes attributes);
+    // Cache the getter's result in an engine-private property on the holder or receiver.
+    void define_direct_cached_accessor(PropertyKey const&, GC::Ptr<FunctionObject> getter, GC::Ptr<FunctionObject> setter, PropertyAttributes attributes, CachedAccessorValueLocation = CachedAccessorValueLocation::Holder);
     void clear_cached_accessor_value(PropertyKey const&);
 
     using IntrinsicAccessor = Value (*)(Realm&);

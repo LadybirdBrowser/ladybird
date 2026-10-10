@@ -15,5 +15,6 @@ pub struct Accessor {
     pub header: CellHeader,
     pub getter: Cell<Option<Gc<FunctionObject>>>,
     pub setter: Cell<Option<Gc<FunctionObject>>>,
+    pub cache_on_receiver: Cell<bool>,
     pub cached_value_key: Cell<Option<Gc<Symbol>>>,
 }

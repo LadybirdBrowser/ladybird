@@ -1,0 +1,16 @@
+separate receivers keep their data: true
+private cache adds no own keys: true
+data remains a prototype accessor: true
+unbranded receiver rejected: true
+custom receiver rejected: true
+Reflect.get uses its receiver: true
+cloned data has its own identity: true
+subclass receiver keeps its data: true
+cache survives GC: true
+own property shadows cache: true
+deleting shadow restores getter: true
+changed prototype shadows cache: true
+restored prototype restores getter: true
+detached data retains identity: true
+replacing getter takes effect: true
+restoring getter restores data: true

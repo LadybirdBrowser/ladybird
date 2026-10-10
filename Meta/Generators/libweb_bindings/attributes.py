@@ -75,6 +75,7 @@ def validate_direct_getter(context: GenerationContext, interface: Interface, att
 
     incompatible_extended_attributes = (
         "CachedAttribute",
+        "CachedAccessor",
         "ImplementedInBindings",
         "LegacyUnforgeable",
         "Reflect",
@@ -278,6 +279,8 @@ def define_the_attributes(
                 definition.write(
                     f'    auto {native_setter_name} = JS::NativeFunction::create(realm, {setter_name}, 1, {cpp_name}_id, &realm, "set"sv);\n'
                 )
+        if "CachedAccessor" in attribute.extended_attributes and not attribute.readonly:
+            raise RuntimeError(f"[CachedAccessor] attribute '{attribute.name}' must be readonly")
         define_accessor = f"object.define_direct_accessor({cpp_name}_id, {native_getter_name}, {native_setter_name}, {cpp_name}_attributes);"
         if "CachedAttribute" in attribute.extended_attributes and "LegacyUnforgeable" in attribute.extended_attributes:
             # Cache the result only on the main-world wrapper, whose cached
@@ -289,6 +292,9 @@ def define_the_attributes(
         object.define_direct_cached_accessor({cpp_name}_id, {native_getter_name}, {native_setter_name}, {cpp_name}_attributes);
     else
         object.define_direct_accessor({cpp_name}_id, {native_getter_name}, {native_setter_name}, {cpp_name}_attributes);"""
+        # [CachedAccessor] promises that the result is immutable for each receiver's lifetime.
+        if "CachedAccessor" in attribute.extended_attributes:
+            define_accessor = f"object.define_direct_cached_accessor({cpp_name}_id, {native_getter_name}, {native_setter_name}, {cpp_name}_attributes, JS::CachedAccessorValueLocation::Receiver);"
         definition.write(
             f"""
     // 4. Let configurable be false if attr is unforgeable and true otherwise.

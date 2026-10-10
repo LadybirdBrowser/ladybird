@@ -21,6 +21,8 @@ ALLOWED_EXTENDED_ATTRIBUTES = frozenset(
         "AllowShared",
         "AttributeCallbackName",
         "CEReactions",
+        # Cache the immutable getter result in an engine-private receiver slot.
+        "CachedAccessor",
         "CachedAttribute",
         "Clamp",
         "CreatesPromise",

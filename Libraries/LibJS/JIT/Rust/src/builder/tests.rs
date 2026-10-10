@@ -1008,6 +1008,31 @@ pub(crate) mod property_access {
     }
 
     #[test]
+    fn cached_getters_check_identity_and_load_from_the_receiver() {
+        use crate::snapshot::AccessorFunctionSnapshot;
+        let program = assemble(|_| vec![get_by_id(r(5), a(0), 0), Instruction::Return { value: r(5) }]);
+        let mut entry = own(PropertyCacheEntryType::GetPropertyInPrototypeChain, 0x100, 1);
+        entry.prototype = Some(CellId(0x7000));
+        entry.prototype_chain_validity = Some(CellId(0x8000));
+        entry.holds_accessor = true;
+        entry.accessor_function = Some(AccessorFunctionSnapshot {
+            function: CellId(0x9000),
+            inline_executable: None,
+            cached_value_offset: Some(2),
+        });
+        let text = dump_with_caches(&program, vec![cache(vec![entry])], Vec::new());
+        assert!(text.contains("CheckShape [0x100]"), "{text}");
+        assert!(text.contains("CheckPrototypeChainValid 0x8000"), "{text}");
+        assert!(text.contains("CheckAccessorFunction +1 Getter 0x9000"), "{text}");
+        assert!(text.contains("LoadNamed +2"), "{text}");
+        assert!(!text.contains("CallSlowPath"), "{text}");
+        for kind in [ExitKind::BadShape, ExitKind::UnexpectedValue] {
+            let text = dump_with_caches(&program, vec![cache(vec![entry])], vec![(0, kind)]);
+            assert!(!text.contains("LoadNamed +2"), "{text}");
+        }
+    }
+
+    #[test]
     fn valid_prototype_chains_are_depended_on_after_other_code_ran() {
         let program = assemble(|_| {
             vec![
@@ -1519,6 +1544,7 @@ pub(crate) mod inlining {
             .enumerate()
             .map(|(index, getter)| PropertyCacheEntrySnapshot {
                 accessor_function: Some(AccessorFunctionSnapshot {
+                    cached_value_offset: None,
                     function: CellId(*getter),
                     inline_executable: Some(1),
                 }),

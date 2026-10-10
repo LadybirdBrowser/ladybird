@@ -37,7 +37,7 @@ impl Accessor {
             header: CellHeader::for_class(Self::CLASS),
             getter: Cell::new(getter),
             setter: Cell::new(setter),
-            // Cached accessor values live in private properties on the holder object.
+            cache_on_receiver: Cell::new(false),
             cached_value_key: Cell::new(cached_value_key),
         })
     }
@@ -56,6 +56,14 @@ impl Accessor {
 
     pub fn set_setter(&self, setter: Option<Gc<FunctionObject>>) {
         self.setter.set(setter);
+    }
+
+    pub fn cache_on_receiver(&self) -> bool {
+        self.cache_on_receiver.get()
+    }
+
+    pub fn set_cache_on_receiver(&self, cache_on_receiver: bool) {
+        self.cache_on_receiver.set(cache_on_receiver);
     }
 
     pub fn cached_value_key(&self) -> Option<Gc<Symbol>> {

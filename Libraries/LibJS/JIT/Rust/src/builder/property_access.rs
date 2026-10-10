@@ -208,6 +208,47 @@ impl GraphBuilder<'_> {
         self.build_get(dst, base, entries, None)
     }
 
+    /// Loads a cached getter value from the receiver, after checking the
+    /// accessor's identity and the prototype chain that found it.
+    pub(super) fn try_build_cached_getter(
+        &mut self,
+        dst: Operand,
+        base: Operand,
+        cache: u32,
+    ) -> Result<bool, CompileFailure> {
+        let Some(entries) = self.cache_entries(cache) else {
+            return Ok(false);
+        };
+        let first = entries[0];
+        let Some(accessor) = first.accessor_function else {
+            return Ok(false);
+        };
+        let Some(offset) = accessor.cached_value_offset else {
+            return Ok(false);
+        };
+        let same_cached_getter = entries.iter().all(|entry| {
+            entry.holds_accessor
+                && matches!(
+                    entry.action,
+                    Action::Get {
+                        holder: Holder::Prototype { .. },
+                        ..
+                    }
+                )
+                && entry.action == first.action
+                && entry.accessor_function == Some(accessor)
+        });
+        let gates = [ExitKind::NotObject, ExitKind::BadShape, ExitKind::UnexpectedValue];
+        if !same_cached_getter || !gates.into_iter().all(|kind| self.may_speculate(kind)) {
+            return Ok(false);
+        }
+        let (object, getter) = self.check_accessor_call(base, &entries, AccessorPart::Getter)?;
+        debug_assert!(getter.is_none(), "all entries have the same checked getter");
+        let value = self.load_named(object, offset);
+        self.write(dst, value)?;
+        Ok(true)
+    }
+
     /// The entries of the instruction's property cache if they all call the
     /// `part` of the same accessor property with functions of the same
     /// executable (see `try_inline_getter()`), with the index of that
@@ -235,8 +276,9 @@ impl GraphBuilder<'_> {
     /// call the `part` of the accessor at their property offset, and that
     /// the accessor has the function the entries saw: in the object, or in
     /// the entries' prototype with the prototype chain unchanged. Returns
-    /// the function as a value if the inlined call must check it and run it
-    /// with its own environment, or nothing if it is the one the entries
+    /// the checked receiver and, if the inlined call must check the function
+    /// and run it with its own environment, the function as a value. The
+    /// function is absent if it is the one the entries
     /// saw.
     ///
     /// NB: Accessors of objects of one shape can have other functions, such
@@ -248,7 +290,7 @@ impl GraphBuilder<'_> {
         base: Operand,
         entries: &[CacheEntry],
         part: AccessorPart,
-    ) -> Result<Option<NodeId>, CompileFailure> {
+    ) -> Result<(NodeId, Option<NodeId>), CompileFailure> {
         let first = entries[0];
         let object = self.read(base)?;
         let object = self.check_object(object);
@@ -284,13 +326,14 @@ impl GraphBuilder<'_> {
                 vec![holder, address],
                 None,
             );
-            return Ok(None);
+            return Ok((object, None));
         }
-        Ok(Some(self.emit_checked(
+        let function = self.emit_checked(
             Op::LoadAccessorFunction { offset, part },
             vec![holder, address],
             Some(Repr::Tagged),
-        )))
+        );
+        Ok((object, Some(function)))
     }
 
     /// Builds `dst = base.property` for a property that holds an accessor,
@@ -308,7 +351,7 @@ impl GraphBuilder<'_> {
         let Some((entries, index)) = self.accessor_call_entries(cache, AccessorPart::Getter) else {
             return Ok(None);
         };
-        let getter = self.check_accessor_call(base, &entries, AccessorPart::Getter)?;
+        let (_, getter) = self.check_accessor_call(base, &entries, AccessorPart::Getter)?;
         self.try_inline_getter_call(index, getter, base, dst)
     }
 
@@ -328,7 +371,7 @@ impl GraphBuilder<'_> {
         let Some(dst) = self.dead_register(&[base, src]) else {
             return Ok(None);
         };
-        let setter = self.check_accessor_call(base, &entries, AccessorPart::Setter)?;
+        let (_, setter) = self.check_accessor_call(base, &entries, AccessorPart::Setter)?;
         self.try_inline_setter_call(index, setter, base, src, dst)
     }
 

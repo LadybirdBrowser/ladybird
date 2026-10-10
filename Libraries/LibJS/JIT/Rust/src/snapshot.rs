@@ -602,8 +602,7 @@ pub struct PropertyCacheEntrySnapshot {
     /// Which intrinsic `prototype_property` is, if it is one the compiler
     /// knows.
     pub prototype_property_intrinsic: Option<Intrinsic>,
-    /// The function of the accessor the access calls, if it is an ECMAScript
-    /// function: for `GetPropertyInPrototypeChain` entries, the getter of the
+    /// The function of the accessor the access calls: for `GetPropertyInPrototypeChain` entries, the getter of the
     /// accessor `prototype` held in the property when the snapshot was
     /// taken, for `ChangePropertyInPrototypeChain` entries its setter, and
     /// for `GetOwnProperty` entries the getter of the accessor the property
@@ -619,6 +618,10 @@ pub struct PropertyCacheEntrySnapshot {
 /// The getter or setter of an accessor property that accesses call.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AccessorFunctionSnapshot {
+    /// The offset in the receiver of an engine-private cached getter value,
+    /// if its shape already contains one. The accessor and prototype chain
+    /// must still be checked before using it.
+    pub cached_value_offset: Option<u32>,
     pub function: CellId,
     /// The index in `Snapshot::executables` of the function's executable,
     /// if it is an inlining candidate.
