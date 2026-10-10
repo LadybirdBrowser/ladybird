@@ -2087,6 +2087,20 @@ void Page::set_viewport_is_fullscreen(ViewportIsFullscreen is_fullscreen)
     process_pending_fullscreen_operations();
 }
 
+// AD-HOC: The UI process makes the window fullscreen only for user activation from input it delivered. A request it
+//         refuses fails as one without transient activation does, instead of waiting for the window forever.
+void Page::did_deny_fullscreen_window()
+{
+    if (!m_fullscreen_ipc_sent_to_ui || m_viewport_is_fullscreen == ViewportIsFullscreen::Yes || m_pending_fullscreen_operations.is_empty())
+        return;
+    auto* enter = m_pending_fullscreen_operations.head().get_pointer<PendingFullscreenEnter>();
+    if (!enter || enter->container_chain != ContainerChain::NotStarted || enter->error != DOM::RequestFullscreenError::False)
+        return;
+    m_fullscreen_ipc_sent_to_ui = false;
+    enter->error = DOM::RequestFullscreenError::NoTransientUserActivation;
+    process_pending_fullscreen_operations();
+}
+
 void Page::container_fullscreen_complete(HTML::CrossProcessId hosted_root_id)
 {
     if (m_pending_fullscreen_operations.is_empty())

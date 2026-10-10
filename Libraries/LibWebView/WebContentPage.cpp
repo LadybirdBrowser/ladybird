@@ -1289,14 +1289,27 @@ void WebContentPage::did_update_resource_count(i32 count_waiting)
     }
 }
 
+// Only WebDriver's window commands and the internals object of a test ask for a change to the window.
+static bool may_change_window(WebContentPage& page, StringView message)
+{
+    if (WebContentClient::renderers_may_synthesize_input())
+        return true;
+    page.client().did_misbehave(message, "not driven by WebDriver or a test"sv);
+    return false;
+}
+
 void WebContentPage::did_request_restore_window()
 {
+    if (!may_change_window(*this, "did_request_restore_window"sv))
+        return;
     if (view().on_restore_window)
         view().on_restore_window();
 }
 
 void WebContentPage::did_request_reposition_window(Gfx::IntPoint position, u64 completion_id)
 {
+    if (!may_change_window(*this, "did_request_reposition_window"sv))
+        return;
     if (view().on_reposition_window)
         view().on_reposition_window(position);
     async_did_complete_window_rect_request(completion_id);
@@ -1304,6 +1317,8 @@ void WebContentPage::did_request_reposition_window(Gfx::IntPoint position, u64 c
 
 void WebContentPage::did_request_resize_window(Gfx::IntSize size, u64 completion_id)
 {
+    if (!may_change_window(*this, "did_request_resize_window"sv))
+        return;
     if (view().on_resize_window)
         view().on_resize_window(size);
     async_did_complete_window_rect_request(completion_id);
@@ -1311,6 +1326,8 @@ void WebContentPage::did_request_resize_window(Gfx::IntSize size, u64 completion
 
 void WebContentPage::did_request_maximize_window(u64 completion_id)
 {
+    if (!may_change_window(*this, "did_request_maximize_window"sv))
+        return;
     if (view().on_maximize_window)
         view().on_maximize_window();
     async_did_complete_window_rect_request(completion_id);
@@ -1318,12 +1335,20 @@ void WebContentPage::did_request_maximize_window(u64 completion_id)
 
 void WebContentPage::did_request_minimize_window()
 {
+    if (!may_change_window(*this, "did_request_minimize_window"sv))
+        return;
     if (view().on_minimize_window)
         view().on_minimize_window();
 }
 
 void WebContentPage::did_request_fullscreen_window()
 {
+    // Element fullscreen needs and consumes the activation of the user's input, which the renderer checks. A
+    // compromised renderer skips that check. The process of an isolated iframe asks for the window of its tab itself.
+    if (!consume_transient_user_activation()) {
+        async_deny_fullscreen_window();
+        return;
+    }
     if (view().on_fullscreen_window)
         view().on_fullscreen_window();
 }

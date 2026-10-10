@@ -405,6 +405,7 @@ public:
 
     ViewportIsFullscreen viewport_is_fullscreen() const { return m_viewport_is_fullscreen; }
     void set_viewport_is_fullscreen(ViewportIsFullscreen);
+    void did_deny_fullscreen_window();
 
 private:
     explicit Page(GC::Ref<PageClient>);

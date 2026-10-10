@@ -241,6 +241,12 @@ void ConnectionFromClient::set_viewport_is_fullscreen(Web::PageId page_id, Web::
         page->page().set_viewport_is_fullscreen(is_fullscreen);
 }
 
+void ConnectionFromClient::deny_fullscreen_window(Web::PageId page_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().did_deny_fullscreen_window();
+}
+
 void ConnectionFromClient::set_ongoing_navigation(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id)
 {
     if (auto page = this->page(page_id); page.has_value())

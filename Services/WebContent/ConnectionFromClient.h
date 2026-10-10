@@ -162,6 +162,7 @@ private:
     virtual void complete_history_operation(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step, u64 session_history_entry_count) override;
     virtual void set_viewport(Web::PageId page_id, Web::DevicePixelSize, double device_pixel_ratio, Web::ViewportIsFullscreen is_fullscreen) override;
     virtual void set_viewport_is_fullscreen(Web::PageId page_id, Web::ViewportIsFullscreen is_fullscreen) override;
+    virtual void deny_fullscreen_window(Web::PageId page_id) override;
     virtual void key_event(Web::PageId page_id, Web::KeyEvent) override;
     virtual void mouse_event(Web::PageId page_id, Web::MouseEvent) override;
     virtual void mouse_event_in_hosted_root(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::MouseEvent) override;
