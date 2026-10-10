@@ -64,6 +64,31 @@ ErrorOr<void> MachBootstrapListener::allocate_server_port()
     return {};
 }
 
+// NB: Any process that can look up the server name can send to it, including a compromised helper. Check every field
+//     we rely on, so that a malformed message is dropped instead of crashing the browser or stopping the listener.
+static bool is_valid_bootstrap_request(ReceivedMachMessage const& message)
+{
+    auto const& header = message.header;
+    if (header.msgh_id != SELF_TASK_NAME_PORT_MESSAGE_ID)
+        return false;
+    if ((header.msgh_bits & MACH_MSGH_BITS_COMPLEX) == 0 || header.msgh_size != sizeof(MessageWithSelfTaskNamePort))
+        return false;
+    if (MACH_MSGH_BITS_LOCAL(header.msgh_bits) != MACH_MSG_TYPE_MOVE_SEND)
+        return false;
+
+    // The reply port is optional, but when present it must be the send-once right the client made.
+    auto const reply_disposition = MACH_MSGH_BITS_REMOTE(header.msgh_bits);
+    if (header.msgh_remote_port != MACH_PORT_NULL && reply_disposition != MACH_MSG_TYPE_MOVE_SEND_ONCE)
+        return false;
+
+    auto const& body = message.body;
+    if (body.body.msgh_descriptor_count != 1)
+        return false;
+    if (body.port_descriptor.type != MACH_MSG_PORT_DESCRIPTOR || body.port_descriptor.disposition != MACH_MSG_TYPE_MOVE_SEND)
+        return false;
+    return true;
+}
+
 void MachBootstrapListener::thread_loop()
 {
     while (!m_should_stop.load(MemoryOrder::memory_order_acquire)) {
@@ -73,6 +98,11 @@ void MachBootstrapListener::thread_loop()
         mach_msg_options_t const options = MACH_RCV_MSG | MACH_RCV_TRAILER_TYPE(MACH_RCV_TRAILER_AUDIT) | MACH_RCV_TRAILER_ELEMENTS(MACH_RCV_TRAILER_AUDIT);
 
         auto const ret = mach_msg(&message.header, options, 0, sizeof(message), m_server_port_recv_right.port(), MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
+        if (ret == MACH_RCV_TOO_LARGE || ret == MACH_RCV_HEADER_ERROR || ret == MACH_RCV_BODY_ERROR || ret == MACH_RCV_INTERRUPTED) {
+            // NB: The kernel has already destroyed the message and its rights. The sender cannot stop the listener.
+            dbgln("Ignoring Mach bootstrap message that could not be received: {}", mach_error_string(ret));
+            continue;
+        }
         if (ret != KERN_SUCCESS) {
             dbgln("mach_msg failed: {}", mach_error_string(ret));
             break;
@@ -83,24 +113,23 @@ void MachBootstrapListener::thread_loop()
             break;
         }
 
-        if (message.header.msgh_id == SELF_TASK_NAME_PORT_MESSAGE_ID) {
-            auto const& task_name_port_message = message.body;
-            VERIFY(MACH_MSGH_BITS_LOCAL(message.header.msgh_bits) == MACH_MSG_TYPE_MOVE_SEND);
-            VERIFY(task_name_port_message.body.msgh_descriptor_count == 1);
-            VERIFY(task_name_port_message.port_descriptor.type == MACH_MSG_PORT_DESCRIPTOR);
-            auto pid = static_cast<pid_t>(task_name_port_message.trailer.msgh_audit.val[5]);
-            auto task_name_port = Core::MachPort::adopt_right(task_name_port_message.port_descriptor.name, Core::MachPort::PortRight::Send);
-
-            // Extract reply port from the message header (kernel swaps local/remote on receive)
-            auto reply_port = Core::MachPort::adopt_right(message.header.msgh_remote_port, Core::MachPort::PortRight::SendOnce);
-
-            dbgln_if(MACH_PORT_DEBUG, "Received bootstrap request from pid {} (task name port {:x}, reply port {:x})", pid, task_name_port.port(), reply_port.port());
-            VERIFY(on_bootstrap_request);
-            on_bootstrap_request({ pid, move(task_name_port), move(reply_port) });
+        if (!is_valid_bootstrap_request(message)) {
+            dbgln("Ignoring malformed Mach bootstrap message {:x}", message.header.msgh_id);
+            mach_msg_destroy(&message.header);
             continue;
         }
 
-        VERIFY_NOT_REACHED();
+        // NB: The audit trailer follows the message body, so its position is only known for a well-formed request.
+        auto pid = static_cast<pid_t>(message.body.trailer.msgh_audit.val[5]);
+
+        auto task_name_port = Core::MachPort::adopt_right(message.body.port_descriptor.name, Core::MachPort::PortRight::Send);
+
+        // Extract reply port from the message header (kernel swaps local/remote on receive)
+        auto reply_port = Core::MachPort::adopt_right(message.header.msgh_remote_port, Core::MachPort::PortRight::SendOnce);
+
+        dbgln_if(MACH_PORT_DEBUG, "Received bootstrap request from pid {} (task name port {:x}, reply port {:x})", pid, task_name_port.port(), reply_port.port());
+        VERIFY(on_bootstrap_request);
+        on_bootstrap_request({ pid, move(task_name_port), move(reply_port) });
     }
 }
 
