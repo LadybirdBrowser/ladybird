@@ -7,28 +7,28 @@ $fa637ceb condition-dead-code-elim.js:141:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `ternary_true`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, ternary_true
-  [  38] GetGlobal dst:reg7, `ternary_truthy`
-  [  48] Call dst:reg6, callee:reg7, this_value:Undefined, ternary_truthy
-  [  68] GetGlobal dst:reg7, `ternary_false`
-  [  78] Call dst:reg5, callee:reg7, this_value:Undefined, ternary_false
-  [  98] GetGlobal dst:reg7, `ternary_falsey`
-  [  a8] Call dst:reg6, callee:reg7, this_value:Undefined, ternary_falsey
-  [  c8] GetGlobal dst:reg7, `while_falsey`
-  [  d8] Call dst:reg5, callee:reg7, this_value:Undefined, while_falsey
-  [  f8] GetGlobal dst:reg7, `do_while_falsey`
-  [ 108] Call dst:reg6, callee:reg7, this_value:Undefined, do_while_falsey
-  [ 128] GetGlobal dst:reg7, `if_falsely`
-  [ 138] Call dst:reg5, callee:reg7, this_value:Undefined, if_falsely
-  [ 158] GetGlobal dst:reg7, `if_truthy`
-  [ 168] Call dst:reg6, callee:reg7, this_value:Undefined, if_truthy
-  [ 188] GetGlobal dst:reg7, `if_exhausted`
-  [ 198] Call dst:reg5, callee:reg7, this_value:Undefined, if_exhausted
-  [ 1b8] GetGlobal dst:reg7, `for_false`
-  [ 1c8] Call dst:reg6, callee:reg7, this_value:Undefined, for_false
-  [ 1e8] GetGlobal dst:reg7, `for_true`
-  [ 1f8] Call dst:reg5, callee:reg7, this_value:Undefined, for_true, arguments:[Bool(true)]
+  [   8] GetGlobal value_feedback:0, dst:reg6, `ternary_true`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, ternary_true
+  [  38] GetGlobal value_feedback:2, dst:reg7, `ternary_truthy`
+  [  48] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, ternary_truthy
+  [  68] GetGlobal value_feedback:4, dst:reg7, `ternary_false`
+  [  78] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg7, this_value:Undefined, ternary_false
+  [  98] GetGlobal value_feedback:6, dst:reg7, `ternary_falsey`
+  [  a8] Call value_feedback:7, call_feedback:3, dst:reg6, callee:reg7, this_value:Undefined, ternary_falsey
+  [  c8] GetGlobal value_feedback:8, dst:reg7, `while_falsey`
+  [  d8] Call value_feedback:9, call_feedback:4, dst:reg5, callee:reg7, this_value:Undefined, while_falsey
+  [  f8] GetGlobal value_feedback:10, dst:reg7, `do_while_falsey`
+  [ 108] Call value_feedback:11, call_feedback:5, dst:reg6, callee:reg7, this_value:Undefined, do_while_falsey
+  [ 128] GetGlobal value_feedback:12, dst:reg7, `if_falsely`
+  [ 138] Call value_feedback:13, call_feedback:6, dst:reg5, callee:reg7, this_value:Undefined, if_falsely
+  [ 158] GetGlobal value_feedback:14, dst:reg7, `if_truthy`
+  [ 168] Call value_feedback:15, call_feedback:7, dst:reg6, callee:reg7, this_value:Undefined, if_truthy
+  [ 188] GetGlobal value_feedback:16, dst:reg7, `if_exhausted`
+  [ 198] Call value_feedback:17, call_feedback:8, dst:reg5, callee:reg7, this_value:Undefined, if_exhausted
+  [ 1b8] GetGlobal value_feedback:18, dst:reg7, `for_false`
+  [ 1c8] Call value_feedback:19, call_feedback:9, dst:reg6, callee:reg7, this_value:Undefined, for_false
+  [ 1e8] GetGlobal value_feedback:20, dst:reg7, `for_true`
+  [ 1f8] Call value_feedback:21, call_feedback:10, dst:reg5, callee:reg7, this_value:Undefined, for_true, arguments:[Bool(true)]
   [ 220] End value:reg5
 
 
@@ -89,8 +89,8 @@ while_falsey$17590e95 condition-dead-code-elim.js:33:5
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `alive`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [   8] GetGlobal value_feedback:0, dst:reg6, `alive`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, alive
   [  38] End value:Undefined
 
 
@@ -115,14 +115,14 @@ do_while_falsey$af48c539 condition-dead-code-elim.js:37:9
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `alive`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  38] GetGlobal dst:reg6, `alive`
-  [  48] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  68] GetGlobal dst:reg6, `alive`
-  [  78] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  98] GetGlobal dst:reg6, `alive`
-  [  a8] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [   8] GetGlobal value_feedback:0, dst:reg6, `alive`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  38] GetGlobal value_feedback:2, dst:reg6, `alive`
+  [  48] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  68] GetGlobal value_feedback:4, dst:reg6, `alive`
+  [  78] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  98] GetGlobal value_feedback:6, dst:reg6, `alive`
+  [  a8] Call value_feedback:7, call_feedback:3, dst:reg5, callee:reg6, this_value:Undefined, alive
   [  c8] End value:Undefined
 
 
@@ -136,8 +136,8 @@ if_falsely$537336d6 condition-dead-code-elim.js:62:5
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `alive`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [   8] GetGlobal value_feedback:0, dst:reg6, `alive`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, alive
   [  38] End value:Undefined
 
 
@@ -152,14 +152,14 @@ if_truthy$1f8e5cc8 condition-dead-code-elim.js:66:9
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `alive`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  38] GetGlobal dst:reg6, `alive`
-  [  48] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  68] GetGlobal dst:reg6, `alive`
-  [  78] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  98] GetGlobal dst:reg6, `alive`
-  [  a8] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [   8] GetGlobal value_feedback:0, dst:reg6, `alive`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  38] GetGlobal value_feedback:2, dst:reg6, `alive`
+  [  48] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  68] GetGlobal value_feedback:4, dst:reg6, `alive`
+  [  78] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  98] GetGlobal value_feedback:6, dst:reg6, `alive`
+  [  a8] Call value_feedback:7, call_feedback:3, dst:reg5, callee:reg6, this_value:Undefined, alive
   [  c8] End value:Undefined
 
 
@@ -173,12 +173,12 @@ if_exhausted$9a8b31f1 condition-dead-code-elim.js:90:9
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `alive`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  38] GetGlobal dst:reg6, `alive`
-  [  48] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  68] GetGlobal dst:reg6, `alive`
-  [  78] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [   8] GetGlobal value_feedback:0, dst:reg6, `alive`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  38] GetGlobal value_feedback:2, dst:reg6, `alive`
+  [  48] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  68] GetGlobal value_feedback:4, dst:reg6, `alive`
+  [  78] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined, alive
   [  98] End value:Undefined
 
 
@@ -211,16 +211,16 @@ block5:
   [  30] End value:Undefined
 
 block6:
-  [  38] GetGlobal dst:reg5, `call_this`
-  [  48] Call dst:x~0, callee:reg5, this_value:Undefined, call_this
+  [  38] GetGlobal value_feedback:0, dst:reg5, `call_this`
+  [  48] Call value_feedback:1, call_feedback:0, dst:x~0, callee:reg5, this_value:Undefined, call_this
   [  68] Jump target:block8
 
 block7:
   [  70] End value:Undefined
 
 block8:
-  [  78] GetGlobal dst:reg6, `alive`
-  [  88] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  78] GetGlobal value_feedback:2, dst:reg6, `alive`
+  [  88] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, alive
   [  a8] End value:Undefined
 
 
@@ -248,8 +248,8 @@ block0:
   [   8] Jump target:block2
 
 block1:
-  [  10] GetGlobal dst:reg6, `alive`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  10] GetGlobal value_feedback:0, dst:reg6, `alive`
+  [  20] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, alive
   [  40] JumpIf condition:arg0, true_target:block4, false_target:block5
 
 block2:
@@ -265,16 +265,16 @@ block5:
   [  68] Jump target:block2
 
 block6:
-  [  70] GetGlobal dst:reg6, `alive`
-  [  80] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  70] GetGlobal value_feedback:2, dst:reg6, `alive`
+  [  80] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, alive
   [  a0] JumpIf condition:arg0, true_target:block9, false_target:block10
 
 block7:
   [  b0] Jump target:block6
 
 block8:
-  [  b8] GetGlobal dst:reg6, `alive`
-  [  c8] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  b8] GetGlobal value_feedback:4, dst:reg6, `alive`
+  [  c8] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined, alive
   [  e8] End value:Undefined
 
 block9:

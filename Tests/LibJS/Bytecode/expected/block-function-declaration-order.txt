@@ -14,9 +14,9 @@ block0:
   [  60] InitializeLexicalBinding `f1`, src:reg6
   [  78] NewFunction dst:reg6, shared_function_data_index:1
   [  90] InitializeLexicalBinding `f2`, src:reg6
-  [  a8] GetBinding dst:reg6, `f1`
+  [  a8] GetBinding value_feedback:0, dst:reg6, `f1`
   [  c0] DynamicSetVariableBinding `f1`, src:reg6
-  [  d0] GetBinding dst:reg6, `f2`
+  [  d0] GetBinding value_feedback:1, dst:reg6, `f2`
   [  e8] DynamicSetVariableBinding `f2`, src:reg6
   [  f8] SetLexicalEnvironment environment:reg4
   [ 100] End value:Undefined

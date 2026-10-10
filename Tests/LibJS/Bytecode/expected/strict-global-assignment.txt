@@ -21,8 +21,8 @@ block2:
 
 block3:
   [  50] ResolveGlobalBinding dst:reg5, `counter`
-  [  60] GetGlobal dst:reg6, `counter`
-  [  70] AddRhsInt32 dst:reg7, lhs:reg6, rhs:1
+  [  60] GetGlobal value_feedback:0, dst:reg6, `counter`
+  [  70] AddRhsInt32 arith_feedback:0, dst:reg7, lhs:reg6, rhs:1
   [  80] JumpFalse condition:reg5, target:block5
 
 block4:

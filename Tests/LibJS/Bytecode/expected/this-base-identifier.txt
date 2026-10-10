@@ -7,10 +7,10 @@ $fc88b9ef this-base-identifier.js:16:1
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] GetGlobal dst:reg6, `get_from_this`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, get_from_this
-  [  40] GetGlobal dst:reg7, `set_on_this`
-  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, set_on_this
+  [  10] GetGlobal value_feedback:0, dst:reg6, `get_from_this`
+  [  20] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, get_from_this
+  [  40] GetGlobal value_feedback:2, dst:reg7, `set_on_this`
+  [  50] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, set_on_this
   [  70] Jump target:block2
 
 block1:
@@ -21,8 +21,8 @@ block1:
 
 block2:
   [  a8] MovSrcUndefined dst:reg5
-  [  b0] GetGlobal dst:reg9, `chained_this_access`
-  [  c0] Call dst:reg7, callee:reg9, this_value:Undefined, chained_this_access
+  [  b0] GetGlobal value_feedback:4, dst:reg9, `chained_this_access`
+  [  c0] Call value_feedback:5, call_feedback:2, dst:reg7, callee:reg9, this_value:Undefined, chained_this_access
   [  e0] Mov2 c0_dst:reg5, c0_src:reg7, c1_dst:reg7, c1_src:reg5
   [  f8] End value:reg7
 
@@ -36,7 +36,7 @@ get_from_this$7b4d6173 this-base-identifier.js:5:5
 
 block0:
   [   0] Enter
-  [   8] GetById dst:reg5, base:this, `foo` (this.foo)
+  [   8] GetById value_feedback:0, dst:reg5, base:this, `foo` (this.foo)
   [  20] Return value:reg5
 
 
@@ -59,6 +59,6 @@ chained_this_access$cbe84523 this-base-identifier.js:13:5
 
 block0:
   [   0] Enter
-  [   8] GetById dst:reg5, base:this, `a` (this.a)
-  [  20] GetById dst:reg6, base:reg5, `b` (this.a.b)
+  [   8] GetById value_feedback:0, dst:reg5, base:this, `a` (this.a)
+  [  20] GetById value_feedback:1, dst:reg6, base:reg5, `b` (this.a.b)
   [  38] Return value:reg6

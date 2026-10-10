@@ -7,11 +7,11 @@ $b237dcfe with-return.js:10:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `with_return`
+  [   8] GetGlobal value_feedback:0, dst:reg6, `with_return`
   [  18] NewObject dst:reg7
   [  28] InitObjectLiteralProperty object:reg7, `x`, src:Int32(42), shape_cache_index:0, property_slot:0
   [  40] CacheObjectShape object:reg7
-  [  50] Call dst:reg5, callee:reg6, this_value:Undefined, with_return, arguments:[reg7]
+  [  50] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, with_return, arguments:[reg7]
   [  78] End value:reg5
 
 
@@ -25,6 +25,6 @@ block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
   [  10] EnterObjectEnvironment dst:reg5, object:arg0
-  [  20] DynamicGetBinding dst:reg6, `x`
+  [  20] DynamicGetBinding value_feedback:0, dst:reg6, `x`
   [  30] SetLexicalEnvironment environment:reg4
   [  38] Return value:reg6

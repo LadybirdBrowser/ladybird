@@ -6,9 +6,9 @@ $6fbbc21a generator-yield-star.js:6:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `f`
+  [   8] GetGlobal value_feedback:0, dst:reg6, `f`
   [  18] NewPrimitiveArray dst:reg7, elements:[1, 2]
-  [  38] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
+  [  38] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
   [  60] End value:reg5
 
 
@@ -29,7 +29,7 @@ block1:
   [  30] Mov2 c0_dst:reg6, c0_src:Int32(1), c1_dst:reg7, c1_src:Undefined
 
 block2:
-  [  48] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block5, false_target:block6
+  [  48] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg6, rhs:1, true_target:block5, false_target:block6
 
 block3:
   [  60] Mov dst:reg5, src:reg0
@@ -40,16 +40,16 @@ block4:
   [  88] Yield value:Undefined
 
 block5:
-  [  98] Call dst:reg12, callee:reg9, this_value:reg8, arguments:[reg7]
+  [  98] Call value_feedback:0, call_feedback:0, dst:reg12, callee:reg9, this_value:reg8, arguments:[reg7]
   [  c0] ThrowIfNotObject src:reg12
-  [  c8] GetById dst:reg13, base:reg12, `done`
+  [  c8] GetById value_feedback:1, dst:reg13, base:reg12, `done`
   [  e0] JumpIf condition:reg13, true_target:block7, false_target:block8
 
 block6:
-  [  f0] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:5, true_target:block9, false_target:block10
+  [  f0] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg6, rhs:5, true_target:block9, false_target:block10
 
 block7:
-  [ 108] GetById dst:reg14, base:reg12, `value`
+  [ 108] GetById value_feedback:2, dst:reg14, base:reg12, `value`
   [ 120] Jump target:block4
 
 block8:
@@ -64,9 +64,9 @@ block10:
   [ 168] JumpUndefined condition:reg18, true_target:block15, false_target:block16
 
 block11:
-  [ 178] Call dst:reg12, callee:reg16, this_value:reg8, arguments:[reg7]
+  [ 178] Call value_feedback:3, call_feedback:1, dst:reg12, callee:reg16, this_value:reg8, arguments:[reg7]
   [ 1a0] ThrowIfNotObject src:reg12
-  [ 1a8] GetById dst:reg13, base:reg12, `done`
+  [ 1a8] GetById value_feedback:4, dst:reg13, base:reg12, `done`
   [ 1c0] JumpIf condition:reg13, true_target:block13, false_target:block14
 
 block12:
@@ -75,7 +75,7 @@ block12:
   [ 1f8] Throw src:reg17
 
 block13:
-  [ 200] GetById dst:reg14, base:reg12, `value`
+  [ 200] GetById value_feedback:5, dst:reg14, base:reg12, `value`
   [ 218] Jump target:block4
 
 block14:
@@ -85,13 +85,13 @@ block15:
   [ 230] Yield value:reg7
 
 block16:
-  [ 240] Call dst:reg19, callee:reg18, this_value:reg8, arguments:[reg7]
+  [ 240] Call value_feedback:6, call_feedback:2, dst:reg19, callee:reg18, this_value:reg8, arguments:[reg7]
   [ 268] ThrowIfNotObject src:reg19
-  [ 270] GetById dst:reg13, base:reg19, `done`
+  [ 270] GetById value_feedback:7, dst:reg13, base:reg19, `done`
   [ 288] JumpFalse condition:reg13, target:block18
 
 block17:
-  [ 298] GetById dst:reg20, base:reg19, `value`
+  [ 298] GetById value_feedback:8, dst:reg20, base:reg19, `value`
   [ 2b0] Yield value:reg20
 
 block18:

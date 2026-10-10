@@ -11,6 +11,6 @@ block0:
   [  50] InitializeLexicalBinding `Oops`, src:reg6
   [  68] SetLexicalEnvironment environment:reg4
   [  70] SetGlobal `Oops`, src:reg6
-  [  80] GetGlobal dst:reg5, `Oops`
-  [  90] GetById dst:reg7, base:reg5, `x` (Oops.x)
+  [  80] GetGlobal value_feedback:0, dst:reg5, `Oops`
+  [  90] GetById value_feedback:1, dst:reg7, base:reg5, `x` (Oops.x)
   [  a8] End value:reg7

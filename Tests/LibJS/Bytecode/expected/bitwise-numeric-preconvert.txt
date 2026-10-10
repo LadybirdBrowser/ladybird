@@ -7,8 +7,8 @@ $acfb7718 bitwise-numeric-preconvert.js:4:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `test`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[Int32(1)]
+  [   8] GetGlobal value_feedback:0, dst:reg6, `test`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[Int32(1)]
   [  40] End value:reg5
 
 
@@ -20,5 +20,5 @@ test$65b6c8dc bitwise-numeric-preconvert.js:2:5
 
 block0:
   [   0] Enter
-  [   8] RightShift dst:reg5, lhs:Int32(-2147483648), rhs:arg0
+  [   8] RightShift arith_feedback:0, dst:reg5, lhs:Int32(-2147483648), rhs:arg0
   [  18] Return value:reg5

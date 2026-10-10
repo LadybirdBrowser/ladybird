@@ -8,7 +8,7 @@ block0:
   [   0] Enter
   [   8] GetImport dst:reg6, `importedRead`, import_index:2
   [  18] MovSrcUndefined dst:reg7
-  [  20] Call dst:reg5, callee:reg6, this_value:reg7, importedRead
+  [  20] Call value_feedback:0, call_feedback:0, dst:reg5, callee:reg6, this_value:reg7, importedRead
   [  40] Return value:reg5
 
 
@@ -21,5 +21,5 @@ block0:
   [   8] GetImport dst:reg5, `namespace`, import_index:0
   [  18] Typeof dst:reg5, src:reg5
   [  28] GetImport dst:reg6, `importedValue`, import_index:1
-  [  38] Add dst:reg7, lhs:reg5, rhs:reg6
+  [  38] Add arith_feedback:0, dst:reg7, lhs:reg5, rhs:reg6
   [  48] Return value:reg7

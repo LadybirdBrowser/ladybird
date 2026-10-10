@@ -6,8 +6,8 @@ $162ec0dc assign-to-parameter.js:8:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `isect`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, isect
+  [   8] GetGlobal value_feedback:0, dst:reg6, `isect`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, isect
   [  38] End value:reg5
 
 

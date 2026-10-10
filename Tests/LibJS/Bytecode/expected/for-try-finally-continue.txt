@@ -22,17 +22,17 @@ block1:
   [  30] Jump target:block8
 
 block2:
-  [  38] GetGlobal dst:reg7, `i`
-  [  48] PostfixIncrement dst:reg6, src:reg7
+  [  38] GetGlobal value_feedback:1, dst:reg7, `i`
+  [  48] PostfixIncrement arith_feedback:1, dst:reg6, src:reg7
   [  58] SetGlobal `i`, src:reg7
 
 block3:
-  [  68] GetGlobal dst:reg6, `i`
-  [  78] JumpLessThanRhsInt32 lhs:reg6, rhs:5, true_target:block1, false_target:block4
+  [  68] GetGlobal value_feedback:0, dst:reg6, `i`
+  [  78] JumpLessThanRhsInt32 arith_feedback:0, lhs:reg6, rhs:5, true_target:block1, false_target:block4
 
 block4:
-  [  90] GetGlobal dst:reg10, `i`
-  [  a0] StrictlyInequalsRhsInt32 dst:reg8, lhs:reg10, rhs:5
+  [  90] GetGlobal value_feedback:2, dst:reg10, `i`
+  [  a0] StrictlyInequalsRhsInt32 arith_feedback:5, dst:reg8, lhs:reg10, rhs:5
   [  b0] MovSrcUndefined dst:reg10
   [  b8] JumpIf condition:reg8, true_target:block14, false_target:block15
 
@@ -43,7 +43,7 @@ block5:
 
 block6:
   [  e8] MovSrcUndefined dst:reg9
-  [  f0] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:0, true_target:block9, false_target:block10
+  [  f0] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg6, rhs:0, true_target:block9, false_target:block10
 
 block7:
   [ 108] Catch dst:reg8
@@ -61,10 +61,10 @@ block9:
   [ 188] Jump target:block2
 
 block10:
-  [ 190] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:3, true_target:block2, false_target:block11
+  [ 190] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg6, rhs:3, true_target:block2, false_target:block11
 
 block11:
-  [ 1a8] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:2, true_target:block12, false_target:block13
+  [ 1a8] JumpStrictlyEqualsRhsInt32 arith_feedback:4, lhs:reg6, rhs:2, true_target:block12, false_target:block13
 
 block12:
   [ 1c0] Return value:reg7

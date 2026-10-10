@@ -6,8 +6,8 @@ $6c6bb70b do-while-register-allocation.js:15:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `test`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, test
+  [   8] GetGlobal value_feedback:0, dst:reg6, `test`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, test
   [  38] End value:reg5
 
 
@@ -23,16 +23,16 @@ test$62b23a07 do-while-register-allocation.js:9:5
 block0:
   [   0] Enter
   [   8] Mov2 c0_dst:i~0, c0_src:Undefined, c1_dst:i~0, c1_src:Int32(0)
-  [  20] GetGlobal dst:reg6, `foo`
+  [  20] GetGlobal value_feedback:0, dst:reg6, `foo`
   [  30] NewArray dst:reg7
-  [  40] Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
+  [  40] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
 
 block1:
-  [  68] GetGlobal dst:reg7, `bar`
+  [  68] GetGlobal value_feedback:2, dst:reg7, `bar`
   [  78] Mov dst:reg8, src:i~0
-  [  88] Call dst:reg6, callee:reg7, this_value:Undefined, bar, arguments:[reg8]
-  [  b0] PostfixIncrement dst:reg6, src:i~0
-  [  c0] JumpLessThanRhsInt32 lhs:i~0, rhs:7, true_target:block1, false_target:block2
+  [  88] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, bar, arguments:[reg8]
+  [  b0] PostfixIncrement arith_feedback:1, dst:reg6, src:i~0
+  [  c0] JumpLessThanRhsInt32 arith_feedback:0, lhs:i~0, rhs:7, true_target:block1, false_target:block2
 
 block2:
   [  d8] End value:Undefined

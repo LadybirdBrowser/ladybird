@@ -6,8 +6,8 @@ $2b997e90 numeric-index-object-literal.js:4:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `test`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, test
+  [   8] GetGlobal value_feedback:0, dst:reg6, `test`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, test
   [  38] End value:reg5
 
 
@@ -26,9 +26,9 @@ block0:
   [   0] Enter
   [   8] NewObject dst:reg5
   [  18] ToPrimitiveWithStringHint dst:Int32(100), value:Int32(100)
-  [  28] PutByValue base:reg5, property:Int32(100), src:Int32(1), kind:Own
+  [  28] PutByValue keyed_feedback:0, base:reg5, property:Int32(100), src:Int32(1), kind:Own
   [  48] ToPrimitiveWithStringHint dst:Int32(200), value:Int32(200)
-  [  58] PutByValue base:reg5, property:Int32(200), src:Int32(2), kind:Own
+  [  58] PutByValue keyed_feedback:1, base:reg5, property:Int32(200), src:Int32(2), kind:Own
   [  78] ToPrimitiveWithStringHint dst:Int32(300), value:Int32(300)
-  [  88] PutByValue base:reg5, property:Int32(300), src:Int32(3), kind:Own
+  [  88] PutByValue keyed_feedback:2, base:reg5, property:Int32(300), src:Int32(3), kind:Own
   [  a8] Return value:reg5

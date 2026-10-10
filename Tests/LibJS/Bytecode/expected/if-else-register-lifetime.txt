@@ -6,9 +6,9 @@ $c02559ef if-else-register-lifetime.js:11:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `test`
+  [   8] GetGlobal value_feedback:0, dst:reg6, `test`
   [  18] NewPrimitiveArray dst:reg7, elements:[1]
-  [  30] Call dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[reg7]
+  [  30] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[reg7]
   [  58] End value:reg5
 
 
@@ -35,44 +35,44 @@ block1:
   [  48] Jump target:block7
 
 block2:
-  [  50] PostfixIncrement dst:reg5, src:i~1
+  [  50] PostfixIncrement arith_feedback:1, dst:reg5, src:i~1
 
 block3:
-  [  60] JumpLessThanRhsInt32 lhs:i~1, rhs:10, true_target:block1, false_target:block4
+  [  60] JumpLessThanRhsInt32 arith_feedback:0, lhs:i~1, rhs:10, true_target:block1, false_target:block4
 
 block4:
-  [  78] GetGlobal dst:reg7, `parseInt`
+  [  78] GetGlobal value_feedback:4, dst:reg7, `parseInt`
   [  88] Mov dst:reg10, src:a~0
-  [  98] Call dst:reg5, callee:reg7, this_value:Undefined, parseInt, arguments:[reg10]
+  [  98] Call value_feedback:5, call_feedback:1, dst:reg5, callee:reg7, this_value:Undefined, parseInt, arguments:[reg10]
   [  c0] Return value:reg5
 
 block5:
-  [  c8] JumpLessThanRhsInt32 lhs:j~2, rhs:5, true_target:block9, false_target:block10
+  [  c8] JumpLessThanRhsInt32 arith_feedback:4, lhs:j~2, rhs:5, true_target:block9, false_target:block10
 
 block6:
-  [  e0] PostfixIncrement dst:reg5, src:j~2
+  [  e0] PostfixIncrement arith_feedback:3, dst:reg5, src:j~2
 
 block7:
-  [  f0] JumpLessThanRhsInt32 lhs:j~2, rhs:10, true_target:block5, false_target:block8
+  [  f0] JumpLessThanRhsInt32 arith_feedback:2, lhs:j~2, rhs:10, true_target:block5, false_target:block8
 
 block8:
   [ 108] Jump target:block2
 
 block9:
   [ 110] Mov3 c0_dst:reg6, c0_src:arg0, c1_dst:reg7, c1_src:j~2, c2_dst:reg8, c2_src:arg0
-  [ 130] Add dst:reg9, lhs:i~1, rhs:j~2
-  [ 140] GetByValue dst:reg10, base:reg8, property:reg9 (x[reg9])
-  [ 160] PutByValue base:reg6, property:reg7, src:reg10, kind:Normal (x[reg7])
+  [ 130] Add arith_feedback:5, dst:reg9, lhs:i~1, rhs:j~2
+  [ 140] GetByValue value_feedback:0, keyed_feedback:0, dst:reg10, base:reg8, property:reg9 (x[reg9])
+  [ 160] PutByValue keyed_feedback:1, base:reg6, property:reg7, src:reg10, kind:Normal (x[reg7])
   [ 180] Jump target:block11
 
 block10:
   [ 188] Mov2 c0_dst:reg10, c0_src:arg0, c1_dst:reg6, c1_src:j~2
-  [ 1a0] GetGlobal dst:reg8, `parseInt`
+  [ 1a0] GetGlobal value_feedback:1, dst:reg8, `parseInt`
   [ 1b0] Mov dst:reg9, src:arg0
-  [ 1c0] SubRhsInt32 dst:reg11, lhs:j~2, rhs:3
-  [ 1d0] GetByValue dst:reg12, base:reg9, property:reg11 (x[reg11])
-  [ 1f0] Call dst:reg7, callee:reg8, this_value:Undefined, parseInt, arguments:[reg12, Int32(1)]
-  [ 218] PutByValue base:reg10, property:reg6, src:reg7, kind:Normal (x[reg6])
+  [ 1c0] SubRhsInt32 arith_feedback:6, dst:reg11, lhs:j~2, rhs:3
+  [ 1d0] GetByValue value_feedback:2, keyed_feedback:2, dst:reg12, base:reg9, property:reg11 (x[reg11])
+  [ 1f0] Call value_feedback:3, call_feedback:0, dst:reg7, callee:reg8, this_value:Undefined, parseInt, arguments:[reg12, Int32(1)]
+  [ 218] PutByValue keyed_feedback:3, base:reg10, property:reg6, src:reg7, kind:Normal (x[reg6])
 
 block11:
   [ 238] Jump target:block6

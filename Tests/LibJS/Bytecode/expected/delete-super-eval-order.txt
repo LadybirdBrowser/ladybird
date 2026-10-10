@@ -24,10 +24,10 @@ block1:
 
 block2:
   [  b0] MovSrcUndefined dst:reg6
-  [  b8] GetGlobal dst:reg9, `A`
-  [  c8] CallConstruct dst:reg8, callee:reg9, A
-  [  e8] GetById dst:reg9, base:reg8, `m`
-  [ 100] Call dst:reg5, callee:reg9, this_value:reg8, <object>.m, arguments:[String("x")]
+  [  b8] GetGlobal value_feedback:0, dst:reg9, `A`
+  [  c8] CallConstruct value_feedback:1, call_feedback:0, dst:reg8, callee:reg9, A
+  [  e8] GetById value_feedback:2, dst:reg9, base:reg8, `m`
+  [ 100] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg9, this_value:reg8, <object>.m, arguments:[String("x")]
   [ 128] Mov2 c0_dst:reg6, c0_src:reg5, c1_dst:reg5, c1_src:reg6
   [ 140] End value:reg5
 

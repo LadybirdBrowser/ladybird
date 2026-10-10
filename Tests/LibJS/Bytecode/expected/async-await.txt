@@ -6,8 +6,8 @@ $fd650eed async-await.js:9:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `f`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [   8] GetGlobal value_feedback:0, dst:reg6, `f`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, f
   [  38] End value:reg5
 
 
@@ -24,16 +24,16 @@ block0:
   [   8] Yield continuation_label:block1, value:Undefined
 
 block1:
-  [  18] GetGlobal dst:reg6, `Promise`
-  [  28] GetById dst:reg7, base:reg6, `resolve` (Promise.resolve)
-  [  40] Call dst:reg5, callee:reg7, this_value:reg6, Promise.resolve, arguments:[Int32(42)]
+  [  18] GetGlobal value_feedback:0, dst:reg6, `Promise`
+  [  28] GetById value_feedback:1, dst:reg7, base:reg6, `resolve` (Promise.resolve)
+  [  40] Call value_feedback:2, call_feedback:0, dst:reg5, callee:reg7, this_value:reg6, Promise.resolve, arguments:[Int32(42)]
   [  68] Mov dst:reg7, src:reg0
   [  78] Await continuation_label:block2, argument:reg5
 
 block2:
   [  88] Mov dst:reg7, src:reg0
   [  98] GetCompletionFields type_dst:reg6, value_dst:reg8, completion:reg7
-  [  a8] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block3, false_target:block4
+  [  a8] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg6, rhs:1, true_target:block3, false_target:block4
 
 block3:
   [  c0] Yield value:reg8

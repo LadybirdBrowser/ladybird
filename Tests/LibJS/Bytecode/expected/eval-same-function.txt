@@ -6,8 +6,8 @@ $d36729be eval-same-function.js:10:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `foo`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, foo
+  [   8] GetGlobal value_feedback:0, dst:reg6, `foo`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, foo
   [  38] End value:reg5
 
 
@@ -22,10 +22,10 @@ foo$40f9e494 eval-same-function.js:6:9
 block0:
   [   0] Enter
   [   8] CreateArguments is_immutable:false
-  [  18] DynamicGetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `eval`
-  [  30] CallDirectEval dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("var x = 1")]
-  [  58] DynamicGetBinding dst:reg6, `Number`
-  [  68] CallConstruct dst:reg5, callee:reg6, Number, arguments:[Int32(42)]
+  [  18] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg6, this_value:reg7, `eval`
+  [  30] CallDirectEval value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("var x = 1")]
+  [  58] DynamicGetBinding value_feedback:2, dst:reg6, `Number`
+  [  68] CallConstruct value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, Number, arguments:[Int32(42)]
   [  90] Return value:reg5
 
 

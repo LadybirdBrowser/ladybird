@@ -17,9 +17,9 @@ block1:
 
 block2:
   [  48] MovSrcUndefined dst:reg5
-  [  50] GetGlobal dst:reg8, `f`
+  [  50] GetGlobal value_feedback:0, dst:reg8, `f`
   [  60] NewFunction dst:reg9, shared_function_data_index:0
-  [  78] Call dst:reg6, callee:reg8, this_value:Undefined, f, arguments:[reg9]
+  [  78] Call value_feedback:1, call_feedback:0, dst:reg6, callee:reg8, this_value:Undefined, f, arguments:[reg9]
   [  a0] Mov2 c0_dst:reg5, c0_src:reg6, c1_dst:reg6, c1_src:reg5
   [  b8] End value:reg6
 
@@ -35,7 +35,7 @@ f$cb5318f8 invalid-lhs-assignment-no-dead-code.js:5:6
 
 block0:
   [   0] Enter
-  [   8] Call dst:reg5, callee:arg0, this_value:Undefined, x
+  [   8] Call value_feedback:0, call_feedback:0, dst:reg5, callee:arg0, this_value:Undefined, x
   [  28] NewReferenceError dst:reg5, Invalid left-hand side in assignment
   [  38] Throw src:reg5
 

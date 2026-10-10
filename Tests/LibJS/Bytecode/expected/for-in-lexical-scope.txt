@@ -39,7 +39,7 @@ block5:
   [ 150] CreateMutableBinding environment:reg13, `probeDecl`, can_be_deleted:false
   [ 160] NewFunction dst:reg14, shared_function_data_index:0
   [ 178] InitializeLexicalBinding `probeDecl`, src:reg14
-  [ 190] GetBinding dst:reg14, `probeDecl`
+  [ 190] GetBinding value_feedback:0, dst:reg14, `probeDecl`
   [ 1a8] DynamicSetVariableBinding `probeDecl`, src:reg14
   [ 1b8] SetLexicalEnvironment environment:reg12
   [ 1c0] SetLexicalEnvironment environment:reg4

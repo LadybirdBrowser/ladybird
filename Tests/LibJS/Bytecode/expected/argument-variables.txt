@@ -8,10 +8,10 @@ $bced3bd8 argument-variables.js:12:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `identity`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, identity, arguments:[Int32(1)]
-  [  40] GetGlobal dst:reg7, `swap`
-  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, swap, arguments:[Int32(1), Int32(2)]
+  [   8] GetGlobal value_feedback:0, dst:reg6, `identity`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, identity, arguments:[Int32(1)]
+  [  40] GetGlobal value_feedback:2, dst:reg7, `swap`
+  [  50] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, swap, arguments:[Int32(1), Int32(2)]
   [  78] End value:reg6
 
 
@@ -30,5 +30,5 @@ swap$d149ca94 argument-variables.js:9:5
 
 block0:
   [   0] Enter
-  [   8] Add dst:reg5, lhs:arg1, rhs:arg0
+  [   8] Add arith_feedback:0, dst:reg5, lhs:arg1, rhs:arg0
   [  18] Return value:reg5

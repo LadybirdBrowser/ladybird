@@ -6,12 +6,12 @@ $3ce5efbc try-finally.js:8:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `basicTryFinally`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, basicTryFinally
-  [  38] GetGlobal dst:reg7, `breakThroughFinally`
-  [  48] Call dst:reg6, callee:reg7, this_value:Undefined, breakThroughFinally
-  [  68] GetGlobal dst:reg7, `nestedTryFinallyWithBreak`
-  [  78] Call dst:reg5, callee:reg7, this_value:Undefined, nestedTryFinallyWithBreak
+  [   8] GetGlobal value_feedback:0, dst:reg6, `basicTryFinally`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, basicTryFinally
+  [  38] GetGlobal value_feedback:2, dst:reg7, `breakThroughFinally`
+  [  48] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, breakThroughFinally
+  [  68] GetGlobal value_feedback:4, dst:reg7, `nestedTryFinallyWithBreak`
+  [  78] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg7, this_value:Undefined, nestedTryFinallyWithBreak
   [  98] End value:reg5
 
 
@@ -36,10 +36,10 @@ block1:
   [  28] Mov dst:reg5, src:Int32(1)
 
 block2:
-  [  38] GetGlobal dst:reg8, `console`
-  [  48] GetById dst:reg9, base:reg8, `log` (console.log)
-  [  60] Call dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[String("finally")]
-  [  88] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:0, true_target:block4, false_target:block5
+  [  38] GetGlobal value_feedback:0, dst:reg8, `console`
+  [  48] GetById value_feedback:1, dst:reg9, base:reg8, `log` (console.log)
+  [  60] Call value_feedback:2, call_feedback:0, dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[String("finally")]
+  [  88] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg5, rhs:0, true_target:block4, false_target:block5
 
 block3:
   [  a0] Mov2 c0_dst:reg6, c0_src:Int32(1), c1_dst:reg5, c1_src:Int32(2)
@@ -49,7 +49,7 @@ block4:
   [  c0] End value:Undefined
 
 block5:
-  [  c8] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block6, false_target:block7
+  [  c8] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg5, rhs:2, true_target:block6, false_target:block7
 
 block6:
   [  e0] Return value:reg6
@@ -84,10 +84,10 @@ block1:
   [  28] Jump target:block7
 
 block2:
-  [  30] PostfixIncrement dst:reg5, src:i~0
+  [  30] PostfixIncrement arith_feedback:1, dst:reg5, src:i~0
 
 block3:
-  [  40] JumpLessThanRhsInt32 lhs:i~0, rhs:10, true_target:block1, false_target:block4
+  [  40] JumpLessThanRhsInt32 arith_feedback:0, lhs:i~0, rhs:10, true_target:block1, false_target:block4
 
 block4:
   [  58] End value:Undefined
@@ -98,14 +98,14 @@ block5:
   [  70] Mov dst:reg5, src:Int32(1)
 
 block6:
-  [  80] GetGlobal dst:reg8, `console`
-  [  90] GetById dst:reg9, base:reg8, `log` (console.log)
+  [  80] GetGlobal value_feedback:0, dst:reg8, `console`
+  [  90] GetById value_feedback:1, dst:reg9, base:reg8, `log` (console.log)
   [  a8] Mov dst:reg10, src:i~0
-  [  b8] Call dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[reg10]
-  [  e0] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:0, true_target:block10, false_target:block11
+  [  b8] Call value_feedback:2, call_feedback:0, dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[reg10]
+  [  e0] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg5, rhs:0, true_target:block10, false_target:block11
 
 block7:
-  [  f8] JumpStrictlyEqualsRhsInt32 lhs:i~0, rhs:5, true_target:block8, false_target:block9
+  [  f8] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:i~0, rhs:5, true_target:block8, false_target:block9
 
 block8:
   [ 110] Mov dst:reg5, src:Int32(3)
@@ -119,10 +119,10 @@ block10:
   [ 140] Jump target:block2
 
 block11:
-  [ 148] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:3, true_target:block4, false_target:block12
+  [ 148] JumpStrictlyEqualsRhsInt32 arith_feedback:4, lhs:reg5, rhs:3, true_target:block4, false_target:block12
 
 block12:
-  [ 160] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block13, false_target:block14
+  [ 160] JumpStrictlyEqualsRhsInt32 arith_feedback:5, lhs:reg5, rhs:2, true_target:block13, false_target:block14
 
 block13:
   [ 178] Return value:reg6
@@ -156,7 +156,7 @@ block1:
   [  20] Jump target:block6
 
 block2:
-  [  28] PostfixIncrement dst:reg5, src:i~0
+  [  28] PostfixIncrement arith_feedback:0, dst:reg5, src:i~0
   [  38] Jump target:block1
 
 block3:
@@ -168,10 +168,10 @@ block4:
   [  58] Mov dst:reg5, src:Int32(1)
 
 block5:
-  [  68] GetGlobal dst:reg8, `console`
-  [  78] GetById dst:reg9, base:reg8, `log` (console.log)
-  [  90] Call dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[String("outer")]
-  [  b8] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:0, true_target:block16, false_target:block17
+  [  68] GetGlobal value_feedback:3, dst:reg8, `console`
+  [  78] GetById value_feedback:4, dst:reg9, base:reg8, `log` (console.log)
+  [  90] Call value_feedback:5, call_feedback:1, dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[String("outer")]
+  [  b8] JumpStrictlyEqualsRhsInt32 arith_feedback:4, lhs:reg5, rhs:0, true_target:block16, false_target:block17
 
 block6:
   [  d0] Jump target:block9
@@ -182,10 +182,10 @@ block7:
   [  e8] Mov dst:reg7, src:Int32(1)
 
 block8:
-  [  f8] GetGlobal dst:reg10, `console`
-  [ 108] GetById dst:reg11, base:reg10, `log` (console.log)
-  [ 120] Call dst:reg9, callee:reg11, this_value:reg10, console.log, arguments:[String("inner")]
-  [ 148] JumpStrictlyEqualsRhsInt32 lhs:reg7, rhs:0, true_target:block11, false_target:block12
+  [  f8] GetGlobal value_feedback:0, dst:reg10, `console`
+  [ 108] GetById value_feedback:1, dst:reg11, base:reg10, `log` (console.log)
+  [ 120] Call value_feedback:2, call_feedback:0, dst:reg9, callee:reg11, this_value:reg10, console.log, arguments:[String("inner")]
+  [ 148] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg7, rhs:0, true_target:block11, false_target:block12
 
 block9:
   [ 160] Mov dst:reg7, src:Int32(3)
@@ -200,10 +200,10 @@ block11:
   [ 1a0] Jump target:block5
 
 block12:
-  [ 1a8] JumpStrictlyEqualsRhsInt32 lhs:reg7, rhs:3, true_target:block10, false_target:block13
+  [ 1a8] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg7, rhs:3, true_target:block10, false_target:block13
 
 block13:
-  [ 1c0] JumpStrictlyEqualsRhsInt32 lhs:reg7, rhs:2, true_target:block14, false_target:block15
+  [ 1c0] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg7, rhs:2, true_target:block14, false_target:block15
 
 block14:
   [ 1d8] Mov2 c0_dst:reg5, c0_src:reg7, c1_dst:reg6, c1_src:reg8
@@ -216,10 +216,10 @@ block16:
   [ 200] Jump target:block2
 
 block17:
-  [ 208] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:3, true_target:block3, false_target:block18
+  [ 208] JumpStrictlyEqualsRhsInt32 arith_feedback:5, lhs:reg5, rhs:3, true_target:block3, false_target:block18
 
 block18:
-  [ 220] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block19, false_target:block20
+  [ 220] JumpStrictlyEqualsRhsInt32 arith_feedback:6, lhs:reg5, rhs:2, true_target:block19, false_target:block20
 
 block19:
   [ 238] Return value:reg6

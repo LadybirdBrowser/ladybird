@@ -27,7 +27,7 @@ block2:
   [  a8] End value:reg5
 
 block3:
-  [  b0] GetGlobal dst:reg12, `x`
+  [  b0] GetGlobal value_feedback:0, dst:reg12, `x`
   [  c0] Jump target:block5
 
 block4:
@@ -52,10 +52,10 @@ block9:
   [ 150] Jump target:block8
 
 block10:
-  [ 158] JumpStrictlyEqualsRhsInt32 lhs:reg10, rhs:1, true_target:block12, false_target:block13
+  [ 158] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg10, rhs:1, true_target:block12, false_target:block13
 
 block11:
-  [ 170] JumpStrictlyEqualsRhsInt32 lhs:reg10, rhs:2, true_target:block14, false_target:block15
+  [ 170] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg10, rhs:2, true_target:block14, false_target:block15
 
 block12:
   [ 188] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11

@@ -10,6 +10,6 @@ block0:
   [   0] Enter
   [   8] NewObject dst:reg5
   [  18] ToPrimitiveWithStringHint dst:Int32(20), value:Int32(20)
-  [  28] PutByValue base:reg5, property:Int32(20), src:Int32(3), kind:Own
+  [  28] PutByValue keyed_feedback:0, base:reg5, property:Int32(20), src:Int32(3), kind:Own
   [  48] SetGlobal `obj`, src:reg5
   [  58] End value:Undefined

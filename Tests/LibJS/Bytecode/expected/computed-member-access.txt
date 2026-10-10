@@ -7,12 +7,12 @@ $bfb12ce8 computed-member-access.js:12:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `computed_read`
+  [   8] GetGlobal value_feedback:0, dst:reg6, `computed_read`
   [  18] NewPrimitiveArray dst:reg7, elements:[1]
-  [  30] Call dst:reg5, callee:reg6, this_value:Undefined, computed_read, arguments:[reg7]
-  [  58] GetGlobal dst:reg7, `computed_read_expression`
+  [  30] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, computed_read, arguments:[reg7]
+  [  58] GetGlobal value_feedback:2, dst:reg7, `computed_read_expression`
   [  68] NewPrimitiveArray dst:reg8, elements:[1]
-  [  80] Call dst:reg6, callee:reg7, this_value:Undefined, computed_read_expression, arguments:[reg8, Int32(0)]
+  [  80] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, computed_read_expression, arguments:[reg8, Int32(0)]
   [  a8] End value:reg6
 
 
@@ -25,7 +25,7 @@ computed_read$f3b35bd1 computed-member-access.js:5:5
 block0:
   [   0] Enter
   [   8] Mov dst:reg5, src:arg0
-  [  18] GetByValue dst:reg6, base:reg5, property:Int32(0) (a[Int32(0)])
+  [  18] GetByValue value_feedback:0, keyed_feedback:0, dst:reg6, base:reg5, property:Int32(0) (a[Int32(0)])
   [  38] Return value:reg6
 
 
@@ -36,5 +36,5 @@ computed_read_expression$d4eb6af0 computed-member-access.js:9:5
 block0:
   [   0] Enter
   [   8] Mov dst:reg5, src:arg0
-  [  18] GetByValue dst:reg6, base:reg5, property:arg1 (a[arg1])
+  [  18] GetByValue value_feedback:0, keyed_feedback:0, dst:reg6, base:reg5, property:arg1 (a[arg1])
   [  38] Return value:reg6

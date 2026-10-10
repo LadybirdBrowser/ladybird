@@ -18,8 +18,8 @@ block1:
 
 block2:
   [  50] MovSrcUndefined dst:reg5
-  [  58] GetGlobal dst:reg8, `f`
-  [  68] Call dst:reg6, callee:reg8, this_value:Undefined, f
+  [  58] GetGlobal value_feedback:0, dst:reg8, `f`
+  [  68] Call value_feedback:1, call_feedback:0, dst:reg6, callee:reg8, this_value:Undefined, f
   [  88] Mov2 c0_dst:reg5, c0_src:reg6, c1_dst:reg6, c1_src:reg5
   [  a0] End value:reg6
 

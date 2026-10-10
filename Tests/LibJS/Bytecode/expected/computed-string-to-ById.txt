@@ -6,18 +6,18 @@ $632db05a computed-string-to-ById.js:17:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `get_string_prop`
+  [   8] GetGlobal value_feedback:0, dst:reg6, `get_string_prop`
   [  18] NewObject dst:reg7
-  [  28] Call dst:reg5, callee:reg6, this_value:Undefined, get_string_prop, arguments:[reg7]
-  [  50] GetGlobal dst:reg7, `set_string_prop`
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, get_string_prop, arguments:[reg7]
+  [  50] GetGlobal value_feedback:2, dst:reg7, `set_string_prop`
   [  60] NewObject dst:reg8
-  [  70] Call dst:reg6, callee:reg7, this_value:Undefined, set_string_prop, arguments:[reg8]
-  [  98] GetGlobal dst:reg7, `get_index_prop`
+  [  70] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, set_string_prop, arguments:[reg8]
+  [  98] GetGlobal value_feedback:4, dst:reg7, `get_index_prop`
   [  a8] NewArray dst:reg8
-  [  b8] Call dst:reg5, callee:reg7, this_value:Undefined, get_index_prop, arguments:[reg8]
-  [  e0] GetGlobal dst:reg7, `get_length_prop`
+  [  b8] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg7, this_value:Undefined, get_index_prop, arguments:[reg8]
+  [  e0] GetGlobal value_feedback:6, dst:reg7, `get_length_prop`
   [  f0] NewArray dst:reg8
-  [ 100] Call dst:reg6, callee:reg7, this_value:Undefined, get_length_prop, arguments:[reg8]
+  [ 100] Call value_feedback:7, call_feedback:3, dst:reg6, callee:reg7, this_value:Undefined, get_length_prop, arguments:[reg8]
   [ 128] End value:reg6
 
 
@@ -30,7 +30,7 @@ get_string_prop$d6b42da3 computed-string-to-ById.js:5:5
 block0:
   [   0] Enter
   [   8] Mov dst:reg5, src:arg0
-  [  18] GetById dst:reg6, base:reg5, `hello` (o.hello)
+  [  18] GetById value_feedback:0, dst:reg6, base:reg5, `hello` (o.hello)
   [  30] Return value:reg6
 
 
@@ -58,7 +58,7 @@ get_index_prop$977a3ffe computed-string-to-ById.js:11:5
 block0:
   [   0] Enter
   [   8] Mov dst:reg5, src:arg0
-  [  18] GetByValue dst:reg6, base:reg5, property:String("0") (o[String("0")])
+  [  18] GetByValue value_feedback:0, keyed_feedback:0, dst:reg6, base:reg5, property:String("0") (o[String("0")])
   [  38] Return value:reg6
 
 
@@ -71,5 +71,5 @@ get_length_prop$02a00d79 computed-string-to-ById.js:14:5
 block0:
   [   0] Enter
   [   8] Mov dst:reg5, src:arg0
-  [  18] GetLength dst:reg6, base:reg5 (o.length)
+  [  18] GetLength value_feedback:0, dst:reg6, base:reg5 (o.length)
   [  30] Return value:reg6

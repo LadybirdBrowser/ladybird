@@ -6,8 +6,8 @@ $d36729be annexb-function-existing-var.js:10:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `test`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, test
+  [   8] GetGlobal value_feedback:0, dst:reg6, `test`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, test
   [  38] End value:reg5
 
 
@@ -29,8 +29,8 @@ block0:
   [  68] CreateMutableBinding environment:reg5, `f`, can_be_deleted:false
   [  78] NewFunction dst:reg6, shared_function_data_index:0
   [  90] InitializeLexicalBinding `f`, src:reg6
-  [  a8] GetBinding dst:reg6, `f`
+  [  a8] GetBinding value_feedback:0, dst:reg6, `f`
   [  c0] SetVariableBinding `f`, src:reg6
   [  d8] SetLexicalEnvironment environment:reg4
-  [  e0] GetInitializedBinding dst:reg5, `f`
+  [  e0] GetInitializedBinding value_feedback:1, dst:reg5, `f`
   [  f8] Return value:reg5

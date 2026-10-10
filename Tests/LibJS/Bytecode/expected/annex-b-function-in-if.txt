@@ -8,16 +8,16 @@ $80e4413e annex-b-function-in-if.js:13:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `console`
-  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  30] GetGlobal dst:reg9, `annexBFunctionInIf`
-  [  40] Call dst:reg8, callee:reg9, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(true)]
-  [  68] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  90] GetGlobal dst:reg6, `console`
-  [  a0] GetById dst:reg8, base:reg6, `log` (console.log)
-  [  b8] GetGlobal dst:reg10, `annexBFunctionInIf`
-  [  c8] Call dst:reg9, callee:reg10, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(false)]
-  [  f0] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [   8] GetGlobal value_feedback:0, dst:reg6, `console`
+  [  18] GetById value_feedback:1, dst:reg7, base:reg6, `log` (console.log)
+  [  30] GetGlobal value_feedback:2, dst:reg9, `annexBFunctionInIf`
+  [  40] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg9, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(true)]
+  [  68] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  90] GetGlobal value_feedback:5, dst:reg6, `console`
+  [  a0] GetById value_feedback:6, dst:reg8, base:reg6, `log` (console.log)
+  [  b8] GetGlobal value_feedback:7, dst:reg10, `annexBFunctionInIf`
+  [  c8] Call value_feedback:8, call_feedback:2, dst:reg9, callee:reg10, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(false)]
+  [  f0] Call value_feedback:9, call_feedback:3, dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
   [ 118] End value:reg7
 
 
@@ -39,7 +39,7 @@ block1:
   [  60] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
   [  70] NewFunction dst:reg6, shared_function_data_index:0
   [  88] InitializeLexicalBinding `inner`, src:reg6
-  [  a0] GetBinding dst:reg6, `inner`
+  [  a0] GetBinding value_feedback:0, dst:reg6, `inner`
   [  b8] SetVariableBinding `inner`, src:reg6
   [  d0] SetLexicalEnvironment environment:reg4
   [  d8] Jump target:block3
@@ -49,13 +49,13 @@ block2:
   [  f8] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
   [ 108] NewFunction dst:reg6, shared_function_data_index:1
   [ 120] InitializeLexicalBinding `inner`, src:reg6
-  [ 138] GetBinding dst:reg6, `inner`
+  [ 138] GetBinding value_feedback:1, dst:reg6, `inner`
   [ 150] SetVariableBinding `inner`, src:reg6
   [ 168] SetLexicalEnvironment environment:reg4
 
 block3:
-  [ 170] GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `inner`
-  [ 188] Call dst:reg5, callee:reg6, this_value:reg7, inner
+  [ 170] GetCalleeAndThisFromEnvironment value_feedback:2, callee:reg6, this_value:reg7, `inner`
+  [ 188] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg6, this_value:reg7, inner
   [ 1a8] Return value:reg5
 
 

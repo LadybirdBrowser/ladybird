@@ -6,8 +6,8 @@ $c7fd0018 captured-variables.js:12:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `outer`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, outer
+  [   8] GetGlobal value_feedback:0, dst:reg6, `outer`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, outer
   [  38] End value:reg5
 
 
@@ -27,7 +27,7 @@ block0:
   [  30] CreateVariable `captured`, is_immutable:false, is_global:false, is_strict:false
   [  40] NewFunction dst:inner~0, shared_function_data_index:0
   [  58] InitializeLexicalBinding `captured`, src:Int32(1)
-  [  70] Call dst:reg6, callee:inner~0, this_value:Undefined, inner
+  [  70] Call value_feedback:0, call_feedback:0, dst:reg6, callee:inner~0, this_value:Undefined, inner
   [  90] Return value:reg6
 
 
@@ -37,5 +37,5 @@ inner$65d3f16d captured-variables.js:7:9
 
 block0:
   [   0] Enter
-  [   8] GetBinding dst:reg5, `captured`
+  [   8] GetBinding value_feedback:0, dst:reg5, `captured`
   [  20] Return value:reg5

@@ -6,10 +6,10 @@ $1ed4f972 var-binding-access.js:22:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `var_access`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, var_access
-  [  38] GetGlobal dst:reg7, `let_access`
-  [  48] Call dst:reg6, callee:reg7, this_value:Undefined, let_access
+  [   8] GetGlobal value_feedback:0, dst:reg6, `var_access`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, var_access
+  [  38] GetGlobal value_feedback:2, dst:reg7, `let_access`
+  [  48] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, let_access
   [  68] End value:reg6
 
 
@@ -26,7 +26,7 @@ block0:
   [  18] InitializeVariableBinding `x`, src:Undefined
   [  30] SetLexicalBinding `x`, src:Int32(1)
   [  48] NewFunction dst:reg5, shared_function_data_index:0
-  [  60] GetInitializedBinding dst:reg5, `x`
+  [  60] GetInitializedBinding value_feedback:0, dst:reg5, `x`
   [  78] Return value:reg5
 
 
@@ -43,5 +43,5 @@ block0:
   [  28] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
   [  38] InitializeLexicalBinding `x`, src:Int32(1)
   [  50] NewFunction dst:reg6, shared_function_data_index:0
-  [  68] GetBinding dst:reg6, `x`
+  [  68] GetBinding value_feedback:0, dst:reg6, `x`
   [  80] Return value:reg6

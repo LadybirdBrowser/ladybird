@@ -6,9 +6,9 @@ $9790b964 computed-update-register-order.js:8:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `test`
+  [   8] GetGlobal value_feedback:0, dst:reg6, `test`
   [  18] NewPrimitiveArray dst:reg7, elements:[1, 2, 3, 4]
-  [  48] Call dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[reg7]
+  [  48] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[reg7]
   [  70] End value:reg5
 
 
@@ -21,12 +21,12 @@ test$7928c38f computed-update-register-order.js:5:9
 
 block0:
   [   0] Enter
-  [   8] GetByValue dst:reg5, base:arg0, property:Int32(3) (c[Int32(3)])
-  [  28] PostfixIncrement dst:reg6, src:reg5
-  [  38] PutByValue base:arg0, property:Int32(3), src:reg5, kind:Normal
-  [  58] GetGlobal dst:reg5, `foo`
+  [   8] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:Int32(3) (c[Int32(3)])
+  [  28] PostfixIncrement arith_feedback:0, dst:reg6, src:reg5
+  [  38] PutByValue keyed_feedback:1, base:arg0, property:Int32(3), src:reg5, kind:Normal
+  [  58] GetGlobal value_feedback:1, dst:reg5, `foo`
   [  68] Mov dst:reg7, src:arg0
-  [  78] Call dst:reg6, callee:reg5, this_value:Undefined, foo, arguments:[reg7]
+  [  78] Call value_feedback:2, call_feedback:0, dst:reg6, callee:reg5, this_value:Undefined, foo, arguments:[reg7]
   [  a0] End value:Undefined
 
 

@@ -4,7 +4,7 @@ $11cb31b0 logical-assignment-register-order.js:2:7
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg5, `value`
+  [   8] GetGlobal value_feedback:0, dst:reg5, `value`
   [  18] JumpFalse condition:reg5, target:block2
 
 block1:

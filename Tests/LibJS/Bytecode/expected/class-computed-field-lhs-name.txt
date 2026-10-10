@@ -14,8 +14,8 @@ block0:
   [  28] SetLexicalEnvironment environment:reg4
   [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0 (C), element_keys:[element_keys:Int32(3)]
   [  58] SetGlobal `C`, src:reg6
-  [  68] GetGlobal dst:reg5, `C`
-  [  78] CallConstruct dst:reg6, callee:reg5, C
+  [  68] GetGlobal value_feedback:0, dst:reg5, `C`
+  [  78] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg5, C
   [  98] End value:reg6
 
 

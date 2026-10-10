@@ -6,8 +6,8 @@ $d36729be class-computed-key.js:10:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `f`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [   8] GetGlobal value_feedback:0, dst:reg6, `f`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, f
   [  38] End value:reg5
 
 
@@ -20,8 +20,8 @@ block0:
   [   8] GetLexicalEnvironment dst:reg4
   [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
   [  28] CreateVariable ``, is_immutable:true, is_global:false, is_strict:true
-  [  38] GetGlobal dst:reg6, `Symbol`
-  [  48] GetById dst:reg7, base:reg6, `iterator` (Symbol.iterator)
+  [  38] GetGlobal value_feedback:0, dst:reg6, `Symbol`
+  [  48] GetById value_feedback:1, dst:reg7, base:reg6, `iterator` (Symbol.iterator)
   [  60] SetLexicalEnvironment environment:reg4
   [  68] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:reg7]
   [  90] Return value:reg6

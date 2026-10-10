@@ -9,12 +9,12 @@ block0:
   [   8] GetLexicalEnvironment dst:reg4
   [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  28] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
-  [  38] GetGlobal dst:reg6, `Object`
+  [  38] GetGlobal value_feedback:0, dst:reg6, `Object`
   [  48] SetLexicalEnvironment environment:reg4
   [  50] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0
   [  70] DynamicInitializeLexicalBinding `C`, src:reg7
-  [  80] GetGlobal dst:reg5, `C`
-  [  90] CallConstruct dst:reg7, callee:reg5, C
+  [  80] GetGlobal value_feedback:1, dst:reg5, `C`
+  [  90] CallConstruct value_feedback:2, call_feedback:0, dst:reg7, callee:reg5, C
   [  b0] End value:reg7
 
 
@@ -30,5 +30,5 @@ block0:
   [  18] GetSuperConstructor dst:reg5
   [  20] NewArray dst:reg6
   [  30] ArrayAppend dst:reg6, src:arg0, is_spread:true
-  [  40] SuperCallWithArgumentArray dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:false
+  [  40] SuperCallWithArgumentArray value_feedback:0, call_feedback:0, dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:false
   [  58] End value:Undefined

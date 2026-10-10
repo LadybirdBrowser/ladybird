@@ -12,22 +12,22 @@ block0:
   [   8] GetLexicalEnvironment dst:reg4
   [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  28] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:true
-  [  38] GetGlobal dst:reg6, `Object`
+  [  38] GetGlobal value_feedback:0, dst:reg6, `Object`
   [  48] SetLexicalEnvironment environment:reg4
   [  50] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("read"), element_keys:String("write"), element_keys:String("update")]
   [  80] DynamicInitializeLexicalBinding `A`, src:reg7
-  [  90] GetGlobal dst:reg6, `A`
-  [  a0] CallConstruct dst:reg5, callee:reg6, A
-  [  c0] GetById dst:reg6, base:reg5, `read`
-  [  d8] Call dst:reg7, callee:reg6, this_value:reg5, <object>.read
-  [  f8] GetGlobal dst:reg8, `A`
-  [ 108] CallConstruct dst:reg5, callee:reg8, A
-  [ 128] GetById dst:reg8, base:reg5, `write`
-  [ 140] Call dst:reg6, callee:reg8, this_value:reg5, <object>.write
-  [ 160] GetGlobal dst:reg5, `A`
-  [ 170] CallConstruct dst:reg8, callee:reg5, A
-  [ 190] GetById dst:reg5, base:reg8, `update`
-  [ 1a8] Call dst:reg7, callee:reg5, this_value:reg8, <object>.update
+  [  90] GetGlobal value_feedback:1, dst:reg6, `A`
+  [  a0] CallConstruct value_feedback:2, call_feedback:0, dst:reg5, callee:reg6, A
+  [  c0] GetById value_feedback:3, dst:reg6, base:reg5, `read`
+  [  d8] Call value_feedback:4, call_feedback:1, dst:reg7, callee:reg6, this_value:reg5, <object>.read
+  [  f8] GetGlobal value_feedback:5, dst:reg8, `A`
+  [ 108] CallConstruct value_feedback:6, call_feedback:2, dst:reg5, callee:reg8, A
+  [ 128] GetById value_feedback:7, dst:reg8, base:reg5, `write`
+  [ 140] Call value_feedback:8, call_feedback:3, dst:reg6, callee:reg8, this_value:reg5, <object>.write
+  [ 160] GetGlobal value_feedback:9, dst:reg5, `A`
+  [ 170] CallConstruct value_feedback:10, call_feedback:4, dst:reg8, callee:reg5, A
+  [ 190] GetById value_feedback:11, dst:reg5, base:reg8, `update`
+  [ 1a8] Call value_feedback:12, call_feedback:5, dst:reg7, callee:reg5, this_value:reg8, <object>.update
   [ 1c8] End value:reg7
 
 
@@ -41,8 +41,8 @@ block0:
   [  18] CreateRestParams dst:arg0, rest_index:0
   [  28] InitializeLexicalBinding `args`, src:arg0
   [  40] GetSuperConstructor dst:reg5
-  [  48] GetBinding dst:reg6, `args`
-  [  60] SuperCallWithArgumentArray dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:true
+  [  48] GetBinding value_feedback:0, dst:reg6, `args`
+  [  60] SuperCallWithArgumentArray value_feedback:1, call_feedback:0, dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:true
   [  78] Return value:reg7
 
 
@@ -56,7 +56,7 @@ block0:
   [   0] Enter
   [   8] ResolveThisBinding
   [  10] ResolveSuperBase dst:reg5
-  [  18] GetByIdWithThis dst:reg6, base:reg5, `x`, this_value:this
+  [  18] GetByIdWithThis value_feedback:0, dst:reg6, base:reg5, `x`, this_value:this
   [  30] Return value:reg6
 
 
@@ -86,7 +86,7 @@ block0:
   [   0] Enter
   [   8] ResolveThisBinding
   [  10] ResolveSuperBase dst:reg5
-  [  18] GetByIdWithThis dst:reg6, base:reg5, `x`, this_value:this
-  [  30] PostfixIncrement dst:reg7, src:reg6
+  [  18] GetByIdWithThis value_feedback:0, dst:reg6, base:reg5, `x`, this_value:this
+  [  30] PostfixIncrement arith_feedback:0, dst:reg7, src:reg6
   [  40] PutByIdWithThis base:reg5, this_value:this, `x`, src:reg6, kind:Normal
   [  60] End value:Undefined

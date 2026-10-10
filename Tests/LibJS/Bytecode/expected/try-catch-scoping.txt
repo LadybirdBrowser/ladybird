@@ -6,10 +6,10 @@ $bd6168df try-catch-scoping.js:11:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `tryCatchWithBlocks`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, tryCatchWithBlocks
-  [  38] GetGlobal dst:reg7, `tryCatchFinallyWithBlocks`
-  [  48] Call dst:reg6, callee:reg7, this_value:Undefined, tryCatchFinallyWithBlocks
+  [   8] GetGlobal value_feedback:0, dst:reg6, `tryCatchWithBlocks`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, tryCatchWithBlocks
+  [  38] GetGlobal value_feedback:2, dst:reg7, `tryCatchFinallyWithBlocks`
+  [  48] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg7, this_value:Undefined, tryCatchFinallyWithBlocks
   [  68] End value:reg6
 
 
@@ -33,11 +33,11 @@ block1:
   [  28] Catch dst:reg5
   [  30] SetLexicalEnvironment environment:reg4
   [  38] Mov2 c0_dst:e~2, c0_src:reg5, c1_dst:z~1, c1_src:Int32(3)
-  [  50] GetGlobal dst:reg7, `console`
-  [  60] GetById dst:reg8, base:reg7, `log` (console.log)
-  [  78] Add dst:reg9, lhs:x~3, rhs:e~2
-  [  88] Add dst:reg10, lhs:reg9, rhs:z~1
-  [  98] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg10]
+  [  50] GetGlobal value_feedback:0, dst:reg7, `console`
+  [  60] GetById value_feedback:1, dst:reg8, base:reg7, `log` (console.log)
+  [  78] Add arith_feedback:0, dst:reg9, lhs:x~3, rhs:e~2
+  [  88] Add arith_feedback:1, dst:reg10, lhs:reg9, rhs:z~1
+  [  98] Call value_feedback:2, call_feedback:0, dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg10]
   [  c0] End value:Undefined
 
 block2:
@@ -72,20 +72,20 @@ block1:
 
 block2:
   [  48] Mov dst:z~2, src:Int32(3)
-  [  58] GetGlobal dst:reg8, `console`
-  [  68] GetById dst:reg10, base:reg8, `log` (console.log)
+  [  58] GetGlobal value_feedback:3, dst:reg8, `console`
+  [  68] GetById value_feedback:4, dst:reg10, base:reg8, `log` (console.log)
   [  80] Mov dst:reg9, src:z~2
-  [  90] Call dst:reg7, callee:reg10, this_value:reg8, console.log, arguments:[reg9]
-  [  b8] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:0, true_target:block5, false_target:block6
+  [  90] Call value_feedback:5, call_feedback:1, dst:reg7, callee:reg10, this_value:reg8, console.log, arguments:[reg9]
+  [  b8] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg5, rhs:0, true_target:block5, false_target:block6
 
 block3:
   [  d0] Catch dst:reg7
   [  d8] SetLexicalEnvironment environment:reg4
   [  e0] Mov dst:e~1, src:reg7
-  [  f0] GetGlobal dst:reg9, `console`
-  [ 100] GetById dst:reg10, base:reg9, `log` (console.log)
+  [  f0] GetGlobal value_feedback:0, dst:reg9, `console`
+  [ 100] GetById value_feedback:1, dst:reg10, base:reg9, `log` (console.log)
   [ 118] Mov dst:reg11, src:e~1
-  [ 128] Call dst:reg8, callee:reg10, this_value:reg9, console.log, arguments:[reg11]
+  [ 128] Call value_feedback:2, call_feedback:0, dst:reg8, callee:reg10, this_value:reg9, console.log, arguments:[reg11]
   [ 150] Mov dst:reg5, src:Int32(0)
   [ 160] Jump target:block2
 
@@ -97,7 +97,7 @@ block5:
   [ 180] End value:Undefined
 
 block6:
-  [ 188] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block7, false_target:block8
+  [ 188] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg5, rhs:2, true_target:block7, false_target:block8
 
 block7:
   [ 1a0] Return value:reg6

@@ -12,8 +12,8 @@ block0:
   [  38] SetLexicalEnvironment environment:reg4
   [  40] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0
   [  60] DynamicInitializeLexicalBinding `C`, src:reg6
-  [  70] GetGlobal dst:reg5, `C`
-  [  80] CallConstruct dst:reg6, callee:reg5, C
+  [  70] GetGlobal value_feedback:0, dst:reg5, `C`
+  [  80] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg5, C
   [  a0] End value:reg6
 
 
@@ -44,7 +44,7 @@ block3:
   [  80] Catch dst:reg9
   [  88] SetLexicalEnvironment environment:reg4
   [  90] Mov dst:reg5, src:Int32(1)
-  [  a0] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:1, true_target:block5, false_target:block6
+  [  a0] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg5, rhs:1, true_target:block5, false_target:block6
 
 block4:
   [  b8] ResolveThisBinding
@@ -58,7 +58,7 @@ block5:
 
 block6:
   [ 110] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-  [ 128] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block7, false_target:block8
+  [ 128] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg5, rhs:2, true_target:block7, false_target:block8
 
 block7:
   [ 140] Return value:reg9

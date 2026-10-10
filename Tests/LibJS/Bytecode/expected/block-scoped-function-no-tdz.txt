@@ -7,8 +7,8 @@ $d36729be block-scoped-function-no-tdz.js:10:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `test`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, test
+  [   8] GetGlobal value_feedback:0, dst:reg6, `test`
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, test
   [  38] End value:reg5
 
 
@@ -26,7 +26,7 @@ block0:
   [  18] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
   [  30] NewFunction dst:reg6, shared_function_data_index:0
   [  48] Mov dst:foo~0, src:reg6
-  [  58] Call dst:reg6, callee:foo~0, this_value:Undefined, foo
+  [  58] Call value_feedback:0, call_feedback:0, dst:reg6, callee:foo~0, this_value:Undefined, foo
   [  78] Mov dst:result~1, src:reg6
   [  88] SetLexicalEnvironment environment:reg4
   [  90] Return value:result~1

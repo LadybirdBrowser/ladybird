@@ -7,13 +7,13 @@ $7fc74e7b nested-function-decl-source-order.js:15:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `console`
-  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  30] GetGlobal dst:reg10, `outer`
-  [  40] Call dst:reg9, callee:reg10, this_value:Undefined, outer
-  [  60] GetById dst:reg10, base:reg9, `join`
-  [  78] Call dst:reg8, callee:reg10, this_value:reg9, <object>.join, arguments:[String(",")]
-  [  a0] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [   8] GetGlobal value_feedback:0, dst:reg6, `console`
+  [  18] GetById value_feedback:1, dst:reg7, base:reg6, `log` (console.log)
+  [  30] GetGlobal value_feedback:2, dst:reg10, `outer`
+  [  40] Call value_feedback:3, call_feedback:0, dst:reg9, callee:reg10, this_value:Undefined, outer
+  [  60] GetById value_feedback:4, dst:reg10, base:reg9, `join`
+  [  78] Call value_feedback:5, call_feedback:1, dst:reg8, callee:reg10, this_value:reg9, <object>.join, arguments:[String(",")]
+  [  a0] Call value_feedback:6, call_feedback:2, dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
   [  c8] End value:reg5
 
 
@@ -33,11 +33,11 @@ block0:
   [  58] NewFunction dst:gamma~3, shared_function_data_index:2
   [  70] NewFunction dst:dup~2, shared_function_data_index:3
   [  88] NewFunction dst:delta~4, shared_function_data_index:4
-  [  a0] Call dst:reg5, callee:alpha~0, this_value:Undefined, alpha
-  [  c0] Call dst:reg6, callee:beta~1, this_value:Undefined, beta
-  [  e0] Call dst:reg7, callee:gamma~3, this_value:Undefined, gamma
-  [ 100] Call dst:reg8, callee:delta~4, this_value:Undefined, delta
-  [ 120] Call dst:reg9, callee:dup~2, this_value:Undefined, dup
+  [  a0] Call value_feedback:0, call_feedback:0, dst:reg5, callee:alpha~0, this_value:Undefined, alpha
+  [  c0] Call value_feedback:1, call_feedback:1, dst:reg6, callee:beta~1, this_value:Undefined, beta
+  [  e0] Call value_feedback:2, call_feedback:2, dst:reg7, callee:gamma~3, this_value:Undefined, gamma
+  [ 100] Call value_feedback:3, call_feedback:3, dst:reg8, callee:delta~4, this_value:Undefined, delta
+  [ 120] Call value_feedback:4, call_feedback:4, dst:reg9, callee:dup~2, this_value:Undefined, dup
   [ 140] NewArray dst:reg10, elements:[reg5, reg6, reg7, reg8, reg9]
   [ 168] Return value:reg10
 

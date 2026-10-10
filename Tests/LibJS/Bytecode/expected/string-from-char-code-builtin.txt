@@ -7,10 +7,10 @@ $02928ba7 string-from-char-code-builtin.js:3:1
 
 block0:
   [   0] Enter
-  [   8] GetGlobal dst:reg6, `String`
-  [  18] GetById dst:reg7, base:reg6, `fromCharCode` (String.fromCharCode)
-  [  30] CallBuiltinStringFromCharCode dst:reg5, callee:reg7, this_value:reg6, argument:Int32(65), String.fromCharCode
-  [  48] GetGlobal dst:reg6, `String`
-  [  58] GetById dst:reg8, base:reg6, `fromCharCode` (String.fromCharCode)
-  [  70] Call dst:reg7, callee:reg8, this_value:reg6, String.fromCharCode, arguments:[Int32(65), Int32(66)]
+  [   8] GetGlobal value_feedback:0, dst:reg6, `String`
+  [  18] GetById value_feedback:1, dst:reg7, base:reg6, `fromCharCode` (String.fromCharCode)
+  [  30] CallBuiltinStringFromCharCode call_feedback:0, dst:reg5, callee:reg7, this_value:reg6, argument:Int32(65), String.fromCharCode
+  [  48] GetGlobal value_feedback:2, dst:reg6, `String`
+  [  58] GetById value_feedback:3, dst:reg8, base:reg6, `fromCharCode` (String.fromCharCode)
+  [  70] Call value_feedback:4, call_feedback:1, dst:reg7, callee:reg8, this_value:reg6, String.fromCharCode, arguments:[Int32(65), Int32(66)]
   [  98] End value:reg7
