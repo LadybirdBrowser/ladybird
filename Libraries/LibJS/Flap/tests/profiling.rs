@@ -58,7 +58,7 @@ fn compiles_profiling_code_only_into_the_profiling_variant() {
         let plain = compile(architecture, false);
         assert!(plain.contains("CSYM(js_interpreter):"), "{plain}");
         assert!(!plain.contains("_profiling"), "{plain}");
-        assert!(!check_handler(&plain).contains("48]"), "{plain}");
+        assert!(!check_handler(&plain).contains("56]"), "{plain}");
 
         let profiling = compile(architecture, true);
         assert!(profiling.contains("CSYM(js_interpreter_profiling):"), "{profiling}");
@@ -67,7 +67,7 @@ fn compiles_profiling_code_only_into_the_profiling_variant() {
             "{profiling}"
         );
         assert!(!profiling.contains("CSYM(js_interpreter):"), "{profiling}");
-        assert!(check_handler(&profiling).contains("48]"), "{profiling}");
+        assert!(check_handler(&profiling).contains("56]"), "{profiling}");
     }
 }
 
@@ -85,13 +85,13 @@ fn updates_memory_through_scratch_registers_on_aarch64() {
     let assembly = compile(Architecture::Aarch64, true);
     let handler = check_handler(&assembly);
     for (instruction, count) in [
-        ("ldrb w9, [x0, #48]", 1),
+        ("ldrb w9, [x0, #56]", 1),
         ("orr w9, w9, #0x2", 1),
-        ("strb w9, [x0, #48]", 1),
-        ("ldr w9, [x0, #48]", 2),
+        ("strb w9, [x0, #56]", 1),
+        ("ldr w9, [x0, #56]", 2),
         ("orr w9, w9, #0x30000", 1),
         ("sub x9, x9, #5", 1),
-        ("str w9, [x0, #48]", 2),
+        ("str w9, [x0, #56]", 2),
     ] {
         assert_eq!(handler.matches(instruction).count(), count, "{instruction}\n{handler}");
     }

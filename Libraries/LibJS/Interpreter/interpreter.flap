@@ -3159,6 +3159,8 @@ handler GetById(
         native_frame.yield_value_is_iterator_result = false;
         native_frame.caller_is_construct = false;
         native_frame.frame_initialized = false;
+        native_frame.returns_to_native_caller = false;
+        native_frame.runs_jit_code = false;
         let native_pc: u32 = pc;
         let [destination_offset, _] = load_pair32(
             [pb, pc, dst],
@@ -3843,6 +3845,8 @@ handler Call(
     frame.yield_value_is_iterator_result = false;
     frame.caller_is_construct = false;
     frame.frame_initialized = false;
+    frame.returns_to_native_caller = false;
+    frame.runs_jit_code = false;
     frame.caller_frame = exec_ctx;
     let [current_pc, return_pc, return_destination] = call_site_info(length, dst);
     # NB: Stack traces show the caller at its program counter.
@@ -3944,6 +3948,8 @@ handler Call(
         native_frame.yield_value_is_iterator_result = false;
         native_frame.caller_is_construct = false;
         native_frame.frame_initialized = false;
+        native_frame.returns_to_native_caller = false;
+        native_frame.runs_jit_code = false;
         let [native_pc, after_pc, destination_offset] = call_site_info(length, dst);
         exec_ctx.program_counter = native_pc;
         native_frame.caller_frame = exec_ctx;

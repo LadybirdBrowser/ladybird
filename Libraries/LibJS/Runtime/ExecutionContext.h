@@ -211,6 +211,13 @@ struct JS_API ExecutionContext {
     u32 registers_and_constants_and_locals_and_arguments_count { 0 };
     u32 argument_count { 0 };
 
+    // Non-standard: Set on an inline frame whose caller waits for it in native code (a call made by JIT code) rather
+    // than in the interpreter.
+    bool returns_to_native_caller { false };
+
+    // Non-standard: Set while JIT code runs the frame.
+    bool runs_jit_code { false };
+
     Value* registers_and_constants_and_locals_and_arguments()
     {
         return reinterpret_cast<Value*>(reinterpret_cast<uintptr_t>(this) + sizeof(ExecutionContext));
@@ -281,6 +288,8 @@ JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(caller_return_pc, CALLER_RETURN_PC)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(caller_dst_raw, CALLER_DST_RAW)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(registers_and_constants_and_locals_and_arguments_count, REGISTERS_AND_CONSTANTS_AND_LOCALS_AND_ARGUMENTS_COUNT)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(argument_count, ARGUMENT_COUNT)
+JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(returns_to_native_caller, RETURNS_TO_NATIVE_CALLER)
+JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(runs_jit_code, RUNS_JIT_CODE)
 #undef JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT
 static_assert(sizeof(ExecutionContext) == JS_LAYOUT_EXECUTION_CONTEXT_SIZE);
 static_assert(alignof(ExecutionContext) == JS_LAYOUT_EXECUTION_CONTEXT_ALIGN);

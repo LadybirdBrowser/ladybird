@@ -495,6 +495,10 @@ enumerate_well_known_symbols!(define_well_known_symbols);
 #[repr(C)]
 pub struct Vm {
     pub head: VmHead,
+    /// The lowest native stack address JIT code runs at, JIT_NATIVE_STACK_HEADROOM above the native stack limit.
+    /// Below it, JIT code leaves calls to the interpreter, which runs JavaScript on its own stack, so that the code
+    /// running after a stack overflow (catch blocks and the native functions they call) does not overflow again.
+    pub jit_native_stack_limit: Cell<usize>,
     heap: OnceCell<Heap>,
     _interpreter_stack_memory: InterpreterStackMemory,
     /// The storage of the execution context stack, whose length is its capacity. The head points into it and knows
@@ -593,6 +597,11 @@ pub struct Vm {
 
 const _: () = assert!(core::mem::offset_of!(Vm, head) == 0);
 
+/// How much native stack JIT code leaves to the code that runs after it overflows the stack (see
+/// Vm::jit_native_stack_limit). Recursing in JIT code uses the native stack, unlike the interpreter, and catch blocks
+/// that call native functions near the native stack limit would otherwise overflow again, once per frame they unwind.
+const JIT_NATIVE_STACK_HEADROOM: usize = 4 * VM_STACK_SPACE_LIMIT as usize;
+
 impl Vm {
     pub fn create() -> Box<Vm> {
         Self::create_with(VmOptions::default())
@@ -628,6 +637,7 @@ impl Vm {
                 running_execution_context: Cell::new(core::ptr::null_mut()),
                 interpreter_stack: interpreter_stack_memory.initial_state(),
                 stack_base: Cell::new(0),
+                native_stack_limit: Cell::new(0),
                 execution_generation: Cell::new(0),
                 primitive_storage_cage_base: Cell::new(primitive_storage_cage_base),
                 heap_region_base: Cell::new(heap_region_base),
@@ -643,6 +653,7 @@ impl Vm {
                 keyed_property_lookup_cache_entries: Cell::new(core::ptr::null()),
                 dispatch_tables: [const { Cell::new(core::ptr::null()) }; DISPATCH_TABLE_COUNT],
             },
+            jit_native_stack_limit: Cell::new(0),
             heap: OnceCell::new(),
             _interpreter_stack_memory: interpreter_stack_memory,
             execution_context_stack_storage: RefCell::new(execution_context_stack_storage),
@@ -731,6 +742,11 @@ impl Vm {
         // SAFETY: As above.
         unsafe { heap.register_sweep_callback(sweep, context) };
         vm.head.stack_base.set(heap.stack_bounds().0);
+        vm.head
+            .native_stack_limit
+            .set(heap.stack_bounds().0 + VM_STACK_SPACE_LIMIT as usize);
+        vm.jit_native_stack_limit
+            .set(vm.head.native_stack_limit.get() + JIT_NATIVE_STACK_HEADROOM);
         if vm.heap.set(heap).is_err() {
             unreachable!("the heap is created once");
         }
@@ -806,7 +822,7 @@ impl Vm {
     pub fn did_reach_stack_space_limit(&self) -> bool {
         let marker = 0u8;
         let current = core::ptr::from_ref(&marker) as usize;
-        current.saturating_sub(self.head.stack_base.get()) < VM_STACK_SPACE_LIMIT as usize
+        current < self.head.native_stack_limit.get()
     }
 
     pub fn push_execution_context(&self, context: NonNull<ExecutionContext>) {

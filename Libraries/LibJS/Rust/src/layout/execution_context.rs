@@ -56,6 +56,13 @@ pub struct ExecutionContext {
     pub caller_dst_raw: Cell<u32>,
     pub registers_and_constants_and_locals_and_arguments_count: Cell<u32>,
     pub argument_count: Cell<u32>,
+    /// Non-standard: Set on an inline frame whose caller is waiting for it in native code (a call made by JIT code)
+    /// rather than in the interpreter. Returning from such a frame, or unwinding it for an exception, leaves the
+    /// interpreter.
+    pub returns_to_native_caller: Cell<bool>,
+    /// Non-standard: Set while JIT code runs the frame. An executable keeps its discarded JIT code until no live
+    /// frame of it is run by JIT code (see jit::code::detach_discarded_jit_code_if_unused()).
+    pub runs_jit_code: Cell<bool>,
 }
 
 impl ExecutionContext {

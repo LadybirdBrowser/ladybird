@@ -43,6 +43,9 @@ pub struct VmHead {
     pub interpreter_stack: InterpreterStack,
     /// The lowest address of the stack of the thread that runs JavaScript.
     pub stack_base: Cell<usize>,
+    /// The lowest native stack address JavaScript runs at: the stack base plus VM_STACK_SPACE_LIMIT (see
+    /// Vm::did_reach_stack_space_limit()). JIT code stops above it, see Vm::jit_native_stack_limit.
+    pub native_stack_limit: Cell<usize>,
     pub execution_generation: Cell<u64>,
     pub primitive_storage_cage_base: Cell<usize>,
     pub heap_region_base: Cell<usize>,

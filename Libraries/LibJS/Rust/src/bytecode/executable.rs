@@ -1364,9 +1364,12 @@ impl Executable {
             asm_constants_data: Cell::new(constants.as_ptr()),
             bytecode_data: Cell::new(bytecode.as_slice().as_ptr()),
             bytecode_size: Cell::new(bytecode.as_slice().len()),
+            // The VM picks the table when it registers the executable.
             dispatch_table_index: Cell::new(InterpreterTier::Plain as u8),
             feedback: ExecutableFeedbackHead::empty(),
             tier_up_budget: Cell::new(i32::MAX),
+            jit_entry_slot: Cell::new(0),
+            jit_compile_state: Cell::new(0),
             constants: interpreter_buffer(&constants),
             property_lookup_caches: interpreter_buffer(&property_lookup_caches),
             global_variable_caches: interpreter_buffer(&global_variable_caches),

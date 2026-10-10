@@ -262,6 +262,8 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     field!(w, "EXECUTABLE_ASM_CONSTANTS_SIZE", "Executable.asm_constants_size", "u64", ExecutableHead, asm_constants_size, 8, "nullable", "scalar", "constants");
     field!(w, "EXECUTABLE_ASM_CONSTANTS_DATA", "Executable.asm_constants_data", "Sequence<Value>", ExecutableHead, asm_constants_data, 8, "nullable", "scalar", "constants");
     field!(w, "EXECUTABLE_TIER_UP_BUDGET", "Executable.tier_up_budget", "i32", ExecutableHead, tier_up_budget, 4, "nullable", "scalar");
+    field!(w, "EXECUTABLE_JIT_COMPILE_STATE", "Executable.jit_compile_state", "u8", ExecutableHead, jit_compile_state, 1, "nullable", "scalar");
+    w.constant("JIT_COMPILE_STATE_INSTALLED", JIT_COMPILE_STATE_INSTALLED);
     w.constant("TIER_UP_FUNCTION_ENTRY_COST", tier_up_costs::FUNCTION_ENTRY);
     w.constant("TIER_UP_LOOP_ITERATION_COST", tier_up_costs::LOOP_ITERATION);
     offset!(w, "EXECUTABLE_FEEDBACK", ExecutableHead, feedback);
@@ -343,6 +345,8 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     field!(w, "EXECUTION_CONTEXT_FRAME_ID", "ExecutionContext.frame_id", "u64", ExecutionContext, frame_id, 8, "nullable", "scalar");
     field!(w, "EXECUTION_CONTEXT_REGISTERS_AND_CONSTANTS_AND_LOCALS_AND_ARGUMENTS_COUNT", "ExecutionContext.slot_count", "u32", ExecutionContext, registers_and_constants_and_locals_and_arguments_count, 4, "nullable", "scalar", "counts");
     field!(w, "EXECUTION_CONTEXT_ARGUMENT_COUNT", "ExecutionContext.argument_count", "u32", ExecutionContext, argument_count, 4, "nullable", "scalar", "counts");
+    field!(w, "EXECUTION_CONTEXT_RETURNS_TO_NATIVE_CALLER", "ExecutionContext.returns_to_native_caller", "bool", ExecutionContext, returns_to_native_caller, 1, "nullable", "scalar");
+    field!(w, "EXECUTION_CONTEXT_RUNS_JIT_CODE", "ExecutionContext.runs_jit_code", "bool", ExecutionContext, runs_jit_code, 1, "nullable", "scalar");
     let sizeof_execution_context = size!(w, "SIZEOF_EXECUTION_CONTEXT", ExecutionContext);
     w.line("field ExecutionContext.slots Sequence<Value> SIZEOF_EXECUTION_CONTEXT embedded scalar");
     let slot_offset = |index: u32| sizeof_execution_context + index as usize * value_size;

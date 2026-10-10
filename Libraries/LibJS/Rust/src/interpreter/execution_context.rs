@@ -52,6 +52,8 @@ impl ExecutionContext {
                 caller_dst_raw: Cell::new(0),
                 registers_and_constants_and_locals_and_arguments_count: Cell::new(slot_count),
                 argument_count: Cell::new(argument_count),
+                returns_to_native_caller: Cell::new(false),
+                runs_jit_code: Cell::new(false),
             });
             // NB: Enter initializes the remaining registers, locals, and constants.
             for slot in (*context)

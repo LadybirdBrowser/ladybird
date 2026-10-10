@@ -353,6 +353,8 @@ pub fn generate() -> LayoutHeader {
         caller_dst_raw,
         registers_and_constants_and_locals_and_arguments_count,
         argument_count,
+        returns_to_native_caller,
+        runs_jit_code,
     });
     size!(w, "EXECUTION_CONTEXT", ExecutionContext);
     w.define("EXECUTION_CONTEXT_ALIGN", align_of::<ExecutionContext>());
