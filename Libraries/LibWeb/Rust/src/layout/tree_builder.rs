@@ -1017,6 +1017,8 @@ impl ChildListInsertionReuse<'_, '_> {
         let mut all_inserted_block_children_are_in_flow = true;
         let mut has_indirect_existing_child = false;
         let mut has_indirect_existing_child_after_insertion = false;
+        let mut has_existing_child_after_insertion = false;
+        let mut has_unboxed_existing_text = false;
         let mut has_inserted_child = false;
         // A fieldset keeps its content in a structural anonymous content box that appended children must also enter.
         let mut all_indirect_existing_children_are_in_text_run_wrappers =
@@ -1026,6 +1028,7 @@ impl ChildListInsertionReuse<'_, '_> {
             let child_layout_node = self.box_of(child);
             if !child_layout_node.is_invalid() {
                 has_pending_collapsing_whitespace = false;
+                has_existing_child_after_insertion |= has_inserted_child;
                 if self.layout.parent(child_layout_node) != self.layout_node {
                     let wrapper = self.layout.parent(child_layout_node);
                     if wrapper.is_invalid()
@@ -1046,6 +1049,7 @@ impl ChildListInsertionReuse<'_, '_> {
 
             if child.text_index().is_some() {
                 if !self.needs_layout_tree_update(child) {
+                    has_unboxed_existing_text = true;
                     continue;
                 }
                 let collapsed_whitespace_can_be_inserted = self.engine.tree().text_is_ascii_whitespace(child)
@@ -1073,9 +1077,11 @@ impl ChildListInsertionReuse<'_, '_> {
                 return false;
             }
             let child_type_facts = self.engine.element_adjustment_facts(child);
-            if child_type_facts
-                & (element_adjustment_fact::RENDERED_IN_TOP_LAYER | element_adjustment_fact::IS_SVG_ELEMENT)
-                != 0
+            let child_is_svg_root = child_type_facts & element_adjustment_fact::IS_SVG_CONTAINER != 0;
+            // NB: An SVG root owns its subtree and can be inserted like another replaced box. Graphics which
+            //     depend on an enclosing SVG container, and top-layer boxes, retain their separate placement rules.
+            if child_type_facts & element_adjustment_fact::RENDERED_IN_TOP_LAYER != 0
+                || (child_type_facts & element_adjustment_fact::IS_SVG_ELEMENT != 0 && !child_is_svg_root)
             {
                 return false;
             }
@@ -1116,8 +1122,17 @@ impl ChildListInsertionReuse<'_, '_> {
                 && child_display.is_inline_outside()
                 && (child_display.is_flow_root_inside()
                     || child_display.is_flex_inside()
-                    || child_display.is_grid_inside())
+                    || child_display.is_grid_inside()
+                    || child_is_svg_root)
             {
+                will_insert_inline_child = true;
+                has_inserted_child = true;
+                if will_insert_block_child {
+                    return false;
+                }
+                continue;
+            }
+            if parent_lays_out_block_children && child_display.is_inline_outside() {
                 will_insert_inline_child = true;
                 has_inserted_child = true;
                 if will_insert_block_child {
@@ -1140,15 +1155,29 @@ impl ChildListInsertionReuse<'_, '_> {
             }
             return false;
         }
-        // OPTIMIZATION: Appending an in-flow block after every existing child cannot disturb an
-        //               earlier anonymous inline wrapper, and needs no indirect sibling anchor. A flex or grid
-        //               container never places an appended item, in flow or out of flow, into an existing anonymous
-        //               text run wrapper, so appending any items after every existing child is safe there too.
-        let appends_independent_children =
-            (parent_lays_out_block_children && will_insert_block_child && all_inserted_block_children_are_in_flow)
-                || (parent_lays_out_flex_or_grid_children
-                    && has_inserted_child
-                    && all_indirect_existing_children_are_in_text_run_wrappers);
+        let after = self.arena().bound_pseudo_element_row(self.element, GENERATED_FOR_AFTER);
+        let after_is_in_inline_run = !after.is_invalid() && self.layout.parent(after) != self.layout_node;
+        // OPTIMIZATION: Appended inline and out-of-flow children can join the trailing inline run. Do not
+        //               reuse a run across generated content or text that a rebuild may need to make visible.
+        let appends_flow_children = parent_lays_out_block_children
+            && has_inserted_child
+            && !has_existing_child_after_insertion
+            && !has_unboxed_existing_text
+            && after.is_invalid()
+            && all_indirect_existing_children_are_in_text_run_wrappers;
+        if parent_lays_out_block_children && will_insert_inline_child && !appends_flow_children {
+            return false;
+        }
+        // OPTIMIZATION: An in-flow block needs no indirect sibling anchor, unless it splits an inline ::after
+        //               run. Flex and grid items never join an existing anonymous text run wrapper.
+        let appends_independent_children = (parent_lays_out_block_children
+            && will_insert_block_child
+            && all_inserted_block_children_are_in_flow
+            && !after_is_in_inline_run)
+            || appends_flow_children
+            || (parent_lays_out_flex_or_grid_children
+                && has_inserted_child
+                && all_indirect_existing_children_are_in_text_run_wrappers);
         let can_append_after_indirect_existing_children =
             appends_independent_children && !has_indirect_existing_child_after_insertion;
         (!has_indirect_existing_child || can_append_after_indirect_existing_children)
@@ -4058,6 +4087,7 @@ fn insertion_parent_for_block_node(
     parent: LayoutNode,
     node: LayoutNode,
     mode: FfiInsertionMode,
+    identity: Option<StyleNodeID>,
 ) -> LayoutNode {
     let parent_data = host.data(parent);
 
@@ -4125,8 +4155,20 @@ fn insertion_parent_for_block_node(
         // And we're appending while the parent's last child is an anonymous block, join that
         // anonymous block. Prepended boxes (e.g. an absolutely positioned ::before) belong at the
         // very start of the parent, not at the start of its trailing inline run.
+        let appends_after_existing_children = mode == FfiInsertionMode::Append
+            || (mode == FfiInsertionMode::InDomOrder
+                && identity.is_some_and(|identity| {
+                    let mut sibling = host.next_dom_sibling(identity);
+                    while let Some(current) = sibling {
+                        if !host.arena().bound_row(current).is_invalid() {
+                            return false;
+                        }
+                        sibling = host.next_dom_sibling(current);
+                    }
+                    true
+                }));
         let new_parent_display = host.style(new_parent).map(|style| style.display());
-        if mode == FfiInsertionMode::Append
+        if appends_after_existing_children
             && !new_parent_display.is_some_and(|display| display.is_flex_inside() || display.is_grid_inside())
             && !node_is_generated_for_pseudo_element(last_child_data)
             && node_facts::has_flag(last_child_data, NodeFlag::Anonymous)
@@ -4245,7 +4287,7 @@ fn insert_node_into_inline_or_block_ancestor(
     let insertion_point = if is_inline_outside {
         insertion_parent_for_inline_node(host, nearest_insertion_ancestor)
     } else {
-        insertion_parent_for_block_node(host, state, nearest_insertion_ancestor, node_slot, mode)
+        insertion_parent_for_block_node(host, state, nearest_insertion_ancestor, node_slot, mode, identity)
     };
     host.arena().note_inline_box_lifted_out_of(
         node_slot,
@@ -4255,9 +4297,9 @@ fn insert_node_into_inline_or_block_ancestor(
     );
 
     // Insertion parents can be above the subtree being rebuilt in place: inline ancestors are
-    // skipped, and out-of-flow boxes can join a trailing anonymous sibling. InDomOrder is only
-    // selected after proving that an inline box can be added directly to a retained parent, so
-    // that parent insertion is the planned update rather than an escape from its new subtree.
+    // skipped, and out-of-flow boxes can join a trailing anonymous sibling. InDomOrder is selected
+    // after proving that a child can be spliced into its retained parent or trailing inline run,
+    // so that insertion is the planned update rather than an escape from its new subtree.
     if mode != FfiInsertionMode::InDomOrder {
         note_layout_tree_restructuring_at(host, state, insertion_point);
     }
