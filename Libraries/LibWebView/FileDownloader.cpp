@@ -28,6 +28,10 @@
 #include <LibWebView/DownloadStore.h>
 #include <LibWebView/FileDownloader.h>
 
+#if defined(AK_OS_MACOS)
+#    include <sys/xattr.h>
+#endif
+
 namespace WebView {
 
 struct FileDownloader::Segment {
@@ -129,6 +133,18 @@ Optional<double> FileDownloader::Download::progress() const
 
 FileDownloader::FileDownloader() = default;
 FileDownloader::~FileDownloader() = default;
+
+// The operating system checks a downloaded file before it is first opened, as long as the file carries the mark that
+// browsers give their downloads.
+static void mark_as_downloaded([[maybe_unused]] Core::File& file)
+{
+#if defined(AK_OS_MACOS)
+    // NB: These are the quarantine flags other browsers set, and the time of the download in hexadecimal seconds.
+    auto quarantine = ByteString::formatted("0083;{:08x};Ladybird;", UnixDateTime::now().seconds_since_epoch());
+    if (::fsetxattr(file.fd(), "com.apple.quarantine", quarantine.characters(), quarantine.length(), 0, 0) < 0)
+        dbgln("Unable to quarantine a download: {}", Error::from_errno(errno));
+#endif
+}
 
 static LexicalPath temporary_destination_for(LexicalPath const& destination, u64 download_id)
 {
@@ -878,6 +894,7 @@ u64 FileDownloader::start_download(IsPrivate is_private, URL::URL const& url, Le
         return download_id;
     }
     auto file = file_or_error.release_value();
+    mark_as_downloaded(*file);
 
     auto active = make<ActiveDownload>(move(file), temporary_destination);
     active->may_replace_destination = may_replace_destination == MayReplaceDestination::Yes;
@@ -1152,6 +1169,8 @@ void FileDownloader::resume_download(u64 id)
         }
 
         active->file = file_or_error.release_value();
+        // NB: The file may come from a build that did not mark downloads, or have been created anew by opening it.
+        mark_as_downloaded(*active->file);
         active->file_offset = {};
     }
 
