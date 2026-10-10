@@ -1,0 +1,34 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    fieldset { margin: 0; padding: 0; border: 2px solid; width: 180px; height: 80px; min-width: 0; }
+    legend { padding: 0; }
+    .child { flex: none; width: 240px; height: 120px; }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const results = [];
+        for (const kind of ["legend", "flex without legend", "without legend"]) {
+            for (const [before, after] of [["visible", "hidden"], ["hidden", "visible"], ["hidden", "scroll"], ["auto", "clip"]]) {
+                fixture.innerHTML = `<fieldset>${kind === "legend" ? "<legend>legend</legend>" : ""}<div class="child">content</div></fieldset>`;
+                const fieldset = fixture.firstElementChild;
+                fieldset.style.cssText = `display: ${kind === "flex without legend" ? "flex" : "block"}; overflow: ${before}`;
+                const tracked = [fieldset, ...fieldset.children];
+                fieldset.getBoundingClientRect();
+                fieldset.style.overflow = after;
+                const geometry = () => tracked.map(element => {
+                    const rect = element.getBoundingClientRect();
+                    return [rect.x, rect.y, rect.width, rect.height, element.scrollWidth, element.scrollHeight];
+                });
+                const hit = () => document.elementFromPoint(200, 60) === fieldset.lastElementChild;
+                const incrementalGeometry = JSON.stringify(geometry());
+                const incrementalHit = hit();
+                const comparison = internals.compareLayoutTreeWithFullRebuild();
+                results.push(`${kind}, ${before} to ${after}: tree matches=${comparison.matches}, geometry matches=${JSON.stringify(geometry()) === incrementalGeometry}, hit matches=${hit() === incrementalHit}`);
+            }
+        }
+        results.forEach(println);
+    });
+</script>
