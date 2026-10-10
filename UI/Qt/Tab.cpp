@@ -1427,7 +1427,7 @@ void Tab::update_downloads_button()
     if (!m_downloads_button)
         return;
 
-    auto downloads = WebView::Application::the().file_downloader().downloads();
+    auto downloads = WebView::Application::the().file_downloader().downloads_of_session(m_window->is_private());
     auto button_state = WebView::downloads_button_state(downloads);
 
     m_downloads_button->setVisible(button_state.has_downloads);
@@ -1461,7 +1461,7 @@ void Tab::update_downloads_popover()
     if (!m_downloads_popover || !m_downloads_popover->isVisible())
         return;
 
-    if (m_downloads_popover->set_downloads(WebView::Application::the().file_downloader().downloads()))
+    if (m_downloads_popover->set_downloads(WebView::Application::the().file_downloader().downloads_of_session(m_window->is_private())))
         position_downloads_popover();
 }
 
@@ -1494,7 +1494,7 @@ void Tab::show_downloads_popover()
     }
 
     m_downloads_popover->update_chrome_style(palette());
-    (void)m_downloads_popover->set_downloads(WebView::Application::the().file_downloader().downloads());
+    (void)m_downloads_popover->set_downloads(WebView::Application::the().file_downloader().downloads_of_session(m_window->is_private()));
     position_downloads_popover();
     m_downloads_popover->show();
     position_downloads_popover();
@@ -1518,8 +1518,11 @@ void Tab::position_downloads_popover()
     move_popover_below(*m_downloads_popover, *m_downloads_button);
 }
 
-void Tab::download_added(WebView::FileDownloader::Download const&)
+void Tab::download_added(WebView::FileDownloader::Download const& download)
 {
+    // NB: A window lists the downloads of its own browsing session only.
+    if (download.is_private != m_window->is_private())
+        return;
     update_downloads_button();
     if (Application::the().active_tab() == this && m_window->isActiveWindow()) {
         show_downloads_popover();
@@ -1528,14 +1531,18 @@ void Tab::download_added(WebView::FileDownloader::Download const&)
     update_downloads_popover();
 }
 
-void Tab::download_updated(WebView::FileDownloader::Download const&)
+void Tab::download_updated(WebView::FileDownloader::Download const& download)
 {
+    if (download.is_private != m_window->is_private())
+        return;
     update_downloads_button();
     update_downloads_popover();
 }
 
-void Tab::download_removed(u64)
+void Tab::download_removed(u64, WebView::IsPrivate is_private)
 {
+    if (is_private != m_window->is_private())
+        return;
     update_downloads_button();
     update_downloads_popover();
 }

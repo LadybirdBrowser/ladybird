@@ -1274,7 +1274,7 @@ void Application::complete_webdriver_content_command(u64 command_id, Web::WebDri
 
 void Application::reset_private_browsing_session()
 {
-    m_file_downloader.cancel_private_downloads();
+    m_file_downloader.discard_private_downloads();
 
     // RequestServer answers our own private client with the cookies of the session it was created for, so the next
     // private request made by the UI process needs a client of the new session.

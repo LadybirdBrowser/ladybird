@@ -1496,21 +1496,21 @@ void FileDownloader::cancel_unresumable_downloads()
         cancel_download(id);
 }
 
-void FileDownloader::cancel_private_downloads()
+// A private session leaves no record of its downloads behind for the next one.
+void FileDownloader::discard_private_downloads()
 {
     for (size_t i = m_downloads.size(); i > 0; --i) {
         auto const& download = m_downloads[i - 1];
 
-        if (!status_is_active(download.status))
-            continue;
         if (download.is_private == IsPrivate::No)
             continue;
 
         auto id = download.id;
-        cancel_download(id);
+        if (status_is_active(download.status))
+            cancel_download(id);
 
         m_downloads.remove(i - 1);
-        notify_download_removed(id);
+        notify_download_removed(id, IsPrivate::Yes);
     }
 }
 
@@ -1544,31 +1544,46 @@ void FileDownloader::fail_download(u64 id, String error)
     notify_download_updated(*download);
 }
 
-Vector<u64> FileDownloader::prune_inactive_downloads()
+Vector<FileDownloader::Download> FileDownloader::downloads_of_session(IsPrivate is_private) const
 {
-    return remove_inactive_downloads_created_since(UnixDateTime::earliest());
+    Vector<Download> downloads;
+    for (auto const& download : m_downloads) {
+        if (download.is_private == is_private)
+            downloads.append(download);
+    }
+    return downloads;
 }
 
-Vector<u64> FileDownloader::remove_inactive_downloads_created_since(UnixDateTime since)
+Vector<u64> FileDownloader::prune_inactive_downloads(IsPrivate is_private)
+{
+    return remove_inactive_downloads_created_since(UnixDateTime::earliest(), is_private);
+}
+
+Vector<u64> FileDownloader::remove_inactive_downloads_created_since(UnixDateTime since, Optional<IsPrivate> only_of_session)
 {
     Vector<u64> removed_download_ids;
+    Vector<IsPrivate> removed_download_sessions;
 
     for (size_t i = m_downloads.size(); i > 0; --i) {
         auto const index = i - 1;
         auto const id = m_downloads[index].id;
+        auto const is_private = m_downloads[index].is_private;
         if (status_is_active(m_downloads[index].status))
             continue;
         if (m_downloads[index].created_time < since)
+            continue;
+        if (only_of_session.has_value() && is_private != *only_of_session)
             continue;
 
         forget_persisted_download(id);
         m_active_downloads.remove(id);
         m_downloads.remove(index);
         removed_download_ids.append(id);
+        removed_download_sessions.append(is_private);
     }
 
-    for (auto id : removed_download_ids)
-        notify_download_removed(id);
+    for (size_t i = 0; i < removed_download_ids.size(); ++i)
+        notify_download_removed(removed_download_ids[i], removed_download_sessions[i]);
 
     return removed_download_ids;
 }
@@ -1585,10 +1600,10 @@ void FileDownloader::notify_download_updated(Download const& download)
         observer.download_updated(download);
 }
 
-void FileDownloader::notify_download_removed(u64 id)
+void FileDownloader::notify_download_removed(u64 id, IsPrivate is_private)
 {
     for (auto& observer : m_observers)
-        observer.download_removed(id);
+        observer.download_removed(id, is_private);
 }
 
 void FileDownloader::add_observer(Badge<FileDownloaderObserver>, FileDownloaderObserver& observer)

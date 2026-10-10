@@ -148,7 +148,7 @@ private:
 
     virtual void download_added(WebView::FileDownloader::Download const&) override;
     virtual void download_updated(WebView::FileDownloader::Download const&) override;
-    virtual void download_removed(u64) override;
+    virtual void download_removed(u64, WebView::IsPrivate) override;
 
     QWidget* m_toolbar_container { nullptr };
     QWidget* m_toolbar { nullptr };
