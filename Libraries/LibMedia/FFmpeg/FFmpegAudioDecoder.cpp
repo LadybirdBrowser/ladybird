@@ -34,7 +34,7 @@ Optional<DecoderCapabilities> FFmpegAudioDecoder::capabilities(FFmpegFunctions c
         return {};
     if (codec.codec_id() == CodecID::AAC && !aac_audio_object_type_is_supported(codec))
         return {};
-    if (!functions.avcodec_find_decoder(ffmpeg_codec_id_from_media_codec_id(codec.codec_id())))
+    if (!functions.avcodec_find_decoder(functions.ffmpeg_codec_id(codec.codec_id())))
         return {};
     return DecoderCapabilities { .smooth = true, .power_efficient = true };
 }
@@ -52,8 +52,7 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegAudioDecoder>> FFmpegAudioDecoder::try_create
         }
     };
 
-    auto ff_codec_id = ffmpeg_codec_id_from_media_codec_id(codec_id);
-    auto const* codec = functions.avcodec_find_decoder(ff_codec_id);
+    auto const* codec = functions.avcodec_find_decoder(functions.ffmpeg_codec_id(codec_id));
     if (!codec)
         return DecoderError::format(DecoderErrorCategory::NotImplemented, "Could not find FFmpeg decoder for codec {}", codec_id);
 

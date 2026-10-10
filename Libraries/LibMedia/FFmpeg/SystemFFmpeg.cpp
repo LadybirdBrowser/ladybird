@@ -49,6 +49,16 @@ static DecoderErrorOr<void> verify_library_layout(FFmpegFunctions const& functio
     return {};
 }
 
+static void resolve_codec_ids(FFmpegFunctions& functions)
+{
+    for (auto codec_id : all_codec_ids) {
+        auto const* bundled_descriptor = avcodec_descriptor_get(ffmpeg_codec_id_from_media_codec_id(codec_id));
+        VERIFY(bundled_descriptor != nullptr);
+        auto const* descriptor = functions.avcodec_descriptor_get_by_name(bundled_descriptor->name);
+        functions.codec_ids[to_underlying(codec_id)] = descriptor != nullptr ? descriptor->id : AV_CODEC_ID_NONE;
+    }
+}
+
 DecoderErrorOr<NonnullOwnPtr<SystemFFmpeg>> SystemFFmpeg::try_load(ByteString const& library_path)
 {
     auto* library_handle = dlopen(library_path.characters(), RTLD_NOW | RTLD_LOCAL);
@@ -68,6 +78,7 @@ DecoderErrorOr<NonnullOwnPtr<SystemFFmpeg>> SystemFFmpeg::try_load(ByteString co
     if (major < LOWEST_SUPPORTED_LIBAVCODEC_MAJOR || major > HIGHEST_VERIFIED_LIBAVCODEC_MAJOR)
         return DecoderError::format(DecoderErrorCategory::NotImplemented, "libavcodec major {} provided by {} is outside the supported range", major, library_path);
     TRY(verify_library_layout(*functions));
+    resolve_codec_ids(*functions);
 
     close_library.disarm();
     return DECODER_TRY_ALLOC(try_make<SystemFFmpeg>(library_handle, move(functions), major));
@@ -120,15 +131,14 @@ SystemFFmpeg::~SystemFFmpeg()
 
 bool SystemFFmpeg::has_decoder(CodecID codec_id) const
 {
-    return m_functions->avcodec_find_decoder(ffmpeg_codec_id_from_media_codec_id(codec_id)) != nullptr;
+    return m_functions->avcodec_find_decoder(m_functions->ffmpeg_codec_id(codec_id)) != nullptr;
 }
 
 bool SystemFFmpeg::provides_decoder_missing_from_bundle() const
 {
     auto const& bundled = FFmpegFunctions::bundled();
     return any_of(all_codec_ids, [&](CodecID codec_id) {
-        auto ffmpeg_codec_id = ffmpeg_codec_id_from_media_codec_id(codec_id);
-        return bundled.avcodec_find_decoder(ffmpeg_codec_id) == nullptr && m_functions->avcodec_find_decoder(ffmpeg_codec_id) != nullptr;
+        return bundled.avcodec_find_decoder(bundled.ffmpeg_codec_id(codec_id)) == nullptr && has_decoder(codec_id);
     });
 }
 

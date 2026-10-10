@@ -19,7 +19,7 @@ extern "C" {
 
 namespace Media::FFmpeg {
 
-static inline AVCodecID ffmpeg_codec_id_from_media_codec_id(CodecID codec)
+constexpr AVCodecID ffmpeg_codec_id_from_media_codec_id(CodecID codec)
 {
     switch (codec) {
     case CodecID::VP8:
