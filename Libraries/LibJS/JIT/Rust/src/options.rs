@@ -92,7 +92,7 @@ pub struct Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
-            enabled: true,
+            enabled: false,
             threshold: 400,
             warmup: 8,
             sync: false,
@@ -147,12 +147,12 @@ const DEFINITIONS: &[Definition] = &[
     Definition {
         name: "on",
         setting: Setting::Enabled(true),
-        description: "Compile hot functions (the default).",
+        description: "Compile hot functions.",
     },
     Definition {
         name: "off",
         setting: Setting::Enabled(false),
-        description: "Run everything in the interpreter, which then collects no feedback.",
+        description: "Run everything in the interpreter, which then collects no feedback (the default).",
     },
     Definition {
         name: "help",
@@ -433,7 +433,7 @@ mod tests {
     #[test]
     fn every_option_parses() {
         let options = Options::parse(
-            "threshold=1,warmup=2,sync,inline-budget=3,inline-max-size=4,inline-depth=0,dump-ir,dump-passes,dump-asm,\
+            "on,threshold=1,warmup=2,sync,inline-budget=3,inline-max-size=4,inline-depth=0,dump-ir,dump-passes,dump-asm,\
              dump-feedback,verify-ir,log-exits,perf-map,coverage=/tmp/coverage,seed=18446744073709551615,\
              stress-exits=6,stress-osr,stress-registers,random-thresholds,stress-install,stress-invalidate=7,help",
         )
@@ -525,7 +525,7 @@ mod tests {
             assert!(help.contains(&definition.syntax()), "{}", definition.name);
         }
         assert!(help.ends_with(
-            "In effect: LIBJS_JIT=on,threshold=50,warmup=8,inline-budget=250,inline-max-size=30,inline-depth=5,\
+            "In effect: LIBJS_JIT=off,threshold=50,warmup=8,inline-budget=250,inline-max-size=30,inline-depth=5,\
              seed=1,stress-exits=0,stress-invalidate=0\n"
         ));
     }

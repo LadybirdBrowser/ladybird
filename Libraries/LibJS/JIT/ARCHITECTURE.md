@@ -8,9 +8,10 @@ The compiler is the `libjs_jit` crate (`Libraries/LibJS/JIT/Rust`). Its runtime 
 snapshots, installs code, enters it and translates its state back into interpreter frames, is in
 `Libraries/LibJS/Rust/src/jit`.
 
-NB: This change adds only the compiler crate. The runtime side described below (snapshots, installing
-code, entering it, exits, translation, dependencies) arrives in later changes, and nothing calls the
-compiler yet.
+NB: The runtime side does not have the optimizations that need more of the runtime yet: calling functions
+directly, inlining and allocating cells in compiled code (the call stub, `jit/allocation.rs`), and code that
+depends on things staying as they are (`jit/dependencies.rs`). Compiled code leaves those to the interpreter's
+slow paths until they arrive in later changes.
 
 ## 1. Overview
 
@@ -354,7 +355,7 @@ JIT.
 
 ### 13.2 The LIBJS_JIT environment variable
 
-Builds with the JIT run it unless the `LIBJS_JIT` environment variable says otherwise. LibJS reads
+Builds with the JIT run it only if the `LIBJS_JIT` environment variable turns it on. LibJS reads
 it whenever it creates a VM, in every process that runs JavaScript: `js`, `test-js`,
 `test262-runner`, and the browser's WebContent and WebWorker processes, to which the browser passes
 on every `LIBJS_` variable.
@@ -365,15 +366,15 @@ unknown option, or with an option written wrong, stops the process with a messag
 options:
 
 ```bash
-LIBJS_JIT=off ./Build/release/bin/js script.js
+LIBJS_JIT=on ./Build/release/bin/js script.js
 LIBJS_JIT=threshold=100,warmup=2 ./Build/release/bin/js script.js
 LIBJS_JIT=threshold=100,help ./Build/release/bin/js script.js
 ```
 
 | Option                  | Default | What it does                                                                                                       |
 |-------------------------|---------|--------------------------------------------------------------------------------------------------------------------|
-| `on`                    | on      | Compile hot functions.                                                                                             |
-| `off`                   |         | Run everything in the interpreter, which then collects no feedback.                                                |
+| `on`                    |         | Compile hot functions.                                                                                             |
+| `off`                   | off     | Run everything in the interpreter, which then collects no feedback.                                                |
 | `help`                  |         | List the options and the values in effect on stderr.                                                               |
 | `threshold=N`           | 400     | How many invocations make a function hot, after its warm-up. Loop iterations count as a fraction of an invocation. |
 | `warmup=N`              | 8       | How many invocations a function runs before the interpreter collects feedback for it.                              |
