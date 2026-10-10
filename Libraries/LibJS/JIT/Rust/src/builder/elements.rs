@@ -154,9 +154,9 @@ impl GraphBuilder<'_> {
     }
 
     /// Builds `base[property] = src` as an element store, if the keyed
-    /// feedback speculates on one elements kind. Typed arrays only take
-    /// values that already are unboxed int32 values. Returns false, having
-    /// built nothing, otherwise.
+    /// feedback speculates on one elements kind. Clamped arrays check and
+    /// convert numbers; other typed arrays take unboxed int32 values.
+    /// Returns false, having built nothing, otherwise.
     pub(super) fn try_build_element_store(
         &mut self,
         instruction: &Instruction,
@@ -171,6 +171,13 @@ impl GraphBuilder<'_> {
         let value = match (kind.stored_repr(), self.graph.node(value).repr) {
             (Repr::Int32, Some(Repr::Int32)) => value,
             (Repr::Float64, Some(Repr::Int32)) => self.emit(Op::Int32ToFloat64, vec![value], Some(Repr::Float64)),
+            (Repr::Int32, _)
+                if kind == ElementsKind::TypedArray(TypedArrayElement::Uint8Clamped)
+                    && self.may_speculate(ExitKind::BadType) =>
+            {
+                let number = self.number(value);
+                self.emit(Op::Float64ToUint8Clamped, vec![number], Some(Repr::Int32))
+            }
             (Repr::Tagged, _) => self.tagged(value),
             _ => return Ok(false),
         };

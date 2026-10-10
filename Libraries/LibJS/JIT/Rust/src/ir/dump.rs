@@ -269,6 +269,7 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         | Op::LoadStringCodeUnit
         | Op::SingleCharacterString
         | Op::Float64ToInt32
+        | Op::Float64ToUint8Clamped
         | Op::Uint32ShiftRight
         | Op::Uint32ToFloat64
         | Op::StringsEqual

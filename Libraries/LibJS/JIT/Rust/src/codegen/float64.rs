@@ -155,6 +155,45 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.bind(done);
     }
 
+    /// ToUint8Clamp ( argument ), https://tc39.es/ecma262/#sec-touint8clamp
+    /// NB: The input has already undergone ToNumber. Bounds checks also
+    ///     handle infinities, before converting the finite value to an integer.
+    pub(in crate::codegen) fn emit_float64_to_uint8_clamped(&mut self, node: NodeId) {
+        let (input, output) = (self.float_input(node, 0), self.output(node));
+        let (fraction, constant) = (Self::lowering_fpr(0), Self::lowering_fpr(1));
+        let (increment, done) = (self.masm.new_label(), self.masm.new_label());
+        // 1. Let number be ? ToNumber(argument).
+        // 2. If number is NaN, return +0𝔽.
+        // 3. Let mv be the extended mathematical value of number.
+        // 4. Let clamped be the result of clamping mv between 0 and 255.
+        self.masm.move_imm32(output, 0);
+        self.masm.move_double_imm(constant, 0.0);
+        self.masm
+            .branch_double(DoubleCondition::LessThanOrEqualOrUnordered, input, constant, done);
+        self.masm.move_imm32(output, 255);
+        self.masm.move_double_imm(constant, 255.0);
+        self.masm
+            .branch_double(DoubleCondition::GreaterThanOrEqual, input, constant, done);
+        // 5. Let f be floor(clamped).
+        self.masm.floor_double(fraction, input);
+        self.masm.truncate_double_to_int64(output, fraction);
+        // 6. If clamped < f + 0.5, return 𝔽(f).
+        // 7. If clamped > f + 0.5, return 𝔽(f + 1).
+        // NB: Subtracting the floor is exact in this range.
+        self.masm.sub_double(fraction, input, fraction);
+        self.masm.move_double_imm(constant, 0.5);
+        self.masm
+            .branch_double(DoubleCondition::LessThan, fraction, constant, done);
+        self.masm
+            .branch_double(DoubleCondition::GreaterThan, fraction, constant, increment);
+        // 8. If f is even, return 𝔽(f).
+        self.masm.branch_test32(Condition::Zero, output, 1, done);
+        // 9. Return 𝔽(f + 1).
+        self.masm.bind(increment);
+        self.masm.add32_imm(output, output, 1);
+        self.masm.bind(done);
+    }
+
     /// `Uint32ShiftRight`: the bits of the unsigned result of `>>>`, which
     /// shifts by the low five bits of the amount.
     pub(in crate::codegen) fn emit_uint32_shift_right(&mut self, node: NodeId) {

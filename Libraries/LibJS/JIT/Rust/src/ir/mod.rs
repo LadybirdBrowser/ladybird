@@ -857,6 +857,8 @@ pub enum Op {
     /// ToInt32 of the `Repr::Float64` input 0, as a `Repr::Int32`: its
     /// integral part modulo 2^32, and 0 for NaN and the infinities.
     Float64ToInt32,
+    /// ToUint8Clamp of the numeric `Repr::Float64` input 0, as a `Repr::Int32`.
+    Float64ToUint8Clamped,
     /// `input 0 >>> input 1` of two `Repr::Int32` inputs, as the
     /// `Repr::Int32` of the bits of the unsigned result.
     Uint32ShiftRight,
@@ -1298,6 +1300,7 @@ impl Op {
             | Op::Float64Binary { .. }
             | Op::Float64Compare { .. }
             | Op::Float64ToInt32
+            | Op::Float64ToUint8Clamped
             | Op::Uint32ShiftRight
             | Op::Uint32ToFloat64
             | Op::Int32Abs
@@ -1427,6 +1430,7 @@ impl Op {
             Op::Float64Binary { .. } => "Float64Binary",
             Op::Float64Compare { .. } => "Float64Compare",
             Op::Float64ToInt32 => "Float64ToInt32",
+            Op::Float64ToUint8Clamped => "Float64ToUint8Clamped",
             Op::Uint32ShiftRight => "Uint32ShiftRight",
             Op::Uint32ToFloat64 => "Uint32ToFloat64",
             Op::StringsEqual => "StringsEqual",

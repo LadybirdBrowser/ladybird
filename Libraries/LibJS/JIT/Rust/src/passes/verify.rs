@@ -464,7 +464,9 @@ fn expected_input_reprs(graph: &Graph, node: NodeId) -> Option<Vec<Repr>> {
         Op::Branch { condition, .. } | Op::Refine { condition, .. } => Some(branch_input_reprs(condition)),
         Op::UnboxInt32 | Op::UnboxDouble | Op::CheckNumber | Op::StringAddress => Some(tagged(1)),
         Op::StringLength => Some(vec![Repr::Pointer]),
-        Op::BoxFloat64 | Op::Float64Unary { .. } | Op::Float64ToInt32 => Some(vec![Repr::Float64]),
+        Op::BoxFloat64 | Op::Float64Unary { .. } | Op::Float64ToInt32 | Op::Float64ToUint8Clamped => {
+            Some(vec![Repr::Float64])
+        }
         Op::Float64Binary { .. } | Op::Float64Compare { .. } => Some(vec![Repr::Float64, Repr::Float64]),
         Op::Uint32ShiftRight => Some(vec![Repr::Int32, Repr::Int32]),
         Op::Uint32ToFloat64 | Op::IntegerToString => Some(vec![Repr::Int32]),
