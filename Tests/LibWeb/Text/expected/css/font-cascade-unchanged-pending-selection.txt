@@ -1,0 +1,8 @@
+paint change relaid out pending cascade: false
+unused weight registration recomputed style: false
+unused weight completion recomputed style: false
+unchanged selection preserves width: true
+unused subset stays unloaded: true
+matching weight registration recomputed style: true
+matching selection changes width: true
+removing matching face restores width: true

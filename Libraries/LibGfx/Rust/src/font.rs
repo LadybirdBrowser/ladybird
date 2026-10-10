@@ -257,8 +257,8 @@ impl FontCascadeListHandle {
         self.pointer
     }
 
-    /// Whether both cascades resolve every code point to the same fonts. A cascade still waiting
-    /// on a face may resolve differently once it loads, so it equals no other, not even itself.
+    /// Whether both cascades resolve every code point to the same fonts, comparing their frozen selections when
+    /// available. Pending selections retain the face and display state they were published with.
     /// This is not `==`, which compares the lists' identities.
     pub fn resolves_like(&self, other: &Self) -> bool {
         assert!(
@@ -388,6 +388,7 @@ struct FfiCascadeSnapshotEntry {
     range_count: usize,
     pending_face_id: u64,
     pending_state: u8,
+    source_face_id: u64,
 }
 
 #[repr(C)]
@@ -432,13 +433,15 @@ struct FrozenEntry {
     /// Set for a face that is still loading: which `font-display` period it is in, and the
     /// number the document knows it by.
     pending: Option<(u64, PendingFontState)>,
+    /// The source face shared by independently resolved cascades; zero for an anonymous pending entry.
+    source_face_id: u64,
     /// Set once a render pass has wanted this face, so the document requests its load only once
     /// per frozen cascade.
     wanted: std::sync::atomic::AtomicBool,
 }
 
 /// How this cascade asks for a font no listed family covers.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct SystemFallbackStyle {
     point_size: f32,
     weight: u16,
@@ -607,6 +610,7 @@ impl FrozenFontList {
                                     .map(|state| (entry.pending_face_id, state))
                             })
                             .flatten(),
+                        source_face_id: entry.source_face_id,
                         wanted: std::sync::atomic::AtomicBool::new(false),
                     }
                 })
@@ -638,6 +642,55 @@ impl FrozenFontList {
 
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty() && self.last_resort.is_none()
+    }
+
+    /// Compares immutable selections, including pending faces and their font-display periods, rather than the
+    /// mutable faces those selections were built from. Load-request identities and lookup caches do not affect
+    /// which glyphs a snapshot renders.
+    pub fn resolves_like(&self, other: &Self) -> bool {
+        let entries_equal = |entries: &[FrozenEntry],
+                             ranges: &[UnicodeRange],
+                             other_entries: &[FrozenEntry],
+                             other_ranges: &[UnicodeRange]| {
+            let mut has_earlier_pending_selection = false;
+            entries.len() == other_entries.len()
+                && entries.iter().zip(other_entries).all(|(entry, other_entry)| {
+                    if entry.font != other_entry.font
+                        || ranges[entry.ranges.clone()] != other_ranges[other_entry.ranges.clone()]
+                    {
+                        return false;
+                    }
+                    if entry.font.is_some() {
+                        // A preceding unresolved face can start fallback, which skips resident pending faces
+                        // but still considers loaded entries. Without one, both entries render the same font.
+                        return !has_earlier_pending_selection
+                            || entry.pending.is_some() == other_entry.pending.is_some();
+                    }
+                    has_earlier_pending_selection |= entry.pending.is_some();
+                    match (entry.pending, other_entry.pending) {
+                        (None, None) => true,
+                        (Some((identity, state)), Some((other_identity, other_state))) => {
+                            state == other_state
+                                && if entry.source_face_id != 0 || other_entry.source_face_id != 0 {
+                                    entry.source_face_id == other_entry.source_face_id
+                                } else {
+                                    identity == other_identity
+                                }
+                        }
+                        _ => false,
+                    }
+                })
+        };
+        std::ptr::eq(self, other)
+            || (self.last_resort == other.last_resort
+                && self.system_fallback == other.system_fallback
+                && entries_equal(&self.entries, &self.ranges, &other.entries, &other.ranges)
+                && entries_equal(
+                    &self.fallback_entries,
+                    &self.fallback_ranges,
+                    &other.fallback_entries,
+                    &other.fallback_ranges,
+                ))
     }
 
     pub fn has_pending_faces(&self) -> bool {
@@ -923,6 +976,19 @@ pub unsafe extern "C" fn ladybird_gfx_frozen_font_list_release(frozen: *const c_
     }
     // SAFETY: The caller guarantees this is a live pointer from `..._build`.
     unsafe { drop(Arc::from_raw(frozen.cast::<FrozenFontList>())) };
+}
+
+/// # Safety
+///
+/// Both pointers must name live frozen lists returned by `ladybird_gfx_frozen_font_list_build`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ladybird_gfx_frozen_font_lists_equal(list: *const c_void, other: *const c_void) -> bool {
+    assert!(
+        !list.is_null() && !other.is_null(),
+        "frozen font lists must not be null"
+    );
+    // SAFETY: Both snapshots are live for this call.
+    unsafe { (&*list.cast::<FrozenFontList>()).resolves_like(&*other.cast::<FrozenFontList>()) }
 }
 
 /// A counted reference to the frozen snapshot `Gfx::FontCascadeList::freeze()` left on `list`, or

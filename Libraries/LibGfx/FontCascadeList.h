@@ -60,7 +60,6 @@ public:
     }
 
     bool is_empty() const { return m_fonts.is_empty() && m_pending_faces.is_empty() && !m_last_resort_font; }
-    bool has_pending_faces() const { return !m_pending_faces.is_empty(); }
     Font const& first() const { return !m_fonts.is_empty() ? *m_fonts.first().font : *m_last_resort_font; }
 
     template<typename Callback>
@@ -76,7 +75,8 @@ public:
     // Resolve a pending face only when it is selected for a rendered code point. `peek_state` answers the same question
     // as `resolve` without the side effects resolving has, so a frozen snapshot can record the face's display period
     // without starting its load; when it is absent, `resolve` answers, which only unit tests rely on.
-    void add_pending_face(Vector<UnicodeRange> unicode_ranges, Function<PendingFontState()> resolve, Function<RefPtr<Font const>()> resolved_font = {}, Function<PendingFontState()> peek_state = {});
+    // NB: A nonzero source_face_id names the same source face across independent resolutions.
+    void add_pending_face(Vector<UnicodeRange> unicode_ranges, Function<PendingFontState()> resolve, Function<RefPtr<Font const>()> resolved_font = {}, Function<PendingFontState()> peek_state = {}, u64 source_face_id = 0);
 
     void extend(FontCascadeList const& other);
 
@@ -96,6 +96,8 @@ public:
         // Zero unless this entry is a pending face waiting on a load.
         u64 pending_face_id { 0 };
         PendingFontState pending_state { PendingFontState::Visible };
+        // The source face shared by separately resolved cascades, distinct from the load-request identity.
+        u64 source_face_id { 0 };
     };
 
     // The cascade as a frozen render input: no caches to fill, no faces to resolve. A pending face whose display
@@ -128,13 +130,14 @@ public:
 
     class PendingFace : public AtomicRefCounted<PendingFace> {
     public:
-        PendingFace(UnicodeRange enclosing, Vector<UnicodeRange> ranges, Function<PendingFontState()> resolve, Function<RefPtr<Font const>()> resolved_font, Function<PendingFontState()> peek_state);
+        PendingFace(UnicodeRange enclosing, Vector<UnicodeRange> ranges, Function<PendingFontState()> resolve, Function<RefPtr<Font const>()> resolved_font, Function<PendingFontState()> peek_state, u64 source_face_id);
         ~PendingFace();
 
         // The face a frozen cascade names, if it is still alive. A render pass only ever carries the number, which the
         // document turns back into a face once the pass has ended.
         [[nodiscard]] static RefPtr<PendingFace> with_id(u64);
         [[nodiscard]] u64 id() const { return m_id; }
+        [[nodiscard]] u64 source_face_id() const { return m_source_face_id; }
 
         [[nodiscard]] ReadonlySpan<UnicodeRange> unicode_ranges() const { return m_unicode_ranges; }
 
@@ -167,6 +170,7 @@ public:
         Function<PendingFontState()> m_peek_state;
         mutable RefPtr<Font const> m_font;
         u64 m_id { 0 };
+        u64 m_source_face_id { 0 };
     };
 
     void set_last_resort_font(NonnullRefPtr<Font> font)

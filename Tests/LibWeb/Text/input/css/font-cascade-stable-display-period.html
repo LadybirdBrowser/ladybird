@@ -1,0 +1,51 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const token = crypto.randomUUID();
+        const bytes = new Uint8Array(await (await fetch("../../../Assets/HashSans.woff")).arrayBuffer());
+        const url = await server.createEcho("GET", "/stable-display-period.woff", {
+            status: 200,
+            headers: { "Content-Type": "font/woff", "Access-Control-Allow-Origin": "*" },
+            body: btoa(String.fromCharCode(...bytes)),
+            body_encoding: "base64",
+            wait_for_unblock: token,
+        });
+        const face = new FontFace("StableDisplayPeriod", `url("${url}")`, { display: "block" });
+        internals.setFontDisplayTime(face, 0);
+        document.fonts.add(face);
+        const target = document.body.appendChild(document.createElement("span"));
+        target.style.cssText = "display: inline-block; font: 20px StableDisplayPeriod, monospace; width: 10ch";
+        target.textContent = "AAAA";
+        const fallbackWidth = target.getBoundingClientRect().width;
+        const results = [`selected face is loading: ${face.status === "loading"}`];
+
+        let before = internals.fullLayoutCount();
+        target.style.color = "red";
+        target.getBoundingClientRect();
+        results.push(`paint change preserves pending layout: ${internals.fullLayoutCount() === before}`);
+
+        let styleBefore = internals.styleEngineCounters();
+        face.display = "swap";
+        target.getBoundingClientRect();
+        results.push(`display transition recomputes style: ${internals.styleEngineCounters().engineFullDrivesStarted !== styleBefore.engineFullDrivesStarted}`);
+        results.push(`display transition keeps fallback metrics: ${target.getBoundingClientRect().width === fallbackWidth}`);
+
+        before = internals.fullLayoutCount();
+        target.style.color = "blue";
+        target.getBoundingClientRect();
+        results.push(`paint change preserves visible fallback layout: ${internals.fullLayoutCount() === before}`);
+
+        await fetch(`${server.baseURL}/unblock/${token}`);
+        await face.loaded;
+        results.push(`loaded face changes metrics: ${target.getBoundingClientRect().width !== fallbackWidth}`);
+        before = internals.fullLayoutCount();
+        target.style.color = "green";
+        target.getBoundingClientRect();
+        results.push(`paint change preserves loaded layout: ${internals.fullLayoutCount() === before}`);
+        for (const result of results)
+            println(result);
+        done();
+    });
+</script>
