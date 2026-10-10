@@ -25,7 +25,7 @@ static u64 s_server_count = 0;
 
 ErrorOr<NonnullOwnPtr<DevToolsServer>> DevToolsServer::create(DevToolsDelegate& delegate, u16 port)
 {
-    auto address = IPv4Address::from_string("0.0.0.0"sv).release_value();
+    auto address = IPv4Address::from_string("127.0.0.1"sv).release_value();
 
     auto server = TRY(Core::TCPServer::try_create());
     TRY(server->listen(address, port, Core::TCPServer::AllowAddressReuse::Yes));
