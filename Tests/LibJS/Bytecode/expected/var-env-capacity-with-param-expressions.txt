@@ -24,7 +24,7 @@ block0:
   [   8] GetLexicalEnvironment dst:reg4
   [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:2, is_catch_environment:false
   [  28] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [  38] CreateArguments is_immutable:false
+  [  38] CreateArguments is_immutable:false, creates_parameter_bindings:false
   [  48] JumpUndefined condition:arg0, true_target:block1, false_target:block2
 
 block1:

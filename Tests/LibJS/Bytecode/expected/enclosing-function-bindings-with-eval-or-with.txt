@@ -51,7 +51,7 @@ evaluates$c9a2fbb4 enclosing-function-bindings-with-eval-or-with.js:4:13
 
 block0:
   [   0] Enter
-  [   8] CreateArguments is_immutable:false
+  [   8] CreateArguments is_immutable:false, creates_parameter_bindings:true
   [  18] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg6, this_value:reg7, `eval`
   [  30] CallDirectEval value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("")]
   [  58] NewFunction dst:reg5, shared_function_data_index:0

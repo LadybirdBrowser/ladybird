@@ -77,6 +77,10 @@ pub struct SharedFunctionInstanceDataStorage {
     /// the same name.
     #[gc(untraced)]
     mapped_argument_names: Rc<[Utf16FlyString]>,
+    /// The names of the parameters without the ones that repeat, in the order the bindings of the parameters are
+    /// created in the function environment.
+    #[gc(untraced)]
+    parameter_binding_names: Rc<[Utf16FlyString]>,
 
     #[gc(untraced)]
     this_mode: ThisMode, // [[ThisMode]]
@@ -164,6 +168,17 @@ unsafe impl Trace for SharedFunctionInstanceData {
     }
 }
 
+fn parameter_binding_names(parameter_names: &[Utf16FlyString]) -> Rc<[Utf16FlyString]> {
+    let mut seen_names = HashSet::with_capacity(parameter_names.len());
+    let mut names: Vec<Utf16FlyString> = Vec::with_capacity(parameter_names.len());
+    for name in parameter_names {
+        if seen_names.insert(name) {
+            names.push(name.clone());
+        }
+    }
+    names.into()
+}
+
 /// OPTIMIZATION: Precompute the argument indices that alias parameter bindings. Only the last occurrence of each
 ///               parameter name is eligible; each arguments object also limits the mapping to its argument count.
 ///               https://tc39.es/ecma262/#sec-createmappedargumentsobject
@@ -220,6 +235,7 @@ impl SharedFunctionInstanceData {
                 source_text_offset: Cell::new(0),
                 source_text_length: Cell::new(0),
                 function_length,
+                parameter_binding_names: parameter_binding_names(&parameter_names_for_mapped_arguments),
                 mapped_argument_names: mapped_argument_names(parameter_names_for_mapped_arguments),
                 this_mode,
                 kind,
@@ -668,6 +684,10 @@ impl SharedFunctionInstanceData {
 
     pub fn mapped_argument_names(&self) -> Rc<[Utf16FlyString]> {
         self.storage.mapped_argument_names.clone()
+    }
+
+    pub fn parameter_binding_names(&self) -> Rc<[Utf16FlyString]> {
+        self.storage.parameter_binding_names.clone()
     }
 
     pub fn strict(&self) -> bool {

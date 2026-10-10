@@ -1178,6 +1178,13 @@ pub fn create_arguments(
     let arguments_object = if instruction.kind == ArgumentsKind::Mapped as u32 {
         let ecmascript_function =
             as_ecmascript_function_object(function).expect("only ECMAScript functions have mapped arguments objects");
+        // NB: The bytecode leaves creating the bindings of the parameters that a mapped arguments object aliases to it,
+        //     which makes them all at once in the function environment, in the order of the parameters.
+        if instruction.creates_parameter_bindings {
+            for name in ecmascript_function.parameter_binding_names().iter() {
+                environment.create_mutable_binding(vm, name, false).must();
+            }
+        }
         create_mapped_arguments_object(
             vm,
             function,
