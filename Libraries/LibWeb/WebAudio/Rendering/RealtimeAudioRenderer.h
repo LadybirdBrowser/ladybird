@@ -12,6 +12,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
+#include <AK/SeqLock.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
@@ -57,8 +58,15 @@ private:
 
     void prepare_to_start_rendering();
     void set_playback_stream(NonnullRefPtr<Audio::PlaybackStream>);
-    ReadonlySpan<float> fill_output_buffer(Span<float>);
+    ReadonlySpan<float> fill_output_buffer(Span<float>, MonotonicTime buffer_starts_playing_at);
     void render_quantum_into_pending_samples();
+
+    // The output buffer most recently handed to the stream, and when its first frame plays.
+    struct OutputAnchor {
+        u64 first_frame_index { 0 };
+        u64 end_frame_index { 0 };
+        i64 plays_at_nanoseconds { 0 };
+    };
 
     NonnullRefPtr<ControlMessageQueue> m_control_message_queue;
     NodeID m_destination_node_id;
@@ -73,12 +81,15 @@ private:
     Atomic<u64> m_frames_rendered { 0 };
     Atomic<bool> m_suspended { false };
     Atomic<bool> m_shutting_down { false };
+    SeqLock<OutputAnchor> m_output_anchor;
 
     // State below is only used on the audio thread, except that the device configuration is recorded on the control
     // thread after stream creation, before the first data request callback can run.
     RenderGraph m_graph;
     OwnPtr<AudioBus> m_device_bus;
     size_t m_device_channel_count { 0 };
+    u32 m_device_sample_rate { 0 };
+    u64 m_frames_output { 0 };
     double m_playhead_step { 1 };
     double m_playhead { 0 };
     Vector<float> m_pending_samples;
