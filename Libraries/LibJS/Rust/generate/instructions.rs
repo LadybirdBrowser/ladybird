@@ -312,6 +312,9 @@ fn read_expr_for_type(ty: &str, offset: usize) -> String {
         | "EnvironmentShapeCacheIndex" => {
             format!("super::validator::read_u32(bytes, at + {offset})")
         }
+        "ArithFeedbackIndex" | "CallFeedbackIndex" | "KeyedFeedbackIndex" | "ValueFeedbackIndex" => {
+            format!("super::validator::read_u16(bytes, at + {offset})")
+        }
         "u64" | "Value" => format!("super::validator::read_u64(bytes, at + {offset})"),
         "Operand" => format!("Operand::from_raw(super::validator::read_u32(bytes, at + {offset}))"),
         "Optional<Operand>" => format!("Operand::optional_from_raw(super::validator::read_u32(bytes, at + {offset}))"),
@@ -719,6 +722,22 @@ fn emit_scalar_field_check(
         "EnvironmentShapeCacheIndex" => writeln!(
             w,
             "            validate_environment_shape_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
+        )?,
+        "ArithFeedbackIndex" => writeln!(
+            w,
+            "            validate_arith_feedback_index(read_u16(bytes, at + {offset}), ctx)?;"
+        )?,
+        "ValueFeedbackIndex" => writeln!(
+            w,
+            "            validate_value_feedback_index(read_u16(bytes, at + {offset}), ctx)?;"
+        )?,
+        "CallFeedbackIndex" => writeln!(
+            w,
+            "            validate_call_feedback_index(read_u16(bytes, at + {offset}), ctx)?;"
+        )?,
+        "KeyedFeedbackIndex" => writeln!(
+            w,
+            "            validate_keyed_feedback_index(read_u16(bytes, at + {offset}), ctx)?;"
         )?,
         "u32" => {
             // The handler signature gives us no first-class types for SFD,
@@ -1217,6 +1236,7 @@ fn emit_field_write(
         "bool" => writeln!(w, "{prefix}buf.push(*{name} as u8);")?,
         "u8" => writeln!(w, "{prefix}buf.push(*{name});")?,
         "i32" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.to_ne_bytes());")?,
+        "u16" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.to_ne_bytes());")?,
         "u32" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.to_ne_bytes());")?,
         "u64" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.to_ne_bytes());")?,
         "operand" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.raw().to_ne_bytes());")?,

@@ -43,7 +43,7 @@ Exception handlers:
   [  e0 ..  140] => handler block4
 
 
-chained_computed_call$78bf026a chained-member-call.js:5:5
+chained_computed_call$7b82f37a chained-member-call.js:5:5
   Registers: 8
   Blocks:    1
 
@@ -51,10 +51,10 @@ block0:
   [   0] Enter
   [   8] Mov dst:reg6, src:arg0
   [  18] GetByValue dst:reg7, base:reg6, property:arg1 (a[arg1])
-  [  30] GetByValue dst:reg6, base:reg7, property:arg2 (a[j][arg2])
-  [  48] GetById dst:reg7, base:reg6, `foo` (a[j][k].foo)
-  [  60] Call dst:reg5, callee:reg7, this_value:reg6, a[j][k].foo
-  [  80] Return value:reg5
+  [  38] GetByValue dst:reg6, base:reg7, property:arg2 (a[j][arg2])
+  [  58] GetById dst:reg7, base:reg6, `foo` (a[j][k].foo)
+  [  70] Call dst:reg5, callee:reg7, this_value:reg6, a[j][k].foo
+  [  90] Return value:reg5
 
 
 chained_dot_call$51b3fa50 chained-member-call.js:9:5

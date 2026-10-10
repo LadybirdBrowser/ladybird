@@ -19,7 +19,7 @@ block0:
   [ 108] End value:reg7
 
 
-closureOverBlockScope$dfae526a block-scoping.js:2:15
+closureOverBlockScope$dcea615a block-scoping.js:2:15
   Registers: 10
   Blocks:    1
   Locals:    fns~0
@@ -49,11 +49,11 @@ block0:
   [ 150] Call dst:reg6, callee:reg7, this_value:reg8, fns.push, arguments:[reg9]
   [ 178] SetLexicalEnvironment environment:reg4
   [ 180] GetByValue dst:reg6, base:fns~0, property:Int32(0)
-  [ 198] Call dst:reg5, callee:reg6, this_value:fns~0, fns[0]
-  [ 1b8] GetByValue dst:reg7, base:fns~0, property:Int32(1)
-  [ 1d0] Call dst:reg6, callee:reg7, this_value:fns~0, fns[1]
-  [ 1f0] Add dst:reg7, lhs:reg5, rhs:reg6
-  [ 200] Return value:reg7
+  [ 1a0] Call dst:reg5, callee:reg6, this_value:fns~0, fns[0]
+  [ 1c0] GetByValue dst:reg7, base:fns~0, property:Int32(1)
+  [ 1e0] Call dst:reg6, callee:reg7, this_value:fns~0, fns[1]
+  [ 200] Add dst:reg7, lhs:reg5, rhs:reg6
+  [ 210] Return value:reg7
 
 
 $cd30f87a block-scoping.js:5:18

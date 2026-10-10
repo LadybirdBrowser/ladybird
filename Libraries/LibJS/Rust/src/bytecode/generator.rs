@@ -378,6 +378,10 @@ pub struct Generator {
     pub next_object_shape_cache: u32,
     pub next_object_property_iterator_cache: u32,
     pub next_environment_shape_cache: u32,
+    pub next_arith_feedback: u32,
+    pub next_value_feedback: u32,
+    pub next_call_feedback: u32,
+    pub next_keyed_feedback: u32,
 
     // --- Codegen state ---
     pub strict: bool,
@@ -480,6 +484,20 @@ macro_rules! next_cache_method {
     };
 }
 
+/// Feedback slot indices are encoded as u16. Sites beyond the last index share
+/// it, which only merges their feedback.
+pub const MAX_FEEDBACK_SLOT_COUNT: u32 = u16::MAX as u32 + 1;
+
+macro_rules! next_feedback_slot_method {
+    ($method:ident, $field:ident) => {
+        pub fn $method(&mut self) -> u16 {
+            let index = u16::try_from(self.$field).unwrap_or(u16::MAX);
+            self.$field = (self.$field + 1).min(MAX_FEEDBACK_SLOT_COUNT);
+            index
+        }
+    };
+}
+
 macro_rules! define_intern_method {
     ($method_name:ident, $index_type:ident, $table:ident, $cache:ident) => {
         pub fn $method_name(&mut self, s: &[u16]) -> $index_type {
@@ -546,6 +564,10 @@ impl Generator {
             next_object_shape_cache: 0,
             next_object_property_iterator_cache: 0,
             next_environment_shape_cache: 0,
+            next_arith_feedback: 0,
+            next_value_feedback: 0,
+            next_call_feedback: 0,
+            next_keyed_feedback: 0,
             strict: false,
             this_value_needs_environment_resolution: true,
             enclosing_function_kind: FunctionKind::Normal,
@@ -1008,70 +1030,102 @@ impl Generator {
             let block = &mut self.basic_blocks[self.current_block_index.basic_block_index()];
             if let Some((last_instruction, _, _)) = block.instructions.last() {
                 let fused = match last_instruction {
-                    Instruction::LessThan { dst, lhs, rhs } if *dst == condition.operand() => {
-                        Some(Instruction::JumpLessThan {
-                            lhs: *lhs,
-                            rhs: *rhs,
-                            true_target,
-                            false_target,
-                        })
-                    }
-                    Instruction::LessThanEquals { dst, lhs, rhs } if *dst == condition.operand() => {
-                        Some(Instruction::JumpLessThanEquals {
-                            lhs: *lhs,
-                            rhs: *rhs,
-                            true_target,
-                            false_target,
-                        })
-                    }
-                    Instruction::GreaterThan { dst, lhs, rhs } if *dst == condition.operand() => {
-                        Some(Instruction::JumpGreaterThan {
-                            lhs: *lhs,
-                            rhs: *rhs,
-                            true_target,
-                            false_target,
-                        })
-                    }
-                    Instruction::GreaterThanEquals { dst, lhs, rhs } if *dst == condition.operand() => {
-                        Some(Instruction::JumpGreaterThanEquals {
-                            lhs: *lhs,
-                            rhs: *rhs,
-                            true_target,
-                            false_target,
-                        })
-                    }
-                    Instruction::LooselyEquals { dst, lhs, rhs } if *dst == condition.operand() => {
-                        Some(Instruction::JumpLooselyEquals {
-                            lhs: *lhs,
-                            rhs: *rhs,
-                            true_target,
-                            false_target,
-                        })
-                    }
-                    Instruction::LooselyInequals { dst, lhs, rhs } if *dst == condition.operand() => {
-                        Some(Instruction::JumpLooselyInequals {
-                            lhs: *lhs,
-                            rhs: *rhs,
-                            true_target,
-                            false_target,
-                        })
-                    }
-                    Instruction::StrictlyEquals { dst, lhs, rhs } if *dst == condition.operand() => {
-                        Some(Instruction::JumpStrictlyEquals {
-                            lhs: *lhs,
-                            rhs: *rhs,
-                            true_target,
-                            false_target,
-                        })
-                    }
-                    Instruction::StrictlyInequals { dst, lhs, rhs } if *dst == condition.operand() => {
-                        Some(Instruction::JumpStrictlyInequals {
-                            lhs: *lhs,
-                            rhs: *rhs,
-                            true_target,
-                            false_target,
-                        })
-                    }
+                    Instruction::LessThan {
+                        arith_feedback,
+                        dst,
+                        lhs,
+                        rhs,
+                    } if *dst == condition.operand() => Some(Instruction::JumpLessThan {
+                        arith_feedback: *arith_feedback,
+                        lhs: *lhs,
+                        rhs: *rhs,
+                        true_target,
+                        false_target,
+                    }),
+                    Instruction::LessThanEquals {
+                        arith_feedback,
+                        dst,
+                        lhs,
+                        rhs,
+                    } if *dst == condition.operand() => Some(Instruction::JumpLessThanEquals {
+                        arith_feedback: *arith_feedback,
+                        lhs: *lhs,
+                        rhs: *rhs,
+                        true_target,
+                        false_target,
+                    }),
+                    Instruction::GreaterThan {
+                        arith_feedback,
+                        dst,
+                        lhs,
+                        rhs,
+                    } if *dst == condition.operand() => Some(Instruction::JumpGreaterThan {
+                        arith_feedback: *arith_feedback,
+                        lhs: *lhs,
+                        rhs: *rhs,
+                        true_target,
+                        false_target,
+                    }),
+                    Instruction::GreaterThanEquals {
+                        arith_feedback,
+                        dst,
+                        lhs,
+                        rhs,
+                    } if *dst == condition.operand() => Some(Instruction::JumpGreaterThanEquals {
+                        arith_feedback: *arith_feedback,
+                        lhs: *lhs,
+                        rhs: *rhs,
+                        true_target,
+                        false_target,
+                    }),
+                    Instruction::LooselyEquals {
+                        arith_feedback,
+                        dst,
+                        lhs,
+                        rhs,
+                    } if *dst == condition.operand() => Some(Instruction::JumpLooselyEquals {
+                        arith_feedback: *arith_feedback,
+                        lhs: *lhs,
+                        rhs: *rhs,
+                        true_target,
+                        false_target,
+                    }),
+                    Instruction::LooselyInequals {
+                        arith_feedback,
+                        dst,
+                        lhs,
+                        rhs,
+                    } if *dst == condition.operand() => Some(Instruction::JumpLooselyInequals {
+                        arith_feedback: *arith_feedback,
+                        lhs: *lhs,
+                        rhs: *rhs,
+                        true_target,
+                        false_target,
+                    }),
+                    Instruction::StrictlyEquals {
+                        arith_feedback,
+                        dst,
+                        lhs,
+                        rhs,
+                    } if *dst == condition.operand() => Some(Instruction::JumpStrictlyEquals {
+                        arith_feedback: *arith_feedback,
+                        lhs: *lhs,
+                        rhs: *rhs,
+                        true_target,
+                        false_target,
+                    }),
+                    Instruction::StrictlyInequals {
+                        arith_feedback,
+                        dst,
+                        lhs,
+                        rhs,
+                    } if *dst == condition.operand() => Some(Instruction::JumpStrictlyInequals {
+                        arith_feedback: *arith_feedback,
+                        lhs: *lhs,
+                        rhs: *rhs,
+                        true_target,
+                        false_target,
+                    }),
                     _ => None,
                 };
                 if let Some(fused_instruction) = fused {
@@ -1099,6 +1153,10 @@ impl Generator {
     next_cache_method!(next_object_shape_cache, next_object_shape_cache);
     next_cache_method!(next_object_property_iterator_cache, next_object_property_iterator_cache);
     next_cache_method!(next_environment_shape_cache, next_environment_shape_cache);
+    next_feedback_slot_method!(next_arith_feedback, next_arith_feedback);
+    next_feedback_slot_method!(next_value_feedback, next_value_feedback);
+    next_feedback_slot_method!(next_call_feedback, next_call_feedback);
+    next_feedback_slot_method!(next_keyed_feedback, next_keyed_feedback);
 
     // --- Lexical environment helpers ---
 

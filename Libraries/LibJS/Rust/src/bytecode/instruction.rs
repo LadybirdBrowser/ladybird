@@ -20,6 +20,7 @@ mod tests {
     #[test]
     fn selects_declarative_int32_specializations() {
         let instruction = Instruction::Add {
+            arith_feedback: 3,
             dst: Operand::register(Register(0)),
             lhs: Operand::register(Register(1)),
             rhs: Operand::constant(0),
@@ -30,7 +31,14 @@ mod tests {
             specialize_instruction_sequence([&instruction].into_iter(), &constants).expect("Add should specialize");
 
         assert_eq!(component_count, 1);
-        assert!(matches!(specialized, Instruction::AddRhsInt32 { rhs: 42, .. }));
+        assert!(matches!(
+            specialized,
+            Instruction::AddRhsInt32 {
+                arith_feedback: 3,
+                rhs: 42,
+                ..
+            }
+        ));
     }
 
     #[test]

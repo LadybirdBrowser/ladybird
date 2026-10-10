@@ -1,4 +1,4 @@
-$6a8031db delete-super-eval-order.js:4:1
+$ebe22a63 delete-super-eval-order.js:4:1
   Registers: 10
   Blocks:    3
   Constants:
@@ -26,13 +26,13 @@ block2:
   [  b0] MovSrcUndefined dst:reg6
   [  b8] GetGlobal dst:reg9, `A`
   [  c8] CallConstruct dst:reg8, callee:reg9, A
-  [  e0] GetById dst:reg9, base:reg8, `m`
-  [  f8] Call dst:reg5, callee:reg9, this_value:reg8, <object>.m, arguments:[String("x")]
-  [ 120] Mov2 c0_dst:reg6, c0_src:reg5, c1_dst:reg5, c1_src:reg6
-  [ 138] End value:reg5
+  [  e8] GetById dst:reg9, base:reg8, `m`
+  [ 100] Call dst:reg5, callee:reg9, this_value:reg8, <object>.m, arguments:[String("x")]
+  [ 128] Mov2 c0_dst:reg6, c0_src:reg5, c1_dst:reg5, c1_src:reg6
+  [ 140] End value:reg5
 
 Exception handlers:
-  [  b0 ..  140] => handler block1
+  [  b0 ..  148] => handler block1
 
 
 A$70678274

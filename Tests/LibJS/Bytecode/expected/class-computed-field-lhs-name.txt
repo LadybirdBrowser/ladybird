@@ -1,4 +1,4 @@
-$00cee19d class-computed-field-lhs-name.js:1:1
+$87b8bc45 class-computed-field-lhs-name.js:1:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -16,7 +16,7 @@ block0:
   [  58] SetGlobal `C`, src:reg6
   [  68] GetGlobal dst:reg5, `C`
   [  78] CallConstruct dst:reg6, callee:reg5, C
-  [  90] End value:reg6
+  [  98] End value:reg6
 
 
 C$638b9046

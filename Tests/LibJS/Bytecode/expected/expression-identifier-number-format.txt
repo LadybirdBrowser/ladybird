@@ -1,4 +1,4 @@
-$0656c3bd expression-identifier-number-format.js:1:1
+$772115e5 expression-identifier-number-format.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -14,5 +14,5 @@ block0:
   [  48] PutByValue base:reg5, property:Double(1.1e-32), src:reg6, kind:Normal (x[Double(1.1e-32)])
   [  68] GetGlobal dst:reg5, `x`
   [  78] GetByValue dst:reg7, base:reg5, property:Double(1.1e-32) (x[Double(1.1e-32)])
-  [  90] PutById base:reg7, `foo`, src:Int32(42), kind:Normal (x[1.1e-32].foo)
-  [  b0] End value:Int32(42)
+  [  98] PutById base:reg7, `foo`, src:Int32(42), kind:Normal (x[1.1e-32].foo)
+  [  b8] End value:Int32(42)

@@ -179,7 +179,7 @@ Exception handlers:
   [  c8 ..   e0] => handler block3
 
 
-catchTeardown$ea214605 lexical-env-teardown.js:48:5
+catchTeardown$68bf4d7d lexical-env-teardown.js:48:5
   Registers: 7
   Blocks:    3
   Locals:    e~0, outer~1
@@ -203,10 +203,10 @@ block1:
 block2:
   [  50] GetGlobal dst:reg6, `Error`
   [  60] CallConstruct dst:reg5, callee:reg6, Error, arguments:[String("test")]
-  [  80] Throw src:reg5
+  [  88] Throw src:reg5
 
 Exception handlers:
-  [  50 ..   88] => handler block1
+  [  50 ..   90] => handler block1
 
 
 myName$36b03aef lexical-env-teardown.js:60:5

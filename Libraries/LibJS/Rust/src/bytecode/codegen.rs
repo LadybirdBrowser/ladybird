@@ -127,18 +127,42 @@ fn emit_get_binding(
             import_index,
         }),
         (Some(BindingLocation::Environment(cache)), true) => {
-            generator.emit(Instruction::GetInitializedBinding { dst, identifier, cache });
+            let value_feedback = generator.next_value_feedback();
+            generator.emit(Instruction::GetInitializedBinding {
+                value_feedback,
+                dst,
+                identifier,
+                cache,
+            });
         }
         (Some(BindingLocation::Environment(cache)), false) => {
-            generator.emit(Instruction::GetBinding { dst, identifier, cache });
+            let value_feedback = generator.next_value_feedback();
+            generator.emit(Instruction::GetBinding {
+                value_feedback,
+                dst,
+                identifier,
+                cache,
+            });
         }
         (None, true) => {
             let cache = generator.next_environment_coordinate_cache();
-            generator.emit(Instruction::DynamicGetInitializedBinding { dst, identifier, cache });
+            let value_feedback = generator.next_value_feedback();
+            generator.emit(Instruction::DynamicGetInitializedBinding {
+                value_feedback,
+                dst,
+                identifier,
+                cache,
+            });
         }
         (None, false) => {
             let cache = generator.next_environment_coordinate_cache();
-            generator.emit(Instruction::DynamicGetBinding { dst, identifier, cache });
+            let value_feedback = generator.next_value_feedback();
+            generator.emit(Instruction::DynamicGetBinding {
+                value_feedback,
+                dst,
+                identifier,
+                cache,
+            });
         }
     }
 }
@@ -151,7 +175,9 @@ fn emit_get_callee_and_this_from_environment(
 ) {
     match generator.binding_location_for_identifier(identifier) {
         Some(BindingLocation::Environment(cache)) => {
+            let value_feedback = generator.next_value_feedback();
             generator.emit(Instruction::GetCalleeAndThisFromEnvironment {
+                value_feedback,
                 callee,
                 this_value,
                 identifier,
@@ -172,7 +198,9 @@ fn emit_get_callee_and_this_from_environment(
         }
         None => {
             let cache = generator.next_environment_coordinate_cache();
+            let value_feedback = generator.next_value_feedback();
             generator.emit(Instruction::DynamicGetCalleeAndThisFromEnvironment {
+                value_feedback,
                 callee,
                 this_value,
                 identifier,
@@ -485,7 +513,11 @@ fn generate_expression_inner(
             };
 
             let dst = choose_dst(generator, preferred_dst);
+            let value_feedback = generator.next_value_feedback();
+            let call_feedback = generator.next_call_feedback();
             generator.emit(Instruction::SuperCallWithArgumentArray {
+                value_feedback,
+                call_feedback,
                 dst: dst.operand(),
                 super_constructor: super_constructor.operand(),
                 arguments: arguments.operand(),
@@ -593,20 +625,26 @@ fn generate_unary_expression(
     let dst = choose_dst(generator, preferred_dst);
     match op {
         UnaryOp::BitwiseNot => {
+            let arith_feedback = generator.next_arith_feedback();
             generator.emit(Instruction::BitwiseNot {
+                arith_feedback,
                 dst: dst.operand(),
                 src: value.operand(),
             });
         }
         UnaryOp::Not => unreachable!("Not is handled by early return above"),
         UnaryOp::Plus => {
+            let arith_feedback = generator.next_arith_feedback();
             generator.emit(Instruction::UnaryPlus {
+                arith_feedback,
                 dst: dst.operand(),
                 src: value.operand(),
             });
         }
         UnaryOp::Minus => {
+            let arith_feedback = generator.next_arith_feedback();
             generator.emit(Instruction::UnaryMinus {
+                arith_feedback,
                 dst: dst.operand(),
                 src: value.operand(),
             });
@@ -1028,7 +1066,9 @@ fn generate_yield_expression(
     let throw_cont = generator.make_block();
     let type_is_normal = generator.allocate_register();
     let normal_type = generator.add_constant_number(f64::from(CompletionType::Normal as u32));
+    let arith_feedback = generator.next_arith_feedback();
     generator.emit(Instruction::StrictlyEquals {
+        arith_feedback,
         dst: type_is_normal.operand(),
         lhs: received_completion_type.operand(),
         rhs: normal_type.operand(),
@@ -1041,7 +1081,9 @@ fn generate_yield_expression(
     generator.switch_to_basic_block(throw_cont);
     let type_is_throw = generator.allocate_register();
     let throw_type = generator.add_constant_number(f64::from(CompletionType::Throw as u32));
+    let arith_feedback = generator.next_arith_feedback();
     generator.emit(Instruction::StrictlyEquals {
+        arith_feedback,
         dst: type_is_throw.operand(),
         lhs: received_completion_type.operand(),
         rhs: throw_type.operand(),
@@ -1388,7 +1430,9 @@ fn generate_await_with_completions(
     let throw_block = generator.make_block();
     let is_normal = generator.allocate_register();
     let normal_type = generator.add_constant_number(f64::from(CompletionType::Normal as u32));
+    let arith_feedback = generator.next_arith_feedback();
     generator.emit(Instruction::StrictlyEquals {
+        arith_feedback,
         dst: is_normal.operand(),
         lhs: received_completion_type.operand(),
         rhs: normal_type.operand(),
@@ -1454,7 +1498,9 @@ fn generate_yield_from(
     let type_is_normal_block = generator.make_block();
     let is_type_throw_block = generator.make_block();
     let is_normal = generator.allocate_register();
+    let arith_feedback = generator.next_arith_feedback();
     generator.emit(Instruction::StrictlyEquals {
+        arith_feedback,
         dst: is_normal.operand(),
         lhs: received_completion_type.operand(),
         rhs: normal_const.operand(),
@@ -1468,7 +1514,11 @@ fn generate_yield_from(
 
     // i. Let _innerResult_ be ? Call(_next_, _iterator_, « _received_.[[Value]] »).
     let inner_result = generator.allocate_register();
+    let value_feedback = generator.next_value_feedback();
+    let call_feedback = generator.next_call_feedback();
     generator.emit(Instruction::Call {
+        value_feedback,
+        call_feedback,
         dst: inner_result.operand(),
         callee: next_method.operand(),
         this_value: iterator.operand(),
@@ -1539,7 +1589,9 @@ fn generate_yield_from(
     let type_is_return_block = generator.make_block();
     let throw_const = generator.add_constant_number(f64::from(CompletionType::Throw as u32));
     let is_throw = generator.allocate_register();
+    let arith_feedback = generator.next_arith_feedback();
     generator.emit(Instruction::StrictlyEquals {
+        arith_feedback,
         dst: is_throw.operand(),
         lhs: received_completion_type.operand(),
         rhs: throw_const.operand(),
@@ -1569,7 +1621,11 @@ fn generate_yield_from(
     generator.switch_to_basic_block(throw_method_defined_block);
 
     // 1. Let _innerResult_ be ? Call(_throw_, _iterator_, « _received_.[[Value]] »).
+    let value_feedback = generator.next_value_feedback();
+    let call_feedback = generator.next_call_feedback();
     generator.emit(Instruction::Call {
+        value_feedback,
+        call_feedback,
         dst: inner_result.operand(),
         callee: throw_method.operand(),
         this_value: iterator.operand(),
@@ -1652,7 +1708,11 @@ fn generate_yield_from(
         generator.switch_to_basic_block(call_return_block);
 
         let close_result = generator.allocate_register();
+        let value_feedback = generator.next_value_feedback();
+        let call_feedback = generator.next_call_feedback();
         generator.emit(Instruction::Call {
+            value_feedback,
+            call_feedback,
             dst: close_result.operand(),
             callee: return_method.operand(),
             this_value: iterator.operand(),
@@ -1737,7 +1797,11 @@ fn generate_yield_from(
 
     // iv. Let _innerReturnResult_ be ? Call(_return_, _iterator_, « _received_.[[Value]] »).
     let inner_return_result = generator.allocate_register();
+    let value_feedback = generator.next_value_feedback();
+    let call_feedback = generator.next_call_feedback();
     generator.emit(Instruction::Call {
+        value_feedback,
+        call_feedback,
         dst: inner_return_result.operand(),
         callee: return_method.operand(),
         this_value: iterator.operand(),
@@ -1885,7 +1949,9 @@ fn generate_yield(
     let return_block = generator.make_block();
     let is_not_return = generator.allocate_register();
     let return_type = generator.add_constant_number(f64::from(CompletionType::Return as u32));
+    let arith_feedback = generator.next_arith_feedback();
     generator.emit(Instruction::StrictlyInequals {
+        arith_feedback,
         dst: is_not_return.operand(),
         lhs: received_completion_type.operand(),
         rhs: return_type.operand(),
@@ -1906,7 +1972,9 @@ fn generate_yield(
     let awaited_normal_block = generator.make_block();
     let is_throw = generator.allocate_register();
     let throw_type = generator.add_constant_number(f64::from(CompletionType::Throw as u32));
+    let arith_feedback = generator.next_arith_feedback();
     generator.emit(Instruction::StrictlyEquals {
+        arith_feedback,
         dst: is_throw.operand(),
         lhs: received_completion_type.operand(),
         rhs: throw_type.operand(),
@@ -1976,7 +2044,9 @@ fn generate_identifier(
     if ident.is_global {
         let id = generator.intern_identifier_id(ident.name);
         let cache = generator.next_global_variable_cache();
+        let value_feedback = generator.next_value_feedback();
         generator.emit(Instruction::GetGlobal {
+            value_feedback,
             dst: dst.operand(),
             identifier: id,
             cache,
@@ -2022,142 +2092,226 @@ fn emit_binary_op(
     let lhs_op = lhs.operand();
     let rhs_op = rhs.operand();
     match op {
-        BinaryOp::Addition => generator.emit(Instruction::Add {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        BinaryOp::Subtraction => generator.emit(Instruction::Sub {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        BinaryOp::Multiplication => generator.emit(Instruction::Mul {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        BinaryOp::Division => generator.emit(Instruction::Div {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        BinaryOp::Modulo => generator.emit(Instruction::Mod {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        BinaryOp::Exponentiation => generator.emit(Instruction::Exp {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        BinaryOp::StrictlyEquals => generator.emit(Instruction::StrictlyEquals {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        BinaryOp::StrictlyInequals => generator.emit(Instruction::StrictlyInequals {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        BinaryOp::LooselyEquals => generator.emit(Instruction::LooselyEquals {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        BinaryOp::LooselyInequals => generator.emit(Instruction::LooselyInequals {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        BinaryOp::GreaterThan => generator.emit(Instruction::GreaterThan {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        BinaryOp::GreaterThanEquals => generator.emit(Instruction::GreaterThanEquals {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        BinaryOp::LessThan => generator.emit(Instruction::LessThan {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        BinaryOp::LessThanEquals => generator.emit(Instruction::LessThanEquals {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        BinaryOp::BitwiseAnd => generator.emit(Instruction::BitwiseAnd {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
+        BinaryOp::Addition => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::Add {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        BinaryOp::Subtraction => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::Sub {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        BinaryOp::Multiplication => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::Mul {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        BinaryOp::Division => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::Div {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        BinaryOp::Modulo => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::Mod {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        BinaryOp::Exponentiation => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::Exp {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        BinaryOp::StrictlyEquals => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::StrictlyEquals {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        BinaryOp::StrictlyInequals => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::StrictlyInequals {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        BinaryOp::LooselyEquals => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::LooselyEquals {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        BinaryOp::LooselyInequals => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::LooselyInequals {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        BinaryOp::GreaterThan => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::GreaterThan {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        BinaryOp::GreaterThanEquals => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::GreaterThanEquals {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        BinaryOp::LessThan => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::LessThan {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        BinaryOp::LessThanEquals => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::LessThanEquals {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        BinaryOp::BitwiseAnd => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::BitwiseAnd {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
         BinaryOp::BitwiseOr => {
             // OPTIMIZATION: x | 0 == ToInt32(x)
             if let Some(ConstantValue::Number(n)) = generator.get_constant(rhs) {
                 if *n == 0.0 && n.is_sign_positive() {
+                    let arith_feedback = generator.next_arith_feedback();
                     generator.emit(Instruction::ToInt32 {
+                        arith_feedback,
                         dst: dst_op,
                         value: lhs_op,
                     });
                 } else {
+                    let arith_feedback = generator.next_arith_feedback();
                     generator.emit(Instruction::BitwiseOr {
+                        arith_feedback,
                         dst: dst_op,
                         lhs: lhs_op,
                         rhs: rhs_op,
                     });
                 }
             } else {
+                let arith_feedback = generator.next_arith_feedback();
                 generator.emit(Instruction::BitwiseOr {
+                    arith_feedback,
                     dst: dst_op,
                     lhs: lhs_op,
                     rhs: rhs_op,
                 });
             }
         }
-        BinaryOp::BitwiseXor => generator.emit(Instruction::BitwiseXor {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        BinaryOp::LeftShift => generator.emit(Instruction::LeftShift {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
+        BinaryOp::BitwiseXor => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::BitwiseXor {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        BinaryOp::LeftShift => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::LeftShift {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
         BinaryOp::RightShift => {
             // OPTIMIZATION: x >> 0 == ToInt32(x) (matches C++)
             if let Some(ConstantValue::Number(n)) = generator.get_constant(rhs) {
                 if *n == 0.0 && n.is_sign_positive() {
+                    let arith_feedback = generator.next_arith_feedback();
                     generator.emit(Instruction::ToInt32 {
+                        arith_feedback,
                         dst: dst_op,
                         value: lhs_op,
                     });
                 } else {
+                    let arith_feedback = generator.next_arith_feedback();
                     generator.emit(Instruction::RightShift {
+                        arith_feedback,
                         dst: dst_op,
                         lhs: lhs_op,
                         rhs: rhs_op,
                     });
                 }
             } else {
+                let arith_feedback = generator.next_arith_feedback();
                 generator.emit(Instruction::RightShift {
+                    arith_feedback,
                     dst: dst_op,
                     lhs: lhs_op,
                     rhs: rhs_op,
                 });
             }
         }
-        BinaryOp::UnsignedRightShift => generator.emit(Instruction::UnsignedRightShift {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
+        BinaryOp::UnsignedRightShift => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::UnsignedRightShift {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
         BinaryOp::In => generator.emit(Instruction::In {
             dst: dst_op,
             lhs: lhs_op,
@@ -3386,7 +3540,11 @@ fn try_generate_builtin_abstract_operation(
         let callee_name = expression_string_approximation(&data.arguments[0].value, &arena_clone)
             .map(|s| generator.intern_string(&s));
         let arguments: Vec<Operand> = argument_holders.iter().map(|a| a.operand()).collect();
+        let value_feedback = generator.next_value_feedback();
+        let call_feedback = generator.next_call_feedback();
         generator.emit(Instruction::Call {
+            value_feedback,
+            call_feedback,
             dst: dst.operand(),
             callee: callee.operand(),
             this_value: this_value.operand(),
@@ -3420,7 +3578,11 @@ fn try_generate_builtin_abstract_operation(
                 argument_holders.push(generator.copy_if_needed_to_preserve_evaluation_order(&val));
             }
             let arguments: Vec<Operand> = argument_holders.iter().map(|a| a.operand()).collect();
+            let value_feedback = generator.next_value_feedback();
+            let call_feedback = generator.next_call_feedback();
             generator.emit(Instruction::Call {
+                value_feedback,
+                call_feedback,
                 dst: dst.operand(),
                 callee: callee.operand(),
                 this_value: undefined.operand(),
@@ -3634,7 +3796,11 @@ fn generate_call_expression(
             });
         }
         if is_new {
+            let value_feedback = generator.next_value_feedback();
+            let call_feedback = generator.next_call_feedback();
             generator.emit(Instruction::CallConstructWithArgumentArray {
+                value_feedback,
+                call_feedback,
                 dst: dst.operand(),
                 callee: callee.operand(),
                 this_value: this_value.operand(),
@@ -3642,7 +3808,11 @@ fn generate_call_expression(
                 expression_string,
             });
         } else if is_direct_eval {
+            let value_feedback = generator.next_value_feedback();
+            let call_feedback = generator.next_call_feedback();
             generator.emit(Instruction::CallDirectEvalWithArgumentArray {
+                value_feedback,
+                call_feedback,
                 dst: dst.operand(),
                 callee: callee.operand(),
                 this_value: this_value.operand(),
@@ -3650,7 +3820,11 @@ fn generate_call_expression(
                 expression_string,
             });
         } else {
+            let value_feedback = generator.next_value_feedback();
+            let call_feedback = generator.next_call_feedback();
             generator.emit(Instruction::CallWithArgumentArray {
+                value_feedback,
+                call_feedback,
                 dst: dst.operand(),
                 callee: callee.operand(),
                 this_value: this_value.operand(),
@@ -3670,7 +3844,11 @@ fn generate_call_expression(
         let arguments: Vec<Operand> = argument_holders.iter().map(|a| a.operand()).collect();
 
         if is_new {
+            let value_feedback = generator.next_value_feedback();
+            let call_feedback = generator.next_call_feedback();
             generator.emit(Instruction::CallConstruct {
+                value_feedback,
+                call_feedback,
                 dst: dst.operand(),
                 callee: callee.operand(),
                 argument_count: u32_from_usize(arguments.len()),
@@ -3678,7 +3856,11 @@ fn generate_call_expression(
                 arguments,
             });
         } else if is_direct_eval {
+            let value_feedback = generator.next_value_feedback();
+            let call_feedback = generator.next_call_feedback();
             generator.emit(Instruction::CallDirectEval {
+                value_feedback,
+                call_feedback,
                 dst: dst.operand(),
                 callee: callee.operand(),
                 this_value: this_value.operand(),
@@ -3698,7 +3880,11 @@ fn generate_call_expression(
                     arguments,
                 );
             } else {
+                let value_feedback = generator.next_value_feedback();
+                let call_feedback = generator.next_call_feedback();
                 generator.emit(Instruction::Call {
+                    value_feedback,
+                    call_feedback,
                     dst: dst.operand(),
                     callee: callee.operand(),
                     this_value: this_value.operand(),
@@ -3708,7 +3894,11 @@ fn generate_call_expression(
                 });
             }
         } else {
+            let value_feedback = generator.next_value_feedback();
+            let call_feedback = generator.next_call_feedback();
             generator.emit(Instruction::Call {
+                value_feedback,
+                call_feedback,
                 dst: dst.operand(),
                 callee: callee.operand(),
                 this_value: this_value.operand(),
@@ -3731,22 +3921,42 @@ fn generate_call_expression(
 fn emit_update_op(generator: &mut Generator, op: UpdateOp, prefixed: bool, value: &ScopedOperand) -> ScopedOperand {
     if prefixed {
         match op {
-            UpdateOp::Increment => generator.emit(Instruction::Increment { dst: value.operand() }),
-            UpdateOp::Decrement => generator.emit(Instruction::Decrement { dst: value.operand() }),
+            UpdateOp::Increment => {
+                let arith_feedback = generator.next_arith_feedback();
+                generator.emit(Instruction::Increment {
+                    arith_feedback,
+                    dst: value.operand(),
+                });
+            }
+            UpdateOp::Decrement => {
+                let arith_feedback = generator.next_arith_feedback();
+                generator.emit(Instruction::Decrement {
+                    arith_feedback,
+                    dst: value.operand(),
+                });
+            }
         }
         value.clone()
     } else {
         // Always allocate a fresh register for the old value.
         let dst = generator.allocate_register();
         match op {
-            UpdateOp::Increment => generator.emit(Instruction::PostfixIncrement {
-                dst: dst.operand(),
-                src: value.operand(),
-            }),
-            UpdateOp::Decrement => generator.emit(Instruction::PostfixDecrement {
-                dst: dst.operand(),
-                src: value.operand(),
-            }),
+            UpdateOp::Increment => {
+                let arith_feedback = generator.next_arith_feedback();
+                generator.emit(Instruction::PostfixIncrement {
+                    arith_feedback,
+                    dst: dst.operand(),
+                    src: value.operand(),
+                });
+            }
+            UpdateOp::Decrement => {
+                let arith_feedback = generator.next_arith_feedback();
+                generator.emit(Instruction::PostfixDecrement {
+                    arith_feedback,
+                    dst: dst.operand(),
+                    src: value.operand(),
+                });
+            }
         }
         dst
     }
@@ -4334,7 +4544,9 @@ fn emit_get_by_id(
     if property_name == utf16!("length") {
         generator.length_identifier = Some(key);
         let cache = generator.next_property_lookup_cache();
+        let value_feedback = generator.next_value_feedback();
         generator.emit(Instruction::GetLength {
+            value_feedback,
             dst: dst.operand(),
             base: base.operand(),
             base_identifier,
@@ -4342,7 +4554,9 @@ fn emit_get_by_id(
         });
     } else {
         let cache = generator.next_property_lookup_cache();
+        let value_feedback = generator.next_value_feedback();
         generator.emit(Instruction::GetById {
+            value_feedback,
             dst: dst.operand(),
             base: base.operand(),
             property: key,
@@ -4365,7 +4579,9 @@ fn emit_get_by_id_with_this(
     if property_name == utf16!("length") {
         generator.length_identifier = Some(key);
         let cache = generator.next_property_lookup_cache();
+        let value_feedback = generator.next_value_feedback();
         generator.emit(Instruction::GetLengthWithThis {
+            value_feedback,
             dst: dst.operand(),
             base: base.operand(),
             this_value: this_value.operand(),
@@ -4373,7 +4589,9 @@ fn emit_get_by_id_with_this(
         });
     } else {
         let cache = generator.next_property_lookup_cache();
+        let value_feedback = generator.next_value_feedback();
         generator.emit(Instruction::GetByIdWithThis {
+            value_feedback,
             dst: dst.operand(),
             base: base.operand(),
             property: key,
@@ -4430,7 +4648,9 @@ fn emit_get_by_value(
         if generator.property_key_table[key.0 as usize] == ak::Utf16FlyString::from_utf8("length") {
             generator.length_identifier = Some(key);
             let cache = generator.next_property_lookup_cache();
+            let value_feedback = generator.next_value_feedback();
             generator.emit(Instruction::GetLength {
+                value_feedback,
                 dst: dst.operand(),
                 base: base.operand(),
                 base_identifier,
@@ -4438,7 +4658,9 @@ fn emit_get_by_value(
             });
         } else {
             let cache = generator.next_property_lookup_cache();
+            let value_feedback = generator.next_value_feedback();
             generator.emit(Instruction::GetById {
+                value_feedback,
                 dst: dst.operand(),
                 base: base.operand(),
                 property: key,
@@ -4448,8 +4670,12 @@ fn emit_get_by_value(
         }
         return;
     }
+    let value_feedback = generator.next_value_feedback();
+    let keyed_feedback = generator.next_keyed_feedback();
     let cache = generator.next_property_lookup_cache();
     generator.emit(Instruction::GetByValue {
+        value_feedback,
+        keyed_feedback,
         dst: dst.operand(),
         base: base.operand(),
         property: property.operand(),
@@ -4470,7 +4696,9 @@ fn emit_get_by_value_with_this(
         if generator.property_key_table[key.0 as usize] == ak::Utf16FlyString::from_utf8("length") {
             generator.length_identifier = Some(key);
             let cache = generator.next_property_lookup_cache();
+            let value_feedback = generator.next_value_feedback();
             generator.emit(Instruction::GetLengthWithThis {
+                value_feedback,
                 dst: dst.operand(),
                 base: base.operand(),
                 this_value: this_value.operand(),
@@ -4478,7 +4706,9 @@ fn emit_get_by_value_with_this(
             });
         } else {
             let cache = generator.next_property_lookup_cache();
+            let value_feedback = generator.next_value_feedback();
             generator.emit(Instruction::GetByIdWithThis {
+                value_feedback,
                 dst: dst.operand(),
                 base: base.operand(),
                 property: key,
@@ -4488,7 +4718,9 @@ fn emit_get_by_value_with_this(
         }
         return;
     }
+    let value_feedback = generator.next_value_feedback();
     generator.emit(Instruction::GetByValueWithThis {
+        value_feedback,
         dst: dst.operand(),
         base: base.operand(),
         property: property.operand(),
@@ -4516,8 +4748,10 @@ fn emit_put_normal_by_value(
         });
         return;
     }
+    let keyed_feedback = generator.next_keyed_feedback();
     let cache = generator.next_property_lookup_cache();
     generator.emit(Instruction::PutByValue {
+        keyed_feedback,
         base: base.operand(),
         property: property.operand(),
         src: src.operand(),
@@ -4576,8 +4810,10 @@ fn emit_put_by_value(
         });
         return;
     }
+    let keyed_feedback = generator.next_keyed_feedback();
     let cache = generator.next_property_lookup_cache();
     generator.emit(Instruction::PutByValue {
+        keyed_feedback,
         base: base.operand(),
         property: property.operand(),
         src: src.operand(),
@@ -5016,63 +5252,109 @@ fn emit_compound_assignment(
     let lhs_op = lhs.operand();
     let rhs_op = rhs.operand();
     match op {
-        AssignmentOp::AdditionAssignment => generator.emit(Instruction::Add {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        AssignmentOp::SubtractionAssignment => generator.emit(Instruction::Sub {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        AssignmentOp::MultiplicationAssignment => generator.emit(Instruction::Mul {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        AssignmentOp::DivisionAssignment => generator.emit(Instruction::Div {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        AssignmentOp::ModuloAssignment => generator.emit(Instruction::Mod {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        AssignmentOp::ExponentiationAssignment => generator.emit(Instruction::Exp {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        AssignmentOp::BitwiseAndAssignment => generator.emit(Instruction::BitwiseAnd {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        AssignmentOp::BitwiseOrAssignment => generator.emit(Instruction::BitwiseOr {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        AssignmentOp::BitwiseXorAssignment => generator.emit(Instruction::BitwiseXor {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        AssignmentOp::LeftShiftAssignment => generator.emit(Instruction::LeftShift {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        AssignmentOp::RightShiftAssignment => generator.emit(Instruction::RightShift {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
+        AssignmentOp::AdditionAssignment => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::Add {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        AssignmentOp::SubtractionAssignment => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::Sub {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        AssignmentOp::MultiplicationAssignment => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::Mul {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        AssignmentOp::DivisionAssignment => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::Div {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        AssignmentOp::ModuloAssignment => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::Mod {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        AssignmentOp::ExponentiationAssignment => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::Exp {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        AssignmentOp::BitwiseAndAssignment => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::BitwiseAnd {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        AssignmentOp::BitwiseOrAssignment => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::BitwiseOr {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        AssignmentOp::BitwiseXorAssignment => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::BitwiseXor {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        AssignmentOp::LeftShiftAssignment => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::LeftShift {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
+        AssignmentOp::RightShiftAssignment => {
+            let arith_feedback = generator.next_arith_feedback();
+            generator.emit(Instruction::RightShift {
+                arith_feedback,
+                dst: dst_op,
+                lhs: lhs_op,
+                rhs: rhs_op,
+            });
+        }
         AssignmentOp::UnsignedRightShiftAssignment => {
+            let arith_feedback = generator.next_arith_feedback();
             generator.emit(Instruction::UnsignedRightShift {
+                arith_feedback,
                 dst: dst_op,
                 lhs: lhs_op,
                 rhs: rhs_op,
@@ -5268,7 +5550,11 @@ fn generate_tagged_template_literal(
     let dst = choose_dst(generator, preferred_dst);
     let this_op = this_value.unwrap_or_else(|| generator.add_constant_undefined());
     let arguments: Vec<Operand> = argument_regs.iter().map(|a| a.operand()).collect();
+    let value_feedback = generator.next_value_feedback();
+    let call_feedback = generator.next_call_feedback();
     generator.emit(Instruction::Call {
+        value_feedback,
+        call_feedback,
         dst: dst.operand(),
         callee: tag_reg.operand(),
         this_value: this_op.operand(),
@@ -5329,7 +5615,9 @@ fn generate_switch_statement(
             let test_val = generate_expression(test, generator, None)?;
             let cmp = generator.allocate_register();
             // NB: test_value is LHS, discriminant is RHS.
+            let arith_feedback = generator.next_arith_feedback();
             generator.emit(Instruction::StrictlyEquals {
+                arith_feedback,
                 dst: cmp.operand(),
                 lhs: test_val.operand(),
                 rhs: discriminant.operand(),
@@ -5742,8 +6030,10 @@ fn emit_object_property_set_by_key(
 ) {
     if is_computed {
         let key_val = generate_expression_or_undefined(key, generator, None);
+        let keyed_feedback = generator.next_keyed_feedback();
         let cache = generator.next_property_lookup_cache();
         generator.emit(Instruction::PutByValue {
+            keyed_feedback,
             base: object.operand(),
             property: key_val.operand(),
             src: value.operand(),
@@ -5777,8 +6067,10 @@ fn emit_object_property_set_by_key(
         }
         ExpressionKind::NumericLiteral(n) => {
             let key_val = generator.add_constant_number(*n);
+            let keyed_feedback = generator.next_keyed_feedback();
             let cache = generator.next_property_lookup_cache();
             generator.emit(Instruction::PutByValue {
+                keyed_feedback,
                 base: object.operand(),
                 property: key_val.operand(),
                 src: value.operand(),
@@ -5790,8 +6082,10 @@ fn emit_object_property_set_by_key(
         _ => {
             // Computed key
             let key_val = generate_expression_or_undefined(key, generator, None);
+            let keyed_feedback = generator.next_keyed_feedback();
             let cache = generator.next_property_lookup_cache();
             generator.emit(Instruction::PutByValue {
+                keyed_feedback,
                 base: object.operand(),
                 property: key_val.operand(),
                 src: value.operand(),
@@ -5839,8 +6133,10 @@ fn emit_object_accessor_by_key(
     let emit_by_value = |generator: &mut Generator, key: &Expression| {
         let key_val = generate_expression_or_undefined(key, generator, None);
         if is_getter {
+            let keyed_feedback = generator.next_keyed_feedback();
             let cache = generator.next_property_lookup_cache();
             generator.emit(Instruction::PutByValue {
+                keyed_feedback,
                 base: object.operand(),
                 property: key_val.operand(),
                 src: value.operand(),
@@ -5849,8 +6145,10 @@ fn emit_object_accessor_by_key(
                 cache,
             });
         } else {
+            let keyed_feedback = generator.next_keyed_feedback();
             let cache = generator.next_property_lookup_cache();
             generator.emit(Instruction::PutByValue {
+                keyed_feedback,
                 base: object.operand(),
                 property: key_val.operand(),
                 src: value.operand(),
@@ -5995,7 +6293,11 @@ fn generate_optional_chain_inner(
             }
             OptionalChainReference::Call { arguments, .. } => {
                 let arguments_array = generate_arguments_array(generator, arguments);
+                let value_feedback = generator.next_value_feedback();
+                let call_feedback = generator.next_call_feedback();
                 generator.emit(Instruction::CallWithArgumentArray {
+                    value_feedback,
+                    call_feedback,
                     dst: current_value.operand(),
                     callee: current_value.operand(),
                     this_value: current_base.operand(),
@@ -6132,7 +6434,11 @@ fn generate_optional_chain_reference(
         }
         OptionalChainReference::Call { arguments, .. } => {
             let arguments_array = generate_arguments_array(generator, arguments);
+            let value_feedback = generator.next_value_feedback();
+            let call_feedback = generator.next_call_feedback();
             generator.emit(Instruction::CallWithArgumentArray {
+                value_feedback,
+                call_feedback,
                 dst: current_value.operand(),
                 callee: current_value.operand(),
                 this_value: current_base.operand(),
@@ -7325,7 +7631,9 @@ fn generate_for_of_statement_inner(
     let throw_close_block = generator.make_block();
     let non_throw_close_block = generator.make_block();
     let throw_check_const = generator.add_constant_i32(FinallyContext::THROW);
+    let arith_feedback = generator.next_arith_feedback();
     generator.emit(Instruction::JumpStrictlyEquals {
+        arith_feedback,
         lhs: close_completion_type.operand(),
         rhs: throw_check_const.operand(),
         true_target: throw_close_block,
@@ -7356,7 +7664,11 @@ fn generate_for_of_statement_inner(
         generator.switch_to_basic_block(call_return_block);
 
         let inner_result = generator.allocate_register();
+        let value_feedback = generator.next_value_feedback();
+        let call_feedback = generator.next_call_feedback();
         generator.emit(Instruction::Call {
+            value_feedback,
+            call_feedback,
             dst: inner_result.operand(),
             callee: return_method.operand(),
             this_value: iterator_object.operand(),
@@ -7390,7 +7702,9 @@ fn generate_for_of_statement_inner(
     for jump in &registered_jumps {
         let after_check = generator.make_block();
         let jump_const = generator.add_constant_i32(jump.index);
+        let arith_feedback = generator.next_arith_feedback();
         generator.emit(Instruction::JumpStrictlyEquals {
+            arith_feedback,
             lhs: close_completion_type.operand(),
             rhs: jump_const.operand(),
             true_target: jump.target,
@@ -7403,7 +7717,9 @@ fn generate_for_of_statement_inner(
     let return_block = generator.make_block();
     let unreachable_block = generator.make_block();
     let return_const = generator.add_constant_i32(FinallyContext::RETURN);
+    let arith_feedback = generator.next_arith_feedback();
     generator.emit(Instruction::JumpStrictlyEquals {
+        arith_feedback,
         lhs: close_completion_type.operand(),
         rhs: return_const.operand(),
         true_target: return_block,
@@ -7474,7 +7790,11 @@ fn generate_for_of_statement_inner(
             generator.switch_to_basic_block(call_return_block);
 
             let inner_result = generator.allocate_register();
+            let value_feedback = generator.next_value_feedback();
+            let call_feedback = generator.next_call_feedback();
             generator.emit(Instruction::Call {
+                value_feedback,
+                call_feedback,
                 dst: inner_result.operand(),
                 callee: return_method.operand(),
                 this_value: iterator_object.operand(),
@@ -7971,7 +8291,9 @@ fn generate_array_binding_pattern(
     let throw_close_block = make_block_with_unwind_handler(generator, old_handler);
     let non_throw_close_block = make_block_with_unwind_handler(generator, old_handler);
     let throw_check_const = generator.add_constant_i32(FinallyContext::THROW);
+    let arith_feedback = generator.next_arith_feedback();
     generator.emit(Instruction::JumpStrictlyEquals {
+        arith_feedback,
         lhs: close_completion_type.operand(),
         rhs: throw_check_const.operand(),
         true_target: throw_close_block,
@@ -8010,7 +8332,9 @@ fn generate_array_binding_pattern(
     for jump in &registered_jumps {
         let after_check = make_block_with_unwind_handler(generator, old_handler);
         let jump_const = generator.add_constant_i32(jump.index);
+        let arith_feedback = generator.next_arith_feedback();
         generator.emit(Instruction::JumpStrictlyEquals {
+            arith_feedback,
             lhs: close_completion_type.operand(),
             rhs: jump_const.operand(),
             true_target: jump.target,
@@ -8022,7 +8346,9 @@ fn generate_array_binding_pattern(
     let return_block = make_block_with_unwind_handler(generator, old_handler);
     let throw_block = make_block_with_unwind_handler(generator, old_handler);
     let return_const = generator.add_constant_i32(FinallyContext::RETURN);
+    let arith_feedback = generator.next_arith_feedback();
     generator.emit(Instruction::JumpStrictlyEquals {
+        arith_feedback,
         lhs: close_completion_type.operand(),
         rhs: return_const.operand(),
         true_target: return_block,
@@ -8501,7 +8827,9 @@ fn generate_try_statement(
             // 1. NORMAL → next block
             let after_normal_check = generator.make_block();
             let normal_const = generator.add_constant_i32(FinallyContext::NORMAL);
+            let arith_feedback = generator.next_arith_feedback();
             generator.emit(Instruction::JumpStrictlyEquals {
+                arith_feedback,
                 lhs: ctx_ct.operand(),
                 rhs: normal_const.operand(),
                 true_target: nb,
@@ -8514,7 +8842,9 @@ fn generate_try_statement(
             for jump in &registered_jumps {
                 let after_jump_check = generator.make_block();
                 let jump_const = generator.add_constant_i32(jump.index);
+                let arith_feedback = generator.next_arith_feedback();
                 generator.emit(Instruction::JumpStrictlyEquals {
+                    arith_feedback,
                     lhs: ctx_ct.operand(),
                     rhs: jump_const.operand(),
                     true_target: jump.target,
@@ -8527,7 +8857,9 @@ fn generate_try_statement(
             let return_block = generator.make_block();
             let rethrow_block = generator.make_block();
             let return_const = generator.add_constant_i32(FinallyContext::RETURN);
+            let arith_feedback = generator.next_arith_feedback();
             generator.emit(Instruction::JumpStrictlyEquals {
+                arith_feedback,
                 lhs: ctx_ct.operand(),
                 rhs: return_const.operand(),
                 true_target: return_block,
@@ -9316,39 +9648,45 @@ fn emit_builtin_call(
     arguments: Vec<Operand>,
 ) {
     macro_rules! emit_nullary_builtin_instruction {
-        ($instruction:ident) => {
+        ($instruction:ident) => {{
+            let call_feedback = generator.next_call_feedback();
             generator.emit(Instruction::$instruction {
+                call_feedback,
                 dst,
                 callee,
                 this_value,
                 expression_string,
-            })
-        };
+            });
+        }};
     }
 
     macro_rules! emit_unary_builtin_instruction {
-        ($instruction:ident) => {
+        ($instruction:ident) => {{
+            let call_feedback = generator.next_call_feedback();
             generator.emit(Instruction::$instruction {
+                call_feedback,
                 dst,
                 callee,
                 this_value,
                 argument: arguments[0],
                 expression_string,
-            })
-        };
+            });
+        }};
     }
 
     macro_rules! emit_binary_builtin_instruction {
-        ($instruction:ident) => {
+        ($instruction:ident) => {{
+            let call_feedback = generator.next_call_feedback();
             generator.emit(Instruction::$instruction {
+                call_feedback,
                 dst,
                 callee,
                 this_value,
                 argument0: arguments[0],
                 argument1: arguments[1],
                 expression_string,
-            })
-        };
+            });
+        }};
     }
 
     match builtin {

@@ -1,4 +1,4 @@
-$5df14a74 super-length-access.js:3:1
+$e4db251c super-length-access.js:3:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -22,9 +22,9 @@ block0:
   [  e0] DynamicInitializeLexicalBinding `B`, src:reg7
   [  f0] GetGlobal dst:reg5, `B`
   [ 100] CallConstruct dst:reg6, callee:reg5, B
-  [ 118] GetById dst:reg5, base:reg6, `m`
-  [ 130] Call dst:reg7, callee:reg5, this_value:reg6, <object>.m
-  [ 150] End value:reg7
+  [ 120] GetById dst:reg5, base:reg6, `m`
+  [ 138] Call dst:reg7, callee:reg5, this_value:reg6, <object>.m
+  [ 158] End value:reg7
 
 
 B$73f1ca79 super-length-access.js:7:1

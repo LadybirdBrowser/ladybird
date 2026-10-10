@@ -1004,6 +1004,7 @@ specialize JumpLooselyEquals(rhs: Int32);
 specialize JumpLooselyInequals(rhs: Int32);
 
 handler Add(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
@@ -1050,6 +1051,7 @@ handler Add(
 }
 
 handler Sub(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
@@ -1096,6 +1098,7 @@ handler Sub(
 }
 
 handler Mul(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
@@ -1151,6 +1154,7 @@ handler Mul(
 }
 
 handler Exp(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
@@ -1315,6 +1319,7 @@ handler JumpUndefined(
 }
 
 handler JumpLessThan(
+    arith_feedback: ArithFeedbackIndex,
     lhs: in Operand,
     rhs: in Operand,
     true_target: BytecodeOffset,
@@ -1330,6 +1335,7 @@ handler JumpLessThan(
 );
 
 handler JumpGreaterThan(
+    arith_feedback: ArithFeedbackIndex,
     lhs: in Operand,
     rhs: in Operand,
     true_target: BytecodeOffset,
@@ -1345,6 +1351,7 @@ handler JumpGreaterThan(
 );
 
 handler JumpLessThanEquals(
+    arith_feedback: ArithFeedbackIndex,
     lhs: in Operand,
     rhs: in Operand,
     true_target: BytecodeOffset,
@@ -1360,6 +1367,7 @@ handler JumpLessThanEquals(
 );
 
 handler JumpGreaterThanEquals(
+    arith_feedback: ArithFeedbackIndex,
     lhs: in Operand,
     rhs: in Operand,
     true_target: BytecodeOffset,
@@ -1375,6 +1383,7 @@ handler JumpGreaterThanEquals(
 );
 
 handler JumpLooselyEquals(
+    arith_feedback: ArithFeedbackIndex,
     lhs: in Operand,
     rhs: in Operand,
     true_target: BytecodeOffset,
@@ -1389,6 +1398,7 @@ handler JumpLooselyEquals(
 );
 
 handler JumpLooselyInequals(
+    arith_feedback: ArithFeedbackIndex,
     lhs: in Operand,
     rhs: in Operand,
     true_target: BytecodeOffset,
@@ -1403,6 +1413,7 @@ handler JumpLooselyInequals(
 );
 
 handler JumpStrictlyEquals(
+    arith_feedback: ArithFeedbackIndex,
     lhs: in Operand,
     rhs: in Operand,
     true_target: BytecodeOffset,
@@ -1417,6 +1428,7 @@ handler JumpStrictlyEquals(
 );
 
 handler JumpStrictlyInequals(
+    arith_feedback: ArithFeedbackIndex,
     lhs: in Operand,
     rhs: in Operand,
     true_target: BytecodeOffset,
@@ -1431,10 +1443,12 @@ handler JumpStrictlyInequals(
 );
 
 handler Increment(
+    arith_feedback: ArithFeedbackIndex,
     dst: inout Operand
 ) = update_operand(dst, checked_add, add_f64, increment);
 
 handler Decrement(
+    arith_feedback: ArithFeedbackIndex,
     dst: inout Operand
 ) = update_operand(dst, checked_sub, sub_f64, decrement);
 
@@ -1552,6 +1566,7 @@ handler SetLexicalEnvironment(
 }
 
 handler GetBinding(
+    value_feedback: ValueFeedbackIndex,
     dst: out Operand,
     identifier: IdentifierTableIndex,
     cache: EnvironmentCoordinate
@@ -1566,6 +1581,7 @@ handler GetBinding(
 }
 
 handler DynamicGetBinding(
+    value_feedback: ValueFeedbackIndex,
     dst: out Operand,
     identifier: IdentifierTableIndex,
     cache: EnvironmentCoordinateCacheIndex
@@ -1585,6 +1601,7 @@ handler DynamicGetBinding(
 }
 
 handler GetInitializedBinding(
+    value_feedback: ValueFeedbackIndex,
     dst: out Operand,
     identifier: IdentifierTableIndex,
     cache: EnvironmentCoordinate
@@ -1596,6 +1613,7 @@ handler GetInitializedBinding(
 }
 
 handler DynamicGetInitializedBinding(
+    value_feedback: ValueFeedbackIndex,
     dst: out Operand,
     identifier: IdentifierTableIndex,
     cache: EnvironmentCoordinateCacheIndex
@@ -1793,11 +1811,13 @@ handler EnterObjectEnvironment(
 ) @cold = call_slow_path(enter_object_environment);
 
 handler PostfixIncrement(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     src: inout Operand
 ) = post_update_operand(dst, src, checked_add, add_f64, postfix_increment);
 
 handler Div(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
@@ -1832,6 +1852,7 @@ handler Div(
 }
 
 handler LessThan(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
@@ -1845,6 +1866,7 @@ handler LessThan(
 );
 
 handler LessThanEquals(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
@@ -1858,6 +1880,7 @@ handler LessThanEquals(
 );
 
 handler GreaterThan(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
@@ -1871,6 +1894,7 @@ handler GreaterThan(
 );
 
 handler GreaterThanEquals(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
@@ -1884,12 +1908,14 @@ handler GreaterThanEquals(
 );
 
 handler BitwiseXor(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
 ) = bitwise_binary(dst, load(lhs), load(rhs), xor, bitwise_xor_values);
 
 handler UnaryPlus(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     src: in Operand
 ) {
@@ -1990,6 +2016,7 @@ handler ToLength(
 ) @cold = call_slow_path(to_length);
 
 handler BitwiseNot(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     src: in Operand
 ) {
@@ -2007,30 +2034,35 @@ handler BitwiseNot(
 }
 
 handler BitwiseAnd(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
 ) = bitwise_binary(dst, load(lhs), load(rhs), and, bitwise_and_values);
 
 handler BitwiseOr(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
 ) = bitwise_binary(dst, load(lhs), load(rhs), or, bitwise_or_values);
 
 handler LeftShift(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
 ) = signed_shift(dst, load(lhs), load(rhs), shl, left_shift_values);
 
 handler RightShift(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
 ) = signed_shift(dst, load(lhs), load(rhs), sar, right_shift_values);
 
 handler UnsignedRightShift(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
@@ -2058,6 +2090,7 @@ handler UnsignedRightShift(
 }
 
 handler Mod(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
@@ -2112,6 +2145,7 @@ handler Mod(
 }
 
 handler StrictlyEquals(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
@@ -2124,6 +2158,7 @@ handler StrictlyEquals(
 );
 
 handler StrictlyInequals(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
@@ -2136,6 +2171,7 @@ handler StrictlyInequals(
 );
 
 handler GetCalleeAndThisFromEnvironment(
+    value_feedback: ValueFeedbackIndex,
     callee: out Operand,
     this_value: out Operand,
     identifier: IdentifierTableIndex,
@@ -2152,6 +2188,7 @@ handler GetCalleeAndThisFromEnvironment(
 }
 
 handler DynamicGetCalleeAndThisFromEnvironment(
+    value_feedback: ValueFeedbackIndex,
     callee: out Operand,
     this_value: out Operand,
     identifier: IdentifierTableIndex,
@@ -2173,6 +2210,7 @@ handler DynamicGetCalleeAndThisFromEnvironment(
 }
 
 handler LooselyEquals(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
@@ -2185,6 +2223,7 @@ handler LooselyEquals(
 );
 
 handler LooselyInequals(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
@@ -2197,6 +2236,7 @@ handler LooselyInequals(
 );
 
 handler UnaryMinus(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     src: in Operand
 ) {
@@ -2235,11 +2275,13 @@ handler UnaryMinus(
 }
 
 handler PostfixDecrement(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     src: inout Operand
 ) = post_update_operand(dst, src, checked_sub, sub_f64, postfix_decrement);
 
 handler ToInt32(
+    arith_feedback: ArithFeedbackIndex,
     dst: out Operand,
     value: in Operand
 ) {
@@ -2260,6 +2302,7 @@ handler ToInt32(
 }
 
 handler PutByValue(
+    keyed_feedback: KeyedFeedbackIndex,
     base: in Operand,
     property: in Operand,
     src: in Operand,
@@ -2466,6 +2509,7 @@ handler PutByValue(
 }
 
 handler GetById(
+    value_feedback: ValueFeedbackIndex,
     dst: out Operand,
     base: in Operand,
     property: PropertyKeyTableIndex,
@@ -2688,6 +2732,7 @@ handler GetById(
 }
 
 handler GetByIdWithThis(
+    value_feedback: ValueFeedbackIndex,
     dst: out Operand,
     base: Operand,
     property: PropertyKeyTableIndex,
@@ -2734,6 +2779,8 @@ handler PutByIdWithThis(
 ) @cold = call_slow_path(put_by_id_with_this);
 
 handler GetByValue(
+    value_feedback: ValueFeedbackIndex,
+    keyed_feedback: KeyedFeedbackIndex,
     dst: out Operand,
     base: in Operand,
     property: in Operand,
@@ -2941,6 +2988,7 @@ handler GetByValue(
 }
 
 handler GetByValueWithThis(
+    value_feedback: ValueFeedbackIndex,
     dst: out Operand,
     base: Operand,
     property: Operand,
@@ -2961,6 +3009,7 @@ handler PutBySpread(
 ) @cold = call_slow_path(put_by_spread);
 
 handler GetLength(
+    value_feedback: ValueFeedbackIndex,
     dst: out Operand,
     base: in Operand,
     base_identifier: Optional<IdentifierTableIndex>,
@@ -3003,6 +3052,7 @@ handler GetLength(
 }
 
 handler GetLengthWithThis(
+    value_feedback: ValueFeedbackIndex,
     dst: out Operand,
     base: Operand,
     this_value: Operand,
@@ -3024,6 +3074,7 @@ handler GetIterator(
 ) @cold = call_slow_path(get_iterator);
 
 handler GetGlobal(
+    value_feedback: ValueFeedbackIndex,
     dst: out Operand,
     identifier: IdentifierTableIndex,
     cache: GlobalVariableCacheIndex
@@ -3121,6 +3172,8 @@ handler SetGlobal(
 }
 
 handler Call(
+    value_feedback: ValueFeedbackIndex,
+    call_feedback: CallFeedbackIndex,
     length: u32,
     dst: out Operand,
     callee: in Operand,
@@ -3371,6 +3424,7 @@ handler Call(
 }
 
 handler CallBuiltinMathAbs(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: in Operand,
     this_value: Operand,
@@ -3410,6 +3464,7 @@ handler CallBuiltinMathAbs(
 }
 
 handler CallBuiltinMathFloor(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: in Operand,
     this_value: Operand,
@@ -3428,6 +3483,7 @@ handler CallBuiltinMathFloor(
 }
 
 handler CallBuiltinMathCeil(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: in Operand,
     this_value: Operand,
@@ -3446,6 +3502,7 @@ handler CallBuiltinMathCeil(
 }
 
 handler CallBuiltinMathSqrt(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: in Operand,
     this_value: Operand,
@@ -3464,6 +3521,7 @@ handler CallBuiltinMathSqrt(
 }
 
 handler CallBuiltinMathExp(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: in Operand,
     this_value: Operand,
@@ -3486,6 +3544,7 @@ handler CallBuiltinMathExp(
 }
 
 handler CallBuiltinMathLog(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3494,6 +3553,7 @@ handler CallBuiltinMathLog(
 ) @cold = call_slow_path(call_builtin_math_log);
 
 handler CallBuiltinMathPow(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3503,6 +3563,7 @@ handler CallBuiltinMathPow(
 ) @cold = call_slow_path(call_builtin_math_pow);
 
 handler CallBuiltinMathImul(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3512,6 +3573,7 @@ handler CallBuiltinMathImul(
 ) @cold = call_slow_path(call_builtin_math_imul);
 
 handler CallBuiltinMathRandom(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3519,6 +3581,7 @@ handler CallBuiltinMathRandom(
 ) @cold = call_slow_path(call_builtin_math_random);
 
 handler CallBuiltinMathRound(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3527,6 +3590,7 @@ handler CallBuiltinMathRound(
 ) @cold = call_slow_path(call_builtin_math_round);
 
 handler CallBuiltinMathSin(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3535,6 +3599,7 @@ handler CallBuiltinMathSin(
 ) @cold = call_slow_path(call_builtin_math_sin);
 
 handler CallBuiltinMathCos(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3543,6 +3608,7 @@ handler CallBuiltinMathCos(
 ) @cold = call_slow_path(call_builtin_math_cos);
 
 handler CallBuiltinMathTan(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3551,6 +3617,7 @@ handler CallBuiltinMathTan(
 ) @cold = call_slow_path(call_builtin_math_tan);
 
 handler CallBuiltinRegExpPrototypeExec(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3559,6 +3626,7 @@ handler CallBuiltinRegExpPrototypeExec(
 ) @cold = call_slow_path(call_builtin_regexp_prototype_exec);
 
 handler CallBuiltinRegExpPrototypeReplace(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3568,6 +3636,7 @@ handler CallBuiltinRegExpPrototypeReplace(
 ) @cold = call_slow_path(call_builtin_regexp_prototype_replace);
 
 handler CallBuiltinRegExpPrototypeSplit(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3577,6 +3646,7 @@ handler CallBuiltinRegExpPrototypeSplit(
 ) @cold = call_slow_path(call_builtin_regexp_prototype_split);
 
 handler CallBuiltinOrdinaryHasInstance(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3585,6 +3655,7 @@ handler CallBuiltinOrdinaryHasInstance(
 ) @cold = call_slow_path(call_builtin_ordinary_has_instance);
 
 handler CallBuiltinArrayIteratorPrototypeNext(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3592,6 +3663,7 @@ handler CallBuiltinArrayIteratorPrototypeNext(
 ) @cold = call_slow_path(call_builtin_array_iterator_prototype_next);
 
 handler CallBuiltinMapIteratorPrototypeNext(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3599,6 +3671,7 @@ handler CallBuiltinMapIteratorPrototypeNext(
 ) @cold = call_slow_path(call_builtin_map_iterator_prototype_next);
 
 handler CallBuiltinSetIteratorPrototypeNext(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3606,6 +3679,7 @@ handler CallBuiltinSetIteratorPrototypeNext(
 ) @cold = call_slow_path(call_builtin_set_iterator_prototype_next);
 
 handler CallBuiltinStringIteratorPrototypeNext(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3613,6 +3687,7 @@ handler CallBuiltinStringIteratorPrototypeNext(
 ) @cold = call_slow_path(call_builtin_string_iterator_prototype_next);
 
 handler CallBuiltinStringFromCharCode(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: in Operand,
     this_value: Operand,
@@ -3644,6 +3719,7 @@ handler CallBuiltinStringFromCharCode(
 }
 
 handler CallBuiltinStringPrototypeCharCodeAt(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: in Operand,
     this_value: in Operand,
@@ -3672,6 +3748,7 @@ handler CallBuiltinStringPrototypeCharCodeAt(
 }
 
 handler CallBuiltinStringPrototypeCharAt(
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: in Operand,
     this_value: in Operand,
@@ -3807,6 +3884,8 @@ handler IteratorToArray(
 ) @cold = call_slow_path(iterator_to_array);
 
 handler CallConstruct(
+    value_feedback: ValueFeedbackIndex,
+    call_feedback: CallFeedbackIndex,
     length: u32,
     dst: out Operand,
     callee: Operand,
@@ -3816,6 +3895,8 @@ handler CallConstruct(
 ) @cold = call_slow_path(call_construct);
 
 handler CallDirectEval(
+    value_feedback: ValueFeedbackIndex,
+    call_feedback: CallFeedbackIndex,
     length: u32,
     dst: out Operand,
     callee: Operand,
@@ -3826,6 +3907,8 @@ handler CallDirectEval(
 ) @cold = call_slow_path(call_direct_eval);
 
 handler CallWithArgumentArray(
+    value_feedback: ValueFeedbackIndex,
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3834,6 +3917,8 @@ handler CallWithArgumentArray(
 ) @cold = call_slow_path(call_with_argument_array);
 
 handler CallDirectEvalWithArgumentArray(
+    value_feedback: ValueFeedbackIndex,
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3842,6 +3927,8 @@ handler CallDirectEvalWithArgumentArray(
 ) @cold = call_slow_path(call_direct_eval_with_argument_array);
 
 handler CallConstructWithArgumentArray(
+    value_feedback: ValueFeedbackIndex,
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -3850,6 +3937,8 @@ handler CallConstructWithArgumentArray(
 ) @cold = call_slow_path(call_construct_with_argument_array);
 
 handler SuperCallWithArgumentArray(
+    value_feedback: ValueFeedbackIndex,
+    call_feedback: CallFeedbackIndex,
     dst: out Operand,
     super_constructor: Operand,
     arguments: Operand,

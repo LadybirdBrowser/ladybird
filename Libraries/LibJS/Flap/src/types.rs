@@ -231,6 +231,10 @@ define_named_types! {
         EnvironmentCoordinateCacheIndex => "EnvironmentCoordinateCacheIndex", Some(4), false;
         GlobalVariableCacheIndex => "GlobalVariableCacheIndex", Some(4), false;
         PropertyLookupCacheIndex => "PropertyLookupCacheIndex", Some(4), false;
+        ArithFeedbackIndex => "ArithFeedbackIndex", Some(2), false;
+        ValueFeedbackIndex => "ValueFeedbackIndex", Some(2), false;
+        CallFeedbackIndex => "CallFeedbackIndex", Some(2), false;
+        KeyedFeedbackIndex => "KeyedFeedbackIndex", Some(2), false;
         Operand => "Operand", Some(8), false;
         Memory => "Memory", None, false;
         IntegerCondition => "IntegerCondition", None, false;

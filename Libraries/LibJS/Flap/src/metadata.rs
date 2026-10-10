@@ -644,6 +644,9 @@ fn try_field_type_info(ty: &str) -> Option<FieldType> {
             | "ObjectShapeCacheIndex"
             | "ObjectPropertyIteratorCacheIndex"
             | "EnvironmentShapeCacheIndex" => ("u32", 4, 4, "u32"),
+            "ArithFeedbackIndex" | "CallFeedbackIndex" | "KeyedFeedbackIndex" | "ValueFeedbackIndex" => {
+                ("u16", 2, 2, "u16")
+            }
             _ => return None,
         }
         .into(),

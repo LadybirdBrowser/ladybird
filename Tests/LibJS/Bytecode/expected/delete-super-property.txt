@@ -1,4 +1,4 @@
-$ee43eb0f delete-super-property.js:1:1
+$eb7ff9ff delete-super-property.js:1:1
   Registers: 11
   Blocks:    6
   Locals:    e~0, e~1
@@ -29,29 +29,29 @@ block3:
   [  b8] MovSrcUndefined dst:reg6
   [  c0] GetGlobal dst:reg9, `A`
   [  d0] CallConstruct dst:reg8, callee:reg9, A
-  [  e8] GetById dst:reg9, base:reg8, `foo`
-  [ 100] Call dst:reg5, callee:reg9, this_value:reg8, <object>.foo
-  [ 120] Mov2 c0_dst:reg6, c0_src:reg5, c1_dst:reg5, c1_src:reg6
-  [ 138] Jump target:block2
+  [  f0] GetById dst:reg9, base:reg8, `foo`
+  [ 108] Call dst:reg5, callee:reg9, this_value:reg8, <object>.foo
+  [ 128] Mov2 c0_dst:reg6, c0_src:reg5, c1_dst:reg5, c1_src:reg6
+  [ 140] Jump target:block2
 
 block4:
-  [ 140] Catch dst:reg6
-  [ 148] SetLexicalEnvironment environment:reg4
-  [ 150] Mov3 c0_dst:e~1, c0_src:reg6, c1_dst:reg7, c1_src:Undefined, c2_dst:reg9, c2_src:reg7
-  [ 170] End value:reg7
+  [ 148] Catch dst:reg6
+  [ 150] SetLexicalEnvironment environment:reg4
+  [ 158] Mov3 c0_dst:e~1, c0_src:reg6, c1_dst:reg7, c1_src:Undefined, c2_dst:reg9, c2_src:reg7
+  [ 178] End value:reg7
 
 block5:
-  [ 178] MovSrcUndefined dst:reg6
-  [ 180] GetGlobal dst:reg10, `A`
-  [ 190] CallConstruct dst:reg8, callee:reg10, A
-  [ 1a8] GetById dst:reg10, base:reg8, `baz`
-  [ 1c0] Call dst:reg7, callee:reg10, this_value:reg8, <object>.baz
-  [ 1e0] Mov2 c0_dst:reg6, c0_src:reg7, c1_dst:reg7, c1_src:reg6
-  [ 1f8] End value:reg7
+  [ 180] MovSrcUndefined dst:reg6
+  [ 188] GetGlobal dst:reg10, `A`
+  [ 198] CallConstruct dst:reg8, callee:reg10, A
+  [ 1b8] GetById dst:reg10, base:reg8, `baz`
+  [ 1d0] Call dst:reg7, callee:reg10, this_value:reg8, <object>.baz
+  [ 1f0] Mov2 c0_dst:reg6, c0_src:reg7, c1_dst:reg7, c1_src:reg6
+  [ 208] End value:reg7
 
 Exception handlers:
-  [  b8 ..  140] => handler block1
-  [ 178 ..  200] => handler block4
+  [  b8 ..  148] => handler block1
+  [ 180 ..  210] => handler block4
 
 
 A$70678274

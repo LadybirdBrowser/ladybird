@@ -1,4 +1,4 @@
-$3576718a for-in-register-lifetime.js:1:1
+$b6d86a12 for-in-register-lifetime.js:1:1
   Registers: 17
   Blocks:    6
   Constants:
@@ -43,8 +43,8 @@ block5:
   [ 150] GetGlobal dst:reg14, `obj`
   [ 160] GetGlobal dst:reg15, `k`
   [ 170] GetByValue dst:reg16, base:reg14, property:reg15 (obj[reg15])
-  [ 188] Add dst:reg14, lhs:reg13, rhs:reg16
-  [ 198] Add dst:reg13, lhs:reg12, rhs:reg14
-  [ 1a8] SetGlobal `result`, src:reg13
-  [ 1b8] Mov dst:reg9, src:reg13
-  [ 1c8] Jump target:block2
+  [ 190] Add dst:reg14, lhs:reg13, rhs:reg16
+  [ 1a0] Add dst:reg13, lhs:reg12, rhs:reg14
+  [ 1b0] SetGlobal `result`, src:reg13
+  [ 1c0] Mov dst:reg9, src:reg13
+  [ 1d0] Jump target:block2

@@ -35,6 +35,7 @@ use crate::bytecode::generator::ConstantValue;
 use crate::bytecode::generator::ExceptionHandler;
 use crate::bytecode::generator::FunctionSfdMetadata;
 use crate::bytecode::generator::LocalVariable;
+use crate::bytecode::generator::MAX_FEEDBACK_SLOT_COUNT;
 use crate::bytecode::generator::PendingClassBlueprint;
 use crate::bytecode::generator::PendingClassElement;
 use crate::bytecode::generator::PendingLiteralValueKind;
@@ -49,7 +50,7 @@ use crate::compile::CompiledProgramBytecode;
 use crate::u32_from_usize;
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
-const FORMAT_VERSION: u32 = 24;
+const FORMAT_VERSION: u32 = 25;
 /// The size of the source hash a blob is keyed by.
 pub(crate) const SOURCE_HASH_SIZE: usize = 32;
 const BYTECODE_ALIGNMENT: usize = 8;
@@ -1849,6 +1850,10 @@ impl DecodedExecutableRecord {
             object_shape_cache_count: self.cache_counters.object_shape_cache_count,
             object_property_iterator_cache_count: self.cache_counters.object_property_iterator_cache_count,
             environment_shape_cache_count: self.cache_counters.environment_shape_cache_count,
+            arith_feedback_count: self.cache_counters.arith_feedback_count,
+            value_feedback_count: self.cache_counters.value_feedback_count,
+            call_feedback_count: self.cache_counters.call_feedback_count,
+            keyed_feedback_count: self.cache_counters.keyed_feedback_count,
             class_blueprint_count: self.class_blueprints.len() as u32,
             shared_function_data_count: self.shared_functions.len() as u32,
             completion_type_variant_count: COMPLETION_TYPE_VARIANT_COUNT,
@@ -1919,6 +1924,10 @@ impl DecodedExecutableRecord {
             object_shape: counters.object_shape_cache_count,
             object_property_iterator: counters.object_property_iterator_cache_count,
             environment_shape: counters.environment_shape_cache_count,
+            arith_feedback: counters.arith_feedback_count,
+            value_feedback: counters.value_feedback_count,
+            call_feedback: counters.call_feedback_count,
+            keyed_feedback: counters.keyed_feedback_count,
         }
     }
 
@@ -2037,6 +2046,10 @@ impl Encode for CacheCounters<'_> {
         self.0.object_shape.encode(encoder);
         self.0.object_property_iterator.encode(encoder);
         self.0.environment_shape.encode(encoder);
+        self.0.arith_feedback.encode(encoder);
+        self.0.value_feedback.encode(encoder);
+        self.0.call_feedback.encode(encoder);
+        self.0.keyed_feedback.encode(encoder);
     }
 }
 
@@ -2050,6 +2063,10 @@ impl CacheCounters<'_> {
             object_shape_cache_count: u32::decode(decoder)?,
             object_property_iterator_cache_count: u32::decode(decoder)?,
             environment_shape_cache_count: u32::decode(decoder)?,
+            arith_feedback_count: decode_feedback_slot_count(decoder)?,
+            value_feedback_count: decode_feedback_slot_count(decoder)?,
+            call_feedback_count: decode_feedback_slot_count(decoder)?,
+            keyed_feedback_count: decode_feedback_slot_count(decoder)?,
         })
     }
 }
@@ -2062,6 +2079,15 @@ pub(crate) struct DecodedCacheCounters {
     pub(crate) object_shape_cache_count: u32,
     pub(crate) object_property_iterator_cache_count: u32,
     pub(crate) environment_shape_cache_count: u32,
+    pub(crate) arith_feedback_count: u32,
+    pub(crate) value_feedback_count: u32,
+    pub(crate) call_feedback_count: u32,
+    pub(crate) keyed_feedback_count: u32,
+}
+
+fn decode_feedback_slot_count(decoder: &mut Decoder<'_>) -> Option<u32> {
+    let count = u32::decode(decoder)?;
+    (count <= MAX_FEEDBACK_SLOT_COUNT).then_some(count)
 }
 
 struct Utf16Table<'a>(&'a [ast::Utf16String]);
@@ -3145,8 +3171,8 @@ mod tests {
         false.encode(&mut encoder); // Strict.
         0u32.encode(&mut encoder); // Number of registers.
         0u32.encode(&mut encoder); // Number of arguments.
-        for _ in 0..7 {
-            0u32.encode(&mut encoder); // Cache counters.
+        for _ in 0..11 {
+            0u32.encode(&mut encoder); // Cache and feedback slot counters.
         }
         false.encode(&mut encoder); // This value needs environment resolution.
         Option::<u32>::None.encode(&mut encoder); // Length identifier.
