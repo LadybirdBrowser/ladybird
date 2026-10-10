@@ -1095,9 +1095,6 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
         bool state = argument == "on";
         auto traversable = page->page().local_traversable();
         traversable->set_force_dark_enabled(state);
-        // This request means the whole default force-dark state, thresholds included: only tests move them (through
-        // internals), and one test's thresholds must not leak into the next test sharing the view.
-        traversable->set_force_dark_thresholds(Web::HTML::default_force_dark_foreground_threshold, Web::HTML::default_force_dark_background_threshold);
         return;
     }
 
@@ -1105,6 +1102,11 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
         bool state = argument == "on";
         auto traversable = page->page().local_traversable();
         traversable->set_should_show_line_box_borders(state);
+        return;
+    }
+
+    if (request == "perform-per-test-cleanup") {
+        page->page().perform_per_test_cleanup();
         return;
     }
 
