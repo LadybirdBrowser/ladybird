@@ -68,6 +68,10 @@ public:
     bool is_local_file_content() const { return m_is_local_file_content; }
     void determine_whether_it_is_local_file_content(BlobURLStore const*);
 
+    // The host of the WebUI the document displays, if it was created from the about: URL of a page with a channel to
+    // the UI process.
+    Optional<String> const& web_ui_host() const { return m_web_ui_host; }
+
     void make_active();
 
 private:
@@ -81,6 +85,7 @@ private:
     Web::HTML::OpenerPolicy m_opener_policy;
     bool m_completely_loaded { false };
     bool m_is_local_file_content { false };
+    Optional<String> m_web_ui_host;
     RefPtr<WebContentPage> m_host;
 };
 

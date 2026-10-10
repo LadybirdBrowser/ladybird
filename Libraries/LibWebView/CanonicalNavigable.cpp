@@ -668,19 +668,26 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host_for_site_isolation(
 // A process that has hosted local file content may read local files, so site isolation has it host no content a site
 // could have made: only local file content, documents of its origin, documents local file content made from what it
 // holds, and about:blank documents no other process can reach. Local file content goes to no other process.
+// Likewise, a process that has hosted a WebUI's documents may speak for that WebUI, so it hosts only that WebUI's
+// documents and about:blank documents no other process can reach, and a WebUI's documents go to no other process.
 RefPtr<WebContentClient> CanonicalNavigable::process_to_host(CanonicalDocument const& document, Optional<URL::Origin> const& initiator_origin) const
 {
     auto process = process_to_host_for_site_isolation(document, initiator_origin);
 
-    // NB: Without site isolation, every document stays with the process holding its navigable, local file content too,
-    //     and that process may then read local files for as long as it lives.
+    // NB: Without site isolation, every document stays with the process holding its navigable, local file content and
+    //     WebUI documents too, and that process may then read local files or speak for the WebUI for as long as it lives.
     if (site_isolation_mode() == SiteIsolationMode::Disabled)
         return process;
     auto process_has_hosted_local_file_content = process && process->has_hosted_local_file_content();
+    auto process_has_hosted_web_ui = process && process->hosted_web_ui().has_value();
 
+    if (document.web_ui_host().has_value())
+        return process && process->hosted_web_ui() == document.web_ui_host() ? process : nullptr;
     if (document.is_local_file_content())
         return process_has_hosted_local_file_content ? process : nullptr;
-    if (!process_has_hosted_local_file_content || document.origin().is_file_origin())
+    if (!process_has_hosted_local_file_content && !process_has_hosted_web_ui)
+        return process;
+    if (process_has_hosted_local_file_content && document.origin().is_file_origin())
         return process;
 
     // An agent runs in one process, and one the process hosts was let in with the documents it has there.
@@ -694,7 +701,7 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host(CanonicalDocument c
         return process;
 
     auto is_made_from_what_its_initiator_holds = Web::HTML::url_matches_about_srcdoc(url) || url.scheme() == "data"sv;
-    if (is_made_from_what_its_initiator_holds && initiator_origin.has_value() && initiator_origin->is_file_origin())
+    if (process_has_hosted_local_file_content && is_made_from_what_its_initiator_holds && initiator_origin.has_value() && initiator_origin->is_file_origin())
         return process;
     return nullptr;
 }
@@ -704,6 +711,8 @@ ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalNavigable::obtain_page_to_host(C
     auto page = TRY(obtain_page_to_host_in(process_to_host(document, initiator_origin)));
     if (document.is_local_file_content())
         page->client().set_has_hosted_local_file_content();
+    if (auto const& web_ui_host = document.web_ui_host(); web_ui_host.has_value())
+        page->client().set_hosted_web_ui(*web_ui_host);
     return page;
 }
 
@@ -806,11 +815,14 @@ void CanonicalNavigable::populate_document_for_ongoing_navigation(NonnullRefPtr<
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url
 // NB: newDocument's URL is the active document's, as the process hosting both reports it. Whatever URL it reports,
-//     newDocument holds no local file content unless the active document does, as its contents come from that process.
+//     newDocument holds no local file content and displays no WebUI unless the active document does, as its contents
+//     come from that process.
 bool CanonicalNavigable::populate_document_for_javascript_url(NonnullRefPtr<CanonicalDocumentState> document_state, NonnullRefPtr<CanonicalDocument> document)
 {
     document->determine_whether_it_is_local_file_content(blob_url_store());
     if (document->is_local_file_content() && !active_document().is_local_file_content())
+        return false;
+    if (document->web_ui_host().has_value() && document->web_ui_host() != active_document().web_ui_host())
         return false;
     populate_document(move(document_state), move(document));
     return true;

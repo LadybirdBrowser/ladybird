@@ -11,6 +11,7 @@
 #include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentPage.h>
+#include <LibWebView/WebUI.h>
 
 namespace WebView {
 
@@ -39,6 +40,10 @@ CanonicalDocument::CanonicalDocument(URL::URL creation_url, URL::Origin origin, 
     , m_relevant_global_object(move(relevant_global_object))
     , m_is_initial_about_blank(is_initial_about_blank)
 {
+    if (m_creation_url.scheme() == "about"sv && m_creation_url.path_segment_count() == 1) {
+        if (auto page = WebUI::page_for_host(m_creation_url.path_segments().first()); page.has_value() && page->type == WebUI::PageType::Dynamic)
+            m_web_ui_host = MUST(String::from_utf8(page->host));
+    }
 }
 
 CanonicalDocument::~CanonicalDocument() = default;

@@ -108,6 +108,7 @@ public:
 
     void web_ui_disconnected(Badge<WebUI>);
     void set_web_ui(RefPtr<WebUI>);
+    RefPtr<WebUI> const& web_ui() const { return m_web_ui; }
     virtual void did_misbehave(StringView message_name, StringView reason) override;
     static bool renderers_may_access_cookies_like_http();
     static bool renderers_may_synthesize_input();
@@ -116,6 +117,10 @@ public:
     // of its own, which host nothing else.
     bool has_hosted_local_file_content() const { return m_has_hosted_local_file_content; }
     void set_has_hosted_local_file_content() { m_has_hosted_local_file_content = true; }
+    // The WebUI whose documents the process has hosted, whose channel the process may have. Site isolation gives such
+    // documents processes of their own, which host nothing else.
+    Optional<String> const& hosted_web_ui() const { return m_hosted_web_ui; }
+    void set_hosted_web_ui(String host) { m_hosted_web_ui = move(host); }
     void register_embedded_page(Web::PageId page_id, CanonicalTraversable&);
     void unregister_embedded_page(Web::PageId page_id);
     Optional<Web::PageId> page_id_for_traversable(CanonicalTraversable const&) const;
@@ -196,6 +201,7 @@ private:
     bool m_requested_close { false };
     bool m_rejected_ipc { false };
     bool m_has_hosted_local_file_content { false };
+    Optional<String> m_hosted_web_ui;
     Vector<u64> m_crashed_view_ids;
 
     WebContentPage& open_page(Web::PageId, CanonicalTraversable&);

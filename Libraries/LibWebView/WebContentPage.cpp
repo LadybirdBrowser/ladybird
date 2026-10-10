@@ -2296,11 +2296,15 @@ void WebContentPage::did_finish_loading(Web::HTML::CrossProcessId navigable_id, 
     if (displays_tab()) {
         auto const& committed_url = view().url();
 
-        if (committed_url.scheme() == "about"sv && committed_url.path_segment_count() == 1) {
-            if (auto web_ui = WebUI::create(client(), m_id, MUST(String::from_utf8(committed_url.path_segments().first()))); web_ui.is_error())
+        // The WebUI channel goes to the process the UI process gave the WebUI's document to, never by a URL a process
+        // reports. A page that loads anything else loses its channel.
+        if (auto const& web_ui_host = navigable->active_document().web_ui_host(); web_ui_host.has_value() && client().hosted_web_ui() == web_ui_host) {
+            if (auto web_ui = WebUI::create(client(), m_id, *web_ui_host); web_ui.is_error())
                 warnln("Could not create WebUI for {}: {}", committed_url, web_ui.error());
             else
                 client().set_web_ui(web_ui.release_value());
+        } else if (auto const& web_ui = client().web_ui(); web_ui && web_ui->page_id() == m_id) {
+            client().set_web_ui(nullptr);
         }
 
         auto title = history_title(view().title(), committed_url);

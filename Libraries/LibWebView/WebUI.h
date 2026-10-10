@@ -46,12 +46,12 @@ public:
     virtual ~WebUI();
 
     String const& host() const { return m_host; }
+    Web::PageId page_id() const { return m_page_id; }
 
 protected:
     WebUI(WebContentClient&, Web::PageId, NonnullOwnPtr<IPC::Transport>, String host);
 
     WebContentClient& client() const { return m_client; }
-    Web::PageId page_id() const { return m_page_id; }
 
     using Interface = Function<void(JsonValue)>;
 
