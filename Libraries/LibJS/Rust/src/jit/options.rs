@@ -23,6 +23,9 @@ pub struct Options {
 
     /// List the options and the values in effect on stderr.
     pub help: bool,
+
+    /// Print the interpreter feedback of each executable to stderr the first time it runs out of tier-up budget.
+    pub dump_feedback: bool,
 }
 
 impl Default for Options {
@@ -32,6 +35,7 @@ impl Default for Options {
             threshold: 400,
             warmup: 8,
             help: false,
+            dump_feedback: false,
         }
     }
 }
@@ -73,6 +77,11 @@ const DEFINITIONS: &[Definition] = &[
         name: "threshold",
         setting: Setting::Number(|options| &mut options.threshold),
         description: "How many invocations make a function hot, after its warm-up. Loop iterations count as a fraction of one.",
+    },
+    Definition {
+        name: "dump-feedback",
+        setting: Setting::Switch(|options| &mut options.dump_feedback),
+        description: "Run the profiling tier, and print the feedback of each function the first time it gets hot.",
     },
     Definition {
         name: "warmup",
@@ -178,8 +187,9 @@ impl Options {
         help
     }
 
-    /// Whether the interpreter collects feedback and counts down tier-up budgets.
+    /// Whether the interpreter collects feedback and counts down tier-up budgets. Only the JIT and the feedback dump
+    /// need either.
     pub fn collects_feedback(&self) -> bool {
-        self.enabled
+        self.enabled || self.dump_feedback
     }
 }

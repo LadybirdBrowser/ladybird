@@ -54,12 +54,59 @@ fn generate_rust_code(
     generate_instruction_impl(&mut w, ops)?;
     generate_instruction_length_from_bytes(&mut w, ops)?;
     generate_instruction_name_from_opcode(&mut w, ops)?;
+    generate_instruction_feedback_slots_from_bytes(&mut w, ops)?;
     generate_instruction_dump_from_bytes(&mut w, ops)?;
     generate_visit_labels_from_bytes(&mut w, ops)?;
     generate_instruction_is_terminator_from_opcode(&mut w, ops)?;
     generate_validate_instruction(&mut w, ops)?;
     generate_specialization_selector(&mut w, ops, specializations, specialized_ops)?;
 
+    Ok(())
+}
+
+/// Emits `instruction_feedback_slots_from_bytes()`, which reads the feedback slot indices of the instruction at
+/// `bytes[at..]`, one per feedback kind it records.
+fn generate_instruction_feedback_slots_from_bytes(
+    mut w: impl Write,
+    ops: &[InstructionDefinition],
+) -> Result<(), Box<dyn std::error::Error>> {
+    const KINDS: [&str; 4] = [
+        "ArithFeedbackIndex",
+        "ValueFeedbackIndex",
+        "CallFeedbackIndex",
+        "KeyedFeedbackIndex",
+    ];
+    writeln!(
+        w,
+        "/// The feedback slot indices of the instruction at `bytes[at..]`: arith, value, call and keyed."
+    )?;
+    writeln!(
+        w,
+        "pub fn instruction_feedback_slots_from_bytes(opcode: u8, bytes: &[u8], at: usize) -> [Option<u16>; 4] {{"
+    )?;
+    writeln!(w, "    match opcode {{")?;
+    for (i, op) in ops.iter().enumerate() {
+        let slots = KINDS
+            .iter()
+            .map(|kind| {
+                user_fields(op).into_iter().find(|field| field.ty == *kind).map_or_else(
+                    || "None".to_string(),
+                    |field| {
+                        let offset = op.layout.field_offsets[&field.name];
+                        format!("Some(super::validator::read_u16(bytes, at + {offset}))")
+                    },
+                )
+            })
+            .collect::<Vec<_>>();
+        if slots.iter().all(|slot| slot == "None") {
+            continue;
+        }
+        writeln!(w, "        {i} => [{}], // {}", slots.join(", "), op.name)?;
+    }
+    writeln!(w, "        _ => [None; 4],")?;
+    writeln!(w, "    }}")?;
+    writeln!(w, "}}")?;
+    writeln!(w)?;
     Ok(())
 }
 

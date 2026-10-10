@@ -9,6 +9,7 @@
 //! warm, the dispatch tables of each, and the tier-up policy.
 
 pub mod dispatch_tables;
+pub mod feedback_dump;
 pub mod options;
 pub mod testing;
 pub mod tier_up;

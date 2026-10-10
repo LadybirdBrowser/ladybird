@@ -1154,6 +1154,8 @@ pub struct Executable {
     /// What the interpreter observed running the bytecode, for the optimizing JIT. Only executables that left the
     /// plain tier collect feedback, so it is made when the executable first does.
     feedback: OnceCell<ExecutableFeedback>,
+    /// Whether LIBJS_JIT=dump-feedback printed the executable's feedback already.
+    has_dumped_feedback: Cell<bool>,
     pub number_of_registers: u32,
     pub number_of_arguments: u32,
     pub is_strict_mode: bool,
@@ -1389,6 +1391,7 @@ impl Executable {
             interpreter_tier: Cell::new(InterpreterTier::Plain),
             feedback_slot_counts: FeedbackSlotCounts::default(),
             feedback: OnceCell::new(),
+            has_dumped_feedback: Cell::new(false),
             number_of_registers,
             number_of_arguments,
             is_strict_mode,
@@ -1851,6 +1854,14 @@ impl Executable {
         if self.feedback.set(feedback).is_err() {
             unreachable!("the feedback is made once");
         }
+    }
+
+    pub fn has_dumped_feedback(&self) -> bool {
+        self.has_dumped_feedback.get()
+    }
+
+    pub fn set_has_dumped_feedback(&self) {
+        self.has_dumped_feedback.set(true);
     }
 
     /// What the interpreter observed running the bytecode, indexed by the feedback slots of its instructions, if the
