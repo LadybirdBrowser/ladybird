@@ -15,6 +15,74 @@ use crate::render_state::DocumentHost;
 
 crate::stage::main_thread_ffi_entries!();
 
+#[cfg(test)]
+mod tests {
+    use super::render_state_node_shell_if_live;
+    use crate::css::style::tree::StyleNodeID;
+    use crate::layout::box_removal::{
+        FfiDetachedBoxFacts, FfiDetachedBoxLevel, FfiDetachedBoxSibling, render_state_remove_box,
+    };
+    use crate::layout::node_data::{NodeKind, NodeSlotId};
+    use crate::render_state::{ScriptForcedRead, TestHost};
+
+    #[test]
+    fn queued_box_removal_is_applied_before_resolving_its_layout_node() {
+        let test_host = TestHost::new();
+        let host = test_host.host();
+        let (parent_node, child_node, parent, child) = host.run(ScriptForcedRead::for_test(), true, |state| {
+            let mut identities = [0; 2];
+            state.engine_mut().allocate_style_nodes(&mut identities);
+            let [parent_node, child_node] = identities.map(|raw| StyleNodeID::from_raw(raw).unwrap());
+            let arena = state.arena_mut();
+            let parent = arena.allocate_for_test().slot;
+            let child = arena.allocate_for_test().slot;
+            arena.write_shape(parent).set_kind(NodeKind::BlockContainer);
+            arena.write_shape(child).set_kind(NodeKind::ImageBox);
+            arena.set_style_node_for_test(parent, Some(parent_node));
+            arena.set_style_node_for_test(child, Some(child_node));
+            arena.bind_row(parent);
+            arena.bind_row(child);
+            arena.insert_child(parent, child, NodeSlotId::INVALID);
+            (parent_node, child_node, parent, child)
+        });
+        // The test's shell destruction stub never dereferences this stand-in for a C++ layout node.
+        let shell = std::ptr::without_provenance_mut(8);
+        host.host_tables().attach_shell(child, shell);
+        let read = host.read_for_test();
+        // SAFETY: The host lives on this thread until the test host is dropped.
+        assert_eq!(unsafe { render_state_node_shell_if_live(host, read, child) }, shell);
+
+        let sibling = FfiDetachedBoxSibling {
+            style_node: 0,
+            is_direct_without_box: true,
+        };
+        // SAFETY: As above. This queues the removal while the host still holds the child's layout node.
+        unsafe {
+            render_state_remove_box(
+                host,
+                parent_node.raw(),
+                child_node.raw(),
+                FfiDetachedBoxFacts {
+                    parent_is_body: false,
+                    previous_sibling: sibling,
+                    next_sibling: sibling,
+                    level: FfiDetachedBoxLevel::Block,
+                },
+            );
+        }
+        // A recording can still name the removed image. Resolving it must apply the removal before answering.
+        // SAFETY: As above; the entry point accepts a stale slot.
+        let resolved = unsafe { render_state_node_shell_if_live(host, read, child) };
+        let shell_was_destroyed = !host.host_tables().shells.borrow().contains_key(&child);
+        host.run(ScriptForcedRead::for_test(), true, |state| {
+            state.arena_mut().free_subtree(parent)
+        })
+        .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test_with_host(host));
+        assert!(resolved.is_null());
+        assert!(shell_was_destroyed);
+    }
+}
+
 /// The row's layout node, which the host's shell factory makes the first time it is asked for, or null for a row that
 /// is not live.
 ///
