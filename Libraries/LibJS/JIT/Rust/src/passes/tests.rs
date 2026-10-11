@@ -710,3 +710,68 @@ fn frame_writes_after_slow_paths_that_may_initialize_the_frame_check_first() {
         ]
     ));
 }
+
+#[test]
+fn hoisted_checks_gate_exits_by_the_loop_headers_executable() {
+    use crate::code::{ExitKind, ResumeMode};
+    use crate::ir::FrameState;
+    for failed_executable in [0, 1] {
+        let mut graph = Graph::default();
+        for predecessors in [vec![], vec![BlockId(0), BlockId(1)], vec![BlockId(1)]] {
+            graph.add_block(Block {
+                predecessors,
+                ..Block::default()
+            });
+        }
+        let object = node(&mut graph, Op::LoadSlot { slot: 0 }, vec![], Some(Repr::Tagged));
+        let condition = node(&mut graph, Op::Constant(1), vec![], Some(Repr::Bool));
+        let enter = node(&mut graph, Op::Jump { target: BlockId(1) }, vec![], None);
+        graph.blocks[0].body.push(object);
+        graph.blocks[0].control = Some(enter);
+        let parent = graph.add_frame_state(FrameState {
+            executable: 0,
+            pc: 10,
+            mode: ResumeMode::ResumeAfter { dst: 5 },
+            values: vec![(0, object)],
+            in_frame: vec![],
+            parent: None,
+            passed_argument_count: None,
+        });
+        let state = graph.add_frame_state(FrameState {
+            executable: 1,
+            pc: 77,
+            mode: ResumeMode::ResumeAt,
+            values: vec![(0, object)],
+            in_frame: vec![],
+            parent: Some(parent),
+            passed_argument_count: None,
+        });
+        let check = node(&mut graph, Op::CheckObject, vec![object], Some(Repr::Tagged));
+        graph.nodes[check.index()].frame_state = Some(state);
+        graph.blocks[1].bytecode_start = Some(77);
+        graph.blocks[1].start_frame_state = Some(state);
+        graph.blocks[1].is_loop_header = true;
+        graph.blocks[1].body.push(check);
+        let more = node(
+            &mut graph,
+            Op::Branch {
+                condition: BranchCondition::Bool,
+                if_true: BlockId(1),
+                if_false: BlockId(2),
+            },
+            vec![condition],
+            None,
+        );
+        graph.blocks[1].control = Some(more);
+        let ret = node(&mut graph, Op::Return, vec![object], None);
+        graph.blocks[2].control = Some(ret);
+        graph.exit_sites.push((failed_executable, 77, ExitKind::NotObject));
+        verify(&graph).unwrap();
+        super::licm::run(&mut graph);
+        verify(&graph).unwrap();
+        assert_eq!(graph.blocks[0].body.contains(&check), failed_executable == 0);
+        let recovery = graph.frame_state(graph.node(check).frame_state.unwrap());
+        assert_eq!(recovery.executable, 1);
+        assert_eq!(recovery.parent, Some(parent));
+    }
+}

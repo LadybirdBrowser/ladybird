@@ -157,7 +157,7 @@ impl Default for CallFeedback {
     }
 }
 
-/// The keys and receivers seen by a keyed property access.
+/// The keys and receivers seen by a property access.
 #[repr(C)]
 pub struct KeyedFeedback {
     /// `keyed_feedback_bits` bits.
@@ -188,6 +188,8 @@ pub mod keyed_feedback_bits {
     // One bit per typed array kind, starting at TYPED_ARRAY_SHIFT.
     pub const KEY_KINDS_MASK: u32 = 0x1f;
     pub const TYPED_ARRAY_SHIFT: u32 = 9;
+    /// GetLength receivers with the array's magical length property.
+    pub const MAGICAL_LENGTH: u32 = 1 << 24;
 
     pub const fn typed_array_bit(kind: u8) -> u32 {
         1 << (TYPED_ARRAY_SHIFT + kind as u32)

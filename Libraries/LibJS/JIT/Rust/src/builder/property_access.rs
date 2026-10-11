@@ -34,6 +34,7 @@ use super::caches::Action;
 use super::caches::CacheEntry;
 use super::caches::Holder;
 use crate::CompileFailure;
+use crate::bytecode::Instruction;
 use crate::bytecode::Operand;
 use crate::code::Dependency;
 use crate::code::ExitKind;
@@ -46,6 +47,7 @@ use crate::ir::Op;
 use crate::ir::ShapeCheck;
 use crate::snapshot::CellId;
 use crate::snapshot::Intrinsic;
+use crate::snapshot::keyed_feedback_bits;
 
 /// A check that a key is the one a keyed access speculates on: `key` must
 /// be `expected`, the encoded key cell `cell`.
@@ -249,6 +251,31 @@ impl GraphBuilder<'_> {
         debug_assert!(getter.is_none(), "all entries have the same checked getter");
         let value = self.load_named(object, offset);
         self.write(dst, value)?;
+        Ok(true)
+    }
+
+    /// Arrays whose magical length property was the only receiver kind seen
+    /// need no property lookup or fallback call. Lengths above i32::MAX exit
+    /// before boxing, so the interpreter can produce their double value.
+    pub(super) fn try_build_array_length(
+        &mut self,
+        instruction: &Instruction,
+        dst: Operand,
+        base: Operand,
+    ) -> Result<bool, CompileFailure> {
+        if self.keyed_feedback_bits(instruction) != Some(keyed_feedback_bits::MAGICAL_LENGTH)
+            || !self.may_speculate(ExitKind::BadType)
+            || !self.may_speculate(ExitKind::Overflow)
+        {
+            return Ok(false);
+        }
+        let object = self.read(base)?;
+        let array = self.emit_checked(Op::CheckArray, vec![object], Some(Repr::Tagged));
+        let address = self.cell_address(array);
+        let length = self.emit(Op::LoadElementsLength, vec![address], Some(Repr::Int32));
+        let length = self.emit_checked(Op::CheckNonNegativeInt32, vec![length], Some(Repr::Int32));
+        let boxed = self.emit(Op::BoxInt32, vec![length], Some(Repr::Tagged));
+        self.write(dst, boxed)?;
         Ok(true)
     }
 

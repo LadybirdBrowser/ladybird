@@ -302,6 +302,8 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.constant("KEYED_FEEDBACK_INT32_INDEX", keyed_feedback_bits::INT32_INDEX);
     w.constant("KEYED_FEEDBACK_PACKED", keyed_feedback_bits::PACKED);
     w.constant("KEYED_FEEDBACK_HOLEY", keyed_feedback_bits::HOLEY);
+    w.constant("KEYED_FEEDBACK_OTHER_ELEMENTS", keyed_feedback_bits::OTHER_ELEMENTS);
+    w.constant("KEYED_FEEDBACK_MAGICAL_LENGTH", keyed_feedback_bits::MAGICAL_LENGTH);
     w.constant("KEYED_FEEDBACK_INT32_INDEX_PACKED", keyed_feedback_bits::INT32_INDEX | keyed_feedback_bits::PACKED);
     w.constant("KEYED_FEEDBACK_INT32_INDEX_HOLEY", keyed_feedback_bits::INT32_INDEX | keyed_feedback_bits::HOLEY);
     w.constant(

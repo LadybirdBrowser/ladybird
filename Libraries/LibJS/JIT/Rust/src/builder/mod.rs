@@ -486,7 +486,21 @@ impl<'a> GraphBuilder<'a> {
         self.build_function()?;
 
         let mut graph = self.graph;
-        graph.exit_sites = self.snapshot.executables[0].exit_sites.clone();
+        for (index, executable) in self.snapshot.executables.iter().enumerate() {
+            let sites = if executable.builtin {
+                self.snapshot.executables[0]
+                    .builtin_exit_sites
+                    .iter()
+                    .filter(|(cell, _, _)| *cell == executable.cell)
+                    .map(|(_, pc, kind)| (*pc, *kind))
+                    .collect::<Vec<_>>()
+            } else {
+                executable.exit_sites.clone()
+            };
+            graph
+                .exit_sites
+                .extend(sites.into_iter().map(|(pc, kind)| (index as u32, pc, kind)));
+        }
         assert_eq!(graph.blocks.len(), self.order.len(), "every created block was started");
         graph.reorder_blocks(&self.order);
         for block in &graph.blocks {
@@ -778,7 +792,7 @@ impl<'a> GraphBuilder<'a> {
             self.function.instruction_index = instruction_index;
             self.function.pc = self.function.instructions[instruction_index].pc;
             self.function.eager_frame_state = None;
-            if instruction_index == instructions.start && is_merge && !self.function.is_virtual() {
+            if instruction_index == instructions.start && is_merge {
                 let frame_state = self.eager_frame_state();
                 self.graph.blocks[self.block.index()].start_frame_state = Some(frame_state);
             }
@@ -1410,6 +1424,7 @@ impl<'a> GraphBuilder<'a> {
             }
             Instruction::GetLength { dst, base, cache, .. } => {
                 if !self.try_build_arguments_length(dst, base)?
+                    && !self.try_build_array_length(instruction, dst, base)?
                     && !self.try_build_typed_array_length(dst, base, cache)?
                 {
                     return Ok(None);

@@ -316,6 +316,8 @@ pub mod keyed_feedback_bits {
     pub const OTHER_ELEMENTS: u32 = 1 << 7;
     pub const OUT_OF_BOUNDS: u32 = 1 << 8;
     pub const TYPED_ARRAY_SHIFT: u32 = 9;
+    /// GetLength receivers with the array's magical length property.
+    pub const MAGICAL_LENGTH: u32 = 1 << 24;
 }
 
 impl CallFeedbackSnapshot {

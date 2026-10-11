@@ -80,14 +80,17 @@ describe("jit testing object", () => {
         expect(jit.discardCount(g)).toBe(jit.enabled ? 1 : 0);
     });
 
-    test("tells whether its caller runs in compiled code", () => {
+    function checkCompiledCaller() {
         const probe = new Function("return jit.inCompiledCode();");
         jit.prepare(probe);
         expect(probe()).toBeFalse();
         jit.compile(probe);
         if (!jit.forcesExits) expect(probe()).toBe(jit.enabled);
         expect(jit.inCompiledCode()).toBeFalse();
-    });
+    }
+    // NB: The caller of the final probe must stay in the interpreter even when the harness repeats this test.
+    jit.neverCompile(checkCompiledCaller);
+    test("tells whether its caller runs in compiled code", checkCompiledCaller);
 
     test("only takes ECMAScript functions", () => {
         expect(() => jit.compile(Math.max)).toThrow(TypeError);

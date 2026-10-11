@@ -496,7 +496,7 @@ fn visit_node(
                 facts.set_elements_kind(node_id, ElementsKind::Packed);
             }
         }
-        Op::CheckAppendableArray => {
+        Op::CheckAppendableArray | Op::CheckArray => {
             // It exits for anything but arrays.
             facts.set_object(input(0));
         }

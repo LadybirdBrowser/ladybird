@@ -204,10 +204,13 @@ fn checkable_inputs(
     let mut checkable = HashMap::default();
     for (index, block) in graph.blocks.iter().enumerate() {
         let block_id = BlockId::from_index(index);
-        let gated = match (unboxed.check_op.as_ref(), block.bytecode_start) {
-            (Some(check), Some(pc)) => check
-                .exit_kind()
-                .is_none_or(|kind| graph.exit_sites.contains(&(pc, kind))),
+        let gated = match (unboxed.check_op.as_ref(), block.start_frame_state) {
+            (Some(check), Some(state)) => {
+                let state = graph.frame_state(state);
+                check
+                    .exit_kind()
+                    .is_none_or(|kind| graph.exit_sites.contains(&(state.executable, state.pc, kind)))
+            }
             _ => true,
         };
         for phi in &block.phis {

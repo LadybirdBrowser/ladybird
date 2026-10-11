@@ -383,6 +383,10 @@ const _: () = {
             == crate::layout::feedback::keyed_feedback_bits::KEY_KINDS_MASK
     );
     assert!(libjs_jit::snapshot::keyed_feedback_bits::PACKED == crate::layout::feedback::keyed_feedback_bits::PACKED);
+    assert!(
+        libjs_jit::snapshot::keyed_feedback_bits::MAGICAL_LENGTH
+            == crate::layout::feedback::keyed_feedback_bits::MAGICAL_LENGTH
+    );
     assert!(libjs_jit::snapshot::keyed_feedback_bits::HOLEY == crate::layout::feedback::keyed_feedback_bits::HOLEY);
     assert!(
         libjs_jit::snapshot::keyed_feedback_bits::OTHER_ELEMENTS

@@ -499,7 +499,7 @@ fn expected_input_reprs(graph: &Graph, node: NodeId) -> Option<Vec<Repr>> {
         Op::LoadArrayIteratorArray | Op::LoadArrayIteratorIndex | Op::FinishArrayIterator => Some(vec![Repr::Pointer]),
         Op::StoreArrayIteratorIndex => Some(vec![Repr::Pointer, Repr::Int32]),
         Op::BranchOnPc { .. } => Some(vec![Repr::Int32]),
-        Op::BoxInt32 => Some(vec![Repr::Int32]),
+        Op::BoxInt32 | Op::CheckNonNegativeInt32 => Some(vec![Repr::Int32]),
         Op::CheckShape { .. }
         | Op::LoadNamed { .. }
         | Op::ShapeSwitch { .. }

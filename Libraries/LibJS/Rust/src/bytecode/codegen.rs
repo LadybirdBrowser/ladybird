@@ -4545,8 +4545,10 @@ fn emit_get_by_id(
         generator.length_identifier = Some(key);
         let cache = generator.next_property_lookup_cache();
         let value_feedback = generator.next_value_feedback();
+        let keyed_feedback = generator.next_keyed_feedback();
         generator.emit(Instruction::GetLength {
             value_feedback,
+            keyed_feedback,
             dst: dst.operand(),
             base: base.operand(),
             base_identifier,
@@ -4649,8 +4651,10 @@ fn emit_get_by_value(
             generator.length_identifier = Some(key);
             let cache = generator.next_property_lookup_cache();
             let value_feedback = generator.next_value_feedback();
+            let keyed_feedback = generator.next_keyed_feedback();
             generator.emit(Instruction::GetLength {
                 value_feedback,
+                keyed_feedback,
                 dst: dst.operand(),
                 base: base.operand(),
                 base_identifier,

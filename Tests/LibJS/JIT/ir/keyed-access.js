@@ -18,13 +18,12 @@ jit.compile(sum);
 
 // CHECK-FUNCTION: sum
 // CHECK-PASS: frame initialization
-// CHECK: BranchMagicalLength
+// CHECK: CheckArray
 // CHECK: LoadElementsLength
-// CHECK: ProbePropertyCache cache
-// CHECK: StringLength
+// CHECK: CheckNonNegativeInt32
+// CHECK-NOT: CallSlowPath GetLength
 // CHECK: BranchElementsKind Packed
-// CHECK: LoadElementsLength
-// CHECK-NEXT: LoadElementsCapacity
+// CHECK: LoadElementsCapacity
 // CHECK-NEXT: BranchIndexInBounds
 // CHECK: BranchIndexInBounds
 // CHECK: LoadElementAt Packed
@@ -145,9 +144,11 @@ jit.compile(append);
 
 // CHECK-FUNCTION: append
 // CHECK-PASS: frame initialization
-// CHECK: BranchElementsKind Packed
+// CHECK: CheckArray
 // CHECK: [[LENGTH:v[0-9]+]]:int32 = LoadElementsLength
-// CHECK-NEXT: BranchIndexInBounds ({{v[0-9]+}}, [[LENGTH]])
+// CHECK: CheckNonNegativeInt32
+// CHECK: BranchElementsKind Packed
+// CHECK: BranchIndexInBounds ({{v[0-9]+}}, [[LENGTH]])
 // CHECK: BranchInt32StrictlyEquals ({{v[0-9]+}}, [[LENGTH]])
 // CHECK: CheckAppendableArray
 // CHECK: LoadElementsCapacity

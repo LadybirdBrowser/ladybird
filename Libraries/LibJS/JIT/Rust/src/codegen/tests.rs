@@ -2853,6 +2853,7 @@ mod virtual_arguments {
                 },
                 Instruction::GetLength {
                     value_feedback: 0,
+                    keyed_feedback: 0,
                     dst: r(5),
                     base: l(0),
                     base_identifier: None,
@@ -2870,6 +2871,7 @@ mod virtual_arguments {
                 add(r(7), r(5), r(6)),
                 Instruction::GetLength {
                     value_feedback: 0,
+                    keyed_feedback: 0,
                     dst: r(6),
                     base: l(0),
                     base_identifier: None,

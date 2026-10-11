@@ -193,7 +193,7 @@ pub fn run(graph: &mut Graph) {
                 };
             }
         }
-        let header_pc = graph.block(loop_.header).bytecode_start;
+        let header_state = graph.block(loop_.header).start_frame_state;
         let mut exit_state: Option<Option<FrameStateId>> = None;
         let mut hoisted = Vec::new();
         for block in loop_.blocks.iter() {
@@ -218,7 +218,10 @@ pub fn run(graph: &mut Graph) {
                     continue;
                 }
                 if let Some(kind) = data.op.exit_kind() {
-                    let gated = header_pc.is_some_and(|pc| graph.exit_sites.contains(&(pc, kind)));
+                    let gated = header_state.is_some_and(|state| {
+                        let state = graph.frame_state(state);
+                        graph.exit_sites.contains(&(state.executable, state.pc, kind))
+                    });
                     if !runs_every_iteration || gated {
                         continue;
                     }

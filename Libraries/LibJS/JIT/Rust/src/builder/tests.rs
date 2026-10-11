@@ -2302,6 +2302,7 @@ mod arguments {
                 Instruction::Mov { dst: a(0), src: c(1) },
                 Instruction::GetLength {
                     value_feedback: 0,
+                    keyed_feedback: 0,
                     dst: r(5),
                     base: l(0),
                     base_identifier: None,
@@ -2318,6 +2319,7 @@ mod arguments {
                     create_arguments(mapped),
                     Instruction::GetLength {
                         value_feedback: 0,
+                        keyed_feedback: 0,
                         dst: r(5),
                         base: l(0),
                         base_identifier: None,
@@ -2468,4 +2470,47 @@ fn captured_typed_arrays_use_guarded_fixed_lengths() {
         .element = TypedArrayElement::Int8;
     let text = dump(&optimized_graph(&snapshot), &test_layout());
     assert!(text.contains("CheckElements TypedArray(Uint16)"), "{text}");
+}
+
+#[test]
+fn array_length_specialization_requires_monomorphic_receivers_and_exit_gates() {
+    use crate::snapshot::{KeyedFeedbackSnapshot, keyed_feedback_bits};
+    let program = assemble(|_| {
+        vec![
+            Instruction::GetLength {
+                value_feedback: 0,
+                keyed_feedback: 0,
+                dst: r(5),
+                base: a(0),
+                base_identifier: None,
+                cache: 0,
+            },
+            Instruction::Return { value: r(5) },
+        ]
+    });
+    let mut snapshot = snapshot_for(&program, test_layout());
+    snapshot.executables[0].feedback.value = vec![crate::snapshot::value_feedback::INT32];
+    for bits in [
+        0,
+        keyed_feedback_bits::OTHER_ELEMENTS,
+        keyed_feedback_bits::MAGICAL_LENGTH | keyed_feedback_bits::OTHER_ELEMENTS,
+        keyed_feedback_bits::MAGICAL_LENGTH,
+    ] {
+        snapshot.executables[0].feedback.keyed = vec![KeyedFeedbackSnapshot { bits }];
+        let text = dump(&optimized_graph(&snapshot), &test_layout());
+        if bits == keyed_feedback_bits::MAGICAL_LENGTH {
+            assert!(text.contains("CheckArray"), "{text}");
+            assert!(text.contains("CheckNonNegativeInt32"), "{text}");
+            assert!(!text.contains("CallSlowPath"), "{text}");
+        } else {
+            assert!(!text.contains("CheckArray"), "{text}");
+            assert!(text.contains("CallSlowPath"), "{text}");
+        }
+    }
+    for kind in [ExitKind::BadType, ExitKind::Overflow] {
+        snapshot.executables[0].exit_sites = vec![(0, kind)];
+        let text = dump(&optimized_graph(&snapshot), &test_layout());
+        assert!(!text.contains("CheckArray"), "{text}");
+        assert!(text.contains("CallSlowPath"), "{text}");
+    }
 }
