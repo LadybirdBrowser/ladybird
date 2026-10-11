@@ -76,7 +76,7 @@ sudo pacman -S --needed autoconf-archive base-devel ccache cmake curl git less l
 ### Fedora or derivatives:
 
 ```
-sudo dnf install autoconf-archive automake ccache cmake curl git libdrm-devel liberation-sans-fonts libglvnd-devel libtool nasm ncurses-devel ninja-build patchelf perl-FindBin perl-IPC-Cmd perl-lib perl-Time-Piece pulseaudio-libs-devel qt6-qtbase-private-devel qt6-qtpositioning-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
+sudo dnf install autoconf-archive automake ccache cmake curl git glslang libdrm-devel liberation-sans-fonts libglvnd-devel libtool nasm ncurses-devel ninja-build patchelf perl-FindBin perl-IPC-Cmd perl-lib perl-Time-Piece pulseaudio-libs-devel qt6-qtbase-private-devel qt6-qtpositioning-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
 ```
 
 ### openSUSE:
