@@ -2630,6 +2630,17 @@ GC::Ref<WebIDL::Promise> Internals::check_spelling_for_testing(Utf16String const
     return promise;
 }
 
+GC::Ref<WebIDL::Promise> Internals::spell_check_settled()
+{
+    auto& realm = window().principal_realm();
+    auto promise = WebIDL::create_promise_for(window());
+    page().when_spell_checking_settled(GC::create_function(heap(), [&realm, promise] {
+        HTML::TemporaryExecutionContext execution_context { realm };
+        WebIDL::resolve_promise(promise);
+    }));
+    return promise;
+}
+
 GC::Ptr<JS::Object> Internals::hit_test_result(double x, double y)
 {
     auto& realm = HTML::relevant_realm(window());

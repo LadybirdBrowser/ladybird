@@ -1,0 +1,4 @@
+flagged before the move: 0-4
+flagged after the move: (none)
+moved during its check: (none)
+painted without a crash

@@ -48,6 +48,7 @@ interface Internals {
     undefined addSpellingErrorForTesting(Node node, unsigned long start, unsigned long end);
     DOMString spellingErrorRanges(Node node);
     Promise<DOMString> checkSpellingForTesting(DOMString text);
+    Promise<undefined> spellCheckSettled();
 
     const unsigned short MOD_NONE = 0;
     const unsigned short MOD_ALT = 1;

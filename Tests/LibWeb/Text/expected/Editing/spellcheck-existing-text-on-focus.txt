@@ -1,0 +1,13 @@
+area: 4-8
+text: 0-5
+password: (none)
+readonly: (none)
+disabled: (none)
+no-spellcheck: (none)
+astral: 3-7
+long: 20000-20004
+editable "Hel": (none)
+editable "lo": (none)
+editable " txet ": 1-5
+editable "txet": (none)
+unfocused: (none)

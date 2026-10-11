@@ -74,6 +74,14 @@ bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, Utf16FlyString> child,
 bool is_block_boundary_point(DOM::BoundaryPoint);
 bool is_block_end_point(DOM::BoundaryPoint);
 bool is_block_node(GC::Ref<DOM::Node>);
+struct ParagraphBounds {
+    GC::Ref<DOM::Node> start_node;
+    WebIDL::UnsignedLong start_offset { 0 };
+    GC::Ref<DOM::Node> end_node;
+    WebIDL::UnsignedLong end_offset { 0 };
+};
+ParagraphBounds paragraph_bounds_containing(DOM::Text&, WebIDL::UnsignedLong offset);
+GC::Ref<DOM::Range> paragraph_range_containing(DOM::Text&, WebIDL::UnsignedLong offset);
 bool is_block_start_point(DOM::BoundaryPoint);
 bool is_collapsed_block_prop(GC::Ref<DOM::Node>);
 bool is_collapsed_line_break(GC::Ref<DOM::Node>);

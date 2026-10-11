@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="long"></textarea>
+<script>
+    promiseTest(async () => {
+        const long = document.getElementById("long");
+        long.value = "word ".repeat(4000) + "txet";
+        long.setSelectionRange(0, 0);
+
+        // The existing text goes in chunks. An edit before a later chunk goes out doesn't make that chunk stale.
+        const rect = long.getBoundingClientRect();
+        internals.click(rect.left + 3, rect.top + 3);
+        internals.sendText(long, "x");
+        await internals.spellCheckSettled();
+        println(`edited while its text was being checked: ${internals.spellingErrorRanges(long) || "(none)"}`);
+    });
+</script>

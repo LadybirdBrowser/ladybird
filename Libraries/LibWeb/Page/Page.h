@@ -306,6 +306,10 @@ public:
     void did_check_spelling(u64 request_id, Vector<SpellingError>);
     bool has_pending_spell_checks() const { return !m_pending_spell_check_requests.is_empty(); }
 
+    // For tests: Calls the callback once no document of the page has spellchecking queued or in flight.
+    void when_spell_checking_settled(GC::Ref<GC::Function<void()>>);
+    void notify_spell_check_progress();
+
     using GeolocationPositionResult = Variant<Geolocation::CoordinatesData, Geolocation::GeolocationPositionError::ErrorCode>;
     using GeolocationPositionCallback = GC::Ref<GC::Function<void(GeolocationPositionResult)>>;
     enum class GeolocationRequestType : u8 {
@@ -516,6 +520,7 @@ private:
     bool m_spell_checking_available { false };
     HashMap<u64, SpellCheckRequest> m_pending_spell_check_requests;
     u64 m_next_spell_check_request_id { 0 };
+    Vector<GC::Ref<GC::Function<void()>>> m_spell_checking_settled_callbacks;
 
     struct PendingGeolocationRequest {
         GeolocationPositionCallback callback;

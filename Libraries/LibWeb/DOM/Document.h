@@ -339,6 +339,8 @@ public:
     void remove_find_in_page_highlighted_matches_whose_text_changed();
 
     Editing::SpellingMarkers& spelling_markers();
+    Editing::SpellCheckController& spell_check_controller();
+    Editing::SpellCheckController* spell_check_controller_if_exists() { return m_spell_check_controller.ptr(); }
     bool has_spelling_markers() const;
     void recompute_search_text_paint_states(Layout::BegunRead const&);
     void note_spelling_markers_changed();
@@ -1996,6 +1998,7 @@ private:
     Utf16String m_find_in_page_active_match_text;
     Vector<GC::Ref<Range>> m_find_in_page_highlighted_matches;
     OwnPtr<Editing::SpellingMarkers> m_spelling_markers;
+    OwnPtr<Editing::SpellCheckController> m_spell_check_controller;
     Vector<Utf16String> m_find_in_page_highlighted_match_texts;
     u64 m_find_in_page_highlighted_matches_dom_tree_version { 0 };
     u64 m_find_in_page_highlighted_matches_character_data_version { 0 };

@@ -129,6 +129,7 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Editing/EditingHistory.h>
+#include <LibWeb/Editing/SpellCheckController.h>
 #include <LibWeb/Editing/SpellingMarkers.h>
 #include <LibWeb/Fetch/Fetching/Checks.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -923,6 +924,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
         m_query_selector_result_cache->visit_edges(visitor);
     if (m_spelling_markers)
         m_spelling_markers->visit_edges(visitor);
+    if (m_spell_check_controller)
+        m_spell_check_controller->visit_edges(visitor);
 
     for (auto& event : m_pending_animation_event_queue) {
         visitor.visit(event.event);
@@ -1144,6 +1147,13 @@ Editing::SpellingMarkers& Document::spelling_markers()
     if (!m_spelling_markers)
         m_spelling_markers = make<Editing::SpellingMarkers>(*this);
     return *m_spelling_markers;
+}
+
+Editing::SpellCheckController& Document::spell_check_controller()
+{
+    if (!m_spell_check_controller)
+        m_spell_check_controller = make<Editing::SpellCheckController>(*this);
+    return *m_spell_check_controller;
 }
 
 bool Document::has_spelling_markers() const
@@ -3967,6 +3977,9 @@ void Document::set_focused_area(GC::Ptr<Node> node, InvalidateFocusPseudoClasses
     set_needs_repaint(InvalidateDisplayList::PaintCommands);
 
     update_active_element();
+
+    if (navigable() && page().spell_checking_available())
+        spell_check_controller().did_focus(m_focused_area);
 }
 
 Element const* Document::active_element() const
