@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const shadow = host.attachShadow({ mode: "open", slotAssignment: "manual" });
+        shadow.innerHTML = `
+            <style>
+                #first { color: rgb(0, 128, 0); }
+                #second { color: rgb(0, 0, 255); }
+                ::slotted(div:nth-child(odd)) { font-weight: bold; }
+            </style>
+            <slot id="first"></slot><slot id="second"></slot>`;
+        const first = shadow.getElementById("first");
+        const second = shadow.getElementById("second");
+        const children = [];
+        for (let index = 0; index < 40; ++index) {
+            const child = document.createElement("div");
+            child.innerHTML = "<span>child</span>";
+            children.push(child);
+            host.append(child);
+        }
+        const text = document.createTextNode("text slottable");
+        host.append(text);
+        first.assign(...children, text);
+        internals.updateStyle();
+
+        let before = internals.styleEngineCounters();
+        first.style.backgroundColor = "red";
+        internals.updateStyle();
+        let after = internals.styleEngineCounters();
+        println(`manual slot paint change only reaches slot: ${after.reachedStyleNodes - before.reachedStyleNodes === 1}`);
+        println(`child background: ${getComputedStyle(children[0]).backgroundColor}`);
+        println(`text remains assigned: ${first.assignedNodes().includes(text)}`);
+
+        internals.updateStyle();
+        before = internals.styleEngineCounters();
+        second.assign(children[0]);
+        internals.updateStyle();
+        after = internals.styleEngineCounters();
+        println(`manual reassignment only reaches moved subtree: ${after.reachedStyleNodes - before.reachedStyleNodes <= 2}`);
+        println(`moved child assigned to second: ${children[0].assignedSlot === second}`);
+        println(`remaining child stays assigned to first: ${children[1].assignedSlot === first}`);
+        println(`moved child color: ${getComputedStyle(children[0]).color}`);
+        println(`moved descendant color: ${getComputedStyle(children[0].firstElementChild).color}`);
+        println(`remaining child color: ${getComputedStyle(children[1]).color}`);
+        println(`moved child positional style: ${getComputedStyle(children[0]).fontWeight}`);
+        println(`remaining child positional style: ${getComputedStyle(children[1]).fontWeight}`);
+
+        children[0].style.backgroundColor = "var(--missing, inherit)";
+        internals.updateStyle();
+        second.style.backgroundColor = "green";
+        internals.updateStyle();
+        println(`manual slot substituted inheritance: ${getComputedStyle(children[0]).backgroundColor}`);
+
+        first.style.color = "red";
+        internals.updateStyle();
+        println(`remaining descendants inherit changed color: ${children.slice(1).every(child => getComputedStyle(child.firstElementChild).color === "rgb(255, 0, 0)")}`);
+        println(`other slot color is unchanged: ${getComputedStyle(children[0]).color}`);
+        println(`text remains in first slot: ${first.assignedNodes().includes(text)}`);
+    });
+</script>
