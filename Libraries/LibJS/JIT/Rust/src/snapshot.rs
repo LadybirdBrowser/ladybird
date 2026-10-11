@@ -11,6 +11,8 @@
 //! every referenced cell alive until the compiled code is installed or the
 //! compile job is abandoned.
 
+use std::sync::Arc;
+
 use crate::bytecode::EnvironmentCoordinate;
 use crate::bytecode::ExceptionHandler;
 use crate::bytecode::FrameLayout;
@@ -697,7 +699,7 @@ pub struct RuntimeInfo {
     /// The address of the slow path each generic opcode calls, indexed by
     /// opcode, or 0 if there is none. `codegen::slow_path_symbol()` names the
     /// function for each opcode and the calling convention it is called with.
-    pub slow_paths: Vec<u64>,
+    pub slow_paths: Arc<[u64]>,
     /// `i64 libjs_jit_call(VM*, ExecutionContext*, u32 pc)`: runs the call
     /// instruction at `pc` to completion, writes its result into its
     /// destination slot, and returns a slow path control word.

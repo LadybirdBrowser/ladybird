@@ -186,8 +186,8 @@ pub struct JitState {
     /// The compile jobs that run on the compile thread, by id.
     jobs: RefCell<HashMap<u64, CompileJob>>,
     next_job_id: Cell<u64>,
-    /// The address of the slow path of each generic opcode JIT code calls, or 0, indexed by opcode.
-    slow_paths: OnceCell<Vec<u64>>,
+    /// The addresses of the runtime functions JIT code calls, looked up the first time a compile job needs them.
+    runtime_function_addresses: OnceCell<runtime_info::RuntimeFunctionAddresses>,
     /// How native code enters JIT code, generated the first time it does.
     entry_trampoline: OnceCell<(ExecutableMemory, EntryTrampoline)>,
     /// The call stub JIT code shares (see `libjs_jit::codegen::generate_call_stub()`), generated the first time a
@@ -234,7 +234,7 @@ impl JitState {
             compile_queue: OnceCell::new(),
             jobs: RefCell::default(),
             next_job_id: Cell::new(1),
-            slow_paths: OnceCell::new(),
+            runtime_function_addresses: OnceCell::new(),
             entry_trampoline: OnceCell::new(),
             call_stub: OnceCell::new(),
             dependents: dependencies::Dependents::default(),
@@ -432,8 +432,9 @@ impl JitState {
             .map_or(0, |memory| memory.address() as u64)
     }
 
-    pub(crate) fn slow_paths(&self) -> &[u64] {
-        self.slow_paths.get_or_init(runtime_info::slow_path_addresses)
+    pub(crate) fn runtime_function_addresses(&self) -> &runtime_info::RuntimeFunctionAddresses {
+        self.runtime_function_addresses
+            .get_or_init(runtime_info::RuntimeFunctionAddresses::look_up)
     }
 }
 
