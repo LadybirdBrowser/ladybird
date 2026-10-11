@@ -154,6 +154,13 @@ fn never_compile(vm: &Vm) -> ThrowCompletionOr<Value> {
     if executable.jit_compile_state() == CompileState::Installed {
         executable.discard_jit_code(vm);
     }
+    // NB: Discarded code stays attached until no frame runs it, and is only detached (and counted) while the
+    //     executable is discarding it.
+    if executable.jit_compile_state() == CompileState::Discarding && !executable.detach_discarded_jit_code_if_unused(vm)
+    {
+        executable.refuse_jit_compile_once_detached();
+        return Ok(Value::UNDEFINED);
+    }
     tier_up::refuse_jit_compile(vm, &executable);
     Ok(Value::UNDEFINED)
 }

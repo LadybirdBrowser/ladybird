@@ -59,6 +59,27 @@ describe("jit testing object", () => {
         expect(jit.isCompiled(f)).toBeFalse();
     });
 
+    test("never compiles functions whose code was discarded while it ran", () => {
+        // NB: The functions discard their own code, so frames still run it until they return.
+        const other = new Function("");
+        const f = new Function("target", "jit.discard(target); return 1;");
+        jit.prepare(f);
+        for (let i = 0; i < 10; ++i) f(other);
+        jit.compile(f);
+        expect(f(f)).toBe(1);
+        jit.neverCompile(f);
+        expect(jit.discardCount(f)).toBe(jit.enabled ? 1 : 0);
+        expect(jit.compile(f)).toBeFalse();
+
+        const g = new Function("target", "jit.discard(target); jit.neverCompile(target); return 1;");
+        jit.prepare(g);
+        for (let i = 0; i < 10; ++i) g(other);
+        jit.compile(g);
+        expect(g(g)).toBe(1);
+        expect(jit.compile(g)).toBeFalse();
+        expect(jit.discardCount(g)).toBe(jit.enabled ? 1 : 0);
+    });
+
     test("tells whether its caller runs in compiled code", () => {
         const probe = new Function("return jit.inCompiledCode();");
         jit.prepare(probe);
