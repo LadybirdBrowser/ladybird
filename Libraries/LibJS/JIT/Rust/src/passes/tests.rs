@@ -392,3 +392,46 @@ fn check_elimination_keeps_checks_that_a_later_entry_reaches_blocks_before_it() 
     verify(&graph).unwrap();
     assert_eq!(graph.blocks[4].body, vec![second]);
 }
+
+#[test]
+fn simplification_removes_integer_double_round_trips() {
+    for conversion in [Op::Int32ToFloat64, Op::Uint32ToFloat64] {
+        let mut graph = Graph::default();
+        graph.add_block(Block::default());
+        let bits = node(&mut graph, Op::Constant(0xffff_ffff), vec![], Some(Repr::Int32));
+        let double = node(&mut graph, conversion, vec![bits], Some(Repr::Float64));
+        let integer = node(&mut graph, Op::Float64ToInt32, vec![double], Some(Repr::Int32));
+        let boxed = node(&mut graph, Op::BoxInt32, vec![integer], Some(Repr::Tagged));
+        let ret = node(&mut graph, Op::Return, vec![boxed], None);
+        graph.blocks[0].body = vec![double, integer, boxed];
+        graph.blocks[0].control = Some(ret);
+        verify(&graph).unwrap();
+
+        super::simplify::run(&mut graph);
+        verify(&graph).unwrap();
+        assert!(!graph.blocks[0].body.contains(&integer));
+        assert_eq!(
+            graph.constant_value(graph.node(ret).inputs[0]),
+            Some(crate::ir::value::int32(-1))
+        );
+    }
+}
+
+#[test]
+fn simplification_keeps_double_integer_round_trips() {
+    let mut graph = Graph::default();
+    graph.add_block(Block::default());
+    let double = node(&mut graph, Op::Constant(1.5_f64.to_bits()), vec![], Some(Repr::Float64));
+    let integer = node(&mut graph, Op::Float64ToInt32, vec![double], Some(Repr::Int32));
+    let converted = node(&mut graph, Op::Int32ToFloat64, vec![integer], Some(Repr::Float64));
+    let boxed = node(&mut graph, Op::BoxFloat64, vec![converted], Some(Repr::Tagged));
+    let ret = node(&mut graph, Op::Return, vec![boxed], None);
+    graph.blocks[0].body = vec![integer, converted, boxed];
+    graph.blocks[0].control = Some(ret);
+    verify(&graph).unwrap();
+
+    super::simplify::run(&mut graph);
+    verify(&graph).unwrap();
+    assert_eq!(graph.node(converted).inputs, vec![integer]);
+    assert!(graph.blocks[0].body.contains(&integer));
+}

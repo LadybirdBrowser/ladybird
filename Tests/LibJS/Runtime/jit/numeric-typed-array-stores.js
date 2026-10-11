@@ -155,3 +155,24 @@ test("numeric store guards restore a later loop iteration before coercion", () =
     expect(calls).toBe(1);
     for (let i = 0; i < output.length; ++i) expect(output[i]).toBe(i === 13 ? 4294967295 : 4294967200 + i);
 });
+
+test("integer values retain their bits through signed and unsigned numeric stores", () => {
+    const values = [-2147483648, -65537, -257, -1, 0, 1, 255, 65535, 2147483647];
+    for (const Constructor of numericArrayConstructors) {
+        for (const unsigned of [false, true]) {
+            const store = new Function(
+                "array",
+                "value",
+                unsigned ? "array[0] = value >>> 0; return array[0];" : "array[0] = value | 0; return array[0];"
+            );
+            const array = new Constructor(1);
+            jit.prepare(store);
+            for (const value of values) store(array, value);
+            expect(jit.compile(store)).toBe(jit.enabled);
+            for (const value of values) {
+                expect(store(array, value)).toBe(new Constructor([unsigned ? value >>> 0 : value | 0])[0]);
+            }
+            expect(jit.exitCount(store)).toBe(0);
+        }
+    }
+});

@@ -171,6 +171,12 @@ pub fn run(graph: &mut Graph) {
                     Op::UnboxInt32 => boxed(Op::BoxFloat64, graph.node(inputs[0]).inputs[0]),
                     _ => None,
                 },
+                // NB: Both signed and unsigned int32 values are exactly
+                //     representable as doubles. ToInt32 recovers their bits.
+                Op::Float64ToInt32 => match graph.node(inputs[0]).op {
+                    Op::Int32ToFloat64 | Op::Uint32ToFloat64 => Some(graph.node(inputs[0]).inputs[0]),
+                    _ => None,
+                },
                 Op::BoxInt32 => int32_of(graph, inputs[0]).map(|integer| constants.get(graph, value::int32(integer))),
                 Op::BoxBool => constant_bits(graph, 0).map(|bits| {
                     let boolean = if bits != 0 { value::TRUE } else { value::FALSE };
