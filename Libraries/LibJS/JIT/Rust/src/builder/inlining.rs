@@ -910,17 +910,23 @@ impl GraphBuilder<'_> {
         {
             return Ok(None);
         }
-        let Ok(mut callee_function) = Function::new(index, callee_executable) else {
+        let Ok(decoded) = super::decoded_function(callee_executable, &self.decoded[index as usize]) else {
             return Ok(None);
         };
-        let instruction_count = callee_function.instructions.len();
+        let instruction_count = decoded.instructions.len();
         // NB: Builtins are always inlined (see the snapshot's inlining rules).
         let within_budget = callee_executable.builtin
             || instruction_count <= limits.always_inlined_instructions as usize
             || (construct.is_some() && instruction_count <= limits.max_construct_instructions as usize)
             || (instruction_count <= limits.max_instructions as usize
                 && self.inlined_instructions + instruction_count <= limits.budget_instructions as usize);
-        if !within_budget || !can_inline(&callee_function) {
+        if !within_budget {
+            return Ok(None);
+        }
+        let Ok(mut callee_function) = Function::new(index, callee_executable, decoded) else {
+            return Ok(None);
+        };
+        if !can_inline(&callee_function) {
             return Ok(None);
         }
         if construct.is_some() && !returns_no_object(&callee_function) {

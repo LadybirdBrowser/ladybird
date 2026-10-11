@@ -99,6 +99,7 @@ use crate::snapshot::RuntimeInfo;
 use crate::snapshot::Snapshot;
 pub(crate) use slow_paths::is_ssa_slow_path_output;
 pub(crate) use slow_paths::js_call_operands;
+use std::cell::OnceCell;
 
 /// Builds the IR for `snapshot.executables[0]`.
 pub fn build_graph(snapshot: &Snapshot) -> Result<Graph, CompileFailure> {
@@ -141,18 +142,21 @@ pub fn has_run(executable: &ExecutableSnapshot, pc: u32) -> bool {
 /// Like `build_graph()`, with the "did this instruction ever run" oracle
 /// given by the caller.
 pub fn build_graph_with_feedback(snapshot: &Snapshot, has_run: &dyn Fn(u32) -> bool) -> Result<Graph, CompileFailure> {
-    let graph = GraphBuilder::new(snapshot, has_run, true, true)?.build()?;
+    let decoded = (0..snapshot.executables.len())
+        .map(|_| OnceCell::new())
+        .collect::<Vec<_>>();
+    let graph = GraphBuilder::new(snapshot, has_run, &decoded, true, true)?.build()?;
     if !arguments::uses_virtual_arguments(&graph) {
         return Ok(graph);
     }
     if !graph.osr_entries.is_empty() {
-        let graph = GraphBuilder::new(snapshot, has_run, true, false)?.build()?;
+        let graph = GraphBuilder::new(snapshot, has_run, &decoded, true, false)?.build()?;
         if !arguments::uses_virtual_arguments(&graph) {
             return Ok(graph);
         }
     }
     // Something needs the arguments object itself.
-    GraphBuilder::new(snapshot, has_run, false, true)?.build()
+    GraphBuilder::new(snapshot, has_run, &decoded, false, true)?.build()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -288,6 +292,48 @@ fn loop_phi_slots(cfg: &Cfg) -> Vec<BitSet> {
     slots
 }
 
+/// Bytecode decoding and analyses shared by every walk of an executable.
+/// Analyses are lazy: an inlining budget rejection only needs decoding.
+struct DecodedFunction {
+    instructions: Vec<DecodedInstruction>,
+    analysis: OnceCell<Result<FunctionAnalysis, CompileFailure>>,
+}
+
+fn decoded_function<'a>(
+    executable: &ExecutableSnapshot,
+    cache: &'a OnceCell<Result<DecodedFunction, CompileFailure>>,
+) -> Result<&'a DecodedFunction, CompileFailure> {
+    cache
+        .get_or_init(|| {
+            let instructions = decode_all(&executable.bytecode).map_err(|error| CompileFailure::InvalidBytecode {
+                pc: error.pc,
+                reason: "undecodable instruction",
+            })?;
+            if instructions.is_empty() {
+                return Err(CompileFailure::InvalidBytecode {
+                    pc: 0,
+                    reason: "empty bytecode",
+                });
+            }
+            Ok(DecodedFunction {
+                instructions,
+                analysis: OnceCell::new(),
+            })
+        })
+        .as_ref()
+        .map_err(|error| *error)
+}
+
+struct FunctionAnalysis {
+    cfg: Cfg,
+    liveness: Liveness,
+    loop_phi_slots: Vec<BitSet>,
+    loops_replacing_environments: Vec<bool>,
+    written_constants: BitSet,
+    writes_arguments: bool,
+    may_write_parameter_bindings: bool,
+}
+
 /// The state of the builder's walk over one executable: the compiled
 /// function or an inlined callee.
 struct Function<'a> {
@@ -295,9 +341,9 @@ struct Function<'a> {
     index: u32,
     executable: &'a ExecutableSnapshot,
     layout: FrameLayout,
-    instructions: Vec<DecodedInstruction>,
-    cfg: Cfg,
-    liveness: Liveness,
+    instructions: &'a [DecodedInstruction],
+    cfg: &'a Cfg,
+    liveness: &'a Liveness,
     /// The IR block of each bytecode block, created when first referenced.
     ir_blocks: Vec<Option<BlockId>>,
     /// Forward edges into each bytecode block not yet started: the IR
@@ -309,16 +355,16 @@ struct Function<'a> {
     /// which every back edge must reconcile with.
     loop_header_frames: Vec<Option<AbstractFrame>>,
     /// For each loop, the slots that get phis at its header.
-    loop_phi_slots: Vec<BitSet>,
+    loop_phi_slots: &'a [BitSet],
     /// For each loop, whether it may replace an environment.
-    loops_replacing_environments: Vec<bool>,
+    loops_replacing_environments: &'a [bool],
     /// The loop headers that on-stack replacement entries lead to over back
     /// edges, which are built even if no forward edge reaches them.
     osr_loop_headers: Vec<bool>,
     /// Constant slots some instruction writes. The interpreter keeps a copy of
     /// the constants in the frame, and writes to a constant operand change that
     /// copy, so such slots live in frame memory like the reserved registers.
-    written_constants: BitSet,
+    written_constants: &'a BitSet,
     /// Index of the instruction being built.
     instruction_index: usize,
     pc: u32,
@@ -337,60 +383,70 @@ struct Function<'a> {
 }
 
 impl<'a> Function<'a> {
-    fn new(index: u32, executable: &'a ExecutableSnapshot) -> Result<Self, CompileFailure> {
+    fn new(
+        index: u32,
+        executable: &'a ExecutableSnapshot,
+        decoded: &'a DecodedFunction,
+    ) -> Result<Self, CompileFailure> {
         let layout = executable.layout;
-        let instructions = decode_all(&executable.bytecode).map_err(|error| CompileFailure::InvalidBytecode {
-            pc: error.pc,
-            reason: "undecodable instruction",
-        })?;
-        if instructions.is_empty() {
-            return Err(CompileFailure::InvalidBytecode {
-                pc: 0,
-                reason: "empty bytecode",
-            });
-        }
-        let cfg = Cfg::new(&instructions, &executable.exception_handlers, &layout).map_err(|_| {
-            CompileFailure::InvalidBytecode {
-                pc: 0,
-                reason: "invalid control flow",
-            }
-        })?;
-        let liveness = Liveness::compute(&instructions, &cfg, &layout);
-        let block_count = cfg.blocks.len();
-        let loop_phi_slots = loop_phi_slots(&cfg);
-        let loops_replacing_environments = loops_replacing_environments(&cfg, &instructions);
-        let written_constants = written_constants(&instructions, &layout);
-        let may_write_parameter_bindings = instructions
-            .iter()
-            .any(|decoded| arguments::may_write_parameter_bindings(decoded.instruction.opcode()));
-        let mut writes_arguments = false;
-        for decoded in &instructions {
-            decoded.instruction.for_each_operand(|operand, role| {
-                writes_arguments |= role.is_written() && operand.raw() >= layout.arguments_base();
-            });
-        }
+        let instructions = decoded.instructions.as_slice();
+        let analysis = decoded
+            .analysis
+            .get_or_init(|| {
+                let cfg = Cfg::new(instructions, &executable.exception_handlers, &layout).map_err(|_| {
+                    CompileFailure::InvalidBytecode {
+                        pc: 0,
+                        reason: "invalid control flow",
+                    }
+                })?;
+                let liveness = Liveness::compute(instructions, &cfg, &layout);
+                let loop_phi_slots = loop_phi_slots(&cfg);
+                let loops_replacing_environments = loops_replacing_environments(&cfg, instructions);
+                let written_constants = written_constants(instructions, &layout);
+                let may_write_parameter_bindings = instructions
+                    .iter()
+                    .any(|decoded| arguments::may_write_parameter_bindings(decoded.instruction.opcode()));
+                let mut writes_arguments = false;
+                for decoded in instructions {
+                    decoded.instruction.for_each_operand(|operand, role| {
+                        writes_arguments |= role.is_written() && operand.raw() >= layout.arguments_base();
+                    });
+                }
+                Ok(FunctionAnalysis {
+                    cfg,
+                    liveness,
+                    loop_phi_slots,
+                    loops_replacing_environments,
+                    written_constants,
+                    writes_arguments,
+                    may_write_parameter_bindings,
+                })
+            })
+            .as_ref()
+            .map_err(|error| *error)?;
+        let block_count = analysis.cfg.blocks.len();
         Ok(Self {
             index,
             executable,
             layout,
             instructions,
-            cfg,
-            liveness,
+            cfg: &analysis.cfg,
+            liveness: &analysis.liveness,
             ir_blocks: vec![None; block_count],
             incoming: vec![Vec::new(); block_count],
             started: vec![false; block_count],
             loop_header_frames: vec![None; block_count],
-            loop_phi_slots,
-            loops_replacing_environments,
+            loop_phi_slots: &analysis.loop_phi_slots,
+            loops_replacing_environments: &analysis.loops_replacing_environments,
             osr_loop_headers: vec![false; block_count],
-            written_constants,
+            written_constants: &analysis.written_constants,
             instruction_index: 0,
             pc: 0,
             eager_frame_state: None,
             inline: None,
-            writes_arguments,
+            writes_arguments: analysis.writes_arguments,
             skipped_instructions: 0,
-            may_write_parameter_bindings,
+            may_write_parameter_bindings: analysis.may_write_parameter_bindings,
         })
     }
 
@@ -417,6 +473,7 @@ struct GraphBuilder<'a> {
     runtime: &'a RuntimeInfo,
     has_run: &'a dyn Fn(u32) -> bool,
 
+    decoded: &'a [OnceCell<Result<DecodedFunction, CompileFailure>>],
     graph: Graph,
     /// The blocks in linear order, as they are started.
     order: Vec<BlockId>,
@@ -447,6 +504,7 @@ impl<'a> GraphBuilder<'a> {
     fn new(
         snapshot: &'a Snapshot,
         has_run: &'a dyn Fn(u32) -> bool,
+        decoded: &'a [OnceCell<Result<DecodedFunction, CompileFailure>>],
         virtualize_arguments: bool,
         build_osr_entries: bool,
     ) -> Result<Self, CompileFailure> {
@@ -454,12 +512,13 @@ impl<'a> GraphBuilder<'a> {
             pc: 0,
             reason: "no executable",
         })?;
-        let function = Function::new(0, executable)?;
+        let function = Function::new(0, executable, decoded_function(executable, &decoded[0])?)?;
         let slot_count = function.layout.tracked_slot_count();
         Ok(Self {
             snapshot,
             runtime: &snapshot.runtime,
             has_run,
+            decoded,
             graph: Graph::default(),
             order: Vec::new(),
             constants: HashMap::default(),
