@@ -72,6 +72,11 @@ from them alone:
 Global value numbering shares nodes without effects that read no memory; check elimination reuses
 loads.
 
+Equality feedback records comparisons of two objects separately from other non-numeric operands.
+Loose equality that only saw pairs of objects checks both operands with `CheckObject` and compares
+their identities with `TaggedEquals`. A non-object operand exits before any coercion. Strict
+equality also treats this feedback as identity comparable.
+
 ### 3.2 Refinements
 
 A node that relies on a check takes the check's value as its input, never the checked value

@@ -206,6 +206,7 @@ pub fn describe_feedback(executable: &Executable) -> Option<String> {
                         (arith_feedback::STRING, "String"),
                         (arith_feedback::BIG_INT, "BigInt"),
                         (arith_feedback::OTHER, "Other"),
+                        (arith_feedback::OBJECT_PAIR, "ObjectPair"),
                     ],
                 );
             }
