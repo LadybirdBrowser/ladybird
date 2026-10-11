@@ -153,7 +153,7 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | ProbeGlobalCache, ProbeGlobalStore | The global variable a global variable cache is for (a data property of the global object of the cached shape, or an initialized binding of the global declarative environment), like `GetGlobal` and `SetGlobal`; the empty value, or false, where the cache does not apply. Inputs: the realm and the executable (and for stores, the value first). | | Any | (Store) Any | |
 | ProbeHasProperty | Whether the object has the property the key names, as its own (`hasOwnProperty`) or at all (`in`), where the VM can tell without running code: from the VM's keyed cache and, for `in`, the elements inline, and from the runtime's lookup out of line; the empty value otherwise. | | Any | | saves GPRs |
 | AppendElement | Appends an element below the capacity. | | Elements | Elements | |
-| CallArrayPush | Appends an element, growing the elements, preserving every register. | | Elements | Elements | allocates |
+| CallArrayPush | Appends an element, growing the elements, preserving every register. Pushes of several values that do not fit call it for each. | | Elements | Elements | allocates |
 | **Strings and for-in** | | | | | |
 | StringLength, LoadStringCodeUnit | The length of a string, and a code unit of a readable string at an index in bounds, which the refinements of their branches establish. Strings never change. | | | | cse |
 | SingleCharacterString | The VM's string of an ASCII code unit (refined below 128). | | | | cse |
