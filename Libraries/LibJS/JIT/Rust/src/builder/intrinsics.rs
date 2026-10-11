@@ -292,11 +292,12 @@ impl GraphBuilder<'_> {
         let array = self.cell_address(receiver);
         let length = self.emit(Op::LoadElementsLength, vec![array], Some(Repr::Int32));
         let capacity = self.emit(Op::LoadElementsCapacity, vec![array], Some(Repr::Int32));
-        // NB: One value fits where the length is below the capacity; more
-        //     need that much room between them, which only overflows for
-        //     packed elements longer than i32::MAX, and exits for them.
+        // NB: One value fits where the length is below the capacity, compared
+        //     unsigned so that lengths above i32::MAX (negative as int32
+        //     values) never fit. More values need that much room between
+        //     them, which only overflows for such lengths, and exits for them.
         let (room_condition, room_inputs) = if values.len() == 1 {
-            (BranchCondition::Int32(Comparison::LessThan), vec![length, capacity])
+            (BranchCondition::IndexInBounds, vec![length, capacity])
         } else {
             let room = self.emit_checked(
                 Op::Int32Binary { op: BinaryOp::Sub },

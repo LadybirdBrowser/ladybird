@@ -156,8 +156,14 @@ impl GraphBuilder<'_> {
         let array = self.emit_checked(Op::CheckAppendableArray, vec![object], None);
         let array_address = self.cell_address(array);
         let capacity = self.emit(Op::LoadElementsCapacity, vec![array_address], Some(Repr::Int32));
-        let room = BranchCondition::Int32(Comparison::LessThan);
-        let next_index = self.branch_to_slow_path(slow_paths, room, vec![next_index, capacity], true);
+        // NB: Lengths above i32::MAX are negative as int32 values, which an
+        //     unsigned comparison keeps from passing as room for an element.
+        let next_index = self.branch_to_slow_path(
+            slow_paths,
+            BranchCondition::IndexInBounds,
+            vec![next_index, capacity],
+            true,
+        );
         self.emit(
             Op::AppendElement,
             vec![array_address, next_index, value],
