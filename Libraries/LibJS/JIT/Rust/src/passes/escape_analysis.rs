@@ -9,8 +9,9 @@
 //! An object an `AllocateObject` makes escapes when anything could see it
 //! besides accesses of its named properties: when it is stored into the
 //! frame or into an object that escapes, passed to anything but property
-//! accesses and checks (an operand of a slow path or a call included), or
-//! merged in a phi. An object that does not escape is never allocated: its
+//! accesses and checks (an operand of a slow path or a call included),
+//! passed to an inlined call whose legacy `arguments` code it runs can read,
+//! or merged in a phi. An object that does not escape is never allocated: its
 //! properties become SSA values, initialized to `undefined`. Stores update
 //! them, loads become the value stored last, checks of the object (whose
 //! shape is known) go away, and where paths merge, phis merge the values.
@@ -108,6 +109,14 @@ fn analyze(graph: &Graph, placed: &[NodeId], escaping: &[NodeId]) -> Analysis {
             if let Some(root) = roots.get(&data.inputs[0]).copied() {
                 roots.insert(*node, root);
                 changed = true;
+            }
+        }
+    }
+
+    for node in placed {
+        for value in graph.legacy_argument_values_read_by(*node) {
+            if let Some(root) = roots.get(&value) {
+                escaped.insert(root.index());
             }
         }
     }
