@@ -754,16 +754,20 @@ impl RetainedState {
         if !self.facts.element_custom_declarations(node).is_empty() {
             return true;
         }
-        matches!(
-            self.try_for_each_element_match(node, |rule, _, _, _| {
-                if self.program.custom_declarations_of(rule).is_empty() {
-                    ControlFlow::Continue(())
-                } else {
-                    ControlFlow::Break(())
-                }
-            }),
-            Some(ControlFlow::Break(()))
-        )
+        let declares = |rule: RuleID, _: TreeScopeID, _: Specificity, _: u32| {
+            if self.program.custom_declarations_of(rule).is_empty() {
+                ControlFlow::Continue(())
+            } else {
+                ControlFlow::Break(())
+            }
+        };
+        // An element standing for its shadow host's pseudo-element, such as the slot `::details-content` is, cascades
+        // the host's rules for that pseudo-element, and its environment resolves their custom declarations.
+        let result = match self.backed_host_pseudo_element(node) {
+            Some((kind, host)) => self.try_for_each_match(host, Some(kind), declares),
+            None => self.try_for_each_element_match(node, declares),
+        };
+        matches!(result, Some(ControlFlow::Break(())))
     }
 
     /// Whether a reaction on the node may move its custom-property environment, which its

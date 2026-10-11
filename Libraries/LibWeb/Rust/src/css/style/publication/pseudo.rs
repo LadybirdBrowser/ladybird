@@ -761,7 +761,7 @@ impl RetainedState {
     /// is), whose style is that pseudo-element's, cascaded from the host's rules, and the shadow
     /// host it stands for it on. The host publishes the kind with the element's facts, and an
     /// element in no shadow tree stands for nothing.
-    pub(super) fn backed_host_pseudo_element(&self, node: StyleNodeID) -> Option<(u8, StyleNodeID)> {
+    pub(in crate::css::style) fn backed_host_pseudo_element(&self, node: StyleNodeID) -> Option<(u8, StyleNodeID)> {
         let kind = self.computed_group_sets.associated_pseudo_kind(node)?;
         Some((kind, self.tree.shadow_host_of(node)?))
     }
