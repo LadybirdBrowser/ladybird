@@ -246,6 +246,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
         };
         let scale = self.inputs.device_pixels_per_css_pixel;
         let hit_test_facts = self.hit_test_facts(paintable);
+        let chains_scroll_to_ancestors =
+            crate::painting::chrome_geometry::scroll_boundary_behavior(self.source, paintable).chains_to_ancestors;
         self.recorder.compositor_scroll_node(CompositorScrollNode {
             document_id: self.inputs.uncaptured.document_id,
             scrollable_node_id: UniqueNodeId(node_identity),
@@ -259,6 +261,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
             is_viewport,
             can_be_wheel_scrolled_horizontally: hit_test_facts.could_be_scrolled_horizontally,
             can_be_wheel_scrolled_vertically: hit_test_facts.could_be_scrolled_vertically,
+            chains_scroll_to_ancestors_horizontally: chains_scroll_to_ancestors.horizontal,
+            chains_scroll_to_ancestors_vertically: chains_scroll_to_ancestors.vertical,
         });
         if let Some(geometry) = scroll_snap::snap_container_geometry(self.source, paintable) {
             self.record_snap_geometry(paintable, geometry);

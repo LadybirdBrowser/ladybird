@@ -36,6 +36,19 @@ AsyncScrollNode const* AsyncScrollTree::scroll_node_for_id(AsyncScrollNodeID nod
     return nullptr;
 }
 
+static bool delta_is_mainly_vertical(Gfx::FloatPoint delta)
+{
+    return AK::abs(delta.y()) >= AK::abs(delta.x());
+}
+
+// https://drafts.csswg.org/css-overscroll-1/#overscroll-behavior-properties
+// A step is taken by one scroller, and a touchpad rarely moves along one axis exactly, so the main axis of the step
+// decides whether a scroller that cannot take it passes it on.
+static bool node_chains_scroll_to_ancestors(AsyncScrollNode const& node, Gfx::FloatPoint delta)
+{
+    return delta_is_mainly_vertical(delta) ? node.chains_scroll_to_ancestors_vertically : node.chains_scroll_to_ancestors_horizontally;
+}
+
 WheelHitTestResult AsyncScrollTree::hit_test_result_for_scroll_node(AsyncScrollNodeID node_id, Gfx::FloatPoint delta, Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> const& in_flight_destination_for) const
 {
     auto can_take_step = [&](AsyncScrollNode const& node) {
@@ -48,7 +61,7 @@ WheelHitTestResult AsyncScrollTree::hit_test_result_for_scroll_node(AsyncScrollN
     for (auto const* node = scroll_node_for_id(node_id); node;) {
         if (can_take_step(*node))
             return { .node_id = node->node_id, .innermost_scroll_node_id = node_id };
-        if (!node->parent_node_id.has_value())
+        if (!node_chains_scroll_to_ancestors(*node, delta) || !node->parent_node_id.has_value())
             break;
         node = scroll_node_for_id(*node->parent_node_id);
     }
@@ -57,16 +70,15 @@ WheelHitTestResult AsyncScrollTree::hit_test_result_for_scroll_node(AsyncScrollN
 
 Optional<AsyncScrollNodeID> AsyncScrollTree::outermost_scroll_node_wheel_scrollable_along_main_axis_of(AsyncScrollNodeID innermost_node_id, Gfx::FloatPoint delta) const
 {
-    bool delta_is_mainly_vertical = AK::abs(delta.y()) >= AK::abs(delta.x());
     Optional<AsyncScrollNodeID> outermost_node_id;
     auto node_id = innermost_node_id;
     for (size_t remaining_ancestors = m_scroll_nodes.size(); remaining_ancestors > 0; --remaining_ancestors) {
         auto const* node = scroll_node_for_id(node_id);
         if (!node)
             break;
-        if (delta_is_mainly_vertical ? node->can_be_wheel_scrolled_vertically : node->can_be_wheel_scrolled_horizontally)
+        if (delta_is_mainly_vertical(delta) ? node->can_be_wheel_scrolled_vertically : node->can_be_wheel_scrolled_horizontally)
             outermost_node_id = node->node_id;
-        if (!node->parent_node_id.has_value())
+        if (!node_chains_scroll_to_ancestors(*node, delta) || !node->parent_node_id.has_value())
             break;
         node_id = *node->parent_node_id;
     }
@@ -128,14 +140,12 @@ Optional<AsyncScrollNodeID> AsyncScrollTree::scrollable_ancestor_for_node(AsyncS
     if (!node)
         return {};
 
-    auto parent_node_id = node->parent_node_id;
-    while (parent_node_id.has_value()) {
-        auto const* parent_node = scroll_node_for_id(*parent_node_id);
-        if (!parent_node)
+    while (node_chains_scroll_to_ancestors(*node, delta) && node->parent_node_id.has_value()) {
+        node = scroll_node_for_id(*node->parent_node_id);
+        if (!node)
             return {};
-        if (can_scroll_node_by_delta(*parent_node, scroll_state_snapshot, delta))
-            return *parent_node_id;
-        parent_node_id = parent_node->parent_node_id;
+        if (can_scroll_node_by_delta(*node, scroll_state_snapshot, delta))
+            return node->node_id;
     }
     return {};
 }
@@ -229,7 +239,7 @@ Optional<WheelScrollTarget> AsyncScrollTree::select_wheel_scroll_target(AsyncScr
             };
         }
 
-        if (scroll_chaining == ScrollChaining::None || !node->parent_node_id.has_value())
+        if (scroll_chaining == ScrollChaining::None || !node_chains_scroll_to_ancestors(*node, delta) || !node->parent_node_id.has_value())
             return {};
         node_id = *node->parent_node_id;
     }

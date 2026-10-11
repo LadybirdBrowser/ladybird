@@ -3879,6 +3879,7 @@
     }
   },
   "overscroll-behavior-x": {
+    "affects-hit-testing": true,
     "style-group": "MiscResetValues",
     "affects-layout": false,
     "animation-type": "discrete",
@@ -3890,6 +3891,7 @@
     ]
   },
   "overscroll-behavior-y": {
+    "affects-hit-testing": true,
     "style-group": "MiscResetValues",
     "affects-layout": false,
     "animation-type": "discrete",

@@ -1,0 +1,34 @@
+touchpad, overscroll-behavior-y: auto, up: page at 200,150
+touchpad, overscroll-behavior-y: auto, left: page at 150,200
+touchpad, overscroll-behavior-y: contain, up: page at 200,200
+touchpad, overscroll-behavior-y: contain, left: page at 150,200
+touchpad, overscroll-behavior-y: none, up: page at 200,200
+touchpad, overscroll-behavior-y: none, left: page at 150,200
+touchpad, overscroll-behavior-y: chain, up: page at 200,150
+touchpad, overscroll-behavior-y: chain, left: page at 150,200
+touchpad, overscroll-behavior-x: contain, left: page at 200,200
+touchpad, overscroll-behavior-x: contain, up: page at 200,150
+touchpad through the UI process, overscroll-behavior-y: auto, up: page at 200,150
+touchpad through the UI process, overscroll-behavior-y: auto, left: page at 150,200
+touchpad through the UI process, overscroll-behavior-y: contain, up: page at 200,200
+touchpad through the UI process, overscroll-behavior-y: contain, left: page at 150,200
+touchpad through the UI process, overscroll-behavior-y: none, up: page at 200,200
+touchpad through the UI process, overscroll-behavior-y: none, left: page at 150,200
+touchpad through the UI process, overscroll-behavior-y: chain, up: page at 200,150
+touchpad through the UI process, overscroll-behavior-y: chain, left: page at 150,200
+touchpad through the UI process, overscroll-behavior-x: contain, left: page at 200,200
+touchpad through the UI process, overscroll-behavior-x: contain, up: page at 200,150
+mouse wheel, overscroll-behavior-y: auto, up: page at 200,150
+mouse wheel, overscroll-behavior-y: auto, left: page at 150,200
+mouse wheel, overscroll-behavior-y: contain, up: page at 200,200
+mouse wheel, overscroll-behavior-y: contain, left: page at 150,200
+mouse wheel, overscroll-behavior-y: none, up: page at 200,200
+mouse wheel, overscroll-behavior-y: none, left: page at 150,200
+mouse wheel, overscroll-behavior-y: chain, up: page at 200,150
+mouse wheel, overscroll-behavior-y: chain, left: page at 150,200
+mouse wheel, overscroll-behavior-x: contain, left: page at 200,200
+mouse wheel, overscroll-behavior-x: contain, up: page at 200,150
+touchpad, overscroll-behavior: none, down: scroller at 0,50 page at 200,200
+changed to contain, up: page at 200,200
+changed to auto, up: page at 200,150
+changed to none, up: page at 200,200

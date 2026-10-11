@@ -68,6 +68,9 @@ struct AsyncScrollNode {
     bool is_viewport { false };
     bool can_be_wheel_scrolled_horizontally { false };
     bool can_be_wheel_scrolled_vertically { false };
+    // Whether a scroll the scroller cannot scroll by is passed on to the scrollers around it.
+    bool chains_scroll_to_ancestors_horizontally { true };
+    bool chains_scroll_to_ancestors_vertically { true };
 };
 
 // A region with a non-passive wheel listener. Wheels inside it must stay on the main thread because script may cancel.
