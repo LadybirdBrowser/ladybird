@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<button id="button">Save</button>
+<div id="label" hidden><span>Save the draft</span></div>
+<script>
+    test(() => {
+        const print_button = () => {
+            const visit = (node) => {
+                if (node.role === "button")
+                    println(`button "${node.name}"`);
+                for (const child of node.children ?? [])
+                    visit(child);
+            };
+            visit(JSON.parse(internals.dumpAccessibilityTree()));
+        };
+        print_button();
+        document.getElementById("button").setAttribute("aria-labelledby", "label");
+        print_button();
+    });
+</script>
