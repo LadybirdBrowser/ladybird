@@ -234,6 +234,8 @@ fn write_codes_in_chunk(chunk: &Chunk, writes: &[CodeWrite<'_>]) {
 struct FreeBlock {
     start: *mut u8,
     size: usize,
+    /// The index of the chunk the block lies in.
+    chunk: usize,
 }
 
 impl FreeBlock {
@@ -243,7 +245,8 @@ impl FreeBlock {
 }
 
 /// A first-fit allocator over chunks that stay mapped until the allocator goes away. Free blocks are kept sorted by
-/// address and coalesced.
+/// address and coalesced within their chunk. Chunks that the kernel happened to map next to each other may differ in
+/// how their writes are protected (see `write_codes_in_chunk()`), so no block, and no allocation, spans two of them.
 #[derive(Default)]
 pub struct CodeAllocator {
     free_blocks: Vec<FreeBlock>,
@@ -276,13 +279,17 @@ impl CodeAllocator {
 
     fn free(&mut self, start: *mut u8, size: usize) {
         let size = align_up(size, ALLOCATION_ALIGNMENT);
+        let chunk = self.chunk_index_of(start);
         let index = self.free_blocks.partition_point(|block| block.start < start);
-        self.free_blocks.insert(index, FreeBlock { start, size });
-        if index + 1 < self.free_blocks.len() && self.free_blocks[index].end() == self.free_blocks[index + 1].start {
+        self.free_blocks.insert(index, FreeBlock { start, size, chunk });
+        let adjacent = |blocks: &[FreeBlock], first: usize| {
+            blocks[first].end() == blocks[first + 1].start && blocks[first].chunk == blocks[first + 1].chunk
+        };
+        if index + 1 < self.free_blocks.len() && adjacent(&self.free_blocks, index) {
             self.free_blocks[index].size += self.free_blocks[index + 1].size;
             self.free_blocks.remove(index + 1);
         }
-        if index > 0 && self.free_blocks[index - 1].end() == self.free_blocks[index].start {
+        if index > 0 && adjacent(&self.free_blocks, index - 1) {
             self.free_blocks[index - 1].size += self.free_blocks[index].size;
             self.free_blocks.remove(index);
         }
