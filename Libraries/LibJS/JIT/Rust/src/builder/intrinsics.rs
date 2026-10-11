@@ -592,6 +592,19 @@ impl GraphBuilder<'_> {
             0,
             "{intrinsic:?} has a HelperCall but no runtime helper"
         );
+        // NB: Helpers run in the realm of the calling code.
+        let realm = self
+            .function
+            .executable
+            .function
+            .map_or(self.runtime.realm, |function| function.realm);
+        let builtin_realm = self
+            .call_feedback(*call_feedback)
+            .and_then(|feedback| feedback.native_call)
+            .map(|native| native.realm);
+        if builtin_realm != Some(realm) {
+            return Ok(None);
+        }
         // NB: Calls without a required argument pass undefined, which the
         //     slow path converts.
         let passes_required_arguments = call
@@ -612,6 +625,7 @@ impl GraphBuilder<'_> {
             .chain((0..call.arguments.len()).map(|index| arguments.get(index).copied()));
         for (operand, kind) in operands.zip(std::iter::once(call.receiver).chain(call.arguments.iter().copied())) {
             let input = match (operand, kind) {
+                (Some(operand), HelperOperand::Value) => self.read(operand)?,
                 (Some(operand), HelperOperand::String) => {
                     let value = self.read(operand)?;
                     self.branch_to_slow_path(&mut slow_paths, BranchCondition::String, vec![value], true)
@@ -630,6 +644,7 @@ impl GraphBuilder<'_> {
             HelperResult::Int32 => self.emit(Op::BoxInt32, vec![result], Some(Repr::Tagged)),
             HelperResult::Bool => self.emit(Op::BoxBool, vec![result], Some(Repr::Tagged)),
             HelperResult::String => result,
+            HelperResult::Value => self.branch_if_empty(&mut slow_paths, result),
         };
         let result = self
             .join_slow_paths(slow_paths, Some(result))

@@ -473,6 +473,7 @@ pub fn runtime_info(vm: &Vm, realm: Gc<Realm>, allocation: AllocationInfos) -> R
         rope_allocation: allocation.rope,
         function_allocation: allocation.function,
         create_lexical_environment: super::allocation::libjs_jit_create_lexical_environment as *const () as u64,
+        realm: CellId(realm.as_ptr() as u64),
         array_prototype: CellId(realm.array_prototype().as_ptr() as u64),
         object_prototype: CellId(realm.object_prototype().as_ptr() as u64),
         no_yield_continuation: ExecutionContext::NO_YIELD_CONTINUATION,

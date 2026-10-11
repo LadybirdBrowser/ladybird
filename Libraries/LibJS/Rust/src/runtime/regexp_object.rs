@@ -170,7 +170,7 @@ impl Finalize for RegExpObject {
 }
 
 /// The offset of "lastIndex" in the shape of Intrinsics::new_regexp_object_shape(), its only property.
-const NEW_REGEXP_OBJECT_LAST_INDEX_OFFSET: u32 = 0;
+pub(crate) const NEW_REGEXP_OBJECT_LAST_INDEX_OFFSET: u32 = 0;
 
 impl RegExpObject {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<RegExpObject> {

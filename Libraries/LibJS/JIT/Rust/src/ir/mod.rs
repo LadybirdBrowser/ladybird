@@ -1163,7 +1163,9 @@ impl Op {
                 //     cells.
                 P {
                     is_call: true,
-                    allocates: matches!(call.result, HelperResult::String),
+                    allocates: matches!(call.result, HelperResult::String | HelperResult::Value),
+                    reads: call.reads,
+                    writes: call.writes,
                     ..P::PURE
                 }
             }
