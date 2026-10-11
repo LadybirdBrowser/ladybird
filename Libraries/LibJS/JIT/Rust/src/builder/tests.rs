@@ -1186,6 +1186,7 @@ pub(crate) mod property_access {
         assert_eq!(text.matches("CheckElements TypedArray(Uint16)").count(), 1, "{text}");
         assert_eq!(text.matches("CheckInt32").count(), 1, "{text}");
         assert_eq!(text.matches("LoadTypedArrayLength").count(), 1, "{text}");
+        assert_eq!(text.matches("LoadTypedArrayDataOffset").count(), 1, "{text}");
         assert_eq!(text.matches("CheckBounds").count(), 1, "{text}");
         // NB: The first load is dead.
         assert_eq!(

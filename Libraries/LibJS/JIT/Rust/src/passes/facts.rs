@@ -129,6 +129,8 @@ pub(super) enum Location {
     Binding { environment: NodeId, index: u32 },
     /// An element count of `object`.
     ElementCount { count: ElementCount, object: NodeId },
+    /// The cached storage offset of a typed array.
+    TypedArrayDataOffset { object: NodeId },
 }
 
 /// The element counts of objects, which the op loading each names.
@@ -161,14 +163,16 @@ impl Location {
             Location::Named { .. } => Locations::NAMED_SLOTS,
             Location::GlobalBinding { .. } => Locations::GLOBAL_BINDINGS,
             Location::Binding { .. } => Locations::BINDINGS.union(Locations::GLOBAL_BINDINGS),
-            Location::ElementCount { .. } => Locations::ELEMENT_COUNTS,
+            Location::ElementCount { .. } | Location::TypedArrayDataOffset { .. } => Locations::ELEMENT_COUNTS,
         }
     }
 
     /// The object the location belongs to, if it is one's.
     fn object(self) -> Option<NodeId> {
         match self {
-            Location::Named { object, .. } | Location::ElementCount { object, .. } => Some(object),
+            Location::Named { object, .. }
+            | Location::ElementCount { object, .. }
+            | Location::TypedArrayDataOffset { object } => Some(object),
             Location::GlobalBinding { .. } | Location::Binding { .. } => None,
         }
     }

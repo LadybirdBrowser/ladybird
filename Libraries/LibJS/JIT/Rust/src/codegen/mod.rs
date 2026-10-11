@@ -1329,6 +1329,15 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Op::Int32Compare { comparison } => self.emit_int32_compare(node_id, *comparison),
             Op::CheckElements { kind } => self.emit_check_elements(node_id, *kind),
             Op::LoadTypedArrayLength => self.emit_load_typed_array_length(node_id),
+            Op::LoadTypedArrayDataOffset => {
+                self.masm.load64(
+                    self.output(node_id),
+                    &Address::new(
+                        self.input(node_id, 0),
+                        self.runtime.layout.typed_array_cached_data_offset as i32,
+                    ),
+                );
+            }
             Op::CheckBounds => self.emit_check_bounds(node_id),
             Op::LoadElementAt { kind } => self.emit_load_element_at(node_id, *kind),
             Op::StoreElementAt { kind } => self.emit_store_element_at(node_id, *kind),

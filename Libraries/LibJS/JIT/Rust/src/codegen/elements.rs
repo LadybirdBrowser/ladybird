@@ -8,6 +8,7 @@
 //! holes, and loads and stores of elements.
 
 use super::Codegen;
+use super::InputValue;
 use crate::asm::Address;
 use crate::asm::Condition;
 use crate::asm::Gpr;
@@ -149,8 +150,13 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// A `CheckBounds` node.
     pub(super) fn emit_check_bounds(&mut self, node: NodeId) {
         let exit = self.exit_site(node);
-        let (index, count) = (self.input(node, 0), self.input(node, 1));
-        self.masm.branch32(Condition::AboveOrEqual, index, count, exit);
+        let count = self.input(node, 1);
+        match self.input_value(node, 0) {
+            InputValue::Register(index) => self.masm.branch32(Condition::AboveOrEqual, index, count, exit),
+            InputValue::Constant(index) => self
+                .masm
+                .branch32_imm(Condition::BelowOrEqual, count, index as i32, exit),
+        }
     }
 
     /// A `CheckNotHole` node.
@@ -161,37 +167,53 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             .branch64_imm(Condition::Equal, value, value::EMPTY as i64, exit);
     }
 
-    /// The address of element `index` of the object at `object`, whose
-    /// elements are of `kind`. Uses `temp` and the scratch register.
-    fn element_address(&mut self, object: Gpr, index: Gpr, temp: Gpr, kind: ElementsKind) -> Address {
+    /// The address of the element a load or store accesses. Uses `temp`
+    /// and the scratch register, folding constant indices into offsets.
+    fn element_address(&mut self, node: NodeId, temp: Gpr, kind: ElementsKind) -> Address {
         let scratch = self.pinned.scratch;
         let layout = self.runtime.layout;
+        let storage = self.input(node, 0);
+        let index = self.input_value(node, 1);
         match kind {
             ElementsKind::Packed | ElementsKind::Holey => {
                 self.masm
-                    .load64(temp, &Address::new(object, layout.object_indexed_elements as i32));
-                self.masm.move32(scratch, index);
-                Address::indexed(temp, scratch, Scale::Eight, 0)
+                    .load64(temp, &Address::new(storage, layout.object_indexed_elements as i32));
+                match index {
+                    InputValue::Register(index) => {
+                        self.masm.move32(scratch, index);
+                        Address::indexed(temp, scratch, Scale::Eight, 0)
+                    }
+                    InputValue::Constant(index) => {
+                        let offset = u64::from(index as u32) << Scale::Eight.log2();
+                        if let Ok(offset) = i32::try_from(offset) {
+                            Address::new(temp, offset)
+                        } else {
+                            self.masm.add64_imm(temp, temp, offset as i64);
+                            Address::new(temp, 0)
+                        }
+                    }
+                }
             }
             // `cage_base + ((data + index * size) & mask)`
             ElementsKind::TypedArray(element) => {
-                self.masm.load64(
-                    temp,
-                    &Address::new(object, layout.typed_array_cached_data_offset as i32),
-                );
-                self.masm.move32(scratch, index);
                 let shift = scale(element).log2();
-                if shift != 0 {
-                    self.masm.shl64_imm(scratch, scratch, shift);
+                match index {
+                    InputValue::Register(index) => {
+                        self.masm.move32(scratch, index);
+                        if shift != 0 {
+                            self.masm.shl64_imm(scratch, scratch, shift);
+                        }
+                        self.masm.add64(temp, storage, scratch);
+                    }
+                    InputValue::Constant(index) => {
+                        let offset = u64::from(index as u32) << shift;
+                        self.masm.add64_imm(temp, storage, offset as i64);
+                    }
                 }
-                self.masm.add64(temp, temp, scratch);
                 self.masm
                     .and64_imm(temp, temp, layout.primitive_storage_cage_offset_mask);
-                self.masm.load64(
-                    scratch,
-                    &Address::new(self.pinned.vm, layout.vm_primitive_storage_cage_base as i32),
-                );
-                self.masm.add64(temp, temp, scratch);
+                self.masm
+                    .add64_imm(temp, temp, self.runtime.primitive_storage_cage_base as i64);
                 Address::new(temp, 0)
             }
         }
@@ -199,9 +221,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
     /// A `LoadElementAt` node.
     pub(super) fn emit_load_element_at(&mut self, node: NodeId, kind: ElementsKind) {
-        let (object, index) = (self.input(node, 0), self.input(node, 1));
         let temp = self.temp(node, 0);
-        let address = self.element_address(object, index, temp, kind);
+        let address = self.element_address(node, temp, kind);
         let ElementsKind::TypedArray(element) = kind else {
             let output = self.output(node);
             self.masm.load64(output, &address);
@@ -231,10 +252,9 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
     /// A `StoreElementAt` node.
     pub(super) fn emit_store_element_at(&mut self, node: NodeId, kind: ElementsKind) {
-        let (object, index) = (self.input(node, 0), self.input(node, 1));
         let temp = self.temp(node, 0);
         let scratch = self.pinned.scratch;
-        let address = self.element_address(object, index, temp, kind);
+        let address = self.element_address(node, temp, kind);
         if kind.stored_repr() == Repr::Float64 {
             let source = self.float_input(node, 2);
             if kind == ElementsKind::TypedArray(TypedArrayElement::Float32) {

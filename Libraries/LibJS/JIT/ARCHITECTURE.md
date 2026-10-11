@@ -61,7 +61,7 @@ from them alone:
 - **Call.** `is_call`: calls out of compiled code and clobbers every caller-saved register.
 - **Memory.** `reads` and `writes`: sets of abstract locations (`ir::Locations`): `FRAME`,
   `NAMED_SLOTS` (property values), `SHAPES` (shapes and prototypes), `ELEMENTS` (element values),
-  `ELEMENT_COUNTS` (element storage kind, length and capacity), `GLOBAL_BINDINGS` and `BINDINGS` (the
+  `ELEMENT_COUNTS` (element storage kind, length, capacity and the storage offset of typed arrays), `GLOBAL_BINDINGS` and `BINDINGS` (the
   bindings of declarative environments). Passes ask
   one question: whether one node's writes intersect another's reads. `runs_code`: may run other
   code, which may write anything, or invalidate the compiled code. The op table below names the
@@ -140,8 +140,9 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | AddNamed | Adds a property to a fresh object and gives it the new shape. | | Named | Named | |
 | LoadAccessorFunction | The getter or setter of an accessor property. | E | Named | | |
 | HasInPrototypeChain | Whether input 1 is on input 0's prototype chain (the OrdinaryHasInstance loop). | E | Named | | |
-| LoadElementAt, StoreElementAt | An element of a known elements kind at an index in bounds, without checks; holes load as the empty value. Typed arrays load int32 or float64 and store int32 (integer kinds) or float64. | | (Load) Elements | (Store) Elements | |
+| LoadElementAt, StoreElementAt | An element of a known elements kind at an index in bounds, without checks; holes load as the empty value. Typed arrays load int32 or float64 and store int32 (integer kinds) or float64; their accesses take the storage offset of the typed array in place of the object, to which code generation adds the base of the primitive storage cage, a constant of the process. | | (Load) Elements | (Store) Elements | |
 | LoadTypedArrayLength | The length of a typed array, or 0 while its data is not cached (detached or resizable buffers). | | Elements | | |
+| LoadTypedArrayDataOffset | The offset of the cached data of a typed array in the primitive storage cage, invalid while its data is not cached. Calls that may detach a buffer invalidate it; stores of elements in bounds do not. | | Elements | | |
 | CheckAppendableArray | Exits unless `push` can append to the array without observable steps. The value is the array, refined. | E | Any | | |
 | LoadElementsLength, LoadElementsCapacity | The array-like size, and the room of packed or holey storage (only corruption makes the size larger). | | Elements | | |
 | ProbePropertyCache | The data property (own or of an unchanged prototype chain), or `undefined` for a missing one, that the instruction's property lookup cache has for the object, like `GetById` reads it; the empty value if none. The runtime probes the other entries out of line. One atomic read of a cache the interpreter keeps changing. | | Named | | saves GPRs |

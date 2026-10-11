@@ -13,6 +13,8 @@ use crate::builder::OperationInput;
 use crate::bytecode::EnvironmentCoordinate;
 use crate::ir::BinaryOp;
 use crate::ir::Comparison;
+use crate::snapshot::KeyedFeedbackSnapshot;
+use crate::snapshot::keyed_feedback_bits;
 
 /// What the fake slow paths here produce.
 const MARKER: u64 = (value::UNDEFINED_TAG as u64) << 48 | 0xDEAD_BEEF;
@@ -67,9 +69,8 @@ extern "C" fn marker_jump(vm: *mut u64, _pc: u32, _lhs: u64, _rhs: u64, if_true:
 }
 
 /// The word of the fake VM that the fake `PutByValue` slow path counts its
-/// calls in, and the one that holds the primitive storage cage base.
+/// calls in.
 const VM_SLOW_PUTS_WORD: usize = 9;
-const VM_CAGE_BASE_WORD: usize = 10;
 
 extern "C" fn marker_put(
     vm: *mut u64,
@@ -308,7 +309,7 @@ fn run_program_with_snapshot(
     let compiled = compile_for::<crate::asm::MacroAssembler>(&snapshot, &|_| true)
         .unwrap_or_else(|failure| panic!("compilation failed: {failure:?}"));
     let mut machine = Machine::new(layout(), arguments);
-    // Room for the words the fakes here use; the cage base is 0.
+    // Room for the words the fakes here use.
     machine.vm.resize(12, 0);
     // An executable whose property lookup caches are all empty.
     machine.executable.resize(4, 0);
@@ -1183,7 +1184,6 @@ fn fake_object_layout() -> RuntimeLayout {
         typed_array_kind_int32: 6,
         typed_array_kind_float32: 7,
         typed_array_kind_float64: 8,
-        vm_primitive_storage_cage_base: 8 * VM_CAGE_BASE_WORD as u32,
         primitive_storage_cage_offset_mask: (1 << 48) - 1,
         primitive_string_length: 16,
         primitive_string_storage: 24,
@@ -1322,7 +1322,7 @@ impl FakeArray {
 fn fake_typed_array(kind: u8, data: &[u8], length: u32) -> Vec<u64> {
     let mut object = vec![0; 8];
     object[1] = u64::from(FLAG_IS_TYPED_ARRAY);
-    object[4] = data.as_ptr() as u64;
+    object[4] = data.as_ptr() as u64 - PRIMITIVE_STORAGE_CAGE_BASE;
     object[5] = u64::from(length) | u64::from(kind) << 32;
     object
 }
@@ -1465,6 +1465,73 @@ fn get_by_value_on_typed_arrays() {
     let mut detached = fake_typed_array(0, &data, 4);
     detached[4] = u64::MAX;
     assert_eq!(get_by_value(object_value(&detached), value::int32(0)), MARKER);
+}
+
+#[test]
+fn typed_array_accesses_with_constant_indices() {
+    for kind in 0..=8u8 {
+        for index in [0, 2, 3, -1, i32::MAX, i32::MIN] {
+            let mut data = vec![0u8; 32];
+            let array = fake_typed_array(kind, &data, 3);
+            let program = assemble(|_| {
+                vec![
+                    Instruction::Enter,
+                    Instruction::PutByValue {
+                        keyed_feedback: 0,
+                        base: argument(0),
+                        property: c(1),
+                        src: argument(1),
+                        kind: 0,
+                        base_identifier: None,
+                        cache: 0,
+                    },
+                    Instruction::GetByValue {
+                        value_feedback: 0,
+                        keyed_feedback: 0,
+                        dst: r(5),
+                        base: argument(0),
+                        property: c(1),
+                        base_identifier: None,
+                        cache: 0,
+                    },
+                    Instruction::Return { value: r(5) },
+                ]
+            });
+            // NB: Accesses speculated on the elements kind take constant
+            //     indices as constants, and exit out of bounds.
+            let (result, machine) = run_program_with_snapshot(
+                &program,
+                &[object_value(&array), value::int32(77)],
+                |snapshot| {
+                    let executable = &mut snapshot.executables[0];
+                    executable.constants[1] = value::int32(index);
+                    executable.feedback.keyed = vec![KeyedFeedbackSnapshot {
+                        bits: keyed_feedback_bits::INT32_INDEX
+                            | 1 << (keyed_feedback_bits::TYPED_ARRAY_SHIFT + u32::from(kind)),
+                    }];
+                },
+                |_| {},
+            );
+            let context = format!("kind {kind} [{index}]");
+            assert_eq!(machine.vm[VM_SLOW_PUTS_WORD], 0, "{context}");
+            if (0..3).contains(&index) {
+                assert_eq!(result, returned(value::int32(77)), "{context}");
+                let bytes = match kind {
+                    0 | 1 | 4 => vec![77],
+                    2 | 5 => 77u16.to_le_bytes().to_vec(),
+                    3 | 6 => 77u32.to_le_bytes().to_vec(),
+                    7 => 77f32.to_le_bytes().to_vec(),
+                    _ => 77f64.to_le_bytes().to_vec(),
+                };
+                let offset = index as usize * bytes.len();
+                assert_eq!(&data[offset..offset + bytes.len()], bytes.as_slice(), "{context}");
+                data[offset..offset + bytes.len()].fill(0);
+            } else {
+                assert_eq!(result.status, crate::code::JitStatus::Resume as u64, "{context}");
+            }
+            assert!(data.iter().all(|byte| *byte == 0), "{context}");
+        }
+    }
 }
 
 #[test]

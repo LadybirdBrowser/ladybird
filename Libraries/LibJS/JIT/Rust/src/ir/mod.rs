@@ -540,6 +540,11 @@ pub enum Op {
     /// detached or resizable): how many elements `LoadElementAt` and
     /// `StoreElementAt` may access.
     LoadTypedArrayLength,
+    /// The cached offset of the typed array at the `Repr::Pointer` input 0
+    /// within the primitive storage cage, as a `Repr::Pointer`. It may be
+    /// invalid: accesses must first check the index against
+    /// `LoadTypedArrayLength`, which is zero without cached storage.
+    LoadTypedArrayDataOffset,
     /// The `Repr::Int32` index input 0, which is known to be below the
     /// `Repr::Int32` count input 1 (as an unsigned number) from here on.
     /// Exits with `ExitKind::OutOfBounds` where it is not.
@@ -547,14 +552,16 @@ pub enum Op {
     /// Element input 1 (a `Repr::Int32` index, which must be below the
     /// object's `LoadElementsLength` and `LoadElementsCapacity`, or its
     /// `LoadTypedArrayLength`) of the object at the `Repr::Pointer` input 0,
-    /// whose elements are of `kind`, in `kind.loaded_repr()`. A hole of
-    /// holey elements is the empty value.
+    /// whose elements are of `kind`, in `kind.loaded_repr()`. For typed
+    /// arrays, input 0 is instead their `LoadTypedArrayDataOffset`. A hole
+    /// of holey elements is the empty value.
     LoadElementAt {
         kind: ElementsKind,
     },
     /// Stores input 2, in `kind.stored_repr()`, as the element at index
     /// input 1 (like for `LoadElementAt`) of the object at the
-    /// `Repr::Pointer` input 0, whose elements are of `kind`.
+    /// `Repr::Pointer` input 0, whose elements are of `kind`. For typed
+    /// arrays, input 0 is instead their `LoadTypedArrayDataOffset`.
     StoreElementAt {
         kind: ElementsKind,
     },
@@ -1120,7 +1127,7 @@ impl Op {
                 reads: Locations::ELEMENT_COUNTS,
                 ..P::PURE
             },
-            Op::LoadTypedArrayLength => P {
+            Op::LoadTypedArrayLength | Op::LoadTypedArrayDataOffset => P {
                 reads: Locations::ELEMENT_COUNTS,
                 ..P::PURE
             },
@@ -1379,6 +1386,7 @@ impl Op {
             Op::TaggedEquals { .. } => "TaggedEquals",
             Op::CheckElements { .. } => "CheckElements",
             Op::LoadTypedArrayLength => "LoadTypedArrayLength",
+            Op::LoadTypedArrayDataOffset => "LoadTypedArrayDataOffset",
             Op::CheckBounds => "CheckBounds",
             Op::LoadElementAt { .. } => "LoadElementAt",
             Op::StoreElementAt { .. } => "StoreElementAt",

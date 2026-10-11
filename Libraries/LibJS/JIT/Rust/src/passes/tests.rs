@@ -285,6 +285,135 @@ fn element_counts_move_out_of_loops_that_only_store_elements() {
     assert_eq!(graph.blocks[1].body, vec![store]);
 }
 
+#[test]
+fn typed_array_storage_offsets_are_reused_across_stores_but_not_calls() {
+    use crate::ir::{ElementsKind, TypedArrayElement};
+    let mut graph = Graph::default();
+    graph.add_block(Block::default());
+    let object = node(&mut graph, Op::LoadSlot { slot: 0 }, vec![], Some(Repr::Tagged));
+    let address = node(&mut graph, Op::CellAddress, vec![object], Some(Repr::Pointer));
+    let first = node(
+        &mut graph,
+        Op::LoadTypedArrayDataOffset,
+        vec![address],
+        Some(Repr::Pointer),
+    );
+    let zero = node(&mut graph, Op::Constant(0), vec![], Some(Repr::Int32));
+    let store = node(
+        &mut graph,
+        Op::StoreElementAt {
+            kind: ElementsKind::TypedArray(TypedArrayElement::Int32),
+        },
+        vec![first, zero, zero],
+        None,
+    );
+    let second = node(
+        &mut graph,
+        Op::LoadTypedArrayDataOffset,
+        vec![address],
+        Some(Repr::Pointer),
+    );
+    let load = node(
+        &mut graph,
+        Op::LoadElementAt {
+            kind: ElementsKind::TypedArray(TypedArrayElement::Int32),
+        },
+        vec![second, zero],
+        Some(Repr::Int32),
+    );
+    let call = node(
+        &mut graph,
+        Op::Generic {
+            opcode: crate::bytecode::OpCode::Call,
+            executable: 0,
+            pc: 0,
+        },
+        vec![],
+        None,
+    );
+    let third = node(
+        &mut graph,
+        Op::LoadTypedArrayDataOffset,
+        vec![address],
+        Some(Repr::Pointer),
+    );
+    graph.nodes[call.index()].frame_state = Some(graph.add_frame_state(crate::ir::FrameState {
+        executable: 0,
+        pc: 0,
+        mode: crate::code::ResumeMode::ResumeAt,
+        values: Vec::new(),
+        in_frame: Vec::new(),
+        parent: None,
+        passed_argument_count: None,
+    }));
+    graph.blocks[0]
+        .body
+        .extend([object, address, first, store, second, load, call, third]);
+    let ret = node(&mut graph, Op::Return, vec![object], None);
+    graph.blocks[0].control = Some(ret);
+    verify(&graph).unwrap();
+    super::check_elimination::run(&mut graph);
+    assert!(!graph.blocks[0].body.contains(&second));
+    assert_eq!(graph.node(load).inputs[0], first);
+    assert!(graph.blocks[0].body.contains(&third));
+    verify(&graph).unwrap();
+}
+
+#[test]
+fn typed_array_storage_metadata_moves_out_of_loops_that_only_store_elements() {
+    use crate::ir::{Comparison, ElementsKind, TypedArrayElement};
+    let mut graph = Graph::default();
+    for predecessors in [vec![], vec![BlockId(0), BlockId(1)], vec![BlockId(1)]] {
+        graph.add_block(Block {
+            predecessors,
+            ..Block::default()
+        });
+    }
+    let object = node(&mut graph, Op::LoadSlot { slot: 0 }, vec![], Some(Repr::Tagged));
+    let address = node(&mut graph, Op::CellAddress, vec![object], Some(Repr::Pointer));
+    let zero = node(&mut graph, Op::Constant(0), vec![], Some(Repr::Int32));
+    let enter = node(&mut graph, Op::Jump { target: BlockId(1) }, vec![], None);
+    graph.blocks[0].body.extend([object, address]);
+    graph.blocks[0].control = Some(enter);
+    let length = node(&mut graph, Op::LoadTypedArrayLength, vec![address], Some(Repr::Int32));
+    let offset = node(
+        &mut graph,
+        Op::LoadTypedArrayDataOffset,
+        vec![address],
+        Some(Repr::Pointer),
+    );
+    let store = node(
+        &mut graph,
+        Op::StoreElementAt {
+            kind: ElementsKind::TypedArray(TypedArrayElement::Int32),
+        },
+        vec![offset, zero, zero],
+        None,
+    );
+    let more = node(
+        &mut graph,
+        Op::Branch {
+            condition: BranchCondition::Int32(Comparison::LessThan),
+            if_true: BlockId(1),
+            if_false: BlockId(2),
+        },
+        vec![zero, length],
+        None,
+    );
+    graph.blocks[1].is_loop_header = true;
+    graph.blocks[1].body.extend([length, offset, store]);
+    graph.blocks[1].control = Some(more);
+    let ret = node(&mut graph, Op::Return, vec![object], None);
+    graph.blocks[2].control = Some(ret);
+    verify(&graph).unwrap();
+    super::licm::run(&mut graph);
+    for metadata in [length, offset] {
+        assert!(graph.blocks[0].body.contains(&metadata));
+    }
+    assert_eq!(graph.blocks[1].body, vec![store]);
+    verify(&graph).unwrap();
+}
+
 /// A branch on the kind of a value tells its edges which kind the value is,
 /// so a later branch on the same value there takes the edge it decides.
 #[test]

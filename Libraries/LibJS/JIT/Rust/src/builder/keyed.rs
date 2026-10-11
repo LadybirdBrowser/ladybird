@@ -307,7 +307,7 @@ impl GraphBuilder<'_> {
                         let old = builder.emit(Op::LoadElementAt { kind }, vec![address, index], Some(Repr::Tagged));
                         builder.branch_if_empty(slow_paths, old);
                     }
-                    builder.emit(Op::StoreElementAt { kind }, vec![address, index, stored], None);
+                    builder.store_element(kind, address, index, stored);
                     builder.end_hot_path(slow_paths, Vec::new());
                 },
             );
