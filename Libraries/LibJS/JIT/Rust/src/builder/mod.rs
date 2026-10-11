@@ -456,15 +456,9 @@ impl<'a> Function<'a> {
         self.inline.is_some()
     }
 
-    /// Whether this is an inlined callee with legacy `arguments`: a function
-    /// that is not strict.
+    /// Whether this inlined call must preserve legacy `arguments`.
     fn has_legacy_arguments(&self) -> bool {
-        self.is_virtual() && self.is_non_strict_function()
-    }
-
-    /// Whether this is a function that is not strict (and no builtin).
-    fn is_non_strict_function(&self) -> bool {
-        !self.executable.builtin && self.executable.function.is_some_and(|function| !function.strict)
+        self.inline.as_ref().is_some_and(|call| call.has_legacy_arguments)
     }
 }
 

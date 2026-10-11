@@ -943,6 +943,8 @@ impl SnapshotBuilder<'_> {
             builtin: matches!(entry.function, Some(InlinedFunction::Builtin(_))),
             mapped_arguments_alias_parameters: arguments_function
                 .is_some_and(|function| !function.mapped_argument_names().is_empty()),
+            supports_legacy_arguments: arguments_function
+                .is_some_and(|function| function.supports_legacy_caller_or_arguments()),
             new_object_shape: Some(self.shape(intrinsics.new_object_shape())),
             string_prototype: Some(self.cell(realm.string_prototype(vm))),
             number_prototype: Some(self.cell(realm.number_prototype(vm))),

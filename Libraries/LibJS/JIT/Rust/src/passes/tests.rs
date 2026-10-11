@@ -177,6 +177,7 @@ fn verifier_rejects_slow_path_outputs_away_from_their_call() {
         in_frame: Vec::new(),
         parent: None,
         passed_argument_count: None,
+        legacy_arguments: 0..0,
     });
     graph.nodes[call.index()].frame_state = Some(frame_state);
     let output = node(
@@ -214,6 +215,7 @@ fn simplification_removes_number_checks_of_numeric_constants() {
             in_frame: Vec::new(),
             parent: None,
             passed_argument_count: None,
+            legacy_arguments: 0..0,
         }));
         let boxed = node(&mut graph, Op::BoxFloat64, vec![check], Some(Repr::Tagged));
         let ret = node(&mut graph, Op::Return, vec![boxed], None);
@@ -347,6 +349,7 @@ fn typed_array_storage_offsets_are_reused_across_stores_but_not_calls() {
         in_frame: Vec::new(),
         parent: None,
         passed_argument_count: None,
+        legacy_arguments: 0..0,
     }));
     graph.blocks[0].body.extend([
         object,
@@ -507,6 +510,7 @@ fn check_elimination_keeps_checks_that_a_later_entry_reaches_blocks_before_it() 
         in_frame: Vec::new(),
         parent: None,
         passed_argument_count: None,
+        legacy_arguments: 0..0,
     });
     let first = node(&mut graph, Op::CheckObject, vec![constant], Some(Repr::Tagged));
     graph.nodes[first.index()].frame_state = Some(frame_state);
@@ -659,6 +663,7 @@ fn constant_bounds_checks_only_fold_when_the_unsigned_index_is_in_bounds() {
             in_frame: Vec::new(),
             parent: None,
             passed_argument_count: None,
+            legacy_arguments: 0..0,
         }));
         let boxed = node(&mut graph, Op::BoxInt32, vec![check], Some(Repr::Tagged));
         let ret = node(&mut graph, Op::Return, vec![boxed], None);
@@ -748,6 +753,7 @@ fn hoisted_checks_gate_exits_by_the_loop_headers_executable() {
             in_frame: vec![],
             parent: None,
             passed_argument_count: None,
+            legacy_arguments: 0..0,
         });
         let state = graph.add_frame_state(FrameState {
             executable: 1,
@@ -757,6 +763,7 @@ fn hoisted_checks_gate_exits_by_the_loop_headers_executable() {
             in_frame: vec![],
             parent: Some(parent),
             passed_argument_count: None,
+            legacy_arguments: 0..0,
         });
         let check = node(&mut graph, Op::CheckObject, vec![object], Some(Repr::Tagged));
         graph.nodes[check.index()].frame_state = Some(state);

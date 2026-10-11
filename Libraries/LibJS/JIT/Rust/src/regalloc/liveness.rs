@@ -313,6 +313,7 @@ mod tests {
             in_frame: vec![],
             parent: None,
             passed_argument_count: None,
+            legacy_arguments: 0..0,
         });
         let mut checks = Vec::new();
         for _ in 0..2 {

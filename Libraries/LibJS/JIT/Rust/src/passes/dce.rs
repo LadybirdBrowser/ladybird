@@ -136,6 +136,7 @@ mod tests {
             in_frame: vec![],
             parent: None,
             passed_argument_count: None,
+            legacy_arguments: 0..0,
         });
         graph.blocks[0].body.push(boxed);
         for _ in 0..2 {

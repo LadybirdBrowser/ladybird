@@ -942,7 +942,7 @@ impl EcmascriptFunctionObject {
         self.shared_data().function_environment_needed()
     }
 
-    fn supports_legacy_caller_or_arguments(&self) -> bool {
+    pub fn supports_legacy_caller_or_arguments(&self) -> bool {
         // https://tc39.es/ecma262/#sec-forbidden-extensions
         //
         // ECMAScript function objects defined using syntactic constructors in strict mode code must not be created with own
