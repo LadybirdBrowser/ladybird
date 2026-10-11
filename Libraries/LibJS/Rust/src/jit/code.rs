@@ -6,9 +6,10 @@
 
 //! Installed JIT code and the JIT state of an executable.
 
-use core::cell::{Cell, RefCell};
+use core::cell::{Cell, OnceCell, RefCell};
 use core::ffi::c_void;
 
+use libjs_jit::bytecode::EnvironmentCoordinate;
 pub use libjs_jit::code::INLINED_CALL_SITE_BIT;
 use libjs_jit::code::{ExitKind, Site};
 
@@ -244,6 +245,9 @@ pub struct ExecutableJitState {
     builtin_exit_sites: RefCell<Vec<(u64, u32, ExitKind)>>,
     /// How often the executable's code was discarded.
     discard_count: Cell<u32>,
+    /// The coordinates of the bindings the executable loads from environments, if they may be speculated on (see
+    /// `jit::snapshot`). The bytecode never changes, so snapshots find them once.
+    pub(crate) captured_binding_coordinates: OnceCell<Box<[EnvironmentCoordinate]>>,
 }
 
 /// After this many exits, JIT code is discarded so that the executable can be recompiled with what the exits taught

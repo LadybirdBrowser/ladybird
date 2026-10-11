@@ -11,7 +11,7 @@ use core::mem::offset_of;
 use libjs_abi::Builtin;
 use std::collections::HashMap;
 
-use libjs_jit::bytecode::{ExceptionHandler, FrameLayout};
+use libjs_jit::bytecode::{EnvironmentCoordinate, ExceptionHandler, FrameLayout, Instruction, OpCode, decode_all};
 use libjs_jit::snapshot::{
     AccessorFunctionSnapshot, CallFeedbackSnapshot, CellId, ClosureTemplateSnapshot, CompileOptions, ConstructTarget,
     DirectCallTarget, EnvironmentTemplateSnapshot, ExecutableSnapshot, FeedbackSnapshot, ForwardedCallSnapshot,
@@ -843,6 +843,9 @@ impl SnapshotBuilder<'_> {
                 }
                 _ => None,
             },
+            captured_bindings: arguments_function
+                .map(|function| self.captured_bindings(function, executable, realm))
+                .unwrap_or_default(),
             builtin: matches!(entry.function, Some(InlinedFunction::Builtin(_))),
             mapped_arguments_alias_parameters: arguments_function
                 .is_some_and(|function| !function.mapped_argument_names().is_empty()),
@@ -877,6 +880,83 @@ impl SnapshotBuilder<'_> {
             },
         }
     }
+
+    /// Object values of captured bindings of functions whose lexical environment is always their closure's
+    /// environment. Their loads are guarded, so another closure or a reassignment can change the value safely.
+    fn captured_bindings(
+        &mut self,
+        function: Gc<EcmascriptFunctionObject>,
+        executable: Gc<Executable>,
+        realm: Gc<Realm>,
+    ) -> Vec<(EnvironmentCoordinate, GlobalValueSnapshot)> {
+        if function.allocates_function_environment() {
+            return Vec::new();
+        }
+        let coordinates = executable
+            .jit_state()
+            .captured_binding_coordinates
+            .get_or_init(|| captured_binding_coordinates(&executable));
+        let mut bindings = Vec::new();
+        for &coordinate in coordinates {
+            let mut environment = function.environment();
+            for _ in 0..coordinate.hops {
+                environment = environment.and_then(|environment| environment.outer_environment());
+                if environment.is_none() {
+                    break;
+                }
+            }
+            let Some(environment) = environment else {
+                continue;
+            };
+            let Some(environment) = environment.as_declarative_environment() else {
+                continue;
+            };
+            if coordinate.index as usize >= environment.binding_values.size() {
+                continue;
+            }
+            let value = environment.get_initialized_binding_value_direct(coordinate.index as usize);
+            if value.is_object() {
+                bindings.push((coordinate, self.global_value(value, realm)));
+            }
+        }
+        bindings
+    }
+}
+
+/// The distinct coordinates of the bindings `executable` loads from environments, or none if its code may change its
+/// lexical environment, so that they are not the environments of its closure.
+fn captured_binding_coordinates(executable: &Executable) -> Box<[EnvironmentCoordinate]> {
+    let Ok(instructions) = decode_all(executable.bytecode()) else {
+        return Box::default();
+    };
+    if instructions.iter().any(|decoded| {
+        matches!(
+            decoded.instruction.opcode(),
+            OpCode::SetLexicalEnvironment
+                | OpCode::CreateLexicalEnvironment
+                | OpCode::CreateVariableEnvironment
+                | OpCode::EnterObjectEnvironment
+                | OpCode::NewClass
+                | OpCode::CallDirectEval
+                | OpCode::CallDirectEvalWithArgumentArray
+                | OpCode::Debugger
+        )
+    }) {
+        return Box::default();
+    }
+    let mut coordinates = Vec::new();
+    for decoded in instructions {
+        let (Instruction::GetBinding { cache: coordinate, .. }
+        | Instruction::GetInitializedBinding { cache: coordinate, .. }
+        | Instruction::GetCalleeAndThisFromEnvironment { cache: coordinate, .. }) = decoded.instruction
+        else {
+            continue;
+        };
+        if !coordinates.contains(&coordinate) {
+            coordinates.push(coordinate);
+        }
+    }
+    coordinates.into_boxed_slice()
 }
 
 /// Captures the snapshot of a compile job for `executable`, whose frames run `function`. `osr_pc` is the loop back
