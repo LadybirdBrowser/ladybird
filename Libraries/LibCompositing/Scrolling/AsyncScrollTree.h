@@ -58,6 +58,11 @@ struct CachedBlockingWheelEventTarget {
     Optional<Gfx::FloatRect> viewport_rect;
 };
 
+struct CachedScrollChainingBarrier {
+    ScrollChainingBarrier barrier;
+    Optional<Gfx::FloatRect> viewport_rect;
+};
+
 enum class ScrollChaining : u8 {
     ToScrollableAncestors,
     None,
@@ -108,7 +113,7 @@ private:
     static bool can_scroll_node_by_delta(AsyncScrollNode const&, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint);
     static bool can_scroll_node_from_offset_by_delta(AsyncScrollNode const&, Gfx::FloatPoint scroll_offset, Gfx::FloatPoint delta);
 
-    WheelHitTestResult hit_test_result_for_scroll_node(AsyncScrollNodeID, Gfx::FloatPoint delta, Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> const& in_flight_destination_for) const;
+    WheelHitTestResult hit_test_result_for_scroll_node(AsyncScrollNodeID, Gfx::FloatPoint delta, Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> const& in_flight_destination_for, ReadonlySpan<AsyncScrollNodeID> scroll_nodes_behind_scroll_chaining_barriers) const;
     AsyncScrollNode const* scroll_node_for_stable_id(Web::AsyncScrollNodeStableID) const;
     Optional<AsyncScrollNodeID> scrollable_ancestor_for_node(AsyncScrollNodeID, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint delta) const;
     Gfx::FloatPoint apply_scroll_delta_to_node(AsyncScrollNode const&, Gfx::FloatPoint delta, Compositing::ScrollStateSnapshot&);
@@ -123,6 +128,8 @@ private:
     Vector<BlockingWheelEventRegion> m_blocking_wheel_event_regions;
     Vector<CachedMainThreadWheelEventTarget> m_cached_main_thread_wheel_event_targets;
     Vector<CachedBlockingWheelEventTarget> m_cached_blocking_wheel_event_targets;
+    Vector<ScrollChainingBarrier> m_scroll_chaining_barriers;
+    Vector<CachedScrollChainingBarrier> m_cached_scroll_chaining_barriers;
     Optional<u64> m_visual_context_tree_structural_epoch;
     Compositing::ScrollStateSnapshot m_scroll_state_snapshot;
     bool m_has_blocking_wheel_event_region_covering_viewport { false };

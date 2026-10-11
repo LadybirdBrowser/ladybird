@@ -1,0 +1,14 @@
+touchpad, box keeps vertical scrolls, up beside the scroller: page at 200,200
+touchpad, box keeps vertical scrolls, left beside the scroller: page at 150,200
+touchpad, box keeps vertical scrolls, up at the top of the scroller: page at 200,200
+touchpad through the UI process, box keeps vertical scrolls, up beside the scroller: page at 200,200
+touchpad through the UI process, box keeps vertical scrolls, left beside the scroller: page at 150,200
+touchpad through the UI process, box keeps vertical scrolls, up at the top of the scroller: page at 200,200
+mouse wheel, box keeps vertical scrolls, up beside the scroller: page at 200,200
+mouse wheel, box keeps vertical scrolls, left beside the scroller: page at 150,200
+mouse wheel, box keeps vertical scrolls, up at the top of the scroller: page at 200,200
+touchpad, down over the scroller: scroller at 50 page at 200,200
+box changed to auto, up beside the scroller: page at 200,150
+box changed to contain, up beside the scroller: page at 200,200
+box changed to overflow clip, up beside the scroller: page at 200,150
+box changed to overflow auto, up beside the scroller: page at 200,200

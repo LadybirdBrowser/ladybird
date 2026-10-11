@@ -97,6 +97,16 @@ struct MainThreadWheelEventRegion {
     Gfx::FloatRect rect;
 };
 
+// A scroll container without a scroll node of its own that keeps the scrolls along an axis to itself. A wheel inside
+// its rect is not passed on along that axis to the scroll node above it.
+struct ScrollChainingBarrier {
+    Compositing::ContextRef context;
+    Gfx::FloatRect rect;
+    AsyncScrollNodeID scroll_node_id_above_barrier;
+    bool keeps_horizontal_scrolls { false };
+    bool keeps_vertical_scrolls { false };
+};
+
 struct AsyncScrollbar {
     AsyncScrollNodeID scroll_node_id;
     Optional<Web::AsyncScrollNodeStableID> scroller_stable_node_id;
@@ -135,6 +145,7 @@ struct AsyncScrollingState {
     Vector<AsyncSnapContainer> snap_containers;
     Vector<WheelHitTestTarget> wheel_hit_test_targets;
     Vector<MainThreadWheelEventRegion> main_thread_wheel_event_regions;
+    Vector<ScrollChainingBarrier> scroll_chaining_barriers;
     Vector<AsyncScrollbar> scrollbars;
 
     // Non-passive wheel listeners can cancel scrolling, so async scrolling must treat them as hard barriers.
