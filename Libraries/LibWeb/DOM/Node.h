@@ -214,6 +214,9 @@ public:
     bool is_editing_host() const;
     bool is_editable_or_editing_host() const { return is_editable() || is_editing_host(); }
     GC::Ptr<Node> editing_host();
+
+    bool has_spelling_markers() const { return m_has_spelling_markers; }
+    void set_has_spelling_markers(Badge<Editing::SpellingMarkers>, bool value) { m_has_spelling_markers = value; }
     CSS::UserSelect user_select_used_value() const;
 
     bool in_editable_subtree() const { return m_in_editable_subtree; }
@@ -688,6 +691,7 @@ protected:
     bool m_inside_blocking_wheel_event_handler : 1 { false };
     bool m_style_arrival_pending : 1 { false };
     bool m_descendant_style_arrival_pending : 1 { false };
+    bool m_has_spelling_markers : 1 { false };
     u32 m_child_index_generation { 1 };
     // The slot of the node directory that names the node by its unique id, or 0 before anything asked for the id.
     mutable u32 m_node_directory_slot { 0 };

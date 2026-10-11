@@ -129,6 +129,7 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Editing/EditingHistory.h>
+#include <LibWeb/Editing/SpellingMarkers.h>
 #include <LibWeb/Fetch/Fetching/Checks.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
@@ -920,6 +921,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
     m_anchor_name_map.visit_edges(visitor);
     if (m_query_selector_result_cache)
         m_query_selector_result_cache->visit_edges(visitor);
+    if (m_spelling_markers)
+        m_spelling_markers->visit_edges(visitor);
 
     for (auto& event : m_pending_animation_event_queue) {
         visitor.visit(event.event);
@@ -1130,6 +1133,18 @@ void Document::collapse_find_in_page_active_match_if_its_text_changed()
     if (!match || match->collapsed() || realign_find_in_page_match_to_its_text(*match, m_find_in_page_active_match_text))
         return;
     set_find_in_page_active_match(Range::create(match->start_container(), match->start_offset(), match->start_container(), match->start_offset()));
+}
+
+Editing::SpellingMarkers& Document::spelling_markers()
+{
+    if (!m_spelling_markers)
+        m_spelling_markers = make<Editing::SpellingMarkers>(*this);
+    return *m_spelling_markers;
+}
+
+bool Document::has_spelling_markers() const
+{
+    return m_spelling_markers && !m_spelling_markers->is_empty();
 }
 
 void Document::remove_find_in_page_highlighted_matches_whose_text_changed()

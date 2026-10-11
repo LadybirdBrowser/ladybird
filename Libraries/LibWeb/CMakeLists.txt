@@ -348,6 +348,7 @@ set(SOURCES
     Editing/ReplacementFragment.cpp
     Editing/ReplacementRangeCleanup.cpp
     Editing/ReplacementStyleCleanup.cpp
+    Editing/SpellingMarkers.cpp
     Editing/StyledMarkupAccumulator.cpp
     Editing/StyledMarkupSelection.cpp
     Editing/StyledMarkupSerializer.cpp

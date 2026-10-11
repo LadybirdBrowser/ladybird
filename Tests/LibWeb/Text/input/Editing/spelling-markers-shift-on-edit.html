@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="editable" contenteditable>one txet two</div>
+<textarea id="area">alpha txet beta</textarea>
+<script>
+    test(() => {
+        const text = document.getElementById("editable").firstChild;
+        const show = label => println(`${label}: ${internals.spellingErrorRanges(text) || "(none)"}`);
+
+        internals.addSpellingErrorForTesting(text, 4, 8);
+        show("flagged");
+
+        text.insertData(0, ">> ");
+        show("insert before");
+
+        text.insertData(11, " ");
+        show("insert right after its end");
+
+        text.insertData(9, "x");
+        show("insert inside");
+
+        internals.addSpellingErrorForTesting(text, 3, 6);
+        text.deleteData(2, 2);
+        show("delete overlapping");
+
+        internals.addSpellingErrorForTesting(text, 0, 2);
+        text.data = text.data;
+        show("identical data");
+
+        text.data = "replaced";
+        show("whole data replaced");
+
+        const area = document.getElementById("area");
+        internals.addSpellingErrorForTesting(area, 6, 10);
+        println(`textarea flagged: ${internals.spellingErrorRanges(area) || "(none)"}`);
+        area.value = "alpha txet beta gamma";
+        println(`textarea after value set: ${internals.spellingErrorRanges(area) || "(none)"}`);
+    });
+</script>
