@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 28 tests
+
+28 Pass
+Pass	e.style['overscroll-behavior'] = "contain" should set the property value
+Pass	e.style['overscroll-behavior'] = "none" should set the property value
+Pass	e.style['overscroll-behavior'] = "auto" should set the property value
+Pass	e.style['overscroll-behavior'] = "chain" should set the property value
+Pass	e.style['overscroll-behavior'] = "contain none" should set the property value
+Pass	e.style['overscroll-behavior'] = "none auto" should set the property value
+Pass	e.style['overscroll-behavior'] = "auto contain" should set the property value
+Pass	e.style['overscroll-behavior'] = "chain auto" should set the property value
+Pass	e.style['overscroll-behavior'] = "contain contain" should set the property value
+Pass	e.style['overscroll-behavior'] = "none none" should set the property value
+Pass	e.style['overscroll-behavior'] = "auto auto" should set the property value
+Pass	e.style['overscroll-behavior'] = "chain chain" should set the property value
+Pass	e.style['overscroll-behavior-x'] = "contain" should set the property value
+Pass	e.style['overscroll-behavior-x'] = "none" should set the property value
+Pass	e.style['overscroll-behavior-x'] = "auto" should set the property value
+Pass	e.style['overscroll-behavior-x'] = "chain" should set the property value
+Pass	e.style['overscroll-behavior-y'] = "contain" should set the property value
+Pass	e.style['overscroll-behavior-y'] = "none" should set the property value
+Pass	e.style['overscroll-behavior-y'] = "auto" should set the property value
+Pass	e.style['overscroll-behavior-y'] = "chain" should set the property value
+Pass	e.style['overscroll-behavior-inline'] = "contain" should set the property value
+Pass	e.style['overscroll-behavior-inline'] = "none" should set the property value
+Pass	e.style['overscroll-behavior-inline'] = "auto" should set the property value
+Pass	e.style['overscroll-behavior-inline'] = "chain" should set the property value
+Pass	e.style['overscroll-behavior-block'] = "contain" should set the property value
+Pass	e.style['overscroll-behavior-block'] = "none" should set the property value
+Pass	e.style['overscroll-behavior-block'] = "auto" should set the property value
+Pass	e.style['overscroll-behavior-block'] = "chain" should set the property value

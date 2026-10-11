@@ -151,6 +151,16 @@
       "inline-start": "overflow-clip-margin-inline-start"
     }
   },
+  "overscroll-behavior": {
+    "physical": {
+      "x": "overscroll-behavior-x",
+      "y": "overscroll-behavior-y"
+    },
+    "logical": {
+      "block-xy": "overscroll-behavior-block",
+      "inline-xy": "overscroll-behavior-inline"
+    }
+  },
   "padding": {
     "physical": {
       "top": "padding-top",

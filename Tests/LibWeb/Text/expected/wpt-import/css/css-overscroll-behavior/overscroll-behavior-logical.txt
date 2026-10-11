@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Logical overscroll-behavior maps correctly when element has horizontal-tb writing mode
+Pass	Logical overscroll-behavior maps correctly when element has vertical-rl writing mode
+Pass	Logical overscroll-behavior maps correctly when element has horizontal-tb writing mode and is not affected by rtl direction

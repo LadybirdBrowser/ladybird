@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 324 tests
+Found 328 tests
 
-320 Pass
+324 Pass
 4 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -247,6 +247,10 @@ Pass	overflow-clip-margin-top
 Pass	overflow-inline
 Pass	overflow-x
 Pass	overflow-y
+Pass	overscroll-behavior-block
+Pass	overscroll-behavior-inline
+Pass	overscroll-behavior-x
+Pass	overscroll-behavior-y
 Pass	padding-block-end
 Pass	padding-block-start
 Pass	padding-bottom

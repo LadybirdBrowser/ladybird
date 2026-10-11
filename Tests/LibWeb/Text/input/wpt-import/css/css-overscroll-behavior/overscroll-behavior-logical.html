@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Test flow-relative versions of overscroll-behavior properties</title>
+<link rel="author" title="Majid Valipour">
+<link rel="help" href="https://drafts.csswg.org/css-overscroll-behavior-1/#overscroll-behavior-longhands-logical">
+<link rel="help" href="https://drafts.csswg.org/css-logical/#box">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+div {
+  overscroll-behavior-block: contain;
+  overscroll-behavior-inline: none;
+}
+#horizontal {
+  writing-mode: horizontal-tb;
+}
+#vertical {
+  writing-mode: vertical-rl;
+}
+#horizontalreversed {
+  writing-mode: horizontal-tb;
+  direction: rtl;
+}
+</style>
+<body>
+  <div id="horizontal"></div>
+  <div id="vertical"></div>
+  <div id="horizontalreversed"></div>
+</body>
+
+<script>
+test(function() {
+  var element = document.getElementById("horizontal");
+  assert_equals(getComputedStyle(element).overscrollBehaviorX, "none");
+  assert_equals(getComputedStyle(element).overscrollBehaviorY, "contain");
+}, "Logical overscroll-behavior maps correctly when element has horizontal-tb writing mode");
+
+test(function() {
+  var element = document.getElementById("vertical");
+  assert_equals(getComputedStyle(element).overscrollBehaviorX, "contain");
+  assert_equals(getComputedStyle(element).overscrollBehaviorY, "none");
+}, "Logical overscroll-behavior maps correctly when element has vertical-rl writing mode");
+
+test(function() {
+  var element = document.getElementById("horizontalreversed");
+  assert_equals(getComputedStyle(element).overscrollBehaviorX, "none");
+  assert_equals(getComputedStyle(element).overscrollBehaviorY, "contain");
+}, "Logical overscroll-behavior maps correctly when element has horizontal-tb writing mode and is not affected by rtl direction");
+</script>

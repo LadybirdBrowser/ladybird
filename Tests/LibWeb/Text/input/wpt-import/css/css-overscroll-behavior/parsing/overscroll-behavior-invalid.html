@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Overscroll Behavior: parsing overscroll-behavior with invalid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-overscroll-behavior/#propdef-overscroll-behavior">
+<meta name="assert" content="overscroll-behavior supports only the grammar '[ contain | none | auto | chain ]{1,2}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+'use strict';
+test_invalid_value("overscroll-behavior", "normal");
+test_invalid_value("overscroll-behavior", "0");
+test_invalid_value("overscroll-behavior", "contain contain contain");
+
+
+for (let property of ["overscroll-behavior-x", "overscroll-behavior-y", "overscroll-behavior-inline", "overscroll-behavior-block"]) {
+  test_invalid_value(property, "normal");
+  test_invalid_value(property, "0");
+  test_invalid_value(property, "contain contain");
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Property overscroll-behavior-block has initial value auto
+Pass	Property overscroll-behavior-block does not inherit
+Pass	Property overscroll-behavior-inline has initial value auto
+Pass	Property overscroll-behavior-inline does not inherit
+Pass	Property overscroll-behavior-x has initial value auto
+Pass	Property overscroll-behavior-x does not inherit
+Pass	Property overscroll-behavior-y has initial value auto
+Pass	Property overscroll-behavior-y does not inherit
