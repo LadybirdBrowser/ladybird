@@ -1,4 +1,4 @@
 iframe fallback resource timing entries: 1
-startTime within [0, now]: false
+startTime within [0, now]: true
 responseEnd within [startTime, now]: true
 duration within [0, now]: true

@@ -266,7 +266,11 @@ void NavigableContainer::navigate_an_iframe_or_frame(URL::URL url, ReferrerPolic
     if (auto* iframe = as_if<HTMLIFrameElement>(this)) {
         // 1. Set element's pending resource-timing start time to the current high resolution time given element's node
         //    document's relevant global object.
-        iframe->set_pending_resource_start_time(HighResolutionTime::current_high_resolution_time(relevant_global_object(document())));
+        // AD-HOC: Fetch timing info holds shared times, which Resource Timing converts to times relative to the time
+        //         origin. A relative time here would be made relative twice and come out as a large negative value,
+        //         so store the coarsened shared current time, as Fetch does for its own start time. See also:
+        //         https://github.com/whatwg/fetch/issues/1812
+        iframe->set_pending_resource_start_time(HighResolutionTime::coarsened_shared_current_time(relevant_settings_object(*this).cross_origin_isolated_capability()));
 
         // 2. Set element's pending resource-timing URL to url.
         iframe->set_pending_resource_timing_url(url);

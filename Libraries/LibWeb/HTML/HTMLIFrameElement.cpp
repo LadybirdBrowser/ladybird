@@ -256,7 +256,8 @@ void run_iframe_load_event_steps(HTMLIFrameElement& element)
         //    start time and whose response end time is the current high resolution time given global.
         auto fallback_timing_info = Fetch::Infrastructure::FetchTimingInfo::create();
         fallback_timing_info->set_start_time(element.pending_resource_start_time().value());
-        fallback_timing_info->set_end_time(HighResolutionTime::current_high_resolution_time(global));
+        // AD-HOC: Use a shared time for the end time too. See the note where the pending start time is set.
+        fallback_timing_info->set_end_time(HighResolutionTime::coarsened_shared_current_time(relevant_settings_object(element).cross_origin_isolated_capability()));
 
         // 4. Mark resource timing given fallbackTimingInfo, the result of parsing element's pending resource-timing
         //    URL, "iframe", global, the empty string, a new response body info, and 0.
