@@ -288,6 +288,11 @@ pub mod arith_feedback {
     pub const OTHER: u8 = 1 << 5;
 }
 
+/// `value_feedback` bits: the types of the values an instruction produced.
+pub mod value_feedback {
+    pub const INT32: u16 = 1 << 2;
+}
+
 /// `call_feedback_flags` bits.
 pub mod call_feedback_flags {
     pub const POLYMORPHIC: u8 = 1 << 0;
@@ -673,6 +678,10 @@ pub enum Intrinsic {
     BooleanConstructor,
     /// The getter of `%TypedArray%.prototype.length`.
     TypedArrayPrototypeLength,
+    /// `Math.max`.
+    MathMax,
+    /// `Math.min`.
+    MathMin,
 }
 
 /// The runtime helpers of intrinsics (the out of line probe of

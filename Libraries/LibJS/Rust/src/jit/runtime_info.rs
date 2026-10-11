@@ -345,6 +345,7 @@ fn runtime_layout() -> RuntimeLayout {
 
 // NB: The compiler has its own copy of the bits of the interpreter's feedback.
 const _: () = {
+    assert!(libjs_jit::snapshot::value_feedback::INT32 == crate::layout::feedback::value_feedback::INT32);
     assert!(libjs_jit::snapshot::arith_feedback::INT32 == crate::layout::feedback::arith_feedback::INT32);
     assert!(libjs_jit::snapshot::arith_feedback::DOUBLE == crate::layout::feedback::arith_feedback::DOUBLE);
     assert!(

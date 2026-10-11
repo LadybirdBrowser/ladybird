@@ -48,6 +48,7 @@ use crate::runtime::boolean_constructor::BooleanConstructor;
 use crate::runtime::bound_function::BoundFunction;
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::function_prototype::FunctionPrototype;
+use crate::runtime::math_object::MathObject;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::object_constructor::ObjectConstructor;
 use crate::runtime::object_prototype::ObjectPrototype;
@@ -164,6 +165,10 @@ fn intrinsic_of(vm: &Vm, cell: Option<Gc<CellHeader>>) -> Option<Intrinsic> {
         Some(Intrinsic::ObjectPrototypeHasOwnProperty)
     } else if TypedArrayPrototype::is_length_getter(vm, &function) {
         Some(Intrinsic::TypedArrayPrototypeLength)
+    } else if MathObject::is_max_function(vm, &function) {
+        Some(Intrinsic::MathMax)
+    } else if MathObject::is_min_function(vm, &function) {
+        Some(Intrinsic::MathMin)
     } else {
         match function.builtin() {
             Some(Builtin::StringFromCharCode) => Some(Intrinsic::StringFromCharCode),

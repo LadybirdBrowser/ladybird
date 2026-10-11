@@ -12,8 +12,10 @@ use libjs_runtime_macros::Trace;
 use crate::gc::class::{GcCell, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
+use crate::layout::function_object::RawNativeFunction;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
+use crate::layout_forward::RawNativeFunctionPointer;
 use crate::random::XorShift128PlusRNG;
 use crate::runtime::abstract_operations::require_object_coercible;
 use crate::runtime::completion::{Completion, ThrowCompletionOr};
@@ -111,7 +113,21 @@ impl core::ops::Deref for CoercedArguments {
     }
 }
 
+/// The native functions of Math.max and Math.min, which JIT code knows.
+static MAX_FUNCTION: RawNativeFunctionPointer = raw_native!(MathObject::max);
+static MIN_FUNCTION: RawNativeFunctionPointer = raw_native!(MathObject::min);
+
 impl MathObject {
+    /// Whether the function is Math.max (of any realm).
+    pub fn is_max_function(vm: &Vm, function: &RawNativeFunction) -> bool {
+        function.native_function(vm).map(|pointer| pointer as usize) == MAX_FUNCTION.map(|pointer| pointer as usize)
+    }
+
+    /// Whether the function is Math.min (of any realm).
+    pub fn is_min_function(vm: &Vm, function: &RawNativeFunction) -> bool {
+        function.native_function(vm).map(|pointer| pointer as usize) == MIN_FUNCTION.map(|pointer| pointer as usize)
+    }
+
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<MathObject> {
         realm.create_object(
             vm,
@@ -153,8 +169,8 @@ impl MathObject {
             1,
             Some(Builtin::MathRound),
         );
-        define(&names.max, raw_native!(MathObject::max), 2, None);
-        define(&names.min, raw_native!(MathObject::min), 2, None);
+        define(&names.max, MAX_FUNCTION, 2, None);
+        define(&names.min, MIN_FUNCTION, 2, None);
         define(&names.trunc, raw_native!(MathObject::trunc), 1, None);
         define(&names.sin, raw_native!(MathObject::sin), 1, Some(Builtin::MathSin));
         define(&names.cos, raw_native!(MathObject::cos), 1, Some(Builtin::MathCos));
