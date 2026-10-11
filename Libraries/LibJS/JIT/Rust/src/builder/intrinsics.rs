@@ -272,6 +272,7 @@ impl GraphBuilder<'_> {
         if arguments.is_empty()
             || arguments.len() > MAX_INLINE_PUSHED_VALUES
             || !self.may_speculate(ExitKind::SlowPath)
+            || (arguments.len() > 1 && !self.may_speculate(ExitKind::Overflow))
             || self.holds_virtual_arguments(*this_value)
             || arguments.iter().any(|value| self.holds_virtual_arguments(*value))
         {
@@ -292,7 +293,8 @@ impl GraphBuilder<'_> {
         let length = self.emit(Op::LoadElementsLength, vec![array], Some(Repr::Int32));
         let capacity = self.emit(Op::LoadElementsCapacity, vec![array], Some(Repr::Int32));
         // NB: One value fits where the length is below the capacity; more
-        //     need that much room between them.
+        //     need that much room between them, which only overflows for
+        //     packed elements longer than i32::MAX, and exits for them.
         let (room_condition, room_inputs) = if values.len() == 1 {
             (BranchCondition::Int32(Comparison::LessThan), vec![length, capacity])
         } else {
