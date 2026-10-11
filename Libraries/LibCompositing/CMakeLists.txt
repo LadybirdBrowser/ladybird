@@ -12,6 +12,7 @@ set(SOURCES
     FontServiceClient.cpp
     Scrolling/AsyncScrollTree.cpp
     Scrolling/AsyncScrollingState.cpp
+    Scrolling/ElasticOverscroll.cpp
     Scrolling/ScrollFling.cpp
     Scrolling/ScrollSnapSelection.cpp
     Scrolling/ScrollState.cpp
