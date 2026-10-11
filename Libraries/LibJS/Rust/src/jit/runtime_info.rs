@@ -8,6 +8,7 @@
 //! and encodings of the fields it accesses, from the same layout types the interpreter is compiled against.
 
 use core::mem::offset_of;
+use std::sync::Arc;
 
 use libjs_abi::Builtin;
 use libjs_abi::value as nan_box;
@@ -62,23 +63,44 @@ use crate::runtime::function_environment::{
 use crate::runtime::module_environment::ModuleEnvironment;
 use crate::runtime::object::ObjectMethods;
 
-/// The address of the slow path JIT code calls for each generic opcode, indexed by opcode, or 0 for opcodes without
-/// one (the compiler refuses to compile those generically).
-pub fn slow_path_addresses() -> Vec<u64> {
-    let addresses = runtime_function_addresses();
-    (0..=u8::MAX)
-        .map_while(OpCode::from_u8)
-        .map(|opcode| {
-            let Some(symbol) = slow_path_symbol(opcode) else {
-                return 0;
-            };
-            let (_, address) = addresses
+/// The addresses of the runtime functions JIT code calls, which every compile job's runtime info has.
+pub struct RuntimeFunctionAddresses {
+    /// The address of the slow path JIT code calls for each generic opcode, indexed by opcode, or 0 for opcodes
+    /// without one (the compiler refuses to compile those generically).
+    slow_paths: Arc<[u64]>,
+    try_get_by_id_cache: u64,
+    try_put_by_id_cache: u64,
+    raw_native_exception: u64,
+    to_boolean: u64,
+}
+
+impl RuntimeFunctionAddresses {
+    /// Looks the addresses up in the runtime's function table, which JitState does once (see
+    /// `JitState::runtime_function_addresses()`).
+    pub fn look_up() -> Self {
+        let addresses = runtime_function_addresses();
+        let address = |symbol: &str| {
+            addresses
                 .iter()
                 .find(|(name, _)| *name == symbol)
-                .unwrap_or_else(|| panic!("the runtime has the slow path {symbol}"));
-            *address as u64
-        })
-        .collect()
+                .map(|(_, address)| *address as u64)
+                .unwrap_or_else(|| panic!("the runtime has no function {symbol}"))
+        };
+        Self {
+            slow_paths: (0..=u8::MAX)
+                .map_while(OpCode::from_u8)
+                .map(|opcode| slow_path_symbol(opcode).map_or(0, |symbol| address(&symbol)))
+                .collect(),
+            try_get_by_id_cache: address("asm_try_get_by_id_cache"),
+            try_put_by_id_cache: address("asm_try_put_by_id_cache"),
+            raw_native_exception: if RAW_NATIVE_FUNCTIONS_RETURN_IN_REGISTERS {
+                address("asm_helper_handle_raw_native_exception")
+            } else {
+                0
+            },
+            to_boolean: address("asm_helper_to_boolean"),
+        }
+    }
 }
 
 fn runtime_offsets() -> RuntimeOffsets {
@@ -374,16 +396,10 @@ const _: () = assert!(size_of::<core::cell::Cell<Option<Gc<PrimitiveString>>>>()
 /// The runtime info of a compile job for code of `realm`, with what JIT code needs to allocate cells itself (which
 /// refers to the cells in `allocation.cells`).
 pub fn runtime_info(vm: &Vm, realm: Gc<Realm>, allocation: AllocationInfos) -> RuntimeInfo {
-    let address = |symbol: &str| {
-        runtime_function_addresses()
-            .iter()
-            .find(|(name, _)| *name == symbol)
-            .map(|(_, address)| *address as u64)
-            .unwrap_or_else(|| panic!("the runtime has no function {symbol}"))
-    };
+    let addresses = vm.jit.runtime_function_addresses();
     let mut layout = runtime_layout();
-    layout.try_get_by_id_cache = address("asm_try_get_by_id_cache");
-    layout.try_put_by_id_cache = address("asm_try_put_by_id_cache");
+    layout.try_get_by_id_cache = addresses.try_get_by_id_cache;
+    layout.try_put_by_id_cache = addresses.try_put_by_id_cache;
     let keyed_lookup_cache = vm.keyed_property_lookup_cache().jit_layout();
     layout.keyed_lookup_cache_entries = keyed_lookup_cache.entries;
     layout.keyed_store_cache_entries = vm.keyed_property_store_cache().jit_layout().entries;
@@ -411,15 +427,11 @@ pub fn runtime_info(vm: &Vm, realm: Gc<Realm>, allocation: AllocationInfos) -> R
     };
     let mut info = RuntimeInfo {
         no_htmldda_objects: !vm.jit.htmldda_objects_exist(),
-        slow_paths: vm.jit.slow_paths().to_vec(),
+        slow_paths: Arc::clone(&addresses.slow_paths),
         jit_call: super::calls::libjs_jit_call as *const () as u64,
         call_forwarding_arguments: super::calls::libjs_jit_call_forwarding_arguments as *const () as u64,
         finish_direct_call: super::calls::libjs_jit_finish_direct_call as *const () as u64,
-        raw_native_exception: if RAW_NATIVE_FUNCTIONS_RETURN_IN_REGISTERS {
-            address("asm_helper_handle_raw_native_exception")
-        } else {
-            0
-        },
+        raw_native_exception: addresses.raw_native_exception,
         push_inlined_call_frames: super::entry_exit::libjs_jit_push_inlined_call_frames as *const () as u64,
         finish_inlined_direct_call: super::entry_exit::libjs_jit_finish_inlined_direct_call as *const () as u64,
         inlined_raw_native_exception: if RAW_NATIVE_FUNCTIONS_RETURN_IN_REGISTERS {
@@ -430,7 +442,7 @@ pub fn runtime_info(vm: &Vm, realm: Gc<Realm>, allocation: AllocationInfos) -> R
         array_push: super::calls::libjs_jit_array_push as *const () as u64,
         slice_arguments: super::calls::libjs_jit_slice_arguments as *const () as u64,
         jit_exit: super::entry_exit::libjs_jit_exit as *const () as u64,
-        to_boolean: address("asm_helper_to_boolean"),
+        to_boolean: addresses.to_boolean,
         primitive_to_string: super::calls::libjs_jit_primitive_to_string as *const () as u64,
         to_object: super::calls::libjs_jit_to_object as *const () as u64,
         array_create: super::calls::libjs_jit_array_create as *const () as u64,

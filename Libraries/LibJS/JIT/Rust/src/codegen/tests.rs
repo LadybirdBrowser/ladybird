@@ -542,7 +542,7 @@ fn runtime() -> RuntimeInfo {
     set(OpCode::ConcatString, concat_string as *const () as u64);
     set(OpCode::NewArray, new_array as *const () as u64);
     RuntimeInfo {
-        slow_paths,
+        slow_paths: slow_paths.into(),
         jit_call: jit_call as *const () as u64,
         jit_exit: jit_exit as *const () as u64,
         to_boolean: to_boolean as *const () as u64,

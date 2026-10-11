@@ -172,7 +172,8 @@ fn argument(index: u32) -> Operand {
 fn marker_runtime() -> RuntimeInfo {
     use OpCode as O;
     let mut runtime = runtime();
-    let mut set = |opcode: OpCode, address: u64| runtime.slow_paths[opcode as usize] = address;
+    let mut set =
+        |opcode: OpCode, address: u64| std::sync::Arc::make_mut(&mut runtime.slow_paths)[opcode as usize] = address;
     for opcode in [
         O::Add,
         O::AddLhsInt32,
@@ -2699,7 +2700,7 @@ fn every_fast_path_compiles_for_both_architectures() {
     let mut snapshot = crate::builder::tests::snapshot_for(&program, layout());
     snapshot.runtime = marker_runtime();
     for opcode in [OpCode::InitializeVariableBinding, OpCode::SetLexicalBinding] {
-        snapshot.runtime.slow_paths[opcode as usize] = marker_put as *const () as u64;
+        std::sync::Arc::make_mut(&mut snapshot.runtime.slow_paths)[opcode as usize] = marker_put as *const () as u64;
     }
     let compiled = compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true).unwrap();
     let text = crate::asm::disassembler::aarch64(&compiled.code[..compiled.data_offset as usize]).join("\n");
