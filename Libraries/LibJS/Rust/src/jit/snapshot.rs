@@ -19,6 +19,7 @@ use libjs_jit::snapshot::{
     InlinedFunctionSnapshot, InliningLimits, Intrinsic, KeyedFeedbackSnapshot, LexicalEnvironmentTemplateSnapshot,
     NativeCallTarget, ObjectShapeCacheSnapshot, OrdinaryHasInstanceSnapshot, PropertyCacheEntrySnapshot,
     PropertyCacheEntryType, PropertyCacheKind, PropertyCacheSnapshot, ShapeSnapshot, Snapshot, StressOptions,
+    TypedArraySnapshot,
 };
 
 use super::allocation::{
@@ -35,7 +36,7 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::DeclarativeEnvironment;
 use crate::layout::function_object::{EcmascriptFunctionObject, FunctionObject, RawNativeFunction};
-use crate::layout::object::Object;
+use crate::layout::object::{Object, TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID, TypedArrayBase};
 use crate::layout::property_lookup_cache::{
     GlobalVariableCache, PropertyLookupCache, PropertyLookupCacheEntry, PropertyLookupCacheEntryType,
 };
@@ -447,6 +448,31 @@ impl SnapshotBuilder<'_> {
             cell: cell.map(|cell| self.cell(cell)),
             intrinsic: intrinsic_of(self.vm, cell),
             has_instance: self.ordinary_has_instance(value, realm),
+            typed_array: value
+                .is_object()
+                .then(|| value.as_object().downcast::<TypedArrayBase>())
+                .flatten()
+                .and_then(|array| {
+                    use crate::runtime::typed_array::Kind;
+                    use libjs_jit::ir::TypedArrayElement;
+                    let element = match array.kind() {
+                        Kind::Uint8Array => TypedArrayElement::Uint8,
+                        Kind::Uint8ClampedArray => TypedArrayElement::Uint8Clamped,
+                        Kind::Int8Array => TypedArrayElement::Int8,
+                        Kind::Uint16Array => TypedArrayElement::Uint16,
+                        Kind::Int16Array => TypedArrayElement::Int16,
+                        Kind::Uint32Array => TypedArrayElement::Uint32,
+                        Kind::Int32Array => TypedArrayElement::Int32,
+                        Kind::Float32Array => TypedArrayElement::Float32,
+                        Kind::Float64Array => TypedArrayElement::Float64,
+                        _ => return None,
+                    };
+                    Some(TypedArraySnapshot {
+                        element,
+                        fixed_length: (array.cached_data_offset() != TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID)
+                            .then(|| array.array_length.length.get()),
+                    })
+                }),
         }
     }
 

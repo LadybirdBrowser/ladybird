@@ -182,6 +182,17 @@ pub struct GlobalValueSnapshot {
     /// `@@hasInstance` (which can never change): OrdinaryHasInstance with its
     /// `prototype` property.
     pub has_instance: Option<OrdinaryHasInstanceSnapshot>,
+    /// Immutable typed-array properties, if this object is a numeric
+    /// typed array.
+    pub typed_array: Option<TypedArraySnapshot>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TypedArraySnapshot {
+    pub element: crate::ir::TypedArrayElement,
+    /// The fixed length while the cached storage offset stays valid.
+    /// Resizable, shared and detached buffers have no cached storage.
+    pub fixed_length: Option<u32>,
 }
 
 /// A function whose `@@hasInstance` is `%Function.prototype%`'s, for as long

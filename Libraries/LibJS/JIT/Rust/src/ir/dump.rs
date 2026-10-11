@@ -282,9 +282,11 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         | Op::CallArrayPush
         | Op::LoadPropertyIteratorKeyCount
         | Op::LoadPropertyIteratorKey => with_inputs(op.name()),
-        Op::CheckBounds | Op::CheckNotHole | Op::LoadTypedArrayLength | Op::LoadTypedArrayDataOffset => {
-            with_inputs(op.name())
-        }
+        Op::CheckBounds
+        | Op::CheckNotHole
+        | Op::LoadTypedArrayLength
+        | Op::LoadTypedArrayDataOffset
+        | Op::CheckTypedArrayStorage => with_inputs(op.name()),
         Op::ProbeHasProperty { own: true } => with_inputs("ProbeHasOwnProperty"),
         Op::ProbeHasProperty { own: false } => with_inputs("ProbeHasProperty"),
         Op::ProbeGlobalCache { cache } | Op::ProbeGlobalStore { cache } => {

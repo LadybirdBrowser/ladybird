@@ -440,8 +440,11 @@ fn visit_node(
             let object = input(0);
             // NB: A holey access takes packed elements too.
             remove = removable
-                && facts
-                    .elements_kind(object)
+                && graph
+                    .constant_value(object)
+                    .and_then(|bits| graph.typed_array_constants.iter().find(|(value, _)| *value == bits))
+                    .map(|(_, array)| ElementsKind::TypedArray(array.element))
+                    .or_else(|| facts.elements_kind(object))
                     .is_some_and(|known| elements_kind_implies(known, kind) == Some(true));
             facts.set_object(object);
             if !remove {

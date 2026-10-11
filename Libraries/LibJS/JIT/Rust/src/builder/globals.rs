@@ -304,6 +304,15 @@ impl GraphBuilder<'_> {
         if let Some(has_instance) = value.has_instance {
             self.has_instance.insert(value.bits, has_instance);
         }
+        if let Some(typed_array) = value.typed_array
+            && !self
+                .graph
+                .typed_array_constants
+                .iter()
+                .any(|(bits, _)| *bits == value.bits)
+        {
+            self.graph.typed_array_constants.push((value.bits, typed_array));
+        }
         self.constant(value.bits)
     }
 

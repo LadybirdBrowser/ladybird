@@ -2377,6 +2377,7 @@ fn captured_object_bindings_are_guarded_before_becoming_constants() {
             bits,
             cell: Some(object),
             intrinsic: None,
+            typed_array: None,
             has_instance: None,
         },
     ));
@@ -2392,4 +2393,77 @@ fn captured_object_bindings_are_guarded_before_becoming_constants() {
     assert!(text.contains("LoadEnvironmentBinding 2"), "{text}");
     assert!(!text.contains("CheckValue"), "{text}");
     assert!(!text.contains(&format!("Return (#0x{bits:x})")), "{text}");
+}
+
+#[test]
+fn captured_typed_arrays_use_guarded_fixed_lengths() {
+    use crate::ir::TypedArrayElement;
+    use crate::snapshot::{GlobalValueSnapshot, KeyedFeedbackSnapshot, TypedArraySnapshot};
+    let coordinate = crate::bytecode::EnvironmentCoordinate { hops: 0, index: 2 };
+    let program = assemble(|_| {
+        vec![
+            Instruction::GetInitializedBinding {
+                value_feedback: 0,
+                dst: r(5),
+                identifier: crate::bytecode::IdentifierTableIndex(0),
+                cache: coordinate,
+            },
+            Instruction::GetByValue {
+                value_feedback: 0,
+                keyed_feedback: 0,
+                dst: r(6),
+                base: r(5),
+                property: c(0),
+                base_identifier: None,
+                cache: 0,
+            },
+            Instruction::Return { value: r(6) },
+        ]
+    });
+    let mut snapshot = snapshot_for(&program, test_layout());
+    snapshot.runtime.layout.typed_array_kind_uint16 = 3;
+    snapshot.executables[0].feedback.keyed = vec![KeyedFeedbackSnapshot {
+        bits: 1 | (1 << (9 + 3)),
+    }];
+    let object = crate::snapshot::CellId(0x1234);
+    let bits = value::tagged(value::OBJECT_TAG) | object.0;
+    snapshot.executables[0].captured_bindings.push((
+        coordinate,
+        GlobalValueSnapshot {
+            bits,
+            cell: Some(object),
+            intrinsic: None,
+            has_instance: None,
+            typed_array: Some(TypedArraySnapshot {
+                element: TypedArrayElement::Uint16,
+                fixed_length: Some(8),
+            }),
+        },
+    ));
+    let text = dump(&optimized_graph(&snapshot), &test_layout());
+    assert!(text.contains("CheckTypedArrayStorage"), "{text}");
+    assert!(text.contains("LoadTypedArrayDataOffset"), "{text}");
+    assert!(!text.contains("LoadTypedArrayLength"), "{text}");
+    assert!(!text.contains("CheckElements"), "{text}");
+    assert!(!text.contains("CheckBounds"), "{text}");
+
+    snapshot.executables[0].captured_bindings[0]
+        .1
+        .typed_array
+        .as_mut()
+        .unwrap()
+        .fixed_length = None;
+    let text = dump(&optimized_graph(&snapshot), &test_layout());
+    assert!(text.contains("LoadTypedArrayLength"), "{text}");
+    assert!(!text.contains("CheckTypedArrayStorage"), "{text}");
+    assert!(!text.contains("CheckElements"), "{text}");
+
+    snapshot.executables[0].captured_bindings[0]
+        .1
+        .typed_array
+        .as_mut()
+        .unwrap()
+        .element = TypedArrayElement::Int8;
+    let text = dump(&optimized_graph(&snapshot), &test_layout());
+    assert!(text.contains("CheckElements TypedArray(Uint16)"), "{text}");
 }

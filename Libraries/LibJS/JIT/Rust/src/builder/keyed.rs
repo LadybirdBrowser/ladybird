@@ -118,19 +118,21 @@ impl GraphBuilder<'_> {
         Some(paths)
     }
 
-    /// `index`, refined to be in the bounds of the elements of `kind` of the
-    /// object at `address`, taking a slow path where it is not.
+    /// The storage of the elements of `kind` of the object at `address` (see
+    /// `element_storage_and_counts()`), and `index`, refined to be in their
+    /// bounds, taking a slow path where it is not.
     pub(super) fn element_index_in_bounds(
         &mut self,
         slow_paths: &mut SlowPaths,
         kind: ElementsKind,
         address: NodeId,
         mut index: NodeId,
-    ) -> NodeId {
-        for count in self.element_counts(kind, address) {
+    ) -> (NodeId, NodeId) {
+        let (storage, counts) = self.element_storage_and_counts(kind, address);
+        for count in counts {
             index = self.branch_to_slow_path(slow_paths, BranchCondition::IndexInBounds, vec![index, count], true);
         }
-        index
+        (storage, index)
     }
 
     /// `index`, refined to be in the bounds of the packed elements of the
@@ -213,8 +215,8 @@ impl GraphBuilder<'_> {
                 |builder, slow_paths, case, object| {
                     let kind = kinds[case];
                     let address = builder.cell_address(object);
-                    let index = builder.element_index_in_bounds(slow_paths, kind, address, index);
-                    let element = builder.load_element(kind, address, index);
+                    let (storage, index) = builder.element_index_in_bounds(slow_paths, kind, address, index);
+                    let element = builder.load_element(kind, storage, index);
                     let mut element = builder.tagged(element);
                     if kind == ElementsKind::Holey {
                         element = builder.branch_if_empty(slow_paths, element);
@@ -297,17 +299,18 @@ impl GraphBuilder<'_> {
                     let kind = kinds[case];
                     let stored = builder.stored_element(slow_paths, kind, value);
                     let address = builder.cell_address(object);
-                    let index = if kind == ElementsKind::Packed && appends {
-                        builder.element_index_or_append(slow_paths, object, address, index, stored)
+                    let (storage, index) = if kind == ElementsKind::Packed && appends {
+                        let index = builder.element_index_or_append(slow_paths, object, address, index, stored);
+                        (address, index)
                     } else {
                         builder.element_index_in_bounds(slow_paths, kind, address, index)
                     };
                     // NB: Holes are filled by the slow path.
                     if kind == ElementsKind::Holey {
-                        let old = builder.emit(Op::LoadElementAt { kind }, vec![address, index], Some(Repr::Tagged));
+                        let old = builder.emit(Op::LoadElementAt { kind }, vec![storage, index], Some(Repr::Tagged));
                         builder.branch_if_empty(slow_paths, old);
                     }
-                    builder.store_element(kind, address, index, stored);
+                    builder.store_element(kind, storage, index, stored);
                     builder.end_hot_path(slow_paths, Vec::new());
                 },
             );

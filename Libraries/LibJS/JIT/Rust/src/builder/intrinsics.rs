@@ -576,7 +576,7 @@ impl GraphBuilder<'_> {
                     //     extensible object. Filling the last one may make the
                     //     elements packed, which the slow path does.
                     builder.branch_to_slow_path(slow_paths, BranchCondition::Extensible, vec![address], true);
-                    let index = builder.element_index_in_bounds(slow_paths, kind, address, index);
+                    let (_, index) = builder.element_index_in_bounds(slow_paths, kind, address, index);
                     let length = builder.emit(Op::LoadElementsLength, vec![address], Some(Repr::Int32));
                     let one = builder.int32_constant(1);
                     let last = builder.int32_binary(BinaryOp::Sub, length, one);

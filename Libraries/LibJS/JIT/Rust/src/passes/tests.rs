@@ -564,3 +564,48 @@ fn simplification_keeps_double_integer_round_trips() {
     assert_eq!(graph.node(converted).inputs, vec![integer]);
     assert!(graph.blocks[0].body.contains(&integer));
 }
+
+#[test]
+fn constant_bounds_checks_only_fold_when_the_unsigned_index_is_in_bounds() {
+    for (index, count, folds) in [
+        (0, 1, true),
+        (7, 8, true),
+        (8, 8, false),
+        (-1, 8, false),
+        (0, 0, false),
+        (i32::MAX, i32::MIN, true),
+    ] {
+        let mut graph = Graph::default();
+        graph.add_block(Block::default());
+        let index = node(
+            &mut graph,
+            Op::Constant(u64::from(index as u32)),
+            vec![],
+            Some(Repr::Int32),
+        );
+        let count = node(
+            &mut graph,
+            Op::Constant(u64::from(count as u32)),
+            vec![],
+            Some(Repr::Int32),
+        );
+        let check = node(&mut graph, Op::CheckBounds, vec![index, count], Some(Repr::Int32));
+        graph.nodes[check.index()].frame_state = Some(graph.add_frame_state(crate::ir::FrameState {
+            executable: 0,
+            pc: 0,
+            mode: crate::code::ResumeMode::ResumeAt,
+            values: Vec::new(),
+            in_frame: Vec::new(),
+            parent: None,
+            passed_argument_count: None,
+        }));
+        let boxed = node(&mut graph, Op::BoxInt32, vec![check], Some(Repr::Tagged));
+        let ret = node(&mut graph, Op::Return, vec![boxed], None);
+        graph.blocks[0].body.extend([check, boxed]);
+        graph.blocks[0].control = Some(ret);
+        verify(&graph).unwrap();
+        super::simplify::run(&mut graph);
+        assert_eq!(graph.blocks[0].body.contains(&check), !folds);
+        verify(&graph).unwrap();
+    }
+}
