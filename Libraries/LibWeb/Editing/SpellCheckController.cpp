@@ -5,16 +5,19 @@
  */
 
 #include <AK/Utf16StringBuilder.h>
+#include <LibUnicode/Segmenter.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/Editing/SpellCheckController.h>
 #include <LibWeb/Editing/SpellingMarkers.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Selection/Selection.h>
 
 namespace Web::Editing {
 
@@ -71,6 +74,22 @@ static bool is_separator(char16_t code_unit)
     return code_unit == ' ' || code_unit == '\t' || code_unit == '\n' || code_unit == '\r' || code_unit == 0xa0;
 }
 
+// The word-like segment containing offset, or ending or starting at it.
+static Optional<SpellCheckController::WordRange> word_touching(DOM::Text& text, size_t offset)
+{
+    auto& segmenter = text.word_segmenter();
+    for (auto start : { segmenter.previous_boundary(offset, Unicode::Segmenter::Inclusive::Yes), segmenter.previous_boundary(offset) }) {
+        if (!start.has_value())
+            continue;
+        auto end = segmenter.next_boundary(*start);
+        if (!end.has_value() || *end < offset)
+            continue;
+        if (segmenter.is_current_boundary_word_like())
+            return SpellCheckController::WordRange { text, *start, *end };
+    }
+    return {};
+}
+
 // The first node in tree order that comes after node and all of its descendants.
 static GC::Ptr<DOM::Node> next_after_subtree(DOM::Node& node)
 {
@@ -105,6 +124,136 @@ void SpellCheckController::visit_edges(GC::Cell::Visitor& visitor)
 bool SpellCheckController::owns(DOM::Text const& text) const
 {
     return text.is_connected() && &text.document() == m_document.ptr();
+}
+
+Optional<SpellCheckController::TextPosition> SpellCheckController::caret_position() const
+{
+    auto focused = m_document->focused_area();
+    if (auto* text_control = as_if<HTML::FormAssociatedTextControlElement>(focused.ptr())) {
+        auto text = text_control->form_associated_element_to_text_node();
+        if (!text)
+            return {};
+        return TextPosition { *text, min<size_t>(text_control->selection_end(), text->length_in_utf16_code_units()) };
+    }
+    auto selection = m_document->get_selection();
+    if (!selection)
+        return {};
+    auto* text = as_if<DOM::Text>(selection->focus_node().ptr());
+    if (!text)
+        return {};
+    return TextPosition { *text, selection->focus_offset() };
+}
+
+void SpellCheckController::send_window_around(DOM::Text& text, size_t offset, RequestKind kind)
+{
+    if (!owns(text))
+        return;
+    auto paragraph = paragraph_containing(text, offset);
+    size_t paragraph_offset = 0;
+    Optional<size_t> caret;
+    for (auto const& piece : paragraph) {
+        if (piece.text.ptr() == &text && piece.node_start <= offset && offset <= piece.node_end) {
+            caret = paragraph_offset + (offset - piece.node_start);
+            break;
+        }
+        paragraph_offset += piece.node_end - piece.node_start;
+    }
+    if (!caret.has_value())
+        return;
+    auto half = TYPING_WINDOW_SIZE / 2;
+    send(make_request(paragraph, *caret > half ? *caret - half : 0, *caret + half, kind));
+}
+
+// Checking while typing: Every user edit queues one check of the paragraph around the caret per turn of the event
+// loop, and while one is in flight, the next waits for its answer.
+void SpellCheckController::did_user_edit(DOM::Node& node)
+{
+    if (!m_document->page().spell_checking_available() || !checkable_editable_for(node))
+        return;
+    // Committing a composition ends it, and did_end_input_method_composition() takes the check from there.
+    if (m_document->is_input_method_composing())
+        return;
+    schedule_typing_check();
+}
+
+void SpellCheckController::did_end_input_method_composition()
+{
+    if (m_document->page().spell_checking_available())
+        schedule_typing_check();
+}
+
+void SpellCheckController::schedule_typing_check()
+{
+    if (m_typing_check_scheduled)
+        return;
+    m_typing_check_scheduled = true;
+    HTML::queue_global_task(HTML::Task::Source::UserInteraction, HTML::relevant_global_object(m_document), GC::create_function(m_document->heap(), [document = GC::Weak<DOM::Document> { m_document }] {
+        if (auto strong_document = document.ptr()) {
+            strong_document->spell_check_controller().run_typing_check();
+            strong_document->page().notify_spell_check_progress();
+        }
+    }));
+}
+
+void SpellCheckController::run_typing_check()
+{
+    if (!exchange(m_typing_check_scheduled, false))
+        return;
+    if (m_typing_check_in_flight) {
+        m_typing_check_wanted = true;
+        return;
+    }
+    auto caret = caret_position();
+    if (!caret.has_value() || !owns(*caret->text) || !checkable_editable_for(*caret->text))
+        return;
+    // Right after an edit, the word touching the caret is still being typed. Its markers come off, and no answer flags
+    // it until the caret leaves it.
+    m_exempt_word = word_touching(*caret->text, caret->offset);
+    if (m_exempt_word.has_value())
+        m_document->spelling_markers().remove_overlapping(*caret->text, m_exempt_word->start, m_exempt_word->end);
+    send_window_around(*caret->text, caret->offset, RequestKind::Typing);
+}
+
+void SpellCheckController::did_change_selection()
+{
+    if (m_exempt_word.has_value())
+        schedule_exempt_word_check();
+}
+
+void SpellCheckController::schedule_exempt_word_check()
+{
+    if (m_exempt_word_check_scheduled)
+        return;
+    m_exempt_word_check_scheduled = true;
+    HTML::queue_global_task(HTML::Task::Source::UserInteraction, HTML::relevant_global_object(m_document), GC::create_function(m_document->heap(), [document = GC::Weak<DOM::Document> { m_document }] {
+        if (auto strong_document = document.ptr()) {
+            strong_document->spell_check_controller().run_exempt_word_check();
+            strong_document->page().notify_spell_check_progress();
+        }
+    }));
+}
+
+void SpellCheckController::run_exempt_word_check()
+{
+    if (!exchange(m_exempt_word_check_scheduled, false))
+        return;
+    if (!m_exempt_word.has_value())
+        return;
+    auto exempt = *m_exempt_word;
+    auto text = exempt.text.ptr();
+    if (!text || !owns(*text)) {
+        m_exempt_word.clear();
+        return;
+    }
+    // A caret still inside the same word, which typing may have lengthened, keeps it exempt.
+    if (auto caret = caret_position(); caret.has_value() && caret->text.ptr() == text.ptr()) {
+        if (auto word = word_touching(*text, caret->offset); word.has_value() && word->start <= exempt.start && exempt.start <= word->end) {
+            m_exempt_word = word;
+            return;
+        }
+    }
+    m_exempt_word.clear();
+    send_window_around(*text, min<size_t>(exempt.start, text->length_in_utf16_code_units()), RequestKind::Other);
 }
 
 SpellCheckController::Paragraph SpellCheckController::paragraph_containing(DOM::Text& text, size_t offset) const
@@ -160,7 +309,7 @@ Vector<GC::Weak<DOM::Text>> SpellCheckController::paragraphs_of(DOM::Node& edita
 
 // Builds the request for a window of a paragraph's text, widened to whitespace so no word is cut. Text whose checking
 // is disabled goes as spaces of the same length, so offsets stay put and the words on either side don't merge.
-SpellCheckController::Request SpellCheckController::make_request(Paragraph const& paragraph, size_t window_start, size_t window_end) const
+SpellCheckController::Request SpellCheckController::make_request(Paragraph const& paragraph, size_t window_start, size_t window_end, RequestKind kind) const
 {
     size_t length = 0;
     for (auto const& piece : paragraph)
@@ -182,6 +331,7 @@ SpellCheckController::Request SpellCheckController::make_request(Paragraph const
         ++window_end;
 
     Request request;
+    request.kind = kind;
     request.window_end = window_end;
     Utf16StringBuilder text;
     size_t text_length = 0;
@@ -218,6 +368,8 @@ void SpellCheckController::send(Request request)
 {
     auto text = request.text;
     ++m_requests_in_flight;
+    if (request.kind == RequestKind::Typing)
+        m_typing_check_in_flight = true;
     m_document->page().request_spell_check(text, GC::create_function(m_document->heap(), [document = GC::Weak<DOM::Document> { m_document }, request = move(request)](Vector<SpellingError> errors) {
         auto strong_document = document.ptr();
         if (!strong_document)
@@ -231,8 +383,19 @@ void SpellCheckController::did_receive_answer(Request const& request, Vector<Spe
 {
     --m_requests_in_flight;
     apply(request, errors);
-    m_existing_text_chunk_in_flight = false;
-    send_next_existing_text_chunk();
+    switch (request.kind) {
+    case RequestKind::ExistingText:
+        m_existing_text_chunk_in_flight = false;
+        send_next_existing_text_chunk();
+        break;
+    case RequestKind::Typing:
+        m_typing_check_in_flight = false;
+        if (exchange(m_typing_check_wanted, false))
+            schedule_typing_check();
+        break;
+    case RequestKind::Other:
+        break;
+    }
 }
 
 // Checking existing text goes one chunk at a time: The next chunk goes out once the previous one's answer is in.
@@ -248,6 +411,7 @@ void SpellCheckController::send_next_existing_text_chunk()
     };
 
     Request chunk;
+    chunk.kind = RequestKind::ExistingText;
     Utf16StringBuilder chunk_text;
     size_t chunk_length = 0;
     while (pass.next_paragraph < pass.paragraphs.size() && chunk_length < EXISTING_TEXT_CHUNK_SIZE) {
@@ -268,7 +432,7 @@ void SpellCheckController::send_next_existing_text_chunk()
         auto room = EXISTING_TEXT_CHUNK_SIZE - chunk_length;
         if (chunk_length > 0 && length - pass.next_offset > room)
             break;
-        auto request = make_request(paragraph, pass.next_offset, pass.next_offset + room);
+        auto request = make_request(paragraph, pass.next_offset, pass.next_offset + room, RequestKind::ExistingText);
         if (request.window_end <= pass.next_offset) {
             next_paragraph();
             continue;
@@ -339,7 +503,18 @@ void SpellCheckController::apply(Request const& request, Vector<SpellingError> c
 // Checking existing text: When a checkable editable gains focus, its whole text is checked, one chunk at a time.
 void SpellCheckController::did_focus(GC::Ptr<DOM::Node> node)
 {
+    // Focus moving ends the typing that came before. The word the user was typing is no longer being typed, so it gets
+    // checked now. And a typing check queued for an earlier edit no longer runs, since it would read a caret that edit
+    // didn't put there.
+    if (auto exempt = exchange(m_exempt_word, {}); exempt.has_value()) {
+        if (auto text = exempt->text.ptr(); text && owns(*text) && text_is_checkable(*text) && m_document->page().spell_checking_available())
+            send_window_around(*text, min<size_t>(exempt->start, text->length_in_utf16_code_units()), RequestKind::Other);
+    }
+    m_typing_check_scheduled = false;
+    m_typing_check_wanted = false;
+    m_exempt_word_check_scheduled = false;
     m_existing_text_pass.clear();
+
     if (!node || !m_document->page().spell_checking_available())
         return;
     auto editable = checkable_editable_for(*node);
@@ -351,7 +526,8 @@ void SpellCheckController::did_focus(GC::Ptr<DOM::Node> node)
 
 bool SpellCheckController::is_settled() const
 {
-    return !m_existing_text_pass.has_value() && m_requests_in_flight == 0;
+    return !m_existing_text_pass.has_value() && m_requests_in_flight == 0 && !m_typing_check_scheduled
+        && !m_typing_check_wanted && !m_exempt_word_check_scheduled;
 }
 
 }

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="area"></textarea>
+<textarea id="composed"></textarea>
+<div id="editable" contenteditable></div>
+<script>
+    promiseTest(async () => {
+        const area = document.getElementById("area");
+        const show = async (label, node) => {
+            await internals.spellCheckSettled();
+            println(`${label}: ${internals.spellingErrorRanges(node) || "(none)"}`);
+        };
+
+        internals.sendText(area, "txet");
+        await show("typing the word", area);
+        internals.sendText(area, " ");
+        await show("after a space", area);
+        internals.sendText(area, "fox txe");
+        await show("half-typed second word", area);
+        internals.sendText(area, "t");
+        await show("still typing it", area);
+        area.setSelectionRange(0, 0);
+        await show("caret moved away", area);
+        area.setSelectionRange(2, 2);
+        internals.sendText(area, "x");
+        await show("typing inside a flagged word", area);
+
+        const composed = document.getElementById("composed");
+        composed.focus();
+        internals.setMarkedTextFromInputMethod("txet");
+        await show("during a composition", composed);
+        internals.commitTextFromInputMethod("txet ");
+        await show("after committing it", composed);
+
+        const editable = document.getElementById("editable");
+        internals.sendText(editable, "speling ");
+        await show("contenteditable", editable.firstChild);
+    });
+</script>
