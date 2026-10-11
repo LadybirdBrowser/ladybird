@@ -1,0 +1,4 @@
+pulled past the top: viewport stretch=-20 window.scrollY=0
+wheel events the page could have canceled: 0 of 2
+sprung back: viewport stretch=0 window.scrollY=0
+mouse wheel: viewport stretch=0 window.scrollY=0
