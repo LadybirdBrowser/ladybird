@@ -47,6 +47,8 @@ public:
 
     // The watched source's latest word, which the listeners then hear of.
     void report_device_list(ErrorOr<AudioDeviceEnumeration>);
+    // Has the source report its list again. False when there is no source to ask, so no report will come.
+    bool request_fresh_device_list();
 
     using ListenerId = u64;
     ListenerId add_devices_changed_listener(Function<void()>);

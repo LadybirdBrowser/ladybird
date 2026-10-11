@@ -93,6 +93,7 @@ struct RemoteFixture {
         });
         auto paired = MUST(IPC::Transport::create_paired());
         server = Audio::ServerConnection::construct(move(paired.local), 1, *mixer, Audio::ServerConnection::DeviceEnumeration::Platform, Audio::CaptureDevices::create([](Audio::SampleSpecification const&, u32, StringView, Audio::RecordStream::RecordCallback) { return Audio::RecordStream::CreatePromise::rejected(Error::from_string_literal("No capture in this test")); }), [](ByteString const&, Function<void(bool)> on_decided) { on_decided(false); });
+        server->set_capture_permitted(true);
         server->on_death = [this] { server_died = true; };
         server_weak = server->make_weak_ptr<Audio::ServerConnection>();
         client = adopt_ref(*new Audio::ClientConnection(MUST(paired.remote_handle.create_transport())));
@@ -396,6 +397,51 @@ TEST_CASE(a_device_change_on_the_server_reaches_a_watching_client)
     EXPECT(fixture.pump_until([&] { return reports == 2; }));
     EXPECT_EQ(last_inputs.size(), 1u);
     EXPECT_EQ(last_inputs[0].label, "Test microphone"sv);
+
+    devices.report_device_list(move(original));
+}
+
+TEST_CASE(without_the_permission_a_client_learns_only_that_devices_exist)
+{
+    // The watcher may still be told of a change while the fixture shuts the client down.
+    size_t reports = 0;
+    Audio::AudioDeviceEnumeration last_report;
+    RemoteFixture fixture;
+    // The test stands in for the platform's device watch.
+    auto& devices = Audio::AudioDevices::the();
+    devices.report_device_list(Audio::AudioDeviceEnumeration {});
+    Audio::AudioDeviceEnumeration original { .inputs = devices.input_devices(), .outputs = devices.output_devices() };
+    Audio::AudioDeviceInfo microphone { .dom_device_id = "test:input:1", .label = "Test microphone", .group_id = "test:group", .sample_rate_hz = 48000, .channel_count = 1, .is_default = true };
+    Audio::AudioDeviceInfo speaker { .dom_device_id = "test:output:1", .label = "Test speaker", .group_id = "test:group", .sample_rate_hz = 48000, .channel_count = 2, .is_default = false };
+    devices.report_device_list(Audio::AudioDeviceEnumeration { .inputs = { microphone }, .outputs = { speaker, speaker } });
+
+    auto expect_nameless = [&](Vector<Audio::AudioDeviceInfo> const& reported) {
+        EXPECT_EQ(reported.size(), 1u);
+        EXPECT(reported[0].dom_device_id.is_empty());
+        EXPECT(reported[0].label.is_empty());
+        EXPECT(reported[0].group_id.is_empty());
+        EXPECT(reported[0].is_default);
+    };
+    fixture.server->set_capture_permitted(false);
+    fixture.client->watch_devices([&](ErrorOr<Audio::AudioDeviceEnumeration> result) {
+        reports++;
+        last_report = result.release_value();
+    });
+    EXPECT(fixture.pump_until([&] { return reports == 1; }));
+    expect_nameless(last_report.inputs);
+    expect_nameless(last_report.outputs);
+
+    // The permission brings the names at once, and losing it takes them away again.
+    fixture.server->set_capture_permitted(true);
+    EXPECT(fixture.pump_until([&] { return reports == 2; }));
+    EXPECT_EQ(last_report.inputs.size(), 1u);
+    EXPECT_EQ(last_report.inputs[0].label, "Test microphone"sv);
+    EXPECT_EQ(last_report.outputs.size(), 2u);
+    EXPECT_EQ(last_report.outputs[0].label, "Test speaker"sv);
+    fixture.server->set_capture_permitted(false);
+    EXPECT(fixture.pump_until([&] { return reports == 3; }));
+    expect_nameless(last_report.inputs);
+    expect_nameless(last_report.outputs);
 
     devices.report_device_list(move(original));
 }

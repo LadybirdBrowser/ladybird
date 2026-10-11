@@ -36,7 +36,8 @@ public:
     void set_control_connection(ControlConnection&);
 
     ErrorOr<IPC::TransportHandle> connect_client(u64 tab_id);
-    // Whether the tab's pages hold the permission: without it the capture streams its clients have are closed.
+    // Whether the tab's pages hold the permission: its clients, present and future, learn the devices' names only with
+    // it, and the capture streams they have are closed without it.
     void set_capture_permission(u64 tab_id, bool granted);
     void capture_decided(u64 request_id, bool allowed);
 

@@ -84,6 +84,8 @@ private:
     void run_device_change_notification_steps(Vector<StoredDevice> const& device_list);
     static Vector<StoredDevice> current_audio_device_snapshot();
     void did_observe_audio_device_cache_update();
+    // Runs the callback once the process has a device list fetched from now on, or at once where no list ever comes.
+    void run_with_fresh_audio_device_list(GC::Ref<GC::Function<void()>>);
     void end_tracks_of_removed_devices();
     void end_tracks(GC::RootVector<GC::Ref<MediaStreamTrack>>);
     virtual void visit_edges(Cell::Visitor&) override;
@@ -107,6 +109,7 @@ private:
     Vector<GC::Weak<MediaStreamTrack>> m_media_stream_track_sources;
     Vector<PendingEnumerateDevicesRequest> m_pending_enumerate_devices_requests;
     Vector<PendingGetUserMediaRequest> m_pending_get_user_media_requests;
+    Vector<GC::Ref<GC::Function<void()>>> m_awaiting_fresh_audio_device_list;
     GC::Ptr<DOM::IDLEventListener> m_pending_request_state_change_listener;
     Optional<u64> m_audio_device_cache_listener_id;
 };

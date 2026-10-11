@@ -38,8 +38,8 @@ public:
     // Runs when the client disconnects, after its streams have left the mixer.
     Function<void()> on_death;
 
-    // Whether the Browser says the client's tab holds the microphone permission. Without it the capture streams it has
-    // are closed.
+    // Whether the Browser says the client's tab holds the microphone permission. Without it the client learns of the
+    // devices by their existence alone, and the capture streams it has are closed.
     void set_capture_permitted(bool);
 
 private:
