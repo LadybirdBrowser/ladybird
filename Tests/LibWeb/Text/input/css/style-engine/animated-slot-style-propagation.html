@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        for (const mode of ["named", "manual"]) {
+            for (const kind of ["transition", "animation", "web-animation"]) {
+                const prefix = `${mode}/${kind}`;
+                const host = document.createElement("div");
+                document.body.append(host);
+                const shadow = host.attachShadow({ mode: "open", slotAssignment: mode });
+                shadow.innerHTML = `
+                    <style>
+                        ::slotted(div) { display: inline; transition: opacity 1000s linear; }
+                        @keyframes paint {
+                            from { background-color: rgb(0, 0, 0); }
+                            to { background-color: rgb(100, 100, 100); }
+                        }
+                        slot.sample { animation: paint 1000s linear paused; }
+                    </style>
+                    <slot><span id="fallback">fallback</span></slot>`;
+                const slot = shadow.querySelector("slot");
+                const children = [];
+                for (let index = 0; index < 40; ++index) {
+                    const child = document.createElement("div");
+                    child.textContent = "item";
+                    host.append(child);
+                    children.push(child);
+                }
+                if (mode === "manual")
+                    slot.assign(...children);
+                const childShadow = children[0].attachShadow({ mode: "open" });
+                childShadow.innerHTML = "<span>shadow child</span>";
+                slot.style.backgroundColor = "rgb(0, 0, 0)";
+                if (kind === "transition")
+                    slot.style.transition = "background-color 1000s linear";
+                internals.updateStyle();
+                let animation;
+                if (kind === "transition") {
+                    slot.style.backgroundColor = "rgb(100, 100, 100)";
+                    internals.updateStyle();
+                    animation = slot.getAnimations()[0];
+                } else if (kind === "animation") {
+                    slot.classList.add("sample");
+                    internals.updateStyle();
+                    animation = slot.getAnimations()[0];
+                } else {
+                    animation = slot.animate({ backgroundColor: ["rgb(0, 0, 0)", "rgb(100, 100, 100)"] }, 1000000);
+                }
+                animation.pause();
+                animation.currentTime = 500000;
+                internals.updateStyle();
+                const before = internals.styleEngineCounters();
+                animation.currentTime = 750000;
+                internals.updateStyle();
+                const after = internals.styleEngineCounters();
+                println(`${prefix} paint avoids descendant style work: ${after.reachedStyleNodes - before.reachedStyleNodes <= 1}`);
+                println(`${prefix} slot sample: ${getComputedStyle(slot).backgroundColor}`);
+                println(`${prefix} assigned background: ${getComputedStyle(children[39]).backgroundColor}`);
+                children[0].style.backgroundColor = "inherit";
+                children[1].style.backgroundColor = "var(--missing, inherit)";
+                childShadow.firstElementChild.style.backgroundColor = "inherit";
+                internals.updateStyle();
+                animation.currentTime = 250000;
+                internals.updateStyle();
+                println(`${prefix} explicit inheritance: ${getComputedStyle(children[0]).backgroundColor}`);
+                println(`${prefix} substituted inheritance: ${getComputedStyle(children[1]).backgroundColor}`);
+                println(`${prefix} shadow inheritance: ${getComputedStyle(childShadow.firstElementChild).backgroundColor}`);
+                println(`${prefix} unaffected sibling: ${getComputedStyle(children[39]).backgroundColor}`);
+                animation.cancel();
+                slot.classList.remove("sample");
+                slot.style.transition = "none";
+                internals.updateStyle();
+                println(`${prefix} canceled paint restores base: ${getComputedStyle(children[0]).backgroundColor}`);
+
+                const color = slot.animate({ color: ["rgb(0, 0, 0)", "rgb(100, 100, 100)"] }, 1000000);
+                color.pause();
+                color.currentTime = 500000;
+                internals.updateStyle();
+                for (const effect of host.getAnimations({ subtree: true })) {
+                    effect.pause();
+                    effect.currentTime = 500000;
+                }
+                internals.updateStyle();
+                println(`${prefix} inherited animated color: ${getComputedStyle(children[39]).color}`);
+                println(`${prefix} shadow animated color: ${getComputedStyle(childShadow.firstElementChild).color}`);
+                color.cancel();
+                const display = slot.animate({ display: ["contents", "flex"] }, 1000000);
+                display.pause();
+                display.currentTime = 750000;
+                internals.updateStyle();
+                println(`${prefix} animated flex blockifies: ${getComputedStyle(children[39]).display}`);
+                display.currentTime = 250000;
+                internals.updateStyle();
+                println(`${prefix} animated contents restores inline: ${getComputedStyle(children[39]).display}`);
+                display.cancel();
+                host.replaceChildren();
+                if (mode === "manual")
+                    slot.assign();
+                slot.style.color = "blue";
+                internals.updateStyle();
+                const fallback = shadow.getElementById("fallback");
+                println(`${prefix} fallback inherits: ${getComputedStyle(fallback).color}`);
+                fallback.style.backgroundColor = "var(--missing, inherit)";
+                internals.updateStyle();
+                const fallbackPaint = slot.animate({ backgroundColor: ["rgb(0, 0, 0)", "rgb(100, 100, 100)"] }, 1000000);
+                fallbackPaint.pause();
+                fallbackPaint.currentTime = 500000;
+                internals.updateStyle();
+                println(`${prefix} fallback explicitly inherits animated paint: ${getComputedStyle(fallback).backgroundColor}`);
+                fallbackPaint.cancel();
+                host.remove();
+            }
+        }
+    });
+</script>

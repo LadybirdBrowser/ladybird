@@ -1,0 +1,84 @@
+named/transition paint avoids descendant style work: true
+named/transition slot sample: rgb(75, 75, 75)
+named/transition assigned background: rgba(0, 0, 0, 0)
+named/transition explicit inheritance: rgb(25, 25, 25)
+named/transition substituted inheritance: rgb(25, 25, 25)
+named/transition shadow inheritance: rgb(25, 25, 25)
+named/transition unaffected sibling: rgba(0, 0, 0, 0)
+named/transition canceled paint restores base: rgb(100, 100, 100)
+named/transition inherited animated color: rgb(50, 50, 50)
+named/transition shadow animated color: rgb(50, 50, 50)
+named/transition animated flex blockifies: block
+named/transition animated contents restores inline: inline
+named/transition fallback inherits: rgb(0, 0, 255)
+named/transition fallback explicitly inherits animated paint: rgb(50, 50, 50)
+named/animation paint avoids descendant style work: true
+named/animation slot sample: rgb(75, 75, 75)
+named/animation assigned background: rgba(0, 0, 0, 0)
+named/animation explicit inheritance: rgb(25, 25, 25)
+named/animation substituted inheritance: rgb(25, 25, 25)
+named/animation shadow inheritance: rgb(25, 25, 25)
+named/animation unaffected sibling: rgba(0, 0, 0, 0)
+named/animation canceled paint restores base: rgb(0, 0, 0)
+named/animation inherited animated color: rgb(50, 50, 50)
+named/animation shadow animated color: rgb(50, 50, 50)
+named/animation animated flex blockifies: block
+named/animation animated contents restores inline: inline
+named/animation fallback inherits: rgb(0, 0, 255)
+named/animation fallback explicitly inherits animated paint: rgb(50, 50, 50)
+named/web-animation paint avoids descendant style work: true
+named/web-animation slot sample: rgb(75, 75, 75)
+named/web-animation assigned background: rgba(0, 0, 0, 0)
+named/web-animation explicit inheritance: rgb(25, 25, 25)
+named/web-animation substituted inheritance: rgb(25, 25, 25)
+named/web-animation shadow inheritance: rgb(25, 25, 25)
+named/web-animation unaffected sibling: rgba(0, 0, 0, 0)
+named/web-animation canceled paint restores base: rgb(0, 0, 0)
+named/web-animation inherited animated color: rgb(50, 50, 50)
+named/web-animation shadow animated color: rgb(50, 50, 50)
+named/web-animation animated flex blockifies: block
+named/web-animation animated contents restores inline: inline
+named/web-animation fallback inherits: rgb(0, 0, 255)
+named/web-animation fallback explicitly inherits animated paint: rgb(50, 50, 50)
+manual/transition paint avoids descendant style work: true
+manual/transition slot sample: rgb(75, 75, 75)
+manual/transition assigned background: rgba(0, 0, 0, 0)
+manual/transition explicit inheritance: rgb(25, 25, 25)
+manual/transition substituted inheritance: rgb(25, 25, 25)
+manual/transition shadow inheritance: rgb(25, 25, 25)
+manual/transition unaffected sibling: rgba(0, 0, 0, 0)
+manual/transition canceled paint restores base: rgb(100, 100, 100)
+manual/transition inherited animated color: rgb(50, 50, 50)
+manual/transition shadow animated color: rgb(50, 50, 50)
+manual/transition animated flex blockifies: block
+manual/transition animated contents restores inline: inline
+manual/transition fallback inherits: rgb(0, 0, 255)
+manual/transition fallback explicitly inherits animated paint: rgb(50, 50, 50)
+manual/animation paint avoids descendant style work: true
+manual/animation slot sample: rgb(75, 75, 75)
+manual/animation assigned background: rgba(0, 0, 0, 0)
+manual/animation explicit inheritance: rgb(25, 25, 25)
+manual/animation substituted inheritance: rgb(25, 25, 25)
+manual/animation shadow inheritance: rgb(25, 25, 25)
+manual/animation unaffected sibling: rgba(0, 0, 0, 0)
+manual/animation canceled paint restores base: rgb(0, 0, 0)
+manual/animation inherited animated color: rgb(50, 50, 50)
+manual/animation shadow animated color: rgb(50, 50, 50)
+manual/animation animated flex blockifies: block
+manual/animation animated contents restores inline: inline
+manual/animation fallback inherits: rgb(0, 0, 255)
+manual/animation fallback explicitly inherits animated paint: rgb(50, 50, 50)
+manual/web-animation paint avoids descendant style work: true
+manual/web-animation slot sample: rgb(75, 75, 75)
+manual/web-animation assigned background: rgba(0, 0, 0, 0)
+manual/web-animation explicit inheritance: rgb(25, 25, 25)
+manual/web-animation substituted inheritance: rgb(25, 25, 25)
+manual/web-animation shadow inheritance: rgb(25, 25, 25)
+manual/web-animation unaffected sibling: rgba(0, 0, 0, 0)
+manual/web-animation canceled paint restores base: rgb(0, 0, 0)
+manual/web-animation inherited animated color: rgb(50, 50, 50)
+manual/web-animation shadow animated color: rgb(50, 50, 50)
+manual/web-animation animated flex blockifies: block
+manual/web-animation animated contents restores inline: inline
+manual/web-animation fallback inherits: rgb(0, 0, 255)
+manual/web-animation fallback explicitly inherits animated paint: rgb(50, 50, 50)
