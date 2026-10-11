@@ -771,7 +771,7 @@ impl GraphBuilder<'_> {
 
     /// Whether `values` may all be int32 values: they are no constants of
     /// other kinds.
-    fn may_be_int32(&self, values: &[NodeId]) -> bool {
+    pub(super) fn may_be_int32(&self, values: &[NodeId]) -> bool {
         values.iter().all(|value| {
             self.graph.constant_value(*value).is_none()
                 || self.int32_value_of(*value).is_some()

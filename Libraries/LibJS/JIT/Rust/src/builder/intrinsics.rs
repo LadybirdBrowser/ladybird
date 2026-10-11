@@ -335,7 +335,8 @@ impl GraphBuilder<'_> {
     /// saw `Math.min` or `Math.max` as their single callee, and only int32
     /// results, for int32 arguments: the smaller or larger one. The code
     /// exits where the callee is another function or an argument is no
-    /// int32. Returns `None`, having built nothing, if it is not such a call.
+    /// int32. Returns `None`, having built nothing that matters, if it is not
+    /// such a call or an argument is a constant that is no int32.
     pub(super) fn try_build_math_min_max(&mut self, instruction: &Instruction) -> Result<Option<Flow>, CompileFailure> {
         let Instruction::Call {
             value_feedback,
@@ -351,8 +352,9 @@ impl GraphBuilder<'_> {
         let [lhs, rhs] = arguments.as_slice() else {
             return Ok(None);
         };
-        // NB: Arguments that were no int32 values would have made results
-        //     that are none either, so the code would exit.
+        // NB: Int32 results do not prove int32 arguments (Math.min(1, 2.5)
+        //     is 1). Arguments that are no int32 values exit, and code compiled
+        //     after the exit calls the function.
         let results = self.function.executable.feedback.value.get(usize::from(value_feedback));
         if results != Some(&value_feedback::INT32) {
             return Ok(None);
@@ -376,13 +378,12 @@ impl GraphBuilder<'_> {
         {
             return Ok(None);
         }
+        let (lhs, rhs) = (self.read_value(*lhs)?, self.read_value(*rhs)?);
+        if !self.may_be_int32(&[lhs, rhs]) {
+            return Ok(None);
+        }
         self.check_callee(callee, target)?;
-        let int32 = |builder: &mut Self, operand: Operand| -> Result<NodeId, CompileFailure> {
-            let value = builder.read(operand)?;
-            Ok(builder.emit_checked(Op::CheckInt32, vec![value], Some(Repr::Int32)))
-        };
-        let lhs = int32(self, *lhs)?;
-        let rhs = int32(self, *rhs)?;
+        let (lhs, rhs) = (self.int32(lhs), self.int32(rhs));
         // NB: Phis the builder makes merge tagged values, which
         //     representation selection unboxes.
         let boxed = [lhs, rhs].map(|value| self.emit(Op::BoxInt32, vec![value], Some(Repr::Tagged)));
