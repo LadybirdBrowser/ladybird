@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #nested {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #nested > div {
+        height: 300px;
+    }
+</style>
+<div id="nested"><div></div></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        await scrollSettled(nested, () => nested.scrollTo(0, 190));
+
+        // Precise deltas without a gesture phase never say when the fingers lift.
+        await internals.wheel(50, 50, 0, 410, true, "none");
+        println(`precise wheel without a phase: nested.scrollTop=${nested.scrollTop} stretch=${internals.elasticOverscrollStretchY(nested)}`);
+
+        await scrollSettled(nested, () => nested.scrollTo(0, 190));
+        await scrollSettled(nested, () => internals.wheel(50, 50, 0, 410));
+        println(`mouse wheel: nested.scrollTop=${nested.scrollTop} stretch=${internals.elasticOverscrollStretchY(nested)}`);
+    });
+</script>

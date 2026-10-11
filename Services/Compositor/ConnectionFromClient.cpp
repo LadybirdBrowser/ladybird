@@ -169,6 +169,11 @@ void ConnectionFromClient::set_synthesizes_scroll_momentum(bool synthesizes_scro
     m_compositor_state->set_synthesizes_scroll_momentum(synthesizes_scroll_momentum);
 }
 
+void ConnectionFromClient::set_scrolls_elastically(bool scrolls_elastically)
+{
+    m_compositor_state->set_scrolls_elastically(scrolls_elastically);
+}
+
 void ConnectionFromClient::crash()
 {
     warnln("Crashing Compositor process by request from Browser");

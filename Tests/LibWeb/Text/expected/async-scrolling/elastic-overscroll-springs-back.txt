@@ -1,0 +1,6 @@
+held by the fingers: nested.scrollTop=200 stretch=20
+still held: stretch=20
+sprung back: nested.scrollTop=200 stretch=0
+stretch grew during the rebound: false
+scrollTop changed during the rebound: false
+scroll events during the rebound: 0

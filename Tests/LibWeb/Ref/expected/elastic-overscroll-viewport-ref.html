@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<style>
+    html {
+        background: lightyellow;
+    }
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+    #pulled-past-the-top {
+        position: absolute;
+        top: 20px;
+        left: 0;
+        right: 0;
+    }
+    #sticky {
+        height: 40px;
+        background: steelblue;
+    }
+    #content {
+        height: 200px;
+        background: darkseagreen;
+    }
+    #fixed {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        width: 60px;
+        height: 60px;
+        background: tomato;
+    }
+</style>
+<div id="pulled-past-the-top">
+    <div id="sticky"></div>
+    <div id="content"></div>
+</div>
+<div id="fixed"></div>

@@ -1714,6 +1714,8 @@ ErrorOr<void> Application::launch_compositor_process()
 
     if (!platform_reports_scroll_momentum())
         m_compositor_client->async_set_synthesizes_scroll_momentum(true);
+    if (platform_scrolls_elastically())
+        m_compositor_client->async_set_scrolls_elastically(true);
 
 #ifdef USE_DIRECTX
     m_reported_compositor_gpu_presentation_unavailable = false;
