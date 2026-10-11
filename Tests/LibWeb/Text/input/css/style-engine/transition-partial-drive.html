@@ -16,14 +16,13 @@
         internals.updateStyle();
         const labels = [...list.querySelectorAll("label")];
 
-        function mutate(label, mutation, { checkLonghandDrive = true } = {}) {
+        function mutate(label, mutation) {
             const before = internals.getStyleInvalidationCounters();
             mutation();
             internals.updateStyle();
             const after = internals.getStyleInvalidationCounters();
             println(`${label} full builds: ${after.baseStyleFullBuilds - before.baseStyleFullBuilds}`);
-            if (checkLonghandDrive)
-                println(`${label} longhand drive bounded: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations < 4000}`);
+            println(`${label} longhand drive bounded: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations < 4000}`);
         }
 
         mutate("complete", () => { for (const item of list.children) item.classList.add("completed"); });
@@ -36,7 +35,10 @@
         println(`midpoint color: ${getComputedStyle(labels[0]).color}`);
         println(`midpoint text-decoration-line: ${getComputedStyle(labels[0]).textDecorationLine}`);
 
-        mutate("recompute mid-transition", () => { for (const label of labels) label.classList.add("padded"); }, { checkLonghandDrive: false });
+        const before = internals.styleEngineCounters();
+        mutate("recompute mid-transition", () => { for (const label of labels) label.classList.add("padded"); });
+        const after = internals.styleEngineCounters();
+        println(`mid-transition avoids full drives: ${after.engineFullDrivesStarted === before.engineFullDrivesStarted}`);
         println(`running transition kept: ${labels.every(label => label.getAnimations().length === 1)}`);
         println(`running color: ${getComputedStyle(labels[0]).color}`);
 

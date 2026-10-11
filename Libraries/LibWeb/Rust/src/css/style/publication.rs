@@ -718,10 +718,20 @@ impl RetainedState {
             || scratch.document_environment_moved
             || (scratch.viewport_moved && self.record_reads_the_viewport(underlying_style_record))
             || full_drive_reason.is_some()
-            // A composition holds what the element inherits of its parent's animations beside what
-            // its own sample: the record beneath it is driven in full, inheriting from the parent's
-            // composition, and the host samples the element's own animations over it.
-            || composes_animations
+            // NB: An overlay that adjusts the base's display, overflow or other driver inputs
+            //     needs their unadjusted values rebuilt before the host composes it again.
+            || (composes_animations
+                && self.computed_group_sets.style_record_view(old_style_record.raw()).is_some_and(|view| {
+                    // SAFETY: The installed record keeps its overlay live.
+                    unsafe { view.animated_overlay.as_ref() }.is_some_and(|overlay| {
+                        overlay.entries().iter().any(|entry| {
+                            entry.post_compute_adjustment
+                                || !property_computes_in_remaining_phase(entry.property)
+                                || crate::css::style_compute::is_required_driver_input(entry.property)
+                                || property_feeds_box_type_transformation(entry.property)
+                        })
+                    })
+                }))
             || ((environment.is_some() || self.custom_property_registrations_changed)
                 && self.state_has_substitutions(node, state))
             || self.state_reads_beyond_environment(node, state)
@@ -798,24 +808,16 @@ impl RetainedState {
         // through substitution, or when a full drive may read more of the parent's style.
         let parent = self.tree.inheritance_parent(node);
         let parent_record = parent.and_then(|parent| self.computed_group_sets.assigned_style_record(parent));
-        let mut cohort_parent = RecordDeltaParent::Exact(parent_record.map_or(0, |record| record.raw()));
-        if !full_drive
-            && let (Some(parent), Some(parent_record)) = (parent, parent_record)
-            && !self.state_has_substitutions(node, state)
-            && let Some(inputs) = self.cold_record_parent(node, parent, parent_record, state)
-        {
-            cohort_parent = RecordDeltaParent::Inputs(inputs);
-        }
         // A record whose winners read beyond its environment is the element's alone, as is one
         // driven in full under registered custom properties, which its own font decides.
         let record_is_the_elements_alone =
             self.state_reads_beyond_environment(node, state) || (has_registered_declarations && full_drive);
-        let cohort = (!record_is_the_elements_alone).then(|| {
+        let exact_cohort = (!record_is_the_elements_alone).then(|| {
             (
                 underlying_style_record.raw(),
                 state,
                 facts,
-                cohort_parent,
+                RecordDeltaParent::Exact(parent_record.map_or(0, |record| record.raw())),
                 // An unchanged environment is not necessarily empty. Distinguish it from a
                 // record moving to the empty environment when both started with the same style.
                 current_environment,
@@ -824,11 +826,29 @@ impl RetainedState {
                 self.sibling_position_key(node, state),
             )
         });
+        // OPTIMIZATION: Try the exact parent record before deriving its sharing inputs. Siblings
+        //               commonly share it, so repeating the proof costs more than the partial drive.
+        let mut cohort = exact_cohort;
+        if exact_cohort.is_some_and(|key| !scratch.cohorts.contains_key(&key))
+            && !full_drive
+            && let (Some(parent), Some(parent_record)) = (parent, parent_record)
+            && !self.state_has_substitutions(node, state)
+            && let Some(inputs) = self.cold_record_parent(node, parent, parent_record, state)
+            && let Some(key) = cohort.as_mut()
+        {
+            key.3 = RecordDeltaParent::Inputs(inputs);
+        }
         if let Some(&(new_style_record, explicitly_inherited_groups, reads_sibling_position)) = cohort
             .as_ref()
             .and_then(|cohort| scratch.cohorts.get(cohort))
             .filter(|&&(record, ..)| self.record_answers_counter_styles_for(record, node))
         {
+            if let Some(exact_cohort) = exact_cohort {
+                scratch.cohorts.insert(
+                    exact_cohort,
+                    (new_style_record, explicitly_inherited_groups, reads_sibling_position),
+                );
+            }
             self.note_node_substitution(node, scratch, state, current_environment);
             // The mark is per node: an element taking the record owes its own parent the mark.
             scratch.element_explicitly_inherited_groups = explicitly_inherited_groups;
@@ -1145,9 +1165,11 @@ impl RetainedState {
             && !self.records_are_the_elements_alone(node)
             && let Some(cohort) = cohort
         {
-            scratch
-                .cohorts
-                .insert(cohort, (delta.1, explicitly_inherited_groups, reads_sibling_position));
+            let record = (delta.1, explicitly_inherited_groups, reads_sibling_position);
+            scratch.cohorts.insert(cohort, record);
+            if let Some(exact_cohort) = exact_cohort {
+                scratch.cohorts.insert(exact_cohort, record);
+            }
         }
         scratch.element_explicitly_inherited_groups = explicitly_inherited_groups;
         Ok(ElementAnswer::Delta(delta))
