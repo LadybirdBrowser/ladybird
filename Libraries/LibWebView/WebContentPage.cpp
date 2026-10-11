@@ -2537,10 +2537,24 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
             return { {}, {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
     }
 
-    // The popup blocker runs in the renderer, which a compromised renderer skips. Each popup takes the activation of
-    // input the UI process delivered to the page, as the renderer's popup consumes the activation of its window.
-    if (Application::the().blocks_pop_ups() && !consume_transient_user_activation())
-        return { {}, {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
+    Optional<CanonicalNavigable&> picture_in_picture_navigable;
+    if (hints.picture_in_picture_window.has_value()) {
+        picture_in_picture_navigable = hosted_navigable(hints.picture_in_picture_window->navigable_id);
+        if (!picture_in_picture_navigable.has_value())
+            return { {}, {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
+
+        // https://w3c.github.io/picture-in-picture/#request-picture-in-picture
+        // A window needs and consumes the activation of the user's input, which the renderer checks, unless the document
+        // asking for it has one open. A compromised renderer skips that check, so whatever the popup setting, the UI
+        // process checks the activation of input it delivered, and the window it opened for the navigable's document.
+        if (!PictureInPictureManager::the().document_has_open_window(*picture_in_picture_navigable) && !consume_transient_user_activation())
+            return { {}, {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
+    } else {
+        // The popup blocker runs in the renderer, which a compromised renderer skips. Each popup takes the activation of
+        // input the UI process delivered to the page, as the renderer's popup consumes the activation of its window.
+        if (Application::the().blocks_pop_ups() && !consume_transient_user_activation())
+            return { {}, {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
+    }
 
     auto root_navigable_id = Application::the().allocate_ui_process_cross_process_id();
     auto initial_history_entry = Web::HTML::create_initial_session_history_entry_descriptor(
@@ -2564,8 +2578,8 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
     client().open_page_for_new_top_level_traversable(new_page_id, traversable);
 
     String window_handle;
-    if (hints.picture_in_picture_video_size.has_value()) {
-        window_handle = PictureInPictureManager::the().open_window(*this, traversable, *hints.picture_in_picture_video_size);
+    if (picture_in_picture_navigable.has_value()) {
+        window_handle = PictureInPictureManager::the().open_window(*this, *picture_in_picture_navigable, traversable, hints.picture_in_picture_window->video_size);
     } else if (view().on_new_web_view) {
         window_handle = view().on_new_web_view(activate_tab, hints, traversable);
     }
