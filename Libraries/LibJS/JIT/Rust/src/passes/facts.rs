@@ -33,9 +33,66 @@ use crate::ir::NodeProperties;
 use crate::ir::Op;
 use crate::ir::ShapeCheck;
 use crate::snapshot::CellId;
-use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::rc::Rc;
+
+/// Sparse facts in key order. Copy-on-write clones and filtering walk one
+/// contiguous allocation instead of separately allocated tree nodes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FactMap<K, V>(Vec<(K, V)>);
+
+impl<K, V> Default for FactMap<K, V> {
+    fn default() -> Self {
+        Self(Vec::new())
+    }
+}
+
+impl<K: Ord, V> FactMap<K, V> {
+    fn get(&self, key: &K) -> Option<&V> {
+        self.0
+            .binary_search_by(|(known, _)| known.cmp(key))
+            .ok()
+            .map(|index| &self.0[index].1)
+    }
+
+    fn contains_key(&self, key: &K) -> bool {
+        self.get(key).is_some()
+    }
+
+    fn insert(&mut self, key: K, value: V) {
+        // Definitions usually arrive in increasing node order.
+        if self.0.last().is_none_or(|(last, _)| *last < key) {
+            self.0.push((key, value));
+            return;
+        }
+        match self.0.binary_search_by(|(known, _)| known.cmp(&key)) {
+            Ok(index) => self.0[index].1 = value,
+            Err(index) => self.0.insert(index, (key, value)),
+        }
+    }
+
+    fn remove(&mut self, key: &K) {
+        if let Ok(index) = self.0.binary_search_by(|(known, _)| known.cmp(key)) {
+            self.0.remove(index);
+        }
+    }
+
+    fn keys(&self) -> impl Iterator<Item = &K> {
+        self.0.iter().map(|(key, _)| key)
+    }
+
+    fn retain(&mut self, mut keep: impl FnMut(&K, &mut V) -> bool) {
+        self.0.retain_mut(|(key, value)| keep(key, value));
+    }
+
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    fn clear(&mut self) {
+        self.0.clear();
+    }
+}
 
 /// What kind of value a value is known to be, which never changes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -182,16 +239,16 @@ impl Location {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(super) struct Facts {
     /// The kinds values may be (immutable), where that is not every kind.
-    kinds: Rc<BTreeMap<NodeId, Kinds>>,
+    kinds: Rc<FactMap<NodeId, Kinds>>,
     /// Values known to have passed a check against a constant, with that
     /// constant (immutable).
     checked_values: Rc<BTreeSet<(NodeId, u64)>>,
     /// Objects known to have elements of a kind (killed by writes of element
     /// counts, except for typed arrays, which keep their kind).
-    elements: Rc<BTreeMap<NodeId, ElementsKind>>,
+    elements: Rc<FactMap<NodeId, ElementsKind>>,
     /// For objects, the shapes they may have (killed by writes of shapes,
     /// except for stable shapes, which are dependency facts).
-    shapes: Rc<BTreeMap<NodeId, Vec<ShapeCheck>>>,
+    shapes: Rc<FactMap<NodeId, Vec<ShapeCheck>>>,
     /// Objects whose shapes are known from before other code ran, which
     /// still hold only if the code is still valid (see `Op::AssumeValid`).
     unvalidated: Rc<BTreeSet<NodeId>>,
@@ -199,7 +256,7 @@ pub(super) struct Facts {
     valid_prototype_chains: Rc<BTreeSet<CellId>>,
     /// The known contents of locations, killed by writes of their
     /// locations (see `Location::locations()`).
-    contents: Rc<BTreeMap<Location, NodeId>>,
+    contents: Rc<FactMap<Location, NodeId>>,
     /// Objects compiled code allocated that nothing but accesses of their
     /// properties has seen yet, so nothing else that runs can change their
     /// shapes or properties.
@@ -211,7 +268,7 @@ pub(super) struct Facts {
     /// every path here, or the value itself where it is what it is known to
     /// be by its definition: what replaces a check that is known to pass,
     /// so that the nodes using it stay behind the check that passed.
-    refinements: Rc<BTreeMap<NodeId, NodeId>>,
+    refinements: Rc<FactMap<NodeId, NodeId>>,
 }
 
 impl Facts {
@@ -238,7 +295,11 @@ impl Facts {
     }
 
     fn narrow_kinds(&mut self, value: NodeId, kinds: Kinds) {
-        let narrowed = self.kinds(value).intersect(kinds);
+        let known = self.kinds(value);
+        let narrowed = known.intersect(kinds);
+        if narrowed == known && (narrowed != Kinds::ALL || !self.kinds.contains_key(&value)) {
+            return;
+        }
         if narrowed == Kinds::ALL {
             Rc::make_mut(&mut self.kinds).remove(&value);
         } else {
@@ -309,7 +370,9 @@ impl Facts {
     }
 
     pub fn set_checked_value(&mut self, value: NodeId, expected: u64) {
-        Rc::make_mut(&mut self.checked_values).insert((value, expected));
+        if !self.is_checked_value(value, expected) {
+            Rc::make_mut(&mut self.checked_values).insert((value, expected));
+        }
     }
 
     pub fn elements_kind(&self, value: NodeId) -> Option<ElementsKind> {
@@ -317,7 +380,9 @@ impl Facts {
     }
 
     pub fn set_elements_kind(&mut self, value: NodeId, kind: ElementsKind) {
-        Rc::make_mut(&mut self.elements).insert(value, kind);
+        if self.elements_kind(value) != Some(kind) {
+            Rc::make_mut(&mut self.elements).insert(value, kind);
+        }
     }
 
     pub fn shapes(&self, value: NodeId) -> Option<&[ShapeCheck]> {
@@ -356,6 +421,9 @@ impl Facts {
         if unvalidated {
             Rc::make_mut(&mut self.unvalidated).remove(&value);
         }
+        if self.shapes(value) == Some(shapes) {
+            return;
+        }
         let narrowed = match self.shapes.get(&value) {
             Some(known) if !unvalidated => shapes.iter().filter(|shape| known.contains(shape)).copied().collect(),
             _ => shapes.to_vec(),
@@ -368,7 +436,9 @@ impl Facts {
     }
 
     pub fn set_prototype_chain_valid(&mut self, validity: CellId) {
-        Rc::make_mut(&mut self.valid_prototype_chains).insert(validity);
+        if !self.is_prototype_chain_valid(validity) {
+            Rc::make_mut(&mut self.valid_prototype_chains).insert(validity);
+        }
     }
 
     pub fn contents(&self, location: Location) -> Option<NodeId> {
@@ -376,12 +446,17 @@ impl Facts {
     }
 
     pub fn set_contents(&mut self, location: Location, value: NodeId) {
-        Rc::make_mut(&mut self.contents).insert(location, value);
+        if self.contents(location) != Some(value) {
+            Rc::make_mut(&mut self.contents).insert(location, value);
+        }
     }
 
     /// `object` gets a new shape: the values that may be it, which are those
     /// that may have a shape it may have, may have the new shape too.
     pub fn forget_shapes_of(&mut self, object: NodeId) {
+        if self.shapes.is_empty() {
+            return;
+        }
         match self.shapes.get(&object).cloned() {
             Some(known) => {
                 Rc::make_mut(&mut self.shapes).retain(|_, shapes| !shapes.iter().any(|shape| known.contains(shape)));
@@ -392,6 +467,13 @@ impl Facts {
 
     /// A store to `offset` of some object, which may alias any object.
     pub fn forget_named_properties_at(&mut self, offset: u32) {
+        if !self
+            .contents
+            .keys()
+            .any(|location| matches!(location, Location::Named { offset: known, .. } if *known == offset))
+        {
+            return;
+        }
         Rc::make_mut(&mut self.contents)
             .retain(|location, _| !matches!(location, Location::Named { offset: known, .. } if *known == offset));
     }
@@ -399,6 +481,9 @@ impl Facts {
     /// A store to binding `index` of some environment, which may be any
     /// environment with such a binding, a global one too.
     pub fn forget_bindings_at(&mut self, index: u32) {
+        if !self.contents.keys().any(|location| matches!(location, Location::GlobalBinding { index: known, .. } | Location::Binding { index: known, .. } if *known == index)) {
+            return;
+        }
         Rc::make_mut(&mut self.contents).retain(|location, _| match location {
             Location::GlobalBinding { index: known, .. } | Location::Binding { index: known, .. } => *known != index,
             _ => true,
@@ -410,7 +495,9 @@ impl Facts {
     }
 
     pub fn set_unexposed(&mut self, object: NodeId) {
-        Rc::make_mut(&mut self.unexposed).insert(object);
+        if !self.unexposed.contains(&object) {
+            Rc::make_mut(&mut self.unexposed).insert(object);
+        }
     }
 
     /// Something other than accesses of its properties sees `object`.
@@ -425,7 +512,9 @@ impl Facts {
     }
 
     pub fn set_refinement(&mut self, value: NodeId, refinement: NodeId) {
-        Rc::make_mut(&mut self.refinements).insert(value, refinement);
+        if self.refinement(value) != Some(refinement) {
+            Rc::make_mut(&mut self.refinements).insert(value, refinement);
+        }
     }
 
     /// A branch establishes facts about `value`, which only the branch's
@@ -464,10 +553,10 @@ impl Facts {
         if self.contents.keys().any(killed) {
             Rc::make_mut(&mut self.contents).retain(|location, _| !killed(location));
         }
-        if writes.intersects(Locations::ELEMENT_COUNTS) {
+        if writes.intersects(Locations::ELEMENT_COUNTS) && !self.elements.is_empty() {
             Rc::make_mut(&mut self.elements).retain(|_, kind| matches!(kind, ElementsKind::TypedArray(_)));
         }
-        if writes.intersects(Locations::SHAPES) {
+        if writes.intersects(Locations::SHAPES) && !self.shapes.is_empty() {
             let mut kept_stable = Vec::new();
             Rc::make_mut(&mut self.shapes).retain(|value, shapes| {
                 if unexposed.contains(value) {
@@ -481,19 +570,27 @@ impl Facts {
                 }
                 stable
             });
-            Rc::make_mut(&mut self.unvalidated).extend(kept_stable);
+            if !kept_stable.is_empty() {
+                Rc::make_mut(&mut self.unvalidated).extend(kept_stable);
+            }
+        }
+        if writes.intersects(Locations::SHAPES) {
             let shapes = &self.shapes;
-            Rc::make_mut(&mut self.unvalidated).retain(|value| shapes.contains_key(value));
+            if self.unvalidated.iter().any(|value| !shapes.contains_key(value)) {
+                Rc::make_mut(&mut self.unvalidated).retain(|value| shapes.contains_key(value));
+            }
+        }
+        if writes.intersects(Locations::SHAPES) && !self.valid_prototype_chains.is_empty() {
             Rc::make_mut(&mut self.valid_prototype_chains).clear();
         }
     }
 
     /// What holds at a merge of paths where `facts` hold.
-    pub fn merge<'a>(mut facts: impl Iterator<Item = &'a Facts>) -> Facts {
+    pub fn merge(mut facts: impl Iterator<Item = Facts>) -> Facts {
         let Some(first) = facts.next() else {
             return Facts::default();
         };
-        let mut merged = first.clone();
+        let mut merged = first;
         for other in facts {
             narrow_unless_shared(&mut merged.kinds, &other.kinds, |kinds| {
                 kinds.retain(|value, kinds| {
@@ -603,13 +700,74 @@ mod tests {
         right.set_shapes(a, &[shape(11)]);
         right.set_contents(named(a, 0), c);
 
-        let merged = Facts::merge([&left, &right].into_iter());
+        let merged = Facts::merge([left, right].into_iter());
         assert!(merged.is_object(a));
         assert!(!merged.is_object(b));
         assert_eq!(merged.value_kind(c), Some(ValueKind::Number));
         assert_eq!(merged.shapes(a), Some(&[shape(10), shape(11)][..]));
         assert_eq!(merged.shapes(b), None);
         assert_eq!(merged.contents(named(a, 0)), Some(c));
+    }
+
+    #[test]
+    fn fact_maps_keep_order_through_updates_and_filtering() {
+        let mut facts = FactMap::default();
+        for (key, value) in [(3, 30), (1, 10), (2, 20), (3, 31), (4, 40)] {
+            facts.insert(key, value);
+        }
+        assert_eq!(facts.0, [(1, 10), (2, 20), (3, 31), (4, 40)]);
+        facts.remove(&2);
+        facts.remove(&9);
+        facts.retain(|key, value| {
+            *value += 1;
+            *key != 3
+        });
+        assert_eq!(facts.0, [(1, 11), (4, 41)]);
+        assert_eq!(facts.get(&4), Some(&41));
+        assert_eq!(facts.get(&2), None);
+        assert_eq!(facts.clone(), facts);
+    }
+
+    #[test]
+    fn unchanged_facts_keep_shared_storage() {
+        let value = NodeId(1);
+        let mut facts = Facts::default();
+        facts.set_object(value);
+        facts.set_shapes(value, &[shape(1)]);
+        facts.set_contents(named(value, 0), value);
+        let shared = facts.clone();
+        facts.set_object(value);
+        facts.set_shapes(value, &[shape(1)]);
+        facts.set_contents(named(value, 0), value);
+        assert!(Rc::ptr_eq(&facts.kinds, &shared.kinds));
+        assert!(Rc::ptr_eq(&facts.shapes, &shared.shapes));
+        assert!(Rc::ptr_eq(&facts.contents, &shared.contents));
+    }
+
+    #[test]
+    fn merging_consumes_unique_storage() {
+        let value = NodeId(1);
+        let mut first = Facts::default();
+        first.set_object(value);
+        let storage = Rc::as_ptr(&first.kinds);
+        let mut second = Facts::default();
+        second.set_object(value);
+        let merged = Facts::merge([first, second].into_iter());
+        assert_eq!(Rc::as_ptr(&merged.kinds), storage);
+        assert!(merged.is_object(value));
+    }
+
+    #[test]
+    fn shape_writes_remove_unvalidated_values_without_shapes() {
+        let value = NodeId(1);
+        let mut facts = Facts::default();
+        facts.unvalidated = Rc::new([value].into_iter().collect());
+        let write = NodeProperties {
+            writes: Locations::SHAPES,
+            ..crate::ir::Op::Unreachable.properties()
+        };
+        facts.apply(&write, &[]);
+        assert!(!facts.is_unvalidated(value));
     }
 
     #[test]

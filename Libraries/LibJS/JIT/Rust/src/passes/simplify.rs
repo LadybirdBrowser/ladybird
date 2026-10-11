@@ -16,6 +16,7 @@ use super::edit::Constants;
 use super::edit::Replacements;
 use crate::bitset::BitSet;
 use crate::code::Repr;
+use crate::inline_vec::InlineVec;
 use crate::ir::BinaryOp;
 use crate::ir::BlockId;
 use crate::ir::BranchCondition;
@@ -41,8 +42,8 @@ fn constant_truthiness(bits: u64, repr: Repr) -> Option<bool> {
 
 fn int32_of(graph: &Graph, node: NodeId) -> Option<i32> {
     let data = graph.node(node);
-    match (data.op.clone(), data.repr) {
-        (Op::Constant(bits), Some(Repr::Int32)) => Some((bits as u32).cast_signed()),
+    match (&data.op, data.repr) {
+        (Op::Constant(bits), Some(Repr::Int32)) => Some((*bits as u32).cast_signed()),
         _ => None,
     }
 }
@@ -151,13 +152,13 @@ pub fn run(graph: &mut Graph) {
                 .inputs
                 .iter()
                 .map(|input| replacements.resolve(*input))
-                .collect::<Vec<_>>();
+                .collect::<InlineVec<NodeId, 4>>();
             let constant_bits = |graph: &Graph, input: usize| graph.constant_value(inputs[input]);
             let boxed = |op: Op, input: NodeId| {
                 let unrefined = graph.node(graph.unrefined(input));
                 (unrefined.op == op).then(|| unrefined.inputs[0])
             };
-            let folded = match graph.node(node).op.clone() {
+            let folded = match graph.node(node).op {
                 // NB: Numeric constants are numbers.
                 Op::CheckNumber if let Some(number) = constant_number(graph, inputs[0]) => {
                     Some(constants.get_typed(graph, number.to_bits(), Repr::Float64))

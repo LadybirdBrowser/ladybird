@@ -221,18 +221,18 @@ impl Verifier<'_> {
         let Some(frame_state) = self.graph.node(node).frame_state else {
             return;
         };
-        let expected = &self.graph.frame_state_values(frame_state);
+        let expected_count = self.graph.frame_state_values(frame_state).count();
         let exit_values = &self.allocation.node(node).exit_values;
-        if expected.len() != exit_values.len() {
+        if expected_count != exit_values.len() {
             self.error(format!(
                 "{context}: exit has {} values, frame state {}",
                 exit_values.len(),
-                expected.len()
+                expected_count
             ));
             return;
         }
-        for ((slot, value), (exit_slot, location)) in expected.iter().zip(exit_values) {
-            if slot != exit_slot {
+        for ((slot, value), (exit_slot, location)) in self.graph.frame_state_values(frame_state).zip(exit_values) {
+            if slot != *exit_slot {
                 self.error(format!(
                     "{context}: exit value for slot {exit_slot}, frame state slot {slot}"
                 ));
@@ -240,7 +240,7 @@ impl Verifier<'_> {
             self.expect(
                 state,
                 *location,
-                *value,
+                value,
                 &format!("{context}, exit value for slot {slot}"),
             );
         }
