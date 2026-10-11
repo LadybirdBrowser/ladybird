@@ -6,11 +6,12 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/FixedArray.h>
 #include <AK/HashMap.h>
 #include <AK/Math.h>
 #include <AK/Optional.h>
-#include <AK/RefCounted.h>
+#include <AK/SaturatingMath.h>
 #include <AK/String.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
@@ -89,7 +90,41 @@ struct TrackFragmentSampleDefaults {
     u32 sample_flags { 0 };
 };
 
-struct TrackEntry : public RefCounted<TrackEntry> {
+struct TimeToSampleEntry {
+    u32 sample_count;
+    u32 sample_delta;
+};
+
+struct CompositionOffsetEntry {
+    u32 sample_count;
+    i64 sample_offset;
+};
+
+struct SampleToChunkEntry {
+    u32 first_chunk;
+    u32 samples_per_chunk;
+    u32 sample_description_index;
+};
+
+struct SampleSizes {
+    u32 sample_count { 0 };
+    u32 default_size { 0 };
+    // Empty when default_size is nonzero.
+    Vector<u32> sizes;
+
+    u32 size_of_sample(u32 index) const { return default_size ? default_size : sizes[index]; }
+};
+
+struct SampleTables : public AtomicRefCounted<SampleTables> {
+    Optional<Vector<TimeToSampleEntry>> time_to_sample;
+    Optional<Vector<CompositionOffsetEntry>> composition_offsets;
+    Optional<Vector<SampleToChunkEntry>> sample_to_chunk;
+    Optional<SampleSizes> sample_sizes;
+    Optional<Vector<u64>> chunk_offsets;
+    Optional<Vector<u32>> sync_samples;
+};
+
+struct TrackEntry : public AtomicRefCounted<TrackEntry> {
     u32 track_id { 0 };
     bool is_enabled { true };
     HandlerType handler_type { HandlerType::Unknown };
@@ -101,6 +136,7 @@ struct TrackEntry : public RefCounted<TrackEntry> {
     Vector<SampleEntry> sample_entries;
     TrackFragmentSampleDefaults fragment_defaults;
     u64 sample_table_entry_count { 0 };
+    NonnullRefPtr<SampleTables> sample_tables { make_ref_counted<SampleTables>() };
 
     Optional<SampleEntry const&> sample_entry_for_description_index(u32 sample_description_index) const
     {
@@ -134,6 +170,7 @@ struct TrackFragmentContext {
     i64 composition_to_presentation_offset { 0 };
     size_t sample_description_count { 0 };
     TrackFragmentSampleDefaults sample_defaults;
+    i64 next_decode_time { 0 };
 };
 
 using TrackFragmentContexts = HashMap<u32, TrackFragmentContext>;
@@ -159,6 +196,16 @@ struct TrackRun {
     Vector<i64> sample_composition_time_offsets;
 
     size_t data_end() const { return data_position + total_data_size; }
+
+    i64 end_decode_time() const
+    {
+        if (sample_durations.is_empty())
+            return saturating_add(first_decode_time, AK::clamp_to<i64>(static_cast<u64>(sample_count) * defaults.sample_duration));
+        auto end = first_decode_time;
+        for (auto duration : sample_durations)
+            end = saturating_add(end, static_cast<i64>(duration));
+        return end;
+    }
 
     u32 duration_of_sample(u32 index) const
     {

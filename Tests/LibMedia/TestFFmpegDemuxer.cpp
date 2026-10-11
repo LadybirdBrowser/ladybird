@@ -15,10 +15,11 @@
 
 TEST_CASE(rejects_formats_handled_by_other_demuxers)
 {
-    auto file = MUST(Core::File::open("./vfr.mkv"sv, Core::File::OpenMode::Read));
-    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
-
-    EXPECT(Media::FFmpeg::FFmpegDemuxer::from_stream(stream).is_error());
+    for (auto path : { "./vfr.mkv"sv, "./avc.mp4"sv }) {
+        auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
+        auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
+        EXPECT(Media::FFmpeg::FFmpegDemuxer::from_stream(stream).is_error());
+    }
 }
 
 TEST_CASE(read_after_aborted_blocking_read)
@@ -31,7 +32,7 @@ TEST_CASE(read_after_aborted_blocking_read)
     // The fix was to only return AVERROR_EOF from the IO context callbacks, and then determine whether to change
     // the error to an Aborted error within the FFmpegDemuxer on top of the avformat context that used the IO.
 
-    auto file = MUST(Core::File::open("./avc.mp4"sv, Core::File::OpenMode::Read));
+    auto file = MUST(Core::File::open("./buffered-ranges/tone.wav"sv, Core::File::OpenMode::Read));
     auto file_data = MUST(file->read_until_eof());
 
     // Feed only a portion of the file into the stream so that the demuxer will eventually block
@@ -43,9 +44,9 @@ TEST_CASE(read_after_aborted_blocking_read)
 
     // Create the demuxer from the partial stream.
     IGNORE_USE_IN_ESCAPING_LAMBDA auto demuxer = MUST(Media::FFmpeg::FFmpegDemuxer::from_stream(stream));
-    auto optional_track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video));
-    VERIFY(optional_track.has_value());
-    IGNORE_USE_IN_ESCAPING_LAMBDA auto track = optional_track.release_value();
+    auto tracks = MUST(demuxer->get_tracks_for_type(Media::TrackType::Audio));
+    VERIFY(tracks.size() == 1);
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto track = tracks.first();
     MUST(demuxer->create_context_for_track(track));
 
     // Start a thread to read the frames in parallel and check the errors returned.
@@ -105,56 +106,4 @@ TEST_CASE(read_after_aborted_blocking_read)
     // Wait for the reader thread to finish. It should successfully read all remaining frames
     // and then get EndOfStream.
     MUST(reader_thread->join());
-}
-
-static Optional<FixedArray<u8>> first_frame_codec_configuration(ByteBuffer const& data)
-{
-    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(data);
-    auto demuxer = MUST(Media::FFmpeg::FFmpegDemuxer::from_stream(stream));
-    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));
-    VERIFY(track.has_value());
-    MUST(demuxer->create_context_for_track(*track));
-
-    auto frame = MUST(demuxer->get_next_sample_for_track(*track));
-    auto configuration = frame.new_codec_configuration();
-    if (!configuration.has_value())
-        return {};
-    return MUST(FixedArray<u8>::create(*configuration));
-}
-
-TEST_CASE(aac_track_keeps_the_configuration_its_container_carries)
-{
-    auto file = MUST(Core::File::open("./hevc_10bit.mp4"sv, Core::File::OpenMode::Read));
-    auto configuration = first_frame_codec_configuration(MUST(file->read_until_eof()));
-
-    // The track describes its own codec, so nothing is invented for it.
-    EXPECT(configuration.has_value());
-    EXPECT(configuration->size() >= 2);
-}
-
-TEST_CASE(aac_track_without_a_configuration_is_described_by_its_container)
-{
-    auto file = MUST(Core::File::open("./hevc_10bit.mp4"sv, Core::File::OpenMode::Read));
-    auto data = MUST(file->read_until_eof());
-
-    // Renaming the Elementary Stream Descriptor Box leaves a track that states its sample rate and
-    // channel count but never describes the codec that decodes it.
-    Optional<size_t> esds;
-    for (size_t index = 0; index + 4 <= data.size(); index++) {
-        if (StringView { data.bytes().slice(index, 4) } == "esds"sv) {
-            EXPECT(!esds.has_value());
-            esds = index;
-        }
-    }
-    VERIFY(esds.has_value());
-    data.overwrite(*esds, "free", 4);
-
-    auto configuration = first_frame_codec_configuration(data);
-    EXPECT(configuration.has_value());
-
-    // An Audio Specific Config of object type 2, sampling frequency index 3 and channel
-    // configuration 1: Low Complexity AAC at the 48000 Hz mono the container declares.
-    EXPECT_EQ(configuration->size(), 2u);
-    EXPECT_EQ((*configuration)[0], 0x11);
-    EXPECT_EQ((*configuration)[1], 0x88);
 }

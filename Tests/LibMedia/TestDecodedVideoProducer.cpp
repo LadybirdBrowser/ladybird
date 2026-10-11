@@ -168,12 +168,7 @@ DemuxerAndTrack demuxer_and_video_track_for(StringView path)
 {
     auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
     auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
-    auto demuxer = MUST([&] -> Media::DecoderErrorOr<NonnullRefPtr<Media::Demuxer>> {
-        auto matroska_result = Media::Matroska::MatroskaDemuxer::from_stream(stream);
-        if (!matroska_result.is_error())
-            return matroska_result.release_value();
-        return Media::FFmpeg::FFmpegDemuxer::from_stream(stream);
-    }());
+    auto demuxer = MUST(Media::create_demuxer(stream));
     auto tracks = MUST(demuxer->get_tracks_for_type(Media::TrackType::Video));
     VERIFY(!tracks.is_empty());
     return { move(demuxer), tracks[0] };

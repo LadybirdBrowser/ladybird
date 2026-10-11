@@ -11,7 +11,7 @@
 namespace Media::ISOBMFF {
 
 FragmentSampleIterator::FragmentSampleIterator(MovieFragment&& fragment)
-    : m_fragment(move(fragment))
+    : m_fragment(make_ref_counted<SharedFragment>(move(fragment)))
 {
     enter_run();
 }
@@ -19,7 +19,7 @@ FragmentSampleIterator::FragmentSampleIterator(MovieFragment&& fragment)
 Sample FragmentSampleIterator::peek() const
 {
     VERIFY(has_next());
-    auto const& run = m_fragment.track_runs[m_run_index];
+    auto const& run = m_fragment->value.track_runs[m_run_index];
     auto decode_time = saturating_add(m_decode_time, run.composition_to_presentation_offset);
     auto presentation_time = saturating_add(decode_time, run.composition_time_offset_of_sample(m_sample_index));
     auto presentation_end_time = saturating_add(presentation_time, static_cast<i64>(run.duration_of_sample(m_sample_index)));
@@ -42,7 +42,7 @@ Sample FragmentSampleIterator::peek() const
 void FragmentSampleIterator::advance()
 {
     VERIFY(has_next());
-    auto const& run = m_fragment.track_runs[m_run_index];
+    auto const& run = m_fragment->value.track_runs[m_run_index];
     m_decode_time = saturating_add(m_decode_time, static_cast<i64>(run.duration_of_sample(m_sample_index)));
     m_data_position += run.size_of_sample(m_sample_index);
     m_sample_index++;
@@ -55,12 +55,12 @@ void FragmentSampleIterator::advance()
 
 void FragmentSampleIterator::enter_run()
 {
-    while (m_run_index < m_fragment.track_runs.size() && m_fragment.track_runs[m_run_index].sample_count == 0)
+    while (m_run_index < m_fragment->value.track_runs.size() && m_fragment->value.track_runs[m_run_index].sample_count == 0)
         m_run_index++;
     if (!has_next())
         return;
-    m_decode_time = m_fragment.track_runs[m_run_index].first_decode_time;
-    m_data_position = m_fragment.track_runs[m_run_index].data_position;
+    m_decode_time = m_fragment->value.track_runs[m_run_index].first_decode_time;
+    m_data_position = m_fragment->value.track_runs[m_run_index].data_position;
 }
 
 }

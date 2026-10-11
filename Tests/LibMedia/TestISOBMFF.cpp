@@ -4,14 +4,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <AK/BitCast.h>
 #include <AK/ByteBuffer.h>
 #include <AK/NumericLimits.h>
+#include <LibCore/File.h>
 #include <LibMedia/Containers/ISOBMFF/FragmentSampleIterator.h>
+#include <LibMedia/Containers/ISOBMFF/ISOBMFFDemuxer.h>
 #include <LibMedia/Containers/ISOBMFF/Reader.h>
 #include <LibMedia/Containers/ISOBMFF/Streamer.h>
+#include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/ReadonlyBytesCursor.h>
 #include <LibTest/TestCase.h>
+#include <LibThreading/Thread.h>
 
 namespace {
 
@@ -300,7 +305,7 @@ void append_vp9_configuration_box(ByteBuffer& bytes)
     finish_box(bytes, configuration);
 }
 
-void append_video_movie(ByteBuffer& bytes, char const (&format)[5], void (*append_configuration_box)(ByteBuffer&), ColourBoxOrder colour_box_order)
+void append_video_movie(ByteBuffer& bytes, char const (&format)[5], void (*append_configuration_box)(ByteBuffer&), ColourBoxOrder colour_box_order, Function<void(ByteBuffer&)> const& append_tables = {}, bool fragmented = false)
 {
     auto movie = begin_box(bytes, "moov");
     auto track = begin_box(bytes, "trak");
@@ -355,14 +360,18 @@ void append_video_movie(ByteBuffer& bytes, char const (&format)[5], void (*appen
     finish_box(bytes, sample_entry);
 
     finish_box(bytes, sample_description);
+    if (append_tables)
+        append_tables(bytes);
     finish_box(bytes, sample_table);
     finish_box(bytes, media_information);
     finish_box(bytes, media);
     finish_box(bytes, track);
+    if (fragmented)
+        append_movie_extends_box(bytes);
     finish_box(bytes, movie);
 }
 
-void append_audio_movie(ByteBuffer& bytes, u32 timescale, u32 sample_rate, u16 channel_count)
+void append_audio_movie(ByteBuffer& bytes, u32 timescale, u32 sample_rate, u16 channel_count, void (*append_configuration_box)(ByteBuffer&) = nullptr)
 {
     auto movie = begin_box(bytes, "moov");
     auto track = begin_box(bytes, "trak");
@@ -412,6 +421,8 @@ void append_audio_movie(ByteBuffer& bytes, u32 timescale, u32 sample_rate, u16 c
     append_u16(bytes, 0);  // pre_defined
     append_u16(bytes, 0);  // reserved
     append_u32(bytes, sample_rate << 16);
+    if (append_configuration_box)
+        append_configuration_box(bytes);
     finish_box(bytes, sample_entry);
 
     finish_box(bytes, sample_description);
@@ -447,6 +458,58 @@ SampleEntrySummary parse_only_sample_entry(ByteBuffer& bytes)
 
 }
 
+static Optional<FixedArray<u8>> first_frame_codec_configuration(ByteBuffer const& data)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(data);
+    auto demuxer = MUST(Media::ISOBMFF::ISOBMFFDemuxer::from_stream(stream));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));
+    VERIFY(track.has_value());
+    MUST(demuxer->create_context_for_track(*track));
+
+    auto frame = MUST(demuxer->get_next_sample_for_track(*track));
+    auto configuration = frame.new_codec_configuration();
+    if (!configuration.has_value())
+        return {};
+    return MUST(FixedArray<u8>::create(*configuration));
+}
+
+TEST_CASE(aac_track_keeps_the_configuration_its_container_carries)
+{
+    auto file = MUST(Core::File::open("./hevc_10bit.mp4"sv, Core::File::OpenMode::Read));
+    auto configuration = first_frame_codec_configuration(MUST(file->read_until_eof()));
+
+    // The track describes its own codec, so nothing is invented for it.
+    EXPECT(configuration.has_value());
+    EXPECT(configuration->size() >= 2);
+}
+
+TEST_CASE(aac_track_without_a_configuration_is_described_by_its_container)
+{
+    auto file = MUST(Core::File::open("./hevc_10bit.mp4"sv, Core::File::OpenMode::Read));
+    auto data = MUST(file->read_until_eof());
+
+    // Renaming the Elementary Stream Descriptor Box leaves a track that states its sample rate and
+    // channel count but never describes the codec that decodes it.
+    Optional<size_t> esds;
+    for (size_t index = 0; index + 4 <= data.size(); index++) {
+        if (StringView { data.bytes().slice(index, 4) } == "esds"sv) {
+            EXPECT(!esds.has_value());
+            esds = index;
+        }
+    }
+    VERIFY(esds.has_value());
+    data.overwrite(*esds, "free", 4);
+
+    auto configuration = first_frame_codec_configuration(data);
+    EXPECT(configuration.has_value());
+
+    // An Audio Specific Config of object type 2, sampling frequency index 3 and channel
+    // configuration 1: Low Complexity AAC at the 48000 Hz mono the container declares.
+    EXPECT_EQ(configuration->size(), 2u);
+    EXPECT_EQ((*configuration)[0], 0x11);
+    EXPECT_EQ((*configuration)[1], 0x88);
+}
+
 TEST_CASE(rejects_file_type_box_with_partial_compatible_brand)
 {
     ByteBuffer bytes;
@@ -459,6 +522,511 @@ TEST_CASE(rejects_file_type_box_with_partial_compatible_brand)
     auto streamer = streamer_for(bytes);
     auto header = MUST(Media::ISOBMFF::Reader::read_box_header(streamer));
     EXPECT(Media::ISOBMFF::Reader::parse_file_type_box(streamer, header).is_error());
+}
+
+TEST_CASE(preserves_mp3_in_mp4a_without_decoder_specific_configuration)
+{
+    for (u8 object_type : { 0x69, 0x6b }) {
+        ByteBuffer bytes;
+        append_audio_movie(bytes, 48'000, 48'000, 2, [](ByteBuffer& bytes) {
+            auto esds = begin_box(bytes, "esds");
+            append_full_box_header(bytes);
+            bytes.append(3); // ES_Descriptor
+            bytes.append(18);
+            append_u16(bytes, 1); // ES_ID
+            bytes.append(0);      // flags
+            bytes.append(4);      // DecoderConfigDescriptor
+            bytes.append(13);
+            bytes.append(0x6b); // MPEG-1 Audio
+            bytes.append(0x15); // audio stream type, reserved bit
+            bytes.append(0);
+            append_u16(bytes, 0); // bufferSizeDB
+            append_u32(bytes, 160'000);
+            append_u32(bytes, 160'000);
+            finish_box(bytes, esds);
+        });
+        // The final DecoderConfigDescriptor has a 13-byte payload beginning with the object type.
+        bytes[bytes.size() - 13] = object_type;
+        auto movie = MUST(parse_movie(bytes));
+        auto const& entry = movie.tracks.get(1).value()->sample_entries.first();
+        EXPECT_EQ(entry.codec_id, Media::CodecID::MP3);
+        EXPECT(entry.codec_initialization_data.is_empty());
+        auto track = Media::ISOBMFF::track_from_track_entry(*movie.tracks.get(1).value(), true);
+        EXPECT_EQ(track.parsed_codec().codec_id(), Media::CodecID::MP3);
+    }
+}
+
+static void append_seek_test_tables(ByteBuffer& bytes, u8 size_width = 0, u32 data_offset = 8, bool mark_sync_samples = true)
+{
+    auto times = begin_box(bytes, "stts");
+    append_full_box_header(bytes);
+    append_u32(bytes, 1);
+    append_u32(bytes, 6);
+    append_u32(bytes, 1);
+    finish_box(bytes, times);
+
+    auto compositions = begin_box(bytes, "ctts");
+    append_full_box_header(bytes, 1);
+    append_u32(bytes, 6);
+    for (i32 offset : { 0, 2, -1, -1, 2, -1 }) {
+        append_u32(bytes, 1);
+        append_u32(bytes, static_cast<u32>(offset));
+    }
+    finish_box(bytes, compositions);
+
+    auto chunks = begin_box(bytes, "stsc");
+    append_full_box_header(bytes);
+    append_u32(bytes, 2);
+    for (u32 chunk = 1; chunk <= 2; ++chunk) {
+        append_u32(bytes, chunk);
+        append_u32(bytes, 3);
+        append_u32(bytes, 1);
+    }
+    finish_box(bytes, chunks);
+
+    bool compact = size_width != 0 && size_width != 32;
+    auto sizes = begin_box(bytes, compact ? "stz2" : "stsz");
+    append_full_box_header(bytes);
+    append_u32(bytes, compact ? size_width : size_width == 0 ? 1
+                                                             : 0);
+    append_u32(bytes, 6);
+    if (size_width == 4) {
+        bytes.append(0x12);
+        bytes.append(0x34);
+        bytes.append(0x56);
+    } else if (size_width != 0) {
+        for (u32 size = 1; size <= 6; ++size) {
+            if (size_width == 8)
+                bytes.append(size);
+            else if (size_width == 16)
+                append_u16(bytes, size);
+            else
+                append_u32(bytes, size);
+        }
+    }
+    finish_box(bytes, sizes);
+
+    auto offsets = begin_box(bytes, size_width == 0 ? "stco" : "co64");
+    append_full_box_header(bytes);
+    append_u32(bytes, 2);
+    if (size_width == 0) {
+        append_u32(bytes, data_offset);
+        append_u32(bytes, data_offset + 3);
+    } else {
+        append_u64(bytes, 0x1'0000'0000);
+        append_u64(bytes, 0x2'0000'0000);
+    }
+    finish_box(bytes, offsets);
+
+    auto sync = begin_box(bytes, "stss");
+    append_full_box_header(bytes);
+    append_u32(bytes, mark_sync_samples ? 2 : 0);
+    if (mark_sync_samples) {
+        append_u32(bytes, 1);
+        append_u32(bytes, 5);
+    }
+    finish_box(bytes, sync);
+}
+
+TEST_CASE(demuxes_quicktime_with_a_leading_wide_atom)
+{
+    ByteBuffer bytes;
+    auto wide = begin_box(bytes, "wide");
+    finish_box(bytes, wide);
+    auto data = begin_box(bytes, "mdat");
+    for (u8 i = 0; i < 6; ++i)
+        bytes.append(i);
+    finish_box(bytes, data);
+    append_video_movie(bytes, "vp09", append_vp9_configuration_box, ColourBoxOrder::None, [](ByteBuffer& bytes) { append_seek_test_tables(bytes, 0, 16); });
+
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(bytes);
+    auto demuxer = MUST(Media::ISOBMFF::ISOBMFFDemuxer::from_stream(stream));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).value();
+    MUST(demuxer->create_context_for_track(track));
+    for (u8 i = 0; i < 6; ++i) {
+        auto sample = MUST(demuxer->get_next_sample_for_track(track));
+        EXPECT_EQ(sample.data().size(), 1u);
+        EXPECT_EQ(sample.data()[0], i);
+    }
+    auto end = demuxer->get_next_sample_for_track(track);
+    EXPECT(end.is_error());
+    EXPECT_EQ(end.error().category(), Media::DecoderErrorCategory::EndOfStream);
+}
+
+static ByteBuffer seek_test_file(bool fragmented = false, Optional<u32> fragment_decode_time = {}, bool movie_has_samples = true)
+{
+    ByteBuffer bytes;
+    auto data = begin_box(bytes, "mdat");
+    for (u8 i = 0; i < 6; ++i)
+        bytes.append(i);
+    finish_box(bytes, data);
+    append_video_movie(bytes, "vp09", append_vp9_configuration_box, ColourBoxOrder::None, [&](ByteBuffer& bytes) {
+        if (movie_has_samples)
+            append_seek_test_tables(bytes); }, fragmented);
+    if (fragmented) {
+        auto fragment = begin_box(bytes, "moof");
+        auto fragment_header = begin_box(bytes, "mfhd");
+        append_full_box_header(bytes);
+        append_u32(bytes, 1);
+        finish_box(bytes, fragment_header);
+        auto traf = begin_box(bytes, "traf");
+        auto header = begin_box(bytes, "tfhd");
+        append_full_box_header(bytes, 0, 0x020018); // moof-relative offsets, default duration and size
+        append_u32(bytes, 1);
+        append_u32(bytes, 1);
+        append_u32(bytes, 1);
+        finish_box(bytes, header);
+        // Without tfdt, decoding continues after the samples in moov or the preceding fragment.
+        if (fragment_decode_time.has_value()) {
+            auto decode_time = begin_box(bytes, "tfdt");
+            append_full_box_header(bytes);
+            append_u32(bytes, fragment_decode_time.value());
+            finish_box(bytes, decode_time);
+        }
+        auto run = begin_box(bytes, "trun");
+        append_full_box_header(bytes, 1, 0x000c01); // data offset, flags, composition offsets
+        append_u32(bytes, 2);
+        auto data_offset_position = bytes.size();
+        append_u32(bytes, 0);
+        append_u32(bytes, 0);
+        append_u32(bytes, 2);
+        append_u32(bytes, Media::ISOBMFF::SAMPLE_IS_NON_SYNC_SAMPLE);
+        append_u32(bytes, 0);
+        finish_box(bytes, run);
+        finish_box(bytes, traf);
+        finish_box(bytes, fragment);
+        patch_u32(bytes, data_offset_position, bytes.size() + 8 - fragment.start);
+        auto fragment_data = begin_box(bytes, "mdat");
+        bytes.append(6);
+        bytes.append(7);
+        finish_box(bytes, fragment_data);
+    }
+    return bytes;
+}
+
+TEST_CASE(demuxes_sample_tables_in_decode_order_with_signed_composition_offsets)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(seek_test_file());
+    auto demuxer = MUST(Media::ISOBMFF::ISOBMFFDemuxer::from_stream(stream));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).value();
+    MUST(demuxer->create_context_for_track(track));
+    Array<i64, 6> timestamps { 0, 3, 1, 2, 6, 4 };
+    for (size_t index = 0; index < timestamps.size(); ++index) {
+        auto sample = MUST(demuxer->get_next_sample_for_track(track));
+        EXPECT_EQ(sample.decode_timestamp(), AK::Duration::from_seconds(index));
+        EXPECT_EQ(sample.presentation_timestamp(), AK::Duration::from_seconds(timestamps[index]));
+        EXPECT_EQ(sample.data()[0], index);
+        EXPECT_EQ(sample.is_keyframe(), index == 0 || index == 4);
+        EXPECT_EQ(sample.new_codec_configuration().has_value(), index == 0);
+    }
+    EXPECT_EQ(demuxer->get_next_sample_for_track(track).error().category(), Media::DecoderErrorCategory::EndOfStream);
+}
+
+TEST_CASE(seeks_by_pts_and_skips_seeks_that_do_not_improve_position)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(seek_test_file());
+    auto demuxer = MUST(Media::ISOBMFF::ISOBMFFDemuxer::from_stream(stream));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).value();
+    MUST(demuxer->create_context_for_track(track));
+    auto target = AK::Duration::from_seconds(5);
+    EXPECT_EQ(MUST(demuxer->seek_to_most_recent_keyframe(track, target)), Media::DemuxerSeekResult::MovedPosition);
+    EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).data()[0], 0);
+    EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).data()[0], 1);
+    EXPECT_EQ(MUST(demuxer->seek_to_most_recent_keyframe(track, target, Media::DemuxerSeekOptions::NeedCodecConfiguration)), Media::DemuxerSeekResult::KeptCurrentPosition);
+    auto next = MUST(demuxer->get_next_sample_for_track(track));
+    EXPECT_EQ(next.data()[0], 2);
+    EXPECT(next.new_codec_configuration().has_value());
+    EXPECT_EQ(MUST(demuxer->seek_to_most_recent_keyframe(track, target, Media::DemuxerSeekOptions::Force)), Media::DemuxerSeekResult::MovedPosition);
+    EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).data()[0], 0);
+    EXPECT_EQ(demuxer->select_fast_seek_target_for_track(track, target, Media::SeekMode::FastBefore), AK::Duration::zero());
+    EXPECT_EQ(demuxer->select_fast_seek_target_for_track(track, target, Media::SeekMode::FastAfter), AK::Duration::from_seconds(6));
+}
+
+TEST_CASE(seeks_across_movie_and_fragment_samples_in_both_directions)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(seek_test_file(true));
+    auto demuxer = MUST(Media::ISOBMFF::ISOBMFFDemuxer::from_stream(stream));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).value();
+    MUST(demuxer->create_context_for_track(track));
+    for (u8 index = 0; index < 8; ++index) {
+        auto sample = MUST(demuxer->get_next_sample_for_track(track));
+        EXPECT_EQ(sample.data()[0], index);
+        EXPECT_EQ(sample.decode_timestamp(), AK::Duration::from_seconds(index));
+    }
+    struct SeekExpectation {
+        i64 target;
+        u8 sample_index;
+    };
+    for (auto [target, sample_index] : { SeekExpectation { 8, 6 }, SeekExpectation { 5, 0 }, SeekExpectation { 7, 4 }, SeekExpectation { 10, 6 } }) {
+        MUST(demuxer->seek_to_most_recent_keyframe(track, AK::Duration::from_seconds(target), Media::DemuxerSeekOptions::Force));
+        EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).data()[0], sample_index);
+    }
+}
+
+TEST_CASE(sample_tables_remain_available_after_movie_bytes_are_evicted)
+{
+    auto bytes = seek_test_file();
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(bytes);
+    auto demuxer = MUST(Media::ISOBMFF::ISOBMFFDemuxer::from_stream(stream));
+    // Retain only the mdat. Creating iterators and seeking must use the owned table bytes.
+    stream->remove_byte_range(14, bytes.size());
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).value();
+    MUST(demuxer->create_context_for_track(track));
+    MUST(demuxer->seek_to_most_recent_keyframe(track, AK::Duration::from_seconds(6)));
+    EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).data()[0], 4);
+}
+
+TEST_CASE(rejects_sample_table_counts_larger_than_box_before_allocating)
+{
+    constexpr char types[][5] = { "stts", "ctts", "stsc", "stco", "co64", "stss", "stsz", "stz2" };
+    for (auto const& type : types) {
+        ByteBuffer bytes;
+        append_video_movie(bytes, "vp09", append_vp9_configuration_box, ColourBoxOrder::None, [&](ByteBuffer& bytes) {
+            auto box = begin_box(bytes, type);
+            append_full_box_header(bytes);
+            if (StringView(type, 4) == "stsz"sv)
+                append_u32(bytes, 0); // variable sample sizes
+            else if (StringView(type, 4) == "stz2"sv)
+                append_u32(bytes, 4); // four-bit sample sizes
+            append_u32(bytes, NumericLimits<u32>::max());
+            finish_box(bytes, box);
+        });
+        EXPECT(parse_movie(bytes).is_error());
+    }
+}
+
+TEST_CASE(iterates_compact_and_variable_sample_sizes_with_large_chunk_offsets)
+{
+    for (u8 width : { 4, 8, 16, 32 }) {
+        ByteBuffer bytes;
+        append_video_movie(bytes, "vp09", append_vp9_configuration_box, ColourBoxOrder::None, [&](ByteBuffer& bytes) {
+            append_seek_test_tables(bytes, width);
+        });
+        auto movie = MUST(parse_movie(bytes));
+        auto& track = *movie.tracks.get(1).value();
+        EXPECT_EQ(track.sample_tables->sample_sizes->sizes.size(), 6u);
+        track.sample_tables->sync_samples.clear();
+        auto iterator = MUST(Media::ISOBMFF::SampleTableIterator::create(track));
+        size_t expected_position = 0x1'0000'0000;
+        for (u32 index = 0; index < 6; ++index) {
+            if (index == 3)
+                expected_position = 0x2'0000'0000;
+            auto sample = MUST(iterator.next(track)).value();
+            EXPECT_EQ(sample.data_size, index + 1);
+            EXPECT_EQ(sample.data_position, expected_position);
+            EXPECT(sample.is_sync_sample);
+            expected_position += index + 1;
+        }
+        EXPECT(!MUST(iterator.next(track)).has_value());
+    }
+}
+
+TEST_CASE(normalizes_composition_offset_versions_without_losing_unsigned_values)
+{
+    for (u8 version : { 0, 1 }) {
+        ByteBuffer bytes;
+        append_video_movie(bytes, "vp09", append_vp9_configuration_box, ColourBoxOrder::None, [&](ByteBuffer& bytes) {
+            auto box = begin_box(bytes, "ctts");
+            append_full_box_header(bytes, version);
+            append_u32(bytes, 1);
+            append_u32(bytes, 100);
+            append_u32(bytes, 0xffff'ffff);
+            finish_box(bytes, box);
+        });
+        auto movie = MUST(parse_movie(bytes));
+        auto const& offsets = movie.tracks.get(1).value()->sample_tables->composition_offsets.value();
+        EXPECT_EQ(offsets.size(), 1u);
+        EXPECT_EQ(offsets[0].sample_count, 100u);
+        EXPECT_EQ(offsets[0].sample_offset, version == 0 ? 0xffff'ffffLL : -1LL);
+    }
+}
+
+TEST_CASE(parses_odd_compact_sample_count_and_keeps_constant_sample_sizes_compressed)
+{
+    for (bool compact : { false, true }) {
+        ByteBuffer bytes;
+        append_video_movie(bytes, "vp09", append_vp9_configuration_box, ColourBoxOrder::None, [&](ByteBuffer& bytes) {
+            auto box = begin_box(bytes, compact ? "stz2" : "stsz");
+            append_full_box_header(bytes);
+            append_u32(bytes, compact ? 4 : 123);
+            append_u32(bytes, compact ? 3 : NumericLimits<u32>::max());
+            if (compact) {
+                bytes.append(0x12);
+                bytes.append(0x3f); // The unused low nibble must not become another sample.
+            }
+            finish_box(bytes, box);
+        });
+        auto movie = MUST(parse_movie(bytes));
+        auto const& sizes = movie.tracks.get(1).value()->sample_tables->sample_sizes.value();
+        if (compact) {
+            EXPECT_EQ(sizes.sizes.size(), 3u);
+            EXPECT_EQ(sizes.sample_count, 3u);
+            for (u32 index = 0; index < 3; ++index)
+                EXPECT_EQ(sizes.size_of_sample(index), index + 1);
+        } else {
+            EXPECT(sizes.sizes.is_empty());
+            EXPECT_EQ(sizes.sample_count, NumericLimits<u32>::max());
+            EXPECT_EQ(sizes.size_of_sample(sizes.sample_count - 1), 123u);
+        }
+    }
+}
+
+TEST_CASE(retries_incomplete_fragment_metadata_without_losing_samples)
+{
+    auto bytes = seek_test_file(true);
+    auto reader = streamer_for(bytes);
+    MUST(reader.seek_to_position(14));
+    auto header = MUST(Media::ISOBMFF::Reader::read_box_header(reader));
+    auto movie = MUST(Media::ISOBMFF::Reader::parse_movie_box(reader, header));
+    auto movie_end = header.end_position().value();
+    auto source = Media::IncrementallyPopulatedStream::create_empty();
+    source->set_expected_size(bytes.size());
+    source->add_chunk_at(0, bytes.bytes().trim(movie_end + 16));
+    auto cursor = source->create_cursor();
+    cursor->set_is_blocking(false);
+    auto iterator = MUST(Media::ISOBMFF::SampleIterator::create(cursor, movie, 1, movie_end));
+    for (u32 index = 0; index < 6; ++index)
+        EXPECT_EQ(MUST(iterator.next())->decode_timestamp, AK::Duration::from_seconds(index));
+    EXPECT_EQ(iterator.next().error().category(), Media::DecoderErrorCategory::NeedsMoreInput);
+    source->add_chunk_at(movie_end + 16, bytes.bytes().slice(movie_end + 16));
+    for (u32 index = 6; index < 8; ++index)
+        EXPECT_EQ(MUST(iterator.next())->decode_timestamp, AK::Duration::from_seconds(index));
+    EXPECT(!MUST(iterator.next()).has_value());
+}
+
+TEST_CASE(seeking_movie_samples_does_not_wait_for_later_fragments)
+{
+    auto bytes = seek_test_file(true);
+    auto reader = streamer_for(bytes);
+    MUST(reader.seek_to_position(14));
+    auto header = MUST(Media::ISOBMFF::Reader::read_box_header(reader));
+    auto source = Media::IncrementallyPopulatedStream::create_empty();
+    source->set_expected_size(bytes.size());
+    source->add_chunk_at(0, bytes.bytes().trim(header.end_position().value() + 16));
+    auto demuxer = MUST(Media::ISOBMFF::ISOBMFFDemuxer::from_stream(source));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).value();
+    MUST(demuxer->create_context_for_track(track));
+    MUST(demuxer->seek_to_most_recent_keyframe(track, AK::Duration::from_seconds(5)));
+    EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).data()[0], 0);
+}
+
+TEST_CASE(aborted_sample_iteration_can_be_resumed)
+{
+    auto source = Media::IncrementallyPopulatedStream::create_from_buffer(seek_test_file(true));
+    auto demuxer = MUST(Media::ISOBMFF::ISOBMFFDemuxer::from_stream(source));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).value();
+    MUST(demuxer->create_context_for_track(track));
+    for (u32 index = 0; index < 8; ++index) {
+        demuxer->set_blocking_reads_aborted_for_track(track);
+        EXPECT_EQ(demuxer->get_next_sample_for_track(track).error().category(), Media::DecoderErrorCategory::Aborted);
+        demuxer->reset_blocking_reads_aborted_for_track(track);
+        EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).data()[0], index);
+    }
+}
+
+TEST_CASE(fragment_seeks_block_until_the_target_metadata_arrives_and_can_be_aborted)
+{
+    for (bool movie_has_samples : { false, true }) {
+        auto bytes = seek_test_file(true, {}, movie_has_samples);
+        auto reader = streamer_for(bytes);
+        MUST(reader.seek_to_position(14));
+        auto header = MUST(Media::ISOBMFF::Reader::read_box_header(reader));
+        auto available_end = header.end_position().value() + 16;
+        auto source = Media::IncrementallyPopulatedStream::create_empty();
+        // Leave a later box unavailable, so seeking must stop before reaching the end of the file.
+        source->set_expected_size(bytes.size() + 8);
+        source->add_chunk_at(0, bytes.bytes().trim(available_end));
+        auto demuxer = MUST(Media::ISOBMFF::ISOBMFFDemuxer::from_stream(source));
+        auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).value();
+        MUST(demuxer->create_context_for_track(track));
+        auto target = AK::Duration::from_milliseconds(movie_has_samples ? 8500 : 2500);
+        EXPECT_EQ(demuxer->select_fast_seek_target_for_track(track, target, Media::SeekMode::FastBefore), movie_has_samples ? AK::Duration::from_seconds(6) : target);
+
+        IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> blocked { false };
+        IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> completed { false };
+        demuxer->set_read_blocked_change_handler_for_track(track, [&](Media::ReadBlocked state) {
+            blocked = state == Media::ReadBlocked::Yes;
+        });
+        for (bool abort : { true, false }) {
+            completed = false;
+            demuxer->reset_blocking_reads_aborted_for_track(track);
+            auto thread = Threading::Thread::construct("TestSeek"sv, [&, demuxer, track, target, abort]() -> intptr_t {
+                auto result = demuxer->seek_to_most_recent_keyframe(track, target);
+                if (abort) {
+                    EXPECT(result.is_error());
+                    if (result.is_error())
+                        EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::Aborted);
+                } else {
+                    EXPECT(!result.is_error());
+                }
+                completed = true;
+                return 0;
+            });
+            thread->start();
+            auto deadline = MonotonicTime::now() + AK::Duration::from_seconds(5);
+            while (!blocked.load() && !completed.load() && MonotonicTime::now() < deadline) { }
+            EXPECT(blocked.load());
+            EXPECT(!completed.load());
+            if (abort)
+                demuxer->set_blocking_reads_aborted_for_track(track);
+            else
+                source->add_chunk_at(available_end, bytes.bytes().slice(available_end));
+            MUST(thread->join());
+        }
+        EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).data()[0], 6);
+        demuxer->set_read_blocked_change_handler_for_track(track, {});
+    }
+}
+
+TEST_CASE(seeking_uses_the_first_sample_when_no_samples_are_marked_sync)
+{
+    ByteBuffer bytes;
+    auto data = begin_box(bytes, "mdat");
+    for (u8 i = 0; i < 6; ++i)
+        bytes.append(i);
+    finish_box(bytes, data);
+    append_video_movie(bytes, "vp09", append_vp9_configuration_box, ColourBoxOrder::None, [](ByteBuffer& bytes) { append_seek_test_tables(bytes, 0, 8, false); });
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(bytes);
+    auto demuxer = MUST(Media::ISOBMFF::ISOBMFFDemuxer::from_stream(stream));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).value();
+    MUST(demuxer->create_context_for_track(track));
+    for (auto target : { 0, 2, 5, 10 }) {
+        MUST(demuxer->seek_to_most_recent_keyframe(track, AK::Duration::from_seconds(target), Media::DemuxerSeekOptions::Force));
+        EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).data()[0], 0);
+    }
+}
+
+TEST_CASE(explicit_fragment_decode_time_overrides_movie_duration)
+{
+    auto source = Media::IncrementallyPopulatedStream::create_from_buffer(seek_test_file(true, 100));
+    auto demuxer = MUST(Media::ISOBMFF::ISOBMFFDemuxer::from_stream(source));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).value();
+    MUST(demuxer->create_context_for_track(track));
+    MUST(demuxer->seek_to_most_recent_keyframe(track, AK::Duration::from_seconds(101), Media::DemuxerSeekOptions::Force));
+    EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).data()[0], 4);
+    MUST(demuxer->seek_to_most_recent_keyframe(track, AK::Duration::from_seconds(102), Media::DemuxerSeekOptions::Force));
+    auto sample = MUST(demuxer->get_next_sample_for_track(track));
+    EXPECT_EQ(sample.decode_timestamp(), AK::Duration::from_seconds(100));
+    EXPECT_EQ(sample.presentation_timestamp(), AK::Duration::from_seconds(102));
+}
+
+TEST_CASE(fragment_decode_time_continues_across_successive_fragments)
+{
+    auto bytes = seek_test_file(true);
+    auto reader = streamer_for(bytes);
+    MUST(reader.seek_to_position(14));
+    auto header = MUST(Media::ISOBMFF::Reader::read_box_header(reader));
+    auto fragment_bytes = MUST(ByteBuffer::copy(bytes.bytes().slice(header.end_position().value())));
+    patch_u32(fragment_bytes, 20, 2); // mfhd sequence_number
+    MUST(bytes.try_append(fragment_bytes.bytes()));
+    auto source = Media::IncrementallyPopulatedStream::create_from_buffer(bytes);
+    auto demuxer = MUST(Media::ISOBMFF::ISOBMFFDemuxer::from_stream(source));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).value();
+    MUST(demuxer->create_context_for_track(track));
+    for (u32 index = 0; index < 10; ++index)
+        EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).decode_timestamp(), AK::Duration::from_seconds(index));
+    MUST(demuxer->seek_to_most_recent_keyframe(track, AK::Duration::from_seconds(10), Media::DemuxerSeekOptions::Force));
+    EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).decode_timestamp(), AK::Duration::from_seconds(8));
 }
 
 TEST_CASE(rejects_child_box_smaller_than_parsed_fields)
@@ -488,15 +1056,14 @@ TEST_CASE(rejects_nonzero_edit_list_media_rate_fraction)
     EXPECT(Media::ISOBMFF::Reader::parse_movie_box(streamer, header).is_error());
 }
 
-TEST_CASE(sample_table_entry_count_does_not_wrap)
+TEST_CASE(rejects_oversized_sample_table_entry_count)
 {
     ByteBuffer bytes;
     append_movie_box(bytes, true);
 
     auto streamer = streamer_for(bytes);
     auto header = MUST(Media::ISOBMFF::Reader::read_box_header(streamer));
-    auto movie = MUST(Media::ISOBMFF::Reader::parse_movie_box(streamer, header));
-    EXPECT_EQ(movie.tracks.get(1).value()->sample_table_entry_count, static_cast<u64>(NumericLimits<u32>::max()) + 1);
+    EXPECT(Media::ISOBMFF::Reader::parse_movie_box(streamer, header).is_error());
 }
 
 TEST_CASE(parses_nondefault_sample_description_index)

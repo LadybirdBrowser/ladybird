@@ -28,14 +28,21 @@ class MEDIA_API FragmentSampleIterator {
 public:
     explicit FragmentSampleIterator(MovieFragment&&);
 
-    bool has_next() const { return m_run_index < m_fragment.track_runs.size(); }
+    bool has_next() const { return m_run_index < m_fragment->value.track_runs.size(); }
     Sample peek() const;
     void advance();
 
 private:
     void enter_run();
 
-    MovieFragment m_fragment;
+    struct SharedFragment : public AtomicRefCounted<SharedFragment> {
+        explicit SharedFragment(MovieFragment fragment)
+            : value(move(fragment))
+        {
+        }
+        MovieFragment value;
+    };
+    NonnullRefPtr<SharedFragment const> m_fragment;
     size_t m_run_index { 0 };
     u32 m_sample_index { 0 };
     i64 m_decode_time { 0 };
