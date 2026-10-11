@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/EncryptedMediaExtensions/NavigatorEncryptedMediaExtensionsPartial.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/GPC/GlobalPrivacyControl.h>
 #include <LibWeb/Gamepad/NavigatorGamepad.h>
@@ -35,7 +34,6 @@ class Navigator
     , public NavigatorDeviceMemoryMixin
     , public Gamepad::NavigatorGamepadPartial
     , public GlobalPrivacyControl::GlobalPrivacyControlMixin
-    , public EncryptedMediaExtensions::NavigatorEncryptedMediaExtensionsPartial
     , public NavigatorIDMixin
     , public NavigatorLanguageMixin
     , public NavigatorOnLineMixin
