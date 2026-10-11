@@ -77,12 +77,12 @@ loads.
 A node that relies on a check takes the check's value as its input, never the checked value
 itself. Checks that exit (`CheckObject`, `CheckShape`, `CheckValue`, `CheckClosure`,
 `CheckAccessorFunction`, `CheckElements`, `CheckIdentityComparable`, `CheckAppendableArray`,
-`CheckBounds`, `CheckNotHole`) have their input 0 as their value, refined: known to pass.
-`CheckInt32` refines and unboxes at once. A branch refines on its edges with `Refine`, the
-textbook pi node: it takes the branch's inputs and returns input 0, at the head of the block that
-only that edge reaches. So every check is a data dependency of what relies on it: passes move or
-share a load exactly when they can move or share its check, without control dependencies and
-without pinning loads by making them read everything.
+`CheckBounds`, `CheckTypedArrayStorage`, `CheckNotHole`) have their input 0 as their value,
+refined: known to pass. `CheckInt32` refines and unboxes at once. A branch refines on its edges
+with `Refine`, the textbook pi node: it takes the branch's inputs and returns input 0, at the head
+of the block that only that edge reaches. So every check is a data dependency of what relies on
+it: passes move or share a load exactly when they can move or share its check, without control
+dependencies and without pinning loads by making them read everything.
 
 Passes see through refinements where that is sound: check elimination keeps its facts about the
 unrefined value, and leaves the uses of a check it removes on the value the check refined.
@@ -132,6 +132,7 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | CheckElements | Exits unless the object has elements of a kind. The value is the object, refined. | E | Elements | | |
 | Refine | Input 0, refined by the edge of a branch on the same condition and inputs: at the head of the block only that edge reaches (section 3.2). Never moved; gone before register allocation. | | | | cse |
 | CheckBounds | Exits unless the index (input 0) is below the count (input 1), unsigned. The value is the index, refined. | E | | | cse |
+| CheckTypedArrayStorage | Exits unless the storage offset of a typed array (input 0) is valid. Typed arrays whose length the snapshot knows to be fixed use it as a constant past this check, so accesses with a constant index rely on it alone. The value is the offset, refined. | E | | | cse |
 | CheckNotHole | Exits at holes (the empty value). The value is input 0, refined. | E | | | cse |
 | AssumeValid | Exits if the code was invalidated; a patchable no-op (section 5). | E | Any | | |
 | **Object memory** | | | | | |
@@ -140,7 +141,7 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | AddNamed | Adds a property to a fresh object and gives it the new shape. | | Named | Named | |
 | LoadAccessorFunction | The getter or setter of an accessor property. | E | Named | | |
 | HasInPrototypeChain | Whether input 1 is on input 0's prototype chain (the OrdinaryHasInstance loop). | E | Named | | |
-| LoadElementAt, StoreElementAt | An element of a known elements kind at an index in bounds, without checks; holes load as the empty value. Typed arrays load int32 or float64 and store int32 (integer kinds) or float64; their accesses take the storage offset of the typed array in place of the object, to which code generation adds the base of the primitive storage cage, a constant of the process. | | (Load) Elements | (Store) Elements | |
+| LoadElementAt, StoreElementAt | An element of a known elements kind at an index in bounds, without checks; holes load as the empty value. Typed arrays load int32 or float64 and store int32 (integer kinds) or float64; their accesses take the storage offset of the typed array in place of the object (its `CheckTypedArrayStorage` where a fixed length bounds the index, which the verifier enforces), to which code generation adds the base of the primitive storage cage, a constant of the process. | | (Load) Elements | (Store) Elements | |
 | LoadTypedArrayLength | The length of a typed array, or 0 while its data is not cached (detached or resizable buffers). | | Elements | | |
 | LoadTypedArrayDataOffset | The offset of the cached data of a typed array in the primitive storage cage, invalid while its data is not cached. Calls that may detach a buffer invalidate it; stores of elements in bounds do not. | | Elements | | |
 | CheckAppendableArray | Exits unless `push` can append to the array without observable steps. The value is the array, refined. | E | Any | | |

@@ -94,4 +94,4 @@ jit.compile(addActions);
 // CHECK: loop:
 // CHECK-NEXT: [[I:v[0-9]+]]:int32 = Phi ([[START]], {{v[0-9]+}})
 // CHECK-NOT: CheckInt32 ({{v[0-9]+}})
-// CHECK: CheckBounds ([[I]], {{v[0-9]+}})
+// CHECK: CheckBounds ([[I]], {{[^)]+}})

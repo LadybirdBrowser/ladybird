@@ -39,6 +39,7 @@ use crate::bytecode::Operand;
 use crate::bytecode::RESERVED_REGISTER_COUNT;
 use crate::code::Repr;
 use crate::ir::BlockId;
+use crate::ir::ElementsKind;
 use crate::ir::Graph;
 use crate::ir::Locations;
 use crate::ir::NodeId;
@@ -378,6 +379,21 @@ fn verify_nodes(graph: &Graph, places: &[Option<Place>]) -> Result<(), String> {
                     node.op.name()
                 ));
             }
+            // NB: Typed-array element accesses take the storage offset from
+            //     its load or the check that it is valid, which they rely on.
+            if let Op::LoadElementAt {
+                kind: ElementsKind::TypedArray(_),
+            }
+            | Op::StoreElementAt {
+                kind: ElementsKind::TypedArray(_),
+            } = node.op
+                && !matches!(
+                    graph.node(node.inputs[0]).op,
+                    Op::LoadTypedArrayDataOffset | Op::CheckTypedArrayStorage
+                )
+            {
+                errors.push(format!("v{} ({}) takes no storage offset", node_id.0, node.op.name()));
+            }
             // A slow path's further outputs are where its call left them only
             // until anything else runs.
             if let Op::SlowPathOutput { .. } = node.op {
@@ -489,7 +505,9 @@ fn expected_input_reprs(graph: &Graph, node: NodeId) -> Option<Vec<Repr>> {
         Op::LoadElementAt { .. } => Some(vec![Repr::Pointer, Repr::Int32]),
         Op::StoreElementAt { kind } => Some(vec![Repr::Pointer, Repr::Int32, kind.stored_repr()]),
         Op::CheckBounds => Some(vec![Repr::Int32, Repr::Int32]),
-        Op::LoadTypedArrayLength | Op::LoadTypedArrayDataOffset => Some(vec![Repr::Pointer]),
+        Op::LoadTypedArrayLength | Op::LoadTypedArrayDataOffset | Op::CheckTypedArrayStorage => {
+            Some(vec![Repr::Pointer])
+        }
         Op::BoxBool => Some(vec![Repr::Bool]),
         Op::LoadFunctionEnvironment { .. }
         | Op::BoxCell

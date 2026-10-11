@@ -545,6 +545,10 @@ pub enum Op {
     /// invalid: accesses must first check the index against
     /// `LoadTypedArrayLength`, which is zero without cached storage.
     LoadTypedArrayDataOffset,
+    /// The `Repr::Pointer` storage offset input 0, checked to be valid.
+    /// Exits with `ExitKind::OutOfBounds` if it is invalid, so a captured
+    /// typed array's fixed length can be used until its storage changes.
+    CheckTypedArrayStorage,
     /// The `Repr::Int32` index input 0, which is known to be below the
     /// `Repr::Int32` count input 1 (as an unsigned number) from here on.
     /// Exits with `ExitKind::OutOfBounds` where it is not.
@@ -1140,7 +1144,7 @@ impl Op {
                 writes: Locations::ELEMENTS,
                 ..P::PURE
             },
-            Op::CheckBounds | Op::CheckNotHole => P::PURE,
+            Op::CheckBounds | Op::CheckNotHole | Op::CheckTypedArrayStorage => P::PURE,
             Op::AllocateObject { .. } => P {
                 allocates: true,
                 ..P::PURE
@@ -1387,6 +1391,7 @@ impl Op {
             Op::CheckElements { .. } => "CheckElements",
             Op::LoadTypedArrayLength => "LoadTypedArrayLength",
             Op::LoadTypedArrayDataOffset => "LoadTypedArrayDataOffset",
+            Op::CheckTypedArrayStorage => "CheckTypedArrayStorage",
             Op::CheckBounds => "CheckBounds",
             Op::LoadElementAt { .. } => "LoadElementAt",
             Op::StoreElementAt { .. } => "StoreElementAt",
@@ -1480,6 +1485,7 @@ impl Op {
             | Op::CheckIdentityComparable
             | Op::CheckAppendableArray
             | Op::CheckBounds
+            | Op::CheckTypedArrayStorage
             | Op::CheckNotHole => Some(0),
             _ => None,
         }
@@ -1511,7 +1517,7 @@ impl Op {
             Op::Exit { kind } => Some(*kind),
             Op::CheckObject => Some(ExitKind::NotObject),
             Op::CheckElements { .. } => Some(ExitKind::BadElements),
-            Op::CheckBounds | Op::CheckNotHole => Some(ExitKind::OutOfBounds),
+            Op::CheckBounds | Op::CheckNotHole | Op::CheckTypedArrayStorage => Some(ExitKind::OutOfBounds),
             Op::CheckInt32 => Some(ExitKind::NotInt32),
             Op::CheckNumber | Op::CheckIdentityComparable | Op::HasInPrototypeChain => Some(ExitKind::BadType),
             Op::AssumeValid => Some(ExitKind::Invalidated),
@@ -1723,6 +1729,9 @@ pub struct Graph {
     /// The shapes from the snapshot that were stable, which check
     /// elimination may make the code depend on.
     pub stable_shapes: Vec<CellId>,
+    /// Immutable properties of embedded typed arrays. Their fixed lengths
+    /// require a valid cached storage offset before each access.
+    pub typed_array_constants: Vec<(u64, crate::snapshot::TypedArraySnapshot)>,
     /// The most bytes of interpreter stack that materializing the frames of
     /// inlined calls, and the frames of direct and native calls on top of
     /// them, take at once. Compiled code checks at entry that they fit.

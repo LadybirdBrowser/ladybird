@@ -80,50 +80,81 @@ impl GraphBuilder<'_> {
         }
     }
 
-    /// The counts an index into the elements of `kind` of the object at
-    /// `address` must be below: the array-like size and the capacity of
-    /// the storage of packed and holey elements (which only drift apart if
-    /// the size is corrupted), and the length of typed arrays.
-    pub(super) fn element_counts(&mut self, kind: ElementsKind, address: NodeId) -> Vec<NodeId> {
+    /// The storage of the elements of `kind` of the object at `address`,
+    /// which element accesses take as their input 0, and the counts an index
+    /// into them must be below. Packed and holey elements are accessed
+    /// through the object, and must be below the array-like size and the
+    /// capacity of their storage (which only drift apart if the size is
+    /// corrupted). Typed arrays are accessed through their storage offset,
+    /// and must be below their length.
+    ///
+    /// Typed arrays known to have a fixed length use it as a constant once
+    /// their storage offset is checked to be valid, which exits, so only
+    /// where the elements kind may be speculated on. Accesses take the
+    /// checked offset: with a constant index, the bounds check folds away,
+    /// and the check of the offset is all that keeps them behind it.
+    pub(super) fn element_storage_and_counts(&mut self, kind: ElementsKind, address: NodeId) -> (NodeId, Vec<NodeId>) {
         let count = |builder: &mut Self, op| builder.emit(op, vec![address], Some(Repr::Int32));
         match kind {
-            ElementsKind::Packed | ElementsKind::Holey => {
+            ElementsKind::Packed | ElementsKind::Holey => (
+                address,
                 vec![
                     count(self, Op::LoadElementsLength),
                     count(self, Op::LoadElementsCapacity),
-                ]
+                ],
+            ),
+            ElementsKind::TypedArray(_) => {
+                let fixed_length = self.graph.constant_value(address).and_then(|address| {
+                    self.graph
+                        .typed_array_constants
+                        .iter()
+                        .find(|(bits, _)| {
+                            self.runtime.heap_region_base + (bits & self.runtime.heap_region_offset_mask) == address
+                        })?
+                        .1
+                        .fixed_length
+                });
+                let offset =
+                    |builder: &mut Self| builder.emit(Op::LoadTypedArrayDataOffset, vec![address], Some(Repr::Pointer));
+                match fixed_length {
+                    Some(length) if self.may_speculate(ExitKind::OutOfBounds) => {
+                        let offset = offset(self);
+                        let offset = self.emit_checked(Op::CheckTypedArrayStorage, vec![offset], Some(Repr::Pointer));
+                        (offset, vec![self.int32_constant(length as i32)])
+                    }
+                    _ => {
+                        let length = count(self, Op::LoadTypedArrayLength);
+                        (offset(self), vec![length])
+                    }
+                }
             }
-            ElementsKind::TypedArray(_) => vec![count(self, Op::LoadTypedArrayLength)],
         }
     }
 
-    /// The element at `index` of the elements of `kind` of the object at
-    /// `address`, with doubles boxed.
-    pub(super) fn load_element(&mut self, kind: ElementsKind, address: NodeId, index: NodeId) -> NodeId {
-        let mut inputs = vec![address, index];
-        if matches!(kind, ElementsKind::TypedArray(_)) {
-            inputs[0] = self.emit(Op::LoadTypedArrayDataOffset, vec![address], Some(Repr::Pointer));
-        }
-        let element = self.emit(Op::LoadElementAt { kind }, inputs, Some(kind.loaded_repr()));
+    /// The element at `index` of the elements of `kind` with the `storage`
+    /// that `element_storage_and_counts()` gave, with doubles boxed.
+    pub(super) fn load_element(&mut self, kind: ElementsKind, storage: NodeId, index: NodeId) -> NodeId {
+        let element = self.emit(
+            Op::LoadElementAt { kind },
+            vec![storage, index],
+            Some(kind.loaded_repr()),
+        );
         match kind.loaded_repr() {
             Repr::Float64 => self.emit(Op::BoxFloat64, vec![element], Some(Repr::Tagged)),
             _ => element,
         }
     }
 
-    /// Stores `value` at the checked `index`, with reusable typed-array
-    /// storage metadata as explicit inputs.
-    pub(super) fn store_element(&mut self, kind: ElementsKind, address: NodeId, index: NodeId, value: NodeId) {
-        let mut inputs = vec![address, index, value];
-        if matches!(kind, ElementsKind::TypedArray(_)) {
-            inputs[0] = self.emit(Op::LoadTypedArrayDataOffset, vec![address], Some(Repr::Pointer));
-        }
-        self.emit(Op::StoreElementAt { kind }, inputs, None);
+    /// Stores `value` at the checked `index` of the elements of `kind` with
+    /// the `storage` that `element_storage_and_counts()` gave.
+    pub(super) fn store_element(&mut self, kind: ElementsKind, storage: NodeId, index: NodeId, value: NodeId) {
+        self.emit(Op::StoreElementAt { kind }, vec![storage, index, value], None);
     }
 
-    /// The address of the checked object and the checked index of an
-    /// element access of `kind`: the object has elements of `kind`, and the
-    /// index is in their bounds.
+    /// The storage of the checked object (see
+    /// `element_storage_and_counts()`) and the checked index of an element
+    /// access of `kind`: the object has elements of `kind`, and the index is
+    /// in their bounds.
     fn element_access(
         &mut self,
         kind: ElementsKind,
@@ -135,10 +166,11 @@ impl GraphBuilder<'_> {
         let mut index = self.int32(index);
         let object = self.emit_checked(Op::CheckElements { kind }, vec![object], None);
         let address = self.cell_address(object);
-        for count in self.element_counts(kind, address) {
+        let (storage, counts) = self.element_storage_and_counts(kind, address);
+        for count in counts {
             index = self.emit_checked(Op::CheckBounds, vec![index, count], Some(Repr::Int32));
         }
-        Ok((address, index))
+        Ok((storage, index))
     }
 
     /// Builds `dst = base[property]` as an element load, if the keyed
@@ -154,8 +186,8 @@ impl GraphBuilder<'_> {
         let Some(kind) = self.speculated_elements_kind(instruction) else {
             return Ok(false);
         };
-        let (address, index) = self.element_access(kind, base, property)?;
-        let mut value = self.load_element(kind, address, index);
+        let (storage, index) = self.element_access(kind, base, property)?;
+        let mut value = self.load_element(kind, storage, index);
         if kind == ElementsKind::Holey {
             value = self.emit_checked(Op::CheckNotHole, vec![value], Some(Repr::Tagged));
         }
@@ -193,13 +225,13 @@ impl GraphBuilder<'_> {
             (Repr::Tagged, _) => self.tagged(value),
             _ => return Ok(false),
         };
-        let (address, index) = self.element_access(kind, base, property)?;
+        let (storage, index) = self.element_access(kind, base, property)?;
         // NB: Holes are filled by the slow path.
         if kind == ElementsKind::Holey {
-            let old = self.emit(Op::LoadElementAt { kind }, vec![address, index], Some(Repr::Tagged));
+            let old = self.emit(Op::LoadElementAt { kind }, vec![storage, index], Some(Repr::Tagged));
             self.emit_checked(Op::CheckNotHole, vec![old], Some(Repr::Tagged));
         }
-        self.store_element(kind, address, index, value);
+        self.store_element(kind, storage, index, value);
         Ok(true)
     }
 }

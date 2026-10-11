@@ -2262,6 +2262,7 @@ fn global_variables_the_snapshot_knows() {
         bits,
         cell: None,
         intrinsic: None,
+        typed_array: None,
         has_instance: None,
     };
     let binding = |index: u32, mutable: bool, value: Option<u64>| GlobalCacheSnapshot::Binding {
@@ -2422,6 +2423,7 @@ fn instance_of_global_functions_walks_prototype_chains() {
                         bits: function_value,
                         cell: None,
                         intrinsic: None,
+                        typed_array: None,
                         has_instance: Some(OrdinaryHasInstanceSnapshot {
                             shape: CellId(shape),
                             dictionary_generation: None,
