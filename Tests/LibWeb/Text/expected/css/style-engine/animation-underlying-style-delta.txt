@@ -1,0 +1,14 @@
+base change takes partial drive: true
+animation object survives: true
+sampled color: rgb(50, 50, 50)
+sampled opacity: 0.5
+changed background: rgb(255, 0, 0)
+shadow child inherits sample: rgb(50, 50, 50)
+border follows sampled currentcolor: rgb(50, 50, 50)
+animation still overrides changed base: rgb(50, 50, 50)
+changed animation sample: rgb(75, 75, 75)
+shadow child follows changed sample: rgb(75, 75, 75)
+background survives resampling: rgb(255, 0, 0)
+base color restored: rgb(0, 0, 255)
+base opacity restored: 1
+shadow child inherits restored base: rgb(0, 0, 255)

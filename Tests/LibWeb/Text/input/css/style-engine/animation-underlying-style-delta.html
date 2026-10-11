@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes tint {
+        from { color: rgb(0, 0, 0); opacity: 1; }
+        to { color: rgb(100, 100, 100); opacity: 0; }
+    }
+    #target { animation: tint 1000s linear paused; border: 1px solid currentcolor; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const shadow = target.attachShadow({ mode: "open" });
+        shadow.innerHTML = "<span>shadow child</span>";
+        internals.updateStyle();
+        const animation = target.getAnimations()[0];
+        animation.currentTime = 500000;
+        internals.updateStyle();
+
+        const before = internals.styleEngineCounters();
+        target.style.backgroundColor = "red";
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+        println(`base change takes partial drive: ${after.enginePartialDrivesStarted > before.enginePartialDrivesStarted}`);
+        println(`animation object survives: ${target.getAnimations()[0] === animation}`);
+        println(`sampled color: ${getComputedStyle(target).color}`);
+        println(`sampled opacity: ${getComputedStyle(target).opacity}`);
+        println(`changed background: ${getComputedStyle(target).backgroundColor}`);
+        println(`shadow child inherits sample: ${getComputedStyle(shadow.firstElementChild).color}`);
+        println(`border follows sampled currentcolor: ${getComputedStyle(target).borderTopColor}`);
+
+        target.style.color = "blue";
+        internals.updateStyle();
+        println(`animation still overrides changed base: ${getComputedStyle(target).color}`);
+        animation.currentTime = 750000;
+        internals.updateStyle();
+        println(`changed animation sample: ${getComputedStyle(target).color}`);
+        println(`shadow child follows changed sample: ${getComputedStyle(shadow.firstElementChild).color}`);
+        println(`background survives resampling: ${getComputedStyle(target).backgroundColor}`);
+        target.style.animation = "none";
+        internals.updateStyle();
+        println(`base color restored: ${getComputedStyle(target).color}`);
+        println(`base opacity restored: ${getComputedStyle(target).opacity}`);
+        println(`shadow child inherits restored base: ${getComputedStyle(shadow.firstElementChild).color}`);
+    });
+</script>

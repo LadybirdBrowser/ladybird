@@ -1,0 +1,18 @@
+base change takes partial drive: true
+transition objects survive: true
+transition color: rgb(50, 50, 50)
+transition opacity: 0.5
+background change: rgb(255, 0, 0)
+child background inherits base change: rgb(255, 0, 0)
+child color inherits sample: rgb(50, 50, 50)
+pseudo color inherits sample: rgb(50, 50, 50)
+border follows sampled currentcolor: rgb(50, 50, 50)
+font-dependent value after full drive: 40px
+sample survives font change: rgb(50, 50, 50)
+retargeted color midpoint: rgb(125, 125, 125)
+child inherits retargeted sample: rgb(125, 125, 125)
+opacity sample survives retargeting: 0.5
+transitions removed: true
+underlying color restored: rgb(200, 200, 200)
+underlying opacity restored: 0
+unrelated background retained: rgb(255, 0, 0)
