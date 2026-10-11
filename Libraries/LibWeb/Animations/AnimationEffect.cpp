@@ -22,6 +22,7 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/SVG/SVGElement.h>
@@ -958,8 +959,21 @@ void AnimationUpdateContext::publish()
                         child_explicit_inheritance_groups |= shadow_root->children_explicitly_inherited_non_inherited_style_groups();
                     auto descendants_may_observe_non_inherited_properties = (child_explicit_inheritance_groups & animated_property_invalidation.changed_non_inherited_style_groups) != 0
                         || invalidation.recompute_descendant_styles
-                        || invalidation.needs_layout_tree_rebuild()
-                        || target->is_html_slot_element();
+                        || invalidation.needs_layout_tree_rebuild();
+                    if (auto* slot = as_if<HTML::HTMLSlotElement>(*target); slot && !descendants_may_observe_non_inherited_properties) {
+                        // NB: Assigned elements leave explicit inheritance marks on their DOM parent,
+                        //     including values that substitute to inherit, rather than on the slot.
+                        for (auto const& slottable : slot->assigned_nodes_internal()) {
+                            auto const* assigned = slottable.get_pointer<GC::Ref<DOM::Element>>();
+                            if (!assigned)
+                                continue;
+                            auto* parent = (*assigned)->parent();
+                            if (parent && (parent->children_explicitly_inherited_non_inherited_style_groups() & animated_property_invalidation.changed_non_inherited_style_groups) != 0) {
+                                descendants_may_observe_non_inherited_properties = true;
+                                break;
+                            }
+                        }
+                    }
                     if (descendants_may_observe_non_inherited_properties)
                         inherited_style_groups = CSS::RequiredInvalidationAfterStyleChange::all_inherited_style_groups;
                 }
