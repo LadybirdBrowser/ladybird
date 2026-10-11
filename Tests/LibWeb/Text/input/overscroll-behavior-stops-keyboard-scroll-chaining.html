@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        padding: 200px 0 0 200px;
+        width: 3000px;
+        height: 3000px;
+    }
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #scroller > div {
+        width: 300px;
+        height: 300px;
+    }
+    #box {
+        width: 100px;
+        height: 100px;
+        overflow: hidden;
+    }
+</style>
+<div id="scroller"><div></div></div>
+<div id="box"></div>
+<script>
+    promiseTest(async () => {
+        const scrollPageBack = async () => {
+            window.scrollTo(200, 200);
+            scroller.scrollTo(0, 0);
+            await animationFrame();
+            await animationFrame();
+        };
+        // A key that scrolls nothing fires no event to wait for, so the page is given time to move instead.
+        const pressKeyAndReportPage = async key => {
+            await scrollPageBack();
+            internals.sendKey(document.body, key);
+            for (let frame = 0; frame < 20; frame++)
+                await animationFrame();
+            // A scroll that did start is left to finish before the next key.
+            await scrollOffsetStopsChanging(() => `${window.scrollX},${window.scrollY},${scroller.scrollTop}`);
+            const moved = [];
+            if (window.scrollX !== 200)
+                moved.push(window.scrollX < 200 ? "left" : "right");
+            if (window.scrollY !== 200)
+                moved.push(window.scrollY < 200 ? "up" : "down");
+            return moved.length ? `page moved ${moved.join(" and ")}` : "page stayed";
+        };
+
+        // The scroller is at the top left of the window and of its own scroll range, and takes the keys once clicked.
+        await scrollPageBack();
+        internals.click(50, 50);
+
+        for (const value of ["auto", "contain", "none", "chain"]) {
+            scroller.style.overscrollBehavior = `auto ${value}`;
+            println(`overscroll-behavior-y: ${value}, Up: ${await pressKeyAndReportPage("Up")}`);
+            println(`overscroll-behavior-y: ${value}, Left: ${await pressKeyAndReportPage("Left")}`);
+        }
+
+        scroller.style.overscrollBehavior = "contain auto";
+        println(`overscroll-behavior-x: contain, Left: ${await pressKeyAndReportPage("Left")}`);
+        println(`overscroll-behavior-x: contain, Up: ${await pressKeyAndReportPage("Up")}`);
+
+        scroller.style.overscrollBehavior = "none";
+        println(`overscroll-behavior: none, PageUp: ${await pressKeyAndReportPage("PageUp")}`);
+        println(`overscroll-behavior: none, Home: ${await pressKeyAndReportPage("Home")}`);
+        scroller.style.overscrollBehavior = "auto";
+        println(`overscroll-behavior: auto, PageUp: ${await pressKeyAndReportPage("PageUp")}`);
+        println(`overscroll-behavior: auto, Home: ${await pressKeyAndReportPage("Home")}`);
+
+        // A key the scroller can scroll by is its own business whatever it does at its boundary.
+        scroller.style.overscrollBehavior = "none";
+        const page = await pressKeyAndReportPage("Down");
+        println(`overscroll-behavior: none, Down: scroller moved ${scroller.scrollTop > 0}, ${page}`);
+
+        // A scroll container with nothing to scroll keeps the keys of what is clicked inside it just the same.
+        await scrollPageBack();
+        internals.click(50, 150);
+        box.style.overscrollBehavior = "contain";
+        println(`box with nothing to scroll, overscroll-behavior: contain, Up: ${await pressKeyAndReportPage("Up")}`);
+        box.style.overscrollBehavior = "auto";
+        println(`box with nothing to scroll, overscroll-behavior: auto, Up: ${await pressKeyAndReportPage("Up")}`);
+    });
+</script>
