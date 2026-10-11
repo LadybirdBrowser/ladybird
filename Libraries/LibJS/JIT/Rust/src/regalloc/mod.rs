@@ -415,7 +415,11 @@ fn constraints(node: &Node, registers: &RegisterSet) -> Constraints {
         // The object, then its elements or element address.
         Op::CheckElements { .. } | Op::CheckIdentityComparable | Op::CheckClosure { .. } => constraints.temps = 1,
         // The elements or the element address.
-        Op::LoadElementAt { .. } | Op::StoreElementAt { .. } => constraints.temps = 1,
+        Op::LoadElementAt { .. } | Op::StoreElementAt { .. } => {
+            constraints.inputs[1] = InputConstraint::RegisterOrConstant;
+            constraints.temps = 1;
+        }
+        Op::CheckBounds => constraints.inputs[0] = InputConstraint::RegisterOrConstant,
         // The heap and a value.
         Op::AllocateObject { .. } => constraints.temps = 2,
         // The object's property storage.

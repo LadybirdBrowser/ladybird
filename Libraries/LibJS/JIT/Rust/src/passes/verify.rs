@@ -489,7 +489,7 @@ fn expected_input_reprs(graph: &Graph, node: NodeId) -> Option<Vec<Repr>> {
         Op::LoadElementAt { .. } => Some(vec![Repr::Pointer, Repr::Int32]),
         Op::StoreElementAt { kind } => Some(vec![Repr::Pointer, Repr::Int32, kind.stored_repr()]),
         Op::CheckBounds => Some(vec![Repr::Int32, Repr::Int32]),
-        Op::LoadTypedArrayLength => Some(vec![Repr::Pointer]),
+        Op::LoadTypedArrayLength | Op::LoadTypedArrayDataOffset => Some(vec![Repr::Pointer]),
         Op::BoxBool => Some(vec![Repr::Bool]),
         Op::LoadFunctionEnvironment { .. }
         | Op::BoxCell

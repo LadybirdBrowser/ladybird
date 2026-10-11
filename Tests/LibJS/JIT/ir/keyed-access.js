@@ -89,8 +89,8 @@ jit.compile(float);
 // CHECK-PASS: frame initialization
 // CHECK: CheckElements TypedArray(Float64)
 // CHECK: LoadTypedArrayLength
-// CHECK-NEXT: CheckBounds
-// CHECK-NEXT: LoadElementAt TypedArray(Float64)
+// CHECK: CheckBounds
+// CHECK: LoadElementAt TypedArray(Float64)
 // CHECK-NEXT: BoxFloat64
 
 // Stores into typed arrays check that values are numbers and convert them to the kind of the elements.

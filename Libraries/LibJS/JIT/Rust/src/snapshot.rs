@@ -793,6 +793,9 @@ pub struct RuntimeInfo {
     pub heap_region_base: u64,
     /// `GC::HEAP_REGION_OFFSET_MASK`.
     pub heap_region_offset_mask: u64,
+    /// `js_primitive_storage_cage_base`: the base of the primitive storage cage, which LibGC reserves once per
+    /// process, and which the cached data offsets of typed arrays are relative to.
+    pub primitive_storage_cage_base: u64,
     /// `GC::SHIFTED_IS_CELL_PATTERN`: the tag bits of a boxed environment.
     pub shifted_is_cell_pattern: u64,
     /// `Object::Flag::IsFunction`.
@@ -1330,10 +1333,8 @@ pub struct RuntimeLayout {
     pub typed_array_kind_int32: u8,
     pub typed_array_kind_float32: u8,
     pub typed_array_kind_float64: u8,
-    /// `VmHead::primitive_storage_cage_base` (u64). Typed array elements are
-    /// at `cage_base + ((cached_data_offset + byte_index) & cage_offset_mask)`.
-    pub vm_primitive_storage_cage_base: u32,
-    /// `GC::PrimitiveStorage::cage_offset_mask`.
+    /// `GC::PrimitiveStorage::cage_offset_mask`. Typed array elements are at
+    /// `primitive_storage_cage_base + ((cached_data_offset + byte_index) & cage_offset_mask)`.
     pub primitive_storage_cage_offset_mask: u64,
     /// `PrimitiveString::length_in_utf16_code_units` (u32).
     pub primitive_string_length: u32,

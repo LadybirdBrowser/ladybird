@@ -394,7 +394,8 @@ fn visit_node(
         | Op::LoadEnvironmentBinding { .. }
         | Op::LoadElementsLength
         | Op::LoadElementsCapacity
-        | Op::LoadTypedArrayLength => {
+        | Op::LoadTypedArrayLength
+        | Op::LoadTypedArrayDataOffset => {
             let location = loaded_location(graph, decisions, node_id).expect("loads load a location");
             remove = reuse_contents(facts, location, node_id, decisions);
         }
@@ -526,7 +527,10 @@ fn loaded_location(graph: &Graph, decisions: &Decisions, load: NodeId) -> Option
             index,
         },
         ref op => {
-            let count = ElementCount::loaded_by(op)?;
+            let count = ElementCount::loaded_by(op);
+            if count.is_none() && !matches!(op, Op::LoadTypedArrayDataOffset) {
+                return None;
+            }
             // NB: Before value numbering, an object may have several
             //     addresses.
             let address = graph.node(input(0));
@@ -534,7 +538,10 @@ fn loaded_location(graph: &Graph, decisions: &Decisions, load: NodeId) -> Option
                 Op::CellAddress => decisions.value(graph, address.inputs[0]),
                 _ => input(0),
             };
-            Location::ElementCount { count, object }
+            match count {
+                Some(count) => Location::ElementCount { count, object },
+                None => Location::TypedArrayDataOffset { object },
+            }
         }
     })
 }

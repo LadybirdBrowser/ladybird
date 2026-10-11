@@ -100,15 +100,25 @@ impl GraphBuilder<'_> {
     /// The element at `index` of the elements of `kind` of the object at
     /// `address`, with doubles boxed.
     pub(super) fn load_element(&mut self, kind: ElementsKind, address: NodeId, index: NodeId) -> NodeId {
-        let element = self.emit(
-            Op::LoadElementAt { kind },
-            vec![address, index],
-            Some(kind.loaded_repr()),
-        );
+        let mut inputs = vec![address, index];
+        if matches!(kind, ElementsKind::TypedArray(_)) {
+            inputs[0] = self.emit(Op::LoadTypedArrayDataOffset, vec![address], Some(Repr::Pointer));
+        }
+        let element = self.emit(Op::LoadElementAt { kind }, inputs, Some(kind.loaded_repr()));
         match kind.loaded_repr() {
             Repr::Float64 => self.emit(Op::BoxFloat64, vec![element], Some(Repr::Tagged)),
             _ => element,
         }
+    }
+
+    /// Stores `value` at the checked `index`, with reusable typed-array
+    /// storage metadata as explicit inputs.
+    pub(super) fn store_element(&mut self, kind: ElementsKind, address: NodeId, index: NodeId, value: NodeId) {
+        let mut inputs = vec![address, index, value];
+        if matches!(kind, ElementsKind::TypedArray(_)) {
+            inputs[0] = self.emit(Op::LoadTypedArrayDataOffset, vec![address], Some(Repr::Pointer));
+        }
+        self.emit(Op::StoreElementAt { kind }, inputs, None);
     }
 
     /// The address of the checked object and the checked index of an
@@ -189,7 +199,7 @@ impl GraphBuilder<'_> {
             let old = self.emit(Op::LoadElementAt { kind }, vec![address, index], Some(Repr::Tagged));
             self.emit_checked(Op::CheckNotHole, vec![old], Some(Repr::Tagged));
         }
-        self.emit(Op::StoreElementAt { kind }, vec![address, index, value], None);
+        self.store_element(kind, address, index, value);
         Ok(true)
     }
 }

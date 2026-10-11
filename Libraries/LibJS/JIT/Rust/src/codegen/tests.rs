@@ -522,6 +522,10 @@ fn write_frame_states(vm: *mut u64, frame: *mut u64, exit_index: u32, dump: *con
     }
 }
 
+/// The primitive storage cage base of the fake runtime: fake typed arrays hold
+/// the offsets of their data from it.
+const PRIMITIVE_STORAGE_CAGE_BASE: u64 = 0x1000;
+
 fn runtime() -> RuntimeInfo {
     let mut slow_paths = vec![0; NUM_OPCODES as usize];
     let mut set = |opcode: OpCode, address: u64| slow_paths[opcode as usize] = address;
@@ -547,6 +551,7 @@ fn runtime() -> RuntimeInfo {
         finish_direct_call: direct_calls::finish_direct_call as *const () as u64,
         no_yield_continuation: u32::MAX,
         heap_region_offset_mask: (1 << 48) - 1,
+        primitive_storage_cage_base: PRIMITIVE_STORAGE_CAGE_BASE,
         shifted_is_cell_pattern: 0xFFF8 << 48,
         object_flag_is_function: FUNCTION_FLAG,
         offsets: offsets(),
