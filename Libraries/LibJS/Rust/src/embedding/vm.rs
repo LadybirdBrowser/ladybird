@@ -116,8 +116,7 @@ pub unsafe extern "C" fn js_vm_heap(vm: *mut JSVM) -> *mut GCHeap {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn js_vm_finish_execution_generation(vm: *mut JSVM) {
     // SAFETY: The caller passes a live VM.
-    let generation = &unsafe { vm_from_abi(vm) }.head.execution_generation;
-    generation.set(generation.get() + 1);
+    unsafe { vm_from_abi(vm) }.head.finish_execution_generation();
 }
 
 /// VM::did_reach_stack_space_limit(): whether so little of the thread's native stack is left that running more

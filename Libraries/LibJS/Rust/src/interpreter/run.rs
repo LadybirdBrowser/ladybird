@@ -135,9 +135,7 @@ impl Vm {
         if is_outermost_bytecode_execution && !self.is_executing_module() {
             self.run_queued_promise_jobs();
         }
-        self.head
-            .execution_generation
-            .set(self.head.execution_generation.get() + 1);
+        self.head.finish_execution_generation();
 
         let exception = context_ref.register(register::EXCEPTION).get();
         if exception != Value::EMPTY {
@@ -201,9 +199,7 @@ impl Vm {
         caller.slots()[frame.caller_dst_raw.get() as usize].set(return_value);
         self.head.running_execution_context.set(caller_frame);
         self.interpreter_stack().deallocate(frame_pointer.as_ptr().cast());
-        self.head
-            .execution_generation
-            .set(self.head.execution_generation.get() + 1);
+        self.head.finish_execution_generation();
     }
 
     #[cold]
@@ -328,7 +324,7 @@ impl Vm {
 
         // FIXME: 16. Resume the context that is now on the top of the execution context stack as the running execution context.
 
-        vm.head.execution_generation.set(vm.head.execution_generation.get() + 1);
+        vm.head.finish_execution_generation();
 
         // 17. Return ? result.
         result

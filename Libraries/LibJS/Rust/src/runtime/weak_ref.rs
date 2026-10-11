@@ -23,9 +23,9 @@ pub struct WeakRef {
     base: Object,
     /// The object or symbol the WeakRef refers to, which is empty once it died.
     value: Cell<Value>,
-    last_execution_generation: Cell<u64>,
+    last_execution_generation: Cell<u32>,
     /// The execution generation of the VM, which visiting reads.
-    vm_execution_generation: NonNull<Cell<u64>>,
+    vm_execution_generation: NonNull<Cell<u32>>,
 }
 
 // SAFETY: Visits the target while the execution generation it was last used in is current, which keeps it alive for
