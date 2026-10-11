@@ -1,0 +1,2 @@
+precise wheel without a phase: nested.scrollTop=200 stretch=0
+mouse wheel: nested.scrollTop=200 stretch=0

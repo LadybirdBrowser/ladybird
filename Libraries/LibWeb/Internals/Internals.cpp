@@ -766,6 +766,40 @@ void Internals::wheel(double x, double y, double delta_x, double delta_y, bool p
     wheel(promise, x, y, delta_x, delta_y, precise, phase);
 }
 
+static Gfx::FloatPoint elastic_overscroll_stretch_in_css_pixels(HTML::Window& window, GC::Ptr<DOM::Element> scroller)
+{
+    auto& document = window.associated_document();
+    auto navigable = document.navigable();
+    if (!navigable || !navigable->has_compositor_context())
+        return {};
+
+    Web::AsyncScrollNodeStableID stable_node_id { .node_id = document.unique_id(), .kind = Web::AsyncScrollNodeKind::Viewport };
+    if (scroller) {
+        Layout::ForcedReadScope read { document };
+        document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
+        auto const* scrolling_box = scroller->layout_node(read);
+        if (!scrolling_box)
+            return {};
+        auto scroller_stable_node_id = Painting::async_scroll_node_stable_id(*scrolling_box);
+        if (!scroller_stable_node_id.has_value())
+            return {};
+        stable_node_id = *scroller_stable_node_id;
+    }
+
+    auto stretch_in_device_pixels = navigable->compositor_context().elastic_overscroll_stretch_for_testing(stable_node_id);
+    return stretch_in_device_pixels.scaled(static_cast<float>(1 / navigable->page().client().device_pixels_per_css_pixel()));
+}
+
+double Internals::elastic_overscroll_stretch_x(GC::Ptr<DOM::Element> scroller)
+{
+    return elastic_overscroll_stretch_in_css_pixels(window(), scroller).x();
+}
+
+double Internals::elastic_overscroll_stretch_y(GC::Ptr<DOM::Element> scroller)
+{
+    return elastic_overscroll_stretch_in_css_pixels(window(), scroller).y();
+}
+
 void Internals::pinch(double x, double y, double scale_delta, WebIDL::UnsignedShort modifiers)
 {
     auto& page = this->page();

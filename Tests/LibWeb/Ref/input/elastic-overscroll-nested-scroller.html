@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/elastic-overscroll-nested-scroller-ref.html">
+<script src="wpt-import/common/reftest-wait.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scrollbar-width: none;
+        background: lightyellow;
+    }
+    .item {
+        height: 150px;
+        box-sizing: border-box;
+        border: 10px solid steelblue;
+        background: darkseagreen;
+    }
+</style>
+<div id="scroller">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<script>
+    const animationFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+
+    (async () => {
+        await animationFrame();
+        await animationFrame();
+
+        // One gesture scrolls down and then back past the top, which the last 400px of it pull the box 20px past.
+        await internals.wheel(100, 100, 0, 50, true, "ongoing");
+        await internals.wheel(100, 100, 0, -450, true, "ongoing");
+
+        await animationFrame();
+        takeScreenshot();
+    })();
+</script>

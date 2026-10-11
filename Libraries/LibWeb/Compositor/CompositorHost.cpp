@@ -78,6 +78,11 @@ void CompositorContextHandle::cancel_smooth_scroll(Web::AsyncScrollNodeStableID 
     m_host.cancel_smooth_scroll(m_context_id, stable_node_id);
 }
 
+Gfx::FloatPoint CompositorContextHandle::elastic_overscroll_stretch_for_testing(Web::AsyncScrollNodeStableID stable_node_id)
+{
+    return m_host.elastic_overscroll_stretch_for_testing(m_context_id, stable_node_id);
+}
+
 Compositing::PendingAsyncScrollUpdates CompositorContextHandle::take_pending_async_scroll_updates(Compositing::AsyncScrollUpdateFreshness freshness)
 {
     return m_host.take_pending_async_scroll_updates(m_context_id, freshness);
@@ -422,6 +427,13 @@ void CompositorHost::cancel_smooth_scroll(Web::CompositorContextId context_id, W
 {
     if (auto* connection = compositor_connection())
         connection->cancel_smooth_scroll(context_id, stable_node_id);
+}
+
+Gfx::FloatPoint CompositorHost::elastic_overscroll_stretch_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id)
+{
+    if (auto* connection = compositor_connection())
+        return connection->elastic_overscroll_stretch_for_testing(context_id, stable_node_id);
+    return {};
 }
 
 Compositing::PendingAsyncScrollUpdates CompositorHost::take_pending_async_scroll_updates(Web::CompositorContextId context_id, Compositing::AsyncScrollUpdateFreshness freshness)

@@ -126,6 +126,9 @@ public:
     // Returns true if the platform sends momentum scroll events after a touchpad flick.
     // If it does not, the compositor makes the fling.
     virtual bool platform_reports_scroll_momentum() const { return true; }
+    // Returns true if a touchpad may pull a scroller past the edges of its scroll range, from where it springs back.
+    // This needs the platform to say when the fingers lift from the touchpad, or the scroller would stay stretched.
+    virtual bool platform_scrolls_elastically() const { return false; }
 
     void appearance_changed(Badge<ApplicationSettingsObserver>);
     void tab_settings_changed(Badge<ApplicationSettingsObserver>);

@@ -31,6 +31,8 @@ public:
     virtual WebView::SiteIsolationMode default_site_isolation_mode() const override { return WebView::SiteIsolationMode::IFrame; }
     virtual bool should_coordinate_browser_process() const override { return false; }
     virtual bool should_capture_web_content_output() const override { return true; }
+    // Tests cover elastic overscroll on every platform, whichever of them the browser enables it on.
+    virtual bool platform_scrolls_elastically() const override { return true; }
 
     virtual ErrorOr<LexicalPath> default_path_for_downloaded_file(ByteString const&) const override { return Error::from_errno(ECANCELED); }
 

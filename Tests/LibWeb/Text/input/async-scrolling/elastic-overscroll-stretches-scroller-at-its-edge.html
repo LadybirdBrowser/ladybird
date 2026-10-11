@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #nested {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #nested > div {
+        height: 300px;
+    }
+</style>
+<div id="nested"><div></div></div>
+<script>
+    function printState(label) {
+        println(`${label}: nested.scrollTop=${nested.scrollTop} nested stretch=${internals.elasticOverscrollStretchY(nested)} window.scrollY=${window.scrollY} viewport stretch=${internals.elasticOverscrollStretchY()}`);
+    }
+
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        await internals.wheel(50, 50, 0, 150, true, "ongoing");
+        printState("inside the scroll range");
+
+        // The step scrolls the 50px that are left, and the rest of it pulls the scroller past its bottom edge.
+        await internals.wheel(50, 50, 0, 150, true, "ongoing");
+        printState("reaching the edge");
+
+        await internals.wheel(50, 50, 3, 100, true, "ongoing");
+        printState("pulling at the edge");
+        println(`horizontal stretch: ${internals.elasticOverscrollStretchX(nested)}`);
+
+        // Fingers moving back relax the stretch before they scroll.
+        await internals.wheel(50, 50, 0, -100, true, "ongoing");
+        printState("moving back");
+
+        await internals.wheel(50, 50, 0, -150, true, "ongoing");
+        printState("moving back into the scroll range");
+
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+    });
+</script>

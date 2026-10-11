@@ -445,6 +445,13 @@ Messages::CompositorWebContentServer::SmoothScrollToResponse ConnectionFromWebCo
     return result;
 }
 
+Messages::CompositorWebContentServer::ElasticOverscrollStretchForTestingResponse ConnectionFromWebContent::elastic_overscroll_stretch_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id)
+{
+    if (!context_is_owned_by_this_connection(context_id))
+        return Gfx::FloatPoint {};
+    return m_compositor_state->elastic_overscroll_stretch_for_testing(context_id, stable_node_id);
+}
+
 void ConnectionFromWebContent::cancel_smooth_scroll(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id)
 {
     if (!context_is_owned_by_this_connection(context_id))

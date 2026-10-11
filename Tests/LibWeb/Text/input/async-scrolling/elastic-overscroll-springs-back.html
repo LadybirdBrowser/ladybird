@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #nested {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #nested > div {
+        height: 300px;
+    }
+</style>
+<div id="nested"><div></div></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        await scrollSettled(nested, () => nested.scrollTo(0, 190));
+
+        await internals.wheel(50, 50, 0, 410, true, "ongoing");
+        println(`held by the fingers: nested.scrollTop=${nested.scrollTop} stretch=${internals.elasticOverscrollStretchY(nested)}`);
+        for (let frame = 0; frame < 5; frame++)
+            await animationFrame();
+        println(`still held: stretch=${internals.elasticOverscrollStretchY(nested)}`);
+
+        let scrollEventCount = 0;
+        nested.addEventListener("scroll", () => scrollEventCount++);
+        let stretchGrewDuringRebound = false;
+        let scrollTopChangedDuringRebound = false;
+
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+        let previousStretch = internals.elasticOverscrollStretchY(nested);
+        while (previousStretch !== 0) {
+            await animationFrame();
+            const stretch = internals.elasticOverscrollStretchY(nested);
+            if (stretch > previousStretch)
+                stretchGrewDuringRebound = true;
+            if (nested.scrollTop !== 200)
+                scrollTopChangedDuringRebound = true;
+            previousStretch = stretch;
+        }
+        await animationFrame();
+        await animationFrame();
+
+        println(`sprung back: nested.scrollTop=${nested.scrollTop} stretch=${internals.elasticOverscrollStretchY(nested)}`);
+        println(`stretch grew during the rebound: ${stretchGrewDuringRebound}`);
+        println(`scrollTop changed during the rebound: ${scrollTopChangedDuringRebound}`);
+        println(`scroll events during the rebound: ${scrollEventCount}`);
+    });
+</script>

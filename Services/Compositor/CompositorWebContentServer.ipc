@@ -67,6 +67,7 @@ endpoint CompositorWebContentServer
     async_scroll_by(Web::CompositorContextId context_id, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Compositing::AsyncScrollOperationTracking operation_tracking) => (Compositing::AsyncScrollEnqueueResult result)
     smooth_scroll_to(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind, Compositing::SmoothScrollInitiator initiator, Optional<Compositing::AsyncScrollOperationID> operation_to_continue) => (Compositing::AsyncScrollEnqueueResult result)
     cancel_smooth_scroll(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id) =|
+    elastic_overscroll_stretch_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id) => (Gfx::FloatPoint stretch)
 
     take_pending_async_scroll_updates(Web::CompositorContextId context_id) => (Compositing::PendingAsyncScrollUpdates updates)
     viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress) =|

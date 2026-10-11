@@ -27,6 +27,7 @@
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Scrolling/AsyncScrollTree.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
+#include <LibCompositing/Scrolling/ElasticOverscroll.h>
 #include <LibCompositing/Scrolling/ScrollFling.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Scrolling/SmoothScrollAnimation.h>
@@ -138,7 +139,7 @@ public:
     void cancel_smooth_scroll(Web::AsyncScrollNodeStableID);
     Optional<Gfx::IntRect> advance_smooth_scroll_animations(MonotonicTime now);
     bool has_active_smooth_scroll_animations() const { return !m_smooth_scroll_animations.is_empty(); }
-    bool needs_animation_frames() { return has_active_smooth_scroll_animations() || has_active_scroll_fling() || visual_animations_need_frame(); }
+    bool needs_animation_frames() { return has_active_smooth_scroll_animations() || has_active_scroll_fling() || has_rebounding_elastic_overscroll() || visual_animations_need_frame(); }
 
     bool has_active_scroll_fling() const { return m_scroll_fling.has_value(); }
     struct ScrollFlingStep {
@@ -152,6 +153,10 @@ public:
     bool start_scroll_fling_if_flicked(Web::MouseEvent const& gesture_end_event, Optional<MonotonicTime> now_for_testing = {});
     // Ends the fling before a wheel event from a new gesture or other input.
     Optional<ScrollFlingStep> interrupt_scroll_fling(Web::MouseEvent const&, Optional<MonotonicTime> now_for_testing = {});
+    void set_scrolls_elastically(bool);
+    bool has_rebounding_elastic_overscroll() const;
+    Optional<Gfx::IntRect> advance_elastic_overscroll_rebounds(MonotonicTime frame_time);
+    Gfx::FloatPoint elastic_overscroll_stretch_for_testing(Web::AsyncScrollNodeStableID) const;
     bool advance_visual_animations(MonotonicTime now);
     bool has_active_visual_animations() const { return m_has_active_visual_animations; }
     bool visual_animations_need_frame();
@@ -250,6 +255,13 @@ private:
         Compositing::WheelGestureIdentity gesture;
     };
 
+    // A scroller that a touchpad gesture holds past an edge of its scroll range, or that is springing back from there.
+    // The stretch is only presented: it is in no scroll offset that the scroll tree or WebContent sees.
+    struct ActiveElasticOverscroll {
+        Web::AsyncScrollNodeStableID stable_node_id;
+        Compositing::ElasticOverscroll overscroll;
+    };
+
     struct RasterizedFrame {
         NonnullRefPtr<Compositing::DisplayList const> display_list;
         Compositing::AccumulatedVisualContextTree visual_context_tree;
@@ -272,6 +284,8 @@ private:
         Optional<Compositing::AsyncScrollOperationID> operation_id;
         // The viewport to present, when the scroll moved a scrolling box or started a snap scroll of one.
         Optional<Gfx::IntRect> viewport_rect_to_present;
+        // What is presented differs only by an elastic overscroll, which WebContent has nothing to update for.
+        bool only_elastic_overscroll_changed { false };
     };
     WheelScrollOutcome perform_wheel_scroll_of_node(Compositing::AsyncScrollNodeID, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Compositing::AsyncScrollOperationTracking, Gfx::IntRect viewport_rect, MonotonicTime now, Compositing::ScrollChaining);
     // The latched scroller of the gesture the wheel event continues, in the current scroll tree, with the gesture
@@ -286,6 +300,16 @@ private:
     void retire_smooth_scroll_animation(Web::AsyncScrollNodeStableID);
     void cancel_smooth_scroll_taken_over_by_user_input(Compositing::AsyncScrollNodeID);
     void track_wheel_event_for_scroll_fling(Web::MouseEvent const&, MonotonicTime now);
+    bool wheel_step_can_stretch_elastically(Web::WheelDeltaPrecision, Web::ScrollGesturePhase) const;
+    ActiveElasticOverscroll* elastic_overscroll_of(Web::AsyncScrollNodeStableID);
+    // Uses the part of a finger step that points back to the scroll range to relax the stretch of the scroller, and
+    // returns the rest of the step.
+    Gfx::FloatPoint relax_elastic_overscroll_by(Compositing::AsyncScrollNode const&, Gfx::FloatPoint step_delta);
+    void pull_elastic_overscroll_by(Compositing::AsyncScrollNode const&, Gfx::FloatPoint step_delta, Gfx::FloatPoint delta_the_scroller_did_not_scroll_by);
+    void release_elastic_overscrolls_held_by_fingers(MonotonicTime now);
+    void forget_elastic_overscrolls();
+    // The scroll offsets to present when a scroller is stretched, which are the only ones that leave a scroll range.
+    Optional<Compositing::ScrollStateSnapshot> scroll_state_snapshot_stretched_by_elastic_overscrolls() const;
     ContextUpdateResult scroll_for_wheel_event(Web::MouseEvent const&, MonotonicTime now);
     Web::MouseEvent scroll_fling_event(Gfx::FloatPoint delta, Web::ScrollGesturePhase) const;
     Optional<Gfx::FloatPoint> in_flight_wheel_destination(Web::AsyncScrollNodeStableID) const;
@@ -305,12 +329,12 @@ private:
         No,
         Yes,
     };
-    void paint_current_display_list(DisplayListPlayerSkia&, Gfx::PaintingSurface&, CompositedContextResolver const*, Optional<Gfx::IntRect> damage_rect = {}, PaintUIOverlay = PaintUIOverlay::Yes, bool apply_raster_transform = true);
+    void paint_current_display_list(DisplayListPlayerSkia&, Gfx::PaintingSurface&, CompositedContextResolver const*, Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot, Optional<Gfx::IntRect> damage_rect = {}, PaintUIOverlay = PaintUIOverlay::Yes, bool apply_raster_transform = true);
     Gfx::IntSize raster_size() const;
     Gfx::IntRect raster_damage_rect(Gfx::IntRect) const;
-    Gfx::IntRect frame_damage_for(PendingFrame const&);
-    Gfx::IntRect damage_since_last_raster(Gfx::IntSize viewport_size);
-    void remember_rasterized_frame(Gfx::IntSize viewport_size);
+    Gfx::IntRect frame_damage_for(PendingFrame const&, Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot);
+    Gfx::IntRect damage_since_last_raster(Gfx::IntSize viewport_size, Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot);
+    void remember_rasterized_frame(Gfx::IntSize viewport_size, Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot);
     void update_caret_blink_timer();
     void schedule_next_caret_blink();
     Gfx::IntRect caret_damage_rect();
@@ -368,6 +392,9 @@ private:
     Compositing::ScrollVelocityTracker m_scroll_velocity_tracker;
     Compositing::ScrollFlingBooster m_scroll_fling_booster;
     Optional<ActiveScrollFling> m_scroll_fling;
+    Vector<ActiveElasticOverscroll> m_elastic_overscrolls;
+    Compositing::ScrollVelocityTracker m_elastic_overscroll_velocity_tracker;
+    bool m_scrolls_elastically { false };
     Compositing::AsyncScrollOperationID m_next_async_scroll_operation_id { 0 };
     Gfx::IntRect m_async_scrolling_viewport_rect;
     bool m_has_async_scrolling_state { false };

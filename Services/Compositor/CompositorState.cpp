@@ -138,6 +138,7 @@ void CompositorState::create_context(Web::CompositorContextId context_id, Option
             schedule_caret_repaint(context_id, damage_rect);
         });
     });
+    context.set_scrolls_elastically(m_scrolls_elastically);
     resize_backing_stores_if_needed(context_id, context);
 }
 
@@ -560,6 +561,8 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
     // which reach WebContent ahead of the event itself on the same connection.
     auto handled = apply_context_update_result(context_id, *context, result);
     if (is_wheel_event) {
+        // A wheel event that lets go of a stretched scroller presents nothing itself; the rebound does from here on.
+        schedule_animation_frames_if_needed(*context);
         event.async_scroll_performed_default_action = handled;
     } else if (handled) {
         // The page still sees the events of a drag the compositor scrolls for a scrollbar the display list paints.
@@ -598,6 +601,7 @@ void CompositorState::dispatch_scroll_fling_step(Web::CompositorContextId contex
     if (!step.has_value())
         return;
     step->event.async_scroll_performed_default_action = apply_context_update_result(context_id, context, step->result);
+    schedule_animation_frames_if_needed(context);
     context.dispatch_mouse_event_to_web_content(step->event);
 }
 
@@ -618,6 +622,7 @@ Compositing::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Web::Comp
     auto result = context->async_scroll_by(expected_document_id, position, delta, viewport_rect, wheel_delta_precision, scroll_gesture_phase, modifiers, operation_tracking);
     if (result.frame_to_present.has_value())
         schedule_present_frame(context_id, *context, *result.frame_to_present);
+    schedule_animation_frames_if_needed(*context);
     // The process adopts the offsets a scroll moved in its next rendering update, which nothing else need prompt when
     // the context presents through another process's.
     if (result.enqueue_result.accepted)
@@ -948,6 +953,8 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, 
                 dispatch_scroll_fling_step(context_id, context, context.take_scroll_fling_step(frame_time));
             if (auto animation_frame = context.advance_smooth_scroll_animations(frame_time); animation_frame.has_value())
                 context.queue_present_frame(ContextState::PendingFrame::repainting_changes(*animation_frame));
+            if (auto rebound_frame = context.advance_elastic_overscroll_rebounds(frame_time); rebound_frame.has_value())
+                context.queue_present_frame(ContextState::PendingFrame::repainting_changes(*rebound_frame));
         }
 
         // A render clock tick goes to the process's render clock thread, beside what its main thread is doing, with
@@ -1169,6 +1176,21 @@ BackingStoreManager::GpuSharing CompositorState::gpu_sharing_for_client() const
 void CompositorState::set_synthesizes_scroll_momentum(bool synthesizes_scroll_momentum)
 {
     m_synthesizes_scroll_momentum = synthesizes_scroll_momentum;
+}
+
+void CompositorState::set_scrolls_elastically(bool scrolls_elastically)
+{
+    m_scrolls_elastically = scrolls_elastically;
+    for (auto& context_entry : m_contexts)
+        context_entry.value->set_scrolls_elastically(scrolls_elastically);
+}
+
+Gfx::FloatPoint CompositorState::elastic_overscroll_stretch_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id) const
+{
+    auto const* context = context_if_present(context_id);
+    if (!context)
+        return {};
+    return context->elastic_overscroll_stretch_for_testing(stable_node_id);
 }
 
 void CompositorState::set_client_gpu_presentation_capability(bool supported, u64 adapter_luid)

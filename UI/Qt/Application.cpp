@@ -593,6 +593,14 @@ bool Application::platform_reports_scroll_momentum() const
     return QGuiApplication::platformName() == QStringLiteral("cocoa");
 }
 
+bool Application::platform_scrolls_elastically() const
+{
+    // Only Qt on macOS reports the end of every touchpad gesture, and there scrollers are expected to bounce.
+    if (!m_application)
+        return false;
+    return QGuiApplication::platformName() == QStringLiteral("cocoa");
+}
+
 #if !defined(AK_OS_MACOS)
 // On macOS, WebContent resolves system-ui with CoreText, so the system font family is not sent there.
 Optional<String> Application::system_font_family() const
