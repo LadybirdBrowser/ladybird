@@ -58,6 +58,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Dump.h>
+#include <LibWeb/Editing/SpellingMarkers.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
 #include <LibWeb/Geolocation/Geolocation.h>
@@ -2572,6 +2573,39 @@ GC::Ptr<JS::Object> Internals::take_context_menu_request()
     auto target = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, request->target);
     object->define_direct_property("target"_utf16_fly_string, target, JS::default_attributes);
     return object;
+}
+
+// The text node a spellchecking test names: the node itself, or the inner text node of a text control.
+static GC::Ptr<DOM::Text> spelling_test_text_node(DOM::Node& node)
+{
+    if (auto* text = as_if<DOM::Text>(node))
+        return text;
+    if (auto* text_control = as_if<HTML::FormAssociatedTextControlElement>(node))
+        return text_control->form_associated_element_to_text_node();
+    return nullptr;
+}
+
+WebIDL::ExceptionOr<void> Internals::add_spelling_error_for_testing(GC::Ref<DOM::Node> node, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end)
+{
+    auto text = spelling_test_text_node(node);
+    if (!text || start >= end || end > text->length_in_utf16_code_units())
+        return WebIDL::IndexSizeError::create("No text to flag in that range"_utf16);
+    text->document().spelling_markers().add(*text, start, end);
+    return {};
+}
+
+Utf16String Internals::spelling_error_ranges(GC::Ref<DOM::Node> node)
+{
+    auto text = spelling_test_text_node(node);
+    if (!text)
+        return {};
+    StringBuilder builder;
+    for (auto const& marker : text->document().spelling_markers().markers_for(*text)) {
+        if (!builder.is_empty())
+            builder.append(' ');
+        builder.appendff("{}-{}", marker.start, marker.end);
+    }
+    return Utf16String::from_utf8(builder.string_view());
 }
 
 GC::Ptr<JS::Object> Internals::hit_test_result(double x, double y)

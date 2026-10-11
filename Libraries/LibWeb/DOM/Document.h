@@ -337,6 +337,9 @@ public:
     Vector<GC::Ref<Range>> const& find_in_page_highlighted_matches() const { return m_find_in_page_highlighted_matches; }
     void set_find_in_page_highlighted_matches(Vector<GC::Ref<Range>>);
     void remove_find_in_page_highlighted_matches_whose_text_changed();
+
+    Editing::SpellingMarkers& spelling_markers();
+    bool has_spelling_markers() const;
     void recompute_search_text_paint_states(Layout::BegunRead const&);
 
     WebIDL::ExceptionOr<Utf16String> cookie();
@@ -1989,6 +1992,7 @@ private:
     bool m_search_text_states_are_stale { false };
     Utf16String m_find_in_page_active_match_text;
     Vector<GC::Ref<Range>> m_find_in_page_highlighted_matches;
+    OwnPtr<Editing::SpellingMarkers> m_spelling_markers;
     Vector<Utf16String> m_find_in_page_highlighted_match_texts;
     u64 m_find_in_page_highlighted_matches_dom_tree_version { 0 };
     u64 m_find_in_page_highlighted_matches_character_data_version { 0 };

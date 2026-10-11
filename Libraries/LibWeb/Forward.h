@@ -547,6 +547,8 @@ namespace Web::Editing {
 
 class EditCommand;
 class EditingHistory;
+class SpellCheckController;
+class SpellingMarkers;
 class UndoStep;
 enum class HistoryAction : u8;
 

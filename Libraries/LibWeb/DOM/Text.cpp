@@ -10,6 +10,7 @@
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/Editing/SpellingMarkers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -68,6 +69,15 @@ GC::Ref<Text> Text::create(Document& document, Utf16String data)
 GC::Ref<Text> Text::create_for_constructor(JS::Object& relevant_global_object, Utf16String data)
 {
     return create(HTML::relevant_window(relevant_global_object).associated_document(), move(data));
+}
+
+// Spelling markers belong to the document whose spellchecker flagged the text, so they stay behind when the text moves
+// to another document.
+void Text::adopted_from(Document& old_document)
+{
+    Base::adopted_from(old_document);
+    if (has_spelling_markers())
+        old_document.spelling_markers().remove_all(*this);
 }
 
 void Text::visit_edges(Cell::Visitor& visitor)

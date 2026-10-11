@@ -17,6 +17,7 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/EditingHistory.h>
+#include <LibWeb/Editing/SpellingMarkers.h>
 #include <LibWeb/Selection/Selection.h>
 
 namespace Web::DOM {
@@ -167,6 +168,11 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     // OPTIMIZATION: If the characters are the same, we can skip the remainder of this function.
     if (m_data == old_data)
         return {};
+
+    // A spelling marker covers the text it was flagged on: Data replaced around it moves it, and data replaced inside
+    // it ends it.
+    if (has_spelling_markers())
+        document().spelling_markers().did_replace_data(as<Text>(*this), offset, count, data.length_in_code_units());
 
     // A text node holding nothing leaves its parent `:empty`, so data arriving in it or leaving it
     // moves the parent's emptiness without any node being created or destroyed.

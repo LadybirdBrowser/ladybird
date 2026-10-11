@@ -1,0 +1,9 @@
+flagged: 4-8
+insert before: 7-11
+insert right after its end: 7-11
+insert inside: (none)
+delete overlapping: (none)
+identical data: 0-2
+whole data replaced: (none)
+textarea flagged: 6-10
+textarea after value set: (none)

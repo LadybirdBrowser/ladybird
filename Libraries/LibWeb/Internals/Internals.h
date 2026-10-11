@@ -82,6 +82,9 @@ public:
     GC::Ptr<JS::Object> hit_test_result(double x, double y);
     GC::Ptr<JS::Object> take_context_menu_request();
 
+    WebIDL::ExceptionOr<void> add_spelling_error_for_testing(GC::Ref<DOM::Node>, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end);
+    Utf16String spelling_error_ranges(GC::Ref<DOM::Node>);
+
     void send_text(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers);
     void send_text_through_ui_process(Utf16String const&);
     void grant_transient_activation();
