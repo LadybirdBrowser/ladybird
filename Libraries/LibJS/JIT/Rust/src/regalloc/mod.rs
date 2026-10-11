@@ -306,7 +306,7 @@ fn constraints(node: &Node, registers: &RegisterSet) -> Constraints {
             constraints.output = OutputConstraint::FixedRegister(registers.return_gpr);
         }
         // NB: The VM is the first argument.
-        Op::PrimitiveToString | Op::ToObject | Op::ArrayCreate => {
+        Op::PrimitiveToString | Op::CallIntrinsic { .. } | Op::ToObject | Op::ArrayCreate => {
             constraints.inputs = (0..node.inputs.len())
                 .map(|index| InputConstraint::FixedRegister(registers.argument_gprs[index + 1]))
                 .collect();

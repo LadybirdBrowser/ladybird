@@ -18,6 +18,7 @@ pub mod entry_exit;
 pub mod entry_table;
 pub mod executable_memory;
 pub mod feedback_dump;
+pub mod helper_calls;
 pub mod intrinsics;
 pub mod runtime_info;
 pub mod snapshot;

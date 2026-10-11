@@ -489,6 +489,12 @@ fn expected_input_reprs(graph: &Graph, node: NodeId) -> Option<Vec<Repr>> {
         Op::Uint32ToFloat64 | Op::IntegerToString => Some(vec![Repr::Int32]),
         Op::StringsEqual | Op::ConcatenateStrings | Op::ToObject => Some(tagged(2)),
         Op::PrimitiveToString => Some(tagged(1)),
+        Op::CallIntrinsic { intrinsic } => intrinsic.helper_call().map(|call| {
+            std::iter::once(call.receiver)
+                .chain(call.arguments.iter().copied())
+                .map(|operand| operand.repr())
+                .collect()
+        }),
         Op::ArrayCreate => Some(vec![Repr::Int32, Repr::Tagged]),
         Op::LoadStringCodeUnit => Some(vec![Repr::Pointer, Repr::Int32]),
         Op::SingleCharacterString | Op::Int32Abs | Op::Int32ToFloat64 => Some(vec![Repr::Int32]),

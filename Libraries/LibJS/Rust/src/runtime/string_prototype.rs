@@ -13,8 +13,10 @@ use crate::gc::class::{GcCell, define_cell};
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
+use crate::layout::function_object::RawNativeFunction;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
+use crate::layout_forward::RawNativeFunctionPointer;
 use crate::runtime::abstract_operations::{
     call, call_function_object, checked_js_string_length_product, checked_js_string_length_sum, construct,
     get_substitution, require_object_coercible,
@@ -207,7 +209,51 @@ fn clamp_to_index(value: f64, max: usize) -> usize {
     value.clamp(0.0, max as f64) as usize
 }
 
+static INDEX_OF_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::index_of);
+static TO_LOWERCASE_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::to_lowercase);
+static TO_UPPERCASE_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::to_uppercase);
+
 impl StringPrototype {
+    /// Whether the function is String.prototype.indexOf (of any realm).
+    pub fn is_index_of_function(vm: &Vm, function: &RawNativeFunction) -> bool {
+        function.native_function(vm).map(|pointer| pointer as usize)
+            == INDEX_OF_FUNCTION.map(|pointer| pointer as usize)
+    }
+
+    /// Whether the function is String.prototype.toLowerCase (of any realm).
+    pub fn is_to_lowercase_function(vm: &Vm, function: &RawNativeFunction) -> bool {
+        function.native_function(vm).map(|pointer| pointer as usize)
+            == TO_LOWERCASE_FUNCTION.map(|pointer| pointer as usize)
+    }
+
+    /// Whether the function is String.prototype.toUpperCase (of any realm).
+    pub fn is_to_uppercase_function(vm: &Vm, function: &RawNativeFunction) -> bool {
+        function.native_function(vm).map(|pointer| pointer as usize)
+            == TO_UPPERCASE_FUNCTION.map(|pointer| pointer as usize)
+    }
+
+    /// `S.indexOf(searchString, position)` of the string `S`, a string
+    /// `searchString` and an integral `position`, which runs no code.
+    pub fn index_of_string(string: Gc<PrimitiveString>, search_string: Gc<PrimitiveString>, position: f64) -> Value {
+        // 6. Let len be the length of S.
+        // 7. Let start be the result of clamping pos between 0 and len.
+        let start = clamp_to_index(position, string.length_in_utf16_code_units());
+
+        // 8. Return 𝔽(StringIndexOf(S, searchStr, start)).
+        let index = string_index_of(string.utf16_string_view(), search_string.utf16_string_view(), start);
+        index.map_or(Value::from_i32(-1), |index| Value::from_f64(index as f64))
+    }
+
+    /// `S.toLowerCase()` of the string `S`, which runs no code.
+    pub fn to_lowercase_string(vm: &Vm, string: Gc<PrimitiveString>) -> Value {
+        string_value(vm, Utf16View::of_string(&string.utf16_string()).to_lowercase())
+    }
+
+    /// `S.toUpperCase()` of the string `S`, which runs no code.
+    pub fn to_uppercase_string(vm: &Vm, string: Gc<PrimitiveString>) -> Value {
+        string_value(vm, Utf16View::of_string(&string.utf16_string()).to_uppercase())
+    }
+
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<StringPrototype> {
         realm.create_object(
             vm,
@@ -243,7 +289,7 @@ impl StringPrototype {
         define(&names.concat, raw_native!(StringPrototype::concat), 1, None);
         define(&names.endsWith, raw_native!(StringPrototype::ends_with), 1, None);
         define(&names.includes, raw_native!(StringPrototype::includes), 1, None);
-        define(&names.indexOf, raw_native!(StringPrototype::index_of), 1, None);
+        define(&names.indexOf, INDEX_OF_FUNCTION, 1, None);
         define(
             &names.isWellFormed,
             raw_native!(StringPrototype::is_well_formed),
@@ -282,9 +328,9 @@ impl StringPrototype {
             0,
             None,
         );
-        define(&names.toLowerCase, raw_native!(StringPrototype::to_lowercase), 0, None);
+        define(&names.toLowerCase, TO_LOWERCASE_FUNCTION, 0, None);
         define(&names.toString, raw_native!(StringPrototype::to_string), 0, None);
-        define(&names.toUpperCase, raw_native!(StringPrototype::to_uppercase), 0, None);
+        define(&names.toUpperCase, TO_UPPERCASE_FUNCTION, 0, None);
         define(
             &names.toWellFormed,
             raw_native!(StringPrototype::to_well_formed),
@@ -559,22 +605,13 @@ impl StringPrototype {
         let string = primitive_string_from(vm)?;
 
         // 3. Let searchStr be ? ToString(searchString).
-        let search_string = vm.argument(0).to_utf16_string(vm)?;
+        let search_string = vm.argument(0).to_primitive_string(vm)?;
 
-        let mut start = 0;
-        if vm.argument_count() > 1 {
-            // 4. Let pos be ? ToIntegerOrInfinity(position).
-            // 5. Assert: If position is undefined, then pos is 0.
-            let position = vm.argument(1).to_integer_or_infinity(vm)?;
+        // 4. Let pos be ? ToIntegerOrInfinity(position).
+        // 5. Assert: If position is undefined, then pos is 0.
+        let position = vm.argument(1).to_integer_or_infinity(vm)?;
 
-            // 6. Let len be the length of S.
-            // 7. Let start be the result of clamping pos between 0 and len.
-            start = clamp_to_index(position, string.length_in_utf16_code_units());
-        }
-
-        // 8. Return 𝔽(StringIndexOf(S, searchStr, start)).
-        let index = string_index_of(string.utf16_string_view(), Utf16View::of_string(&search_string), start);
-        Ok(index.map_or(Value::from_i32(-1), |index| Value::from_f64(index as f64)))
+        Ok(Self::index_of_string(string, search_string, position))
     }
 
     // 22.1.3.10 String.prototype.isWellFormed ( ), https://tc39.es/ecma262/#sec-string.prototype.iswellformed
@@ -1528,11 +1565,9 @@ impl StringPrototype {
         let string = primitive_string_from(vm)?;
 
         // 4. Let lowerText be the result of toLowercase(sText), according to the Unicode Default Case Conversion algorithm.
-        let lowercase = Utf16View::of_string(&string.utf16_string()).to_lowercase();
-
         // 5. Let L be CodePointsToString(lowerText).
         // 6. Return L.
-        Ok(string_value(vm, lowercase))
+        Ok(Self::to_lowercase_string(vm, string))
     }
 
     // 22.1.3.29 String.prototype.toString ( ), https://tc39.es/ecma262/#sec-string.prototype.tostring
@@ -1546,8 +1581,7 @@ impl StringPrototype {
         // This method interprets a String value as a sequence of UTF-16 encoded code points, as described in 6.1.4.
         // It behaves in exactly the same way as String.prototype.toLowerCase, except that the String is mapped using the toUppercase algorithm of the Unicode Default Case Conversion.
         let string = primitive_string_from(vm)?;
-        let uppercase = Utf16View::of_string(&string.utf16_string()).to_uppercase();
-        Ok(string_value(vm, uppercase))
+        Ok(Self::to_uppercase_string(vm, string))
     }
 
     // 22.1.3.31 String.prototype.toWellFormed ( ), https://tc39.es/ecma262/#sec-string.prototype.towellformed

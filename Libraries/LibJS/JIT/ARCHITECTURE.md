@@ -136,6 +136,7 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | Typeof, TypeofIs | `typeof` of input 0, or whether it is one kind. | | | | cse |
 | ToBoolean | Truthiness through the runtime's `to_boolean`; the slow path of `BranchTruthy`. | | | | call, cse |
 | PrimitiveToString, ToObject | ToString of a primitive, and ToObject of a primitive (but undefined and null) as a builtin of the running realm makes it (else the empty value), through the runtime. | | | | call, allocates |
+| CallIntrinsic | A builtin of a `this` value and arguments of the kinds its `HelperCall` lists (like a string and an int32 position for `String.prototype.indexOf`), through its runtime helper, without a native frame. | | | | call, allocates |
 | ArrayCreate | `new Array(length)` as the running realm's `Array` constructor makes it, through the runtime. | | | | call, allocates |
 | **Checks** | | | | | |
 | CheckObject, CheckValue, CheckClosure, CheckIdentityComparable | Exit unless input 0 is an object, a given value, a closure of a given function, or identity comparable. The value is input 0, refined (section 3.2). | E | | | cse |

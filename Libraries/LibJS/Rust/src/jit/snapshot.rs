@@ -60,6 +60,7 @@ use crate::runtime::shared_function_instance_data::ConstructorKind;
 use crate::runtime::shared_function_instance_data::FunctionKind;
 use crate::runtime::shared_function_instance_data::ThisMode;
 use crate::runtime::string_constructor::StringConstructor;
+use crate::runtime::string_prototype::StringPrototype;
 use crate::runtime::typed_array_prototype::TypedArrayPrototype;
 
 /// Candidates with at most this many bytecode instructions are always inlined, without counting against the inlining
@@ -169,6 +170,12 @@ fn intrinsic_of(vm: &Vm, cell: Option<Gc<CellHeader>>) -> Option<Intrinsic> {
         Some(Intrinsic::MathMax)
     } else if MathObject::is_min_function(vm, &function) {
         Some(Intrinsic::MathMin)
+    } else if StringPrototype::is_index_of_function(vm, &function) {
+        Some(Intrinsic::StringPrototypeIndexOf)
+    } else if StringPrototype::is_to_lowercase_function(vm, &function) {
+        Some(Intrinsic::StringPrototypeToLowerCase)
+    } else if StringPrototype::is_to_uppercase_function(vm, &function) {
+        Some(Intrinsic::StringPrototypeToUpperCase)
     } else {
         match function.builtin() {
             Some(Builtin::StringFromCharCode) => Some(Intrinsic::StringFromCharCode),

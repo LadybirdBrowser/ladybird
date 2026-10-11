@@ -15,7 +15,8 @@ use libjs_abi::value as nan_box;
 use libjs_jit::bytecode::OpCode;
 use libjs_jit::codegen::slow_path_symbol;
 use libjs_jit::snapshot::{
-    CellId, DynamicCallLayout, IntrinsicHelpers, RuntimeInfo, RuntimeLayout, RuntimeOffsets, TypeofStrings,
+    CellId, DynamicCallLayout, HelperCallAddresses, IntrinsicHelpers, RuntimeInfo, RuntimeLayout, RuntimeOffsets,
+    TypeofStrings,
 };
 
 use super::allocation::{AllocationInfos, FUNCTION_ENVIRONMENT_FREE_LIST_COUNT};
@@ -459,6 +460,7 @@ pub fn runtime_info(vm: &Vm, realm: Gc<Realm>, allocation: AllocationInfos) -> R
         jit_exit: super::entry_exit::libjs_jit_exit as *const () as u64,
         to_boolean: addresses.to_boolean,
         primitive_to_string: super::calls::libjs_jit_primitive_to_string as *const () as u64,
+        helper_calls: HelperCallAddresses(super::helper_calls::address),
         to_object: super::calls::libjs_jit_to_object as *const () as u64,
         array_create: super::calls::libjs_jit_array_create as *const () as u64,
         intrinsic_helpers: IntrinsicHelpers {

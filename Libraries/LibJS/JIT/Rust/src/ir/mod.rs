@@ -29,6 +29,8 @@ use crate::code::ExitKind;
 use crate::code::Repr;
 use crate::code::ResumeMode;
 use crate::snapshot::CellId;
+use crate::snapshot::HelperResult;
+use crate::snapshot::Intrinsic;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct NodeId(pub u32);
@@ -418,6 +420,12 @@ pub enum Op {
     /// `String(value)` of the primitive input 0, through the runtime:
     /// ToString, but the descriptive string of a symbol.
     PrimitiveToString,
+    /// The builtin `intrinsic` of the `this` value input 0 and the
+    /// arguments in the other inputs, of the kinds and representations its
+    /// `HelperCall` says, through its runtime helper.
+    CallIntrinsic {
+        intrinsic: Intrinsic,
+    },
     /// ToObject of input 0, a primitive other than undefined and null, as
     /// the builtin function input 1 makes it (in its realm), through the
     /// runtime, or the empty value where that is not the running realm.
@@ -1147,6 +1155,18 @@ impl Op {
                 is_call: true,
                 ..P::PURE
             },
+            Op::CallIntrinsic { intrinsic } => {
+                let call = intrinsic
+                    .helper_call()
+                    .expect("intrinsics called through a helper have one");
+                // NB: Helpers that answer with a number or a boolean make no
+                //     cells.
+                P {
+                    is_call: true,
+                    allocates: matches!(call.result, HelperResult::String),
+                    ..P::PURE
+                }
+            }
             Op::PrimitiveToString | Op::ToObject | Op::ArrayCreate => P {
                 is_call: true,
                 allocates: true,
@@ -1424,6 +1444,7 @@ impl Op {
             Op::IsCallable => "IsCallable",
             Op::ToBoolean => "ToBoolean",
             Op::PrimitiveToString => "PrimitiveToString",
+            Op::CallIntrinsic { .. } => "CallIntrinsic",
             Op::ToObject => "ToObject",
             Op::ArrayCreate => "ArrayCreate",
             Op::Generic { .. } => "Generic",

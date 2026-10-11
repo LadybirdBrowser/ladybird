@@ -1374,9 +1374,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Op::ToBoolean => {
                 self.masm.call_absolute(self.runtime.to_boolean);
             }
-            Op::PrimitiveToString | Op::ToObject | Op::ArrayCreate => {
+            Op::PrimitiveToString | Op::CallIntrinsic { .. } | Op::ToObject | Op::ArrayCreate => {
                 let function = match node.op {
                     Op::PrimitiveToString => self.runtime.primitive_to_string,
+                    Op::CallIntrinsic { intrinsic } => (self.runtime.helper_calls.0)(intrinsic),
                     Op::ToObject => self.runtime.to_object,
                     _ => self.runtime.array_create,
                 };
