@@ -2110,17 +2110,28 @@ Optional<Compositing::AsyncScrollNodeID> ContextState::hit_test_and_latch_wheel_
     if (wheel_delta_precision == Web::WheelDeltaPrecision::Discrete)
         in_flight_destination_for = [this](auto stable_node_id) { return in_flight_wheel_destination(stable_node_id); };
     auto scroll_target = m_async_scroll_tree.hit_test_scroll_node_for_wheel(visual_context_tree_for_compositing(), position, delta, in_flight_destination_for);
-    if (scroll_target.blocked_by_main_thread_region || scroll_target.blocked_by_wheel_event_region || !scroll_target.node_id.has_value())
+    if (scroll_target.blocked_by_main_thread_region || scroll_target.blocked_by_wheel_event_region)
         return {};
-    if (expected_document_id.has_value() && scroll_target.node_id->document_id != *expected_document_id)
+
+    auto node_id_to_latch = scroll_target.node_id;
+    // Fingers that start to pull where every scroller under them is already at its edge stretch the outermost one. A
+    // context nested in another one turns the gesture away instead, which passes it on to the document around it.
+    bool fingers_start_a_gesture_at_an_edge = !node_id_to_latch.has_value() && scroll_target.innermost_scroll_node_id.has_value() && !delta.is_zero()
+        && scroll_gesture_phase == Web::ScrollGesturePhase::Ongoing && wheel_step_can_stretch_elastically(wheel_delta_precision, scroll_gesture_phase);
+    if (fingers_start_a_gesture_at_an_edge)
+        node_id_to_latch = m_async_scroll_tree.outermost_scroll_node_wheel_scrollable_along_main_axis_of(*scroll_target.innermost_scroll_node_id, delta);
+
+    if (!node_id_to_latch.has_value())
         return {};
-    auto const* node = m_async_scroll_tree.scroll_node_for_id(*scroll_target.node_id);
+    if (expected_document_id.has_value() && node_id_to_latch->document_id != *expected_document_id)
+        return {};
+    auto const* node = m_async_scroll_tree.scroll_node_for_id(*node_id_to_latch);
     VERIFY(node);
     m_wheel_scroll_latch = WheelScrollLatch {
         .stable_node_id = node->stable_node_id,
         .gesture = Compositing::WheelGestureIdentity::started_by(position, scroll_gesture_phase, modifiers, now),
     };
-    return scroll_target.node_id;
+    return node_id_to_latch;
 }
 
 Optional<Web::AsyncScrollNodeStableID> ContextState::latched_wheel_scroller_for_testing() const

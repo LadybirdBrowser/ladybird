@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #nested {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #nested > div {
+        height: 300px;
+    }
+</style>
+<div id="nested"><div></div></div>
+<script>
+    function printState(label) {
+        println(`${label}: viewport stretch=${internals.elasticOverscrollStretchX()},${internals.elasticOverscrollStretchY()} window.scrollY=${window.scrollY} nested stretch=${internals.elasticOverscrollStretchY(nested)} nested.scrollTop=${nested.scrollTop}`);
+    }
+
+    async function viewportSprungBack() {
+        while (internals.elasticOverscrollStretchY() !== 0)
+            await animationFrame();
+    }
+
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        // Nothing under the fingers can scroll up, so the gesture pulls the outermost scroller, which is the page.
+        await internals.wheel(400, 300, 0, -200, true, "ongoing");
+        await internals.wheel(400, 300, 0, -200, true, "ongoing");
+        printState("pulled past the top of the page");
+        await internals.wheel(400, 300, 0, 0, true, "ended");
+        await viewportSprungBack();
+        printState("sprung back");
+
+        // The nested scroller is at its top too. It is the page around it that stretches.
+        await internals.wheel(50, 50, 0, -400, true, "ongoing");
+        printState("pulled over the nested scroller");
+
+        // The gesture stays with the page, which the fingers scroll once the stretch is relaxed.
+        await internals.wheel(50, 50, 0, 500, true, "ongoing");
+        printState("moved back into the scroll range");
+        await scrollSettled(window, () => internals.wheel(50, 50, 0, 0, true, "ended"));
+
+        // The page cannot scroll sideways at all, so it does not stretch sideways either.
+        await scrollSettled(window, () => window.scrollTo(0, 0));
+        await internals.wheel(400, 300, -400, 0, true, "ongoing");
+        printState("pulled sideways");
+        await internals.wheel(400, 300, 0, 0, true, "ended");
+    });
+</script>

@@ -1,0 +1,2 @@
+frame scrolled to its extent: frame scrollY=400
+after a gesture over the frame: window.scrollY=100 frame scrollY=400 viewport stretch=0

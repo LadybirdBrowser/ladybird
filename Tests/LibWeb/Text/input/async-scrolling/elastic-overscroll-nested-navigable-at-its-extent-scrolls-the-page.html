@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    iframe {
+        display: block;
+        width: 200px;
+        height: 200px;
+        border: 0;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        const frame = document.createElement("iframe");
+        const frameLoaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        frame.srcdoc = "<!DOCTYPE html><style>body { margin: 0; height: 600px; }</style>";
+        document.body.prepend(frame);
+        await frameLoaded;
+        await animationFrame();
+        await animationFrame();
+
+        const frameWindow = frame.contentWindow;
+        frameWindow.scrollTo(0, 400);
+        await animationFrame();
+        await animationFrame();
+        println(`frame scrolled to its extent: frame scrollY=${frameWindow.scrollY}`);
+
+        // A document in a frame passes a gesture it cannot scroll by on to the page instead of stretching.
+        await internals.wheel(100, 100, 0, 100, true, "ongoing");
+        println(`after a gesture over the frame: window.scrollY=${window.scrollY} frame scrollY=${frameWindow.scrollY} viewport stretch=${internals.elasticOverscrollStretchY()}`);
+        await internals.wheel(100, 100, 0, 0, true, "ended");
+    });
+</script>
