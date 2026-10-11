@@ -212,6 +212,15 @@ fn clamp_to_index(value: f64, max: usize) -> usize {
 pub(crate) static INDEX_OF_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::index_of);
 pub(crate) static TO_LOWERCASE_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::to_lowercase);
 pub(crate) static TO_UPPERCASE_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::to_uppercase);
+pub(crate) static LAST_INDEX_OF_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::last_index_of);
+pub(crate) static INCLUDES_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::includes);
+pub(crate) static STARTS_WITH_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::starts_with);
+pub(crate) static ENDS_WITH_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::ends_with);
+pub(crate) static SLICE_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::slice);
+pub(crate) static SUBSTRING_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::substring);
+pub(crate) static TRIM_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::trim);
+pub(crate) static TRIM_START_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::trim_start);
+pub(crate) static TRIM_END_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::trim_end);
 
 impl StringPrototype {
     /// `S.indexOf(searchString, position)` of the string `S`, a string
@@ -269,8 +278,8 @@ impl StringPrototype {
         );
         define(&names.codePointAt, raw_native!(StringPrototype::code_point_at), 1, None);
         define(&names.concat, raw_native!(StringPrototype::concat), 1, None);
-        define(&names.endsWith, raw_native!(StringPrototype::ends_with), 1, None);
-        define(&names.includes, raw_native!(StringPrototype::includes), 1, None);
+        define(&names.endsWith, ENDS_WITH_FUNCTION, 1, None);
+        define(&names.includes, INCLUDES_FUNCTION, 1, None);
         define(&names.indexOf, INDEX_OF_FUNCTION, 1, None);
         define(
             &names.isWellFormed,
@@ -278,7 +287,7 @@ impl StringPrototype {
             0,
             None,
         );
-        define(&names.lastIndexOf, raw_native!(StringPrototype::last_index_of), 1, None);
+        define(&names.lastIndexOf, LAST_INDEX_OF_FUNCTION, 1, None);
         define(
             &names.localeCompare,
             raw_native!(StringPrototype::locale_compare),
@@ -294,10 +303,10 @@ impl StringPrototype {
         define(&names.replace, raw_native!(StringPrototype::replace), 2, None);
         define(&names.replaceAll, raw_native!(StringPrototype::replace_all), 2, None);
         define(&names.search, raw_native!(StringPrototype::search), 1, None);
-        define(&names.slice, raw_native!(StringPrototype::slice), 2, None);
+        define(&names.slice, SLICE_FUNCTION, 2, None);
         define(&names.split, raw_native!(StringPrototype::split), 2, None);
-        define(&names.startsWith, raw_native!(StringPrototype::starts_with), 1, None);
-        define(&names.substring, raw_native!(StringPrototype::substring), 2, None);
+        define(&names.startsWith, STARTS_WITH_FUNCTION, 1, None);
+        define(&names.substring, SUBSTRING_FUNCTION, 2, None);
         define(
             &names.toLocaleLowerCase,
             raw_native!(StringPrototype::to_locale_lowercase),
@@ -319,9 +328,9 @@ impl StringPrototype {
             0,
             None,
         );
-        define(&names.trim, raw_native!(StringPrototype::trim), 0, None);
-        define(&names.trimEnd, raw_native!(StringPrototype::trim_end), 0, None);
-        define(&names.trimStart, raw_native!(StringPrototype::trim_start), 0, None);
+        define(&names.trim, TRIM_FUNCTION, 0, None);
+        define(&names.trimEnd, TRIM_END_FUNCTION, 0, None);
+        define(&names.trimStart, TRIM_START_FUNCTION, 0, None);
         define(&names.valueOf, raw_native!(StringPrototype::value_of), 0, None);
         define(
             &PropertyKey::from(vm.well_known_symbols().iterator),
@@ -498,32 +507,44 @@ impl StringPrototype {
         }
 
         // 5. Let searchStr be ? ToString(searchString).
-        let search_string = search_string_value.to_utf16_string(vm)?;
+        let search_string = search_string_value.to_primitive_string(vm)?;
 
+        // 6. Let len be the length of S.
+        // 7. If endPosition is undefined, let pos be len; else let pos be ? ToIntegerOrInfinity(endPosition).
+        let position = if end_position.is_undefined() {
+            f64::INFINITY
+        } else {
+            end_position.to_integer_or_infinity(vm)?
+        };
+
+        Ok(Value::from_bool(Self::ends_with_string(
+            string,
+            search_string,
+            position,
+        )))
+    }
+
+    /// `S.endsWith(searchStr, pos)` of the string `S`, a string `searchStr` and an integral `pos` (∞ for none), which
+    /// runs no code.
+    pub fn ends_with_string(string: Gc<PrimitiveString>, search_string: Gc<PrimitiveString>, position: f64) -> bool {
         // 6. Let len be the length of S.
         let string_length = string.length_in_utf16_code_units();
 
-        // 7. If endPosition is undefined, let pos be len; else let pos be ? ToIntegerOrInfinity(endPosition).
-        let mut end = string_length;
-        if !end_position.is_undefined() {
-            let position = end_position.to_integer_or_infinity(vm)?;
-
-            // 8. Let end be the result of clamping pos between 0 and len.
-            end = clamp_to_index(position, string_length);
-        }
+        // 8. Let end be the result of clamping pos between 0 and len.
+        let end = clamp_to_index(position, string_length);
 
         // 9. Let searchLength be the length of searchStr.
-        let search_view = Utf16View::of_string(&search_string);
+        let search_view = search_string.utf16_string_view();
         let search_length = search_view.length_in_code_units();
 
         // 10. If searchLength = 0, return true.
         if search_length == 0 {
-            return Ok(Value::TRUE);
+            return true;
         }
 
         // 12. If start < 0, return false.
         if search_length > end {
-            return Ok(Value::FALSE);
+            return false;
         }
 
         // 11. Let start be end - searchLength.
@@ -534,7 +555,7 @@ impl StringPrototype {
 
         // 14. If substring is searchStr, return true.
         // 15. Return false.
-        Ok(Value::from_bool(substring_view == search_view))
+        substring_view == search_view
     }
 
     // 22.1.3.8 String.prototype.includes ( searchString [ , position ] ), https://tc39.es/ecma262/#sec-string.prototype.includes
@@ -559,25 +580,27 @@ impl StringPrototype {
         }
 
         // 5. Let searchStr be ? ToString(searchString).
-        let search_string = search_string_value.to_utf16_string(vm)?;
+        let search_string = search_string_value.to_primitive_string(vm)?;
 
-        let mut start = 0;
-        if !position.is_undefined() {
-            // 6. Let pos be ? ToIntegerOrInfinity(position).
-            // 7. Assert: If position is undefined, then pos is 0.
-            let pos = position.to_integer_or_infinity(vm)?;
+        // 6. Let pos be ? ToIntegerOrInfinity(position).
+        // 7. Assert: If position is undefined, then pos is 0.
+        let position = position.to_integer_or_infinity(vm)?;
 
-            // 8. Let len be the length of S.
-            // 9. Let start be the result of clamping pos between 0 and len.
-            start = clamp_to_index(pos, string.length_in_utf16_code_units());
-        }
+        Ok(Value::from_bool(Self::includes_string(string, search_string, position)))
+    }
+
+    /// `S.includes(searchStr, pos)` of the string `S`, a string `searchStr` and an integral `pos`, which runs no code.
+    pub fn includes_string(string: Gc<PrimitiveString>, search_string: Gc<PrimitiveString>, position: f64) -> bool {
+        // 8. Let len be the length of S.
+        // 9. Let start be the result of clamping pos between 0 and len.
+        let start = clamp_to_index(position, string.length_in_utf16_code_units());
 
         // 10. Let index be StringIndexOf(S, searchStr, start).
-        let index = string_index_of(string.utf16_string_view(), Utf16View::of_string(&search_string), start);
+        let index = string_index_of(string.utf16_string_view(), search_string.utf16_string_view(), start);
 
         // 11. If index ≠ -1, return true.
         // 12. Return false.
-        Ok(Value::from_bool(index.is_some()))
+        index.is_some()
     }
 
     // 22.1.3.9 String.prototype.indexOf ( searchString [ , position ] ), https://tc39.es/ecma262/#sec-string.prototype.indexof
@@ -616,7 +639,7 @@ impl StringPrototype {
         let string = primitive_string_from(vm)?;
 
         // 4. Let searchStr be ? ToString(searchString).
-        let search_string = vm.argument(0).to_utf16_string(vm)?;
+        let search_string = vm.argument(0).to_primitive_string(vm)?;
 
         // 5. Let numPos be ? ToNumber(position).
         // 6. Assert: If position is undefined, then numPos is NaN.
@@ -629,16 +652,22 @@ impl StringPrototype {
             position.to_integer_or_infinity(vm).must()
         };
 
+        Ok(Self::last_index_of_string(string, search_string, pos))
+    }
+
+    /// `S.lastIndexOf(searchStr, pos)` of the string `S`, a string `searchStr` and an integral `pos` (∞ for none),
+    /// which runs no code.
+    pub fn last_index_of_string(string: Gc<PrimitiveString>, search_string: Gc<PrimitiveString>, pos: f64) -> Value {
         // 8. Let len be the length of S.
         let string_length = string.length_in_utf16_code_units();
 
         // 9. Let searchLen be the length of searchStr.
-        let search_view = Utf16View::of_string(&search_string);
+        let search_view = search_string.utf16_string_view();
         let search_length = search_view.length_in_code_units();
 
         // 10. If len < searchLen, return -1𝔽.
         if string_length < search_length {
-            return Ok(Value::from_i32(-1));
+            return Value::from_i32(-1);
         }
 
         // 11. Let start be the result of clamping pos between 0 and len - searchLen.
@@ -649,7 +678,7 @@ impl StringPrototype {
 
         // 13. If result is NOT-FOUND, return -1𝔽.
         // 14. Return 𝔽(result).
-        Ok(result.map_or(Value::from_i32(-1), |result| Value::from_f64(result as f64)))
+        result.map_or(Value::from_i32(-1), |result| Value::from_f64(result as f64))
     }
 
     // 22.1.3.12 String.prototype.localeCompare ( that [ , reserved1 [ , reserved2 ] ] ), https://tc39.es/ecma262/#sec-string.prototype.localecompare
@@ -1230,55 +1259,55 @@ impl StringPrototype {
         // 2. Let S be ? ToString(O).
         let string = primitive_string_from(vm)?;
 
+        // 4. Let intStart be ? ToIntegerOrInfinity(start).
+        let int_start = start.to_integer_or_infinity(vm)?;
+
+        // 8. If end is undefined, let intEnd be len; else let intEnd be ? ToIntegerOrInfinity(end).
+        // NB: An intEnd of +∞ ends at len too.
+        let int_end = if end.is_undefined() {
+            f64::INFINITY
+        } else {
+            end.to_integer_or_infinity(vm)?
+        };
+
+        Ok(Self::slice_string(vm, string, int_start, int_end))
+    }
+
+    /// `S.slice(intStart, intEnd)` of the string `S` and integral `intStart` and `intEnd` (∞ for none), which runs no
+    /// code.
+    pub fn slice_string(vm: &Vm, string: Gc<PrimitiveString>, int_start: f64, int_end: f64) -> Value {
         // 3. Let len be the length of S.
         let string_length = string.length_in_utf16_code_units() as f64;
 
-        // 4. Let intStart be ? ToIntegerOrInfinity(start).
-        let mut int_start = start.to_integer_or_infinity(vm)?;
-
         // 5. If intStart = -∞, let from be 0.
-        if int_start == f64::NEG_INFINITY {
-            int_start = 0.0;
-        }
         // 6. Else if intStart < 0, let from be max(len + intStart, 0).
-        else if int_start < 0.0 {
-            int_start = (string_length + int_start).max(0.0);
-        }
         // 7. Else, let from be min(intStart, len).
-        else {
-            int_start = int_start.min(string_length);
-        }
+        let from = if int_start == f64::NEG_INFINITY {
+            0.0
+        } else if int_start < 0.0 {
+            (string_length + int_start).max(0.0)
+        } else {
+            int_start.min(string_length)
+        };
 
-        // 8. If end is undefined, let intEnd be len; else let intEnd be ? ToIntegerOrInfinity(end).
-        let mut int_end = string_length;
-        if !end.is_undefined() {
-            int_end = end.to_integer_or_infinity(vm)?;
-            // 9. If intEnd = -∞, let to be 0.
-            if int_end == f64::NEG_INFINITY {
-                int_end = 0.0;
-            }
-            // 10. Else if intEnd < 0, let to be max(len + intEnd, 0).
-            else if int_end < 0.0 {
-                int_end = (string_length + int_end).max(0.0);
-            }
-            // 11. Else, let to be min(intEnd, len).
-            else {
-                int_end = int_end.min(string_length);
-            }
-        }
+        // 9. If intEnd = -∞, let to be 0.
+        // 10. Else if intEnd < 0, let to be max(len + intEnd, 0).
+        // 11. Else, let to be min(intEnd, len).
+        let to = if int_end == f64::NEG_INFINITY {
+            0.0
+        } else if int_end < 0.0 {
+            (string_length + int_end).max(0.0)
+        } else {
+            int_end.min(string_length)
+        };
 
         // 12. If from ≥ to, return the empty String.
-        if int_start >= int_end {
-            return Ok(empty_string_value(vm));
+        if from >= to {
+            return empty_string_value(vm);
         }
 
         // 13. Return the substring of S from from to to.
-        Ok(substring_value(
-            vm,
-            string,
-            int_start as usize,
-            (int_end - int_start) as usize,
-        ))
+        substring_value(vm, string, from as usize, (to - from) as usize)
     }
 
     // 22.1.3.23 String.prototype.split ( separator, limit ), https://tc39.es/ecma262/#sec-string.prototype.split
@@ -1437,28 +1466,34 @@ impl StringPrototype {
         }
 
         // 5. Let searchStr be ? ToString(searchString).
-        let search_string = search_string_value.to_utf16_string(vm)?;
+        let search_string = search_string_value.to_primitive_string(vm)?;
 
+        // 7. If position is undefined, let pos be 0; else let pos be ? ToIntegerOrInfinity(position).
+        let position = position.to_integer_or_infinity(vm)?;
+
+        Ok(Value::from_bool(Self::starts_with_string(
+            string,
+            search_string,
+            position,
+        )))
+    }
+
+    /// `S.startsWith(searchStr, pos)` of the string `S`, a string `searchStr` and an integral `pos`, which runs no
+    /// code.
+    pub fn starts_with_string(string: Gc<PrimitiveString>, search_string: Gc<PrimitiveString>, position: f64) -> bool {
         // 6. Let len be the length of S.
         let string_length = string.length_in_utf16_code_units();
 
-        let mut start = 0;
-
-        // 7. If position is undefined, let pos be 0; else let pos be ? ToIntegerOrInfinity(position).
-        if !position.is_undefined() {
-            let pos = position.to_integer_or_infinity(vm)?;
-
-            // 8. Let start be the result of clamping pos between 0 and len.
-            start = clamp_to_index(pos, string_length);
-        }
+        // 8. Let start be the result of clamping pos between 0 and len.
+        let start = clamp_to_index(position, string_length);
 
         // 9. Let searchLength be the length of searchStr.
-        let search_view = Utf16View::of_string(&search_string);
+        let search_view = search_string.utf16_string_view();
         let search_length = search_view.length_in_code_units();
 
         // 10. If searchLength = 0, return true.
         if search_length == 0 {
-            return Ok(Value::TRUE);
+            return true;
         }
 
         // 11. Let end be start + searchLength.
@@ -1466,7 +1501,7 @@ impl StringPrototype {
 
         // 12. If end > len, return false.
         if end > string_length {
-            return Ok(Value::FALSE);
+            return false;
         }
 
         // 13. Let substring be the substring of S from start to end.
@@ -1474,7 +1509,7 @@ impl StringPrototype {
 
         // 14. If substring is searchStr, return true.
         // 15. Return false.
-        Ok(Value::from_bool(substring_view == search_view))
+        substring_view == search_view
     }
 
     // 22.1.3.25 String.prototype.substring ( start, end ), https://tc39.es/ecma262/#sec-string.prototype.substring
@@ -1483,17 +1518,25 @@ impl StringPrototype {
         // 2. Let S be ? ToString(O).
         let string = primitive_string_from(vm)?;
 
-        // 3. Let len be the length of S.
-        let string_length = string.length_in_utf16_code_units();
-
         // 4. Let intStart be ? ToIntegerOrInfinity(start).
         let start = vm.argument(0).to_integer_or_infinity(vm)?;
 
         // 5. If end is undefined, let intEnd be len; else let intEnd be ? ToIntegerOrInfinity(end).
-        let mut end = string_length as f64;
-        if !vm.argument(1).is_undefined() {
-            end = vm.argument(1).to_integer_or_infinity(vm)?;
-        }
+        // NB: An intEnd of +∞ clamps to len too.
+        let end = if vm.argument(1).is_undefined() {
+            f64::INFINITY
+        } else {
+            vm.argument(1).to_integer_or_infinity(vm)?
+        };
+
+        Ok(Self::substring_string(vm, string, start, end))
+    }
+
+    /// `S.substring(intStart, intEnd)` of the string `S` and integral `intStart` and `intEnd` (∞ for none), which
+    /// runs no code.
+    pub fn substring_string(vm: &Vm, string: Gc<PrimitiveString>, start: f64, end: f64) -> Value {
+        // 3. Let len be the length of S.
+        let string_length = string.length_in_utf16_code_units();
 
         // 6. Let finalStart be the result of clamping intStart between 0 and len.
         let final_start = clamp_to_index(start, string_length);
@@ -1508,7 +1551,7 @@ impl StringPrototype {
         let to = final_start.max(final_end);
 
         // 10. Return the substring of S from from to to.
-        Ok(substring_value(vm, string, from, to - from))
+        substring_value(vm, string, from, to - from)
     }
 
     // 22.1.3.26 String.prototype.toLocaleLowerCase ( [ reserved1 [ , reserved2 ] ] ), https://tc39.es/ecma262/#sec-string.prototype.tolocalelowercase
@@ -1589,21 +1632,21 @@ impl StringPrototype {
     fn trim(vm: &Vm) -> ThrowCompletionOr<Value> {
         // 1. Let S be the this value.
         // 2. Return ? TrimString(S, start+end).
-        Ok(string_value(vm, trim_string(vm, vm.this_value(), TrimMode::Both)?))
+        trim_string(vm, vm.this_value(), TrimMode::Both)
     }
 
     // 22.1.3.33 String.prototype.trimEnd ( ), https://tc39.es/ecma262/#sec-string.prototype.trimend
     fn trim_end(vm: &Vm) -> ThrowCompletionOr<Value> {
         // 1. Let S be the this value.
         // 2. Return ? TrimString(S, end).
-        Ok(string_value(vm, trim_string(vm, vm.this_value(), TrimMode::Right)?))
+        trim_string(vm, vm.this_value(), TrimMode::Right)
     }
 
     // 22.1.3.34 String.prototype.trimStart ( ), https://tc39.es/ecma262/#sec-string.prototype.trimstart
     fn trim_start(vm: &Vm) -> ThrowCompletionOr<Value> {
         // 1. Let S be the this value.
         // 2. Return ? TrimString(S, start).
-        Ok(string_value(vm, trim_string(vm, vm.this_value(), TrimMode::Left)?))
+        trim_string(vm, vm.this_value(), TrimMode::Left)
     }
 
     // 22.1.3.35 String.prototype.valueOf ( ), https://tc39.es/ecma262/#sec-string.prototype.valueof
@@ -1990,26 +2033,43 @@ fn transform_case(
 }
 
 // 22.1.3.32.1 TrimString ( string, where ), https://tc39.es/ecma262/#sec-trimstring
-pub fn trim_string(vm: &Vm, input_value: Value, where_: TrimMode) -> ThrowCompletionOr<Utf16String> {
+pub fn trim_string(vm: &Vm, input_value: Value, where_: TrimMode) -> ThrowCompletionOr<Value> {
     // 1. Let str be ? RequireObjectCoercible(string).
     let input_string = require_object_coercible(vm, input_value)?;
 
     // 2. Let S be ? ToString(str).
-    let string = input_string.to_utf16_string(vm)?;
+    let string = input_string.to_primitive_string(vm)?;
 
+    Ok(trim_primitive_string(vm, string, where_))
+}
+
+/// TrimString of the string `S`, which runs no code.
+pub fn trim_primitive_string(vm: &Vm, string: Gc<PrimitiveString>, where_: TrimMode) -> Value {
     // 3. If where is start, let T be the String value that is a copy of S with leading white space removed.
     // 4. Else if where is end, let T be the String value that is a copy of S with trailing white space removed.
     // 5. Else,
     // a. Assert: where is start+end.
     // b. Let T be the String value that is a copy of S with both leading and trailing white space removed.
-    let string_view = Utf16View::of_string(&string);
-    let trimmed_string = string_view.trim(&WHITESPACE_CHARACTER_CODE_UNITS, where_);
+    let string_view = string.utf16_string_view();
+    let is_white_space = |index: usize| WHITESPACE_CHARACTER_CODE_UNITS.contains(&string_view.code_unit_at(index));
+    let mut start = 0;
+    let mut end = string_view.length_in_code_units();
+    if matches!(where_, TrimMode::Left | TrimMode::Both) {
+        while start < end && is_white_space(start) {
+            start += 1;
+        }
+    }
+    if matches!(where_, TrimMode::Right | TrimMode::Both) {
+        while end > start && is_white_space(end - 1) {
+            end -= 1;
+        }
+    }
 
     // 6. Return T.
-    if trimmed_string.length_in_code_units() == string_view.length_in_code_units() {
-        return Ok(string);
+    if end - start == string_view.length_in_code_units() {
+        return Value::from_string(string);
     }
-    Ok(trimmed_string.to_utf16_string())
+    substring_value(vm, string, start, end - start)
 }
 
 // B.2.2.2.1 CreateHTML ( string, tag, attribute, value ), https://tc39.es/ecma262/#sec-createhtml

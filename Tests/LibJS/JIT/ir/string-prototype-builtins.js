@@ -36,4 +36,22 @@ jit.compile(cases);
 // CHECK-NEXT: CallIntrinsic StringPrototypeToUpperCase ([[UPPER_STRING]])
 // CHECK-NOT: CallNative
 
-console.log(classIndex("x y z", "y"), cases("MiXeD"));
+// Helpers that answer yes or no return a bool, which the code boxes. Absent
+// positions and ends are constants the builtin treats the same.
+
+function startsAndTail(s, prefix) {
+    return s.startsWith(prefix) ? s.slice(prefix.length) : s.trim();
+}
+jit.prepare(startsAndTail);
+for (let i = 0; i < 10; ++i) startsAndTail(i % 2 ? "ab" : " c ", "a");
+jit.compile(startsAndTail);
+
+// CHECK-FUNCTION: startsAndTail
+// CHECK-PASS: graph building
+// CHECK: [[STARTS:v[0-9]+]]:bool = CallIntrinsic StringPrototypeStartsWith ({{v[0-9]+}}, {{v[0-9]+}}, #i32:0)
+// CHECK-NEXT: BoxBool ([[STARTS]])
+// CHECK: CallIntrinsic StringPrototypeSlice ({{v[0-9]+}}, {{v[0-9]+}}, #i32:2147483647)
+// CHECK: CallIntrinsic StringPrototypeTrim ({{v[0-9]+}})
+// CHECK-NOT: CallNative
+
+console.log(classIndex("x y z", "y"), cases("MiXeD"), startsAndTail("abc", "a"), startsAndTail(" x ", "a"));

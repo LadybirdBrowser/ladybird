@@ -693,6 +693,24 @@ pub enum Intrinsic {
     StringPrototypeToLowerCase,
     /// `String.prototype.toUpperCase`.
     StringPrototypeToUpperCase,
+    /// `String.prototype.lastIndexOf`.
+    StringPrototypeLastIndexOf,
+    /// `String.prototype.includes`.
+    StringPrototypeIncludes,
+    /// `String.prototype.startsWith`.
+    StringPrototypeStartsWith,
+    /// `String.prototype.endsWith`.
+    StringPrototypeEndsWith,
+    /// `String.prototype.slice`.
+    StringPrototypeSlice,
+    /// `String.prototype.substring`.
+    StringPrototypeSubstring,
+    /// `String.prototype.trim`.
+    StringPrototypeTrim,
+    /// `String.prototype.trimStart`.
+    StringPrototypeTrimStart,
+    /// `String.prototype.trimEnd`.
+    StringPrototypeTrimEnd,
 }
 
 /// A `this` value or argument of a builtin whose runtime helper JIT code
@@ -772,11 +790,25 @@ impl Intrinsic {
                 result,
             })
         };
+        // NB: Positions and ends past the end of the string clamp to its
+        //     length, like the ones absent arguments stand for.
+        const START: HelperOperand = Int32 { absent: Some(0) };
+        const END: HelperOperand = Int32 { absent: Some(i32::MAX) };
         match self {
-            Intrinsic::StringPrototypeIndexOf => call(&[String, Int32 { absent: Some(0) }], HelperResult::Int32),
-            Intrinsic::StringPrototypeToLowerCase | Intrinsic::StringPrototypeToUpperCase => {
-                call(&[], HelperResult::String)
+            Intrinsic::StringPrototypeIndexOf => call(&[String, START], HelperResult::Int32),
+            Intrinsic::StringPrototypeLastIndexOf => call(&[String, END], HelperResult::Int32),
+            Intrinsic::StringPrototypeIncludes | Intrinsic::StringPrototypeStartsWith => {
+                call(&[String, START], HelperResult::Bool)
             }
+            Intrinsic::StringPrototypeEndsWith => call(&[String, END], HelperResult::Bool),
+            Intrinsic::StringPrototypeSlice | Intrinsic::StringPrototypeSubstring => {
+                call(&[START, END], HelperResult::String)
+            }
+            Intrinsic::StringPrototypeToLowerCase
+            | Intrinsic::StringPrototypeToUpperCase
+            | Intrinsic::StringPrototypeTrim
+            | Intrinsic::StringPrototypeTrimStart
+            | Intrinsic::StringPrototypeTrimEnd => call(&[], HelperResult::String),
             _ => None,
         }
     }
