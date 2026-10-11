@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 20px/30px monospace; }
+    textarea { display: block; font: inherit; width: 600px; height: 30px; padding: 0; border: 0; resize: none; }
+</style>
+<textarea id="area">one txet two</textarea>
+<textarea id="other"></textarea>
+<span id="probe">xxxxxxxxxx</span>
+<script>
+    promiseTest(async () => {
+        const probe = document.getElementById("probe");
+        const characterWidth = probe.getBoundingClientRect().width / 10;
+        probe.remove();
+        const clickAt = (x, y, button = 0) => {
+            internals.mouseDown(x, y, 1, button);
+            internals.mouseUp(x, y, button);
+        };
+        const pointInTextControl = (element, index) => {
+            const rect = element.getBoundingClientRect();
+            return [rect.left + (index + 0.5) * characterWidth, rect.top + 15];
+        };
+
+        const area = document.getElementById("area");
+        clickAt(...pointInTextControl(area, 0));
+        await internals.spellCheckSettled();
+        println(`flagged: ${internals.spellingErrorRanges(area) || "(none)"}`);
+
+        // A guess picked for a misspelling in a field the user has left still replaces it.
+        clickAt(...pointInTextControl(document.getElementById("other"), 0));
+        clickAt(...pointInTextControl(area, 5), 2);
+        println(`menu: ${await internals.activateSpellingMenuItem("guess", 0)}`);
+        println(`value: ${area.value}`);
+    });
+</script>

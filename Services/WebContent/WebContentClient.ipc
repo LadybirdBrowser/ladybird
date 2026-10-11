@@ -123,7 +123,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_click_link(Web::PageId page_id, Web::HTML::PreparedNavigationDescriptor navigation, ByteString target, unsigned modifiers) =|
     did_middle_click_link(Web::PageId page_id, Web::HTML::PreparedNavigationDescriptor navigation, ByteString target, unsigned modifiers) =|
     did_request_external_url(Web::PageId page_id, URL::URL url, URL::Origin initiator_origin, bool has_transient_activation) =|
-    did_request_context_menu(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target) =|
+    did_request_context_menu(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target, Optional<Utf16String> misspelled_word) =|
     did_request_link_context_menu(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString target, unsigned modifiers) =|
     did_request_image_context_menu(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString target, unsigned modifiers, Optional<Gfx::ShareableBitmap> bitmap) =|
     did_request_media_context_menu(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString target, unsigned modifiers, Web::MediaContextMenu menu, Web::HTML::PreparedNavigationDescriptor navigation) =|
@@ -244,6 +244,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_request_set_system_focus(Web::PageId page_id, bool has_system_focus) =|
     did_change_focused_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     did_request_key_event_for_testing(Web::PageId page_id, Web::KeyEvent event) =|
+    did_request_spelling_menu_action_for_testing(Web::PageId page_id, Web::SpellingMenuActionForTesting action, u32 guess_index) =|
     did_request_webdriver_mouse_event(Web::PageId page_id, u64 request_id, Web::HTML::CrossProcessId local_root_id, Web::MouseEvent event) =|
     did_request_set_system_visibility_state(Web::PageId page_id, Web::HTML::VisibilityState visibility_state) =|
     request_history_operation(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters) =|

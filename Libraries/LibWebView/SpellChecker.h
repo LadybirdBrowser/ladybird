@@ -33,6 +33,9 @@ public:
     virtual Vector<Utf16String> guesses(DocumentTag, Utf16String const& word) = 0;
     virtual void ignore(DocumentTag, Utf16String const& word) = 0;
     virtual void learn(DocumentTag, Utf16String const& word) = 0;
+
+    // Whether a learned word holds for every document tag, as it does in a user dictionary that every app shares.
+    virtual bool learns_for_every_tag() const { return true; }
 };
 
 }

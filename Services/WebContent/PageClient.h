@@ -243,7 +243,8 @@ private:
     virtual void page_did_click_link(Web::HTML::PreparedNavigationDescriptor, ByteString const& target, unsigned modifiers) override;
     virtual void page_did_middle_click_link(Web::HTML::PreparedNavigationDescriptor, ByteString const& target, unsigned modifiers) override;
     virtual void page_did_request_external_url(URL::URL const&, URL::Origin const& initiator_origin, bool has_transient_activation) override;
-    virtual void page_did_request_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, Web::ContextMenuForInputEventsTarget) override;
+    virtual void page_did_request_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, Web::ContextMenuForInputEventsTarget, Optional<Utf16String> misspelled_word) override;
+    virtual void page_did_request_spelling_menu_action_for_testing(Web::SpellingMenuActionForTesting, u32 guess_index) override;
     virtual void page_did_request_link_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, Web::HTML::PreparedNavigationDescriptor, ByteString const& target, unsigned modifiers) override;
     virtual void page_did_request_image_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, Web::HTML::PreparedNavigationDescriptor, ByteString const& target, unsigned modifiers, Optional<Gfx::Bitmap const*>) override;
     virtual void page_did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const&, Web::HTML::PreparedNavigationDescriptor) override;

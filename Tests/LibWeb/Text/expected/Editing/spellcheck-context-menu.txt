@@ -1,0 +1,25 @@
+area flagged: 4-8 13-17 18-23
+selection: 4-8
+area beforeinput insertReplacementText data=text
+area input insertReplacementText data=text
+menu on txet: text | teat | tet | Ignore Spelling | Learn Spelling
+value: one text two wrod quikc
+area flagged: 13-17 18-23
+menu on wrod: word | rod | wrong | wood | ford | Ignore Spelling | Learn Spelling
+menu on quikc: No Guesses Found | Ignore Spelling | Learn Spelling
+area flagged after ignore: 13-17
+menu on one: (no spelling items)
+area flagged after a new check: 13-17
+editable flagged: 0-7 8-16
+menu on lernword: learnword | Ignore Spelling | Learn Spelling
+editable flagged after learn: 0-7
+menu on speling: spelling | spieling | Ignore Spelling | Learn Spelling
+canceled replacement: speling lernword
+same menu again: spelling | spieling | Ignore Spelling | Learn Spelling
+after a second activation: speling lernword
+editable input insertReplacementText data=null
+menu on speling: spelling | spieling | Ignore Spelling | Learn Spelling
+replaced: spelling lernword
+editable input historyUndo data=null
+undone: speling lernword
+editable flagged after a new check: 0-7

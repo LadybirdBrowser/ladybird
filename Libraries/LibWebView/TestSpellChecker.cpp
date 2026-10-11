@@ -18,6 +18,7 @@ static constexpr Array s_misspelled_words {
     u"wrod"sv,
     u"speling"sv,
     u"lernword"sv,
+    u"lernagain"sv,
 };
 
 static Vector<Utf16String> guesses_for(Utf16View word)

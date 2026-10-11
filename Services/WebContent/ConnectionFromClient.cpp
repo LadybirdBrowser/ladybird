@@ -3350,6 +3350,30 @@ void ConnectionFromClient::did_check_spelling(Web::PageId page_id, u64 request_i
         page->page().did_check_spelling(request_id, move(errors));
 }
 
+void ConnectionFromClient::replace_context_menu_misspelling(Web::PageId page_id, Utf16String replacement)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().replace_context_menu_misspelling(replacement);
+}
+
+void ConnectionFromClient::accept_spelling_word(Web::PageId page_id, Utf16String word)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().accept_spelling_word(word);
+}
+
+void ConnectionFromClient::forget_accepted_spelling_words(Web::PageId page_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().forget_accepted_spelling_words();
+}
+
+void ConnectionFromClient::did_complete_spelling_menu_action_for_testing(Web::PageId page_id, String menu)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().did_complete_spelling_menu_action_for_testing(move(menu));
+}
+
 void ConnectionFromClient::did_delete_all_cookies(Web::PageId page_id, u64 request_id)
 {
     if (auto page = this->page(page_id); page.has_value())

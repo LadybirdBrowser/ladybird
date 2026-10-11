@@ -22,6 +22,7 @@
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/DOM/HoverEventData.h>
 #include <LibWeb/DOM/NodeIdentity.h>
+#include <LibWeb/Editing/SpellingMarkers.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
@@ -68,6 +69,7 @@ public:
     EventResult handle_mouseup(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Optional<RemoteInputEventTarget>* remote_target = nullptr);
     EventResult handle_mousewheel(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, Web::WheelDeltaPrecision = Web::WheelDeltaPrecision::Discrete, Web::ScrollGesturePhase = Web::ScrollGesturePhase::None, bool async_scroll_performed_default_action = false, Optional<AsyncScrollOperation>* async_scroll_operation = nullptr, Optional<RemoteInputEventTarget>* remote_target = nullptr);
     EventResult handle_mouseleave();
+    EventResult insert_replacement_text(Utf16String const&);
 #if defined(AK_OS_MACOS)
     bool select_word_for_dictionary_lookup(CSSPixelPoint visual_viewport_position);
 #endif
@@ -172,6 +174,7 @@ private:
     bool initiate_word_selection(Layout::BegunRead const& read, DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect);
     bool initiate_paragraph_selection(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect);
     bool select_context_menu_text(Layout::BegunRead const& read, DOM::Document&, CSSPixelPoint visual_viewport_position);
+    Optional<Editing::ContextMenuMisspelling> select_context_menu_misspelling(Layout::BegunRead const& read, DOM::Document&, CSSPixelPoint visual_viewport_position);
     bool select_context_menu_url_token(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect);
 #if defined(AK_OS_MACOS)
     bool select_word_at_position(Layout::BegunRead const& read, DOM::Document&, CSSPixelPoint visual_viewport_position);

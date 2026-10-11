@@ -22,6 +22,7 @@ namespace Web::UIEvents::InputTypes {
     __ENUMERATE_INPUT_TYPE(insertFromPaste)       \
     __ENUMERATE_INPUT_TYPE(insertLineBreak)       \
     __ENUMERATE_INPUT_TYPE(insertParagraph)       \
+    __ENUMERATE_INPUT_TYPE(insertReplacementText) \
     __ENUMERATE_INPUT_TYPE(insertText)
 
 #define __ENUMERATE_INPUT_TYPE(name) extern WEB_API Utf16FlyString const& name;

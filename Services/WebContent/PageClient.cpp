@@ -1137,9 +1137,14 @@ void PageClient::page_did_set_device_pixel_ratio_for_testing(double ratio)
     }));
 }
 
-void PageClient::page_did_request_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target)
+void PageClient::page_did_request_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target, Optional<Utf16String> misspelled_word)
 {
-    client().async_did_request_context_menu(m_id, local_root_id, page().css_to_device_point(content_position).to_type<int>(), for_input_events_target);
+    client().async_did_request_context_menu(m_id, local_root_id, page().css_to_device_point(content_position).to_type<int>(), for_input_events_target, move(misspelled_word));
+}
+
+void PageClient::page_did_request_spelling_menu_action_for_testing(Web::SpellingMenuActionForTesting action, u32 guess_index)
+{
+    client().async_did_request_spelling_menu_action_for_testing(m_id, action, guess_index);
 }
 
 void PageClient::page_did_request_link_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString const& target, unsigned modifiers)
