@@ -46,7 +46,9 @@ pub struct VmHead {
     /// The lowest native stack address JavaScript runs at: the stack base plus VM_STACK_SPACE_LIMIT (see
     /// Vm::did_reach_stack_space_limit()). JIT code stops above it, see Vm::jit_native_stack_limit.
     pub native_stack_limit: Cell<usize>,
-    pub execution_generation: Cell<u64>,
+    /// Advanced at the end of every synchronous run of code (see `finish_execution_generation()`). WeakRef targets
+    /// used during the current generation stay alive. Interpreter and JIT code advance it with a 32-bit increment.
+    pub execution_generation: Cell<u32>,
     pub primitive_storage_cage_base: Cell<usize>,
     pub heap_region_base: Cell<usize>,
     pub native_function_table_data: Cell<*const NativeFunctionTableEntry>,
@@ -73,3 +75,12 @@ pub struct VmHead {
 /// head, so these are a capacity that the crate checks the Vm against rather than its exact size and alignment.
 pub const VM_SIZE: usize = 16 * 1024;
 pub const VM_ALIGN: usize = 16;
+
+impl VmHead {
+    /// Starts a new execution generation. The counter wraps around, which at worst keeps a WeakRef target that was
+    /// last used 2^32 generations earlier alive until the next one.
+    pub fn finish_execution_generation(&self) {
+        self.execution_generation
+            .set(self.execution_generation.get().wrapping_add(1));
+    }
+}

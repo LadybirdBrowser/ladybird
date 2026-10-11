@@ -90,7 +90,7 @@ impl Dollar262Object {
     #[allow(clippy::unnecessary_wraps, reason = "native functions return a completion")]
     fn clear_kept_objects(vm: &Vm) -> ThrowCompletionOr<Value> {
         // VM::finish_execution_generation()
-        vm.head.execution_generation.set(vm.head.execution_generation.get() + 1);
+        vm.head.finish_execution_generation();
         Ok(Value::UNDEFINED)
     }
 
