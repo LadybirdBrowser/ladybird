@@ -152,7 +152,7 @@ jit.compile(append);
 // CHECK: BranchInt32StrictlyEquals ({{v[0-9]+}}, [[LENGTH]])
 // CHECK: CheckAppendableArray
 // CHECK: LoadElementsCapacity
-// CHECK-NEXT: BranchInt32LessThan
+// CHECK-NEXT: BranchIndexInBounds
 // CHECK: AppendElement
 
 // Holey elements check for holes.
