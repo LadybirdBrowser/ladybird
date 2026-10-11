@@ -1,0 +1,21 @@
+background change only reaches slot: true
+child background: rgba(0, 0, 0, 0)
+inherited color: rgb(0, 128, 0)
+last child color: rgb(0, 128, 0)
+shadow descendant color: rgb(0, 128, 0)
+explicitly inherited background: rgb(0, 0, 255)
+other child background: rgba(0, 0, 0, 0)
+background inherited through var(): rgb(0, 128, 0)
+revealed child color: rgb(255, 0, 0)
+revealed shadow descendant color: rgb(255, 0, 0)
+flex item display: block
+restored item display: inline
+slot selector reaches assigned element: 0.5
+slot selector no longer reaches assigned element: 1
+inherited custom property: rgb(12, 34, 56)
+changed inherited custom property: rgb(65, 43, 21)
+shadow descendant follows custom property: rgb(65, 43, 21)
+sampled animation color: rgb(100, 0, 0)
+shadow descendant follows animation: rgb(100, 0, 0)
+color after removing animation: rgb(255, 0, 0)
+visible fallback inherits color: rgb(0, 0, 255)

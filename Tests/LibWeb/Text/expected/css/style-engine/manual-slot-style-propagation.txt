@@ -1,0 +1,15 @@
+manual slot paint change only reaches slot: true
+child background: rgba(0, 0, 0, 0)
+text remains assigned: true
+manual reassignment only reaches moved subtree: true
+moved child assigned to second: true
+remaining child stays assigned to first: true
+moved child color: rgb(0, 0, 255)
+moved descendant color: rgb(0, 0, 255)
+remaining child color: rgb(0, 128, 0)
+moved child positional style: 700
+remaining child positional style: 400
+manual slot substituted inheritance: rgb(0, 128, 0)
+remaining descendants inherit changed color: true
+other slot color is unchanged: rgb(0, 0, 255)
+text remains in first slot: true

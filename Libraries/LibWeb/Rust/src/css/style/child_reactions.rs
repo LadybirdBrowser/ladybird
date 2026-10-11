@@ -223,8 +223,8 @@ impl StyleEngine {
             });
         };
 
-        // A slot's assigned elements take their style from the slot, and a slot that moved at all
-        // recomputes them.
+        // Assigned elements inherit from the slot. A change confined to non-inherited
+        // properties reaches only those that explicitly inherit such properties.
         if self.retained.facts.is_slot(node)
             && (!invalidation_is_none || did_change_custom_properties || ancestor_became_visible)
         {
@@ -233,7 +233,27 @@ impl StyleEngine {
                 if assigned.text_index().is_some() {
                     continue;
                 }
-                derive(assigned, STYLE_REACTION_RECOMPUTE_STYLE, 0, false);
+                let inherited_inputs_changed = inherited_style_groups_changed != 0
+                    || did_change_custom_properties
+                    || ancestor_became_visible
+                    || reaction
+                        & (STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES | STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES)
+                        != 0
+                    || has(fact::WAS_UNSTYLED)
+                    || has(fact::WAS_DISPLAY_NONE)
+                    || has(fact::DISPLAY_CHANGED)
+                    || has(fact::NEEDS_LAYOUT_TREE_REBUILD)
+                    || has(fact::RECOMPUTE_DESCENDANT_STYLES);
+                // The host records inheritance after substitution on the DOM parent, which
+                // may differ from the slot. Keep that mark for values such as var(--x, inherit).
+                let explicitly_inherits = self
+                    .tree
+                    .parent(assigned)
+                    .is_some_and(|parent| self.retained.children_explicitly_inherit_marks.contains(&parent))
+                    || self.node_explicitly_inherits_non_inherited_property(assigned);
+                if inherited_inputs_changed || explicitly_inherits {
+                    derive(assigned, STYLE_REACTION_RECOMPUTE_STYLE, 0, false);
+                }
             }
         }
 

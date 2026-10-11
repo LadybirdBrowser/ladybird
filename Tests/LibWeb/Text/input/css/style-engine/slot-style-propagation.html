@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `
+            <style>
+                ::slotted(div) { display: inline; }
+                slot.selected::slotted(div) { opacity: 0.5; }
+                @keyframes tint {
+                    from { color: rgb(0, 0, 0); }
+                    to { color: rgb(200, 0, 0); }
+                }
+                slot.sample { animation: tint 1000s linear paused; }
+            </style>
+            <slot id="slot"><span id="fallback">fallback</span></slot>`;
+        const slot = shadow.getElementById("slot");
+        for (let index = 0; index < 40; ++index) {
+            const child = document.createElement("div");
+            child.textContent = "item";
+            host.append(child);
+        }
+        const childShadow = host.firstElementChild.attachShadow({ mode: "open" });
+        childShadow.innerHTML = "<span>shadow child</span>";
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+        slot.style.backgroundColor = "red";
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+        println(`background change only reaches slot: ${after.reachedStyleNodes - before.reachedStyleNodes === 1}`);
+        println(`child background: ${getComputedStyle(host.firstElementChild).backgroundColor}`);
+
+        slot.style.color = "green";
+        internals.updateStyle();
+        println(`inherited color: ${getComputedStyle(host.firstElementChild).color}`);
+        println(`last child color: ${getComputedStyle(host.lastElementChild).color}`);
+        println(`shadow descendant color: ${getComputedStyle(childShadow.firstElementChild).color}`);
+
+        const explicit = host.firstElementChild;
+        explicit.style.backgroundColor = "inherit";
+        internals.updateStyle();
+        slot.style.backgroundColor = "blue";
+        internals.updateStyle();
+        println(`explicitly inherited background: ${getComputedStyle(explicit).backgroundColor}`);
+        println(`other child background: ${getComputedStyle(host.lastElementChild).backgroundColor}`);
+
+        explicit.style.backgroundColor = "var(--missing, inherit)";
+        internals.updateStyle();
+        slot.style.backgroundColor = "green";
+        internals.updateStyle();
+        println(`background inherited through var(): ${getComputedStyle(explicit).backgroundColor}`);
+
+        slot.style.display = "none";
+        internals.updateStyle();
+        slot.style.color = "red";
+        slot.style.display = "contents";
+        internals.updateStyle();
+        println(`revealed child color: ${getComputedStyle(explicit).color}`);
+        println(`revealed shadow descendant color: ${getComputedStyle(childShadow.firstElementChild).color}`);
+
+        slot.style.display = "flex";
+        internals.updateStyle();
+        println(`flex item display: ${getComputedStyle(explicit).display}`);
+        slot.style.display = "contents";
+        internals.updateStyle();
+        println(`restored item display: ${getComputedStyle(explicit).display}`);
+
+        slot.classList.add("selected");
+        internals.updateStyle();
+        println(`slot selector reaches assigned element: ${getComputedStyle(explicit).opacity}`);
+        slot.classList.remove("selected");
+        internals.updateStyle();
+        println(`slot selector no longer reaches assigned element: ${getComputedStyle(explicit).opacity}`);
+
+        slot.style.setProperty("--tone", "rgb(12, 34, 56)");
+        explicit.style.color = "var(--tone)";
+        internals.updateStyle();
+        println(`inherited custom property: ${getComputedStyle(explicit).color}`);
+        slot.style.setProperty("--tone", "rgb(65, 43, 21)");
+        internals.updateStyle();
+        println(`changed inherited custom property: ${getComputedStyle(explicit).color}`);
+        println(`shadow descendant follows custom property: ${getComputedStyle(childShadow.firstElementChild).color}`);
+        explicit.style.removeProperty("color");
+
+        slot.classList.add("sample");
+        internals.updateStyle();
+        slot.getAnimations()[0].currentTime = 500000;
+        internals.updateStyle();
+        println(`sampled animation color: ${getComputedStyle(explicit).color}`);
+        println(`shadow descendant follows animation: ${getComputedStyle(childShadow.firstElementChild).color}`);
+        slot.classList.remove("sample");
+        internals.updateStyle();
+        println(`color after removing animation: ${getComputedStyle(explicit).color}`);
+
+        host.replaceChildren();
+        slot.style.color = "blue";
+        internals.updateStyle();
+        println(`visible fallback inherits color: ${getComputedStyle(shadow.getElementById("fallback")).color}`);
+    });
+</script>
