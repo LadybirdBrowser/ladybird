@@ -86,3 +86,26 @@ test("a function called by an inlined function adds a property to an object in i
     );
     expect(failures).toEqual([]);
 });
+
+test("a function called by an inlined function changes a property of an object in its legacy arguments", () => {
+    const failures = compareCompiledWithInterpreter(
+        () => {
+            function changeProperty(change) {
+                // A for-in loop keeps this function from being inlined.
+                for (const key in {}) {
+                }
+                if (change) middle.arguments[0].x = 2;
+            }
+            function middle(object, change) {
+                changeProperty(change);
+            }
+            return change => {
+                const object = { x: 1 };
+                middle(object, change);
+                return object.x;
+            };
+        },
+        { warmUp: () => [false], probes: { change: () => [true] } }
+    );
+    expect(failures).toEqual([]);
+});
