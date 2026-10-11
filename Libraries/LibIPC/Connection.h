@@ -83,6 +83,7 @@ protected:
     u32 m_local_endpoint_magic { 0 };
 
     bool m_peer_owns_this_process { false };
+    bool m_died { false };
 };
 
 template<typename LocalEndpoint, typename PeerEndpoint>

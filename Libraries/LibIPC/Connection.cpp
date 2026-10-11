@@ -65,6 +65,9 @@ ErrorOr<void> ConnectionBase::post_sync_request(Message const& request)
 void ConnectionBase::shutdown()
 {
     m_transport->close();
+    if (m_died)
+        return;
+    m_died = true;
     die();
 }
 
