@@ -3142,8 +3142,33 @@ static GC::Ref<DOM::Document> create_navigation_error_document(LocalNavigable& n
     });
 }
 
-static void load_document_or_handle_download(GC::Ref<NavigationParams> navigation_params, ReadonlyBytes sniff_bytes, bool source_allows_downloading, Optional<URL::Origin> source_interface_origin, PopulateSessionHistoryEntryDocumentOutput& output)
+static void load_document_or_handle_download(GC::Ref<NavigationParams> navigation_params, ReadonlyBytes sniff_bytes, URL::URL const& url, bool source_allows_downloading, Optional<URL::Origin> source_interface_origin, PopulateSessionHistoryEntryDocumentOutput& output)
 {
+    // AD-HOC: Match other browsers and show a UA error page for an empty HTTP error response to a top-level navigation.
+    if (navigation_params->navigable->is_top_level_traversable() && navigation_params->response->status() >= 400 && navigation_params->response->status() <= 599 && sniff_bytes.is_empty()) {
+        stop_or_resume_response_body_delivery(navigation_params);
+
+        if (navigation_params->reserved_environment)
+            navigation_params->reserved_environment->discard_environment();
+
+        output.save_extra_document_state = false;
+
+        auto error_message = Utf16String::formatted("HTTP error: {} {}", navigation_params->response->status(), navigation_params->response->status_message());
+
+        output.document = create_navigation_error_document(
+            *navigation_params->navigable,
+            navigation_params->id,
+            navigation_params->navigation_timing_type,
+            navigation_params->user_involvement,
+            output.inline_content_origin.value(),
+            output.redirected_url.value_or(url),
+            error_message);
+
+        output.document->make_unsalvageable("navigation-failure"_utf16);
+
+        return;
+    }
+
     output.document = load_document(navigation_params, sniff_bytes);
 
     if (!output.document) {
@@ -3265,11 +3290,11 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
                 // Async path: bytes not yet available, wait for them
                 nav_params->response->resume_body_delivery_up_to(Fetch::Infrastructure::MAX_SNIFF_BYTES);
                 body->wait_for_sniff_bytes(GC::create_function(heap(),
-                    [output, nav_params, navigation_params, completion_steps, source_allows_downloading, source_interface_origin](ReadonlyBytes sniff_bytes) {
+                    [output, nav_params, navigation_params, completion_steps, source_allows_downloading, source_interface_origin, url](ReadonlyBytes sniff_bytes) {
                         // AD-HOC: The document may have been destroyed between when the fetch started and when the
                         //         bytes arrived.
                         if (nav_params->navigable->active_browsing_context()) {
-                            load_document_or_handle_download(nav_params, sniff_bytes, source_allows_downloading, source_interface_origin, *output);
+                            load_document_or_handle_download(nav_params, sniff_bytes, url, source_allows_downloading, source_interface_origin, *output);
                         } else {
                             stop_or_resume_response_body_delivery(navigation_params);
                         }
@@ -3282,7 +3307,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
             }
 
             // Sync path: bytes available immediately
-            load_document_or_handle_download(nav_params, sniff_bytes.value(), source_allows_downloading, source_interface_origin, *output);
+            load_document_or_handle_download(nav_params, sniff_bytes.value(), url, source_allows_downloading, source_interface_origin, *output);
         } else {
             stop_or_resume_response_body_delivery(navigation_params);
         }
