@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<style>
+    details::details-content {
+        --duration: 0.2s;
+        transition-duration: var(--duration);
+    }
+</style>
+<details open><summary>Question</summary><div>Answer</div></details>
+<script>
+    document.body.offsetWidth;
+    const div = document.createElement("div");
+    div.textContent = "More";
+    document.querySelector("details").appendChild(div);
+    document.body.offsetWidth;
+</script>
