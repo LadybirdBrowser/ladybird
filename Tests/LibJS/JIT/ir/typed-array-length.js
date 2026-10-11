@@ -14,9 +14,28 @@ const detached = new Uint16Array(new ArrayBuffer(8));
 detached.buffer.transfer();
 if (lengthOf(detached) !== 0) throw new Error("wrong length of a detached typed array");
 
+// Typed arrays of several kinds reach the getter through their own prototype chains.
+function polymorphicLengthOf(array) {
+    return array.length;
+}
+jit.prepare(polymorphicLengthOf);
+for (let i = 0; i < 10; ++i) {
+    polymorphicLengthOf(new Uint8Array(3));
+    polymorphicLengthOf(new Float64Array(4));
+}
+jit.compile(polymorphicLengthOf);
+if (polymorphicLengthOf(new Float64Array(2)) !== 2) throw new Error("wrong length");
+
 // CHECK-FUNCTION: lengthOf
 // CHECK-PASS: frame initialization
 // CHECK: CheckAccessorFunction
 // CHECK-NEXT: CheckTypedArray
 // CHECK-NEXT: LoadTypedArrayLength
 // CHECK-NEXT: BranchInt32GreaterThan
+
+// CHECK-FUNCTION: polymorphicLengthOf
+// CHECK-PASS: frame initialization
+// CHECK-NOT: ProbePropertyCache
+// CHECK: CheckAccessorFunction
+// CHECK-NEXT: CheckTypedArray
+// CHECK-NEXT: LoadTypedArrayLength
