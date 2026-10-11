@@ -1,5 +1,6 @@
 background change only reaches slot: true
 child background: rgba(0, 0, 0, 0)
+inherited color avoids full drives: true
 inherited color: rgb(0, 128, 0)
 last child color: rgb(0, 128, 0)
 shadow descendant color: rgb(0, 128, 0)
