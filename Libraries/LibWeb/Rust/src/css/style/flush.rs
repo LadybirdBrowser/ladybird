@@ -2400,11 +2400,18 @@ impl StyleEngine {
                     !row_of(&pass.scratch.derived_child_inputs, parent).is_some_and(|row| row.inheritance_unresolved)
                 })
                 .and_then(|parent| {
-                    self.computed_group_sets.replace_engine_resolvable_inherited_groups(
+                    let (before, after, reused) = self.computed_group_sets.replace_engine_resolvable_inherited_groups(
                         node,
                         parent,
                         inherited_style_groups,
-                    )
+                        &mut pass.scratch.inherited_group_swaps,
+                    )?;
+                    self.retained.counters.bump(if reused {
+                        Counter::InheritedGroupSwapReuses
+                    } else {
+                        Counter::InheritedGroupSwapComputations
+                    });
+                    Some((before, after))
                 });
                 // A regular style reaction whose moved winners the engine can compute itself
                 // publishes its new record here, so C++ applies a record instead of running a

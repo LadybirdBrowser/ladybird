@@ -259,6 +259,8 @@ define_counters! {
     ComputedGroupSetsReused => "computedGroupSetsReused",
     InheritedGroupNodeHandlesPublished => "inheritedGroupNodeHandlesPublished",
     InheritedGroupSetsReused => "inheritedGroupSetsReused",
+    InheritedGroupSwapComputations => "inheritedGroupSwapComputations",
+    InheritedGroupSwapReuses => "inheritedGroupSwapReuses",
     CustomPropertyEnvironmentNodeHandlesPublished => "customPropertyEnvironmentNodeHandlesPublished",
     CustomPropertyEnvironmentsReused => "customPropertyEnvironmentsReused",
     ComputedFixedMetadataNodeHandlesPublished => "computedFixedMetadataNodeHandlesPublished",
