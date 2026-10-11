@@ -54,8 +54,8 @@ define_object_class!(FunctionPrototype, extends: [FunctionObject, Object], metho
 
 /// The native functions of Function.prototype.apply and call, which forward their calls to other functions: call
 /// feedback records where to, and JIT code calls their targets directly.
-static APPLY_FUNCTION: RawNativeFunctionPointer = raw_native!(FunctionPrototype::apply);
-static CALL_FUNCTION: RawNativeFunctionPointer = raw_native!(FunctionPrototype::call);
+pub(crate) static APPLY_FUNCTION: RawNativeFunctionPointer = raw_native!(FunctionPrototype::apply);
+pub(crate) static CALL_FUNCTION: RawNativeFunctionPointer = raw_native!(FunctionPrototype::call);
 
 fn is_native_function(vm: &Vm, function: &RawNativeFunction, native_function: RawNativeFunctionPointer) -> bool {
     let address = |pointer: RawNativeFunctionPointer| pointer.map(|pointer| pointer as usize);

@@ -11,7 +11,6 @@ use crate::gc::class::{GcCell, define_cell};
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
-use crate::layout::function_object::RawNativeFunction;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::layout_forward::RawNativeFunctionPointer;
@@ -534,14 +533,9 @@ fn set_typed_array_from_array_like(
 }
 
 /// The native getter of %TypedArray%.prototype.length, which JIT code knows.
-static LENGTH_GETTER: RawNativeFunctionPointer = raw_native!(TypedArrayPrototype::length_getter);
+pub(crate) static LENGTH_GETTER: RawNativeFunctionPointer = raw_native!(TypedArrayPrototype::length_getter);
 
 impl TypedArrayPrototype {
-    /// Whether the function is the getter of %TypedArray%.prototype.length (of any realm).
-    pub fn is_length_getter(vm: &Vm, function: &RawNativeFunction) -> bool {
-        function.native_function(vm).map(|pointer| pointer as usize) == LENGTH_GETTER.map(|pointer| pointer as usize)
-    }
-
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<TypedArrayPrototype> {
         realm.create_object(
             vm,

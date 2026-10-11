@@ -42,16 +42,17 @@ use crate::layout::property_lookup_cache::{
     GlobalVariableCache, PropertyLookupCache, PropertyLookupCacheEntry, PropertyLookupCacheEntryType,
 };
 use crate::layout::value::Value;
+use crate::layout_forward::RawNativeFunctionPointer;
 use crate::runtime::array_constructor::ArrayConstructor;
-use crate::runtime::array_prototype::ArrayPrototype;
+use crate::runtime::array_prototype;
 use crate::runtime::boolean_constructor::BooleanConstructor;
 use crate::runtime::bound_function::BoundFunction;
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
-use crate::runtime::function_prototype::FunctionPrototype;
-use crate::runtime::math_object::MathObject;
+use crate::runtime::function_prototype::{self, FunctionPrototype};
+use crate::runtime::math_object;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::object_constructor::ObjectConstructor;
-use crate::runtime::object_prototype::ObjectPrototype;
+use crate::runtime::object_prototype;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::shape::Shape;
@@ -60,8 +61,8 @@ use crate::runtime::shared_function_instance_data::ConstructorKind;
 use crate::runtime::shared_function_instance_data::FunctionKind;
 use crate::runtime::shared_function_instance_data::ThisMode;
 use crate::runtime::string_constructor::StringConstructor;
-use crate::runtime::string_prototype::StringPrototype;
-use crate::runtime::typed_array_prototype::TypedArrayPrototype;
+use crate::runtime::string_prototype;
+use crate::runtime::typed_array_prototype;
 
 /// Candidates with at most this many bytecode instructions are always inlined, without counting against the inlining
 /// budget.
@@ -154,35 +155,42 @@ fn intrinsic_of(vm: &Vm, cell: Option<Gc<CellHeader>>) -> Option<Intrinsic> {
         return Some(Intrinsic::BooleanConstructor);
     }
     let function = cell_as::<RawNativeFunction>(cell)?;
-    if FunctionPrototype::is_apply_function(vm, &function) {
-        Some(Intrinsic::FunctionPrototypeApply)
-    } else if FunctionPrototype::is_call_function(vm, &function) {
-        Some(Intrinsic::FunctionPrototypeCall)
-    } else if ArrayPrototype::is_push_function(vm, &function) {
-        Some(Intrinsic::ArrayPrototypePush)
-    } else if ArrayPrototype::is_slice_function(vm, &function) {
-        Some(Intrinsic::ArrayPrototypeSlice)
-    } else if ObjectPrototype::is_has_own_property_function(vm, &function) {
-        Some(Intrinsic::ObjectPrototypeHasOwnProperty)
-    } else if TypedArrayPrototype::is_length_getter(vm, &function) {
-        Some(Intrinsic::TypedArrayPrototypeLength)
-    } else if MathObject::is_max_function(vm, &function) {
-        Some(Intrinsic::MathMax)
-    } else if MathObject::is_min_function(vm, &function) {
-        Some(Intrinsic::MathMin)
-    } else if StringPrototype::is_index_of_function(vm, &function) {
-        Some(Intrinsic::StringPrototypeIndexOf)
-    } else if StringPrototype::is_to_lowercase_function(vm, &function) {
-        Some(Intrinsic::StringPrototypeToLowerCase)
-    } else if StringPrototype::is_to_uppercase_function(vm, &function) {
-        Some(Intrinsic::StringPrototypeToUpperCase)
-    } else {
-        match function.builtin() {
-            Some(Builtin::StringFromCharCode) => Some(Intrinsic::StringFromCharCode),
-            _ => None,
-        }
+    if function.builtin() == Some(Builtin::StringFromCharCode) {
+        return Some(Intrinsic::StringFromCharCode);
     }
+    let address = function.native_function(vm)? as usize;
+    NATIVE_INTRINSICS
+        .iter()
+        .find(|(native_function, _)| native_function.is_some_and(|native_function| native_function as usize == address))
+        .map(|(_, intrinsic)| *intrinsic)
 }
+
+/// The intrinsics the compiler knows by their native functions (of any realm).
+static NATIVE_INTRINSICS: [(&RawNativeFunctionPointer, Intrinsic); 11] = [
+    (&function_prototype::APPLY_FUNCTION, Intrinsic::FunctionPrototypeApply),
+    (&function_prototype::CALL_FUNCTION, Intrinsic::FunctionPrototypeCall),
+    (&array_prototype::PUSH_FUNCTION, Intrinsic::ArrayPrototypePush),
+    (&array_prototype::SLICE_FUNCTION, Intrinsic::ArrayPrototypeSlice),
+    (
+        &object_prototype::HAS_OWN_PROPERTY_FUNCTION,
+        Intrinsic::ObjectPrototypeHasOwnProperty,
+    ),
+    (
+        &typed_array_prototype::LENGTH_GETTER,
+        Intrinsic::TypedArrayPrototypeLength,
+    ),
+    (&math_object::MAX_FUNCTION, Intrinsic::MathMax),
+    (&math_object::MIN_FUNCTION, Intrinsic::MathMin),
+    (&string_prototype::INDEX_OF_FUNCTION, Intrinsic::StringPrototypeIndexOf),
+    (
+        &string_prototype::TO_LOWERCASE_FUNCTION,
+        Intrinsic::StringPrototypeToLowerCase,
+    ),
+    (
+        &string_prototype::TO_UPPERCASE_FUNCTION,
+        Intrinsic::StringPrototypeToUpperCase,
+    ),
+];
 
 /// The builtin `%ArrayIteratorPrototype%.next` of the realm, if `%ArrayIteratorPrototype%` holds it.
 fn array_iterator_next(vm: &Vm, realm: Gc<Realm>) -> Option<Gc<FunctionObject>> {

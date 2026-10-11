@@ -12,7 +12,6 @@ use libjs_runtime_macros::Trace;
 use crate::gc::class::{GcCell, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
-use crate::layout::function_object::RawNativeFunction;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::layout_forward::RawNativeFunctionPointer;
@@ -114,20 +113,10 @@ impl core::ops::Deref for CoercedArguments {
 }
 
 /// The native functions of Math.max and Math.min, which JIT code knows.
-static MAX_FUNCTION: RawNativeFunctionPointer = raw_native!(MathObject::max);
-static MIN_FUNCTION: RawNativeFunctionPointer = raw_native!(MathObject::min);
+pub(crate) static MAX_FUNCTION: RawNativeFunctionPointer = raw_native!(MathObject::max);
+pub(crate) static MIN_FUNCTION: RawNativeFunctionPointer = raw_native!(MathObject::min);
 
 impl MathObject {
-    /// Whether the function is Math.max (of any realm).
-    pub fn is_max_function(vm: &Vm, function: &RawNativeFunction) -> bool {
-        function.native_function(vm).map(|pointer| pointer as usize) == MAX_FUNCTION.map(|pointer| pointer as usize)
-    }
-
-    /// Whether the function is Math.min (of any realm).
-    pub fn is_min_function(vm: &Vm, function: &RawNativeFunction) -> bool {
-        function.native_function(vm).map(|pointer| pointer as usize) == MIN_FUNCTION.map(|pointer| pointer as usize)
-    }
-
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<MathObject> {
         realm.create_object(
             vm,

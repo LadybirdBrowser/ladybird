@@ -13,7 +13,6 @@ use crate::gc::class::{GcCell, define_cell};
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
-use crate::layout::function_object::RawNativeFunction;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::layout_forward::RawNativeFunctionPointer;
@@ -209,29 +208,12 @@ fn clamp_to_index(value: f64, max: usize) -> usize {
     value.clamp(0.0, max as f64) as usize
 }
 
-static INDEX_OF_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::index_of);
-static TO_LOWERCASE_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::to_lowercase);
-static TO_UPPERCASE_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::to_uppercase);
+/// The native functions of String.prototype builtins that JIT code knows.
+pub(crate) static INDEX_OF_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::index_of);
+pub(crate) static TO_LOWERCASE_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::to_lowercase);
+pub(crate) static TO_UPPERCASE_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::to_uppercase);
 
 impl StringPrototype {
-    /// Whether the function is String.prototype.indexOf (of any realm).
-    pub fn is_index_of_function(vm: &Vm, function: &RawNativeFunction) -> bool {
-        function.native_function(vm).map(|pointer| pointer as usize)
-            == INDEX_OF_FUNCTION.map(|pointer| pointer as usize)
-    }
-
-    /// Whether the function is String.prototype.toLowerCase (of any realm).
-    pub fn is_to_lowercase_function(vm: &Vm, function: &RawNativeFunction) -> bool {
-        function.native_function(vm).map(|pointer| pointer as usize)
-            == TO_LOWERCASE_FUNCTION.map(|pointer| pointer as usize)
-    }
-
-    /// Whether the function is String.prototype.toUpperCase (of any realm).
-    pub fn is_to_uppercase_function(vm: &Vm, function: &RawNativeFunction) -> bool {
-        function.native_function(vm).map(|pointer| pointer as usize)
-            == TO_UPPERCASE_FUNCTION.map(|pointer| pointer as usize)
-    }
-
     /// `S.indexOf(searchString, position)` of the string `S`, a string
     /// `searchString` and an integral `position`, which runs no code.
     pub fn index_of_string(string: Gc<PrimitiveString>, search_string: Gc<PrimitiveString>, position: f64) -> Value {
