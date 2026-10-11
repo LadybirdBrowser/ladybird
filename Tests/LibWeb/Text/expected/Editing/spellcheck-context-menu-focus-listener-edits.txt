@@ -1,0 +1,10 @@
+area flagged: 4-8
+editable flagged: 4-11
+away flagged: 4-8
+menu after a focus listener shortened the text: (no spelling items)
+value: x
+editable flagged after the insert: 6-13
+menu after a focus listener moved the misspelling: (no spelling items)
+text: zzone speling two
+menu after a focus listener moved focus away: (no spelling items)
+focused: other

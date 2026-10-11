@@ -21,6 +21,7 @@ public:
     virtual Vector<Utf16String> guesses(DocumentTag, Utf16String const& word) override;
     virtual void ignore(DocumentTag, Utf16String const& word) override;
     virtual void learn(DocumentTag, Utf16String const& word) override;
+    virtual bool learns_for_every_tag() const override { return false; }
 
 private:
     bool is_misspelled(DocumentTag, Utf16View word) const;

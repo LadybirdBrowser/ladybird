@@ -39,6 +39,7 @@
 #include <LibWeb/Bindings/AgentType.h>
 #include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/DOM/RequestFullscreenError.h>
+#include <LibWeb/Editing/SpellingMarkers.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Geolocation/Geolocation.h>
@@ -368,6 +369,14 @@ public:
     };
     void record_context_menu_request(Badge<EventHandler>, ContextMenuRequest);
     void clear_context_menu_request() { m_context_menu_request.clear(); }
+    void record_context_menu_misspelling(Badge<EventHandler>, Optional<Editing::ContextMenuMisspelling> misspelling) { m_context_menu_misspelling = move(misspelling); }
+    void replace_context_menu_misspelling(Utf16String const& replacement);
+    void accept_spelling_word(Utf16String const& word);
+    bool is_accepted_spelling_word(Utf16View word) const;
+    void forget_accepted_spelling_words() { m_accepted_spelling_words.clear(); }
+
+    void request_spelling_menu_action_for_testing(SpellingMenuActionForTesting, u32 guess_index, GC::Ref<GC::Function<void(String)>> on_complete);
+    void did_complete_spelling_menu_action_for_testing(String menu);
     Optional<ContextMenuRequest> take_context_menu_request();
 
     using MediaContextMenu = Web::MediaContextMenu;
@@ -547,6 +556,9 @@ private:
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
 
     Optional<ContextMenuRequest> m_context_menu_request;
+    Optional<Editing::ContextMenuMisspelling> m_context_menu_misspelling;
+    HashTable<Utf16String> m_accepted_spelling_words;
+    GC::Ptr<GC::Function<void(String)>> m_on_spelling_menu_action_for_testing;
     size_t m_active_screen_wake_lock_count { 0 };
 
     Optional<Utf16String> m_user_style_sheet_source;
@@ -711,7 +723,7 @@ public:
     // The node an assistive technology should treat as focused: the focused element, or the document element once
     // nothing in the document is focused.
     virtual void page_did_change_accessibility_focus(Web::UniqueNodeID) { }
-    virtual void page_did_request_context_menu([[maybe_unused]] HTML::CrossProcessId local_root_id, CSSPixelPoint, ContextMenuForInputEventsTarget) { }
+    virtual void page_did_request_context_menu([[maybe_unused]] HTML::CrossProcessId local_root_id, CSSPixelPoint, ContextMenuForInputEventsTarget, [[maybe_unused]] Optional<Utf16String> misspelled_word) { }
     virtual void page_did_request_link_context_menu([[maybe_unused]] HTML::CrossProcessId local_root_id, CSSPixelPoint, HTML::PreparedNavigationDescriptor, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers) { }
     virtual void page_did_request_image_context_menu([[maybe_unused]] HTML::CrossProcessId local_root_id, CSSPixelPoint, HTML::PreparedNavigationDescriptor, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers, Optional<Gfx::Bitmap const*>) { }
     virtual void page_did_request_media_context_menu([[maybe_unused]] HTML::CrossProcessId local_root_id, CSSPixelPoint, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers, Page::MediaContextMenu const&, HTML::PreparedNavigationDescriptor) { }
@@ -779,6 +791,7 @@ public:
     virtual void page_did_request_set_system_focus([[maybe_unused]] bool has_system_focus) { }
     virtual void page_did_change_focused_navigable([[maybe_unused]] HTML::CrossProcessId navigable_id) { }
     virtual void page_did_request_key_event_for_testing([[maybe_unused]] Web::KeyEvent event) { }
+    virtual void page_did_request_spelling_menu_action_for_testing([[maybe_unused]] SpellingMenuActionForTesting action, [[maybe_unused]] u32 guess_index) { }
     virtual void page_did_request_webdriver_mouse_event([[maybe_unused]] HTML::CrossProcessId local_root_id, [[maybe_unused]] Web::MouseEvent event, GC::Ref<GC::Function<void()>> on_handled) { on_handled->function()(); }
     virtual void page_did_request_set_system_visibility_state([[maybe_unused]] HTML::VisibilityState visibility_state) { }
     virtual String page_did_request_ui_process_session_history_for_testing() { return "{}"_string; }

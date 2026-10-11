@@ -278,6 +278,10 @@ endpoint WebContentServer routed by Web::PageId page_id
 
     retrieved_clipboard_entries(Web::PageId page_id, u64 request_id, Vector<Web::Clipboard::SystemClipboardItem> items) =|
     did_check_spelling(Web::PageId page_id, u64 request_id, Vector<Web::SpellingError> errors) =|
+    replace_context_menu_misspelling(Web::PageId page_id, Utf16String replacement) =|
+    accept_spelling_word(Web::PageId page_id, Utf16String word) =|
+    forget_accepted_spelling_words(Web::PageId page_id) =|
+    did_complete_spelling_menu_action_for_testing(Web::PageId page_id, String menu) =|
 
     toggle_media_play_state(Web::PageId page_id) =|
     toggle_media_mute_state(Web::PageId page_id) =|

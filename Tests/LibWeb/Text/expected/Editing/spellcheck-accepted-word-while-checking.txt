@@ -1,0 +1,6 @@
+area flagged: 4-8
+menu on wrod: word | rod | wrong | wood | ford | Ignore Spelling | Learn Spelling
+area flagged after ignore: (none)
+editable flagged: 6-15
+menu on lernagain: No Guesses Found | Ignore Spelling | Learn Spelling
+editable flagged after learn: (none)

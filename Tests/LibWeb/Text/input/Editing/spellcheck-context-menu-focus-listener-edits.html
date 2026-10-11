@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 20px/30px monospace; }
+    textarea { display: block; font: inherit; width: 600px; height: 30px; padding: 0; border: 0; resize: none; }
+    div { height: 30px; }
+</style>
+<textarea id="area">one txet two</textarea>
+<div id="editable" contenteditable>one speling two</div>
+<textarea id="away">one wrod two</textarea>
+<textarea id="other"></textarea>
+<span id="probe">xxxxxxxxxx</span>
+<script>
+    promiseTest(async () => {
+        const probe = document.getElementById("probe");
+        const characterWidth = probe.getBoundingClientRect().width / 10;
+        probe.remove();
+        const clickAt = (x, y, button = 0) => {
+            internals.mouseDown(x, y, 1, button);
+            internals.mouseUp(x, y, button);
+        };
+        const pointIn = (element, index) => {
+            const rect = element.getBoundingClientRect();
+            return [rect.left + (index + 0.5) * characterWidth, rect.top + 15];
+        };
+        const ranges = node => internals.spellingErrorRanges(node) || "(none)";
+
+        const area = document.getElementById("area");
+        const editable = document.getElementById("editable");
+        const away = document.getElementById("away");
+        const other = document.getElementById("other");
+        for (const element of [area, editable, away]) {
+            clickAt(...pointIn(element, 0));
+            await internals.spellCheckSettled();
+        }
+        println(`area flagged: ${ranges(area)}`);
+        println(`editable flagged: ${ranges(editable.firstChild)}`);
+        println(`away flagged: ${ranges(away)}`);
+
+        // A focus listener that shortens the text leaves the misspelling's offsets past its end.
+        clickAt(...pointIn(other, 0));
+        area.addEventListener("focus", () => { area.value = "x"; }, { once: true });
+        clickAt(...pointIn(area, 5), 2);
+        println(`menu after a focus listener shortened the text: ${await internals.activateSpellingMenuItem("none")}`);
+        println(`value: ${area.value}`);
+
+        // A focus listener that inserts text before the misspelling moves it away from the offsets the click found.
+        clickAt(...pointIn(other, 0));
+        editable.addEventListener("focus", () => { editable.firstChild.insertData(0, "zz"); }, { once: true });
+        clickAt(...pointIn(editable, 6), 2);
+        println(`editable flagged after the insert: ${ranges(editable.firstChild)}`);
+        println(`menu after a focus listener moved the misspelling: ${await internals.activateSpellingMenuItem("none")}`);
+        println(`text: ${editable.textContent}`);
+
+        // A focus listener that moves focus elsewhere leaves no field for a guess to replace the misspelling in.
+        clickAt(...pointIn(other, 0));
+        away.addEventListener("focus", () => { other.focus(); }, { once: true });
+        clickAt(...pointIn(away, 5), 2);
+        println(`menu after a focus listener moved focus away: ${await internals.activateSpellingMenuItem("none")}`);
+        println(`focused: ${document.activeElement.id}`);
+    });
+</script>

@@ -19,6 +19,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/Editing/SpellCheckController.h>
+#include <LibWeb/Editing/SpellingMarkers.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -134,6 +135,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_pending_clipboard_requests);
     visitor.visit(m_pending_spell_check_requests);
     visitor.visit(m_spell_checking_settled_callbacks);
+    visitor.visit(m_on_spelling_menu_action_for_testing);
     visitor.visit(m_emulated_position_data);
     visitor.visit(m_emulated_position_data_observers);
     visitor.visit(m_offscreen_canvases_pending_placeholder_commit);
@@ -1290,6 +1292,58 @@ static bool spell_checking_is_settled(Page& page)
         }
     }
     return true;
+}
+
+void Page::replace_context_menu_misspelling(Utf16String const& replacement)
+{
+    // A menu takes one action, so the misspelling it was opened on is used up here.
+    if (!m_context_menu_misspelling.has_value())
+        return;
+    auto misspelling = m_context_menu_misspelling.release_value();
+    auto text = misspelling.text.ptr();
+    if (!text)
+        return;
+    // The text may have changed while the menu was open; replace only the word the menu was for.
+    auto data = text->data().utf16_view();
+    if (misspelling.end > data.length_in_code_units()
+        || data.substring_view(misspelling.start, misspelling.end - misspelling.start) != misspelling.word.utf16_view())
+        return;
+    auto& document = text->document();
+    auto* navigable = as_if<HTML::LocalNavigable>(document.navigable().ptr());
+    auto* target = document.active_input_events_target(text.ptr());
+    if (!navigable || !target)
+        return;
+    target->set_selection_anchor(*text, misspelling.start);
+    target->set_selection_focus(*text, misspelling.end);
+    (void)navigable->event_handler().insert_replacement_text(replacement);
+}
+
+// The user told the spellchecker to ignore or learn a word. Its markers come off, and no answer marks it again, including
+// the answers to checks that ran before the spellchecker knew.
+void Page::accept_spelling_word(Utf16String const& word)
+{
+    m_accepted_spelling_words.set(word);
+    for (auto const& navigable : hosted_navigables()) {
+        if (auto document = navigable->active_document(); document && document->has_spelling_markers())
+            document->spelling_markers().remove_markers_for_word(word);
+    }
+}
+
+bool Page::is_accepted_spelling_word(Utf16View word) const
+{
+    return m_accepted_spelling_words.contains(Utf16String::from_utf16(word));
+}
+
+void Page::request_spelling_menu_action_for_testing(SpellingMenuActionForTesting action, u32 guess_index, GC::Ref<GC::Function<void(String)>> on_complete)
+{
+    m_on_spelling_menu_action_for_testing = on_complete;
+    client().page_did_request_spelling_menu_action_for_testing(action, guess_index);
+}
+
+void Page::did_complete_spelling_menu_action_for_testing(String menu)
+{
+    if (auto callback = exchange(m_on_spelling_menu_action_for_testing, nullptr))
+        callback->function()(move(menu));
 }
 
 void Page::when_spell_checking_settled(GC::Ref<GC::Function<void()>> callback)

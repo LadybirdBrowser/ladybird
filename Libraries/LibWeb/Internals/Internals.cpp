@@ -2641,6 +2641,30 @@ GC::Ref<WebIDL::Promise> Internals::spell_check_settled()
     return promise;
 }
 
+GC::Ref<WebIDL::Promise> Internals::activate_spelling_menu_item(Bindings::SpellingMenuItem item, WebIDL::UnsignedLong guess_index)
+{
+    auto& realm = window().principal_realm();
+    auto promise = WebIDL::create_promise_for(window());
+    auto action = [&] {
+        switch (item) {
+        case Bindings::SpellingMenuItem::None:
+            return SpellingMenuActionForTesting::None;
+        case Bindings::SpellingMenuItem::Guess:
+            return SpellingMenuActionForTesting::Guess;
+        case Bindings::SpellingMenuItem::Ignore:
+            return SpellingMenuActionForTesting::IgnoreSpelling;
+        case Bindings::SpellingMenuItem::Learn:
+            return SpellingMenuActionForTesting::LearnSpelling;
+        }
+        VERIFY_NOT_REACHED();
+    }();
+    page().request_spelling_menu_action_for_testing(action, guess_index, GC::create_function(heap(), [&realm, promise](String menu) {
+        HTML::TemporaryExecutionContext execution_context { realm };
+        WebIDL::resolve_promise(realm, promise, JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(menu)));
+    }));
+    return promise;
+}
+
 GC::Ptr<JS::Object> Internals::hit_test_result(double x, double y)
 {
     auto& realm = HTML::relevant_realm(window());

@@ -529,7 +529,8 @@ public:
     Menu& bookmark_context_menu() { return *m_bookmark_context_menu; }
     Menu& bookmark_folder_context_menu() { return *m_bookmark_folder_context_menu; }
 
-    void did_request_page_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target);
+    void did_request_page_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target, Optional<Utf16String> misspelled_word);
+    void activate_spelling_menu_action_for_testing(Badge<WebContentPage>, WebContentPage& requesting_page, Web::SpellingMenuActionForTesting, u32 guess_index);
 
     void did_request_spell_check(Badge<WebContentPage>, WebContentPage& requesting_page, u64 request_id, Utf16String text);
     void reset_spell_checking();
@@ -893,6 +894,20 @@ protected:
     RefPtr<WebContentPage> m_file_picker_page;
     RefPtr<WebContentPage> m_select_dropdown_page;
     RefPtr<WebContentPage> m_media_context_menu_page;
+
+    static constexpr size_t MAX_SPELLING_GUESSES = 5;
+    void update_spelling_menu_actions(Optional<Utf16String> misspelled_word);
+    void ignore_context_menu_misspelling();
+    void learn_context_menu_misspelling();
+    String describe_spelling_menu_for_testing() const;
+
+    Vector<NonnullRefPtr<Action>> m_spelling_guess_actions;
+    RefPtr<Action> m_no_spelling_guesses_action;
+    RefPtr<Action> m_ignore_spelling_action;
+    RefPtr<Action> m_learn_spelling_action;
+    Optional<Utf16String> m_context_menu_misspelled_word;
+    Vector<Utf16String> m_spelling_guesses;
+    RefPtr<WebContentPage> m_spelling_context_menu_page;
 
     HashMap<GeolocationRequestKey, Core::GeolocationProvider::RequestId> m_geolocation_position_request_ids;
     HashMap<GeolocationRequestKey, Core::GeolocationProvider::WatchId> m_geolocation_watch_ids;

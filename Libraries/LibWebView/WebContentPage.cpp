@@ -2310,10 +2310,20 @@ void WebContentPage::did_change_title(Utf16String title)
     }
 }
 
-void WebContentPage::did_request_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target)
+void WebContentPage::did_request_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target, Optional<Utf16String> misspelled_word)
 {
     if (auto target = view_position(local_root_id, content_position); target.has_value())
-        target->view.did_request_page_context_menu({}, target->position, for_input_events_target);
+        target->view.did_request_page_context_menu({}, *this, target->position, for_input_events_target, move(misspelled_word));
+}
+
+void WebContentPage::did_request_spelling_menu_action_for_testing(Web::SpellingMenuActionForTesting action, u32 guess_index)
+{
+    // NB: This activates the tab's own menu actions, so only automation may ask for it.
+    if (!WebContentClient::renderers_may_synthesize_input()) {
+        client().did_misbehave("did_request_spelling_menu_action_for_testing"sv, "not driven by WebDriver or a test"sv);
+        return;
+    }
+    view().activate_spelling_menu_action_for_testing({}, *this, action, guess_index);
 }
 
 void WebContentPage::did_request_link_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString, unsigned)

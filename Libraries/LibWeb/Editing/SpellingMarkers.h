@@ -9,6 +9,7 @@
 #include <AK/Noncopyable.h>
 #include <AK/Optional.h>
 #include <AK/Span.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibGC/Weak.h>
@@ -29,6 +30,14 @@ struct SpellingMarker {
     SpellingMarkerType type { SpellingMarkerType::Spelling };
 
     bool operator==(SpellingMarker const&) const = default;
+};
+
+// The misspelling a right-click landed on, which the context menu's guesses replace.
+struct ContextMenuMisspelling {
+    GC::Weak<DOM::Text> text;
+    size_t start { 0 };
+    size_t end { 0 };
+    Utf16String word;
 };
 
 // The spelling markers of a document's text nodes. Script never reaches them:

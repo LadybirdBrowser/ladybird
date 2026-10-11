@@ -49,6 +49,7 @@ interface Internals {
     DOMString spellingErrorRanges(Node node);
     Promise<DOMString> checkSpellingForTesting(DOMString text);
     Promise<undefined> spellCheckSettled();
+    Promise<DOMString> activateSpellingMenuItem(SpellingMenuItem item, optional unsigned long guessIndex = 0);
 
     const unsigned short MOD_NONE = 0;
     const unsigned short MOD_ALT = 1;
@@ -368,4 +369,5 @@ interface Internals {
 
 };
 
+enum SpellingMenuItem { "none", "guess", "ignore", "learn" };
 enum ScrollGesturePhase { "none", "ongoing", "momentum", "ended" };

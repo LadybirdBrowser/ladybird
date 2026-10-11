@@ -483,6 +483,16 @@ bool SpellCheckController::overlaps_exempt_word(DOM::Text const& text, size_t st
 
 void SpellCheckController::apply(Request const& request, Vector<SpellingError> const& errors)
 {
+    // NB: An answer can come back after the user told the spellchecker to ignore or learn one of its words, since the
+    //     check ran before that. So, no answer marks a word the user accepted.
+    auto request_text = request.text.utf16_view();
+    Vector<SpellingError> misspellings;
+    for (auto const& error : errors) {
+        bool in_range = size_t { error.offset } + error.length <= request_text.length_in_code_units();
+        if (!in_range || !m_document->page().is_accepted_spelling_word(request_text.substring_view(error.offset, error.length)))
+            misspellings.append(error);
+    }
+
     auto& markers = m_document->spelling_markers();
     for (auto const& piece : request.pieces) {
         auto text = piece.text.ptr();
@@ -497,7 +507,7 @@ void SpellCheckController::apply(Request const& request, Vector<SpellingError> c
             continue;
         markers.remove_overlapping(*text, piece.node_start, piece.node_end);
         auto piece_length = piece.node_end - piece.node_start;
-        for (auto const& error : errors) {
+        for (auto const& error : misspellings) {
             auto error_start = max<size_t>(error.offset, piece.offset);
             auto error_end = min<size_t>(error.offset + error.length, piece.offset + piece_length);
             if (error_start >= error_end)

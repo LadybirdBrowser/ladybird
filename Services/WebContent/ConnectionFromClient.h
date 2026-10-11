@@ -272,6 +272,10 @@ private:
 
     virtual void retrieved_clipboard_entries(Web::PageId page_id, u64 request_id, Vector<Web::Clipboard::SystemClipboardItem>) override;
     virtual void did_check_spelling(Web::PageId page_id, u64 request_id, Vector<Web::SpellingError> errors) override;
+    virtual void replace_context_menu_misspelling(Web::PageId page_id, Utf16String replacement) override;
+    virtual void accept_spelling_word(Web::PageId page_id, Utf16String word) override;
+    virtual void forget_accepted_spelling_words(Web::PageId page_id) override;
+    virtual void did_complete_spelling_menu_action_for_testing(Web::PageId page_id, String menu) override;
 
     virtual void toggle_media_play_state(Web::PageId page_id) override;
     virtual void toggle_media_mute_state(Web::PageId page_id) override;
