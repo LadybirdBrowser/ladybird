@@ -5,4 +5,4 @@ section.shadow-target: .shadow-guard ~ .shadow-target .shadow-target:nth-of-type
 
 cold node evaluations: 25
 candidate checks: 78
-rule matches emitted: 117
+rule matches emitted: 118

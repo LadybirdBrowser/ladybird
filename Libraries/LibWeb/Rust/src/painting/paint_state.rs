@@ -7,7 +7,9 @@
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_read::GeometryRead;
 use crate::painting::record::paint::text::SelectionStyleAnswer;
-use crate::painting::selection::{HighlightPseudoElement, SearchTextHighlights, SelectionRange};
+use crate::painting::selection::{
+    HighlightPseudoElement, SearchTextHighlights, SelectionRange, SpellingErrorHighlights,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -42,6 +44,10 @@ pub struct PaintState {
     pub(crate) search_text_pseudo_styles: Arc<SelectionPseudoStyles>,
     /// The `::search-text:current` styles, shared as the `::selection` styles are.
     pub(crate) search_text_current_pseudo_styles: Arc<SelectionPseudoStyles>,
+    /// The misspelled runs, shared with the frames published while they hold.
+    pub(crate) spelling_errors: Arc<SpellingErrorHighlights>,
+    /// The `::spelling-error` styles, shared as the `::selection` styles are.
+    pub(crate) spelling_error_pseudo_styles: Arc<SelectionPseudoStyles>,
 }
 
 /// Each row's committed style for one highlight pseudo-element.
@@ -56,6 +62,7 @@ impl PaintState {
             HighlightPseudoElement::Selection => &mut self.selection_pseudo_styles,
             HighlightPseudoElement::SearchText => &mut self.search_text_pseudo_styles,
             HighlightPseudoElement::SearchTextCurrent => &mut self.search_text_current_pseudo_styles,
+            HighlightPseudoElement::SpellingError => &mut self.spelling_error_pseudo_styles,
         }
     }
 

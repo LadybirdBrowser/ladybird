@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/spelling-error-removed-on-edit-ref.html">
+<style>
+p {
+    font: 20px/1.5 sans-serif;
+}
+</style>
+<p id="p">one txet two</p>
+<script>
+const text = document.getElementById("p").firstChild;
+internals.addSpellingErrorForTesting(text, 4, 8);
+requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+        text.insertData(6, "x");
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => document.documentElement.classList.remove("reftest-wait"));
+        });
+    });
+});
+</script>

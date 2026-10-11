@@ -27,7 +27,9 @@ use crate::painting::paintable_data::{CommittedSideData, PaintableData};
 use crate::painting::paintable_rows::{CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK};
 use crate::painting::record::damage::FrameDamage;
 use crate::painting::replaced_paint_facts::ReplacedPaintFactsTable;
-use crate::painting::selection::{HighlightPseudoElement, SearchTextHighlights, SelectionRange};
+use crate::painting::selection::{
+    HighlightPseudoElement, SearchTextHighlights, SelectionRange, SpellingErrorHighlights,
+};
 use crate::painting::stacking_context::entries::StackingContextEntries;
 use crate::painting::svg_paint_resources::SvgPaintResourceRows;
 use crate::painting::visual_context::VisualContextTree;
@@ -151,6 +153,8 @@ pub(crate) struct PublishedPaintState {
     pub(crate) search_text: Arc<SearchTextHighlights>,
     pub(crate) search_text_pseudo_styles: Arc<SelectionPseudoStyles>,
     pub(crate) search_text_current_pseudo_styles: Arc<SelectionPseudoStyles>,
+    pub(crate) spelling_errors: Arc<SpellingErrorHighlights>,
+    pub(crate) spelling_error_pseudo_styles: Arc<SelectionPseudoStyles>,
     pub(crate) hit_test_list_generation: u64,
     /// How many items the document's hit-test list held, which the recording's list reserves.
     pub(crate) hit_test_item_capacity_hint: usize,
@@ -162,6 +166,7 @@ impl PublishedPaintState {
             HighlightPseudoElement::Selection => &self.selection_pseudo_styles,
             HighlightPseudoElement::SearchText => &self.search_text_pseudo_styles,
             HighlightPseudoElement::SearchTextCurrent => &self.search_text_current_pseudo_styles,
+            HighlightPseudoElement::SpellingError => &self.spelling_error_pseudo_styles,
         }
     }
 
@@ -178,6 +183,8 @@ impl PublishedPaintState {
             search_text: paint_state.search_text.clone(),
             search_text_pseudo_styles: paint_state.search_text_pseudo_styles.clone(),
             search_text_current_pseudo_styles: paint_state.search_text_current_pseudo_styles.clone(),
+            spelling_errors: paint_state.spelling_errors.clone(),
+            spelling_error_pseudo_styles: paint_state.spelling_error_pseudo_styles.clone(),
             hit_test_list_generation: paint_state.hit_test_list_generation,
             hit_test_item_capacity_hint,
         }

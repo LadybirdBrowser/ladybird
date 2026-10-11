@@ -20,6 +20,8 @@
 #include <LibWeb/DOM/PseudoElement.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/DOM/Text.h>
+#include <LibWeb/Editing/SpellingMarkers.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
@@ -962,7 +964,14 @@ namespace Web::DOM {
 Document::HighlightStyleObservability& Document::highlight_style_observability(CSS::PseudoElement pseudo_element)
 {
     VERIFY(CSS::is_highlight_pseudo_element(pseudo_element));
-    return m_highlight_style_observability[pseudo_element == CSS::PseudoElement::Selection ? 0 : 1];
+    switch (pseudo_element) {
+    case CSS::PseudoElement::Selection:
+        return m_highlight_style_observability[0];
+    case CSS::PseudoElement::SpellingError:
+        return m_highlight_style_observability[2];
+    default:
+        return m_highlight_style_observability[1];
+    }
 }
 
 bool Document::highlight_styles_are_observable(CSS::PseudoElement pseudo_element) const
@@ -1029,6 +1038,28 @@ static Vector<HighlightStyleInput, 2> search_text_style_inputs(Document& documen
     return inputs;
 }
 
+static Vector<HighlightStyleInput, 2> spelling_error_style_inputs(Document& document)
+{
+    Vector<HighlightStyleInput, 2> inputs;
+    if (!document.has_spelling_markers())
+        return inputs;
+    HashTable<Node*> roots;
+    document.spelling_markers().for_each_marked_text([&](Text& text, auto) {
+        auto* parent = text.parent();
+        if (parent && roots.set(parent) == HashSetResult::InsertedNewEntry)
+            inputs.append({ *parent, nullptr });
+    });
+    // A root inside another root's subtree adds nothing, since the outer root's walk visits all of it.
+    inputs.remove_all_matching([&](auto const& input) {
+        for (auto* ancestor = input.root->parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+            if (roots.contains(ancestor))
+                return true;
+        }
+        return false;
+    });
+    return inputs;
+}
+
 void Document::update_highlight_style_observability(CSS::PseudoElement pseudo_element)
 {
     // NB: Editing commands temporarily select content to restore its formatting. Style reads
@@ -1038,7 +1069,16 @@ void Document::update_highlight_style_observability(CSS::PseudoElement pseudo_el
     if (pseudo_element == CSS::PseudoElement::Selection && m_running_editing_command_action)
         return;
 
-    auto inputs = pseudo_element == CSS::PseudoElement::Selection ? selection_style_inputs(*this) : search_text_style_inputs(*this);
+    auto inputs = [&] {
+        switch (pseudo_element) {
+        case CSS::PseudoElement::Selection:
+            return selection_style_inputs(*this);
+        case CSS::PseudoElement::SpellingError:
+            return spelling_error_style_inputs(*this);
+        default:
+            return search_text_style_inputs(*this);
+        }
+    }();
     auto& state = highlight_style_observability(pseudo_element);
     bool observable = !inputs.is_empty();
     if (observable == state.observable && !state.needs_update)
@@ -1055,6 +1095,7 @@ void Document::update_highlight_style_observability()
 {
     update_highlight_style_observability(CSS::PseudoElement::Selection);
     update_highlight_style_observability(CSS::PseudoElement::SearchText);
+    update_highlight_style_observability(CSS::PseudoElement::SpellingError);
 }
 
 void Document::drain_style_transaction_that_flew(Layout::BegunRead const& read)

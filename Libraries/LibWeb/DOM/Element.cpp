@@ -1504,7 +1504,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             && !(m_rendered_in_top_layer && may_have_style(CSS::PseudoElement::Backdrop))
             && !highlight_may_have_style(CSS::PseudoElement::Selection)
             && !highlight_may_have_style(CSS::PseudoElement::SearchText)
-            && !highlight_may_have_style(CSS::PseudoElement::SearchTextCurrent))
+            && !highlight_may_have_style(CSS::PseudoElement::SearchTextCurrent)
+            && !highlight_may_have_style(CSS::PseudoElement::SpellingError))
             return false;
         auto settled = CSS::StyleEngineFFI::style_engine_settle_pseudo_records_after_host_record(style_computer.style_engine().host(), &read, style_node_id().value(), had_list_marker);
         // What the settled pseudo-elements' container-relative lengths read of the element's containers.
@@ -1652,6 +1653,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     recompute_pseudo_element_style(CSS::PseudoElement::Selection);
     recompute_pseudo_element_style(CSS::PseudoElement::SearchText);
     recompute_pseudo_element_style(CSS::PseudoElement::SearchTextCurrent);
+    recompute_pseudo_element_style(CSS::PseudoElement::SpellingError);
     // An element that left the top layer drops the ::backdrop it held.
     if (m_rendered_in_top_layer || !!style_record_identity(CSS::PseudoElement::Backdrop))
         recompute_pseudo_element_style(CSS::PseudoElement::Backdrop);

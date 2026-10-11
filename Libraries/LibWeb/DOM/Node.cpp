@@ -508,6 +508,7 @@ void Node::bump_dom_tree_version()
     // NB: Inserted or moved content can enter a selection without moving its boundary points.
     document().set_needs_highlight_style_update(CSS::PseudoElement::Selection);
     document().set_needs_highlight_style_update(CSS::PseudoElement::SearchText);
+    document().set_needs_highlight_style_update(CSS::PseudoElement::SpellingError);
     if (auto* holder = tree_version_holder(*this))
         holder->m_dom_tree_version = ++s_last_tree_version;
 }

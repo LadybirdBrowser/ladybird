@@ -56,6 +56,8 @@ pub(crate) struct HostTables {
     pub(crate) update_layout_running: Cell<bool>,
     /// Whether the host gave the rows search text highlights that it has not cleared since.
     pub(crate) shows_search_text: Cell<bool>,
+    /// Whether the host gave the rows spelling-error highlights that it has not cleared since.
+    pub(crate) shows_spelling_errors: Cell<bool>,
     /// The rows the host gave layer image paint facts, which the arena drops with the row.
     pub(crate) rows_with_layer_image_paint_facts: RefCell<HashSet<NodeSlotId>>,
     /// The image resources the tree builds of the rounds the host was paid for owe the rows they stamped, which the

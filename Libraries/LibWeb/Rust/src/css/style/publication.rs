@@ -4912,8 +4912,9 @@ pub(super) mod pseudo_kind {
     pub(in crate::css::style) const SEARCH_TEXT: u8 = 6;
     pub(in crate::css::style) const SEARCH_TEXT_CURRENT: u8 = 7;
     pub(in crate::css::style) const SELECTION: u8 = 8;
-    pub(in crate::css::style) const VIEW_TRANSITION: u8 = 9;
-    pub(in crate::css::style) const SYNTHETIC_COUNT: usize = 10;
+    pub(in crate::css::style) const SPELLING_ERROR: u8 = 9;
+    pub(in crate::css::style) const VIEW_TRANSITION: u8 = 10;
+    pub(in crate::css::style) const SYNTHETIC_COUNT: usize = 11;
     /// Every kind, in the order a settlement goes through them: first the ones a style update
     /// settles, then the ones only a read asks for.
     pub(in crate::css::style) const SETTLEMENT_ORDER: [u8; SYNTHETIC_COUNT] = [
@@ -4923,6 +4924,7 @@ pub(super) mod pseudo_kind {
         SELECTION,
         SEARCH_TEXT,
         SEARCH_TEXT_CURRENT,
+        SPELLING_ERROR,
         BACKDROP,
         MARKER,
         FIRST_LINE,
@@ -4935,7 +4937,7 @@ pub(super) mod pseudo_kind {
 
     /// https://drafts.csswg.org/css-pseudo-4/#highlight-pseudos
     pub(in crate::css::style) const fn is_highlight(kind: u8) -> bool {
-        matches!(kind, SEARCH_TEXT | SEARCH_TEXT_CURRENT | SELECTION)
+        matches!(kind, SEARCH_TEXT | SEARCH_TEXT_CURRENT | SELECTION | SPELLING_ERROR)
     }
 }
 
