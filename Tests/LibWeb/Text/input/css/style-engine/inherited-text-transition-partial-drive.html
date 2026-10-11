@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #host { color: rgb(0, 0, 0); font-size: 10px; transition: color 1000s linear; }
+    #host.changed { color: rgb(100, 100, 100); }
+    .child { transition: opacity 1000s linear; border: 1px solid currentcolor; background-color: currentcolor; }
+    .child::before { content: "pseudo"; }
+    #own { color: blue; }
+    #explicit { color: inherit; text-shadow: 1px 2px currentcolor; }
+    #font { margin-left: 2em; }
+</style>
+<div id="host"><span class="child" id="plain">plain</span><span class="child" id="own">own</span><span class="child" id="explicit">explicit</span><span class="child" id="font">font</span><span class="child" id="shadow"></span></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const plain = document.getElementById("plain");
+        const own = document.getElementById("own");
+        const explicit = document.getElementById("explicit");
+        const font = document.getElementById("font");
+        const shadow = document.getElementById("shadow").attachShadow({ mode: "open" });
+        shadow.innerHTML = '<style>span { transition: opacity 1000s linear; border: 1px solid currentcolor; }</style><span>shadow</span>';
+        internals.updateStyle();
+        host.classList.add("changed");
+        internals.updateStyle();
+        const animation = host.getAnimations()[0];
+        animation.pause();
+        animation.currentTime = 500000;
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+        animation.currentTime = 750000;
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+        println(`inherited text changes take partial drives: ${after.enginePartialDrivesStarted > before.enginePartialDrivesStarted}`);
+        println(`inherited color: ${getComputedStyle(plain).color}`);
+        println(`currentcolor border: ${getComputedStyle(plain).borderTopColor}`);
+        println(`currentcolor background: ${getComputedStyle(plain).backgroundColor}`);
+        println(`pseudo inherits sample: ${getComputedStyle(plain, "::before").color}`);
+        println(`own color retained: ${getComputedStyle(own).color}`);
+        println(`own currentcolor retained: ${getComputedStyle(own).backgroundColor}`);
+        println(`explicit inheritance: ${getComputedStyle(explicit).color}`);
+        println(`currentcolor shadow: ${getComputedStyle(explicit).textShadow}`);
+        println(`shadow descendant: ${getComputedStyle(shadow.lastElementChild).color}`);
+        println(`shadow currentcolor: ${getComputedStyle(shadow.lastElementChild).borderTopColor}`);
+        println(`descendants do not start color transitions: ${host.getAnimations({ subtree: true }).length === 1}`);
+        host.style.textAlign = "center";
+        host.style.textTransform = "uppercase";
+        host.style.whiteSpace = "pre";
+        internals.updateStyle();
+        println(`text-align driver input changes: ${getComputedStyle(plain).textAlign}`);
+        println(`text transform inherits: ${getComputedStyle(plain).textTransform}`);
+        println(`white-space inherits: ${getComputedStyle(plain).whiteSpace}`);
+        println(`text changes preserve sampled color: ${getComputedStyle(plain).color}`);
+        host.style.fontSize = "20px";
+        internals.updateStyle();
+        println(`font change updates em: ${getComputedStyle(font).marginLeft}`);
+        println(`font change preserves color sample: ${getComputedStyle(plain).color}`);
+        animation.cancel();
+        internals.updateStyle();
+        println(`cancellation restores underlying inheritance: ${getComputedStyle(plain).color}`);
+        const effect = host.animate({ color: ["rgb(0, 0, 0)", "rgb(100, 100, 100)"] }, 1000000);
+        effect.pause();
+        effect.currentTime = 250000;
+        internals.updateStyle();
+        println(`inherited Web Animation color: ${getComputedStyle(plain).color}`);
+        effect.currentTime = 500000;
+        internals.updateStyle();
+        println(`resampled Web Animation color: ${getComputedStyle(plain).color}`);
+        println(`Web Animation currentcolor: ${getComputedStyle(plain).borderTopColor}`);
+
+        function checkSiblings(transitionProperty) {
+            const isolated = document.createElement("div");
+            isolated.style.cssText = "color: rgb(0, 0, 0); transition: color 1000s linear";
+            for (let index = 0; index < 40; ++index) {
+                const child = document.createElement("span");
+                child.style.transition = `${transitionProperty} 1000s linear`;
+                child.textContent = "item";
+                isolated.append(child);
+            }
+            document.body.append(isolated);
+            internals.updateStyle();
+            isolated.style.color = "rgb(100, 100, 100)";
+            internals.updateStyle();
+            const isolatedAnimation = isolated.getAnimations()[0];
+            isolatedAnimation.pause();
+            isolatedAnimation.currentTime = 500000;
+            for (const child of isolated.children)
+                getComputedStyle(child).color;
+            const animations = isolated.getAnimations({ subtree: true });
+            for (const animation of animations) {
+                animation.pause();
+                animation.currentTime = 500000;
+            }
+            internals.updateStyle();
+            const isolatedBefore = internals.styleEngineCounters();
+            isolatedAnimation.currentTime = 750000;
+            internals.updateStyle();
+            const isolatedAfter = internals.styleEngineCounters();
+            println(`${transitionProperty} siblings avoid full drives: ${isolatedAfter.engineFullDrivesStarted === isolatedBefore.engineFullDrivesStarted}`);
+            println(`${transitionProperty} siblings share partial drive: ${isolatedAfter.enginePartialDrivesStarted - isolatedBefore.enginePartialDrivesStarted === 1}`);
+            println(`${transitionProperty} sibling color: ${getComputedStyle(isolated.lastElementChild).color}`);
+            println(`${transitionProperty} transition objects retained: ${isolated.getAnimations({ subtree: true }).every(animation => animations.includes(animation))}`);
+        }
+        checkSiblings("opacity");
+        checkSiblings("color");
+    });
+</script>

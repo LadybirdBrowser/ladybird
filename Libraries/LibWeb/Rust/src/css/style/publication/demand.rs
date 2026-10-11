@@ -384,6 +384,7 @@ impl StyleEngine {
         let complete = self.publish_demanded_answer(node, answer, read_only);
         let parent_inputs_moved = ParentInputsMoved {
             inherited_style: targeted,
+            inherited_style_groups: 0,
             display: targeted,
         };
         let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
