@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        function report(label) {
+            println(`${label}: devicePixelRatio=${devicePixelRatio} screen=${screen.width}x${screen.height} avail=${screen.availWidth}x${screen.availHeight}`);
+            const width = screen.width;
+            const height = screen.height;
+            println(`  (device-width: ${width}px) matches: ${matchMedia(`(device-width: ${width}px)`).matches}`);
+            println(`  (device-height: ${height}px) matches: ${matchMedia(`(device-height: ${height}px)`).matches}`);
+        }
+
+        report("1x");
+        internals.setDevicePixelRatio(2);
+        report("2x");
+        internals.setDevicePixelRatio(1);
+        report("back to 1x");
+    });
+</script>
