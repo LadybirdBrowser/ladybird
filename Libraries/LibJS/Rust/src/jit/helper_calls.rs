@@ -6,12 +6,14 @@
 
 //! The runtime helpers of the builtins JIT code calls without a native frame (`libjs_jit::snapshot::HelperCall`).
 //! Each takes the VM, the `this` value and the arguments of the kinds its `HelperCall` lists (strings as values, int32
-//! values as `i32`), runs no code, and returns what its `HelperResult` says, in 64 bits.
+//! values as `i32`), runs no code, and returns what its `HelperResult` says, in 64 bits: the empty value where it
+//! declines, having done nothing observable.
 
 use libjs_jit::snapshot::Intrinsic;
 
 use crate::interpreter::vm::Vm;
 use crate::layout::value::Value;
+use crate::runtime::regexp_prototype::regexp_builtin_exec_running_no_code;
 use crate::runtime::string_prototype::{StringPrototype, trim_primitive_string};
 use crate::utf16::TrimMode;
 
@@ -31,6 +33,7 @@ pub fn address(intrinsic: Intrinsic) -> u64 {
         Intrinsic::StringPrototypeTrim => string_trim as *const (),
         Intrinsic::StringPrototypeTrimStart => string_trim_start as *const (),
         Intrinsic::StringPrototypeTrimEnd => string_trim_end as *const (),
+        Intrinsic::RegExpPrototypeExec => regexp_exec as *const (),
         Intrinsic::FunctionPrototypeApply
         | Intrinsic::FunctionPrototypeCall
         | Intrinsic::ArrayPrototypePush
@@ -158,4 +161,13 @@ unsafe extern "C" fn string_trim_end(vm: *const Vm, string_value: u64) -> u64 {
     // SAFETY: JIT code passes its VM.
     let vm = unsafe { &*vm };
     trim_primitive_string(vm, string(string_value).as_string(), TrimMode::Right).0
+}
+
+/// `regexp.exec(string)`, for a RegExp object `regexp` whose exec runs no code (see
+/// `regexp_builtin_exec_running_no_code()`).
+unsafe extern "C" fn regexp_exec(vm: *const Vm, regexp: u64, string_value: u64) -> u64 {
+    // SAFETY: JIT code passes its VM.
+    let vm = unsafe { &*vm };
+    regexp_builtin_exec_running_no_code(vm, Value(regexp), string(string_value).as_string())
+        .map_or(Value::EMPTY.0, |result| result.0)
 }

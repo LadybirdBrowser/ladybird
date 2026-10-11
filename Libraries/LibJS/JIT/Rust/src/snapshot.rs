@@ -13,6 +13,8 @@
 
 use std::sync::Arc;
 
+use crate::ir::Locations;
+
 use crate::bytecode::EnvironmentCoordinate;
 use crate::bytecode::ExceptionHandler;
 use crate::bytecode::FrameLayout;
@@ -711,12 +713,16 @@ pub enum Intrinsic {
     StringPrototypeTrimStart,
     /// `String.prototype.trimEnd`.
     StringPrototypeTrimEnd,
+    /// `RegExp.prototype.exec`.
+    RegExpPrototypeExec,
 }
 
 /// A `this` value or argument of a builtin whose runtime helper JIT code
 /// calls (see `HelperCall`), which the code checks to be of its kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HelperOperand {
+    /// Any value, which the helper checks itself.
+    Value,
     /// A string, as a tagged value.
     String,
     /// An int32, as a `Repr::Int32`. Calls that pass no such argument pass
@@ -734,23 +740,30 @@ pub enum HelperResult {
     Bool,
     /// A tagged string.
     String,
+    /// A tagged value, or the empty value where the helper declined,
+    /// having done nothing observable: the slow path makes the call then.
+    Value,
 }
 
 /// How JIT code calls a builtin through its runtime helper, without a
 /// native frame, for operands of the kinds it checks: `u64 helper(VM*,
-/// receiver, arguments...)`, which runs no code and only allocates.
-/// Arguments past those listed are ignored, like the builtin ignores them.
+/// receiver, arguments...)`, which runs no code, reads and writes only the
+/// locations listed, may allocate, and runs in the realm of the calling
+/// code, so only calls of the builtin of that realm use it. Arguments past
+/// those listed are ignored, like the builtin ignores them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HelperCall {
     pub receiver: HelperOperand,
     pub arguments: &'static [HelperOperand],
     pub result: HelperResult,
+    pub reads: Locations,
+    pub writes: Locations,
 }
 
 impl HelperOperand {
     pub fn repr(self) -> crate::code::Repr {
         match self {
-            HelperOperand::String => crate::code::Repr::Tagged,
+            HelperOperand::Value | HelperOperand::String => crate::code::Repr::Tagged,
             HelperOperand::Int32 { .. } => crate::code::Repr::Int32,
         }
     }
@@ -761,7 +774,7 @@ impl HelperResult {
         match self {
             HelperResult::Int32 => crate::code::Repr::Int32,
             HelperResult::Bool => crate::code::Repr::Bool,
-            HelperResult::String => crate::code::Repr::Tagged,
+            HelperResult::String | HelperResult::Value => crate::code::Repr::Tagged,
         }
     }
 }
@@ -788,6 +801,8 @@ impl Intrinsic {
                 receiver: String,
                 arguments,
                 result,
+                reads: Locations::NONE,
+                writes: Locations::NONE,
             })
         };
         // NB: Positions and ends past the end of the string clamp to its
@@ -809,6 +824,14 @@ impl Intrinsic {
             | Intrinsic::StringPrototypeTrim
             | Intrinsic::StringPrototypeTrimStart
             | Intrinsic::StringPrototypeTrimEnd => call(&[], HelperResult::String),
+            // NB: RegExpBuiltinExec reads and writes lastIndex.
+            Intrinsic::RegExpPrototypeExec => Some(HelperCall {
+                receiver: HelperOperand::Value,
+                arguments: &[String],
+                result: HelperResult::Value,
+                reads: Locations::NAMED,
+                writes: Locations::NAMED_SLOTS,
+            }),
             _ => None,
         }
     }
@@ -951,6 +974,8 @@ pub struct RuntimeInfo {
     /// compiled code, if `%ArrayIteratorPrototype%` holds it. Code that
     /// embeds it must list it in `CompiledCode::embedded_cells`.
     pub array_iterator_next: Option<CellId>,
+    /// The realm of the compiled code.
+    pub realm: CellId,
     /// `%Array.prototype%` and `%Object.prototype%` of the realm of the
     /// compiled code. Code that embeds them must list them in
     /// `CompiledCode::embedded_cells`.

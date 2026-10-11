@@ -155,8 +155,10 @@ fn intrinsic_of(vm: &Vm, cell: Option<Gc<CellHeader>>) -> Option<Intrinsic> {
         return Some(Intrinsic::BooleanConstructor);
     }
     let function = cell_as::<RawNativeFunction>(cell)?;
-    if function.builtin() == Some(Builtin::StringFromCharCode) {
-        return Some(Intrinsic::StringFromCharCode);
+    match function.builtin() {
+        Some(Builtin::StringFromCharCode) => return Some(Intrinsic::StringFromCharCode),
+        Some(Builtin::RegExpPrototypeExec) => return Some(Intrinsic::RegExpPrototypeExec),
+        _ => {}
     }
     let address = function.native_function(vm)? as usize;
     NATIVE_INTRINSICS
