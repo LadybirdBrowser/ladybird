@@ -641,6 +641,8 @@ pub struct AccessorFunctionSnapshot {
     /// must still be checked before using it.
     pub cached_value_offset: Option<u32>,
     pub function: CellId,
+    /// Which intrinsic the function is, if it is one the compiler knows.
+    pub intrinsic: Option<Intrinsic>,
     /// The index in `Snapshot::executables` of the function's executable,
     /// if it is an inlining candidate.
     pub inline_executable: Option<u32>,
@@ -669,6 +671,8 @@ pub enum Intrinsic {
     ObjectConstructor,
     /// `Boolean`, the constructor, called as a function.
     BooleanConstructor,
+    /// The getter of `%TypedArray%.prototype.length`.
+    TypedArrayPrototypeLength,
 }
 
 /// The runtime helpers of intrinsics (the out of line probe of

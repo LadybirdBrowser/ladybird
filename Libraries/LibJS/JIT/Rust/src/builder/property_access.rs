@@ -39,10 +39,13 @@ use crate::code::Dependency;
 use crate::code::ExitKind;
 use crate::code::Repr;
 use crate::ir::AccessorPart;
+use crate::ir::BranchCondition;
+use crate::ir::Comparison;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::ShapeCheck;
 use crate::snapshot::CellId;
+use crate::snapshot::Intrinsic;
 
 /// A check that a key is the one a keyed access speculates on: `key` must
 /// be `expected`, the encoded key cell `cell`.
@@ -246,6 +249,66 @@ impl GraphBuilder<'_> {
         debug_assert!(getter.is_none(), "all entries have the same checked getter");
         let value = self.load_named(object, offset);
         self.write(dst, value)?;
+        Ok(true)
+    }
+
+    /// Builds `dst = base.length` for typed arrays, whose `length` the
+    /// instruction's cache entries all found to be the getter of
+    /// `%TypedArray%.prototype.length` on the same prototype: the length the
+    /// typed array caches, after checking the getter and that the object is
+    /// a typed array. Typed arrays without a cached length (empty, detached
+    /// or viewing a resizable buffer) take the instruction's slow path.
+    pub(super) fn try_build_typed_array_length(
+        &mut self,
+        dst: Operand,
+        base: Operand,
+        cache: u32,
+    ) -> Result<bool, CompileFailure> {
+        let Some(entries) = self.cache_entries(cache) else {
+            return Ok(false);
+        };
+        let first = entries[0];
+        let Some(getter) = first.accessor_function else {
+            return Ok(false);
+        };
+        let same_length_getter = getter.intrinsic == Some(Intrinsic::TypedArrayPrototypeLength)
+            && entries.iter().all(|entry| {
+                entry.holds_accessor
+                    && matches!(
+                        entry.action,
+                        Action::Get {
+                            holder: Holder::Prototype { .. },
+                            ..
+                        }
+                    )
+                    && entry.action == first.action
+                    && entry.accessor_function.map(|accessor| accessor.function) == Some(getter.function)
+            });
+        let gates = [
+            ExitKind::NotObject,
+            ExitKind::BadShape,
+            ExitKind::UnexpectedValue,
+            ExitKind::BadElements,
+        ];
+        if !same_length_getter || !gates.into_iter().all(|kind| self.may_speculate(kind)) {
+            return Ok(false);
+        }
+        let mut slow_paths = self.start_slow_paths(Some(Repr::Tagged))?;
+        let (object, checked_getter) = self.check_accessor_call(base, &entries, AccessorPart::Getter)?;
+        debug_assert!(checked_getter.is_none(), "all entries have the same checked getter");
+        let typed_array = self.emit_checked(Op::CheckTypedArray, vec![object], Some(Repr::Tagged));
+        let address = self.cell_address(typed_array);
+        let length = self.emit(Op::LoadTypedArrayLength, vec![address], Some(Repr::Int32));
+        let zero = self.int32_constant(0);
+        let length = self.branch_to_slow_path(
+            &mut slow_paths,
+            BranchCondition::Int32(Comparison::GreaterThan),
+            vec![length, zero],
+            true,
+        );
+        let length = self.emit(Op::BoxInt32, vec![length], Some(Repr::Tagged));
+        let result = self.join_slow_paths(slow_paths, Some(length));
+        self.write(dst, result.expect("GetLength has a value"))?;
         Ok(true)
     }
 

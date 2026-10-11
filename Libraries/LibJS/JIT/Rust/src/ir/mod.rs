@@ -343,7 +343,7 @@ impl Comparison {
 ///
 /// Refinements: a check that exits unless its input 0 passes it (`CheckObject`,
 /// `CheckShape`, `CheckValue`, `CheckClosure`, `CheckAccessorFunction`,
-/// `CheckElements`, `CheckIdentityComparable`, `CheckAppendableArray`,
+/// `CheckElements`, `CheckTypedArray`, `CheckIdentityComparable`, `CheckAppendableArray`,
 /// `CheckBounds`, `CheckNotHole`), and a
 /// `Refine` on the edge of a branch, has that input as its value, refined:
 /// known to pass. Nodes that rely on the check take the refined value as their
@@ -535,6 +535,9 @@ pub enum Op {
     CheckElements {
         kind: ElementsKind,
     },
+    /// Exits with `ExitKind::BadElements` unless input 0 is a typed array,
+    /// of any kind.
+    CheckTypedArray,
     /// The length of the typed array at the `Repr::Pointer` input 0, as a
     /// `Repr::Int32`, or 0 if its data is not cached (because its buffer is
     /// detached or resizable): how many elements `LoadElementAt` and
@@ -1126,7 +1129,8 @@ impl Op {
             // NB: The elements kind of a typed array never changes.
             Op::CheckElements {
                 kind: ElementsKind::TypedArray(_),
-            } => P::PURE,
+            }
+            | Op::CheckTypedArray => P::PURE,
             Op::CheckElements { .. } => P {
                 reads: Locations::ELEMENT_COUNTS,
                 ..P::PURE
@@ -1389,6 +1393,7 @@ impl Op {
             Op::Int32Compare { .. } => "Int32Compare",
             Op::TaggedEquals { .. } => "TaggedEquals",
             Op::CheckElements { .. } => "CheckElements",
+            Op::CheckTypedArray => "CheckTypedArray",
             Op::LoadTypedArrayLength => "LoadTypedArrayLength",
             Op::LoadTypedArrayDataOffset => "LoadTypedArrayDataOffset",
             Op::CheckTypedArrayStorage => "CheckTypedArrayStorage",
@@ -1482,6 +1487,7 @@ impl Op {
             | Op::CheckClosure { .. }
             | Op::CheckAccessorFunction { .. }
             | Op::CheckElements { .. }
+            | Op::CheckTypedArray
             | Op::CheckIdentityComparable
             | Op::CheckAppendableArray
             | Op::CheckBounds
@@ -1516,7 +1522,7 @@ impl Op {
         match self {
             Op::Exit { kind } => Some(*kind),
             Op::CheckObject => Some(ExitKind::NotObject),
-            Op::CheckElements { .. } => Some(ExitKind::BadElements),
+            Op::CheckElements { .. } | Op::CheckTypedArray => Some(ExitKind::BadElements),
             Op::CheckBounds | Op::CheckNotHole | Op::CheckTypedArrayStorage => Some(ExitKind::OutOfBounds),
             Op::CheckInt32 => Some(ExitKind::NotInt32),
             Op::CheckNumber | Op::CheckIdentityComparable | Op::HasInPrototypeChain => Some(ExitKind::BadType),
