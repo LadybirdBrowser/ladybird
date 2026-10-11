@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .target { display: inline; color: rgb(0, 0, 0); transition: color 1000s linear; }
+    .target.changed { color: rgb(100, 100, 100); }
+    .target.padded { padding-left: 2px; }
+</style>
+<script>
+    test(() => {
+        function mutate(label, target) {
+            const before = internals.styleEngineCounters();
+            target.classList.toggle("padded");
+            internals.updateStyle();
+            const after = internals.styleEngineCounters();
+            println(`${label} avoids full drives: ${after.engineFullDrivesStarted === before.engineFullDrivesStarted}`);
+            println(`${label} takes partial drive: ${after.enginePartialDrivesStarted > before.enginePartialDrivesStarted}`);
+            println(`${label} display: ${getComputedStyle(target).display}`);
+            println(`${label} padding: ${getComputedStyle(target).paddingLeft}`);
+        }
+        for (const display of ["block", "flex", "grid"]) {
+            const parent = document.createElement("div");
+            parent.style.display = display;
+            const child = document.createElement("span");
+            child.className = "target";
+            child.textContent = "item";
+            parent.append(child);
+            document.body.append(parent);
+            internals.updateStyle();
+            mutate(display, child);
+            child.classList.add("changed");
+            internals.updateStyle();
+            const animation = child.getAnimations()[0];
+            animation.pause();
+            animation.currentTime = 500000;
+            internals.updateStyle();
+            mutate(`${display} transitioning`, child);
+            println(`${display} paused sample: ${getComputedStyle(child).color}`);
+            println(`${display} transition retained: ${child.getAnimations()[0] === animation}`);
+            parent.remove();
+        }
+        for (const position of ["absolute", "fixed"]) {
+            const child = document.createElement("span");
+            child.className = "target";
+            child.style.position = position;
+            child.style.cssFloat = "left";
+            child.textContent = "positioned";
+            document.body.append(child);
+            internals.updateStyle();
+            mutate(position, child);
+            println(`${position} position retained: ${getComputedStyle(child).position}`);
+            println(`${position} computed float: ${getComputedStyle(child).cssFloat}`);
+            child.remove();
+        }
+        const floating = document.createElement("span");
+        floating.className = "target";
+        floating.style.cssFloat = "left";
+        floating.textContent = "float";
+        document.body.append(floating);
+        internals.updateStyle();
+        mutate("floating", floating);
+        println(`float retained: ${getComputedStyle(floating).cssFloat}`);
+        floating.remove();
+
+        for (const mode of ["named", "manual"]) {
+            const host = document.createElement("div");
+            document.body.append(host);
+            const shadow = host.attachShadow({ mode: "open", slotAssignment: mode });
+            shadow.innerHTML = `
+                <style>
+                    ::slotted(span) { display: inline; transition: color 1000s linear; }
+                    ::slotted(.padded) { padding-left: 2px; }
+                </style>
+                <div id="block"><slot></slot></div><div id="flex" style="display: flex"></div>`;
+            const child = document.createElement("span");
+            child.className = "target";
+            child.textContent = "assigned";
+            host.append(child);
+            const slot = shadow.querySelector("slot");
+            if (mode === "manual")
+                slot.assign(child);
+            internals.updateStyle();
+            mutate(`${mode} slot in block`, child);
+            shadow.getElementById("flex").append(slot);
+            child.classList.remove("padded");
+            internals.updateStyle();
+            println(`${mode} moved slot blockifies: ${getComputedStyle(child).display}`);
+            mutate(`${mode} slot in flex`, child);
+            shadow.getElementById("block").append(slot);
+            child.classList.remove("padded");
+            internals.updateStyle();
+            println(`${mode} moved slot restores inline: ${getComputedStyle(child).display}`);
+            child.style.cssFloat = "left";
+            slot.style.display = "flex";
+            internals.updateStyle();
+            mutate(`${mode} flex slot`, child);
+            println(`${mode} specified float retained in flex: ${getComputedStyle(child).cssFloat}`);
+            child.style.cssFloat = "none";
+            slot.style.display = "contents";
+            internals.updateStyle();
+            println(`${mode} contents slot restores inline: ${getComputedStyle(child).display}`);
+            host.remove();
+        }
+    });
+</script>

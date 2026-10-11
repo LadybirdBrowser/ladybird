@@ -2425,10 +2425,7 @@ impl StyleEngine {
                         .unwrap_or(publication::ParentInputsMoved {
                             inherited_style: reaction & transaction::STYLE_REACTION_INHERITED_STYLE != 0,
                             inherited_style_groups,
-                            // A slotted element's box-type parent moves with its slot's place in
-                            // the shadow tree, which no input of its own says.
-                            display: pass.inputs_moved.parent_display_moved(node)
-                                || self.retained.tree.assigned_slot_of(node).is_some(),
+                            display: pass.inputs_moved.parent_display_moved(node),
                         });
                 let full_drive_reason =
                     self.full_drive_reason(node, reaction, pass.named_rules_moved, &pass.inputs_moved);
