@@ -3123,6 +3123,25 @@ static void report_a_document_with_an_origin_of_its_own(LocalNavigable& navigabl
     navigable.page().client().page_did_create_populated_document_with_an_origin_of_its_own(navigable.id(), origin, output.document->relevant_settings_object().id);
 }
 
+static GC::Ref<DOM::Document> create_navigation_error_document(LocalNavigable& navigable, Optional<Utf16String> const& navigation_id, Bindings::NavigationTimingType navigation_timing_type, UserNavigationInvolvement user_involvement, URL::Origin const& origin, URL::URL const& url, Utf16String const& error_message)
+{
+    auto error_html = load_error_page(url, error_message.to_utf8()).release_value_but_fixme_should_propagate_errors();
+    return create_document_for_inline_content(&navigable, navigation_id, navigation_timing_type, user_involvement, origin, [error_html](auto& document) {
+        auto scripting_mode = document.is_scripting_enabled() ? HTML::ParserScriptingMode::Normal : HTML::ParserScriptingMode::Disabled;
+        auto parser = HTMLParser::create_from_byte_string(document, error_html, scripting_mode, "utf-8"sv);
+        document.set_url(URL::about_error());
+        parser->run();
+
+        // FIXME: This should go in create_document_for_inline_content() instead.
+        // FIXME: Directly calling parser->the_end results in a deadlock, because it waits for the warning image to load.
+        //        However the response is never processed when parser->the_end is called.
+        //        Queuing a global task is a workaround for now.
+        queue_a_task(Task::Source::Unspecified, HTML::main_thread_event_loop(), document, GC::create_function(document.heap(), [&document, parser] {
+            HTMLParser::the_end(document, parser);
+        }));
+    });
+}
+
 void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_entry_population(
     URL::URL url,
     bool source_allows_downloading,
@@ -3184,26 +3203,10 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
                      [](GC::Ref<NonFetchSchemeNavigationParams>) { return false; })) {
             // 1. Set entry's document state's document to the result of creating a document for inline content that doesn't have a DOM, given navigable, null, navTimingType, and userInvolvement. The inline content should indicate to the user the sort of error that occurred.
             auto error_message = navigation_params.has<NullOrError>() ? navigation_params.get<NullOrError>().value_or("Unknown error"_utf16) : "The request was denied."_utf16;
-            auto error_message_utf8 = error_message.to_utf8();
-
             // AD-HOC: Name the URL that actually failed to load: The last URL the navigation was redirected to, if
             //         any — rather than the URL it started at.
             auto error_url = output->redirected_url.value_or(url);
-            auto error_html = load_error_page(error_url, error_message_utf8).release_value_but_fixme_should_propagate_errors();
-            output->document = create_document_for_inline_content(this, navigation_id, navigation_timing_type, user_involvement, output->inline_content_origin.value(), [this, error_html](auto& document) {
-                auto scripting_mode = document.is_scripting_enabled() ? HTML::ParserScriptingMode::Normal : HTML::ParserScriptingMode::Disabled;
-                auto parser = HTMLParser::create_from_byte_string(document, error_html, scripting_mode, "utf-8"sv);
-                document.set_url(URL::about_error());
-                parser->run();
-
-                // FIXME: This should go in create_document_for_inline_content() instead.
-                // FIXME: Directly calling parser->the_end results in a deadlock, because it waits for the warning image to load.
-                //        However the response is never processed when parser->the_end is called.
-                //        Queuing a global task is a workaround for now.
-                queue_a_task(Task::Source::Unspecified, HTML::main_thread_event_loop(), document, GC::create_function(heap(), [&document, parser] {
-                    HTMLParser::the_end(document, parser);
-                }));
-            });
+            output->document = create_navigation_error_document(*this, navigation_id, navigation_timing_type, user_involvement, output->inline_content_origin.value(), error_url, error_message);
 
             // 2. Make document unsalvageable given entry's document state's document and "navigation-failure".
             if (output->document)
