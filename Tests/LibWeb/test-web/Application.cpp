@@ -13,6 +13,7 @@
 #include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
+#include <LibWebView/TestSpellChecker.h>
 
 namespace TestWeb {
 
@@ -30,6 +31,8 @@ Application::Application(Optional<ByteString> ladybird_binary_path)
 
     if (Core::Environment::has("CLAUDECODE"sv) || Core::Environment::has("CODEX_SANDBOX"sv))
         quiet = true;
+
+    set_spell_checker(make<WebView::TestSpellChecker>());
 }
 
 Application::~Application()

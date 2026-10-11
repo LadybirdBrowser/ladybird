@@ -291,6 +291,7 @@ private:
     virtual void did_change_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String url, Optional<Utf16String> key, Optional<Utf16String> old_value, Optional<Utf16String> new_value) override;
     virtual void did_update_indexed_database(String update) override;
     virtual void did_request_clipboard_entries(u64 request_id) override;
+    virtual void did_request_spell_check(u64 request_id, Utf16String text) override;
     virtual void did_request_set_system_focus(bool has_system_focus) override;
     virtual void did_request_set_system_visibility_state(Web::HTML::VisibilityState visibility_state) override;
     virtual void did_request_navigation_start(Web::HTML::CrossProcessId navigable_id, Web::NavigationTarget target, URL::URL url, Utf16String navigation_id, Optional<Web::HTML::NavigationStartRequest> start_request) override;

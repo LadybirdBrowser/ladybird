@@ -62,6 +62,7 @@
 #include <LibWebView/RequestServerManager.h>
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/SiteCompatibility.h>
+#include <LibWebView/SpellChecker.h>
 #include <LibWebView/TabPerformanceMonitor.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
@@ -2851,6 +2852,11 @@ void Application::toggle_bookmark_for_view(ViewImplementation& view)
             auto& bookmark = result.data.get<BookmarkItem::Bookmark>();
             m_bookmark_store->add_bookmark(move(bookmark.url), move(bookmark.title), move(bookmark.favicon_hash), result.target_folder_id);
         });
+}
+
+void Application::set_spell_checker(OwnPtr<SpellChecker> spell_checker)
+{
+    m_spell_checker = move(spell_checker);
 }
 
 ErrorOr<NonnullRawPtr<Core::GeolocationProvider>> Application::ensure_geolocation_provider()

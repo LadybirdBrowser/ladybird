@@ -46,6 +46,7 @@
 #include <LibWebCommon/Page/NavigationTarget.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/PendingDialog.h>
+#include <LibWebCommon/Page/SpellingError.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
@@ -244,6 +245,7 @@ endpoint WebContentServer routed by Web::PageId page_id
     set_preferred_languages(Web::PageId page_id, Vector<String> preferred_languages) =|
     set_browsing_behavior(Web::PageId page_id, WebView::BrowsingBehavior browsing_behavior) =|
     set_enable_global_privacy_control(Web::PageId page_id, bool enable) =|
+    set_spell_checking_available(Web::PageId page_id, bool available) =|
     set_geolocation_emulated_position(Web::PageId page_id, WebView::GeolocationPositionData position, Optional<u16> error_code) =|
     geolocation_position_response(Web::PageId page_id, u64 request_id, WebView::GeolocationPositionData position, Optional<u16> error_code) =|
     permission_request_completed(Web::PageId page_id, u64 request_id, bool granted) =|
@@ -275,6 +277,7 @@ endpoint WebContentServer routed by Web::PageId page_id
     select_dropdown_closed(Web::PageId page_id, Optional<u32> selected_item_id) =|
 
     retrieved_clipboard_entries(Web::PageId page_id, u64 request_id, Vector<Web::Clipboard::SystemClipboardItem> items) =|
+    did_check_spelling(Web::PageId page_id, u64 request_id, Vector<Web::SpellingError> errors) =|
 
     toggle_media_play_state(Web::PageId page_id) =|
     toggle_media_mute_state(Web::PageId page_id) =|

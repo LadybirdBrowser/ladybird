@@ -1869,6 +1869,11 @@ void PageClient::page_did_request_clipboard_entries(u64 request_id)
     client().async_did_request_clipboard_entries(m_id, request_id);
 }
 
+void PageClient::page_did_request_spell_check(u64 request_id, Utf16String const& text)
+{
+    client().async_did_request_spell_check(m_id, request_id, text);
+}
+
 void PageClient::page_did_request_primary_paste()
 {
     client().async_did_request_primary_paste(m_id);

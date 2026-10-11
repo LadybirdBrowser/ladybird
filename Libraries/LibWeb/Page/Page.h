@@ -88,6 +88,7 @@
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/PendingDialog.h>
 #include <LibWebCommon/Page/QueuedInputEvent.h>
+#include <LibWebCommon/Page/SpellingError.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
 #include <LibWebCommon/PixelUnits.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
@@ -298,6 +299,13 @@ public:
     void request_clipboard_entries(ClipboardRequest);
     void retrieved_clipboard_entries(u64 request_id, Vector<Clipboard::SystemClipboardItem>);
 
+    using SpellCheckRequest = GC::Ref<GC::Function<void(Vector<SpellingError>)>>;
+    bool spell_checking_available() const { return m_spell_checking_available; }
+    void set_spell_checking_available(bool available) { m_spell_checking_available = available; }
+    void request_spell_check(Utf16String const& text, SpellCheckRequest);
+    void did_check_spelling(u64 request_id, Vector<SpellingError>);
+    bool has_pending_spell_checks() const { return !m_pending_spell_check_requests.is_empty(); }
+
     using GeolocationPositionResult = Variant<Geolocation::CoordinatesData, Geolocation::GeolocationPositionError::ErrorCode>;
     using GeolocationPositionCallback = GC::Ref<GC::Function<void(GeolocationPositionResult)>>;
     enum class GeolocationRequestType : u8 {
@@ -504,6 +512,10 @@ private:
 
     HashMap<u64, ClipboardRequest> m_pending_clipboard_requests;
     u64 m_next_clipboard_request_id { 0 };
+
+    bool m_spell_checking_available { false };
+    HashMap<u64, SpellCheckRequest> m_pending_spell_check_requests;
+    u64 m_next_spell_check_request_id { 0 };
 
     struct PendingGeolocationRequest {
         GeolocationPositionCallback callback;
@@ -807,6 +819,7 @@ public:
 
     virtual void page_did_insert_clipboard_item(Clipboard::SystemClipboardItem const&, [[maybe_unused]] StringView presentation_style) { }
     virtual void page_did_request_clipboard_entries([[maybe_unused]] u64 request_id) { }
+    virtual void page_did_request_spell_check([[maybe_unused]] u64 request_id, [[maybe_unused]] Utf16String const& text) { }
     virtual void page_did_request_primary_paste() { }
     virtual void page_did_complete_paste_action() { }
     virtual void page_did_update_primary_selection(Utf16String const&) { }

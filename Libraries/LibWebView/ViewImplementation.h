@@ -75,6 +75,7 @@
 #include <LibWebView/SessionHistory.h>
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/Settings.h>
+#include <LibWebView/SpellChecker.h>
 #include <LibWebView/TabPerformanceStats.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentPage.h>
@@ -529,6 +530,9 @@ public:
     Menu& bookmark_folder_context_menu() { return *m_bookmark_folder_context_menu; }
 
     void did_request_page_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target);
+
+    void did_request_spell_check(Badge<WebContentPage>, WebContentPage& requesting_page, u64 request_id, Utf16String text);
+    void reset_spell_checking();
     void did_request_link_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor);
     void did_request_image_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor, Optional<Gfx::ShareableBitmap> bitmap);
     void did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu menu, Web::HTML::PreparedNavigationDescriptor);
@@ -700,6 +704,9 @@ protected:
     RefPtr<Menu> m_image_context_menu;
     RefPtr<Menu> m_media_context_menu;
     u64 m_context_menu_request_id { 0 };
+
+    SpellChecker::DocumentTag spell_document_tag();
+    Optional<SpellChecker::DocumentTag> m_spell_document_tag;
 
     RefPtr<Menu> m_bookmarks_bar_context_menu;
     RefPtr<Menu> m_bookmark_context_menu;

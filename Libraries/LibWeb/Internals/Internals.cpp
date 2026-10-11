@@ -2608,6 +2608,28 @@ Utf16String Internals::spelling_error_ranges(GC::Ref<DOM::Node> node)
     return Utf16String::from_utf8(builder.string_view());
 }
 
+GC::Ref<WebIDL::Promise> Internals::check_spelling_for_testing(Utf16String const& text)
+{
+    auto& realm = window().principal_realm();
+    auto promise = WebIDL::create_promise_for(window());
+    auto& page = this->page();
+    if (!page.spell_checking_available()) {
+        WebIDL::reject_promise(realm, promise, JS::PrimitiveString::create(vm(), "Spellchecking is unavailable"_utf16));
+        return promise;
+    }
+    page.request_spell_check(text, GC::create_function(heap(), [&realm, promise](Vector<SpellingError> errors) {
+        HTML::TemporaryExecutionContext execution_context { realm };
+        StringBuilder builder;
+        for (auto const& error : errors) {
+            if (!builder.is_empty())
+                builder.append(' ');
+            builder.appendff("{}-{}", error.offset, error.offset + error.length);
+        }
+        WebIDL::resolve_promise(realm, promise, JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(builder.string_view())));
+    }));
+    return promise;
+}
+
 GC::Ptr<JS::Object> Internals::hit_test_result(double x, double y)
 {
     auto& realm = HTML::relevant_realm(window());
