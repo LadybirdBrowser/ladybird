@@ -547,6 +547,55 @@ fn simplification_removes_integer_double_round_trips() {
 }
 
 #[test]
+fn simplification_tests_the_truthiness_of_boxed_int32_values_unboxed() {
+    // b0 branches on the truthiness of a boxed int32 to b1 and b2, with b3
+    // as the fallback for other values.
+    let mut graph = Graph::default();
+    graph.add_block(Block::default());
+    for _ in 1..4 {
+        graph.add_block(Block {
+            predecessors: vec![BlockId(0)],
+            ..Block::default()
+        });
+    }
+    let array = node(&mut graph, Op::LoadSlot { slot: 0 }, vec![], Some(Repr::Tagged));
+    let address = node(&mut graph, Op::CellAddress, vec![array], Some(Repr::Pointer));
+    let unboxed = node(&mut graph, Op::LoadElementsLength, vec![address], Some(Repr::Int32));
+    let boxed = node(&mut graph, Op::BoxInt32, vec![unboxed], Some(Repr::Tagged));
+    let branch = node(
+        &mut graph,
+        Op::BranchTruthy {
+            if_true: BlockId(1),
+            if_false: BlockId(2),
+            fallback: BlockId(3),
+        },
+        vec![boxed],
+        None,
+    );
+    graph.blocks[0].body = vec![array, address, unboxed, boxed];
+    graph.blocks[0].control = Some(branch);
+    for block in 1..4 {
+        let ret = node(&mut graph, Op::Return, vec![array], None);
+        graph.blocks[block].control = Some(ret);
+    }
+    verify(&graph).unwrap();
+
+    super::simplify::run(&mut graph);
+    verify(&graph).unwrap();
+    let branch = graph.blocks[0].control.unwrap();
+    assert_eq!(
+        graph.node(branch).op,
+        Op::Branch {
+            condition: BranchCondition::Int32(crate::ir::Comparison::StrictlyInequals),
+            if_true: BlockId(1),
+            if_false: BlockId(2),
+        }
+    );
+    assert_eq!(graph.node(branch).inputs[0], unboxed);
+    assert_eq!(graph.constant_value(graph.node(branch).inputs[1]), Some(0));
+}
+
+#[test]
 fn simplification_keeps_double_integer_round_trips() {
     let mut graph = Graph::default();
     graph.add_block(Block::default());

@@ -8,7 +8,8 @@
 //!
 //! - Conversions and int32 operations of constants become constants.
 //! - Branches on constants become jumps; truthiness branches on boxed
-//!   booleans test the unboxed boolean.
+//!   booleans test the unboxed boolean, and on boxed int32 values compare
+//!   the unboxed value with 0.
 
 use super::edit;
 use super::edit::Constants;
@@ -270,6 +271,16 @@ pub fn run(graph: &mut Graph) {
                 },
                 vec![graph.node(input).inputs[0]],
             )),
+            (Op::BranchTruthy { if_true, if_false, .. }, Some(input)) if graph.node(input).op == Op::BoxInt32 => {
+                Some((
+                    Op::Branch {
+                        condition: BranchCondition::Int32(Comparison::StrictlyInequals),
+                        if_true,
+                        if_false,
+                    },
+                    vec![graph.node(input).inputs[0], constants.get_typed(graph, 0, Repr::Int32)],
+                ))
+            }
             _ => None,
         };
         if let Some((op, inputs)) = new_op {
