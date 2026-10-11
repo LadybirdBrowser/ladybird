@@ -52,6 +52,8 @@ pub mod arith_feedback {
     pub const STRING: u8 = 1 << 3;
     pub const BIG_INT: u8 = 1 << 4;
     pub const OTHER: u8 = 1 << 5;
+    /// Equality comparisons where both operands are objects.
+    pub const OBJECT_PAIR: u8 = 1 << 6;
 }
 
 /// The union of the kinds of values produced by an instruction, as `ValueFeedback` bits. The bit for a boxed value is

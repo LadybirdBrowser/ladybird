@@ -642,7 +642,7 @@ inline fn equality_same_tag(
     };
 
     let other_compare = || {
-        record_arith_feedback(feedback, ARITH_FEEDBACK_OTHER);
+        record_identity_equality_feedback(feedback, lhs_tag);
         guard lhs is not rhs else equal;
         goto not_equal;
     };
@@ -1038,6 +1038,14 @@ inline fn record_arith_feedback(slot: ArithFeedbackIndex, bits: i32) @profiling 
     let feedback = feedback_base();
     let arith = feedback_address(primitive_storage_cage_base(), feedback.arith, load(slot), 1);
     or8_mem([arith, 0], bits);
+}
+
+inline fn record_identity_equality_feedback(slot: ArithFeedbackIndex, tag: ValueTag) @profiling {
+    let mut bits: i32 = ARITH_FEEDBACK_OTHER;
+    if tag == OBJECT_TAG {
+        bits = ARITH_FEEDBACK_OBJECT_PAIR;
+    }
+    record_arith_feedback(slot, bits);
 }
 
 inline fn arith_feedback_bits(value: Value) -> i32 {

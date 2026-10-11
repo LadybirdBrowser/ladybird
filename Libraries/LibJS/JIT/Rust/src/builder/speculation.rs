@@ -272,8 +272,7 @@ impl GraphBuilder<'_> {
         let feedback = self.arith_feedback(instruction).unwrap_or(0);
         // NB: The slow paths of arithmetic that only ever saw numbers make
         //     numbers too, which join the other paths' numbers as such.
-        let numbers = feedback & (arith_feedback::STRING | arith_feedback::BIG_INT | arith_feedback::OTHER) == 0
-            && self.may_speculate(ExitKind::BadType);
+        let numbers = feedback & arith_feedback::NON_NUMERIC == 0 && self.may_speculate(ExitKind::BadType);
         match operation {
             Operation::Binary { op, dst, lhs, rhs } => {
                 let (lhs, rhs) = (self.read_input(lhs)?, self.read_input(rhs)?);
@@ -427,7 +426,7 @@ impl GraphBuilder<'_> {
     ) -> Result<Option<Flow>, CompileFailure> {
         let feedback = self.arith_feedback(instruction).unwrap_or(0);
         if feedback & arith_feedback::DOUBLE == 0
-            || feedback & (arith_feedback::STRING | arith_feedback::BIG_INT | arith_feedback::OTHER) != 0
+            || feedback & arith_feedback::NON_NUMERIC != 0
             || !self.may_speculate(ExitKind::BadType)
             || matches!(operation, Operation::Binary { op: BinaryOp::Mod, .. })
         {
@@ -636,8 +635,9 @@ impl GraphBuilder<'_> {
 
     // Comparisons that need no paths.
 
-    /// Builds a strict equality where one operand is a constant compared
-    /// by identity, or whose feedback only ever saw operands that are no
+    /// Builds loose equality whose feedback only saw pairs of objects, or
+    /// strict equality where one operand is a constant compared by identity,
+    /// or whose feedback only ever saw operands that are no
     /// numbers, strings or bigints (on at least one side) as a check of
     /// that, as a comparison of the operands' bits. Returns `None`, having
     /// built nothing, otherwise.
@@ -649,11 +649,25 @@ impl GraphBuilder<'_> {
         rhs: Operand,
         outcome: Outcome,
     ) -> Result<Option<Flow>, CompileFailure> {
-        let equal = match comparison {
-            Comparison::StrictlyEquals => true,
-            Comparison::StrictlyInequals => false,
-            _ => return Ok(None),
+        let Some(equal) = comparison.equality() else {
+            return Ok(None);
         };
+        let feedback = self.arith_feedback(instruction).unwrap_or(0);
+        if comparison.is_loose() {
+            if feedback != arith_feedback::OBJECT_PAIR || !self.may_speculate(ExitKind::NotObject) {
+                return Ok(None);
+            }
+            let lhs = self.read(lhs)?;
+            let rhs = self.read(rhs)?;
+            let lhs = self.check_object(lhs);
+            let rhs = self.check_object(rhs);
+            // https://tc39.es/ecma262/#sec-islooselyequal
+            // 1. If SameType(x, y) is true, then
+            //    a. Return IsStrictlyEqual(x, y).
+            // NB: Objects are strictly equal only by identity.
+            let result = self.emit(Op::TaggedEquals { equal }, vec![lhs, rhs], Some(Repr::Bool));
+            return self.finish_comparison(result, outcome).map(Some);
+        }
         let lhs = self.read(lhs)?;
         let rhs = self.read(rhs)?;
         // NB: Constants that are compared by identity need no check.
@@ -668,8 +682,8 @@ impl GraphBuilder<'_> {
         let lhs = if constant_compares_by_identity {
             lhs
         } else {
-            if self.arith_feedback(instruction) != Some(arith_feedback::OTHER) || !self.may_speculate(ExitKind::BadType)
-            {
+            let identity_kinds = arith_feedback::OTHER | arith_feedback::OBJECT_PAIR;
+            if feedback == 0 || feedback & !identity_kinds != 0 || !self.may_speculate(ExitKind::BadType) {
                 return Ok(None);
             }
             self.emit_checked(Op::CheckIdentityComparable, vec![lhs, rhs], None)
