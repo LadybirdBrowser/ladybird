@@ -71,6 +71,9 @@ struct AsyncScrollNode {
     // Whether a scroll the scroller cannot scroll by is passed on to the scrollers around it.
     bool chains_scroll_to_ancestors_horizontally { true };
     bool chains_scroll_to_ancestors_vertically { true };
+    // Whether a touchpad may pull the scroller past the edges of its scroll range.
+    bool shows_overscroll_effect_horizontally { true };
+    bool shows_overscroll_effect_vertically { true };
 };
 
 // A region with a non-passive wheel listener. Wheels inside it must stay on the main thread because script may cancel.

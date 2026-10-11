@@ -1,0 +1,17 @@
+auto, gesture up from the top of the scroller: scroller stretch=0 page stretch=-10 scroller at 0 page at 0
+auto, gesture up that reaches the top of the scroller: scroller stretch=-20 page stretch=0 scroller at 0 page at 200
+auto, gesture up where the page is at its top too: scroller stretch=0 page stretch=-20 scroller at 0 page at 0
+contain, gesture up from the top of the scroller: scroller stretch=-20 page stretch=0 scroller at 0 page at 200
+contain, gesture up that reaches the top of the scroller: scroller stretch=-20 page stretch=0 scroller at 0 page at 200
+contain, gesture up where the page is at its top too: scroller stretch=-20 page stretch=0 scroller at 0 page at 0
+none, gesture up from the top of the scroller: scroller stretch=0 page stretch=0 scroller at 0 page at 200
+none, gesture up that reaches the top of the scroller: scroller stretch=0 page stretch=0 scroller at 0 page at 200
+none, gesture up where the page is at its top too: scroller stretch=0 page stretch=0 scroller at 0 page at 0
+chain, gesture up from the top of the scroller: scroller stretch=0 page stretch=-10 scroller at 0 page at 0
+chain, gesture up that reaches the top of the scroller: scroller stretch=0 page stretch=0 scroller at 0 page at 200
+chain, gesture up where the page is at its top too: scroller stretch=0 page stretch=-20 scroller at 0 page at 0
+root auto, gesture up at the top of the page: scroller stretch=0 page stretch=-20 scroller at 0 page at 0
+root contain, gesture up at the top of the page: scroller stretch=0 page stretch=-20 scroller at 0 page at 0
+root none, gesture up at the top of the page: scroller stretch=0 page stretch=0 scroller at 0 page at 0
+root chain, gesture up at the top of the page: scroller stretch=0 page stretch=0 scroller at 0 page at 0
+body none, gesture up at the top of the page: scroller stretch=0 page stretch=-20 scroller at 0 page at 0

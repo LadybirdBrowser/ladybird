@@ -1370,6 +1370,9 @@ pub struct CompositorScrollNode {
     /// Whether a scroll the scroller cannot scroll by is passed on to the scrollers around it.
     pub chains_scroll_to_ancestors_horizontally: bool,
     pub chains_scroll_to_ancestors_vertically: bool,
+    /// Whether a touchpad may pull the scroller past the edges of its scroll range.
+    pub shows_overscroll_effect_horizontally: bool,
+    pub shows_overscroll_effect_vertically: bool,
 }
 ffi_bytes_fields!(CompositorScrollNode {
     document_id,
@@ -1385,7 +1388,9 @@ ffi_bytes_fields!(CompositorScrollNode {
     can_be_wheel_scrolled_horizontally,
     can_be_wheel_scrolled_vertically,
     chains_scroll_to_ancestors_horizontally,
-    chains_scroll_to_ancestors_vertically
+    chains_scroll_to_ancestors_vertically,
+    shows_overscroll_effect_horizontally,
+    shows_overscroll_effect_vertically
 });
 
 impl DisplayListCommand for CompositorScrollNode {
