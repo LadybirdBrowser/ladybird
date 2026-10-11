@@ -69,6 +69,8 @@ public:
 
     // Reports the server's devices now and on every change, and an error once when the connection dies.
     void watch_devices(AudioDeviceListCallback);
+    // Has the server report its devices again, as a change.
+    void request_device_list();
 
     // Resolves with a RemoteRecordStream carrying the device's frames in the device's own format. Streams on one
     // device share the server's capture stream and one ring. Rejects if the server cannot open the device or the

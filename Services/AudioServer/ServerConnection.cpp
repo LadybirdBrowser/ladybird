@@ -58,6 +58,8 @@ void ServerConnection::set_capture_permitted(bool permitted)
             async_record_stream_closed(stream_id);
         remove_record_streams();
     }
+    if (m_client_watches_devices)
+        send_device_list();
 }
 
 void ServerConnection::stop_listening_for_device_changes()
@@ -204,6 +206,13 @@ void ServerConnection::watch_devices()
         send_device_list();
 }
 
+static Vector<AudioDeviceInfo> reduced_to_their_existence(Vector<AudioDeviceInfo> const& devices)
+{
+    if (devices.is_empty())
+        return {};
+    return { AudioDeviceInfo { .dom_device_id = {}, .label = {}, .group_id = {}, .sample_rate_hz = 0, .channel_count = 0, .is_default = true } };
+}
+
 void ServerConnection::send_device_list()
 {
     if (m_device_enumeration == DeviceEnumeration::None) {
@@ -211,6 +220,11 @@ void ServerConnection::send_device_list()
         return;
     }
     auto& devices = AudioDevices::the();
+    // A page without the permission may learn only that devices exist, so that is all its process learns.
+    if (!m_capture_permitted) {
+        async_devices_changed(reduced_to_their_existence(devices.input_devices()), reduced_to_their_existence(devices.output_devices()));
+        return;
+    }
     async_devices_changed(devices.input_devices(), devices.output_devices());
 }
 

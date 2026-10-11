@@ -41,6 +41,17 @@ void AudioDevices::ensure_watching()
     });
 }
 
+bool AudioDevices::request_fresh_device_list()
+{
+    if (!m_watching)
+        return false;
+    auto connection = Audio::ClientConnection::acquire();
+    if (connection.is_error())
+        return false;
+    connection.value()->request_device_list();
+    return true;
+}
+
 void AudioDevices::report_device_list(ErrorOr<AudioDeviceEnumeration> enumeration)
 {
     if (enumeration.is_error()) {

@@ -129,6 +129,12 @@ void ClientConnection::watch_devices(AudioDeviceListCallback on_device_list)
     async_watch_devices();
 }
 
+void ClientConnection::request_device_list()
+{
+    if (!m_is_dead)
+        async_watch_devices();
+}
+
 void ClientConnection::devices_changed(Vector<AudioDeviceInfo> inputs, Vector<AudioDeviceInfo> outputs)
 {
     if (m_on_device_list)
