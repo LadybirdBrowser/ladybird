@@ -54,3 +54,15 @@ test("sites with other results call the function", () => {
     expect(max(3, 4)).toBe(4);
     expect(jit.exitCount(max)).toBe(0);
 });
+
+test("constant arguments", () => {
+    const clampLow = compileCalls(a => Math.max(a, 0), 3);
+    expect(clampLow(-3)).toBe(0);
+    expect(clampLow(7)).toBe(7);
+    expect(jit.exitCount(clampLow)).toBe(0);
+
+    const clampHigh = compileCalls(a => Math.min(a, 2.5), 1);
+    expect(clampHigh(2)).toBe(2);
+    expect(clampHigh(3)).toBe(2.5);
+    expect(jit.exitCount(clampHigh)).toBe(0);
+});
