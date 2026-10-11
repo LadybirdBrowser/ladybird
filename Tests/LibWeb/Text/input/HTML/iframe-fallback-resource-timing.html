@@ -14,6 +14,11 @@
             return entry.name === "about:srcdoc" && entry.initiatorType === "iframe";
         });
         println(`iframe fallback resource timing entries: ${entries.length}`);
+        const entry = entries[0];
+        const now = performance.now();
+        println(`startTime within [0, now]: ${entry.startTime >= 0 && entry.startTime <= now}`);
+        println(`responseEnd within [startTime, now]: ${entry.responseEnd >= entry.startTime && entry.responseEnd <= now}`);
+        println(`duration within [0, now]: ${entry.duration >= 0 && entry.duration <= now}`);
         iframe.remove();
     });
 </script>
