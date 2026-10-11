@@ -1,0 +1,9 @@
+transferred node reports new slot: true
+old slot only assigns other node: true
+new slot assigns transferred node: true
+clearing old slot preserves new assignment: true
+new slot still assigns transferred node: true
+other node becomes unassigned: true
+transfer back reports first slot: true
+second slot is empty after transfer back: true
+clearing second slot preserves first assignment: true

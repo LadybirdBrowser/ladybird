@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"><span id="moved">moved</span><span id="other">other</span></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const shadow = host.attachShadow({ mode: "open", slotAssignment: "manual" });
+        shadow.innerHTML = "<slot id=first></slot><slot id=second></slot>";
+        const first = shadow.getElementById("first");
+        const second = shadow.getElementById("second");
+        const moved = document.getElementById("moved");
+        const other = document.getElementById("other");
+        first.assign(moved, other);
+        second.assign(moved);
+        println(`transferred node reports new slot: ${moved.assignedSlot === second}`);
+        println(`old slot only assigns other node: ${first.assignedNodes().length === 1 && first.assignedNodes()[0] === other}`);
+        println(`new slot assigns transferred node: ${second.assignedNodes().length === 1 && second.assignedNodes()[0] === moved}`);
+
+        first.assign();
+        println(`clearing old slot preserves new assignment: ${moved.assignedSlot === second}`);
+        println(`new slot still assigns transferred node: ${second.assignedNodes().length === 1 && second.assignedNodes()[0] === moved}`);
+        println(`other node becomes unassigned: ${other.assignedSlot === null}`);
+
+        first.assign(moved);
+        println(`transfer back reports first slot: ${moved.assignedSlot === first}`);
+        println(`second slot is empty after transfer back: ${second.assignedNodes().length === 0}`);
+        second.assign();
+        println(`clearing second slot preserves first assignment: ${moved.assignedSlot === first}`);
+    });
+</script>

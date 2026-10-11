@@ -120,7 +120,7 @@ void HTMLSlotElement::assign(GC::ConservativeVector<SlottableHandle> nodes)
 
         // 1. If node's manual slot assignment refers to a slot, then remove node from that slot's manually assigned nodes.
         if (node.manual_slot_assignment() != nullptr) {
-            m_manually_assigned_nodes.remove_all_matching([&](auto const& manually_assigned_node) {
+            node.manual_slot_assignment()->m_manually_assigned_nodes.remove_all_matching([&](auto const& manually_assigned_node) {
                 return slottable == manually_assigned_node;
             });
         }
