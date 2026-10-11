@@ -105,6 +105,7 @@ pub fn generate_call_stub<M: PortableMacroAssembler>(runtime: &RuntimeInfo) -> R
         leave_stubs: Vec::new(),
         leave_frame: None,
         leave_tail: exit_stub,
+        frame_initialization_stub: None,
         slow_path_values: None,
         invalidation_points: Vec::new(),
         fused_probe_failure: None,

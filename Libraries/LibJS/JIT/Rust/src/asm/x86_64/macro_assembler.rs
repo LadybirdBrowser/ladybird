@@ -23,6 +23,7 @@ use super::super::Width;
 use super::super::Width::W32;
 use super::super::Width::W64;
 use super::*;
+use std::collections::HashMap;
 
 /// General scratch register: immediates, call targets, working values.
 const SCRATCH: Gpr = R11;
@@ -38,8 +39,10 @@ pub struct MacroAssembler {
     /// 64-bit constants that do not fit an immediate, loaded RIP-relative
     /// from a pool after the code.
     constants: Vec<(u64, Label)>,
+    constant_labels: HashMap<u64, Label>,
     /// 128-bit constants, in the same pool.
     constants128: Vec<(u128, Label)>,
+    constant128_labels: HashMap<u128, Label>,
 }
 
 fn condition_code(condition: Condition) -> Cond {
@@ -214,22 +217,20 @@ impl MacroAssembler {
 
     /// The label of `value` in the constant pool.
     fn constant(&mut self, value: u64) -> Label {
-        if let Some((_, label)) = self.constants.iter().find(|(constant, _)| *constant == value) {
-            return *label;
-        }
-        let label = self.assembler.new_label();
-        self.constants.push((value, label));
-        label
+        *self.constant_labels.entry(value).or_insert_with(|| {
+            let label = self.assembler.new_label();
+            self.constants.push((value, label));
+            label
+        })
     }
 
     /// The label of the 128-bit `value` in the constant pool.
     fn constant128(&mut self, value: u128) -> Label {
-        if let Some((_, label)) = self.constants128.iter().find(|(constant, _)| *constant == value) {
-            return *label;
-        }
-        let label = self.assembler.new_label();
-        self.constants128.push((value, label));
-        label
+        *self.constant128_labels.entry(value).or_insert_with(|| {
+            let label = self.assembler.new_label();
+            self.constants128.push((value, label));
+            label
+        })
     }
 
     fn compare_imm(&mut self, width: Width, lhs: Gpr, imm: i64) {

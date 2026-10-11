@@ -2013,6 +2013,59 @@ fn aarch64_code_disassembles() {
 }
 
 #[test]
+fn slow_paths_share_initialization_of_large_frames() {
+    let layout = FrameLayout {
+        number_of_registers: 8,
+        registers_and_locals_count: 4096,
+        number_of_constants: 1024,
+        number_of_arguments: 1,
+    };
+    let argument = Operand::from_raw(layout.arguments_base());
+    let program = assemble(|_| {
+        let mut instructions = vec![
+            Instruction::Enter,
+            Instruction::Mov {
+                dst: r(5),
+                src: argument,
+            },
+        ];
+        for index in 0..64 {
+            instructions.push(Instruction::Add {
+                arith_feedback: 0,
+                dst: r(5),
+                lhs: r(5),
+                rhs: Operand::from_raw(layout.constants_base() + index),
+            });
+        }
+        instructions.push(Instruction::Return { value: r(5) });
+        instructions
+    });
+    let mut snapshot = crate::builder::tests::snapshot_for(&program, layout);
+    snapshot.runtime = runtime();
+    snapshot.executables[0].constants = (0..layout.number_of_constants)
+        .map(|index| 0x1234_5678_9abc_0000 | u64::from(index))
+        .collect();
+    snapshot.executables[0].feedback.arith = vec![1 | 1 << 1 | 1 << 2 | 1 << 3];
+    snapshot.options.dump_asm = true;
+    let aarch64 = compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true).unwrap();
+    let x86_64 = compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|_| true).unwrap();
+    for compiled in [aarch64, x86_64] {
+        assert!(
+            compiled.code.len() < 64 * 1024,
+            "frame initialization is emitted only once"
+        );
+        assert_eq!(
+            compiled
+                .dump
+                .unwrap()
+                .matches("frame initialization (shared by slow paths):\n")
+                .count(),
+            1
+        );
+    }
+}
+
+#[test]
 fn dumps_ir_and_code_on_request() {
     let program = assemble(|_| vec![Instruction::Enter, Instruction::Return { value: a(0) }]);
     let mut snapshot = crate::builder::tests::snapshot_for(&program, test_layout());
