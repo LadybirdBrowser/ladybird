@@ -3142,6 +3142,18 @@ static GC::Ref<DOM::Document> create_navigation_error_document(LocalNavigable& n
     });
 }
 
+static void load_document_or_handle_download(GC::Ref<NavigationParams> navigation_params, ReadonlyBytes sniff_bytes, bool source_allows_downloading, Optional<URL::Origin> source_interface_origin, PopulateSessionHistoryEntryDocumentOutput& output)
+{
+    output.document = load_document(navigation_params, sniff_bytes);
+
+    if (!output.document) {
+        output.download_handled = handle_navigation_response_as_download(navigation_params, source_allows_downloading, source_interface_origin, sniff_bytes);
+        output.save_extra_document_state = false;
+    } else {
+        navigation_params->response->resume_body_delivery();
+    }
+}
+
 void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_entry_population(
     URL::URL url,
     bool source_allows_downloading,
@@ -3257,13 +3269,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
                         // AD-HOC: The document may have been destroyed between when the fetch started and when the
                         //         bytes arrived.
                         if (nav_params->navigable->active_browsing_context()) {
-                            output->document = load_document(nav_params, sniff_bytes);
-                            if (!output->document) {
-                                output->download_handled = handle_navigation_response_as_download(nav_params, source_allows_downloading, source_interface_origin, sniff_bytes);
-                                output->save_extra_document_state = false;
-                            } else {
-                                nav_params->response->resume_body_delivery();
-                            }
+                            load_document_or_handle_download(nav_params, sniff_bytes, source_allows_downloading, source_interface_origin, *output);
                         } else {
                             stop_or_resume_response_body_delivery(navigation_params);
                         }
@@ -3276,13 +3282,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
             }
 
             // Sync path: bytes available immediately
-            output->document = load_document(nav_params, sniff_bytes.value());
-            if (!output->document) {
-                output->download_handled = handle_navigation_response_as_download(nav_params, source_allows_downloading, source_interface_origin, sniff_bytes.value());
-                output->save_extra_document_state = false;
-            } else {
-                nav_params->response->resume_body_delivery();
-            }
+            load_document_or_handle_download(nav_params, sniff_bytes.value(), source_allows_downloading, source_interface_origin, *output);
         } else {
             stop_or_resume_response_body_delivery(navigation_params);
         }
