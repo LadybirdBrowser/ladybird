@@ -326,7 +326,8 @@ fn decoded_function<'a>(
 
 struct FunctionAnalysis {
     cfg: Cfg,
-    liveness: Liveness,
+    /// Liveness without and with arguments observable through `f.arguments`.
+    liveness: [OnceCell<Liveness>; 2],
     loop_phi_slots: Vec<BitSet>,
     loops_replacing_environments: Vec<bool>,
     written_constants: BitSet,
@@ -387,6 +388,7 @@ impl<'a> Function<'a> {
         index: u32,
         executable: &'a ExecutableSnapshot,
         decoded: &'a DecodedFunction,
+        has_legacy_arguments: bool,
     ) -> Result<Self, CompileFailure> {
         let layout = executable.layout;
         let instructions = decoded.instructions.as_slice();
@@ -399,7 +401,6 @@ impl<'a> Function<'a> {
                         reason: "invalid control flow",
                     }
                 })?;
-                let liveness = Liveness::compute(instructions, &cfg, &layout);
                 let loop_phi_slots = loop_phi_slots(&cfg);
                 let loops_replacing_environments = loops_replacing_environments(&cfg, instructions);
                 let written_constants = written_constants(instructions, &layout);
@@ -414,7 +415,7 @@ impl<'a> Function<'a> {
                 }
                 Ok(FunctionAnalysis {
                     cfg,
-                    liveness,
+                    liveness: [OnceCell::new(), OnceCell::new()],
                     loop_phi_slots,
                     loops_replacing_environments,
                     written_constants,
@@ -424,6 +425,8 @@ impl<'a> Function<'a> {
             })
             .as_ref()
             .map_err(|error| *error)?;
+        let liveness = analysis.liveness[usize::from(has_legacy_arguments)]
+            .get_or_init(|| Liveness::compute(instructions, &analysis.cfg, &layout, has_legacy_arguments));
         let block_count = analysis.cfg.blocks.len();
         Ok(Self {
             index,
@@ -431,7 +434,7 @@ impl<'a> Function<'a> {
             layout,
             instructions,
             cfg: &analysis.cfg,
-            liveness: &analysis.liveness,
+            liveness,
             ir_blocks: vec![None; block_count],
             incoming: vec![Vec::new(); block_count],
             started: vec![false; block_count],
@@ -506,7 +509,7 @@ impl<'a> GraphBuilder<'a> {
             pc: 0,
             reason: "no executable",
         })?;
-        let function = Function::new(0, executable, decoded_function(executable, &decoded[0])?)?;
+        let function = Function::new(0, executable, decoded_function(executable, &decoded[0])?, false)?;
         let slot_count = function.layout.tracked_slot_count();
         Ok(Self {
             snapshot,

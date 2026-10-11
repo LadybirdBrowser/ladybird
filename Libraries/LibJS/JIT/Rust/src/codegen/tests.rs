@@ -1677,7 +1677,7 @@ mod execution {
                     // Every slot the interpreter can still read must be right.
                     let instructions = crate::bytecode::decode_all(&program.bytes).unwrap();
                     let cfg = crate::bytecode::cfg::Cfg::new(&instructions, &[], &layout).unwrap();
-                    let liveness = crate::bytecode::liveness::Liveness::compute(&instructions, &cfg, &layout);
+                    let liveness = crate::bytecode::liveness::Liveness::compute(&instructions, &cfg, &layout, false);
                     let index = instructions
                         .iter()
                         .position(|instruction| instruction.pc == pc)
@@ -1834,7 +1834,8 @@ mod execution {
                         assert_eq!(resumed_pc, *pc, "seed {seed}: resumed exit");
                         let instructions = crate::bytecode::decode_all(&program.bytes).unwrap();
                         let cfg = crate::bytecode::cfg::Cfg::new(&instructions, &[], &layout).unwrap();
-                        let liveness = crate::bytecode::liveness::Liveness::compute(&instructions, &cfg, &layout);
+                        let liveness =
+                            crate::bytecode::liveness::Liveness::compute(&instructions, &cfg, &layout, false);
                         let index = instructions
                             .iter()
                             .position(|instruction| instruction.pc == *pc)
@@ -1862,7 +1863,7 @@ mod execution {
                     assert_eq!(machine.program_counter(), pc, "seed {seed}");
                     let instructions = crate::bytecode::decode_all(&program.bytes).unwrap();
                     let cfg = crate::bytecode::cfg::Cfg::new(&instructions, &[], &layout).unwrap();
-                    let liveness = crate::bytecode::liveness::Liveness::compute(&instructions, &cfg, &layout);
+                    let liveness = crate::bytecode::liveness::Liveness::compute(&instructions, &cfg, &layout, false);
                     let index = instructions
                         .iter()
                         .position(|instruction| instruction.pc == pc)

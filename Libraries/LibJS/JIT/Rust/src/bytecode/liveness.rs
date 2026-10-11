@@ -9,7 +9,8 @@
 //! Sets are indexed by `FrameLayout::tracked_index()`. Constants are read-only
 //! and never live. The reserved registers (accumulator, exception, this value,
 //! return value and saved lexical environment) are always live, since some
-//! instructions read or write them implicitly.
+//! instructions read or write them implicitly. So are the arguments of a
+//! function with a legacy `arguments`, which the code it calls can read.
 //!
 //! An instruction inside an exception handler range may throw before writing
 //! its outputs, so everything live into the handler is live into, and out of,
@@ -29,10 +30,18 @@ pub struct Liveness {
 }
 
 impl Liveness {
-    pub fn compute(instructions: &[DecodedInstruction], cfg: &Cfg, layout: &FrameLayout) -> Self {
+    pub fn compute(
+        instructions: &[DecodedInstruction],
+        cfg: &Cfg,
+        layout: &FrameLayout,
+        has_legacy_arguments: bool,
+    ) -> Self {
         let slot_count = layout.tracked_slot_count();
         let mut always_live = BitSet::new(slot_count);
         always_live.insert_range(0..(RESERVED_REGISTER_COUNT.min(layout.registers_and_locals_count) as usize));
+        if has_legacy_arguments {
+            always_live.insert_range(layout.registers_and_locals_count as usize..slot_count);
+        }
 
         // Upward exposed uses and definitions of each block.
         let mut block_uses = Vec::with_capacity(cfg.blocks.len());
@@ -157,7 +166,7 @@ mod tests {
             let instructions = program.instructions();
             let cfg = program.cfg();
             Self {
-                liveness: Liveness::compute(&instructions, &cfg, &layout),
+                liveness: Liveness::compute(&instructions, &cfg, &layout, false),
                 layout,
             }
         }

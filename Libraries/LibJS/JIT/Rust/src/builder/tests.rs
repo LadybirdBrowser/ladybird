@@ -65,13 +65,35 @@ fn executable_analyses_are_lazy_and_borrowed_by_independent_walks() {
     let decoded = decoded_function(executable, &cache).unwrap();
     assert!(decoded.analysis.get().is_none());
     assert!(std::ptr::eq(decoded, decoded_function(executable, &cache).unwrap()));
-    let mut first = Function::new(0, executable, decoded).unwrap();
-    let second = Function::new(0, executable, decoded).unwrap();
+    let mut first = Function::new(0, executable, decoded, false).unwrap();
+    let second = Function::new(0, executable, decoded, false).unwrap();
     assert!(std::ptr::eq(first.cfg, second.cfg));
     assert!(std::ptr::eq(first.liveness, second.liveness));
     assert_eq!(first.instructions.as_ptr(), second.instructions.as_ptr());
     first.started[0] = true;
     assert!(!second.started[0]);
+}
+
+#[test]
+fn cached_liveness_keeps_legacy_arguments_only_for_inlined_walks() {
+    for first_mode in [false, true] {
+        let program = assemble(|_| vec![Instruction::Return { value: c(0) }]);
+        let layout = test_layout();
+        let snapshot = snapshot_for(&program, layout);
+        let executable = &snapshot.executables[0];
+        let cache = OnceCell::new();
+        let decoded = decoded_function(executable, &cache).unwrap();
+        let first = Function::new(0, executable, decoded, first_mode).unwrap();
+        let second = Function::new(0, executable, decoded, !first_mode).unwrap();
+        assert!(std::ptr::eq(first.cfg, second.cfg));
+        let argument_slot = layout
+            .tracked_index(Operand::from_raw(layout.arguments_base()))
+            .unwrap();
+        assert_eq!(first.liveness.live_in(0).contains(argument_slot), first_mode);
+        assert_eq!(second.liveness.live_in(0).contains(argument_slot), !first_mode);
+        let repeated = Function::new(0, executable, decoded, first_mode).unwrap();
+        assert!(std::ptr::eq(first.liveness, repeated.liveness));
+    }
 }
 
 fn dump_of(program: &Program) -> String {

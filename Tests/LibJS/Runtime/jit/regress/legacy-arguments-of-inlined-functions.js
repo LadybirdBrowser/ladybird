@@ -109,3 +109,25 @@ test("a function called by an inlined function changes a property of an object i
     );
     expect(failures).toEqual([]);
 });
+
+test("a function called by an inlined function reads its legacy arguments after a branch", () => {
+    const failures = compareCompiledWithInterpreter(
+        () => {
+            function readArguments(read) {
+                // A for-in loop keeps this function from being inlined.
+                for (const key in {}) {
+                }
+                if (read) return [...middle.arguments];
+            }
+            function middle(value, flag, read) {
+                if (flag) value = 1;
+                else value = 2;
+                return readArguments(read);
+            }
+            jit.neverCompile(middle);
+            return (flag, read) => middle(0, flag, read);
+        },
+        { warmUp: (log, i) => [i % 2 === 0, false], probes: { read: () => [true, true] } }
+    );
+    expect(failures).toEqual([]);
+});
