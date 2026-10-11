@@ -56,6 +56,24 @@ pub(crate) fn build(program: &Program) -> Graph {
     build_with_layout(program, test_layout(), &[])
 }
 
+#[test]
+fn executable_analyses_are_lazy_and_borrowed_by_independent_walks() {
+    let program = assemble(|_| vec![Instruction::Return { value: c(0) }]);
+    let snapshot = snapshot_for(&program, test_layout());
+    let executable = &snapshot.executables[0];
+    let cache = OnceCell::new();
+    let decoded = decoded_function(executable, &cache).unwrap();
+    assert!(decoded.analysis.get().is_none());
+    assert!(std::ptr::eq(decoded, decoded_function(executable, &cache).unwrap()));
+    let mut first = Function::new(0, executable, decoded).unwrap();
+    let second = Function::new(0, executable, decoded).unwrap();
+    assert!(std::ptr::eq(first.cfg, second.cfg));
+    assert!(std::ptr::eq(first.liveness, second.liveness));
+    assert_eq!(first.instructions.as_ptr(), second.instructions.as_ptr());
+    first.started[0] = true;
+    assert!(!second.started[0]);
+}
+
 fn dump_of(program: &Program) -> String {
     dump(&build(program), &test_layout())
 }
