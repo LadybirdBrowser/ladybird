@@ -1586,6 +1586,9 @@ public:
     RefPtr<SelectorQuery const> selector_query_for(Utf16View) const;
     QuerySelectorResultCache& query_selector_result_cache();
 
+    // Whether the aria-labelledby or aria-describedby of an element in the tree of root references id.
+    bool tree_references_id_from_aria(Node const& root, Utf16FlyString const& id) const;
+
     GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const;
     void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> custom_element_registry) { m_custom_element_registry = custom_element_registry; }
     GC::Ptr<HTML::CustomElementRegistry> effective_global_custom_element_registry() const;
@@ -2248,6 +2251,15 @@ private:
 
     // Cache of querySelectorAll results, validated lazily against the query root's dom_tree_version/character_data_version.
     OwnPtr<QuerySelectorResultCache> m_query_selector_result_cache;
+
+    // The ids that aria-labelledby and aria-describedby reference in a tree, validated lazily against the tree's
+    // dom_tree_version. Computing accessible names asks this for the parent and the ancestors of every text node.
+    struct IdsReferencedFromAria {
+        GC::Weak<Node> root;
+        u64 dom_tree_version { 0 };
+        HashTable<Utf16FlyString> ids;
+    };
+    mutable HashMap<GC::RawPtr<Node const>, IdsReferencedFromAria> m_ids_referenced_from_aria;
 
     // https://fullscreen.spec.whatwg.org/#list-of-pending-fullscreen-events
     Vector<PendingFullscreenEvent> m_pending_fullscreen_events;

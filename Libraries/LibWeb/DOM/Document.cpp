@@ -11334,6 +11334,27 @@ QuerySelectorResultCache& Document::query_selector_result_cache()
     return *m_query_selector_result_cache;
 }
 
+bool Document::tree_references_id_from_aria(Node const& root, Utf16FlyString const& id) const
+{
+    auto dom_tree_version = root.dom_tree_version();
+    if (auto entry = m_ids_referenced_from_aria.get(&root); entry.has_value() && entry->root.ptr().ptr() == &root && entry->dom_tree_version == dom_tree_version)
+        return entry->ids.contains(id);
+
+    m_ids_referenced_from_aria.remove_all_matching([](auto const&, auto const& entry) { return !entry.root; });
+
+    IdsReferencedFromAria entry { root, dom_tree_version, {} };
+    root.for_each_in_subtree_of_type<HTML::HTMLElement>([&](auto const& element) {
+        for (auto& reference : element.parse_id_reference_list(element.aria_labelled_by()))
+            entry.ids.set(Utf16FlyString { move(reference) });
+        for (auto& reference : element.parse_id_reference_list(element.aria_described_by()))
+            entry.ids.set(Utf16FlyString { move(reference) });
+        return TraversalDecision::Continue;
+    });
+    auto is_referenced = entry.ids.contains(id);
+    m_ids_referenced_from_aria.set(&root, move(entry));
+    return is_referenced;
+}
+
 }
 
 namespace Web::Bindings {

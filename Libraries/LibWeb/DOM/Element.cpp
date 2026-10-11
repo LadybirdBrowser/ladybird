@@ -4645,27 +4645,7 @@ bool Element::has_hidden_ancestor(Layout::BegunRead const& read) const
 
 bool Element::is_referenced() const
 {
-    bool is_referenced = false;
-    if (id().has_value()) {
-        auto id_view = id()->view();
-        root().for_each_in_subtree_of_type<HTML::HTMLElement>([&](auto& element) {
-            auto aria_data = MUST(Web::ARIA::AriaData::build_data(element));
-            auto references_id = [&](Vector<Utf16String> const& references) {
-                for (auto const& id_reference : references) {
-                    if (id_reference.utf16_view() == id_view)
-                        return true;
-                }
-                return false;
-            };
-            if (references_id(aria_data->aria_labelled_by_or_default())
-                || references_id(aria_data->aria_described_by_or_default())) {
-                is_referenced = true;
-                return TraversalDecision::Break;
-            }
-            return TraversalDecision::Continue;
-        });
-    }
-    return is_referenced;
+    return id().has_value() && document().tree_references_id_from_aria(root(), *id());
 }
 
 bool Element::has_referenced_and_hidden_ancestor(Layout::BegunRead const& read) const
