@@ -2031,6 +2031,7 @@ impl StyleEngine {
                     });
                 let parent_inputs = publication::ParentInputsMoved {
                     inherited_style: reaction & transaction::STYLE_REACTION_INHERITED_STYLE != 0,
+                    inherited_style_groups: 0,
                     display: inputs_moved.parent_display_moved(root),
                 };
                 // The probe settles what the root's own row settles, under the same unseen inputs.
@@ -2423,6 +2424,7 @@ impl StyleEngine {
                         .or(prepared_parent_inputs)
                         .unwrap_or(publication::ParentInputsMoved {
                             inherited_style: reaction & transaction::STYLE_REACTION_INHERITED_STYLE != 0,
+                            inherited_style_groups,
                             // A slotted element's box-type parent moves with its slot's place in
                             // the shadow tree, which no input of its own says.
                             display: pass.inputs_moved.parent_display_moved(node)
@@ -2471,6 +2473,9 @@ impl StyleEngine {
                         }
                         Some(relied_on_settled_ancestor) => {
                             parent_inputs_moved.inherited_style |= relied_on_settled_ancestor;
+                            if relied_on_settled_ancestor {
+                                parent_inputs_moved.inherited_style_groups = 0;
+                            }
                             true
                         }
                     }

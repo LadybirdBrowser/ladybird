@@ -750,16 +750,31 @@ impl RetainedState {
         if goal == FontDriveGoal::RootInputs && delta.is_empty() && !flips_are_reflected {
             return Ok(ElementAnswer::RootInputs(None));
         }
-        let scope = self.record_drive_scope(
-            node,
-            state,
-            &delta,
-            flips_are_reflected,
-            parent_inputs_moved.any() || root_inputs_moved || drive_in_full,
-            environment,
-            has_registered_declarations,
-            scratch.pseudo_inputs_alone,
-        );
+        let inherited_text_moved = parent_inputs_moved.inherited_style
+            && parent_inputs_moved.inherited_style_groups
+                == 1 << crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_TEXT;
+        let inherited_text_can_be_partial = inherited_text_moved
+            && !parent_inputs_moved.display
+            && !root_inputs_moved
+            && !drive_in_full
+            && !(has_registered_declarations && environment.is_some())
+            && delta.properties().iter().all(|&property| {
+                property_computes_in_remaining_phase(property) && !property_feeds_box_type_transformation(property)
+            });
+        let scope = if inherited_text_can_be_partial {
+            DriveScope::Partial
+        } else {
+            self.record_drive_scope(
+                node,
+                state,
+                &delta,
+                flips_are_reflected,
+                parent_inputs_moved.any() || root_inputs_moved || drive_in_full,
+                environment,
+                has_registered_declarations,
+                scratch.pseudo_inputs_alone,
+            )
+        };
         match scope {
             DriveScope::Stands | DriveScope::Environment(_) if goal == FontDriveGoal::RootInputs => {
                 // NB: This proof covers the retained font, without publishing the root's
@@ -916,6 +931,20 @@ impl RetainedState {
                 )
             }
         };
+        let mut inherited_text_needs_full_drive = false;
+        if inherited_text_can_be_partial {
+            // NB: Group members are validated while selecting them, after cohort lookup, so
+            //     siblings reusing the same result do not repeat the phase checks.
+            groups_to_rebuild |= 1 << crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_TEXT;
+            for property in FIRST_LONGHAND_PROPERTY_ID..=crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID {
+                if crate::css::property_metadata::property_style_group_index(property)
+                    == Some(crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_TEXT as u8)
+                {
+                    inherited_text_needs_full_drive |= !property_computes_in_remaining_phase(property);
+                    select(property);
+                }
+            }
+        }
         for &property in delta.properties() {
             // Any animation the engine cannot hand the host a plan for starts from the C++
             // computation; a transition declaration is the step's to act on.
@@ -948,6 +977,7 @@ impl RetainedState {
         if delta
             .properties()
             .contains(&crate::css::property_metadata::property_id::COLOR)
+            || inherited_text_can_be_partial
         {
             // A record holding no table cannot say which values read currentcolor: it is driven
             // in full, as a partial drive of it is.
@@ -981,8 +1011,10 @@ impl RetainedState {
         // A partial delta that reaches the font group reaches every value the font feeds, so it is
         // driven in full, as a partial drive whose driver inputs moved is below, and so is one of
         // a record that cannot say what it would leave standing.
-        let mut in_full_after_all =
-            !full_drive && (old_record_is_unreadable || groups_to_rebuild & (1 << STYLE_GROUP_INDEX_FONT) != 0);
+        let mut in_full_after_all = !full_drive
+            && (old_record_is_unreadable
+                || inherited_text_needs_full_drive
+                || groups_to_rebuild & (1 << STYLE_GROUP_INDEX_FONT) != 0);
         if goal == FontDriveGoal::RootInputs && !full_drive && !in_full_after_all {
             // NB: No font property moved, but borrowing the retained font still needs the
             //     proof that only the named rule flips changed the computation's inputs.
@@ -4455,6 +4487,8 @@ pub(super) struct PendingEngineComputedRecord {
 pub(super) struct ParentInputsMoved {
     /// The parent's inherited style groups.
     pub(super) inherited_style: bool,
+    /// The inherited groups named by the reaction, or zero where they are not known.
+    pub(super) inherited_style_groups: u8,
     /// The parent's display, which the children's box-type transformation reads.
     pub(super) display: bool,
 }
