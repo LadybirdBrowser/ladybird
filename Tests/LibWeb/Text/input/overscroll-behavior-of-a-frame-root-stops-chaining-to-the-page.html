@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        padding-top: 200px;
+        height: 3000px;
+    }
+    iframe {
+        display: block;
+        width: 200px;
+        height: 200px;
+        border: 0;
+    }
+</style>
+<script>
+    async function frameWith(style, contentHeight) {
+        const frame = document.createElement("iframe");
+        const frameLoaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        frame.srcdoc = `<!DOCTYPE html><style>body { margin: 0; height: ${contentHeight}px; } ${style}</style>`;
+        document.body.replaceChildren(frame);
+        await frameLoaded;
+        await animationFrame();
+        await animationFrame();
+        return frame;
+    }
+
+    promiseTest(async () => {
+        const cases = [
+            ["root auto, frame scrollable", "", 600],
+            ["root contain, frame scrollable", ":root { overscroll-behavior: contain; }", 600],
+            ["root none, frame scrollable", ":root { overscroll-behavior: none; }", 600],
+            ["root chain, frame scrollable", ":root { overscroll-behavior: chain; }", 600],
+            ["root contain on the other axis, frame scrollable", ":root { overscroll-behavior-x: contain; }", 600],
+            ["root contain, frame with nothing to scroll", ":root { overscroll-behavior: contain; }", 100],
+            ["root auto, frame with nothing to scroll", "", 100],
+            ["body contain, frame scrollable", "body { overscroll-behavior: contain; }", 600],
+        ];
+        for (const [name, style, contentHeight] of cases) {
+            const frame = await frameWith(style, contentHeight);
+            // The frame is at the top of the window and of its own scroll range, with the page scrolled down by 200px.
+            window.scrollTo(0, 200);
+            await animationFrame();
+            await animationFrame();
+
+            await internals.wheel(100, 100, 0, -50, true, "ongoing");
+            await internals.wheel(100, 100, 0, 0, true, "ended");
+            println(`${name}: page at ${window.scrollY}, frame at ${frame.contentWindow.scrollY}`);
+        }
+    });
+</script>

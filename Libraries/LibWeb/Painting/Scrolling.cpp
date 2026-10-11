@@ -253,6 +253,12 @@ Layout::Node* first_wheel_scrollable_box_in_containing_block_chain(Layout::Node 
     return node.node_arena().node_if_live(read, Layout::RustFFI::render_state_first_wheel_scrollable_box_in_containing_block_chain(node.document_host(), committed_row_slot(node)));
 }
 
+Layout::Node* box_ending_scroll_chain(Layout::Node const& node, double delta_x, double delta_y)
+{
+    auto const& read = node.held_read();
+    return node.node_arena().node_if_live(read, Layout::RustFFI::render_state_box_ending_scroll_chain(node.document_host(), committed_row_slot(node), delta_x, delta_y));
+}
+
 void scroll_text_offset_into_view(Layout::BegunRead const& read, DOM::Text const& text, size_t offset, TextAffinity affinity, ScrollBlockDirection scroll_block_direction)
 {
     auto const* layout_node = text.unsafe_layout_node(read);

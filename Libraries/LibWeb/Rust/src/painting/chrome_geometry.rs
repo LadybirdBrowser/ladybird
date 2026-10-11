@@ -7,10 +7,11 @@
 use crate::css::css_enums;
 use crate::css::css_pixels::{CssPixelFraction, CssPixelPoint, CssPixelRect, CssPixels};
 use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::layout::node_facts::{self, NodeShape};
 use crate::painting::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX;
 use crate::painting::ffi::{FfiChromeMetrics, ScrollDirection};
 use crate::painting::host::{FfiHitTestQueryCallbacks, RootBackgroundSource};
-use crate::painting::paint_read::PaintRead;
+use crate::painting::paint_read::{PaintRead, PaintRow};
 use crate::painting::paintable_data::PaintableFlag;
 use crate::painting::paintable_geometry;
 use crate::painting::record::RecordingInputs;
@@ -131,6 +132,48 @@ pub(crate) fn has_resizer(arena: &impl PaintRead, slot: NodeSlotId) -> bool {
     }
     let axes = physical_resize_axes(arena, slot);
     axes.horizontal || axes.vertical
+}
+
+/// What a box does with a scroll that reaches the boundary of its scroll range, along each physical axis.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ScrollBoundaryBehavior {
+    /// The scroll is passed on to the scrollers around the box.
+    pub(crate) chains_to_ancestors: PhysicalAxes,
+}
+
+// https://drafts.csswg.org/css-overscroll-1/#overscroll-behavior-properties
+// NB: The viewport's own overscroll behavior is the one the layout pass propagated to it from the root element.
+pub(crate) fn scroll_boundary_behavior(arena: &impl PaintRead, slot: NodeSlotId) -> ScrollBoundaryBehavior {
+    let unrestricted = ScrollBoundaryBehavior {
+        chains_to_ancestors: PhysicalAxes {
+            horizontal: true,
+            vertical: true,
+        },
+    };
+    // An element that is not scroll container must accept but ignore the values of this property.
+    let Some(row) = arena.node(slot) else {
+        return unrestricted;
+    };
+    if !node_facts::kind_is_box(row.kind())
+        || !node_facts::kind_and_style_make_scroll_container(row.kind(), row.style())
+    {
+        return unrestricted;
+    }
+    let Some(style) = row.style() else {
+        return unrestricted;
+    };
+
+    use css_enums::overscroll_behavior::{AUTO, CHAIN};
+    let misc_reset = style.misc_reset();
+    // contain: The element must not perform non-local boundary default actions such as scroll chaining.
+    // none: This value implies the same behavior as contain.
+    let chains = |value: u8| value == AUTO || value == CHAIN;
+    ScrollBoundaryBehavior {
+        chains_to_ancestors: PhysicalAxes {
+            horizontal: chains(misc_reset.overscroll_behavior_x),
+            vertical: chains(misc_reset.overscroll_behavior_y),
+        },
+    }
 }
 
 // NB: The viewport's own overflow is the one the layout pass propagated to it, as applied to the viewport.

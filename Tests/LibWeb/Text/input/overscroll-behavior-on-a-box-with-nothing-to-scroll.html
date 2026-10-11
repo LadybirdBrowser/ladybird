@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        padding: 200px 0 0 200px;
+        width: 3000px;
+        height: 3000px;
+    }
+    #box {
+        width: 100px;
+        height: 100px;
+    }
+    #box > div {
+        width: 50px;
+        height: 50px;
+    }
+</style>
+<div id="box"><div></div></div>
+<script>
+    // A wheel listener that may cancel the scroll keeps the scrolling of this page on the main thread.
+    window.addEventListener("wheel", () => { }, { passive: false });
+
+    promiseTest(async () => {
+        const gestureOverTheBox = async (deltaX, deltaY) => {
+            window.scrollTo(200, 200);
+            await animationFrame();
+            await animationFrame();
+            await internals.wheel(50, 50, deltaX, deltaY, true, "ongoing");
+            await internals.wheel(50, 50, 0, 0, true, "ended");
+            return `${window.scrollX},${window.scrollY}`;
+        };
+
+        // A scroll container with nothing to scroll is always at its boundary, so what it does there still counts.
+        for (const overflow of ["hidden", "auto", "scroll", "clip", "visible"]) {
+            box.style.overflow = overflow;
+            box.style.overscrollBehavior = "auto none";
+            println(`overflow: ${overflow}, overscroll-behavior-y: none, gesture up: page at ${await gestureOverTheBox(0, -50)}`);
+            println(`overflow: ${overflow}, overscroll-behavior-y: none, gesture left: page at ${await gestureOverTheBox(-50, 0)}`);
+        }
+
+        box.style.overflow = "hidden";
+        box.style.overscrollBehavior = "contain auto";
+        println(`overflow: hidden, overscroll-behavior-x: contain, gesture up: page at ${await gestureOverTheBox(0, -50)}`);
+        println(`overflow: hidden, overscroll-behavior-x: contain, gesture left: page at ${await gestureOverTheBox(-50, 0)}`);
+    });
+</script>

@@ -313,6 +313,29 @@ pub unsafe extern "C" fn render_state_for_each_wheel_scrollable_box_in_containin
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_box_ending_scroll_chain(
+    host: &crate::render_state::DocumentHost,
+    start: NodeSlotId,
+    delta_x: f64,
+    delta_y: f64,
+) -> NodeSlotId {
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        read_arena(
+            host,
+            node_read(),
+            (start, delta_x, delta_y),
+            |arena, (start, delta_x, delta_y)| {
+                crate::painting::scroll_chain::box_ending_scroll_chain(&arena.paintable_rows(), start, delta_x, delta_y)
+            },
+        )
+    }
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_first_wheel_scrollable_box_in_containing_block_chain(
     host: &crate::render_state::DocumentHost,
     start: NodeSlotId,

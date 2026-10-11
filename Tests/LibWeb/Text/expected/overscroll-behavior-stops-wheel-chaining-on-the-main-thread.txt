@@ -1,0 +1,13 @@
+overscroll-behavior-y: auto, gesture up at the top of the scroller: page at 200,150
+overscroll-behavior-y: auto, gesture left at the left of the scroller: page at 150,200
+overscroll-behavior-y: contain, gesture up at the top of the scroller: page at 200,200
+overscroll-behavior-y: contain, gesture left at the left of the scroller: page at 150,200
+overscroll-behavior-y: none, gesture up at the top of the scroller: page at 200,200
+overscroll-behavior-y: none, gesture left at the left of the scroller: page at 150,200
+overscroll-behavior-y: chain, gesture up at the top of the scroller: page at 200,150
+overscroll-behavior-y: chain, gesture left at the left of the scroller: page at 150,200
+overscroll-behavior-x: contain, gesture left: page at 200,200
+overscroll-behavior-x: contain, gesture up: page at 200,150
+overscroll-behavior: none, gesture down: scroller at 0,50 page at 200,200
+overscroll-behavior: none, mouse wheel up at the top of the scroller: page at 200,200
+overscroll-behavior: auto, mouse wheel up at the top of the scroller: page moved up true

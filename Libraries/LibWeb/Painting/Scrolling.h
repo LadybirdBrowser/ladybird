@@ -58,6 +58,9 @@ Layout::Node* wheel_scroll_along_containing_block_chain(Layout::Node&, double wh
 
 WEB_API Layout::Node* scrolling_box_for_scroll_step_in_containing_block_chain(Layout::BegunRead const&, Layout::Node&, CSSPixelPoint delta);
 WEB_API Layout::Node* first_wheel_scrollable_box_in_containing_block_chain(Layout::Node const&);
+// The nearest box in the containing block chain, the given one included, that keeps a scroll step by the delta to
+// itself instead of passing it on to a scroller around it. The step scrolls that box or a box inside it, or nothing.
+Layout::Node* box_ending_scroll_chain(Layout::Node const&, double delta_x, double delta_y);
 void scroll_text_offset_into_view(Layout::BegunRead const&, DOM::Text const&, size_t offset, TextAffinity = TextAffinity::Downstream, ScrollBlockDirection = ScrollBlockDirection::Yes);
 
 }

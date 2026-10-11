@@ -35,6 +35,32 @@ fn scrolling_box_moved_by(arena: &impl PaintableRowsRead, node: NodeSlotId, delt
     clamp_scroll_offset(arena, node, current_offset.translated(delta.x, delta.y)) != current_offset
 }
 
+/// The nearest box, `start` included, that keeps a scroll step by the delta to itself: neither it nor a box inside it
+/// passes the step on to a scroller around it. A step belongs to one scroller, and a touchpad rarely moves along one
+/// axis exactly, so it is the main axis of the step that decides.
+pub(crate) fn box_ending_scroll_chain(
+    arena: &impl PaintableRowsRead,
+    start: NodeSlotId,
+    delta_x: f64,
+    delta_y: f64,
+) -> NodeSlotId {
+    let step_is_mainly_vertical = delta_y.abs() >= delta_x.abs();
+    let mut node = start;
+    while arena.node_data_if_live(node).is_some() {
+        let chains_to_ancestors = chrome_geometry::scroll_boundary_behavior(arena, node).chains_to_ancestors;
+        let passes_the_step_on = if step_is_mainly_vertical {
+            chains_to_ancestors.vertical
+        } else {
+            chains_to_ancestors.horizontal
+        };
+        if !passes_the_step_on {
+            return node;
+        }
+        node = arena.containing_block_by_walking_ancestors(node);
+    }
+    NodeSlotId::INVALID
+}
+
 pub(crate) fn scrolling_box_for_scroll_step(
     arena: &impl PaintableRowsRead,
     target: NodeSlotId,
@@ -45,6 +71,7 @@ pub(crate) fn scrolling_box_for_scroll_step(
         let accepted_delta = accepted_wheel_delta(arena, node, delta);
         accepted_delta != CssPixelPoint::default() && scrolling_box_moved_by(arena, node, accepted_delta)
     };
+    let box_ending_scroll_chain = box_ending_scroll_chain(arena, target, delta.x.to_double(), delta.y.to_double());
 
     let mut node = target;
     while let Some(data) = arena.node_data_if_live(node) {
@@ -53,6 +80,9 @@ pub(crate) fn scrolling_box_for_scroll_step(
         }
         if scroll_step_moves(node) {
             return node;
+        }
+        if node == box_ending_scroll_chain {
+            return NodeSlotId::INVALID;
         }
         node = arena.containing_block_by_walking_ancestors(node);
     }
@@ -70,6 +100,7 @@ pub(crate) fn for_each_wheel_scrollable_box_in_containing_block_chain(
     wheel_delta_y: f64,
     mut push_scrollable_box: impl FnMut(NodeSlotId, f64, f64),
 ) {
+    let box_ending_scroll_chain = box_ending_scroll_chain(arena, start, wheel_delta_x, wheel_delta_y);
     let mut node = start;
     while let Some(data) = arena.node_data_if_live(node) {
         if data.kind.get() != NodeKind::Viewport {
@@ -86,6 +117,9 @@ pub(crate) fn for_each_wheel_scrollable_box_in_containing_block_chain(
                     return;
                 }
             }
+        }
+        if node == box_ending_scroll_chain {
+            return;
         }
         node = arena.containing_block_by_walking_ancestors(node);
     }

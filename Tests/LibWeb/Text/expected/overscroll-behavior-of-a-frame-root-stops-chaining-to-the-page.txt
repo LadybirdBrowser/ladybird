@@ -1,0 +1,8 @@
+root auto, frame scrollable: page at 150, frame at 0
+root contain, frame scrollable: page at 200, frame at 0
+root none, frame scrollable: page at 200, frame at 0
+root chain, frame scrollable: page at 150, frame at 0
+root contain on the other axis, frame scrollable: page at 150, frame at 0
+root contain, frame with nothing to scroll: page at 200, frame at 0
+root auto, frame with nothing to scroll: page at 150, frame at 0
+body contain, frame scrollable: page at 150, frame at 0
