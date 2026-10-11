@@ -63,7 +63,11 @@ pub struct Dependents {
 impl Dependents {
     /// Records that the code with `id` installed for `executable` depends on `dependencies`.
     pub fn register(&self, vm: &Vm, executable: Gc<Executable>, id: u64, dependencies: &[Dependency]) {
+        if dependencies.is_empty() {
+            return;
+        }
         let mut code = self.code.borrow_mut();
+        let weak_executable = GcWeak::new(vm.heap(), executable);
         for dependency in dependencies {
             match dependency {
                 Dependency::GlobalDeclarations { environment, .. }
@@ -76,7 +80,7 @@ impl Dependents {
                 | Dependency::NoHtmlDdaObjects => {}
             }
             code.entry(*dependency).or_default().push(DependentCode {
-                executable: GcWeak::new(vm.heap(), executable),
+                executable: weak_executable.clone(),
                 id,
             });
         }
