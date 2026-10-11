@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="area">one txet two</textarea>
+<div id="editable" contenteditable>one txet two</div>
+<div id="plain"></div>
+<script>
+    promiseTest(async () => {
+        const clickOn = element => {
+            const rect = element.getBoundingClientRect();
+            internals.click(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        };
+
+        // Checking that turns off while a check is in flight takes the answer with it.
+        const area = document.getElementById("area");
+        clickOn(area);
+        area.spellcheck = false;
+        await internals.spellCheckSettled();
+        println(`turned off during its check: ${internals.spellingErrorRanges(area) || "(none)"}`);
+
+        // So does text that moves out of the editable while its check is in flight.
+        const editable = document.getElementById("editable");
+        clickOn(editable);
+        const text = editable.firstChild;
+        document.getElementById("plain").append(text);
+        await internals.spellCheckSettled();
+        println(`moved out of the editable during its check: ${internals.spellingErrorRanges(text) || "(none)"}`);
+    });
+</script>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="edited">one txet two</textarea>
+<textarea id="removed">txet</textarea>
+<iframe id="frame" srcdoc="<div contenteditable>txet</div>"></iframe>
+<script>
+    promiseTest(async () => {
+        const frame = document.getElementById("frame");
+        if (!frame.contentDocument?.querySelector("div"))
+            await new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+
+        // A reply that comes back after the text changed is dropped.
+        const edited = document.getElementById("edited");
+        edited.focus();
+        edited.value = "one text two";
+        await internals.spellCheckSettled();
+        println(`edited before the reply: ${internals.spellingErrorRanges(edited) || "(none)"}`);
+
+        // An editable removed while its check is in flight gets no markers, and nothing crashes.
+        const removed = document.getElementById("removed");
+        removed.focus();
+        removed.remove();
+        await internals.spellCheckSettled();
+        println(`removed during the check: ${internals.spellingErrorRanges(removed) || "(none)"}`);
+
+        // A contenteditable in a same-origin iframe is checked by its own document.
+        const frameEditable = frame.contentDocument.querySelector("div");
+        frameEditable.focus();
+        await internals.spellCheckSettled();
+        println(`iframe: ${internals.spellingErrorRanges(frameEditable.firstChild) || "(none)"}`);
+    });
+</script>

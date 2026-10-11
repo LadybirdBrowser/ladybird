@@ -3516,51 +3516,6 @@ bool EventHandler::initiate_word_selection(Layout::BegunRead const& read, DOM::D
     return true;
 }
 
-// Find paragraph boundaries for triple-click selection. A paragraph is delimited by block nodes or <br> elements.
-static GC::Ref<DOM::Range> find_paragraph_range(DOM::Text& text_node, WebIDL::UnsignedLong offset)
-{
-    GC::Ptr<DOM::Node> start_node = text_node;
-    WebIDL::UnsignedLong start_offset = offset;
-    GC::Ptr<DOM::Node> end_node = text_node;
-    WebIDL::UnsignedLong end_offset = offset;
-
-    // Walk backwards to find the paragraph start (a block boundary point).
-    if (!Editing::is_block_start_point({ *start_node, start_offset })) {
-        do {
-            if (start_offset == 0) {
-                start_offset = start_node->index();
-                start_node = start_node->parent();
-            } else {
-                --start_offset;
-            }
-        } while (start_node && !Editing::is_block_boundary_point({ *start_node, start_offset }));
-    }
-
-    // Walk forwards to find the paragraph end (a block boundary point).
-    if (!Editing::is_block_end_point({ *end_node, end_offset })) {
-        do {
-            if (end_offset == end_node->length()) {
-                end_offset = end_node->index() + 1;
-                end_node = end_node->parent();
-            } else {
-                ++end_offset;
-            }
-        } while (end_node && !Editing::is_block_boundary_point({ *end_node, end_offset }));
-    }
-
-    // Fallback if we couldn't find boundaries.
-    if (!start_node) {
-        start_node = text_node;
-        start_offset = 0;
-    }
-    if (!end_node) {
-        end_node = text_node;
-        end_offset = text_node.length();
-    }
-
-    return DOM::Range::create(*start_node, start_offset, *end_node, end_offset);
-}
-
 bool EventHandler::initiate_paragraph_selection(DOM::Document& document, Painting::CaretPosition const& caret_position, CSS::UserSelect user_select)
 {
     auto* boundary_node = as_if<DOM::Text>(caret_position.boundary_node().ptr());
@@ -3583,7 +3538,7 @@ bool EventHandler::initiate_paragraph_selection(DOM::Document& document, Paintin
         target->set_selection_focus(hit_node, line_end);
     } else if (auto selection = document.get_selection()) {
         // For regular content, find paragraph boundaries within the containing block.
-        m_selection_origin = find_paragraph_range(hit_node, hit_index);
+        m_selection_origin = Editing::paragraph_range_containing(hit_node, hit_index);
 
         m_selection_mode = SelectionMode::Paragraph;
         m_mouse_selection_target = nullptr;
@@ -3777,7 +3732,7 @@ void EventHandler::apply_mouse_selection(Layout::BegunRead const& read, CSSPixel
         GC::Ref<DOM::Range> paragraph_range = m_mouse_selection_target
             ? DOM::Range::create(focus_text_node, find_line_start(focus_text_node.data().utf16_view(), focus_index),
                   focus_text_node, find_line_end(focus_text_node.data().utf16_view(), focus_index))
-            : find_paragraph_range(focus_text_node, focus_index);
+            : Editing::paragraph_range_containing(focus_text_node, focus_index);
 
         // Determine cursor position relative to origin.
         auto position = m_selection_origin->compare_point(*focus_node, focus_index);

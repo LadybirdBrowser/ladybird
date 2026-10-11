@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="flagged" contenteditable>txet</div>
+<div id="in-flight" contenteditable>one txet two</div>
+<iframe id="frame" srcdoc="<p id=target></p>"></iframe>
+<script>
+    promiseTest(async () => {
+        const clickOn = element => {
+            const rect = element.getBoundingClientRect();
+            internals.click(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        };
+        const ranges = node => internals.spellingErrorRanges(node) || "(none)";
+        const frame = document.getElementById("frame");
+        if (!frame.contentDocument?.getElementById("target"))
+            await new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        const target = frame.contentDocument.getElementById("target");
+
+        // A flagged text node moved into another document takes no markers along.
+        const flagged = document.getElementById("flagged");
+        clickOn(flagged);
+        await internals.spellCheckSettled();
+        const moved = flagged.firstChild;
+        println(`flagged before the move: ${ranges(moved)}`);
+        target.append(moved);
+        println(`flagged after the move: ${ranges(moved)}`);
+
+        // A text node moved into another document while its check is in flight gets no markers.
+        const inFlight = document.getElementById("in-flight");
+        clickOn(inFlight);
+        const movedInFlight = inFlight.firstChild;
+        target.append(movedInFlight);
+        await internals.spellCheckSettled();
+        println(`moved during its check: ${ranges(movedInFlight)}`);
+
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        println("painted without a crash");
+    });
+</script>

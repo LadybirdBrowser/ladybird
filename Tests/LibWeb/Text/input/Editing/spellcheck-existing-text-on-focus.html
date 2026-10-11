@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="area">one txet two</textarea>
+<input id="text" value="quikc fox">
+<input id="password" type="password" value="txet">
+<input id="readonly" readonly value="txet">
+<input id="disabled" disabled value="txet">
+<textarea id="no-spellcheck" spellcheck="false">txet</textarea>
+<div id="editable" contenteditable>Hel<b>lo</b> txet <span spellcheck="false">txet</span></div>
+<div id="unfocused" contenteditable>txet</div>
+<textarea id="astral">😀 txet</textarea>
+<textarea id="long"></textarea>
+<script>
+    promiseTest(async () => {
+        document.getElementById("long").value = "word ".repeat(4000) + "txet";
+        const ids = ["area", "text", "password", "readonly", "disabled", "no-spellcheck", "astral", "long"];
+        for (const id of [...ids, "editable"]) {
+            document.getElementById(id).focus();
+            await internals.spellCheckSettled();
+        }
+        for (const id of ids)
+            println(`${id}: ${internals.spellingErrorRanges(document.getElementById(id)) || "(none)"}`);
+        const editable = document.getElementById("editable");
+        for (const node of [editable.childNodes[0], editable.childNodes[1].firstChild, editable.childNodes[2], editable.childNodes[3].firstChild])
+            println(`editable ${JSON.stringify(node.data)}: ${internals.spellingErrorRanges(node) || "(none)"}`);
+        println(`unfocused: ${internals.spellingErrorRanges(document.getElementById("unfocused").firstChild) || "(none)"}`);
+    });
+</script>

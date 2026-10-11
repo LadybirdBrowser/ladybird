@@ -5049,4 +5049,56 @@ bool value_contains_keyword(CSS::StyleValue const& value, CSS::Keyword keyword)
     return value.to_keyword() == keyword;
 }
 
+// The paragraph around a point in a text node, for triple-click selection and spellchecking. A paragraph is delimited
+// by block nodes or <br> elements.
+ParagraphBounds paragraph_bounds_containing(DOM::Text& text_node, WebIDL::UnsignedLong offset)
+{
+    GC::Ptr<DOM::Node> start_node = text_node;
+    WebIDL::UnsignedLong start_offset = offset;
+    GC::Ptr<DOM::Node> end_node = text_node;
+    WebIDL::UnsignedLong end_offset = offset;
+
+    // Walk backwards to find the paragraph start (a block boundary point).
+    if (!is_block_start_point({ *start_node, start_offset })) {
+        do {
+            if (start_offset == 0) {
+                start_offset = start_node->index();
+                start_node = start_node->parent();
+            } else {
+                --start_offset;
+            }
+        } while (start_node && !is_block_boundary_point({ *start_node, start_offset }));
+    }
+
+    // Walk forwards to find the paragraph end (a block boundary point).
+    if (!is_block_end_point({ *end_node, end_offset })) {
+        do {
+            if (end_offset == end_node->length()) {
+                end_offset = end_node->index() + 1;
+                end_node = end_node->parent();
+            } else {
+                ++end_offset;
+            }
+        } while (end_node && !is_block_boundary_point({ *end_node, end_offset }));
+    }
+
+    // Fallback if we couldn't find boundaries.
+    if (!start_node) {
+        start_node = text_node;
+        start_offset = 0;
+    }
+    if (!end_node) {
+        end_node = text_node;
+        end_offset = text_node.length();
+    }
+
+    return { *start_node, start_offset, *end_node, end_offset };
+}
+
+GC::Ref<DOM::Range> paragraph_range_containing(DOM::Text& text_node, WebIDL::UnsignedLong offset)
+{
+    auto bounds = paragraph_bounds_containing(text_node, offset);
+    return DOM::Range::create(bounds.start_node, bounds.start_offset, bounds.end_node, bounds.end_offset);
+}
+
 }

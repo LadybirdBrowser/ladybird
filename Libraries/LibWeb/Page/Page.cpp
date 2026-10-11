@@ -18,6 +18,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Range.h>
+#include <LibWeb/Editing/SpellCheckController.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -132,6 +133,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_on_pending_dialog_closed);
     visitor.visit(m_pending_clipboard_requests);
     visitor.visit(m_pending_spell_check_requests);
+    visitor.visit(m_spell_checking_settled_callbacks);
     visitor.visit(m_emulated_position_data);
     visitor.visit(m_emulated_position_data_observers);
     visitor.visit(m_offscreen_canvases_pending_placeholder_commit);
@@ -1274,6 +1276,34 @@ void Page::did_check_spelling(u64 request_id, Vector<SpellingError> errors)
 {
     if (auto request = m_pending_spell_check_requests.take(request_id); request.has_value())
         (*request)->function()(move(errors));
+    notify_spell_check_progress();
+}
+
+static bool spell_checking_is_settled(Page& page)
+{
+    if (page.has_pending_spell_checks())
+        return false;
+    for (auto const& navigable : page.hosted_navigables()) {
+        if (auto document = navigable->active_document()) {
+            if (auto* controller = document->spell_check_controller_if_exists(); controller && !controller->is_settled())
+                return false;
+        }
+    }
+    return true;
+}
+
+void Page::when_spell_checking_settled(GC::Ref<GC::Function<void()>> callback)
+{
+    m_spell_checking_settled_callbacks.append(callback);
+    notify_spell_check_progress();
+}
+
+void Page::notify_spell_check_progress()
+{
+    if (m_spell_checking_settled_callbacks.is_empty() || !spell_checking_is_settled(*this))
+        return;
+    for (auto& callback : exchange(m_spell_checking_settled_callbacks, {}))
+        callback->function()();
 }
 
 // https://w3c.github.io/geolocation/#dfn-emulated-position-data
