@@ -226,18 +226,21 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     pub(super) fn emit_call_slow_path(&mut self, slow_path: SlowPath) -> Result<(), CompileFailure> {
         let node = slow_path.node;
         let inlined = slow_path.executable != 0;
-        if !inlined && self.graph.slow_paths_initializing_frame.contains(&node) {
-            let initialized = self.masm.new_label();
-            self.branch_if_frame_initialized(initialized);
-            self.emit_frame_initialization(self.pinned.scratch, None)?;
-            self.masm.bind(initialized);
-        }
         let output = match self.allocation.node(node).output {
             Some(Location::Register(register)) => Some(Gpr(register)),
             _ => None,
         };
         let saved = slow_path_saved_registers_of::<M>(self.allocation.node(node));
         self.emit_save_registers(&saved);
+        if !inlined && self.graph.slow_paths_initializing_frame.contains(&node) {
+            let initialized = self.masm.new_label();
+            self.branch_if_frame_initialized(initialized);
+            let stub = *self
+                .frame_initialization_stub
+                .get_or_insert_with(|| self.masm.new_label());
+            self.masm.call(stub);
+            self.masm.bind(initialized);
+        }
         self.leave_frame = self.leave_frame_of(node).map(|node| super::LeaveFrame {
             node,
             restore: saved

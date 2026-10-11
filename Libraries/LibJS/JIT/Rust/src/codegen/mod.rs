@@ -298,6 +298,8 @@ struct Codegen<'a, M: PortableMacroAssembler> {
     leave_frame: Option<LeaveFrame>,
     /// The shared code that writes the frame state of a leave.
     leave_tail: Label,
+    /// Shared frame initialization for slow paths, after saving their registers.
+    frame_initialization_stub: Option<Label>,
     /// While a `CallSlowPath` node that is a call is emitted: where the
     /// operands of its slow path are.
     slow_path_values: Option<SlowPathValues>,
@@ -413,6 +415,7 @@ pub fn generate<M: PortableMacroAssembler>(
         leave_stubs: Vec::new(),
         leave_frame: None,
         leave_tail,
+        frame_initialization_stub: None,
         slow_path_values: None,
         invalidation_points: Vec::new(),
         fused_probe_failure: None,
@@ -428,6 +431,7 @@ pub fn generate<M: PortableMacroAssembler>(
     }
     codegen.emit_deferred_code()?;
     codegen.emit_tails();
+    codegen.emit_frame_initialization_stub()?;
     let osr_entries = codegen.emit_osr_entries();
 
     let fp_offset = |slot: u32| codegen.frame_pointer_offset(slot);
@@ -1951,7 +1955,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     fn emit_initialize_frame(&mut self, node: NodeId) -> Result<(), CompileFailure> {
         let temps = &self.allocation.node(node).temps;
         let (value, cursor) = (Gpr(temps[0]), Gpr(temps[1]));
-        self.emit_frame_initialization(value, Some(cursor))
+        self.emit_frame_initialization(value, cursor)
     }
 
     /// `EnsureFrameInitialized`: initializes the frame unless it is.
@@ -1960,7 +1964,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let (value, cursor) = (Gpr(temps[0]), Gpr(temps[1]));
         let done = self.masm.new_label();
         self.branch_if_frame_initialized(done);
-        self.emit_frame_initialization(value, Some(cursor))?;
+        self.emit_frame_initialization(value, cursor)?;
         self.masm.bind(done);
         Ok(())
     }
@@ -1980,9 +1984,9 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     }
 
     /// Publishes the frame and initializes it like `Enter`, with `value` for
-    /// the stored values, and with a loop using `cursor` for large frames if
-    /// there is one. Clobbers the scratch register.
-    fn emit_frame_initialization(&mut self, value: Gpr, cursor: Option<Gpr>) -> Result<(), CompileFailure> {
+    /// the stored values, and with a loop using `cursor` for large frames.
+    /// Clobbers the scratch register.
+    fn emit_frame_initialization(&mut self, value: Gpr, cursor: Gpr) -> Result<(), CompileFailure> {
         self.emit_publish_frame();
         // Up to this many registers and locals are emptied with one store
         // each, more in a loop.
@@ -1992,7 +1996,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let first = crate::bytecode::RESERVED_REGISTER_COUNT;
         let mut fields: Vec<call::ConstantField> = Vec::new();
         let unrolled = layout.registers_and_locals_count.saturating_sub(first) <= UNROLLED_SLOTS;
-        if let (false, Some(cursor)) = (unrolled, cursor) {
+        if !unrolled {
             self.masm.move_imm64(value, value::EMPTY);
             let start = self.slot_address(first)?;
             let end = self.slot_address(layout.registers_and_locals_count)?;
@@ -2013,6 +2017,20 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         }
         fields.push((self.runtime.offsets.execution_context_frame_initialized, 1, 1));
         self.emit_constant_fields(self.pinned.frame, value, &mut fields)
+    }
+
+    /// Initializes the frame for slow paths, whose caller-saved registers
+    /// are saved already. Uses two argument registers and the scratch
+    /// register, and does not call out or use the native frame's locals.
+    fn emit_frame_initialization_stub(&mut self) -> Result<(), CompileFailure> {
+        let Some(label) = self.frame_initialization_stub else {
+            return Ok(());
+        };
+        self.annotate(CodeAnnotation::Tail("frame initialization (shared by slow paths)"));
+        self.masm.bind(label);
+        self.emit_frame_initialization(M::ARGUMENT_GPRS[0], M::ARGUMENT_GPRS[1])?;
+        self.masm.ret();
+        Ok(())
     }
 
     /// Whether the input is a function object, as a boolean.

@@ -30,6 +30,8 @@ pub mod disassembler;
 pub(crate) mod executable_code;
 #[cfg(all(test, target_arch = "x86_64"))]
 mod execution_tests;
+#[cfg(test)]
+mod tests;
 
 /// The instruction set an assembler emits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
