@@ -28,10 +28,10 @@
 //!   that have a representation (or virtual objects);
 //! - slow path calls have a frame state, and those that save registers
 //!   are in cold blocks;
-//! - `StoreSlot` writes only the reserved registers, written constants, and
-//!   slots that the next call reading the frame (a `Generic` node, or a call
-//!   that reads its operands from the frame) reads (see
-//!   `verify_frame_writes()`).
+//! - `StoreSlot` writes only the reserved registers, written constants, the
+//!   arguments the compiled function's legacy `arguments` shows, and slots
+//!   that the next call reading the frame (a `Generic` node, or a call that
+//!   reads its operands from the frame) reads (see `verify_frame_writes()`).
 
 use super::dominators::Dominators;
 use crate::bytecode::FrameLayout;
@@ -55,9 +55,10 @@ struct Place {
 
 /// Checks that `StoreSlot` writes frame memory only where nothing else can:
 /// the reserved registers (the this value and the saved lexical
-/// environment, which slow paths write there too), written constants, and the
-/// slots a node that reads the frame reads, right before it. Merges and back
-/// edges never write frame memory: slots that differ get phis.
+/// environment, which slow paths write there too), written constants, the
+/// arguments the compiled function's legacy `arguments` shows, and the slots
+/// a node that reads the frame reads, right before it. Merges and back edges
+/// never write frame memory: slots that differ get phis.
 pub fn verify_frame_writes(graph: &Graph, layout: &FrameLayout) -> Result<(), String> {
     let mut errors = Vec::new();
     for (index, block) in graph.blocks.iter().enumerate() {
@@ -73,7 +74,7 @@ pub fn verify_frame_writes(graph: &Graph, layout: &FrameLayout) -> Result<(), St
             };
             let operand = Operand::from_raw(slot).raw();
             let is_constant = operand >= layout.registers_and_locals_count && operand < layout.arguments_base();
-            if operand < RESERVED_REGISTER_COUNT || is_constant {
+            if operand < RESERVED_REGISTER_COUNT || is_constant || graph.legacy_arguments.contains(&operand) {
                 continue;
             }
             // NB: Conversions of the reader's inputs may come in between.
