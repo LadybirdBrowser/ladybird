@@ -1,0 +1,12 @@
+overflow: hidden, overscroll-behavior-y: none, gesture up: page at 200,200
+overflow: hidden, overscroll-behavior-y: none, gesture left: page at 150,200
+overflow: auto, overscroll-behavior-y: none, gesture up: page at 200,200
+overflow: auto, overscroll-behavior-y: none, gesture left: page at 150,200
+overflow: scroll, overscroll-behavior-y: none, gesture up: page at 200,200
+overflow: scroll, overscroll-behavior-y: none, gesture left: page at 150,200
+overflow: clip, overscroll-behavior-y: none, gesture up: page at 200,150
+overflow: clip, overscroll-behavior-y: none, gesture left: page at 150,200
+overflow: visible, overscroll-behavior-y: none, gesture up: page at 200,150
+overflow: visible, overscroll-behavior-y: none, gesture left: page at 150,200
+overflow: hidden, overscroll-behavior-x: contain, gesture up: page at 200,150
+overflow: hidden, overscroll-behavior-x: contain, gesture left: page at 200,200

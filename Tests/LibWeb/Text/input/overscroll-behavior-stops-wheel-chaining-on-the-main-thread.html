@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        width: 3000px;
+        height: 3000px;
+    }
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #scroller > div {
+        width: 300px;
+        height: 300px;
+    }
+</style>
+<div id="scroller"><div></div></div>
+<script>
+    // A wheel listener that may cancel the scroll keeps the scrolling of this page on the main thread.
+    window.addEventListener("wheel", () => { }, { passive: false });
+
+    async function touchpadGesture(deltaX, deltaY) {
+        // The scroller stays under the same point of the window: the page is scrolled back before every gesture.
+        await internals.wheel(50, 50, deltaX, deltaY, true, "ongoing");
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+    }
+
+    function pageOffset() {
+        return `${window.scrollX},${window.scrollY}`;
+    }
+
+    promiseTest(async () => {
+        // The scroller sits at 0,0 of the window with the page scrolled to 200,200, so the page can scroll up and left.
+        document.body.style.padding = "200px 0 0 200px";
+        const scrollPageBack = async () => {
+            window.scrollTo(200, 200);
+            scroller.scrollTo(0, 0);
+            await animationFrame();
+            await animationFrame();
+        };
+
+        for (const value of ["auto", "contain", "none", "chain"]) {
+            scroller.style.overscrollBehavior = `auto ${value}`;
+            await scrollPageBack();
+            await touchpadGesture(0, -50);
+            println(`overscroll-behavior-y: ${value}, gesture up at the top of the scroller: page at ${pageOffset()}`);
+            await scrollPageBack();
+            await touchpadGesture(-50, 0);
+            println(`overscroll-behavior-y: ${value}, gesture left at the left of the scroller: page at ${pageOffset()}`);
+        }
+
+        scroller.style.overscrollBehavior = "contain auto";
+        await scrollPageBack();
+        await touchpadGesture(-50, 0);
+        println(`overscroll-behavior-x: contain, gesture left: page at ${pageOffset()}`);
+        await scrollPageBack();
+        await touchpadGesture(0, -50);
+        println(`overscroll-behavior-x: contain, gesture up: page at ${pageOffset()}`);
+
+        // A gesture that the scroller can scroll by is its own business whatever it does at its boundary.
+        scroller.style.overscrollBehavior = "none";
+        await scrollPageBack();
+        await touchpadGesture(0, 50);
+        println(`overscroll-behavior: none, gesture down: scroller at ${scroller.scrollLeft},${scroller.scrollTop} page at ${pageOffset()}`);
+
+        // The pointer moves between the wheels below, so that each of them is a gesture of its own.
+        await scrollPageBack();
+        await internals.wheel(20, 20, 0, -120);
+        println(`overscroll-behavior: none, mouse wheel up at the top of the scroller: page at ${pageOffset()}`);
+        scroller.style.overscrollBehavior = "auto";
+        await scrollPageBack();
+        await internals.wheel(70, 70, 0, -120);
+        println(`overscroll-behavior: auto, mouse wheel up at the top of the scroller: page moved up ${window.scrollY < 200}`);
+    });
+</script>
