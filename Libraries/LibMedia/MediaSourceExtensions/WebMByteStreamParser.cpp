@@ -298,6 +298,7 @@ Media::DecoderErrorOr<ParseMediaSegmentResult> WebMByteStreamParser::parse_media
             //   reached when another Cluster header or an element header that indicates the start of a WebM
             //   initialization segment is encountered.
             if (!remaining_bytes.has_value() && first_is_one_of(element_id, EBML_MASTER_ELEMENT_ID, CLUSTER_ELEMENT_ID)) {
+                TRY(cursor.seek(block_position, AK::SeekMode::SetPosition));
                 return IterationDecision::Break;
             }
 

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
+<script>
+    asyncTest(done => {
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        // The test WebM file's three Clusters start at these offsets, each with a two-octet size field.
+        const INITIALIZATION_SEGMENT_END = 427;
+        const SECOND_CLUSTER_START = 3537;
+        const THIRD_CLUSTER_START = 6648;
+        const CUES_START = 7746;
+
+        // Live streams write Clusters with an unknown size, which are terminated only by the next Cluster or EBML
+        // header. The size field keeps its width when the value bits are all set.
+        function withUnknownSize(cluster) {
+            const bytes = new Uint8Array(cluster);
+            bytes[4] = 0x7f;
+            bytes[5] = 0xff;
+            return bytes;
+        }
+
+        function concatenate(...buffers) {
+            const result = new Uint8Array(buffers.reduce((length, buffer) => length + buffer.byteLength, 0));
+            let offset = 0;
+            for (const buffer of buffers) {
+                result.set(new Uint8Array(buffer), offset);
+                offset += buffer.byteLength;
+            }
+            return result;
+        }
+
+        mediaSource.addEventListener("sourceopen", async () => {
+            try {
+                const sourceBuffer = mediaSource.addSourceBuffer('video/webm;codecs="vp9"');
+                const response = await fetch("../../../Assets/red-with-second-in-gray-64x36.webm");
+                const data = await response.arrayBuffer();
+
+                function append(buffer) {
+                    return new Promise((resolve, reject) => {
+                        sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                        sourceBuffer.addEventListener("error", () => reject(new Error("error event")), { once: true });
+                        sourceBuffer.appendBuffer(buffer);
+                    });
+                }
+
+                const initializationSegment = data.slice(0, INITIALIZATION_SEGMENT_END);
+                const firstCluster = withUnknownSize(data.slice(INITIALIZATION_SEGMENT_END, SECOND_CLUSTER_START));
+                const secondCluster = withUnknownSize(data.slice(SECOND_CLUSTER_START, THIRD_CLUSTER_START));
+                const thirdCluster = data.slice(THIRD_CLUSTER_START, CUES_START);
+
+                await append(concatenate(initializationSegment, firstCluster));
+                println(`after the first unknown-size cluster: ${timeRangesToString(sourceBuffer.buffered)}`);
+
+                // An initialization segment terminates the first Cluster, as each segment of a live stream begins
+                // with its own EBML header.
+                await append(concatenate(initializationSegment, secondCluster));
+                println(`after an initialization segment and the second cluster: ${timeRangesToString(sourceBuffer.buffered)}`);
+
+                // A Cluster header terminates the second Cluster.
+                await append(thirdCluster);
+                println(`after the third cluster: ${timeRangesToString(sourceBuffer.buffered)}`);
+            } catch (error) {
+                println(`FAIL: ${error}`);
+            }
+            done();
+        });
+    });
+</script>
