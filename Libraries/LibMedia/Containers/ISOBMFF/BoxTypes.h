@@ -43,6 +43,7 @@ constexpr FourCC SEGMENT_TYPE_BOX { "styp" };
 constexpr FourCC MEDIA_DATA_BOX { "mdat" };
 constexpr FourCC FREE_SPACE_BOX { "free" };
 constexpr FourCC SKIP_BOX { "skip" };
+constexpr FourCC WIDE_ATOM { "wide" };
 constexpr FourCC EXTENDED_TYPE_BOX { "uuid" };
 constexpr FourCC PROGRESSIVE_DOWNLOAD_INFO_BOX { "pdin" };
 constexpr FourCC SEGMENT_INDEX_BOX { "sidx" };

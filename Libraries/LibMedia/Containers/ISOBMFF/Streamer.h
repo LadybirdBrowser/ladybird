@@ -24,7 +24,17 @@ public:
     template<Integral T>
     DecoderErrorOr<T> read()
     {
-        return m_stream_cursor->read_value<T>();
+        T value = 0;
+        auto start = m_stream_cursor->position();
+        auto count = TRY(m_stream_cursor->read_into({ &value, sizeof(T) }));
+        if (count != sizeof(T)) {
+            auto size = m_stream_cursor->size();
+            if (size.has_value() && (start > size.value() || sizeof(T) > size.value() - start))
+                return DecoderError::corrupted("Unexpected end of ISO BMFF stream"sv);
+            // Non-blocking cursors return short reads when a range has not arrived (or was evicted).
+            return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "ISO BMFF data is not available yet"sv);
+        }
+        return AK::convert_between_host_and_big_endian(value);
     }
 
     DecoderErrorOr<FourCC> read_four_cc();

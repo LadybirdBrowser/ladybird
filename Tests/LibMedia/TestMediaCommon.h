@@ -17,7 +17,7 @@
 #include <LibMedia/Containers/Matroska/Reader.h>
 #include <LibMedia/Containers/Matroska/Utilities.h>
 #include <LibMedia/Demuxer.h>
-#include <LibMedia/FFmpeg/FFmpegDemuxer.h>
+#include <LibMedia/DemuxerRegistry.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/DecodedAudioProducer.h>
 #include <LibMedia/Producers/VideoProducer.h>
@@ -92,12 +92,7 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
 
     auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
     auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
-    auto demuxer = MUST([&] -> Media::DecoderErrorOr<NonnullRefPtr<Media::Demuxer>> {
-        auto matroska_result = Media::Matroska::MatroskaDemuxer::from_stream(stream);
-        if (!matroska_result.is_error())
-            return matroska_result.release_value();
-        return Media::FFmpeg::FFmpegDemuxer::from_stream(stream);
-    }());
+    auto demuxer = MUST(Media::create_demuxer(stream));
     auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Audio));
     VERIFY(!tracks.is_empty());
     auto producer = TRY_OR_FAIL(Media::DecodedAudioProducer::try_create(loop, demuxer, tracks[0]));

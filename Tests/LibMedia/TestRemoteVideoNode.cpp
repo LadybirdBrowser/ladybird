@@ -15,9 +15,8 @@
 #include <LibCore/System.h>
 #include <LibGfx/YUVData.h>
 #include <LibIPC/Transport.h>
-#include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/Demuxer.h>
-#include <LibMedia/FFmpeg/FFmpegDemuxer.h>
+#include <LibMedia/DemuxerRegistry.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/MediaTime.h>
 #include <LibMedia/PlaybackManager.h>
@@ -50,10 +49,7 @@ NonnullRefPtr<IncrementallyPopulatedStream> load_test_file(StringView path)
 
 NonnullRefPtr<Demuxer> create_demuxer(NonnullRefPtr<IncrementallyPopulatedStream> const& stream)
 {
-    auto matroska_result = Matroska::MatroskaDemuxer::from_stream(stream);
-    if (!matroska_result.is_error())
-        return matroska_result.release_value();
-    return MUST(FFmpeg::FFmpegDemuxer::from_stream(stream));
+    return MUST(Media::create_demuxer(stream));
 }
 
 NonnullRefPtr<DecodedVideoProducer> make_decoder(Core::EventLoop& loop, StringView path)

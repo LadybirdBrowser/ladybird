@@ -146,7 +146,7 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
     AVDictionary* options = nullptr;
     ScopeGuard free_options = [&] { av_dict_free(&options); };
 
-    if (av_dict_set(&options, "format_whitelist", "flac,mov,ogg,wav", 0) < 0)
+    if (av_dict_set(&options, "format_whitelist", "flac,ogg,wav", 0) < 0)
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg format whitelist"sv);
 
     auto const& codecs = codec_whitelist();

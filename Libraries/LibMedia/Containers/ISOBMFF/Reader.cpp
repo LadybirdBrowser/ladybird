@@ -271,6 +271,9 @@ static void synthesize_missing_aac_configurations(TrackEntry& track)
     for (auto& entry : track.sample_entries) {
         if (entry.format != MPEG4_AUDIO_SAMPLE_ENTRY || !entry.codec_initialization_data.is_empty())
             continue;
+        // mp4a also carries MPEG-1/2 audio, which has no DecoderSpecificInfo. Preserve the codec identified by esds.
+        if (!first_is_one_of(entry.codec_id, CodecID::Unknown, CodecID::AAC))
+            continue;
         if (!entry.audio.has_value() || entry.audio->sample_rate == 0)
             continue;
         auto channel_count = entry.audio->channel_count;
@@ -458,12 +461,99 @@ DecoderErrorOr<void> Reader::parse_sample_table_box(Streamer& streamer, BoxHeade
     return parse_child_boxes(streamer, header, IsTopLevel::No, [&](BoxHeader const& child) -> DecoderErrorOr<IterationDecision> {
         if (child.type == SAMPLE_DESCRIPTION_BOX) {
             track.sample_entries = TRY(parse_sample_description_box(streamer, child, track.handler_type));
-        } else if (first_is_one_of(child.type, TIME_TO_SAMPLE_BOX, SAMPLE_TO_CHUNK_BOX, CHUNK_OFFSET_BOX, CHUNK_LARGE_OFFSET_BOX)) {
-            // FIXME: Parse the sample tables so that unfragmented files can be demuxed. For now we only record
-            //        whether they describe any samples at all.
-            TRY(read_full_box_header(streamer));
-            track.sample_table_entry_count += static_cast<u64>(TRY(streamer.read<u32>()));
+            return IterationDecision::Continue;
         }
+        if (!first_is_one_of(child.type, TIME_TO_SAMPLE_BOX, FourCC { "ctts" }, SAMPLE_TO_CHUNK_BOX,
+                SAMPLE_SIZE_BOX, FourCC { "stz2" }, CHUNK_OFFSET_BOX, CHUNK_LARGE_OFFSET_BOX, FourCC { "stss" }))
+            return IterationDecision::Continue;
+
+        bool is_size_table = first_is_one_of(child.type, SAMPLE_SIZE_BOX, FourCC { "stz2" });
+        if (child.content_size.value() < (is_size_table ? 12u : 8u))
+            return DecoderError::corrupted("Sample table is smaller than its header"sv);
+        auto full_box = TRY(read_full_box_header(streamer));
+        if (full_box.version > (child.type == FourCC { "ctts" } ? 1 : 0))
+            return DecoderError::corrupted("Unsupported sample table version"sv);
+
+        auto validate_entries = [&](u32 count, u8 bits_per_entry) -> DecoderErrorOr<void> {
+            auto required_bytes = (static_cast<u64>(count) * bits_per_entry + 7) / 8;
+            if (required_bytes > child.end_position().value() - streamer.position())
+                return DecoderError::corrupted("Sample table is smaller than the entries it declares"sv);
+            return {};
+        };
+        auto& tables = *track.sample_tables;
+        if (is_size_table) {
+            if (tables.sample_sizes.has_value())
+                return DecoderError::corrupted("Duplicate sample table"sv);
+            SampleSizes sizes;
+            auto size_field = TRY(streamer.read<u32>());
+            u8 bits_per_entry = 32;
+            if (child.type == SAMPLE_SIZE_BOX) {
+                sizes.default_size = size_field;
+            } else {
+                bits_per_entry = size_field & 0xff;
+                if (!first_is_one_of(bits_per_entry, 4, 8, 16))
+                    return DecoderError::corrupted("Invalid compact sample size width"sv);
+            }
+            sizes.sample_count = TRY(streamer.read<u32>());
+            if (sizes.default_size == 0) {
+                TRY(validate_entries(sizes.sample_count, bits_per_entry));
+                DECODER_TRY_ALLOC(sizes.sizes.try_ensure_capacity(sizes.sample_count));
+                u8 packed_sizes = 0;
+                for (u32 index = 0; index < sizes.sample_count; ++index) {
+                    u32 size;
+                    if (bits_per_entry == 32)
+                        size = TRY(streamer.read<u32>());
+                    else if (bits_per_entry == 16)
+                        size = TRY(streamer.read<u16>());
+                    else if (bits_per_entry == 8)
+                        size = TRY(streamer.read<u8>());
+                    else {
+                        if (index % 2 == 0)
+                            packed_sizes = TRY(streamer.read<u8>());
+                        size = (index % 2 == 0 ? packed_sizes >> 4 : packed_sizes) & 0xf;
+                    }
+                    sizes.sizes.unchecked_append(size);
+                }
+            }
+            tables.sample_sizes = move(sizes);
+            return IterationDecision::Continue;
+        }
+
+        auto count = TRY(streamer.read<u32>());
+        auto read_entries = [&](auto& table, u8 bits_per_entry, auto read_entry) -> DecoderErrorOr<void> {
+            if (table.has_value())
+                return DecoderError::corrupted("Duplicate sample table"sv);
+            TRY(validate_entries(count, bits_per_entry));
+            table.emplace();
+            DECODER_TRY_ALLOC(table->try_ensure_capacity(count));
+            for (u32 index = 0; index < count; ++index)
+                table->unchecked_append(TRY(read_entry()));
+            return {};
+        };
+        if (child.type == TIME_TO_SAMPLE_BOX) {
+            TRY(read_entries(tables.time_to_sample, 64, [&]() -> DecoderErrorOr<TimeToSampleEntry> {
+                return TimeToSampleEntry { TRY(streamer.read<u32>()), TRY(streamer.read<u32>()) };
+            }));
+        } else if (child.type == FourCC { "ctts" }) {
+            TRY(read_entries(tables.composition_offsets, 64, [&]() -> DecoderErrorOr<CompositionOffsetEntry> {
+                auto sample_count = TRY(streamer.read<u32>());
+                i64 offset = full_box.version == 1 ? static_cast<i64>(TRY(streamer.read<i32>())) : TRY(streamer.read<u32>());
+                return CompositionOffsetEntry { sample_count, offset };
+            }));
+        } else if (child.type == SAMPLE_TO_CHUNK_BOX) {
+            TRY(read_entries(tables.sample_to_chunk, 96, [&]() -> DecoderErrorOr<SampleToChunkEntry> {
+                return SampleToChunkEntry { TRY(streamer.read<u32>()), TRY(streamer.read<u32>()), TRY(streamer.read<u32>()) };
+            }));
+        } else if (first_is_one_of(child.type, CHUNK_OFFSET_BOX, CHUNK_LARGE_OFFSET_BOX)) {
+            bool large = child.type == CHUNK_LARGE_OFFSET_BOX;
+            TRY(read_entries(tables.chunk_offsets, large ? 64 : 32, [&]() -> DecoderErrorOr<u64> {
+                return large ? TRY(streamer.read<u64>()) : TRY(streamer.read<u32>());
+            }));
+        } else {
+            TRY(read_entries(tables.sync_samples, 32, [&] { return streamer.read<u32>(); }));
+        }
+        if (first_is_one_of(child.type, TIME_TO_SAMPLE_BOX, SAMPLE_TO_CHUNK_BOX, CHUNK_OFFSET_BOX, CHUNK_LARGE_OFFSET_BOX))
+            track.sample_table_entry_count += count;
         return IterationDecision::Continue;
     });
 }
@@ -757,6 +847,15 @@ DecoderErrorOr<void> Reader::parse_track_fragment_box(Streamer& streamer, BoxHea
                 return DecoderError::format(DecoderErrorCategory::Corrupted, "Track fragment refers to unknown track ID {}", track_id);
             context = maybe_context.release_value();
             defaults = context.sample_defaults;
+            next_sample_decode_time = context.next_decode_time;
+            // A track may have multiple traf boxes in one moof. Without tfdt, continue its preceding run.
+            for (size_t index = fragment.track_runs.size(); index > 0; --index) {
+                auto const& run = fragment.track_runs[index - 1];
+                if (run.track_id == track_id) {
+                    next_sample_decode_time = run.end_decode_time();
+                    break;
+                }
+            }
 
             auto has_base_data_offset = (full_box.flags & TRACK_FRAGMENT_BASE_DATA_OFFSET_PRESENT) != 0;
             auto default_base_is_movie_fragment = !has_base_data_offset && (full_box.flags & TRACK_FRAGMENT_DEFAULT_BASE_IS_MOVIE_FRAGMENT) != 0;

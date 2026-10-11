@@ -6,6 +6,7 @@
 
 #include <AK/Array.h>
 #include <LibMedia/Containers/ADTS/ADTSDemuxer.h>
+#include <LibMedia/Containers/ISOBMFF/ISOBMFFDemuxer.h>
 #include <LibMedia/Containers/MP3/MP3Demuxer.h>
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/DemuxerRegistry.h>
@@ -25,6 +26,7 @@ struct DemuxerRegistration {
 };
 
 static constexpr Array demuxers_in_priority_order {
+    DemuxerRegistration { ISOBMFF::ISOBMFFDemuxer::from_stream, ISOBMFF::ISOBMFFDemuxer::supports_container_mime_type, ISOBMFF::ISOBMFFDemuxer::supports_codec_in_container },
     DemuxerRegistration { Matroska::MatroskaDemuxer::from_stream, Matroska::MatroskaDemuxer::supports_container_mime_type, Matroska::MatroskaDemuxer::supports_codec_in_container },
     DemuxerRegistration { FFmpeg::FFmpegDemuxer::from_stream, FFmpeg::FFmpegDemuxer::supports_container_mime_type, FFmpeg::FFmpegDemuxer::supports_codec_in_container },
     DemuxerRegistration { MP3::MP3Demuxer::from_stream, MP3::MP3Demuxer::supports_container_mime_type, MP3::MP3Demuxer::supports_codec_in_container },

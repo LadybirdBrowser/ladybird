@@ -25,6 +25,8 @@ set(SOURCES
     Containers/ID3.cpp
     Containers/IndexedContainerNavigator.cpp
     Containers/ISOBMFF/FragmentSampleIterator.cpp
+    Containers/ISOBMFF/ISOBMFFDemuxer.cpp
+    Containers/ISOBMFF/SampleIterator.cpp
     Containers/ISOBMFF/Reader.cpp
     Containers/ISOBMFF/Streamer.cpp
     Containers/Matroska/MatroskaDemuxer.cpp
