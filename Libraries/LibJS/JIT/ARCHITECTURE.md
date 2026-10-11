@@ -76,9 +76,9 @@ loads.
 
 A node that relies on a check takes the check's value as its input, never the checked value
 itself. Checks that exit (`CheckObject`, `CheckShape`, `CheckValue`, `CheckClosure`,
-`CheckAccessorFunction`, `CheckElements`, `CheckIdentityComparable`, `CheckAppendableArray`,
-`CheckBounds`, `CheckTypedArrayStorage`, `CheckNotHole`) have their input 0 as their value,
-refined: known to pass. `CheckInt32` refines and unboxes at once. A branch refines on its edges
+`CheckAccessorFunction`, `CheckElements`, `CheckTypedArray`, `CheckIdentityComparable`,
+`CheckAppendableArray`, `CheckBounds`, `CheckTypedArrayStorage`, `CheckNotHole`) have their input 0
+as their value, refined: known to pass. `CheckInt32` refines and unboxes at once. A branch refines on its edges
 with `Refine`, the textbook pi node: it takes the branch's inputs and returns input 0, at the head
 of the block that only that edge reaches. So every check is a data dependency of what relies on
 it: passes move or share a load exactly when they can move or share its check, without control
@@ -130,6 +130,7 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | CheckPrototypeChainValid | Exits unless a prototype chain validity cell is still valid. | E | Named | | |
 | CheckAccessorFunction | Exits unless an accessor property holds a given getter or setter. The value is the object, refined. | E | Named | | |
 | CheckElements | Exits unless the object has elements of a kind. The value is the object, refined. | E | Elements | | |
+| CheckTypedArray | Exits unless the object is a typed array, of any kind. The value is the object, refined. | E | | | |
 | Refine | Input 0, refined by the edge of a branch on the same condition and inputs: at the head of the block only that edge reaches (section 3.2). Never moved; gone before register allocation. | | | | cse |
 | CheckBounds | Exits unless the index (input 0) is below the count (input 1), unsigned. The value is the index, refined. | E | | | cse |
 | CheckTypedArrayStorage | Exits unless the storage offset of a typed array (input 0) is valid. Typed arrays whose length the snapshot knows to be fixed use it as a constant past this check, so accesses with a constant index rely on it alone. The value is the offset, refined. | E | | | cse |

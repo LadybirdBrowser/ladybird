@@ -1328,6 +1328,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Op::Int32Binary { op } => self.emit_int32_binary(node_id, *op),
             Op::Int32Compare { comparison } => self.emit_int32_compare(node_id, *comparison),
             Op::CheckElements { kind } => self.emit_check_elements(node_id, *kind),
+            Op::CheckTypedArray => self.emit_check_typed_array(node_id),
             Op::LoadTypedArrayLength => self.emit_load_typed_array_length(node_id),
             Op::CheckTypedArrayStorage => {
                 let exit = self.exit_site(node_id);

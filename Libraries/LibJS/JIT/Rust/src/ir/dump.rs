@@ -284,6 +284,7 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         | Op::LoadPropertyIteratorKey => with_inputs(op.name()),
         Op::CheckBounds
         | Op::CheckNotHole
+        | Op::CheckTypedArray
         | Op::LoadTypedArrayLength
         | Op::LoadTypedArrayDataOffset
         | Op::CheckTypedArrayStorage => with_inputs(op.name()),

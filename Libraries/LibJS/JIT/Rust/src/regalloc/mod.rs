@@ -413,7 +413,9 @@ fn constraints(node: &Node, registers: &RegisterSet) -> Constraints {
         // The object's elements.
         Op::LoadElementsCapacity | Op::AppendElement => constraints.temps = 1,
         // The object, then its elements or element address.
-        Op::CheckElements { .. } | Op::CheckIdentityComparable | Op::CheckClosure { .. } => constraints.temps = 1,
+        Op::CheckElements { .. } | Op::CheckTypedArray | Op::CheckIdentityComparable | Op::CheckClosure { .. } => {
+            constraints.temps = 1;
+        }
         // The elements or the element address.
         Op::LoadElementAt { .. } | Op::StoreElementAt { .. } => {
             constraints.inputs[1] = InputConstraint::RegisterOrConstant;

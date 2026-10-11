@@ -59,6 +59,7 @@ use crate::runtime::shared_function_instance_data::ConstructorKind;
 use crate::runtime::shared_function_instance_data::FunctionKind;
 use crate::runtime::shared_function_instance_data::ThisMode;
 use crate::runtime::string_constructor::StringConstructor;
+use crate::runtime::typed_array_prototype::TypedArrayPrototype;
 
 /// Candidates with at most this many bytecode instructions are always inlined, without counting against the inlining
 /// budget.
@@ -161,6 +162,8 @@ fn intrinsic_of(vm: &Vm, cell: Option<Gc<CellHeader>>) -> Option<Intrinsic> {
         Some(Intrinsic::ArrayPrototypeSlice)
     } else if ObjectPrototype::is_has_own_property_function(vm, &function) {
         Some(Intrinsic::ObjectPrototypeHasOwnProperty)
+    } else if TypedArrayPrototype::is_length_getter(vm, &function) {
+        Some(Intrinsic::TypedArrayPrototypeLength)
     } else {
         match function.builtin() {
             Some(Builtin::StringFromCharCode) => Some(Intrinsic::StringFromCharCode),
@@ -342,6 +345,7 @@ impl SnapshotBuilder<'_> {
             let accessor_function = entry_accessor_function(slot).map(|function| AccessorFunctionSnapshot {
                 cached_value_offset,
                 function: self.cell(function),
+                intrinsic: intrinsic_of(self.vm, Some(Value::from_object(function.upcast::<Object>()).as_cell())),
                 inline_executable: self
                     .inline_executable_index(Some(Value::from_object(function.upcast::<Object>()).as_cell()), caller),
             });

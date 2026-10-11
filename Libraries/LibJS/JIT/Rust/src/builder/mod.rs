@@ -1407,8 +1407,10 @@ impl<'a> GraphBuilder<'a> {
                     return Ok(None);
                 }
             }
-            Instruction::GetLength { dst, base, .. } => {
-                if !self.try_build_arguments_length(dst, base)? {
+            Instruction::GetLength { dst, base, cache, .. } => {
+                if !self.try_build_arguments_length(dst, base)?
+                    && !self.try_build_typed_array_length(dst, base, cache)?
+                {
                     return Ok(None);
                 }
             }

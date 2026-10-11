@@ -1017,6 +1017,7 @@ pub(crate) mod property_access {
         entry.holds_accessor = true;
         entry.accessor_function = Some(AccessorFunctionSnapshot {
             function: CellId(0x9000),
+            intrinsic: None,
             inline_executable: None,
             cached_value_offset: Some(2),
         });
@@ -1576,6 +1577,7 @@ pub(crate) mod inlining {
                 accessor_function: Some(AccessorFunctionSnapshot {
                     cached_value_offset: None,
                     function: CellId(*getter),
+                    intrinsic: None,
                     inline_executable: Some(1),
                 }),
                 holds_accessor: true,

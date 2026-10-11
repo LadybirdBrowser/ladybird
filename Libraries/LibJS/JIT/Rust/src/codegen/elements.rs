@@ -47,55 +47,63 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         }
     }
 
+    /// Continues where `value` is a typed array, of any kind, with its
+    /// address in `object`, and branches to `fail` otherwise.
+    fn branch_unless_typed_array(&mut self, value: Gpr, object: Gpr, fail: Label) {
+        let scratch = self.pinned.scratch;
+        self.branch_on_tag(Condition::NotEqual, value, value::OBJECT_TAG, scratch, fail);
+        self.emit_unbox_cell(object, value);
+        self.masm
+            .load16(scratch, &Address::new(object, self.runtime.offsets.object_flags as i32));
+        self.masm.branch_test32(
+            Condition::Zero,
+            scratch,
+            u32::from(self.runtime.layout.object_flag_is_typed_array),
+            fail,
+        );
+    }
+
     /// Continues where `value` is an object whose elements are of `kind`,
     /// with its address in `object`, and branches to `fail` otherwise.
     fn branch_unless_elements_kind(&mut self, value: Gpr, object: Gpr, kind: ElementsKind, fail: Label) {
         let scratch = self.pinned.scratch;
         let layout = self.runtime.layout;
+        if let ElementsKind::TypedArray(element) = kind {
+            self.branch_unless_typed_array(value, object, fail);
+            self.masm
+                .load8(scratch, &Address::new(object, layout.typed_array_kind as i32));
+            let kind_value = self.typed_array_kind_value(element);
+            self.masm
+                .branch32_imm(Condition::NotEqual, scratch, i32::from(kind_value), fail);
+            return;
+        }
         self.branch_on_tag(Condition::NotEqual, value, value::OBJECT_TAG, scratch, fail);
         self.emit_unbox_cell(object, value);
         self.masm
             .load16(scratch, &Address::new(object, self.runtime.offsets.object_flags as i32));
-        match kind {
-            ElementsKind::TypedArray(element) => {
-                self.masm.branch_test32(
-                    Condition::Zero,
-                    scratch,
-                    u32::from(layout.object_flag_is_typed_array),
-                    fail,
-                );
-                self.masm
-                    .load8(scratch, &Address::new(object, layout.typed_array_kind as i32));
-                let kind_value = self.typed_array_kind_value(element);
-                self.masm
-                    .branch32_imm(Condition::NotEqual, scratch, i32::from(kind_value), fail);
-            }
-            ElementsKind::Packed | ElementsKind::Holey => {
-                self.masm.branch_test32(
-                    Condition::NonZero,
-                    scratch,
-                    u32::from(layout.object_flag_is_typed_array | layout.object_flag_may_interfere),
-                    fail,
-                );
-                self.masm.load8(
-                    scratch,
-                    &Address::new(object, layout.object_indexed_storage_kind as i32),
-                );
-                let packed = i32::from(layout.indexed_storage_kind_packed);
-                if kind == ElementsKind::Packed {
-                    self.masm.branch32_imm(Condition::NotEqual, scratch, packed, fail);
-                } else {
-                    let ok = self.masm.new_label();
-                    self.masm.branch32_imm(Condition::Equal, scratch, packed, ok);
-                    self.masm.branch32_imm(
-                        Condition::NotEqual,
-                        scratch,
-                        i32::from(layout.indexed_storage_kind_holey),
-                        fail,
-                    );
-                    self.masm.bind(ok);
-                }
-            }
+        self.masm.branch_test32(
+            Condition::NonZero,
+            scratch,
+            u32::from(layout.object_flag_is_typed_array | layout.object_flag_may_interfere),
+            fail,
+        );
+        self.masm.load8(
+            scratch,
+            &Address::new(object, layout.object_indexed_storage_kind as i32),
+        );
+        let packed = i32::from(layout.indexed_storage_kind_packed);
+        if kind == ElementsKind::Packed {
+            self.masm.branch32_imm(Condition::NotEqual, scratch, packed, fail);
+        } else {
+            let ok = self.masm.new_label();
+            self.masm.branch32_imm(Condition::Equal, scratch, packed, ok);
+            self.masm.branch32_imm(
+                Condition::NotEqual,
+                scratch,
+                i32::from(layout.indexed_storage_kind_holey),
+                fail,
+            );
+            self.masm.bind(ok);
         }
     }
 
@@ -103,6 +111,13 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let exit = self.exit_site(node);
         let (value, object) = (self.input(node, 0), self.temp(node, 0));
         self.branch_unless_elements_kind(value, object, kind, exit);
+    }
+
+    /// A `CheckTypedArray` node.
+    pub(super) fn emit_check_typed_array(&mut self, node: NodeId) {
+        let exit = self.exit_site(node);
+        let (value, object) = (self.input(node, 0), self.temp(node, 0));
+        self.branch_unless_typed_array(value, object, exit);
     }
 
     /// A branch on `BranchCondition::ElementsKind`: to `target` where it
