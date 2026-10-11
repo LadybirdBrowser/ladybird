@@ -99,6 +99,7 @@ ViewImplementation::~ViewImplementation()
     if (!m_window_handle.is_empty())
         Application::the().notify_webdriver_window_closed(m_window_handle);
 
+    reset_spell_checking();
     all_views().remove(m_view_id);
 
     if (m_top_level_traversable) {
@@ -1132,6 +1133,7 @@ void ViewImplementation::send_preferences_to_page(WebContentPage& page)
     send_browsing_behavior(page);
     send_autoplay_settings(page);
     send_global_privacy_control(page);
+    page.async_set_spell_checking_available(Application::the().spell_checker() != nullptr);
     send_geolocation_emulated_position(page);
 }
 
@@ -4029,6 +4031,36 @@ void ViewImplementation::reject_pending_selection_requests()
     reject_requests(m_pending_selected_text_for_lookup_requests);
     reject_requests(m_pending_select_word_for_dictionary_lookup_requests);
     reject_requests(m_pending_cut_selected_text_requests);
+}
+
+SpellChecker::DocumentTag ViewImplementation::spell_document_tag()
+{
+    auto* spell_checker = Application::the().spell_checker();
+    VERIFY(spell_checker);
+    if (!m_spell_document_tag.has_value())
+        m_spell_document_tag = spell_checker->create_document_tag();
+    return *m_spell_document_tag;
+}
+
+void ViewImplementation::did_request_spell_check(Badge<WebContentPage>, WebContentPage& requesting_page, u64 request_id, Utf16String text)
+{
+    auto* spell_checker = Application::the().spell_checker();
+    if (!spell_checker) {
+        requesting_page.async_did_check_spelling(request_id, {});
+        return;
+    }
+    spell_checker->check(spell_document_tag(), text, [page = NonnullRefPtr { requesting_page }, request_id](Vector<Web::SpellingError> errors) {
+        if (page->is_open())
+            page->async_did_check_spelling(request_id, move(errors));
+    });
+}
+
+// Forgets what the user told the spellchecker to ignore or learn in this tab.
+void ViewImplementation::reset_spell_checking()
+{
+    if (auto* spell_checker = Application::the().spell_checker(); spell_checker && m_spell_document_tag.has_value())
+        spell_checker->close_document_tag(*m_spell_document_tag);
+    m_spell_document_tag.clear();
 }
 
 void ViewImplementation::did_request_page_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target)

@@ -1,0 +1,38 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <AK/Function.h>
+#include <AK/Utf16String.h>
+#include <AK/Vector.h>
+#include <LibWebCommon/Page/SpellingError.h>
+#include <LibWebView/Export.h>
+
+namespace WebView {
+
+// The platform spellchecker the UI process asks on behalf of every page. A document tag scopes what ignore() hides to
+// one tab.
+class WEBVIEW_API SpellChecker {
+    AK_ALLOC_WITH_KMALLOC;
+
+public:
+    using DocumentTag = i64;
+
+    virtual ~SpellChecker() = default;
+
+    virtual DocumentTag create_document_tag() = 0;
+    virtual void close_document_tag(DocumentTag) = 0;
+
+    // Asynchronous; on_complete runs on the main thread.
+    virtual void check(DocumentTag, Utf16String const& text, Function<void(Vector<Web::SpellingError>)> on_complete) = 0;
+
+    virtual Vector<Utf16String> guesses(DocumentTag, Utf16String const& word) = 0;
+    virtual void ignore(DocumentTag, Utf16String const& word) = 0;
+    virtual void learn(DocumentTag, Utf16String const& word) = 0;
+};
+
+}

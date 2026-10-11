@@ -3338,6 +3338,18 @@ void ConnectionFromClient::retrieved_clipboard_entries(Web::PageId page_id, u64 
         page->page().retrieved_clipboard_entries(request_id, move(items));
 }
 
+void ConnectionFromClient::set_spell_checking_available(Web::PageId page_id, bool available)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().set_spell_checking_available(available);
+}
+
+void ConnectionFromClient::did_check_spelling(Web::PageId page_id, u64 request_id, Vector<Web::SpellingError> errors)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().did_check_spelling(request_id, move(errors));
+}
+
 void ConnectionFromClient::did_delete_all_cookies(Web::PageId page_id, u64 request_id)
 {
     if (auto page = this->page(page_id); page.has_value())

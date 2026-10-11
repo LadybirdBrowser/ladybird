@@ -47,6 +47,7 @@ set(SOURCES
     Page/DragEvent.cpp
     Page/InputEvent.cpp
     Page/MediaContextMenu.cpp
+    Page/SpellingError.cpp
     PixelUnits.cpp
     ReferrerPolicy/ReferrerPolicy.cpp
     StorageAPI/StorageEndpoint.cpp

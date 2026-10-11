@@ -60,6 +60,7 @@ set(SOURCES
     Settings.cpp
     SiteCompatibility.cpp
     StorageJar.cpp
+    TestSpellChecker.cpp
     URL.cpp
     UserAgent.cpp
     Utilities.cpp

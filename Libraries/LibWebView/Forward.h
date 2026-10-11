@@ -51,6 +51,7 @@ class RequestServerSiteBindings;
 class SessionStore;
 class Settings;
 class SettingsUI;
+class SpellChecker;
 class StorageJar;
 class TraversableSessionHistory;
 class ViewImplementation;

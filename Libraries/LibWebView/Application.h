@@ -101,6 +101,9 @@ public:
     static BrowserOptions const& browser_options() { return the().m_browser_options; }
     static RequestServerOptions const& request_server_options() { return the().m_request_server_options; }
     static WebContentOptions& web_content_options() { return the().m_web_content_options; }
+
+    SpellChecker* spell_checker() { return m_spell_checker.ptr(); }
+    void set_spell_checker(OwnPtr<SpellChecker>);
     static FontService& font_service() { return *the().m_font_service; }
     static FontServiceHost& font_service_host() { return *the().m_font_service_host; }
     JsonValue const& site_compatibility_data() const { return m_site_compatibility_data; }
@@ -624,6 +627,7 @@ private:
     bool request_server_client_may_use_cookies_in(int client_id, URL::URL const&, Optional<HTTP::Cookie::PartitionContext> const&) const;
 
     OwnPtr<Core::GeolocationProvider> m_geolocation_provider;
+    OwnPtr<SpellChecker> m_spell_checker;
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;
 
     Core::EventLoop* m_event_loop { nullptr };

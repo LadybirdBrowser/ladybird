@@ -131,6 +131,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_window_rect_observer);
     visitor.visit(m_on_pending_dialog_closed);
     visitor.visit(m_pending_clipboard_requests);
+    visitor.visit(m_pending_spell_check_requests);
     visitor.visit(m_emulated_position_data);
     visitor.visit(m_emulated_position_data_observers);
     visitor.visit(m_offscreen_canvases_pending_placeholder_commit);
@@ -1260,6 +1261,19 @@ void Page::retrieved_clipboard_entries(u64 request_id, Vector<Clipboard::SystemC
 {
     if (auto request = m_pending_clipboard_requests.take(request_id); request.has_value())
         (*request)->function()(move(items));
+}
+
+void Page::request_spell_check(Utf16String const& text, SpellCheckRequest request)
+{
+    auto request_id = m_next_spell_check_request_id++;
+    m_pending_spell_check_requests.set(request_id, request);
+    client().page_did_request_spell_check(request_id, text);
+}
+
+void Page::did_check_spelling(u64 request_id, Vector<SpellingError> errors)
+{
+    if (auto request = m_pending_spell_check_requests.take(request_id); request.has_value())
+        (*request)->function()(move(errors));
 }
 
 // https://w3c.github.io/geolocation/#dfn-emulated-position-data

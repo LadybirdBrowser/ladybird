@@ -1865,6 +1865,11 @@ void WebContentPage::did_request_clipboard_entries(u64 request_id)
     async_retrieved_clipboard_entries(request_id, items);
 }
 
+void WebContentPage::did_request_spell_check(u64 request_id, Utf16String text)
+{
+    view().did_request_spell_check({}, *this, request_id, move(text));
+}
+
 void WebContentPage::did_request_set_system_focus(bool has_system_focus)
 {
     traversable().set_has_system_focus(has_system_focus, *this);
