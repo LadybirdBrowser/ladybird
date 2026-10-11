@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `
+            <style>
+                slot[name=first] { color: rgb(0, 128, 0); }
+                slot[name=second] { color: rgb(0, 0, 255); }
+                ::slotted(div:nth-child(odd)) { background-color: rgb(255, 0, 0); }
+            </style>
+            <slot name="first"></slot><slot name="second"></slot>`;
+        for (let index = 0; index < 40; ++index) {
+            const element = document.createElement("div");
+            element.slot = index < 20 ? "first" : "second";
+            element.innerHTML = "<span>child</span>";
+            host.append(element);
+        }
+        internals.updateStyle();
+        const moved = host.children[10];
+        const unmoved = host.children[11];
+        function moveTo(slot) {
+            internals.updateStyle();
+            const before = internals.styleEngineCounters();
+            moved.slot = slot;
+            internals.updateStyle();
+            const after = internals.styleEngineCounters();
+            println(`move to ${slot}: only moved subtree reached: ${after.reachedStyleNodes - before.reachedStyleNodes <= 2}`);
+            println(`moved color: ${getComputedStyle(moved).color}`);
+            println(`child color: ${getComputedStyle(moved.firstElementChild).color}`);
+            println(`unmoved color: ${getComputedStyle(unmoved).color}`);
+            println(`moved positional style: ${getComputedStyle(moved).backgroundColor}`);
+            println(`unmoved positional style: ${getComputedStyle(unmoved).backgroundColor}`);
+        }
+        moveTo("second");
+        moveTo("first");
+    });
+</script>
