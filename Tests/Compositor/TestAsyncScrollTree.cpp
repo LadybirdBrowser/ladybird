@@ -195,3 +195,42 @@ TEST_CASE(async_scrolling_resolves_sticky_offsets_from_the_visual_context_tree)
     EXPECT_EQ(snapshot.device_offset_for_index(header_node), (Gfx::FloatPoint { 0, 0 }));
     EXPECT_EQ(snapshot.device_offset_for_index(bar_node), (Gfx::FloatPoint { 0, 0 }));
 }
+
+TEST_CASE(a_key_is_not_passed_on_from_a_scroller_that_keeps_its_scrolls)
+{
+    Compositing::AsyncScrollNodeID const nested_node_id { .document_id = Web::UniqueNodeID { 1 }, .scroll_node_index = Compositing::SpatialNodeIndex { 2 } };
+    Web::AsyncScrollNodeStableID const nested_stable_node_id { .node_id = Web::UniqueNodeID { 3 }, .kind = Web::AsyncScrollNodeKind::Element, .pseudo_element_type = 0 };
+
+    auto scroll_tree_with_nested_scroller = [&](bool nested_scroller_chains_vertically) {
+        auto state = make_scrolling_state_with_viewport_scroll_node(2000);
+        state.scroll_nodes.append({
+            .node_id = nested_node_id,
+            .stable_node_id = nested_stable_node_id,
+            .parent_node_id = viewport_node_id,
+            .scrollport_rect = { 0, 0, 100, 100 },
+            .min_scroll_offset = { 0, 0 },
+            .max_scroll_offset = { 0, 200 },
+            .is_viewport = false,
+            .can_be_wheel_scrolled_horizontally = false,
+            .can_be_wheel_scrolled_vertically = true,
+            .chains_scroll_to_ancestors_horizontally = true,
+            .chains_scroll_to_ancestors_vertically = nested_scroller_chains_vertically,
+        });
+        Compositing::AsyncScrollTree scroll_tree;
+        scroll_tree.set_state(move(state));
+        return scroll_tree;
+    };
+
+    // The viewport is scrolled down and the nested scroller is at its top, so only the viewport can scroll up.
+    Compositing::ScrollStateSnapshot snapshot;
+    snapshot.set_device_offset_for_index(viewport_node_id.scroll_node_index, { 0, -300 });
+
+    auto target_of_key_that_is_passed_on = scroll_tree_with_nested_scroller(true).scroll_node_for_keyboard_scroll(nested_stable_node_id, { 0, -100 }, snapshot);
+    EXPECT(target_of_key_that_is_passed_on.has_value() && *target_of_key_that_is_passed_on == viewport_node_id);
+
+    auto target_of_key_that_is_kept = scroll_tree_with_nested_scroller(false).scroll_node_for_keyboard_scroll(nested_stable_node_id, { 0, -100 }, snapshot);
+    EXPECT(!target_of_key_that_is_kept.has_value());
+
+    auto target_of_key_the_scroller_can_scroll_by = scroll_tree_with_nested_scroller(false).scroll_node_for_keyboard_scroll(nested_stable_node_id, { 0, 100 }, snapshot);
+    EXPECT(target_of_key_the_scroller_can_scroll_by.has_value() && *target_of_key_the_scroller_can_scroll_by == nested_node_id);
+}

@@ -1367,6 +1367,9 @@ pub struct CompositorScrollNode {
     pub is_viewport: bool,
     pub can_be_wheel_scrolled_horizontally: bool,
     pub can_be_wheel_scrolled_vertically: bool,
+    /// Whether a scroll the scroller cannot scroll by is passed on to the scrollers around it.
+    pub chains_scroll_to_ancestors_horizontally: bool,
+    pub chains_scroll_to_ancestors_vertically: bool,
 }
 ffi_bytes_fields!(CompositorScrollNode {
     document_id,
@@ -1380,7 +1383,9 @@ ffi_bytes_fields!(CompositorScrollNode {
     pseudo_element_type,
     is_viewport,
     can_be_wheel_scrolled_horizontally,
-    can_be_wheel_scrolled_vertically
+    can_be_wheel_scrolled_vertically,
+    chains_scroll_to_ancestors_horizontally,
+    chains_scroll_to_ancestors_vertically
 });
 
 impl DisplayListCommand for CompositorScrollNode {

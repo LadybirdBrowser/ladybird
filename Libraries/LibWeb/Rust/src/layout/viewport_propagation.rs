@@ -316,13 +316,22 @@ pub(crate) fn propagate_root_styles_to_viewport(
             style.set_writing_mode_and_direction(writing_mode, direction);
         });
     };
-    let apply_overscroll_behavior = |node: NodeSlotId, (x, y): (u8, u8)| {
-        arena.update_layout_style(host_calls, node, |style| style.set_overscroll_behavior(x, y));
+    let apply_viewport_overscroll_behavior = |(x, y): (u8, u8)| {
+        let mut changed = false;
+        arena.update_layout_style(host_calls, viewport, |style| {
+            style.set_overscroll_behavior(x, y);
+            changed = !style.is_unchanged();
+        });
+        // The viewport's scroll node records what the viewport does at its boundary, and a new style for the
+        // viewport box does not get it recorded again by itself.
+        if changed {
+            arena.push_paint_damage(viewport, crate::painting::record::damage::PaintDamage::SCROLL_METADATA);
+        }
     };
 
     let Some(styles) = decide_viewport_propagation(facts) else {
         apply_overflow(viewport, (overflow::AUTO, overflow::AUTO));
-        apply_overscroll_behavior(viewport, (overscroll_behavior::AUTO, overscroll_behavior::AUTO));
+        apply_viewport_overscroll_behavior((overscroll_behavior::AUTO, overscroll_behavior::AUTO));
         return;
     };
     let root = facts.root_layout_node;
@@ -333,7 +342,7 @@ pub(crate) fn propagate_root_styles_to_viewport(
     // the viewport.
     apply_writing_mode_and_direction(viewport, styles.writing_mode, styles.direction);
     apply_overflow(viewport, styles.viewport_overflow);
-    apply_overscroll_behavior(viewport, styles.viewport_overscroll_behavior);
+    apply_viewport_overscroll_behavior(styles.viewport_overscroll_behavior);
     apply_overflow(root, styles.root_overflow);
     if let Some(body_overflow) = styles.body_overflow {
         apply_overflow(facts.body_layout_node, body_overflow);

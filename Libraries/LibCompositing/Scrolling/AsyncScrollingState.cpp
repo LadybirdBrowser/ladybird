@@ -92,6 +92,8 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
                 .is_viewport = command.is_viewport,
                 .can_be_wheel_scrolled_horizontally = command.can_be_wheel_scrolled_horizontally,
                 .can_be_wheel_scrolled_vertically = command.can_be_wheel_scrolled_vertically,
+                .chains_scroll_to_ancestors_horizontally = command.chains_scroll_to_ancestors_horizontally,
+                .chains_scroll_to_ancestors_vertically = command.chains_scroll_to_ancestors_vertically,
             });
             break;
         }

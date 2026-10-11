@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        padding: 200px 0 0 200px;
+        width: 3000px;
+        height: 3000px;
+    }
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #scroller > div {
+        width: 300px;
+        height: 300px;
+    }
+</style>
+<div id="scroller"><div></div></div>
+<script>
+    const pageOffset = () => `${window.scrollX},${window.scrollY}`;
+
+    async function everythingSettled() {
+        for (let frame = 0; frame < 6; frame++)
+            await animationFrame();
+        await scrollOffsetStopsChanging(() => `${pageOffset()},${scroller.scrollLeft},${scroller.scrollTop}`);
+        while (internals.elasticOverscrollStretchX(scroller) !== 0 || internals.elasticOverscrollStretchY(scroller) !== 0)
+            await animationFrame();
+    }
+
+    // The scroller is at the top left of the window and of its own scroll range, and the page can scroll up and left.
+    async function scrollPageBack() {
+        window.scrollTo(200, 200);
+        scroller.scrollTo(0, 0);
+        await everythingSettled();
+    }
+
+    const wheels = {
+        "touchpad": async (x, y, deltaX, deltaY) => {
+            await internals.wheel(x, y, deltaX, deltaY, true, "ongoing");
+            await internals.wheel(x, y, 0, 0, true, "ended");
+        },
+        "touchpad through the UI process": async (x, y, deltaX, deltaY) => {
+            await internals.wheelThroughUIProcess(x, y, deltaX, deltaY, true, "ongoing");
+            await internals.wheelThroughUIProcess(x, y, 0, 0, true, "ended");
+        },
+        "mouse wheel": async (x, y, deltaX, deltaY) => {
+            await internals.wheel(x, y, deltaX, deltaY);
+        },
+    };
+
+    promiseTest(async () => {
+        // The pointer moves a little for every gesture, so that no mouse wheel continues the one before it.
+        let pointer = 20;
+        const pageAfterGesture = async (wheel, deltaX, deltaY) => {
+            await scrollPageBack();
+            pointer = pointer === 20 ? 70 : 20;
+            await wheels[wheel](pointer, pointer, deltaX, deltaY);
+            await everythingSettled();
+            return pageOffset();
+        };
+
+        for (const wheel of Object.keys(wheels)) {
+            for (const value of ["auto", "contain", "none", "chain"]) {
+                scroller.style.overscrollBehavior = `auto ${value}`;
+                println(`${wheel}, overscroll-behavior-y: ${value}, up: page at ${await pageAfterGesture(wheel, 0, -50)}`);
+                println(`${wheel}, overscroll-behavior-y: ${value}, left: page at ${await pageAfterGesture(wheel, -50, 0)}`);
+            }
+            scroller.style.overscrollBehavior = "contain auto";
+            println(`${wheel}, overscroll-behavior-x: contain, left: page at ${await pageAfterGesture(wheel, -50, 0)}`);
+            println(`${wheel}, overscroll-behavior-x: contain, up: page at ${await pageAfterGesture(wheel, 0, -50)}`);
+        }
+
+        // A gesture that the scroller can scroll by is its own business whatever it does at its boundary.
+        scroller.style.overscrollBehavior = "none";
+        const page = await pageAfterGesture("touchpad", 0, 50);
+        println(`touchpad, overscroll-behavior: none, down: scroller at ${scroller.scrollLeft},${scroller.scrollTop} page at ${page}`);
+
+        // The compositor follows a change of the property.
+        scroller.style.overscrollBehavior = "contain";
+        println(`changed to contain, up: page at ${await pageAfterGesture("touchpad", 0, -50)}`);
+        scroller.style.overscrollBehavior = "auto";
+        println(`changed to auto, up: page at ${await pageAfterGesture("touchpad", 0, -50)}`);
+        scroller.style.overscrollBehavior = "none";
+        println(`changed to none, up: page at ${await pageAfterGesture("mouse wheel", 0, -50)}`);
+    });
+</script>

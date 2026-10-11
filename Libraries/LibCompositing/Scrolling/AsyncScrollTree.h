@@ -93,8 +93,8 @@ public:
     // to be covered whenever that cannot be told.
     bool is_covered_by_hit_test_target_painted_after(u32 paint_order_index, Compositing::AccumulatedVisualContextTree const&, Gfx::FloatPoint position) const;
     bool scroll_node_is_viewport(AsyncScrollNodeID) const;
-    // Of the scroller and the scrollers around it, the outermost one a wheel can scroll along the main axis of the
-    // delta at all, wherever it is scrolled to.
+    // Of the scroller and the scrollers around it that a scroll by the delta may be passed on to, the outermost one a
+    // wheel can scroll along the main axis of the delta at all, wherever it is scrolled to.
     Optional<AsyncScrollNodeID> outermost_scroll_node_wheel_scrollable_along_main_axis_of(AsyncScrollNodeID innermost_node_id, Gfx::FloatPoint delta) const;
     Optional<AsyncScrollNodeID> scroll_node_for_keyboard_scroll(Web::AsyncScrollNodeStableID, Gfx::FloatPoint delta, Compositing::ScrollStateSnapshot const&) const;
     Gfx::FloatPoint clamped_scroll_offset_for_node(AsyncScrollNodeID, Gfx::FloatPoint) const;

@@ -445,6 +445,11 @@ fn validate_command_fields(
             p.bool_at(offset_of!(CompositorScrollNode, is_viewport))?;
             p.bool_at(offset_of!(CompositorScrollNode, can_be_wheel_scrolled_horizontally))?;
             p.bool_at(offset_of!(CompositorScrollNode, can_be_wheel_scrolled_vertically))?;
+            p.bool_at(offset_of!(
+                CompositorScrollNode,
+                chains_scroll_to_ancestors_horizontally
+            ))?;
+            p.bool_at(offset_of!(CompositorScrollNode, chains_scroll_to_ancestors_vertically))?;
         }
         T::CompositorScrollbar => {
             p.bool_at(offset_of!(CompositorScrollbar, vertical))?;
