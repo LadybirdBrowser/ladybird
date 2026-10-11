@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="scripted">one txet two</textarea>
+<textarea id="clicked">one txet two</textarea>
+<script>
+    promiseTest(async () => {
+        // A page can't start a check at will, so it can't test words against the user's dictionary: Focus from script
+        // checks nothing.
+        const scripted = document.getElementById("scripted");
+        scripted.focus();
+        await internals.spellCheckSettled();
+        println(`focused by script: ${internals.spellingErrorRanges(scripted) || "(none)"}`);
+
+        // Focus the user gives a field checks its existing text.
+        const clicked = document.getElementById("clicked");
+        const rect = clicked.getBoundingClientRect();
+        internals.click(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        await internals.spellCheckSettled();
+        println(`focused by a click: ${internals.spellingErrorRanges(clicked) || "(none)"}`);
+    });
+</script>

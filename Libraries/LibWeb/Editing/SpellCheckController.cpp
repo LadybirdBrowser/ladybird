@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Selection/Selection.h>
 
@@ -67,6 +68,14 @@ static bool text_is_checkable(DOM::Text& text)
     // immediate parent of the first character of the word, sentence, or other piece of text.
     auto* parent = as_if<HTML::HTMLElement>(text.parent());
     return parent && parent->is_editable_or_editing_host() && parent->spellcheck();
+}
+
+// A check only ever runs on the user's behalf. A check a page could start at will would let it test any words it likes
+// against the user's dictionary.
+static bool has_user_activation(DOM::Document& document)
+{
+    auto window = document.window();
+    return window && window->has_transient_activation();
 }
 
 static bool is_separator(char16_t code_unit)
@@ -168,7 +177,7 @@ void SpellCheckController::send_window_around(DOM::Text& text, size_t offset, Re
 // loop, and while one is in flight, the next waits for its answer.
 void SpellCheckController::did_user_edit(DOM::Node& node)
 {
-    if (!m_document->page().spell_checking_available() || !checkable_editable_for(node))
+    if (!m_document->page().spell_checking_available() || !has_user_activation(m_document) || !checkable_editable_for(node))
         return;
     // Committing a composition ends it, and did_end_input_method_composition() takes the check from there.
     if (m_document->is_input_method_composing())
@@ -176,6 +185,7 @@ void SpellCheckController::did_user_edit(DOM::Node& node)
     schedule_typing_check();
 }
 
+// NB: Only the platform's input method commits a composition, so the user is behind it, with or without activation.
 void SpellCheckController::did_end_input_method_composition()
 {
     if (m_document->page().spell_checking_available())
@@ -515,7 +525,7 @@ void SpellCheckController::did_focus(GC::Ptr<DOM::Node> node)
     m_exempt_word_check_scheduled = false;
     m_existing_text_pass.clear();
 
-    if (!node || !m_document->page().spell_checking_available())
+    if (!node || !m_document->page().spell_checking_available() || !has_user_activation(m_document))
         return;
     auto editable = checkable_editable_for(*node);
     if (!editable)
