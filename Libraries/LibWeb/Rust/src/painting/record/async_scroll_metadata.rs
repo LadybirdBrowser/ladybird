@@ -160,6 +160,45 @@ impl<O: Observer> PaintRecorder<'_, O> {
             });
     }
 
+    // The compositor passes a wheel on along its scroll nodes, and a scroll container that a wheel can scroll nothing
+    // in has none. One that keeps scrolls to itself is recorded on its own, so that a wheel under it is not passed on
+    // from below it to the scroll node above it.
+    fn record_scroll_chaining_barrier(&mut self, paintable: NodeSlotId) {
+        if self.source.node_kind_if_live(paintable) == Some(NodeKind::Viewport) {
+            return;
+        }
+        let chains_scroll_to_ancestors =
+            crate::painting::chrome_geometry::scroll_boundary_behavior(self.source, paintable).chains_to_ancestors;
+        if chains_scroll_to_ancestors.horizontal && chains_scroll_to_ancestors.vertical {
+            return;
+        }
+        let has_scroll_node_that_wheels_are_passed_along = self.data(paintable).own_scroll_node_index
+            != VISUAL_VIEWPORT_NODE_INDEX
+            && self.could_be_scrolled_by_wheel_event(paintable);
+        if has_scroll_node_that_wheels_are_passed_along {
+            return;
+        }
+        let scroll_node_index_above_barrier = self.wheel_hit_test_target_scroll_node_index_for(paintable);
+        if scroll_node_index_above_barrier == VISUAL_VIEWPORT_NODE_INDEX {
+            return;
+        }
+        let rect = css_rect_to_device_rect(
+            paintable_geometry::absolute_border_box_rect(self.source, paintable),
+            self.inputs.device_pixels_per_css_pixel,
+        );
+        if rect.is_empty() {
+            return;
+        }
+        self.recorder
+            .compositor_scroll_chaining_barrier(CompositorScrollChainingBarrier {
+                document_id: self.inputs.uncaptured.document_id,
+                scroll_node_index_above_barrier,
+                rect,
+                keeps_horizontal_scrolls: !chains_scroll_to_ancestors.horizontal,
+                keeps_vertical_scrolls: !chains_scroll_to_ancestors.vertical,
+            });
+    }
+
     fn record_blocking_wheel_event_region(&mut self, paintable: NodeSlotId) {
         if self.inputs.uncaptured.has_blocking_wheel_event_region_covering_viewport {
             return;
@@ -411,6 +450,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
 
     pub(crate) fn record_async_scrolling_metadata(&mut self, paintable: NodeSlotId) {
         self.record_wheel_hit_test_target(paintable);
+        self.record_scroll_chaining_barrier(paintable);
         self.record_blocking_wheel_event_region(paintable);
 
         if self

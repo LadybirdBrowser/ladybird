@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        padding: 200px 0 0 200px;
+        width: 3000px;
+        height: 3000px;
+    }
+    #box {
+        width: 200px;
+        height: 200px;
+        overflow: hidden;
+    }
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #scroller > div {
+        height: 300px;
+    }
+</style>
+<div id="box"><div id="scroller"><div></div></div></div>
+<script>
+    const pageOffset = () => `${window.scrollX},${window.scrollY}`;
+
+    async function everythingSettled() {
+        for (let frame = 0; frame < 6; frame++)
+            await animationFrame();
+        await scrollOffsetStopsChanging(() => `${pageOffset()},${scroller.scrollTop}`);
+        while (internals.elasticOverscrollStretchY(scroller) !== 0 || internals.elasticOverscrollStretchY() !== 0)
+            await animationFrame();
+    }
+
+    // The box is at the top left of the window with the scroller in its top left quarter, and the page can scroll up
+    // and left.
+    async function scrollPageBack() {
+        window.scrollTo(200, 200);
+        scroller.scrollTo(0, 0);
+        await everythingSettled();
+    }
+
+    const wheels = {
+        "touchpad": async (x, y, deltaX, deltaY) => {
+            await internals.wheel(x, y, deltaX, deltaY, true, "ongoing");
+            await internals.wheel(x, y, 0, 0, true, "ended");
+        },
+        "touchpad through the UI process": async (x, y, deltaX, deltaY) => {
+            await internals.wheelThroughUIProcess(x, y, deltaX, deltaY, true, "ongoing");
+            await internals.wheelThroughUIProcess(x, y, 0, 0, true, "ended");
+        },
+        "mouse wheel": async (x, y, deltaX, deltaY) => {
+            await internals.wheel(x, y, deltaX, deltaY);
+        },
+    };
+
+    promiseTest(async () => {
+        // The pointer moves a little for every gesture, so that no mouse wheel continues the one before it.
+        let nudge = 0;
+        const pageAfterGesture = async (wheel, x, y, deltaX, deltaY) => {
+            await scrollPageBack();
+            nudge = nudge === 0 ? 30 : 0;
+            await wheels[wheel](x + nudge, y + nudge, deltaX, deltaY);
+            await everythingSettled();
+            return pageOffset();
+        };
+        const besideTheScroller = [130, 130];
+        const overTheScroller = [30, 30];
+
+        // The box has nothing to scroll, so it is always at its boundary, and what it does there still counts.
+        box.style.overscrollBehavior = "auto none";
+        for (const wheel of Object.keys(wheels)) {
+            println(`${wheel}, box keeps vertical scrolls, up beside the scroller: page at ${await pageAfterGesture(wheel, ...besideTheScroller, 0, -50)}`);
+            println(`${wheel}, box keeps vertical scrolls, left beside the scroller: page at ${await pageAfterGesture(wheel, ...besideTheScroller, -50, 0)}`);
+            println(`${wheel}, box keeps vertical scrolls, up at the top of the scroller: page at ${await pageAfterGesture(wheel, ...overTheScroller, 0, -50)}`);
+        }
+
+        // The scroller inside the box scrolls as it always did.
+        const page = await pageAfterGesture("touchpad", ...overTheScroller, 0, 50);
+        println(`touchpad, down over the scroller: scroller at ${scroller.scrollTop} page at ${page}`);
+
+        // The compositor follows changes of the box.
+        box.style.overscrollBehavior = "auto";
+        println(`box changed to auto, up beside the scroller: page at ${await pageAfterGesture("touchpad", ...besideTheScroller, 0, -50)}`);
+        box.style.overscrollBehavior = "contain";
+        println(`box changed to contain, up beside the scroller: page at ${await pageAfterGesture("touchpad", ...besideTheScroller, 0, -50)}`);
+        box.style.overflow = "clip";
+        println(`box changed to overflow clip, up beside the scroller: page at ${await pageAfterGesture("touchpad", ...besideTheScroller, 0, -50)}`);
+        box.style.overflow = "auto";
+        println(`box changed to overflow auto, up beside the scroller: page at ${await pageAfterGesture("mouse wheel", ...besideTheScroller, 0, -50)}`);
+    });
+</script>
