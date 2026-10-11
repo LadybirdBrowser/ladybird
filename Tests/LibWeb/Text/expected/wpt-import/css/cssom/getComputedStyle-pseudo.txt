@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 28 tests
 
-25 Pass
-3 Optional Feature Unsupported
+26 Pass
+2 Optional Feature Unsupported
 Pass	Resolution of width is correct when pseudo-element argument is ignored (due to no colon)
 Pass	Resolution of width is correct when pseudo-element argument is invalid (due to a trailing token)
 Pass	Resolution of width is correct for ::before and ::after pseudo-elements (single-colon)
@@ -24,7 +24,7 @@ Optional Feature Unsupported	Unknown pseudo-element with a known identifier: gra
 Optional Feature Unsupported	Unknown pseudo-element with a known identifier: highlight(name)
 Pass	Unknown pseudo-element with a known identifier: marker
 Pass	Unknown pseudo-element with a known identifier: placeholder
-Optional Feature Unsupported	Unknown pseudo-element with a known identifier: spelling-error
+Pass	Unknown pseudo-element with a known identifier: spelling-error
 Pass	Unknown pseudo-element with a known identifier: view-transition
 Pass	Unknown pseudo-element with a known identifier: view-transition-image-pair(name)
 Pass	Unknown pseudo-element with a known identifier: view-transition-group(name)

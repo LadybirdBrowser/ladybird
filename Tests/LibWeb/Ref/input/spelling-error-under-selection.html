@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/spelling-error-under-selection-ref.html">
+<style>
+p {
+    font: 20px/1.5 sans-serif;
+}
+p::selection {
+    background-color: yellow;
+    color: black;
+}
+</style>
+<p id="p">one txet two</p>
+<script>
+const text = document.getElementById("p").firstChild;
+internals.addSpellingErrorForTesting(text, 4, 8);
+getSelection().setBaseAndExtent(text, 4, text, 8);
+</script>

@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/spelling-error-default-underline-ref.html">
+<style>
+p {
+    font: 20px/1.5 sans-serif;
+}
+</style>
+<p id="p">one txet two</p>
+<script>
+internals.addSpellingErrorForTesting(document.getElementById("p").firstChild, 4, 8);
+</script>

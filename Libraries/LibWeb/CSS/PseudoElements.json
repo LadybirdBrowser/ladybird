@@ -181,6 +181,20 @@
     "is-element-backed": true,
     "implementation": "element-reference"
   },
+  "spelling-error": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-spelling-error",
+    "is-highlight": true,
+    "property-whitelist": [
+      "color",
+      "background-color",
+      "#text-decoration-properties",
+      "FIXME: stroke-color",
+      "FIXME: fill-color",
+      "stroke-width",
+      "#custom-properties"
+    ],
+    "implementation": "synthetic"
+  },
   "view-transition": {
     "spec": "https://drafts.csswg.org/css-view-transitions-1/#selectordef-view-transition",
     "is-pseudo-root": true,

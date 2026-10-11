@@ -112,6 +112,15 @@ pub struct FfiSearchTextRange {
     pub is_current: bool,
 }
 
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiSpellingError {
+    /// The DOM text's primary layout node; Rust expands its slices.
+    pub layout_node: NodeSlotId,
+    pub start_offset: usize,
+    pub end_offset: usize,
+}
+
 pub const SELECTION_STATE_NONE: u8 = 0;
 pub const SELECTION_STATE_START: u8 = 1;
 pub const SELECTION_STATE_END: u8 = 2;

@@ -1086,6 +1086,10 @@ void Document::update_highlight_states_if_needed(Layout::BegunRead const& read)
         recompute_search_text_paint_states(read);
         Node::set_needs_repaint(InvalidateDisplayList::PaintCommands);
     }
+    if (exchange(m_spelling_error_states_are_stale, false) && has_committed_viewport_box()) {
+        recompute_spelling_error_paint_states(read);
+        Node::set_needs_repaint(InvalidateDisplayList::PaintCommands);
+    }
 }
 
 void Document::set_find_in_page_highlighted_matches(Vector<GC::Ref<Range>> matches)
@@ -1145,6 +1149,23 @@ Editing::SpellingMarkers& Document::spelling_markers()
 bool Document::has_spelling_markers() const
 {
     return m_spelling_markers && !m_spelling_markers->is_empty();
+}
+
+void Document::note_spelling_markers_changed()
+{
+    set_needs_highlight_style_update(CSS::PseudoElement::SpellingError);
+    // The boxes the markers paint through are found at the next read of the paint state, as for find-in-page matches.
+    m_spelling_error_states_are_stale = true;
+    request_frame_for_pending_repaint();
+}
+
+void Document::recompute_spelling_error_paint_states(Layout::BegunRead const& read)
+{
+    if (!has_spelling_markers()) {
+        paint_state().reset_spelling_error_states();
+        return;
+    }
+    paint_state().recompute_spelling_error_states(read, *this, spelling_markers());
 }
 
 void Document::remove_find_in_page_highlighted_matches_whose_text_changed()
@@ -2108,6 +2129,7 @@ void Document::after_layout_commit(Layout::BegunRead const& read, LayoutTreeChan
     collapse_find_in_page_active_match_if_its_text_changed();
     remove_find_in_page_highlighted_matches_whose_text_changed();
     recompute_search_text_paint_states(read);
+    recompute_spelling_error_paint_states(read);
 
     if (layout_tree_changed == LayoutTreeChanged::Yes) {
         // Broadcast the current viewport rect to any new committed boxes, so they know whether

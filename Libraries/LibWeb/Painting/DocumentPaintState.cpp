@@ -8,6 +8,7 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/Editing/SpellingMarkers.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -286,6 +287,29 @@ void DocumentPaintState::recompute_search_text_states(Layout::BegunRead const& r
     if (active_match)
         append_range(*active_match, true);
     Layout::RustFFI::render_state_apply_search_text(m_layout_node_arena->host(), viewport_row_slot(read, document), ranges.data(), ranges.size(), entries.data(), entries.size());
+}
+
+void DocumentPaintState::reset_spelling_error_states()
+{
+    Layout::RustFFI::render_state_clear_spelling_errors(m_layout_node_arena->host());
+}
+
+void DocumentPaintState::recompute_spelling_error_states(Layout::BegunRead const& read, DOM::Document& document, Editing::SpellingMarkers& markers)
+{
+    Vector<Layout::RustFFI::FfiSpellingError> errors;
+    markers.for_each_marked_text([&](DOM::Text& text, ReadonlySpan<Editing::SpellingMarker> text_markers) {
+        auto* layout_node = text.unsafe_layout_node(read);
+        if (!layout_node)
+            return;
+        for (auto const& marker : text_markers) {
+            errors.append({
+                .layout_node = Layout::Node::slot_id(layout_node),
+                .start_offset = marker.start,
+                .end_offset = marker.end,
+            });
+        }
+    });
+    Layout::RustFFI::render_state_apply_spelling_errors(m_layout_node_arena->host(), viewport_row_slot(read, document), errors.data(), errors.size());
 }
 
 }

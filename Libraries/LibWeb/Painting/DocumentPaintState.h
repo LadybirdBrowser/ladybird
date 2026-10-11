@@ -61,6 +61,8 @@ public:
     void reset_selection_states(Layout::BegunRead const& read, DOM::Document&);
     void recompute_search_text_states(Layout::BegunRead const& read, DOM::Document&, GC::Ptr<DOM::Range> active_match, Vector<GC::Ref<DOM::Range>> const& highlighted_matches);
     void reset_search_text_states();
+    void recompute_spelling_error_states(Layout::BegunRead const& read, DOM::Document&, Editing::SpellingMarkers&);
+    void reset_spelling_error_states();
 
     void invalidate_all_cached_paint(DOM::Document&);
 

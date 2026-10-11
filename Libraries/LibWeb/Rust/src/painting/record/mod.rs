@@ -339,6 +339,27 @@ impl<O: Observer> PaintRecorder<'_, O> {
         answer
     }
 
+    pub(crate) fn spelling_error_style(
+        &mut self,
+        node: crate::layout::node_data::NodeSlotId,
+    ) -> Arc<paint::text::SelectionStyleAnswer> {
+        let key = node.index;
+        if let Some(answer) = self.scratch.spelling_error_style_cache.get(&key) {
+            return answer.clone();
+        }
+        let committed = self.first_non_anonymous_ancestor_row(node).and_then(|element_row| {
+            self.committed_highlight_pseudo_style(HighlightPseudoElement::SpellingError, node, element_row)
+        });
+        // The UA stylesheet's `:root::spelling-error` rule supplies the underline; with no committed style, a
+        // misspelling paints nothing of its own.
+        let answer = Self::highlight_style_answer(committed, || paint::text::SelectionStyleAnswer {
+            facts: crate::painting::host::FfiSelectionStyleFacts::default(),
+            shadows: Vec::new(),
+        });
+        self.scratch.spelling_error_style_cache.insert(key, answer.clone());
+        answer
+    }
+
     /// A committed style that authored neither color takes the paired default colors and keeps
     /// its shadows and decorations.
     fn highlight_style_answer(

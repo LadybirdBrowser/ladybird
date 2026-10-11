@@ -341,6 +341,8 @@ public:
     Editing::SpellingMarkers& spelling_markers();
     bool has_spelling_markers() const;
     void recompute_search_text_paint_states(Layout::BegunRead const&);
+    void note_spelling_markers_changed();
+    void recompute_spelling_error_paint_states(Layout::BegunRead const&);
 
     WebIDL::ExceptionOr<Utf16String> cookie();
     WebIDL::ExceptionOr<void> set_cookie(Utf16View);
@@ -1990,6 +1992,7 @@ private:
     GC::Ptr<Range> m_find_in_page_active_match;
     bool m_selection_states_are_stale { false };
     bool m_search_text_states_are_stale { false };
+    bool m_spelling_error_states_are_stale { false };
     Utf16String m_find_in_page_active_match_text;
     Vector<GC::Ref<Range>> m_find_in_page_highlighted_matches;
     OwnPtr<Editing::SpellingMarkers> m_spelling_markers;
@@ -2001,7 +2004,7 @@ private:
         bool observable { false };
         bool needs_update { true };
     };
-    Array<HighlightStyleObservability, 2> m_highlight_style_observability;
+    Array<HighlightStyleObservability, 3> m_highlight_style_observability;
     HighlightStyleObservability& highlight_style_observability(CSS::PseudoElement);
     void update_highlight_style_observability(CSS::PseudoElement);
     void update_highlight_style_observability();

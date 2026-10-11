@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/spelling-error-nested-ref.html">
+<style>
+div {
+    font: 20px/1.5 sans-serif;
+    margin-left: 20px;
+}
+::spelling-error {
+    color: green;
+    text-decoration: underline solid blue;
+}
+</style>
+<div id="outer">one txet<div id="middle">two wrod<div id="inner">three quikc</div></div></div>
+<script>
+internals.addSpellingErrorForTesting(document.getElementById("outer").firstChild, 4, 8);
+internals.addSpellingErrorForTesting(document.getElementById("middle").firstChild, 4, 8);
+internals.addSpellingErrorForTesting(document.getElementById("inner").firstChild, 6, 11);
+</script>

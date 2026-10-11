@@ -77,9 +77,12 @@ pub(crate) struct SelectionStyleAnswer {
 }
 
 // https://drafts.csswg.org/css-pseudo-4/#highlight-backgrounds
+// The ::selection overlay is drawn over the ::target-text overlay which is drawn over the ::spelling-error overlay
+// which is drawn over the ::grammar-error overlay which is drawn over the ::highlight overlays.
 // The ::search-text overlay is drawn directly over or below the ::selection overlay depending on the UA, and drawn
 // over all other overlays.
-const HIGHLIGHT_OVERLAY_ORDER: [HighlightPseudoElement; 3] = [
+const HIGHLIGHT_OVERLAY_ORDER: [HighlightPseudoElement; 4] = [
+    HighlightPseudoElement::SpellingError,
     HighlightPseudoElement::Selection,
     HighlightPseudoElement::SearchText,
     HighlightPseudoElement::SearchTextCurrent,
@@ -123,6 +126,27 @@ fn highlight_offsets_for_fragment<O: Observer>(
                     .and_then(|range| range_offsets_for_fragment(recorder, range, fragment))
             };
             offsets.into_iter().collect()
+        }
+        HighlightPseudoElement::SpellingError => {
+            let Some(runs) = recorder.paint_state.spelling_errors.by_node.get(&fragment.layout_node) else {
+                return Vec::new();
+            };
+            // A run that ends before the fragment starts, or starts after it ends, has no part in it.
+            runs.iter()
+                .filter(|&&(start, end)| {
+                    end >= fragment.dom_start_offset_in_node
+                        && start <= fragment.dom_end_offset_with_trailing_whitespace
+                })
+                .filter_map(|&(start, end)| {
+                    text_fragment::compute_selection_offsets(
+                        recorder.source,
+                        fragment,
+                        SELECTION_STATE_START_AND_END,
+                        start,
+                        end,
+                    )
+                })
+                .collect()
         }
         HighlightPseudoElement::SearchText | HighlightPseudoElement::SearchTextCurrent => {
             let is_current = highlight == HighlightPseudoElement::SearchTextCurrent;
@@ -170,6 +194,7 @@ fn highlight_style<O: Observer>(
         HighlightPseudoElement::SearchText | HighlightPseudoElement::SearchTextCurrent => {
             recorder.search_text_style(node, highlight)
         }
+        HighlightPseudoElement::SpellingError => recorder.spelling_error_style(node),
     }
 }
 

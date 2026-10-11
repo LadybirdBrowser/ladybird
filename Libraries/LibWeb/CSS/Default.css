@@ -2174,3 +2174,8 @@ iframe:fullscreen {
   symbols: \25B8;
   /* ▸ */
 }
+
+/* https://drafts.csswg.org/css-pseudo-4/#highlight-ua-styles */
+:root::spelling-error {
+    text-decoration: spelling-error;
+}

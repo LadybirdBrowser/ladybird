@@ -119,6 +119,7 @@ void SpellingMarkers::did_change(DOM::Text& text)
     if (entry.has_value() && !has_markers)
         m_markers.remove(text);
     text.set_has_spelling_markers({}, has_markers);
+    m_document->note_spelling_markers_changed();
 }
 
 }

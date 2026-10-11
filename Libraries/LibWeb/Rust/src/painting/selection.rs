@@ -9,14 +9,15 @@ use crate::css::style::tree::StyleNodeID;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{
     NodeSlotId, SEARCH_TEXT_CURRENT_PSEUDO_KIND, SEARCH_TEXT_PSEUDO_KIND, SELECTION_PSEUDO_KIND,
+    SPELLING_ERROR_PSEUDO_KIND,
 };
 use crate::painting::display_list::commands::OptionalColor;
 use crate::painting::fragment_ownership;
 use crate::painting::host::FfiSelectionStyleFacts;
 use crate::painting::paint_read::GeometryRead;
 use crate::painting::paintable_data::{
-    FfiSearchTextRange, FfiSelectionEntry, SELECTION_STATE_END, SELECTION_STATE_NONE, SELECTION_STATE_START,
-    SELECTION_STATE_START_AND_END,
+    FfiSearchTextRange, FfiSelectionEntry, FfiSpellingError, SELECTION_STATE_END, SELECTION_STATE_NONE,
+    SELECTION_STATE_START, SELECTION_STATE_START_AND_END,
 };
 use crate::painting::paintable_rows::PaintableRowsMut;
 use crate::painting::record::damage::PaintDamage;
@@ -31,10 +32,16 @@ pub(crate) enum HighlightPseudoElement {
     Selection,
     SearchText,
     SearchTextCurrent,
+    SpellingError,
 }
 
 impl HighlightPseudoElement {
-    pub(crate) const ALL: [Self; 3] = [Self::Selection, Self::SearchText, Self::SearchTextCurrent];
+    pub(crate) const ALL: [Self; 4] = [
+        Self::Selection,
+        Self::SearchText,
+        Self::SearchTextCurrent,
+        Self::SpellingError,
+    ];
 
     /// The pseudo-element's kind, as the style engine numbers an element's pseudo-element records.
     pub(crate) fn pseudo_kind(self) -> u8 {
@@ -42,15 +49,16 @@ impl HighlightPseudoElement {
             Self::Selection => SELECTION_PSEUDO_KIND,
             Self::SearchText => SEARCH_TEXT_PSEUDO_KIND,
             Self::SearchTextCurrent => SEARCH_TEXT_CURRENT_PSEUDO_KIND,
+            Self::SpellingError => SPELLING_ERROR_PSEUDO_KIND,
         }
     }
 }
 
 /// The committed styles of each highlight pseudo-element, for an element's rows.
-pub(crate) type HighlightStyleAnswers = [Option<Arc<SelectionStyleAnswer>>; 3];
+pub(crate) type HighlightStyleAnswers = [Option<Arc<SelectionStyleAnswer>>; 4];
 
 /// The records an element holds for each highlight pseudo-element, zero for none.
-pub(crate) type HighlightStyleRecords = [u64; 3];
+pub(crate) type HighlightStyleRecords = [u64; 4];
 
 #[derive(Debug)]
 pub(crate) struct SelectionRange {
@@ -204,6 +212,42 @@ pub(crate) fn apply_search_text(
         }
     }
     layout_arena.paint_state().borrow_mut().search_text = Arc::new(highlights);
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct SpellingErrorHighlights {
+    /// For each text fragment row, the misspelled runs of its DOM text, as start and end offsets in order.
+    pub by_node: std::collections::HashMap<NodeSlotId, Vec<(usize, usize)>>,
+}
+
+pub(crate) fn clear_spelling_errors(layout_arena: &mut PaintableRowsMut<'_>) {
+    let previous = std::mem::take(&mut layout_arena.paint_state().borrow_mut().spelling_errors);
+    for node in previous.by_node.keys() {
+        invalidate_text_node(layout_arena, *node);
+    }
+}
+
+pub(crate) fn apply_spelling_errors(layout_arena: &mut PaintableRowsMut<'_>, errors: &[FfiSpellingError]) {
+    let mut highlights = SpellingErrorHighlights::default();
+    for error in errors {
+        for &node in layout_arena.text_fragments(error.layout_node).as_slice() {
+            highlights
+                .by_node
+                .entry(node)
+                .or_default()
+                .push((error.start_offset, error.end_offset));
+        }
+    }
+    for runs in highlights.by_node.values_mut() {
+        runs.sort_unstable();
+    }
+    let previous = std::mem::take(&mut layout_arena.paint_state().borrow_mut().spelling_errors);
+    for node in previous.by_node.keys().chain(highlights.by_node.keys()) {
+        if previous.by_node.get(node) != highlights.by_node.get(node) {
+            invalidate_text_node(layout_arena, *node);
+        }
+    }
+    layout_arena.paint_state().borrow_mut().spelling_errors = Arc::new(highlights);
 }
 
 /// https://drafts.csswg.org/css-pseudo-4/#highlight-styling

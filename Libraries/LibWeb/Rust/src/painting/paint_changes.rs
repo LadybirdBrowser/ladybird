@@ -15,7 +15,7 @@ use super::host::{
 use super::image_map_areas::{AreaCoverage, AreaShape, PublishedImageMapArea};
 use super::layer_image_paint_facts::{LayerImagePaintFacts, LayerImagePaintFactsEntry};
 use super::paint_read::GeometryRead;
-use super::paintable_data::{FfiSearchTextRange, FfiSelectionEntry, PaintableFlag};
+use super::paintable_data::{FfiSearchTextRange, FfiSelectionEntry, FfiSpellingError, PaintableFlag};
 use super::record::damage::PaintDamage;
 use super::replaced_paint_facts::{ImagePaintFacts, ReplacedPaintFacts, VideoPaintFacts};
 use super::selection::HighlightStyleRecords;
@@ -53,8 +53,16 @@ pub(crate) enum PaintChange {
     },
     /// No find-in-page match is highlighted.
     ClearSearchText,
-    /// The element's style changed: the rows that paint text under it take what `style_records`, the `::selection`
-    /// and `::search-text` records the host holds for it (zero for none), say highlighted text paints with.
+    /// The runs the spellchecker flagged, each inside one DOM text.
+    ApplySpellingErrors {
+        viewport: NodeSlotId,
+        errors: Box<[FfiSpellingError]>,
+    },
+    /// No text is flagged as misspelled.
+    ClearSpellingErrors,
+    /// The element's style changed: the rows that paint text under it take what `style_records`, the `::selection`,
+    /// `::search-text` and `::spelling-error` records the host holds for it (zero for none), say highlighted text
+    /// paints with.
     SyncHighlightPseudoStyles {
         element: StyleNodeID,
         style_records: HighlightStyleRecords,
@@ -158,6 +166,12 @@ impl PaintChange {
                 }
             }
             Self::ClearSearchText => super::selection::clear_search_text(&mut arena.paintable_rows_mut()),
+            Self::ApplySpellingErrors { viewport, errors } => {
+                if arena.paintable_row_is_populated(viewport) {
+                    super::selection::apply_spelling_errors(&mut arena.paintable_rows_mut(), &errors);
+                }
+            }
+            Self::ClearSpellingErrors => super::selection::clear_spelling_errors(&mut arena.paintable_rows_mut()),
             Self::SyncHighlightPseudoStyles { element, style_records } => {
                 super::selection::sync_highlight_pseudo_styles(arena, element, style_records);
             }
@@ -300,6 +314,36 @@ pub extern "C" fn render_state_clear_search_text(host: &DocumentHost) {
     queue(host, PaintChange::ClearSearchText);
 }
 
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread, and `errors` must point at `error_count` readable
+/// errors.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_apply_spelling_errors(
+    host: &DocumentHost,
+    viewport: NodeSlotId,
+    errors: *const FfiSpellingError,
+    error_count: usize,
+) {
+    let errors = if error_count == 0 {
+        Box::default()
+    } else {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { std::slice::from_raw_parts(errors, error_count) }.into()
+    };
+    host.host_tables().shows_spelling_errors.set(error_count != 0);
+    queue(host, PaintChange::ApplySpellingErrors { viewport, errors });
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_clear_spelling_errors(host: &DocumentHost) {
+    // Rows that show no spelling errors have none to clear.
+    if !host.host_tables().shows_spelling_errors.replace(false) {
+        return;
+    }
+    queue(host, PaintChange::ClearSpellingErrors);
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_sync_highlight_pseudo_styles(
     host: &DocumentHost,
@@ -307,6 +351,7 @@ pub extern "C" fn render_state_sync_highlight_pseudo_styles(
     selection_style_record: u64,
     search_text_style_record: u64,
     search_text_current_style_record: u64,
+    spelling_error_style_record: u64,
 ) {
     let Some(element) = StyleNodeID::from_raw(element) else {
         return;
@@ -317,6 +362,7 @@ pub extern "C" fn render_state_sync_highlight_pseudo_styles(
             selection_style_record,
             search_text_style_record,
             search_text_current_style_record,
+            spelling_error_style_record,
         ],
     };
     queue(host, change);

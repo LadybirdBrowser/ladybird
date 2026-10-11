@@ -41,6 +41,7 @@ StyleEngine::StyleEngine(StyleComputer* style_computer)
         StyleEngineFFI::style_engine_set_pseudo_element_style_deferred(host(), to_underlying(PseudoElement::Selection), true);
         StyleEngineFFI::style_engine_set_pseudo_element_style_deferred(host(), to_underlying(PseudoElement::SearchText), true);
         StyleEngineFFI::style_engine_set_pseudo_element_style_deferred(host(), to_underlying(PseudoElement::SearchTextCurrent), true);
+        StyleEngineFFI::style_engine_set_pseudo_element_style_deferred(host(), to_underlying(PseudoElement::SpellingError), true);
     }
 }
 
@@ -186,6 +187,7 @@ StyleRecordID StyleEngine::republish_record_environment(Layout::BegunRead const&
 ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(After)
 ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(SearchText)
 ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(SearchTextCurrent)
+ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(SpellingError)
 ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(ViewTransition)
 ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(DetailsContent)
 ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(SliderTrack)

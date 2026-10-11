@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #styled::spelling-error { color: green; text-decoration-color: blue; }
+</style>
+<p id="plain">plain</p>
+<p id="styled">styled</p>
+<script>
+    test(() => {
+        for (const id of ["plain", "styled"]) {
+            const style = getComputedStyle(document.getElementById(id), "::spelling-error");
+            println(`${id}: line=${style.textDecorationLine} color=${style.color} decoration-color=${style.textDecorationColor}`);
+        }
+    });
+</script>
