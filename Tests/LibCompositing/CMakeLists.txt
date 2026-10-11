@@ -1,4 +1,5 @@
 set(TEST_SOURCES
+    TestElasticOverscroll.cpp
     TestPausedDebuggerOverlay.cpp
     TestScrollState.cpp
     TestSmoothScrollAnimation.cpp
