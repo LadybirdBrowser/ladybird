@@ -57,6 +57,7 @@ protected:
     void discard_child_web_view(HeadlessWebView&);
     void schedule_forced_close();
     void prepare_page_for_tab(WebContentPage&) override;
+    void send_system_theme_to_page(WebContentPage&) override;
     void update_zoom() override;
     ViewImplementation* create_view_for_new_tab_or_window(IsPrivate) override;
 

@@ -1598,12 +1598,18 @@ static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, 
 void WebContentView::update_palette(PaletteMode mode)
 {
     set_page_background_color_to_system_canvas(is_using_dark_system_theme(*this));
-    update_palette(page(), mode);
+
+    // NB: Every page hosting documents of this tab takes the palette, including the pages of out-of-process iframes.
+    //     Their prefers-color-scheme and system colors resolve against it.
+    auto theme = make_system_theme_from_qt_palette(*this, mode);
+    traversable().for_each_hosting_page([&](WebView::WebContentPage& page) {
+        page.async_update_system_theme(theme);
+    });
 }
 
-void WebContentView::update_palette(WebView::WebContentPage& page, PaletteMode mode)
+void WebContentView::send_system_theme_to_page(WebView::WebContentPage& page)
 {
-    page.async_update_system_theme(make_system_theme_from_qt_palette(*this, mode));
+    page.async_update_system_theme(make_system_theme_from_qt_palette(*this, PaletteMode::Default));
 }
 
 #if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
@@ -1702,7 +1708,6 @@ void WebContentView::prepare_page_for_tab(WebView::WebContentPage& page)
     ViewImplementation::prepare_page_for_tab(page);
 
     update_compositor_display_metadata(page);
-    update_palette(page);
     update_screen_rects(page);
 }
 
