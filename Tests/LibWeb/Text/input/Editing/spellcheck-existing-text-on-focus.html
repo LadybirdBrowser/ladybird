@@ -12,10 +12,12 @@
 <textarea id="long"></textarea>
 <script>
     promiseTest(async () => {
+        // Checks run only on the user's behalf, so the user focuses each field with a click.
+        const clickOn = (element, rect = element.getBoundingClientRect()) => internals.click(rect.left + rect.width / 2, rect.top + rect.height / 2);
         document.getElementById("long").value = "word ".repeat(4000) + "txet";
         const ids = ["area", "text", "password", "readonly", "disabled", "no-spellcheck", "astral", "long"];
         for (const id of [...ids, "editable"]) {
-            document.getElementById(id).focus();
+            clickOn(document.getElementById(id));
             await internals.spellCheckSettled();
         }
         for (const id of ids)

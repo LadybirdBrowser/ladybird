@@ -8,6 +8,8 @@
 <div id="later" contenteditable spellcheck="false">txet</div>
 <script>
     promiseTest(async () => {
+        // Checks run only on the user's behalf, so the user focuses each field with a click.
+        const clickOn = (element, rect = element.getBoundingClientRect()) => internals.click(rect.left + rect.width / 2, rect.top + rect.height / 2);
         const ids = ["spell", "readonly", "disabled", "type", "editable", "later"];
         const node = id => {
             const element = document.getElementById(id);
@@ -18,7 +20,7 @@
                 println(`${id} ${label}: ${internals.spellingErrorRanges(node(id)) || "(none)"}`);
         };
         for (const id of ids) {
-            document.getElementById(id).focus();
+            clickOn(document.getElementById(id));
             await internals.spellCheckSettled();
         }
         show("before");
