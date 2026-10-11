@@ -5,13 +5,13 @@
  */
 
 //! Propagation of the root element's and its body's style to the viewport: the principal
-//! writing mode and the viewport's overflow. The inputs are the elements' own published style
-//! records rather than their boxes, since the previous pass rewrote the boxes' values and a
-//! `display: none` body has style but no box. The boxes' final styles are derived before the
-//! layout pass borrows their payloads.
+//! writing mode, the viewport's overflow and its overscroll behavior. The inputs are the
+//! elements' own published style records rather than their boxes, since the previous pass
+//! rewrote the boxes' values and a `display: none` body has style but no box. The boxes' final
+//! styles are derived before the layout pass borrows their payloads.
 
 use crate::css::computed_value_views::ComputedValuesView;
-use crate::css::css_enums::overflow;
+use crate::css::css_enums::{overflow, overscroll_behavior};
 use crate::css::style::StyleEngine;
 use crate::css::style::bridge::{element_adjustment_fact, element_construction_fact};
 use crate::css::style::tree::StyleNodeID;
@@ -26,6 +26,8 @@ pub(crate) struct ViewportPropagationFacts {
     pub root_is_html_html_element: bool,
     pub root_overflow_x: u8,
     pub root_overflow_y: u8,
+    pub root_overscroll_behavior_x: u8,
+    pub root_overscroll_behavior_y: u8,
     pub root_writing_mode: u8,
     pub root_direction: u8,
     /// Any of size, inline-size, layout, style or paint containment.
@@ -80,6 +82,8 @@ pub(crate) fn viewport_propagation_facts(arena: &LayoutNodeArena) -> ViewportPro
         root_is_html_html_element: false,
         root_overflow_x: 0,
         root_overflow_y: 0,
+        root_overscroll_behavior_x: overscroll_behavior::AUTO,
+        root_overscroll_behavior_y: overscroll_behavior::AUTO,
         root_writing_mode: 0,
         root_direction: 0,
         root_has_containment: false,
@@ -107,6 +111,8 @@ pub(crate) fn viewport_propagation_facts(arena: &LayoutNodeArena) -> ViewportPro
             engine.element_construction_facts(root_element) & element_construction_fact::IS_HTML_HTML_ELEMENT != 0;
         facts.root_overflow_x = root_style.overflow_x();
         facts.root_overflow_y = root_style.overflow_y();
+        facts.root_overscroll_behavior_x = root_style.misc_reset().overscroll_behavior_x;
+        facts.root_overscroll_behavior_y = root_style.misc_reset().overscroll_behavior_y;
         facts.root_writing_mode = root_style.writing_mode();
         facts.root_direction = root_style.direction();
         facts.root_has_containment = has_any_containment(root_style);
@@ -187,6 +193,7 @@ pub(crate) struct PropagatedViewportStyles {
     pub(crate) writing_mode: u8,
     pub(crate) direction: u8,
     pub(crate) viewport_overflow: (u8, u8),
+    pub(crate) viewport_overscroll_behavior: (u8, u8),
     pub(crate) root_overflow: (u8, u8),
     /// Present when the body has a box that takes part in overflow propagation.
     pub(crate) body_overflow: Option<(u8, u8)>,
@@ -267,6 +274,12 @@ pub(crate) fn decide_viewport_propagation(facts: &ViewportPropagationFacts) -> O
             overflow_as_applied_to_viewport(origin_overflow.0),
             overflow_as_applied_to_viewport(origin_overflow.1),
         ),
+        // https://drafts.csswg.org/css-overscroll-1/#scroll-chaining-and-boundary-default-actions
+        // The viewport participates in scroll chaining as the document's scrollingElement, both
+        // regarding placement in the scroll chain as well as adhering to the chaining rules
+        // applied to it.
+        // NOTE: The rules are those of the root element. Unlike overflow, the body never supplies them.
+        viewport_overscroll_behavior: (facts.root_overscroll_behavior_x, facts.root_overscroll_behavior_y),
         root_overflow: if body_is_overflow_origin {
             root_overflow
         } else {
@@ -281,7 +294,8 @@ pub(crate) fn decide_viewport_propagation(facts: &ViewportPropagationFacts) -> O
 }
 
 /// Applies the propagation in the order the boxes were always rewritten in: the root's writing
-/// mode and direction, the viewport's, then the viewport's, the root's and the body's overflow.
+/// mode and direction, the viewport's, then the viewport's overflow and overscroll behavior, and
+/// the root's and the body's overflow.
 /// Every box receives its final values exactly once, so a steady-state pass leaves every style
 /// record untouched instead of oscillating values within the pass.
 ///
@@ -302,9 +316,13 @@ pub(crate) fn propagate_root_styles_to_viewport(
             style.set_writing_mode_and_direction(writing_mode, direction);
         });
     };
+    let apply_overscroll_behavior = |node: NodeSlotId, (x, y): (u8, u8)| {
+        arena.update_layout_style(host_calls, node, |style| style.set_overscroll_behavior(x, y));
+    };
 
     let Some(styles) = decide_viewport_propagation(facts) else {
         apply_overflow(viewport, (overflow::AUTO, overflow::AUTO));
+        apply_overscroll_behavior(viewport, (overscroll_behavior::AUTO, overscroll_behavior::AUTO));
         return;
     };
     let root = facts.root_layout_node;
@@ -315,6 +333,7 @@ pub(crate) fn propagate_root_styles_to_viewport(
     // the viewport.
     apply_writing_mode_and_direction(viewport, styles.writing_mode, styles.direction);
     apply_overflow(viewport, styles.viewport_overflow);
+    apply_overscroll_behavior(viewport, styles.viewport_overscroll_behavior);
     apply_overflow(root, styles.root_overflow);
     if let Some(body_overflow) = styles.body_overflow {
         apply_overflow(facts.body_layout_node, body_overflow);
@@ -332,6 +351,8 @@ mod tests {
             root_is_html_html_element: true,
             root_overflow_x: overflow::VISIBLE,
             root_overflow_y: overflow::VISIBLE,
+            root_overscroll_behavior_x: overscroll_behavior::AUTO,
+            root_overscroll_behavior_y: overscroll_behavior::AUTO,
             root_writing_mode: writing_mode::HORIZONTAL_TB,
             root_direction: direction::LTR,
             root_has_containment: false,
@@ -415,6 +436,32 @@ mod tests {
         assert_eq!(styles.viewport_overflow, (overflow::AUTO, overflow::AUTO));
         assert_eq!(styles.root_overflow, VISIBLE);
         assert_eq!(styles.body_overflow, Some((overflow::SCROLL, overflow::HIDDEN)));
+    }
+
+    #[test]
+    fn the_viewport_takes_the_overscroll_behavior_of_the_root_whichever_element_supplies_its_overflow() {
+        let mut facts = html_document_facts();
+        facts.root_overscroll_behavior_x = overscroll_behavior::CONTAIN;
+        facts.root_overscroll_behavior_y = overscroll_behavior::NONE;
+        let the_roots = (overscroll_behavior::CONTAIN, overscroll_behavior::NONE);
+
+        let styles_with_overflow_from_the_body = decide_viewport_propagation(&facts).unwrap();
+        assert_eq!(styles_with_overflow_from_the_body.body_overflow, Some(VISIBLE));
+        assert_eq!(
+            styles_with_overflow_from_the_body.viewport_overscroll_behavior,
+            the_roots
+        );
+
+        facts.root_overflow_y = overflow::SCROLL;
+        let styles_with_overflow_from_the_root = decide_viewport_propagation(&facts).unwrap();
+        assert_eq!(
+            styles_with_overflow_from_the_root.body_overflow,
+            Some((overflow::SCROLL, overflow::HIDDEN))
+        );
+        assert_eq!(
+            styles_with_overflow_from_the_root.viewport_overscroll_behavior,
+            the_roots
+        );
     }
 
     #[test]

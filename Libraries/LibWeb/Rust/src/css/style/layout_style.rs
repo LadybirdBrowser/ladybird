@@ -216,6 +216,13 @@ impl LayoutStyle {
         self.edit::<MiscResetValues>(|values| values.scrollbar_width = width);
     }
 
+    pub(crate) fn set_overscroll_behavior(&mut self, x: u8, y: u8) {
+        self.edit::<MiscResetValues>(|values| {
+            values.overscroll_behavior_x = x;
+            values.overscroll_behavior_y = y;
+        });
+    }
+
     // CSS table wrappers carry positioning and margins, and act as the table's grid item.
     // z-index and vertical-align also follow the wrapper for interoperable painting and
     // inline alignment; clip only applies on the wrapper that receives position.
