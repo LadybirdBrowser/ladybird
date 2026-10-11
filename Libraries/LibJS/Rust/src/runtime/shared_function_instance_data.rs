@@ -42,6 +42,14 @@ pub enum ThisMode {
     Global,
 }
 
+/// How many closures of a function were created.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ClosureCount {
+    None,
+    One,
+    Many,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ConstructorKind {
     Base,
@@ -126,6 +134,11 @@ pub struct SharedFunctionInstanceDataStorage {
     /// construct_reserve()), and how many constructions asked.
     construct_reserve: Cell<u32>,
     construct_count: Cell<u32>,
+
+    /// How many closures of the function were created. JIT code may only treat the bindings of a closure's
+    /// environment as the bindings of every frame running the function while it is the only closure.
+    #[gc(untraced)]
+    closure_count: Cell<ClosureCount>,
 }
 
 impl Drop for SharedFunctionInstanceDataStorage {
@@ -271,6 +284,7 @@ impl SharedFunctionInstanceData {
                 use_rust_compilation: true,
                 construct_reserve: Cell::new(0),
                 construct_count: Cell::new(0),
+                closure_count: Cell::new(ClosureCount::None),
             },
         }
     }
@@ -754,6 +768,19 @@ impl SharedFunctionInstanceData {
         }
         storage.construct_count.set(count.saturating_add(1));
         storage.construct_reserve.get()
+    }
+
+    pub fn closure_count(&self) -> ClosureCount {
+        self.storage.closure_count.get()
+    }
+
+    /// Counts a new closure of the function.
+    pub fn note_closure_created(&self) {
+        let count = match self.storage.closure_count.get() {
+            ClosureCount::None => ClosureCount::One,
+            ClosureCount::One | ClosureCount::Many => ClosureCount::Many,
+        };
+        self.storage.closure_count.set(count);
     }
 
     /// The reserve of the last construct_reserve(), without asking for it.

@@ -161,6 +161,7 @@ impl EcmascriptFunctionObject {
         private_environment: Option<Gc<PrivateEnvironment>>,
         prototype: Gc<Object>,
     ) -> Gc<EcmascriptFunctionObject> {
+        shared_data.note_closure_created();
         let function = allocate_object(
             vm,
             Self::new(vm, shared_data, parent_environment, private_environment, prototype),

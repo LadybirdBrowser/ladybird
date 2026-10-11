@@ -12,6 +12,7 @@ use libjs_abi::Builtin;
 use std::collections::HashMap;
 
 use libjs_jit::bytecode::{EnvironmentCoordinate, ExceptionHandler, FrameLayout, Instruction, OpCode, decode_all};
+use libjs_jit::code::ExitKind;
 use libjs_jit::snapshot::{
     AccessorFunctionSnapshot, CallFeedbackSnapshot, CellId, ClosureTemplateSnapshot, CompileOptions, ConstructTarget,
     DirectCallTarget, EnvironmentTemplateSnapshot, ExecutableSnapshot, FeedbackSnapshot, ForwardedCallSnapshot,
@@ -53,6 +54,7 @@ use crate::runtime::object_prototype::ObjectPrototype;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::shape::Shape;
+use crate::runtime::shared_function_instance_data::ClosureCount;
 use crate::runtime::shared_function_instance_data::ConstructorKind;
 use crate::runtime::shared_function_instance_data::FunctionKind;
 use crate::runtime::shared_function_instance_data::ThisMode;
@@ -908,22 +910,33 @@ impl SnapshotBuilder<'_> {
     }
 
     /// Object values of captured bindings of functions whose lexical environment is always their closure's
-    /// environment. Their loads are guarded, so another closure or a reassignment can change the value safely.
+    /// environment, while the function has no other closure, so that every frame running the code sees these
+    /// bindings. Their loads are guarded, so a reassignment or a closure created later can change the value safely.
+    /// A binding whose guard failed at any of its loads changes, so none of its loads speculates on it again.
     fn captured_bindings(
         &mut self,
         function: Gc<EcmascriptFunctionObject>,
         executable: Gc<Executable>,
         realm: Gc<Realm>,
     ) -> Vec<(EnvironmentCoordinate, GlobalValueSnapshot)> {
-        if function.allocates_function_environment() {
+        if function.allocates_function_environment() || function.shared_data().closure_count() != ClosureCount::One {
             return Vec::new();
         }
-        let coordinates = executable
+        let loads = executable
             .jit_state()
-            .captured_binding_coordinates
-            .get_or_init(|| captured_binding_coordinates(&executable));
-        let mut bindings = Vec::new();
-        for &coordinate in coordinates {
+            .captured_binding_loads
+            .get_or_init(|| captured_binding_loads(&executable));
+        let exit_sites = executable.jit_exit_sites();
+        let changed: Vec<EnvironmentCoordinate> = loads
+            .iter()
+            .filter(|&&(_, pc)| exit_sites.contains(&(pc, ExitKind::UnexpectedValue)))
+            .map(|&(coordinate, _)| coordinate)
+            .collect();
+        let mut bindings: Vec<(EnvironmentCoordinate, GlobalValueSnapshot)> = Vec::new();
+        for &(coordinate, _) in loads {
+            if changed.contains(&coordinate) || bindings.iter().any(|(captured, _)| *captured == coordinate) {
+                continue;
+            }
             let mut environment = function.environment();
             for _ in 0..coordinate.hops {
                 environment = environment.and_then(|environment| environment.outer_environment());
@@ -949,9 +962,9 @@ impl SnapshotBuilder<'_> {
     }
 }
 
-/// The distinct coordinates of the bindings `executable` loads from environments, or none if its code may change its
-/// lexical environment, so that they are not the environments of its closure.
-fn captured_binding_coordinates(executable: &Executable) -> Box<[EnvironmentCoordinate]> {
+/// The coordinate and pc of every load of a binding from an environment in `executable`, or none if its code may change
+/// its lexical environment, so that they are not the environments of its closure.
+fn captured_binding_loads(executable: &Executable) -> Box<[(EnvironmentCoordinate, u32)]> {
     let Ok(instructions) = decode_all(executable.bytecode()) else {
         return Box::default();
     };
@@ -970,19 +983,15 @@ fn captured_binding_coordinates(executable: &Executable) -> Box<[EnvironmentCoor
     }) {
         return Box::default();
     }
-    let mut coordinates = Vec::new();
-    for decoded in instructions {
-        let (Instruction::GetBinding { cache: coordinate, .. }
-        | Instruction::GetInitializedBinding { cache: coordinate, .. }
-        | Instruction::GetCalleeAndThisFromEnvironment { cache: coordinate, .. }) = decoded.instruction
-        else {
-            continue;
-        };
-        if !coordinates.contains(&coordinate) {
-            coordinates.push(coordinate);
-        }
-    }
-    coordinates.into_boxed_slice()
+    instructions
+        .into_iter()
+        .filter_map(|decoded| match decoded.instruction {
+            Instruction::GetBinding { cache: coordinate, .. }
+            | Instruction::GetInitializedBinding { cache: coordinate, .. }
+            | Instruction::GetCalleeAndThisFromEnvironment { cache: coordinate, .. } => Some((coordinate, decoded.pc)),
+            _ => None,
+        })
+        .collect()
 }
 
 /// Captures the snapshot of a compile job for `executable`, whose frames run `function`. `osr_pc` is the loop back

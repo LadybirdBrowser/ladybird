@@ -45,7 +45,7 @@ use crate::runtime::object::{
 use crate::runtime::primitive_string::{
     ROPE_STRING_LHS_OFFSET, ROPE_STRING_MIN_LENGTH, ROPE_STRING_RHS_OFFSET, RopeString,
 };
-use crate::runtime::shared_function_instance_data::{FunctionKind, SharedFunctionInstanceData, ThisMode};
+use crate::runtime::shared_function_instance_data::{ClosureCount, FunctionKind, SharedFunctionInstanceData, ThisMode};
 use crate::runtime::value_storage::{self, SIZE_CLASS_CAPACITIES, VALUES_OFFSET};
 
 fn size(size: usize) -> u32 {
@@ -467,6 +467,11 @@ fn closure_template(
 ) -> Option<(Gc<EcmascriptFunctionObject>, Vec<u64>)> {
     // NB: Only the closures of plain functions are copies of each other apart from their environments.
     if shared_data.kind() != FunctionKind::Normal || shared_data.is_class_constructor() {
+        return None;
+    }
+    // NB: Closures JIT code copies are not counted, so it only copies those of functions that have several already
+    //     (see SharedFunctionInstanceData::closure_count()). The sample is one more.
+    if shared_data.closure_count() != ClosureCount::Many {
         return None;
     }
     let realm = function.realm()?;
