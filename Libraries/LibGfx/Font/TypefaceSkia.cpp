@@ -26,14 +26,15 @@
 #include <core/SkTypeface.h>
 #include <harfbuzz/hb-ot.h>
 #include <harfbuzz/hb.h>
+#include <ports/SkFontScanner_FreeType.h>
 #if defined(AK_OS_ANDROID)
 #    include <ports/SkFontMgr_android.h>
 #elif defined(AK_OS_WINDOWS)
 #    include <ports/SkFontMgr_empty.h>
 #    include <ports/SkTypeface_win.h>
+#    include <src/ports/SkTypeface_win_dw.h>
 #else
 #    include <ports/SkFontMgr_fontconfig.h>
-#    include <ports/SkFontScanner_FreeType.h>
 #endif
 
 #ifdef AK_OS_MACOS
@@ -41,6 +42,7 @@
 #    include <harfbuzz/hb-coretext.h>
 #    include <ports/SkFontMgr_mac_ct.h>
 #    include <ports/SkTypeface_mac.h>
+#    include <src/ports/SkTypeface_mac_ct.h>
 #endif
 
 namespace Gfx {
@@ -311,7 +313,19 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
         font_args.setCollectionIndex(static_cast<int>(ttc_index));
 
         auto stream = std::make_unique<SkMemoryStream>(data);
-        skia_typeface = font_manager().makeFromStream(std::move(stream), font_args);
+        // Loading supplied font data does not need a manager that discovers system fonts.
+#if defined(AK_OS_WINDOWS)
+        if (!FontDatabase::the().force_freetype_rasterization()) {
+            skia_typeface = DWriteFontTypeface::MakeFromStream(std::move(stream), font_args);
+        } else
+#elif defined(AK_OS_MACOS)
+        if (!FontDatabase::the().force_freetype_rasterization()) {
+            skia_typeface = SkTypeface_Mac::MakeFromStream(std::move(stream), font_args);
+        } else
+#endif
+        {
+            skia_typeface = SkFontScanner_Make_FreeType()->MakeFromStream(std::move(stream), font_args);
+        }
     }
 
     if (!skia_typeface) {
