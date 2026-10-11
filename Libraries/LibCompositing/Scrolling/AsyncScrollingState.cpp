@@ -94,6 +94,8 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
                 .can_be_wheel_scrolled_vertically = command.can_be_wheel_scrolled_vertically,
                 .chains_scroll_to_ancestors_horizontally = command.chains_scroll_to_ancestors_horizontally,
                 .chains_scroll_to_ancestors_vertically = command.chains_scroll_to_ancestors_vertically,
+                .shows_overscroll_effect_horizontally = command.shows_overscroll_effect_horizontally,
+                .shows_overscroll_effect_vertically = command.shows_overscroll_effect_vertically,
             });
             break;
         }

@@ -220,7 +220,13 @@ void ContextState::install_display_list_update(
     note_user_scroll_gesture_end_if_drag_ended(was_dragging_scrollbar);
     m_async_scroll_tree.set_state(move(async_scrolling_state));
     m_elastic_overscrolls.remove_all_matching([&](auto const& active) {
-        return !m_async_scroll_tree.scroll_node_id_for_stable_id(active.stable_node_id).has_value();
+        auto node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(active.stable_node_id);
+        auto const* node = node_id.has_value() ? m_async_scroll_tree.scroll_node_for_id(*node_id) : nullptr;
+        if (!node)
+            return true;
+        // A scroller that has been told not to stretch along an axis since it was pulled lets go at once.
+        auto stretch = active.overscroll.stretch();
+        return (stretch.x() != 0 && !node->shows_overscroll_effect_horizontally) || (stretch.y() != 0 && !node->shows_overscroll_effect_vertically);
     });
     m_scroll_snap_controller.did_install_scrolling_state(m_async_scroll_tree);
     if (auto viewport_scroll_offset = reapply_unreconciled_async_scroll_offsets(); viewport_scroll_offset.has_value())
@@ -1391,13 +1397,13 @@ bool ContextState::pull_elastic_overscroll_by(Compositing::AsyncScrollNode const
         auto delta_y = delta_the_scroller_did_not_scroll_by.y();
         bool is_at_the_edge_the_delta_points_past = (delta_y < 0 && scroll_offset->y() <= node.min_scroll_offset.y())
             || (delta_y > 0 && scroll_offset->y() >= node.max_scroll_offset.y());
-        if (node.can_be_wheel_scrolled_vertically && is_at_the_edge_the_delta_points_past)
+        if (node.can_be_wheel_scrolled_vertically && node.shows_overscroll_effect_vertically && is_at_the_edge_the_delta_points_past)
             overscroll_delta.set_y(delta_y);
     } else {
         auto delta_x = delta_the_scroller_did_not_scroll_by.x();
         bool is_at_the_edge_the_delta_points_past = (delta_x < 0 && scroll_offset->x() <= node.min_scroll_offset.x())
             || (delta_x > 0 && scroll_offset->x() >= node.max_scroll_offset.x());
-        if (node.can_be_wheel_scrolled_horizontally && is_at_the_edge_the_delta_points_past)
+        if (node.can_be_wheel_scrolled_horizontally && node.shows_overscroll_effect_horizontally && is_at_the_edge_the_delta_points_past)
             overscroll_delta.set_x(delta_x);
     }
     if (overscroll_delta.is_zero())

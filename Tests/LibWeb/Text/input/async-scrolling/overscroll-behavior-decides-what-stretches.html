@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        padding-top: 200px;
+        height: 3000px;
+    }
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #scroller > div {
+        height: 300px;
+    }
+</style>
+<div id="scroller"><div></div></div>
+<script>
+    const scrollerStretch = () => internals.elasticOverscrollStretchY(scroller);
+    const pageStretch = () => internals.elasticOverscrollStretchY();
+
+    async function nothingIsStretched() {
+        while (scrollerStretch() !== 0 || pageStretch() !== 0)
+            await animationFrame();
+    }
+
+    async function scrollPageAndScrollerTo(pageY, scrollerY) {
+        await nothingIsStretched();
+        window.scrollTo(0, pageY);
+        scroller.scrollTo(0, scrollerY);
+        for (let frame = 0; frame < 6; frame++)
+            await animationFrame();
+    }
+
+    // The fingers stay down after the step that is reported, and lift before the next gesture.
+    async function stateAfterPull(pointerY, deltaY) {
+        await internals.wheel(50, pointerY, 0, deltaY, true, "ongoing");
+        const state = `scroller stretch=${scrollerStretch()} page stretch=${pageStretch()} scroller at ${scroller.scrollTop} page at ${window.scrollY}`;
+        await internals.wheel(50, pointerY, 0, 0, true, "ended");
+        return state;
+    }
+
+    promiseTest(async () => {
+        for (const value of ["auto", "contain", "none", "chain"]) {
+            scroller.style.overscrollBehavior = value;
+
+            // The scroller is at the top of the window and of its scroll range, and the page can scroll up.
+            await scrollPageAndScrollerTo(200, 0);
+            println(`${value}, gesture up from the top of the scroller: ${await stateAfterPull(50, -400)}`);
+
+            // The scroller reaches its top within the gesture, with 400px of the step to spare.
+            await scrollPageAndScrollerTo(200, 50);
+            println(`${value}, gesture up that reaches the top of the scroller: ${await stateAfterPull(50, -450)}`);
+
+            // Neither the scroller nor the page can scroll up, so the gesture starts where everything is at its edge.
+            await scrollPageAndScrollerTo(0, 0);
+            println(`${value}, gesture up where the page is at its top too: ${await stateAfterPull(250, -400)}`);
+        }
+        scroller.style.overscrollBehavior = "auto";
+
+        for (const value of ["auto", "contain", "none", "chain"]) {
+            document.documentElement.style.overscrollBehavior = value;
+            await scrollPageAndScrollerTo(0, 0);
+            println(`root ${value}, gesture up at the top of the page: ${await stateAfterPull(400, -400)}`);
+        }
+
+        document.documentElement.style.overscrollBehavior = "auto";
+        document.body.style.overscrollBehavior = "none";
+        await scrollPageAndScrollerTo(0, 0);
+        println(`body none, gesture up at the top of the page: ${await stateAfterPull(400, -400)}`);
+        await nothingIsStretched();
+    });
+</script>

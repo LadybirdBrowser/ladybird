@@ -450,6 +450,8 @@ fn validate_command_fields(
                 chains_scroll_to_ancestors_horizontally
             ))?;
             p.bool_at(offset_of!(CompositorScrollNode, chains_scroll_to_ancestors_vertically))?;
+            p.bool_at(offset_of!(CompositorScrollNode, shows_overscroll_effect_horizontally))?;
+            p.bool_at(offset_of!(CompositorScrollNode, shows_overscroll_effect_vertically))?;
         }
         T::CompositorScrollbar => {
             p.bool_at(offset_of!(CompositorScrollbar, vertical))?;

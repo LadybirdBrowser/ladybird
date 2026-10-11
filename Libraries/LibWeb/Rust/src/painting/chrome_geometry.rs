@@ -139,6 +139,7 @@ pub(crate) fn has_resizer(arena: &impl PaintRead, slot: NodeSlotId) -> bool {
 pub(crate) struct ScrollBoundaryBehavior {
     /// The scroll is passed on to the scrollers around the box.
     pub(crate) chains_to_ancestors: PhysicalAxes,
+    pub(crate) shows_overscroll_effect: PhysicalAxes,
 }
 
 // https://drafts.csswg.org/css-overscroll-1/#overscroll-behavior-properties
@@ -146,6 +147,10 @@ pub(crate) struct ScrollBoundaryBehavior {
 pub(crate) fn scroll_boundary_behavior(arena: &impl PaintRead, slot: NodeSlotId) -> ScrollBoundaryBehavior {
     let unrestricted = ScrollBoundaryBehavior {
         chains_to_ancestors: PhysicalAxes {
+            horizontal: true,
+            vertical: true,
+        },
+        shows_overscroll_effect: PhysicalAxes {
             horizontal: true,
             vertical: true,
         },
@@ -163,15 +168,25 @@ pub(crate) fn scroll_boundary_behavior(arena: &impl PaintRead, slot: NodeSlotId)
         return unrestricted;
     };
 
-    use css_enums::overscroll_behavior::{AUTO, CHAIN};
+    use css_enums::overscroll_behavior::{AUTO, CHAIN, CONTAIN};
     let misc_reset = style.misc_reset();
-    // contain: The element must not perform non-local boundary default actions such as scroll chaining.
-    // none: This value implies the same behavior as contain.
+    // contain: The element must not perform non-local boundary default actions such as scroll chaining. This value
+    //          must not modify the behavior of how local boundary default actions should behave, such as showing any
+    //          overscroll affordances.
+    // none: This value implies the same behavior as contain and in addition this element must also not perform local
+    //       boundary default actions such as showing any overscroll affordances.
+    // chain: The element may perform non-local boundary default actions such as scroll chaining. However, the element
+    //        must not perform local boundary default actions, such as showing any overscroll affordances.
     let chains = |value: u8| value == AUTO || value == CHAIN;
+    let shows_overscroll_effect = |value: u8| value == AUTO || value == CONTAIN;
     ScrollBoundaryBehavior {
         chains_to_ancestors: PhysicalAxes {
             horizontal: chains(misc_reset.overscroll_behavior_x),
             vertical: chains(misc_reset.overscroll_behavior_y),
+        },
+        shows_overscroll_effect: PhysicalAxes {
+            horizontal: shows_overscroll_effect(misc_reset.overscroll_behavior_x),
+            vertical: shows_overscroll_effect(misc_reset.overscroll_behavior_y),
         },
     }
 }
