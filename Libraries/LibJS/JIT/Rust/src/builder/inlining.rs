@@ -940,7 +940,7 @@ impl GraphBuilder<'_> {
         //     Keep non-strict closure calls conservative.
         let has_legacy_arguments = callee_executable.supports_legacy_arguments
             || (closure.is_some() && callee_executable.is_non_strict_function());
-        let Ok(mut callee_function) = Function::new(index, callee_executable, decoded) else {
+        let Ok(mut callee_function) = Function::new(index, callee_executable, decoded, has_legacy_arguments) else {
             return Ok(None);
         };
         if !can_inline(&callee_function) {
