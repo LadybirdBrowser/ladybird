@@ -1330,6 +1330,16 @@ impl Assembler {
         self.fp_data_processing_2(0x1e60_1800, rd_, rn_, rm_);
     }
 
+    /// `fmin`: NaN if either input is, and -0 below +0, like `Math.min`.
+    pub fn fmin(&mut self, rd_: Fpr, rn_: Fpr, rm_: Fpr) {
+        self.fp_data_processing_2(0x1e60_5800, rd_, rn_, rm_);
+    }
+
+    /// `fmax`: NaN if either input is, and +0 above -0, like `Math.max`.
+    pub fn fmax(&mut self, rd_: Fpr, rn_: Fpr, rm_: Fpr) {
+        self.fp_data_processing_2(0x1e60_4800, rd_, rn_, rm_);
+    }
+
     pub fn fsqrt(&mut self, rd_: Fpr, rn_: Fpr) {
         self.emit(0x1e61_c000 | vn(rn_) | vd(rd_));
     }

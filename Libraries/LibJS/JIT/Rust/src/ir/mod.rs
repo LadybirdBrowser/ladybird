@@ -862,6 +862,10 @@ pub enum Op {
     /// The absolute value of the `Repr::Int32` input 0, which must not be
     /// `i32::MIN`, as a `Repr::Int32`.
     Int32Abs,
+    /// The smaller and the larger of the `Repr::Int32` inputs 0 and 1, as a
+    /// `Repr::Int32`.
+    Int32Min,
+    Int32Max,
     /// The `Repr::Float64` of the `Repr::Int32` input 0.
     Int32ToFloat64,
     /// The `Repr::Float64` of the tagged input 0, which must be a double:
@@ -880,6 +884,10 @@ pub enum Op {
     Float64Binary {
         op: BinaryOp,
     },
+    /// `Math.min` and `Math.max` of the `Repr::Float64` inputs 0 and 1, as a
+    /// `Repr::Float64`: NaN if either is NaN, and -0 below +0.
+    Float64Min,
+    Float64Max,
     /// `input 0 comparison input 1` of two `Repr::Float64` inputs, as a
     /// `Repr::Bool`: false if either is NaN, but for the inequalities.
     /// Equalities are strict and loose alike.
@@ -1369,12 +1377,16 @@ impl Op {
             | Op::BoxFloat64
             | Op::Float64Unary { .. }
             | Op::Float64Binary { .. }
+            | Op::Float64Min
+            | Op::Float64Max
             | Op::Float64Compare { .. }
             | Op::Float64ToInt32
             | Op::Float64ToUint8Clamped
             | Op::Uint32ShiftRight
             | Op::Uint32ToFloat64
             | Op::Int32Abs
+            | Op::Int32Min
+            | Op::Int32Max
             | Op::Int32ToFloat64
             | Op::StringAddress => P::PURE,
             // NB: A cache miss and strings whose characters only the slow
@@ -1514,11 +1526,15 @@ impl Op {
             Op::CallSlowPath { .. } => "CallSlowPath",
             Op::UnboxInt32 => "UnboxInt32",
             Op::Int32Abs => "Int32Abs",
+            Op::Int32Min => "Int32Min",
+            Op::Int32Max => "Int32Max",
             Op::Int32ToFloat64 => "Int32ToFloat64",
             Op::UnboxDouble => "UnboxDouble",
             Op::BoxFloat64 => "BoxFloat64",
             Op::Float64Unary { .. } => "Float64Unary",
             Op::Float64Binary { .. } => "Float64Binary",
+            Op::Float64Min => "Float64Min",
+            Op::Float64Max => "Float64Max",
             Op::Float64Compare { .. } => "Float64Compare",
             Op::Float64ToInt32 => "Float64ToInt32",
             Op::Float64ToUint8Clamped => "Float64ToUint8Clamped",

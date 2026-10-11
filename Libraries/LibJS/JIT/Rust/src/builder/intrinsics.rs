@@ -40,6 +40,9 @@ pub enum StringCharacter {
 /// How many values `try_build_array_push()` appends inline at most.
 const MAX_INLINE_PUSHED_VALUES: usize = 8;
 
+/// How many arguments `try_build_math_min_max()` compares inline at most.
+const MAX_MIN_MAX_ARGUMENTS: usize = 8;
+
 impl GraphBuilder<'_> {
     /// Builds `Math.<op>(argument)`, a `CallBuiltinMath*` instruction, for
     /// numbers, if `callee` is the builtin of any realm. The instruction's
@@ -334,12 +337,13 @@ impl GraphBuilder<'_> {
         Ok(Some(Flow::Continue))
     }
 
-    /// Builds `Math.min(a, b)` and `Math.max(a, b)`, `Call`s whose feedback
-    /// saw `Math.min` or `Math.max` as their single callee, and only int32
-    /// results, for int32 arguments: the smaller or larger one. The code
-    /// exits where the callee is another function or an argument is no
-    /// int32. Returns `None`, having built nothing that matters, if it is not
-    /// such a call or an argument is a constant that is no int32.
+    /// Builds `Math.min` and `Math.max` of up to `MAX_MIN_MAX_ARGUMENTS`
+    /// arguments, `Call`s whose feedback saw `Math.min` or `Math.max` as
+    /// their single callee, as `Int32Min` or `Int32Max` of int32 arguments
+    /// where the results were int32 values, and as `Float64Min` or
+    /// `Float64Max` of numbers otherwise, the code exiting for other
+    /// arguments. Returns `None`, having built nothing, if it is not such a
+    /// call, or where arguments that were no numbers exited before.
     pub(super) fn try_build_math_min_max(&mut self, instruction: &Instruction) -> Result<Option<Flow>, CompileFailure> {
         let Instruction::Call {
             value_feedback,
@@ -352,14 +356,10 @@ impl GraphBuilder<'_> {
         else {
             return Ok(None);
         };
-        let [lhs, rhs] = arguments.as_slice() else {
-            return Ok(None);
-        };
-        // NB: Int32 results do not prove int32 arguments (Math.min(1, 2.5)
-        //     is 1). Arguments that are no int32 values exit, and code compiled
-        //     after the exit calls the function.
-        let results = self.function.executable.feedback.value.get(usize::from(value_feedback));
-        if results != Some(&value_feedback::INT32) {
+        if arguments.is_empty()
+            || arguments.len() > MAX_MIN_MAX_ARGUMENTS
+            || arguments.iter().any(|operand| self.holds_virtual_arguments(*operand))
+        {
             return Ok(None);
         }
         let Some((target, intrinsic)) = self
@@ -368,31 +368,51 @@ impl GraphBuilder<'_> {
         else {
             return Ok(None);
         };
-        let comparison = match intrinsic {
-            Intrinsic::MathMin => Comparison::LessThan,
-            Intrinsic::MathMax => Comparison::GreaterThan,
+        let max = match intrinsic {
+            Intrinsic::MathMin => false,
+            Intrinsic::MathMax => true,
             _ => return Ok(None),
         };
-        if !self.may_speculate(ExitKind::BadCallTarget)
-            || !self.may_speculate(ExitKind::NotInt32)
-            || [lhs, rhs]
-                .into_iter()
-                .any(|operand| self.holds_virtual_arguments(*operand))
-        {
+        if !self.may_speculate(ExitKind::BadCallTarget) {
             return Ok(None);
         }
-        let (lhs, rhs) = (self.read_value(*lhs)?, self.read_value(*rhs)?);
-        if !self.may_be_int32(&[lhs, rhs]) {
+        let values = arguments
+            .iter()
+            .map(|operand| self.read_value(*operand))
+            .collect::<Result<Vec<_>, _>>()?;
+        // NB: Int32 results do not prove int32 arguments (Math.min(1, 2.5)
+        //     is 1). Arguments that are no int32 values exit, and code compiled
+        //     after the exit computes with doubles. The results are numbers
+        //     either way.
+        let results = self.function.executable.feedback.value.get(usize::from(value_feedback));
+        let int32 = results == Some(&value_feedback::INT32)
+            && self.may_speculate(ExitKind::NotInt32)
+            && self.may_be_int32(&values);
+        if !int32 && !self.may_speculate(ExitKind::BadType) {
             return Ok(None);
         }
         self.check_callee(callee, target)?;
-        let (lhs, rhs) = (self.int32(lhs), self.int32(rhs));
-        // NB: Phis the builder makes merge tagged values, which
-        //     representation selection unboxes.
-        let boxed = [lhs, rhs].map(|value| self.emit(Op::BoxInt32, vec![value], Some(Repr::Tagged)));
-        let (left, right) = self.branch_both_ways(BranchCondition::Int32(comparison), vec![lhs, rhs]);
-        self.join_blocks(vec![left, right]);
-        let result = self.add_phi(boxed.to_vec());
+        let result = if int32 {
+            let op = if max { Op::Int32Max } else { Op::Int32Min };
+            let result = values
+                .into_iter()
+                .map(|value| self.int32(value))
+                .collect::<Vec<_>>()
+                .into_iter()
+                .reduce(|result, value| self.emit(op.clone(), vec![result, value], Some(Repr::Int32)))
+                .expect("there are arguments");
+            self.emit(Op::BoxInt32, vec![result], Some(Repr::Tagged))
+        } else {
+            let op = if max { Op::Float64Max } else { Op::Float64Min };
+            let result = values
+                .into_iter()
+                .map(|value| self.number(value))
+                .collect::<Vec<_>>()
+                .into_iter()
+                .reduce(|result, number| self.emit(op.clone(), vec![result, number], Some(Repr::Float64)))
+                .expect("there are arguments");
+            self.emit(Op::BoxFloat64, vec![result], Some(Repr::Tagged))
+        };
         self.write(dst, result)?;
         Ok(Some(Flow::Continue))
     }

@@ -394,6 +394,9 @@ fn scalar_doubles() {
         "cvttsd2si r9, xmm15" => |a| a.cvttsd2si(W64, R9, XMM15);
         "xorpd xmm3, xmm3" => |a| a.xorpd(XMM3, XMM3);
         "andpd xmm6, xmm11" => |a| a.andpd(XMM6, XMM11);
+        "orpd xmm6, xmm11" => |a| a.orpd(XMM6, XMM11);
+        "minsd xmm0, xmm9" => |a| a.minsd(XMM0, XMM9);
+        "maxsd xmm12, xmm1" => |a| a.maxsd(XMM12, XMM1);
         "movmskpd r11d, xmm7" => |a| a.movmskpd(R11, XMM7);
         "movss xmm0, dword ptr [rax+4]" => |a| a.movss_rm(XMM0, &base(RAX, 4));
         "movss xmm9, dword ptr [r12+r13*4]" => |a| a.movss_rm(XMM9, &indexed(R12, R13, Scale::Four, 0));

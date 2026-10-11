@@ -792,6 +792,32 @@ fn bit_tests_and_select() {
             }
         }
     }
+
+    for condition in [Condition::LessThan, Condition::GreaterThan, Condition::Below] {
+        for dst in [RAX, RDI, RSI, RDX, RCX] {
+            let code = assemble(|masm| {
+                masm.select32(condition, RDI, RSI, dst, registers[2], registers[3]);
+                masm.move32(RAX, dst);
+                masm.ret();
+            });
+            // SAFETY: The code implements `Select`.
+            let function: Select = unsafe { code.function() };
+            for a in VALUES {
+                for b in VALUES {
+                    let expected = if evaluate_comparison(condition, Width::W32, a, b) {
+                        0xffff_fff1
+                    } else {
+                        2
+                    };
+                    assert_eq!(
+                        function(a, b, 0xdead_0000_ffff_fff1, 0xdead_0000_0000_0002),
+                        expected,
+                        "{condition:?} {a:#x} {b:#x} dst={dst:?}"
+                    );
+                }
+            }
+        }
+    }
 }
 
 #[test]
@@ -932,6 +958,22 @@ const DOUBLES: [f64; 16] = [
     f64::MIN_POSITIVE,
 ];
 
+/// `Math.min` or `Math.max` of two doubles: NaN if either is, and -0 below +0.
+fn js_min_max(max: bool, a: f64, b: f64) -> f64 {
+    if a.is_nan() || b.is_nan() {
+        return f64::NAN;
+    }
+    if a == 0.0 && b == 0.0 {
+        let negative = if max {
+            a.is_sign_negative() && b.is_sign_negative()
+        } else {
+            a.is_sign_negative() || b.is_sign_negative()
+        };
+        return if negative { -0.0 } else { 0.0 };
+    }
+    if max { a.max(b) } else { a.min(b) }
+}
+
 fn same_double(a: f64, b: f64) -> bool {
     a.to_bits() == b.to_bits() || (a.is_nan() && b.is_nan())
 }
@@ -941,7 +983,7 @@ fn double_arithmetic() {
     type DoubleBinary = extern "C" fn(f64, f64) -> f64;
     type Emit = fn(&mut MacroAssembler, Fpr, Fpr, Fpr);
     type Reference = fn(f64, f64) -> f64;
-    let operations: [(&str, Emit, Reference); 10] = [
+    let operations: [(&str, Emit, Reference); 12] = [
         ("add", |m, d, l, r| m.add_double(d, l, r), |a, b| a + b),
         ("sub", |m, d, l, r| m.sub_double(d, l, r), |a, b| a - b),
         ("mul", |m, d, l, r| m.mul_double(d, l, r), |a, b| a * b),
@@ -951,6 +993,12 @@ fn double_arithmetic() {
         ("ceil", |m, d, l, _| m.ceil_double(d, l), |a, _| a.ceil()),
         ("neg", |m, d, l, _| m.neg_double(d, l), |a, _| -a),
         ("abs", |m, d, l, _| m.abs_double(d, l), |a, _| a.abs()),
+        (
+            "min",
+            |m, d, l, r| m.min_double(d, l, r),
+            |a, b| js_min_max(false, a, b),
+        ),
+        ("max", |m, d, l, r| m.max_double(d, l, r), |a, b| js_min_max(true, a, b)),
         ("move", |m, d, l, _| m.move_double(d, l), |a, _| a),
     ];
     let registers = [XMM0, XMM1, XMM2];

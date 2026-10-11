@@ -1625,6 +1625,27 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Op::BoxFloat64 => self.emit_box_float64(node_id),
             Op::Float64Unary { op } => self.emit_float64_unary(node_id, *op),
             Op::Float64Binary { op } => self.emit_float64_binary(node_id, *op),
+            Op::Float64Min | Op::Float64Max => {
+                let (lhs, rhs, output) = (
+                    self.float_input(node_id, 0),
+                    self.float_input(node_id, 1),
+                    self.float_output(node_id),
+                );
+                if matches!(node.op, Op::Float64Min) {
+                    self.masm.min_double(output, lhs, rhs);
+                } else {
+                    self.masm.max_double(output, lhs, rhs);
+                }
+            }
+            Op::Int32Min | Op::Int32Max => {
+                let (lhs, rhs, output) = (self.input(node_id, 0), self.input(node_id, 1), self.output(node_id));
+                let condition = if matches!(node.op, Op::Int32Min) {
+                    Condition::LessThan
+                } else {
+                    Condition::GreaterThan
+                };
+                self.masm.select32(condition, lhs, rhs, output, lhs, rhs);
+            }
             Op::Float64Compare { comparison } => self.emit_float64_compare(node_id, *comparison),
             Op::Float64ToInt32 => self.emit_float64_to_int32(node_id),
             Op::Float64ToUint8Clamped => self.emit_float64_to_uint8_clamped(node_id),
