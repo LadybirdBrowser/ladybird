@@ -936,6 +936,12 @@ impl PortableMacroAssembler for MacroAssembler {
             .csel(W64, dst, if_true, if_false, condition_code(condition));
     }
 
+    fn select32(&mut self, condition: Condition, lhs: Gpr, rhs: Gpr, dst: Gpr, if_true: Gpr, if_false: Gpr) {
+        self.assembler.cmp(W32, lhs, rhs);
+        self.assembler
+            .csel(W32, dst, if_true, if_false, condition_code(condition));
+    }
+
     fn jump(&mut self, target: Label) {
         self.assembler.b(target);
     }
@@ -994,6 +1000,14 @@ impl PortableMacroAssembler for MacroAssembler {
 
     fn sub_double(&mut self, dst: Fpr, lhs: Fpr, rhs: Fpr) {
         self.assembler.fsub(dst, lhs, rhs);
+    }
+
+    fn min_double(&mut self, dst: Fpr, lhs: Fpr, rhs: Fpr) {
+        self.assembler.fmin(dst, lhs, rhs);
+    }
+
+    fn max_double(&mut self, dst: Fpr, lhs: Fpr, rhs: Fpr) {
+        self.assembler.fmax(dst, lhs, rhs);
     }
 
     fn mul_double(&mut self, dst: Fpr, lhs: Fpr, rhs: Fpr) {

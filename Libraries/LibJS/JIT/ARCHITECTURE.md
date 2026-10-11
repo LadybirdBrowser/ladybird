@@ -131,6 +131,7 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | Int32Compare | Int32 comparison as a bool. | | | | cse |
 | TaggedEquals | Bit equality of tagged values, for values where that is strict equality. | | | | cse |
 | Int32Abs, Int32ToFloat64, Float64Unary | Int32 absolute value, conversion to float64, negation and `Math` operations on float64. | | | | cse |
+| Int32Min, Int32Max, Float64Min, Float64Max | `Math.min` and `Math.max` of two int32 values, and of two float64 values (NaN if either is NaN, -0 below +0), without branches where the target can. | | | | cse |
 | Float64Binary, Float64Compare, Float64ToInt32, Float64ToUint8Clamped | Float64 arithmetic, comparison as a bool (false for NaN but in inequalities), ToInt32, and ToUint8Clamp. | | | | cse |
 | IsCallable | Whether input 0 is a function object. | | | | cse |
 | Typeof, TypeofIs | `typeof` of input 0, or whether it is one kind. | | | | cse |

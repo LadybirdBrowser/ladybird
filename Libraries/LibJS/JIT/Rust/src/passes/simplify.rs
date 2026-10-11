@@ -199,6 +199,18 @@ pub fn run(graph: &mut Graph) {
                         .map(|result| constants.get_typed(graph, u64::from(result.cast_unsigned()), Repr::Int32)),
                     _ => None,
                 },
+                Op::Int32Min | Op::Int32Max if inputs[0] == inputs[1] => Some(inputs[0]),
+                Op::Int32Min | Op::Int32Max => match (int32_of(graph, inputs[0]), int32_of(graph, inputs[1])) {
+                    (Some(lhs), Some(rhs)) => {
+                        let result = if matches!(graph.node(node).op, Op::Int32Min) {
+                            lhs.min(rhs)
+                        } else {
+                            lhs.max(rhs)
+                        };
+                        Some(constants.get_typed(graph, u64::from(result.cast_unsigned()), Repr::Int32))
+                    }
+                    _ => None,
+                },
                 Op::Int32Compare { comparison } => match (int32_of(graph, inputs[0]), int32_of(graph, inputs[1])) {
                     (Some(lhs), Some(rhs)) => Some(constants.get_typed(
                         graph,

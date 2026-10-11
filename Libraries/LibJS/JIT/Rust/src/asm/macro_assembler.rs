@@ -224,6 +224,9 @@ pub trait PortableMacroAssembler: Sized {
     fn compare64_imm_set(&mut self, condition: Condition, dst: Gpr, lhs: Gpr, imm: i64);
     /// `dst = (lhs condition rhs) ? if_true : if_false`, comparing 64 bits.
     fn select64(&mut self, condition: Condition, lhs: Gpr, rhs: Gpr, dst: Gpr, if_true: Gpr, if_false: Gpr);
+    /// `dst = (lhs condition rhs) ? if_true : if_false`, comparing and
+    /// selecting 32 bits.
+    fn select32(&mut self, condition: Condition, lhs: Gpr, rhs: Gpr, dst: Gpr, if_true: Gpr, if_false: Gpr);
 
     // Control flow.
     fn jump(&mut self, target: Label);
@@ -246,6 +249,10 @@ pub trait PortableMacroAssembler: Sized {
     fn sub_double(&mut self, dst: Fpr, lhs: Fpr, rhs: Fpr);
     fn mul_double(&mut self, dst: Fpr, lhs: Fpr, rhs: Fpr);
     fn div_double(&mut self, dst: Fpr, lhs: Fpr, rhs: Fpr);
+    /// `Math.min` of two doubles: NaN if either is, and -0 below +0.
+    fn min_double(&mut self, dst: Fpr, lhs: Fpr, rhs: Fpr);
+    /// `Math.max` of two doubles: NaN if either is, and +0 above -0.
+    fn max_double(&mut self, dst: Fpr, lhs: Fpr, rhs: Fpr);
     fn sqrt_double(&mut self, dst: Fpr, src: Fpr);
     /// The largest integral double not above `src`.
     fn floor_double(&mut self, dst: Fpr, src: Fpr);

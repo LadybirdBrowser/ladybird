@@ -468,6 +468,8 @@ fn scalar_doubles() {
         "fsub d3, d4, d5" => |a| a.fsub(D3, D4, D5);
         "fmul d29, d30, d31" => |a| a.fmul(D29, D30, D31);
         "fdiv d16, d17, d8" => |a| a.fdiv(D16, D17, D8);
+        "fmin d0, d1, d2" => |a| a.fmin(D0, D1, D2);
+        "fmax d29, d30, d31" => |a| a.fmax(D29, D30, D31);
         "fsqrt d0, d1" => |a| a.fsqrt(D0, D1);
         "frintm d0, d1" => |a| a.frintm(D0, D1);
         "frintp d30, d2" => |a| a.frintp(D30, D2);

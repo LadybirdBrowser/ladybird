@@ -263,6 +263,10 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         Op::SlowPathOutput { index } => with_inputs(&format!("SlowPathOutput {index}")),
         Op::UnboxInt32
         | Op::Int32Abs
+        | Op::Int32Min
+        | Op::Int32Max
+        | Op::Float64Min
+        | Op::Float64Max
         | Op::Int32ToFloat64
         | Op::UnboxDouble
         | Op::BoxFloat64

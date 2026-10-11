@@ -1073,6 +1073,14 @@ impl Assembler {
         self.sse_rr(Prefix::Repne, false, &[0x0f, 0x5e], dst.0, src.0);
     }
 
+    pub fn minsd(&mut self, dst: Fpr, src: Fpr) {
+        self.sse_rr(Prefix::Repne, false, &[0x0f, 0x5d], dst.0, src.0);
+    }
+
+    pub fn maxsd(&mut self, dst: Fpr, src: Fpr) {
+        self.sse_rr(Prefix::Repne, false, &[0x0f, 0x5f], dst.0, src.0);
+    }
+
     pub fn sqrtsd(&mut self, dst: Fpr, src: Fpr) {
         self.sse_rr(Prefix::Repne, false, &[0x0f, 0x51], dst.0, src.0);
     }
@@ -1110,6 +1118,10 @@ impl Assembler {
 
     pub fn xorpd(&mut self, dst: Fpr, src: Fpr) {
         self.sse_rr(Prefix::OperandSize, false, &[0x0f, 0x57], dst.0, src.0);
+    }
+
+    pub fn orpd(&mut self, dst: Fpr, src: Fpr) {
+        self.sse_rr(Prefix::OperandSize, false, &[0x0f, 0x56], dst.0, src.0);
     }
 
     pub fn andpd(&mut self, dst: Fpr, src: Fpr) {

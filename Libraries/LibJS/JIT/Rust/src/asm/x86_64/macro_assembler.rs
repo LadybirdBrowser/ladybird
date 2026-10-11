@@ -31,6 +31,13 @@ const SCRATCH: Gpr = R11;
 const SCRATCH2: Gpr = R10;
 const FP_SCRATCH: Fpr = XMM15;
 
+/// Which of two doubles `min_or_max_double()` takes.
+#[derive(Clone, Copy)]
+enum Extreme {
+    Min,
+    Max,
+}
+
 /// The macro assembler for x86-64. Wraps an `Assembler`, which stays
 /// available for architecture specific code.
 #[derive(Debug, Default)]
@@ -272,6 +279,37 @@ impl MacroAssembler {
         } else {
             self.assembler.ucomisd(lhs, rhs);
         }
+    }
+
+    /// `Math.min` or `Math.max` of two doubles: `minsd` or `maxsd` where
+    /// they are ordered and differ, the bitwise or (for the minimum) or and
+    /// (for the maximum) where they are equal, which makes -0 the minimum
+    /// and +0 the maximum of zeros, and NaN where either is NaN.
+    fn min_or_max_double(&mut self, extreme: Extreme, dst: Fpr, lhs: Fpr, rhs: Fpr) {
+        let (unordered, differ, done) = (
+            self.assembler.new_label(),
+            self.assembler.new_label(),
+            self.assembler.new_label(),
+        );
+        self.assembler.movapd_rr(FP_SCRATCH, lhs);
+        self.assembler.ucomisd(lhs, rhs);
+        self.assembler.jcc(Cond::Parity, unordered);
+        self.assembler.jcc(Cond::NotEqual, differ);
+        match extreme {
+            Extreme::Min => self.assembler.orpd(FP_SCRATCH, rhs),
+            Extreme::Max => self.assembler.andpd(FP_SCRATCH, rhs),
+        }
+        self.assembler.jmp(done);
+        self.assembler.bind(unordered);
+        self.assembler.addsd(FP_SCRATCH, rhs);
+        self.assembler.jmp(done);
+        self.assembler.bind(differ);
+        match extreme {
+            Extreme::Min => self.assembler.minsd(FP_SCRATCH, rhs),
+            Extreme::Max => self.assembler.maxsd(FP_SCRATCH, rhs),
+        }
+        self.assembler.bind(done);
+        self.assembler.movapd_rr(dst, FP_SCRATCH);
     }
 
     /// `dst = lhs op rhs` for an SSE operation where `dst` must be the left operand.
@@ -818,6 +856,18 @@ impl PortableMacroAssembler for MacroAssembler {
         }
     }
 
+    fn select32(&mut self, condition: Condition, lhs: Gpr, rhs: Gpr, dst: Gpr, if_true: Gpr, if_false: Gpr) {
+        let cond = condition_code(condition);
+        self.assembler.cmp_rr(W32, lhs, rhs);
+        if dst == if_true {
+            self.assembler.cmovcc(cond.invert(), W32, dst, if_false);
+        } else {
+            // A plain mov does not change the flags.
+            self.mov_if_needed(W32, dst, if_false);
+            self.assembler.cmovcc(cond, W32, dst, if_true);
+        }
+    }
+
     fn jump(&mut self, target: Label) {
         self.assembler.jmp(target);
     }
@@ -882,6 +932,14 @@ impl PortableMacroAssembler for MacroAssembler {
 
     fn div_double(&mut self, dst: Fpr, lhs: Fpr, rhs: Fpr) {
         self.double_operation(Assembler::divsd, false, dst, lhs, rhs);
+    }
+
+    fn min_double(&mut self, dst: Fpr, lhs: Fpr, rhs: Fpr) {
+        self.min_or_max_double(Extreme::Min, dst, lhs, rhs);
+    }
+
+    fn max_double(&mut self, dst: Fpr, lhs: Fpr, rhs: Fpr) {
+        self.min_or_max_double(Extreme::Max, dst, lhs, rhs);
     }
 
     fn sqrt_double(&mut self, dst: Fpr, src: Fpr) {
