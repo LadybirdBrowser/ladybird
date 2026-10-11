@@ -285,9 +285,11 @@ fn finish_compile(
     let compiled = match result {
         Ok(compiled) => compiled,
         Err(failure) => {
-            let reason = format!("{failure:?}");
-            let reason = reason.split([' ', '{', '(']).next().unwrap_or_default();
-            vm.jit.count_coverage(&format!("compile-failure.{reason}"));
+            if options.coverage.is_some() {
+                let reason = format!("{failure:?}");
+                let reason = reason.split([' ', '{', '(']).next().unwrap_or_default();
+                vm.jit.count_coverage(format_args!("compile-failure.{reason}"));
+            }
             if options.dump_ir || options.dump_passes || options.dump_asm {
                 eprintln!(
                     "LIBJS_JIT: Not compiling {}: {failure:?}",

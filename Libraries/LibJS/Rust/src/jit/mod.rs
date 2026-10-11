@@ -317,9 +317,9 @@ impl JitState {
         true
     }
 
-    /// With the "coverage" option, counts `key`: what compiled code contained when it was installed (see
-    /// `libjs_jit::coverage`), and what happened to it ("exit.BadShape", "discard", "osr-entry", ...).
-    pub(crate) fn count_coverage(&self, key: &str) {
+    /// With the "coverage" option, counts `key`, which is only formatted then: what compiled code contained when it was
+    /// installed (see `libjs_jit::coverage`), and what happened to it ("exit.BadShape", "discard", "osr-entry", ...).
+    pub(crate) fn count_coverage(&self, key: impl core::fmt::Display) {
         if self.options.coverage.is_none() {
             return;
         }

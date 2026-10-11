@@ -551,10 +551,10 @@ pub(super) fn exit(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, ind
         }
     }
     if is_stress_exit {
-        vm.jit.count_coverage(&format!("stress-exit.{kind:?}"));
+        vm.jit.count_coverage(format_args!("stress-exit.{kind:?}"));
         return;
     }
-    vm.jit.count_coverage(&format!("exit.{kind:?}"));
+    vm.jit.count_coverage(format_args!("exit.{kind:?}"));
     if site.frames.len() > 1 {
         vm.jit.count_coverage("exit.from-inlined-code");
     }
