@@ -40,6 +40,7 @@ use crate::bytecode::THIS_VALUE_REGISTER;
 use crate::code::INLINED_CALL_SITE_BIT;
 use crate::code::JitStatus;
 use crate::code::SiteKind;
+use crate::inline_vec::InlineVec;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::value;
@@ -1671,20 +1672,21 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         overwritten: &[u32],
     ) -> Result<(), CompileFailure> {
         fields.sort_unstable_by_key(|(offset, _, _)| *offset);
-        // Runs of adjacent fields, as their start and bytes.
-        let mut runs: Vec<(u32, Vec<u8>)> = Vec::new();
-        for (offset, size, bits) in fields.iter() {
-            let bytes = &bits.to_le_bytes()[..*size as usize];
-            match runs.last_mut() {
-                Some((start, run)) if *start + run.len() as u32 == *offset => run.extend_from_slice(bytes),
-                _ => runs.push((*offset, bytes.to_vec())),
-            }
-        }
         // The values `temp` and `vector` hold, to store repeated values
         // without materializing them again.
         let mut held = None;
         let mut held_vector = None;
-        for (start, bytes) in runs {
+        let mut next_field = 0;
+        while next_field < fields.len() {
+            let start = fields[next_field].0;
+            let mut bytes = InlineVec::<u8, 128>::new();
+            while let Some(&(offset, size, bits)) = fields.get(next_field) {
+                if start + bytes.len() as u32 != offset {
+                    break;
+                }
+                bytes.extend(bits.to_le_bytes()[..size as usize].iter().copied());
+                next_field += 1;
+            }
             let mut index = 0;
             while index < bytes.len() {
                 let offset = start + index as u32;

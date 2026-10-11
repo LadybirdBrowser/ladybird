@@ -225,7 +225,7 @@ pub fn clean_up_control_flow(graph: &mut Graph) {
             .filter(|(_, keep)| **keep)
             .map(|(predecessor, _)| *predecessor)
             .collect();
-        for phi in graph.blocks[block].phis.clone() {
+        for phi in &graph.blocks[block].phis {
             let inputs = filter(&graph.nodes[phi.index()].inputs);
             graph.nodes[phi.index()].inputs = inputs;
         }
@@ -315,7 +315,7 @@ pub fn frame_state_entering(graph: &Graph, block: BlockId, predecessor: BlockId)
         .iter()
         .position(|block| *block == predecessor)
         .expect("the predecessor enters the block");
-    let phis = data.phis.clone();
+    let phis = &data.phis;
     let mut state: FrameState = graph.frame_state(template).clone();
     for (_, value) in &mut state.values {
         if phis.contains(value) {

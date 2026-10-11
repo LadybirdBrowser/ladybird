@@ -195,7 +195,7 @@ fn facts_at_entry(
     match incoming.len() {
         0 => None,
         1 => incoming.pop(),
-        _ => Some(Facts::merge(incoming.iter())),
+        _ => Some(Facts::merge(incoming.into_iter())),
     }
 }
 
@@ -215,8 +215,8 @@ fn visit_block(
             facts.expose(decisions.value(graph, *input));
         }
     }
-    let body = graph.block(block).body.clone();
-    for node in body {
+    for index in 0..graph.block(block).body.len() {
+        let node = graph.block(block).body[index];
         visit_node(graph, constants, node, &mut facts, decisions);
     }
     let control = graph.control_id(block);
@@ -337,13 +337,13 @@ fn visit_node(
     let removable = !refines || anchor.is_some();
     let mut remove = false;
     let mut becomes_assumption = false;
-    match node.op.clone() {
+    match node.op {
         Op::CheckObject => {
             let value = input(0);
             remove = removable && facts.is_object(value);
             facts.set_object(value);
         }
-        Op::CheckShape { shapes } => {
+        Op::CheckShape { ref shapes } => {
             let object = input(0);
             remove = removable
                 && facts
@@ -363,7 +363,7 @@ fn visit_node(
                 }
                 validate(facts, &graph.stable_shapes, decisions);
             } else if !remove {
-                facts.set_shapes(object, &shapes);
+                facts.set_shapes(object, shapes);
             }
         }
         // NB: Values that pass are int32 values.

@@ -1921,64 +1921,47 @@ impl Graph {
         chain
     }
 
+    /// The values `node` uses: its inputs, then the values of its frame
+    /// state.
+    pub fn used_values(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
+        let data = self.node(node);
+        data.inputs.iter().copied().chain(
+            data.frame_state
+                .into_iter()
+                .flat_map(|id| self.frame_state_values(id).map(|(_, value)| value)),
+        )
+    }
+
     /// The values of every frame of a frame state chain, innermost frame first.
     ///
     /// They are followed by the properties of the virtual objects among them
     /// (see `virtual_objects()`), in order, with the slot
     /// `VIRTUAL_OBJECT_PROPERTY`: exits need those values too.
-    /// The values `node` uses: its inputs, then the values of its frame
-    /// state.
-    pub fn used_values(&self, node: NodeId) -> impl Iterator<Item = NodeId> + '_ {
-        let data = self.node(node);
-        let frame_state_values = data
-            .frame_state
-            .map(|frame_state| self.frame_state_values(frame_state))
-            .unwrap_or_default();
-        data.inputs
-            .iter()
-            .copied()
-            .chain(frame_state_values.into_iter().map(|(_, value)| value))
-    }
-
-    pub fn frame_state_values(&self, id: FrameStateId) -> Vec<(u32, NodeId)> {
-        let mut values = self.chain_values(id);
-        for object in self.virtual_objects_among(&values) {
-            values.extend(
-                self.node(object)
-                    .inputs
-                    .iter()
-                    .map(|property| (VIRTUAL_OBJECT_PROPERTY, *property)),
-            );
-        }
-        values
+    pub fn frame_state_values(&self, id: FrameStateId) -> impl Iterator<Item = (u32, NodeId)> + '_ {
+        self.chain_values(id).chain(
+            std::iter::once_with(move || self.virtual_objects(id))
+                .flatten()
+                .flat_map(|object| {
+                    self.node(object)
+                        .inputs
+                        .iter()
+                        .map(|property| (VIRTUAL_OBJECT_PROPERTY, *property))
+                }),
+        )
     }
 
     /// The virtual objects the values of a frame state chain refer to,
     /// directly or through other virtual objects, each once, in the order
     /// they are first referred to.
     pub fn virtual_objects(&self, id: FrameStateId) -> Vec<NodeId> {
-        self.virtual_objects_among(&self.chain_values(id))
-    }
-
-    fn chain_values(&self, id: FrameStateId) -> Vec<(u32, NodeId)> {
-        let mut values = Vec::new();
-        let mut frame_state = Some(id);
-        while let Some(current) = frame_state {
-            let data = self.frame_state(current);
-            values.extend_from_slice(&data.values);
-            frame_state = data.parent;
-        }
-        values
-    }
-
-    fn virtual_objects_among(&self, values: &[(u32, NodeId)]) -> Vec<NodeId> {
         let is_virtual_object = |value: NodeId| matches!(self.node(value).op, Op::VirtualObject { .. });
         // NB: Most frame states refer to no virtual object.
-        if !values.iter().any(|(_, value)| is_virtual_object(*value)) {
+        if !self.chain_values(id).any(|(_, value)| is_virtual_object(value)) {
             return Vec::new();
         }
         let mut objects = Vec::new();
-        let mut pending = values.iter().rev().map(|(_, value)| *value).collect::<Vec<_>>();
+        let mut pending = self.chain_values(id).map(|(_, value)| value).collect::<Vec<_>>();
+        pending.reverse();
         while let Some(value) = pending.pop() {
             if !is_virtual_object(value) || objects.contains(&value) {
                 continue;
@@ -1987,6 +1970,11 @@ impl Graph {
             pending.extend(self.node(value).inputs.iter().rev().copied());
         }
         objects
+    }
+
+    fn chain_values(&self, id: FrameStateId) -> impl Iterator<Item = (u32, NodeId)> + '_ {
+        std::iter::successors(Some(id), |id| self.frame_state(*id).parent)
+            .flat_map(|id| self.frame_state(id).values.iter().copied())
     }
 
     /// The blocks code starts at: block 0, and the on-stack replacement
@@ -2046,26 +2034,19 @@ impl Graph {
     /// Reorders the blocks so that `order[i]` becomes block `i`. Blocks not
     /// in `order` are dropped; nothing may refer to them.
     pub fn reorder_blocks(&mut self, order: &[BlockId]) {
+        if order.len() == self.blocks.len() && order.iter().enumerate().all(|(index, block)| block.index() == index) {
+            return;
+        }
         let mut new_index = vec![None; self.blocks.len()];
         for (index, block) in order.iter().enumerate() {
+            assert!(new_index[block.index()].is_none(), "blocks appear once in the order");
             new_index[block.index()] = Some(BlockId::from_index(index));
         }
         let remap = |block: &mut BlockId| {
             *block = new_index[block.index()].expect("reordering keeps every referenced block");
         };
-        let mut old_blocks = std::mem::take(&mut self.blocks)
-            .into_iter()
-            .map(Some)
-            .collect::<Vec<_>>();
-        self.blocks = order
-            .iter()
-            .map(|block| {
-                old_blocks[block.index()]
-                    .take()
-                    .expect("blocks appear once in the order")
-            })
-            .collect();
-        for block in &mut self.blocks {
+        for block in order {
+            let block = &mut self.blocks[block.index()];
             block.predecessors.iter_mut().for_each(remap);
             if let Some(control) = block.control {
                 for successor in self.nodes[control.index()].op.successors_mut() {
@@ -2076,6 +2057,18 @@ impl Graph {
         for (_, block) in &mut self.osr_entries {
             remap(block);
         }
+        // Move each retained block to its destination, carrying the displaced
+        // block's destination with it. Dropped blocks end up past the new end.
+        for index in 0..self.blocks.len() {
+            while let Some(target) = new_index[index] {
+                if target.index() == index {
+                    break;
+                }
+                self.blocks.swap(index, target.index());
+                new_index.swap(index, target.index());
+            }
+        }
+        self.blocks.truncate(order.len());
     }
 
     /// The bits of `id` if it is a constant, or a refinement of one.
@@ -2093,5 +2086,92 @@ impl Graph {
             id = self.node(id).inputs[index];
         }
         id
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn state(graph: &mut Graph, values: Vec<(u32, NodeId)>, parent: Option<FrameStateId>) -> FrameStateId {
+        graph.add_frame_state(FrameState {
+            executable: 0,
+            pc: 0,
+            mode: ResumeMode::ResumeAt,
+            values,
+            in_frame: Vec::new(),
+            parent,
+            passed_argument_count: None,
+        })
+    }
+
+    #[test]
+    fn reordering_moves_blocks_and_remaps_edges_and_entries() {
+        for order in [[2, 0, 3], [3, 2, 0], [0, 3, 2]] {
+            let mut graph = Graph::default();
+            for index in 0..4 {
+                graph.add_block(Block {
+                    bytecode_start: Some(index),
+                    ..Block::default()
+                });
+            }
+            let control = graph.add_node(Node::new(Op::Jump { target: BlockId(2) }, Vec::new(), None, 0));
+            graph.blocks[0].control = Some(control);
+            graph.blocks[2].predecessors.push(BlockId(0));
+            graph.osr_entries.push((10, BlockId(3)));
+            let storage = graph.blocks.as_ptr();
+            let order = order.map(BlockId);
+            graph.reorder_blocks(&order);
+            assert_eq!(graph.blocks.as_ptr(), storage);
+            assert_eq!(graph.blocks.len(), 3);
+            for (index, old) in order.iter().enumerate() {
+                assert_eq!(graph.blocks[index].bytecode_start, Some(old.0));
+            }
+            let new_id = |old| BlockId::from_index(order.iter().position(|block| *block == BlockId(old)).unwrap());
+            assert_eq!(graph.blocks[new_id(2).index()].predecessors, [new_id(0)]);
+            assert!(matches!(graph.node(control).op, Op::Jump { target } if target == new_id(2)));
+            assert_eq!(graph.osr_entries, [(10, new_id(3))]);
+        }
+    }
+
+    #[test]
+    fn frame_state_values_keep_caller_and_nested_object_order() {
+        let mut graph = Graph::default();
+        let value = graph.add_node(Node::new(Op::Constant(value::UNDEFINED), vec![], Some(Repr::Tagged), 0));
+        let inner = graph.add_node(Node::new(
+            Op::VirtualObject { shape: CellId(1) },
+            vec![value],
+            Some(Repr::Tagged),
+            0,
+        ));
+        let outer = graph.add_node(Node::new(
+            Op::VirtualObject { shape: CellId(2) },
+            vec![inner, value],
+            Some(Repr::Tagged),
+            0,
+        ));
+        let parent = state(&mut graph, vec![(0, value), (1, inner)], None);
+        let current = state(&mut graph, vec![(0, outer), (1, inner)], Some(parent));
+        assert_eq!(graph.virtual_objects(current), [outer, inner]);
+        assert_eq!(
+            graph.frame_state_values(current).collect::<Vec<_>>(),
+            [
+                (0, outer),
+                (1, inner),
+                (0, value),
+                (1, inner),
+                (VIRTUAL_OBJECT_PROPERTY, inner),
+                (VIRTUAL_OBJECT_PROPERTY, value),
+                (VIRTUAL_OBJECT_PROPERTY, value),
+            ]
+        );
+        graph.nodes[inner.index()].inputs.push(outer);
+        assert_eq!(graph.virtual_objects(current), [outer, inner]);
+        assert_eq!(
+            graph.frame_state_values(current).last(),
+            Some((VIRTUAL_OBJECT_PROPERTY, outer))
+        );
+        let empty = state(&mut graph, vec![], None);
+        assert_eq!(graph.frame_state_values(empty).count(), 0);
     }
 }

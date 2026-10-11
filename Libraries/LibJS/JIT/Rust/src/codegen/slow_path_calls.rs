@@ -292,10 +292,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             .expect("fast paths have a frame state");
         // NB: Frame state values are listed innermost frame first.
         let chain = self.graph.frame_state_chain(frame_state);
-        let mut locations = self.allocation.node(node).exit_values.clone().into_iter();
+        let mut locations = self.allocation.node(node).exit_values.iter().copied();
         let mut frames = Vec::new();
         for id in &chain {
-            let frame = self.graph.frame_state(*id).clone();
+            let frame = self.graph.frame_state(*id);
             let values = frame
                 .values
                 .iter()
@@ -371,8 +371,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             let arguments_base = self.executables[frames[level].0.executable as usize]
                 .layout
                 .arguments_base();
-            let values = frames[level].1.clone();
-            for (slot, location, repr) in values {
+            for &(slot, location, repr) in &frames[level].1 {
                 if slot == crate::ir::CALLEE_SLOT {
                     continue;
                 }

@@ -16,12 +16,15 @@ use super::dominators::Dominators;
 use super::edit;
 use super::edit::Replacements;
 use crate::bitset::BitSet;
+use crate::fast_hash::FastHasher;
 use crate::fast_hash::HashMap;
 use crate::ir::BlockId;
 use crate::ir::Graph;
+use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
-use std::mem::Discriminant;
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::mem::discriminant;
 
 fn is_numbered(op: &Op) -> bool {
@@ -37,12 +40,28 @@ fn is_numbered(op: &Op) -> bool {
 }
 
 pub fn run(graph: &mut Graph) {
+    run_with_hash(graph, |node, replacements| {
+        let mut hash = FastHasher::default();
+        discriminant(&node.op).hash(&mut hash);
+        node.inputs.len().hash(&mut hash);
+        for input in &node.inputs {
+            replacements.resolve(*input).hash(&mut hash);
+        }
+        hash.finish()
+    });
+}
+
+fn run_with_hash(graph: &mut Graph, hash: impl Fn(&Node, &Replacements) -> u64) {
     let dominators = Dominators::compute(graph);
     let children = dominators.children();
     let mut replacements = Replacements::new(graph);
     let mut removed = BitSet::new(graph.nodes.len());
-    // The available nodes by (kind of op, inputs), in dominator tree scopes.
-    let mut available: HashMap<(Discriminant<Op>, Vec<NodeId>), Vec<NodeId>> = HashMap::default();
+    // NB: Hash borrowed inputs instead of allocating keys. Candidates with
+    //     the same hash form a chain through `previous`; equality is checked
+    //     before reusing one, including when hashes collide.
+    let mut available: HashMap<u64, NodeId> = HashMap::default();
+    let mut previous = vec![None; graph.nodes.len()];
+    let mut added = Vec::new();
 
     // Iterative preorder walk of the dominator tree; leaving a block drops
     // what its nodes made available.
@@ -52,52 +71,89 @@ pub fn run(graph: &mut Graph) {
         .collect::<Vec<_>>();
     enum Step {
         Enter(BlockId),
-        Leave(Vec<(Discriminant<Op>, Vec<NodeId>)>),
+        Leave(usize),
     }
     let mut steps = roots.into_iter().rev().map(Step::Enter).collect::<Vec<_>>();
     while let Some(step) = steps.pop() {
         let block = match step {
             Step::Enter(block) => block,
-            Step::Leave(keys) => {
-                for key in keys {
-                    let nodes = available.get_mut(&key).expect("keys are added before they are dropped");
-                    nodes.pop();
+            Step::Leave(checkpoint) => {
+                while added.len() > checkpoint {
+                    let (key, previous) = added.pop().expect("the scope added a node");
+                    if let Some(previous) = previous {
+                        available.insert(key, previous);
+                    } else {
+                        available.remove(&key);
+                    }
                 }
                 continue;
             }
         };
-        let mut added = Vec::new();
-        for node_id in graph.block(block).body.clone() {
+        let checkpoint = added.len();
+        for node_id in graph.block(block).body.iter().copied() {
             let node = graph.node(node_id);
             if !is_numbered(&node.op) {
                 continue;
             }
-            let inputs = node
-                .inputs
-                .iter()
-                .map(|input| replacements.resolve(*input))
-                .collect::<Vec<_>>();
-            let key = (discriminant(&node.op), inputs);
-            let candidates = available.entry(key.clone()).or_default();
-            if let Some(existing) = candidates
-                .iter()
-                .rev()
-                .find(|candidate| graph.node(**candidate).op == node.op)
-            {
+            let key = hash(node, &replacements);
+            let mut candidate = available.get(&key).copied();
+            let mut existing = None;
+            while let Some(id) = candidate {
+                let other = graph.node(id);
+                if other.op == node.op
+                    && other.inputs.len() == node.inputs.len()
+                    && other
+                        .inputs
+                        .iter()
+                        .zip(&node.inputs)
+                        .all(|(a, b)| replacements.resolve(*a) == replacements.resolve(*b))
+                {
+                    existing = Some(id);
+                    break;
+                }
+                candidate = previous[id.index()];
+            }
+            if let Some(existing) = existing {
                 if node.repr.is_some() {
-                    replacements.replace(node_id, *existing);
+                    replacements.replace(node_id, existing);
                 }
                 removed.insert(node_id.index());
                 continue;
             }
-            candidates.push(node_id);
-            added.push(key);
+            let old = available.insert(key, node_id);
+            previous[node_id.index()] = old;
+            added.push((key, old));
         }
-        steps.push(Step::Leave(added));
+        steps.push(Step::Leave(checkpoint));
         for child in children[block.index()].iter().rev() {
             steps.push(Step::Enter(*child));
         }
     }
     replacements.apply(graph);
     edit::remove_nodes(graph, &removed);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::code::Repr;
+    use crate::ir::Block;
+
+    #[test]
+    fn hash_collisions_do_not_make_different_nodes_equivalent() {
+        let mut graph = Graph::default();
+        graph.add_block(Block::default());
+        let a = graph.add_node(Node::new(Op::Constant(1), vec![], Some(Repr::Int32), 0));
+        let b = graph.add_node(Node::new(Op::Constant(2), vec![], Some(Repr::Int32), 0));
+        let first = graph.add_node(Node::new(Op::BoxInt32, vec![a], Some(Repr::Tagged), 0));
+        let different_input = graph.add_node(Node::new(Op::BoxInt32, vec![b], Some(Repr::Tagged), 0));
+        let different_operation = graph.add_node(Node::new(Op::Int32ToFloat64, vec![a], Some(Repr::Float64), 0));
+        let duplicate = graph.add_node(Node::new(Op::BoxInt32, vec![a], Some(Repr::Tagged), 0));
+        let returned = graph.add_node(Node::new(Op::Return, vec![duplicate], None, 0));
+        graph.blocks[0].body = vec![first, different_input, different_operation, duplicate];
+        graph.blocks[0].control = Some(returned);
+        run_with_hash(&mut graph, |_, _| 0);
+        assert_eq!(graph.blocks[0].body, [first, different_input, different_operation]);
+        assert_eq!(graph.node(returned).inputs, [first]);
+    }
 }

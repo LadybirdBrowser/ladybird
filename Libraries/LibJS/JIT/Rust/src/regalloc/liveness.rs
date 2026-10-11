@@ -73,21 +73,25 @@ pub(super) fn state_predecessor(graph: &Graph, block: BlockId) -> Option<BlockId
 }
 
 /// The input of each phi of `successor` that flows in from `block`.
-pub(super) fn phi_inputs_from(graph: &Graph, block: BlockId, successor: BlockId) -> Vec<(NodeId, NodeId)> {
+pub(super) fn phi_inputs_from(
+    graph: &Graph,
+    block: BlockId,
+    successor: BlockId,
+) -> impl Iterator<Item = (NodeId, NodeId)> + '_ {
     let successor_block = graph.block(successor);
-    if successor_block.phis.is_empty() {
-        return Vec::new();
-    }
-    let index = successor_block
-        .predecessors
-        .iter()
-        .position(|predecessor| *predecessor == block)
-        .expect("successors list their predecessors");
+    let index = if successor_block.phis.is_empty() {
+        0
+    } else {
+        successor_block
+            .predecessors
+            .iter()
+            .position(|predecessor| *predecessor == block)
+            .expect("successors list their predecessors")
+    };
     successor_block
         .phis
         .iter()
-        .map(|phi| (*phi, graph.node(*phi).inputs[index]))
-        .collect()
+        .map(move |phi| (*phi, graph.node(*phi).inputs[index]))
 }
 
 impl ValueLiveness {
@@ -144,21 +148,30 @@ impl ValueLiveness {
 
         let mut live_in = vec![BitSet::new(value_count); block_count];
         let mut live_out = vec![BitSet::new(value_count); block_count];
-        let mut changed = true;
-        while changed {
-            changed = false;
-            for block in block_ids.iter().rev() {
-                let live = &mut live_out[block.index()];
-                for successor in graph.successors(*block) {
-                    live.union_with(&live_in[successor.index()]);
+        let mut entering = BitSet::new(value_count);
+        // Visit backwards initially, then only revisit predecessors whose
+        // successor's live-in set changed. Acyclic regions need one visit.
+        let mut worklist = block_ids.clone();
+        let mut queued = vec![true; block_count];
+        while let Some(block) = worklist.pop() {
+            queued[block.index()] = false;
+            let live = &mut live_out[block.index()];
+            for successor in graph.successors(block) {
+                live.union_with(&live_in[successor.index()]);
+            }
+            for input in &phi_inputs[block.index()] {
+                live.insert(input.index());
+            }
+            entering.clone_from(live);
+            entering.subtract(&defined[block.index()]);
+            entering.union_with(&used_before_defined[block.index()]);
+            if live_in[block.index()].union_with(&entering) {
+                for predecessor in &graph.block(block).predecessors {
+                    if !queued[predecessor.index()] {
+                        queued[predecessor.index()] = true;
+                        worklist.push(*predecessor);
+                    }
                 }
-                for input in &phi_inputs[block.index()] {
-                    live.insert(input.index());
-                }
-                let mut entering = live.clone();
-                entering.subtract(&defined[block.index()]);
-                entering.union_with(&used_before_defined[block.index()]);
-                changed |= live_in[block.index()].union_with(&entering);
             }
         }
 

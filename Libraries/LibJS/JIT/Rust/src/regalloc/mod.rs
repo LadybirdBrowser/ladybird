@@ -740,7 +740,6 @@ impl<'a> Allocator<'a> {
         };
         self.graph
             .frame_state_values(frame_state)
-            .into_iter()
             .map(|(slot, value)| (slot, self.current_location(value)))
             .collect()
     }
@@ -935,12 +934,10 @@ impl<'a> Allocator<'a> {
                 (from != to).then_some(Move { from, to })
             })
             .chain(
-                liveness::phi_inputs_from(self.graph, block, join)
-                    .into_iter()
-                    .map(|(phi, input)| Move {
-                        from: self.current_location(input),
-                        to: self.allocation.nodes[phi.index()].output.expect("phis have locations"),
-                    }),
+                liveness::phi_inputs_from(self.graph, block, join).map(|(phi, input)| Move {
+                    from: self.current_location(input),
+                    to: self.allocation.nodes[phi.index()].output.expect("phis have locations"),
+                }),
             )
             .collect()
     }
@@ -962,7 +959,6 @@ impl<'a> Allocator<'a> {
                     self.place_merge_phis(block, *successor);
                 }
                 liveness::phi_inputs_from(self.graph, block, *successor)
-                    .into_iter()
                     .map(|(phi, input)| Move {
                         from: self.current_location(input),
                         to: self.allocation.nodes[phi.index()].output.expect("phis have locations"),
