@@ -81,12 +81,14 @@ if (APPLE)
         LadybirdAccessibilityElement.mm
         MacWindow.mm
         Menu.mm
+        SpellCheckerMac.mm
         WebContentViewAccessibility.mm
         WebContentViewMac.mm
     )
     target_link_libraries(ladybird PRIVATE Qt::GuiPrivate "-framework ApplicationServices" "-framework Cocoa" "-framework IOSurface" "-framework QuartzCore")
     set_source_files_properties(
         LadybirdAccessibilityElement.mm
+        SpellCheckerMac.mm
         WebContentViewAccessibility.mm
         PROPERTIES COMPILE_FLAGS "-fobjc-arc"
     )
