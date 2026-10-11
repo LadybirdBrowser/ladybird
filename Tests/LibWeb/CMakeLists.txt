@@ -95,6 +95,14 @@ target_link_libraries(TestWindowProxyWorld PRIVATE LibGC LibJS LibWeb)
 
 add_subdirectory("test-web")
 
+if (BUILD_TESTING AND NOT WIN32)
+    add_test(
+        NAME TestWebDriverHTTPErrorResponses
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-http-error-responses.py $<TARGET_FILE:WebDriver>
+    )
+    set_tests_properties(TestWebDriverHTTPErrorResponses PROPERTIES TIMEOUT 120)
+endif()
+
 target_link_libraries(TestInlineStyle PRIVATE LibCore LibGC LibGfx LibJS LibURL)
 
 add_subdirectory("AccessibilityBridge")
