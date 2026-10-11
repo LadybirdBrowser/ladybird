@@ -57,11 +57,12 @@ use crate::layout::shape::{PrototypeChainValidity, Shape};
 use crate::layout::value::Value;
 use crate::layout::vm::VmHead;
 use crate::runtime::array::{ARRAY_IS_PROXY_TARGET_OFFSET, ARRAY_LENGTH_WRITABLE_OFFSET};
+use crate::runtime::array_iterator::ArrayIterator;
 use crate::runtime::function_environment::{
     FUNCTION_ENVIRONMENT_FUNCTION_OBJECT_OFFSET, FUNCTION_ENVIRONMENT_THIS_VALUE_OFFSET,
 };
 use crate::runtime::module_environment::ModuleEnvironment;
-use crate::runtime::object::ObjectMethods;
+use crate::runtime::object::{ObjectMethods, PropertyKind};
 
 /// The addresses of the runtime functions JIT code calls, which every compile job's runtime info has.
 pub struct RuntimeFunctionAddresses {
@@ -227,6 +228,11 @@ fn runtime_layout() -> RuntimeLayout {
         environment_outer: offset(offset_of!(Environment, outer)),
         environment_declarative: offset(offset_of!(Environment, declarative)),
         module_environment_class: core::ptr::from_ref(ModuleEnvironment::CLASS) as u64,
+        array_iterator_class: core::ptr::from_ref(ArrayIterator::CLASS) as u64,
+        array_iterator_array: offset(offset_of!(ArrayIterator, array)),
+        array_iterator_index: offset(offset_of!(ArrayIterator, index)),
+        array_iterator_kind: offset(offset_of!(ArrayIterator, iteration_kind)),
+        array_iterator_kind_value: PropertyKind::Value as u8,
         declarative_environment_binding_values_size: offset(offset_of!(DeclarativeEnvironment, binding_values.size)),
         declarative_environment_binding_values_capacity: offset(offset_of!(
             DeclarativeEnvironment,
@@ -441,6 +447,9 @@ pub fn runtime_info(vm: &Vm, realm: Gc<Realm>, allocation: AllocationInfos) -> R
         },
         array_push: super::calls::libjs_jit_array_push as *const () as u64,
         slice_arguments: super::calls::libjs_jit_slice_arguments as *const () as u64,
+        create_array_iterator: super::intrinsics::libjs_jit_create_array_iterator as *const () as u64,
+        // NB: Filled in by capture_snapshot(), which lists it as an embedded cell.
+        array_iterator_next: None,
         jit_exit: super::entry_exit::libjs_jit_exit as *const () as u64,
         to_boolean: addresses.to_boolean,
         primitive_to_string: super::calls::libjs_jit_primitive_to_string as *const () as u64,

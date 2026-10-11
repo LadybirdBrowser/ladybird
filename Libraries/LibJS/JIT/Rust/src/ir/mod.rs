@@ -127,6 +127,9 @@ pub enum BranchCondition {
     MagicalLength,
     /// The input is the `Repr::Pointer` of an object: is it extensible?
     Extensible,
+    /// The input is the `Repr::Pointer` of an object: is it an array
+    /// iterator over values, like `%Array.prototype.values%` makes?
+    ArrayIterator,
     /// Input 0 is an object and input 1 its address: does it have the
     /// shape, like `Op::ShapeSwitch` cases test it? Only the refinements of
     /// those cases have this condition; no branch does.
@@ -938,6 +941,29 @@ pub enum Op {
     /// call for the register allocator. The node's value is the new length.
     CallArrayPush,
 
+    // For-of loops over arrays.
+    /// `RuntimeInfo::create_array_iterator` of the tagged iterable input 0
+    /// and the builtin `next` method input 1: a new array iterator over the
+    /// values of the iterable, or the empty value where it is no array such
+    /// iterators can iterate. It saves the registers the call clobbers and
+    /// restores them afterwards, so it is no call for the register
+    /// allocator.
+    CreateArrayIterator,
+    /// The `[[IteratedArrayLike]]` of the array iterator at the
+    /// `Repr::Pointer` input 0, as a tagged value: the array, or `undefined`
+    /// once the iterator is done.
+    LoadArrayIteratorArray,
+    /// The low 32 bits of the `[[ArrayLikeNextIndex]]` of the array iterator
+    /// at the `Repr::Pointer` input 0, as a `Repr::Int32`. Iterators over
+    /// arrays have indices below 2^32.
+    LoadArrayIteratorIndex,
+    /// Sets the `[[ArrayLikeNextIndex]]` of the array iterator at the
+    /// `Repr::Pointer` input 0 to the non-negative `Repr::Int32` input 1.
+    StoreArrayIteratorIndex,
+    /// Sets the `[[IteratedArrayLike]]` of the array iterator at the
+    /// `Repr::Pointer` input 0 to `undefined`, which makes it done.
+    FinishArrayIterator,
+
     // For-in loops.
     /// The number of keys of the property iterator cache input 0, as a
     /// `Repr::Int32` (at most `i32::MAX`).
@@ -1354,6 +1380,20 @@ impl Op {
                 allocates: true,
                 ..P::PURE
             },
+            // NB: The new iterator is no location anything reads before.
+            Op::CreateArrayIterator => P {
+                reads: Locations::ALL,
+                allocates: true,
+                ..P::PURE
+            },
+            Op::LoadArrayIteratorArray | Op::LoadArrayIteratorIndex => P {
+                reads: Locations::ITERATORS,
+                ..P::PURE
+            },
+            Op::StoreArrayIteratorIndex | Op::FinishArrayIterator => P {
+                writes: Locations::ITERATORS,
+                ..P::PURE
+            },
         }
     }
 
@@ -1463,6 +1503,11 @@ impl Op {
             Op::LoadElementsCapacity => "LoadElementsCapacity",
             Op::AppendElement => "AppendElement",
             Op::CallArrayPush => "CallArrayPush",
+            Op::CreateArrayIterator => "CreateArrayIterator",
+            Op::LoadArrayIteratorArray => "LoadArrayIteratorArray",
+            Op::LoadArrayIteratorIndex => "LoadArrayIteratorIndex",
+            Op::StoreArrayIteratorIndex => "StoreArrayIteratorIndex",
+            Op::FinishArrayIterator => "FinishArrayIterator",
             Op::SlowPathOutput { .. } => "SlowPathOutput",
             Op::LoadPropertyIteratorKeyCount => "LoadPropertyIteratorKeyCount",
             Op::LoadPropertyIteratorKey => "LoadPropertyIteratorKey",

@@ -98,6 +98,7 @@ pub fn saves_only_gprs(op: &Op) -> bool {
             saves_registers: true,
             ..
         } | Op::CallArrayPush
+            | Op::CreateArrayIterator
             | Op::AddNamed { .. }
             | Op::ProbeKeyedStore { .. }
             | Op::ProbePropertyCache { .. }

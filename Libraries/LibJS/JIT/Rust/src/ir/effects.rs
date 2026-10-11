@@ -36,8 +36,10 @@ impl Locations {
     /// nodes that access them also count as accessing `GLOBAL_BINDINGS`,
     /// since a coordinate may lead to the global declarative environment.
     pub const BINDINGS: Self = Self(1 << 6);
+    /// The internal state of iterators.
+    pub const ITERATORS: Self = Self(1 << 7);
     /// Every location.
-    pub const ALL: Self = Self((1 << 7) - 1);
+    pub const ALL: Self = Self(u8::MAX);
 
     /// Named properties: their values and which objects have them.
     pub const NAMED: Self = Self::NAMED_SLOTS.union(Self::SHAPES);

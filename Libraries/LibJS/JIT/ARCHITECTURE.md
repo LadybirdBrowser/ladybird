@@ -62,7 +62,7 @@ from them alone:
 - **Memory.** `reads` and `writes`: sets of abstract locations (`ir::Locations`): `FRAME`,
   `NAMED_SLOTS` (property values), `SHAPES` (shapes and prototypes), `ELEMENTS` (element values),
   `ELEMENT_COUNTS` (element storage kind, length, capacity and the storage offset of typed arrays), `GLOBAL_BINDINGS` and `BINDINGS` (the
-  bindings of declarative environments). Passes ask
+  bindings of declarative environments), and `ITERATORS` (the state of iterators). Passes ask
   one question: whether one node's writes intersect another's reads. `runs_code`: may run other
   code, which may write anything, or invalidate the compiled code. The op table below names the
   locations coarsely (Named for slots and shapes, Elements for values and counts, Any for all);
@@ -161,6 +161,9 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | ConcatenateStrings | The concatenation of two strings, a rope or a cached short string, or the empty value where only the slow path makes it. | | | | allocates |
 | IntegerToString | The VM's cached string of an int32, or the empty value. | | | | cse |
 | LoadPropertyIteratorKeyCount, LoadPropertyIteratorKey | The keys of a property iterator cache, at an index refined to be in bounds. The keys never change. | | | | cse |
+| CreateArrayIterator | `GetIterator` of an array that iterates with `%Array.prototype.values%` and the builtin `next` (input 1), through a runtime call that preserves every register: a new array iterator over its values, or the empty value for anything else. | | Any | | allocates |
+| LoadArrayIteratorArray, LoadArrayIteratorIndex | The iterated array (`undefined` once done) and the low 32 bits of the next index of an array iterator (a `Repr::Pointer` that `BranchCondition::ArrayIterator` established is one). | | Iterators | | |
+| StoreArrayIteratorIndex, FinishArrayIterator | Sets the next index of an array iterator, or makes it done. | | | Iterators | |
 | LoadGlobalBinding | A binding of the global declarative environment; exits while uninitialized. | E | Global | | cse |
 | StoreGlobalBinding | Stores a mutable global binding; exits while uninitialized. | E | Global | Global | |
 | **Allocation** | | | | | |
@@ -191,7 +194,7 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | SlowPathOutput | A further output of the `CallSlowPath` right before it, which is its input (the verifier checks that it follows it). | | | | |
 | Generic | One instruction through its slow path, on frame memory only. Left for instructions that read the whole frame (`eval`, `CreateArguments`, ...) and reads of an arguments object never created. | L, throws per opcode | Any | Any | call, allocates |
 | **Control** | | | | | |
-| Jump, Branch, BranchTruthy, BranchOnPc | Unconditional and conditional control flow. `Branch` conditions include `ElementsKind` (as `CheckElements` checks), `IndexInBounds` (as `CheckBounds` checks), `MagicalLength`, `Extensible`, `BindingMutable` (whether a binding of a declarative environment is mutable, which never changes) and `NextBindingOfShape` (whether an environment can append the binding its shape has next). Code generation fuses a probe with the branch on its result where the result is not live into the branch's target for failure. | | | | |
+| Jump, Branch, BranchTruthy, BranchOnPc | Unconditional and conditional control flow. `Branch` conditions include `ElementsKind` (as `CheckElements` checks), `IndexInBounds` (as `CheckBounds` checks), `MagicalLength`, `Extensible`, `ArrayIterator` (whether an object is an array iterator over values), `BindingMutable` (whether a binding of a declarative environment is mutable, which never changes) and `NextBindingOfShape` (whether an environment can append the binding its shape has next). Code generation fuses a probe with the branch on its result where the result is not live into the branch's target for failure. | | | | |
 | ShapeSwitch | Continues at the case of the object's shape; exits for other shapes. Each case starts with a `Refine` on `Shape` of the object. | E | Named | | |
 | Return | Returns input 0. | | | | |
 | Exit | Exits to the interpreter unconditionally. | E | | | |
