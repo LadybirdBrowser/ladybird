@@ -235,14 +235,17 @@ fn checkable_inputs(
 }
 
 fn unbox_phis(graph: &mut Graph, unboxed: &Unboxed) {
-    let count = graph.nodes.len();
-    let mut candidates = BitSet::new(count);
     let phis = graph
         .blocks
         .iter()
         .flat_map(|block| block.phis.iter().copied())
         .filter(|phi| graph.node(*phi).repr == Some(Repr::Tagged))
         .collect::<Vec<_>>();
+    if phis.is_empty() {
+        return;
+    }
+    let count = graph.nodes.len();
+    let mut candidates = BitSet::new(count);
     for phi in &phis {
         candidates.insert(phi.index());
     }
