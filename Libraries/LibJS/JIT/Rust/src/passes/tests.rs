@@ -609,3 +609,55 @@ fn constant_bounds_checks_only_fold_when_the_unsigned_index_is_in_bounds() {
         verify(&graph).unwrap();
     }
 }
+
+/// A register-saving slow path initializes the frame if it runs, so a frame
+/// write after it initializes the frame only if it still is not, instead of
+/// emptying the frame the slow path may have initialized and written.
+#[test]
+fn frame_writes_after_slow_paths_that_may_initialize_the_frame_check_first() {
+    use crate::bytecode::FrameLayout;
+    use crate::bytecode::RESERVED_REGISTER_COUNT;
+    let layout = FrameLayout {
+        number_of_registers: RESERVED_REGISTER_COUNT + 1,
+        registers_and_locals_count: RESERVED_REGISTER_COUNT + 1,
+        number_of_constants: 0,
+        number_of_arguments: 0,
+    };
+    let mut graph = Graph::default();
+    graph.add_block(Block::default());
+    let initialize = node(&mut graph, Op::InitializeFrame, vec![], None);
+    let call = node(
+        &mut graph,
+        Op::CallSlowPath {
+            opcode: crate::bytecode::OpCode::GetIterator,
+            executable: 0,
+            pc: 0,
+            saves_registers: true,
+        },
+        vec![],
+        Some(Repr::Tagged),
+    );
+    let store = node(
+        &mut graph,
+        Op::StoreSlot {
+            slot: RESERVED_REGISTER_COUNT,
+        },
+        vec![call],
+        None,
+    );
+    let ret = node(&mut graph, Op::Return, vec![call], None);
+    graph.blocks[0].body = vec![initialize, call, store];
+    graph.blocks[0].control = Some(ret);
+
+    super::frame_initialization::run(&mut graph, &layout);
+    assert_eq!(graph.slow_paths_initializing_frame, vec![call]);
+    let ops: Vec<&Op> = graph.blocks[0].body.iter().map(|node| &graph.node(*node).op).collect();
+    assert!(matches!(
+        ops.as_slice(),
+        [
+            Op::CallSlowPath { .. },
+            Op::EnsureFrameInitialized,
+            Op::StoreSlot { .. }
+        ]
+    ));
+}

@@ -1741,7 +1741,7 @@ pub(crate) mod inlining {
               Jump [[B3]]
             [[B3]] <- [[B2]], [[B7]]:
               [[V15]] = Phi ([[V9]], [[V12]])
-              InitializeFrame
+              EnsureFrameInitialized
               [[V16]] = CallSlowPath Add @48 ([[V6]], [[V15]]) [[[FS1]]]
               BranchBindingMutable 2 ([[V5]]) -> [[B4]], [[B8]]
             [[B4]] <- [[B3]]:
