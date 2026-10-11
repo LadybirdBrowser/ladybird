@@ -4620,6 +4620,8 @@ pub(super) struct EngineComputedRecordScratch {
     /// Warm records derived this flush, by what they were derived from, with the style groups
     /// they explicitly inherit and whether they read the element's place among its siblings.
     cohorts: HashMap<RecordCohortKey, (computed::FinalStyleRecordID, u32, bool)>,
+    pub(super) inherited_group_swaps:
+        HashMap<(computed::FinalStyleRecordID, computed::FinalStyleRecordID, u8), computed::FinalStyleRecordID>,
     computability: EngineComputabilityScratch,
     /// What each node the walk has reached tells its children: whether the chain above it is
     /// confined, and whether it resolved the record its children inherit from. A column with
@@ -4761,7 +4763,7 @@ impl EngineComputedRecordScratch {
 
     pub(super) fn capacity_bytes(&self) -> u64 {
         capacity::capacity_bytes! {
-            shallow [self.computability.states, self.cohorts, self.derived_child_inputs, self.cold_cohorts, self.stores,
+            shallow [self.inherited_group_swaps, self.computability.states, self.cohorts, self.derived_child_inputs, self.cold_cohorts, self.stores,
                 self.substituted_states, self.pseudo_cohorts, self.pseudo_stores,
                 self.pseudo_deltas, self.substitution_effects, self.current_custom_property_environments];
             cached [self.store_capacity_bytes, self.font_drive.capacity_bytes(),

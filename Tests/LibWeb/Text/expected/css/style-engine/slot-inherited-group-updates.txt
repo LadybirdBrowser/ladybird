@@ -1,4 +1,6 @@
 named: inherited color avoids full drives: true
+named: shared inherited groups are computed at most twice: true
+named: siblings reuse inherited group results: true
 named: assigned colors: true
 named: descendant colors: true
 named: currentColor borders: true
@@ -11,6 +13,8 @@ named: inherited text alignment: right
 named: changed custom property: rgb(0, 128, 0)
 named: changed font updates em width: 60px
 manual: inherited color avoids full drives: true
+manual: shared inherited groups are computed at most twice: true
+manual: siblings reuse inherited group results: true
 manual: assigned colors: true
 manual: descendant colors: true
 manual: currentColor borders: true
@@ -22,3 +26,4 @@ manual: custom property is inherited: rgb(255, 0, 0)
 manual: inherited text alignment: right
 manual: changed custom property: rgb(0, 128, 0)
 manual: changed font updates em width: 60px
+distinct slot parents retain distinct colors: true

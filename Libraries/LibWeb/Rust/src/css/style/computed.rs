@@ -1450,7 +1450,8 @@ impl ComputedGroupSets {
         node: StyleNodeID,
         parent: StyleNodeID,
         inherited_style_groups: u8,
-    ) -> Option<(FinalStyleRecordID, FinalStyleRecordID)> {
+        cache: &mut HashMap<(FinalStyleRecordID, FinalStyleRecordID, u8), FinalStyleRecordID>,
+    ) -> Option<(FinalStyleRecordID, FinalStyleRecordID, bool)> {
         const STATIC_INHERITED_GROUPS: u8 = (1 << 0) | (1 << 1) | (1 << 3);
         const INHERITED_UI_GROUP: u8 = 1 << 2;
         const INHERITED_TEXT_GROUP: u8 = 1 << 4;
@@ -1469,6 +1470,42 @@ impl ComputedGroupSets {
         if inherited_style_groups == 0 || inherited_style_groups & !ENGINE_RESOLVABLE_INHERITED_GROUPS != 0 {
             return None;
         }
+        let index = node.element_index()? as usize;
+        let parent_index = parent.element_index()? as usize;
+        // A child inherits the parent's animated values, which C++ composes over the record.
+        if !self.columns.inherited_group_swap_eligible(index)
+            || self.columns.animation_overlay_slot(index).is_some()
+            || self.node_has_animation_overlay(parent)
+            || self.adjustment_facts(parent) & super::bridge::element_adjustment_fact::HAS_ANIMATIONS != 0
+            || self.assigned_pseudo_kinds(node).next().is_some()
+            || self.adjustment_facts(node)
+                & (super::bridge::element_adjustment_fact::HAS_ANIMATIONS
+                    | super::bridge::element_adjustment_fact::IS_SHADOW_HOST_PSEUDO_ELEMENT)
+                != 0
+        {
+            return None;
+        }
+
+        let old_style_record = *self.style_record_column.get(index)?.as_ref()?;
+        let old_record = *self.style_records.get_index(old_style_record.index())?;
+        // OPTIMIZATION: Node-local eligibility is checked above. Everything else the swap reads belongs to these
+        //               immutable records, so equal inputs can share the table and rebuilt currentColor groups.
+        let cache_key = (
+            self.final_base_style_record(old_style_record),
+            self.final_base_style_record(self.style_record_column.get(parent_index).copied().flatten()?),
+            inherited_style_groups,
+        );
+        if let Some(&cached) = cache.get(&cache_key)
+            && let Some(record) = cached.base_record()
+            && self.style_record_generation_is_live(record, cached.base_generation())
+        {
+            let result = self.style_records[record];
+            self.columns.groups[index] = result.groups.0;
+            self.columns.inherited_groups[index] = result.inherited_groups.0;
+            self.style_record_column[index] = Some(record);
+            return Some((cache_key.0, cached, true));
+        }
+
         let target = ComputedStyleTarget::new(node, u8::MAX);
         let current_color_dependencies = if inherited_style_groups & INHERITED_TEXT_GROUP != 0 {
             self.current_color_dependency_mask(target)?
@@ -1495,30 +1532,13 @@ impl ComputedGroupSets {
         {
             return None;
         }
-        let index = node.element_index()? as usize;
-        let parent_index = parent.element_index()? as usize;
-        // A child inherits the parent's animated values, which C++ composes over the record.
-        if !self.columns.inherited_group_swap_eligible(index)
-            || self.columns.animation_overlay_slot(index).is_some()
-            || self.node_has_animation_overlay(parent)
-            || self.adjustment_facts(parent) & super::bridge::element_adjustment_fact::HAS_ANIMATIONS != 0
-            || self.assigned_pseudo_kinds(node).next().is_some()
-        {
-            return None;
-        }
 
-        let old_style_record = *self.style_record_column.get(index)?.as_ref()?;
-        let old_record = *self.style_records.get_index(old_style_record.index())?;
         // An element animating, or declaring transitions a moved inherited value may start,
         // composes its style in C++.
-        if self.adjustment_facts(node)
-            & (super::bridge::element_adjustment_fact::HAS_ANIMATIONS
-                | super::bridge::element_adjustment_fact::IS_SHADOW_HOST_PSEUDO_ELEMENT)
-            != 0
-            || old_record
-                .longhand_table
-                .and_then(|table| self.computed_longhand_tables.get_index(table.index()))
-                .is_none_or(|retained| crate::css::style_compute::has_active_transition_properties(retained.table()))
+        if old_record
+            .longhand_table
+            .and_then(|table| self.computed_longhand_tables.get_index(table.index()))
+            .is_none_or(|retained| crate::css::style_compute::has_active_transition_properties(retained.table()))
         {
             return None;
         }
@@ -1584,6 +1604,7 @@ impl ComputedGroupSets {
         }) {
             return None;
         }
+
         let swapped_table = match (old_record.longhand_table, parent_table) {
             (Some(old_table), Some(parent_table)) => Some(
                 self.computed_longhand_tables[old_table]
@@ -1663,10 +1684,9 @@ impl ComputedGroupSets {
         self.columns.groups[index] = group_set.0;
         self.columns.inherited_groups[index] = parent_inherited.0;
         self.style_record_column[index] = Some(new_style_record);
-        Some((
-            self.final_base_style_record(old_style_record),
-            self.final_base_style_record(new_style_record),
-        ))
+        let new_style_record = self.final_base_style_record(new_style_record);
+        cache.insert(cache_key, new_style_record);
+        Some((cache_key.0, new_style_record, false))
     }
 
     /// Assemble a new base record for `node` from a longhand table the engine drove itself. The

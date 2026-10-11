@@ -22,6 +22,8 @@
             internals.updateStyle();
             const after = internals.styleEngineCounters();
             println(`${mode}: inherited color avoids full drives: ${after.engineFullDrivesStarted === before.engineFullDrivesStarted}`);
+            println(`${mode}: shared inherited groups are computed at most twice: ${after.inheritedGroupSwapComputations - before.inheritedGroupSwapComputations <= 2}`);
+            println(`${mode}: siblings reuse inherited group results: ${after.inheritedGroupSwapReuses - before.inheritedGroupSwapReuses >= 78}`);
             println(`${mode}: assigned colors: ${children.every(child => getComputedStyle(child).color === "rgb(12, 34, 56)")}`);
             println(`${mode}: descendant colors: ${children.every(child => getComputedStyle(child.firstElementChild).color === "rgb(12, 34, 56)")}`);
             println(`${mode}: currentColor borders: ${children.every(child => getComputedStyle(child).borderTopColor === "rgb(12, 34, 56)")}`);
@@ -58,5 +60,28 @@
             println(`${mode}: changed font updates em width: ${getComputedStyle(children[2]).width}`);
             host.remove();
         }
+
+        const pairs = ["named", "manual"].map(mode => {
+            const host = document.createElement("div");
+            document.body.append(host);
+            const shadow = host.attachShadow({ mode: "open", slotAssignment: mode });
+            shadow.innerHTML = "<slot></slot>";
+            const slot = shadow.querySelector("slot");
+            const children = Array.from({ length: 20 }, () => {
+                const child = document.createElement("div");
+                host.append(child);
+                return child;
+            });
+            if (mode === "manual")
+                slot.assign(...children);
+            return { host, slot, children };
+        });
+        internals.updateStyle();
+        pairs[0].slot.style.color = "red";
+        pairs[1].slot.style.color = "blue";
+        internals.updateStyle();
+        println(`distinct slot parents retain distinct colors: ${pairs[0].children.every(child => getComputedStyle(child).color === "rgb(255, 0, 0)") && pairs[1].children.every(child => getComputedStyle(child).color === "rgb(0, 0, 255)")}`);
+        for (const { host } of pairs)
+            host.remove();
     });
 </script>
