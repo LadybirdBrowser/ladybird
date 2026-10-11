@@ -47,12 +47,30 @@ WheelHitTestResult AsyncScrollTree::hit_test_result_for_scroll_node(AsyncScrollN
 
     for (auto const* node = scroll_node_for_id(node_id); node;) {
         if (can_take_step(*node))
-            return { node->node_id, false };
+            return { .node_id = node->node_id, .innermost_scroll_node_id = node_id };
         if (!node->parent_node_id.has_value())
             break;
         node = scroll_node_for_id(*node->parent_node_id);
     }
-    return {};
+    return { .node_id = {}, .innermost_scroll_node_id = node_id };
+}
+
+Optional<AsyncScrollNodeID> AsyncScrollTree::outermost_scroll_node_wheel_scrollable_along_main_axis_of(AsyncScrollNodeID innermost_node_id, Gfx::FloatPoint delta) const
+{
+    bool delta_is_mainly_vertical = AK::abs(delta.y()) >= AK::abs(delta.x());
+    Optional<AsyncScrollNodeID> outermost_node_id;
+    auto node_id = innermost_node_id;
+    for (size_t remaining_ancestors = m_scroll_nodes.size(); remaining_ancestors > 0; --remaining_ancestors) {
+        auto const* node = scroll_node_for_id(node_id);
+        if (!node)
+            break;
+        if (delta_is_mainly_vertical ? node->can_be_wheel_scrolled_vertically : node->can_be_wheel_scrolled_horizontally)
+            outermost_node_id = node->node_id;
+        if (!node->parent_node_id.has_value())
+            break;
+        node_id = *node->parent_node_id;
+    }
+    return outermost_node_id;
 }
 
 AsyncSnapContainer const* AsyncScrollTree::snap_container_for_node(AsyncScrollNodeID node_id) const
