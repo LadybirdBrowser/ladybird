@@ -28,6 +28,7 @@
 #    include <QSurfaceFormat>
 #    include <UI/Qt/ApplicationIcon.h>
 #    include <UI/Qt/MacWindow.h>
+#    include <UI/Qt/SpellCheckerMac.h>
 #endif
 
 namespace Ladybird {
@@ -75,6 +76,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #endif
 
     auto app = TRY(Ladybird::Application::create(arguments));
+#if defined(AK_OS_MACOS)
+    app->set_spell_checker(Ladybird::create_platform_spell_checker());
+#endif
     if (app->should_exit_after_profile_coordination()) {
         outln("Opening in existing process");
         return 0;
