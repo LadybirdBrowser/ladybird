@@ -287,6 +287,9 @@ pub fn handling(opcode: OpCode) -> Handling {
         // The next key of a for-in loop over a cached key snapshot.
         O::ObjectPropertyIteratorNext => EXPANDED,
 
+        // Iteration over arrays.
+        O::GetIterator | O::IteratorNextUnpack => EXPANDED,
+
 
         // Conversions that change nothing for objects, and for lengths that
         // are int32 values already.
@@ -335,11 +338,9 @@ pub fn handling(opcode: OpCode) -> Handling {
         | O::PutBySpread
         | O::GetLengthWithThis
         | O::GetMethod
-        | O::GetIterator
         | O::GetObjectPropertyIterator
         | O::IteratorClose
         | O::IteratorNext
-        | O::IteratorNextUnpack
         | O::IteratorToArray
         | O::CacheObjectShape
         | O::InitObjectLiteralProperty

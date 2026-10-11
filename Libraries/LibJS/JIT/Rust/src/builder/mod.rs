@@ -36,6 +36,7 @@
 
 mod allocation;
 mod arguments;
+mod array_iterators;
 mod caches;
 mod checks;
 mod elements;

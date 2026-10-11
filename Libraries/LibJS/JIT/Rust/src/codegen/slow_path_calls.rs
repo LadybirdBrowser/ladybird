@@ -179,6 +179,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             | Op::ProbePropertyStore { .. }
             | Op::ProbeKeyedStore { .. }
             | Op::CallArrayPush
+            | Op::CreateArrayIterator
             | Op::AllocateObject { .. }
             | Op::AllocateArray { .. }
             | Op::AllocateFunction { .. }

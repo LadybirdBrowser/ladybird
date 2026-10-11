@@ -84,6 +84,38 @@ impl GraphBuilder<'_> {
             Instruction::CallBuiltinMathSqrt {
                 dst, callee, argument, ..
             } => self.build_math_function(Float64UnaryOp::Sqrt, dst, callee, argument),
+            Instruction::GetIterator {
+                dst_iterator_object,
+                dst_iterator_next,
+                dst_iterator_done,
+                iterable,
+                hint,
+            } => match self.try_build_get_iterator(
+                dst_iterator_object,
+                dst_iterator_next,
+                dst_iterator_done,
+                iterable,
+                hint,
+            )? {
+                Some(flow) => Ok(flow),
+                None => self.build_generic(instruction, info),
+            },
+            Instruction::IteratorNextUnpack {
+                dst_value,
+                dst_done,
+                iterator_object,
+                iterator_next,
+                iterator_done,
+            } => match self.try_build_iterator_next_unpack(
+                dst_value,
+                dst_done,
+                iterator_object,
+                iterator_next,
+                iterator_done,
+            )? {
+                Some(flow) => Ok(flow),
+                None => self.build_generic(instruction, info),
+            },
             Instruction::ObjectPropertyIteratorNext {
                 dst_value,
                 dst_done,

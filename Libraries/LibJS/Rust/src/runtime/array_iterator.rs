@@ -35,11 +35,11 @@ use crate::runtime::typed_array::{
 #[derive(Trace)]
 pub struct ArrayIterator {
     base: Object,
-    array: Cell<Value>, // [[IteratedArrayLike]]
+    pub(crate) array: Cell<Value>, // [[IteratedArrayLike]]
     #[gc(untraced)]
-    iteration_kind: PropertyKind, // [[ArrayLikeIterationKind]]
+    pub(crate) iteration_kind: PropertyKind, // [[ArrayLikeIterationKind]]
     #[gc(untraced)]
-    index: Cell<u64>, // [[ArrayLikeNextIndex]]
+    pub(crate) index: Cell<u64>, // [[ArrayLikeNextIndex]]
 }
 
 define_object_class!(ArrayIterator, extends: [Object], methods: {

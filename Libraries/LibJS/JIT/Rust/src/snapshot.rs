@@ -799,6 +799,16 @@ pub struct RuntimeInfo {
     /// `Array.prototype.slice.call(arguments, start)` with the arguments
     /// object of `frame`, which the code never created, as an array value.
     pub slice_arguments: u64,
+    /// `u64 libjs_jit_create_array_iterator(VM*, u64 iterable, u64 next)`:
+    /// `GetIterator` of an array whose iterator method is
+    /// `%Array.prototype.values%`, if the iterators it makes have the method
+    /// `next`, as a new array iterator over its values; the empty value,
+    /// having done nothing, otherwise.
+    pub create_array_iterator: u64,
+    /// The builtin `%ArrayIteratorPrototype%.next` of the realm of the
+    /// compiled code, if `%ArrayIteratorPrototype%` holds it. Code that
+    /// embeds it must list it in `CompiledCode::embedded_cells`.
+    pub array_iterator_next: Option<CellId>,
     /// `%Array.prototype%` and `%Object.prototype%` of the realm of the
     /// compiled code. Code that embeds them must list them in
     /// `CompiledCode::embedded_cells`.
@@ -1421,6 +1431,16 @@ pub struct RuntimeLayout {
     /// The class (pointer) of `ModuleEnvironment`s, which starts their
     /// cells.
     pub module_environment_class: u64,
+    /// The class (pointer) of `ArrayIterator`s, which starts their cells.
+    pub array_iterator_class: u64,
+    /// `ArrayIterator::array` (value): `[[IteratedArrayLike]]`.
+    pub array_iterator_array: u32,
+    /// `ArrayIterator::index` (u64): `[[ArrayLikeNextIndex]]`.
+    pub array_iterator_index: u32,
+    /// `ArrayIterator::iteration_kind` (u8): `[[ArrayLikeIterationKind]]`.
+    pub array_iterator_kind: u32,
+    /// The `[[ArrayLikeIterationKind]]` of iterators over values.
+    pub array_iterator_kind_value: u8,
     /// `DeclarativeEnvironment::binding_values.size` (u64).
     pub declarative_environment_binding_values_size: u32,
     /// The capacity (u64) of `DeclarativeEnvironment::binding_values`.

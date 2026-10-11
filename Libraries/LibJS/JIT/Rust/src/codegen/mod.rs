@@ -39,6 +39,7 @@ enum InputValue {
 }
 pub use call_stub::generate_call_stub;
 pub use entry::generate_entry_trampoline;
+mod array_iterators;
 mod arrays;
 mod concatenation;
 mod elements;
@@ -1637,6 +1638,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Op::LoadElementsCapacity => self.emit_load_elements_capacity(node_id),
             Op::AppendElement => self.emit_append_element_node(node_id),
             Op::CallArrayPush => self.emit_call_array_push(node_id),
+            Op::CreateArrayIterator => self.emit_create_array_iterator(node_id),
+            Op::LoadArrayIteratorArray => self.emit_load_array_iterator_array(node_id),
+            Op::LoadArrayIteratorIndex => self.emit_load_array_iterator_index(node_id),
+            Op::StoreArrayIteratorIndex => self.emit_store_array_iterator_index(node_id),
+            Op::FinishArrayIterator => self.emit_finish_array_iterator(node_id),
             Op::SlowPathOutput { index } => self.emit_slow_path_output(node_id, *index)?,
             Op::LoadPropertyIteratorKeyCount => self.emit_load_property_iterator_key_count(node_id),
             Op::LoadPropertyIteratorKey => self.emit_load_property_iterator_key(node_id),
@@ -2090,6 +2096,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             }
             BranchCondition::Shape(_) => unreachable!("only refinements of shape switch cases test one shape"),
             BranchCondition::Float64(_) => unreachable!("float64 comparisons branch above"),
+            BranchCondition::ArrayIterator => self.emit_branch_on_array_iterator(input, target, invert),
             BranchCondition::MagicalLength | BranchCondition::Extensible => {
                 let flag = match condition {
                     BranchCondition::MagicalLength => self.runtime.layout.object_flag_has_magical_length,

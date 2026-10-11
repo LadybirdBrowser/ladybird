@@ -10,13 +10,19 @@
 
 use ak::Utf16FlyString;
 
-use crate::bytecode::executable::{KeyedPropertyLookup, KeyedPropertyLookupCache, PropertyLookupCacheEntryType};
+use crate::bytecode::executable::{
+    KeyedPropertyLookup, KeyedPropertyLookupCache, PropertyLookupCacheEntryType, StaticPropertyLookupCacheSite,
+};
+use crate::bytecode::property_access::get_own_property_without_side_effects;
 use crate::gc::class::GcCell;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
+use crate::runtime::array::Array;
+use crate::runtime::array_iterator::ArrayIterator;
 use crate::runtime::module_namespace_object::ModuleNamespaceObject;
+use crate::runtime::object::PropertyKind;
 use crate::runtime::property_key::{PropertyKey, StringMayBeNumber};
 use crate::runtime::proxy_object::ProxyObject;
 use crate::utf16::{has_fly_string_storage, to_utf16_fly_string};
@@ -171,4 +177,55 @@ pub unsafe extern "C" fn libjs_jit_has_property(vm: *const Vm, key: u64, object:
         }
     }
     Value::FALSE.0
+}
+
+/// `GetIterator(iterable, sync)` for an array whose iterator method is `%Array.prototype.values%`, whose iterators
+/// have the method `next` (the builtin `%ArrayIteratorPrototype%.next` of the realm of JIT code, which it passes):
+/// a new array iterator over the values of the array, made like `%Array.prototype.values%` makes it.
+///
+/// # Safety
+///
+/// JIT code calls this with its VM.
+pub unsafe extern "C" fn libjs_jit_create_array_iterator(vm: *const Vm, iterable: u64, next: u64) -> u64 {
+    // SAFETY: JIT code passes its VM.
+    let vm = unsafe { &*vm };
+    let iterable = Value(iterable);
+    if !iterable.is_object() {
+        return Value::EMPTY.0;
+    }
+    let array = iterable.as_object();
+    if array.downcast::<Array>().is_none() {
+        return Value::EMPTY.0;
+    }
+    // NB: The array inherits the iterator method from %Array.prototype%, which holds it as a data property, and
+    //     array iterators inherit `next` from %ArrayIteratorPrototype%. The cached lookups of own properties run
+    //     no code.
+    let realm = vm.current_realm().expect("JIT code runs in a realm");
+    let array_prototype = realm.array_prototype();
+    let iterator_key = PropertyKey::from(vm.well_known_symbols().iterator);
+    let cache = |site| vm.static_property_lookup_cache(site);
+    if array.prototype() != Some(array_prototype)
+        || get_own_property_without_side_effects(
+            &array,
+            &iterator_key,
+            cache(StaticPropertyLookupCacheSite::CreateArrayIteratorOwnIteratorMethod),
+        ) != Value::EMPTY
+    {
+        return Value::EMPTY.0;
+    }
+    let values = Value::from_object(realm.array_prototype_values_function().upcast::<Object>());
+    let iterator_method = get_own_property_without_side_effects(
+        &array_prototype,
+        &iterator_key,
+        cache(StaticPropertyLookupCacheSite::CreateArrayIteratorIteratorMethod),
+    );
+    let next_method = get_own_property_without_side_effects(
+        &realm.array_iterator_prototype(),
+        &vm.names.next,
+        cache(StaticPropertyLookupCacheSite::CreateArrayIteratorNextMethod),
+    );
+    if iterator_method != values || next_method != Value(next) {
+        return Value::EMPTY.0;
+    }
+    Value::from_object(ArrayIterator::create(vm, realm, iterable, PropertyKind::Value).upcast::<Object>()).0
 }

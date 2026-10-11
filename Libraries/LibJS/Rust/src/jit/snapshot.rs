@@ -172,6 +172,18 @@ fn intrinsic_of(vm: &Vm, cell: Option<Gc<CellHeader>>) -> Option<Intrinsic> {
     }
 }
 
+/// The builtin `%ArrayIteratorPrototype%.next` of the realm, if `%ArrayIteratorPrototype%` holds it.
+fn array_iterator_next(vm: &Vm, realm: Gc<Realm>) -> Option<Gc<FunctionObject>> {
+    let next = realm
+        .array_iterator_prototype()
+        .get_without_side_effects(vm, &vm.names.next);
+    if !next.is_function() {
+        return None;
+    }
+    let next = next.as_function();
+    (next.as_native_function().is_some() && next.is_array_prototype_next_builtin()).then_some(next)
+}
+
 /// The object the holder of a prototype chain lookup cache entry has in the property the entry describes, if the entry
 /// is still valid and the property holds an object (such as a method).
 fn prototype_property_object(entry: &PropertyLookupCacheEntryData) -> Option<Gc<Object>> {
@@ -1059,10 +1071,11 @@ pub fn capture_snapshot(
         executables.push(builder.executable_snapshot(&entry));
         index += 1;
     }
-    let runtime = super::runtime_info::runtime_info(vm, realm, allocation);
+    let mut runtime = super::runtime_info::runtime_info(vm, realm, allocation);
     // NB: Code that embeds the prototypes of the runtime info lists them as embedded cells.
     builder.cell(realm.array_prototype());
     builder.cell(realm.object_prototype());
+    runtime.array_iterator_next = builder.optional_cell(array_iterator_next(vm, realm));
     let options = &vm.jit.options;
     let snapshot = Snapshot {
         executables,
