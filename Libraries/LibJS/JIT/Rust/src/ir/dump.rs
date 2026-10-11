@@ -131,6 +131,7 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         Op::TaggedEquals { equal: false } => with_inputs("TaggedNotEquals"),
         Op::ToBoolean => with_inputs("ToBoolean"),
         Op::PrimitiveToString | Op::ToObject | Op::ArrayCreate => with_inputs(op.name()),
+        Op::CallIntrinsic { intrinsic } => with_inputs(&format!("CallIntrinsic {intrinsic:?}")),
         Op::Generic { opcode, executable, pc } => {
             let location = if *executable == 0 {
                 format!("@{pc}")

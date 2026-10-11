@@ -1444,6 +1444,9 @@ impl<'a> GraphBuilder<'a> {
                 if let Some(flow) = self.try_build_builtin_constructor_call(instruction)? {
                     return Ok(Some(flow));
                 }
+                if let Some(flow) = self.try_build_helper_call(instruction)? {
+                    return Ok(Some(flow));
+                }
                 if let Some(flow) = self.try_build_arguments_slice(instruction)? {
                     return Ok(Some(flow));
                 }

@@ -23,6 +23,8 @@ use crate::ir::Float64UnaryOp;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::snapshot::CellId;
+use crate::snapshot::HelperOperand;
+use crate::snapshot::HelperResult;
 use crate::snapshot::Intrinsic;
 use crate::snapshot::value_feedback;
 
@@ -557,6 +559,81 @@ impl GraphBuilder<'_> {
         };
         self.end_hot_path(&mut slow_paths, vec![result]);
         let result = self.join_hot_paths(slow_paths).expect("calls have a value");
+        self.write(*dst, result)?;
+        Ok(Some(Flow::Continue))
+    }
+
+    /// Builds calls of builtins that JIT code calls through their runtime
+    /// helpers (see `Intrinsic::helper_call()`), if the site saw only that
+    /// builtin, as a `CallIntrinsic` node for a `this` value and arguments
+    /// of the kinds the helper takes. The call runs in a cold slow path
+    /// otherwise. Returns `None`, having built nothing, if the `Call` is no
+    /// such call.
+    pub(super) fn try_build_helper_call(&mut self, instruction: &Instruction) -> Result<Option<Flow>, CompileFailure> {
+        let Instruction::Call {
+            call_feedback,
+            dst,
+            callee,
+            this_value,
+            arguments,
+            ..
+        } = instruction
+        else {
+            return Ok(None);
+        };
+        let Some((intrinsic, call)) = self
+            .peek_intrinsic_callee(*call_feedback)
+            .and_then(|intrinsic| Some((intrinsic, intrinsic.helper_call()?)))
+        else {
+            return Ok(None);
+        };
+        assert_ne!(
+            (self.runtime.helper_calls.0)(intrinsic),
+            0,
+            "{intrinsic:?} has a HelperCall but no runtime helper"
+        );
+        // NB: Calls without a required argument pass undefined, which the
+        //     slow path converts.
+        let passes_required_arguments = call
+            .arguments
+            .iter()
+            .skip(arguments.len())
+            .all(|operand| matches!(operand, HelperOperand::Int32 { absent: Some(_) }));
+        if !passes_required_arguments
+            || self.holds_virtual_arguments(*this_value)
+            || arguments.iter().any(|operand| self.holds_virtual_arguments(*operand))
+            || self.checked_intrinsic_callee(*call_feedback, *callee)?.is_none()
+        {
+            return Ok(None);
+        }
+        let mut slow_paths = self.start_slow_paths(Some(Repr::Tagged))?;
+        let mut inputs = Vec::with_capacity(1 + call.arguments.len());
+        let operands = std::iter::once(Some(*this_value))
+            .chain((0..call.arguments.len()).map(|index| arguments.get(index).copied()));
+        for (operand, kind) in operands.zip(std::iter::once(call.receiver).chain(call.arguments.iter().copied())) {
+            let input = match (operand, kind) {
+                (Some(operand), HelperOperand::String) => {
+                    let value = self.read(operand)?;
+                    self.branch_to_slow_path(&mut slow_paths, BranchCondition::String, vec![value], true)
+                }
+                (Some(operand), HelperOperand::Int32 { .. }) => {
+                    let value = self.read(operand)?;
+                    self.int32_or_slow_path(&mut slow_paths, value)
+                }
+                (None, HelperOperand::Int32 { absent: Some(absent) }) => self.int32_constant(absent),
+                (None, _) => unreachable!("calls pass the required arguments"),
+            };
+            inputs.push(input);
+        }
+        let result = self.emit(Op::CallIntrinsic { intrinsic }, inputs, Some(call.result.repr()));
+        let result = match call.result {
+            HelperResult::Int32 => self.emit(Op::BoxInt32, vec![result], Some(Repr::Tagged)),
+            HelperResult::Bool => self.emit(Op::BoxBool, vec![result], Some(Repr::Tagged)),
+            HelperResult::String => result,
+        };
+        let result = self
+            .join_slow_paths(slow_paths, Some(result))
+            .expect("calls have a value");
         self.write(*dst, result)?;
         Ok(Some(Flow::Continue))
     }

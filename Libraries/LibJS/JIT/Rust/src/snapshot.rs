@@ -687,6 +687,99 @@ pub enum Intrinsic {
     MathMax,
     /// `Math.min`.
     MathMin,
+    /// `String.prototype.indexOf`.
+    StringPrototypeIndexOf,
+    /// `String.prototype.toLowerCase`.
+    StringPrototypeToLowerCase,
+    /// `String.prototype.toUpperCase`.
+    StringPrototypeToUpperCase,
+}
+
+/// A `this` value or argument of a builtin whose runtime helper JIT code
+/// calls (see `HelperCall`), which the code checks to be of its kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HelperOperand {
+    /// A string, as a tagged value.
+    String,
+    /// An int32, as a `Repr::Int32`. Calls that pass no such argument pass
+    /// `absent` instead, which the builtin treats the same, or else go to
+    /// the slow path if there is none.
+    Int32 { absent: Option<i32> },
+}
+
+/// What the runtime helper of a builtin returns.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HelperResult {
+    /// An int32, in the low 32 bits.
+    Int32,
+    /// 0 or 1.
+    Bool,
+    /// A tagged string.
+    String,
+}
+
+/// How JIT code calls a builtin through its runtime helper, without a
+/// native frame, for operands of the kinds it checks: `u64 helper(VM*,
+/// receiver, arguments...)`, which runs no code and only allocates.
+/// Arguments past those listed are ignored, like the builtin ignores them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HelperCall {
+    pub receiver: HelperOperand,
+    pub arguments: &'static [HelperOperand],
+    pub result: HelperResult,
+}
+
+impl HelperOperand {
+    pub fn repr(self) -> crate::code::Repr {
+        match self {
+            HelperOperand::String => crate::code::Repr::Tagged,
+            HelperOperand::Int32 { .. } => crate::code::Repr::Int32,
+        }
+    }
+}
+
+impl HelperResult {
+    pub fn repr(self) -> crate::code::Repr {
+        match self {
+            HelperResult::Int32 => crate::code::Repr::Int32,
+            HelperResult::Bool => crate::code::Repr::Bool,
+            HelperResult::String => crate::code::Repr::Tagged,
+        }
+    }
+}
+
+/// `u64 (Intrinsic)`: the address of the runtime helper of an intrinsic
+/// that has a `HelperCall`, or 0.
+#[derive(Debug, Clone, Copy)]
+pub struct HelperCallAddresses(pub fn(Intrinsic) -> u64);
+
+impl Default for HelperCallAddresses {
+    fn default() -> Self {
+        Self(|_| 0)
+    }
+}
+
+impl Intrinsic {
+    /// How JIT code calls the builtin through its runtime helper, if it
+    /// does.
+    pub fn helper_call(self) -> Option<HelperCall> {
+        use HelperOperand::Int32;
+        use HelperOperand::String;
+        let call = |arguments, result| {
+            Some(HelperCall {
+                receiver: String,
+                arguments,
+                result,
+            })
+        };
+        match self {
+            Intrinsic::StringPrototypeIndexOf => call(&[String, Int32 { absent: Some(0) }], HelperResult::Int32),
+            Intrinsic::StringPrototypeToLowerCase | Intrinsic::StringPrototypeToUpperCase => {
+                call(&[], HelperResult::String)
+            }
+            _ => None,
+        }
+    }
 }
 
 /// The runtime helpers of intrinsics (the out of line probe of
@@ -750,6 +843,9 @@ pub struct RuntimeInfo {
     /// `u64 libjs_jit_primitive_to_string(VM*, u64 primitive)`:
     /// `String(primitive)`.
     pub primitive_to_string: u64,
+    /// The runtime helpers of the intrinsics JIT code calls through them
+    /// (see `Intrinsic::helper_call()`).
+    pub helper_calls: HelperCallAddresses,
     /// `u64 libjs_jit_to_object(VM*, u64 primitive, u64 function)`: ToObject
     /// of a primitive other than undefined and null, as the builtin
     /// `function` makes it, or the empty value if that function is of
