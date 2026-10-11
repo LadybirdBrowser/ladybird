@@ -3855,6 +3855,51 @@
       "overlay>auto"
     ]
   },
+  "overscroll-behavior": {
+    "longhands": [
+      "overscroll-behavior-x",
+      "overscroll-behavior-y"
+    ],
+    "positional-value-list-shorthand": true,
+    "initial": "auto",
+    "valid-types": [
+      "overscroll-behavior"
+    ]
+  },
+  "overscroll-behavior-block": {
+    "logical-alias-for": {
+      "group": "overscroll-behavior",
+      "mapping": "block-xy"
+    }
+  },
+  "overscroll-behavior-inline": {
+    "logical-alias-for": {
+      "group": "overscroll-behavior",
+      "mapping": "inline-xy"
+    }
+  },
+  "overscroll-behavior-x": {
+    "style-group": "MiscResetValues",
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "requires-computation": "never",
+    "valid-types": [
+      "overscroll-behavior"
+    ]
+  },
+  "overscroll-behavior-y": {
+    "style-group": "MiscResetValues",
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "requires-computation": "never",
+    "valid-types": [
+      "overscroll-behavior"
+    ]
+  },
   "padding": {
     "initial": "0",
     "positional-value-list-shorthand": true,

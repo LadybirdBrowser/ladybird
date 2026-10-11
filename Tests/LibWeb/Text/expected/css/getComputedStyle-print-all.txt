@@ -267,6 +267,10 @@ overflow-clip-margin-top: 0px
 overflow-inline: visible
 overflow-x: visible
 overflow-y: visible
+overscroll-behavior-block: auto
+overscroll-behavior-inline: auto
+overscroll-behavior-x: auto
+overscroll-behavior-y: auto
 padding-block-end: 0px
 padding-block-start: 0px
 padding-bottom: 0px
@@ -331,7 +335,7 @@ top: auto
 touch-action: auto
 transform: none
 transform-box: view-box
-transform-origin: 392px 2164.5px
+transform-origin: 392px 2190.5px
 transform-style: flat
 transition-behavior: normal
 transition-delay: 0s

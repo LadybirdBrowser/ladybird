@@ -341,6 +341,8 @@ pub struct MiscResetValues {
     pub scroll_snap_strictness: u8,
     pub scrollbar_gutter: u8,
     pub scrollbar_width: u8,
+    pub overscroll_behavior_x: u8,
+    pub overscroll_behavior_y: u8,
     pub shape_image_threshold: f64,
     pub shape_margin: ComputedStyleValueHandle,
     pub shape_outside: ComputedStyleValueHandle,

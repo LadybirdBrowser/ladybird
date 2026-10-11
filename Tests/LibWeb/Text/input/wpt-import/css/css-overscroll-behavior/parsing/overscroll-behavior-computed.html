@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Overscroll Behavior: getComputedStyle().overscrollBehavior*</title>
+<link rel="help" href="https://drafts.csswg.org/css-overscroll-behavior/#overscroll-behavior-properties">
+<meta name="assert" content="overscroll-behavior-x computed value is as specified.">
+<meta name="assert" content="overscroll-behavior-y computed value is as specified.">
+<meta name="assert" content="overscroll-behavior-inline computed value is as specified.">
+<meta name="assert" content="overscroll-behavior-block computed value is as specified.">
+<meta name="assert" content="overscroll-behavior computed value serializes both axes, coalescing when they are equal.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+'use strict';
+for (let property of ["overscroll-behavior-x", "overscroll-behavior-y", "overscroll-behavior-inline", "overscroll-behavior-block"]) {
+  test_computed_value(property, "contain");
+  test_computed_value(property, "none");
+  test_computed_value(property, "auto");
+  test_computed_value(property, "chain");
+}
+
+// The overscroll-behavior shorthand coalesces to a single value when both axes are equal.
+test_computed_value("overscroll-behavior", "contain");
+test_computed_value("overscroll-behavior", "none");
+test_computed_value("overscroll-behavior", "auto");
+test_computed_value("overscroll-behavior", "contain contain", "contain");
+test_computed_value("overscroll-behavior", "none none", "none");
+test_computed_value("overscroll-behavior", "auto auto", "auto");
+
+// The overscroll-behavior shorthand serializes both values when the axes differ.
+test_computed_value("overscroll-behavior", "contain none");
+test_computed_value("overscroll-behavior", "none auto");
+test_computed_value("overscroll-behavior", "auto contain");
+test_computed_value("overscroll-behavior", "contain auto");
+test_computed_value("overscroll-behavior", "auto none");
+test_computed_value("overscroll-behavior", "none contain");
+</script>
+</body>
+</html>
