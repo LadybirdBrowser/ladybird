@@ -42,6 +42,7 @@ public:
     void did_user_edit(DOM::Node&);
     void did_end_input_method_composition();
     void did_change_selection();
+    void did_change_checking_state(DOM::Element&);
 
     bool is_settled() const;
 

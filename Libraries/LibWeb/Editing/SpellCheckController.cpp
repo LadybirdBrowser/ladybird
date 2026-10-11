@@ -524,6 +524,22 @@ void SpellCheckController::did_focus(GC::Ptr<DOM::Node> node)
     send_next_existing_text_chunk();
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#spelling-and-grammar-checking
+void SpellCheckController::did_change_checking_state(DOM::Element& element)
+{
+    // If checking is disabled, the user agent should not indicate spelling or grammar errors for that text.
+    Vector<GC::Ref<DOM::Text>> unchecked;
+    m_document->spelling_markers().for_each_marked_text([&](DOM::Text& text, auto) {
+        if (element.is_shadow_including_inclusive_ancestor_of(text) && !text_is_checkable(text))
+            unchecked.append(text);
+    });
+    for (auto& text : unchecked)
+        m_document->spelling_markers().remove_all(text);
+
+    // NB: Checking that turns on starts no check of its own. A script turns it on, not the user, and a check it could
+    //     start at will would let a page test any words it likes against the user's dictionary.
+}
+
 bool SpellCheckController::is_settled() const
 {
     return !m_existing_text_pass.has_value() && m_requests_in_flight == 0 && !m_typing_check_scheduled

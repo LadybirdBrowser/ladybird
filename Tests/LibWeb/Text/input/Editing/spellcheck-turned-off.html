@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="spell">txet</textarea>
+<textarea id="readonly">txet</textarea>
+<textarea id="disabled">txet</textarea>
+<input id="type" value="txet">
+<div id="editable" contenteditable>txet</div>
+<div id="later" contenteditable spellcheck="false">txet</div>
+<script>
+    promiseTest(async () => {
+        const ids = ["spell", "readonly", "disabled", "type", "editable", "later"];
+        const node = id => {
+            const element = document.getElementById(id);
+            return element.localName === "div" ? element.firstChild : element;
+        };
+        const show = label => {
+            for (const id of ids)
+                println(`${id} ${label}: ${internals.spellingErrorRanges(node(id)) || "(none)"}`);
+        };
+        for (const id of ids) {
+            document.getElementById(id).focus();
+            await internals.spellCheckSettled();
+        }
+        show("before");
+
+        document.getElementById("spell").spellcheck = false;
+        document.getElementById("readonly").readOnly = true;
+        document.getElementById("disabled").disabled = true;
+        document.getElementById("type").type = "password";
+        document.getElementById("editable").contentEditable = "false";
+        // Script turning checking on starts no check, so a page can't test words against the user's dictionary at will.
+        const later = document.getElementById("later");
+        later.focus();
+        later.spellcheck = true;
+        await internals.spellCheckSettled();
+        show("after");
+    });
+</script>
