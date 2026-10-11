@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>overscroll-behavior in root works</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../css/css-scroll-snap/support/common.js"></script>
+<link rel="help" href="https://drafts.csswg.org/css-overscroll-behavior">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=954423">
+
+<div style="height: 200vh"></div>
+
+<iframe srcdoc="<style>:root { overscroll-behavior-y: contain }</style><div style='height: 200vh'></div>"></iframe>
+
+<script>
+promise_test(async function() {
+  await new Promise(r => window.addEventListener("load", r, { once: true }));
+
+  const iframe = document.querySelector("iframe");
+  iframe.scrollIntoView();
+
+  const bounds = iframe.getBoundingClientRect();
+
+  const originalScrollPos = window.scrollY;
+
+  assert_equals(typeof originalScrollPos, "number", "Scroll position should be a number");
+  assert_not_equals(originalScrollPos, 0, "Should have scrolled to get the iframe into view");
+
+  await new test_driver.Actions()
+    .scroll(Math.round(bounds.left + bounds.width / 2),
+            Math.round(bounds.top + bounds.height / 2), 0, -100)
+    .send();
+
+  // Await two animation frames to give a chance to scroll.
+  await new Promise(resolve => requestAnimationFrame(resolve));
+  await new Promise(resolve => requestAnimationFrame(resolve));
+
+  assert_equals(window.scrollY, originalScrollPos, "overscroll-behavior should work on the root");
+});
+</script>
