@@ -31,7 +31,7 @@ public:
     static NonnullOwnPtr<HeapBlock> create(Heap&, CellAllocator&);
 
     size_t cell_size() const { return m_cell_size; }
-    size_t cell_count() const { return (HeapBlock::BLOCK_SIZE - sizeof(HeapBlock)) / m_cell_size; }
+    size_t cell_count() const { return m_cell_count; }
     bool is_full() const { return !has_lazy_freelist() && is_end_of_freelist(freelist_head()); }
 
     ALWAYS_INLINE Cell* allocate()
@@ -51,6 +51,8 @@ public:
         return allocated_cell;
     }
 
+    // Deallocates a cell that for_each_cell() found, which the sweep
+    // found unmarked.
     void deallocate(Cell*);
 
     // Takes every free cell of the block as a list linked through
@@ -152,6 +154,8 @@ private:
     CellAllocator& m_cell_allocator;
     u32 m_cell_size { 0 };
     u32 m_next_lazy_freelist_index { 0 };
+    // NB: Computed once, since dividing by the cell size is slow.
+    u32 m_cell_count { 0 };
     bool m_is_being_swept { false };
 
     // See follow_freelist_link().

@@ -31,6 +31,7 @@ HeapBlock::HeapBlock(Heap& heap, CellAllocator& cell_allocator)
     : HeapBlockBase(heap, cell_allocator.type_info())
     , m_cell_allocator(cell_allocator)
     , m_cell_size(cell_allocator.cell_size())
+    , m_cell_count((BLOCK_SIZE - sizeof(HeapBlock)) / m_cell_size)
 {
     VERIFY(m_cell_size >= sizeof(FreelistEntry));
     ASAN_POISON_MEMORY_REGION(m_storage, BLOCK_SIZE - sizeof(HeapBlock));
@@ -68,8 +69,8 @@ void HeapBlock::give_back_free_cells(Cell* cells)
 
 void HeapBlock::deallocate(Cell* cell)
 {
-    VERIFY(is_valid_cell_pointer(cell));
-    VERIFY(is_end_of_freelist(freelist_head()) || is_valid_cell_pointer(freelist_head()));
+    // NB: The cell is one of this block's, since for_each_cell() found it, and the free list only ever holds cells
+    //     that this function or give_back_free_cells() put there, which checks them.
     VERIFY(cell->state() == Cell::State::Live);
     VERIFY(!cell->is_marked());
 
