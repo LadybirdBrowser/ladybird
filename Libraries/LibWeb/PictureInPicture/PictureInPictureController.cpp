@@ -177,10 +177,17 @@ void PictureInPictureController::run_request_steps(Request const& request)
     }
 
     // 2. Attempt to associate a Picture-in-Picture window with this.
-    // NB: The window shows a page of its own, which the UI process creates along with the window.
-    HTML::WebViewHints hints;
-    hints.picture_in_picture_video_size = Gfx::Size<u32> { video.video_width(), video.video_height() }.to_type<int>();
-    auto new_web_view = m_page->client().page_did_request_new_web_view(HTML::ActivateTab::No, hints, {}, {}, {}, {});
+    // NB: The window shows a page of its own, which the UI process creates along with the window. The UI process lets a
+    //     document replace its open window without user activation, as step 7 does, so it is told doc's navigable.
+    PageClient::NewWebViewResult new_web_view;
+    if (auto navigable = video.document().navigable()) {
+        HTML::WebViewHints hints;
+        hints.picture_in_picture_window = HTML::PictureInPictureWindowHints {
+            .navigable_id = navigable->id(),
+            .video_size = Gfx::Size<u32> { video.video_width(), video.video_height() }.to_type<int>(),
+        };
+        new_web_view = m_page->client().page_did_request_new_web_view(HTML::ActivateTab::No, hints, {}, {}, {}, {});
+    }
 
     // 3. If the previous step failed:
     if (!new_web_view.page) {

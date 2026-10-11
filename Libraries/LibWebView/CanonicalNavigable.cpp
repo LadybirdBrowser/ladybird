@@ -20,6 +20,7 @@
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CanonicalWindow.h>
+#include <LibWebView/PictureInPictureManager.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 
@@ -1226,6 +1227,8 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
         traversable.remove_child_navigables_of(*this, *previous_document);
         if (auto previous_host = previous_document->host(); previous_host && previous_host != document->host() && previous_host->is_open())
             traversable.stop_hosting_in_page(*this, previous_host.release_nonnull());
+        // The Picture-in-Picture window of the displaced document, or of a document it embedded, closes with it.
+        PictureInPictureManager::the().active_documents_did_change();
     }
 
     // A navigation can commit while a newer navigation is already in flight. In that case update the replicated

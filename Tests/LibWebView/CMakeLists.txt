@@ -177,6 +177,13 @@ if (NOT WIN32)
         target_compile_definitions(TestUserActivation PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
     endif()
 
+    add_executable(TestPictureInPictureUserActivation TestPictureInPictureUserActivation.cpp)
+    add_dependencies(TestPictureInPictureUserActivation ladybird_build_resource_files ${ladybird_helper_processes})
+    target_link_libraries(TestPictureInPictureUserActivation PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
+    if (APPLE)
+        target_compile_definitions(TestPictureInPictureUserActivation PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
+    endif()
+
     add_executable(TestPictureInPictureWindowControls TestPictureInPictureWindowControls.cpp)
     add_dependencies(TestPictureInPictureWindowControls ladybird_build_resource_files ${ladybird_helper_processes})
     target_link_libraries(TestPictureInPictureWindowControls PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
@@ -371,6 +378,9 @@ if (BUILD_TESTING AND NOT WIN32)
 
     add_test(NAME TestUserActivation COMMAND $<TARGET_FILE:TestUserActivation>)
     set_tests_properties(TestUserActivation PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
+
+    add_test(NAME TestPictureInPictureUserActivation COMMAND $<TARGET_FILE:TestPictureInPictureUserActivation>)
+    set_tests_properties(TestPictureInPictureUserActivation PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
 
     add_test(NAME TestPictureInPictureWindowControls COMMAND $<TARGET_FILE:TestPictureInPictureWindowControls>)
     set_tests_properties(TestPictureInPictureWindowControls PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
