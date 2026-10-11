@@ -407,29 +407,28 @@ fn install_compile_results(vm: &Vm, results: Vec<(u64, CompileResult)>) {
         return;
     }
 
-    // NB: Code goes into executable memory for all compiles at once, which changes page protections less often.
-    let installed: Vec<&(CompileJob, CompileResult)> = finished
-        .iter()
-        .filter(|(_, result)| should_install(vm, result))
-        .collect();
-    let codes: Vec<&[u8]> = installed
-        .iter()
+    // NB: Code goes into executable memory for all compiles at once, which changes page protections less often. The
+    //     verdicts are taken once, so that each compile that gets memory is one the memory was allocated for.
+    let verdicts: Vec<bool> = finished.iter().map(|(_, result)| should_install(vm, result)).collect();
+    let installed = || {
+        finished
+            .iter()
+            .zip(&verdicts)
+            .filter(|(_, install)| **install)
+            .map(|(compile, _)| compile)
+    };
+    let codes: Vec<&[u8]> = installed()
         .map(|(_, result)| result.as_ref().expect("the compile succeeded").code.as_slice())
         .collect();
-    let names: Vec<String> = installed
-        .iter()
+    let names: Vec<String> = installed()
         .map(|(job, _)| super::describe_executable(&job.executable))
         .collect();
     let name_views: Vec<&str> = names.iter().map(String::as_str).collect();
     let mut memories =
         ExecutableMemory::allocate(vm.jit.code_allocator(), &codes, &name_views, vm.jit.options.perf_map).into_iter();
 
-    for (job, result) in finished {
-        let memory = if should_install(vm, &result) {
-            Some(memories.next().expect("there is memory for each installed code"))
-        } else {
-            None
-        };
+    for ((job, result), install) in finished.into_iter().zip(verdicts) {
+        let memory = install.then(|| memories.next().expect("there is memory for each installed code"));
         finish_compile(vm, job.executable, result, memory, job.snapshot_executables);
     }
 }
