@@ -31,8 +31,8 @@
 //! initialize it, as in loops) as `EnsureFrameInitialized`, which checks
 //! first. Both publish the frame too. Register-saving slow path calls where
 //! the frame may not be initialized initialize it themselves before they
-//! run. Before nodes that only need the frame published, where it may not
-//! be, it puts a `PublishFrame`.
+//! run, so after them it may be. Before nodes that only need the frame
+//! published, where it may not be, it puts a `PublishFrame`.
 
 use crate::bytecode::FrameLayout;
 use crate::bytecode::RESERVED_REGISTER_COUNT;
@@ -202,6 +202,13 @@ pub fn run(graph: &mut Graph, layout: &FrameLayout) {
                 if let Need::InitializedForSlowPath = need {
                     if current.initialized != Holds::Yes {
                         slow_paths.push(*node);
+                        // NB: The slow path is out of line, so it may or
+                        //     may not have initialized (and published) the
+                        //     frame after the node.
+                        current = State {
+                            published: current.published.merge(Holds::Yes),
+                            initialized: Holds::Maybe,
+                        };
                     }
                     continue;
                 }
