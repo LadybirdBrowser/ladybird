@@ -271,17 +271,28 @@ impl GraphBuilder<'_> {
         let Some(getter) = first.accessor_function else {
             return Ok(false);
         };
+        let Action::Get {
+            holder: Holder::Prototype { prototype, .. },
+            offset,
+        } = first.action
+        else {
+            return Ok(false);
+        };
+        // NB: Typed arrays of each kind reach the getter through the prototype
+        //     of their kind, so each kind's entries have their own validity cell.
         let same_length_getter = getter.intrinsic == Some(Intrinsic::TypedArrayPrototypeLength)
             && entries.iter().all(|entry| {
                 entry.holds_accessor
                     && matches!(
                         entry.action,
                         Action::Get {
-                            holder: Holder::Prototype { .. },
-                            ..
-                        }
+                            holder: Holder::Prototype {
+                                prototype: entry_prototype,
+                                ..
+                            },
+                            offset: entry_offset,
+                        } if entry_prototype == prototype && entry_offset == offset
                     )
-                    && entry.action == first.action
                     && entry.accessor_function.map(|accessor| accessor.function) == Some(getter.function)
             });
         let gates = [
@@ -338,7 +349,8 @@ impl GraphBuilder<'_> {
     /// Checks that `base` is an object of the shapes of `entries`, which all
     /// call the `part` of the accessor at their property offset, and that
     /// the accessor has the function the entries saw: in the object, or in
-    /// the entries' prototype with the prototype chain unchanged. Returns
+    /// the entries' prototype with the prototype chain of every entry
+    /// unchanged. Returns
     /// the checked receiver and, if the inlined call must check the function
     /// and run it with its own environment, the function as a value. The
     /// function is absent if it is the one the entries
@@ -363,12 +375,25 @@ impl GraphBuilder<'_> {
             unreachable!("accessor calls get or set");
         };
         let holder = match holder {
-            Holder::Prototype {
-                prototype,
-                validity,
-                valid,
-            } => {
-                self.check_prototype_chain(validity, valid);
+            Holder::Prototype { prototype, .. } => {
+                let mut checked_validities = Vec::new();
+                for entry in entries {
+                    let (Action::Get {
+                        holder: Holder::Prototype { validity, valid, .. },
+                        ..
+                    }
+                    | Action::Set {
+                        holder: Holder::Prototype { validity, valid, .. },
+                        ..
+                    }) = entry.action
+                    else {
+                        unreachable!("the entries call an accessor of the same prototype");
+                    };
+                    if !checked_validities.contains(&validity) {
+                        checked_validities.push(validity);
+                        self.check_prototype_chain(validity, valid);
+                    }
+                }
                 self.embed(prototype);
                 let prototype = self.boxed_object(prototype);
                 self.constant(prototype)

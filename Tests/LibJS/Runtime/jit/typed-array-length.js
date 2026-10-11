@@ -65,3 +65,15 @@ test("own and redefined length properties are read", () => {
     }
     expect(lengthOf(new Uint8Array(3))).toBe(3);
 });
+
+test("length properties of one kind's prototype are read", () => {
+    const lengthOf = compileLength();
+    Object.defineProperty(Float64Array.prototype, "length", { value: "shadowed", configurable: true });
+    try {
+        expect(lengthOf(new Float64Array(4))).toBe("shadowed");
+        expect(lengthOf(new Uint8Array(3))).toBe(3);
+    } finally {
+        delete Float64Array.prototype.length;
+    }
+    expect(lengthOf(new Float64Array(4))).toBe(4);
+});
