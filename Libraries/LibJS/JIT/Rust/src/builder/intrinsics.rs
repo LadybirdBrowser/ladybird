@@ -24,6 +24,7 @@ use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::snapshot::CellId;
 use crate::snapshot::Intrinsic;
+use crate::snapshot::value_feedback;
 
 /// What a call of a string builtin that reads a character returns.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -325,6 +326,68 @@ impl GraphBuilder<'_> {
         self.join_blocks(vec![hot, cold]);
         let length = self.add_phi(vec![new_length, pushed]);
         self.write(*dst, length)?;
+        Ok(Some(Flow::Continue))
+    }
+
+    /// Builds `Math.min(a, b)` and `Math.max(a, b)`, `Call`s whose feedback
+    /// saw `Math.min` or `Math.max` as their single callee, and only int32
+    /// results, for int32 arguments: the smaller or larger one. The code
+    /// exits where the callee is another function or an argument is no
+    /// int32. Returns `None`, having built nothing, if it is not such a call.
+    pub(super) fn try_build_math_min_max(&mut self, instruction: &Instruction) -> Result<Option<Flow>, CompileFailure> {
+        let Instruction::Call {
+            value_feedback,
+            call_feedback,
+            dst,
+            callee,
+            ref arguments,
+            ..
+        } = *instruction
+        else {
+            return Ok(None);
+        };
+        let [lhs, rhs] = arguments.as_slice() else {
+            return Ok(None);
+        };
+        // NB: Arguments that were no int32 values would have made results
+        //     that are none either, so the code would exit.
+        let results = self.function.executable.feedback.value.get(usize::from(value_feedback));
+        if results != Some(&value_feedback::INT32) {
+            return Ok(None);
+        }
+        let Some((target, intrinsic)) = self
+            .call_feedback(call_feedback)
+            .and_then(|feedback| feedback.monomorphic_intrinsic())
+        else {
+            return Ok(None);
+        };
+        let comparison = match intrinsic {
+            Intrinsic::MathMin => Comparison::LessThan,
+            Intrinsic::MathMax => Comparison::GreaterThan,
+            _ => return Ok(None),
+        };
+        if !self.may_speculate(ExitKind::BadCallTarget)
+            || !self.may_speculate(ExitKind::NotInt32)
+            || [lhs, rhs]
+                .into_iter()
+                .any(|operand| self.holds_virtual_arguments(*operand))
+        {
+            return Ok(None);
+        }
+        self.check_callee(callee, target)?;
+        let int32 = |builder: &mut Self, operand: Operand| -> Result<NodeId, CompileFailure> {
+            let value = builder.read(operand)?;
+            Ok(builder.emit_checked(Op::CheckInt32, vec![value], Some(Repr::Int32)))
+        };
+        let lhs = int32(self, *lhs)?;
+        let rhs = int32(self, *rhs)?;
+        // NB: Phis the builder makes merge tagged values, which
+        //     representation selection unboxes.
+        let boxed = [lhs, rhs].map(|value| self.emit(Op::BoxInt32, vec![value], Some(Repr::Tagged)));
+        let (left, right) = self.branch_both_ways(BranchCondition::Int32(comparison), vec![lhs, rhs]);
+        self.join_blocks(vec![left, right]);
+        let result = self.add_phi(boxed.to_vec());
+        self.write(dst, result)?;
         Ok(Some(Flow::Continue))
     }
 
