@@ -1,0 +1,9 @@
+1x: devicePixelRatio=1 screen=1920x1080 avail=1920x1080
+  (device-width: 1920px) matches: true
+  (device-height: 1080px) matches: true
+2x: devicePixelRatio=2 screen=1920x1080 avail=1920x1080
+  (device-width: 1920px) matches: true
+  (device-height: 1080px) matches: true
+back to 1x: devicePixelRatio=1 screen=1920x1080 avail=1920x1080
+  (device-width: 1920px) matches: true
+  (device-height: 1080px) matches: true
