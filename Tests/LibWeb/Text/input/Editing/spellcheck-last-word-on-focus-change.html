@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="typed"></textarea>
+<textarea id="next"></textarea>
+<script>
+    promiseTest(async () => {
+        const typed = document.getElementById("typed");
+        internals.sendText(typed, "txet");
+        await internals.spellCheckSettled();
+        println(`while typing: ${internals.spellingErrorRanges(typed) || "(none)"}`);
+
+        // The word the user was typing gets checked once the user moves focus away from it.
+        const next = document.getElementById("next");
+        const rect = next.getBoundingClientRect();
+        internals.click(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        await internals.spellCheckSettled();
+        println(`after focus moved on: ${internals.spellingErrorRanges(typed) || "(none)"}`);
+    });
+</script>

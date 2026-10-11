@@ -1,0 +1,9 @@
+typing the word: (none)
+after a space: 0-4
+half-typed second word: 0-4
+still typing it: 0-4
+caret moved away: 0-4 9-13
+typing inside a flagged word: 10-14
+during a composition: (none)
+after committing it: 0-4
+contenteditable: 0-7

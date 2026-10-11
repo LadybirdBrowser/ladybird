@@ -15,6 +15,7 @@
 #include <LibWeb/Editing/Commands.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
+#include <LibWeb/Editing/SpellCheckController.h>
 #include <LibWeb/Editing/VisiblePosition.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLLIElement.h>
@@ -247,6 +248,10 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
     // 6. If the previous step returned false, return false.
     if (!command_result)
         return false;
+
+    // A command the user ran by editing, rather than one a script called, is a user edit for spellchecking.
+    if (user_input_type.has_value() && tree_was_modified && affected_editing_host)
+        spell_check_controller().did_user_edit(*affected_editing_host);
 
     // 7. If the action modified DOM tree, then fire an event named "input" at affected editing host using InputEvent,
     //    with its isTrusted and bubbles attributes initialized to true, inputType attribute initialized to the mapped

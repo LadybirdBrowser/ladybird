@@ -1071,6 +1071,8 @@ void Document::note_selection_changed()
 {
     m_selection_states_are_stale = true;
     request_frame_for_pending_repaint();
+    if (m_spell_check_controller)
+        m_spell_check_controller->did_change_selection();
 }
 
 void Document::update_highlight_states_if_needed(Layout::BegunRead const& read)

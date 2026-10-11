@@ -40,6 +40,7 @@
 #include <LibWeb/Editing/ClipboardSerializer.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
+#include <LibWeb/Editing/SpellCheckController.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -6303,6 +6304,9 @@ void LocalNavigable::end_input_method_composition(Optional<Utf16View> final_text
         document->set_is_input_method_composing(false);
     if (!was_active)
         return;
+
+    if (auto document = active_document())
+        document->spell_check_controller().did_end_input_method_composition();
 
     // https://w3c.github.io/uievents/#event-type-compositionend
     // A user agent MUST dispatch this event when a text composition system completes or cancels the current composition

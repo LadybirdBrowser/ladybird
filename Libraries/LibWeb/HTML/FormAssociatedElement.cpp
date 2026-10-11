@@ -22,6 +22,7 @@
 #include <LibWeb/DOM/SubtreeInsertionScope.h>
 #include <LibWeb/Editing/EditCommand.h>
 #include <LibWeb/Editing/EditingHistory.h>
+#include <LibWeb/Editing/SpellCheckController.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
@@ -1310,6 +1311,7 @@ void FormAssociatedTextControlElement::handle_insert(Utf16FlyString const& input
         data_for_input_event = Utf16String::from_utf16(data_for_insertion);
 
     did_edit_text_node(input_type, data_for_input_event);
+    html_element.document().spell_check_controller().did_user_edit(html_element);
     scroll_cursor_into_view();
 }
 
@@ -1360,6 +1362,7 @@ void FormAssociatedTextControlElement::handle_delete(Utf16FlyString const& input
     history->end_recording();
 
     did_edit_text_node(input_type, {});
+    html_element.document().spell_check_controller().did_user_edit(html_element);
     scroll_cursor_into_view();
 }
 
@@ -1420,6 +1423,9 @@ void FormAssociatedTextControlElement::selection_was_changed(SelectionSource sou
     } else {
         VERIFY_NOT_REACHED();
     }
+
+    if (auto* controller = element.document().spell_check_controller_if_exists())
+        controller->did_change_selection();
 
     // NB: Called during selection change handling, layout may be stale. The render state finds the text's box as it
     //     applies the repaint, so the change reads nothing of it.

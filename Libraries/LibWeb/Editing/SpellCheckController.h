@@ -38,6 +38,10 @@ public:
     explicit SpellCheckController(DOM::Document&);
 
     void did_focus(GC::Ptr<DOM::Node>);
+    // A user edit changed the text of the editable that contains node.
+    void did_user_edit(DOM::Node&);
+    void did_end_input_method_composition();
+    void did_change_selection();
 
     bool is_settled() const;
 
@@ -63,7 +67,14 @@ private:
         bool checked { false };
     };
 
+    enum class RequestKind : u8 {
+        ExistingText,
+        Typing,
+        Other,
+    };
+
     struct Request {
+        RequestKind kind { RequestKind::Other };
         Utf16String text;
         Vector<RequestPiece> pieces;
         // Where the window ended in the paragraph's text.
@@ -80,10 +91,22 @@ private:
         size_t next_offset { 0 };
     };
 
+    struct TextPosition {
+        GC::Ref<DOM::Text> text;
+        size_t offset { 0 };
+    };
+
     bool owns(DOM::Text const&) const;
+    Optional<TextPosition> caret_position() const;
+    void send_window_around(DOM::Text&, size_t offset, RequestKind);
+    void schedule_typing_check();
+    void run_typing_check();
+    void schedule_exempt_word_check();
+    void run_exempt_word_check();
+
     Paragraph paragraph_containing(DOM::Text&, size_t offset) const;
     Vector<GC::Weak<DOM::Text>> paragraphs_of(DOM::Node& editable) const;
-    Request make_request(Paragraph const&, size_t window_start, size_t window_end) const;
+    Request make_request(Paragraph const&, size_t window_start, size_t window_end, RequestKind) const;
     void send(Request);
     void send_next_existing_text_chunk();
     void did_receive_answer(Request const&, Vector<SpellingError> const&);
@@ -96,6 +119,11 @@ private:
     size_t m_requests_in_flight { 0 };
     // The word the user is still typing, which no answer flags until the caret leaves it.
     Optional<WordRange> m_exempt_word;
+    bool m_typing_check_scheduled { false };
+    bool m_typing_check_in_flight { false };
+    // A typing check wanted while another was in flight, which goes out once that one's answer is in.
+    bool m_typing_check_wanted { false };
+    bool m_exempt_word_check_scheduled { false };
 };
 
 }
