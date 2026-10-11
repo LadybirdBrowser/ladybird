@@ -85,6 +85,7 @@ private:
     static Vector<StoredDevice> current_audio_device_snapshot();
     void did_observe_audio_device_cache_update();
     void end_tracks_of_removed_devices();
+    void end_tracks(GC::RootVector<GC::Ref<MediaStreamTrack>>);
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ref<HTML::Window> m_window;

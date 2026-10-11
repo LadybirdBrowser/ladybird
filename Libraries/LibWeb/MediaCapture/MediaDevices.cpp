@@ -530,6 +530,13 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
 
             // 11.11 For each track in stream, tie track source to MediaDevices with track.[[Source]] and mediaDevices.
             media_devices->m_media_stream_track_sources.append(track);
+            track->on_audio_capture_revoked = [media_devices = GC::Weak<MediaDevices>(media_devices), track = GC::Weak<MediaStreamTrack>(track)] {
+                if (!media_devices.ptr() || !track.ptr())
+                    return;
+                GC::RootVector<GC::Ref<MediaStreamTrack>> tracks;
+                tracks.append(*track.ptr());
+                media_devices->end_tracks(move(tracks));
+            };
 
             // 11.12 Resolve p with stream and abort these steps.
             resolve_media_stream_promise(*promise, stream);
@@ -784,6 +791,11 @@ void MediaDevices::end_tracks_of_removed_devices()
         tracks_to_end.append(*track);
         return true;
     });
+    end_tracks(move(tracks_to_end));
+}
+
+void MediaDevices::end_tracks(GC::RootVector<GC::Ref<MediaStreamTrack>> tracks_to_end)
+{
     if (tracks_to_end.is_empty())
         return;
 

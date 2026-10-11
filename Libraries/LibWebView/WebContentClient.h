@@ -148,9 +148,11 @@ public:
     bool has_crashed_views() const { return !m_crashed_view_ids.is_empty(); }
     ErrorOr<void> reconnect_to_compositor_process(Badge<Application>);
     ErrorOr<void> recreate_compositor_contexts(Badge<Application>);
-    // The user let the page at the URL capture audio. The AudioServer asks before every capture, and is answered from
-    // the pages' current URLs, so the grant goes with a navigation away.
-    void grant_audio_capture(URL::URL const&);
+    // The user let the page at the URL capture audio. The process's AudioServer hears of the permission before this
+    // returns, so a page told afterwards finds it in place.
+    ErrorOr<void> grant_audio_capture(URL::URL const&);
+    // The permission follows the origins the process's open pages show, so it goes with a navigation away.
+    void update_audio_capture_permission();
     void replay_compositor_view_state_after_reconnect(Badge<Application>);
     void notify_compositor_process_reconnected(Badge<Application>);
     Web::CompositorContextId compositor_context_id_for_page(WebContentPage const&);
@@ -226,6 +228,7 @@ private:
 
     ErrorOr<IPC::TransportHandle> connect_audio_server_client();
     ErrorOr<void> ensure_audio_server_controller();
+    ErrorOr<void> tell_audio_server_of_capture_permission();
     static String audio_capture_permission_key(URL::URL const&);
     bool audio_capture_permitted() const;
     void decide_audio_capture_request(u64 request_id);
@@ -235,9 +238,10 @@ private:
     RefPtr<MediaClient::Client> m_media_server_client;
     RefPtr<AudioServerControlClient> m_audio_server_client;
     u64 m_audio_tab_id { 0 };
-    // The pages the user let capture audio. The AudioServer rules on nothing itself: it asks about every capture, and
-    // the answer is whether an open page is one of them.
+    // The pages the user let capture audio, and whether an open page is one of them; the AudioServer is told of the latter,
+    // again whenever it relaunches, and rules on nothing itself.
     HashTable<String> m_audio_capture_grants;
+    bool m_audio_capture_permitted { false };
     RefPtr<Core::Timer> m_detached_page_close_timer;
 
     RefPtr<WebUI> m_web_ui;

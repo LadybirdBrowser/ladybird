@@ -11,4 +11,6 @@ endpoint AudioClient {
 
     record_stream_created(u64 stream_id, Audio::SharedAudioFrameRing ring) =|
     record_stream_creation_failed(u64 stream_id) =|
+    // The tab's permission to capture is gone, and the stream with it.
+    record_stream_closed(u64 stream_id) =|
 }

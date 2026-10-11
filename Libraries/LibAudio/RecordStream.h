@@ -40,6 +40,9 @@ public:
     // Runs on the thread that created the stream once the backend behind it is gone for good:
     // nothing more is delivered, and the owner opens a new stream to carry on.
     Function<void()> on_capture_lost;
+    // Runs on that thread once the permission to capture is gone: nothing more is delivered, and
+    // the owner ends.
+    Function<void()> on_capture_revoked;
 };
 
 }

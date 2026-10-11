@@ -7,6 +7,10 @@ endpoint AudioServerControl
     // Every client of one tab plays into that tab's mix, so the Browser names the tab a client belongs to.
     connect_new_client(u64 tab_id) => (Optional<IPC::TransportHandle> handle)
 
+    // Whether the tab's pages hold the microphone permission: without it the capture streams of the tab's clients are
+    // closed. Synchronous, so it is in place before the page hears of it.
+    set_capture_permission(u64 tab_id, bool granted) => ()
+
     // The answer to capture_requested.
     capture_decided(u64 request_id, bool allowed) =|
 }
