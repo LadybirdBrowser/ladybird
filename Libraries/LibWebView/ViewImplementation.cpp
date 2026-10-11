@@ -151,6 +151,8 @@ void ViewImplementation::set_url(URL::URL url)
 
     m_url = move(url);
     update_bookmark_action();
+    if (auto page = traversable().display_page(); page && page->routed_connection())
+        page->routed_connection()->update_audio_capture_permission();
 
     if (on_url_change)
         on_url_change(m_url);

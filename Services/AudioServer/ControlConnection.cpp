@@ -44,6 +44,11 @@ Messages::AudioServerControl::ConnectNewClientResponse ControlConnection::connec
     return handle.release_value();
 }
 
+void ControlConnection::set_capture_permission(u64 tab_id, bool granted)
+{
+    Tabs::the().set_capture_permission(tab_id, granted);
+}
+
 void ControlConnection::capture_decided(u64 request_id, bool allowed)
 {
     Tabs::the().capture_decided(request_id, allowed);

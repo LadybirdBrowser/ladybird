@@ -202,6 +202,27 @@ void ClientConnection::record_stream_creation_failed(u64 stream_id)
         pending_stream.promise->reject(Error::from_string_literal("Audio server could not open the capture device"));
 }
 
+void ClientConnection::record_stream_closed(u64 stream_id)
+{
+    // The source is forgotten first, so that a stream asked for from inside a callback asks the server afresh.
+    auto source = m_capture_sources.take(stream_id);
+    if (!source.has_value())
+        return;
+    Vector<NonnullRefPtr<RemoteRecordStream>> live_streams;
+    {
+        MutexLocker locker(m_pump_mutex);
+        m_capture_rings.remove(stream_id);
+        for (auto* stream : m_record_streams) {
+            if (stream->stream_id() == stream_id && stream->try_ref())
+                live_streams.append(adopt_ref(*stream));
+        }
+    }
+    for (auto& pending_stream : source->pending)
+        pending_stream.promise->reject(Error::from_string_literal("The tab may no longer capture audio"));
+    for (auto& stream : live_streams)
+        stream->capture_revoked();
+}
+
 void ClientConnection::record_stream_unsubscribed(Badge<RemoteRecordStream>, u64 stream_id)
 {
     auto source = m_capture_sources.get(stream_id);

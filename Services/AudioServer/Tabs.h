@@ -8,6 +8,7 @@
 
 #include <AK/Function.h>
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
@@ -22,7 +23,8 @@ namespace AudioServer {
 
 class ControlConnection;
 
-// The tabs with connected client processes: each has a mixer, and the Browser is asked before any of them captures.
+// The tabs with connected client processes: each has a mixer, and the Browser's word on whether its pages hold the
+// microphone permission.
 class Tabs {
 public:
     static Tabs& the();
@@ -34,6 +36,8 @@ public:
     void set_control_connection(ControlConnection&);
 
     ErrorOr<IPC::TransportHandle> connect_client(u64 tab_id);
+    // Whether the tab's pages hold the permission: without it the capture streams its clients have are closed.
+    void set_capture_permission(u64 tab_id, bool granted);
     void capture_decided(u64 request_id, bool allowed);
 
 private:
@@ -48,6 +52,7 @@ private:
     void request_capture_permission(u64 tab_id, ByteString const& device_id, Function<void(bool)> on_decided);
 
     HashMap<u64, Tab> m_tabs;
+    HashTable<u64> m_tabs_with_capture_permission;
     RefPtr<Audio::CaptureDevices> m_capture_devices;
     int m_next_client_id { 1 };
     Audio::AudioOutput m_audio_output { Audio::AudioOutput::Platform };

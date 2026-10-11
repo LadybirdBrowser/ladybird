@@ -38,6 +38,10 @@ public:
     // Runs when the client disconnects, after its streams have left the mixer.
     Function<void()> on_death;
 
+    // Whether the Browser says the client's tab holds the microphone permission. Without it the capture streams it has
+    // are closed.
+    void set_capture_permitted(bool);
+
 private:
     ServerConnection(NonnullOwnPtr<IPC::Transport>, int client_id, NonnullRefPtr<PlaybackStreamMixer>, DeviceEnumeration, NonnullRefPtr<CaptureDevices>, CapturePermissionRequest);
 
@@ -81,6 +85,7 @@ private:
     NonnullRefPtr<CaptureDevices> m_capture_devices;
     CapturePermissionRequest m_request_capture_permission;
     HashMap<u64, RecordStreamState> m_record_streams;
+    bool m_capture_permitted { false };
 
     DeviceEnumeration m_device_enumeration { DeviceEnumeration::None };
     Optional<AudioDevices::ListenerId> m_devices_changed_listener_id;

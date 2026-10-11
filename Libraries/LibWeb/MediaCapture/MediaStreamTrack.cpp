@@ -327,6 +327,13 @@ void MediaStreamTrack::ensure_audio_capture_started()
             track->m_audio_capture_stream = nullptr;
             track->ensure_audio_capture_started();
         };
+        stream->on_capture_revoked = [weak_track = GC::Weak<MediaStreamTrack>(track), capture_request_id] {
+            auto track = weak_track.ptr();
+            if (!track || track->m_audio_capture_request_id != capture_request_id)
+                return;
+            if (track->on_audio_capture_revoked)
+                track->on_audio_capture_revoked();
+        };
     });
     stream_promise->when_rejected([track = GC::Ref(*this), capture_request_id](Error& error) {
         if (track->m_audio_capture_request_id != capture_request_id)

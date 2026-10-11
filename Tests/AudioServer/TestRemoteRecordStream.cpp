@@ -54,9 +54,12 @@ struct RemoteCaptureFixture {
     RefPtr<Audio::ClientConnection> client;
     WeakPtr<Audio::ClientConnection> client_weak;
     bool server_died { false };
-    // The fixture stands in for the Browser: the devices it was asked about, and its answer.
+    // The fixture stands in for the Browser: the devices it was asked about, and its answer. An answer withheld waits
+    // in pending_capture_decisions for the test to give.
     Vector<ByteString> capture_requests;
     bool capture_permission_answer { true };
+    bool answer_capture_requests_at_once { true };
+    Vector<Function<void(bool)>> pending_capture_decisions;
 
     RemoteCaptureFixture()
     {
@@ -75,8 +78,12 @@ struct RemoteCaptureFixture {
         auto paired = MUST(IPC::Transport::create_paired());
         server = Audio::ServerConnection::construct(move(paired.local), 1, *mixer, Audio::ServerConnection::DeviceEnumeration::None, *capture_devices, [this](ByteString const& device_id, Function<void(bool)> on_decided) {
             capture_requests.append(device_id);
-            on_decided(capture_permission_answer);
+            if (answer_capture_requests_at_once)
+                on_decided(capture_permission_answer);
+            else
+                pending_capture_decisions.append(move(on_decided));
         });
+        server->set_capture_permitted(true);
         server->on_death = [this] { server_died = true; };
         server_weak = server->make_weak_ptr<Audio::ServerConnection>();
         client = adopt_ref(*new Audio::ClientConnection(MUST(paired.remote_handle.create_transport())));
@@ -207,6 +214,56 @@ TEST_CASE(a_request_the_browser_refuses_is_rejected)
     EXPECT(!stream);
     EXPECT(!fixture.server_died);
     EXPECT_EQ(fixture.capture_requests.size(), 1u);
+    EXPECT_EQ(fixture.opened.size(), 0u);
+    EXPECT_EQ(fixture.capture_devices->open_device_count(), 0u);
+}
+
+TEST_CASE(losing_the_permission_closes_the_streams)
+{
+    Sink sink;
+    RemoteCaptureFixture fixture;
+    bool rejected = false;
+    auto stream = fixture.create_record_stream("mic"sv, sink, rejected);
+    EXPECT(!rejected);
+    EXPECT_EQ(fixture.capture_devices->open_device_count(), 1u);
+
+    bool revoked = false;
+    bool lost = false;
+    stream->on_capture_revoked = [&] { revoked = true; };
+    stream->on_capture_lost = [&] { lost = true; };
+    fixture.server->set_capture_permitted(false);
+    EXPECT(fixture.pump_until([&] { return revoked; }));
+    EXPECT(!lost);
+    EXPECT_EQ(fixture.capture_devices->open_device_count(), 0u);
+
+    // A new request asks the Browser afresh rather than reuse what was closed.
+    fixture.server->set_capture_permitted(true);
+    auto again = fixture.create_record_stream("mic"sv, sink, rejected);
+    EXPECT(!rejected);
+    EXPECT(again);
+    EXPECT_EQ(fixture.capture_requests.size(), 2u);
+    EXPECT_EQ(fixture.capture_devices->open_device_count(), 1u);
+}
+
+TEST_CASE(losing_the_permission_while_the_browser_is_asked_rejects_the_request)
+{
+    Sink sink;
+    RemoteCaptureFixture fixture;
+    fixture.answer_capture_requests_at_once = false;
+    RefPtr<Audio::RecordStream> stream;
+    bool rejected = false;
+    auto promise = fixture.client->create_record_stream("mic"sv, sink.callback());
+    promise->when_resolved([&](NonnullRefPtr<Audio::RecordStream>& created) { stream = created; });
+    promise->when_rejected([&](Error&) { rejected = true; });
+    EXPECT(fixture.pump_until([&] { return fixture.pending_capture_decisions.size() == 1; }));
+
+    fixture.server->set_capture_permitted(false);
+    EXPECT(fixture.pump_until([&] { return rejected; }));
+
+    // The answer that comes late opens nothing.
+    fixture.pending_capture_decisions[0](true);
+    fixture.pump_until([] { return false; }, AK::Duration::from_milliseconds(10));
+    EXPECT(!stream);
     EXPECT_EQ(fixture.opened.size(), 0u);
     EXPECT_EQ(fixture.capture_devices->open_device_count(), 0u);
 }

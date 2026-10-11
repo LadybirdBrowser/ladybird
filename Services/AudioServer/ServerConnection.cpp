@@ -48,6 +48,18 @@ void ServerConnection::remove_record_streams()
     m_record_streams.clear();
 }
 
+void ServerConnection::set_capture_permitted(bool permitted)
+{
+    if (m_capture_permitted == permitted)
+        return;
+    m_capture_permitted = permitted;
+    if (!permitted) {
+        for (auto& [stream_id, stream] : m_record_streams)
+            async_record_stream_closed(stream_id);
+        remove_record_streams();
+    }
+}
+
 void ServerConnection::stop_listening_for_device_changes()
 {
     if (m_devices_changed_listener_id.has_value())
@@ -226,7 +238,7 @@ void ServerConnection::create_record_stream(u64 stream_id, ByteString device_id)
 
 void ServerConnection::capture_permission_decided(u64 stream_id, ByteString const& device_id, bool allowed)
 {
-    // The client may have given up on the stream while the Browser was asked.
+    // The client may have given up on the stream, or the tab lost the permission, while the Browser was asked.
     if (!m_record_streams.contains(stream_id))
         return;
     if (!allowed) {

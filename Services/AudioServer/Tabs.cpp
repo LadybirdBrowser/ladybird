@@ -104,11 +104,25 @@ ErrorOr<IPC::TransportHandle> Tabs::connect_client(u64 tab_id)
     auto connection = Audio::ServerConnection::construct(move(paired_transports.local), client_id, tab.mixer, device_enumeration, capture_devices(), [tab_id](ByteString const& device_id, Function<void(bool)> on_decided) {
         Tabs::the().request_capture_permission(tab_id, device_id, move(on_decided));
     });
+    connection->set_capture_permitted(m_tabs_with_capture_permission.contains(tab_id));
     connection->on_death = [tab_id, client_id] {
         Tabs::the().connection_died(tab_id, client_id);
     };
     tab.connections.set(client_id, move(connection));
     return handle;
+}
+
+void Tabs::set_capture_permission(u64 tab_id, bool granted)
+{
+    if (granted)
+        m_tabs_with_capture_permission.set(tab_id);
+    else
+        m_tabs_with_capture_permission.remove(tab_id);
+    auto tab = m_tabs.get(tab_id);
+    if (!tab.has_value())
+        return;
+    for (auto& [client_id, connection] : tab->connections)
+        connection->set_capture_permitted(granted);
 }
 
 void Tabs::request_capture_permission(u64 tab_id, ByteString const& device_id, Function<void(bool)> on_decided)

@@ -46,4 +46,10 @@ void RemoteRecordStream::connection_lost()
         on_capture_lost();
 }
 
+void RemoteRecordStream::capture_revoked()
+{
+    if (on_capture_revoked)
+        on_capture_revoked();
+}
+
 }

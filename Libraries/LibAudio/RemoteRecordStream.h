@@ -31,6 +31,8 @@ public:
     void deliver(ReadonlySpan<float> interleaved_samples);
     // Control thread. The connection died: nothing more arrives, and the owner should open a new stream.
     void connection_lost();
+    // Control thread. The server closed the stream: the tab's permission to capture is gone.
+    void capture_revoked();
 
 private:
     // Only ever referenced and released on the control thread; see the destructor.

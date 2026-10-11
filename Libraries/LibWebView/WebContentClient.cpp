@@ -771,7 +771,7 @@ Messages::WebContentClient::RequestMediaServerConnectionResponse WebContentClien
 
 ErrorOr<IPC::TransportHandle> WebContentClient::connect_audio_server_client()
 {
-    // The server asks about every capture, so it must have someone to ask before any client gets its connection.
+    // The server must know of the permission before any client gets its connection.
     TRY(ensure_audio_server_controller());
     return connect_new_audio_server_client(m_audio_server_client, m_audio_tab_id);
 }
@@ -786,6 +786,8 @@ ErrorOr<void> WebContentClient::ensure_audio_server_controller()
         if (tab_id == m_audio_tab_id)
             decide_audio_capture_request(request_id);
     };
+    if (m_audio_capture_permitted)
+        TRY(tell_audio_server_of_capture_permission());
     return {};
 }
 
@@ -797,9 +799,26 @@ String WebContentClient::audio_capture_permission_key(URL::URL const& url)
     return url.serialize(URL::ExcludeFragment::Yes);
 }
 
-void WebContentClient::grant_audio_capture(URL::URL const& url)
+ErrorOr<void> WebContentClient::grant_audio_capture(URL::URL const& url)
 {
     m_audio_capture_grants.set(audio_capture_permission_key(url));
+    m_audio_capture_permitted = audio_capture_permitted();
+    if (!m_audio_capture_permitted)
+        return {};
+    TRY(ensure_audio_server_controller());
+    return tell_audio_server_of_capture_permission();
+}
+
+void WebContentClient::update_audio_capture_permission()
+{
+    auto permitted = audio_capture_permitted();
+    if (permitted == m_audio_capture_permitted)
+        return;
+    m_audio_capture_permitted = permitted;
+    if (!m_audio_server_client || !m_audio_server_client->is_open())
+        return;
+    if (auto result = tell_audio_server_of_capture_permission(); result.is_error())
+        warnln("Unable to update the AudioServer's capture permission: {}", result.error());
 }
 
 bool WebContentClient::audio_capture_permitted() const
@@ -815,6 +834,14 @@ bool WebContentClient::audio_capture_permitted() const
 void WebContentClient::decide_audio_capture_request(u64 request_id)
 {
     m_audio_server_client->async_capture_decided(request_id, audio_capture_permitted());
+}
+
+ErrorOr<void> WebContentClient::tell_audio_server_of_capture_permission()
+{
+    auto response = m_audio_server_client->send_sync_but_allow_failure<Messages::AudioServerControl::SetCapturePermission>(m_audio_tab_id, m_audio_capture_permitted);
+    if (!response)
+        return Error::from_string_literal("Failed to tell the AudioServer of the capture permission");
+    return {};
 }
 
 Messages::WebContentClient::RequestAudioServerConnectionResponse WebContentClient::request_audio_server_connection()

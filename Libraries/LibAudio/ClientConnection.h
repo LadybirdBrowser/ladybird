@@ -87,6 +87,7 @@ private:
     virtual void devices_changed(Vector<AudioDeviceInfo> inputs, Vector<AudioDeviceInfo> outputs) override;
     virtual void record_stream_created(u64 stream_id, SharedAudioFrameRing ring) override;
     virtual void record_stream_creation_failed(u64 stream_id) override;
+    virtual void record_stream_closed(u64 stream_id) override;
 
     void pump_thread_main();
     RefPtr<RemotePlaybackStream> find_live_stream(u64 stream_id);

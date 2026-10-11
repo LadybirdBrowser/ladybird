@@ -110,6 +110,9 @@ public:
 
     MediaStreamTrackState track_ready_state() const { return m_state; }
 
+    // The tab's permission to capture is gone; whoever tied the track's source ends it.
+    Function<void()> on_audio_capture_revoked;
+
     void stop();
     void end();
     GC::Ref<MediaStreamTrack> clone() const;
