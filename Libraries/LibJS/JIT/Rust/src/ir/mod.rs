@@ -346,9 +346,10 @@ impl Comparison {
 ///
 /// Refinements: a check that exits unless its input 0 passes it (`CheckObject`,
 /// `CheckShape`, `CheckValue`, `CheckClosure`, `CheckAccessorFunction`,
-/// `CheckElements`, `CheckTypedArray`, `CheckIdentityComparable`, `CheckAppendableArray`,
-/// `CheckBounds`, `CheckNotHole`), and a
-/// `Refine` on the edge of a branch, has that input as its value, refined:
+/// `CheckElements`, `CheckTypedArray`, `CheckArray`, `CheckNonNegativeInt32`,
+/// `CheckIdentityComparable`, `CheckAppendableArray`, `CheckBounds`,
+/// `CheckTypedArrayStorage`, `CheckNotHole`), and a `Refine` on the edge of a
+/// branch, has that input as its value, refined:
 /// known to pass. Nodes that rely on the check take the refined value as their
 /// input instead of the input itself, so that the check is a data dependency
 /// of theirs: passes move or share them exactly when they can move or share
@@ -541,6 +542,12 @@ pub enum Op {
     /// Exits with `ExitKind::BadElements` unless input 0 is a typed array,
     /// of any kind.
     CheckTypedArray,
+    /// Exits with `ExitKind::BadType` unless input 0 is an object with
+    /// the magical length property of an array.
+    CheckArray,
+    /// The `Repr::Int32` input 0, checked to be nonnegative. Exits with
+    /// `ExitKind::Overflow` for unsigned counts above i32::MAX.
+    CheckNonNegativeInt32,
     /// The length of the typed array at the `Repr::Pointer` input 0, as a
     /// `Repr::Int32`, or 0 if its data is not cached (because its buffer is
     /// detached or resizable): how many elements `LoadElementAt` and
@@ -1145,7 +1152,7 @@ impl Op {
                 allocates: true,
                 ..P::PURE
             },
-            Op::CheckInt32 | Op::CheckNumber | Op::CheckIdentityComparable => P::PURE,
+            Op::CheckInt32 | Op::CheckNumber | Op::CheckIdentityComparable | Op::CheckNonNegativeInt32 => P::PURE,
             Op::BoxInt32
             | Op::BoxBool
             | Op::Int32Binary { .. }
@@ -1156,7 +1163,8 @@ impl Op {
             Op::CheckElements {
                 kind: ElementsKind::TypedArray(_),
             }
-            | Op::CheckTypedArray => P::PURE,
+            | Op::CheckTypedArray
+            | Op::CheckArray => P::PURE,
             Op::CheckElements { .. } => P {
                 reads: Locations::ELEMENT_COUNTS,
                 ..P::PURE
@@ -1434,6 +1442,8 @@ impl Op {
             Op::TaggedEquals { .. } => "TaggedEquals",
             Op::CheckElements { .. } => "CheckElements",
             Op::CheckTypedArray => "CheckTypedArray",
+            Op::CheckArray => "CheckArray",
+            Op::CheckNonNegativeInt32 => "CheckNonNegativeInt32",
             Op::LoadTypedArrayLength => "LoadTypedArrayLength",
             Op::LoadTypedArrayDataOffset => "LoadTypedArrayDataOffset",
             Op::CheckTypedArrayStorage => "CheckTypedArrayStorage",
@@ -1533,6 +1543,8 @@ impl Op {
             | Op::CheckAccessorFunction { .. }
             | Op::CheckElements { .. }
             | Op::CheckTypedArray
+            | Op::CheckArray
+            | Op::CheckNonNegativeInt32
             | Op::CheckIdentityComparable
             | Op::CheckAppendableArray
             | Op::CheckBounds
@@ -1570,6 +1582,8 @@ impl Op {
             Op::CheckElements { .. } | Op::CheckTypedArray => Some(ExitKind::BadElements),
             Op::CheckBounds | Op::CheckNotHole | Op::CheckTypedArrayStorage => Some(ExitKind::OutOfBounds),
             Op::CheckInt32 => Some(ExitKind::NotInt32),
+            Op::CheckArray => Some(ExitKind::BadType),
+            Op::CheckNonNegativeInt32 => Some(ExitKind::Overflow),
             Op::CheckNumber | Op::CheckIdentityComparable | Op::HasInPrototypeChain => Some(ExitKind::BadType),
             Op::AssumeValid => Some(ExitKind::Invalidated),
             Op::Int32Binary { op } if op.int32_can_overflow() => Some(ExitKind::Overflow),
@@ -1794,9 +1808,9 @@ pub struct Graph {
     /// The register-saving `CallSlowPath` nodes that may run before the
     /// frame is initialized, and so initialize it first if it is not.
     pub slow_paths_initializing_frame: Vec<NodeId>,
-    /// Where exits of the compiled function were taken before, as (pc,
-    /// kind), for passes that must not repeat a failed speculation.
-    pub exit_sites: Vec<(u32, ExitKind)>,
+    /// Where exits of each executable were taken before, as (executable,
+    /// pc, kind), for passes that must not repeat a failed speculation.
+    pub exit_sites: Vec<(u32, u32, ExitKind)>,
 }
 
 impl Graph {

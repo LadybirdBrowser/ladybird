@@ -169,6 +169,9 @@ pub fn run(graph: &mut Graph) {
                 // NB: Inlined callees return values that representation
                 //     selection may have found to be boxes, never empty.
                 Op::EmptyToUndefined => graph.is_known_non_empty(inputs[0], 0..0).then_some(inputs[0]),
+                Op::CheckNonNegativeInt32 => int32_of(graph, inputs[0])
+                    .filter(|value| *value >= 0)
+                    .map(|_| inputs[0]),
                 Op::CheckBounds => match (int32_of(graph, inputs[0]), int32_of(graph, inputs[1])) {
                     (Some(index), Some(count)) if (index as u32) < count as u32 => Some(inputs[0]),
                     _ => None,

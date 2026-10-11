@@ -154,6 +154,7 @@ fn append_keyed_feedback(out: &mut String, feedback: &KeyedFeedback) {
         (keyed_feedback_bits::PACKED, "Packed"),
         (keyed_feedback_bits::HOLEY, "Holey"),
         (keyed_feedback_bits::OTHER_ELEMENTS, "Other"),
+        (keyed_feedback_bits::MAGICAL_LENGTH, "MagicalLength"),
     ];
     let typed_array_names = TYPED_ARRAY_KINDS.map(|kind| format!("{kind:?}"));
     for (kind, name) in TYPED_ARRAY_KINDS.iter().zip(&typed_array_names) {

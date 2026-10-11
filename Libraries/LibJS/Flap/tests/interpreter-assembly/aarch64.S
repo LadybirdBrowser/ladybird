@@ -5597,7 +5597,7 @@ asm_handler_GetByValue_hot_end:
 
 .p2align 4
 asm_handler_GetLength:
-    ldr w0, [x21, #8]
+    ldr w0, [x21, #12]
     ldr x1, [x27, x0, lsl #3]
     lsr x0, x1, #48
     mov w9, #65529
@@ -5612,7 +5612,7 @@ asm_handler_GetLength:
     b .Lasm_GetLength.ssa_block_3
 1:
     movk x0, #0x7ffa, lsl #48
-    ldr w9, [x21, #4]
+    ldr w9, [x21, #8]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
     add x21, x21, #24
@@ -5625,7 +5625,7 @@ asm_handler_GetLength:
     cbz x0, .Lasm_GetLength.assert_predicate_failure_21
     ldr x0, [x0, #152]
     cbz x0, .Lasm_GetLength.assert_failure_1
-    ldr w3, [x21, #16]
+    ldr w3, [x21, #20]
     ldr x0, [x0, x3, lsl #3]
     cbz x0, .Lasm_GetLength.ssa_block_1
     and x0, x0, #0xfffffffffffffffc
@@ -5645,7 +5645,7 @@ asm_handler_GetLength:
     mov w10, #65532
     cmp x9, x10
     b.eq .Lasm_GetLength.ssa_block_1
-    ldr w9, [x21, #4]
+    ldr w9, [x21, #8]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
     add x21, x21, #24
@@ -5662,7 +5662,7 @@ asm_handler_GetLength:
     b .Lasm_GetLength.ssa_block_1
 1:
     movk x0, #0x7ffa, lsl #48
-    ldr w9, [x21, #4]
+    ldr w9, [x21, #8]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
     add x21, x21, #24
@@ -15222,7 +15222,7 @@ asm_handler_GetLength_cold:
 .Lasm_GetLength.ssa_block_3:
     scvtf d0, x0
     fmov x0, d0
-    ldr w9, [x21, #4]
+    ldr w9, [x21, #8]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
     add x21, x21, #24
@@ -15232,7 +15232,7 @@ asm_handler_GetLength_cold:
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #64]
-    ldr w9, [x21, #8]
+    ldr w9, [x21, #12]
     ldr x10, [x27, x9, lsl #3]
 .Lasm_GetLength.scalar_value_ready_3:
     mov x3, x10
@@ -15246,7 +15246,7 @@ asm_handler_GetLength_cold:
     tbnz x0, #32, 1f
     b .Lasm_GetLength.scalar_result_done_4
 1:
-    ldr w9, [x21, #4]
+    ldr w9, [x21, #8]
     str x1, [x27, x9, lsl #3]
     add x21, x26, w0, uxtw
     ldrb w9, [x21]

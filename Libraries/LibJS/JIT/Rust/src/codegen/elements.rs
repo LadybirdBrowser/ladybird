@@ -120,6 +120,24 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.branch_unless_typed_array(value, object, exit);
     }
 
+    /// A `CheckArray` node. The magical length flag is set when an array is
+    /// created and never changes, regardless of its elements storage kind.
+    pub(super) fn emit_check_array(&mut self, node: NodeId) {
+        let exit = self.exit_site(node);
+        let (value, object) = (self.input(node, 0), self.temp(node, 0));
+        let scratch = self.pinned.scratch;
+        self.branch_on_tag(Condition::NotEqual, value, value::OBJECT_TAG, scratch, exit);
+        self.emit_unbox_cell(object, value);
+        self.masm
+            .load16(scratch, &Address::new(object, self.runtime.offsets.object_flags as i32));
+        self.masm.branch_test32(
+            Condition::Zero,
+            scratch,
+            u32::from(self.runtime.layout.object_flag_has_magical_length),
+            exit,
+        );
+    }
+
     /// A branch on `BranchCondition::ElementsKind`: to `target` where it
     /// holds, or where it does not, with `invert`.
     pub(super) fn emit_branch_on_elements_kind(

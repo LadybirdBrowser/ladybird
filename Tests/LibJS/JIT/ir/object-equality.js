@@ -55,9 +55,9 @@ if (find(nodes, nodes[1]) !== 1 || find(nodes, { pos: {} }) !== -1) throw new Er
 
 // CHECK-FUNCTION: find
 // CHECK-PASS: frame initialization
+// CHECK: [[TARGET:v[0-9]+]] = LoadNamed
 // CHECK: loop:
 // CHECK: [[POSITION:v[0-9]+]] = LoadNamed
-// CHECK: [[TARGET:v[0-9]+]] = LoadNamed
 // CHECK: BranchTaggedEquals ([[POSITION]], [[TARGET]])
 // CHECK-NOT: CallSlowPath JumpLooselyEquals
 

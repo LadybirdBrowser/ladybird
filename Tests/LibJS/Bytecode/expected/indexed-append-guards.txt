@@ -50,7 +50,7 @@ block2:
   [ 270] NewFunction dst:reg7, shared_function_data_index:1
   [ 288] Call value_feedback:14, call_feedback:4, dst:reg6, callee:reg8, this_value:Undefined, expect_type_error, arguments:[reg7]
   [ 2b0] GetGlobal value_feedback:15, dst:reg5, `array`
-  [ 2c0] GetLength value_feedback:16, dst:reg8, base:reg5 (array.length)
+  [ 2c0] GetLength value_feedback:16, keyed_feedback:2, dst:reg8, base:reg5 (array.length)
   [ 2d8] StrictlyInequalsRhsInt32 arith_feedback:1, dst:reg5, lhs:reg8, rhs:2
   [ 2e8] MovSrcUndefined dst:reg8
   [ 2f0] JumpFalse condition:reg5, target:block4
@@ -62,7 +62,7 @@ block3:
 
 block4:
   [ 340] GetGlobal value_feedback:19, dst:reg6, `array`
-  [ 350] GetByValue value_feedback:20, keyed_feedback:2, dst:reg5, base:reg6, property:Int32(2) (array[Int32(2)])
+  [ 350] GetByValue value_feedback:20, keyed_feedback:3, dst:reg5, base:reg6, property:Int32(2) (array[Int32(2)])
   [ 370] StrictlyInequals arith_feedback:2, dst:reg6, lhs:reg5, rhs:Undefined
   [ 380] MovSrcUndefined dst:reg5
   [ 388] JumpFalse condition:reg6, target:block6
@@ -153,6 +153,6 @@ block0:
   [   0] Enter
   [   8] GetGlobal value_feedback:0, dst:reg5, `array`
   [  18] GetGlobal value_feedback:1, dst:reg6, `array`
-  [  28] GetLength value_feedback:2, dst:reg7, base:reg6 (array.length)
-  [  40] PutByValue keyed_feedback:0, base:reg5, property:reg7, src:Int32(3), kind:Normal (array[reg7])
+  [  28] GetLength value_feedback:2, keyed_feedback:0, dst:reg7, base:reg6 (array.length)
+  [  40] PutByValue keyed_feedback:1, base:reg5, property:reg7, src:Int32(3), kind:Normal (array[reg7])
   [  60] End value:Undefined

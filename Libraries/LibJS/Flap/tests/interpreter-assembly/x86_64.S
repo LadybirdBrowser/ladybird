@@ -5672,7 +5672,7 @@ asm_handler_GetByValue_hot_end:
 
 .p2align 6
 asm_handler_GetLength:
-    mov eax, DWORD PTR [r14 + r13 + 8]
+    mov eax, DWORD PTR [r14 + r13 + 12]
     mov rdx, QWORD PTR [rbx + rax * 8]
     mov rax, rdx
     shr rax, 48
@@ -5689,7 +5689,7 @@ asm_handler_GetLength:
     js .Lasm_GetLength.ssa_block_3
     movabs r11, 9221683186994511872
     or rax, r11
-    mov r11d, DWORD PTR [r14 + r13 + 4]
+    mov r11d, DWORD PTR [r14 + r13 + 8]
     mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 24
     movzx eax, BYTE PTR [r14 + r13]
@@ -5704,7 +5704,7 @@ asm_handler_GetLength:
     mov rax, QWORD PTR [rax + 152]
     test rax, rax
     jz .Lasm_GetLength.assert_failure_1
-    mov ecx, DWORD PTR [r14 + r13 + 16]
+    mov ecx, DWORD PTR [r14 + r13 + 20]
     mov rcx, QWORD PTR [rax + rcx * 8]
     test rcx, rcx
     jz .Lasm_GetLength.ssa_block_1
@@ -5729,7 +5729,7 @@ asm_handler_GetLength:
     shr r11, 48
     cmp r11w, 65532
     je .Lasm_GetLength.ssa_block_1
-    mov r11d, DWORD PTR [r14 + r13 + 4]
+    mov r11d, DWORD PTR [r14 + r13 + 8]
     mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 24
     movzx eax, BYTE PTR [r14 + r13]
@@ -5745,7 +5745,7 @@ asm_handler_GetLength:
     js .Lasm_GetLength.ssa_block_1
     movabs r11, 9221683186994511872
     or rax, r11
-    mov r11d, DWORD PTR [r14 + r13 + 4]
+    mov r11d, DWORD PTR [r14 + r13 + 8]
     mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 24
     movzx eax, BYTE PTR [r14 + r13]
@@ -14912,7 +14912,7 @@ asm_handler_GetLength_cold:
 .Lasm_GetLength.ssa_block_3:
     cvtsi2sd xmm0, rax
     movq rax, xmm0
-    mov r11d, DWORD PTR [r14 + r13 + 4]
+    mov r11d, DWORD PTR [r14 + r13 + 8]
     mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 24
     movzx eax, BYTE PTR [r14 + r13]
@@ -14920,7 +14920,7 @@ asm_handler_GetLength_cold:
 .Lasm_GetLength.ssa_block_1:
     mov DWORD PTR [rbx + -64], r13d
     lea r11, [r14 + r13]
-    mov r10d, DWORD PTR [r11 + 8]
+    mov r10d, DWORD PTR [r11 + 12]
     mov rax, QWORD PTR [rbx + r10 * 8]
 .Lasm_GetLength.scalar_value_ready_3:
     mov rcx, rax
@@ -14933,7 +14933,7 @@ asm_handler_GetLength_cold:
     bt rax, 32
     jnc .Lasm_GetLength.scalar_result_done_4
     lea rcx, [r14 + r13]
-    mov r10d, DWORD PTR [rcx + 4]
+    mov r10d, DWORD PTR [rcx + 8]
     mov QWORD PTR [rbx + r10 * 8], rdx
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]

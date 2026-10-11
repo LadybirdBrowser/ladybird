@@ -1635,6 +1635,7 @@ fn get_length() {
         run_instruction(
             Instruction::GetLength {
                 value_feedback: 0,
+                keyed_feedback: 0,
                 dst: r(5),
                 base: argument(0),
                 base_identifier: None,
@@ -2641,6 +2642,7 @@ fn every_fast_path_compiles_for_both_architectures() {
             },
             Instruction::GetLength {
                 value_feedback: 0,
+                keyed_feedback: 0,
                 dst,
                 base: argument(0),
                 base_identifier: None,
@@ -2866,6 +2868,7 @@ impl FakeCachedObject {
         let (result, _) = self.run(
             Instruction::GetLength {
                 value_feedback: 0,
+                keyed_feedback: 0,
                 dst: r(5),
                 base: argument(0),
                 base_identifier: None,

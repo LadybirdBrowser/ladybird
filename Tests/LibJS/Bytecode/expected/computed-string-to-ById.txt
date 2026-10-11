@@ -71,5 +71,5 @@ get_length_prop$02a00d79 computed-string-to-ById.js:14:5
 block0:
   [   0] Enter
   [   8] Mov dst:reg5, src:arg0
-  [  18] GetLength value_feedback:0, dst:reg6, base:reg5 (o.length)
+  [  18] GetLength value_feedback:0, keyed_feedback:0, dst:reg6, base:reg5 (o.length)
   [  30] Return value:reg6
