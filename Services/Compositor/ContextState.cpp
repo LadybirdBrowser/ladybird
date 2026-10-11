@@ -811,6 +811,10 @@ ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Comp
 
     auto const* latched_node = m_async_scroll_tree.scroll_node_for_id(node_id);
     bool fingers_can_stretch_latched_scroller = step_can_stretch_elastically && scroll_gesture_phase == Web::ScrollGesturePhase::Ongoing && latched_node;
+    bool momentum_can_bounce_latched_scroller = step_can_stretch_elastically && scroll_gesture_phase == Web::ScrollGesturePhase::Momentum && latched_node
+        && m_wheel_scroll_latch.has_value() && !m_wheel_scroll_latch->momentum_has_sprung_the_scroller_back;
+    if (fingers_can_stretch_latched_scroller && m_wheel_scroll_latch.has_value())
+        m_wheel_scroll_latch->momentum_has_sprung_the_scroller_back = false;
     auto presented_stretch_of_latched_scroller = [&]() -> Gfx::FloatPoint {
         if (!latched_node)
             return {};
@@ -827,11 +831,23 @@ ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Comp
 
     // On the first step of a gesture, scroll node chaining may have scrolled an ancestor instead, which took the delta.
     bool an_ancestor_scrolled = scroll_offset.has_value() && latched_node && scroll_offset->stable_node_id != latched_node->stable_node_id;
-    if (fingers_can_stretch_latched_scroller && !an_ancestor_scrolled) {
-        auto delta_the_scroller_did_not_scroll_by = delta_to_scroll_by;
-        if (scroll_offset.has_value())
-            delta_the_scroller_did_not_scroll_by.translate_by(-scroll_offset->unadopted_scroll_delta.x(), -scroll_offset->unadopted_scroll_delta.y());
+    auto delta_the_scroller_did_not_scroll_by = delta_to_scroll_by;
+    if (scroll_offset.has_value())
+        delta_the_scroller_did_not_scroll_by.translate_by(-scroll_offset->unadopted_scroll_delta.x(), -scroll_offset->unadopted_scroll_delta.y());
+
+    if (fingers_can_stretch_latched_scroller && !an_ancestor_scrolled)
         pull_elastic_overscroll_by(*latched_node, delta, delta_the_scroller_did_not_scroll_by);
+
+    if (momentum_can_bounce_latched_scroller) {
+        if (elastic_overscroll_of(latched_node->stable_node_id)) {
+            // The fingers lifted from a stretched scroller, which this momentum already springs back with.
+            m_wheel_scroll_latch->momentum_has_sprung_the_scroller_back = true;
+        } else if (!an_ancestor_scrolled && pull_elastic_overscroll_by(*latched_node, delta, delta_the_scroller_did_not_scroll_by)) {
+            // Momentum that carries a scroller into its edge bounces it: the velocity it arrives with takes the
+            // rebound out past the edge before the rebound brings it back.
+            release_elastic_overscrolls_held_by_fingers(now);
+            m_wheel_scroll_latch->momentum_has_sprung_the_scroller_back = true;
+        }
     }
     bool elastic_overscroll_changed = presented_stretch_of_latched_scroller() != stretch_before_step;
 
@@ -874,7 +890,7 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
     auto now = now_for_testing.value_or(MonotonicTime::now());
     // The end of a gesture lets go of the scroller it stretched even if the context has stopped taking wheel events.
     if (scroll_gesture_phase == Web::ScrollGesturePhase::Ended)
-        release_elastic_overscrolls_held_by_fingers(now);
+        end_gesture_that_stretches_elastically(now);
 
     if (!m_can_accept_async_wheel_events)
         return {};
@@ -883,7 +899,7 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
     auto latched_node_id = resolve_wheel_scroll_latch(position, scroll_gesture_phase, modifiers, now);
     // The end of the gesture before this one may never have arrived.
     if (!latched_node_id.has_value())
-        release_elastic_overscrolls_held_by_fingers(now);
+        end_gesture_that_stretches_elastically(now);
 
     // The end of a gesture carries no delta to hit test; it snaps the boxes the gesture panned.
     if (scroll_gesture_phase == Web::ScrollGesturePhase::Ended && delta.is_zero()) {
@@ -1255,7 +1271,7 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
     auto now = now_for_testing.value_or(MonotonicTime::now());
     // The end of a gesture lets go of the scroller it stretched even if the context has stopped taking wheel events.
     if (scroll_gesture_phase == Web::ScrollGesturePhase::Ended)
-        release_elastic_overscrolls_held_by_fingers(now);
+        end_gesture_that_stretches_elastically(now);
 
     // A page without scroll nodes still has a visual viewport to pan once it is zoomed in.
     auto can_pan_zoomed_visual_viewport = m_wheel_routing_admission == Compositing::WheelRoutingAdmission::NoScrollNode
@@ -1267,7 +1283,7 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
     auto latched_node_id = resolve_wheel_scroll_latch(position, scroll_gesture_phase, modifiers, now);
     // The end of the gesture before this one may never have arrived.
     if (!latched_node_id.has_value())
-        release_elastic_overscrolls_held_by_fingers(now);
+        end_gesture_that_stretches_elastically(now);
 
     if (scroll_gesture_phase == Web::ScrollGesturePhase::Ended && delta.is_zero()) {
         if (!snap_at_gesture_end(now).has_value())
@@ -1361,11 +1377,11 @@ Gfx::FloatPoint ContextState::relax_elastic_overscroll_by(Compositing::AsyncScro
     return delta_left_to_scroll_with;
 }
 
-void ContextState::pull_elastic_overscroll_by(Compositing::AsyncScrollNode const& node, Gfx::FloatPoint step_delta, Gfx::FloatPoint delta_the_scroller_did_not_scroll_by)
+bool ContextState::pull_elastic_overscroll_by(Compositing::AsyncScrollNode const& node, Gfx::FloatPoint step_delta, Gfx::FloatPoint delta_the_scroller_did_not_scroll_by)
 {
     auto scroll_offset = m_async_scroll_tree.scroll_offset_for_node(node.node_id, m_scroll_state_snapshot);
     if (!scroll_offset.has_value())
-        return;
+        return false;
 
     // A touchpad step is rarely along one axis exactly. Only its main direction pulls, so that a vertical pan next to
     // a side edge does not creep past that edge.
@@ -1385,7 +1401,7 @@ void ContextState::pull_elastic_overscroll_by(Compositing::AsyncScrollNode const
             overscroll_delta.set_x(delta_x);
     }
     if (overscroll_delta.is_zero())
-        return;
+        return false;
 
     auto* active = elastic_overscroll_of(node.stable_node_id);
     if (!active) {
@@ -1393,14 +1409,20 @@ void ContextState::pull_elastic_overscroll_by(Compositing::AsyncScrollNode const
         active = &m_elastic_overscrolls.last();
     }
     active->overscroll.pull_by(overscroll_delta);
+    return true;
 }
 
 void ContextState::release_elastic_overscrolls_held_by_fingers(MonotonicTime now)
 {
     auto velocity = m_elastic_overscroll_velocity_tracker.velocity_at_lift(now).value_or({});
-    m_elastic_overscroll_velocity_tracker.reset();
     for (auto& active : m_elastic_overscrolls)
         active.overscroll.release(velocity, now);
+}
+
+void ContextState::end_gesture_that_stretches_elastically(MonotonicTime now)
+{
+    release_elastic_overscrolls_held_by_fingers(now);
+    m_elastic_overscroll_velocity_tracker.reset();
 }
 
 void ContextState::forget_elastic_overscrolls()

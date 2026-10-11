@@ -253,6 +253,9 @@ private:
     struct WheelScrollLatch {
         Web::AsyncScrollNodeStableID stable_node_id;
         Compositing::WheelGestureIdentity gesture;
+        // The momentum of the gesture has gone into a rebound of the scroller. Momentum outlasts that rebound, and the
+        // rest of it must not start another one.
+        bool momentum_has_sprung_the_scroller_back { false };
     };
 
     // A scroller that a touchpad gesture holds past an edge of its scroll range, or that is springing back from there.
@@ -305,8 +308,10 @@ private:
     // Uses the part of a finger step that points back to the scroll range to relax the stretch of the scroller, and
     // returns the rest of the step.
     Gfx::FloatPoint relax_elastic_overscroll_by(Compositing::AsyncScrollNode const&, Gfx::FloatPoint step_delta);
-    void pull_elastic_overscroll_by(Compositing::AsyncScrollNode const&, Gfx::FloatPoint step_delta, Gfx::FloatPoint delta_the_scroller_did_not_scroll_by);
+    // Returns whether the scroller is at an edge that the step points past, which is what lets the step pull it.
+    bool pull_elastic_overscroll_by(Compositing::AsyncScrollNode const&, Gfx::FloatPoint step_delta, Gfx::FloatPoint delta_the_scroller_did_not_scroll_by);
     void release_elastic_overscrolls_held_by_fingers(MonotonicTime now);
+    void end_gesture_that_stretches_elastically(MonotonicTime now);
     void forget_elastic_overscrolls();
     // The scroll offsets to present when a scroller is stretched, which are the only ones that leave a scroll range.
     Optional<Compositing::ScrollStateSnapshot> scroll_state_snapshot_stretched_by_elastic_overscrolls() const;
