@@ -142,7 +142,6 @@ public:
         Dark,
     };
     void update_palette(PaletteMode = PaletteMode::Default);
-    void update_palette(WebView::WebContentPage&, PaletteMode = PaletteMode::Default);
     Optional<QPixmap> tab_preview_pixmap(QSize const& maximum_size) const;
 
     WebView::AccessibilityTreeManager const* accessibility_tree_manager() const { return m_accessibility_manager.ptr(); }
@@ -160,6 +159,7 @@ signals:
 private:
     // ^WebView::ViewImplementation
     virtual void prepare_page_for_tab(WebView::WebContentPage&) override;
+    virtual void send_system_theme_to_page(WebView::WebContentPage&) override;
     virtual void update_zoom() override;
     virtual Web::DevicePixelSize viewport_size() const override;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override;

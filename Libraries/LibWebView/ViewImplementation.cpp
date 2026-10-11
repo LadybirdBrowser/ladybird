@@ -1131,6 +1131,7 @@ static void send_force_dark(WebContentPage const& page)
 
 void ViewImplementation::send_preferences_to_page(WebContentPage& page)
 {
+    send_system_theme_to_page(page);
     page.async_set_preferred_color_scheme(m_preferred_color_scheme);
     page.async_set_preferred_contrast(m_preferred_contrast);
     page.async_set_preferred_motion(m_preferred_motion);

@@ -209,11 +209,15 @@ void HeadlessWebView::schedule_forced_close()
         m_forced_close_timer->start();
 }
 
+void HeadlessWebView::send_system_theme_to_page(WebContentPage& page)
+{
+    page.async_update_system_theme(m_theme);
+}
+
 void HeadlessWebView::prepare_page_for_tab(WebContentPage& page)
 {
     ViewImplementation::prepare_page_for_tab(page);
 
-    page.async_update_system_theme(m_theme);
     page.async_set_window_size(viewport_size());
     page.async_update_screen_rects({ { screen_rect } }, 0);
 }
