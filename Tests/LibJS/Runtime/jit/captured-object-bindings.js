@@ -118,3 +118,78 @@ test("local environments and uninitialized captured bindings preserve their beha
     expect(uninitialized()).toEqual({ value: 4 });
     expect(object.value).toBe(1);
 });
+
+// NB: The factories come from new Function, so that each run of a test (see LIBJS_TEST_REPEAT) has new functions
+//     whose closures it counts from zero.
+function readerFactory() {
+    return new Function(
+        "value",
+        "var array = new Int32Array([value]); return { read: () => array[0], replace: value => { array = value; } };"
+    );
+}
+
+function exitKinds(f) {
+    return jit.exitSites(f).map(site => site.split("@")[0]);
+}
+
+test("the only closure of a function speculates on its captured objects once", () => {
+    const closure = readerFactory()(5);
+    compileCaptured(closure.read);
+    expect(closure.read()).toBe(5);
+    closure.replace(new Int32Array([6]));
+    for (let i = 0; i < 20; ++i) expect(closure.read()).toBe(6);
+    if (!jit.enabled || jit.forcesExits) return;
+    expect(exitKinds(closure.read)).toContain("UnexpectedValue");
+    expect(jit.discardCount(closure.read)).toBeLessThanOrEqual(1);
+    expect(jit.compile(closure.read)).toBeTrue();
+    for (let i = 0; i < 20; ++i) expect(closure.read()).toBe(6);
+    expect(jit.exitCount(closure.read)).toBe(0);
+});
+
+test("a captured object that changed is not speculated on at any of its loads", () => {
+    const closure = new Function(
+        "var object = { value: 1 }; return { read: first => (first ? object.value : object.value * 2), replace: value => { object = value; } };"
+    )();
+    compileCaptured(closure.read, f => {
+        f(true);
+        f(false);
+    });
+    closure.replace({ value: 3 });
+    expect(closure.read(true)).toBe(3);
+    if (!jit.enabled || jit.forcesExits) return;
+    expect(exitKinds(closure.read)).toContain("UnexpectedValue");
+    jit.discard(closure.read);
+    expect(jit.compile(closure.read)).toBeTrue();
+    expect(closure.read(false)).toBe(6);
+    expect(jit.exitCount(closure.read)).toBe(0);
+});
+
+test("closures of one function do not speculate on each other's captured objects", () => {
+    const makeReader = readerFactory();
+    const readers = [];
+    for (let i = 0; i < 32; ++i) readers.push(makeReader(i).read);
+    compileCaptured(readers[0], () => readers.forEach(read => read()));
+    let sum = 0;
+    for (let round = 0; round < 20; ++round) for (const read of readers) sum += read();
+    expect(sum).toBe(20 * ((31 * 32) / 2));
+    if (!jit.enabled || jit.forcesExits) return;
+    expect(jit.exitCount(readers[0])).toBe(0);
+    expect(jit.discardCount(readers[0])).toBe(0);
+    expect(exitKinds(readers[0])).not.toContain("UnexpectedValue");
+});
+
+test("closures created after a compile stop the speculation on captured objects", () => {
+    const makeReader = readerFactory();
+    const first = makeReader(0).read;
+    compileCaptured(first);
+    const readers = [first];
+    for (let i = 1; i < 32; ++i) readers.push(makeReader(i).read);
+    let sum = 0;
+    for (let round = 0; round < 20; ++round) for (const read of readers) sum += read();
+    expect(sum).toBe(20 * ((31 * 32) / 2));
+    if (!jit.enabled || jit.forcesExits) return;
+    expect(jit.discardCount(first)).toBeLessThanOrEqual(1);
+    expect(jit.compile(first)).toBeTrue();
+    for (let round = 0; round < 20; ++round) for (const read of readers) sum += read();
+    expect(jit.exitCount(first)).toBe(0);
+});

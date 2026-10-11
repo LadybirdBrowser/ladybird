@@ -308,12 +308,15 @@ stub, cache probes, the allocation contract, the entry and exit stubs.
 
 **Values of bindings.** The snapshot records the object values of global variables, and of the
 captured bindings of functions whose lexical environment is always their closure's
-(`ExecutableSnapshot::captured_bindings`). The builder checks each load of such a binding against
-its value (`CheckValue`, exiting with `UnexpectedValue`) and uses the value as a constant from
-there on, so checks and calls on the object fold. Assignments and other closures sharing the
-executable may change the binding, which the check catches. The object stays alive while the code
-embeds it, and nodes that rely on its state still take the values of their own checks. Where the
-check exited before, loads of the binding stay plain loads.
+(`ExecutableSnapshot::captured_bindings`), while the function has only one closure, so that every
+frame running the code reads the same bindings. The builder checks each load of such a binding
+against its value (`CheckValue`, exiting with `UnexpectedValue`) and uses the value as a constant
+from there on, so checks and calls on the object fold. Assignments and closures created later may
+change the binding, which the check catches. The object stays alive while the code embeds it, and
+nodes that rely on its state still take the values of their own checks. Where the check exited
+before, loads of the binding stay plain loads; for a captured binding, that holds at all of its
+loads. Closures are counted where they are created (`SharedFunctionInstanceData::closure_count()`),
+so compiled code only copies closure templates of functions that have several closures already.
 
 To be written: exit reasons, recompiles, the rule that a failed speculation is never repeated.
 

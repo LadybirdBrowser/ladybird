@@ -248,9 +248,9 @@ pub struct ExecutableJitState {
     /// Whether the executable is refused once its discarded code is detached, because it was refused while frames
     /// still ran that code (see `refuse_jit_compile_once_detached()`).
     refused_once_detached: Cell<bool>,
-    /// The coordinates of the bindings the executable loads from environments, if they may be speculated on (see
+    /// The coordinate and pc of each load of a binding from an environment, if they may be speculated on (see
     /// `jit::snapshot`). The bytecode never changes, so snapshots find them once.
-    pub(crate) captured_binding_coordinates: OnceCell<Box<[EnvironmentCoordinate]>>,
+    pub(crate) captured_binding_loads: OnceCell<Box<[(EnvironmentCoordinate, u32)]>>,
 }
 
 /// After this many exits, JIT code is discarded so that the executable can be recompiled with what the exits taught
