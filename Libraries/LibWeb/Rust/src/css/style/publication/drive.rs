@@ -470,16 +470,15 @@ impl RetainedState {
         if reads_container_units {
             self.container_unit_bases(node).apply_to(&mut length);
         }
-        // No element fact reaches the remaining phase through this environment but the element's
-        // place among its siblings: the moved properties were checked not to need one, and the
-        // required driver inputs are compared against the record below.
+        // NB: Remaining-phase computation uses the current box-type inputs and compares its
+        //     required driver outputs with the retained record below. Font-phase and line-height
+        //     changes still take the full path.
         let sibling_position = self.sibling_position(node);
         let environment = FfiStyleComputationEnvironment {
-            box_type_input: crate::css::style_compute::rust_box_type_transformation_input(
-                0,
+            box_type_input: self.box_type_transformation_input(
+                self.computed_group_sets.adjustment_facts(node),
                 crate::css::style_compute::FfiStyleAdjustmentTarget::Element,
-                false,
-                crate::css::display::FfiDisplay::block(),
+                parent,
             ),
             color_scheme_input: FfiEffectiveColorSchemeInput {
                 preferred_color_scheme: 0,
@@ -505,6 +504,10 @@ impl RetainedState {
         let mut table = view.longhand_table_for_partial_drive();
         let mut results = empty_longhand_driver_results();
         let mut effective_color_scheme = old_table.effective_color_scheme();
+        let input_line_height_metrics = crate::css::style_compute::FfiInputLineHeightMetrics {
+            current_line_height: 0.0,
+            minimum_line_height: 0.0,
+        };
         unsafe {
             drive_property_computation(
                 &mut table,
@@ -515,7 +518,7 @@ impl RetainedState {
                 Some(selected),
                 LONGHAND_DRIVE_PHASE_REMAINING,
                 Some(&length),
-                None,
+                Some(&input_line_height_metrics),
                 &mut results,
                 &mut effective_color_scheme,
                 true,
@@ -538,7 +541,9 @@ impl RetainedState {
         }
         // An input the drive reads for properties it did not select moved with the selection: the
         // caller drives the record in full instead.
-        if table.display_before_box_type_transformation() != old_table.display_before_box_type_transformation() {
+        if results.post_adjusted_longhands & crate::css::style_compute::POST_ADJUSTED_LINE_HEIGHT != 0
+            || table.display_before_box_type_transformation() != old_table.display_before_box_type_transformation()
+        {
             return Ok(PartialDrive::DriverInputMoved);
         }
         let old_values = old_table.value_pointers();

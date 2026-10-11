@@ -1,0 +1,79 @@
+block avoids full drives: true
+block takes partial drive: true
+block display: inline
+block padding: 2px
+block transitioning avoids full drives: true
+block transitioning takes partial drive: true
+block transitioning display: inline
+block transitioning padding: 0px
+block paused sample: rgb(50, 50, 50)
+block transition retained: true
+flex avoids full drives: true
+flex takes partial drive: true
+flex display: block
+flex padding: 2px
+flex transitioning avoids full drives: true
+flex transitioning takes partial drive: true
+flex transitioning display: block
+flex transitioning padding: 0px
+flex paused sample: rgb(50, 50, 50)
+flex transition retained: true
+grid avoids full drives: true
+grid takes partial drive: true
+grid display: block
+grid padding: 2px
+grid transitioning avoids full drives: true
+grid transitioning takes partial drive: true
+grid transitioning display: block
+grid transitioning padding: 0px
+grid paused sample: rgb(50, 50, 50)
+grid transition retained: true
+absolute avoids full drives: true
+absolute takes partial drive: true
+absolute display: block
+absolute padding: 2px
+absolute position retained: absolute
+absolute computed float: none
+fixed avoids full drives: true
+fixed takes partial drive: true
+fixed display: block
+fixed padding: 2px
+fixed position retained: fixed
+fixed computed float: none
+floating avoids full drives: true
+floating takes partial drive: true
+floating display: block
+floating padding: 2px
+float retained: left
+named slot in block avoids full drives: true
+named slot in block takes partial drive: true
+named slot in block display: inline
+named slot in block padding: 2px
+named moved slot blockifies: block
+named slot in flex avoids full drives: true
+named slot in flex takes partial drive: true
+named slot in flex display: block
+named slot in flex padding: 2px
+named moved slot restores inline: inline
+named flex slot avoids full drives: true
+named flex slot takes partial drive: true
+named flex slot display: block
+named flex slot padding: 2px
+named specified float retained in flex: left
+named contents slot restores inline: inline
+manual slot in block avoids full drives: true
+manual slot in block takes partial drive: true
+manual slot in block display: inline
+manual slot in block padding: 2px
+manual moved slot blockifies: block
+manual slot in flex avoids full drives: true
+manual slot in flex takes partial drive: true
+manual slot in flex display: block
+manual slot in flex padding: 2px
+manual moved slot restores inline: inline
+manual flex slot avoids full drives: true
+manual flex slot takes partial drive: true
+manual flex slot display: block
+manual flex slot padding: 2px
+manual specified float retained in flex: left
+manual contents slot restores inline: inline
