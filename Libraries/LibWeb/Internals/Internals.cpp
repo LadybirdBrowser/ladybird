@@ -618,7 +618,7 @@ void Internals::mouse_move_through_ui_process(double x, double y)
     page.client().page_did_request_webdriver_mouse_event(window().navigable()->local_root()->id(), move(event), GC::create_function(heap(), [] { }));
 }
 
-void Internals::wheel_through_ui_process(double x, double y, double delta_x, double delta_y)
+void Internals::wheel_through_ui_process(double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase phase, GC::Ref<WebIDL::Promise> promise)
 {
     auto& page = this->page();
     auto position = page.css_to_device_point(window().navigable()->to_page_position({ x, y }));
@@ -630,7 +630,13 @@ void Internals::wheel_through_ui_process(double x, double y, double delta_x, dou
     event.screen_position = position;
     event.wheel_delta_x = delta_x;
     event.wheel_delta_y = delta_y;
-    page.client().page_did_request_webdriver_mouse_event(local_root_id, move(event), GC::create_function(heap(), [] { }));
+    event.wheel_delta_precision = wheel_delta_precision_from(precise);
+    event.scroll_gesture_phase = scroll_gesture_phase_from(phase);
+    auto& realm = window().principal_realm();
+    page.client().page_did_request_webdriver_mouse_event(local_root_id, move(event), GC::create_function(heap(), [&realm, promise] {
+        HTML::TemporaryExecutionContext execution_context { realm };
+        WebIDL::resolve_promise(realm, promise);
+    }));
 }
 
 void Internals::send_key(HTML::HTMLElement& target, Utf16String const& key_name, WebIDL::UnsignedShort modifiers, WebIDL::UnsignedLong repeat_count)
