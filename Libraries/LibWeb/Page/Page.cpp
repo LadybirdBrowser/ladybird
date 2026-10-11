@@ -269,6 +269,18 @@ Gfx::Palette Page::palette() const
     return m_client->palette();
 }
 
+static CSSPixelRect screen_rect_in_css_pixels_ignoring_zoom(PageClient const& client)
+{
+    auto device_pixel_rect = client.screen_rect();
+    auto scale = client.device_pixel_ratio();
+    return {
+        device_pixel_rect.x().value() / scale,
+        device_pixel_rect.y().value() / scale,
+        device_pixel_rect.width().value() / scale,
+        device_pixel_rect.height().value() / scale
+    };
+}
+
 // https://drafts.csswg.org/cssom-view-1/#web-exposed-screen-area
 CSSPixelRect Page::web_exposed_screen_area() const
 {
@@ -279,15 +291,10 @@ CSSPixelRect Page::web_exposed_screen_area() const
     // 4. Otherwise, return one of the following:
     //    - The area of the output device, in CSS pixels.
     //    - The area of the viewport, in CSS pixels.
-    // NB: This is the area of the output device, but in device pixels.
-    // See: https://github.com/LadybirdBrowser/ladybird/pull/4084
-    auto device_pixel_rect = m_client->screen_rect();
-    return {
-        device_pixel_rect.x().value(),
-        device_pixel_rect.y().value(),
-        device_pixel_rect.width().value(),
-        device_pixel_rect.height().value()
-    };
+    // NB: This is the area of the output device in CSS pixels at a zoom level of 1. Like Chrome and Safari, we leave the
+    //     page zoom out of it, so zooming in doesn't make sites switch to their tablet or phone layouts.
+    //     See: https://github.com/LadybirdBrowser/ladybird/pull/4084
+    return screen_rect_in_css_pixels_ignoring_zoom(*m_client);
 }
 
 // https://drafts.csswg.org/cssom-view-1/#web-exposed-available-screen-area
@@ -301,14 +308,8 @@ CSSPixelRect Page::web_exposed_available_screen_area() const
     //    - The available area of the rendering surface of the output device, in CSS pixels.
     //    - The area of the output device, in CSS pixels.
     //    - The area of the viewport, in CSS pixels.
-    // NB: This is the area of the output device, but in device pixels. See note in web_exposed_screen_area()
-    auto device_pixel_rect = m_client->screen_rect();
-    return {
-        device_pixel_rect.x().value(),
-        device_pixel_rect.y().value(),
-        device_pixel_rect.width().value(),
-        device_pixel_rect.height().value()
-    };
+    // NB: This is the area of the output device. See note in web_exposed_screen_area().
+    return screen_rect_in_css_pixels_ignoring_zoom(*m_client);
 }
 
 CSS::PreferredColorScheme Page::preferred_color_scheme() const

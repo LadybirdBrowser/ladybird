@@ -1687,7 +1687,7 @@ void WebContentView::update_screen_rects(WebView::WebContentPage& page)
             //       by the device pixel ratio to get the 'physical pixels' of the display.
             auto geometry = screen->geometry();
             auto device_pixel_ratio = screen->devicePixelRatio();
-            screen_rects.append(Web::DevicePixelRect(geometry.x(), geometry.y(), geometry.width() * device_pixel_ratio, geometry.height() * device_pixel_ratio));
+            screen_rects.append(Web::DevicePixelRect(geometry.x() * device_pixel_ratio, geometry.y() * device_pixel_ratio, geometry.width() * device_pixel_ratio, geometry.height() * device_pixel_ratio));
         }
 
         // NOTE: The first item in QGuiApplication::screens is always the primary screen.
