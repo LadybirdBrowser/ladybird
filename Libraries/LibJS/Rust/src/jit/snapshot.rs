@@ -166,7 +166,7 @@ fn intrinsic_of(vm: &Vm, cell: Option<Gc<CellHeader>>) -> Option<Intrinsic> {
 }
 
 /// The intrinsics the compiler knows by their native functions (of any realm).
-static NATIVE_INTRINSICS: [(&RawNativeFunctionPointer, Intrinsic); 11] = [
+static NATIVE_INTRINSICS: [(&RawNativeFunctionPointer, Intrinsic); 20] = [
     (&function_prototype::APPLY_FUNCTION, Intrinsic::FunctionPrototypeApply),
     (&function_prototype::CALL_FUNCTION, Intrinsic::FunctionPrototypeCall),
     (&array_prototype::PUSH_FUNCTION, Intrinsic::ArrayPrototypePush),
@@ -190,6 +190,30 @@ static NATIVE_INTRINSICS: [(&RawNativeFunctionPointer, Intrinsic); 11] = [
         &string_prototype::TO_UPPERCASE_FUNCTION,
         Intrinsic::StringPrototypeToUpperCase,
     ),
+    (
+        &string_prototype::LAST_INDEX_OF_FUNCTION,
+        Intrinsic::StringPrototypeLastIndexOf,
+    ),
+    (&string_prototype::INCLUDES_FUNCTION, Intrinsic::StringPrototypeIncludes),
+    (
+        &string_prototype::STARTS_WITH_FUNCTION,
+        Intrinsic::StringPrototypeStartsWith,
+    ),
+    (
+        &string_prototype::ENDS_WITH_FUNCTION,
+        Intrinsic::StringPrototypeEndsWith,
+    ),
+    (&string_prototype::SLICE_FUNCTION, Intrinsic::StringPrototypeSlice),
+    (
+        &string_prototype::SUBSTRING_FUNCTION,
+        Intrinsic::StringPrototypeSubstring,
+    ),
+    (&string_prototype::TRIM_FUNCTION, Intrinsic::StringPrototypeTrim),
+    (
+        &string_prototype::TRIM_START_FUNCTION,
+        Intrinsic::StringPrototypeTrimStart,
+    ),
+    (&string_prototype::TRIM_END_FUNCTION, Intrinsic::StringPrototypeTrimEnd),
 ];
 
 /// The builtin `%ArrayIteratorPrototype%.next` of the realm, if `%ArrayIteratorPrototype%` holds it.
