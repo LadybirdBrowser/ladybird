@@ -34,6 +34,9 @@ pub enum StringCharacter {
     String,
 }
 
+/// How many values `try_build_array_push()` appends inline at most.
+const MAX_INLINE_PUSHED_VALUES: usize = 8;
+
 impl GraphBuilder<'_> {
     /// Builds `Math.<op>(argument)`, a `CallBuiltinMath*` instruction, for
     /// numbers, if `callee` is the builtin of any realm. The instruction's
@@ -246,12 +249,14 @@ impl GraphBuilder<'_> {
         self.emit(Op::SingleCharacterString, vec![code_unit], Some(Repr::Tagged))
     }
 
-    /// Builds `array.push(value)`, a `Call` whose callee is known to be
+    /// Builds `array.push(...values)`, a `Call` of up to
+    /// `MAX_INLINE_PUSHED_VALUES` values whose callee is known to be
     /// `Array.prototype.push`, for arrays it appends to without any
-    /// observable step, and exits for anything else: the value becomes the
-    /// next element where the elements have room for it, and a cold block
-    /// calls the runtime to grow them otherwise. Returns `None`, having
-    /// built nothing, if it is not such a call.
+    /// observable step, and exits for anything else: the values become the
+    /// next elements where the elements have room for all of them, and a
+    /// cold block calls the runtime to append them one by one, growing the
+    /// elements, otherwise. Returns `None`, having built nothing, if it is
+    /// not such a call.
     pub(super) fn try_build_array_push(&mut self, instruction: &Instruction) -> Result<Option<Flow>, CompileFailure> {
         let Instruction::Call {
             dst,
@@ -263,12 +268,11 @@ impl GraphBuilder<'_> {
         else {
             return Ok(None);
         };
-        let [value] = arguments.as_slice() else {
-            return Ok(None);
-        };
-        if !self.may_speculate(ExitKind::SlowPath)
+        if arguments.is_empty()
+            || arguments.len() > MAX_INLINE_PUSHED_VALUES
+            || !self.may_speculate(ExitKind::SlowPath)
             || self.holds_virtual_arguments(*this_value)
-            || self.holds_virtual_arguments(*value)
+            || arguments.iter().any(|value| self.holds_virtual_arguments(*value))
         {
             return Ok(None);
         }
@@ -276,27 +280,46 @@ impl GraphBuilder<'_> {
             return Ok(None);
         }
         let receiver = self.read(*this_value)?;
-        let value = self.read(*value)?;
+        let values = arguments
+            .iter()
+            .map(|value| self.read(*value))
+            .collect::<Result<Vec<_>, _>>()?;
         self.embed(self.runtime.array_prototype);
         self.embed(self.runtime.object_prototype);
         let receiver = self.emit_checked(Op::CheckAppendableArray, vec![receiver], Some(Repr::Tagged));
         let array = self.cell_address(receiver);
         let length = self.emit(Op::LoadElementsLength, vec![array], Some(Repr::Int32));
         let capacity = self.emit(Op::LoadElementsCapacity, vec![array], Some(Repr::Int32));
-        let (hot, cold) = self.branch_with_cold_side(
-            BranchCondition::Int32(Comparison::LessThan),
-            vec![length, capacity],
-            true,
-        );
+        // NB: One value fits where the length is below the capacity; more
+        //     need that much room between them.
+        let (room_condition, room_inputs) = if values.len() == 1 {
+            (BranchCondition::Int32(Comparison::LessThan), vec![length, capacity])
+        } else {
+            let room = self.emit_checked(
+                Op::Int32Binary { op: BinaryOp::Sub },
+                vec![capacity, length],
+                Some(Repr::Int32),
+            );
+            let count = self.int32_constant(values.len() as i32);
+            (BranchCondition::Int32(Comparison::GreaterThanEquals), vec![room, count])
+        };
+        let (hot, cold) = self.branch_with_cold_side(room_condition, room_inputs.clone(), true);
         self.block = cold;
-        let pushed = self.emit(Op::CallArrayPush, vec![receiver, value], Some(Repr::Tagged));
+        let mut pushed = None;
+        for value in &values {
+            pushed = Some(self.emit(Op::CallArrayPush, vec![receiver, *value], Some(Repr::Tagged)));
+        }
+        let pushed = pushed.expect("there are values to push");
+        let cold = self.block;
         self.block = hot;
-        let length = self.refine(
-            BranchCondition::Int32(Comparison::LessThan),
-            true,
-            vec![length, capacity],
-        );
-        let new_length = self.emit(Op::AppendElement, vec![array, length, value], Some(Repr::Int32));
+        let mut new_length = if values.len() == 1 {
+            self.refine(room_condition, true, room_inputs)
+        } else {
+            length
+        };
+        for value in values {
+            new_length = self.emit(Op::AppendElement, vec![array, new_length, value], Some(Repr::Int32));
+        }
         let new_length = self.emit(Op::BoxInt32, vec![new_length], Some(Repr::Tagged));
         let hot = self.block;
         self.join_blocks(vec![hot, cold]);

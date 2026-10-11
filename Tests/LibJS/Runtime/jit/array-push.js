@@ -85,4 +85,18 @@ describe("Array.prototype.push in JIT code", () => {
         expect(push(array, 1)).toBe("own push 1");
         expect(array.length).toBe(0);
     });
+
+    test("several values at once", () => {
+        const pushThree = (array, a, b, c) => array.push(a, b, c);
+        for (let i = 0; i < iterations; ++i) {
+            const array = [];
+            for (let j = 0; j < i; ++j) expect(pushThree(array, j, -j, "x")).toBe(3 * j + 3);
+            expect(array.length).toBe(3 * i);
+            for (let j = 0; j < i; ++j) expect(array.slice(3 * j, 3 * j + 3)).toEqual([j, -j, "x"]);
+        }
+        expect(() => pushThree(Object.freeze([1]), 1, 2, 3)).toThrow(TypeError);
+        const holey = [1, , 3];
+        expect(pushThree(holey, 4, 5, 6)).toBe(6);
+        expect(holey).toEqual([1, undefined, 3, 4, 5, 6]);
+    });
 });
