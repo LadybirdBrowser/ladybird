@@ -14,21 +14,22 @@ block0:
   [  48] InitObjectLiteralProperty object:reg6, `i`, src:Int32(0), shape_cache_index:0, property_slot:0
   [  60] CacheObjectShape object:reg6
   [  70] SetLexicalEnvironment environment:reg4
-  [  78] JumpNullish condition:reg6, true_target:block3, false_target:block4
+  [  78] MovSrcUndefined dst:reg9
+  [  80] JumpNullish condition:reg6, true_target:block3, false_target:block4
 
 block1:
-  [  88] End value:reg9
+  [  90] End value:reg9
 
 block2:
-  [  90] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg11, receiver:reg5, keys:reg7, cursor:reg8
-  [  a8] JumpIfLoop condition:reg11, true_target:block1, false_target:block5
+  [  98] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg11, receiver:reg5, keys:reg7, cursor:reg8
+  [  b0] JumpIfLoop condition:reg11, true_target:block1, false_target:block5
 
 block3:
-  [  b8] End value:reg9
+  [  c0] End value:reg9
 
 block4:
-  [  c0] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg5, object:reg6
-  [  d8] Mov2 c0_dst:reg8, c0_src:Int32(0), c1_dst:reg9, c1_src:Undefined
+  [  c8] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg5, object:reg6
+  [  e0] Mov dst:reg8, src:Int32(0)
   [  f0] JumpLoop target:block2
 
 block5:
