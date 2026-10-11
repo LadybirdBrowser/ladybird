@@ -15,7 +15,6 @@ use crate::gc::class::{GcCell, define_cell};
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
-use crate::layout::function_object::RawNativeFunction;
 use crate::layout::object::{IndexedStorageKind, Object};
 use crate::layout::value::Value;
 use crate::layout_forward::RawNativeFunctionPointer;
@@ -121,20 +120,10 @@ fn clamp(value: f64, min: f64, max: f64) -> f64 {
 }
 
 /// The native functions of Array.prototype.push and slice, which JIT code knows.
-static PUSH_FUNCTION: RawNativeFunctionPointer = raw_native!(ArrayPrototype::push);
-static SLICE_FUNCTION: RawNativeFunctionPointer = raw_native!(ArrayPrototype::slice);
+pub(crate) static PUSH_FUNCTION: RawNativeFunctionPointer = raw_native!(ArrayPrototype::push);
+pub(crate) static SLICE_FUNCTION: RawNativeFunctionPointer = raw_native!(ArrayPrototype::slice);
 
 impl ArrayPrototype {
-    /// Whether the function is Array.prototype.push (of any realm).
-    pub fn is_push_function(vm: &Vm, function: &RawNativeFunction) -> bool {
-        function.native_function(vm).map(|pointer| pointer as usize) == PUSH_FUNCTION.map(|pointer| pointer as usize)
-    }
-
-    /// Whether the function is Array.prototype.slice (of any realm).
-    pub fn is_slice_function(vm: &Vm, function: &RawNativeFunction) -> bool {
-        function.native_function(vm).map(|pointer| pointer as usize) == SLICE_FUNCTION.map(|pointer| pointer as usize)
-    }
-
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<ArrayPrototype> {
         realm.create_object(
             vm,

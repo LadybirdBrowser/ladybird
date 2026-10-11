@@ -12,7 +12,6 @@ use crate::gc::class::{GcCell, define_cell};
 use crate::gc::class_id::ClassId;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
-use crate::layout::function_object::RawNativeFunction;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::layout_forward::RawNativeFunctionPointer;
@@ -120,15 +119,9 @@ pub fn builtin_tag(object: &Object, is_array: bool) -> &'static str {
 }
 
 /// The native function of Object.prototype.hasOwnProperty, which JIT code knows.
-static HAS_OWN_PROPERTY_FUNCTION: RawNativeFunctionPointer = raw_native!(ObjectPrototype::has_own_property);
+pub(crate) static HAS_OWN_PROPERTY_FUNCTION: RawNativeFunctionPointer = raw_native!(ObjectPrototype::has_own_property);
 
 impl ObjectPrototype {
-    /// Whether the function is Object.prototype.hasOwnProperty (of any realm).
-    pub fn is_has_own_property_function(vm: &Vm, function: &RawNativeFunction) -> bool {
-        function.native_function(vm).map(|pointer| pointer as usize)
-            == HAS_OWN_PROPERTY_FUNCTION.map(|pointer| pointer as usize)
-    }
-
     pub fn new(vm: &Vm, realm: Gc<Realm>) -> ObjectPrototype {
         ObjectPrototype {
             base: Object::new_without_prototype(vm, Self::CLASS, realm, MayInterfereWithIndexedPropertyAccess::No),
