@@ -775,3 +775,34 @@ fn hoisted_checks_gate_exits_by_the_loop_headers_executable() {
         assert_eq!(recovery.parent, Some(parent));
     }
 }
+
+#[test]
+fn control_flow_cleanup_preserves_duplicate_edges_and_phi_input_order() {
+    let mut graph = Graph::default();
+    graph.add_block(Block::default());
+    graph.add_block(Block {
+        predecessors: vec![BlockId(0); 3],
+        ..Block::default()
+    });
+    let values = (0..3)
+        .map(|bits| node(&mut graph, Op::Constant(bits), vec![], Some(Repr::Bool)))
+        .collect::<Vec<_>>();
+    let branch = node(
+        &mut graph,
+        Op::Branch {
+            condition: BranchCondition::Bool,
+            if_true: BlockId(1),
+            if_false: BlockId(1),
+        },
+        vec![values[0]],
+        None,
+    );
+    graph.blocks[0].control = Some(branch);
+    let phi = node(&mut graph, Op::Phi, values.clone(), Some(Repr::Bool));
+    graph.blocks[1].phis.push(phi);
+    let returned = node(&mut graph, Op::Return, vec![phi], None);
+    graph.blocks[1].control = Some(returned);
+    super::edit::clean_up_control_flow(&mut graph);
+    assert_eq!(graph.blocks[1].predecessors, [BlockId(0), BlockId(0)]);
+    assert_eq!(graph.node(phi).inputs, values[..2]);
+}

@@ -10,6 +10,7 @@
 use crate::bitset::BitSet;
 use crate::code::Repr;
 use crate::fast_hash::HashMap;
+use crate::inline_vec::InlineVec;
 use crate::ir::BlockId;
 use crate::ir::FrameState;
 use crate::ir::FrameStateId;
@@ -17,16 +18,19 @@ use crate::ir::Graph;
 use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
+use crate::ir::Successors;
 
 /// Values to replace by other values, as a pass decides them.
 pub struct Replacements {
     map: Vec<Option<NodeId>>,
+    initial_node_count: usize,
 }
 
 impl Replacements {
     pub fn new(graph: &Graph) -> Self {
         Self {
-            map: vec![None; graph.nodes.len()],
+            map: Vec::new(),
+            initial_node_count: graph.nodes.len(),
         }
     }
 
@@ -34,7 +38,7 @@ impl Replacements {
     pub fn replace(&mut self, value: NodeId, replacement: NodeId) {
         debug_assert_ne!(value, replacement);
         if value.index() >= self.map.len() {
-            self.map.resize(value.index() + 1, None);
+            self.map.resize((value.index() + 1).max(self.initial_node_count), None);
         }
         self.map[value.index()] = Some(replacement);
     }
@@ -48,7 +52,7 @@ impl Replacements {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.map.iter().all(Option::is_none)
+        self.map.is_empty()
     }
 
     /// Rewrites every input and frame state value of the graph.
@@ -182,52 +186,52 @@ pub fn clean_up_control_flow(graph: &mut Graph) {
 
     // Keep the predecessor entries (and their phi inputs) of reachable
     // blocks that still branch here, as many times as they do.
+    let mut remaining_edges = (0..block_count)
+        .map(|block| graph.successors(BlockId::from_index(block)))
+        .collect::<Vec<_>>();
     for block in 0..block_count {
         if !reachable[block] {
             continue;
         }
-        let predecessors = graph.blocks[block].predecessors.clone();
-        let mut remaining_edges: HashMap<BlockId, usize> = HashMap::default();
-        for predecessor in &predecessors {
-            if reachable[predecessor.index()] {
-                let edges = graph
-                    .successors(*predecessor)
-                    .iter()
-                    .filter(|successor| successor.index() == block)
-                    .count();
-                remaining_edges.insert(*predecessor, edges);
-            }
-        }
+        let predecessors = &graph.blocks[block].predecessors;
         let keep = predecessors
             .iter()
-            .map(|predecessor| match remaining_edges.get_mut(predecessor) {
-                Some(count) if *count > 0 => {
-                    *count -= 1;
-                    true
+            .map(|predecessor| {
+                if !reachable[predecessor.index()] {
+                    return false;
                 }
-                _ => false,
+                let successors = &mut remaining_edges[predecessor.index()];
+                let Some(index) = successors.iter().position(|successor| successor.index() == block) else {
+                    return false;
+                };
+                match successors {
+                    Successors::Inline { blocks, count } => {
+                        *count -= 1;
+                        blocks[index] = blocks[usize::from(*count)];
+                    }
+                    Successors::Cases(blocks) => {
+                        blocks.swap_remove(index);
+                    }
+                }
+                true
             })
-            .collect::<Vec<_>>();
+            .collect::<InlineVec<bool, 4>>();
         if keep.iter().all(|keep| *keep) {
             continue;
         }
-        let filter = |values: &[NodeId]| {
-            values
-                .iter()
-                .zip(&keep)
-                .filter(|(_, keep)| **keep)
-                .map(|(value, _)| *value)
-                .collect::<Vec<_>>()
-        };
-        graph.blocks[block].predecessors = predecessors
-            .iter()
-            .zip(&keep)
-            .filter(|(_, keep)| **keep)
-            .map(|(predecessor, _)| *predecessor)
-            .collect();
+        let mut index = 0;
+        graph.blocks[block].predecessors.retain(|_| {
+            let retained = keep[index];
+            index += 1;
+            retained
+        });
         for phi in &graph.blocks[block].phis {
-            let inputs = filter(&graph.nodes[phi.index()].inputs);
-            graph.nodes[phi.index()].inputs = inputs;
+            let mut index = 0;
+            graph.nodes[phi.index()].inputs.retain(|_| {
+                let retained = keep[index];
+                index += 1;
+                retained
+            });
         }
     }
 
@@ -419,5 +423,31 @@ pub fn remove_unused_frame_states(graph: &mut Graph) {
             let node = &mut graph.nodes[node.index()];
             node.frame_state = node.frame_state.map(remap);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn replacements_allocate_lazily_and_follow_updated_chains() {
+        let mut graph = Graph::default();
+        for _ in 0..4 {
+            graph.add_node(Node::new(Op::Constant(0), vec![], Some(Repr::Tagged), 0));
+        }
+        let mut replacements = Replacements::new(&graph);
+        assert_eq!(replacements.map.capacity(), 0);
+        assert!(replacements.is_empty());
+        assert_eq!(replacements.resolve(NodeId(0)), NodeId(0));
+        replacements.replace(NodeId(0), NodeId(1));
+        replacements.replace(NodeId(1), NodeId(2));
+        assert_eq!(replacements.resolve(NodeId(0)), NodeId(2));
+        replacements.replace(NodeId(1), NodeId(3));
+        assert_eq!(replacements.resolve(NodeId(0)), NodeId(3));
+        let added = graph.add_node(Node::new(Op::Constant(0), vec![], Some(Repr::Tagged), 0));
+        replacements.replace(added, NodeId(0));
+        assert_eq!(replacements.resolve(added), NodeId(3));
+        assert!(!replacements.is_empty());
     }
 }

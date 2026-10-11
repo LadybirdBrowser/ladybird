@@ -147,6 +147,26 @@ pub fn run(graph: &mut Graph) {
         while index < graph.block(block).body.len() {
             let node = graph.block(block).body[index];
             index += 1;
+            if !matches!(
+                graph.node(node).op,
+                Op::CheckNumber
+                    | Op::UnboxDouble
+                    | Op::UnboxInt32
+                    | Op::EmptyToUndefined
+                    | Op::CheckNonNegativeInt32
+                    | Op::CheckBounds
+                    | Op::Int32ToFloat64
+                    | Op::Float64ToInt32
+                    | Op::BoxInt32
+                    | Op::BoxBool
+                    | Op::CheckInt32
+                    | Op::Int32Binary { .. }
+                    | Op::Int32Min
+                    | Op::Int32Max
+                    | Op::Int32Compare { .. }
+            ) {
+                continue;
+            }
             let inputs = graph
                 .node(node)
                 .inputs

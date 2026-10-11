@@ -52,6 +52,17 @@ pub fn run(graph: &mut Graph) {
 }
 
 fn run_with_hash(graph: &mut Graph, hash: impl Fn(&Node, &Replacements) -> u64) {
+    if graph
+        .blocks
+        .iter()
+        .flat_map(|block| &block.body)
+        .filter(|node| is_numbered(&graph.node(**node).op))
+        .take(2)
+        .count()
+        < 2
+    {
+        return;
+    }
     let dominators = Dominators::compute(graph);
     let children = dominators.children();
     let mut replacements = Replacements::new(graph);
