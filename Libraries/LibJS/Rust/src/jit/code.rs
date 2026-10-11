@@ -245,6 +245,9 @@ pub struct ExecutableJitState {
     builtin_exit_sites: RefCell<Vec<(u64, u32, ExitKind)>>,
     /// How often the executable's code was discarded.
     discard_count: Cell<u32>,
+    /// Whether the executable is refused once its discarded code is detached, because it was refused while frames
+    /// still ran that code (see `refuse_jit_compile_once_detached()`).
+    refused_once_detached: Cell<bool>,
     /// The coordinates of the bindings the executable loads from environments, if they may be speculated on (see
     /// `jit::snapshot`). The bytecode never changes, so snapshots find them once.
     pub(crate) captured_binding_coordinates: OnceCell<Box<[EnvironmentCoordinate]>>,
@@ -408,6 +411,13 @@ impl Executable {
         true
     }
 
+    /// Makes the executable's frames run in the interpreter for good, like `tier_up::refuse_jit_compile()`, once its
+    /// discarded code, which frames still run, is detached.
+    pub fn refuse_jit_compile_once_detached(&self) {
+        assert_eq!(self.jit_compile_state(), CompileState::Discarding);
+        self.jit_state().refused_once_detached.set(true);
+    }
+
     /// Drops the executable's discarded code, which no frame runs anymore.
     fn detach_jit_code(&self, vm: &Vm) {
         let state = self.jit_state();
@@ -422,7 +432,7 @@ impl Executable {
                 super::describe_executable(self)
             );
         }
-        if discard_count >= MAX_DISCARD_COUNT {
+        if discard_count >= MAX_DISCARD_COUNT || state.refused_once_detached.get() {
             super::tier_up::refuse_jit_compile(vm, self);
             return;
         }
