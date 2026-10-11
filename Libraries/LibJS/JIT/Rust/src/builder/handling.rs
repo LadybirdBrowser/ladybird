@@ -290,7 +290,6 @@ pub fn handling(opcode: OpCode) -> Handling {
         // Iteration over arrays.
         O::GetIterator | O::IteratorNextUnpack => EXPANDED,
 
-
         // Conversions that change nothing for objects, and for lengths that
         // are int32 values already.
         O::ToObject | O::ToLength => EXPANDED,
