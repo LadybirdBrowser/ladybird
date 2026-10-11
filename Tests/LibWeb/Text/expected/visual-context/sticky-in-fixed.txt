@@ -1,0 +1,25 @@
+initial sticky: 50, 40
+initial dynamic-sticky: 50, 40
+initial nested: 50, 40
+initial scrolling-sticky: 80, 60
+initial transformed-sticky: 330, 320
+fixed sticky: 50, 40
+fixed dynamic-sticky: 50, 40
+fixed nested: 50, 40
+fixed scrolling-sticky: 80, 60
+fixed transformed-sticky: 330, 320
+document scroll sticky: 50, 40
+document scroll dynamic-sticky: 50, 40
+document scroll nested: 50, 40
+document scroll scrolling-sticky: 80, 60
+document scroll transformed-sticky: 230, 220
+inner scroll sticky: 50, 40
+inner scroll dynamic-sticky: 50, 40
+inner scroll nested: 50, 40
+inner scroll scrolling-sticky: 80, 60
+inner scroll transformed-sticky: 230, 220
+repeated document scroll sticky: 50, 40
+repeated document scroll dynamic-sticky: 50, 40
+repeated document scroll nested: 50, 40
+repeated document scroll scrolling-sticky: 80, 60
+repeated document scroll transformed-sticky: 130, 120

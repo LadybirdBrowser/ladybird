@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; width: 3000px; height: 3000px; }
+    .fixed { position: fixed; top: 20px; left: 30px; width: 200px; height: 200px; }
+    .sticky { position: sticky; top: 40px; left: 50px; width: 50px; height: 50px; }
+    #dynamic { position: sticky; top: 0; width: 200px; height: 200px; }
+    #scroller { overflow: auto; }
+    .transformed { position: absolute; top: 300px; left: 300px; transform: translate(0); width: 200px; height: 300px; }
+    .filler { width: 500px; height: 500px; }
+</style>
+<div class="fixed"><div id="sticky" class="sticky"></div></div>
+<div id="dynamic"><div id="dynamic-sticky" class="sticky"></div></div>
+<div class="fixed"><div class="sticky" style="width: 150px; height: 150px"><div id="nested" class="sticky"></div></div></div>
+<div class="fixed" id="scroller"><div id="scrolling-sticky" class="sticky"></div><div class="filler"></div></div>
+<div class="transformed"><div class="fixed"><div id="transformed-sticky" class="sticky"></div></div></div>
+<script>
+    test(() => {
+        function report(label) {
+            for (const id of ["sticky", "dynamic-sticky", "nested", "scrolling-sticky", "transformed-sticky"]) {
+                const rect = document.getElementById(id).getBoundingClientRect();
+                println(`${label} ${id}: ${rect.x}, ${rect.y}`);
+            }
+        }
+        report("initial");
+        const dynamic = document.getElementById("dynamic");
+        dynamic.style.position = "fixed";
+        dynamic.style.top = "20px";
+        dynamic.style.left = "30px";
+        report("fixed");
+        window.scrollTo(100, 100);
+        report("document scroll");
+        const scroller = document.getElementById("scroller");
+        scroller.scrollTo(100, 100);
+        report("inner scroll");
+        window.scrollTo(200, 200);
+        report("repeated document scroll");
+    });
+</script>

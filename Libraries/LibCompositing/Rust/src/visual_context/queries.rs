@@ -602,21 +602,25 @@ impl VisualContextTree {
                 continue;
             }
 
-            // The dependency order lists a sticky node after its scroller and its parent sticky, so
-            // their entries are already resolved in this pass.
+            // NB: A fixed-position ancestor can disconnect the sticky box's spatial chain from its
+            //     scrollport. Only offsets on the spatial chain move the box, even though the scrollport
+            //     is still used for its size and insets.
             let mut parent_sticky_offset = FloatPoint::default();
-            let mut ancestor = sticky.parent_sticky;
-            while let Some(ancestor_index) = ancestor {
-                let entry = device_offset_for_index(offsets, ancestor_index);
-                parent_sticky_offset = FloatPoint {
-                    x: parent_sticky_offset.x + entry.x,
-                    y: parent_sticky_offset.y + entry.y,
-                };
-                ancestor = match &self.spatial_nodes[ancestor_index.0 as usize].data {
-                    SpatialData::Sticky(ancestor_sticky) => ancestor_sticky.parent_sticky,
-                    _ => panic!("a parent sticky reference names a sticky node"),
-                };
+            let mut ancestor = node.parent;
+            while ancestor != sticky.scroller && ancestor != VISUAL_VIEWPORT_NODE_INDEX {
+                let ancestor_node = &self.spatial_nodes[ancestor.0 as usize];
+                if matches!(ancestor_node.data, SpatialData::Sticky(_)) {
+                    let entry = device_offset_for_index(offsets, ancestor);
+                    parent_sticky_offset.x += entry.x;
+                    parent_sticky_offset.y += entry.y;
+                }
+                ancestor = ancestor_node.parent;
             }
+            let scroller_entry = if ancestor == sticky.scroller {
+                device_offset_for_index(offsets, sticky.scroller)
+            } else {
+                FloatPoint::default()
+            };
 
             let position_in_scroller = FloatPoint {
                 x: sticky.position_relative_to_scroller.x + parent_sticky_offset.x,
@@ -634,7 +638,6 @@ impl VisualContextTree {
             };
 
             // A scroll container's entry is its negated scroll offset.
-            let scroller_entry = device_offset_for_index(offsets, sticky.scroller);
             let scrollport_rect = FloatRect::new(
                 -scroller_entry.x,
                 -scroller_entry.y,
@@ -1504,6 +1507,35 @@ mod tests {
             owner_paintable: NodeSlotId::INVALID,
             registry_parent_node: parent_sticky.unwrap_or(scroller),
         })
+    }
+
+    #[test]
+    fn sticky_offsets_ignore_scrollers_outside_the_spatial_chain() {
+        let mut tree = identity_tree();
+        let viewport_scroll = tree.append_spatial(scroll(), VISUAL_VIEWPORT_NODE_INDEX);
+        let outer_sticky = tree.append_spatial(sticky(viewport_scroll, None, 0.0), viewport_scroll);
+        // A viewport-fixed subtree bypasses both the viewport scroller and the outer sticky box.
+        let mut fixed_sticky_data = sticky(viewport_scroll, Some(outer_sticky), 0.0);
+        if let SpatialData::Sticky(data) = &mut fixed_sticky_data {
+            data.inset_top = Some(20.0);
+        }
+        let fixed_sticky = tree.append_spatial(fixed_sticky_data, VISUAL_VIEWPORT_NODE_INDEX);
+        let nested_sticky = tree.append_spatial(sticky(viewport_scroll, Some(fixed_sticky), 0.0), fixed_sticky);
+        let inner_scroll = tree.append_spatial(scroll(), VISUAL_VIEWPORT_NODE_INDEX);
+        let scrolling_sticky = tree.append_spatial(sticky(inner_scroll, None, 0.0), inner_scroll);
+        let mut offsets = vec![FloatPoint::default(); tree.spatial_nodes.len()];
+        offsets[viewport_scroll.0 as usize] = point(0.0, -100.0);
+        offsets[inner_scroll.0 as usize] = point(0.0, -30.0);
+
+        assert_eq!(
+            tree.resolve_sticky_offsets(&offsets),
+            vec![
+                (outer_sticky, point(0.0, 100.0)),
+                (fixed_sticky, point(0.0, 20.0)),
+                (nested_sticky, FloatPoint::default()),
+                (scrolling_sticky, point(0.0, 30.0)),
+            ]
+        );
     }
 
     fn remap_spatial_data(data: &SpatialData, map: &dyn Fn(SpatialNodeIndex) -> SpatialNodeIndex) -> SpatialData {
