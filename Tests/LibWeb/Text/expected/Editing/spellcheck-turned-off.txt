@@ -1,0 +1,12 @@
+spell before: 0-4
+readonly before: 0-4
+disabled before: 0-4
+type before: 0-4
+editable before: 0-4
+later before: (none)
+spell after: (none)
+readonly after: (none)
+disabled after: (none)
+type after: (none)
+editable after: (none)
+later after: (none)

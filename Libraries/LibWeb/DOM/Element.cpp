@@ -77,6 +77,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/EditingHistory.h>
+#include <LibWeb/Editing/SpellCheckController.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -1335,6 +1336,12 @@ void Element::run_attribute_change_steps(Utf16FlyString const& local_name, Optio
     // tests has to be heard about however it was written.
     if (old_value != value)
         CSS::record_element_attribute_changed(*this, local_name, namespace_, old_value, value);
+
+    if (old_value != value
+        && local_name.is_one_of(HTML::AttributeNames::spellcheck, HTML::AttributeNames::readonly, HTML::AttributeNames::disabled, HTML::AttributeNames::type, HTML::AttributeNames::contenteditable)) {
+        if (auto* controller = document().spell_check_controller_if_exists())
+            controller->did_change_checking_state(*this);
+    }
 
     if (old_value != value) {
         // An SVG element's parsed attributes are layout input, published under its style node. Published here,
