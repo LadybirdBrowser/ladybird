@@ -114,7 +114,7 @@ impl GraphBuilder<'_> {
                     Some(Repr::Tagged),
                 );
                 match value {
-                    Some(value) => self.speculate_global_value(loaded, value),
+                    Some(value) => self.speculate_binding_value(loaded, value),
                     None => loaded,
                 }
             }
@@ -149,7 +149,7 @@ impl GraphBuilder<'_> {
                 };
                 let object = self.check_shapes(object, &[shape]);
                 let loaded = self.load_named(object, offset);
-                self.speculate_global_value(loaded, value)
+                self.speculate_binding_value(loaded, value)
             }
         };
         self.write(dst, value)?;
@@ -307,10 +307,10 @@ impl GraphBuilder<'_> {
         self.constant(value.bits)
     }
 
-    /// `loaded`, the value of a global variable, as the constant `value` it
+    /// `loaded`, the value of a binding, as the constant `value` it
     /// held at compile time if that was an object: the load is checked
     /// against it.
-    fn speculate_global_value(&mut self, loaded: NodeId, value: GlobalValueSnapshot) -> NodeId {
+    pub(super) fn speculate_binding_value(&mut self, loaded: NodeId, value: GlobalValueSnapshot) -> NodeId {
         if tag(value.bits) != OBJECT_TAG || !self.may_speculate(ExitKind::UnexpectedValue) {
             return loaded;
         }

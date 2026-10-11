@@ -177,6 +177,17 @@ impl GraphBuilder<'_> {
                 true,
             )?;
         }
+        let binding = match self
+            .function
+            .executable
+            .captured_bindings
+            .iter()
+            .find(|(captured, _)| *captured == coordinate)
+            .map(|(_, value)| *value)
+        {
+            Some(value) => self.speculate_binding_value(binding, value),
+            None => binding,
+        };
         self.write(outputs[0], binding)?;
         if let Some(this_value) = outputs.get(1) {
             let undefined = self.constant(value::UNDEFINED);

@@ -2352,3 +2352,43 @@ fn numeric_feedback_uses_number_guards_instead_of_type_dispatch() {
     assert!(!text.contains("BranchInt32Value"), "{text}");
     assert!(!text.contains("CallSlowPath"), "{text}");
 }
+
+#[test]
+fn captured_object_bindings_are_guarded_before_becoming_constants() {
+    let coordinate = crate::bytecode::EnvironmentCoordinate { hops: 0, index: 2 };
+    let program = assemble(|_| {
+        vec![
+            Instruction::GetInitializedBinding {
+                value_feedback: 0,
+                dst: r(5),
+                identifier: crate::bytecode::IdentifierTableIndex(0),
+                cache: coordinate,
+            },
+            Instruction::Return { value: r(5) },
+        ]
+    });
+    let mut snapshot = snapshot_for(&program, test_layout());
+    let object = crate::snapshot::CellId(0x1234);
+    let bits = value::tagged(value::OBJECT_TAG) | object.0;
+    snapshot.executables[0].captured_bindings.push((
+        coordinate,
+        crate::snapshot::GlobalValueSnapshot {
+            bits,
+            cell: Some(object),
+            intrinsic: None,
+            has_instance: None,
+        },
+    ));
+    let graph = optimized_graph(&snapshot);
+    let text = dump(&graph, &test_layout());
+    assert!(text.contains("LoadEnvironmentBinding 2"), "{text}");
+    assert!(text.contains(&format!("CheckValue {bits:#x}")), "{text}");
+    assert!(text.contains(&format!("Return (#0x{bits:x})")), "{text}");
+    assert!(graph.embedded_cells.contains(&object));
+
+    snapshot.executables[0].exit_sites.push((0, ExitKind::UnexpectedValue));
+    let text = dump(&optimized_graph(&snapshot), &test_layout());
+    assert!(text.contains("LoadEnvironmentBinding 2"), "{text}");
+    assert!(!text.contains("CheckValue"), "{text}");
+    assert!(!text.contains(&format!("Return (#0x{bits:x})")), "{text}");
+}

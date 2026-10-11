@@ -11,6 +11,7 @@
 //! every referenced cell alive until the compiled code is installed or the
 //! compile job is abandoned.
 
+use crate::bytecode::EnvironmentCoordinate;
 use crate::bytecode::ExceptionHandler;
 use crate::bytecode::FrameLayout;
 use crate::code::ExitKind;
@@ -69,6 +70,10 @@ pub struct ExecutableSnapshot {
     /// environment, so it is the lexical and variable environment of their
     /// frames.
     pub environment: Option<CellId>,
+    /// Object values of captured bindings at compile time. Each load must
+    /// check the value before using it as a constant, since bindings and
+    /// the environments of other closures sharing the executable may differ.
+    pub captured_bindings: Vec<(EnvironmentCoordinate, GlobalValueSnapshot)>,
     /// Whether `function` is a builtin written in JavaScript. Its frames are
     /// set up like those of other builtins: with the environments of their
     /// caller's frame, and without a script or module.

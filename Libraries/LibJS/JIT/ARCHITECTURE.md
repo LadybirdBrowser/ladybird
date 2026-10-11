@@ -304,6 +304,15 @@ stub, cache probes, the allocation contract, the entry and exit stubs.
 
 ## 9. Speculation and exits
 
+**Values of bindings.** The snapshot records the object values of global variables, and of the
+captured bindings of functions whose lexical environment is always their closure's
+(`ExecutableSnapshot::captured_bindings`). The builder checks each load of such a binding against
+its value (`CheckValue`, exiting with `UnexpectedValue`) and uses the value as a constant from
+there on, so checks and calls on the object fold. Assignments and other closures sharing the
+executable may change the binding, which the check catches. The object stays alive while the code
+embeds it, and nodes that rely on its state still take the values of their own checks. Where the
+check exited before, loads of the binding stay plain loads.
+
 To be written: exit reasons, recompiles, the rule that a failed speculation is never repeated.
 
 ## 10. The snapshot and the caches
