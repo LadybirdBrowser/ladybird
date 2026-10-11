@@ -324,6 +324,9 @@ fn visit_node(
             facts.expose(*input);
         }
     }
+    for value in graph.legacy_argument_values_read_by(node_id) {
+        facts.expose(decisions.value(graph, value));
+    }
     // NB: A check known to pass is replaced by what refined its input
     //     before (see `Facts::refinement()`), and stays where nothing did.
     let refines = node.op.refined_input().is_some() && node.repr.is_some();

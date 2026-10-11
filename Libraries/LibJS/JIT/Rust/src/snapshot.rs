@@ -85,6 +85,9 @@ pub struct ExecutableSnapshot {
     /// Whether the function's mapped arguments object (made by `CreateArguments`
     /// of the mapped kind) aliases parameters, so that it changes when they do.
     pub mapped_arguments_alias_parameters: bool,
+    /// Whether the snapshotted function has a legacy `arguments` property.
+    /// Other closures of its executable need not have the same eligibility.
+    pub supports_legacy_arguments: bool,
     /// The shape `NewObject` gives an object without a cached shape: an
     /// empty shape with `%Object.prototype%` of the executable's realm.
     pub new_object_shape: Option<ShapeSnapshot>,
@@ -353,6 +356,11 @@ impl ExecutableSnapshot {
             + u64::from(self.layout.number_of_constants)
             + u64::from(passed_argument_count.max(formal_parameter_count));
         u64::from(execution_context_size) + 8 * slots
+    }
+
+    /// Whether this is a function that is not strict (and no builtin).
+    pub fn is_non_strict_function(&self) -> bool {
+        !self.builtin && self.function.is_some_and(|function| !function.strict)
     }
 }
 

@@ -1543,6 +1543,7 @@ pub(crate) mod inlining {
         let mut callee_snapshot = snapshot_for(callee, test_layout()).executables.remove(0);
         callee_snapshot.cell = CellId(0x200);
         callee_snapshot.function = Some(function);
+        callee_snapshot.supports_legacy_arguments = !function.strict;
         callee_snapshot.environment = Some(CellId(ENVIRONMENT));
         snapshot.executables.push(callee_snapshot);
         let callee_bytes = snapshot.executables[1].bytecode.as_ptr() as u64;
@@ -1629,6 +1630,69 @@ pub(crate) mod inlining {
             vec![(0, ExitKind::UnexpectedValue), (0, ExitKind::BadCallTarget)],
         );
         assert!(!dump.contains("Accessor"), "{dump}");
+    }
+
+    #[test]
+    fn inlined_legacy_arguments_use_eligibility_but_keep_closures_conservative() {
+        use super::property_access::{cache, get_by_id, own};
+        use crate::snapshot::{AccessorFunctionSnapshot, PropertyCacheEntrySnapshot, PropertyCacheEntryType};
+        let caller = assemble(|_| vec![get_by_id(r(5), a(0), 0), Instruction::Return { value: r(5) }]);
+        let callee = assemble(|_| {
+            vec![
+                Instruction::Enter,
+                call(r(5), r(6), c(0), Vec::new()),
+                Instruction::Return { value: c(0) },
+            ]
+        });
+        for (strict, eligible, closures) in [
+            (false, false, false),
+            (false, true, false),
+            (false, false, true),
+            (true, false, true),
+        ] {
+            let mut snapshot = snapshot_with_callee(&caller, &callee, function(strict, false));
+            snapshot.executables[1].supports_legacy_arguments = eligible;
+            let entries = (0..if closures { 2 } else { 1 })
+                .map(|index| PropertyCacheEntrySnapshot {
+                    accessor_function: Some(AccessorFunctionSnapshot {
+                        cached_value_offset: None,
+                        function: CellId(CALLEE_FUNCTION + index * 0x100),
+                        intrinsic: None,
+                        inline_executable: Some(1),
+                    }),
+                    holds_accessor: true,
+                    ..own(PropertyCacheEntryType::GetOwnProperty, 0x100 + index * 0x100, 0)
+                })
+                .collect();
+            snapshot.executables[0].property_caches = vec![cache(entries)];
+            let graph = build_graph(&snapshot).unwrap();
+            let frames = graph
+                .frame_states
+                .iter()
+                .filter(|frame| frame.executable == 1)
+                .collect::<Vec<_>>();
+            assert!(!frames.is_empty());
+            let expected = eligible || (closures && !strict);
+            assert!(
+                frames
+                    .iter()
+                    .all(|frame| !frame.legacy_arguments.is_empty() == expected)
+            );
+            let argument = test_layout().arguments_base();
+            assert_eq!(
+                frames
+                    .iter()
+                    .any(|frame| frame.values.iter().any(|(slot, _)| *slot == argument)),
+                expected
+            );
+            assert_eq!(
+                graph
+                    .nodes
+                    .iter()
+                    .any(|node| matches!(node.op, Op::CheckClosure { .. })),
+                closures
+            );
+        }
     }
 
     #[test]

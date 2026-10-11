@@ -76,7 +76,9 @@ pub(super) struct InlineCall {
     /// The callee's `this`, or the empty value if it never reads it.
     pub this: NodeId,
     pub passed_argument_count: u32,
-    /// For callees that are not strict: the values the call passes beyond
+    /// Whether this call must preserve arguments for legacy `arguments`.
+    pub has_legacy_arguments: bool,
+    /// For callees with legacy `arguments`: the values the call passes beyond
     /// the arguments the callee's bytecode reads (see
     /// `legacy_argument_values()`).
     pub untracked_arguments: Vec<NodeId>,
@@ -239,6 +241,7 @@ impl GraphBuilder<'_> {
             in_frame,
             parent: self.parent_frame_state(),
             passed_argument_count: None,
+            legacy_arguments: self.legacy_argument_slots(),
         }
     }
 
@@ -297,7 +300,7 @@ impl GraphBuilder<'_> {
         values
     }
 
-    /// For an inlined callee being walked that is not strict: the values of
+    /// For an inlined callee with legacy `arguments`: the values of
     /// all its passed arguments, which its legacy `arguments` shows. Those
     /// its bytecode reads are its frame's, the others the values the call
     /// passed.
@@ -318,6 +321,16 @@ impl GraphBuilder<'_> {
             values.push((layout.arguments_base() + argument, *node));
         }
         values
+    }
+
+    fn legacy_argument_slots(&self) -> core::ops::Range<u32> {
+        let function = &self.function;
+        let Some(call) = function.inline.as_ref().filter(|_| function.has_legacy_arguments()) else {
+            return 0..0;
+        };
+        let layout = function.layout;
+        let count = layout.number_of_arguments + call.untracked_arguments.len() as u32;
+        layout.arguments_base()..layout.arguments_base() + count
     }
 
     /// The parent of frame states of the function being walked.
@@ -923,6 +936,10 @@ impl GraphBuilder<'_> {
         if !within_budget {
             return Ok(None);
         }
+        // NB: CheckClosure checks shared data, not legacy-property eligibility.
+        //     Keep non-strict closure calls conservative.
+        let has_legacy_arguments = callee_executable.supports_legacy_arguments
+            || (closure.is_some() && callee_executable.is_non_strict_function());
         let Ok(mut callee_function) = Function::new(index, callee_executable, decoded) else {
             return Ok(None);
         };
@@ -1055,7 +1072,8 @@ impl GraphBuilder<'_> {
             callback,
             this: receiver,
             passed_argument_count: *argument_count,
-            untracked_arguments: if callee_function.is_non_strict_function() {
+            has_legacy_arguments,
+            untracked_arguments: if has_legacy_arguments {
                 argument_values
                     .get(layout.number_of_arguments as usize..)
                     .unwrap_or_default()
