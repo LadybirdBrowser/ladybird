@@ -186,11 +186,30 @@ void DisplayListPlayerSkia::flush_async(Gfx::PaintingSurface& surface, Function<
     surface.flush();
 }
 
+// A scroll offset outside the scroll range moves the thumb past an end of its track, where it is cut short instead.
+static Gfx::IntRect thumb_rect_kept_inside_track(PaintScrollBar const& command)
+{
+    auto thumb_rect = command.thumb_rect;
+    auto const& track_rect = command.track_rect;
+    if (command.vertical) {
+        auto top = max(thumb_rect.top(), track_rect.top());
+        auto bottom = min(thumb_rect.bottom(), track_rect.bottom());
+        thumb_rect.set_y(top);
+        thumb_rect.set_height(max(0, bottom - top));
+    } else {
+        auto left = max(thumb_rect.left(), track_rect.left());
+        auto right = min(thumb_rect.right(), track_rect.right());
+        thumb_rect.set_x(left);
+        thumb_rect.set_width(max(0, right - left));
+    }
+    return thumb_rect;
+}
+
 static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, PaintScrollBar const& command)
 {
     auto gutter_rect = to_skia_rect(command.gutter_rect);
 
-    auto thumb_rect = to_skia_rect(command.thumb_rect);
+    auto thumb_rect = to_skia_rect(thumb_rect_kept_inside_track(command));
     auto radius = thumb_rect.width() / 2;
     auto thumb_rrect = SkRRect::MakeRectXY(thumb_rect, radius, radius);
 
@@ -200,6 +219,9 @@ static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, PaintScr
     SkPaint gutter_fill_paint;
     gutter_fill_paint.setColor(to_skia_color(gutter_fill_color));
     canvas.drawRect(gutter_rect, gutter_fill_paint);
+
+    if (thumb_rect.isEmpty())
+        return;
 
     SkPaint thumb_fill_paint;
     thumb_fill_paint.setColor(to_skia_color(command.thumb_color));
