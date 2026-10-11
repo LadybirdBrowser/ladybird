@@ -511,12 +511,21 @@ impl<'a> GraphBuilder<'a> {
         })?;
         let function = Function::new(0, executable, decoded_function(executable, &decoded[0])?, false)?;
         let slot_count = function.layout.tracked_slot_count();
+        let arguments_base = function.layout.arguments_base();
+        let legacy_arguments = if executable.supports_legacy_arguments {
+            arguments_base..arguments_base + function.layout.number_of_arguments
+        } else {
+            0..0
+        };
         Ok(Self {
             snapshot,
             runtime: &snapshot.runtime,
             has_run,
             decoded,
-            graph: Graph::default(),
+            graph: Graph {
+                legacy_arguments,
+                ..Graph::default()
+            },
             order: Vec::new(),
             constants: HashMap::default(),
             block: BlockId(0),
@@ -1179,16 +1188,19 @@ impl<'a> GraphBuilder<'a> {
         };
         // NB: Inlined frames have no memory to be out of sync with.
         let is_virtual = self.function.is_virtual();
-        let state = &mut self.frame.slots[slot];
-        if *state
+        let writes_memory = !is_virtual && self.graph.legacy_arguments.contains(&operand.raw());
+        if self.frame.slots[slot]
             != (SlotState::Value {
                 node: value,
                 in_sync: true,
             })
         {
-            *state = SlotState::Value {
+            if writes_memory {
+                self.emit(Op::StoreSlot { slot: operand.raw() }, vec![value], None);
+            }
+            self.frame.slots[slot] = SlotState::Value {
                 node: value,
-                in_sync: is_virtual,
+                in_sync: is_virtual || writes_memory,
             };
         }
         Ok(())

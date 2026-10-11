@@ -1910,6 +1910,9 @@ pub struct Graph {
     /// Where exits of each executable were taken before, as (executable,
     /// pc, kind), for passes that must not repeat a failed speculation.
     pub exit_sites: Vec<(u32, u32, ExitKind)>,
+    /// The argument slots of the compiled function that its legacy
+    /// `arguments` shows. Empty for functions without legacy `arguments`.
+    pub legacy_arguments: core::ops::Range<u32>,
 }
 
 impl Graph {

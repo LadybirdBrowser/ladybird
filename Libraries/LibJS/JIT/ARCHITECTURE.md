@@ -50,8 +50,10 @@ memory holds it or which value holds it (and whether memory holds that too). Mer
 headers never write frame memory: a slot that every path leaves in memory stays there, a slot the
 paths disagree on (or a loop assigns) gets a phi, with loads at the predecessors that only have it
 in memory. Frame memory is written only where something reads it: before calls that read the
-frame (`StoreSlot`), and by exits and leaves through the translator. The this value register is
-the exception at loop headers: slow paths write it to memory, so loops keep it there.
+frame (`StoreSlot`), where the compiled function assigns an argument that its legacy `arguments`
+shows (which any code it calls can read), and by exits and leaves through the translator. The
+this value register is the exception at loop headers: slow paths write it to memory, so loops
+keep it there.
 
 ### 3.1 Effects
 
@@ -119,7 +121,7 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | Constant | A NaN-boxed constant. | | | | cse |
 | Phi | One input per predecessor, in predecessor order. | | | | |
 | LoadSlot | Reads a frame slot. | | Frame | | |
-| StoreSlot | Writes input 0 to a frame slot: a reserved register (the this value, the saved lexical environment), a written constant, or a slot the next call reading the frame reads. The verifier enforces this. | | | Frame | |
+| StoreSlot | Writes input 0 to a frame slot: a reserved register (the this value, the saved lexical environment), a written constant, an argument the legacy `arguments` shows, or a slot the next call reading the frame reads. The verifier enforces this. | | | Frame | |
 | BoxInt32, BoxBool | The tagged value of an unboxed input. | | | | cse |
 | CheckInt32 | Input 0 as an int32; exits unless it is one. | E | | | cse |
 | CheckNumber | Input 0 as a float64; exits unless it is a number. | E | | | cse |
