@@ -233,8 +233,7 @@ impl StyleEngine {
                 if assigned.text_index().is_some() {
                     continue;
                 }
-                let inherited_inputs_changed = inherited_style_groups_changed != 0
-                    || did_change_custom_properties
+                let needs_broad_recomputation = did_change_custom_properties
                     || ancestor_became_visible
                     || reaction
                         & (STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES | STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES)
@@ -251,8 +250,15 @@ impl StyleEngine {
                     .parent(assigned)
                     .is_some_and(|parent| self.retained.children_explicitly_inherit_marks.contains(&parent))
                     || self.node_explicitly_inherits_non_inherited_property(assigned);
-                if inherited_inputs_changed || explicitly_inherits {
+                if needs_broad_recomputation || explicitly_inherits {
                     derive(assigned, STYLE_REACTION_RECOMPUTE_STYLE, 0, false);
+                } else if inherited_style_groups_changed != 0 {
+                    derive(
+                        assigned,
+                        STYLE_REACTION_INHERITED_STYLE,
+                        inherited_style_groups_changed,
+                        false,
+                    );
                 }
             }
         }

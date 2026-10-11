@@ -25,15 +25,18 @@
         const childShadow = host.firstElementChild.attachShadow({ mode: "open" });
         childShadow.innerHTML = "<span>shadow child</span>";
         internals.updateStyle();
-        const before = internals.styleEngineCounters();
+        let before = internals.styleEngineCounters();
         slot.style.backgroundColor = "red";
         internals.updateStyle();
-        const after = internals.styleEngineCounters();
+        let after = internals.styleEngineCounters();
         println(`background change only reaches slot: ${after.reachedStyleNodes - before.reachedStyleNodes === 1}`);
         println(`child background: ${getComputedStyle(host.firstElementChild).backgroundColor}`);
 
+        before = internals.styleEngineCounters();
         slot.style.color = "green";
         internals.updateStyle();
+        after = internals.styleEngineCounters();
+        println(`inherited color avoids full drives: ${after.engineFullDrivesStarted === before.engineFullDrivesStarted}`);
         println(`inherited color: ${getComputedStyle(host.firstElementChild).color}`);
         println(`last child color: ${getComputedStyle(host.lastElementChild).color}`);
         println(`shadow descendant color: ${getComputedStyle(childShadow.firstElementChild).color}`);

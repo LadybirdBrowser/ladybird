@@ -1,0 +1,24 @@
+named: inherited color avoids full drives: true
+named: assigned colors: true
+named: descendant colors: true
+named: currentColor borders: true
+named: explicit background follows slot color: rgb(65, 43, 21)
+named: substituted inheritance follows slot color: rgb(21, 43, 65)
+named: authored color is retained: rgb(0, 0, 255)
+named: inherited font updates em width: 40px
+named: custom property is inherited: rgb(255, 0, 0)
+named: inherited text alignment: right
+named: changed custom property: rgb(0, 128, 0)
+named: changed font updates em width: 60px
+manual: inherited color avoids full drives: true
+manual: assigned colors: true
+manual: descendant colors: true
+manual: currentColor borders: true
+manual: explicit background follows slot color: rgb(65, 43, 21)
+manual: substituted inheritance follows slot color: rgb(21, 43, 65)
+manual: authored color is retained: rgb(0, 0, 255)
+manual: inherited font updates em width: 40px
+manual: custom property is inherited: rgb(255, 0, 0)
+manual: inherited text alignment: right
+manual: changed custom property: rgb(0, 128, 0)
+manual: changed font updates em width: 60px

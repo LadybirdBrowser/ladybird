@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        for (const mode of ["named", "manual"]) {
+            const host = document.createElement("div");
+            document.body.append(host);
+            const shadow = host.attachShadow({ mode: "open", slotAssignment: mode });
+            shadow.innerHTML = `<style>::slotted(*) { border: 1px solid currentColor; }</style><slot></slot>`;
+            const slot = shadow.querySelector("slot");
+            const children = Array.from({ length: 40 }, () => {
+                const child = document.createElement("div");
+                child.innerHTML = "<span>descendant</span>";
+                host.append(child);
+                return child;
+            });
+            if (mode === "manual")
+                slot.assign(...children);
+            internals.updateStyle();
+            const before = internals.styleEngineCounters();
+            slot.style.color = "rgb(12, 34, 56)";
+            internals.updateStyle();
+            const after = internals.styleEngineCounters();
+            println(`${mode}: inherited color avoids full drives: ${after.engineFullDrivesStarted === before.engineFullDrivesStarted}`);
+            println(`${mode}: assigned colors: ${children.every(child => getComputedStyle(child).color === "rgb(12, 34, 56)")}`);
+            println(`${mode}: descendant colors: ${children.every(child => getComputedStyle(child.firstElementChild).color === "rgb(12, 34, 56)")}`);
+            println(`${mode}: currentColor borders: ${children.every(child => getComputedStyle(child).borderTopColor === "rgb(12, 34, 56)")}`);
+
+            const explicit = children[0];
+            explicit.style.backgroundColor = "inherit";
+            slot.style.backgroundColor = "currentColor";
+            internals.updateStyle();
+            slot.style.color = "rgb(65, 43, 21)";
+            internals.updateStyle();
+            println(`${mode}: explicit background follows slot color: ${getComputedStyle(explicit).backgroundColor}`);
+            explicit.style.backgroundColor = "var(--missing, inherit)";
+            internals.updateStyle();
+            slot.style.color = "rgb(21, 43, 65)";
+            internals.updateStyle();
+            println(`${mode}: substituted inheritance follows slot color: ${getComputedStyle(explicit).backgroundColor}`);
+
+            children[1].style.color = "blue";
+            children[2].style.width = "2em";
+            children[3].style.setProperty("--tone", "inherit");
+            children[3].style.color = "var(--tone)";
+            slot.style.setProperty("--tone", "red");
+            slot.style.fontSize = "20px";
+            slot.style.textAlign = "right";
+            internals.updateStyle();
+            println(`${mode}: authored color is retained: ${getComputedStyle(children[1]).color}`);
+            println(`${mode}: inherited font updates em width: ${getComputedStyle(children[2]).width}`);
+            println(`${mode}: custom property is inherited: ${getComputedStyle(children[3]).color}`);
+            println(`${mode}: inherited text alignment: ${getComputedStyle(children[4]).textAlign}`);
+            slot.style.setProperty("--tone", "green");
+            slot.style.fontSize = "30px";
+            internals.updateStyle();
+            println(`${mode}: changed custom property: ${getComputedStyle(children[3]).color}`);
+            println(`${mode}: changed font updates em width: ${getComputedStyle(children[2]).width}`);
+            host.remove();
+        }
+    });
+</script>
