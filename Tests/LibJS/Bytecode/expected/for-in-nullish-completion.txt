@@ -1,0 +1,32 @@
+$107700ec for-in-nullish-completion.js:5:12
+  Registers: 11
+  Blocks:    6
+  Constants:
+    [0] = Int32(1)
+    [1] = Null
+    [2] = Undefined
+    [3] = Int32(0)
+
+block0:
+  [   0] Enter
+  [   8] MovSrcUndefined dst:reg8
+  [  10] JumpNullish condition:Null, true_target:block3, false_target:block4
+
+block1:
+  [  20] End value:reg8
+
+block2:
+  [  28] ObjectPropertyIteratorNext dst_value:reg9, dst_done:reg10, receiver:reg5, keys:reg6, cursor:reg7
+  [  40] JumpIfLoop condition:reg10, true_target:block1, false_target:block5
+
+block3:
+  [  50] End value:reg8
+
+block4:
+  [  58] GetObjectPropertyIterator dst_keys:reg6, dst_receiver:reg5, object:Null
+  [  70] Mov dst:reg7, src:Int32(0)
+  [  80] JumpLoop target:block2
+
+block5:
+  [  88] SetGlobal `a`, src:reg9
+  [  98] JumpLoop target:block2

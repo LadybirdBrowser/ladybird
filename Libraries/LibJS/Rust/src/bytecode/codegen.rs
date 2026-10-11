@@ -7267,7 +7267,15 @@ fn generate_for_in_statement(
     let keys = generator.allocate_register();
     let cursor = generator.allocate_register();
 
-    // Check for null/undefined
+    // NB: The completion register starts out as undefined, which is also the completion value of a
+    //     loop whose iteration is skipped below, so it has to be initialized before the null check.
+    let completion = generator.allocate_completion_register();
+
+    // https://tc39.es/ecma262/#sec-runtime-semantics-forinofheadevaluation
+    // 6. If iterationKind is enumerate, then
+    //    a. If exprValue is either undefined or null, then
+    //       i. Return Completion Record { [[Type]]: break, [[Value]]: empty, [[Target]]: empty }.
+    // NB: LabelledEvaluation turns this break completion into NormalCompletion(undefined).
     let nullish_block = generator.make_block();
     let continue_block = generator.make_block();
     generator.emit(Instruction::JumpNullish {
@@ -7292,9 +7300,6 @@ fn generate_for_in_statement(
     });
     let zero = generator.add_constant_i32(0);
     generator.emit_mov(&cursor, &zero);
-
-    // Body evaluation: completion, then jump to update block.
-    let completion = generator.allocate_completion_register();
 
     generator.emit(Instruction::Jump { target: update_block });
 

@@ -2,27 +2,28 @@ $067de6f5 invalid-lhs-forin-no-dead-code.js:6:6
   Registers: 14
   Blocks:    6
   Constants:
-    [0] = Int32(0)
-    [1] = Undefined
+    [0] = Undefined
+    [1] = Int32(0)
 
 block0:
   [   0] Enter
   [   8] NewArray dst:reg5
-  [  18] JumpNullish condition:reg5, true_target:block3, false_target:block4
+  [  18] MovSrcUndefined dst:reg9
+  [  20] JumpNullish condition:reg5, true_target:block3, false_target:block4
 
 block1:
-  [  28] End value:reg9
+  [  30] End value:reg9
 
 block2:
-  [  30] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg11, receiver:reg6, keys:reg7, cursor:reg8
-  [  48] JumpIfLoop condition:reg11, true_target:block1, false_target:block5
+  [  38] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg11, receiver:reg6, keys:reg7, cursor:reg8
+  [  50] JumpIfLoop condition:reg11, true_target:block1, false_target:block5
 
 block3:
-  [  58] End value:reg9
+  [  60] End value:reg9
 
 block4:
-  [  60] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg6, object:reg5
-  [  78] Mov2 c0_dst:reg8, c0_src:Int32(0), c1_dst:reg9, c1_src:Undefined
+  [  68] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg6, object:reg5
+  [  80] Mov dst:reg8, src:Int32(0)
   [  90] JumpLoop target:block2
 
 block5:
