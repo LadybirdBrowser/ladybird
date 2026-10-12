@@ -1727,9 +1727,6 @@ fn replace_env_function(
                 let digit = unit.checked_sub(u16::from(b'0'))?;
                 (digit <= 9).then_some(value.checked_mul(10)?.checked_add(i32::from(digit))?)
             })?;
-            if index < 0 {
-                return None;
-            }
             indices.push(index);
         }
         Some(indices)
