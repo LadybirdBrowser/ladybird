@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A document's fetch records have to survive garbage collection for as long as their fetches run: aborting the
+    // document as it unloads cancels the fetches it finds in its fetch group, and a fetch it no longer finds streams on
+    // until the server ends the response — with callbacks that root the fetch's realm, and so the document, for all
+    // that time. So a page with long-lived requests, collected once while they ran, would stay alive after every
+    // navigation away from it.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = `document-with-ongoing-fetches-${crypto.randomUUID()}`;
+
+        // The response's first byte arrives at once, and the rest only once the token is unblocked — which never
+        // happens.
+        const blockedURL = await server.createEcho("GET", "/document-with-ongoing-fetches-blocked", {
+            status: 200,
+            headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" },
+            body: "xx",
+        });
+
+        // The page starts a fetch and an XMLHttpRequest of that response, and tells its parent once both have their
+        // headers.
+        const pageURL = await server.createEcho("GET", "/document-with-ongoing-fetches", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html>
+<script>
+    const url = ${JSON.stringify(blockedURL)} + "?chunks=1&chunk_unblock_tokens=${token}&request=";
+    const xhr = new XMLHttpRequest();
+    const headersReceived = [
+        fetch(url + "fetch"),
+        new Promise(resolve => {
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState >= XMLHttpRequest.HEADERS_RECEIVED)
+                    resolve();
+            };
+        }),
+    ];
+    xhr.open("GET", url + "xhr");
+    xhr.send();
+    Promise.all(headersReceived).then(() => parent.postMessage("requests started", "*"));
+<\/script>`,
+        });
+
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+
+        // Once the page's requests are under way, a garbage collection runs while they are: a fetch record that it
+        // collected would leave the fetches out of the document's reach.
+        const navigate = async url => {
+            await new Promise(resolve => {
+                window.addEventListener("message", resolve, { once: true });
+                iframe.src = url;
+            });
+            await internals.gcAsync();
+        };
+
+        // Record each document, then navigate away from it. An expando preserves the document's wrapper for as long as
+        // the document itself lives, so the weak reference tracks the document rather than a wrapper that JS may drop
+        // early. The recording starts with the second document: the first one reuses the initial about:blank
+        // document's window, whose realm the navigable's WindowProxy keeps alive for as long as the iframe lives. And
+        // the recording runs in a nested function, so that no document lingers in a register of this function's frame
+        // while the documents are expected to be collected.
+        const weakDocuments = await (async () => {
+            const weakDocuments = [];
+            await navigate(`${pageURL}?0`);
+            await navigate(`${pageURL}?1`);
+            for (let i = 2; i <= 6; i++) {
+                const unloadedDocument = iframe.contentDocument;
+                unloadedDocument.preserveWrapper = true;
+                weakDocuments.push(new WeakRef(unloadedDocument));
+                await navigate(`${pageURL}?${i}`);
+            }
+            return weakDocuments;
+        })();
+
+        const maximumGcRoundsWhileRequestTeardownTasksDrain = 100;
+        for (let round = 0; round < maximumGcRoundsWhileRequestTeardownTasksDrain; ++round) {
+            await timeout(0);
+            await internals.gcAsync();
+            if (weakDocuments.every(weak => weak.deref() === undefined))
+                break;
+        }
+
+        const collected = weakDocuments.filter(weak => weak.deref() === undefined).length;
+        println(`collected ${collected} of ${weakDocuments.length} documents with ongoing fetches`);
+        iframe.remove();
+    });
+</script>
