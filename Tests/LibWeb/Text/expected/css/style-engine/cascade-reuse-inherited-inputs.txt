@@ -1,0 +1,65 @@
+light: edited child color: rgb(0, 0, 255)
+light: unchanged child inherits: rgb(255, 0, 0)
+light: edited child background: rgb(0, 128, 0)
+light: descendant inherits edited child: rgb(0, 0, 255)
+light: rule color: rgb(30, 40, 50)
+light: attribute selector observes parent: rgb(255, 255, 0)
+light: substituted color: rgb(10, 20, 30)
+light: edited rule color: rgb(60, 70, 80)
+light: changed inherited color: rgb(0, 128, 0)
+light: changed substituted color: rgb(40, 50, 60)
+light: authored color stays blue: rgb(0, 0, 255)
+light: removed declarations restore color: rgb(0, 0, 0)
+light: attribute selector stops matching: rgba(0, 0, 0, 0)
+light: pseudo inherits restored color: rgb(0, 0, 0)
+named: edited child color: rgb(0, 0, 255)
+named: unchanged child inherits: rgb(255, 0, 0)
+named: edited child background: rgb(0, 128, 0)
+named: descendant inherits edited child: rgb(0, 0, 255)
+named: rule color: rgb(30, 40, 50)
+named: attribute selector observes parent: rgb(255, 255, 0)
+named: substituted color: rgb(10, 20, 30)
+named: edited rule color: rgb(60, 70, 80)
+named: changed inherited color: rgb(0, 128, 0)
+named: changed substituted color: rgb(40, 50, 60)
+named: authored color stays blue: rgb(0, 0, 255)
+named: removed declarations restore color: rgb(0, 0, 0)
+named: attribute selector stops matching: rgba(0, 0, 0, 0)
+manual: edited child color: rgb(0, 0, 255)
+manual: unchanged child inherits: rgb(255, 0, 0)
+manual: edited child background: rgb(0, 128, 0)
+manual: descendant inherits edited child: rgb(0, 0, 255)
+manual: rule color: rgb(30, 40, 50)
+manual: attribute selector observes parent: rgb(255, 255, 0)
+manual: substituted color: rgb(10, 20, 30)
+manual: edited rule color: rgb(60, 70, 80)
+manual: changed inherited color: rgb(0, 128, 0)
+manual: changed substituted color: rgb(40, 50, 60)
+manual: authored color stays blue: rgb(0, 0, 255)
+manual: removed declarations restore color: rgb(0, 0, 0)
+manual: attribute selector stops matching: rgba(0, 0, 0, 0)
+named: contextual transition keeps object: true
+named: contextual opacity sample: 0.5
+named: contextual inherited color: rgb(0, 0, 255)
+named: contextual currentColor border: rgb(0, 0, 255)
+named: contextual shadow inheritance: rgb(0, 0, 255)
+named: contextual substitution updates: rgb(0, 128, 0)
+named: contextual font updates em width: 40px
+named: contextual sample survives font update: 0.5
+named: contextual shadow follows substitution: rgb(0, 128, 0)
+named: contextual transition removed: true
+named: contextual base opacity restored: 0
+manual: contextual transition keeps object: true
+manual: contextual opacity sample: 0.5
+manual: contextual inherited color: rgb(0, 0, 255)
+manual: contextual currentColor border: rgb(0, 0, 255)
+manual: contextual shadow inheritance: rgb(0, 0, 255)
+manual: contextual substitution updates: rgb(0, 128, 0)
+manual: contextual font updates em width: 40px
+manual: contextual sample survives font update: 0.5
+manual: contextual shadow follows substitution: rgb(0, 128, 0)
+manual: contextual transition removed: true
+manual: contextual base opacity restored: 0
+unregistered invalid color: rgb(0, 0, 0)
+registration changes substitution: rgb(0, 128, 0)
+registered inherited value changes: rgb(0, 0, 255)

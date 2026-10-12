@@ -24,6 +24,8 @@
             println(`${mode}: inherited color avoids full drives: ${after.engineFullDrivesStarted === before.engineFullDrivesStarted}`);
             println(`${mode}: shared inherited groups are computed at most twice: ${after.inheritedGroupSwapComputations - before.inheritedGroupSwapComputations <= 2}`);
             println(`${mode}: siblings reuse inherited group results: ${after.inheritedGroupSwapReuses - before.inheritedGroupSwapReuses >= 78}`);
+            println(`${mode}: inherited updates reuse cascades: ${after.retainedMatchAnswerReuses - before.retainedMatchAnswerReuses + after.deferredCascadeCompletions - before.deferredCascadeCompletions >= 80}`);
+            println(`${mode}: cascade completion is bounded: ${after.cascadeMatchesBeforeCompaction - before.cascadeMatchesBeforeCompaction <= 16}`);
             println(`${mode}: assigned colors: ${children.every(child => getComputedStyle(child).color === "rgb(12, 34, 56)")}`);
             println(`${mode}: descendant colors: ${children.every(child => getComputedStyle(child.firstElementChild).color === "rgb(12, 34, 56)")}`);
             println(`${mode}: currentColor borders: ${children.every(child => getComputedStyle(child).borderTopColor === "rgb(12, 34, 56)")}`);
