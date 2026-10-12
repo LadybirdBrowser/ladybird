@@ -162,9 +162,7 @@ public:
 
     Gfx::TextAlignment title_alignment() const { return alignment(AlignmentRole::TitleAlignment); }
 
-    bool bold_text_as_bright() const { return flag(FlagRole::BoldTextAsBright); }
     bool is_dark() const { return flag(FlagRole::IsDark); }
-    bool title_buttons_icon_only() const { return flag(FlagRole::TitleButtonsIconOnly); }
 
     ByteString title_button_icons_path() const { return path(PathRole::TitleButtonIcons); }
     ByteString active_window_shadow_path() const { return path(PathRole::ActiveWindowShadow); }

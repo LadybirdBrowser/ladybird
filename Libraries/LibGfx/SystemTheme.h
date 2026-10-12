@@ -121,9 +121,7 @@ namespace Gfx {
     C(TitleAlignment)
 
 #define ENUMERATE_FLAG_ROLES(C) \
-    C(BoldTextAsBright)         \
-    C(IsDark)                   \
-    C(TitleButtonsIconOnly)
+    C(IsDark)
 
 #define ENUMERATE_PATH_ROLES(C) \
     C(TitleButtonIcons)         \
