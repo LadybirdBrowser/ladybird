@@ -10,7 +10,6 @@
 
 #include <AK/ByteString.h>
 #include <AK/Forward.h>
-#include <AK/Vector.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ConfigFile.h>
 #include <LibGfx/Color.h>
@@ -185,14 +184,6 @@ Core::AnonymousBuffer& current_system_theme_buffer();
 void set_system_theme(Core::AnonymousBuffer);
 ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const&);
 ErrorOr<Core::AnonymousBuffer> load_system_theme(ByteString const& path);
-
-struct SystemThemeMetaData {
-    ByteString name;
-    ByteString menu_name;
-    ByteString path;
-};
-
-ErrorOr<Vector<SystemThemeMetaData>> list_installed_system_themes();
 
 }
 
