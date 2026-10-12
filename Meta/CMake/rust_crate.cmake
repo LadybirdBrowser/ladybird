@@ -1,7 +1,7 @@
 set_property(GLOBAL PROPERTY JOB_POOLS "${JOB_POOLS};cargo=1")
 
 # Compiler flags shared by Rust libraries, binaries, and tests.
-set(RUSTC_TARGET_FLAGS -Dwarnings ${RUSTC_TARGET_CPU_FLAGS})
+set(RUSTC_TARGET_FLAGS -Dwarnings ${RUSTC_TARGET_CPU_FLAGS} ${RUSTC_TARGET_FRAME_POINTER_FLAGS})
 list(JOIN RUSTC_TARGET_FLAGS " " RUSTC_TARGET_FLAGS)
 
 # import_rust_crate(MANIFEST_PATH path/to/Cargo.toml CRATE_NAME name [PANIC_UNWIND] [NO_DEFAULT_FEATURES]
