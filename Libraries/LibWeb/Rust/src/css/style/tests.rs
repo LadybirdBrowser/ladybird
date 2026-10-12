@@ -10407,6 +10407,46 @@ fn changing_one_scope_keeps_an_equivalent_scopes_ranked_program() {
 }
 
 #[test]
+fn a_scope_ranked_while_a_rule_is_staged_ranks_the_rule_once_committed() {
+    let mut engine = StyleEngine::new();
+    let mut raw = [0_u32; 2];
+    engine.allocate_style_nodes(&mut raw);
+    let [document_root, child] = raw.map(|raw| StyleNodeID::from_raw(raw).unwrap());
+    engine.record_tree_delta(document_root, None, Some(relations(None, None, None)));
+    engine.record_tree_delta(child, None, Some(relations(Some(document_root.raw()), None, None)));
+    for node in [document_root, child] {
+        set_atom_feature(&mut engine, node, LocalFeatureKey::TagName, StyleAtomID(100));
+    }
+    add_feature(&mut engine, child, LocalFeatureKey::Class(StyleAtomID(200)));
+
+    let program = engine
+        .programs
+        .add(test_selector_program(".target", &[("target", StyleAtomID(200))]));
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let append_matching_rule = |engine: &mut StyleEngine| {
+        let rule = engine.append_rule(sheet, None, RuleKind::Style);
+        engine.add_routing_rule(rule, program);
+        let mut version = engine.program.rule_version(rule);
+        version.selector_program = Some(program);
+        engine.replace_rule_version(rule, version);
+        engine.set_rule_declared_properties(rule, &[(property_id::COLOR, false)]);
+    };
+    append_matching_rule(&mut engine);
+    discard_transaction(&mut engine);
+    assert_eq!(engine.match_element(child).unwrap().len(), 1);
+
+    // Staging a rule drops the ranked program of the scope, and a read before the transaction that commits the rule
+    // ranks the scope again from the program without it.
+    append_matching_rule(&mut engine);
+    assert_eq!(engine.match_element(child).unwrap().len(), 1);
+    discard_transaction(&mut engine);
+
+    assert_eq!(engine.match_element(child).unwrap().len(), 2);
+    assert_eq!(engine.match_element_with_exact_matcher(child, false).unwrap().len(), 2);
+}
+
+#[test]
 fn removing_a_middle_child_splices_the_child_sequence() {
     let (mut engine, nodes) = linear_document();
     engine.record_tree_delta(

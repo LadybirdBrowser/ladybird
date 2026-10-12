@@ -857,6 +857,7 @@ impl StyleEngine {
     }
 
     pub(super) fn commit_staged_program(&mut self) {
+        let changes_program = self.host.program_staging.is_dirty();
         let rule_conditions = self.host.program_staging.rule_conditions.take_dirty();
         let sheet_conditions = self.host.program_staging.sheet_conditions.take_dirty();
         let sheet_enabled = self.host.program_staging.sheet_enabled.take_dirty();
@@ -934,6 +935,24 @@ impl StyleEngine {
                 self.retained.program.set_sheets_in_scope(scope, sheets);
             }
             self.settle_program();
+        }
+
+        if changes_program {
+            self.invalidate_outdated_scope_programs();
+        }
+    }
+
+    /// Drop the ranked programs that no longer match the program of their scope. Staging a change drops the programs it
+    /// reaches, but a read between the staging and this commit ranks a scope again from the program without it.
+    fn invalidate_outdated_scope_programs(&mut self) {
+        for index in 0..self.scope_program_by_scope.len() {
+            let Some((_, program)) = self.scope_program_by_scope[index] else {
+                continue;
+            };
+            let scope = TreeScopeID(u32::try_from(index).expect("tree scope identity space exhausted"));
+            if self.scope_program(program).key != self.scope_dispatch_key(scope) {
+                self.invalidate_concrete_scope_program(scope);
+            }
         }
     }
 
