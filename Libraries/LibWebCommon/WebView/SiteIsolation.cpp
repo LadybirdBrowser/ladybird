@@ -8,7 +8,7 @@
 
 namespace WebView {
 
-static SiteIsolationMode s_site_isolation_mode = SiteIsolationMode::TopLevel;
+static SiteIsolationMode s_site_isolation_mode = SiteIsolationMode::IFrame;
 
 Optional<SiteIsolationMode> site_isolation_mode_from_string(StringView mode)
 {
