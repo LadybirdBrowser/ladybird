@@ -2386,9 +2386,6 @@ fn validate_if_test(tokens: &[OwnedToken]) -> ConditionValidation {
             Err(validation) => validation,
         };
     }
-    if name.eq_ignore_ascii_case("media") || name.eq_ignore_ascii_case("supports") {
-        return ConditionValidation::Valid;
-    }
     ConditionValidation::Valid
 }
 
