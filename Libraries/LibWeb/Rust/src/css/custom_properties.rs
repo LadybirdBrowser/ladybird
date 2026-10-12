@@ -1892,23 +1892,23 @@ enum ConditionEvaluation {
 }
 
 #[derive(Debug)]
-enum ParsedBooleanExpression {
-    Test(Vec<ComponentValue>),
-    Not(Box<ParsedBooleanExpression>),
-    And(Vec<ParsedBooleanExpression>),
-    Or(Vec<ParsedBooleanExpression>),
+enum ParsedBooleanExpression<'a> {
+    Test(&'a [ComponentValue]),
+    Not(Box<ParsedBooleanExpression<'a>>),
+    And(Vec<ParsedBooleanExpression<'a>>),
+    Or(Vec<ParsedBooleanExpression<'a>>),
 }
 
-fn parse_boolean_expression(
-    tokens: &[ComponentValue],
+fn parse_boolean_expression<'a>(
+    tokens: &'a [ComponentValue],
     validate_test: &mut impl FnMut(&[ComponentValue]) -> bool,
-) -> Option<ParsedBooleanExpression> {
+) -> Option<ParsedBooleanExpression<'a>> {
     let tokens = trim_whitespace(tokens);
     if tokens.is_empty() {
         return None;
     }
     if validate_test(tokens) {
-        return Some(ParsedBooleanExpression::Test(tokens.to_vec()));
+        return Some(ParsedBooleanExpression::Test(tokens));
     }
     if tokens
         .first()
@@ -1950,10 +1950,10 @@ fn parse_boolean_expression(
     })
 }
 
-fn parse_boolean_group(
-    tokens: &[ComponentValue],
+fn parse_boolean_group<'a>(
+    tokens: &'a [ComponentValue],
     validate_test: &mut impl FnMut(&[ComponentValue]) -> bool,
-) -> Option<ParsedBooleanExpression> {
+) -> Option<ParsedBooleanExpression<'a>> {
     let tokens = trim_whitespace(tokens);
     if let [value] = tokens
         && let ComponentKind::SimpleBlock {
@@ -1963,11 +1963,11 @@ fn parse_boolean_group(
     {
         return parse_boolean_expression(values, validate_test);
     }
-    validate_test(tokens).then(|| ParsedBooleanExpression::Test(tokens.to_vec()))
+    validate_test(tokens).then_some(ParsedBooleanExpression::Test(tokens))
 }
 
 fn evaluate_parsed_boolean_expression(
-    expression: &ParsedBooleanExpression,
+    expression: &ParsedBooleanExpression<'_>,
     evaluate_test: &mut impl FnMut(&[ComponentValue]) -> ConditionEvaluation,
 ) -> ConditionEvaluation {
     match expression {
