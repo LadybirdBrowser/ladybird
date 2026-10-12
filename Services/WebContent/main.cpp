@@ -100,6 +100,68 @@ static void install_crash_signal_handlers()
     sigaction(SIGABRT, &sa, nullptr);
     sigaction(SIGILL, &sa, nullptr);
 }
+#else
+#    include <AK/Windows.h>
+#    include <signal.h>
+
+static StringView crash_exception_name(DWORD code)
+{
+    switch (code) {
+    case EXCEPTION_ACCESS_VIOLATION:
+        return "EXCEPTION_ACCESS_VIOLATION"sv;
+    case EXCEPTION_ILLEGAL_INSTRUCTION:
+        return "EXCEPTION_ILLEGAL_INSTRUCTION"sv;
+    case EXCEPTION_STACK_OVERFLOW:
+        return "EXCEPTION_STACK_OVERFLOW"sv;
+    case EXCEPTION_INT_DIVIDE_BY_ZERO:
+        return "EXCEPTION_INT_DIVIDE_BY_ZERO"sv;
+    case EXCEPTION_IN_PAGE_ERROR:
+        return "EXCEPTION_IN_PAGE_ERROR"sv;
+    case EXCEPTION_BREAKPOINT:
+        return "EXCEPTION_BREAKPOINT"sv;
+    case EXCEPTION_PRIV_INSTRUCTION:
+        return "EXCEPTION_PRIV_INSTRUCTION"sv;
+    default:
+        return "unknown"sv;
+    }
+}
+
+// Runs only for exceptions nothing else handles, after the vectored handlers that recover from faults in compiled
+// Wasm code have declined them.
+static LONG WINAPI crash_exception_filter(EXCEPTION_POINTERS* exception)
+{
+    auto code = exception->ExceptionRecord->ExceptionCode;
+    if (code == EXCEPTION_ACCESS_VIOLATION && exception->ExceptionRecord->NumberParameters >= 2) {
+        auto operation = "executing"sv;
+        if (exception->ExceptionRecord->ExceptionInformation[0] == 0)
+            operation = "reading"sv;
+        else if (exception->ExceptionRecord->ExceptionInformation[0] == 1)
+            operation = "writing"sv;
+        warnln("\n\033[31;1mCRASH\033[0m: Received exception {} ({:#x}) {} {:p}", crash_exception_name(code), code,
+            operation, reinterpret_cast<void*>(exception->ExceptionRecord->ExceptionInformation[1]));
+    } else {
+        warnln("\n\033[31;1mCRASH\033[0m: Received exception {} ({:#x}) at {:p}", crash_exception_name(code), code,
+            exception->ExceptionRecord->ExceptionAddress);
+    }
+    dump_backtrace(2, 100);
+    Core::Process::terminate_immediately(static_cast<int>(code));
+}
+
+static void crash_abort_handler(int)
+{
+    warnln("\n\033[31;1mCRASH\033[0m: Received signal SIGABRT ({})", SIGABRT);
+    dump_backtrace(2, 100);
+    Core::Process::terminate_immediately(128 + SIGABRT);
+}
+
+static void install_crash_signal_handlers()
+{
+    // Leave room on an overflowed stack for the backtrace to be printed.
+    ULONG stack_guarantee = 64 * KiB;
+    SetThreadStackGuarantee(&stack_guarantee);
+    SetUnhandledExceptionFilter(crash_exception_filter);
+    (void)signal(SIGABRT, crash_abort_handler);
+}
 #endif
 
 static ErrorOr<void> connect_to_resource_loader(GC::Heap& heap, IPC::TransportHandle const& handle, Optional<int> client_id);
@@ -109,9 +171,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
 
-#if !defined(AK_OS_WINDOWS)
     install_crash_signal_handlers();
-#endif
 
     auto& event_loop = Core::EventLoop::initialize_for_current_thread();
 
