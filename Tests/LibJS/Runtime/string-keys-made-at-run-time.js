@@ -21,6 +21,9 @@ function makeKeys() {
             ("a_substring_that_is_too_long_for_a_cell_" + digit + "_and_its_tail").substring(2, 42)
         ),
         unicodeSubstring: digits.map(digit => (unicode + unicode + "_" + digit + "_tail").slice(3, 22)),
+        joined: digits.map(digit => ["a_joined_key_", digit].join("")),
+        lowercased: digits.map(digit => ("A_LOWERCASED_KEY_THAT_IS_TOO_LONG_FOR_A_CELL_" + digit).toLowerCase()),
+        json: digits.map(digit => JSON.stringify({ digit, unicode, padding: "x".repeat(100) })),
     };
 }
 

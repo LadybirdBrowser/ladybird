@@ -768,8 +768,8 @@ pub fn to_well_formed(string: &Utf16String) -> Utf16String {
     }
 }
 
-/// Mirrors the AK::Utf16FlyString constructor from a Utf16String. AK interns the string's own storage when no equal
-/// fly string exists yet; the ak crate cannot add existing storage to the table, so this interns a copy instead.
+/// Mirrors the AK::Utf16FlyString constructor from a Utf16String: the string's own storage becomes the fly string if
+/// no equal fly string exists yet.
 pub fn to_utf16_fly_string(string: &Utf16String) -> Utf16FlyString {
     if has_fly_string_storage(string) {
         // SAFETY: The string is live while the reference is added, and that reference moves to the fly string, which
@@ -779,7 +779,7 @@ pub fn to_utf16_fly_string(string: &Utf16String) -> Utf16FlyString {
             Utf16FlyString::from_raw_owned(string.raw_identity())
         };
     }
-    Utf16View::of_string(string).to_utf16_fly_string()
+    Utf16FlyString::from_utf16_string(string)
 }
 
 /// Concatenates views into a new string, ASCII when every view is.

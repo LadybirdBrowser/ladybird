@@ -49,6 +49,7 @@ unsafe extern "C" {
     fn ladybird_utf16_string_create_uninitialized(length: usize, has_ascii_storage: bool) -> usize;
     fn ladybird_utf16_fly_string_from_utf8(data: *const u8, length: usize) -> usize;
     fn ladybird_utf16_fly_string_from_utf16(data: *const u16, length: usize) -> usize;
+    fn ladybird_utf16_fly_string_from_utf16_string(raw: usize) -> usize;
     fn ladybird_utf16_string_unref(raw: usize);
     fn ladybird_utf16_validate(data: *const u16, length: usize) -> bool;
     fn ladybird_utf16_validate_prefix(data: *const u16, length: usize, valid_code_units: *mut usize) -> bool;
@@ -560,6 +561,15 @@ impl Utf16FlyString {
     pub fn from_utf16(string: &[u16]) -> Self {
         // SAFETY: The slice remains alive for the duration of the call.
         let raw = unsafe { ladybird_utf16_fly_string_from_utf16(string.as_ptr(), string.len()) };
+        // SAFETY: The constructor transfers one ownership reference.
+        unsafe { Self::from_raw_owned(raw) }
+    }
+
+    /// Mirrors the AK::Utf16FlyString constructor from a Utf16String: the fly string with the contents of `string`,
+    /// which is the storage of `string` itself if AK's fly-string table has no equal string yet.
+    pub fn from_utf16_string(string: &Utf16String) -> Self {
+        // SAFETY: The string keeps its storage alive for the duration of the call, which adds a reference of its own.
+        let raw = unsafe { ladybird_utf16_fly_string_from_utf16_string(string.raw_identity()) };
         // SAFETY: The constructor transfers one ownership reference.
         unsafe { Self::from_raw_owned(raw) }
     }

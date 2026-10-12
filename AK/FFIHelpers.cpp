@@ -65,6 +65,12 @@ extern "C" FlatPtr ladybird_utf16_fly_string_from_utf16(u16 const* data, size_t 
     return AK::Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(data), length }).into_raw();
 }
 
+extern "C" FlatPtr ladybird_utf16_fly_string_from_utf16_string(FlatPtr raw)
+{
+    // NB: The string's own storage becomes the fly string if no equal fly string exists yet.
+    return AK::Utf16FlyString { AK::Utf16String::from_raw(raw) }.into_raw();
+}
+
 extern "C" void ladybird_utf16_string_unref(FlatPtr raw)
 {
     AK::Utf16String::unref_raw(raw);

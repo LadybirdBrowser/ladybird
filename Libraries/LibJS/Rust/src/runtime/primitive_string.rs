@@ -457,6 +457,10 @@ impl PrimitiveString {
         }
 
         let fly_string = to_utf16_fly_string(string);
+        // NB: A string whose own storage became the fly string is its own key from now on.
+        if has_fly_string_storage(string) {
+            return PropertyKey::from(fly_string);
+        }
         *entry = StringToAtomCacheEntry {
             // SAFETY: Strings only exist as cells, since every way to create one allocates it.
             string: Some(unsafe { Gc::from_ref(self) }),
@@ -582,7 +586,9 @@ impl PrimitiveString {
         let fly_string = match self.deferred_kind() {
             DeferredKind::None => unreachable!("only deferred strings are resolved"),
             DeferredKind::Rope => to_utf16_fly_string(&self.as_rope_string().concatenation()),
-            DeferredKind::Substring | DeferredKind::Inline => self.utf16_string_view().to_utf16_fly_string(),
+            DeferredKind::Substring => to_utf16_fly_string(&self.utf16_string_view().to_utf16_string()),
+            // NB: The few characters of an inline string are looked up before they are copied into storage.
+            DeferredKind::Inline => self.utf16_string_view().to_utf16_fly_string(),
         };
         let string = Utf16String::from(&fly_string);
         match self.deferred_kind() {
