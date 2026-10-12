@@ -65,3 +65,10 @@ test("indices incremented after accesses of a fixed length typed array", () => {
     expect(lookup(2147483647)).toBeNaN();
     expect(lookup(-1)).toBeNaN();
 });
+
+test("products of unsigned right shifts of any int32 at their limits", () => {
+    const mix = compiled(new Function("h", "x", "return (h >>> 24) * 3 + (x & 0xff) + (h >>> 1) * 1;"), 5, 6);
+    expect(mix(-1, -1)).toBe(255 * 3 + 255 + 2147483647);
+    expect(mix(-2147483648, 0)).toBe(128 * 3 + 1073741824);
+    expect(mix(2147483647, 255)).toBe(127 * 3 + 255 + 1073741823);
+});
