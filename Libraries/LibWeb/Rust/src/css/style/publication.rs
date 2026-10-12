@@ -612,7 +612,7 @@ impl RetainedState {
         // delta from, and the state of a record from a replaced rule program names winners of
         // another generation: either record is driven again in full from the node's winners,
         // which binds the state. The old record still supplies the before-change values.
-        let (delta, holds_no_current_cascade_state) = match self.computed_group_sets.cascade_state(target) {
+        let (mut delta, holds_no_current_cascade_state) = match self.computed_group_sets.cascade_state(target) {
             Some((previous_generation, previous_state)) if previous_generation == generation => {
                 (self.winner_groups.semantic_delta(Some(previous_state), state), false)
             }
@@ -634,31 +634,6 @@ impl RetainedState {
             self.counters.bump(Counter::EngineComputedRecordBailProperty);
             return Err(Unanswered::Refused);
         }
-        // A record driven from its winners alone takes its transition declarations from them. A
-        // moved display is applied after the step, as C++ applies it after the step it runs. The row
-        // carries what is decided here to the host, for a record that moves.
-        let moves_transition_declarations = if holds_no_current_cascade_state {
-            self.winner_groups
-                .semantic_delta_properties(None, state)
-                .any(property_declares_transitions)
-        } else {
-            delta
-                .properties()
-                .iter()
-                .any(|&property| property_declares_transitions(property))
-        };
-        let owes_a_transition_step = self.decide_transition_step(
-            node,
-            underlying_style_record,
-            moves_transition_declarations,
-            scratch.host_applies_animation_plans,
-        )?;
-        // A step decides over a moved base record, or over one an ancestor's moved style reaches
-        // without moving it: the base the record holds an inherited animated value of.
-        let owes_a_transition_step_to = |new_style_record| {
-            owes_a_transition_step
-                && (new_style_record != underlying_style_record || parent_inputs_moved.inherited_style)
-        };
         let mut inputs = self.document_style_computation_inputs;
         if let Some((root, root_inputs)) = scratch.root_element_inputs
             && root == node
@@ -703,9 +678,8 @@ impl RetainedState {
                 parent_environment,
             )
         };
-        // OPTIMIZATION: An environment's identity can move without changing any substituted declaration.
-        //               Compare their resolved values before rebuilding the entire record.
-        let substitutions_unchanged = if environment.is_some()
+        // OPTIMIZATION: Compare substituted declarations so an environment move reaches only its changed values.
+        let substituted_delta = if environment.is_some()
             && !self.custom_property_registrations_changed
             && !has_registered_declarations
             && !self.state_reads_beyond_environment(node, state)
@@ -714,9 +688,40 @@ impl RetainedState {
         {
             let old_store = self.cached_winner_store(node, state, old_environment, parent_environment, scratch)?;
             let new_store = self.cached_winner_store(node, state, current_environment, parent_environment, scratch)?;
-            old_store.environment_values_equal(&new_store, self)
+            old_store.environment_value_delta(&new_store, self)
         } else {
-            false
+            None
+        };
+        let substitutions_unchanged = substituted_delta
+            .as_ref()
+            .is_some_and(|properties| properties.is_empty());
+        if let Some(properties) = &substituted_delta {
+            delta.include_substituted_properties(properties);
+        }
+        // A record driven from its winners alone takes its transition declarations from them. A
+        // moved display is applied after the step, as C++ applies it after the step it runs. The row
+        // carries what is decided here to the host, for a record that moves.
+        let moves_transition_declarations = if holds_no_current_cascade_state {
+            self.winner_groups
+                .semantic_delta_properties(None, state)
+                .any(property_declares_transitions)
+        } else {
+            delta
+                .properties()
+                .iter()
+                .any(|&property| property_declares_transitions(property))
+        };
+        let owes_a_transition_step = self.decide_transition_step(
+            node,
+            underlying_style_record,
+            moves_transition_declarations,
+            scratch.host_applies_animation_plans,
+        )?;
+        // A step decides over a moved base record, or over one an ancestor's moved style reaches
+        // without moving it: the base the record holds an inherited animated value of.
+        let owes_a_transition_step_to = |new_style_record| {
+            owes_a_transition_step
+                && (new_style_record != underlying_style_record || parent_inputs_moved.inherited_style)
         };
         // A moved environment reaches every winner written with a substitution, and so does a
         // moved custom-property registry. A winner written with `attr()` computes to what the
@@ -747,7 +752,7 @@ impl RetainedState {
                         })
                     })
                 }))
-            || (((environment.is_some() && !substitutions_unchanged) || self.custom_property_registrations_changed)
+            || (((environment.is_some() && substituted_delta.is_none()) || self.custom_property_registrations_changed)
                 && self.state_has_substitutions(node, state))
             || self.state_reads_beyond_environment(node, state)
             || self.record_reads_sibling_position(node, state)

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = '<div id="a"><slot name="a"></slot></div><div id="b"><slot name="b"></slot></div>';
+        shadow.getElementById("a").style.cssText = "--width: 10px; --padding: 1px; --color: red; --duration: 0s";
+        shadow.getElementById("b").style.cssText = "--width: 20px; --padding: 2px; --color: blue; --duration: 1000s";
+        const moved = document.createElement("section");
+        moved.slot = "a";
+        for (let index = 0; index < 32; ++index) {
+            const child = document.createElement("span");
+            child.textContent = "item";
+            child.style.cssText = "display: inline-block; width: var(--width); padding: var(--padding); color: var(--color);";
+            moved.append(child);
+        }
+        host.append(moved);
+        moved.offsetWidth;
+        const before = internals.styleEngineCounters();
+        for (let index = 0; index < 4; ++index) {
+            moved.slot = index % 2 ? "a" : "b";
+            internals.updateStyle();
+        }
+        const after = internals.styleEngineCounters();
+        println(`changed variables use partial descendant drives: ${after.engineFullDrivesStarted - before.engineFullDrivesStarted <= 4}`);
+        moved.slot = "b";
+        println(`changed width: ${getComputedStyle(moved.firstElementChild).width}`);
+        println(`changed shorthand: ${getComputedStyle(moved.firstElementChild).paddingTop}`);
+        println(`changed inherited color: ${getComputedStyle(moved.firstElementChild).color}`);
+        println(`currentColor follows changed color: ${getComputedStyle(moved.firstElementChild).borderTopColor}`);
+        moved.slot = "a";
+        const target = moved.firstElementChild;
+        target.style.transition = "width var(--duration) linear";
+        internals.updateStyle();
+        moved.slot = "b";
+        internals.updateStyle();
+        const transition = target.getAnimations()[0];
+        println(`variable duration starts transition: ${transition instanceof CSSTransition}`);
+        transition.pause();
+        transition.currentTime = 500000;
+        println(`transition midpoint: ${getComputedStyle(target).width}`);
+        println(`incremental layout matches rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+    });
+</script>
