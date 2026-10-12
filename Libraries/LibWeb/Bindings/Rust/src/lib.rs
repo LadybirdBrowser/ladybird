@@ -28,6 +28,11 @@ mod rust_panic;
     reason = "the generated bindings use only the conversions their interfaces need"
 )]
 pub(crate) mod bindings;
+#[cfg_attr(
+    not(web_idl_bindings),
+    allow(dead_code, reason = "only the generated bindings use the interfaces")
+)]
+pub(crate) mod encoding;
 
 // NB: Only C++ calls into libweb_rust, so nothing in this crate names it. Linking it keeps its extern "C" functions in
 //     the static library.
