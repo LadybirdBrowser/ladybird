@@ -27,7 +27,11 @@
 //! anything. Where the entry checks it to be an int32, it is checked to be
 //! below the loop's bound there too, once, unless such a check exited there
 //! before: the loop keeps it below the bound anyway. Those checks are only
-//! added where a bounds check relies on them.
+//! added where a bounds check or a rewritten shift relies on them.
+//!
+//! With the same ranges, `((x << k) + c) >> k` becomes `x + (c >> k)` where
+//! nothing overflows and `c` is a multiple of 2^k, like the index arithmetic
+//! of asm.js heap accesses.
 
 use super::dominators::Dominators;
 use super::edit::Constants;
@@ -161,6 +165,40 @@ impl Ranges<'_> {
             }
             _ => None,
         }
+    }
+
+    /// For `((x << k) + c) >> k` and `(x << k) >> k` where nothing can
+    /// overflow and `c` is a multiple of 2^k: `x` and `c >> k`, which it is.
+    fn unscaled(&mut self, shift: NodeId) -> Option<(NodeId, i64)> {
+        let node = self.graph.node(shift);
+        let amount = self.constant(node.inputs[1])? & 31;
+        let shifted = self.graph.node(node.inputs[0]);
+        let (scaled, offset) = match shifted.op {
+            Op::Int32Binary { op: BinaryOp::Add } | Op::Int32WrappingBinary { op: BinaryOp::Add } => {
+                (shifted.inputs[0], self.constant(shifted.inputs[1])?)
+            }
+            _ => (node.inputs[0], 0),
+        };
+        if offset % (1 << amount) != 0 {
+            return None;
+        }
+        let scaled_node = self.graph.node(scaled);
+        let is_left_shift = matches!(
+            scaled_node.op,
+            Op::Int32Binary {
+                op: BinaryOp::LeftShift
+            } | Op::Int32WrappingBinary {
+                op: BinaryOp::LeftShift
+            }
+        );
+        if !is_left_shift || self.constant(scaled_node.inputs[1])? & 31 != amount {
+            return None;
+        }
+        // NB: Known ranges of the shifted value and the sum mean neither
+        //     overflowed.
+        self.of(scaled)?;
+        self.of(node.inputs[0])?;
+        Some((scaled_node.inputs[0], offset >> amount))
     }
 
     /// Whether `predecessor` reaches `block` over a back edge.
@@ -387,17 +425,22 @@ fn entering_counters(
 pub fn run(graph: &mut Graph) {
     let mut phi_blocks = HashMap::default();
     let mut checks = Vec::new();
+    let mut shifts = Vec::new();
     for (index, block) in graph.blocks.iter().enumerate() {
         for phi in &block.phis {
             phi_blocks.insert(*phi, BlockId::from_index(index));
         }
         for node in &block.body {
-            if graph.node(*node).op == Op::CheckBounds {
-                checks.push(*node);
+            match graph.node(*node).op {
+                Op::CheckBounds => checks.push(*node),
+                Op::Int32Binary {
+                    op: BinaryOp::RightShift,
+                } => shifts.push((*node, BlockId::from_index(index))),
+                _ => {}
             }
         }
     }
-    if checks.is_empty() {
+    if checks.is_empty() && shifts.is_empty() {
         return;
     }
     let dominators = Dominators::compute(graph);
@@ -419,15 +462,26 @@ pub fn run(graph: &mut Graph) {
             }
         })
         .collect::<Vec<_>>();
-    if passing.is_empty() {
+    let scaled = shifts
+        .into_iter()
+        .filter_map(|(shift, block)| {
+            ranges
+                .unscaled(shift)
+                .map(|(value, offset)| (shift, block, value, offset))
+        })
+        .collect::<Vec<_>>();
+    if passing.is_empty() && scaled.is_empty() {
         return;
     }
-    // NB: Only the entering counters that the removed checks relied on get
-    //     checked where they enter.
+    // NB: Only the entering counters that the removed checks and the
+    //     rewritten shifts relied on get checked where they enter.
     let mut used = BitSet::new(graph.nodes.len());
     let mut visited = BitSet::new(graph.nodes.len());
     for check in &passing {
         ranges.assumptions_of(graph.node(*check).inputs[0], &mut used, &mut visited);
+    }
+    for (shift, ..) in &scaled {
+        ranges.assumptions_of(*shift, &mut used, &mut visited);
     }
     let guards = entering
         .iter()
@@ -466,6 +520,28 @@ pub fn run(graph: &mut Graph) {
         body.insert(position + 1, guard);
         replacements.replace(value, guard);
         guard_nodes.push((guard, value));
+    }
+    for (shift, block, value, offset) in scaled {
+        let replacement = if offset == 0 {
+            value
+        } else {
+            let offset = constants.get_typed(graph, u64::from((offset as i32).cast_unsigned()), Repr::Int32);
+            let sum = graph.add_node(Node::new(
+                Op::Int32WrappingBinary { op: BinaryOp::Add },
+                vec![value, offset],
+                Some(Repr::Int32),
+                graph.node(shift).pc,
+            ));
+            let body = &mut graph.blocks[block.index()].body;
+            let position = body
+                .iter()
+                .position(|node| *node == shift)
+                .expect("nodes are in their blocks");
+            body.insert(position, sum);
+            sum
+        };
+        replacements.replace(shift, replacement);
+        removed.insert(shift.index());
     }
     replacements.apply(graph);
     // NB: The guards check the values they replace.

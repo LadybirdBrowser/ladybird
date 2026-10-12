@@ -69,3 +69,19 @@ test("loops entered in the middle by on-stack replacement keep their checks", ()
     }
     expect(total).toBe(2016 + 2016 + (60 + 61 + 62 + 63));
 });
+
+test("scaled indices keep their arithmetic where it may overflow", () => {
+    const body = `let i = start | 0, n = 0, total = 0;
+        do {
+            total = (total + (heap[(8 + (i << 2)) >> 2] | 0)) | 0;
+            i = (i + 1) | 0;
+            n = (n + 1) | 0;
+        } while ((n | 0) != 4);
+        return total;`;
+    const read = compiled(new Function("heap", "start", body), new Int32Array(6), 0);
+    const expected = new Function("heap", "start", body);
+    const heap = new Int32Array([1, 2, 3, 4, 5, 6]);
+    // NB: `i << 2` overflows for some of these starts, and wraps around.
+    for (const start of [0, 1, 0x3ffffffe, 0x3fffffff, -0x40000000, -3, 0x7ffffffe])
+        expect(read(heap, start)).toBe(expected(heap, start));
+});
