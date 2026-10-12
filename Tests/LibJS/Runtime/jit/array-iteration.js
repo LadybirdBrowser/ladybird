@@ -37,6 +37,19 @@ test("holes read the prototype chain", () => {
     }
 });
 
+test("holey arrays iterate up to their length past their storage", () => {
+    const count = compileIteration(new Function("array", "let n = 0; for (const value of array) ++n; return n;"), [
+        1,
+        ,
+        3,
+    ]);
+    expect(count(new Array(5))).toBe(5);
+    const grown = [1, 2, 3];
+    grown.length = 40;
+    expect(count(grown)).toBe(40);
+    expect(collect(Object.assign(new Array(3), { 1: "set" }))).toEqual([undefined, "set", undefined]);
+});
+
 test("arrays changed while iterating", () => {
     compileIteration(collect, [1, 2, 3]);
     const growing = [1, 2];
