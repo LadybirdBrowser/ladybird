@@ -1647,6 +1647,11 @@ void PageClient::page_did_request_history_operation(Web::HTML::CrossProcessId op
     client().async_request_history_operation(m_id, operation_id, move(parameters));
 }
 
+void PageClient::page_did_revoke_history_operation(Web::HTML::CrossProcessId operation_id)
+{
+    client().async_revoke_history_operation(m_id, operation_id);
+}
+
 void PageClient::page_did_request_child_navigable_unload(Web::HTML::CrossProcessId navigable_id)
 {
     client().async_request_child_navigable_unload(m_id, navigable_id);

@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::Bindings {
@@ -114,11 +115,13 @@ public:
     Vector<NavigationInterceptHandler> const& navigation_handler_list() const { return m_navigation_handler_list; }
     Optional<StorageSerializationRecord> classic_history_api_state() const { return m_classic_history_api_state; }
     bool has_started_navigate_event_intercept_commit_handler_steps() const { return m_has_started_navigate_event_intercept_commit_handler_steps; }
+    Optional<CrossProcessId> resume_traversal_operation_id() const { return m_resume_traversal_operation_id; }
 
     void set_abort_controller(GC::Ref<DOM::AbortController> c) { m_abort_controller = c; }
     void set_interception_state(InterceptionState s) { m_interception_state = s; }
     void set_classic_history_api_state(Optional<StorageSerializationRecord> r) { m_classic_history_api_state = move(r); }
     void set_has_started_navigate_event_intercept_commit_handler_steps() { m_has_started_navigate_event_intercept_commit_handler_steps = true; }
+    void set_resume_traversal_operation_id(CrossProcessId id) { m_resume_traversal_operation_id = id; }
 
     void finish(bool did_fulfill);
 
@@ -140,6 +143,9 @@ private:
     InterceptionState m_interception_state = InterceptionState::None;
 
     bool m_has_started_navigate_event_intercept_commit_handler_steps { false };
+
+    // The history operation resuming this intercepted traverse, which is revoked if the event is aborted first.
+    Optional<CrossProcessId> m_resume_traversal_operation_id;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigateevent-navigation-handler-list
     Vector<NavigationInterceptHandler> m_navigation_handler_list;

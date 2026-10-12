@@ -41,15 +41,12 @@ class WEB_API HistoryExecutor final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(HistoryExecutor);
 
 public:
-    using OnHistoryOperationReady = GC::Function<void(Web::HistoryOperationReadyResult)>;
-    using OnHistoryOperationPreSteps = GC::Function<void(GC::Ref<OnHistoryOperationReady>)>;
     struct HistoryOperationState {
         GC::Ptr<DOM::Document> pending_document {};
         GC::Ptr<SourceSnapshotParams> source_snapshot_params {};
         Optional<NavigationSourceSnapshot> serialized_source_snapshot_params {};
         Optional<CrossProcessId> local_target_navigable_id {};
         RefPtr<SessionHistoryEntry> local_target_entry {};
-        GC::Ptr<OnHistoryOperationPreSteps> pre_steps {};
         GC::Ptr<OnApplyHistoryStepComplete> on_apply_complete {};
         GC::Ptr<OnApplyHistoryStepComplete> on_complete {};
 
@@ -59,9 +56,10 @@ public:
         HashMap<CrossProcessId, GC::Ref<GC::Function<void(HistoryNavigationPopulation)>>> pending_populations {};
     };
 
-    void request_history_operation(HistoryOperationParameters);
-    void request_history_operation(HistoryOperationParameters, HistoryOperationState);
-    void handle_ui_history_operation_started(CrossProcessId operation_id, GC::Ref<OnHistoryOperationReady>);
+    CrossProcessId request_history_operation(HistoryOperationParameters);
+    CrossProcessId request_history_operation(HistoryOperationParameters, HistoryOperationState);
+    // Takes back a requested operation the UI process has not started.
+    void revoke_history_operation(CrossProcessId operation_id);
     void complete_ui_history_operation(CrossProcessId operation_id, HistoryStepResult, Optional<i32> target_entry_step);
 
     void traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document = {});

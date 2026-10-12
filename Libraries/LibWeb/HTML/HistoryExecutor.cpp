@@ -70,7 +70,6 @@ void HistoryExecutor::visit_edges(Cell::Visitor& visitor)
     for (auto& operation : m_history_operations) {
         visitor.visit(operation.value.source_snapshot_params);
         visitor.visit(operation.value.pending_document);
-        visitor.visit(operation.value.pre_steps);
         visitor.visit(operation.value.on_apply_complete);
         visitor.visit(operation.value.on_complete);
         for (auto& population : operation.value.pending_populations)
@@ -93,31 +92,23 @@ HistoryExecutor::HistoryOperationState& HistoryExecutor::ensure_history_operatio
     return m_history_operations.ensure(operation_id);
 }
 
-void HistoryExecutor::request_history_operation(HistoryOperationParameters parameters)
+CrossProcessId HistoryExecutor::request_history_operation(HistoryOperationParameters parameters)
 {
-    request_history_operation(move(parameters), {});
+    return request_history_operation(move(parameters), {});
 }
 
-void HistoryExecutor::request_history_operation(HistoryOperationParameters parameters, HistoryOperationState state)
+CrossProcessId HistoryExecutor::request_history_operation(HistoryOperationParameters parameters, HistoryOperationState state)
 {
     auto operation_id = m_page->client().allocate_cross_process_id();
     m_history_operations.set(operation_id, move(state));
     m_page->client().page_did_request_history_operation(operation_id, move(parameters));
+    return operation_id;
 }
 
-void HistoryExecutor::handle_ui_history_operation_started(CrossProcessId operation_id, GC::Ref<OnHistoryOperationReady> ready)
+void HistoryExecutor::revoke_history_operation(CrossProcessId operation_id)
 {
-    auto* operation = find_history_operation(operation_id);
-    if (!operation) {
-        ready->function()(HistoryStepResult::Applied);
-        return;
-    }
-
-    if (operation->pre_steps) {
-        operation->pre_steps->function()(ready);
-        return;
-    }
-    ready->function()(Empty {});
+    if (m_history_operations.contains(operation_id))
+        m_page->client().page_did_revoke_history_operation(operation_id);
 }
 
 void HistoryExecutor::complete_ui_history_operation(CrossProcessId operation_id, HistoryStepResult result, Optional<i32> target_entry_step)

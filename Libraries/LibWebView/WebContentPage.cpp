@@ -1622,9 +1622,9 @@ void WebContentPage::request_history_operation(Web::HTML::CrossProcessId operati
     view().request_history_operation({}, *this, operation_id, move(parameters));
 }
 
-void WebContentPage::history_operation_ready(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult result)
+void WebContentPage::revoke_history_operation(Web::HTML::CrossProcessId operation_id)
 {
-    traversable().did_receive_history_operation_ready(*this, operation_id, move(result));
+    traversable().revoke_history_operation(*this, operation_id);
 }
 
 void WebContentPage::beforeunload_check_result(Web::HTML::CrossProcessId operation_id, Web::HTML::CheckIfUnloadingIsCanceledResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
