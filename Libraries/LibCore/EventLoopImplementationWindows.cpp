@@ -7,12 +7,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/Assertions.h>
 #include <AK/Atomic.h>
 #include <AK/Diagnostics.h>
 #include <AK/HashMap.h>
 #include <AK/Mutex.h>
 #include <AK/MutexProtected.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Time.h>
 #include <AK/Windows.h>
@@ -22,6 +24,7 @@
 #include <LibCore/ThreadEventQueue.h>
 #include <LibCore/TimeoutSet.h>
 #include <LibCore/Timer.h>
+#include <signal.h>
 
 struct OwnHandle {
     HANDLE handle = NULL;
@@ -72,6 +75,7 @@ enum class CompletionType : u8 {
     Timer,
     Notifer,
     Process,
+    Signal,
 };
 
 struct CompletionPacket {
@@ -79,6 +83,53 @@ struct CompletionPacket {
 
     CompletionType type;
 };
+
+static CompletionPacket s_signal_packet { CompletionType::Signal };
+static Atomic<HANDLE> s_signal_iocp { nullptr };
+static Array<Atomic<u32>, NSIG> s_pending_signal_counts;
+
+struct SignalHandlers {
+    AK_ALLOC_WITH_KMALLOC;
+
+    HashMap<int, HashMap<int, Function<void(int)>>> handlers_by_signal;
+    int next_handler_id { 0 };
+};
+
+static SignalHandlers& signal_handlers()
+{
+    static NeverDestroyed<SignalHandlers> s_signal_handlers;
+    return *s_signal_handlers;
+}
+
+static void handle_signal(int signal_number)
+{
+    // The CRT resets the handler before calling it.
+    (void)signal(signal_number, handle_signal);
+    s_pending_signal_counts[signal_number].fetch_add(1, AK::MemoryOrder::memory_order_release);
+    if (auto* iocp = s_signal_iocp.load(AK::MemoryOrder::memory_order_acquire))
+        PostQueuedCompletionStatus(iocp, 0, reinterpret_cast<ULONG_PTR>(&s_signal_packet), nullptr);
+}
+
+static void dispatch_pending_signals()
+{
+    for (int signal_number = 1; signal_number < NSIG; ++signal_number) {
+        auto pending_count = s_pending_signal_counts[signal_number].exchange(0, AK::MemoryOrder::memory_order_acq_rel);
+        for (u32 i = 0; i < pending_count; ++i) {
+            auto handlers = signal_handlers().handlers_by_signal.get(signal_number);
+            if (!handlers.has_value())
+                break;
+            // A handler may register or unregister handlers, so each one is looked up again before it is called.
+            auto handler_ids = handlers->keys();
+            for (auto handler_id : handler_ids) {
+                auto current_handlers = signal_handlers().handlers_by_signal.get(signal_number);
+                if (!current_handlers.has_value())
+                    break;
+                if (auto handler = current_handlers->get(handler_id); handler.has_value())
+                    (*handler)(signal_number);
+            }
+        }
+    }
+}
 
 struct EventLoopWake final : CompletionPacket {
     OwnHandle wait_packet;
@@ -306,6 +357,10 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
             auto& entry = entries[i];
             auto* packet = reinterpret_cast<CompletionPacket*>(entry.lpCompletionKey);
 
+            if (packet->type == CompletionType::Signal) {
+                dispatch_pending_signals();
+                continue;
+            }
             if (packet->type == CompletionType::Wake) {
                 auto* wake_data = static_cast<EventLoopWake*>(packet);
                 NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(wake_data->wait_packet.handle, thread_data->iocp.handle, wake_data->wait_event.handle, wake_data, NULL, 0, 0, NULL);
@@ -476,16 +531,38 @@ void EventLoopManagerWindows::unregister_timer(intptr_t timer_id)
     }
 }
 
-int EventLoopManagerWindows::register_signal([[maybe_unused]] int signal_number, [[maybe_unused]] Function<void(int)> handler)
+int EventLoopManagerWindows::register_signal(int signal_number, Function<void(int)> handler)
 {
-    dbgln("Core::EventLoopManagerWindows::register_signal() is not implemented");
-    VERIFY_NOT_REACHED();
+    VERIFY(signal_number > 0 && signal_number < NSIG);
+
+    HANDLE expected = nullptr;
+    // Only the first thread to register a handler becomes the signals' target.
+    (void)s_signal_iocp.compare_exchange_strong(expected, ThreadData::the()->iocp.handle, AK::MemoryOrder::memory_order_acq_rel);
+
+    auto& handlers = signal_handlers();
+    auto handler_id = ++handlers.next_handler_id;
+    auto& handlers_of_signal = handlers.handlers_by_signal.ensure(signal_number);
+    if (handlers_of_signal.is_empty())
+        VERIFY(signal(signal_number, handle_signal) != SIG_ERR);
+    handlers_of_signal.set(handler_id, move(handler));
+    return handler_id;
 }
 
-void EventLoopManagerWindows::unregister_signal([[maybe_unused]] int handler_id)
+void EventLoopManagerWindows::unregister_signal(int handler_id)
 {
-    dbgln("Core::EventLoopManagerWindows::unregister_signal() is not implemented");
-    VERIFY_NOT_REACHED();
+    VERIFY(handler_id != 0);
+
+    auto& handlers = signal_handlers();
+    for (auto& [signal_number, handlers_of_signal] : handlers.handlers_by_signal) {
+        if (!handlers_of_signal.remove(handler_id))
+            continue;
+        if (handlers_of_signal.is_empty()) {
+            auto signal_number_to_reset = signal_number;
+            (void)signal(signal_number_to_reset, SIG_DFL);
+            handlers.handlers_by_signal.remove(signal_number_to_reset);
+        }
+        return;
+    }
 }
 
 void EventLoopManagerWindows::register_process(pid_t pid, ESCAPING Function<void(pid_t)> exit_handler)
