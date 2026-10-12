@@ -46,11 +46,7 @@ fn constant_truthiness(bits: u64, repr: Repr) -> Option<bool> {
 }
 
 fn int32_of(graph: &Graph, node: NodeId) -> Option<i32> {
-    let data = graph.node(node);
-    match (&data.op, data.repr) {
-        (Op::Constant(bits), Some(Repr::Int32)) => Some((*bits as u32).cast_signed()),
-        _ => None,
-    }
+    graph.int32_constant(node)
 }
 
 fn fold_int32_binary(op: BinaryOp, lhs: i32, rhs: i32) -> Option<i32> {

@@ -1,0 +1,476 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+//! Bounds check elimination: bounds checks of indices whose ranges are
+//! known to be within the count go away.
+//!
+//! The ranges come from loop induction variables and from int32 arithmetic
+//! on them. An induction variable is a loop header phi that starts at a
+//! value of known range and grows by a constant step on every iteration,
+//! where the back edge is only taken while the grown value compares below a
+//! constant bound, like the counters of loops that test at their bottom
+//! (`do { ... } while (++i != 1024)`). Its values then lie between its
+//! start and the bound. Arithmetic on values of known ranges has a known
+//! range where it cannot overflow: additions, subtractions, shifts by
+//! constants and masks with constants.
+//!
+//! The pass runs after loop invariant code motion, which gives every loop
+//! one entry: a header phi's first input comes from outside the loop, and
+//! its others over back edges. Merges of values from outside the loop, like
+//! the starts of a counter that the function entry and an on-stack
+//! replacement entry bring, are in the range of all their inputs.
+//!
+//! The counter an on-stack replacement entry finds in the frame could be
+//! anything. Where the entry checks it to be an int32, it is checked to be
+//! below the loop's bound there too, once, unless such a check exited there
+//! before: the loop keeps it below the bound anyway. Those checks are only
+//! added where a bounds check relies on them.
+
+use super::dominators::Dominators;
+use super::edit::Constants;
+use super::edit::Replacements;
+use crate::bitset::BitSet;
+use crate::code::ExitKind;
+use crate::code::Repr;
+use crate::fast_hash::HashMap;
+use crate::ir::BinaryOp;
+use crate::ir::BlockId;
+use crate::ir::BranchCondition;
+use crate::ir::Comparison;
+use crate::ir::Graph;
+use crate::ir::Node;
+use crate::ir::NodeId;
+use crate::ir::Op;
+
+/// The inclusive range of an int32 value.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Range {
+    min: i64,
+    max: i64,
+}
+
+impl Range {
+    fn new(min: i64, max: i64) -> Option<Self> {
+        (i64::from(i32::MIN) <= min && min <= max && max <= i64::from(i32::MAX)).then_some(Self { min, max })
+    }
+}
+
+struct Ranges<'a> {
+    graph: &'a Graph,
+    dominators: &'a Dominators,
+    /// The block of each phi.
+    phi_blocks: &'a HashMap<NodeId, BlockId>,
+    /// The ranges of entering counters that checks added where they enter
+    /// would give them.
+    assumed: &'a HashMap<NodeId, Range>,
+    known: HashMap<NodeId, Option<Range>>,
+}
+
+impl Ranges<'_> {
+    fn of(&mut self, value: NodeId) -> Option<Range> {
+        if let Some(range) = self.assumed.get(&value) {
+            return Some(*range);
+        }
+        if let Some(range) = self.known.get(&value) {
+            return *range;
+        }
+        // NB: Cycles through phis that are no induction variables have no
+        //     range; a phi in progress has none until it is done.
+        self.known.insert(value, None);
+        let range = self.compute(value);
+        self.known.insert(value, range);
+        range
+    }
+
+    fn constant(&self, value: NodeId) -> Option<i64> {
+        self.graph.int32_constant(value).map(i64::from)
+    }
+
+    fn compute(&mut self, value: NodeId) -> Option<Range> {
+        let node = self.graph.node(value);
+        if node.repr != Some(Repr::Int32) {
+            return None;
+        }
+        if let Some(constant) = self.constant(value) {
+            return Range::new(constant, constant);
+        }
+        // NB: A value past its bounds check is below the count, and other
+        //     refinements keep the range of what they refine.
+        if node.op == Op::CheckBounds {
+            let index = self.of(node.inputs[0]);
+            return match (index, self.constant(node.inputs[1])) {
+                (Some(index), Some(count)) => Range::new(index.min.max(0), index.max.min(count - 1)),
+                (None, Some(count)) => Range::new(0, count - 1),
+                (index, None) => index,
+            };
+        }
+        if let Some(refined) = node.op.refined_input() {
+            return self.of(node.inputs[refined]);
+        }
+        match node.op {
+            Op::Phi if self.is_merge(value) => {
+                let inputs = node.inputs.clone();
+                let mut range: Option<Range> = None;
+                for input in inputs {
+                    let input = self.of(input)?;
+                    range = Some(match range {
+                        None => input,
+                        Some(range) => Range::new(range.min.min(input.min), range.max.max(input.max))?,
+                    });
+                }
+                range
+            }
+            Op::Phi => self.induction_variable(value),
+            Op::Int32Binary { op } | Op::Int32WrappingBinary { op } => {
+                let (lhs, rhs) = (node.inputs[0], node.inputs[1]);
+                match op {
+                    BinaryOp::Add | BinaryOp::Sub => {
+                        let (lhs, rhs) = (self.of(lhs)?, self.of(rhs)?);
+                        if op == BinaryOp::Add {
+                            Range::new(lhs.min + rhs.min, lhs.max + rhs.max)
+                        } else {
+                            Range::new(lhs.min - rhs.max, lhs.max - rhs.min)
+                        }
+                    }
+                    BinaryOp::LeftShift => {
+                        let (lhs, shift) = (self.of(lhs)?, self.constant(rhs)? & 31);
+                        Range::new(lhs.min << shift, lhs.max << shift)
+                    }
+                    BinaryOp::RightShift => {
+                        let (lhs, shift) = (self.of(lhs)?, self.constant(rhs)? & 31);
+                        Range::new(lhs.min >> shift, lhs.max >> shift)
+                    }
+                    BinaryOp::UnsignedRightShift => {
+                        let (lhs, shift) = (self.of(lhs)?, self.constant(rhs)? & 31);
+                        (lhs.min >= 0)
+                            .then(|| Range::new(lhs.min >> shift, lhs.max >> shift))
+                            .flatten()
+                    }
+                    BinaryOp::BitwiseAnd => {
+                        let mask = self.constant(rhs).filter(|mask| *mask >= 0)?;
+                        match self.of(lhs) {
+                            Some(lhs) if lhs.min >= 0 => Range::new(0, lhs.max.min(mask)),
+                            _ => Range::new(0, mask),
+                        }
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// Whether `predecessor` reaches `block` over a back edge.
+    fn is_back_edge(&self, predecessor: BlockId, block: BlockId) -> bool {
+        self.dominators.dominates(block, predecessor)
+    }
+
+    /// Whether `phi` merges values that no back edge brings.
+    fn is_merge(&self, phi: NodeId) -> bool {
+        self.phi_blocks.get(&phi).is_some_and(|block| {
+            self.graph
+                .block(*block)
+                .predecessors
+                .iter()
+                .all(|predecessor| !self.is_back_edge(*predecessor, *block))
+        })
+    }
+
+    /// The step, the comparison and the bound of the loop header phi `phi`,
+    /// if it is shaped like an induction variable, whatever its start.
+    fn induction_step(&self, phi: NodeId) -> Option<(i64, Comparison, i64)> {
+        let block = *self.phi_blocks.get(&phi)?;
+        let inputs = &self.graph.node(phi).inputs;
+        let predecessors = &self.graph.block(block).predecessors;
+        if inputs.len() != 2 || self.is_back_edge(predecessors[0], block) || !self.is_back_edge(predecessors[1], block)
+        {
+            return None;
+        }
+        let next = self.graph.unrefined(inputs[1]);
+        let next_node = self.graph.node(next);
+        let step = match next_node.op {
+            Op::Int32Binary { op: BinaryOp::Add } | Op::Int32WrappingBinary { op: BinaryOp::Add }
+                if self.graph.unrefined(next_node.inputs[0]) == phi =>
+            {
+                self.constant(next_node.inputs[1]).filter(|step| *step > 0)?
+            }
+            _ => return None,
+        };
+        let (comparison, bound) = self.back_edge_condition(predecessors[1], next)?;
+        Some((step, comparison, bound))
+    }
+
+    /// The range of the loop header phi `phi`, if it is an induction
+    /// variable that grows by a constant step while the grown value stays
+    /// below a constant bound.
+    fn induction_variable(&mut self, phi: NodeId) -> Option<Range> {
+        let (step, comparison, bound) = self.induction_step(phi)?;
+        let start = self.of(self.graph.node(phi).inputs[0])?;
+        // NB: The phi's values are its start, and grown values for which the
+        //     back edge was taken.
+        let last = match comparison {
+            Comparison::LessThan => bound - 1,
+            Comparison::LessThanEquals => bound,
+            // NB: A loop until the grown value equals the bound only stops
+            //     there if it steps on it.
+            Comparison::StrictlyInequals | Comparison::LooselyInequals
+                if start.max < bound && (step == 1 || (start.min == start.max && (bound - start.min) % step == 0)) =>
+            {
+                bound - step
+            }
+            _ => return None,
+        };
+        let max = start.max.max(last);
+        // NB: Growing the last value must not overflow either.
+        Range::new(max, max + step)?;
+        Range::new(start.min, max)
+    }
+
+    /// The comparison and constant bound of the grown value `next` under
+    /// which the back edge from `source` is taken: `source` only jumps to
+    /// the header, after a branch on comparing `next` with a constant.
+    fn back_edge_condition(&self, source: BlockId, next: NodeId) -> Option<(Comparison, i64)> {
+        if !matches!(self.graph.control(source).op, Op::Jump { .. }) {
+            return None;
+        }
+        let [branch_block] = self.graph.block(source).predecessors[..] else {
+            return None;
+        };
+        let branch = self.graph.control(branch_block);
+        let Op::Branch {
+            condition: BranchCondition::Bool,
+            if_true,
+            if_false,
+        } = branch.op
+        else {
+            return None;
+        };
+        let compare = self.graph.node(self.graph.unrefined(branch.inputs[0]));
+        let Op::Int32Compare { comparison } = compare.op else {
+            return None;
+        };
+        if self.graph.unrefined(compare.inputs[0]) != next {
+            return None;
+        }
+        let bound = self.constant(compare.inputs[1])?;
+        let comparison = if if_true == source {
+            comparison
+        } else if if_false == source {
+            match comparison {
+                Comparison::GreaterThanEquals => Comparison::LessThan,
+                Comparison::GreaterThan => Comparison::LessThanEquals,
+                Comparison::StrictlyEquals => Comparison::StrictlyInequals,
+                Comparison::LooselyEquals => Comparison::LooselyInequals,
+                _ => return None,
+            }
+        } else {
+            return None;
+        };
+        Some((comparison, bound))
+    }
+
+    /// The entering counters of `assumed` that the range of `value` relies
+    /// on, added to `used`.
+    fn assumptions_of(&self, value: NodeId, used: &mut BitSet, visited: &mut BitSet) {
+        let mut pending = vec![value];
+        while let Some(value) = pending.pop() {
+            if visited.contains(value.index()) {
+                continue;
+            }
+            visited.insert(value.index());
+            if self.assumed.contains_key(&value) {
+                used.insert(value.index());
+                continue;
+            }
+            pending.extend(self.graph.node(value).inputs.iter().copied());
+        }
+    }
+}
+
+/// The blocks that only on-stack replacement entries reach.
+fn osr_only_blocks(graph: &Graph) -> BitSet {
+    let reach = |starts: Vec<BlockId>| {
+        let mut reached = BitSet::new(graph.blocks.len());
+        let mut pending = starts;
+        while let Some(block) = pending.pop() {
+            if reached.contains(block.index()) {
+                continue;
+            }
+            reached.insert(block.index());
+            pending.extend(graph.successors(block).iter().copied());
+        }
+        reached
+    };
+    let mut osr = reach(graph.osr_entries.iter().map(|(_, block)| *block).collect());
+    osr.subtract(&reach(vec![BlockId::from_index(0)]));
+    osr
+}
+
+/// The counters that on-stack replacement entries bring to induction
+/// variables and check to be int32 values, with the bound each could be
+/// checked against: the tightest of the loops it starts.
+fn entering_counters(
+    graph: &Graph,
+    dominators: &Dominators,
+    phi_blocks: &HashMap<NodeId, BlockId>,
+) -> HashMap<NodeId, Range> {
+    let mut entering = HashMap::default();
+    if graph.osr_entries.is_empty() {
+        return entering;
+    }
+    let osr_only = osr_only_blocks(graph);
+    let mut block_of = HashMap::default();
+    for (index, block) in graph.blocks.iter().enumerate() {
+        for node in &block.body {
+            block_of.insert(*node, index);
+        }
+    }
+    let none = HashMap::default();
+    let ranges = Ranges {
+        graph,
+        dominators,
+        phi_blocks,
+        assumed: &none,
+        known: HashMap::default(),
+    };
+    for phi in phi_blocks.keys() {
+        let Some((_, comparison, bound)) = ranges.induction_step(*phi) else {
+            continue;
+        };
+        if bound <= 0
+            || !matches!(
+                comparison,
+                Comparison::LessThan | Comparison::StrictlyInequals | Comparison::LooselyInequals
+            )
+        {
+            continue;
+        }
+        // NB: Look through merges of the values the entries bring.
+        let mut pending = vec![graph.node(*phi).inputs[0]];
+        let mut seen = BitSet::new(graph.nodes.len());
+        while let Some(value) = pending.pop() {
+            let value = graph.unrefined(value);
+            if seen.contains(value.index()) {
+                continue;
+            }
+            seen.insert(value.index());
+            let node = graph.node(value);
+            if node.op == Op::Phi && ranges.is_merge(value) {
+                pending.extend(node.inputs.iter().copied());
+                continue;
+            }
+            let Some(frame_state) = node.frame_state else {
+                continue;
+            };
+            let state = graph.frame_state(frame_state);
+            let failed_before = graph
+                .exit_sites
+                .contains(&(state.executable, state.pc, ExitKind::OutOfBounds));
+            if node.op == Op::CheckInt32
+                && !failed_before
+                && block_of.get(&value).is_some_and(|block| osr_only.contains(*block))
+            {
+                let range = Range::new(0, bound - 1).expect("the bound is a positive int32");
+                entering
+                    .entry(value)
+                    .and_modify(|assumed: &mut Range| assumed.max = assumed.max.min(range.max))
+                    .or_insert(range);
+            }
+        }
+    }
+    entering
+}
+
+pub fn run(graph: &mut Graph) {
+    let mut phi_blocks = HashMap::default();
+    let mut checks = Vec::new();
+    for (index, block) in graph.blocks.iter().enumerate() {
+        for phi in &block.phis {
+            phi_blocks.insert(*phi, BlockId::from_index(index));
+        }
+        for node in &block.body {
+            if graph.node(*node).op == Op::CheckBounds {
+                checks.push(*node);
+            }
+        }
+    }
+    if checks.is_empty() {
+        return;
+    }
+    let dominators = Dominators::compute(graph);
+    let entering = entering_counters(graph, &dominators, &phi_blocks);
+    let mut ranges = Ranges {
+        graph,
+        dominators: &dominators,
+        phi_blocks: &phi_blocks,
+        assumed: &entering,
+        known: HashMap::default(),
+    };
+    let passing = checks
+        .into_iter()
+        .filter(|check| {
+            let node = graph.node(*check);
+            match (ranges.constant(node.inputs[1]), ranges.of(node.inputs[0])) {
+                (Some(count), Some(index)) => index.min >= 0 && index.max < count,
+                _ => false,
+            }
+        })
+        .collect::<Vec<_>>();
+    if passing.is_empty() {
+        return;
+    }
+    // NB: Only the entering counters that the removed checks relied on get
+    //     checked where they enter.
+    let mut used = BitSet::new(graph.nodes.len());
+    let mut visited = BitSet::new(graph.nodes.len());
+    for check in &passing {
+        ranges.assumptions_of(graph.node(*check).inputs[0], &mut used, &mut visited);
+    }
+    let guards = entering
+        .iter()
+        .filter(|(value, _)| used.contains(value.index()))
+        .map(|(value, range)| (*value, range.max + 1))
+        .collect::<Vec<_>>();
+
+    let mut replacements = Replacements::new(graph);
+    let mut removed = BitSet::new(graph.nodes.len());
+    for check in passing {
+        replacements.replace(check, graph.node(check).inputs[0]);
+        removed.insert(check.index());
+    }
+    let mut constants = Constants::new(graph);
+    let mut guard_nodes = Vec::new();
+    for (value, bound) in guards {
+        let count = constants.get_typed(graph, u64::from((bound as i32).cast_unsigned()), Repr::Int32);
+        let (frame_state, pc) = (graph.node(value).frame_state, graph.node(value).pc);
+        let guard = graph.add_node(Node {
+            op: Op::CheckBounds,
+            inputs: vec![value, count],
+            repr: Some(Repr::Int32),
+            frame_state,
+            pc,
+        });
+        let block = graph
+            .blocks
+            .iter()
+            .position(|block| block.body.contains(&value))
+            .expect("values are in their blocks");
+        let body = &mut graph.blocks[block].body;
+        let position = body
+            .iter()
+            .position(|node| *node == value)
+            .expect("the block has the value");
+        body.insert(position + 1, guard);
+        replacements.replace(value, guard);
+        guard_nodes.push((guard, value));
+    }
+    replacements.apply(graph);
+    // NB: The guards check the values they replace.
+    for (guard, value) in guard_nodes {
+        graph.nodes[guard.index()].inputs[0] = value;
+    }
+    super::edit::remove_nodes(graph, &removed);
+}
