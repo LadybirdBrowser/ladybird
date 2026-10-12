@@ -914,7 +914,7 @@ def _setup_aia_test_servers(http_port, ca_cert_output):
     logging.info("AIA test servers ready: %s (root CA at %s)", config, ca_cert_output)
 
 
-def start_server(port, static_directory, ca_cert_output=None):
+def start_server(port, static_directory, ca_cert_output=None, exit_when_stdin_closes=False):
     TestHTTPRequestHandler.static_directory = os.path.abspath(static_directory)
     TestHTTPRequestHandler.wpt_directory = os.path.join(
         TestHTTPRequestHandler.static_directory, "Text", "input", "wpt-import"
@@ -954,6 +954,14 @@ def start_server(port, static_directory, ca_cert_output=None):
     print(httpd.socket.getsockname()[1])
     sys.stdout.flush()
 
+    if exit_when_stdin_closes:
+
+        def shut_down_when_stdin_closes():
+            sys.stdin.buffer.read()
+            httpd.shutdown()
+
+        threading.Thread(target=shut_down_when_stdin_closes, daemon=True).start()
+
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
@@ -981,6 +989,11 @@ if __name__ == "__main__":
         help="Port to run the server on",
     )
     parser.add_argument(
+        "--exit-when-stdin-closes",
+        action="store_true",
+        help="Shut down once stdin reaches end-of-file, as when the process that started the server closes it or exits",
+    )
+    parser.add_argument(
         "--ca-cert-output",
         type=str,
         default=None,
@@ -988,4 +1001,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    start_server(port=args.port, static_directory=args.directory, ca_cert_output=args.ca_cert_output)
+    start_server(
+        port=args.port,
+        static_directory=args.directory,
+        ca_cert_output=args.ca_cert_output,
+        exit_when_stdin_closes=args.exit_when_stdin_closes,
+    )
