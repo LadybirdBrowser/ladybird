@@ -25,6 +25,8 @@ use crate::runtime::module_namespace_object::ModuleNamespaceObject;
 use crate::runtime::object::PropertyKind;
 use crate::runtime::property_key::{PropertyKey, StringMayBeNumber};
 use crate::runtime::proxy_object::ProxyObject;
+use crate::runtime::string_object::StringObject;
+use crate::runtime::typed_array::{ContentType, TypedArrayBase};
 use crate::utf16::{has_fly_string_storage, to_utf16_fly_string};
 
 /// The property key of a string or symbol, which converting runs no code for.
@@ -43,6 +45,34 @@ fn has_ordinary_lookups(object: Gc<Object>) -> bool {
     !core::ptr::eq(class, ProxyObject::CLASS)
         && !core::ptr::eq(class, ModuleNamespaceObject::CLASS)
         && !object.is_platform_object()
+}
+
+/// Whether looking up the property `key` of the object creates nothing.
+fn lookup_creates_nothing(vm: &Vm, object: Gc<Object>, key: &PropertyKey) -> bool {
+    if object.is_ecmascript_function_object()
+        && (*key == vm.names.prototype || *key == vm.names.caller || *key == vm.names.arguments)
+    {
+        return false;
+    }
+    if key.is_number() {
+        return !object.is::<StringObject>()
+            && !object
+                .downcast::<TypedArrayBase>()
+                .is_some_and(|typed_array| typed_array.content_type() == ContentType::BigInt);
+    }
+    !key.is_string() || !object.has_intrinsic_accessors()
+}
+
+/// Whether looking up the property `key` creates nothing in the object or in its prototypes.
+fn prototype_chain_lookup_creates_nothing(vm: &Vm, object: Gc<Object>, key: &PropertyKey) -> bool {
+    let mut holder = Some(object);
+    while let Some(current) = holder {
+        if !lookup_creates_nothing(vm, current, key) {
+            return false;
+        }
+        holder = current.prototype();
+    }
+    true
 }
 
 /// The fly string of a string key, if the string is stored as one already.
@@ -119,7 +149,8 @@ pub unsafe extern "C" fn libjs_jit_has_own_property(vm: *const Vm, object: u64, 
     {
         return Value::from_bool(result).0;
     }
-    let Some(key) = string_or_symbol_key(vm, key) else {
+    let Some(key) = string_or_symbol_key(vm, key).filter(|key| lookup_creates_nothing(vm, object.as_object(), key))
+    else {
         return Value::EMPTY.0;
     };
     object
@@ -153,6 +184,9 @@ pub unsafe extern "C" fn libjs_jit_has_property(vm: *const Vm, key: u64, object:
     }
     if index_key {
         let key = PropertyKey::from(key_value.as_i32().cast_unsigned());
+        if !prototype_chain_lookup_creates_nothing(vm, object.as_object(), &key) {
+            return Value::EMPTY.0;
+        }
         return object
             .as_object()
             .has_property(vm, &key)
@@ -169,7 +203,9 @@ pub unsafe extern "C" fn libjs_jit_has_property(vm: *const Vm, key: u64, object:
             Some(true) => return Value::TRUE.0,
             Some(false) => holder = current.prototype(),
             None => {
-                let Some(key) = string_or_symbol_key(vm, key_value) else {
+                let Some(key) = string_or_symbol_key(vm, key_value)
+                    .filter(|key| prototype_chain_lookup_creates_nothing(vm, current, key))
+                else {
                     return Value::EMPTY.0;
                 };
                 return current.has_property(vm, &key).map_or(Value::EMPTY, Value::from_bool).0;
