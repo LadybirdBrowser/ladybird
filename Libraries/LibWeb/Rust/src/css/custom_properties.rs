@@ -800,6 +800,12 @@ enum TokenResolution {
     NotHandled,
 }
 
+impl TokenResolution {
+    fn from_source<'a>(source: impl Into<crate::css::css_tokenizer::TokenizerInput<'a>>) -> Self {
+        Self::Resolved(tokenize_owned(source))
+    }
+}
+
 // https://drafts.csswg.org/css-values-5/#substitution-context
 #[derive(PartialEq, Eq)]
 enum SubstitutionContextDependency {
@@ -1273,9 +1279,7 @@ fn registered_property_fallback(
     registration
         .initial_source
         .as_ref()
-        .map_or(TokenResolution::Invalid, |source| {
-            TokenResolution::Resolved(tokenize_owned(source))
-        })
+        .map_or(TokenResolution::Invalid, TokenResolution::from_source)
 }
 
 fn resolve_css_wide_keyword(
@@ -1292,9 +1296,7 @@ fn resolve_css_wide_keyword(
     if keyword.eq_ignore_ascii_case("initial") {
         return registration
             .and_then(|registration| registration.initial_source.as_ref())
-            .map_or(TokenResolution::Invalid, |source| {
-                TokenResolution::Resolved(tokenize_owned(source))
-            });
+            .map_or(TokenResolution::Invalid, TokenResolution::from_source);
     }
     // FIXME: Roll `revert` and `revert-layer` back to a declaration of the custom property from a lower cascade layer
     //        or origin when there is one, instead of treating them as `unset`.
@@ -1319,9 +1321,7 @@ fn resolve_css_wide_keyword(
     }
     registration
         .and_then(|registration| registration.initial_source.as_ref())
-        .map_or(TokenResolution::Invalid, |source| {
-            TokenResolution::Resolved(tokenize_owned(source))
-        })
+        .map_or(TokenResolution::Invalid, TokenResolution::from_source)
 }
 
 fn normalize_function_tokens(
@@ -1351,7 +1351,7 @@ fn normalize_function_tokens(
     else {
         return TokenResolution::Invalid;
     };
-    TokenResolution::Resolved(tokenize_owned(&source))
+    TokenResolution::from_source(&source)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1522,9 +1522,7 @@ fn resolve_custom_property_with_lookup(
     let Some((entry, owner)) = entry_and_owner else {
         return registration
             .and_then(|registration| registration.initial_source.as_ref())
-            .map_or(TokenResolution::Invalid, |source| {
-                TokenResolution::Resolved(tokenize_owned(source))
-            });
+            .map_or(TokenResolution::Invalid, TokenResolution::from_source);
     };
     let data = entry.value.data();
     if matches!(data, StyleValueData::GuaranteedInvalid) {
@@ -1758,10 +1756,10 @@ fn replace_env_function(
         && *dimension_count == indices.len()
     {
         if *value_type == "<number>" {
-            return TokenResolution::Resolved(tokenize_owned(b"1"));
+            return TokenResolution::from_source(b"1");
         }
         if *dimension_count == 0 {
-            return TokenResolution::Resolved(tokenize_owned(b"0px"));
+            return TokenResolution::from_source(b"0px");
         }
         // The C++ document oracle currently exposes no viewport segments, so every
         // recognized two-dimensional viewport-segment lookup is guaranteed-invalid.
@@ -2965,7 +2963,7 @@ fn attr_fallback(
 ) -> TokenResolution {
     let Some(comma) = comma else {
         if syntax_was_omitted {
-            return TokenResolution::Resolved(tokenize_owned(b"\"\""));
+            return TokenResolution::from_source(b"\"\"");
         }
         return TokenResolution::Invalid;
     };
