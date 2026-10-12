@@ -594,6 +594,20 @@ impl DeclarativeEnvironment {
         (self.binding_flags(index) & Self::BINDING_FLAG_MUTABLE) != 0
     }
 
+    /// Whether binding `index` is one the environment's shape declares mutable and never deleted, which every
+    /// environment with the shape declares the same way.
+    #[cfg(feature = "jit")]
+    pub(crate) fn binding_is_declared_mutable(&self, index: usize) -> bool {
+        let Some(shape) = self.shape.get() else {
+            return false;
+        };
+        if index >= shape.size() {
+            return false;
+        }
+        let flags = shape.binding_flags(index);
+        flags & Self::BINDING_FLAG_MUTABLE != 0 && flags & Self::BINDING_FLAG_CAN_BE_DELETED == 0
+    }
+
     fn binding_can_be_deleted(&self, index: usize) -> bool {
         (self.binding_flags(index) & Self::BINDING_FLAG_CAN_BE_DELETED) != 0
     }

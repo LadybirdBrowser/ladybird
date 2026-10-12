@@ -28,7 +28,7 @@ use super::allocation::{
     lexical_environment_templates,
 };
 use super::cell_as;
-use super::code::{InlinedFunction, SnapshotExecutable};
+use super::code::{CapturedBindingAccesses, InlinedFunction, SnapshotExecutable};
 use super::runtime_info::RAW_NATIVE_FUNCTIONS_RETURN_IN_REGISTERS;
 use crate::bytecode::executable::{Executable, PropertyLookupCacheEntryData, PropertyLookupCacheTier};
 use crate::bytecode::feedback::{CallFeedback, CallFeedbackForwarding, call_feedback_flags};
@@ -937,6 +937,9 @@ impl SnapshotBuilder<'_> {
             captured_bindings: arguments_function
                 .map(|function| self.captured_bindings(function, executable, realm))
                 .unwrap_or_default(),
+            mutable_bindings: arguments_function
+                .map(|function| mutable_bindings(function, executable))
+                .unwrap_or_default(),
             builtin: matches!(entry.function, Some(InlinedFunction::Builtin(_))),
             mapped_arguments_alias_parameters: arguments_function
                 .is_some_and(|function| !function.mapped_argument_names().is_empty()),
@@ -985,10 +988,11 @@ impl SnapshotBuilder<'_> {
         if function.allocates_function_environment() || function.shared_data().closure_count() != ClosureCount::One {
             return Vec::new();
         }
-        let loads = executable
+        let loads = &executable
             .jit_state()
-            .captured_binding_loads
-            .get_or_init(|| captured_binding_loads(&executable));
+            .captured_binding_accesses
+            .get_or_init(|| captured_binding_accesses(&executable))
+            .loads;
         let exit_sites = executable.jit_exit_sites();
         let changed: Vec<EnvironmentCoordinate> = loads
             .iter()
@@ -1025,13 +1029,47 @@ impl SnapshotBuilder<'_> {
     }
 }
 
-/// The coordinate and pc of every load of a binding from an environment in `executable`, or none if its code may change
-/// its lexical environment, so that they are not the environments of its closure.
-fn captured_binding_loads(executable: &Executable) -> Box<[(EnvironmentCoordinate, u32)]> {
+/// The bindings of the environments of `function`'s closure that `executable` stores to and that are mutable in every
+/// instance of their environment: declared mutable, and never deleted. Its stores to them need no check of that. Like
+/// captured bindings, these are only found while the function has no other closure.
+fn mutable_bindings(function: Gc<EcmascriptFunctionObject>, executable: Gc<Executable>) -> Vec<EnvironmentCoordinate> {
+    if function.allocates_function_environment() || function.shared_data().closure_count() != ClosureCount::One {
+        return Vec::new();
+    }
+    let stores = &executable
+        .jit_state()
+        .captured_binding_accesses
+        .get_or_init(|| captured_binding_accesses(&executable))
+        .stores;
+    let mut bindings = Vec::new();
+    for &coordinate in stores {
+        if bindings.contains(&coordinate) {
+            continue;
+        }
+        let mut environment = function.environment();
+        for _ in 0..coordinate.hops {
+            environment = environment.and_then(|environment| environment.outer_environment());
+        }
+        let Some(environment) = environment else {
+            continue;
+        };
+        let Some(environment) = environment.as_declarative_environment() else {
+            continue;
+        };
+        if environment.binding_is_declared_mutable(coordinate.index as usize) {
+            bindings.push(coordinate);
+        }
+    }
+    bindings
+}
+
+/// The loads and stores of bindings of environments in `executable`, or none if its code may change its lexical
+/// environment, so that they are not the environments of its closure.
+fn captured_binding_accesses(executable: &Executable) -> CapturedBindingAccesses {
     let Ok(instructions) = decode_all(executable.bytecode()) else {
-        return Box::default();
+        return CapturedBindingAccesses::default();
     };
-    if instructions.iter().any(|decoded| {
+    let changes_environment = instructions.iter().any(|decoded| {
         matches!(
             decoded.instruction.opcode(),
             OpCode::SetLexicalEnvironment
@@ -1043,18 +1081,27 @@ fn captured_binding_loads(executable: &Executable) -> Box<[(EnvironmentCoordinat
                 | OpCode::CallDirectEvalWithArgumentArray
                 | OpCode::Debugger
         )
-    }) {
-        return Box::default();
+    });
+    if changes_environment {
+        return CapturedBindingAccesses::default();
     }
-    instructions
-        .into_iter()
-        .filter_map(|decoded| match decoded.instruction {
+    let mut loads = Vec::new();
+    let mut stores = Vec::new();
+    for decoded in instructions {
+        match decoded.instruction {
             Instruction::GetBinding { cache: coordinate, .. }
             | Instruction::GetInitializedBinding { cache: coordinate, .. }
-            | Instruction::GetCalleeAndThisFromEnvironment { cache: coordinate, .. } => Some((coordinate, decoded.pc)),
-            _ => None,
-        })
-        .collect()
+            | Instruction::GetCalleeAndThisFromEnvironment { cache: coordinate, .. } => {
+                loads.push((coordinate, decoded.pc));
+            }
+            Instruction::SetLexicalBinding { cache: coordinate, .. } => stores.push(coordinate),
+            _ => {}
+        }
+    }
+    CapturedBindingAccesses {
+        loads: loads.into_boxed_slice(),
+        stores: stores.into_boxed_slice(),
+    }
 }
 
 /// Captures the snapshot of a compile job for `executable`, whose frames run `function`. `osr_pc` is the loop back
