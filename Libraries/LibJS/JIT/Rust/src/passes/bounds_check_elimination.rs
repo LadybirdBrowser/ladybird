@@ -32,6 +32,14 @@
 //! With the same ranges, `((x << k) + c) >> k` becomes `x + (c >> k)` where
 //! nothing overflows and `c` is a multiple of 2^k, like the index arithmetic
 //! of asm.js heap accesses.
+//!
+//! Additions, subtractions and multiplications whose operands' ranges keep
+//! the result an int32 (and, for multiplications, from being -0) stop
+//! checking for that, like `(a & 0x3fff) * (b >> 14)` and the `i + 1` after
+//! an access at `i`. Besides the ranges above, the ranges of operands come
+//! from masks and shifts of any int32, and from the bounds checks of
+//! accesses that dominate the operation: an index is below the elements'
+//! count there.
 
 use super::dominators::Dominators;
 use super::edit::Constants;
@@ -57,8 +65,34 @@ struct Range {
 }
 
 impl Range {
+    /// Every int32.
+    const INT32: Self = Self {
+        min: i32::MIN as i64,
+        max: i32::MAX as i64,
+    };
+
     fn new(min: i64, max: i64) -> Option<Self> {
         (i64::from(i32::MIN) <= min && min <= max && max <= i64::from(i32::MAX)).then_some(Self { min, max })
+    }
+
+    fn intersection(self, other: Self) -> Option<Self> {
+        Self::new(self.min.max(other.min), self.max.min(other.max))
+    }
+
+    fn contains(self, value: i64) -> bool {
+        self.min <= value && value <= self.max
+    }
+
+    /// The range of the product of values of `self` and `other`, if it is
+    /// within the int32 range.
+    fn product(self, other: Self) -> Option<Self> {
+        let products = [
+            self.min * other.min,
+            self.min * other.max,
+            self.max * other.min,
+            self.max * other.max,
+        ];
+        Self::new(*products.iter().min()?, *products.iter().max()?)
     }
 }
 
@@ -105,11 +139,7 @@ impl Ranges<'_> {
         //     refinements keep the range of what they refine.
         if node.op == Op::CheckBounds {
             let index = self.of(node.inputs[0]);
-            return match (index, self.constant(node.inputs[1])) {
-                (Some(index), Some(count)) => Range::new(index.min.max(0), index.max.min(count - 1)),
-                (None, Some(count)) => Range::new(0, count - 1),
-                (index, None) => index,
-            };
+            return self.below_count(index, node.inputs[1]);
         }
         if let Some(refined) = node.op.refined_input() {
             return self.of(node.inputs[refined]);
@@ -144,9 +174,11 @@ impl Ranges<'_> {
                         Range::new(lhs.min << shift, lhs.max << shift)
                     }
                     BinaryOp::RightShift => {
-                        let (lhs, shift) = (self.of(lhs)?, self.constant(rhs)? & 31);
+                        let shift = self.constant(rhs)? & 31;
+                        let lhs = self.of(lhs).unwrap_or(Range::INT32);
                         Range::new(lhs.min >> shift, lhs.max >> shift)
                     }
+                    BinaryOp::Mul => self.of(lhs)?.product(self.of(rhs)?),
                     BinaryOp::UnsignedRightShift => {
                         let (lhs, shift) = (self.of(lhs)?, self.constant(rhs)? & 31);
                         (lhs.min >= 0)
@@ -163,7 +195,40 @@ impl Ranges<'_> {
                     _ => None,
                 }
             }
+            // NB: Storage capacities are int32 values (see
+            //     `Op::LoadElementsCapacity`), which are never negative.
+            Op::LoadElementsCapacity => Range::new(0, Range::INT32.max),
+            // NB: The smaller of two values as unsigned numbers is at most
+            //     the one that is not negative.
+            Op::Uint32Min => {
+                let (lhs, rhs) = (self.of(node.inputs[0]), self.of(node.inputs[1]));
+                [lhs, rhs]
+                    .into_iter()
+                    .flatten()
+                    .filter(|range| range.min >= 0)
+                    .map(|range| range.max)
+                    .min()
+                    .and_then(|max| Range::new(0, max))
+            }
             _ => None,
+        }
+    }
+
+    /// The range of `index` (of range `range`, if it has one) where it is
+    /// below `count` as unsigned numbers, which a bounds check made it. A
+    /// count of unknown range leaves the range of the index.
+    fn below_count(&mut self, range: Option<Range>, count: NodeId) -> Option<Range> {
+        let count = match self.constant(count) {
+            Some(count) => Range::new(count, count)?,
+            None => match self.of(count).filter(|count| count.min >= 0) {
+                Some(count) => count,
+                None => return range,
+            },
+        };
+        let below = Range::new(0, count.max - 1)?;
+        match range {
+            Some(range) => range.intersection(below),
+            None => Some(below),
         }
     }
 
@@ -426,21 +491,38 @@ pub fn run(graph: &mut Graph) {
     let mut phi_blocks = HashMap::default();
     let mut checks = Vec::new();
     let mut shifts = Vec::new();
+    let mut arithmetic = Vec::new();
+    // NB: For every index that bounds checks with counts other than
+    //     constants check, where those checks are and the counts.
+    let mut bounded: HashMap<NodeId, Vec<(BlockId, usize, NodeId)>> = HashMap::default();
     for (index, block) in graph.blocks.iter().enumerate() {
         for phi in &block.phis {
             phi_blocks.insert(*phi, BlockId::from_index(index));
         }
-        for node in &block.body {
+        for (position, node) in block.body.iter().enumerate() {
             match graph.node(*node).op {
-                Op::CheckBounds => checks.push(*node),
+                Op::CheckBounds => {
+                    checks.push(*node);
+                    let check = graph.node(*node);
+                    if graph.int32_constant(check.inputs[1]).is_none() {
+                        bounded.entry(graph.unrefined(check.inputs[0])).or_default().push((
+                            BlockId::from_index(index),
+                            position,
+                            check.inputs[1],
+                        ));
+                    }
+                }
                 Op::Int32Binary {
                     op: BinaryOp::RightShift,
                 } => shifts.push((*node, BlockId::from_index(index))),
+                Op::Int32Binary {
+                    op: BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul,
+                } => arithmetic.push((*node, BlockId::from_index(index), position)),
                 _ => {}
             }
         }
     }
-    if checks.is_empty() && shifts.is_empty() {
+    if checks.is_empty() && shifts.is_empty() && arithmetic.is_empty() {
         return;
     }
     let dominators = Dominators::compute(graph);
@@ -470,7 +552,47 @@ pub fn run(graph: &mut Graph) {
                 .map(|(value, offset)| (shift, block, value, offset))
         })
         .collect::<Vec<_>>();
-    if passing.is_empty() && scaled.is_empty() {
+
+    let exact = arithmetic
+        .into_iter()
+        .filter(|(node, block, position)| {
+            let node_data = graph.node(*node);
+            let Op::Int32Binary { op } = node_data.op else {
+                unreachable!("only int32 arithmetic is collected");
+            };
+            let mut operand = |input: NodeId| {
+                let range = ranges.of(input);
+                let checked = bounded
+                    .get(&graph.unrefined(input))
+                    .into_iter()
+                    .flatten()
+                    .filter(|(check_block, check_position, _)| {
+                        if check_block == block {
+                            check_position < position
+                        } else {
+                            dominators.dominates(*check_block, *block)
+                        }
+                    })
+                    .find_map(|(_, _, count)| ranges.below_count(range, *count));
+                checked.or(range)
+            };
+            let (Some(lhs), Some(rhs)) = (operand(node_data.inputs[0]), operand(node_data.inputs[1])) else {
+                return false;
+            };
+            match op {
+                BinaryOp::Add => Range::new(lhs.min + rhs.min, lhs.max + rhs.max).is_some(),
+                BinaryOp::Sub => Range::new(lhs.min - rhs.max, lhs.max - rhs.min).is_some(),
+                // NB: A zero product is -0 where an operand is negative.
+                BinaryOp::Mul => {
+                    lhs.product(rhs).is_some()
+                        && ((lhs.min >= 0 && rhs.min >= 0) || (!lhs.contains(0) && !rhs.contains(0)))
+                }
+                _ => unreachable!("only additions, subtractions and multiplications are collected"),
+            }
+        })
+        .map(|(node, ..)| node)
+        .collect::<Vec<_>>();
+    if passing.is_empty() && scaled.is_empty() && exact.is_empty() {
         return;
     }
     // NB: Only the entering counters that the removed checks and the
@@ -482,6 +604,9 @@ pub fn run(graph: &mut Graph) {
     }
     for (shift, ..) in &scaled {
         ranges.assumptions_of(*shift, &mut used, &mut visited);
+    }
+    for node in &exact {
+        ranges.assumptions_of(*node, &mut used, &mut visited);
     }
     let guards = entering
         .iter()
@@ -542,6 +667,14 @@ pub fn run(graph: &mut Graph) {
         };
         replacements.replace(shift, replacement);
         removed.insert(shift.index());
+    }
+    for node in exact {
+        let data = &mut graph.nodes[node.index()];
+        let Op::Int32Binary { op } = data.op else {
+            unreachable!("only int32 arithmetic is collected");
+        };
+        data.op = Op::Int32WrappingBinary { op };
+        data.frame_state = None;
     }
     replacements.apply(graph);
     // NB: The guards check the values they replace.
