@@ -298,13 +298,14 @@ fn typed_array_storage_offsets_are_reused_across_stores_but_not_calls() {
         vec![address],
         Some(Repr::Pointer),
     );
+    let first_data = node(&mut graph, Op::TypedArrayDataAddress, vec![first], Some(Repr::Pointer));
     let zero = node(&mut graph, Op::Constant(0), vec![], Some(Repr::Int32));
     let store = node(
         &mut graph,
         Op::StoreElementAt {
             kind: ElementsKind::TypedArray(TypedArrayElement::Int32),
         },
-        vec![first, zero, zero],
+        vec![first_data, zero, zero],
         None,
     );
     let second = node(
@@ -313,12 +314,13 @@ fn typed_array_storage_offsets_are_reused_across_stores_but_not_calls() {
         vec![address],
         Some(Repr::Pointer),
     );
+    let second_data = node(&mut graph, Op::TypedArrayDataAddress, vec![second], Some(Repr::Pointer));
     let load = node(
         &mut graph,
         Op::LoadElementAt {
             kind: ElementsKind::TypedArray(TypedArrayElement::Int32),
         },
-        vec![second, zero],
+        vec![second_data, zero],
         Some(Repr::Int32),
     );
     let call = node(
@@ -346,15 +348,24 @@ fn typed_array_storage_offsets_are_reused_across_stores_but_not_calls() {
         parent: None,
         passed_argument_count: None,
     }));
-    graph.blocks[0]
-        .body
-        .extend([object, address, first, store, second, load, call, third]);
+    graph.blocks[0].body.extend([
+        object,
+        address,
+        first,
+        first_data,
+        store,
+        second,
+        second_data,
+        load,
+        call,
+        third,
+    ]);
     let ret = node(&mut graph, Op::Return, vec![object], None);
     graph.blocks[0].control = Some(ret);
     verify(&graph).unwrap();
     super::check_elimination::run(&mut graph);
     assert!(!graph.blocks[0].body.contains(&second));
-    assert_eq!(graph.node(load).inputs[0], first);
+    assert_eq!(graph.node(second_data).inputs[0], first);
     assert!(graph.blocks[0].body.contains(&third));
     verify(&graph).unwrap();
 }
@@ -382,12 +393,13 @@ fn typed_array_storage_metadata_moves_out_of_loops_that_only_store_elements() {
         vec![address],
         Some(Repr::Pointer),
     );
+    let data = node(&mut graph, Op::TypedArrayDataAddress, vec![offset], Some(Repr::Pointer));
     let store = node(
         &mut graph,
         Op::StoreElementAt {
             kind: ElementsKind::TypedArray(TypedArrayElement::Int32),
         },
-        vec![offset, zero, zero],
+        vec![data, zero, zero],
         None,
     );
     let more = node(
@@ -401,13 +413,13 @@ fn typed_array_storage_metadata_moves_out_of_loops_that_only_store_elements() {
         None,
     );
     graph.blocks[1].is_loop_header = true;
-    graph.blocks[1].body.extend([length, offset, store]);
+    graph.blocks[1].body.extend([length, offset, data, store]);
     graph.blocks[1].control = Some(more);
     let ret = node(&mut graph, Op::Return, vec![object], None);
     graph.blocks[2].control = Some(ret);
     verify(&graph).unwrap();
     super::licm::run(&mut graph);
-    for metadata in [length, offset] {
+    for metadata in [length, offset, data] {
         assert!(graph.blocks[0].body.contains(&metadata));
     }
     assert_eq!(graph.blocks[1].body, vec![store]);

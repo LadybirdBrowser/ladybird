@@ -116,15 +116,19 @@ impl GraphBuilder<'_> {
                 });
                 let offset =
                     |builder: &mut Self| builder.emit(Op::LoadTypedArrayDataOffset, vec![address], Some(Repr::Pointer));
+                let data = |builder: &mut Self, offset| {
+                    builder.emit(Op::TypedArrayDataAddress, vec![offset], Some(Repr::Pointer))
+                };
                 match fixed_length {
                     Some(length) if self.may_speculate(ExitKind::OutOfBounds) => {
                         let offset = offset(self);
                         let offset = self.emit_checked(Op::CheckTypedArrayStorage, vec![offset], Some(Repr::Pointer));
-                        (offset, vec![self.int32_constant(length as i32)])
+                        (data(self, offset), vec![self.int32_constant(length as i32)])
                     }
                     _ => {
                         let length = count(self, Op::LoadTypedArrayLength);
-                        (offset(self), vec![length])
+                        let offset = offset(self);
+                        (data(self, offset), vec![length])
                     }
                 }
             }

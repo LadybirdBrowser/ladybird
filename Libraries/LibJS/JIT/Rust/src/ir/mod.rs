@@ -602,6 +602,12 @@ pub enum Op {
     /// invalid: accesses must first check the index against
     /// `LoadTypedArrayLength`, which is zero without cached storage.
     LoadTypedArrayDataOffset,
+    /// The address of the elements of a typed array whose storage offset is
+    /// the `Repr::Pointer` input 0: the primitive storage cage base plus the
+    /// offset masked into the cage, as a `Repr::Pointer`. Whatever the
+    /// offset, accesses at a zero-extended 32-bit index scaled by at most 8
+    /// from it stay within the cage or the guard region past it.
+    TypedArrayDataAddress,
     /// The `Repr::Pointer` storage offset input 0, checked to be valid.
     /// Exits with `ExitKind::OutOfBounds` if it is invalid, so a captured
     /// typed array's fixed length can be used until its storage changes.
@@ -614,7 +620,7 @@ pub enum Op {
     /// object's `LoadElementsLength` and `LoadElementsCapacity`, or its
     /// `LoadTypedArrayLength`) of the object at the `Repr::Pointer` input 0,
     /// whose elements are of `kind`, in `kind.loaded_repr()`. For typed
-    /// arrays, input 0 is instead their `LoadTypedArrayDataOffset`. A hole
+    /// arrays, input 0 is instead their `TypedArrayDataAddress`. A hole
     /// of holey elements is the empty value.
     LoadElementAt {
         kind: ElementsKind,
@@ -622,7 +628,7 @@ pub enum Op {
     /// Stores input 2, in `kind.stored_repr()`, as the element at index
     /// input 1 (like for `LoadElementAt`) of the object at the
     /// `Repr::Pointer` input 0, whose elements are of `kind`. For typed
-    /// arrays, input 0 is instead their `LoadTypedArrayDataOffset`.
+    /// arrays, input 0 is instead their `TypedArrayDataAddress`.
     StoreElementAt {
         kind: ElementsKind,
     },
@@ -1429,6 +1435,7 @@ impl Op {
             | Op::Int32Max
             | Op::Int32ToFloat64
             | Op::BoolToInt32
+            | Op::TypedArrayDataAddress
             | Op::StringAddress => P::PURE,
             // NB: A cache miss and strings whose characters only the slow
             //     path reads stay that way until the slow path ran.
@@ -1523,6 +1530,7 @@ impl Op {
             Op::CheckNonNegativeInt32 => "CheckNonNegativeInt32",
             Op::LoadTypedArrayLength => "LoadTypedArrayLength",
             Op::LoadTypedArrayDataOffset => "LoadTypedArrayDataOffset",
+            Op::TypedArrayDataAddress => "TypedArrayDataAddress",
             Op::CheckTypedArrayStorage => "CheckTypedArrayStorage",
             Op::CheckBounds => "CheckBounds",
             Op::LoadElementAt { .. } => "LoadElementAt",

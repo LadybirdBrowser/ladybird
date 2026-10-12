@@ -1362,6 +1362,15 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                     ),
                 );
             }
+            // `cage_base + (offset & mask)`
+            Op::TypedArrayDataAddress => {
+                let (output, input) = (self.output(node_id), self.input(node_id, 0));
+                let layout = self.runtime.layout;
+                self.masm
+                    .and64_imm(output, input, layout.primitive_storage_cage_offset_mask);
+                self.masm
+                    .add64_imm(output, output, self.runtime.primitive_storage_cage_base as i64);
+            }
             Op::CheckBounds => self.emit_check_bounds(node_id),
             Op::LoadElementAt { kind } => self.emit_load_element_at(node_id, *kind),
             Op::StoreElementAt { kind } => self.emit_store_element_at(node_id, *kind),

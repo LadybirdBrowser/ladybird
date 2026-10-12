@@ -1529,8 +1529,10 @@ pub struct RuntimeLayout {
     pub typed_array_kind_int32: u8,
     pub typed_array_kind_float32: u8,
     pub typed_array_kind_float64: u8,
-    /// `GC::PrimitiveStorage::cage_offset_mask`. Typed array elements are at
-    /// `primitive_storage_cage_base + ((cached_data_offset + byte_index) & cage_offset_mask)`.
+    /// `GC::PrimitiveStorage::cage_offset_mask`. Compiled code finds typed
+    /// array elements at `primitive_storage_cage_base + (cached_data_offset &
+    /// cage_offset_mask) + byte_index`, for 32-bit indices, which
+    /// `GC::PrimitiveStorage::cage_guard_size` keeps within reach.
     pub primitive_storage_cage_offset_mask: u64,
     /// `PrimitiveString::length_in_utf16_code_units` (u32).
     pub primitive_string_length: u32,
