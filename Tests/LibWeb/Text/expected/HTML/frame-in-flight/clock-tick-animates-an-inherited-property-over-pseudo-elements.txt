@@ -1,0 +1,5 @@
+lane after the tick: ticking
+last frame presented by: clock
+element shows the tick's color: true
+::before shows the tick's color: true
+::after shows its own color: rgb(255, 0, 0)

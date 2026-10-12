@@ -262,6 +262,12 @@ impl FinalStyleRecordID {
         (raw != 0).then_some(Self(raw))
     }
 
+    /// Whether the record composes animated values over a base record: those of the animations of the element or
+    /// pseudo-element that holds it.
+    pub(crate) fn is_animation_overlay(self) -> bool {
+        self.0 & Self::ANIMATION_OVERLAY_TAG != 0
+    }
+
     fn base_record(self) -> Option<StyleRecordID> {
         if self.0 & Self::ANIMATION_OVERLAY_TAG != 0 {
             return None;

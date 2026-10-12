@@ -31,8 +31,9 @@ use crate::layout::ComputedValuesView;
 use crate::layout::CssPixels;
 use crate::layout::FfiReplacedContentFacts;
 use crate::layout::node_data::{
-    AncestorFact, DomPaintFact, FfiStylePayloads, GENERATED_FOR_AFTER, GENERATED_FOR_LAST_SYNTHETIC,
-    MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId, StylePayloadsRef, pseudo_kind_of,
+    AncestorFact, DomPaintFact, FfiStylePayloads, GENERATED_FOR_AFTER, GENERATED_FOR_BEFORE,
+    GENERATED_FOR_LAST_SYNTHETIC, GENERATED_FOR_MARKER, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId,
+    StylePayloadsRef, pseudo_kind_of,
 };
 use crate::layout::tree_mutation::HostCalls;
 use crate::painting::paint_read::{GeometryRead, PaintRead};
@@ -2535,8 +2536,10 @@ impl LayoutNodeArena {
     }
 
     /// What the anonymous boxes below the box `row` show where it shows `sample`: each inherits what it inherits of
-    /// its parent's again over `host_record` of it, the record the host installed in it. Answers none where one of
-    /// them follows a pseudo-element or styles a table wrapper, which only the host restyles.
+    /// its parent's again over `host_record` of it, the record the host installed in it. The boxes of `::before`,
+    /// `::after` and `::marker`, which inherit from their element rather than their parent, show their own samples, and
+    /// so do the boxes below them. Answers none where one of them follows another pseudo-element or styles a table
+    /// wrapper, which only the host restyles.
     pub(crate) fn anonymous_child_samples(
         &self,
         row: NodeSlotId,
@@ -2550,7 +2553,15 @@ impl LayoutNodeArena {
             while !child.is_invalid() {
                 let data = self.data(child);
                 let flags = data.flags.get();
-                if flags & NodeFlag::Anonymous as u32 != 0 && flags & NodeFlag::HasStyle as u32 != 0 {
+                let shows_own_sample = flags & NodeFlag::IsPseudoElementPrincipalBox as u32 != 0
+                    && matches!(
+                        data.generated_for.get(),
+                        GENERATED_FOR_BEFORE | GENERATED_FOR_AFTER | GENERATED_FOR_MARKER
+                    );
+                if flags & NodeFlag::Anonymous as u32 != 0
+                    && flags & NodeFlag::HasStyle as u32 != 0
+                    && !shows_own_sample
+                {
                     let wraps = matches!(data.kind.get(), NodeKind::BlockContainer | NodeKind::InlineNode)
                         && flags & NodeFlag::IsPseudoElementPrincipalBox as u32 == 0
                         && data.generated_for.get() == 0

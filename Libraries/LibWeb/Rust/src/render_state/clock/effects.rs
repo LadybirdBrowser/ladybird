@@ -18,7 +18,9 @@ use crate::css::style::layout_style::DerivedStyleRecord;
 use crate::css::style::tree::StyleNodeID;
 use crate::css::style::{SampleBounds, StyleEngine};
 use crate::css::transition::{HoverTransitions, LaneTransitions};
-use crate::layout::node_data::{GENERATED_FOR_AFTER, GENERATED_FOR_BEFORE, GENERATED_FOR_MARKER, NodeSlotId};
+use crate::layout::node_data::{
+    GENERATED_FOR_AFTER, GENERATED_FOR_BEFORE, GENERATED_FOR_MARKER, NodeSlotId, pseudo_kind_of,
+};
 use crate::layout::{LayoutNodeArena, SampleKind};
 use crate::painting::host::FfiVisualAnimationTargetKind;
 use crate::painting::record::damage::PaintDamage;
@@ -69,6 +71,9 @@ impl ElementEffects {
 /// A sample of an element's effects to show in a box: the box, the element whose style it is, the sample, and the
 /// properties it animates.
 type BoxSample<'a> = (NodeSlotId, StyleNodeID, DerivedStyleRecord, &'a [u16]);
+
+/// The box of a pseudo-element, the sample it shows, and the properties it inherits of its element's sample.
+type PseudoElementSample = (NodeSlotId, DerivedStyleRecord, SmallVec<[u16; 8]>);
 
 /// The descendants of an element that inherit what its effects animate, which show it with the element, and whether
 /// every styled element in its subtree does.
@@ -437,8 +442,9 @@ impl Lane {
     }
 
     /// Shows `element`'s sample of the effects of the element in its box, and what `overlay`, the values it animates,
-    /// gives each of the `inheriting` descendants in its box, over the record the host installed there, all at once:
-    /// where one of the boxes takes no sample, none of them shows one. A descendant with no box shows nothing.
+    /// gives each of the `inheriting` descendants in its box, and the `::before`, `::after` and `::marker` boxes of
+    /// those in theirs, over the record the host installed there, all at once: where one of the boxes takes no sample,
+    /// none of them shows one. A descendant with no box shows nothing.
     fn show_element(
         &mut self,
         state: &mut RenderState,
@@ -476,28 +482,45 @@ impl Lane {
                 }
             }
         }
+        // The pseudo-element boxes of the boxes that show a sample show what they inherit of it, over their own records.
+        let mut pseudo_element_samples: SmallVec<[PseudoElementSample; 2]> = SmallVec::new();
+        if composed.is_ok() {
+            composed =
+                self.compose_pseudo_element_samples(state, &samples, overlay, bounds, &mut pseudo_element_samples);
+        }
         // The anonymous boxes below a box show what they inherit of its sample beside it, as the host reinherits them.
         let arena = state.arena.arena();
         let mut anonymous: SmallVec<[(NodeSlotId, DerivedStyleRecord, &[u16]); 2]> = SmallVec::new();
         let mut takes = composed.is_ok();
-        for (row, _, sample, properties) in &samples {
+        let box_samples = samples
+            .iter()
+            .map(|(row, _, sample, properties)| (*row, *sample, *properties))
+            .chain(
+                pseudo_element_samples
+                    .iter()
+                    .map(|(row, sample, properties)| (*row, *sample, &properties[..])),
+            );
+        for (row, sample, properties) in box_samples {
             if !takes {
                 break;
             }
-            if arena.takes_sample(*row, sample, kind) {
+            if arena.takes_sample(row, &sample, kind) {
                 continue;
             }
-            takes = arena.takes_sample_beside_anonymous_boxes(*row, kind)
+            takes = arena.takes_sample_beside_anonymous_boxes(row, kind)
                 && arena
-                    .anonymous_child_samples(*row, sample, |child| self.host_record(state, child))
+                    .anonymous_child_samples(row, &sample, |child| self.host_record(state, child))
                     .map(|children| {
-                        anonymous.extend(children.into_iter().map(|(child, sample)| (child, sample, *properties)));
+                        anonymous.extend(children.into_iter().map(|(child, sample)| (child, sample, properties)));
                     })
                     .is_some();
         }
         if !takes {
             let engine = state.engine_mut();
             for (_, _, sample, _) in samples {
+                engine.unpin_layout_style_record(sample.record);
+            }
+            for (_, sample, _) in &pseudo_element_samples {
                 engine.unpin_layout_style_record(sample.record);
             }
             for (_, sample, _) in anonymous {
@@ -508,8 +531,61 @@ impl Lane {
         for (row, node, sample, properties) in samples {
             self.show_sample(state, row, Some(node), sample, properties, kind);
         }
+        for (row, sample, properties) in &pseudo_element_samples {
+            self.show_sample(state, *row, None, *sample, properties, kind);
+        }
         for (row, sample, properties) in anonymous {
             self.show_sample(state, row, None, sample, properties, kind);
+        }
+        Ok(())
+    }
+
+    /// Composes what the `::before`, `::after` and `::marker` boxes of the elements whose boxes show `samples` inherit of
+    /// `overlay`, the values the samples animate, over the records the host installed in them, into `composed`. A
+    /// pseudo-element box that declares all of what its element's sample animates shows nothing, and one that runs
+    /// animations of its own takes no sample.
+    fn compose_pseudo_element_samples(
+        &self,
+        state: &mut RenderState,
+        samples: &[BoxSample<'_>],
+        overlay: &AnimatedOverlay,
+        bounds: SampleBounds,
+        composed: &mut SmallVec<[PseudoElementSample; 2]>,
+    ) -> Result<(), NeedsHost> {
+        for (_, node, _, properties) in samples {
+            for generated_for in [GENERATED_FOR_BEFORE, GENERATED_FOR_AFTER, GENERATED_FOR_MARKER] {
+                let row = state.arena.arena().bound_pseudo_element_row(*node, generated_for);
+                if row.is_invalid() {
+                    continue;
+                }
+                let host_record = self.host_record(state, row);
+                let inherited_properties = state
+                    .engine_ref()
+                    .properties_inherited_by_record(host_record, properties)
+                    .ok_or(NeedsHost)?;
+                if inherited_properties.is_empty() {
+                    continue;
+                }
+                // A pseudo-element that runs animations of its own shows what they give it, which only the host composes
+                // over what it inherits.
+                if state.engine_ref().record_composes_animations(host_record) {
+                    return Err(NeedsHost);
+                }
+                let mut inherited = AnimatedOverlay::default();
+                for &property in &inherited_properties {
+                    if let Some(entry) = overlay.get(property) {
+                        inherited.set_owned(property, entry.clone_value(), true, false);
+                    }
+                }
+                let sample = state.engine_mut().compose_overlay_over_pseudo_element_record(
+                    *node,
+                    pseudo_kind_of(generated_for),
+                    host_record,
+                    &inherited,
+                    bounds,
+                )?;
+                composed.push((row, sample, inherited_properties));
+            }
         }
         Ok(())
     }
