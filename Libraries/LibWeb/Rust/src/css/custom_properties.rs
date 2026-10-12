@@ -1091,8 +1091,15 @@ fn tokens_for_custom_property_value(data: &StyleValueData) -> Option<(Vec<OwnedT
         ..
     } = data
     {
-        let mut tokens = tokenize_owned(data.unresolved_token_source().unwrap_or_default());
-        let authored_source = data.unresolved_authored_source().unwrap_or_default();
+        let mut tokens = tokenize_owned(
+            data.unresolved_token_source()
+                .expect("unresolved values provide token source"),
+        );
+
+        let authored_source = data
+            .unresolved_authored_source()
+            .expect("unresolved values provide authored source");
+
         if source_ends_with_comment(authored_source) {
             while matches!(tokens.last().map(|token| &token.kind), Some(OwnedTokenKind::Whitespace)) {
                 tokens.pop();
@@ -1141,7 +1148,10 @@ fn tokens_for_function_value(data: &StyleValueData) -> Option<(Vec<OwnedToken>, 
     } = data
     {
         return Some((
-            tokenize_owned(data.unresolved_token_source().unwrap_or_default()),
+            tokenize_owned(
+                data.unresolved_token_source()
+                    .expect("unresolved values provide token source"),
+            ),
             *presence_var
                 || *presence_attr
                 || *presence_dashed_function
@@ -2703,7 +2713,7 @@ fn evaluate_a_custom_function(
     }
 
     // 14. Return the value of the result property in body styles.
-    body_styles.remove(&result_name).unwrap_or(TokenResolution::Invalid)
+    body_styles.remove(&result_name).expect("function result was resolved")
 }
 
 // https://drafts.csswg.org/css-mixins/#replace-a-dashed-function
