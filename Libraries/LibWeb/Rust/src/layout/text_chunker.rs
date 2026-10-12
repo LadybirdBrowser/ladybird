@@ -683,11 +683,9 @@ impl<'text> TextChunker<'text> {
                     continue 'restart;
                 }
 
-                // NB: The current index can sit past the end here after consuming trailing tabs; the retired C++
-                // iterator read the direction class through it anyway, so the bounds check turns an out-of-bounds
-                // read into a non-split.
-                if self.should_wrap_lines
-                    && self.current_index < self.text.len()
+                // Tabs can advance the cursor past the text. Split shaping runs at direction changes independently
+                // of line wrapping, while keeping the direction lookup inside the text.
+                if self.current_index < self.text.len()
                     && pending.text_type != self.current_text_type()
                     && let Some(chunk) = self.try_commit_chunk_at_cursor(&pending, can_break_at_current_position)
                 {

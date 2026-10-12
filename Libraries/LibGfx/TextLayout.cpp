@@ -567,7 +567,9 @@ static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font co
             .length_in_code_units = glyph_length_in_code_units(i),
             .glyph_width = should_paint ? positions[i].x_advance / text_shaping_resolution + extra_advance : 0,
             .glyph_id = glyph_info[i].codepoint,
+            .cluster_start = glyph_info[i].cluster,
             .should_paint = should_paint,
+            .is_rtl = is_right_to_left,
         });
 
         if (!should_paint)
@@ -739,3 +741,5 @@ extern "C" void ladybird_gfx_glyph_run_glyph_intercepts(
     for (auto value : intercepts)
         push(sink, value);
 }
+static_assert(offsetof(Gfx::FFI::DrawGlyph, cluster_start) == offsetof(Gfx::DrawGlyph, cluster_start));
+static_assert(offsetof(Gfx::FFI::DrawGlyph, is_rtl) == offsetof(Gfx::DrawGlyph, is_rtl));

@@ -31,6 +31,8 @@ enum class SelectionGranularity : u8 {
     Line,
     Page,
     LineBoundary,
+    ParagraphBoundary,
+    PhysicalLineBoundary,
     // The boundary of the active editing host, which is the effective document for contenteditable navigation.
     DocumentBoundary,
 };
@@ -61,6 +63,7 @@ public:
 private:
     Optional<CaretLocation> move_to_adjacent_caret_host(CaretLocation const&, SelectionDirection);
     Optional<CaretLocation> move_to_editing_host_boundary(CaretLocation const&, SelectionDirection);
+    Optional<CaretLocation> move_to_paragraph_boundary(CaretLocation const&, SelectionDirection);
     Optional<CaretLocation> move_by_page(CaretLocation const&, SelectionDirection, CSSPixels inline_coordinate);
     Optional<CaretLocation> move_by_word(CaretLocation const&, SelectionAlteration, SelectionDirection);
     GC::Ptr<DOM::Node> adjacent_caret_host(DOM::Node&, DOM::Node& editing_host, SelectionDirection);

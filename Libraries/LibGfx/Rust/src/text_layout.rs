@@ -41,7 +41,9 @@ pub struct DrawGlyph {
     pub length_in_code_units: usize,
     pub glyph_width: f32,
     pub glyph_id: u32,
+    pub cluster_start: u32,
     pub should_paint: bool,
+    pub is_rtl: bool,
 }
 
 unsafe extern "C" {

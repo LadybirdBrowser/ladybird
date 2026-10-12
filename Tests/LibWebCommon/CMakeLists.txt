@@ -2,6 +2,7 @@ set(TEST_SOURCES
     TestCSSPixels.cpp
     TestGamepadSharedState.cpp
     TestGamepadStateBuffer.cpp
+    TestKeyEvent.cpp
     TestSiteCompatibility.cpp
     TestStrings.cpp
 )
@@ -12,3 +13,4 @@ endforeach()
 
 target_link_libraries(TestSiteCompatibility PRIVATE LibURL)
 target_link_libraries(TestGamepadStateBuffer PRIVATE LibCore LibIPC)
+target_link_libraries(TestKeyEvent PRIVATE LibIPC)

@@ -139,6 +139,39 @@ static size_t offset_in_visual_line_closest_to_inline_coordinate(Layout::BegunRe
         *inline_coordinate, line.start_offset);
 }
 
+Optional<CursorLinePosition> compute_cursor_position_by_page(DOM::Text& text, size_t offset, TextAffinity affinity, bool forward, CSSPixels page_distance)
+{
+    Layout::ForcedReadScope read { text.document() };
+    auto lines = visual_lines_with_up_to_date_layout(text);
+    auto origin_index = visual_line_index_for_offset(lines, offset, affinity);
+    if (!origin_index.has_value())
+        return {};
+    auto inline_coordinate = caret_inline_coordinate(read, text, lines[*origin_index], offset);
+    auto origin_coordinate = text.document().caret_line_block_coordinate(read, text, offset, affinity);
+    if (!origin_coordinate.has_value())
+        return {};
+    CursorLinePosition result { offset, affinity };
+    auto index = *origin_index;
+    for (;;) {
+        if ((forward && index + 1 == lines.size()) || (!forward && index == 0)) {
+            result = { forward ? text.length() : 0, TextAffinity::Downstream };
+            break;
+        }
+        auto next_index = forward ? index + 1 : index - 1;
+        auto next_offset = offset_in_visual_line_closest_to_inline_coordinate(read, text, lines[next_index], inline_coordinate);
+        auto next_affinity = affinity_for_offset_on_line(lines, next_index, next_offset);
+        auto coordinate = text.document().caret_line_block_coordinate(read, text, next_offset, next_affinity);
+        if (!coordinate.has_value())
+            break;
+        auto distance = *coordinate > *origin_coordinate ? *coordinate - *origin_coordinate : *origin_coordinate - *coordinate;
+        if (distance > page_distance)
+            break;
+        result = { next_offset, next_affinity };
+        index = next_index;
+    }
+    return result;
+}
+
 Optional<CursorLinePosition> compute_cursor_position_on_next_line(DOM::Text const& dom_node, size_t current_offset, TextAffinity affinity)
 {
     Layout::ForcedReadScope read { dom_node.document() };

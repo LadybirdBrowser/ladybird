@@ -428,7 +428,7 @@ void EventLoop::process_input_events() const
                 [&](Web::KeyEvent const& key_event) {
                     switch (key_event.type) {
                     case Web::KeyEvent::Type::KeyDown:
-                        return page.handle_keydown(key_event.key, key_event.modifiers, key_event.code_point, key_event.repeat, key_event.should_insert_text, key_event.async_scroll_performed_default_action);
+                        return page.handle_keydown(key_event.key, key_event.modifiers, key_event.code_point, key_event.repeat, key_event.should_insert_text, key_event.async_scroll_performed_default_action, key_event.editing_commands, key_event.native_editing_binding_resolved);
                     case Web::KeyEvent::Type::KeyUp:
                         return page.handle_keyup(key_event.key, key_event.modifiers, key_event.code_point, key_event.repeat);
                     }

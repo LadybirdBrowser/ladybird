@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Native text editing test</title>
+<style>textarea { width: 80px; } #rich { width: 80px; }</style>
+<button onclick="prepare('input')">Input</button>
+<button onclick="prepare('textarea')">Textarea</button>
+<button onclick="prepare('rich')">Rich text</button>
+<button onclick="prepare('iframe')">Iframe</button>
+<button onclick="prepare('cancel')">Cancel deletion</button>
+<button onclick="prepare('keyboard-cancel')">Cancel keydown</button>
+<button onclick="prompt('Enter text', 'hello world')">Prompt</button>
+<input id="input" value="hello world">
+<textarea id="textarea">abc
+def</textarea>
+<div id="rich" contenteditable>hello world</div>
+<iframe id="iframe" srcdoc='<input value="hello world">'></iframe>
+<input id="result" aria-label="Result" readonly value="ready">
+<script>
+let target;
+let events = [];
+let cancelDeletion = false;
+let cancelKeyboard = false;
+let serial = 0;
+const result = document.getElementById("result");
+function report() {
+    if (!target) return;
+    const doc = target.ownerDocument;
+    const selection = doc.getSelection();
+    result.value = JSON.stringify({ serial, value: target.value ?? target.textContent,
+        start: target.selectionStart ?? selection.anchorOffset,
+        end: target.selectionEnd ?? selection.focusOffset, events });
+}
+function prepare(kind) {
+    cancelDeletion = kind === "cancel";
+    cancelKeyboard = kind === "keyboard-cancel";
+    target = kind === "iframe" ? document.getElementById("iframe").contentDocument.querySelector("input")
+        : document.getElementById(kind === "cancel" || kind === "keyboard-cancel" ? "input" : kind);
+    if (target.value !== undefined) target.value = kind === "textarea" ? "abc\ndef" : "hello world";
+    else target.textContent = "hello world";
+    target.focus();
+    if (target.setSelectionRange) target.setSelectionRange(target.value.length, target.value.length);
+    else target.ownerDocument.getSelection().collapse(target.firstChild, target.textContent.length);
+    events = [];
+    target.onkeydown = event => {
+        events.push(["keydown", event.key, event.ctrlKey, event.shiftKey]);
+        if (cancelKeyboard) event.preventDefault();
+    };
+    target.onbeforeinput = event => {
+        events.push(["beforeinput", event.inputType]);
+        if (cancelDeletion) event.preventDefault();
+    };
+    target.oninput = event => events.push(["input", event.inputType]);
+    target.onkeyup = () => { ++serial; report(); };
+    ++serial;
+    report();
+}
+</script>

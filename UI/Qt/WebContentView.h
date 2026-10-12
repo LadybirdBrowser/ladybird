@@ -13,6 +13,9 @@
 #include <AK/OwnPtr.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
+#ifdef AK_OS_MACOS
+#    include <UI/Qt/NativeTextEditingBindings.h>
+#endif
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
@@ -256,6 +259,10 @@ private:
     QShortcut* m_crash_overlay_reload_shortcut { nullptr };
     QWidget* m_crash_report_container { nullptr };
     CrashReportReviewWidget* m_crash_report_review { nullptr };
+
+#ifdef AK_OS_MACOS
+    NativeTextEditingBindings m_native_text_editing_bindings;
+#endif
 
 #ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
     bool ensure_iosurface_layer_attached_to_native_view();

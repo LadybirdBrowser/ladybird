@@ -1,0 +1,8 @@
+canceled history: PASS
+no-op history: PASS
+repeated word deletion: PASS
+granular undo unit: PASS
+first granular undo: PASS
+empty rich paragraph join: PASS
+rich end no input: PASS
+detached document: PASS

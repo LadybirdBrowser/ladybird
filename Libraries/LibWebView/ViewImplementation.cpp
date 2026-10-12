@@ -698,7 +698,7 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
         mouse_event->wheel_delta_y /= zoom_level();
     }
 
-    if (key_event && Web::is_keyboard_scroll_key(key_event->key, Web::UIEvents::Mod_None)) {
+    if (key_event && !key_event->native_editing_binding_resolved && Web::is_keyboard_scroll_key(key_event->key, Web::UIEvents::Mod_None)) {
         bool preceding_input_may_change_target = false;
         for (auto const& pending : m_pending_input_events) {
             auto const* key = pending.event.get_pointer<Web::KeyEvent>();

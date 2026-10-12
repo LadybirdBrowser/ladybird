@@ -13,7 +13,7 @@ namespace Web {
 
 KeyEvent KeyEvent::clone_without_browser_data() const
 {
-    return { type, key, modifiers, code_point, repeat, should_insert_text, nullptr, async_scroll_performed_default_action, id };
+    return { type, key, modifiers, code_point, repeat, should_insert_text, nullptr, async_scroll_performed_default_action, id, editing_commands, native_editing_binding_resolved };
 }
 
 MouseEvent MouseEvent::clone_without_browser_data() const
@@ -21,6 +21,24 @@ MouseEvent MouseEvent::clone_without_browser_data() const
     return { type, position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, click_count, nullptr, async_scroll_performed_default_action, id, scrollbar_dragged_by_compositor };
 }
 
+}
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::TextEditingCommand const& command)
+{
+    TRY(encoder.encode(command.type));
+    TRY(encoder.encode(command.extend_selection));
+    return {};
+}
+
+template<>
+ErrorOr<Web::TextEditingCommand> IPC::decode(Decoder& decoder)
+{
+    auto type = TRY(decoder.decode<Web::TextEditingCommand::Type>());
+    if (to_underlying(type) > to_underlying(Web::TextEditingCommand::Type::DeleteToEndOfParagraph))
+        return Error::from_string_literal("Invalid text editing command");
+    auto extend_selection = TRY(decoder.decode<bool>());
+    return Web::TextEditingCommand { type, extend_selection };
 }
 
 template<>
@@ -34,6 +52,8 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::KeyEvent const& event)
     TRY(encoder.encode(event.should_insert_text));
     TRY(encoder.encode(event.async_scroll_performed_default_action));
     TRY(encoder.encode(event.id));
+    TRY(encoder.encode(event.editing_commands));
+    TRY(encoder.encode(event.native_editing_binding_resolved));
     return {};
 }
 
@@ -48,8 +68,10 @@ ErrorOr<Web::KeyEvent> IPC::decode(Decoder& decoder)
     auto should_insert_text = TRY(decoder.decode<bool>());
     auto async_scroll_performed_default_action = TRY(decoder.decode<bool>());
     auto id = TRY(decoder.decode<u64>());
+    auto editing_commands = TRY(decoder.decode<Vector<Web::TextEditingCommand>>());
+    auto native_editing_binding_resolved = TRY(decoder.decode<bool>());
 
-    return Web::KeyEvent { type, key, modifiers, code_point, repeat, should_insert_text, nullptr, async_scroll_performed_default_action, id };
+    return Web::KeyEvent { type, key, modifiers, code_point, repeat, should_insert_text, nullptr, async_scroll_performed_default_action, id, move(editing_commands), native_editing_binding_resolved };
 }
 
 template<>

@@ -8,10 +8,12 @@
 
 #include <AK/GenericShorthands.h>
 #include <AK/OwnPtr.h>
+#include <AK/Vector.h>
 #include <LibGfx/Point.h>
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Export.h>
 #include <LibWebCommon/Page/AsyncScrollNodeStableID.h>
+#include <LibWebCommon/Page/TextEditingCommand.h>
 #include <LibWebCommon/PixelUnits.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>
 #include <LibWebCommon/UIEvents/MouseButton.h>
@@ -44,6 +46,8 @@ struct WEBCOMMON_API KeyEvent {
 
     // The UI process numbers the events it sends, and a completion names the event it finished.
     u64 id { 0 };
+    Vector<TextEditingCommand> editing_commands {};
+    bool native_editing_binding_resolved { false };
 };
 
 inline bool is_keyboard_scroll_key(Web::UIEvents::KeyCode key, u32 modifiers)

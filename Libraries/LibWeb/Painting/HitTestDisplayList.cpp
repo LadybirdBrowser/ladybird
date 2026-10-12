@@ -311,9 +311,12 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_at_line_edge(Layout::
     if (!is_current())
         return {};
     CaretPositionQueryContext context { node, offset };
-    auto type = edge == CaretLineEdge::Start ? CaretPositionType::Before : CaretPositionType::After;
+    auto type = first_is_one_of(edge, CaretLineEdge::Start, CaretLineEdge::Left) ? CaretPositionType::Before : CaretPositionType::After;
+    auto physical = first_is_one_of(edge, CaretLineEdge::Left, CaretLineEdge::Right);
+    QueryContext query_context { nullptr, m_arena->document() };
+    auto scope = physical ? const_cast<DOM::Node&>(node).editing_host() : nullptr;
     Layout::RustFFI::FfiCaretAt caret_at;
-    Layout::RustFFI::layout_hit_test_caret_at_line_edge(m_arena->host(), &read, context.query, offset, affinity == TextAffinity::Downstream, to_underlying(type), &caret_at);
+    Layout::RustFFI::layout_hit_test_caret_at_line_edge(m_arena->host(), &read, query_context.callbacks(), context.query, offset, affinity == TextAffinity::Downstream, to_underlying(type), physical, ffi_identity_of(scope.ptr()), &caret_at);
     return caret_position_from(caret_at);
 }
 

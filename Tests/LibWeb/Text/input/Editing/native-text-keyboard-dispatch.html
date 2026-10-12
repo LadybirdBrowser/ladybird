@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<input id="first" value="abcdef"><input id="second" value="uvwxyz">
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const first = document.getElementById("first");
+    const second = document.getElementById("second");
+    function check(label, actual, expected) {
+        println(`${label}: ${JSON.stringify(actual) === JSON.stringify(expected) ? "PASS" : JSON.stringify(actual)}`);
+    }
+    function reset() { first.focus(); first.setSelectionRange(3, 3); }
+    reset();
+    let observed;
+    first.onkeydown = e => { observed = [e.key, e.ctrlKey, e.shiftKey, first.selectionStart]; };
+    internals.sendTextEditingCommand(first, "MoveToBeginningOfParagraph");
+    check("original keydown before movement", observed, ["a", true, false, 3]);
+    check("movement after keydown", first.selectionStart, 0);
+    reset();
+    first.onkeydown = e => e.preventDefault();
+    internals.sendTextEditingCommand(first, "MoveToBeginningOfParagraph");
+    check("keydown cancellation", [first.selectionStart, first.selectionEnd], [3, 3]);
+    reset();
+    first.onkeydown = () => { second.focus(); second.setSelectionRange(4, 4); };
+    internals.sendTextEditingCommand(first, "MoveToBeginningOfParagraph");
+    check("post-keydown focus target", [first.selectionStart, second.selectionStart], [3, 0]);
+    first.onkeydown = null;
+    reset();
+    internals.sendTextEditingCommand(first, "MoveToEndOfParagraph", true);
+    check("selector selection without Shift", [first.selectionStart, first.selectionEnd, first.selectionDirection], [3, 6, "forward"]);
+    reset();
+    first.onkeydown = () => first.blur();
+    internals.sendTextEditingCommand(first, "MoveToBeginningOfParagraph");
+    check("blur cancels editing", first.selectionStart, 3);
+    first.onkeydown = () => first.remove();
+    reset();
+    internals.sendTextEditingCommand(first, "MoveToBeginningOfParagraph");
+    check("removed focus target", [first.isConnected, first.selectionStart], [false, 3]);
+});
+</script>

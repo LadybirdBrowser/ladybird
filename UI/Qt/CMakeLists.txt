@@ -41,6 +41,7 @@ target_sources(ladybird PRIVATE
     LocationEdit.cpp
     Menu.cpp
     NativeWindowContainer.cpp
+    NativeTextEditingLineEdit.cpp
     ProcessManagerWindow.cpp
     PerformanceMonitorWidget.cpp
     Popover.cpp
@@ -80,6 +81,8 @@ if (APPLE)
         ExternalURLHandler.mm
         LadybirdAccessibilityElement.mm
         MacWindow.mm
+        MacWindowFocus.mm
+        NativeTextEditingBindings.mm
         Menu.mm
         SpellCheckerMac.mm
         WebContentViewAccessibility.mm
@@ -172,6 +175,26 @@ qt_deploy_runtime_dependencies(
 endif()
 
 if (BUILD_TESTING)
+    if (APPLE)
+        add_library(NativeTextEditingTestMain OBJECT
+            ${LADYBIRD_SOURCE_DIR}/Tests/UI/Qt/NativeTextEditingTestMain.mm
+            ${LADYBIRD_SOURCE_DIR}/Libraries/LibTest/AssertionHandler.cpp
+        )
+        target_link_libraries(NativeTextEditingTestMain PRIVATE AK LibTest "-framework AppKit")
+        ladybird_test("${LADYBIRD_SOURCE_DIR}/Tests/UI/Qt/TestNativeTextEditingBindings.mm" UI/Qt
+            NO_TEST
+            CUSTOM_MAIN "$<TARGET_OBJECTS:NativeTextEditingTestMain>"
+            LIBS LibWebCommon Qt::Widgets "-framework AppKit"
+        )
+        foreach(mode default custom)
+            add_test(NAME TestNativeTextEditingBindings-${mode}
+                COMMAND ${Python3_EXECUTABLE}
+                    ${LADYBIRD_SOURCE_DIR}/Tests/UI/Qt/run-native-text-editing-tests.py
+                    $<TARGET_FILE:TestNativeTextEditingBindings> ${mode}
+            )
+        endforeach()
+    endif()
+
     add_executable(TestPerformanceMonitorWidget
         ${LADYBIRD_SOURCE_DIR}/Tests/LibWebView/TestPerformanceMonitorWidget.cpp
         PerformanceMonitorWidget.cpp

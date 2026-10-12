@@ -19,6 +19,7 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/SelectionchangeEventDispatching.h>
+#include <LibWeb/DOM/StaticRange.h>
 #include <LibWeb/DOM/SubtreeInsertionScope.h>
 #include <LibWeb/Editing/EditCommand.h>
 #include <LibWeb/Editing/EditingHistory.h>
@@ -38,9 +39,12 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/ValidityState.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Page/EventHandler.h>
+#include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/UIEvents/InputTypes.h>
 #include <LibWeb/VisualLines.h>
 #include <LibWebCommon/Infra/Strings.h>
@@ -1315,24 +1319,62 @@ void FormAssociatedTextControlElement::handle_insert(Utf16FlyString const& input
     scroll_cursor_into_view();
 }
 
+GC::Ptr<DOM::StaticRange> FormAssociatedTextControlElement::deletion_target_range(Utf16FlyString const& input_type)
+{
+    auto text = form_associated_element_to_text_node();
+    if (!text || !static_cast<FormAssociatedElement&>(text_control_to_html_element()).is_mutable())
+        return nullptr;
+    auto start = min(selection_start(), text->length());
+    auto end = min(selection_end(), text->length());
+    if (start == end) {
+        if (input_type == UIEvents::InputTypes::deleteContentBackward) {
+            start = text->grapheme_segmenter().previous_boundary(start).value_or(start);
+        } else if (input_type == UIEvents::InputTypes::deleteContentForward) {
+            end = text->grapheme_segmenter().next_boundary(end).value_or(end);
+        } else if (input_type == UIEvents::InputTypes::deleteWordBackward) {
+            while (true) {
+                auto boundary = text->word_segmenter().previous_boundary(start);
+                if (!boundary.has_value())
+                    break;
+                auto word = text->data().substring_view(*boundary, start - *boundary);
+                start = *boundary;
+                if (!Unicode::Segmenter::should_continue_beyond_word(word))
+                    break;
+            }
+        } else if (input_type == UIEvents::InputTypes::deleteWordForward) {
+            while (true) {
+                auto boundary = text->word_segmenter().next_boundary(end);
+                if (!boundary.has_value())
+                    break;
+                auto word = text->data().substring_view(end, *boundary - end);
+                end = *boundary;
+                if (!Unicode::Segmenter::should_continue_beyond_word(word))
+                    break;
+            }
+        } else if (input_type == UIEvents::InputTypes::deleteHardLineForward) {
+            auto value = text->data().utf16_view();
+            while (end < text->length() && value.code_unit_at(end) != '\n')
+                ++end;
+            if (start == end && end < text->length())
+                ++end;
+        }
+    }
+    if (start == end)
+        return nullptr;
+    return text->heap().allocate<DOM::StaticRange>(*text, start, *text, end);
+}
+
 void FormAssociatedTextControlElement::handle_delete(Utf16FlyString const& input_type, [[maybe_unused]] DispatchInputEvent dispatch_input_event)
 {
     auto text_node = form_associated_element_to_text_node();
     if (!text_node || !static_cast<FormAssociatedElement&>(text_control_to_html_element()).is_mutable())
         return;
 
-    auto selection_start = this->selection_start();
-    auto selection_end = this->selection_end();
-
-    if (selection_start == selection_end) {
-        if (input_type == UIEvents::InputTypes::deleteContentBackward) {
-            if (auto offset = text_node->grapheme_segmenter().previous_boundary(m_selection_end); offset.has_value())
-                selection_start = *offset;
-        } else {
-            if (auto offset = text_node->grapheme_segmenter().next_boundary(m_selection_end); offset.has_value())
-                selection_end = *offset;
-        }
-    }
+    auto range = deletion_target_range(input_type);
+    if (!range)
+        return;
+    auto selection_start = range->start_offset();
+    auto selection_end = range->end_offset();
 
     // Record the edit on the document's editing history so the user can undo it. Backward and
     // forward deletion runs coalesce separately, and cuts never coalesce, like in the editing
@@ -1389,6 +1431,10 @@ void FormAssociatedTextControlElement::move_selection_end_to(size_t offset, Text
         m_selection_start = offset;
     m_selection_end = offset;
     m_selection_end_affinity = affinity;
+    if (collapse == CollapseSelection::Yes || m_selection_start == m_selection_end)
+        m_selection_direction = SelectionDirection::None;
+    else
+        m_selection_direction = m_selection_end < m_selection_start ? SelectionDirection::Backward : SelectionDirection::Forward;
 
     // NB: Caret movement ends typing coalescence in the editing history.
     if (auto history = text_control_to_html_element().document().editing_history_if_exists())
@@ -1521,6 +1567,77 @@ void FormAssociatedTextControlElement::move_cursor_to_end_of_current_line(Collap
     selection_was_changed(SelectionSource::UI);
 }
 
+void FormAssociatedTextControlElement::move_cursor_to_start_of_paragraph(CollapseSelection collapse)
+{
+    auto text = form_associated_element_to_text_node();
+    if (!text)
+        return;
+    auto value = text->data().utf16_view();
+    auto offset = min(static_cast<size_t>(m_selection_end), value.length_in_code_units());
+    while (offset > 0 && value.code_unit_at(offset - 1) != '\n')
+        --offset;
+    move_selection_end_to(offset, TextAffinity::Downstream, collapse);
+    selection_was_changed(SelectionSource::UI);
+}
+
+void FormAssociatedTextControlElement::move_cursor_to_end_of_paragraph(CollapseSelection collapse)
+{
+    auto text = form_associated_element_to_text_node();
+    if (!text)
+        return;
+    auto value = text->data().utf16_view();
+    auto offset = min(static_cast<size_t>(m_selection_end), value.length_in_code_units());
+    while (offset < value.length_in_code_units() && value.code_unit_at(offset) != '\n')
+        ++offset;
+    move_selection_end_to(offset, TextAffinity::Downstream, collapse);
+    selection_was_changed(SelectionSource::UI);
+}
+
+void FormAssociatedTextControlElement::move_cursor_by_page(bool forward, CollapseSelection collapse)
+{
+    auto text = form_associated_element_to_text_node();
+    auto& element = text_control_to_html_element();
+    if (!text)
+        return;
+    Layout::ForcedReadScope read { element.document() };
+    element.document().update_layout_if_needed_for_node(element, DOM::UpdateLayoutReason::CursorLineNavigation);
+    auto* layout = element.layout_node(read);
+    auto window = element.document().window();
+    if (!layout || !window)
+        return;
+    auto page_height = min(Painting::absolute_padding_box_rect(*layout).height().to_int(), window->inner_height());
+    if (page_height <= 0)
+        return;
+    auto distance = static_cast<i32>(page_height * 0.875);
+#ifdef AK_OS_MACOS
+    distance = max(distance, page_height - 40);
+#endif
+    auto position = compute_cursor_position_by_page(*text, m_selection_end, m_selection_end_affinity, forward, max(distance, 1));
+    if (!position.has_value())
+        return;
+    move_selection_end_to(position->offset, position->affinity, collapse);
+    selection_was_changed(SelectionSource::UI);
+}
+
+void FormAssociatedTextControlElement::move_cursor_to_physical_line_boundary(bool left, CollapseSelection collapse)
+{
+    auto text = form_associated_element_to_text_node();
+    if (!text)
+        return;
+    auto& document = text_control_to_html_element().document();
+    Layout::ForcedReadScope read { document };
+    document.update_layout_if_needed_for_node(*text, DOM::UpdateLayoutReason::CursorLineNavigation);
+    auto position = document.caret_position_at_line_edge(read, *text, m_selection_end, m_selection_end_affinity,
+        left ? Painting::CaretLineEdge::Left : Painting::CaretLineEdge::Right);
+    if (!position.has_value())
+        return;
+    auto boundary = position->boundary_point();
+    if (!boundary.has_value() || boundary->node != text)
+        return;
+    move_selection_end_to(boundary->offset, position->affinity, collapse);
+    selection_was_changed(SelectionSource::UI);
+}
+
 void FormAssociatedTextControlElement::increment_cursor_position_offset(CollapseSelection collapse)
 {
     auto const text_node = form_associated_element_to_text_node();
@@ -1626,7 +1743,7 @@ GC::Ptr<DOM::Position> FormAssociatedTextControlElement::cursor_position() const
         return nullptr;
     if (m_selection_start != m_selection_end)
         return nullptr;
-    return DOM::Position::create(const_cast<DOM::Text&>(*node), m_selection_start);
+    return DOM::Position::create(const_cast<DOM::Text&>(*node), m_selection_start, m_selection_end_affinity);
 }
 
 GC::Ref<JS::Cell> FormAssociatedTextControlElement::as_cell()

@@ -553,6 +553,45 @@ static constexpr Optional<WebDriverKeyData> webdriver_key_to_key_code(u32 code_p
     return {};
 }
 
+WebIDL::ExceptionOr<void> Internals::send_text_editing_command(HTML::HTMLElement& target, Utf16String const& command_name, bool extend_selection)
+{
+    using Type = Web::TextEditingCommand::Type;
+    struct NamedCommand {
+        Utf16View name;
+        Type type;
+    };
+    static constexpr NamedCommand commands[] = {
+        { u"MoveBackward"sv, Type::MoveBackward },
+        { u"MoveForward"sv, Type::MoveForward },
+        { u"MoveWordBackward"sv, Type::MoveWordBackward },
+        { u"MoveWordForward"sv, Type::MoveWordForward },
+        { u"MoveUp"sv, Type::MoveUp },
+        { u"MoveDown"sv, Type::MoveDown },
+        { u"MoveToBeginningOfParagraph"sv, Type::MoveToBeginningOfParagraph },
+        { u"MoveToEndOfParagraph"sv, Type::MoveToEndOfParagraph },
+        { u"MoveToBeginningOfLine"sv, Type::MoveToBeginningOfLine },
+        { u"MoveToEndOfLine"sv, Type::MoveToEndOfLine },
+        { u"MoveToLeftEndOfLine"sv, Type::MoveToLeftEndOfLine },
+        { u"MoveToRightEndOfLine"sv, Type::MoveToRightEndOfLine },
+        { u"PageUp"sv, Type::PageUp },
+        { u"PageDown"sv, Type::PageDown },
+        { u"DeleteBackward"sv, Type::DeleteBackward },
+        { u"DeleteForward"sv, Type::DeleteForward },
+        { u"DeleteWordBackward"sv, Type::DeleteWordBackward },
+        { u"DeleteWordForward"sv, Type::DeleteWordForward },
+        { u"DeleteToEndOfParagraph"sv, Type::DeleteToEndOfParagraph },
+    };
+    for (auto const& command : commands) {
+        if (command_name.utf16_view() != command.name)
+            continue;
+        target.focus();
+        Array<TextEditingCommand, 1> editing_commands { TextEditingCommand { command.type, extend_selection } };
+        page().handle_keydown(UIEvents::KeyCode::Key_A, UIEvents::Mod_Ctrl, 'a', false, false, false, editing_commands, true);
+        return {};
+    }
+    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Unknown text editing command"_utf16 };
+}
+
 void Internals::send_text(HTML::HTMLElement& target, Utf16String const& text, WebIDL::UnsignedShort modifiers)
 {
     auto& page = this->page();

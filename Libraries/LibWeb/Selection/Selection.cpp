@@ -605,7 +605,7 @@ GC::Ptr<DOM::Position> Selection::cursor_position() const
     if (!m_range || !is_collapsed())
         return nullptr;
 
-    return DOM::Position::create(*m_range->start_container(), m_range->start_offset());
+    return DOM::Position::create(*m_range->start_container(), m_range->start_offset(), m_focus_affinity);
 }
 
 void Selection::move_offset_to_next_character(bool collapse_selection)

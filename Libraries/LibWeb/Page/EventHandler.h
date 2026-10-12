@@ -82,7 +82,8 @@ public:
     void update_cursor_after_rendering_update();
     GC::Ptr<DOM::Node> target_node_for_mouse_position(CSSPixelPoint);
 
-    EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action = false);
+    EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action = false, ReadonlySpan<TextEditingCommand> editing_commands = {}, bool native_editing_binding_resolved = false);
+    EventResult handle_text_editing_command(TextEditingCommand const&);
     struct KeyboardScrollSnapshot {
         Compositing::KeyboardScrollState state;
         Vector<GC::Weak<DOM::EventTarget>> event_path;
@@ -128,7 +129,7 @@ private:
 
     EventResult fire_keyboard_event(Utf16FlyString const& event_name, HTML::LocalNavigable&, UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
     [[nodiscard]] EventResult fire_text_input_event(HTML::LocalNavigable&, Utf16String const& data);
-    [[nodiscard]] EventResult input_event(Utf16FlyString const& event_name, Utf16FlyString const& input_type, HTML::LocalNavigable&, Variant<u32, Utf16String> code_point_or_string);
+    [[nodiscard]] EventResult input_event(Utf16FlyString const& event_name, Utf16FlyString const& input_type, HTML::LocalNavigable&, Variant<u32, Utf16String> code_point_or_string, GC::Ptr<DOM::StaticRange> deletion_range = nullptr);
 
     [[nodiscard]] EventResult perform_copy_action();
     [[nodiscard]] EventResult perform_cut_action();

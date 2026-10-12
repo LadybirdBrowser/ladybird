@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>
+  Input Event tests for deletion with non-collapsed selection
+</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="../resources/testdriver-actions.js"></script>
+<div id="rich" contenteditable></div>
+<script>
+  let inputEventsLog = [];
+  const rich = document.getElementById("rich");
+  const isMacOS = navigator.platform.indexOf("Mac") === 0;
+  const MODIFIER_KEY = isMacOS ? "\uE00A" : "\uE009"; // Alt on Mac, Ctrl on others
+
+  function log(event) {
+    inputEventsLog.push({
+      type: event.type,
+      inputType: event.inputType,
+      data: event.data,
+    });
+  }
+
+  function resetRich() {
+    inputEventsLog = [];
+    rich.innerHTML = "";
+  }
+
+  function selectText(startNode, startOffset, endNode, endOffset) {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.setStart(startNode, startOffset);
+    range.setEnd(endNode, endOffset);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  rich.addEventListener("beforeinput", log);
+  rich.addEventListener("input", log);
+
+  // Test Ctrl+Backspace with non-collapsed selection
+  promise_test(async function () {
+    this.add_cleanup(resetRich);
+    rich.innerHTML = "hello world";
+    rich.focus();
+
+    const textNode = rich.firstChild;
+    // Select "or" in "world"
+    selectText(textNode, 6, textNode, 8);
+
+    // Simulate Ctrl+Backspace (Alt+Backspace on Mac)
+    await new test_driver.Actions()
+      .keyDown(MODIFIER_KEY)
+      .keyDown("\uE003") // Backspace
+      .keyUp("\uE003")
+      .keyUp(MODIFIER_KEY)
+      .send();
+
+    assert_equals(inputEventsLog.length, 2, "Should have 2 events");
+    const [beforeInputEvent, inputEvent] = inputEventsLog;
+    assert_equals(beforeInputEvent.type, "beforeinput");
+    assert_equals(inputEvent.type, "input");
+    // When deleting a selection, inputType should be deleteContentBackward
+    assert_equals(
+      beforeInputEvent.inputType,
+      "deleteContentBackward",
+      "Ctrl+Backspace with selection should report deleteContentBackward"
+    );
+    assert_equals(
+      inputEvent.inputType,
+      "deleteContentBackward",
+      "Ctrl+Backspace with selection should report deleteContentBackward"
+    );
+  }, "Ctrl+Backspace with non-collapsed selection should report deleteContentBackward");
+
+  // Test Ctrl+Backspace with caret (collapsed selection)
+  promise_test(async function () {
+    this.add_cleanup(resetRich);
+    rich.innerHTML = "hello world";
+    rich.focus();
+
+    const textNode = rich.firstChild;
+    // Place caret after "world"
+    selectText(textNode, 11, textNode, 11);
+
+    // Simulate Ctrl+Backspace (Alt+Backspace on Mac)
+    await new test_driver.Actions()
+      .keyDown(MODIFIER_KEY)
+      .keyDown("\uE003") // Backspace
+      .keyUp("\uE003")
+      .keyUp(MODIFIER_KEY)
+      .send();
+
+    assert_equals(inputEventsLog.length, 2, "Should have 2 events");
+    const [beforeInputEvent, inputEvent] = inputEventsLog;
+    assert_equals(beforeInputEvent.type, "beforeinput");
+    assert_equals(inputEvent.type, "input");
+    // With caret, should be deleteWordBackward
+    assert_equals(
+      beforeInputEvent.inputType,
+      "deleteWordBackward",
+      "Ctrl+Backspace with caret should report deleteWordBackward"
+    );
+    assert_equals(
+      inputEvent.inputType,
+      "deleteWordBackward",
+      "Ctrl+Backspace with caret should report deleteWordBackward"
+    );
+  }, "Ctrl+Backspace with caret should report deleteWordBackward");
+
+  // Test Ctrl+Delete with non-collapsed selection
+  promise_test(async function () {
+    this.add_cleanup(resetRich);
+    rich.innerHTML = "hello world";
+    rich.focus();
+
+    const textNode = rich.firstChild;
+    // Select "ell" in "hello"
+    selectText(textNode, 1, textNode, 4);
+
+    // Simulate Ctrl+Delete (Alt+Delete on Mac)
+    await new test_driver.Actions()
+      .keyDown(MODIFIER_KEY)
+      .keyDown("\uE017") // Delete
+      .keyUp("\uE017")
+      .keyUp(MODIFIER_KEY)
+      .send();
+
+    assert_equals(inputEventsLog.length, 2, "Should have 2 events");
+    const [beforeInputEvent, inputEvent] = inputEventsLog;
+    assert_equals(beforeInputEvent.type, "beforeinput");
+    assert_equals(inputEvent.type, "input");
+    // When deleting a selection, inputType should be deleteContentForward
+    assert_equals(
+      beforeInputEvent.inputType,
+      "deleteContentForward",
+      "Ctrl+Delete with selection should report deleteContentForward"
+    );
+    assert_equals(
+      inputEvent.inputType,
+      "deleteContentForward",
+      "Ctrl+Delete with selection should report deleteContentForward"
+    );
+  }, "Ctrl+Delete with non-collapsed selection should report deleteContentForward");
+
+  // Test Ctrl+Delete with caret (collapsed selection)
+  promise_test(async function () {
+    this.add_cleanup(resetRich);
+    rich.innerHTML = "hello world";
+    rich.focus();
+
+    const textNode = rich.firstChild;
+    // Place caret before "world"
+    selectText(textNode, 6, textNode, 6);
+
+    // Simulate Ctrl+Delete (Alt+Delete on Mac)
+    await new test_driver.Actions()
+      .keyDown(MODIFIER_KEY)
+      .keyDown("\uE017") // Delete
+      .keyUp("\uE017")
+      .keyUp(MODIFIER_KEY)
+      .send();
+
+    assert_equals(inputEventsLog.length, 2, "Should have 2 events");
+    const [beforeInputEvent, inputEvent] = inputEventsLog;
+    assert_equals(beforeInputEvent.type, "beforeinput");
+    assert_equals(inputEvent.type, "input");
+    // With caret, should be deleteWordForward
+    assert_equals(
+      beforeInputEvent.inputType,
+      "deleteWordForward",
+      "Ctrl+Delete with caret should report deleteWordForward"
+    );
+    assert_equals(
+      inputEvent.inputType,
+      "deleteWordForward",
+      "Ctrl+Delete with caret should report deleteWordForward"
+    );
+  }, "Ctrl+Delete with caret should report deleteWordForward");
+
+  // Test regular Backspace with non-collapsed selection (should still be deleteContentBackward)
+  promise_test(async function () {
+    this.add_cleanup(resetRich);
+    rich.innerHTML = "hello world";
+    rich.focus();
+
+    const textNode = rich.firstChild;
+    // Select "lo wo"
+    selectText(textNode, 3, textNode, 8);
+
+    // Simulate Backspace (without Ctrl)
+    await test_driver.send_keys(rich, "\uE003"); // Backspace
+
+    assert_equals(inputEventsLog.length, 2, "Should have 2 events");
+    const [beforeInputEvent, inputEvent] = inputEventsLog;
+    assert_equals(beforeInputEvent.type, "beforeinput");
+    assert_equals(inputEvent.type, "input");
+    assert_equals(
+      beforeInputEvent.inputType,
+      "deleteContentBackward",
+      "Regular Backspace with selection should report deleteContentBackward"
+    );
+    assert_equals(
+      inputEvent.inputType,
+      "deleteContentBackward",
+      "Regular Backspace with selection should report deleteContentBackward"
+    );
+  }, "Regular Backspace with non-collapsed selection should report deleteContentBackward");
+
+  // Test regular Delete with non-collapsed selection (should be deleteContentForward)
+  promise_test(async function () {
+    this.add_cleanup(resetRich);
+    rich.innerHTML = "hello world";
+    rich.focus();
+
+    const textNode = rich.firstChild;
+    // Select "lo wo"
+    selectText(textNode, 3, textNode, 8);
+
+    // Simulate Delete (without Ctrl)
+    await test_driver.send_keys(rich, "\uE017"); // Delete
+
+    assert_equals(inputEventsLog.length, 2, "Should have 2 events");
+    const [beforeInputEvent, inputEvent] = inputEventsLog;
+    assert_equals(beforeInputEvent.type, "beforeinput");
+    assert_equals(inputEvent.type, "input");
+    assert_equals(
+      beforeInputEvent.inputType,
+      "deleteContentForward",
+      "Regular Delete with selection should report deleteContentForward"
+    );
+    assert_equals(
+      inputEvent.inputType,
+      "deleteContentForward",
+      "Regular Delete with selection should report deleteContentForward"
+    );
+  }, "Regular Delete with non-collapsed selection should report deleteContentForward");
+</script>

@@ -17,6 +17,7 @@
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
@@ -625,12 +626,68 @@ Optional<CaretLocation> CaretNavigator::move_by_page(CaretLocation const& locati
     return result;
 }
 
+Optional<CaretLocation> CaretNavigator::move_to_paragraph_boundary(CaretLocation const& location, SelectionDirection direction)
+{
+    auto editing_host = location.node->editing_host();
+    if (!editing_host)
+        return {};
+    m_document->update_layout_if_needed_for_node(*editing_host, DOM::UpdateLayoutReason::CursorLineNavigation);
+    auto current = canonical_location_for_editing(location);
+    Layout::ForcedReadScope read { *m_document };
+    for (;;) {
+        auto* text = as_if<DOM::Text>(*current.node);
+        if (!text)
+            return current;
+        auto data = text->data().utf16_view();
+        auto offset = min(current.offset, data.length_in_code_units());
+        auto white_space = Editing::resolved_keyword(*text, CSS::PropertyID::WhiteSpaceCollapse);
+        auto preserves_newlines = white_space.has_value() && first_is_one_of(*white_space, CSS::Keyword::Preserve, CSS::Keyword::PreserveBreaks, CSS::Keyword::BreakSpaces);
+        if (direction == SelectionDirection::Backward) {
+            while (offset > 0 && (!preserves_newlines || data.code_unit_at(offset - 1) != '\n'))
+                --offset;
+        } else {
+            while (offset < data.length_in_code_units() && (!preserves_newlines || data.code_unit_at(offset) != '\n'))
+                ++offset;
+        }
+        current = { *text, offset, TextAffinity::Downstream };
+        if ((direction == SelectionDirection::Backward && offset > 0) || (direction == SelectionDirection::Forward && offset < data.length_in_code_units()))
+            return current;
+
+        auto* node = static_cast<DOM::Node*>(text);
+        GC::Ptr<DOM::Text> next_text;
+        while (node) {
+            node = direction == SelectionDirection::Forward ? node->next_in_pre_order(editing_host.ptr()) : node->previous_in_pre_order();
+            if (!node || node == editing_host.ptr() || !editing_host->is_inclusive_ancestor_of(*node))
+                return current;
+            if (node->is_inclusive_ancestor_of(*text))
+                continue;
+            if (is<HTML::HTMLBRElement>(*node) && node->layout_node(read))
+                return current;
+            if (is_empty_line_host(*node))
+                return current;
+            auto* candidate = as_if<DOM::Text>(*node);
+            if (!candidate || !candidate->is_editable() || candidate->editing_host() != editing_host || !text_node_has_rendered_text(*candidate))
+                continue;
+            if (!boundary_visual_lines_share_inline_context(*text, *candidate))
+                return current;
+            next_text = candidate;
+            break;
+        }
+        if (!next_text)
+            return current;
+        current = { *next_text, direction == SelectionDirection::Forward ? 0 : next_text->length(), TextAffinity::Downstream };
+    }
+}
+
 Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, SelectionAlteration alteration, SelectionDirection direction, SelectionGranularity granularity, Optional<CSSPixels> preferred_inline_coordinate)
 {
     auto* text = as_if<DOM::Text>(*location.node);
 
     if (granularity == SelectionGranularity::DocumentBoundary)
         return move_to_editing_host_boundary(location, direction);
+
+    if (granularity == SelectionGranularity::ParagraphBoundary)
+        return move_to_paragraph_boundary(location, direction);
 
     if (granularity == SelectionGranularity::Page) {
         if (!preferred_inline_coordinate.has_value())
@@ -679,10 +736,12 @@ Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, Sele
         return move_by_word(location, alteration, direction);
     }
 
-    if (granularity == SelectionGranularity::LineBoundary) {
+    if (granularity == SelectionGranularity::LineBoundary || granularity == SelectionGranularity::PhysicalLineBoundary) {
         Layout::ForcedReadScope read { *m_document };
         m_document->update_layout_if_needed_for_node(location.node, DOM::UpdateLayoutReason::CursorLineNavigation);
         auto edge = direction == SelectionDirection::Forward ? Painting::CaretLineEdge::End : Painting::CaretLineEdge::Start;
+        if (granularity == SelectionGranularity::PhysicalLineBoundary)
+            edge = direction == SelectionDirection::Forward ? Painting::CaretLineEdge::Right : Painting::CaretLineEdge::Left;
         auto position = m_document->caret_position_at_line_edge(read, location.node, location.offset, location.affinity, edge);
         if (!position.has_value())
             return {};

@@ -6,6 +6,7 @@
 
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/JavaScriptDialog.h>
+#include <UI/Qt/NativeTextEditingLineEdit.h>
 
 #include <AK/Platform.h>
 #include <AK/StdLibExtras.h>
@@ -85,7 +86,7 @@ JavaScriptDialog::JavaScriptDialog(QWidget* parent)
     m_message_scroll_area->setWidget(m_message_label);
     panel_layout->addWidget(m_message_scroll_area);
 
-    m_prompt_text = new QLineEdit(m_panel);
+    m_prompt_text = new NativeTextEditingLineEdit(m_panel);
     m_prompt_text->setObjectName("LadybirdJavaScriptDialogPrompt");
     panel_layout->addWidget(m_prompt_text);
 

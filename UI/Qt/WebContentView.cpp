@@ -2084,7 +2084,15 @@ void WebContentView::enqueue_native_event(Web::KeyEvent::Type type, QKeyEvent co
         return { type, keycode, modifiers, code_point, event.isAutoRepeat(), should_insert_text, make<KeyData>(event) };
     };
 
-    enqueue_input_event(to_web_event());
+    auto web_event = to_web_event();
+#ifdef AK_OS_MACOS
+    if (type == Web::KeyEvent::Type::KeyDown) {
+        auto binding = m_native_text_editing_bindings.commands_for_key_event(event);
+        web_event.editing_commands = AK::move(binding.commands);
+        web_event.native_editing_binding_resolved = binding.binding_resolved;
+    }
+#endif
+    enqueue_input_event(AK::move(web_event));
 }
 
 void WebContentView::finish_handling_key_event(Web::KeyEvent const& key_event)
