@@ -8,4 +8,4 @@ loadedmetadata: readyState >= HAVE_METADATA
 loadeddata: readyState >= HAVE_CURRENT_DATA
 canplay: readyState >= HAVE_FUTURE_DATA
 canplaythrough: readyState >= HAVE_ENOUGH_DATA
-document loaded
+document loaded after loadeddata: true

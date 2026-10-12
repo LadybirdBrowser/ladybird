@@ -33,12 +33,15 @@
     let triggerCompletion = null;
 
     function checkCompletion() {
-        if (documentLoaded && videoLoaded && videoCanPlayThrough)
-            triggerCompletion();
+        if (!documentLoaded || !videoLoaded || !videoCanPlayThrough)
+            return;
+        println(`document loaded after loadeddata: ${documentLoadedAfterLoadedData}`);
+        triggerCompletion();
     }
 
+    let documentLoadedAfterLoadedData = false;
     window.addEventListener("load", () => {
-        println("document loaded");
+        documentLoadedAfterLoadedData = videoLoaded;
         documentLoaded = true;
         checkCompletion();
     });
