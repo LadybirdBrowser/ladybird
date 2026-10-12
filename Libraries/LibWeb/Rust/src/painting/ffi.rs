@@ -193,22 +193,24 @@ pub unsafe extern "C" fn document_host_set_geometry_host(
 pub unsafe extern "C" fn render_state_paintable_scrollable_overflow(
     host: &DocumentHost,
     slot: NodeSlotId,
-) -> FfiOptionalOverflowData {
+    out: &mut FfiOptionalOverflowData,
+) {
     // The host reads the overflow from the rows it holds, where they were measured and still read as the arena.
     let known = host.read_known_rows(|rows, source| {
         rows.overflow_is_measured()
             .then(|| FfiOptionalOverflowData::of(source, slot))
     });
     if let Some(Some(overflow)) = known {
-        return overflow;
+        *out = overflow;
+        return;
     }
     // SAFETY: Guaranteed by the caller.
-    unsafe {
+    *out = unsafe {
         read_arena(host, node_read(), slot, |arena, slot| {
             arena.measure_scrollable_overflow();
             FfiOptionalOverflowData::of(&arena.paintable_rows(), slot)
         })
-    }
+    };
 }
 
 #[derive(Default)]
@@ -246,9 +248,10 @@ pub struct FfiBoxModelMetrics {
 pub unsafe extern "C" fn render_state_paintable_svg_viewport_size(
     host: &DocumentHost,
     slot: NodeSlotId,
-) -> FfiCssPixelSize {
+    out: &mut FfiCssPixelSize,
+) {
     // SAFETY: Guaranteed by the caller.
-    unsafe {
+    *out = unsafe {
         read_arena(host, node_read(), slot, |arena, slot| {
             let paintable_rows = arena.paintable_rows();
             if !paintable_rows.paintable_row_is_populated(slot) {
@@ -256,7 +259,7 @@ pub unsafe extern "C" fn render_state_paintable_svg_viewport_size(
             }
             crate::painting::paintable_geometry::committed_svg_viewport_size(&paintable_rows, slot)
         })
-    }
+    };
 }
 
 #[repr(C)]
@@ -318,19 +321,21 @@ pub unsafe extern "C" fn render_state_paintable_svg_element_transform(
 pub unsafe extern "C" fn render_state_paintable_transform_reference_box(
     host: &DocumentHost,
     slot: NodeSlotId,
-) -> FfiCssPixelRect {
+    out: &mut FfiCssPixelRect,
+) {
     fn reference_box(rows: &impl PaintRead, slot: NodeSlotId) -> FfiCssPixelRect {
         committed_transform_reference_box(rows, slot).map_or_else(FfiCssPixelRect::default, Into::into)
     }
     if let Some(rect) = host.read_rows_between_jobs(node_read(), |rows| reference_box(rows, slot)) {
-        return rect;
+        *out = rect;
+        return;
     }
     // SAFETY: Guaranteed by the caller.
-    unsafe {
+    *out = unsafe {
         read_arena(host, node_read(), slot, |arena, slot| {
             reference_box(&arena.paintable_rows(), slot)
         })
-    }
+    };
 }
 
 /// The transform reference box of the box in `slot`, where the box was laid out.
@@ -955,9 +960,10 @@ pub struct FfiOptionalCssPixelPoint {
 pub unsafe extern "C" fn render_state_inline_paintable_first_piece_position(
     host: &DocumentHost,
     inline_paintable: NodeSlotId,
-) -> FfiOptionalCssPixelPoint {
+    out: &mut FfiOptionalCssPixelPoint,
+) {
     // SAFETY: Guaranteed by the caller.
-    unsafe {
+    *out = unsafe {
         read_arena(host, node_read(), inline_paintable, |arena, inline_paintable| {
             let mut result = FfiOptionalCssPixelPoint {
                 has_value: false,
@@ -986,7 +992,7 @@ pub unsafe extern "C" fn render_state_inline_paintable_first_piece_position(
             });
             result
         })
-    }
+    };
 }
 
 #[repr(C)]
@@ -1108,9 +1114,10 @@ pub unsafe extern "C" fn render_state_visual_line_caret_inline_coordinate(
     line_index: u32,
     primary: NodeSlotId,
     offset: usize,
-) -> FfiOptionalCssPixels {
+    out: &mut FfiOptionalCssPixels,
+) {
     // SAFETY: Guaranteed by the caller.
-    unsafe {
+    *out = unsafe {
         read_arena(
             host,
             node_read(),
@@ -1135,7 +1142,7 @@ pub unsafe extern "C" fn render_state_visual_line_caret_inline_coordinate(
                 }
             },
         )
-    }
+    };
 }
 
 /// # Safety

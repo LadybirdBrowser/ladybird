@@ -2202,11 +2202,6 @@ fn expose_css_pixel_types_as_web_types(config: &mut cbindgen::Config) {
         config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
     }
     config.includes.push("LibWebCommon/PixelUnits.h".to_string());
-    config.after_includes = Some(
-        "#if defined(__clang__)\n#pragma clang diagnostic push\n#pragma clang diagnostic ignored \"-Wreturn-type-c-linkage\"\n#endif"
-            .to_string(),
-    );
-    config.trailer = Some("#if defined(__clang__)\n#pragma clang diagnostic pop\n#endif".to_string());
 }
 
 fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
@@ -2721,8 +2716,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
     computed_values_config
         .after_includes
-        .as_mut()
-        .unwrap()
+        .get_or_insert_with(String::new)
         .push_str("\nnamespace Web::CSS::Parser::ValueParserFFI { struct DeclarationBlockData; }");
     // An animation sample and plan read the document's style engine, which the document host reaches.
     declare_document_host_of_layout_header(&mut computed_values_config);

@@ -86,17 +86,23 @@ static PixelBox pixel_box_from_ffi(Layout::RustFFI::FfiPixelBox const& box)
 
 CSSPixelRect absolute_rect(Layout::Node const& node)
 {
-    return Layout::RustFFI::layout_script_paintable_absolute_rect(node.document_host(), committed_row_slot(node));
+    CSSPixelRect rect;
+    Layout::RustFFI::layout_script_paintable_absolute_rect(node.document_host(), committed_row_slot(node), &rect);
+    return rect;
 }
 
 CSSPixelRect absolute_padding_box_rect(Layout::Node const& node)
 {
-    return Layout::RustFFI::layout_script_paintable_absolute_padding_box_rect(node.document_host(), committed_row_slot(node));
+    CSSPixelRect rect;
+    Layout::RustFFI::layout_script_paintable_absolute_padding_box_rect(node.document_host(), committed_row_slot(node), &rect);
+    return rect;
 }
 
 CSSPixelRect absolute_border_box_rect(Layout::Node const& node)
 {
-    return Layout::RustFFI::layout_script_paintable_absolute_border_box_rect(node.document_host(), committed_row_slot(node));
+    CSSPixelRect rect;
+    Layout::RustFFI::layout_script_paintable_absolute_border_box_rect(node.document_host(), committed_row_slot(node), &rect);
+    return rect;
 }
 
 CSSPixelPoint absolute_position(Layout::Node const& node)
@@ -106,7 +112,9 @@ CSSPixelPoint absolute_position(Layout::Node const& node)
 
 CSSPixelSize content_size(Layout::Node const& node)
 {
-    return Layout::RustFFI::layout_script_paintable_content_size(node.document_host(), committed_row_slot(node));
+    CSSPixelSize size;
+    Layout::RustFFI::layout_script_paintable_content_size(node.document_host(), committed_row_slot(node), &size);
+    return size;
 }
 
 CSSPixels content_width(Layout::Node const& node)
@@ -121,7 +129,8 @@ CSSPixels content_height(Layout::Node const& node)
 
 BoxModelMetrics box_model(Layout::Node const& node)
 {
-    auto metrics = Layout::RustFFI::layout_script_paintable_box_model(node.document_host(), committed_row_slot(node));
+    Layout::RustFFI::FfiBoxModelMetrics metrics;
+    Layout::RustFFI::layout_script_paintable_box_model(node.document_host(), committed_row_slot(node), &metrics);
     return {
         .margin = pixel_box_from_ffi(metrics.margin),
         .padding = pixel_box_from_ffi(metrics.padding),
@@ -144,13 +153,15 @@ CSSPixels border_box_height(Layout::Node const& node)
 
 bool has_scrollable_overflow(Layout::Node const& node)
 {
-    auto overflow = Layout::RustFFI::render_state_paintable_scrollable_overflow(node.document_host(), committed_row_slot(node));
+    Layout::RustFFI::FfiOptionalOverflowData overflow;
+    Layout::RustFFI::render_state_paintable_scrollable_overflow(node.document_host(), committed_row_slot(node), &overflow);
     return overflow.has_value && overflow.value.has_scrollable_overflow;
 }
 
 Optional<CSSPixelRect> scrollable_overflow_rect(Layout::Node const& node)
 {
-    auto overflow = Layout::RustFFI::render_state_paintable_scrollable_overflow(node.document_host(), committed_row_slot(node));
+    Layout::RustFFI::FfiOptionalOverflowData overflow;
+    Layout::RustFFI::render_state_paintable_scrollable_overflow(node.document_host(), committed_row_slot(node), &overflow);
     if (!overflow.has_value)
         return {};
     return overflow.value.rect;
@@ -293,7 +304,9 @@ Vector<Layout::RustFFI::FfiSvgTextCharacterCell> svg_text_character_cells(Layout
 
 CSSPixelSize svg_viewport_size(Layout::Node const& node)
 {
-    return Layout::RustFFI::render_state_paintable_svg_viewport_size(node.document_host(), committed_row_slot(node));
+    CSSPixelSize size;
+    Layout::RustFFI::render_state_paintable_svg_viewport_size(node.document_host(), committed_row_slot(node), &size);
+    return size;
 }
 
 Optional<Gfx::AffineTransform> svg_viewport_transform(Layout::Node const& node)
@@ -326,7 +339,8 @@ CSSPixelPoint box_type_agnostic_position(Layout::Node const& node)
     if (!row.has_value())
         return {};
     if (is_inline_paintable(node)) {
-        auto result = Layout::RustFFI::render_state_inline_paintable_first_piece_position(node.document_host(), committed_row_slot(node));
+        Layout::RustFFI::FfiOptionalCssPixelPoint result;
+        Layout::RustFFI::render_state_inline_paintable_first_piece_position(node.document_host(), committed_row_slot(node), &result);
         if (result.has_value)
             return { result.x, result.y };
     }
@@ -361,8 +375,9 @@ static Optional<Layout::RustFFI::FfiCaretRectResult> caret_at_atomic_child(Layou
         auto* child_layout_node = child ? child->unsafe_layout_node(read) : nullptr;
         if (!child_layout_node || !child_layout_node->is_atomic_inline())
             return {};
-        auto result = Layout::RustFFI::layout_script_atomic_inline_caret_rect_for_position(
-            layout_node.document_host(), Layout::Node::slot_id(child_layout_node), child_offset < offset);
+        Layout::RustFFI::FfiCaretRectResult result;
+        Layout::RustFFI::layout_script_atomic_inline_caret_rect_for_position(
+            layout_node.document_host(), Layout::Node::slot_id(child_layout_node), child_offset < offset, &result);
         if (!result.found)
             return {};
         return result;
@@ -402,8 +417,9 @@ CSSPixelRect caret_rect_for_child_offset(Layout::BegunRead const& read, Layout::
         auto const* layout_node = text ? text->unsafe_layout_node(read) : nullptr;
         if (!layout_node)
             return {};
-        auto result = Layout::RustFFI::layout_script_text_caret_rect_for_position(
-            block.document_host(), Layout::Node::slot_id(layout_node), text_offset, true);
+        Layout::RustFFI::FfiCaretRectResult result;
+        Layout::RustFFI::layout_script_text_caret_rect_for_position(
+            block.document_host(), Layout::Node::slot_id(layout_node), text_offset, true, &result);
         if (result.found)
             return result.rect;
         return {};
@@ -501,9 +517,10 @@ Layout::RustFFI::FfiCaretPaint resolve_document_caret_paint(Layout::BegunRead co
         if (!text_layout_node)
             return caret;
         auto* host = text_layout_node->document_host();
-        auto result = Layout::RustFFI::layout_script_text_caret_rect_for_position(
+        Layout::RustFFI::FfiCaretRectResult result;
+        Layout::RustFFI::layout_script_text_caret_rect_for_position(
             host, Layout::Node::slot_id(text_layout_node), cursor_position->offset(),
-            cursor_position->affinity() == TextAffinity::Downstream);
+            cursor_position->affinity() == TextAffinity::Downstream, &result);
         if (result.found) {
             auto const* style_source = static_cast<Layout::NodeWithStyle const*>(text_layout_node->node_arena().node_if_live(read, result.style_source));
             if (style_source && layout_node_is_visible(*style_source))
@@ -514,8 +531,9 @@ Layout::RustFFI::FfiCaretPaint resolve_document_caret_paint(Layout::BegunRead co
         for (auto const* block = text_layout_node->parent(); block; block = block->parent()) {
             if (!has_committed_box(*block) || !is_visible(*block))
                 continue;
-            auto empty_line = Layout::RustFFI::layout_script_paintable_empty_line_caret_rect(
-                host, committed_row_slot(*block), Layout::Node::slot_id(text_layout_node), cursor_position->offset());
+            Layout::RustFFI::FfiEmptyLineCaretRect empty_line;
+            Layout::RustFFI::layout_script_paintable_empty_line_caret_rect(
+                host, committed_row_slot(*block), Layout::Node::slot_id(text_layout_node), cursor_position->offset(), &empty_line);
             if (!empty_line.has_value)
                 continue;
             auto const* style_source = static_cast<Layout::NodeWithStyle const*>(text_layout_node->node_arena().node_if_live(read, empty_line.style_source));
@@ -608,7 +626,9 @@ Layout::RustFFI::FfiFocusedAreaOutline resolve_focused_area_outline(Layout::Begu
 
 CSSPixelRect transform_reference_box(Layout::Node const& node)
 {
-    return Layout::RustFFI::render_state_paintable_transform_reference_box(node.document_host(), committed_row_slot(node));
+    CSSPixelRect rect;
+    Layout::RustFFI::render_state_paintable_transform_reference_box(node.document_host(), committed_row_slot(node), &rect);
+    return rect;
 }
 
 CSSPixelRect transform_rect_to_viewport(Layout::Node const& node, CSSPixelRect const& rect, Compositing::AccumulatedVisualContextTree::IncludeVisualViewportTransform include_visual_viewport_transform)
@@ -810,7 +830,9 @@ Vector<CSSPixelRect> client_rects(Layout::Node const& node, Layout::RustFFI::Ffi
 
 CSSPixelRect bounding_client_rect(Layout::Node const& node, Layout::RustFFI::FfiRectToViewportTransform const& rect_to_viewport_transform)
 {
-    return Layout::RustFFI::layout_script_bounding_client_rect(node.document_host(), committed_row_slot(node), rect_to_viewport_transform);
+    CSSPixelRect rect;
+    Layout::RustFFI::layout_script_bounding_client_rect(node.document_host(), committed_row_slot(node), rect_to_viewport_transform, &rect);
+    return rect;
 }
 
 CSSPixelPoint cumulative_scroll_compensation(Layout::Node const& node)

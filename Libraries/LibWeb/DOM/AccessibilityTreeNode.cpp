@@ -627,8 +627,9 @@ void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::Accessib
                 auto line_rect_at_offset = [&](size_t offset) -> Optional<CSSPixelRect> {
                     if (!layout)
                         return {};
-                    auto result = Layout::RustFFI::layout_script_text_caret_rect_in_dom_range(
-                        layout->document_host(), Layout::Node::slot_id(layout), offset);
+                    Layout::RustFFI::FfiOptionalCssPixelRect result;
+                    Layout::RustFFI::layout_script_text_caret_rect_in_dom_range(
+                        layout->document_host(), Layout::Node::slot_id(layout), offset, &result);
                     if (!result.has_value)
                         return {};
                     return result.rect;

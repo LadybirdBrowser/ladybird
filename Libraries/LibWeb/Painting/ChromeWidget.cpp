@@ -114,10 +114,11 @@ Optional<ScrollbarData> compute_scrollbar_data(Layout::Node const& node, ScrollD
         auto own_offset = scroll_state_snapshot->device_offset_for_index(own_scroll_node_index(node));
         device_scroll_offset = direction == ScrollDirection::Horizontal ? -own_offset.x() : -own_offset.y();
     }
-    auto result = Layout::RustFFI::layout_row_paintable_compute_scrollbar_data(
+    Layout::RustFFI::FfiOptionalScrollbarData result;
+    Layout::RustFFI::layout_row_paintable_compute_scrollbar_data(
         node.document_host(), committed_row_slot(node), static_cast<Layout::RustFFI::ScrollDirection>(direction),
         metrics, scrollbar_sizing == ScrollbarSizing::Enlarged, scroll_state_snapshot, device_scroll_offset,
-        node.document().page().client().device_pixels_per_css_pixel());
+        node.document().page().client().device_pixels_per_css_pixel(), &result);
     if (!result.has_value)
         return {};
     return ScrollbarData {

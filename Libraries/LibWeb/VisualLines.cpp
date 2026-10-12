@@ -119,8 +119,9 @@ static Optional<CSSPixels> caret_inline_coordinate(Layout::BegunRead const& read
     auto const* layout_node = dom_node.layout_node(read);
     if (!layout_node)
         return {};
-    auto result = Layout::RustFFI::render_state_visual_line_caret_inline_coordinate(
-        layout_node->document_host(), line.owner_paintable, line.line_index, Layout::Node::slot_id(layout_node), offset);
+    Layout::RustFFI::FfiOptionalCssPixels result;
+    Layout::RustFFI::render_state_visual_line_caret_inline_coordinate(
+        layout_node->document_host(), line.owner_paintable, line.line_index, Layout::Node::slot_id(layout_node), offset, &result);
     if (!result.has_value)
         return {};
     return result.value;

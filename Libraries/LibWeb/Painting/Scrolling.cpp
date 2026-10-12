@@ -24,17 +24,23 @@ CSSPixelPoint scroll_offset(Layout::Node const& node)
 {
     if (!has_committed_box(node))
         return {};
-    return Layout::RustFFI::render_state_row_scroll_offset(node.document_host(), committed_row_slot(node));
+    CSSPixelPoint offset;
+    Layout::RustFFI::render_state_row_scroll_offset(node.document_host(), committed_row_slot(node), &offset);
+    return offset;
 }
 
 CSSPixelPoint minimum_scroll_offset(Layout::Node const& node)
 {
-    return Layout::RustFFI::layout_row_paintable_minimum_scroll_offset(node.document_host(), committed_row_slot(node));
+    CSSPixelPoint offset;
+    Layout::RustFFI::layout_row_paintable_minimum_scroll_offset(node.document_host(), committed_row_slot(node), &offset);
+    return offset;
 }
 
 CSSPixelPoint maximum_scroll_offset(Layout::Node const& node)
 {
-    return Layout::RustFFI::layout_row_paintable_maximum_scroll_offset(node.document_host(), committed_row_slot(node));
+    CSSPixelPoint offset;
+    Layout::RustFFI::layout_row_paintable_maximum_scroll_offset(node.document_host(), committed_row_slot(node), &offset);
+    return offset;
 }
 
 CSSPixelPoint clamp_scroll_offset(Layout::Node const& node, CSSPixelPoint offset)
@@ -61,7 +67,9 @@ CSSPixelRect scroll_snapport_rect(Layout::Node const& node, CSSPixelRect scrollp
 {
     if (!has_committed_box(node))
         return scrollport;
-    return Layout::RustFFI::layout_row_scroll_snapport_rect(node.document_host(), committed_row_slot(node), scrollport);
+    CSSPixelRect rect;
+    Layout::RustFFI::layout_row_scroll_snapport_rect(node.document_host(), committed_row_slot(node), scrollport, &rect);
+    return rect;
 }
 
 WheelScrollableAxes wheel_scrollable_axes(Layout::Node const& node)
