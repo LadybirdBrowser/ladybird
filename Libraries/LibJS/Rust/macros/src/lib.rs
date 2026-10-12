@@ -13,13 +13,20 @@ use syn::{Data, DeriveInput, Fields, Index, parse_macro_input};
 
 /// Implements Trace by tracing every field. A field marked #[gc(untraced)] is skipped; it has to hold no cells, or
 /// cells something else keeps alive and the cell's owner clears once they die, like an inline cache's shapes.
+///
+/// The Trace trait is crate::gc::visitor::Trace, or path::gc::visitor::Trace for a type marked #[gc(crate = path)],
+/// such as a type that an embedder puts in cells of the runtime's heap from a crate of its own.
 #[proc_macro_derive(Trace, attributes(gc))]
 pub fn derive_trace(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let gc = match gc_module_path(&input) {
+        Ok(path) => path,
+        Err(error) => return error.to_compile_error().into(),
+    };
     let body = match &input.data {
-        Data::Struct(data) => trace_fields(&data.fields, |member| quote!(&self.#member)),
+        Data::Struct(data) => trace_fields(&data.fields, &gc, |member| quote!(&self.#member)),
         Data::Enum(data) => {
             let arms = data.variants.iter().map(|variant| {
                 let variant_name = &variant.ident;
@@ -31,7 +38,7 @@ pub fn derive_trace(input: TokenStream) -> TokenStream {
                     .iter()
                     .zip(&bindings)
                     .filter(|(field, _)| !is_untraced(field))
-                    .map(|(_, binding)| quote!(crate::gc::visitor::Trace::trace(#binding, visitor);))
+                    .map(|(_, binding)| quote!(#gc::visitor::Trace::trace(#binding, visitor);))
                     .collect();
                 match &variant.fields {
                     Fields::Named(fields) => {
@@ -52,9 +59,9 @@ pub fn derive_trace(input: TokenStream) -> TokenStream {
     };
     quote! {
         // SAFETY: Traces every field that is not marked untraced.
-        unsafe impl #impl_generics crate::gc::visitor::Trace for #name #type_generics #where_clause {
+        unsafe impl #impl_generics #gc::visitor::Trace for #name #type_generics #where_clause {
             #[allow(unused_variables)]
-            fn trace(&self, visitor: &mut crate::gc::visitor::Visitor) {
+            fn trace(&self, visitor: &mut #gc::visitor::Visitor) {
                 #body
             }
         }
@@ -62,7 +69,25 @@ pub fn derive_trace(input: TokenStream) -> TokenStream {
     .into()
 }
 
-fn trace_fields(fields: &Fields, access: impl Fn(TokenStream2) -> TokenStream2) -> TokenStream2 {
+/// The path of the module that has the visitor module, from the type's #[gc(crate = path)], or crate::gc.
+fn gc_module_path(input: &DeriveInput) -> syn::Result<TokenStream2> {
+    let mut crate_path: Option<syn::Path> = None;
+    for attribute in input.attrs.iter().filter(|attribute| attribute.path().is_ident("gc")) {
+        attribute.parse_nested_meta(|meta| {
+            if meta.path.is_ident("crate") {
+                crate_path = Some(meta.value()?.parse()?);
+                return Ok(());
+            }
+            Err(meta.error("expected `crate = path`"))
+        })?;
+    }
+    Ok(match crate_path {
+        Some(path) => quote!(#path::gc),
+        None => quote!(crate::gc),
+    })
+}
+
+fn trace_fields(fields: &Fields, gc: &TokenStream2, access: impl Fn(TokenStream2) -> TokenStream2) -> TokenStream2 {
     let traced = fields
         .iter()
         .enumerate()
@@ -76,7 +101,7 @@ fn trace_fields(fields: &Fields, access: impl Fn(TokenStream2) -> TokenStream2) 
                 }
             };
             let value = access(member);
-            quote!(crate::gc::visitor::Trace::trace(#value, visitor);)
+            quote!(#gc::visitor::Trace::trace(#value, visitor);)
         });
     quote!(#(#traced)*)
 }

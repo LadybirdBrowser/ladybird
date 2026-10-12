@@ -341,4 +341,6 @@ define_class_ids! {
     HostArray,
     HostModule,
     HostConsoleClient,
+    // The cells that hold values of an embedder's own types, which share this id and are told apart by their class.
+    EmbedderCell,
 }
