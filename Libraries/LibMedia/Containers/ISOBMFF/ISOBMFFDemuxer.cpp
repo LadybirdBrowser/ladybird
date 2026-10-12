@@ -67,14 +67,14 @@ void ISOBMFFDemuxer::start_scan()
     cursor->set_is_blocking(false);
     DemuxerScanState initial;
     initial.duration = m_durations->total;
-    m_scan = DemuxerScanThread<ScanPayload>::start(m_stream, move(initial), { m_movie, m_movie_end, move(cursor), m_durations }, [](MediaStream& stream, ScanPayload& payload) {
+    m_scan = DemuxerScanThread<ScanPayload>::start(m_stream, move(initial), { m_movie, m_movie_end, move(cursor), m_durations }, [](MediaStream::Availability const& availability, ScanPayload& payload) {
         DemuxerScanState state;
         {
             MutexLocker locker(payload.durations->mutex);
             state.duration = payload.durations->total;
         }
-        state.reached_end_of_stream = stream.closing_bytes_are_available();
-        auto ranges = stream.available_byte_ranges();
+        state.reached_end_of_stream = availability.closing_bytes_are_available();
+        auto const& ranges = availability.byte_ranges;
         for (auto const& [id, track] : payload.movie.tracks) {
             if (!first_is_one_of(track->handler_type, HandlerType::Audio, HandlerType::Video))
                 continue;

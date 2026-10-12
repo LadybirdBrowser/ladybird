@@ -141,13 +141,13 @@ void IncrementallyPopulatedStream::remove_byte_range(u64 start, u64 end)
     notify_available_ranges_changed_while_locked();
 }
 
-Vector<MediaStream::ByteRange> IncrementallyPopulatedStream::available_byte_ranges() const
+MediaStream::Availability IncrementallyPopulatedStream::availability() const
 {
     MutexLocker locker { m_mutex };
     Vector<ByteRange> ranges;
     for (auto it = m_chunks.begin(); it != m_chunks.end(); ++it)
         ranges.empend(it->offset(), it->end());
-    return ranges;
+    return { move(ranges), m_expected_size, m_closed };
 }
 
 void IncrementallyPopulatedStream::close()
@@ -188,8 +188,11 @@ u64 IncrementallyPopulatedStream::size()
 void IncrementallyPopulatedStream::set_expected_size(u64 expected_size)
 {
     MutexLocker locker { m_mutex };
+    if (m_expected_size == expected_size)
+        return;
     m_expected_size = expected_size;
     m_state_changed.broadcast();
+    notify_available_ranges_changed_while_locked();
 }
 
 Optional<u64> IncrementallyPopulatedStream::expected_size() const

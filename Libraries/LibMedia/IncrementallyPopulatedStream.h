@@ -45,7 +45,7 @@ public:
     void close();
     virtual bool is_closed() const override;
 
-    virtual Vector<ByteRange> available_byte_ranges() const override;
+    virtual Availability availability() const override;
 
     virtual void set_available_ranges_change_observer(Function<void()>) override;
 

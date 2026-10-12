@@ -755,7 +755,7 @@ AvailableData PlaybackManager::available_data()
     return m_handler->available_data();
 }
 
-TimeRanges PlaybackManager::buffered_time_ranges() const
+BufferedRanges PlaybackManager::buffered_time_ranges() const
 {
     Vector<DemuxerScanState> active_sources;
     for (auto const& demuxer : m_demuxers) {

@@ -23,7 +23,7 @@ namespace Media {
 template<typename Payload>
 class DemuxerScanThread final : public AtomicRefCounted<DemuxerScanThread<Payload>> {
 public:
-    using ScanFunction = Function<DemuxerScanState(MediaStream&, Payload&)>;
+    using ScanFunction = Function<DemuxerScanState(MediaStream::Availability const&, Payload&)>;
 
     static NonnullRefPtr<DemuxerScanThread> start(NonnullRefPtr<MediaStream> stream, DemuxerScanState initial_state, Payload payload, ScanFunction scan)
     {
@@ -99,7 +99,11 @@ private:
                 m_rescan_requested = false;
             }
 
-            auto new_state = m_scan(*m_stream, m_payload);
+            // Derive completeness from the same snapshot the scan uses, never from later stream state.
+            // Changes during the scan request another pass through the availability observer.
+            auto availability = m_stream->availability();
+            auto new_state = m_scan(availability, m_payload);
+            new_state.resource_is_complete = availability.is_closed && availability.all_bytes_are_available();
 
             if (new_state == m_last_dispatched_state)
                 continue;

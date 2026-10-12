@@ -60,12 +60,12 @@ void MatroskaDemuxer::start_buffered_scan_thread(Reader&& scan_reader)
     initial_state.duration = m_reader.duration().value_or(AK::Duration::zero());
     m_buffered_scan_thread = DemuxerScanThread<BufferedScanPayload>::start(m_stream, move(initial_state),
         BufferedScanPayload { move(scan_reader), move(scan_cursor) },
-        [](MediaStream& stream, BufferedScanPayload& payload) {
-            auto byte_ranges = stream.available_byte_ranges();
+        [](MediaStream::Availability const& availability, BufferedScanPayload& payload) {
+            auto const& byte_ranges = availability.byte_ranges;
             Vector<BufferedRangesScan> scans;
             if (!byte_ranges.is_empty())
                 scans = payload.reader.buffered_time_ranges_by_track(payload.scan_cursor, byte_ranges);
-            return DemuxerScanState::create_from_track_scans(move(scans), payload.reader.duration().value_or(AK::Duration::zero()), stream.closing_bytes_are_available());
+            return DemuxerScanState::create_from_track_scans(move(scans), payload.reader.duration().value_or(AK::Duration::zero()), availability.closing_bytes_are_available());
         });
 }
 

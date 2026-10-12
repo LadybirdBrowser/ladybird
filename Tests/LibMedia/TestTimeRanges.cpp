@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
+#include <LibMedia/DemuxerScanState.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibTest/TestCase.h>
 
@@ -12,6 +14,53 @@ using Media::TimeRanges;
 static AK::Duration ms(i64 milliseconds)
 {
     return AK::Duration::from_milliseconds(milliseconds);
+}
+
+TEST_CASE(buffered_sources_without_sources_are_not_complete)
+{
+    auto report = Media::DemuxerScanState::buffered_ranges_of_sources({});
+    EXPECT(report.time_ranges.is_empty());
+    EXPECT(!report.resource_is_complete);
+}
+
+TEST_CASE(buffered_sources_intersect_ranges_and_completeness)
+{
+    Array<Media::DemuxerScanState, 2> sources;
+    sources[0].track_buffered_ranges.append(TimeRanges { { ms(0), ms(800) } });
+    sources[0].duration = ms(1000);
+    sources[0].resource_is_complete = true;
+    sources[1].track_buffered_ranges.append(TimeRanges { { ms(200), ms(1000) } });
+    sources[1].duration = ms(1000);
+
+    auto report = Media::DemuxerScanState::buffered_ranges_of_sources(sources);
+    EXPECT_EQ(report.time_ranges, (TimeRanges { { ms(200), ms(800) } }));
+    EXPECT(!report.resource_is_complete);
+
+    sources[1].resource_is_complete = true;
+    report = Media::DemuxerScanState::buffered_ranges_of_sources(sources);
+    EXPECT_EQ(report.time_ranges, (TimeRanges { { ms(200), ms(800) } }));
+    EXPECT(report.resource_is_complete);
+
+    // Completeness is not inferred from EOF or time coverage, and must include every source.
+    sources[0].resource_is_complete = false;
+    sources[0].reached_end_of_stream = true;
+    report = Media::DemuxerScanState::buffered_ranges_of_sources(sources);
+    EXPECT_EQ(report.time_ranges, (TimeRanges { { ms(200), ms(1000) } }));
+    EXPECT(!report.resource_is_complete);
+}
+
+TEST_CASE(buffered_sources_with_disjoint_ranges_can_still_be_complete)
+{
+    Array<Media::DemuxerScanState, 2> sources;
+    sources[0].track_buffered_ranges.append(TimeRanges { { ms(0), ms(100) } });
+    sources[1].track_buffered_ranges.append(TimeRanges { { ms(200), ms(300) } });
+    for (auto& source : sources) {
+        source.duration = ms(300);
+        source.resource_is_complete = true;
+    }
+    auto report = Media::DemuxerScanState::buffered_ranges_of_sources(sources);
+    EXPECT(report.time_ranges.is_empty());
+    EXPECT(report.resource_is_complete);
 }
 
 // add_range()

@@ -256,7 +256,7 @@ bool RemotePlaybackManager::source_has_enabled_track(ReadonlySpan<Media::Track> 
 
 // The ranges are calculated here from the state of each source, so that enabling or disabling tracks and reaching the
 // end of a source buffer's stream are reflected at once.
-Media::TimeRanges RemotePlaybackManager::buffered_time_ranges() const
+Media::BufferedRanges RemotePlaybackManager::buffered_time_ranges() const
 {
     Vector<Media::DemuxerScanState> active_sources;
     for (auto const& [stream_id, source] : m_media_stream_sources) {

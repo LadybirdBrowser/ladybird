@@ -121,6 +121,7 @@ struct HTMLMediaElement::RemoteFetchData {
     Function<void(Utf16String)> failure_callback;
     bool accepts_byte_ranges { false };
     u64 offset { 0 };
+    bool resource_was_complete { false };
 
     ~RemoteFetchData()
     {
@@ -429,7 +430,7 @@ GC::Ref<TimeRanges> HTMLMediaElement::buffered() const
     // media resource, if any, that the user agent has buffered, at the time the attribute is evaluated.
     auto time_ranges = TimeRanges::create();
     if (m_playback_manager) {
-        for (auto const& range : m_playback_manager->buffered_time_ranges())
+        for (auto const& range : m_playback_manager->buffered_time_ranges().time_ranges)
             time_ranges->add_range(range.start.to_seconds_f64(), range.end.to_seconds_f64());
     }
     return time_ranges;
@@ -1565,9 +1566,6 @@ void HTMLMediaElement::run_remote_mode_resource_fetch_steps(ByteRange byte_range
 
             weak_self->m_remote_fetch_data->fetch_controller = nullptr;
             weak_self->m_remote_fetch_data->stream->close();
-            weak_self->queue_a_media_element_task([](HTMLMediaElement& self) {
-                self.process_media_data(FetchingStatus::Complete);
-            });
         });
 
         // 5. Otherwise, incrementally read response's body given updateMedia, processEndOfMedia, an empty algorithm, and global.
@@ -2191,6 +2189,11 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
 
             // -> Once enough of the media data has been fetched to determine the duration of the media resource, its dimensions, and other metadata
             self.on_metadata_parsed(SourceType::Remote);
+
+            // NB: The initial source state may already contain a complete scan, with no later change.
+            self.queue_a_media_element_task([](HTMLMediaElement& self) {
+                self.maybe_complete_remote_fetch();
+            });
         }))
         .when_rejected(GC::weak_callback(*this, [](auto& self, Media::DecoderError& error) {
             self.handle_playback_manager_error(move(error));
@@ -2202,6 +2205,7 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
 
     m_playback_manager->on_buffered_ranges_change = GC::weak_callback(*this, [](auto& self) {
         self.queue_a_media_element_task([](HTMLMediaElement& self) {
+            self.maybe_complete_remote_fetch();
             self.update_ready_state();
         });
     });
@@ -2295,6 +2299,20 @@ void HTMLMediaElement::queue_interrupted_fetch_steps()
             return;
         self.process_media_data(FetchingStatus::Interrupted);
     });
+}
+
+void HTMLMediaElement::maybe_complete_remote_fetch()
+{
+    if (m_error || !m_remote_fetch_data || !m_playback_manager)
+        return;
+    auto& fetch_data = *m_remote_fetch_data;
+    auto resource_is_complete = m_playback_manager->buffered_time_ranges().resource_is_complete;
+    if (fetch_data.resource_was_complete == resource_is_complete)
+        return;
+    // NB: Record the transition before dispatching events, which can synchronously start another load.
+    fetch_data.resource_was_complete = resource_is_complete;
+    if (resource_is_complete)
+        process_media_data(FetchingStatus::Complete);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
@@ -2620,7 +2638,7 @@ void HTMLMediaElement::update_ready_state()
 
     // -> If HTMLMediaElement's buffered does not contain a TimeRanges for the current playback position:
     auto current_time = m_playback_manager->current_time();
-    auto ranges = m_playback_manager->buffered_time_ranges();
+    auto ranges = m_playback_manager->buffered_time_ranges().time_ranges;
     auto current_range = ranges.range_at_or_after(current_time);
     auto available_data = m_playback_manager->available_data();
 

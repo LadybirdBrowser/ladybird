@@ -88,7 +88,7 @@ public:
     bool is_playing() const { return m_is_playing; }
     Media::PlaybackState state() const { return m_state; }
     Media::AvailableData available_data() const { return m_available_data; }
-    Media::TimeRanges buffered_time_ranges() const;
+    Media::BufferedRanges buffered_time_ranges() const;
 
     void set_volume(double);
     void set_playback_rate(float);

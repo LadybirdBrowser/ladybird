@@ -7,6 +7,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Function.h>
 #include <LibCore/EventLoop.h>
+#include <LibMedia/DemuxerScanThread.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
@@ -29,6 +30,140 @@ TEST_CASE(create_empty)
     stream->set_expected_size(500);
     EXPECT(stream->expected_size().has_value());
     EXPECT_EQ(stream->expected_size().value(), 500u);
+}
+
+TEST_CASE(full_file_availability_requires_no_gaps)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    EXPECT(!stream->availability().all_bytes_are_available());
+    auto data = make_test_data(100);
+    stream->set_expected_size(100);
+    stream->add_chunk_at(50, data.bytes().slice(50));
+    stream->close();
+    auto snapshot = stream->availability();
+    EXPECT(snapshot.closing_bytes_are_available());
+    EXPECT(!snapshot.all_bytes_are_available());
+
+    stream->add_chunk_at(0, data.bytes().slice(0, 50));
+    EXPECT(stream->availability().all_bytes_are_available());
+    EXPECT(!snapshot.all_bytes_are_available());
+    stream->remove_byte_range(20, 30);
+    EXPECT(!stream->availability().all_bytes_are_available());
+}
+
+TEST_CASE(buffered_scan_reports_completeness_even_if_time_ranges_do_not_change)
+{
+    Core::EventLoop loop;
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    auto data = make_test_data(100);
+    stream->add_chunk_at(50, data.bytes().slice(50));
+    stream->close();
+
+    auto scan = Media::DemuxerScanThread<int>::start(stream, {}, 0, [](auto&, auto&) {
+        Media::DemuxerScanState state;
+        state.duration = AK::Duration::from_seconds(1);
+        return state;
+    });
+    scan->set_change_handler([] { });
+    auto deadline = MonotonicTime::now() + AK::Duration::from_seconds(5);
+    while (scan->main_thread_state().duration == AK::Duration::zero() && MonotonicTime::now() < deadline)
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(scan->main_thread_state().duration, AK::Duration::from_seconds(1));
+    EXPECT(!scan->main_thread_state().resource_is_complete);
+
+    stream->add_chunk_at(0, data.bytes().slice(0, 50));
+    deadline = MonotonicTime::now() + AK::Duration::from_seconds(5);
+    while (!scan->main_thread_state().resource_is_complete && MonotonicTime::now() < deadline)
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT(scan->main_thread_state().resource_is_complete);
+    EXPECT(scan->main_thread_state().track_buffered_ranges.is_empty());
+    scan->shutdown();
+}
+
+TEST_CASE(close_during_buffered_scan_requires_another_pass)
+{
+    Core::EventLoop loop;
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    auto data = make_test_data(100);
+    stream->add_chunk_at(0, data.bytes());
+    auto scan = Media::DemuxerScanThread<int>::start(stream, {}, 0, [stream](Media::MediaStream::Availability const& availability, int& passes) {
+        if (++passes == 1)
+            stream->close();
+        EXPECT_EQ(availability.is_closed, passes > 1);
+        Media::DemuxerScanState state;
+        state.duration = AK::Duration::from_seconds(passes);
+        return state;
+    });
+    scan->set_change_handler([] { });
+    auto deadline = MonotonicTime::now() + AK::Duration::from_seconds(5);
+    while (!scan->main_thread_state().resource_is_complete && MonotonicTime::now() < deadline)
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT(scan->main_thread_state().resource_is_complete);
+    EXPECT(scan->main_thread_state().duration >= AK::Duration::from_seconds(2));
+    scan->shutdown();
+}
+
+TEST_CASE(expected_size_changes_request_buffered_scans)
+{
+    Core::EventLoop loop;
+    auto data = make_test_data(100);
+    auto stream = Media::IncrementallyPopulatedStream::create_from_data(data.bytes());
+    auto scan = Media::DemuxerScanThread<int>::start(stream, {}, 0, [](Media::MediaStream::Availability const& availability, auto&) {
+        Media::DemuxerScanState state;
+        state.duration = AK::Duration::from_seconds(availability.expected_size.value());
+        state.reached_end_of_stream = availability.closing_bytes_are_available();
+        return state;
+    });
+    scan->set_change_handler([] { });
+    auto await_size = [&](u64 size) {
+        auto duration = AK::Duration::from_seconds(size);
+        auto deadline = MonotonicTime::now() + AK::Duration::from_seconds(5);
+        while (scan->main_thread_state().duration != duration && MonotonicTime::now() < deadline)
+            loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+        EXPECT_EQ(scan->main_thread_state().duration, duration);
+    };
+    await_size(100);
+    EXPECT(scan->main_thread_state().resource_is_complete);
+
+    stream->set_expected_size(200);
+    await_size(200);
+    EXPECT(!scan->main_thread_state().resource_is_complete);
+    EXPECT(!scan->main_thread_state().reached_end_of_stream);
+
+    stream->set_expected_size(100);
+    await_size(100);
+    EXPECT(scan->main_thread_state().resource_is_complete);
+    EXPECT(scan->main_thread_state().reached_end_of_stream);
+    scan->shutdown();
+}
+
+TEST_CASE(eviction_during_scan_does_not_change_its_availability_snapshot)
+{
+    Core::EventLoop loop;
+    auto data = make_test_data(100);
+    auto stream = Media::IncrementallyPopulatedStream::create_from_data(data.bytes());
+    auto scan = Media::DemuxerScanThread<int>::start(stream, {}, 0, [stream](Media::MediaStream::Availability const& availability, int& passes) {
+        if (++passes == 1) {
+            stream->remove_byte_range(0, 50);
+            EXPECT(availability.all_bytes_are_available());
+            EXPECT_EQ(availability.byte_ranges.first().start, 0u);
+        } else {
+            EXPECT(!availability.all_bytes_are_available());
+            EXPECT_EQ(availability.byte_ranges.first().start, 50u);
+        }
+        Media::DemuxerScanState state;
+        state.duration = AK::Duration::from_seconds(passes);
+        state.reached_end_of_stream = availability.closing_bytes_are_available();
+        return state;
+    });
+    scan->set_change_handler([] { });
+    auto deadline = MonotonicTime::now() + AK::Duration::from_seconds(5);
+    while (scan->main_thread_state().duration < AK::Duration::from_seconds(2) && MonotonicTime::now() < deadline)
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT(scan->main_thread_state().duration >= AK::Duration::from_seconds(2));
+    EXPECT(!scan->main_thread_state().resource_is_complete);
+    EXPECT(scan->main_thread_state().reached_end_of_stream);
+    scan->shutdown();
 }
 
 TEST_CASE(create_from_data_and_buffer)

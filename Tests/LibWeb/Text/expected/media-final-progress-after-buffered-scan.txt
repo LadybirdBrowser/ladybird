@@ -1,0 +1,6 @@
+Load 0: final progress covers duration: true
+Load 0: idle at suspend: true
+Load 0: suspend count: 1
+Load 1: final progress covers duration: true
+Load 1: idle at suspend: true
+Load 1: suspend count: 1
