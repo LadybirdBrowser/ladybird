@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes paused-green { from, to { color: rgb(0, 128, 0); } }
+    @keyframes running-green { from { color: rgb(0, 128, 0); } to { color: rgb(0, 128, 0); } }
+    #card::before { content: "x"; animation: paused-green 100s paused; }
+    #card::after { content: "y"; animation: running-green 100s linear; }
+</style>
+<div id="card" style="color: rgb(0, 0, 0)">Card</div>
+<script>
+    // A tick of an animation of an inherited property never shows it in the boxes of generated pseudo-elements that run
+    // animations of their own, paused or running, which only the host composes over what they inherit.
+    asyncTest(async done => {
+        const result = await whileLaneAnimates(() => {
+            return card.animate([{ color: "rgb(0, 0, 0)" }, { color: "rgb(0, 0, 200)" }], { duration: 10000, easing: "linear" });
+        }, (frameTime, animation) => {
+            internals.injectClockTick(frameTime + 5000);
+            const result = {
+                beforeColor: internals.presentedColor(card, "::before"),
+                afterColor: internals.presentedColor(card, "::after"),
+            };
+            animation.cancel();
+            return result;
+        });
+        println(`::before shows: ${result.beforeColor ?? "what the host showed"}`);
+        println(`::after shows: ${result.afterColor ?? "what the host showed"}`);
+        done();
+    });
+</script>

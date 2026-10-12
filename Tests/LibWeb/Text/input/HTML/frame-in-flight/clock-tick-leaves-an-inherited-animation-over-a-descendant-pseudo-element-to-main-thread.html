@@ -6,20 +6,25 @@
 </style>
 <div id="card" style="color: rgb(0, 0, 0)">Card <span id="label">label</span></div>
 <script>
-    // A running animation of an inherited property that the generated pseudo-element of a descendant inherits is the
-    // main thread's to sample: the render clock leaves it to the host rather than show a stale pseudo-element.
+    // A running animation of an inherited property that the generated pseudo-element of a descendant inherits.
     asyncTest(async done => {
         const result = await whileLaneAnimates(() => {
             return card.animate([{ color: "rgb(0, 0, 0)" }, { color: "rgb(0, 0, 200)" }], { duration: 10000, easing: "linear" });
-        }, frameTime => {
+        }, (frameTime, animation) => {
             internals.injectClockTick(frameTime + 5000);
+            const expectedBlue = Math.round(((frameTime + 5000 - animation.startTime) / 10000) * 200);
             return {
                 lane: internals.clockLaneState(document),
                 presentedBy: internals.lastFramePresentedBy(document),
+                expectedColor: `rgb(0, 0, ${expectedBlue})`,
+                labelColor: internals.presentedColor(label),
+                labelBeforeColor: internals.presentedColor(label, "::before"),
             };
         });
         println(`lane after the tick: ${result.lane}`);
         println(`last frame presented by: ${result.presentedBy}`);
+        println(`descendant shows the tick's color: ${result.labelColor === result.expectedColor}`);
+        println(`descendant's ::before shows the tick's color: ${result.labelBeforeColor === result.expectedColor}`);
         done();
     });
 </script>
