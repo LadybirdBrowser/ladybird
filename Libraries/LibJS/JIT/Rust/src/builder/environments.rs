@@ -210,14 +210,20 @@ impl GraphBuilder<'_> {
         };
         let value = self.read(src)?;
         let mut slow_paths = self.start_slow_paths(None)?;
-        self.branch_to_slow_path(
-            &mut slow_paths,
-            BranchCondition::BindingMutable {
-                index: coordinate.index,
-            },
-            vec![environment],
-            true,
-        );
+        // NB: Bindings of the closure's environments that every environment
+        //     of their scope declares mutable need no check of that.
+        let declared_mutable =
+            field == FrameField::LexicalEnvironment && self.function.executable.mutable_bindings.contains(&coordinate);
+        if !declared_mutable {
+            self.branch_to_slow_path(
+                &mut slow_paths,
+                BranchCondition::BindingMutable {
+                    index: coordinate.index,
+                },
+                vec![environment],
+                true,
+            );
+        }
         let binding = self.emit(
             Op::LoadEnvironmentBinding {
                 index: coordinate.index,

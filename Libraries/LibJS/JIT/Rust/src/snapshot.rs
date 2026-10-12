@@ -78,6 +78,10 @@ pub struct ExecutableSnapshot {
     /// check the value before using it as a constant, since bindings and
     /// the environments of other closures sharing the executable may differ.
     pub captured_bindings: Vec<(EnvironmentCoordinate, GlobalValueSnapshot)>,
+    /// The captured bindings that stores of the executable store to, which
+    /// are mutable in every environment of their scope, so that the stores
+    /// need not check that.
+    pub mutable_bindings: Vec<EnvironmentCoordinate>,
     /// Whether `function` is a builtin written in JavaScript. Its frames are
     /// set up like those of other builtins: with the environments of their
     /// caller's frame, and without a script or module.
