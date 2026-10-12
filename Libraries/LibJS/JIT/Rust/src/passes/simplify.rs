@@ -161,6 +161,50 @@ fn build_int32_term(
     }
 }
 
+/// The double `value` checks to be an int32, if it is a `CheckInt32` of a
+/// boxed double.
+fn checked_double(graph: &Graph, value: NodeId) -> Option<NodeId> {
+    let check = graph.node(value);
+    if check.op != Op::CheckInt32 {
+        return None;
+    }
+    let boxed = graph.node(graph.unrefined(check.inputs[0]));
+    (boxed.op == Op::BoxFloat64).then(|| boxed.inputs[0])
+}
+
+/// The checks of doubles to be int32 values whose users all take the
+/// double instead (see `checked_double()`): comparisons, conversions to
+/// doubles, boxings and frame states. The values of doubles are numbers,
+/// so the checks guard no conversion with effects, and they go before check
+/// elimination could rely on what they established.
+fn dissolvable_checks(graph: &Graph) -> BitSet {
+    let mut checks = BitSet::new(graph.nodes.len());
+    let mut blocked = BitSet::new(graph.nodes.len());
+    for block in &graph.blocks {
+        for node in block.nodes() {
+            let data = graph.node(node);
+            if checked_double(graph, node).is_some() {
+                checks.insert(node.index());
+            }
+            let takes_double = match data.op {
+                Op::Int32Compare { comparison } => !matches!(
+                    comparison,
+                    Comparison::Below | Comparison::BelowOrEqual | Comparison::Above | Comparison::AboveOrEqual
+                ),
+                Op::Int32ToFloat64 | Op::BoxInt32 => true,
+                _ => false,
+            };
+            if !takes_double {
+                for input in &data.inputs {
+                    blocked.insert(input.index());
+                }
+            }
+        }
+    }
+    checks.subtract(&blocked);
+    checks
+}
+
 fn fold_int32_compare(comparison: Comparison, lhs: i32, rhs: i32) -> bool {
     match comparison {
         Comparison::LessThan => lhs < rhs,
@@ -234,6 +278,13 @@ fn constant_number(graph: &Graph, node: NodeId) -> Option<f64> {
 }
 
 pub fn run(graph: &mut Graph) {
+    let dissolvable = dissolvable_checks(graph);
+    let dissolved_double = |graph: &Graph, value: NodeId| {
+        // NB: Nodes the pass adds are no checks.
+        (value.index() < dissolvable.capacity() && dissolvable.contains(value.index()))
+            .then(|| checked_double(graph, value))
+            .flatten()
+    };
     let mut constants = Constants::new(graph);
     let mut replacements = Replacements::new(graph);
     let mut removed = BitSet::new(graph.nodes.len());
@@ -282,6 +333,20 @@ pub fn run(graph: &mut Graph) {
                 .then(|| int32_term(graph, inputs[0], 0))
                 .flatten()
                 .filter(|term| matches!(term, Int32Term::Binary(..)));
+            // NB: An int32 comparison of a double checked to be an int32
+            //     compares the doubles, which needs no check.
+            let double_compare = match graph.node(node).op {
+                Op::Int32Compare { comparison }
+                    if !matches!(
+                        comparison,
+                        Comparison::Below | Comparison::BelowOrEqual | Comparison::Above | Comparison::AboveOrEqual
+                    ) =>
+                {
+                    let doubles = [dissolved_double(graph, inputs[0]), dissolved_double(graph, inputs[1])];
+                    doubles.iter().any(Option::is_some).then_some((comparison, doubles))
+                }
+                _ => None,
+            };
             let constant_bits = |graph: &Graph, input: usize| graph.constant_value(inputs[input]);
             let boxed = |op: Op, input: NodeId| {
                 let unrefined = graph.node(graph.unrefined(input));
@@ -306,9 +371,11 @@ pub fn run(graph: &mut Graph) {
                     (Some(index), Some(count)) if (index as u32) < count as u32 => Some(inputs[0]),
                     _ => None,
                 },
+                // NB: The double of a double checked to be an int32 is the
+                //     double, which needs no check.
                 Op::Int32ToFloat64 => match graph.node(inputs[0]).op {
                     Op::UnboxInt32 => boxed(Op::BoxFloat64, graph.node(inputs[0]).inputs[0]),
-                    _ => None,
+                    _ => dissolved_double(graph, inputs[0]),
                 },
                 // NB: Both signed and unsigned int32 values are exactly
                 //     representable as doubles. ToInt32 recovers their bits.
@@ -316,7 +383,11 @@ pub fn run(graph: &mut Graph) {
                     Op::Int32ToFloat64 | Op::Uint32ToFloat64 => Some(graph.node(inputs[0]).inputs[0]),
                     _ => None,
                 },
-                Op::BoxInt32 => int32_of(graph, inputs[0]).map(|integer| constants.get(graph, value::int32(integer))),
+                // NB: A boxed double checked to be an int32 is the boxing of the
+                //     int32, which needs no check.
+                Op::BoxInt32 => int32_of(graph, inputs[0])
+                    .map(|integer| constants.get(graph, value::int32(integer)))
+                    .or_else(|| dissolved_double(graph, inputs[0]).map(|_| graph.node(inputs[0]).inputs[0])),
                 Op::BoxBool => constant_bits(graph, 0).map(|bits| {
                     let boolean = if bits != 0 { value::TRUE } else { value::FALSE };
                     constants.get(graph, boolean)
@@ -360,6 +431,29 @@ pub fn run(graph: &mut Graph) {
                 },
                 _ => None,
             };
+            let folded = folded.or_else(|| {
+                let (comparison, doubles) = double_compare?;
+                let pc = graph.node(node).pc;
+                let mut operands = Vec::new();
+                for (input, double) in inputs.iter().zip(doubles) {
+                    operands.push(double.unwrap_or_else(|| {
+                        let conversion =
+                            graph.add_node(Node::new(Op::Int32ToFloat64, vec![*input], Some(Repr::Float64), pc));
+                        graph.blocks[block.index()].body.insert(index - 1, conversion);
+                        index += 1;
+                        conversion
+                    }));
+                }
+                let compare = graph.add_node(Node::new(
+                    Op::Float64Compare { comparison },
+                    operands,
+                    Some(Repr::Bool),
+                    pc,
+                ));
+                graph.blocks[block.index()].body.insert(index - 1, compare);
+                index += 1;
+                Some(compare)
+            });
             let folded = folded.or_else(|| {
                 let term = wrapping?;
                 let pc = graph.node(node).pc;
@@ -469,6 +563,13 @@ pub fn run(graph: &mut Graph) {
             data.inputs = inputs;
             changed_control_flow = true;
         }
+    }
+    // NB: Frame states take the doubles of the checks that go.
+    for check in dissolvable.iter() {
+        let check = NodeId::from_index(check);
+        let double = checked_double(graph, check).expect("dissolvable checks check doubles");
+        replacements.replace(check, double);
+        removed.insert(check.index());
     }
     replacements.apply(graph);
     edit::remove_nodes(graph, &removed);
