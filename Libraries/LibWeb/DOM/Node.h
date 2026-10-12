@@ -230,6 +230,7 @@ public:
     virtual bool is_html_head_element() const { return false; }
     virtual bool is_html_heading_element() const { return false; }
     virtual bool is_html_input_element() const { return false; }
+    virtual bool is_html_label_element() const { return false; }
     virtual bool is_html_link_element() const { return false; }
     virtual bool is_html_media_element() const { return false; }
     virtual bool is_html_optgroup_element() const { return false; }
