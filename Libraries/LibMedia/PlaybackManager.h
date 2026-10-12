@@ -96,7 +96,7 @@ public:
     bool is_playing();
     PlaybackState state();
     AvailableData available_data();
-    TimeRanges buffered_time_ranges() const;
+    BufferedRanges buffered_time_ranges() const;
 
     void set_volume(double);
     void set_playback_rate(float);

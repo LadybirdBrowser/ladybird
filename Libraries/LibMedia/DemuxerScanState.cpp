@@ -50,7 +50,7 @@ TimeRanges DemuxerScanState::buffered_ranges() const
 
 // The sources' combined ranges follow the steps of HTMLMediaElement's buffered attribute as extended by MSE.
 // https://w3c.github.io/media-source/#htmlmediaelement-extensions-buffered
-TimeRanges DemuxerScanState::buffered_ranges_of_sources(ReadonlySpan<DemuxerScanState> sources)
+BufferedRanges DemuxerScanState::buffered_ranges_of_sources(ReadonlySpan<DemuxerScanState> sources)
 {
     if (sources.is_empty())
         return {};
@@ -61,13 +61,15 @@ TimeRanges DemuxerScanState::buffered_ranges_of_sources(ReadonlySpan<DemuxerScan
         highest_end_time = max(highest_end_time, source.duration);
 
     TimeRanges intersection { { AK::Duration::zero(), highest_end_time } };
+    bool resource_is_complete = true;
     for (auto const& source : sources) {
+        resource_is_complete &= source.resource_is_complete;
         auto source_ranges = source.buffered_ranges();
         if (source.reached_end_of_stream && !source_ranges.is_empty())
             source_ranges.add_range(source_ranges[source_ranges.size() - 1].start, highest_end_time);
         intersection = intersection.intersection(source_ranges);
     }
-    return intersection;
+    return { move(intersection), resource_is_complete };
 }
 
 }
@@ -79,6 +81,7 @@ ErrorOr<void> encode(Encoder& encoder, Media::DemuxerScanState const& state)
 {
     TRY(encoder.encode(state.track_buffered_ranges));
     TRY(encoder.encode(state.reached_end_of_stream));
+    TRY(encoder.encode(state.resource_is_complete));
     TRY(encoder.encode(state.duration));
     return {};
 }
@@ -89,6 +92,7 @@ ErrorOr<Media::DemuxerScanState> decode(Decoder& decoder)
     Media::DemuxerScanState state;
     state.track_buffered_ranges = TRY(decoder.decode<Vector<Media::TimeRanges>>());
     state.reached_end_of_stream = TRY(decoder.decode<bool>());
+    state.resource_is_complete = TRY(decoder.decode<bool>());
     state.duration = TRY(decoder.decode<AK::Duration>());
     return state;
 }

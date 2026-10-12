@@ -66,6 +66,11 @@ private:
     Vector<Range> m_ranges;
 };
 
+struct BufferedRanges {
+    TimeRanges time_ranges;
+    bool resource_is_complete { false };
+};
+
 struct BufferedRangesScan {
     TimeRanges time_ranges;
     bool last_byte_range_has_samples { false };

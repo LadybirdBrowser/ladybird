@@ -19,6 +19,7 @@ struct MEDIA_API DemuxerScanState {
     // The ranges of each audio and video track in the source.
     Vector<TimeRanges> track_buffered_ranges;
     bool reached_end_of_stream { false };
+    bool resource_is_complete { false };
     AK::Duration duration;
 
     static DemuxerScanState create_from_track_scans(Vector<BufferedRangesScan> track_scans, AK::Duration minimum_duration, bool closing_bytes_are_available);
@@ -26,7 +27,7 @@ struct MEDIA_API DemuxerScanState {
     AK::Duration highest_track_end_time() const;
     TimeRanges buffered_ranges() const;
 
-    static TimeRanges buffered_ranges_of_sources(ReadonlySpan<DemuxerScanState>);
+    static BufferedRanges buffered_ranges_of_sources(ReadonlySpan<DemuxerScanState>);
 
     bool operator==(DemuxerScanState const&) const = default;
 };

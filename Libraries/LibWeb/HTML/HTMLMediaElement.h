@@ -252,6 +252,7 @@ private:
         Interrupted,
     };
     void process_media_data(FetchingStatus);
+    void maybe_complete_remote_fetch();
     void queue_interrupted_fetch_steps();
 
     enum class SourceType : u8 {

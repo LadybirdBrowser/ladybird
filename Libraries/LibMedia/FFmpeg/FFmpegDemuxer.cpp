@@ -473,9 +473,9 @@ void FFmpegDemuxer::start_buffered_scan_thread(AVFormatContext& context)
     initial_state.duration = m_total_duration;
     m_buffered_scan_thread = DemuxerScanThread<BufferedScanPayload>::start(m_stream, move(initial_state),
         BufferedScanPayload { navigator.release_nonnull(), m_total_duration },
-        [](MediaStream& stream, BufferedScanPayload& payload) {
-            auto scans = payload.navigator->buffered_time_ranges_by_track(stream.available_byte_ranges());
-            return DemuxerScanState::create_from_track_scans(move(scans), payload.initial_duration, stream.closing_bytes_are_available());
+        [](MediaStream::Availability const& availability, BufferedScanPayload& payload) {
+            auto scans = payload.navigator->buffered_time_ranges_by_track(availability.byte_ranges);
+            return DemuxerScanState::create_from_track_scans(move(scans), payload.initial_duration, availability.closing_bytes_are_available());
         });
 }
 
