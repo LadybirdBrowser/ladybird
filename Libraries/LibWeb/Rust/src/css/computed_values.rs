@@ -1568,6 +1568,26 @@ pub(crate) fn style_group_affects_layout(group_index: usize) -> bool {
     )
 }
 
+/// The style groups in `groups` whose payloads differ between two records, `[base, composed]` each: explicit
+/// inheritance reads both the base and the composition over it. `None` when a record holds fewer groups.
+pub(crate) fn changed_style_groups(
+    old: [&[crate::css::host_shared::SharedPayload]; 2],
+    new: [&[crate::css::host_shared::SharedPayload]; 2],
+    groups: std::ops::Range<usize>,
+) -> Option<u32> {
+    let mut changed = 0;
+    for group in groups {
+        for (before, after) in old.iter().zip(new.iter()) {
+            let (&before, &after) = (before.get(group)?, after.get(group)?);
+            if before != after && !style_group_payloads_equal(group, before.as_ptr(), after.as_ptr()) {
+                changed |= 1 << group;
+                break;
+            }
+        }
+    }
+    Some(changed)
+}
+
 pub(crate) fn style_group_payloads_equal(group_index: usize, a: *const c_void, b: *const c_void) -> bool {
     assert!(!a.is_null());
     assert!(!b.is_null());

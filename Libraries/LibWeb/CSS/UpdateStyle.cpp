@@ -184,15 +184,7 @@ static void note_style_reaction_applied(Layout::BegunRead const& read, DOM::Elem
         auto new_record = element.installed_style().view();
         if (!old_record.longhand_table || !new_record.longhand_table)
             return NumericLimits<u32>::max();
-        u32 groups = 0;
-        for (size_t group = ComputedValues::inherited_style_group_count; group < old_record.payload_count; ++group) {
-            auto differs = [&](auto const* const* old_payloads, auto const* const* new_payloads) {
-                return old_payloads[group] != new_payloads[group]
-                    && !ComputedValuesFFI::rust_style_group_payloads_equal(group, old_payloads[group], new_payloads[group]);
-            };
-            if (differs(old_record.base_payloads, new_record.base_payloads) || differs(old_record.payloads, new_record.payloads))
-                groups |= u32 { 1 } << group;
-        }
+        auto groups = StyleEngineFFI::style_engine_changed_style_groups(&old_record, &new_record, ComputedValues::inherited_style_group_count, old_record.payload_count);
         return groups | ComputedValuesFFI::rust_computed_longhand_table_non_inherited_inheritance_changes(static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(old_record.longhand_table), static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(new_record.longhand_table));
     }();
     if (element.children_explicitly_inherited_non_inherited_style_groups() & changed_non_inherited_style_groups)
@@ -515,16 +507,8 @@ static RequiredInvalidationAfterStyleChange install_engine_computed_records(Layo
         //     Compare both rather than propagating the intermediate base-to-overlay changes.
         auto old_record = style_engine.style_record_view(read, before_change.style_record());
         auto new_record = element.installed_style().view();
-        u8 changed_inherited_groups = 0;
-        for (size_t group = 0; group < ComputedValues::inherited_style_group_count; ++group) {
-            auto differs = [&](auto const* const* old_payloads, auto const* const* new_payloads) {
-                return old_payloads[group] != new_payloads[group]
-                    && !ComputedValuesFFI::rust_style_group_payloads_equal(group, old_payloads[group], new_payloads[group]);
-            };
-            if (differs(old_record.base_payloads, new_record.base_payloads) || differs(old_record.payloads, new_record.payloads))
-                changed_inherited_groups |= 1 << group;
-        }
-        invalidation.set_inherited_style_groups_changed(changed_inherited_groups);
+        auto changed_inherited_groups = StyleEngineFFI::style_engine_changed_style_groups(&old_record, &new_record, 0, ComputedValues::inherited_style_group_count);
+        invalidation.set_inherited_style_groups_changed(static_cast<u8>(changed_inherited_groups & RequiredInvalidationAfterStyleChange::all_inherited_style_groups));
     }
     if (old_computed_values)
         element.apply_display_none_change(read, DOM::Element::DisplayNoneState::of(*old_computed_values));
