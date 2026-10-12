@@ -17,6 +17,7 @@ from typing import TextIO
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from Generators.libweb_bindings import interfaces
+from Generators.libweb_bindings import rust_bindings
 from Generators.libweb_bindings.context import GenerationContext
 from Generators.libweb_bindings.global_mixins import write_global_mixin_header
 from Generators.libweb_bindings.includes import GeneratedIncludes
@@ -108,13 +109,17 @@ def write_idl_header(out: TextIO, module: Module, context: GenerationContext) ->
     if module.enumerations:
         includes.add(f"LibWebCommon/Bindings/{module.path.stem}.h")
 
-    interfaces.write_declaration(body, includes, context, module.interface)
+    if module.interface is not None and rust_bindings.is_implemented_in_rust(module.interface):
+        rust_bindings.write_cpp_declaration(body, includes, module.interface)
+    else:
+        interfaces.write_declaration(body, includes, context, module.interface)
 
     for enumeration in module.enumerations:
         write_enumeration_declaration(body, enumeration, includes)
         write_enumeration_to_javascript_value_declaration(body, enumeration, includes)
 
-    for dictionary in dictionaries_in_dependency_order(module.dictionaries, context):
+    # NB: The dictionaries of an interface implemented in Rust only exist in its Rust bindings.
+    for dictionary in dictionaries_in_dependency_order(rust_bindings.cpp_dictionaries(module), context):
         write_dictionary_declaration(body, dictionary, includes, context)
         write_dictionary_to_javascript_value_declaration(body, dictionary)
 
@@ -130,13 +135,16 @@ def write_idl_implementation(out: TextIO, module: Module, context: GenerationCon
     includes.add_binding(module.path.stem)
     body = StringIO()
 
-    interfaces.write_implementation(body, includes, context, module.interface)
+    if module.interface is not None and rust_bindings.is_implemented_in_rust(module.interface):
+        rust_bindings.write_cpp_implementation(body, includes, context, module.interface)
+    else:
+        interfaces.write_implementation(body, includes, context, module.interface)
 
     for enumeration in module.enumerations:
         write_enumeration_conversion(body, enumeration, includes)
         write_enumeration_to_javascript_value_conversion(body, enumeration)
 
-    for dictionary in module.dictionaries:
+    for dictionary in rust_bindings.cpp_dictionaries(module):
         write_dictionary_conversion(body, dictionary, includes, context)
         write_dictionary_to_javascript_value_conversion(body, dictionary, includes, context)
 
@@ -178,7 +186,7 @@ def write_forward_header(out: TextIO, modules: List[Module]) -> None:
 
     for module in modules:
         interface = module.interface
-        if interface is None or interface.is_namespace:
+        if interface is None or interface.is_namespace or rust_bindings.is_implemented_in_rust(interface):
             continue
 
         namespace_name = cpp_namespace_for_module_path(interface.path)
@@ -200,7 +208,7 @@ def write_forward_header(out: TextIO, modules: List[Module]) -> None:
 """
         )
 
-    dictionary_names = {dictionary.name for module in modules for dictionary in module.dictionaries}
+    dictionary_names = {dictionary.name for module in modules for dictionary in rust_bindings.cpp_dictionaries(module)}
 
     out.write(
         """namespace Web::Bindings {
@@ -259,6 +267,12 @@ def main() -> int:
 
     context = GenerationContext(modules)
     modules = context.modules
+
+    try:
+        rust_bindings.check_rust_bindings(context, modules)
+    except rust_bindings.UnsupportedByRustBindings as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
 
     output_files: List[Path] = []
 
@@ -332,6 +346,12 @@ def main() -> int:
     wrapper_factory_implementation_path = output_directory / "WrapperFactory.cpp"
     write_generated_file(wrapper_factory_implementation_path, write_wrapper_factory_implementation, interface_sets)
     output_files.append(wrapper_factory_implementation_path)
+
+    rust_bindings_path = output_directory / "RustBindings.rs"
+    write_generated_file(
+        rust_bindings_path, rust_bindings.write_rust_bindings, context, modules, interface_sets.intrinsics
+    )
+    output_files.append(rust_bindings_path)
 
     structured_serialize_bindings_implementation_path = output_directory / "StructuredSerializeBindings.cpp"
     write_generated_file(
