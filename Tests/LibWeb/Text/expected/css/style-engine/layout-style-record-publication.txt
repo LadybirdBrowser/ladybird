@@ -1,0 +1,18 @@
+paint change publishes once: true
+layout follows installed record: true
+paint background: rgb(255, 0, 0)
+kept box width: 20
+named: each assigned box publishes once: true
+named: assigned colors: true
+named: layout records follow installed records: true
+named: assigned box widths: true
+manual: each assigned box publishes once: true
+manual: assigned colors: true
+manual: layout records follow installed records: true
+manual: assigned box widths: true
+anonymous content inherits color: rgb(0, 0, 255)
+anonymous table layout stays consistent: true
+animated opacity reaches kept box: 0.5
+animated layout record follows installed record: true
+base opacity restored: 1
+restored layout record follows installed record: true

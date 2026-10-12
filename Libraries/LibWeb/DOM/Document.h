@@ -1178,6 +1178,7 @@ public:
         u64 style_engine_reaction_elements { 0 };
         u64 style_engine_published_reactions { 0 };
         u64 style_engine_record_deltas_applied { 0 };
+        u64 layout_style_record_publications { 0 };
         u64 style_engine_materialized_gaps { 0 };
         u64 element_style_recomputations { 0 };
         u64 element_style_noop_recomputations { 0 };
