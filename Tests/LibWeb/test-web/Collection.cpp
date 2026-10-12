@@ -22,6 +22,12 @@ bool is_valid_test_name(StringView test_name)
     return any_of(valid_test_file_suffixes, [&](auto suffix) { return test_name.ends_with(suffix); });
 }
 
+static ByteString test_relative_path(Application const& app, StringView input_path)
+{
+    LexicalPath relative_path { LexicalPath::relative_path(input_path, app.test_root_path).release_value() };
+    return ByteString::join('/', relative_path.parts_view());
+}
+
 ErrorOr<void> collect_crash_tests(Application const& app, Vector<Test>& tests, StringView path, StringView trail)
 {
     Core::DirIterator it(ByteString::formatted("{}/{}", path, trail), Core::DirIterator::Flags::SkipDots);
@@ -36,7 +42,7 @@ ErrorOr<void> collect_crash_tests(Application const& app, Vector<Test>& tests, S
         if (!is_valid_test_name(name))
             continue;
 
-        auto relative_path = LexicalPath::relative_path(input_path, app.test_root_path).release_value();
+        auto relative_path = test_relative_path(app, input_path);
         tests.append({ TestMode::Crash, input_path, {}, relative_path, relative_path });
     }
 
@@ -60,7 +66,7 @@ ErrorOr<void> collect_dump_tests(Application const& app, Vector<Test>& tests, St
             continue;
 
         auto expectation_path = ByteString::formatted("{}/expected/{}/{}.txt", path, trail, LexicalPath::title(name));
-        auto relative_path = LexicalPath::relative_path(input_path, app.test_root_path).release_value();
+        auto relative_path = test_relative_path(app, input_path);
         tests.append({ mode, input_path, move(expectation_path), relative_path, relative_path });
     }
 
@@ -82,7 +88,7 @@ ErrorOr<void> collect_ref_tests(Application const& app, Vector<Test>& tests, Str
         if (!is_valid_test_name(name))
             continue;
 
-        auto relative_path = LexicalPath::relative_path(input_path, app.test_root_path).release_value();
+        auto relative_path = test_relative_path(app, input_path);
         tests.append({ TestMode::Ref, input_path, {}, relative_path, relative_path });
     }
 
@@ -127,7 +133,7 @@ ErrorOr<void> collect_screenshot_tests(Application const& app, Vector<Test>& tes
             continue;
 
         auto expectation_path = screenshot_expectation_path(path, trail, name);
-        auto relative_path = LexicalPath::relative_path(input_path, app.test_root_path).release_value();
+        auto relative_path = test_relative_path(app, input_path);
         tests.append({ TestMode::Screenshot, input_path, move(expectation_path), relative_path, relative_path });
     }
 
