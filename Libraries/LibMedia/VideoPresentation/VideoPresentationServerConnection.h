@@ -38,6 +38,7 @@ private:
 
     virtual void die() override;
 
+    virtual void init_transport(int peer_pid) override;
     virtual void create_video_edge(VideoSinkHandle video_sink_handle, u64 edge_id) override;
     virtual void release_video_edge(u64 edge_id) override;
     virtual void request_start(u64 edge_id) override;

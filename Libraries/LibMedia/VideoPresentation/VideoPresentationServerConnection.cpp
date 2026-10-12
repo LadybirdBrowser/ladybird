@@ -29,6 +29,15 @@ void VideoPresentationServerConnection::die()
     m_edge_states.clear();
 }
 
+void VideoPresentationServerConnection::init_transport([[maybe_unused]] int peer_pid)
+{
+#ifdef AK_OS_WINDOWS
+    transport().set_peer_pid(peer_pid);
+#else
+    did_misbehave("Unexpected video presentation transport initialization");
+#endif
+}
+
 void VideoPresentationServerConnection::create_video_edge(VideoSinkHandle video_sink_handle, u64 edge_id)
 {
     if (m_edge_states.contains(edge_id) || m_pending_edge_handles_by_edge_id.contains(edge_id)) {
