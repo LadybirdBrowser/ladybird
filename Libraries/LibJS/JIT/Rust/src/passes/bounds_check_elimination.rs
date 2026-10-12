@@ -85,6 +85,18 @@ impl Range {
         self.min <= value && value <= self.max
     }
 
+    /// The range of the sum of values of `self` and `other`, if it is
+    /// within the int32 range.
+    fn sum(self, other: Self) -> Option<Self> {
+        Self::new(self.min + other.min, self.max + other.max)
+    }
+
+    /// The range of the difference of values of `self` and `other`, if it
+    /// is within the int32 range.
+    fn difference(self, other: Self) -> Option<Self> {
+        Self::new(self.min - other.max, self.max - other.min)
+    }
+
     /// The range of the product of values of `self` and `other`, if it is
     /// within the int32 range.
     fn product(self, other: Self) -> Option<Self> {
@@ -163,14 +175,8 @@ impl Ranges<'_> {
             Op::Int32Binary { op } | Op::Int32WrappingBinary { op } => {
                 let (lhs, rhs) = (node.inputs[0], node.inputs[1]);
                 match op {
-                    BinaryOp::Add | BinaryOp::Sub => {
-                        let (lhs, rhs) = (self.of(lhs)?, self.of(rhs)?);
-                        if op == BinaryOp::Add {
-                            Range::new(lhs.min + rhs.min, lhs.max + rhs.max)
-                        } else {
-                            Range::new(lhs.min - rhs.max, lhs.max - rhs.min)
-                        }
-                    }
+                    BinaryOp::Add => self.of(lhs)?.sum(self.of(rhs)?),
+                    BinaryOp::Sub => self.of(lhs)?.difference(self.of(rhs)?),
                     BinaryOp::LeftShift => {
                         let (lhs, shift) = (self.of(lhs)?, self.constant(rhs)? & 31);
                         Range::new(lhs.min << shift, lhs.max << shift)
@@ -604,8 +610,8 @@ pub fn run(graph: &mut Graph) {
             };
             let (lhs, rhs) = (operand(node_data.inputs[0])?, operand(node_data.inputs[1])?);
             let exact = match op {
-                BinaryOp::Add => Range::new(lhs.min + rhs.min, lhs.max + rhs.max).is_some(),
-                BinaryOp::Sub => Range::new(lhs.min - rhs.max, lhs.max - rhs.min).is_some(),
+                BinaryOp::Add => lhs.sum(rhs).is_some(),
+                BinaryOp::Sub => lhs.difference(rhs).is_some(),
                 // NB: A zero product is -0 where an operand is negative.
                 BinaryOp::Mul => {
                     lhs.product(rhs).is_some()
@@ -697,12 +703,7 @@ pub fn run(graph: &mut Graph) {
         removed.insert(shift.index());
     }
     for (node, _) in exact {
-        let data = &mut graph.nodes[node.index()];
-        let Op::Int32Binary { op } = data.op else {
-            unreachable!("only int32 arithmetic is collected");
-        };
-        data.op = Op::Int32WrappingBinary { op };
-        data.frame_state = None;
+        super::edit::make_wrapping(graph, node);
     }
     replacements.apply(graph);
     // NB: The guards check the values they replace.
