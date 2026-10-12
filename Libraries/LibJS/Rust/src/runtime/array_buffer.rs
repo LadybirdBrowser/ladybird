@@ -6,6 +6,7 @@
 
 use core::cell::Cell;
 use core::ffi::c_void;
+use core::mem::MaybeUninit;
 use core::num::NonZeroU64;
 use core::ops::Deref;
 use core::ptr::NonNull;
@@ -934,6 +935,46 @@ impl ArrayBuffer {
         vm.heap()
             .did_allocate_external_memory(array_buffer.external_memory_size());
         array_buffer
+    }
+
+    /// A buffer of `byte_length` bytes that `write` fills in place, as an encoder fills the buffer it returns, so that
+    /// the bytes are not zeroed only to be overwritten. `write` returns the number of bytes it initialized, which has
+    /// to be every byte it is given, as nothing else initializes them before the buffer is returned. Throws a
+    /// RangeError when the bytes cannot be allocated, where create_from_bytes() aborts.
+    pub fn try_create_written_by(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        byte_length: usize,
+        is_shared: Shared,
+        write: impl FnOnce(&mut [MaybeUninit<u8>]) -> usize,
+    ) -> ThrowCompletionOr<Gc<ArrayBuffer>> {
+        let Ok(buffer) = allocate_or_retry_after_gc(vm.heap(), || OwnedBackingStore::create_uninitialized(byte_length))
+        else {
+            return vm.throw_completion(
+                ErrorKind::RangeError,
+                ErrorType::NotEnoughMemoryToAllocate,
+                &[&byte_length],
+            );
+        };
+        let prototype = prototype_for_shared_state(vm, realm, is_shared);
+        let array_buffer = realm.create_object(vm, ArrayBuffer::new_with_buffer(vm, buffer, is_shared, prototype));
+        array_buffer.with_data_block(|data_block| {
+            let written = if byte_length == 0 {
+                write(&mut [])
+            } else {
+                let data = data_block.data_at(0).cast::<MaybeUninit<u8>>();
+                assert!(!data.is_null() && data_block.size() == byte_length);
+                // SAFETY: The new block has `byte_length` bytes, which nothing else references yet.
+                write(unsafe { core::slice::from_raw_parts_mut(data, byte_length) })
+            };
+            assert_eq!(
+                written, byte_length,
+                "the writer initializes every byte of the new buffer"
+            );
+        });
+        vm.heap()
+            .did_allocate_external_memory(array_buffer.external_memory_size());
+        Ok(array_buffer)
     }
 
     /// ArrayBuffer::create(Realm&, DataBlock)

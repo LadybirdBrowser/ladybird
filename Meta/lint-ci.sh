@@ -36,6 +36,7 @@ for cmd in \
         Meta/Linters/check_html_doctype.py \
         Meta/Linters/check_idl_files.py \
         Meta/Linters/check_libjs_includes.py \
+        Meta/Linters/check_libjs_rust_api.py \
         Meta/Linters/check_libweb_realm_mentions.py \
         Meta/Linters/check_newlines_at_eof.py \
         Meta/Linters/check_png_sizes.sh \

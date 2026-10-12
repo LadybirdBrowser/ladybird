@@ -629,7 +629,9 @@ pub fn call_raw_native_function(function: RawNativeFunctionPointer, vm: &Vm) -> 
 }
 
 /// Turns a `fn(&Vm) -> ThrowCompletionOr<Value>` into the RawNativeFunctionPointer the interpreter calls a raw native
-/// function through, with the calling convention of LibJS's NativeFunctionPointer on the target.
+/// function through, with the calling convention of LibJS's NativeFunctionPointer on the target. Embedders reach it
+/// as api::raw_native.
+#[macro_export]
 macro_rules! raw_native {
     ($function:expr) => {{
         #[cfg(not(any(all(target_arch = "x86_64", target_vendor = "apple"), target_os = "windows")))]
@@ -667,7 +669,7 @@ macro_rules! raw_native {
     }};
 }
 
-pub(crate) use raw_native;
+pub(crate) use crate::raw_native;
 
 pub static RAW_NATIVE_FUNCTION_VIRTUAL_METHODS: NativeFunctionMethods = NativeFunctionMethods {
     call: RawNativeFunction::call,
