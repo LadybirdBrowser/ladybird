@@ -45,3 +45,14 @@ test("indices incremented after their accesses", () => {
     // NB: Past the end, the sum adds undefined, which | 0 makes 0.
     expect(sum([1, 2], 3)).toBe(3);
 });
+
+test("indices incremented after accesses of a typed array and an array", () => {
+    const sum = compiled(
+        new Function("ta", "a", "i", "const j = i & 0x7fffffff; return ta[j] + a[j] + (j + 1);"),
+        new Int32Array(4),
+        [1, 2, 3, 4],
+        2
+    );
+    expect(sum(new Int32Array([5, 6, 7]), [1, 2, 3], 2)).toBe(7 + 3 + 3);
+    expect(sum(new Int32Array([5]), [1, 2, 3], -1)).toBeNaN();
+});

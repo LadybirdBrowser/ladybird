@@ -42,3 +42,20 @@ jit.compile(products);
 // CHECK: Int32Mul
 // CHECK: Int32Mul
 // CHECK-NOT: Int32WrappingMul
+
+// Every bounds check of an operand narrows its range: a typed array's length has no known range, but the array's
+// count below it keeps `j + 1` from overflowing.
+
+function afterBothAccesses(ta, a, i) {
+    const j = i & 0x7fffffff;
+    return ta[j] + a[j] + (j + 1);
+}
+jit.prepare(afterBothAccesses);
+for (let k = 0; k < 10; ++k) afterBothAccesses(new Int32Array(4), [1, 2, 3, 4], k % 4);
+jit.compile(afterBothAccesses);
+
+// CHECK-FUNCTION: afterBothAccesses
+// CHECK-PASS: bounds check elimination
+// CHECK: CheckBounds
+// CHECK: CheckBounds
+// CHECK: Int32WrappingAdd ({{v[0-9]+}}, #i32:1)

@@ -565,27 +565,27 @@ pub fn run(graph: &mut Graph) {
                 unreachable!("only int32 arithmetic is collected");
             };
             let mut counts = Vec::new();
+            // NB: Every dominating bounds check narrows the range of an
+            //     operand further.
             let mut operand = |input: NodeId| {
-                let range = ranges.of(input);
-                let checked = bounded
-                    .get(&graph.unrefined(input))
-                    .into_iter()
-                    .flatten()
-                    .filter(|(check_block, check_position, _)| {
+                let mut range = ranges.of(input);
+                let dominating = bounded.get(&graph.unrefined(input)).into_iter().flatten().filter(
+                    |(check_block, check_position, _)| {
                         if *check_block == block {
                             *check_position < position
                         } else {
                             dominators.dominates(*check_block, block)
                         }
-                    })
-                    .find_map(|(_, _, count)| Some((ranges.below_count(range, *count)?, *count)));
-                match checked {
-                    Some((range, count)) => {
-                        counts.push(count);
-                        Some(range)
+                    },
+                );
+                for (_, _, count) in dominating {
+                    let narrowed = ranges.below_count(range, *count);
+                    if narrowed.is_some() && narrowed != range {
+                        counts.push(*count);
+                        range = narrowed;
                     }
-                    None => range,
                 }
+                range
             };
             let (lhs, rhs) = (operand(node_data.inputs[0])?, operand(node_data.inputs[1])?);
             let exact = match op {
