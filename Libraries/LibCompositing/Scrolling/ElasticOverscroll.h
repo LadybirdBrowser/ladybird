@@ -19,9 +19,10 @@ namespace Compositing {
 // Deltas, stretches and the scrollport are in the same pixels. Velocities are in those pixels per second.
 class COMPOSITING_API ElasticOverscroll {
 public:
-    explicit ElasticOverscroll(Gfx::FloatSize scrollport_size);
+    // A scroller that is shown magnified takes up `screen_pixels_per_pixel` pixels of the screen with each of its own.
+    explicit ElasticOverscroll(Gfx::FloatSize scrollport_size, float screen_pixels_per_pixel = 1);
 
-    // Whole pixels, like the scroll offsets the stretch is presented with.
+    // Whole pixels of the screen, like the scroll offsets the stretch is presented with.
     Gfx::FloatPoint stretch() const;
     bool is_at_rest() const { return !m_rebound.has_value() && m_accumulated_overscroll.is_zero(); }
     bool is_rebounding() const { return m_rebound.has_value(); }
@@ -48,6 +49,7 @@ private:
     };
 
     Gfx::FloatSize m_scrollport_size;
+    float m_screen_pixels_per_pixel { 1 };
     Gfx::FloatPoint m_accumulated_overscroll;
     Optional<Rebound> m_rebound;
 };
