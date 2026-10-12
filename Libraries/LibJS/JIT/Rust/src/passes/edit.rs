@@ -113,6 +113,17 @@ pub fn remove_nodes(graph: &mut Graph, removed: &BitSet) {
     }
 }
 
+/// Makes the int32 operation `node` wrap around instead of checking its
+/// result, which it then never exits for.
+pub fn make_wrapping(graph: &mut Graph, node: NodeId) {
+    let data = &mut graph.nodes[node.index()];
+    let Op::Int32Binary { op } = data.op else {
+        unreachable!("only int32 operations wrap");
+    };
+    data.op = Op::Int32WrappingBinary { op };
+    data.frame_state = None;
+}
+
 /// The constant nodes of a graph by their bits and representation, for
 /// passes that need constants: `get()` and `get_typed()` add those the
 /// graph does not have yet.

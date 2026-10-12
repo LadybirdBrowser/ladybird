@@ -238,12 +238,7 @@ pub fn run(graph: &mut Graph) {
     }
 
     for node in wrapping.iter() {
-        let data = &mut graph.nodes[node];
-        let Op::Int32Binary { op } = data.op else {
-            unreachable!("only int32 operations wrap");
-        };
-        data.op = Op::Int32WrappingBinary { op };
-        data.frame_state = None;
+        super::edit::make_wrapping(graph, NodeId::from_index(node));
     }
 }
 
