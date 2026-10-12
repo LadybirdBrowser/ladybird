@@ -766,6 +766,11 @@ void WebContentPage::did_set_browser_zoom(double factor)
     view().set_zoom(factor);
 }
 
+void WebContentPage::did_set_device_pixel_ratio_for_testing(double device_pixel_ratio)
+{
+    view().set_device_pixel_ratio_for_testing(*this, device_pixel_ratio);
+}
+
 void WebContentPage::did_find_in_page(size_t current_match_index, Optional<size_t> total_match_count)
 {
     if (displays_tab()) {

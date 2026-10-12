@@ -602,7 +602,7 @@ void ViewImplementation::zoom_out()
 
 void ViewImplementation::set_zoom(double zoom_level)
 {
-    m_zoom_level = max(ZOOM_MIN_LEVEL, min(zoom_level, ZOOM_MAX_LEVEL));
+    m_zoom_level = clamp_zoom_level(zoom_level);
     update_zoom();
 }
 
@@ -2297,6 +2297,14 @@ void ViewImplementation::apply_zoom_for_current_host()
 
     m_zoom_level = zoom_level;
     update_zoom();
+}
+
+// The device pixel ratio a test set in `page`, which displays the tab: the pages that show the tab later lay out at it
+// too, and `page` takes it after any viewport sent to it before.
+void ViewImplementation::set_device_pixel_ratio_for_testing(WebContentPage& page, double device_pixel_ratio)
+{
+    m_device_pixel_ratio = device_pixel_ratio;
+    page.async_set_viewport(viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
 }
 
 void ViewImplementation::handle_resize()
