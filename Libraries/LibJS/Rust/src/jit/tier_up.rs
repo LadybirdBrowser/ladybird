@@ -74,6 +74,15 @@ fn compile_wait_budget(options: &Options) -> i32 {
     (threshold_budget(options) / 8).max(tier_up_costs::FUNCTION_ENTRY)
 }
 
+/// The budget of an executable whose code was discarded, or not installed. It compiles again sooner than it first did:
+/// it collected feedback for longer, and its exit sites keep the new code from speculating where the old code exited.
+pub fn recompile_budget(jit: &JitState) -> i32 {
+    if !jit.options.collects_feedback() {
+        return i32::MAX;
+    }
+    randomized_budget(jit, compile_wait_budget(&jit.options))
+}
+
 /// How much budget an executable gets while it waits for its compile job: one function entry, so that the next call
 /// or the next few loop iterations install the code if the job has finished, and run it.
 const QUEUED_BUDGET: i32 = tier_up_costs::FUNCTION_ENTRY;
@@ -191,7 +200,7 @@ pub fn on_budget_exhausted(vm: &Vm, pc: u32, is_loop: bool) {
         CompileState::Discarding => {
             // NB: Once no frame may still run the discarded code, the executable is compiled again.
             if !executable.detach_discarded_jit_code_if_unused(vm) {
-                executable.head.tier_up_budget.set(initial_tier_up_budget(&vm.jit));
+                executable.head.tier_up_budget.set(recompile_budget(&vm.jit));
                 return;
             }
             if executable.jit_compile_state() != CompileState::None {
@@ -345,7 +354,7 @@ fn finish_compile(
     }
     if executable.jit_compile_state() != CompileState::Installed {
         executable.set_jit_compile_state(CompileState::None);
-        executable.head.tier_up_budget.set(initial_tier_up_budget(&vm.jit));
+        executable.head.tier_up_budget.set(recompile_budget(&vm.jit));
     }
 }
 

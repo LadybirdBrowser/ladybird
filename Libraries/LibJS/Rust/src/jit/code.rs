@@ -386,9 +386,7 @@ impl Executable {
             return;
         }
         // NB: The interpreter tries again when it next considers compiling the executable.
-        self.head
-            .tier_up_budget
-            .set(super::tier_up::initial_tier_up_budget(&vm.jit));
+        self.head.tier_up_budget.set(super::tier_up::recompile_budget(&vm.jit));
     }
 
     /// Drops the JIT code of an executable whose code was discarded if no live frame of the executable is run by JIT
@@ -447,8 +445,6 @@ impl Executable {
             return;
         }
         self.set_jit_compile_state(CompileState::None);
-        self.head
-            .tier_up_budget
-            .set(super::tier_up::initial_tier_up_budget(&vm.jit));
+        self.head.tier_up_budget.set(super::tier_up::recompile_budget(&vm.jit));
     }
 }
