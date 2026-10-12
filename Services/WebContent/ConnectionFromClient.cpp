@@ -2700,12 +2700,12 @@ void ConnectionFromClient::request_internal_page_info(Web::PageId page_id, WebVi
                     builder.append("\""sv);
                 }
 
-                if (!isnan(node->value_numeric)) {
-                    builder.appendff(" value={}", node->value_numeric);
-                    if (!isnan(node->value_minimum))
-                        builder.appendff(" min={}", node->value_minimum);
-                    if (!isnan(node->value_maximum))
-                        builder.appendff(" max={}", node->value_maximum);
+                if (node->value_numeric.has_value()) {
+                    builder.appendff(" value={}", *node->value_numeric);
+                    if (node->value_minimum.has_value())
+                        builder.appendff(" min={}", *node->value_minimum);
+                    if (node->value_maximum.has_value())
+                        builder.appendff(" max={}", *node->value_maximum);
                 }
 
                 if (node->column_span != 1)
