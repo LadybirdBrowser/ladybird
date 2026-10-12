@@ -2454,9 +2454,9 @@ fn evaluate_if_condition(
     })
 }
 
-fn split_function_arguments(tokens: &[OwnedToken]) -> Option<Vec<&[OwnedToken]>> {
+fn split_function_arguments(tokens: &[OwnedToken]) -> Vec<&[OwnedToken]> {
     if trim_whitespace(tokens).is_empty() {
-        return Some(Vec::new());
+        return Vec::new();
     }
     let mut arguments = Vec::new();
     let mut start = 0;
@@ -2468,11 +2468,8 @@ fn split_function_arguments(tokens: &[OwnedToken]) -> Option<Vec<&[OwnedToken]>>
         };
         arguments.push(&remaining[..comma]);
         start += comma + 1;
-        if start > tokens.len() {
-            return None;
-        }
     }
-    Some(arguments)
+    arguments
 }
 
 // https://drafts.csswg.org/css-mixins/#resolve-function-styles
@@ -2787,9 +2784,7 @@ fn replace_a_dashed_function(
 
     // FIXME: The generic arbitrary-substitution algorithm should parse the argument grammar before invoking this
     //        replacement algorithm. The existing Rust path receives raw contents and parses them here instead.
-    let Some(argument_slices) = split_function_arguments(arguments) else {
-        return TokenResolution::Invalid;
-    };
+    let argument_slices = split_function_arguments(arguments);
 
     // 2. For each arg in arguments, substitute arbitrary substitution functions in arg, and replace arg with the
     //    result.
