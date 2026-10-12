@@ -27,7 +27,9 @@
 //! anything. Where the entry checks it to be an int32, it is checked to be
 //! below the loop's bound there too, once, unless such a check exited there
 //! before: the loop keeps it below the bound anyway. Those checks are only
-//! added where a bounds check or a rewritten shift relies on them.
+//! added where a bounds check, a rewritten shift or an operation that stops
+//! checking for overflow relies on them, including through the counts of
+//! the bounds checks that bound its operands.
 //!
 //! With the same ranges, `((x << k) + c) >> k` becomes `x + (c >> k)` where
 //! nothing overflows and `c` is a multiple of 2^k, like the index arithmetic
@@ -553,13 +555,16 @@ pub fn run(graph: &mut Graph) {
         })
         .collect::<Vec<_>>();
 
+    // NB: With the counts of the bounds checks that their operands' ranges
+    //     rely on.
     let exact = arithmetic
         .into_iter()
-        .filter(|(node, block, position)| {
-            let node_data = graph.node(*node);
+        .filter_map(|(node, block, position)| {
+            let node_data = graph.node(node);
             let Op::Int32Binary { op } = node_data.op else {
                 unreachable!("only int32 arithmetic is collected");
             };
+            let mut counts = Vec::new();
             let mut operand = |input: NodeId| {
                 let range = ranges.of(input);
                 let checked = bounded
@@ -567,19 +572,23 @@ pub fn run(graph: &mut Graph) {
                     .into_iter()
                     .flatten()
                     .filter(|(check_block, check_position, _)| {
-                        if check_block == block {
-                            check_position < position
+                        if *check_block == block {
+                            *check_position < position
                         } else {
-                            dominators.dominates(*check_block, *block)
+                            dominators.dominates(*check_block, block)
                         }
                     })
-                    .find_map(|(_, _, count)| ranges.below_count(range, *count));
-                checked.or(range)
+                    .find_map(|(_, _, count)| Some((ranges.below_count(range, *count)?, *count)));
+                match checked {
+                    Some((range, count)) => {
+                        counts.push(count);
+                        Some(range)
+                    }
+                    None => range,
+                }
             };
-            let (Some(lhs), Some(rhs)) = (operand(node_data.inputs[0]), operand(node_data.inputs[1])) else {
-                return false;
-            };
-            match op {
+            let (lhs, rhs) = (operand(node_data.inputs[0])?, operand(node_data.inputs[1])?);
+            let exact = match op {
                 BinaryOp::Add => Range::new(lhs.min + rhs.min, lhs.max + rhs.max).is_some(),
                 BinaryOp::Sub => Range::new(lhs.min - rhs.max, lhs.max - rhs.min).is_some(),
                 // NB: A zero product is -0 where an operand is negative.
@@ -588,15 +597,16 @@ pub fn run(graph: &mut Graph) {
                         && ((lhs.min >= 0 && rhs.min >= 0) || (!lhs.contains(0) && !rhs.contains(0)))
                 }
                 _ => unreachable!("only additions, subtractions and multiplications are collected"),
-            }
+            };
+            exact.then_some((node, counts))
         })
-        .map(|(node, ..)| node)
         .collect::<Vec<_>>();
     if passing.is_empty() && scaled.is_empty() && exact.is_empty() {
         return;
     }
-    // NB: Only the entering counters that the removed checks and the
-    //     rewritten shifts relied on get checked where they enter.
+    // NB: Only the entering counters that the removed checks, the
+    //     rewritten shifts and the operations that stop checking for overflow
+    //     relied on get checked where they enter.
     let mut used = BitSet::new(graph.nodes.len());
     let mut visited = BitSet::new(graph.nodes.len());
     for check in &passing {
@@ -605,8 +615,11 @@ pub fn run(graph: &mut Graph) {
     for (shift, ..) in &scaled {
         ranges.assumptions_of(*shift, &mut used, &mut visited);
     }
-    for node in &exact {
+    for (node, counts) in &exact {
         ranges.assumptions_of(*node, &mut used, &mut visited);
+        for count in counts {
+            ranges.assumptions_of(*count, &mut used, &mut visited);
+        }
     }
     let guards = entering
         .iter()
@@ -668,7 +681,7 @@ pub fn run(graph: &mut Graph) {
         replacements.replace(shift, replacement);
         removed.insert(shift.index());
     }
-    for node in exact {
+    for (node, _) in exact {
         let data = &mut graph.nodes[node.index()];
         let Op::Int32Binary { op } = data.op else {
             unreachable!("only int32 arithmetic is collected");
