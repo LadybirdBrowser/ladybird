@@ -49,6 +49,7 @@ private:
     ByteString m_script_path { "http-test-server.py" };
     Optional<Core::Process> m_process;
     int m_stdin_fd { -1 };
+    OwnPtr<Core::File> m_stdout_file;
 };
 
 ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions& web_content_options)
@@ -82,14 +83,19 @@ ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions& web_conte
     m_stdin_fd = stdin_fds[1];
     TRY(Core::System::close(stdout_fds[1]));
 
-    auto const stdout_file = MUST(Core::File::adopt_fd(stdout_fds[0], Core::File::OpenMode::Read));
+    m_stdout_file = MUST(Core::File::adopt_fd(stdout_fds[0], Core::File::OpenMode::Read));
 
-    auto buffer = MUST(ByteBuffer::create_uninitialized(5));
-    TRY(stdout_file->read_some(buffer));
+    StringBuilder first_line;
+    while (true) {
+        char byte = 0;
+        auto read = TRY(m_stdout_file->read_some({ &byte, 1 }));
+        if (read.is_empty() || byte == '\n')
+            break;
+        first_line.append(byte);
+    }
+    auto const raw_output = first_line.to_byte_string();
 
-    auto const raw_output = ByteString { buffer, AK::ShouldChomp::NoChomp };
-
-    if (auto const maybe_port = raw_output.to_number<u16>(); maybe_port.has_value())
+    if (auto const maybe_port = raw_output.trim_whitespace().to_number<u16>(); maybe_port.has_value())
         web_content_options.echo_server_port = maybe_port.value();
     else
         warnln("Failed to read echo server port from buffer: '{}'", raw_output);
@@ -108,6 +114,7 @@ void HttpEchoServerFixture::teardown_impl()
         warnln("Failed to wait for HTTP echo server to exit, error: {}", termination_or_error.error());
 
     m_process = {};
+    m_stdout_file = nullptr;
     auto const ca_cert_path = LexicalPath::join(Core::StandardPaths::tempfile_directory(), ByteString::formatted("ladybird-aia-test-ca-{}.pem", Core::System::getpid())).string();
     (void)FileSystem::remove(ca_cert_path, FileSystem::RecursionMode::Disallowed);
 }
