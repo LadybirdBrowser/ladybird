@@ -312,6 +312,7 @@ pub fn run(graph: &mut Graph) {
                     | Op::Int32WrappingBinary { .. }
                     | Op::Int32Min
                     | Op::Int32Max
+                    | Op::Uint32Min
                     | Op::Int32Compare { .. }
             ) {
                 continue;
@@ -409,18 +410,20 @@ pub fn run(graph: &mut Graph) {
                     (None, Some(rhs)) if is_int32_identity(op, rhs, true) => Some(inputs[0]),
                     _ => None,
                 },
-                Op::Int32Min | Op::Int32Max if inputs[0] == inputs[1] => Some(inputs[0]),
-                Op::Int32Min | Op::Int32Max => match (int32_of(graph, inputs[0]), int32_of(graph, inputs[1])) {
-                    (Some(lhs), Some(rhs)) => {
-                        let result = if matches!(graph.node(node).op, Op::Int32Min) {
-                            lhs.min(rhs)
-                        } else {
-                            lhs.max(rhs)
-                        };
-                        Some(constants.get_typed(graph, u64::from(result.cast_unsigned()), Repr::Int32))
+                Op::Int32Min | Op::Int32Max | Op::Uint32Min if inputs[0] == inputs[1] => Some(inputs[0]),
+                Op::Int32Min | Op::Int32Max | Op::Uint32Min => {
+                    match (int32_of(graph, inputs[0]), int32_of(graph, inputs[1])) {
+                        (Some(lhs), Some(rhs)) => {
+                            let result = match graph.node(node).op {
+                                Op::Int32Min => lhs.min(rhs),
+                                Op::Int32Max => lhs.max(rhs),
+                                _ => lhs.cast_unsigned().min(rhs.cast_unsigned()).cast_signed(),
+                            };
+                            Some(constants.get_typed(graph, u64::from(result.cast_unsigned()), Repr::Int32))
+                        }
+                        _ => None,
                     }
-                    _ => None,
-                },
+                }
                 Op::Int32Compare { comparison } => match (int32_of(graph, inputs[0]), int32_of(graph, inputs[1])) {
                     (Some(lhs), Some(rhs)) => Some(constants.get_typed(
                         graph,

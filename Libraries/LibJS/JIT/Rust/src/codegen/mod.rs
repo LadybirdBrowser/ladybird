@@ -1654,12 +1654,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                     self.masm.max_double(output, lhs, rhs);
                 }
             }
-            Op::Int32Min | Op::Int32Max => {
+            Op::Int32Min | Op::Int32Max | Op::Uint32Min => {
                 let (lhs, rhs, output) = (self.input(node_id, 0), self.input(node_id, 1), self.output(node_id));
-                let condition = if matches!(node.op, Op::Int32Min) {
-                    Condition::LessThan
-                } else {
-                    Condition::GreaterThan
+                let condition = match node.op {
+                    Op::Int32Min => Condition::LessThan,
+                    Op::Int32Max => Condition::GreaterThan,
+                    _ => Condition::Below,
                 };
                 self.masm.select32(condition, lhs, rhs, output, lhs, rhs);
             }

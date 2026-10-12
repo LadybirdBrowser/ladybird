@@ -118,8 +118,8 @@ impl GraphBuilder<'_> {
         //     which only arrays keep as the size of their elements.
         let array = self.branch_to_slow_path(&mut slow_paths, BranchCondition::MagicalLength, vec![array], true);
         let index = self.emit(Op::LoadArrayIteratorIndex, vec![iterator], Some(Repr::Int32));
-        let (storage, counts) = self.element_storage_and_counts(kind, array);
-        let (inside, outside) = self.branch_both_ways(BranchCondition::IndexInBounds, vec![index, counts[0]]);
+        let length = self.emit(Op::LoadElementsLength, vec![array], Some(Repr::Int32));
+        let (inside, outside) = self.branch_both_ways(BranchCondition::IndexInBounds, vec![index, length]);
 
         // NB: The array has no element at the index, so the iterator is done.
         self.block = outside;
@@ -127,15 +127,15 @@ impl GraphBuilder<'_> {
         self.end_hot_path(&mut slow_paths, vec![undefined, done, done]);
 
         self.block = inside;
-        let mut index = self.refine(BranchCondition::IndexInBounds, true, vec![index, counts[0]]);
-        for count in &counts[1..] {
-            index = self.branch_to_slow_path(
-                &mut slow_paths,
-                BranchCondition::IndexInBounds,
-                vec![index, *count],
-                true,
-            );
-        }
+        let index = self.refine(BranchCondition::IndexInBounds, true, vec![index, length]);
+        // NB: Holey elements below the length may be past the capacity.
+        let (storage, bound) = self.element_storage_and_bound(kind, array);
+        let index = self.branch_to_slow_path(
+            &mut slow_paths,
+            BranchCondition::IndexInBounds,
+            vec![index, bound],
+            true,
+        );
         let element = self.load_element(kind, storage, index);
         let element = self.branch_if_empty(&mut slow_paths, element);
         let one = self.int32_constant(1);

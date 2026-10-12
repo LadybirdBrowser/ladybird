@@ -499,7 +499,7 @@ fn expected_input_reprs(graph: &Graph, node: NodeId) -> Option<Vec<Repr>> {
         Op::Float64Binary { .. } | Op::Float64Min | Op::Float64Max | Op::Float64Compare { .. } => {
             Some(vec![Repr::Float64, Repr::Float64])
         }
-        Op::Int32Min | Op::Int32Max => Some(vec![Repr::Int32, Repr::Int32]),
+        Op::Int32Min | Op::Int32Max | Op::Uint32Min => Some(vec![Repr::Int32, Repr::Int32]),
         Op::Uint32ShiftRight => Some(vec![Repr::Int32, Repr::Int32]),
         Op::Uint32ToFloat64 | Op::IntegerToString => Some(vec![Repr::Int32]),
         Op::StringsEqual | Op::ConcatenateStrings | Op::ToObject => Some(tagged(2)),

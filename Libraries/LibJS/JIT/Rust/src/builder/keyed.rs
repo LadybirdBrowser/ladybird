@@ -119,19 +119,17 @@ impl GraphBuilder<'_> {
     }
 
     /// The storage of the elements of `kind` of the object at `address` (see
-    /// `element_storage_and_counts()`), and `index`, refined to be in their
+    /// `element_storage_and_bound()`), and `index`, refined to be in their
     /// bounds, taking a slow path where it is not.
     pub(super) fn element_index_in_bounds(
         &mut self,
         slow_paths: &mut SlowPaths,
         kind: ElementsKind,
         address: NodeId,
-        mut index: NodeId,
+        index: NodeId,
     ) -> (NodeId, NodeId) {
-        let (storage, counts) = self.element_storage_and_counts(kind, address);
-        for count in counts {
-            index = self.branch_to_slow_path(slow_paths, BranchCondition::IndexInBounds, vec![index, count], true);
-        }
+        let (storage, bound) = self.element_storage_and_bound(kind, address);
+        let index = self.branch_to_slow_path(slow_paths, BranchCondition::IndexInBounds, vec![index, bound], true);
         (storage, index)
     }
 

@@ -908,6 +908,9 @@ pub enum Op {
     /// `Repr::Int32`.
     Int32Min,
     Int32Max,
+    /// The smaller of the `Repr::Int32` inputs 0 and 1 as unsigned numbers,
+    /// as a `Repr::Int32`.
+    Uint32Min,
     /// The `Repr::Float64` of the `Repr::Int32` input 0.
     Int32ToFloat64,
     /// The `Repr::Int32` 0 or 1 of the `Repr::Bool` input 0, like ToInt32
@@ -1433,6 +1436,7 @@ impl Op {
             | Op::Int32Abs
             | Op::Int32Min
             | Op::Int32Max
+            | Op::Uint32Min
             | Op::Int32ToFloat64
             | Op::BoolToInt32
             | Op::TypedArrayDataAddress
@@ -1577,6 +1581,7 @@ impl Op {
             Op::UnboxInt32 => "UnboxInt32",
             Op::Int32Abs => "Int32Abs",
             Op::Int32Min => "Int32Min",
+            Op::Uint32Min => "Uint32Min",
             Op::Int32Max => "Int32Max",
             Op::Int32ToFloat64 => "Int32ToFloat64",
             Op::BoolToInt32 => "BoolToInt32",

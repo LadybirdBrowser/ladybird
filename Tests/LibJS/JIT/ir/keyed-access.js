@@ -24,8 +24,8 @@ jit.compile(sum);
 // CHECK-NOT: CallSlowPath GetLength
 // CHECK: BranchElementsKind Packed
 // CHECK: LoadElementsCapacity
+// CHECK-NEXT: Uint32Min
 // CHECK-NEXT: BranchIndexInBounds
-// CHECK: BranchIndexInBounds
 // CHECK: LoadElementAt Packed
 // CHECK: cold:
 // CHECK: CallSlowPath
@@ -171,8 +171,8 @@ jit.compile(holey);
 // CHECK: LoadElementAt Holey
 // CHECK-NEXT: CheckNotHole
 
-// Two accesses of the same array share its kind check and element counts, which move out of the loop, and every load
-// stays below the checks it relies on.
+// Two accesses of the same array share its kind check and element counts, which move out of the loop with the bound
+// of indices, the smaller of the two, and every load stays below the check it relies on.
 
 function pairs(a, n) {
     let s = 0;
@@ -191,12 +191,11 @@ jit.compile(pairs);
 // CHECK-NEXT: [[ADDRESS:v[0-9]+]]:pointer = CellAddress ([[OBJECT]])
 // CHECK-NEXT: [[LENGTH:v[0-9]+]]:int32 = LoadElementsLength ([[ADDRESS]])
 // CHECK-NEXT: [[CAPACITY:v[0-9]+]]:int32 = LoadElementsCapacity ([[ADDRESS]])
+// CHECK-NEXT: [[BOUND:v[0-9]+]]:int32 = Uint32Min ([[LENGTH]], [[CAPACITY]])
 // CHECK: loop:
-// CHECK: [[I:v[0-9]+]]:int32 = CheckBounds ({{v[0-9]+}}, [[LENGTH]])
-// CHECK-NEXT: [[INDEX:v[0-9]+]]:int32 = CheckBounds ([[I]], [[CAPACITY]])
+// CHECK: [[INDEX:v[0-9]+]]:int32 = CheckBounds ({{v[0-9]+}}, [[BOUND]])
 // CHECK-NEXT: LoadElementAt Packed ([[ADDRESS]], [[INDEX]])
 // CHECK-NOT: CheckElements
 // CHECK-NOT: LoadElementsLength
-// CHECK: [[J:v[0-9]+]]:int32 = CheckBounds ({{v[0-9]+}}, [[LENGTH]])
-// CHECK-NEXT: [[NEXT:v[0-9]+]]:int32 = CheckBounds ([[J]], [[CAPACITY]])
+// CHECK: [[NEXT:v[0-9]+]]:int32 = CheckBounds ({{v[0-9]+}}, [[BOUND]])
 // CHECK-NEXT: LoadElementAt Packed ({{v[0-9]+}}, [[NEXT]])
