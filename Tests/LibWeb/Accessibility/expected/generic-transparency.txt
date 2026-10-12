@@ -3,7 +3,7 @@ document
     generic
       generic
         generic
-          link name="Wrapped link" url="file:///link"
+          link name="Wrapped link" url="https://example.org/link"
             text leaf name="Wrapped link"
     generic
       generic

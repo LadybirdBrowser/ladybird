@@ -5,5 +5,5 @@ document
     paragraph
       text leaf name="Click to submit your application."
     textbox name="Username" description="Enter your username" editable
-    link name="Delete account" description="This action cannot be undone" url="file:///delete"
+    link name="Delete account" description="This action cannot be undone" url="https://example.org/delete"
       text leaf name="Delete account"

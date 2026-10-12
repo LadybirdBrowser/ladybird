@@ -5,7 +5,7 @@ document
     region name="Search results"
       paragraph
         text leaf name="No results found."
-    link name="Go to homepage" url="file:///home"
+    link name="Go to homepage" url="https://example.org/home"
       text leaf name="Home"
     searchbox name="Search the site" editable
     generic name="Important Section"

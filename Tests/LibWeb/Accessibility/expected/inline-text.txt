@@ -12,7 +12,7 @@ document
       text leaf name=" text."
     paragraph
       text leaf name="A "
-      link name="link" url="file:///link"
+      link name="link" url="https://example.org/link"
         text leaf name="link"
       text leaf name=" in a paragraph."
     heading name="Heading text" level=2

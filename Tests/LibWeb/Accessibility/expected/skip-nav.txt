@@ -4,15 +4,15 @@ document
       text leaf name="Skip to main content"
     banner
       navigation name="Primary"
-        link name="Home" url="file:///"
+        link name="Home" url="https://example.org/"
           text leaf name="Home"
         text leaf name="
             "
-        link name="About" url="file:///about"
+        link name="About" url="https://example.org/about"
           text leaf name="About"
         text leaf name="
             "
-        link name="Contact" url="file:///contact"
+        link name="Contact" url="https://example.org/contact"
           text leaf name="Contact"
     main
       heading name="Main Content" level=1

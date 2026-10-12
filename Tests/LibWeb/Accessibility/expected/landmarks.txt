@@ -3,11 +3,11 @@ document
     banner
       text leaf name="Site Header"
     navigation name="Primary"
-      link name="Home" url="file:///home"
+      link name="Home" url="https://example.org/home"
         text leaf name="Home"
       text leaf name="
         "
-      link name="About" url="file:///about"
+      link name="About" url="https://example.org/about"
         text leaf name="About"
     main
       article

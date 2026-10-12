@@ -4,10 +4,10 @@ document
       navigation name="Primary"
         list
           listitem
-            link name="Home" url="file:///"
+            link name="Home" url="https://example.org/"
               text leaf name="Home"
           listitem
-            link name="About" url="file:///about"
+            link name="About" url="https://example.org/about"
               text leaf name="About"
     main
       article
@@ -29,10 +29,10 @@ document
               text leaf name="Related items"
             list
               listitem
-                link name="Related 1" url="file:///related1"
+                link name="Related 1" url="https://example.org/related1"
                   text leaf name="Related 1"
               listitem
-                link name="Related 2" url="file:///related2"
+                link name="Related 2" url="https://example.org/related2"
                   text leaf name="Related 2"
         sectionfooter
           paragraph

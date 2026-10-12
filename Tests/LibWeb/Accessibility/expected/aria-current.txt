@@ -3,22 +3,22 @@ document
     navigation name="Breadcrumbs"
       list
         listitem
-          link name="Home" url="file:///"
+          link name="Home" url="https://example.org/"
             text leaf name="Home"
         listitem
-          link name="Products" url="file:///products"
+          link name="Products" url="https://example.org/products"
             text leaf name="Products"
         listitem
-          link name="Widgets" url="file:///products/widgets"
+          link name="Widgets" url="https://example.org/products/widgets"
             text leaf name="Widgets"
     navigation name="Steps"
       list
         listitem
-          link name="Step 1" url="file:///step1"
+          link name="Step 1" url="https://example.org/step1"
             text leaf name="Step 1"
         listitem
-          link name="Step 2" url="file:///step2"
+          link name="Step 2" url="https://example.org/step2"
             text leaf name="Step 2"
         listitem
-          link name="Step 3" url="file:///step3"
+          link name="Step 3" url="https://example.org/step3"
             text leaf name="Step 3"
