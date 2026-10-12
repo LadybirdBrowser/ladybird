@@ -182,7 +182,7 @@ static Layout::RustFFI::FfiPageCursor ffi_page_cursor(PageCursor& cursor)
     };
 }
 
-bool seal_clock_plan(DOM::Document& document, bool may_plan, bool may_animate, u64 update_serial)
+bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
 {
     auto* arena = document.layout_node_arena_if_created();
     if (!arena)
@@ -264,7 +264,7 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, bool may_animate, u
                 return false;
             return !elements.is_empty() && deadline > timeline_time->value;
         };
-        bool const animates = may_animate && plan();
+        bool const animates = plan();
         if (!animates) {
             elements.clear();
             deadline = AK::Infinity<double>;
