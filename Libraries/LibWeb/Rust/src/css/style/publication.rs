@@ -2825,6 +2825,17 @@ impl RetainedState {
         self.state_explicitly_inherits_non_inherited_property(node, state)
     }
 
+    /// NB: The written winners cover inheritance before the host has published its dependency marks.
+    pub(super) fn node_explicitly_inherited_groups(&self, node: StyleNodeID) -> u32 {
+        let Lookup::Known((_, state)) = self
+            .current_winner_groups()
+            .token_for(WinnerGroupKey::current(node, self.program.version()))
+        else {
+            return 0;
+        };
+        self.state_explicitly_inherited_groups(node, state)
+    }
+
     fn state_explicitly_inherits_non_inherited_property(&self, node: StyleNodeID, state: CascadeStateID) -> bool {
         self.state_explicitly_inherited_group_masks(node, state)
             .next()
@@ -2856,8 +2867,11 @@ impl RetainedState {
                 return None;
             }
             let winner = self.winner_groups.resolved_winner(winner)?;
-            let group_mask =
-                || crate::css::computed_values::computed_group_output_mask(winner.property).unwrap_or(u32::MAX);
+            let group_mask = || match crate::css::computed_values::StyleGroupMasks::get().dependencies(winner.property)
+            {
+                0 => u32::MAX,
+                mask => mask,
+            };
             match winner.source {
                 WinnerSource::Rule(rule) => is_inherit_keyword(self.program.written_winner_value(
                     rule,

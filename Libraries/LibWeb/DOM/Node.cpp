@@ -4065,9 +4065,9 @@ void Node::begin_child_index_generation()
 
 void Node::add_children_explicitly_inherited_non_inherited_style_groups(u32 style_groups)
 {
-    bool const was_marked = m_children_explicitly_inherited_non_inherited_style_groups != 0;
+    auto const previous_groups = m_children_explicitly_inherited_non_inherited_style_groups;
     m_children_explicitly_inherited_non_inherited_style_groups |= style_groups;
-    if (!was_marked)
+    if (previous_groups != m_children_explicitly_inherited_non_inherited_style_groups)
         publish_children_explicitly_inherit_mark();
 }
 
@@ -4082,7 +4082,7 @@ void Node::publish_children_explicitly_inherit_mark()
     else if (auto const* shadow_root = as_if<ShadowRoot>(*this))
         style_node = shadow_root->style_node_id();
     if (style_node != 0)
-        CSS::StyleEngineFFI::style_engine_note_children_explicitly_inherit(document().style_computer().style_engine().host(), style_node);
+        CSS::StyleEngineFFI::style_engine_note_children_explicitly_inherit(document().style_computer().style_engine().host(), style_node, m_children_explicitly_inherited_non_inherited_style_groups);
 }
 
 void Node::change_associated_animation_count_in_subtree(i32 delta)

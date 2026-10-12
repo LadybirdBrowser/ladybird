@@ -696,28 +696,6 @@ fn animation_value_changed(
     old.map(std::ptr::from_ref) != new.map(std::ptr::from_ref) && old != new
 }
 
-fn inheritance_dependent_value_changed(
-    old: &ComputedLonghandTable,
-    new: &ComputedLonghandTable,
-    property: u16,
-) -> bool {
-    let value = |table: &ComputedLonghandTable| {
-        table
-            .inheritance_dependent_values()
-            .find(|(candidate, _)| *candidate == property)
-            .map(|(_, value)| value)
-    };
-    let old_value = value(old);
-    let new_value = value(new);
-    old_value != new_value
-        && match (old_value, new_value) {
-            (Some(old_value), Some(new_value)) => unsafe {
-                *old_value.cast::<StyleValueData>() != *new_value.cast::<StyleValueData>()
-            },
-            _ => true,
-        }
-}
-
 /// Whether replacing the record's `old_overlay` with `new_overlay` changes effective CSS values or the additional
 /// properties to treat as included in will-change.
 pub(crate) fn animation_overlay_changed(
@@ -956,7 +934,7 @@ impl RetainedState {
                 .inheritance_dependent_values()
                 .chain(new_table.inheritance_dependent_values())
             {
-                if !inheritance_dependent_value_changed(old_table, new_table, property) {
+                if !old_table.inheritance_dependent_value_changed(new_table, property) {
                     continue;
                 }
                 result.any_computed_value_changed = true;

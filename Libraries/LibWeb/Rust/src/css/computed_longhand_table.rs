@@ -854,6 +854,31 @@ impl ComputedLonghandTable {
             .map(|(property, value)| (*property, value.pointer().cast()))
     }
 
+    /// NB: Equal resolved colors can retain specified values that inherit differently.
+    pub(crate) fn inheritance_dependent_value_changed(&self, other: &Self, property: u16) -> bool {
+        let old = self.inheritance_dependent_value(property);
+        let new = other.inheritance_dependent_value(property);
+        old.map(RetainedStyleValueData::pointer) != new.map(RetainedStyleValueData::pointer)
+            && old.map(RetainedStyleValueData::data) != new.map(RetainedStyleValueData::data)
+    }
+
+    /// NB: Report these source changes separately from resolved group payload changes.
+    pub(crate) fn non_inherited_inheritance_changes(&self, other: &Self) -> u32 {
+        self.inheritance_dependent_values()
+            .chain(other.inheritance_dependent_values())
+            .filter(|(property, _)| {
+                !crate::css::property_metadata::property_is_inherited(*property)
+                    && self.inheritance_dependent_value_changed(other, *property)
+            })
+            .fold(0, |groups, (property, _)| {
+                groups
+                    | match crate::css::computed_values::StyleGroupMasks::get().dependencies(property) {
+                        0 => u32::MAX,
+                        mask => mask,
+                    }
+            })
+    }
+
     pub(crate) fn retained_inheritance_dependent_values(&self) -> impl Iterator<Item = (u16, &RetainedStyleValueData)> {
         self.inheritance_dependent
             .iter()
@@ -1625,6 +1650,18 @@ pub unsafe extern "C" fn rust_computed_longhand_table_inheritance_dependent_valu
     table.inheritance_dependent_view.as_ptr()
 }
 
+/// The non-inherited groups whose inheritance-dependent source values changed.
+///
+/// # Safety
+/// Both pointers must name live computed longhand tables.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_non_inherited_inheritance_changes(
+    old: *const ComputedLonghandTable,
+    new: *const ComputedLonghandTable,
+) -> u32 {
+    unsafe { &*old }.non_inherited_inheritance_changes(unsafe { &*new })
+}
+
 /// The effective value for one longhand: the animated overlay under the
 /// overlay read rule (important base values override animated but not
 /// transitioned properties), then an unevaluated longhand's recorded
@@ -1653,6 +1690,47 @@ mod tests {
         unsafe {
             RetainedStyleValueData::from_retained_pointer(Arc::into_raw(Arc::new(StyleValueData::Number { value })))
         }
+    }
+
+    #[test]
+    fn inheritance_source_changes_keep_their_exact_non_inherited_group() {
+        let mut current_color = ComputedLonghandTable::new();
+        current_color.add_inheritance_dependent_value(
+            property_id::TEXT_DECORATION_COLOR,
+            RetainedStyleValueData::from_owned(StyleValueData::Keyword {
+                keyword: crate::css::style_compute::keyword::CURRENTCOLOR,
+            }),
+        );
+        let mut equal = ComputedLonghandTable::new();
+        equal.add_inheritance_dependent_value(property_id::TEXT_DECORATION_COLOR, unsafe {
+            RetainedStyleValueData::from_retained_pointer(Arc::into_raw(Arc::new(StyleValueData::Keyword {
+                keyword: crate::css::style_compute::keyword::CURRENTCOLOR,
+            })))
+        });
+        assert_eq!(current_color.non_inherited_inheritance_changes(&equal), 0);
+        let resolved = ComputedLonghandTable::new();
+        let expected = 1 << crate::css::computed_value_types::STYLE_GROUP_INDEX_TEXT_RESET;
+        assert_eq!(current_color.non_inherited_inheritance_changes(&resolved), expected);
+        assert_eq!(resolved.non_inherited_inheritance_changes(&current_color), expected);
+        assert_eq!(
+            current_color.non_inherited_inheritance_changes(&current_color.clone()),
+            0
+        );
+    }
+
+    #[test]
+    fn inherited_source_changes_do_not_mark_non_inherited_groups() {
+        let mut current_color = ComputedLonghandTable::new();
+        current_color.add_inheritance_dependent_value(
+            property_id::COLOR,
+            RetainedStyleValueData::from_owned(StyleValueData::Keyword {
+                keyword: crate::css::style_compute::keyword::CURRENTCOLOR,
+            }),
+        );
+        assert_eq!(
+            current_color.non_inherited_inheritance_changes(&ComputedLonghandTable::new()),
+            0
+        );
     }
 
     #[test]
