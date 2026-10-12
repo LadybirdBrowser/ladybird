@@ -864,8 +864,16 @@ impl ComputedLonghandTable {
 
     /// NB: Report these source changes separately from resolved group payload changes.
     pub(crate) fn non_inherited_inheritance_changes(&self, other: &Self) -> u32 {
+        if std::ptr::eq(self, other) {
+            return 0;
+        }
+        // NB: A property both tables hold is visited once, through this table.
         self.inheritance_dependent_values()
-            .chain(other.inheritance_dependent_values())
+            .chain(
+                other
+                    .inheritance_dependent_values()
+                    .filter(|(property, _)| !bitmap_bit(&self.inheritance_dependent_bits, Self::slot_index(*property))),
+            )
             .filter(|(property, _)| {
                 !crate::css::property_metadata::property_is_inherited(*property)
                     && self.inheritance_dependent_value_changed(other, *property)
