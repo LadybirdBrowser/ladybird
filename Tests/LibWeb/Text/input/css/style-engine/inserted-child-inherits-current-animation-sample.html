@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .from { font-size: 10px; }
+    .to { font-size: 20px; }
+</style>
+<script>
+    test(() => {
+        function run(label, property, values, insert) {
+            const from = document.createElement("div");
+            from.className = "from";
+            const to = document.createElement("div");
+            to.className = "to";
+            const sibling = document.createElement("span");
+            const moved = document.createElement("span");
+            to.append(sibling);
+            from.append(moved);
+            document.body.append(from, to);
+            const animation = to.animate({ [property]: values }, 1000000);
+            animation.pause();
+            animation.currentTime = 250000;
+            internals.updateStyle();
+            animation.currentTime = 500000;
+            const inserted = insert(to, moved);
+            internals.updateStyle();
+            println(`${label}: inserted ${getComputedStyle(inserted)[property]}, sibling ${getComputedStyle(sibling)[property]}, font-size ${getComputedStyle(inserted).fontSize}`);
+            from.remove();
+            to.remove();
+        }
+        const inserters = {
+            "new element": to => to.appendChild(document.createElement("span")),
+            "appended element": (to, moved) => to.appendChild(moved),
+            "moveBefore() element": (to, moved) => {
+                to.moveBefore(moved, null);
+                return moved;
+            },
+        };
+        for (const [label, insert] of Object.entries(inserters)) {
+            run(`${label}, color`, "color", ["rgb(0, 0, 0)", "rgb(100, 100, 100)"], insert);
+            run(`${label}, letter-spacing`, "letterSpacing", ["0px", "100px"], insert);
+        }
+    });
+</script>
