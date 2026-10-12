@@ -287,14 +287,25 @@ impl RecordingJob {
             mut presentation,
         } = self;
         let (pending, trace) = record_frame(frame, &mut recorder, viewport, trace_recordings, inputs);
-        // A recording that renders an SVG image leaves its frame for the host to present.
-        let recorded = match (presentation.as_mut(), presenting) {
-            (Some(presentation), Some(presenting))
-                if !crate::painting::record::publish::renders_vector_images(&pending) =>
-            {
+        // A recording that renders an SVG image the recording published last did not draw leaves its frame for the host
+        // to present, which renders it.
+        let vector_image_display_lists = match crate::painting::record::publish::renders_vector_images(&pending) {
+            false => Some(None),
+            true => {
+                crate::painting::record::publish::published_vector_image_display_lists(&pending, &recorder).map(Some)
+            }
+        };
+        let recorded = match (presentation.as_mut(), presenting, vector_image_display_lists) {
+            (Some(presentation), Some(presenting), Some(vector_image_display_lists)) => {
                 let publishes_recording = pending.publishes_recording;
+                let output = match vector_image_display_lists {
+                    Some(display_list_ids) => {
+                        present_with_vector_images(presentation, pending, &recorder, presenting, &display_list_ids)
+                    }
+                    None => present(presentation, pending, &recorder, presenting),
+                };
                 Recorded::Presented {
-                    output: PresentedOutput::of(present(presentation, pending, &recorder, presenting)),
+                    output: PresentedOutput::of(output),
                     publishes_recording,
                 }
             }
@@ -450,6 +461,25 @@ pub(crate) fn present(
     presenting: &mut Presenting,
 ) -> RecordingOutput {
     let output = crate::painting::record::publish::publish_to_presenter(pending, recorder, &mut presentation.presenter);
+    presentation.present(&FfiPresentedRecording::of_output(&output), presenting);
+    output
+}
+
+/// Presents `pending`, which renders SVG images and was recorded with `recorder`, with `presentation`, beside the event
+/// loop, drawing them as the display lists `display_list_ids` names, which the presenter holds, and answers its output.
+pub(crate) fn present_with_vector_images(
+    presentation: &mut Presentation,
+    pending: PendingRecording,
+    recorder: &RecorderState,
+    presenting: &mut Presenting,
+    display_list_ids: &[u64],
+) -> RecordingOutput {
+    let output = crate::painting::record::publish::publish_with_vector_images(
+        pending,
+        recorder,
+        &mut presentation.presenter,
+        display_list_ids,
+    );
     presentation.present(&FfiPresentedRecording::of_output(&output), presenting);
     output
 }

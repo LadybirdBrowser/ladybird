@@ -32,12 +32,26 @@ pub(crate) enum VectorImageSource {
     },
 }
 
+impl VectorImageSource {
+    /// The box whose style the image is drawn with.
+    pub(crate) fn owner(&self) -> NodeSlotId {
+        match *self {
+            Self::Layer { owner, .. } | Self::ReplacedContent { owner } => owner,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct VectorImageRenderRequest {
     pub source: VectorImageSource,
     css_width_raw: i32,
     css_height_raw: i32,
     raster_scale_bits: u32,
+    /// What the SVG image shows, which the host renders it from: a request with the same identity, size, scale and
+    /// color scheme renders the same display list.
+    content_identity: u64,
+    /// The color scheme the host renders the SVG image in.
+    color_scheme: u8,
 }
 
 impl VectorImageRenderRequest {
@@ -46,12 +60,16 @@ impl VectorImageRenderRequest {
         css_width: CssPixels,
         css_height: CssPixels,
         raster_scale: f32,
+        content_identity: u64,
+        color_scheme: u8,
     ) -> Self {
         Self {
             source,
             css_width_raw: css_width.raw_value(),
             css_height_raw: css_height.raw_value(),
             raster_scale_bits: raster_scale.to_bits(),
+            content_identity,
+            color_scheme,
         }
     }
 
@@ -76,6 +94,7 @@ impl VectorImageRenderRequest {
             css_width: CssPixels::from_raw(self.css_width_raw),
             css_height: CssPixels::from_raw(self.css_height_raw),
             raster_scale: self.raster_scale(),
+            color_scheme: self.color_scheme,
         }
     }
 }

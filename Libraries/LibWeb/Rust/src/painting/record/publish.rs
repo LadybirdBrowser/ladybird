@@ -24,12 +24,13 @@ fn resolve_vector_image_placeholders(
     requests: &[VectorImageRenderRequest],
     main_thread: &MainThread,
     publish: &FfiRecordingPublishCallbacks,
-) {
+) -> Vec<u64> {
     if requests.is_empty() {
-        return;
+        return Vec::new();
     }
     let resolved_ids = render_vector_images(requests, main_thread, publish);
     patch_vector_image_placeholders(output, &resolved_ids);
+    resolved_ids
 }
 
 /// Has the host render the SVG images of `requests`, and answers the ids of their display lists, one for each request.
@@ -166,7 +167,7 @@ pub(crate) fn publish_to_presenter(
     presenter: &mut crate::painting::presentation::PresenterBox,
 ) -> RecordingOutput {
     debug_assert!(!renders_vector_images(&pending), "only the host renders an SVG image");
-    publish_resources(pending, recorder, presenter, |_, _| {})
+    publish_resources(pending, recorder, presenter, |_, _| Vec::new())
 }
 
 /// Hands the resources of a recording that renders SVG images to `presenter` and makes its output, beside the event
@@ -179,7 +180,67 @@ pub(crate) fn publish_with_vector_images(
 ) -> RecordingOutput {
     publish_resources(pending, recorder, presenter, |output, _| {
         patch_vector_image_placeholders(output, display_list_ids);
+        display_list_ids.to_vec()
     })
+}
+
+/// The ids of the display lists the host rendered the SVG images of `pending` as for the recording published last with
+/// `recorder`, which the presenter keeps while the recording it presents draws them, one for each of the images, or
+/// none where one of the images is new to that recording.
+pub(crate) fn published_vector_image_display_lists(
+    pending: &PendingRecording,
+    recorder: &RecorderState,
+) -> Option<Vec<u64>> {
+    let published = recorder.published_recording.as_ref()?;
+    pending
+        .recording
+        .resources
+        .vector_image_render_requests
+        .iter()
+        .map(|request| {
+            published
+                .vector_image_display_lists
+                .iter()
+                .find_map(|(published_request, id)| (published_request == request).then_some(*id))
+        })
+        .collect()
+}
+
+/// The SVG images whose display lists `output` draws, with their ids: those of `requests`, whose display lists are
+/// `resolved_ids`, and those of `published`, the recording published last, that the clean output `output` copied from
+/// it still draws.
+fn drawn_vector_image_display_lists(
+    output: &RecordingOutput,
+    requests: &[VectorImageRenderRequest],
+    resolved_ids: &[u64],
+    published: Option<&RecordingOutput>,
+) -> Vec<(VectorImageRenderRequest, u64)> {
+    let mut drawn: Vec<(VectorImageRenderRequest, u64)> =
+        requests.iter().copied().zip(resolved_ids.iter().copied()).collect();
+    let carried = published.map_or(&[][..], |published| &published.vector_image_display_lists[..]);
+    if carried.is_empty() {
+        return drawn;
+    }
+    let mut nested_ids = std::collections::HashSet::new();
+    crate::painting::display_list::nested_records::for_each_command_including_nested(
+        &output.display_list.bytes,
+        &mut |command_type, _, payload| {
+            if command_type == DisplayListCommandType::PaintNestedDisplayList {
+                nested_ids.insert(
+                    crate::painting::display_list::builder::read_command::<PaintNestedDisplayList>(payload)
+                        .display_list_id,
+                );
+            }
+        },
+    );
+    for &(request, id) in carried {
+        if nested_ids.contains(&DisplayListResourceId(id))
+            && !drawn.iter().any(|(drawn_request, _)| *drawn_request == request)
+        {
+            drawn.push((request, id));
+        }
+    }
+    drawn
 }
 
 /// Hands a recording's resources to `sink`, has `resolve_vector_images` patch in the SVG images it renders, and makes
@@ -188,11 +249,11 @@ fn publish_resources(
     pending: PendingRecording,
     recorder: &RecorderState,
     sink: &mut impl RecordingResourceSink,
-    resolve_vector_images: impl FnOnce(&mut RecordingOutput, &[VectorImageRenderRequest]),
+    resolve_vector_images: impl FnOnce(&mut RecordingOutput, &[VectorImageRenderRequest]) -> Vec<u64>,
 ) -> RecordingOutput {
     let PendingRecording {
         recording: RecordingResult { mut output, resources },
-        publishes_recording: _,
+        publishes_recording,
         svg_paint_resources,
     } = pending;
     let RecordingResourceManifest {
@@ -214,7 +275,11 @@ fn publish_resources(
     for (resource_id, sink_handle) in video_sinks {
         sink.add_video_sink(resource_id, sink_handle);
     }
-    resolve_vector_images(&mut output, &vector_image_render_requests);
+    let resolved_ids = resolve_vector_images(&mut output, &vector_image_render_requests);
+    // A recording that publishes copies clean output from the one published last, with the SVG images it draws.
+    let published = recorder.published_recording.as_deref().filter(|_| publishes_recording);
+    output.vector_image_display_lists =
+        drawn_vector_image_display_lists(&output, &vector_image_render_requests, &resolved_ids, published);
     output.is_identical_to_published_recording = recorder
         .published_recording
         .as_ref()

@@ -177,6 +177,7 @@ fn record_display_list_impl<O: Observer>(
         wheel_event_listener_state_generation: inputs.wheel_event_listener_state_generation,
         is_identical_to_published_recording: false,
         capture_log: recorder.observer.finish(),
+        vector_image_display_lists: Vec::new(),
     };
     RecordingResult {
         output,

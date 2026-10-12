@@ -279,21 +279,6 @@ Layout::RustFFI::FfiRenderingPreparationOutcome rust_prepare_for_rendering(Layou
         [](void* document) { return visual_context_tree_inputs(*static_cast<DOM::Document*>(document)); });
 }
 
-static CSS::PreferredColorScheme image_color_scheme(Layout::NodeWithStyle const& layout_node)
-{
-    auto supports_color_scheme = [](ReadonlySpan<Utf16FlyString> schemes) {
-        return schemes.contains_slow("light"_utf16) || schemes.contains_slow("dark"_utf16);
-    };
-    if (supports_color_scheme(layout_node.color_schemes()))
-        return layout_node.color_scheme();
-    auto& document = layout_node.document();
-    if (auto schemes = document.supported_color_schemes(); schemes.has_value() && supports_color_scheme(*schemes))
-        return layout_node.color_scheme();
-    // INTEROP: Like Firefox, images use the preferred scheme when neither the element nor
-    //          its document opts into a supported scheme. Controls still default to light.
-    return document.svg_image_color_scheme().value_or(document.page().preferred_color_scheme());
-}
-
 void rust_update_visual_viewport_transform(Layout::BegunRead const& read, DOM::Document& document)
 {
     Layout::RustFFI::render_state_update_visual_viewport_transform(document.layout_node_arena().host(), &read, visual_context_tree_inputs(document));
@@ -459,7 +444,7 @@ static Layout::RustFFI::FfiRecordingPublishCallbacks recording_publish_callbacks
             auto const* svg_image_data = as_if<SVG::SVGDecodedImageData>(decoded_image_data.ptr());
             if (!svg_image_data)
                 return empty_display_list();
-            auto display_list = svg_image_data->record_display_list_at_scale({ request->css_width, request->css_height }, request->raster_scale, image_color_scheme(*layout_node), context.resource_storage);
+            auto display_list = svg_image_data->record_display_list_at_scale({ request->css_width, request->css_height }, request->raster_scale, static_cast<CSS::PreferredColorScheme>(request->color_scheme), context.resource_storage);
             if (!display_list.has_value())
                 return empty_display_list();
             return context.resource_storage.add_display_list(move(*display_list)).value();
@@ -616,6 +601,9 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
         inputs.inactive_selection_background_light = CSS::SystemColor::transform_selection_background_color(CSS::SystemColor::inactive_highlight(CSS::PreferredColorScheme::Light));
         inputs.inactive_selection_background_dark = CSS::SystemColor::transform_selection_background_color(CSS::SystemColor::inactive_highlight(CSS::PreferredColorScheme::Dark));
         inputs.document_has_supported_color_schemes = document.supported_color_schemes().has_value();
+        if (auto schemes = document.supported_color_schemes(); schemes.has_value())
+            inputs.document_supports_light_or_dark = schemes->contains_slow("light"_utf16) || schemes->contains_slow("dark"_utf16);
+        inputs.image_fallback_color_scheme = to_underlying(document.svg_image_color_scheme().value_or(document.page().preferred_color_scheme()));
         // The AT focus ring paints as an outline on one paintable, whether or not that element has a CSS outline of
         // its own. So the recorder learns which paintable that is here, up front — its paint-phase mask would
         // otherwise skip that paintable's outline phase as empty.

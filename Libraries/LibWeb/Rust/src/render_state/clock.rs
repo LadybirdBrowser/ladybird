@@ -43,12 +43,14 @@ use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::presentation::Presentation;
 use crate::painting::record::damage::PaintDamage;
 use crate::painting::record::inputs::UnframedRecordingInputs;
-use crate::painting::record::publish::{renders_vector_images, take_in_published_output, take_in_recording};
+use crate::painting::record::publish::{
+    published_vector_image_display_lists, renders_vector_images, take_in_published_output, take_in_recording,
+};
 use crate::painting::record::recorder_state::RecorderState;
 use crate::painting::record::{RecordingInputs, RecordingOutput};
 use crate::painting::recording_slot::{
-    FrameInputs, FrozenFrame, RecordingAnswer, RecordingJob, freeze_recording_frame, present, record_frame,
-    wait_while_recording_is_held_for_testing,
+    FrameInputs, FrozenFrame, RecordingAnswer, RecordingJob, freeze_recording_frame, present,
+    present_with_vector_images, record_frame, wait_while_recording_is_held_for_testing,
 };
 use crate::painting::visual_context::VisualContextTree;
 use crate::stage_thread::{Relay, Riding};
@@ -289,7 +291,8 @@ pub(crate) enum TickPresented {
         output: Arc<RecordingOutput>,
         hit_test_list_changed: bool,
     },
-    /// Nothing: the frame renders an SVG image, which only the host renders, and the lane samples no more.
+    /// Nothing: the frame renders an SVG image the recording published last did not draw, which only the host renders,
+    /// and the lane samples no more.
     LeftToHost,
 }
 
@@ -1537,7 +1540,8 @@ fn freeze_tick_frame(
 
 impl ClockRecorder {
     /// Records `frame`, which a tick sampled, and presents it with the visual contexts the tick prepared for it, on the
-    /// Paint thread. Only the host renders an SVG image.
+    /// Paint thread. Only the host renders an SVG image: the frame draws those the recording published last drew, as the
+    /// host rendered them for it, and leaves the frame to the host where it draws another.
     fn record(mut self, frame: SampledFrame<RecordedFrame>, presenting: &mut Presenting) -> Self {
         let Self {
             recorder,
@@ -1551,16 +1555,27 @@ impl ClockRecorder {
             visual_contexts,
         }) = frame;
         let (pending, _) = record_frame(frozen.frame, recorder, viewport, false, inputs);
-        // The recording wrote the paint-order tree, which no longer describes the recording published last.
-        if renders_vector_images(&pending) {
-            recorder.forget_published_recording();
-            *presented = TickPresented::LeftToHost;
-            return self;
-        }
+        let vector_image_display_lists = match renders_vector_images(&pending) {
+            true => match published_vector_image_display_lists(&pending, recorder) {
+                Some(display_list_ids) => Some(display_list_ids),
+                None => {
+                    // The recording wrote the paint-order tree, which no longer describes the recording published last.
+                    recorder.forget_published_recording();
+                    *presented = TickPresented::LeftToHost;
+                    return self;
+                }
+            },
+            false => None,
+        };
         if let Some(visual_contexts) = visual_contexts {
             presentation.take_visual_context_tree(visual_contexts);
         }
-        let output = present(presentation, pending, recorder, presenting);
+        let output = match vector_image_display_lists {
+            Some(display_list_ids) => {
+                present_with_vector_images(presentation, pending, recorder, presenting, &display_list_ids)
+            }
+            None => present(presentation, pending, recorder, presenting),
+        };
         take_in_published_output(recorder, &mut None, output, true, |output, hit_test_list_changed| {
             *presented = TickPresented::Frame {
                 output,
