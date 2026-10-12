@@ -1062,6 +1062,11 @@ static void set_ui_callbacks_for_tests(TestWebView& view, TestRunContext& contex
     };
 }
 
+static bool test_run_was_stopped()
+{
+    return s_all_tests_complete && s_all_tests_complete->is_rejected();
+}
+
 static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize window_size)
 {
     auto& app = Application::the();
@@ -1273,7 +1278,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
         // run_next_test handles: reset promise, attach callback, pick test, run test
         auto run_next_test = [&, view = view.ptr(), cleanup_test, view_id]() {
-            if (app.fail_fast && fail_fast_triggered) {
+            if (test_run_was_stopped()) {
                 if (view_id < s_view_display_states.size())
                     s_view_display_states[view_id].active = false;
                 return;
@@ -1356,6 +1361,8 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             });
 
             Core::deferred_invoke([&, index]() mutable {
+                if (test_run_was_stopped())
+                    return;
                 if (s_skipped_tests.contains_slow(tests[index].input_path))
                     view->on_test_complete({ index, TestResult::Skipped });
                 else
