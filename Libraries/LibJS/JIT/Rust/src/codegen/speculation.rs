@@ -187,12 +187,14 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             (BinaryOp::Add, InputValue::Constant(bits)) => self.masm.add32_imm(output, lhs, bits as i32),
             (BinaryOp::Sub, InputValue::Register(rhs)) => self.masm.sub32(output, lhs, rhs),
             (BinaryOp::Sub, InputValue::Constant(bits)) => self.masm.sub32_imm(output, lhs, bits as i32),
+            (BinaryOp::Mul, InputValue::Register(rhs)) => self.masm.mul32(output, lhs, rhs),
+            (BinaryOp::Mul, InputValue::Constant(bits)) => self.masm.mul32_imm(output, lhs, bits as u32),
             (BinaryOp::UnsignedRightShift, InputValue::Register(rhs)) => self.masm.shr32(output, lhs, rhs),
             // NB: Shifts use the low five bits of the amount.
             (BinaryOp::UnsignedRightShift, InputValue::Constant(bits)) => {
                 self.masm.shr32_imm(output, lhs, (bits & 31) as u8);
             }
-            _ => unreachable!("only additions, subtractions and unsigned right shifts wrap"),
+            _ => unreachable!("only additions, subtractions, multiplications and unsigned right shifts wrap"),
         }
     }
 

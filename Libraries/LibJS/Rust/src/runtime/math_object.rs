@@ -115,6 +115,7 @@ impl core::ops::Deref for CoercedArguments {
 /// The native functions of Math.max and Math.min, which JIT code knows.
 pub(crate) static MAX_FUNCTION: RawNativeFunctionPointer = raw_native!(MathObject::max);
 pub(crate) static MIN_FUNCTION: RawNativeFunctionPointer = raw_native!(MathObject::min);
+pub(crate) static IMUL_FUNCTION: RawNativeFunctionPointer = raw_native!(MathObject::imul);
 
 impl MathObject {
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<MathObject> {
@@ -181,7 +182,7 @@ impl MathObject {
         define(&names.fround, raw_native!(MathObject::fround), 1, None);
         define(&names.f16round, raw_native!(MathObject::f16round), 1, None);
         define(&names.hypot, raw_native!(MathObject::hypot), 2, None);
-        define(&names.imul, raw_native!(MathObject::imul), 2, Some(Builtin::MathImul));
+        define(&names.imul, IMUL_FUNCTION, 2, Some(Builtin::MathImul));
         define(&names.log, raw_native!(MathObject::log), 1, Some(Builtin::MathLog));
         define(&names.log2, raw_native!(MathObject::log2), 1, None);
         define(&names.log10, raw_native!(MathObject::log10), 1, None);
