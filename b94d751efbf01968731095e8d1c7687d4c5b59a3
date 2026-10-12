@@ -1,0 +1,8 @@
+Ladybird’s parse_shared_stylesheet() appends each top-level rule to the
+sheet as soon as it’s consumed, and drops the rule’s component values
+before it consumes the next one. Blink builds a sheet the same way:
+CSSParserImpl::ParseStyleSheet() passes ConsumeRuleList() a callback
+that appends each rule with ParserAppendRule(). So does WebKit, whose
+CSSParser::parseStyleSheet() passes consumeRuleList() a callback that
+calls parserAppendRule(). And Gecko’s Stylesheet::parse_rules() keeps
+each rule as cssparser’s StyleSheetParser iterator yields it.
