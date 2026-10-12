@@ -217,65 +217,88 @@ impl Lane {
     }
 
     /// Samples the animations the host runs at `samples`, and shows them in their elements' boxes and in those of the
-    /// descendants that inherit what they animate. An animated element with no box, more such descendants than a tick
-    /// restyles, or a sample only the host computes, parks the lane.
+    /// descendants that inherit what they animate. An element the tick cannot show a sample of, such as one with no box,
+    /// more such descendants than a tick restyles, or a sample only the host computes, holds what its boxes showed last
+    /// for the rest of the lane, while the others go on. Once no element goes on, the lane parks.
     pub(super) fn sample_host_animations(
         &mut self,
         state: &mut RenderState,
         samples: AnimationTimelineSamples<'_>,
     ) -> Result<(), Park> {
         let scroll_snaps = state.arena.arena().may_have_scroll_snap_areas();
+        let mut sampled_any = false;
         for index in 0..self.effects.len() {
-            let ElementEffects::Host {
-                node,
-                ref mut inheriting,
-            } = self.effects[index]
-            else {
+            let ElementEffects::Host { node, .. } = self.effects[index] else {
                 continue;
             };
-            let row = state.arena.arena().bound_row(node);
-            if row.is_invalid() {
-                return Err(Park("an animated element has no box"));
+            if self.held_elements.contains(&node) {
+                continue;
             }
-            let inheriting = match inheriting.take() {
-                Some(inheriting) => inheriting,
-                None => Self::find_inheriting(state, node)?,
-            };
-            // Every tick samples over the record the host installed.
-            let host_record = self.host_record(state, row);
-            let arena = state.arena.arena();
-            let reference_box = crate::painting::ffi::committed_transform_reference_box(&arena.paintable_rows(), row);
-            let shown = state
-                .engine_mut()
-                .sample_at(
-                    node,
-                    host_record,
-                    samples,
-                    reference_box,
-                    SampleBounds {
-                        scroll_snaps,
-                        subtree_follows: inheriting.covers_subtree,
-                    },
-                )
-                .and_then(|(sample, overlay)| {
-                    self.show_element(
-                        state,
-                        (row, node, sample),
-                        &overlay,
-                        &inheriting.descendants,
-                        SampleKind::Animation,
-                        SampleBounds {
-                            scroll_snaps,
-                            subtree_follows: inheriting.covers_subtree,
-                        },
-                    )
-                });
-            if let ElementEffects::Host { inheriting: slot, .. } = &mut self.effects[index] {
-                *slot = Some(inheriting);
+            match self.sample_host_element(state, index, samples, scroll_snaps) {
+                Ok(()) => sampled_any = true,
+                Err(Park(reason)) => {
+                    if super::hover::logs_hover() {
+                        eprintln!("{} clock lane: holds an element: {reason}", super::hover::log_time());
+                    }
+                    self.held_elements.push(node);
+                }
             }
-            shown?;
         }
-        Ok(())
+        match sampled_any {
+            true => Ok(()),
+            false => Err(Park("no animated element shows a sample")),
+        }
+    }
+
+    /// Samples the animations the host runs on the element of the effects at `index` at `samples`, and shows them in
+    /// its box and in those of the descendants that inherit what they animate, all at once, or in none of them.
+    fn sample_host_element(
+        &mut self,
+        state: &mut RenderState,
+        index: usize,
+        samples: AnimationTimelineSamples<'_>,
+        scroll_snaps: bool,
+    ) -> Result<(), Park> {
+        let ElementEffects::Host {
+            node,
+            ref mut inheriting,
+        } = self.effects[index]
+        else {
+            unreachable!("the effects at the index are the host's");
+        };
+        let row = state.arena.arena().bound_row(node);
+        if row.is_invalid() {
+            return Err(Park("an animated element has no box"));
+        }
+        let inheriting = match inheriting.take() {
+            Some(inheriting) => inheriting,
+            None => Self::find_inheriting(state, node)?,
+        };
+        // Every tick samples over the record the host installed.
+        let host_record = self.host_record(state, row);
+        let arena = state.arena.arena();
+        let reference_box = crate::painting::ffi::committed_transform_reference_box(&arena.paintable_rows(), row);
+        let bounds = SampleBounds {
+            scroll_snaps,
+            subtree_follows: inheriting.covers_subtree,
+        };
+        let shown = state
+            .engine_mut()
+            .sample_at(node, host_record, samples, reference_box, bounds)
+            .and_then(|(sample, overlay)| {
+                self.show_element(
+                    state,
+                    (row, node, sample),
+                    &overlay,
+                    &inheriting.descendants,
+                    SampleKind::Animation,
+                    bounds,
+                )
+            });
+        if let ElementEffects::Host { inheriting: slot, .. } = &mut self.effects[index] {
+            *slot = Some(inheriting);
+        }
+        Ok(shown?)
     }
 
     /// The descendants of the element `node` names that inherit what the animations the host runs on it animate.

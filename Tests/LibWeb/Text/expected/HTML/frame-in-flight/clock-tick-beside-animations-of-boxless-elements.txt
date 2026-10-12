@@ -1,4 +1,4 @@
 beside an element under display: none: ticking, presented by clock
 beside display: contents, not inherited: ticking, presented by clock
-beside display: contents, inherited: hovering, presented by commit
-beside display: contents, its ::before: hovering, presented by commit
+beside display: contents, inherited: ticking, presented by clock
+beside display: contents, its ::before: ticking, presented by clock

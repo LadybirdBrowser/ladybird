@@ -9,9 +9,9 @@
 <div id="box" style="width: 10px; height: 0px; background: green"></div>
 <script>
     // The lane ticks an animation beside those of elements whose boxes show nothing of what they animate: an element
-    // under `display: none`, and a `display: contents` element whose animation its children do not inherit. An
-    // animation of a `display: contents` element that its children inherit, or of its pseudo-element, is the host's to
-    // sample.
+    // under `display: none`, and a `display: contents` element whose animation its children do not inherit. It also
+    // ticks it beside an animation of a `display: contents` element that its children inherit, or of its
+    // pseudo-element, which the host samples: the boxes that show those hold what the host's frame showed.
     async function laneBeside(animateOther) {
         return whileLaneAnimates(() => {
             const other = animateOther();

@@ -176,6 +176,9 @@ pub(crate) struct Lane {
     state: LaneState,
     /// What the ticks sample of each element: the animations the plan names, and the transitions the hover started.
     effects: Vec<effects::ElementEffects>,
+    /// The elements of the plan whose animations a tick found it cannot show samples of, which the ticks sample no more,
+    /// and whose boxes hold what they showed last while the others go on.
+    held_elements: SmallVec<[StyleNodeID; 4]>,
     /// The boxes the ticks showed samples in, with the styles the frame showed in them.
     ticked: Vec<(NodeSlotId, HostStyle)>,
     /// The elements whose boxes the next build makes again, which showed the records a size query decided for them,
@@ -1078,6 +1081,7 @@ impl Lane {
         Self {
             recording: TickRecording(Riding::landed(recorder)),
             effects: Self::host_effects(&plan.elements),
+            held_elements: SmallVec::new(),
             plan,
             state,
             ticked: Vec::new(),
