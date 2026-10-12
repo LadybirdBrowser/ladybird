@@ -622,6 +622,12 @@ pub(crate) fn box_baseline_with_content_baselines(
         return used.margin_box_top(collapsed) + content_baseline;
     }
 
+    // AD-HOC: Inline buttons without a content baseline synthesize one from their content-box bottom edge in
+    //         Chromium and Firefox, rather than the margin-box edge used by ordinary inline-blocks.
+    if facts.uses_button_layout() && display.is_inline_outside() && content_baseline.is_none() {
+        return used.margin_box_top(collapsed) + used.content_block_size.get();
+    }
+
     // If the box has no baseline set, the bottom margin edge of the box is used.
     used.margin_box_block_size(collapsed)
 }
