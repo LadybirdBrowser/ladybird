@@ -33,7 +33,7 @@ use crate::css::style::animations::{AnimationTimelineSamples, ScrollProgress};
 use crate::css::style::engine_sample::{DependentRestyle, NeedsHost, TickShownRecords};
 use crate::css::style::tree::StyleNodeID;
 use crate::css::transition::HoverTransitions;
-use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_data::{GENERATED_FOR_AFTER, GENERATED_FOR_BEFORE, GENERATED_FOR_MARKER, NodeSlotId};
 use crate::layout::tree_update_marks::{FfiLayoutTreeUpdateMark, layout_tree_update_reuse_reason};
 use crate::layout::used_values::FfiCssPixelRect;
 use crate::layout::{ClockRound, ClockRoundDeclined, HostStyle, LayoutNodeArena, build_keeps_box};
@@ -194,7 +194,7 @@ pub(crate) struct Lane {
     /// The border boxes of the plan's elements, and of those the hover restyled, in the last frame a tick presented.
     presented_border_boxes: Vec<(StyleNodeID, CssPixelRect)>,
     /// The color each box the ticks showed samples in showed in that frame, as `0xAARRGGBB`. For a test.
-    presented_colors: Vec<(StyleNodeID, u32)>,
+    presented_colors: Vec<(StyleNodeID, u8, u32)>,
     /// How many compositor animations of the frame drive each box of `presented_border_boxes`, and the opacity its
     /// effect nodes give it. For a test.
     presented_compositor_animations: Vec<(StyleNodeID, u32, f32)>,
@@ -542,7 +542,7 @@ pub struct ClockTicks {
 #[derive(Default)]
 struct PresentedBoxes {
     border_boxes: Vec<(StyleNodeID, CssPixelRect)>,
-    colors: Vec<(StyleNodeID, u32)>,
+    colors: Vec<(StyleNodeID, u8, u32)>,
     compositor_animations: Vec<(StyleNodeID, u32, f32)>,
 }
 
@@ -778,12 +778,14 @@ impl ClockTicks {
     }
 
     /// The color the box of `element` showed in the last frame a tick presented, where a tick showed a sample in it.
-    pub(super) fn presented_color(&self, element: StyleNodeID) -> Option<u32> {
+    pub(super) fn presented_color(&self, element: StyleNodeID, generated_for: u8) -> Option<u32> {
         let presented = self.presented_boxes.lock().expect("presented boxes");
         presented
             .colors
             .iter()
-            .find_map(|&(presented, color)| (presented == element).then_some(color))
+            .find_map(|&(presented, presented_generated_for, color)| {
+                (presented == element && presented_generated_for == generated_for).then_some(color)
+            })
     }
 }
 
@@ -1452,16 +1454,34 @@ impl Lane {
         self.presented_colors.clear();
         let restyled: SmallVec<[StyleNodeID; 4]> = self.sampled_elements().collect();
         // NB: A descendant that inherits what the effects animate may have no box, as under `display: none`.
-        self.presented_colors.extend(restyled.into_iter().filter_map(|element| {
-            let row = arena.bound_row(element);
-            if !arena.slot_is_live(row) {
-                return None;
-            }
-            let payloads = arena.style_payloads(row)?;
-            let color = crate::layout::ComputedValuesView::new(&payloads.groups)
-                .inherited_text()
-                .color;
-            Some((element, color))
+        let arena: &LayoutNodeArena = arena;
+        self.presented_colors.extend(restyled.into_iter().flat_map(|element| {
+            [
+                (0, arena.bound_row(element)),
+                (
+                    GENERATED_FOR_BEFORE,
+                    arena.bound_pseudo_element_row(element, GENERATED_FOR_BEFORE),
+                ),
+                (
+                    GENERATED_FOR_AFTER,
+                    arena.bound_pseudo_element_row(element, GENERATED_FOR_AFTER),
+                ),
+                (
+                    GENERATED_FOR_MARKER,
+                    arena.bound_pseudo_element_row(element, GENERATED_FOR_MARKER),
+                ),
+            ]
+            .into_iter()
+            .filter_map(move |(generated_for, row)| {
+                if row.is_invalid() || !arena.slot_is_live(row) {
+                    return None;
+                }
+                let payloads = arena.style_payloads(row)?;
+                let color = crate::layout::ComputedValuesView::new(&payloads.groups)
+                    .inherited_text()
+                    .color;
+                Some((element, generated_for, color))
+            })
         }));
         Ok(())
     }
@@ -1816,17 +1836,23 @@ pub(super) fn settle_lanes_for_testing() {
 }
 
 /// Writes the color the box of `element` showed in the last frame a tick of a lane of `host`'s document presented to
-/// `color`, as `0xAARRGGBB`, and answers whether a hover's transitions restyled the box in it. For a test.
+/// `color`, as `0xAARRGGBB`, or that of its pseudo-element `generated_for` names where that is not 0, and answers whether
+/// a tick restyled the box in it. For a test.
 ///
 /// # Safety
 ///
 /// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread, and `color` must be
 /// valid for writes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_presented_color(host: &DocumentHost, element: u32, color: *mut u32) -> bool {
+pub unsafe extern "C" fn document_host_presented_color(
+    host: &DocumentHost,
+    element: u32,
+    generated_for: u8,
+    color: *mut u32,
+) -> bool {
     crate::stage_thread::style_layout_thread().run(|| ());
     let Some(presented) =
-        StyleNodeID::from_raw(element).and_then(|element| host.clock_ticks().presented_color(element))
+        StyleNodeID::from_raw(element).and_then(|element| host.clock_ticks().presented_color(element, generated_for))
     else {
         return false;
     };

@@ -1840,10 +1840,21 @@ Optional<double> Internals::presented_opacity(DOM::Element& element)
     return opacity;
 }
 
-Optional<String> Internals::presented_color(DOM::Element& element)
+Optional<String> Internals::presented_color(DOM::Element& element, Optional<Utf16String> const& pseudo_element)
 {
+    u8 generated_for = 0;
+    if (pseudo_element.has_value()) {
+        if (*pseudo_element == "::before"sv)
+            generated_for = Layout::RustFFI::GENERATED_FOR_BEFORE;
+        else if (*pseudo_element == "::after"sv)
+            generated_for = Layout::RustFFI::GENERATED_FOR_AFTER;
+        else if (*pseudo_element == "::marker"sv)
+            generated_for = Layout::RustFFI::GENERATED_FOR_MARKER;
+        else
+            return {};
+    }
     u32 argb = 0;
-    if (!element.style_node_id() || !Layout::RustFFI::document_host_presented_color(element.document().layout_node_arena().host(), element.style_node_id().value(), &argb))
+    if (!element.style_node_id() || !Layout::RustFFI::document_host_presented_color(element.document().layout_node_arena().host(), element.style_node_id().value(), generated_for, &argb))
         return {};
     return Color::from_bgra(argb).serialize_a_srgb_value();
 }
