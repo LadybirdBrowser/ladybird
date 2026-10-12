@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/Math.h>
+#include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibGfx/Rect.h>
@@ -64,11 +64,11 @@ struct WEBCOMMON_API AccessibilityNodeData {
     // Keyboard shortcut (accesskey attribute) for AtkAction::get_keybinding. Empty if none.
     String keybinding;
 
-    // AtkValue fields for sliders, progress bars, meters, spinbuttons. NaN when not applicable.
-    double value_numeric { AK::NaN<double> };
-    double value_minimum { AK::NaN<double> };
-    double value_maximum { AK::NaN<double> };
-    double value_step { AK::NaN<double> };
+    // AtkValue fields for sliders, progress bars, meters, spinbuttons. Empty when not applicable.
+    Optional<double> value_numeric;
+    Optional<double> value_minimum;
+    Optional<double> value_maximum;
+    Optional<double> value_step;
 
     // Whether this option-like node is currently selected (listbox option, menu item, tab, etc.).
     bool is_selected { false };

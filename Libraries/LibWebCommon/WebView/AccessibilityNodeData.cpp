@@ -96,10 +96,10 @@ ErrorOr<WebView::AccessibilityNodeData> IPC::decode(Decoder& decoder)
     auto column_header_ids = TRY(decoder.decode<Vector<i64>>());
     auto row_header_ids = TRY(decoder.decode<Vector<i64>>());
     auto keybinding = TRY(decoder.decode<String>());
-    auto value_numeric = TRY(decoder.decode<double>());
-    auto value_minimum = TRY(decoder.decode<double>());
-    auto value_maximum = TRY(decoder.decode<double>());
-    auto value_step = TRY(decoder.decode<double>());
+    auto value_numeric = TRY(decoder.decode<Optional<double>>());
+    auto value_minimum = TRY(decoder.decode<Optional<double>>());
+    auto value_maximum = TRY(decoder.decode<Optional<double>>());
+    auto value_step = TRY(decoder.decode<Optional<double>>());
     auto is_selected = TRY(decoder.decode<bool>());
     auto checked_state = static_cast<WebView::AccessibilityNodeData::CheckedState>(TRY(decoder.decode<u8>()));
     auto expanded_state = static_cast<WebView::AccessibilityNodeData::ExpandedState>(TRY(decoder.decode<u8>()));
