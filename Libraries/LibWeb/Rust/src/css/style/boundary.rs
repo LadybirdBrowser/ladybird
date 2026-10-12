@@ -252,7 +252,7 @@ style_boundary! {
         begin_adaptive_cold_matching_batch => BeginAdaptiveColdMatchingBatch { root: StyleNodeID };
         end_cold_matching_batch => EndColdMatchingBatch;
         record_container_query_input => RecordContainerQueryInput { node: StyleNodeID };
-        note_children_explicitly_inherit => NoteChildrenExplicitlyInherit { node: StyleNodeID };
+        note_children_explicitly_inherit => NoteChildrenExplicitlyInherit { node: StyleNodeID, groups: u32 };
         record_derived_element_style_input => RecordDerivedElementStyleInput {
             node: StyleNodeID, reaction: u8, inherited_style_groups: u8
         };
@@ -264,7 +264,7 @@ style_boundary! {
         };
         consume_element_style_input => ConsumeElementStyleInput { node: StyleNodeID };
         note_style_reaction_applied => NoteStyleReactionApplied {
-            node: StyleNodeID, reaction: u8, inherited_style_groups_changed: u8, facts: u32
+            node: StyleNodeID, reaction: u8, inherited_style_groups_changed: u8, changed_non_inherited_style_groups: u32, facts: u32
         };
         set_element_adjustment_facts => SetElementAdjustmentFacts { node: StyleNodeID, facts: u32 };
         set_element_construction_facts => SetElementConstructionFacts { node: StyleNodeID, facts: u32 };

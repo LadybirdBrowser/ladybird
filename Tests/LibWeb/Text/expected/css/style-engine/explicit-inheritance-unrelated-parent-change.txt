@@ -1,0 +1,16 @@
+unrelated paint avoids full descendant computations: true
+changed inherited width: 30px
+new explicit inheritance group: 3px
+normal inherited color: rgb(0, 0, 255)
+logical inheritance reads physical height: 20px
+changed logical inheritance: 40px
+unrelated host paint avoids full shadow computations: true
+substituted inheritance in shadow tree: 40px
+named slot paint avoids full assigned computations: true
+named slot inherited width: 30px
+manual slot paint avoids full assigned computations: true
+manual slot inherited width: 30px
+animated inherited width: 50px
+animation still covers changed base: 50px
+inherited width after cancellation: 60px
+incremental layout matches rebuild: true

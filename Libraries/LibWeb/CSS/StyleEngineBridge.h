@@ -69,12 +69,12 @@ void style_engine_begin_cold_matching_batch(DocumentHost const*, StyleNodeID roo
 void style_engine_begin_adaptive_cold_matching_batch(DocumentHost const*, StyleNodeID root);
 void style_engine_end_cold_matching_batch(DocumentHost const*);
 void style_engine_record_container_query_input(DocumentHost const*, StyleNodeID node);
-void style_engine_note_children_explicitly_inherit(DocumentHost const*, StyleNodeID node);
+void style_engine_note_children_explicitly_inherit(DocumentHost const*, StyleNodeID node, u32 groups);
 void style_engine_record_derived_element_style_input(DocumentHost const*, StyleNodeID node, u8 reaction, u8 inherited_style_groups);
 void style_engine_record_font_input_changes(DocumentHost const*, ReadonlySpan<u32> family_name_lengths, ReadonlySpan<u16> family_name_units, ReadonlySpan<u64> font_lists);
 void style_engine_record_flat_tree_descendant_style_inputs(DocumentHost const*, StyleNodeID root, u8 reaction, u8 inherited_style_groups);
 void style_engine_consume_element_style_input(DocumentHost const*, StyleNodeID node);
-void style_engine_note_style_reaction_applied(DocumentHost const*, StyleNodeID node, u8 reaction, u8 inherited_style_groups_changed, u32 facts);
+void style_engine_note_style_reaction_applied(DocumentHost const*, StyleNodeID node, u8 reaction, u8 inherited_style_groups_changed, u32 changed_non_inherited_style_groups, u32 facts);
 void style_engine_set_element_adjustment_facts(DocumentHost const*, StyleNodeID node, u32 facts);
 void style_engine_set_element_construction_facts(DocumentHost const*, StyleNodeID node, u32 facts);
 void style_engine_set_element_box_kind(DocumentHost const*, StyleNodeID node, u8 box_kind);

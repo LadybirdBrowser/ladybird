@@ -1370,8 +1370,8 @@ impl RetainedState {
 
     /// Record that a child of an element or shadow root explicitly inherits a non-inherited
     /// property, as the host marks the node. The mark lasts as long as the node's identity.
-    pub fn note_children_explicitly_inherit(&mut self, node: StyleNodeID) {
-        self.children_explicitly_inherit_marks.insert(node);
+    pub fn note_children_explicitly_inherit(&mut self, node: StyleNodeID, groups: u32) {
+        *self.children_explicitly_inherit_marks.entry(node).or_default() |= groups;
     }
 
     /// Whether, and as what, an element is a query container.
@@ -1921,7 +1921,7 @@ impl StyleEngine {
                 held_style_records: Default::default(),
                 tick_shown: Default::default(),
                 backing_elements: HashMap::default(),
-                children_explicitly_inherit_marks: HashSet::default(),
+                children_explicitly_inherit_marks: HashMap::default(),
                 css_defined_animations: Default::default(),
                 animation_keyframes: Default::default(),
                 animation_effect_descriptions: Default::default(),

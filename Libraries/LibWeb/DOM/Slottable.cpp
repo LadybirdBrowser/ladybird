@@ -6,7 +6,6 @@
  */
 
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
-#include <LibWeb/CSS/Invalidation/SlotInvalidator.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="parent"></div>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        parent.style.cssText = "width: 20px; margin-left: 1px; background: red; color: red";
+        for (let index = 0; index < 32; ++index) {
+            const child = document.createElement("span");
+            child.style.cssText = "display: inline-block; width: inherit";
+            parent.append(child);
+        }
+        parent.offsetWidth;
+        const before = internals.styleEngineCounters();
+        for (let index = 0; index < 4; ++index) {
+            parent.style.backgroundColor = index % 2 ? "red" : "blue";
+            internals.updateStyle();
+        }
+        const after = internals.styleEngineCounters();
+        println(`unrelated paint avoids full descendant computations: ${after.engineFullDrivesStarted === before.engineFullDrivesStarted}`);
+        parent.style.width = "30px";
+        println(`changed inherited width: ${getComputedStyle(parent.firstElementChild).width}`);
+        parent.firstElementChild.style.marginLeft = "inherit";
+        internals.updateStyle();
+        parent.style.marginLeft = "3px";
+        println(`new explicit inheritance group: ${getComputedStyle(parent.firstElementChild).marginLeft}`);
+        parent.style.color = "blue";
+        println(`normal inherited color: ${getComputedStyle(parent.lastElementChild).color}`);
+
+        parent.style.height = "20px";
+        const logical = document.createElement("span");
+        logical.style.cssText = "display: inline-block; writing-mode: vertical-rl; inline-size: inherit";
+        parent.append(logical);
+        println(`logical inheritance reads physical height: ${getComputedStyle(logical).inlineSize}`);
+        parent.style.height = "40px";
+        println(`changed logical inheritance: ${getComputedStyle(logical).inlineSize}`);
+
+        const host = document.createElement("div");
+        host.style.cssText = "height: 20px; background: red";
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = '<div style="height: var(--missing, inherit)"></div>';
+        document.body.append(host);
+        host.offsetWidth;
+        const beforeShadow = internals.styleEngineCounters();
+        host.style.backgroundColor = "blue";
+        internals.updateStyle();
+        println(`unrelated host paint avoids full shadow computations: ${internals.styleEngineCounters().engineFullDrivesStarted === beforeShadow.engineFullDrivesStarted}`);
+        host.style.height = "40px";
+        println(`substituted inheritance in shadow tree: ${getComputedStyle(shadow.firstElementChild).height}`);
+
+        for (const slotAssignment of ["named", "manual"]) {
+            const slotHost = document.createElement("div");
+            const slotShadow = slotHost.attachShadow({ mode: "open", slotAssignment });
+            slotShadow.innerHTML = '<slot style="width: 20px; background: red"></slot>';
+            const slot = slotShadow.firstElementChild;
+            const assigned = document.createElement("span");
+            assigned.style.cssText = "display: inline-block; width: var(--missing, inherit)";
+            slotHost.append(assigned);
+            document.body.append(slotHost);
+            if (slotAssignment === "manual")
+                slot.assign(assigned);
+            slotHost.offsetWidth;
+            const beforeSlot = internals.styleEngineCounters();
+            slot.style.backgroundColor = "blue";
+            internals.updateStyle();
+            println(`${slotAssignment} slot paint avoids full assigned computations: ${internals.styleEngineCounters().engineFullDrivesStarted === beforeSlot.engineFullDrivesStarted}`);
+            slot.style.width = "30px";
+            println(`${slotAssignment} slot inherited width: ${getComputedStyle(assigned).width}`);
+        }
+
+        const animation = parent.animate({ width: ["50px", "50px"] }, { duration: 1000000, fill: "both" });
+        animation.pause();
+        animation.currentTime = 500000;
+        println(`animated inherited width: ${getComputedStyle(parent.firstElementChild).width}`);
+        parent.style.width = "60px";
+        println(`animation still covers changed base: ${getComputedStyle(parent.firstElementChild).width}`);
+        animation.cancel();
+        println(`inherited width after cancellation: ${getComputedStyle(parent.firstElementChild).width}`);
+        println(`incremental layout matches rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+    });
+</script>

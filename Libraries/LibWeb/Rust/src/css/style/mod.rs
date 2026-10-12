@@ -898,7 +898,7 @@ pub struct RetainedState {
     backing_elements: HashMap<StyleNodeID, SmallVec<[StyleNodeID; 2]>>,
     /// The elements and shadow roots the host marked as having a child that explicitly inherits
     /// a non-inherited property: a move of the node's non-inherited groups reaches its children.
-    children_explicitly_inherit_marks: HashSet<StyleNodeID>,
+    children_explicitly_inherit_marks: HashMap<StyleNodeID, u32>,
     /// The names of the CSS animations the host holds for each element, which the computation of
     /// its animation definitions matches them against.
     css_defined_animations: crate::fork::ForkShared<animations::CssDefinedAnimations>,

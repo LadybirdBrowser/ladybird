@@ -1528,6 +1528,7 @@ mod tests {
             node: Some(parent),
             reaction: STYLE_REACTION_INHERITED_STYLE,
             inherited_style_groups_changed: INHERITED_STYLE_GROUPS,
+            changed_non_inherited_style_groups: 0,
             facts: 0,
         }));
         host.ask(ScriptForcedRead::for_test(), |_| ());

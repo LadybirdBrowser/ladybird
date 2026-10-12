@@ -3546,7 +3546,7 @@ pub(crate) unsafe fn drive_property_computation(
             set_longhand_bit(&mut inherited_words, property_id);
             if decision.explicitly_inherits_non_inherited_property {
                 results.explicitly_inherited_non_inherited_style_groups |=
-                    crate::css::computed_values::computed_group_output_mask(property_id).unwrap_or(u32::MAX);
+                    crate::css::computed_values::computed_group_output_mask(inherited_property_id).unwrap_or(u32::MAX);
             }
             // Both the inherited-by-default read and an explicit `inherit` of a
             // non-inherited property take the parent's stored computed value for
