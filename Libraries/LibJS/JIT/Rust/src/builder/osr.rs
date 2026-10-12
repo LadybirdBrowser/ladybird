@@ -94,11 +94,15 @@ impl GraphBuilder<'_> {
             // NB: A back edge that starts its block is entered through
             //     that block, so that loops with their test at the bottom
             //     are entered at their header like from the function entry.
+            //     Unconditional back edges jump to their loop's header
+            //     directly instead, since entering a block of the loop
+            //     other than its header would make the loop irreducible.
+            let opcode = self.function.instructions[index].instruction.opcode();
             let own_block = self
                 .function
                 .cfg
                 .block_for_pc(pc)
-                .filter(|block| self.function.cfg.blocks[*block].start_pc == pc);
+                .filter(|block| opcode != OpCode::JumpLoop && self.function.cfg.blocks[*block].start_pc == pc);
             let mut targets = Vec::new();
             if let Some(own_block) = own_block {
                 self.end_with_jump(own_block)?;
