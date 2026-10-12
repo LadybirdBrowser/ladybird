@@ -1772,23 +1772,16 @@ enum ParsedBooleanExpression {
     Or(Vec<ParsedBooleanExpression>),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ConditionValidation {
-    Valid,
-    Invalid,
-}
-
 fn parse_boolean_expression(
     tokens: &[OwnedToken],
-    validate_test: &mut impl FnMut(&[OwnedToken]) -> ConditionValidation,
-) -> Result<ParsedBooleanExpression, ConditionValidation> {
+    validate_test: &mut impl FnMut(&[OwnedToken]) -> bool,
+) -> Option<ParsedBooleanExpression> {
     let tokens = trim_whitespace(tokens);
     if tokens.is_empty() {
-        return Err(ConditionValidation::Invalid);
+        return None;
     }
-    match validate_test(tokens) {
-        ConditionValidation::Valid => return Ok(ParsedBooleanExpression::Test(tokens.to_vec())),
-        ConditionValidation::Invalid => {}
+    if validate_test(tokens) {
+        return Some(ParsedBooleanExpression::Test(tokens.to_vec()));
     }
     if matches!(
         tokens.first(),
@@ -1797,7 +1790,7 @@ fn parse_boolean_expression(
             ..
         }) if keyword.eq_ignore_ascii_case("not")
     ) {
-        return Ok(ParsedBooleanExpression::Not(Box::new(parse_boolean_group(
+        return Some(ParsedBooleanExpression::Not(Box::new(parse_boolean_group(
             &tokens[1..],
             validate_test,
         )?)));
@@ -1809,9 +1802,7 @@ fn parse_boolean_expression(
     let mut index = 0;
     while index < tokens.len() {
         if matching_close(&tokens[index].kind).is_some() {
-            let Some(close) = find_matching_close(tokens, index) else {
-                return Err(ConditionValidation::Invalid);
-            };
+            let close = find_matching_close(tokens, index)?;
             index = close + 1;
             continue;
         }
@@ -1822,7 +1813,7 @@ fn parse_boolean_expression(
         };
         if let Some(current) = current {
             if combinator.is_some_and(|combinator| combinator != current) {
-                return Err(ConditionValidation::Invalid);
+                return None;
             }
             combinator = Some(current);
             groups.push(parse_boolean_group(&tokens[group_start..index], validate_test)?);
@@ -1834,7 +1825,7 @@ fn parse_boolean_expression(
         return parse_boolean_group(tokens, validate_test);
     };
     groups.push(parse_boolean_group(&tokens[group_start..], validate_test)?);
-    Ok(if combinator {
+    Some(if combinator {
         ParsedBooleanExpression::And(groups)
     } else {
         ParsedBooleanExpression::Or(groups)
@@ -1843,18 +1834,15 @@ fn parse_boolean_expression(
 
 fn parse_boolean_group(
     tokens: &[OwnedToken],
-    validate_test: &mut impl FnMut(&[OwnedToken]) -> ConditionValidation,
-) -> Result<ParsedBooleanExpression, ConditionValidation> {
+    validate_test: &mut impl FnMut(&[OwnedToken]) -> bool,
+) -> Option<ParsedBooleanExpression> {
     let tokens = trim_whitespace(tokens);
     if matches!(tokens.first().map(|token| &token.kind), Some(OwnedTokenKind::OpenParen))
         && find_matching_close(tokens, 0) == Some(tokens.len() - 1)
     {
         return parse_boolean_expression(&tokens[1..tokens.len() - 1], validate_test);
     }
-    match validate_test(tokens) {
-        ConditionValidation::Valid => Ok(ParsedBooleanExpression::Test(tokens.to_vec())),
-        validation => Err(validation),
-    }
+    validate_test(tokens).then(|| ParsedBooleanExpression::Test(tokens.to_vec()))
 }
 
 fn evaluate_parsed_boolean_expression(
@@ -2131,27 +2119,24 @@ fn has_comparison(tokens: &[OwnedToken]) -> bool {
     })
 }
 
-fn validate_style_feature(tokens: &[OwnedToken]) -> ConditionValidation {
+fn validate_style_feature(tokens: &[OwnedToken]) -> bool {
     let tokens = trim_whitespace(tokens);
     // A `<style-feature-value>` is a `<declaration-value>`, which holds no top-level `!`.
     if find_top_level_source(tokens, b"!").is_some() {
-        return ConditionValidation::Invalid;
+        return false;
     }
     if has_comparison(tokens) {
-        return ConditionValidation::Valid;
+        return true;
     }
     let colon = find_top_level_source(tokens, b":");
     let name_tokens = trim_whitespace(&tokens[..colon.unwrap_or(tokens.len())]);
-    if !matches!(
+    matches!(
         name_tokens,
         [OwnedToken {
             kind: OwnedTokenKind::Ident(_),
             ..
         }]
-    ) {
-        return ConditionValidation::Invalid;
-    }
-    ConditionValidation::Valid
+    )
 }
 
 fn evaluate_style_feature(
@@ -2356,34 +2341,29 @@ fn evaluate_style_query(
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> ConditionEvaluation {
-    let expression = match parse_boolean_expression(tokens, &mut validate_style_feature) {
-        Ok(expression) => expression,
-        Err(ConditionValidation::Invalid) => return ConditionEvaluation::Invalid,
-        Err(ConditionValidation::Valid) => unreachable!(),
+    let Some(expression) = parse_boolean_expression(tokens, &mut validate_style_feature) else {
+        return ConditionEvaluation::Invalid;
     };
     evaluate_parsed_boolean_expression(&expression, &mut |feature| {
         evaluate_style_feature(store, registry, feature, context, recursion_depth + 1)
     })
 }
 
-fn validate_if_test(tokens: &[OwnedToken]) -> ConditionValidation {
+fn validate_if_test(tokens: &[OwnedToken]) -> bool {
     let test = trim_whitespace(tokens);
     let Some(OwnedTokenKind::Function(name)) = test.first().map(|token| &token.kind) else {
-        return ConditionValidation::Invalid;
+        return false;
     };
     let Some(close) = find_matching_close(test, 0) else {
-        return ConditionValidation::Invalid;
+        return false;
     };
     if close != test.len() - 1 {
-        return ConditionValidation::Invalid;
+        return false;
     }
     if name.eq_ignore_ascii_case("style") {
-        return match parse_boolean_expression(&test[1..close], &mut validate_style_feature) {
-            Ok(_) => ConditionValidation::Valid,
-            Err(validation) => validation,
-        };
+        return parse_boolean_expression(&test[1..close], &mut validate_style_feature).is_some();
     }
-    ConditionValidation::Valid
+    true
 }
 
 fn evaluate_if_condition(
@@ -2402,10 +2382,8 @@ fn evaluate_if_condition(
     ) {
         return ConditionEvaluation::Match(true);
     }
-    let expression = match parse_boolean_expression(tokens, &mut validate_if_test) {
-        Ok(expression) => expression,
-        Err(ConditionValidation::Invalid) => return ConditionEvaluation::Invalid,
-        Err(ConditionValidation::Valid) => unreachable!(),
+    let Some(expression) = parse_boolean_expression(tokens, &mut validate_if_test) else {
+        return ConditionEvaluation::Invalid;
     };
     evaluate_parsed_boolean_expression(&expression, &mut |test| {
         let test = trim_whitespace(test);
