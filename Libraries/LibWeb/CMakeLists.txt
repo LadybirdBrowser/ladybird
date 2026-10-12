@@ -1196,6 +1196,8 @@ import_rust_crate(
     FEATURES ${LIBJS_RUST_FEATURES}
     # The copy of libgfx_rust in this crate, which TestRustCrateCopies reaches by name.
     KEEP_SYMBOLS ladybird_gfx_register_rust_crate_copy
+    # The bindings of the interfaces implemented in Rust, which generating the bindings writes and the crate includes.
+    ENVIRONMENT "LIBWEB_RUST_BINDINGS=${CMAKE_CURRENT_BINARY_DIR}/Bindings/RustBindings.rs"
 )
 # The headers that the build script of libweb_rust, which the archive bundles, writes.
 sync_rust_crate_ffi_headers(
@@ -1269,3 +1271,5 @@ if (HAS_FONTCONFIG)
 endif()
 
 generate_js_bindings(LibWeb)
+# The bindings crate includes the Rust bindings that generating the bindings writes.
+add_dependencies(libweb_bindings_rust-build generate_bindings)

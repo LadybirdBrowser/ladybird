@@ -39,6 +39,7 @@ ALLOWED_EXTENDED_ATTRIBUTES = frozenset(
         "Global",
         "HTMLConstructor",
         "ImplementedAs",
+        "ImplementedIn",
         "ImplementedInBindings",
         "InvalidValueDefault",
         "LegacyFactoryFunction",

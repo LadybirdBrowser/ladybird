@@ -5,11 +5,12 @@ set(RUSTC_TARGET_FLAGS -Dwarnings ${RUSTC_TARGET_CPU_FLAGS} ${RUSTC_TARGET_FRAME
 list(JOIN RUSTC_TARGET_FLAGS " " RUSTC_TARGET_FLAGS)
 
 # import_rust_crate(MANIFEST_PATH path/to/Cargo.toml CRATE_NAME name [PANIC_UNWIND] [NO_DEFAULT_FEATURES]
-#                   [FEATURES feature...] [KEEP_SYMBOLS symbol...])
+#                   [FEATURES feature...] [KEEP_SYMBOLS symbol...] [ENVIRONMENT VARIABLE=value...])
 #
 # Builds a Rust static library crate using cargo and creates an IMPORTED target.
 # MANIFEST_PATH is relative to CMAKE_CURRENT_SOURCE_DIR.
 # NO_DEFAULT_FEATURES builds the crate with only the FEATURES given, without its default ones.
+# ENVIRONMENT sets variables in the environment of cargo, for the build script of the crate to read.
 # KEEP_SYMBOLS names entry points that only dlsym() reaches. A link only takes the archive members
 # something references, and a debug build gives a lone function a member of its own, so these have
 # to be asked for or they are left out.
@@ -18,7 +19,7 @@ list(JOIN RUSTC_TARGET_FLAGS " " RUSTC_TARGET_FLAGS)
 # https://github.com/corrosion-rs/corrosion/issues/206
 # https://github.com/corrosion-rs/corrosion/issues/624
 function(import_rust_crate)
-    cmake_parse_arguments(PARSE_ARGV 0 ARG "PANIC_UNWIND;NO_DEFAULT_FEATURES" "MANIFEST_PATH;CRATE_NAME;FFI_OUTPUT_DIR;FFI_HEADER" "FEATURES;FFI_HEADERS;KEEP_SYMBOLS")
+    cmake_parse_arguments(PARSE_ARGV 0 ARG "PANIC_UNWIND;NO_DEFAULT_FEATURES" "MANIFEST_PATH;CRATE_NAME;FFI_OUTPUT_DIR;FFI_HEADER" "FEATURES;FFI_HEADERS;KEEP_SYMBOLS;ENVIRONMENT")
 
     if (NOT ARG_FFI_OUTPUT_DIR)
         set(ARG_FFI_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
@@ -39,6 +40,7 @@ function(import_rust_crate)
     if (ARG_PANIC_UNWIND)
         list(APPEND cargo_env "CARGO_PROFILE_RELEASE_PANIC=unwind")
     endif()
+    list(APPEND cargo_env ${ARG_ENVIRONMENT})
 
     set(cargo_feature_flags "")
     if (ARG_NO_DEFAULT_FEATURES)

@@ -15,6 +15,10 @@ from Generators.libweb_bindings.named_and_indexed_properties import create_named
 from Generators.libweb_bindings.named_and_indexed_properties import interface_supports_named_properties
 from Generators.libweb_bindings.named_and_indexed_properties import named_properties_object_name
 from Generators.libweb_bindings.overload_resolution import parameter_list_length
+from Generators.libweb_bindings.rust_bindings import interface_name_values
+from Generators.libweb_bindings.rust_bindings import is_implemented_in_rust
+from Generators.libweb_bindings.rust_bindings import write_ensure_web_prototype_declaration
+from Generators.libweb_bindings.rust_bindings import write_ensure_web_prototype_implementation
 from Generators.libweb_bindings.wrappers import create_wrapper_function_name
 from Generators.libweb_bindings.wrappers import interface_needs_wrapper as wrapper_interface_needs_wrapper
 from Utils.utils import title_case_to_snake_case
@@ -206,6 +210,7 @@ def write_intrinsic_definitions_header(out: TextIO, interface_sets: InterfaceSet
         """#pragma once
 
 #include <AK/Types.h>
+#include <LibJS/HostObjectABI.h>
 
 namespace Web::Bindings {
 
@@ -214,14 +219,18 @@ enum class InterfaceName : u16 {
 """
     )
 
-    for index, interface in enumerate(interface_sets.intrinsics, start=1):
-        out.write(f"    {interface.name} = {index},\n")
+    for name, value in interface_name_values(interface_sets.intrinsics).items():
+        out.write(f"    {name} = {value},\n")
 
     out.write(
         """};
 
 bool is_exposed(InterfaceName, JS::Realm&);
-
+"""
+    )
+    write_ensure_web_prototype_declaration(out)
+    out.write(
+        """
 }
 """
     )
@@ -314,6 +323,8 @@ bool is_exposed(InterfaceName name, JS::Realm& realm)
         else:
             write_interface_creation(out, interface)
             write_iterator_prototype_creation(out, interface)
+
+    write_ensure_web_prototype_implementation(out, interface_sets.intrinsics)
 
     out.write(
         """}
@@ -680,7 +691,12 @@ def interface_inherits_from(
 
 
 def write_wrapper_factory_implementation(out: TextIO, interface_sets: InterfaceSets) -> None:
-    interfaces = [interface for interface in interface_sets.intrinsics if wrapper_interface_needs_wrapper(interface)]
+    # NB: The implementation of an interface implemented in Rust is not a Wrappable, so it never reaches the factory.
+    interfaces = [
+        interface
+        for interface in interface_sets.intrinsics
+        if wrapper_interface_needs_wrapper(interface) and not is_implemented_in_rust(interface)
+    ]
     out.write(
         """#include <AK/Assertions.h>
 #include <LibJS/Runtime/Realm.h>
