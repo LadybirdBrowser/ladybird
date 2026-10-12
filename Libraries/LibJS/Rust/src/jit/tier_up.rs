@@ -78,6 +78,26 @@ fn compile_wait_budget(options: &Options) -> i32 {
 /// or the next few loop iterations install the code if the job has finished, and run it.
 const QUEUED_BUDGET: i32 = tier_up_costs::FUNCTION_ENTRY;
 
+/// Charges the tier-up budget of `executable`, which the interpreter is about to run from its entry for a call from
+/// compiled code, for the extra invocations the "callee-boost" option counts such a call as. Code that is hot enough
+/// to be compiled calls the function, so the function is likely to be hot as well.
+pub fn charge_call_from_compiled_code(vm: &Vm, executable: &Executable) {
+    let boost = vm.jit.options.callee_boost;
+    if boost <= 1
+        || !matches!(
+            executable.jit_compile_state(),
+            CompileState::None | CompileState::Discarding
+        )
+    {
+        return;
+    }
+    let extra = i32::try_from(boost - 1)
+        .unwrap_or(i32::MAX)
+        .saturating_mul(tier_up_costs::FUNCTION_ENTRY);
+    let budget = &executable.head.tier_up_budget;
+    budget.set(budget.get().saturating_sub(extra));
+}
+
 /// The function to compile the running frame's executable for, if it should be compiled at all.
 fn function_to_compile(vm: &Vm) -> Option<Gc<EcmascriptFunctionObject>> {
     if vm.debugging_enabled() {
