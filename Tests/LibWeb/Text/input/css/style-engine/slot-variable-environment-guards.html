@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        function check(label, firstStyle, secondStyle, parentStyle, childStyle, beforeMove = () => {}) {
+            const host = document.createElement("div");
+            const shadow = host.attachShadow({ mode: "open" });
+            shadow.innerHTML = '<div id="a"><slot name="a"></slot></div><div id="b"><slot name="b"></slot></div>';
+            shadow.getElementById("a").style.cssText = firstStyle;
+            shadow.getElementById("b").style.cssText = secondStyle;
+            const parent = document.createElement("div");
+            parent.style.cssText = parentStyle;
+            parent.slot = "a";
+            const child = document.createElement("span");
+            child.style.cssText = `display: inline-block; ${childStyle}`;
+            child.textContent = "item";
+            child.setAttribute("data-width", "10");
+            parent.append(child);
+            host.append(parent);
+            document.body.append(host);
+            println(`${label} before: ${getComputedStyle(child).width}`);
+            beforeMove(child);
+            parent.slot = "b";
+            println(`${label} after: ${getComputedStyle(child).width}`);
+            host.remove();
+        }
+        check("substituted inherit", "--parent-width: 100px; --unused: 1", "--parent-width: 200px; --unused: 2",
+            "width: var(--parent-width)", "width: var(--missing, inherit)");
+        check("font context", "--font: 16px; --width: 1em", "--font: 32px; --width: 1em",
+            "font-size: var(--font)", "width: var(--width)");
+        check("query container", "container-type: inline-size; width: 100px; --width: 10cqw", "container-type: inline-size; width: 200px; --width: 10cqw",
+            "", "width: var(--width)", child => { child.style.marginLeft = "1px"; });
+        check("attribute context", "--tone: red; --unused: 1", "--tone: red; --unused: 2",
+            "", "color: var(--tone); width: attr(data-width px, 1px)", child => { child.setAttribute("data-width", "20"); });
+        CSS.registerProperty({ name: "--registered-width", syntax: "<length>", inherits: true, initialValue: "5px" });
+        check("registered font context", "font-size: 16px; --registered-width: 1em", "font-size: 32px; --registered-width: 1em",
+            "", "width: var(--registered-width)");
+        check("cyclic fallback", "--width: var(--other); --other: var(--width)", "--width: 20px; --other: var(--width)",
+            "", "width: var(--width, 7px)");
+    });
+</script>

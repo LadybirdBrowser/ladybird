@@ -703,6 +703,21 @@ impl RetainedState {
                 parent_environment,
             )
         };
+        // OPTIMIZATION: An environment's identity can move without changing any substituted declaration.
+        //               Compare their resolved values before rebuilding the entire record.
+        let substitutions_unchanged = if environment.is_some()
+            && !self.custom_property_registrations_changed
+            && !has_registered_declarations
+            && !self.state_reads_beyond_environment(node, state)
+            && self.state_has_substitutions(node, state)
+            && let Some(old_environment) = old_environment
+        {
+            let old_store = self.cached_winner_store(node, state, old_environment, parent_environment, scratch)?;
+            let new_store = self.cached_winner_store(node, state, current_environment, parent_environment, scratch)?;
+            old_store.environment_values_equal(&new_store, self)
+        } else {
+            false
+        };
         // A moved environment reaches every winner written with a substitution, and so does a
         // moved custom-property registry. A winner written with `attr()` computes to what the
         // element's attributes hold now, one written with `inherit()` to what the parent's
@@ -732,7 +747,7 @@ impl RetainedState {
                         })
                     })
                 }))
-            || ((environment.is_some() || self.custom_property_registrations_changed)
+            || (((environment.is_some() && !substitutions_unchanged) || self.custom_property_registrations_changed)
                 && self.state_has_substitutions(node, state))
             || self.state_reads_beyond_environment(node, state)
             || self.record_reads_sibling_position(node, state)
@@ -773,6 +788,7 @@ impl RetainedState {
                 environment,
                 has_registered_declarations,
                 scratch.pseudo_inputs_alone,
+                substitutions_unchanged,
             )
         };
         match scope {
@@ -802,13 +818,25 @@ impl RetainedState {
             }
             DriveScope::Environment(environment) => {
                 let replaced = self.computed_group_sets.replaced_columns(node);
-                let delta = self
+                // NB: Publish the changed environment on the base before the host resamples its effects,
+                //     as a driven record does. Keep the detached composition until the row is installed.
+                let detached_composition = composes_animations
+                    .then(|| self.computed_group_sets.detach_composition(node))
+                    .flatten();
+                let Some((_, new_style_record)) = self
                     .computed_group_sets
                     .republish_engine_record_with_environment(node, environment)
-                    .expect("an assigned record without an overlay moves to any environment");
+                else {
+                    if let Some(detached) = detached_composition {
+                        self.computed_group_sets.reattach_composition(node, detached);
+                    }
+                    return Err(Unanswered::Refused);
+                };
+                let delta = (old_style_record, new_style_record);
                 self.counters.bump(Counter::EngineComputedRecordUnchangedWinners);
-                self.note_engine_computed_record(node, delta, replaced, (generation, state), false, 0, 0)
-                    .owes_a_transition_step = owes_a_transition_step_to(delta.1);
+                let pending = self.note_engine_computed_record(node, delta, replaced, (generation, state), false, 0, 0);
+                pending.detached_composition = detached_composition;
+                pending.owes_a_transition_step = owes_a_transition_step_to(delta.1);
                 return Ok(ElementAnswer::Delta(delta));
             }
             // Standing winners driven in full for a reason they do not show still stop the
@@ -1030,37 +1058,7 @@ impl RetainedState {
             groups_to_rebuild = (1 << crate::css::table_group_builder::group_index::COUNT) - 1;
         }
 
-        // A store whose values substitute `attr()` or `inherit()` holds this element's attributes
-        // or its parent's values, and is the element's alone.
-        let element_alone = self.state_reads_beyond_environment(node, state);
-        let mut store = match scratch
-            .stores
-            .get(&(state, current_environment))
-            .filter(|_| !element_alone)
-        {
-            Some(store) => store.clone(),
-            None => {
-                let mut substituted = false;
-                let store = std::sync::Arc::new(self.cascaded_store_for_state(
-                    node,
-                    state,
-                    None,
-                    custom_property_cascade::SubstitutionEnvironment {
-                        own: current_environment,
-                        inherited: parent_environment,
-                    },
-                    &mut substituted,
-                )?);
-                scratch.store_capacity_bytes += store.capacity_bytes();
-                if !element_alone && !self.records_are_the_elements_alone(node) {
-                    scratch.stores.insert((state, current_environment), store.clone());
-                }
-                if substituted {
-                    scratch.substituted_states.insert((state, current_environment));
-                }
-                store
-            }
-        };
+        let mut store = self.cached_winner_store(node, state, current_environment, parent_environment, scratch)?;
         self.note_node_substitution(node, scratch, state, current_environment);
         let partial = if full_drive || in_full_after_all {
             None
@@ -2455,6 +2453,41 @@ impl RetainedState {
         self.published_container_verdicts.contains_key(&node) || self.container_gates_unheld.contains(&node)
     }
 
+    /// NB: Reuse stores resolved under the same winner state and environment while retaining
+    ///     per-element context checks and accounting for every stored allocation.
+    fn cached_winner_store(
+        &mut self,
+        node: StyleNodeID,
+        state: CascadeStateID,
+        environment: u64,
+        parent_environment: u64,
+        scratch: &mut EngineComputedRecordScratch,
+    ) -> Drive<std::sync::Arc<WinnerStore>> {
+        let element_alone = self.state_reads_beyond_environment(node, state);
+        if let Some(store) = scratch.stores.get(&(state, environment)).filter(|_| !element_alone) {
+            return Ok(store.clone());
+        }
+        let mut substituted = false;
+        let store = std::sync::Arc::new(self.cascaded_store_for_state(
+            node,
+            state,
+            None,
+            custom_property_cascade::SubstitutionEnvironment {
+                own: environment,
+                inherited: parent_environment,
+            },
+            &mut substituted,
+        )?);
+        scratch.store_capacity_bytes += store.capacity_bytes();
+        if !element_alone && !self.records_are_the_elements_alone(node) {
+            scratch.stores.insert((state, environment), store.clone());
+        }
+        if substituted {
+            scratch.substituted_states.insert((state, environment));
+        }
+        Ok(store)
+    }
+
     /// How much of an element's held record a row drives again, given the winner `delta` since
     /// the record and whether anything else it was computed from moved (`inputs_moved`: the
     /// parent's inherited style or display, the root's inputs, or an input that drives in full).
@@ -2469,6 +2502,7 @@ impl RetainedState {
         environment: Option<u64>,
         has_registered_declarations: bool,
         pseudo_inputs_alone: bool,
+        substitutions_unchanged: bool,
     ) -> DriveScope {
         if delta.is_empty() {
             // Standing winners leave the record standing when the reaction is the rules that flipped
@@ -2478,7 +2512,8 @@ impl RetainedState {
             // type) among them: the record is driven in full from the inputs as they are now.
             return if flips_are_reflected
                 && !inputs_moved
-                && (pseudo_inputs_alone || self.record_inherits_from_current_parent(node, state))
+                && (pseudo_inputs_alone
+                    || self.record_inherits_from_current_parent(node, state, substitutions_unchanged))
             {
                 environment.map_or(DriveScope::Stands, DriveScope::Environment)
             } else {
@@ -2504,8 +2539,13 @@ impl RetainedState {
 
     /// Whether a node's record inherits from the parent it has now: each inherited group is the
     /// parent's own, no non-inherited property is inherited explicitly, and its custom-property
-    /// environment is the parent's.
-    fn record_inherits_from_current_parent(&self, node: StyleNodeID, state: CascadeStateID) -> bool {
+    /// environment follows the parent or preserves the substituted values of its winners.
+    fn record_inherits_from_current_parent(
+        &self,
+        node: StyleNodeID,
+        state: CascadeStateID,
+        substitutions_unchanged: bool,
+    ) -> bool {
         let Some(parent) = self.tree.inheritance_parent(node) else {
             return false;
         };
@@ -2515,10 +2555,11 @@ impl RetainedState {
         self.computed_group_sets
             .inherited_groups_follow_parent(node, parent)
             .unwrap_or(false)
-            && self
-                .computed_group_sets
-                .custom_property_environment_identity(node)
-                .is_some_and(|environment| self.inherited_custom_property_environment(parent) == Some(environment))
+            && (substitutions_unchanged
+                || self
+                    .computed_group_sets
+                    .custom_property_environment_identity(node)
+                    .is_some_and(|environment| self.inherited_custom_property_environment(parent) == Some(environment)))
     }
 
     /// The inherited groups a state's winners rebuild for their element: the groups its

@@ -1,0 +1,11 @@
+unchanged variable inputs avoid descendant full drives: true
+unchanged width: 10px
+unused value follows slot: 1
+animated environment move avoids full drives: true
+animated width after environment move: 10px
+animation after environment move: 0.75
+changed width: 20px
+changed shorthand: 2px
+font-relative width: 24px
+fallback shorthand: 1px
+incremental layout matches rebuild: true
