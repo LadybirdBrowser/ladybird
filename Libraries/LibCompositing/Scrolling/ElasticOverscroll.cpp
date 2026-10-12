@@ -17,7 +17,7 @@ static constexpr double rubber_band_period = 1.6;
 static constexpr double rebound_decay_per_second = rubber_band_stiffness / rubber_band_period;
 
 static constexpr double largest_bounce_as_share_of_scrollport = 0.2;
-static constexpr float stretch_that_counts_as_sprung_back = 1;
+static constexpr float screen_pixels_of_stretch_that_count_as_sprung_back = 1;
 
 // A scroller released at its edge with speed V peaks at amplitude * V / (decay * e). Wheel events carry no
 // timestamps, so the speed measured for events that were handled in a burst can be far above any real one.
@@ -26,8 +26,9 @@ static float fastest_release_speed_for(float scrollport_length)
     return static_cast<float>(largest_bounce_as_share_of_scrollport * scrollport_length * rebound_decay_per_second * AK::E<double> / rubber_band_amplitude);
 }
 
-ElasticOverscroll::ElasticOverscroll(Gfx::FloatSize scrollport_size)
+ElasticOverscroll::ElasticOverscroll(Gfx::FloatSize scrollport_size, float screen_pixels_per_pixel)
     : m_scrollport_size(scrollport_size)
+    , m_screen_pixels_per_pixel(screen_pixels_per_pixel)
 {
 }
 
@@ -36,7 +37,10 @@ Gfx::FloatPoint ElasticOverscroll::stretch() const
     auto unrounded_stretch = m_rebound.has_value()
         ? m_rebound->current_stretch
         : m_accumulated_overscroll.scaled(static_cast<float>(1 / rubber_band_stiffness));
-    return { AK::trunc(unrounded_stretch.x()), AK::trunc(unrounded_stretch.y()) };
+    return {
+        AK::trunc(unrounded_stretch.x() * m_screen_pixels_per_pixel) / m_screen_pixels_per_pixel,
+        AK::trunc(unrounded_stretch.y() * m_screen_pixels_per_pixel) / m_screen_pixels_per_pixel,
+    };
 }
 
 static float relax_axis_by(float& accumulated_overscroll, float delta)
@@ -112,7 +116,7 @@ struct ReboundAxisSample {
     bool has_sprung_back { true };
 };
 
-static ReboundAxisSample sample_rebound_axis(float initial_stretch, float initial_velocity, float scrollport_length, double elapsed_seconds)
+static ReboundAxisSample sample_rebound_axis(float initial_stretch, float initial_velocity, float scrollport_length, float stretch_that_counts_as_sprung_back, double elapsed_seconds)
 {
     if (initial_stretch == 0)
         return {};
@@ -142,8 +146,9 @@ bool ElasticOverscroll::advance_rebound_to(MonotonicTime frame_time)
 
     // The time of a display tick can be earlier than the event that released the stretch.
     auto elapsed_seconds = max(0.0, (frame_time - m_rebound->started_at).to_seconds_f64());
-    auto horizontal = sample_rebound_axis(m_rebound->initial_stretch.x(), m_rebound->initial_velocity.x(), m_scrollport_size.width(), elapsed_seconds);
-    auto vertical = sample_rebound_axis(m_rebound->initial_stretch.y(), m_rebound->initial_velocity.y(), m_scrollport_size.height(), elapsed_seconds);
+    auto stretch_that_counts_as_sprung_back = screen_pixels_of_stretch_that_count_as_sprung_back / m_screen_pixels_per_pixel;
+    auto horizontal = sample_rebound_axis(m_rebound->initial_stretch.x(), m_rebound->initial_velocity.x(), m_scrollport_size.width(), stretch_that_counts_as_sprung_back, elapsed_seconds);
+    auto vertical = sample_rebound_axis(m_rebound->initial_stretch.y(), m_rebound->initial_velocity.y(), m_scrollport_size.height(), stretch_that_counts_as_sprung_back, elapsed_seconds);
     if (horizontal.has_sprung_back && vertical.has_sprung_back) {
         m_rebound.clear();
         return false;

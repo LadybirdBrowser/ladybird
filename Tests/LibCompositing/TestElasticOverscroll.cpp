@@ -132,3 +132,26 @@ TEST_CASE(fingers_take_a_rebound_over_from_where_it_has_got_to)
     overscroll.pull_by({ 0, -40 });
     EXPECT(overscroll.stretch().y() < stretch_when_taken_over.y());
 }
+
+TEST_CASE(magnified_scroller_stretches_and_springs_back_in_whole_pixels_of_the_screen)
+{
+    ElasticOverscroll overscroll { scrollport_size, 2 };
+    overscroll.pull_by({ 0, -150 });
+    EXPECT_EQ(overscroll.stretch(), Gfx::FloatPoint(0, -7.5f));
+
+    overscroll.pull_by({ 0, -1850 });
+    auto released_at = MonotonicTime::now();
+    overscroll.release({}, released_at);
+
+    float smallest_stretch_presented = 100;
+    bool rebounding = true;
+    for (i64 milliseconds = 1; milliseconds <= 1000 && rebounding; ++milliseconds) {
+        rebounding = overscroll.advance_rebound_to(time_after_release(released_at, milliseconds));
+        auto stretch = AK::abs(overscroll.stretch().y());
+        EXPECT_EQ(stretch * 2, AK::trunc(stretch * 2));
+        if (stretch != 0)
+            smallest_stretch_presented = min(smallest_stretch_presented, stretch);
+    }
+    EXPECT(!rebounding);
+    EXPECT_EQ(smallest_stretch_presented, 0.5f);
+}

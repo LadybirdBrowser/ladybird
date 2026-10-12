@@ -1424,10 +1424,11 @@ bool ContextState::pull_elastic_overscroll_by(Compositing::AsyncScrollNode const
     if (!active) {
         // A zoomed page shows only the part of the viewport's scrollport that its visual viewport is on, and that part
         // is what bounds how far the viewport stretches.
+        auto magnification = visual_viewport_magnification();
         auto scrollport_size = node.scrollport_rect.size().to_type<float>();
         if (node.is_viewport)
-            scrollport_size.scale_by(1.0f / visual_viewport_magnification());
-        m_elastic_overscrolls.append({ node.stable_node_id, Compositing::ElasticOverscroll { scrollport_size } });
+            scrollport_size.scale_by(1.0f / magnification);
+        m_elastic_overscrolls.append({ node.stable_node_id, Compositing::ElasticOverscroll { scrollport_size, magnification } });
         active = &m_elastic_overscrolls.last();
     }
     active->overscroll.pull_by(overscroll_delta);
