@@ -28,6 +28,7 @@ public:
 private:
     virtual bool eventFilter(QObject*, QEvent*) override;
 
+    bool m_is_listening_for_activation { false };
     Optional<ByteString> m_pending_report_name;
     QPointer<MessagePopover> m_popover;
     QPointer<QWidget> m_anchor;

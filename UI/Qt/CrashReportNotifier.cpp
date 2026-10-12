@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/StdLibExtras.h>
 #include <LibWebView/CrashReportStore.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/CrashReportNotifier.h>
@@ -11,6 +12,7 @@
 
 #include <QApplication>
 #include <QEvent>
+#include <QGuiApplication>
 
 namespace Ladybird {
 
@@ -20,6 +22,13 @@ static constexpr int CRASH_REPORT_POPOVER_WIDTH = 340;
 void CrashReportNotifier::offer(ByteString report_name)
 {
     m_pending_report_name = move(report_name);
+
+    if (!exchange(m_is_listening_for_activation, true)) {
+        QObject::connect(qApp, &QGuiApplication::applicationStateChanged, this, [this](Qt::ApplicationState state) {
+            if (state == Qt::ApplicationActive)
+                show_pending();
+        });
+    }
     show_pending();
 }
 
@@ -35,9 +44,11 @@ static bool window_is_active(QWidget& window)
 }
 
 // The report waits until a browser window is active and shows its toolbar, so the popover is shown where the user is.
+// It also waits for the application itself to be active. Qt closes a popup on the click that activates an inactive
+// application, which would dismiss the popover before its buttons could be used.
 void CrashReportNotifier::show_pending()
 {
-    if (!m_pending_report_name.has_value())
+    if (!m_pending_report_name.has_value() || QGuiApplication::applicationState() != Qt::ApplicationActive)
         return;
 
     auto* tab = Application::the().active_tab();
