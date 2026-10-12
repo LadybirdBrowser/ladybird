@@ -285,6 +285,7 @@ static void sample_animations_for_installed_record(Layout::BegunRead const& read
         return;
     Animations::AnimationUpdateContext::ElementData element_data { style_record, abstract_element.document().style_computer().reconstruct_computed_properties_for_animation(read, style_record) };
     element_data.base_is_current = true;
+    element_data.inherited_style_update_owned_by_reaction = true;
     Animations::AnimationUpdateContext context;
     context.elements.set(abstract_element, move(element_data));
     context.publish();
@@ -458,7 +459,7 @@ static RequiredInvalidationAfterStyleChange install_engine_computed_records(Layo
     // NB: Earlier rows can replace the element's composition after this row was planned. Pin the record it holds now,
     //     which is the before-change style for this installation, rather than the row's possibly reclaimed old record.
     bool const owes_a_transition_step = reaction.owes_a_transition_step || element.has_existing_transitions({});
-    StyleRecordPin const before_change { document.style_computer(), owes_a_transition_step ? element.style_record_identity() : StyleRecordID {} };
+    StyleRecordPin const before_change { document.style_computer(), (owes_a_transition_step || reaction.composed_by_the_host) ? element.style_record_identity() : StyleRecordID {} };
     // The record answers any style input the element owes, as the C++ computation it equals would: nothing is left for
     // a later transaction to plan.
     StyleEngineFFI::style_engine_consume_element_style_input(style_engine.host(), reaction.style_node);
@@ -486,8 +487,25 @@ static RequiredInvalidationAfterStyleChange install_engine_computed_records(Layo
         if (element.has_relevant_animations() || element.has_associated_animations())
             sample_animations_for_installed_record(read, abstract_element);
     }
-    if (!!before_change.style_record())
+    if (owes_a_transition_step && !!before_change.style_record())
         invalidation |= document.style_computer().run_transition_step_for_installed_record(read, { element }, before_change.style_record());
+    if (reaction.composed_by_the_host && !!before_change.style_record()) {
+        // NB: Installing an uncomposed base can temporarily change an inherited value covered by an animation.
+        //     Descendants observe the final composition, and their transition selection also observes its base.
+        //     Compare both rather than propagating the intermediate base-to-overlay changes.
+        auto old_record = style_engine.style_record_view(read, before_change.style_record());
+        auto new_record = element.installed_style().view();
+        u8 changed_inherited_groups = 0;
+        for (size_t group = 0; group < ComputedValues::inherited_style_group_count; ++group) {
+            auto differs = [&](auto const* const* old_payloads, auto const* const* new_payloads) {
+                return old_payloads[group] != new_payloads[group]
+                    && !ComputedValuesFFI::rust_style_group_payloads_equal(group, old_payloads[group], new_payloads[group]);
+            };
+            if (differs(old_record.base_payloads, new_record.base_payloads) || differs(old_record.payloads, new_record.payloads))
+                changed_inherited_groups |= 1 << group;
+        }
+        invalidation.set_inherited_style_groups_changed(changed_inherited_groups);
+    }
     if (old_computed_values)
         element.apply_display_none_change(read, DOM::Element::DisplayNoneState::of(*old_computed_values));
     // The pseudo-elements of a record the host composes inherit the composition, so the engine settles them only now.
