@@ -1,0 +1,24 @@
+named, transition none, contents slot: inline
+named, transition none, flex slot: block
+named, transition none, grid slot: block
+named, transition none, contents slot again: inline
+named, transition color 1000s linear, contents slot: inline
+named, transition color 1000s linear, flex slot: block
+named, transition color 1000s linear, grid slot: block
+named, transition color 1000s linear, contents slot again: inline
+named, transition color 1000s linear, own change, contents slot: inline
+named, transition color 1000s linear, own change, flex slot: block
+named, transition color 1000s linear, own change, grid slot: block
+named, transition color 1000s linear, own change, contents slot again: inline
+manual, transition none, contents slot: inline
+manual, transition none, flex slot: block
+manual, transition none, grid slot: block
+manual, transition none, contents slot again: inline
+manual, transition color 1000s linear, contents slot: inline
+manual, transition color 1000s linear, flex slot: block
+manual, transition color 1000s linear, grid slot: block
+manual, transition color 1000s linear, contents slot again: inline
+manual, transition color 1000s linear, own change, contents slot: inline
+manual, transition color 1000s linear, own change, flex slot: block
+manual, transition color 1000s linear, own change, grid slot: block
+manual, transition color 1000s linear, own change, contents slot again: inline

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        for (const mode of ["named", "manual"]) {
+            for (const [transition, ownChange] of [["none", false], ["color 1000s linear", false], ["color 1000s linear", true]]) {
+                const host = document.createElement("div");
+                document.body.append(host);
+                const shadow = host.attachShadow({ mode: "open", slotAssignment: mode });
+                shadow.innerHTML = `
+                    <style>::slotted(span) { display: inline; transition: ${transition}; } ::slotted(.padded) { padding-left: 2px; }</style>
+                    <div><slot></slot></div>`;
+                const child = document.createElement("span");
+                child.textContent = "assigned";
+                host.append(child);
+                const slot = shadow.querySelector("slot");
+                if (mode === "manual")
+                    slot.assign(child);
+                internals.updateStyle();
+                const label = `${mode}, transition ${transition}${ownChange ? ", own change" : ""}`;
+                println(`${label}, contents slot: ${getComputedStyle(child).display}`);
+                slot.style.display = "flex";
+                if (ownChange)
+                    child.classList.toggle("padded");
+                internals.updateStyle();
+                println(`${label}, flex slot: ${getComputedStyle(child).display}`);
+                slot.style.display = "grid";
+                if (ownChange)
+                    child.classList.toggle("padded");
+                internals.updateStyle();
+                println(`${label}, grid slot: ${getComputedStyle(child).display}`);
+                slot.style.display = "contents";
+                if (ownChange)
+                    child.classList.toggle("padded");
+                internals.updateStyle();
+                println(`${label}, contents slot again: ${getComputedStyle(child).display}`);
+                host.remove();
+            }
+        }
+    });
+</script>
