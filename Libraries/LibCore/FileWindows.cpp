@@ -125,6 +125,26 @@ ErrorOr<void> File::open_path(StringView filename, mode_t)
     return {};
 }
 
+// A pipe's read end that this process reads is overlapped (see System::pipe2()), so it can only be read with an
+// OVERLAPPED of its own, waited for to read the way POSIX read() does. A pipe end that is not overlapped reads the same
+// way, completing at once.
+static DWORD read_pipe(HANDLE handle, Bytes buffer, DWORD& n_read)
+{
+    OVERLAPPED overlapped {};
+    overlapped.hEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    if (!overlapped.hEvent)
+        return GetLastError();
+
+    DWORD error = ERROR_SUCCESS;
+    if (!ReadFile(handle, buffer.data(), buffer.size(), &n_read, &overlapped)) {
+        error = GetLastError();
+        if (error == ERROR_IO_PENDING)
+            error = GetOverlappedResult(handle, &overlapped, &n_read, TRUE) ? ERROR_SUCCESS : GetLastError();
+    }
+    CloseHandle(overlapped.hEvent);
+    return error;
+}
+
 ErrorOr<Bytes> File::read_some(Bytes buffer)
 {
     if (!has_flag(m_mode, OpenMode::Read)) {
@@ -132,9 +152,14 @@ ErrorOr<Bytes> File::read_some(Bytes buffer)
         return Error::from_errno(EBADF);
     }
 
+    auto handle = to_handle(m_fd);
     DWORD n_read = 0;
-    if (!ReadFile(to_handle(m_fd), buffer.data(), buffer.size(), &n_read, nullptr)) {
-        auto error = GetLastError();
+    DWORD error = ERROR_SUCCESS;
+    if (GetFileType(handle) == FILE_TYPE_PIPE)
+        error = read_pipe(handle, buffer, n_read);
+    else if (!ReadFile(handle, buffer.data(), buffer.size(), &n_read, nullptr))
+        error = GetLastError();
+    if (error != ERROR_SUCCESS) {
         // Reading a pipe whose write end has closed fails with ERROR_BROKEN_PIPE once
         // drained; POSIX read() reports that (and end-of-file) as reading 0 bytes.
         if (error != ERROR_BROKEN_PIPE && error != ERROR_HANDLE_EOF)

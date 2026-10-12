@@ -14,6 +14,7 @@
 #include <AK/Array.h>
 #include <AK/ByteString.h>
 #include <AK/Checked.h>
+#include <AK/Random.h>
 #include <LibCore/MappedFile.h>
 #include <LibCore/Process.h>
 #include <LibCore/SocketAddress.h>
@@ -293,16 +294,30 @@ ErrorOr<void> set_close_on_exec(int handle, bool enabled)
     return {};
 }
 
-ErrorOr<Array<int, 2>> pipe2(int flags)
+ErrorOr<Array<int, 2>> pipe2(int flags, PipeReadEnd read_end)
 {
     SECURITY_ATTRIBUTES sa = {};
     sa.nLength = sizeof(sa);
     sa.bInheritHandle = (flags & O_CLOEXEC) ? FALSE : TRUE;
 
-    HANDLE read_handle = nullptr;
-    HANDLE write_handle = nullptr;
-    if (!CreatePipe(&read_handle, &write_handle, &sa, 0))
+    // Only a named pipe can have an overlapped end, which a Notifier needs to watch it. The name is unpredictable, and
+    // the pipe has a single instance, so no other process can take either end of it.
+    auto name = ByteString::formatted("\\\\.\\pipe\\ladybird-{}-{:016x}", GetCurrentProcessId(), get_random<u64>());
+
+    DWORD read_end_flags = PIPE_ACCESS_INBOUND | FILE_FLAG_FIRST_PIPE_INSTANCE;
+    if (read_end == PipeReadEnd::ReadInternally)
+        read_end_flags |= FILE_FLAG_OVERLAPPED;
+    constexpr DWORD buffer_size = 64 * KiB;
+    HANDLE read_handle = CreateNamedPipeA(name.characters(), read_end_flags, PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS, 1, 0, buffer_size, 0, &sa);
+    if (read_handle == INVALID_HANDLE_VALUE)
         return Error::from_windows_error();
+
+    HANDLE write_handle = CreateFileA(name.characters(), GENERIC_WRITE, 0, &sa, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (write_handle == INVALID_HANDLE_VALUE) {
+        auto error = GetLastError();
+        CloseHandle(read_handle);
+        return Error::from_windows_error(error);
+    }
 
     return Array<int, 2> { to_fd(read_handle), to_fd(write_handle) };
 }

@@ -756,7 +756,7 @@ ErrorOr<void> socketpair(int domain, int type, int protocol, int sv[2])
     return {};
 }
 
-ErrorOr<Array<int, 2>> pipe2(int flags)
+ErrorOr<Array<int, 2>> pipe2(int flags, PipeReadEnd)
 {
     Array<int, 2> fds;
 
