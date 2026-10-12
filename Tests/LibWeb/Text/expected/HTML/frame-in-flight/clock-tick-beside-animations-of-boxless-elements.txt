@@ -1,0 +1,4 @@
+beside an element under display: none: hovering, presented by commit
+beside display: contents, not inherited: hovering, presented by commit
+beside display: contents, inherited: hovering, presented by commit
+beside display: contents, its ::before: hovering, presented by commit
