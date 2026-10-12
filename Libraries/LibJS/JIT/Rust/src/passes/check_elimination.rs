@@ -532,7 +532,7 @@ fn loaded_location(graph: &Graph, decisions: &Decisions, load: NodeId) -> Option
         },
         Op::LoadElementAt { kind } => Location::Element {
             storage: storage_object(graph, decisions, input(0)),
-            index: index_value(graph, input(1)),
+            index: index_value(graph, decisions, input(1)),
             kind,
         },
         ref op => {
@@ -549,13 +549,13 @@ fn loaded_location(graph: &Graph, decisions: &Decisions, load: NodeId) -> Option
     })
 }
 
-/// The value that the index `index` of an element access is: refinements of
-/// a value (like the bounds checks of each access) and int32 checks of a
-/// value are the same index.
-fn index_value(graph: &Graph, index: NodeId) -> NodeId {
-    let mut index = graph.unrefined(index);
-    while graph.node(index).op == Op::CheckInt32 {
-        index = graph.unrefined(graph.node(index).inputs[0]);
+/// The value that the index `index` of an element access is, as the
+/// analysis knows it: refinements of a value (like the bounds checks of each
+/// access) and int32 checks and unboxings of a value are the same index.
+fn index_value(graph: &Graph, decisions: &Decisions, index: NodeId) -> NodeId {
+    let mut index = decisions.value(graph, index);
+    while matches!(graph.node(index).op, Op::CheckInt32 | Op::UnboxInt32) {
+        index = decisions.value(graph, graph.node(index).inputs[0]);
     }
     index
 }
