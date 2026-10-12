@@ -31,12 +31,6 @@ public:
         return Color::from_bgra(theme().color[(int)role]);
     }
 
-    Gfx::TextAlignment alignment(AlignmentRole role) const
-    {
-        VERIFY((int)role < (int)AlignmentRole::__Count);
-        return theme().alignment[(int)role];
-    }
-
     bool flag(FlagRole role) const
     {
         VERIFY((int)role < (int)FlagRole::__Count);
@@ -160,8 +154,6 @@ public:
     Color bright_cyan() const { return color(ColorRole::BrightCyan); }
     Color bright_white() const { return color(ColorRole::BrightWhite); }
 
-    Gfx::TextAlignment title_alignment() const { return alignment(AlignmentRole::TitleAlignment); }
-
     bool is_dark() const { return flag(FlagRole::IsDark); }
 
     ByteString title_button_icons_path() const { return path(PathRole::TitleButtonIcons); }
@@ -173,12 +165,10 @@ public:
     ByteString color_scheme_path() const { return path(PathRole::ColorScheme); }
 
     Color color(ColorRole role) const { return m_impl->color(role); }
-    Gfx::TextAlignment alignment(AlignmentRole role) const { return m_impl->alignment(role); }
     bool flag(FlagRole role) const { return m_impl->flag(role); }
     ByteString path(PathRole role) const { return m_impl->path(role); }
 
     void set_color(ColorRole, Color);
-    void set_alignment(AlignmentRole, Gfx::TextAlignment);
     void set_flag(FlagRole, bool);
     void set_path(PathRole, ByteString);
 

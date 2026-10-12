@@ -19,6 +19,7 @@
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Rect.h>
+#include <LibGfx/TextAlignment.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
