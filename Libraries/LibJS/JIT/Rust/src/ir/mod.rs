@@ -894,6 +894,9 @@ pub enum Op {
     Int32Max,
     /// The `Repr::Float64` of the `Repr::Int32` input 0.
     Int32ToFloat64,
+    /// The `Repr::Int32` 0 or 1 of the `Repr::Bool` input 0, like ToInt32
+    /// of a boolean.
+    BoolToInt32,
     /// The `Repr::Float64` of the tagged input 0, which must be a double:
     /// the refinement of a branch on `BranchCondition::Double`.
     UnboxDouble,
@@ -1415,6 +1418,7 @@ impl Op {
             | Op::Int32Min
             | Op::Int32Max
             | Op::Int32ToFloat64
+            | Op::BoolToInt32
             | Op::StringAddress => P::PURE,
             // NB: A cache miss and strings whose characters only the slow
             //     path reads stay that way until the slow path ran.
@@ -1557,6 +1561,7 @@ impl Op {
             Op::Int32Min => "Int32Min",
             Op::Int32Max => "Int32Max",
             Op::Int32ToFloat64 => "Int32ToFloat64",
+            Op::BoolToInt32 => "BoolToInt32",
             Op::UnboxDouble => "UnboxDouble",
             Op::BoxFloat64 => "BoxFloat64",
             Op::Float64Unary { .. } => "Float64Unary",

@@ -580,10 +580,18 @@ impl GraphBuilder<'_> {
                 self.write(dst, result)?;
             }
             Operation::Unary { op, dst, src } => {
-                if !self.may_speculate_int32(instruction, op == UnaryOp::Minus) {
-                    return Ok(None);
-                }
-                let value = self.read_int32(OperationInput::Operand(src))?;
+                let value = if self.may_speculate_int32(instruction, op == UnaryOp::Minus) {
+                    self.read_int32(OperationInput::Operand(src))?
+                } else {
+                    // NB: ToInt32 of a boolean is 0 or 1, like `(a < b) | 0`
+                    //     reads it.
+                    let value = self.read_value(src)?;
+                    if !matches!(op, UnaryOp::ToInt32 | UnaryOp::BitwiseNot) || !self.is_boolean(value) {
+                        return Ok(None);
+                    }
+                    let value = self.boolean_as_int32(value);
+                    self.int32(value)
+                };
                 let result = match op {
                     UnaryOp::Plus => value,
                     // NB: The truncation pass needs to see what only reads
@@ -880,6 +888,30 @@ impl GraphBuilder<'_> {
             && self.may_speculate(ExitKind::Overflow)
     }
 
+    /// Whether `value` is known to be a boolean: a boxing of one, or a
+    /// boolean constant.
+    fn is_boolean(&self, value: NodeId) -> bool {
+        self.graph.node(value).op == Op::BoxBool
+            || matches!(self.graph.constant_value(value), Some(value::TRUE | value::FALSE))
+    }
+
+    /// The boxed int32 0 or 1 of `value`, if it is known to be a boolean, or
+    /// `value` itself.
+    fn boolean_as_int32(&mut self, value: NodeId) -> NodeId {
+        match self.graph.constant_value(value) {
+            Some(value::TRUE) => return self.constant(value::int32(1)),
+            Some(value::FALSE) => return self.constant(value::int32(0)),
+            _ => {}
+        }
+        let node = self.graph.node(value);
+        if node.op != Op::BoxBool {
+            return value;
+        }
+        let boolean = node.inputs[0];
+        let integer = self.emit(Op::BoolToInt32, vec![boolean], Some(Repr::Int32));
+        self.emit(Op::BoxInt32, vec![integer], Some(Repr::Tagged))
+    }
+
     // The paths of each kind of operation.
 
     fn build_binary_paths(
@@ -892,11 +924,19 @@ impl GraphBuilder<'_> {
         let int32_results =
             self.may_speculate_int32_results(feedback) && op != BinaryOp::Div && self.may_be_int32(&[lhs, rhs]);
         if op.is_bitwise() {
-            let doubles = feedback & arith_feedback::DOUBLE != 0 || !self.may_be_int32(&[lhs, rhs]);
-            if feedback & (arith_feedback::SAW_INT32 | arith_feedback::DOUBLE) == 0 || !self.may_be_number(&[lhs, rhs])
+            // NB: ToInt32 of a boolean is 0 or 1, like `(a < b) & (c < d)`
+            //     of compiled asm.js code reads it.
+            let known_int32 = [lhs, rhs]
+                .iter()
+                .all(|value| self.int32_value_of(*value).is_some() || self.is_boolean(*value));
+            if !known_int32
+                && (feedback & (arith_feedback::SAW_INT32 | arith_feedback::DOUBLE) == 0
+                    || !self.may_be_number(&[lhs, rhs]))
             {
                 return Ok(None);
             }
+            let (lhs, rhs) = (self.boolean_as_int32(lhs), self.boolean_as_int32(rhs));
+            let doubles = feedback & arith_feedback::DOUBLE != 0 || !self.may_be_int32(&[lhs, rhs]);
             let mut paths = self.start_slow_paths(Some(Repr::Tagged))?;
             let lhs = self.int32_of_number_on_path(&mut paths, lhs, doubles);
             let rhs = self.int32_of_number_on_path(&mut paths, rhs, doubles);
