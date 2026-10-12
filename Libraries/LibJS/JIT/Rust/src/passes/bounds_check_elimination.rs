@@ -40,8 +40,8 @@
 //! checking for that, like `(a & 0x3fff) * (b >> 14)` and the `i + 1` after
 //! an access at `i`. Besides the ranges above, the ranges of operands come
 //! from masks and shifts of any int32, and from the bounds checks of
-//! accesses that dominate the operation: an index is below the elements'
-//! count there.
+//! accesses (and the branches on an index being in bounds) that dominate
+//! the operation: an index is below the elements' count there.
 
 use super::dominators::Dominators;
 use super::edit::Constants;
@@ -139,7 +139,7 @@ impl Ranges<'_> {
         }
         // NB: A value past its bounds check is below the count, and other
         //     refinements keep the range of what they refine.
-        if node.op == Op::CheckBounds {
+        if bounds_index(&node.op) {
             let index = self.of(node.inputs[0]);
             return self.below_count(index, node.inputs[1]);
         }
@@ -395,6 +395,19 @@ impl Ranges<'_> {
     }
 }
 
+/// Whether `op` makes its input 0 below its input 1 as unsigned numbers:
+/// a bounds check, or the refinement of a branch on that where it holds.
+fn bounds_index(op: &Op) -> bool {
+    matches!(
+        op,
+        Op::CheckBounds
+            | Op::Refine {
+                condition: BranchCondition::IndexInBounds,
+                holds: true,
+            }
+    )
+}
+
 /// The blocks that only on-stack replacement entries reach.
 fn osr_only_blocks(graph: &Graph) -> BitSet {
     let reach = |starts: Vec<BlockId>| {
@@ -494,24 +507,24 @@ pub fn run(graph: &mut Graph) {
     let mut checks = Vec::new();
     let mut shifts = Vec::new();
     let mut arithmetic = Vec::new();
-    // NB: For every index that bounds checks check, where those checks are
-    //     and the counts.
+    // NB: For every index that bounds checks and branches check, where
+    //     those checks are and the counts.
     let mut bounded: HashMap<NodeId, Vec<(BlockId, usize, NodeId)>> = HashMap::default();
     for (index, block) in graph.blocks.iter().enumerate() {
         for phi in &block.phis {
             phi_blocks.insert(*phi, BlockId::from_index(index));
         }
         for (position, node) in block.body.iter().enumerate() {
-            match graph.node(*node).op {
-                Op::CheckBounds => {
-                    checks.push(*node);
-                    let check = graph.node(*node);
-                    bounded.entry(graph.unrefined(check.inputs[0])).or_default().push((
-                        BlockId::from_index(index),
-                        position,
-                        check.inputs[1],
-                    ));
-                }
+            let check = graph.node(*node);
+            if bounds_index(&check.op) {
+                bounded.entry(graph.unrefined(check.inputs[0])).or_default().push((
+                    BlockId::from_index(index),
+                    position,
+                    check.inputs[1],
+                ));
+            }
+            match check.op {
+                Op::CheckBounds => checks.push(*node),
                 Op::Int32Binary {
                     op: BinaryOp::RightShift,
                 } => shifts.push((*node, BlockId::from_index(index))),
