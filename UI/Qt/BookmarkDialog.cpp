@@ -8,6 +8,7 @@
 #include <UI/Qt/BookmarkDialog.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
+#include <UI/Qt/NativeTextEditingLineEdit.h>
 #include <UI/Qt/StringUtils.h>
 
 #include <QAbstractItemView>
@@ -129,7 +130,7 @@ BookmarkDialog::BookmarkDialog(QWidget* parent, Type type, Optional<URL::URL con
     layout->setVerticalSpacing(12);
 
     auto create_text_field = [this] {
-        auto* field = new QLineEdit(this);
+        auto* field = new NativeTextEditingLineEdit(this);
         field->setMinimumWidth(320);
         field->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         return field;

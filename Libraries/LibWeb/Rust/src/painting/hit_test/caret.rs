@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::resolve::with_item_fragment;
 use super::*;
 use crate::painting::host::{
     FfiCaretAt, FfiCaretBoundaryKind, FfiCaretPositionQuery, FfiHitTestQueryCallbacks, FfiNodeIdentity,
@@ -251,9 +252,18 @@ impl HitTestList {
     }
 
     pub fn item_at_line_edge(&self, line_index: usize, position_type: CaretPositionType) -> usize {
-        // INTEROP: Home and End operate on visual lines in other engines. Choose the furthest caret-capable painted
-        // item along the logical inline axis instead of assuming that display-list order or DOM order describes that
-        // edge.
+        self.item_at_line_edge_matching(line_index, position_type, |_| true)
+            .expect("a caret line has at least one item")
+    }
+
+    fn item_at_line_edge_matching(
+        &self,
+        line_index: usize,
+        position_type: CaretPositionType,
+        accepts_item: impl Fn(usize) -> bool,
+    ) -> Option<usize> {
+        // Choose the furthest caret-capable painted item along the logical inline axis. Display-list order and DOM
+        // order don't necessarily describe that edge.
         debug_assert!(self.caret_lines_built);
         let line = self.caret_lines[line_index].clone();
         let first_item = self.first_item_of_line(&line);
@@ -287,8 +297,9 @@ impl HitTestList {
                 coordinate > best_coordinate
             }
         };
-        let mut best_item_index = self.caret_item_indices[line.first_caret_item_index];
-        let mut best_coordinate = coordinate_for_item(&self.items[best_item_index]);
+        let first_index = self.caret_item_indices[line.first_caret_item_index];
+        let mut best_item_index = accepts_item(first_index).then_some(first_index);
+        let mut best_coordinate = coordinate_for_item(&self.items[first_index]);
         let item_is_on_line = |item: &HitTestItem| -> bool {
             if let Some(recorded_line) = first_item.recorded_caret_line() {
                 return item.recorded_caret_line() == Some(recorded_line);
@@ -305,12 +316,12 @@ impl HitTestList {
         // inferred visual line even when other caret runs separate them.
         for item_index in &self.caret_item_indices {
             let item = &self.items[*item_index];
-            if !item_is_on_line(item) {
+            if !item_is_on_line(item) || !accepts_item(*item_index) {
                 continue;
             }
             let coordinate = coordinate_for_item(item);
-            if coordinate_is_closer_to_line_edge(coordinate, best_coordinate) {
-                best_item_index = *item_index;
+            if best_item_index.is_none() || coordinate_is_closer_to_line_edge(coordinate, best_coordinate) {
+                best_item_index = Some(*item_index);
                 best_coordinate = coordinate;
             }
         }
@@ -882,21 +893,54 @@ impl HitTestList {
 
     /// The caret position at the start or end of the painted line holding the position. A visual line can span several
     /// DOM nodes and atomic inline boxes, so a text-node or block-element boundary is not necessarily a line boundary.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn caret_at_line_edge(
         &self,
+        main_thread: &crate::stage::MainThread,
         arena: &impl PaintRead,
+        callbacks: &FfiHitTestQueryCallbacks,
         query: &FfiCaretPositionQuery,
         offset: usize,
         affinity_is_downstream: bool,
         edge: CaretPositionType,
+        physical: bool,
+        scope: FfiNodeIdentity,
     ) -> Option<FfiCaretAt> {
         let line_index = self.caret_line_for_position(arena, query, offset, affinity_is_downstream)?;
-        self.caret_at_item(
-            arena,
-            self.item_at_line_edge(line_index, edge),
-            CssPixelPoint::default(),
-            edge,
-        )
+        let mut logical_edge = edge;
+        if physical
+            && self
+                .first_item_of_line(&self.caret_lines[line_index])
+                .inline_axis_is_reverse
+        {
+            logical_edge = if edge == CaretPositionType::Before {
+                CaretPositionType::After
+            } else {
+                CaretPositionType::Before
+            };
+        }
+        let item_index = self.item_at_line_edge_matching(line_index, logical_edge, |index| {
+            scope.is_none() || callbacks.contains(main_thread, scope, self.item_target(arena, index))
+        })?;
+        let mut caret = self.caret_at_item(arena, item_index, CssPixelPoint::default(), logical_edge)?;
+        if physical {
+            let item = &self.items[item_index];
+            if item.kind == HitTestItemKind::TextFragment
+                && let Some((offset, upstream)) = with_item_fragment(arena, item, |fragment| {
+                    crate::painting::text_fragment::physical_edge_offset(
+                        arena,
+                        fragment,
+                        edge == CaretPositionType::Before,
+                    )
+                })
+                .flatten()
+            {
+                caret.caret.offset = offset;
+                caret.caret.affinity_is_upstream = upstream;
+                caret.caret.has_debug_rect = false;
+            }
+        }
+        Some(caret)
     }
 
     /// The caret position on the visually adjacent line within `scope`, preserving the requested inline coordinate.

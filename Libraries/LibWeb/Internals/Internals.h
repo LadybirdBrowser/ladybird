@@ -95,6 +95,7 @@ public:
     void click_through_ui_process(double x, double y);
     void wheel_through_ui_process(double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase, GC::Ref<WebIDL::Promise>);
     void send_key(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers, WebIDL::UnsignedLong repeat_count);
+    WebIDL::ExceptionOr<void> send_text_editing_command(HTML::HTMLElement&, Utf16String const& command_name, bool extend_selection);
     void paste(HTML::HTMLElement& target, Utf16String const& text);
     void paste_from_clipboard();
     void commit_text();

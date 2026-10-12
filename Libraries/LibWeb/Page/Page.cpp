@@ -528,7 +528,7 @@ EventResult Page::handle_pinch_event(DevicePixelPoint position, unsigned modifie
     return handle_pinch_event(local_traversable(), position, modifiers, scale);
 }
 
-EventResult Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action)
+EventResult Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action, ReadonlySpan<TextEditingCommand> editing_commands, bool native_editing_binding_resolved)
 {
     // The compositor forwards these updates ahead of keyboard events. Both DOM listeners and a main-thread
     // fallback default action must observe the offsets that have already been presented.
@@ -536,7 +536,7 @@ EventResult Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 
     if (!navigable)
         return EventResult::Dropped;
     navigable->local_root()->adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness::Pushed);
-    return navigable->event_handler().handle_keydown(key, modifiers, code_point, repeat, should_insert_text, async_scroll_performed_default_action);
+    return navigable->event_handler().handle_keydown(key, modifiers, code_point, repeat, should_insert_text, async_scroll_performed_default_action, editing_commands, native_editing_binding_resolved);
 }
 
 EventResult Page::handle_keyup(UIEvents::KeyCode key, unsigned modifiers, u32 code_point, bool repeat)

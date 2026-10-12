@@ -30,6 +30,7 @@ public:
         No,
         Yes,
     };
+    virtual GC::Ptr<DOM::StaticRange> deletion_target_range(Utf16FlyString const& input_type) = 0;
     virtual void handle_delete(Utf16FlyString const& input_type, DispatchInputEvent = DispatchInputEvent::Yes) = 0;
 
     // The node that mouse-driven selection through this target is constrained to (e.g. the text node inside a text
@@ -45,6 +46,11 @@ public:
     };
     virtual void move_cursor_to_start(CollapseSelection) = 0;
     virtual void move_cursor_to_end(CollapseSelection) = 0;
+    virtual void move_cursor_to_start_of_current_line(CollapseSelection collapse) { move_cursor_to_start(collapse); }
+    virtual void move_cursor_to_end_of_current_line(CollapseSelection collapse) { move_cursor_to_end(collapse); }
+    virtual void move_cursor_to_start_of_paragraph(CollapseSelection) = 0;
+    virtual void move_cursor_to_end_of_paragraph(CollapseSelection) = 0;
+    virtual void move_cursor_to_physical_line_boundary(bool left, CollapseSelection) = 0;
     virtual void move_cursor_to_start_of_document(CollapseSelection collapse) { move_cursor_to_start(collapse); }
     virtual void move_cursor_to_end_of_document(CollapseSelection collapse) { move_cursor_to_end(collapse); }
     virtual void move_cursor_to_previous_page(CollapseSelection collapse) { move_cursor_to_start_of_document(collapse); }

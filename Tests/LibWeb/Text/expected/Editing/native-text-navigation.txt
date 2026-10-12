@@ -1,0 +1,67 @@
+input beginning: PASS
+input end: PASS
+textarea beginning: PASS
+textarea end: PASS
+extend backward: PASS
+backward direction: PASS
+repeated backward anchor: PASS
+reverse extension anchor: PASS
+extend forward: PASS
+forward direction: PASS
+soft wrap beginning: PASS
+soft wrap end: PASS
+empty paragraph beginning: PASS
+empty paragraph end: PASS
+single-line up: PASS
+single-line down: PASS
+textarea page distance: PASS
+textarea page column: PASS
+textarea page reverse: PASS
+read-only movement: PASS
+inline paragraph boundary: PASS
+inline paragraph beginning: PASS
+rich selection anchor: PASS
+rich selection text: PASS
+br paragraph beginning: PASS
+noneditable boundary: PASS
+empty rich paragraph: PASS
+nested host end: PASS
+nested host beginning: PASS
+RTL physical left: PASS
+RTL physical right: PASS
+RTL logical beginning: PASS
+RTL logical end: PASS
+input opposite RTL run left: PASS
+input opposite RTL run right: PASS
+textarea opposite RTL run left: PASS
+textarea opposite RTL run right: PASS
+rich opposite RTL run left: PASS
+rich opposite RTL run left geometry: PASS
+rich opposite RTL run right: PASS
+rich opposite RTL run right geometry: PASS
+input opposite LTR run left: PASS
+input opposite LTR run right: PASS
+textarea opposite LTR run left: PASS
+textarea opposite LTR run right: PASS
+rich opposite LTR run left: PASS
+rich opposite LTR run left geometry: PASS
+rich opposite LTR run right: PASS
+rich opposite LTR run right geometry: PASS
+input mixed leading run left: PASS
+input mixed leading run right: PASS
+textarea mixed leading run left: PASS
+textarea mixed leading run right: PASS
+rich mixed leading run left: PASS
+rich mixed leading run left geometry: PASS
+rich mixed leading run right: PASS
+rich mixed leading run right geometry: PASS
+input mixed trailing run left: PASS
+input mixed trailing run right: PASS
+textarea mixed trailing run left: PASS
+textarea mixed trailing run right: PASS
+rich mixed trailing run left: PASS
+rich mixed trailing run left geometry: PASS
+rich mixed trailing run right: PASS
+rich mixed trailing run right geometry: PASS
+inline host left boundary: PASS
+inline host right boundary: PASS

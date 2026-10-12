@@ -10,6 +10,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Range.h>
+#include <LibWeb/DOM/StaticRange.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/CommandNames.h>
 #include <LibWeb/Editing/Commands.h>
@@ -40,7 +41,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command(Utf16FlyString const& command, 
     return exec_command_internal(command, show_ui, value, DispatchInputEvent::Yes);
 }
 
-WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& command, [[maybe_unused]] bool show_ui, Utf16View value, DispatchInputEvent dispatch_input_event, Optional<Utf16FlyString> const& user_input_type)
+WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& command, [[maybe_unused]] bool show_ui, Utf16View value, DispatchInputEvent dispatch_input_event, Optional<Utf16FlyString> const& user_input_type, GC::Ptr<StaticRange> deletion_range)
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
@@ -180,7 +181,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
         auto category = Editing::UndoStep::Category::Other;
         // INTEROP: Cut and paste are standalone undo units in Chromium: they never coalesce with typing or deletion
         //          runs, so they categorize as Other even though they run the delete and insertText commands.
-        if (!is_cut_or_paste) {
+        if (!is_cut_or_paste && !deletion_range) {
             if (command_definition.command.is_one_of(Editing::CommandNames::insertText, Editing::CommandNames::insertLineBreak, Editing::CommandNames::insertParagraph))
                 category = Editing::UndoStep::Category::Insertion;
             else if (command_definition.command == Editing::CommandNames::delete_)
@@ -194,6 +195,11 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
         if (auto history = editing_history_if_exists())
             history->end_recording();
     };
+
+    if (deletion_range) {
+        MUST(m_selection->set_base_and_extent(deletion_range->start_container(), deletion_range->start_offset(),
+            deletion_range->end_container(), deletion_range->end_offset()));
+    }
 
     // 5. Take the action for command, passing value to the instructions as an argument.
     auto command_result = [&] {

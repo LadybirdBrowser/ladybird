@@ -14,6 +14,7 @@ from contextlib import contextmanager
 from typing import Callable
 from typing import Optional
 
+from AppKit import NSWorkspace
 from ApplicationServices import AXIsProcessTrusted
 from ApplicationServices import AXUIElementCopyAttributeValue
 from ApplicationServices import AXUIElementCreateApplication
@@ -23,6 +24,8 @@ from ApplicationServices import kAXMainWindowAttribute
 from ApplicationServices import kAXRoleAttribute
 from ApplicationServices import kAXTitleAttribute
 from ApplicationServices import kAXWindowsAttribute
+from Foundation import NSDate
+from Foundation import NSRunLoop
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[4]
 
@@ -83,13 +86,42 @@ def _make_profile_directory() -> str:
     return root
 
 
+class LaunchServicesProcess:
+    def __init__(self, launcher, application):
+        self.launcher = launcher
+        self.application = application
+        self.pid = application.processIdentifier()
+
+    def poll(self):
+        return self.launcher.poll()
+
+    def terminate(self):
+        self.application.terminate()
+
+    def kill(self):
+        self.application.forceTerminate()
+
+    def wait(self, timeout=None):
+        return self.launcher.wait(timeout=timeout)
+
+
 class LadybirdContext:
     """A running Ladybird process wrapped with NSAccessibility/AXUIElement discovery helpers.
 
     One context per test class; a new Ladybird process is spawned per context — so state from a previous test cannot
     leak. Use via AccessibilityBridgeMacTestCase or the ladybird_for_fixture context manager."""
 
-    def __init__(self, url: str, binary: Optional[pathlib.Path] = None, *, wait_for_web_area: bool = True):
+    def __init__(
+        self,
+        url: str,
+        binary: Optional[pathlib.Path] = None,
+        *,
+        wait_for_web_area: bool = True,
+        environment: Optional[dict[str, str]] = None,
+        launch_via_launch_services: bool = False,
+    ):
+        self._launch_via_launch_services = launch_via_launch_services
+        self._environment = environment or {}
         self._url = url
         self._wait_for_web_area = wait_for_web_area
         if binary is not None:
@@ -103,6 +135,7 @@ class LadybirdContext:
         self._web = None
         self._stderr_file: Optional[tempfile.NamedTemporaryFile] = None
         self._profile_directory: Optional[str] = None
+        self._initial_load_notifications = None
 
     def __enter__(self) -> "LadybirdContext":
         self.start()
@@ -137,6 +170,7 @@ class LadybirdContext:
             )
 
         env = os.environ.copy()
+        env.update(self._environment)
 
         # Send stderr to a regular file rather than subprocess.PIPE: Ladybird debug builds (ENABLE_ALL_THE_DEBUG_MACROS)
         # produce huge stderr volumes (PROMISE_DEBUG, etc.). A pipe's kernel buffer is ~64 KB; once it fills, every
@@ -151,15 +185,70 @@ class LadybirdContext:
         # A data directory of its own, so the launch stays out of the user's crash-report store: Ladybird offers the
         # newest pending report from that store in a popover on every launch, and a crash here would land in it.
         env["XDG_DATA_HOME"] = os.path.join(self._profile_directory, "xdg-data")
-        self._process = subprocess.Popen(
-            [str(self._binary), "--force-cpu-painting", "--profile-path", self._profile_directory, self._url],
-            env=env,
-            stdout=subprocess.DEVNULL,
-            stderr=self._stderr_file,
-        )
+        env["XDG_DOWNLOAD_DIR"] = os.path.join(self._profile_directory, "downloads")
+        os.makedirs(env["XDG_DOWNLOAD_DIR"], mode=0o700)
+        arguments = ["--force-cpu-painting", "--profile-path", self._profile_directory, self._url]
+        if self._launch_via_launch_services:
+            bundle = self._binary.parents[2].resolve()
+            if bundle.suffix != ".app":
+                raise RuntimeError("Native-key tests require a Ladybird application bundle")
+            workspace = NSWorkspace.sharedWorkspace()
+            previous_pids = {application.processIdentifier() for application in workspace.runningApplications()}
+            command = [
+                "/usr/bin/open",
+                "-n",
+                "-W",
+                "-a",
+                str(bundle),
+                "--stderr",
+                self._stderr_file.name,
+                "--stdout",
+                "/dev/null",
+            ]
+            for key, value in {
+                **self._environment,
+                "XDG_DATA_HOME": env["XDG_DATA_HOME"],
+                "XDG_DOWNLOAD_DIR": env["XDG_DOWNLOAD_DIR"],
+            }.items():
+                command.extend(["--env", f"{key}={value}"])
+            command.extend(["--args", *arguments])
+            launcher = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=self._stderr_file)
+            self._process = launcher
+
+            def find_application():
+                NSRunLoop.currentRunLoop().runUntilDate_(NSDate.dateWithTimeIntervalSinceNow_(0.01))
+                for application in workspace.runningApplications():
+                    url = application.bundleURL()
+                    if (
+                        application.processIdentifier() not in previous_pids
+                        and url is not None
+                        and pathlib.Path(url.path()).resolve() == bundle
+                    ):
+                        return application
+                return None
+
+            application = wait_for(find_application, description="LaunchServices fixture application")
+            if not application:
+                raise RuntimeError(
+                    f"LaunchServices didn't register the native-key fixture (launcher status {launcher.poll()}): {pathlib.Path(self._stderr_file.name).read_text()}"
+                )
+            self._process = LaunchServicesProcess(launcher, application)
+        else:
+            self._process = subprocess.Popen(
+                [str(self._binary), *arguments],
+                env=env,
+                stdout=subprocess.DEVNULL,
+                stderr=self._stderr_file,
+            )
 
         self._app = AXUIElementCreateApplication(self._process.pid)
         startup_timeout = float(os.environ.get("LADYBIRD_AX_STARTUP_TIMEOUT", "60"))
+        if self._launch_via_launch_services:
+            from .notifications import NotificationCollector
+
+            if not wait_for(lambda: _ax_attr(self._app, kAXRoleAttribute), timeout=startup_timeout):
+                raise RuntimeError("The fixture did not become responsive to accessibility requests")
+            self._initial_load_notifications = NotificationCollector(self._process.pid, self._app, ["AXLoadComplete"])
 
         # A test that decides for itself when an assistive technology first reads the page waits for nothing here: Any
         # accessibility query into the window turns Qt's accessibility on, and with it the fetch of the page's tree.
@@ -201,7 +290,26 @@ class LadybirdContext:
                 f"Stderr:\n{stderr_excerpt}"
             )
 
+        if self._initial_load_notifications is not None:
+            collector = self._initial_load_notifications
+            try:
+
+                def initial_focus_delivered():
+                    collector.collect(0.05)
+                    return "AXLoadComplete" in collector.names()
+
+                if not wait_for(
+                    initial_focus_delivered, timeout=startup_timeout, description="initial accessibility focus delivery"
+                ):
+                    raise RuntimeError("The fixture didn't finish its initial accessibility focus announcement")
+            finally:
+                collector.close()
+                self._initial_load_notifications = None
+
     def stop(self) -> None:
+        if self._initial_load_notifications is not None:
+            self._initial_load_notifications.close()
+            self._initial_load_notifications = None
         if self._process is None:
             self._cleanup_stderr_file()
             self._cleanup_profile_directory()

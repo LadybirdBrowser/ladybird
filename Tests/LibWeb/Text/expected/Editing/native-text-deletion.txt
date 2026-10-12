@@ -1,0 +1,30 @@
+word backward: PASS
+word event order: PASS
+word undo: PASS
+word redo: PASS
+word forward: PASS
+paragraph text: PASS
+paragraph separator: PASS
+empty paragraph separator: PASS
+selected deletion: PASS
+canceled value and caret: PASS
+focus change: PASS
+handler selection retained: PASS
+handler value retained: PASS
+password word deletion: PASS
+read-only deletion: PASS
+disabled deletion: PASS
+combining deletion: PASS
+surrogate deletion: PASS
+boundary no events: PASS
+beforeinput keeps caret: PASS
+rich word deletion: PASS
+rich target range: PASS
+rich word undo: PASS
+rich paragraph text: PASS
+rich paragraph join: PASS
+rich paragraph join structure: PASS
+rich br join: PASS
+rich br join structure: PASS
+rich canceled caret: PASS
+removed editor: PASS

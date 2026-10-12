@@ -99,7 +99,7 @@ static constexpr int LOCATION_PILL_HEIGHT = 22;
 static constexpr int LOCATION_PILL_HORIZONTAL_PADDING = 18;
 
 LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
-    : QLineEdit(parent)
+    : NativeTextEditingLineEdit(parent)
     , m_omnibox(is_private)
     , m_autocomplete(new Autocomplete(this))
 {
@@ -343,7 +343,7 @@ void LocationEdit::contextMenuEvent(QContextMenuEvent* event)
 void LocationEdit::focusInEvent(QFocusEvent* event)
 {
     if (event->reason() == Qt::PopupFocusReason) {
-        QLineEdit::focusInEvent(event);
+        NativeTextEditingLineEdit::focusInEvent(event);
         m_omnibox.set_suspended(false);
         return;
     }
@@ -352,7 +352,7 @@ void LocationEdit::focusInEvent(QFocusEvent* event)
         && m_url.has_value()
         && text() == display_url();
 
-    QLineEdit::focusInEvent(event);
+    NativeTextEditingLineEdit::focusInEvent(event);
 
     m_should_show_full_url_on_mouse_release = should_defer_full_url;
 
@@ -420,8 +420,43 @@ void LocationEdit::animate_focus_glow(int target_alpha)
     m_focus_glow_animation->start();
 }
 
+void LocationEdit::native_text_editing_command_will_execute(Web::TextEditingCommand const& command)
+{
+    if (command.extend_selection) {
+        auto focus = cursorPosition();
+        auto anchor = hasSelectedText() ? (focus == selectionStart() ? selectionEnd() : selectionStart()) : focus;
+        m_omnibox.accept_completion();
+        setSelection(anchor, focus - anchor);
+        return;
+    }
+    using Type = Web::TextEditingCommand::Type;
+    switch (command.type) {
+    case Type::DeleteBackward:
+    case Type::DeleteForward:
+    case Type::DeleteWordBackward:
+    case Type::DeleteWordForward:
+    case Type::DeleteToEndOfParagraph:
+        m_omnibox.will_delete_text();
+        break;
+    case Type::MoveForward:
+    case Type::MoveWordForward:
+    case Type::MoveDown:
+    case Type::MoveToEndOfParagraph:
+    case Type::MoveToEndOfLine:
+    case Type::MoveToRightEndOfLine:
+    case Type::PageDown:
+        m_omnibox.accept_completion();
+        break;
+    default:
+        m_omnibox.cursor_moved(false);
+        break;
+    }
+}
+
 void LocationEdit::keyPressEvent(QKeyEvent* event)
 {
+    if (handle_native_text_editing_key(*event))
+        return;
     if (event->key() == Qt::Key_Escape) {
         if (m_omnibox.escape_pressed() == WebView::Omnibox::EscapeAction::ClosedPopup)
             return;

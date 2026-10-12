@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    function check(label, actual, expected) {
+        println(`${label}: ${JSON.stringify(actual) === JSON.stringify(expected) ? "PASS" : JSON.stringify(actual)}`);
+    }
+    const iframe = document.createElement("iframe");
+    const loaded = new Promise(resolve => iframe.onload = resolve);
+    iframe.srcdoc = '<textarea>hello world</textarea><div contenteditable><p>abc</p><p><br></p><p>def</p></div>';
+    document.body.append(iframe);
+    await loaded;
+    const doc = iframe.contentDocument;
+    const textarea = doc.querySelector("textarea");
+    textarea.focus();
+    textarea.setSelectionRange(11, 11);
+    const command = (target, name) => internals.sendTextEditingCommand(target, name);
+    textarea.onbeforeinput = e => { internals.gc(); e.preventDefault(); };
+    command(textarea, "DeleteWordBackward");
+    check("canceled history", doc.queryCommandEnabled("undo"), false);
+    textarea.onbeforeinput = null;
+    command(textarea, "DeleteToEndOfParagraph");
+    check("no-op history", doc.queryCommandEnabled("undo"), false);
+    command(textarea, "DeleteWordBackward");
+    command(textarea, "DeleteWordBackward");
+    check("repeated word deletion", textarea.value, "");
+    doc.execCommand("undo");
+    check("granular undo unit", [textarea.value, textarea.selectionStart], ["hello ", 6]);
+    doc.execCommand("undo");
+    check("first granular undo", [textarea.value, textarea.selectionStart], ["hello world", 11]);
+    const rich = doc.querySelector("div");
+    rich.focus();
+    const selection = doc.getSelection();
+    selection.collapse(rich.children[1], 0);
+    command(rich, "DeleteToEndOfParagraph");
+    check("empty rich paragraph join", rich.children.length, 2);
+    rich.innerHTML = "abc";
+    selection.collapse(rich.firstChild, 3);
+    let events = 0;
+    rich.oninput = () => ++events;
+    command(rich, "DeleteToEndOfParagraph");
+    check("rich end no input", [rich.textContent, events], ["abc", 0]);
+    textarea.value = "hello world";
+    textarea.focus();
+    textarea.setSelectionRange(11, 11);
+    textarea.onbeforeinput = () => { iframe.remove(); internals.gc(); };
+    command(textarea, "DeleteWordBackward");
+    check("detached document", [iframe.isConnected, textarea.value], [false, "hello world"]);
+    done();
+});
+</script>

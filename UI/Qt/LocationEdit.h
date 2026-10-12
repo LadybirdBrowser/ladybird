@@ -13,8 +13,8 @@
 #include <LibWebView/Omnibox.h>
 #include <LibWebView/Settings.h>
 
-#include <QLineEdit>
 #include <QString>
+#include <UI/Qt/NativeTextEditingLineEdit.h>
 
 class QAction;
 class QEvent;
@@ -29,7 +29,7 @@ namespace Ladybird {
 class Autocomplete;
 
 class LocationEdit final
-    : public QLineEdit
+    : public NativeTextEditingLineEdit
     , public WebView::SettingsObserver {
     Q_OBJECT
 
@@ -59,6 +59,7 @@ private:
     virtual void focusInEvent(QFocusEvent* event) override;
     virtual void focusOutEvent(QFocusEvent* event) override;
     virtual void keyPressEvent(QKeyEvent* event) override;
+    virtual void native_text_editing_command_will_execute(Web::TextEditingCommand const&) override;
     virtual void mouseReleaseEvent(QMouseEvent* event) override;
     virtual void resizeEvent(QResizeEvent* event) override;
 

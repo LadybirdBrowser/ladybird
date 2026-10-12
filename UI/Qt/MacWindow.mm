@@ -355,23 +355,6 @@ void offset_appkit_window_controls(QWidget& widget, int x_offset, int y_offset)
     [observer release];
 }
 
-void make_appkit_window_first_responder(QWidget& widget)
-{
-    auto* window_widget = widget.window();
-    if (!window_widget)
-        return;
-
-    auto* view = reinterpret_cast<NSView*>(window_widget->winId());
-    if (!view)
-        return;
-
-    auto* window = view.window;
-    if (!window)
-        return;
-
-    [window makeFirstResponder:view];
-}
-
 bool start_appkit_window_drag(QWidget& widget)
 {
     auto* window_widget = widget.window();

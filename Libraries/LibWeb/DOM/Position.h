@@ -21,9 +21,9 @@ class Position final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(Position);
 
 public:
-    [[nodiscard]] static GC::Ref<Position> create(GC::Ref<Node> node, unsigned offset)
+    [[nodiscard]] static GC::Ref<Position> create(GC::Ref<Node> node, unsigned offset, TextAffinity affinity = TextAffinity::Downstream)
     {
-        return GC::Heap::the().allocate<Position>(node, offset, TextAffinity::Downstream);
+        return GC::Heap::the().allocate<Position>(node, offset, affinity);
     }
 
     GC::Ref<Node> node() { return m_node; }

@@ -118,7 +118,9 @@ fn apply_text_overflow_to_line(line: &mut line_box::LineBoxData) {
             length_in_code_units: 1,
             glyph_width: ellipsis_inline_size,
             glyph_id: font.glyph_id_for_code_point(ELLIPSIS_CODE_POINT),
+            cluster_start: 0,
             should_paint: true,
+            is_rtl: false,
         });
         line.fragments[index].inline_length = CssPixels::nearest_value_for_f32(last_kept_end + ellipsis_inline_size);
         line.fragments[index].has_text_overflow_ellipsis = true;

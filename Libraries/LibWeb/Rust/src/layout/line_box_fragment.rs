@@ -169,15 +169,16 @@ impl LineBoxFragmentData {
         }
     }
 
-    pub(crate) fn append_glyph_run(&mut self, run: GlyphData, run_inline_size: CssPixels) {
+    pub(crate) fn append_glyph_run(&mut self, run: GlyphData, run_inline_size: CssPixels, text_offset: usize) {
+        let text_offset = u32::try_from(text_offset).expect("text offset fits a shaping cluster index");
         match self.direction {
-            direction::LTR => self.append_glyph_run_ltr(run, run_inline_size),
-            direction::RTL => self.append_glyph_run_rtl(run, run_inline_size),
+            direction::LTR => self.append_glyph_run_ltr(run, run_inline_size, text_offset),
+            direction::RTL => self.append_glyph_run_rtl(run, run_inline_size, text_offset),
             _ => panic!("invalid direction"),
         }
     }
 
-    fn append_glyph_run_ltr(&mut self, run: GlyphData, run_inline_size: CssPixels) {
+    fn append_glyph_run_ltr(&mut self, run: GlyphData, run_inline_size: CssPixels, text_offset: u32) {
         let run_direction = self.resolve_glyph_run_direction(run.text_type);
         let inline_offset = self.inline_length.to_double() as f32;
 
@@ -199,6 +200,7 @@ impl LineBoxFragmentData {
             direction::LTR => {
                 for mut glyph in run.glyphs.iter().copied() {
                     glyph.x += inline_offset;
+                    glyph.cluster_start += text_offset;
                     existing.push(glyph);
                 }
             }
@@ -211,6 +213,7 @@ impl LineBoxFragmentData {
                 }
                 for mut glyph in run.glyphs.iter().copied() {
                     glyph.x += self.insert_position;
+                    glyph.cluster_start += text_offset;
                     existing.push(glyph);
                 }
             }
@@ -219,7 +222,7 @@ impl LineBoxFragmentData {
         self.inline_length += run_inline_size;
     }
 
-    fn append_glyph_run_rtl(&mut self, run: GlyphData, run_inline_size: CssPixels) {
+    fn append_glyph_run_rtl(&mut self, run: GlyphData, run_inline_size: CssPixels, text_offset: u32) {
         let run_direction = self.resolve_glyph_run_direction(run.text_type);
         let run_offset = run_inline_size.to_double() as f32;
 
@@ -246,6 +249,7 @@ impl LineBoxFragmentData {
                 }
                 for mut glyph in run.glyphs.iter().copied() {
                     glyph.x += self.insert_position;
+                    glyph.cluster_start += text_offset;
                     existing.push(glyph);
                 }
             }
@@ -255,7 +259,10 @@ impl LineBoxFragmentData {
                         glyph.x += run_offset;
                     }
                 }
-                existing.extend_from_slice(&run.glyphs);
+                for mut glyph in run.glyphs.iter().copied() {
+                    glyph.cluster_start += text_offset;
+                    existing.push(glyph);
+                }
             }
             _ => unreachable!(),
         }

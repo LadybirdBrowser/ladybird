@@ -10151,10 +10151,10 @@ Optional<CSSPixelRect> Document::current_caret_rect()
     };
 
     if (is<DOM::Text>(dom_node)) {
-        Layout::RustFFI::FfiOptionalCssPixelRect result;
-        Layout::RustFFI::layout_script_text_caret_rect_in_dom_range(
-            layout_node->document_host(), Layout::Node::slot_id(layout_node), position->offset(), &result);
-        if (result.has_value)
+        Layout::RustFFI::FfiCaretRectResult result;
+        Layout::RustFFI::layout_script_text_caret_rect_for_position(
+            layout_node->document_host(), Layout::Node::slot_id(layout_node), position->offset(), position->affinity() == TextAffinity::Downstream, &result);
+        if (result.found)
             return to_viewport_rect(result.rect);
     }
 

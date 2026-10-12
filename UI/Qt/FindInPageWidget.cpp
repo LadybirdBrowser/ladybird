@@ -7,6 +7,7 @@
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/FindInPageWidget.h>
 #include <UI/Qt/Icon.h>
+#include <UI/Qt/NativeTextEditingLineEdit.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/Tab.h>
 
@@ -47,7 +48,7 @@ FindInPageWidget::FindInPageWidget(Tab* tab, WebContentView* content_view)
     layout->setContentsMargins(5, 5, 5, 5);
     layout->setAlignment(Qt::AlignmentFlag::AlignLeft);
 
-    m_find_text = new QLineEdit(this);
+    m_find_text = new NativeTextEditingLineEdit(this);
     m_find_text->setFocusPolicy(Qt::FocusPolicy::StrongFocus);
     m_find_text->setSizePolicy(QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Fixed);
     m_find_text->setPlaceholderText("Search");

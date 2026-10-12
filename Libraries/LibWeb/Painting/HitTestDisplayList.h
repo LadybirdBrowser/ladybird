@@ -31,6 +31,8 @@ enum class CaretPositionMode : u8 {
 enum class CaretLineEdge : u8 {
     Start,
     End,
+    Left,
+    Right,
 };
 
 enum class CaretLineDirection : u8 {

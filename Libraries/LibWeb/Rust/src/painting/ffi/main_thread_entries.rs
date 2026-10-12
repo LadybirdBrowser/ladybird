@@ -1195,15 +1195,30 @@ pub unsafe extern "C" fn layout_hit_test_caret_position_from_point(
 pub unsafe extern "C" fn layout_hit_test_caret_at_line_edge(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
+    callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
     query: crate::painting::host::FfiCaretPositionQuery,
     offset: usize,
     affinity_is_downstream: bool,
     edge: u8,
+    physical: bool,
+    scope: crate::painting::host::FfiNodeIdentity,
     out: &mut FfiCaretAt,
 ) {
     let edge = crate::painting::hit_test::caret::CaretPositionType::from_u8(edge);
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { main_thread(host) };
     *out = with_hit_test_list_and_caret_lines(host, read, None, |list, arena| {
-        list.caret_at_line_edge(arena, &query, offset, affinity_is_downstream, edge)
+        list.caret_at_line_edge(
+            &main_thread,
+            arena,
+            &callbacks,
+            &query,
+            offset,
+            affinity_is_downstream,
+            edge,
+            physical,
+            scope,
+        )
     })
     .unwrap_or_else(FfiCaretAt::none);
 }

@@ -1624,7 +1624,118 @@ EventHandler::KeyboardScrollSnapshot EventHandler::keyboard_scroll_snapshot() co
     return snapshot;
 }
 
-EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action)
+EventResult EventHandler::handle_text_editing_command(TextEditingCommand const& command)
+{
+    auto document = m_navigable->active_document();
+    if (!document || !document->is_fully_active())
+        return EventResult::Dropped;
+    auto* target = document->active_input_events_target();
+    if (!target)
+        return EventResult::Accepted;
+    auto scope = target->mouse_selection_scope();
+    if (!scope || !scope->is_connected())
+        return EventResult::Handled;
+    auto collapse = command.extend_selection ? InputEventsTarget::CollapseSelection::No : InputEventsTarget::CollapseSelection::Yes;
+    using Type = TextEditingCommand::Type;
+    switch (command.type) {
+    case Type::MoveBackward:
+        target->decrement_cursor_position_offset(collapse);
+        break;
+    case Type::MoveForward:
+        target->increment_cursor_position_offset(collapse);
+        break;
+    case Type::MoveWordBackward:
+        target->decrement_cursor_position_to_previous_word(collapse);
+        break;
+    case Type::MoveWordForward:
+        target->increment_cursor_position_to_next_word(collapse);
+        break;
+    case Type::MoveUp:
+        target->decrement_cursor_position_to_previous_line(collapse);
+        break;
+    case Type::MoveDown:
+        target->increment_cursor_position_to_next_line(collapse);
+        break;
+    case Type::MoveToBeginningOfParagraph:
+        target->move_cursor_to_start_of_paragraph(collapse);
+        break;
+    case Type::MoveToEndOfParagraph:
+        target->move_cursor_to_end_of_paragraph(collapse);
+        break;
+    case Type::MoveToBeginningOfLine:
+        target->move_cursor_to_start_of_current_line(collapse);
+        break;
+    case Type::MoveToEndOfLine:
+        target->move_cursor_to_end_of_current_line(collapse);
+        break;
+    case Type::MoveToLeftEndOfLine:
+        target->move_cursor_to_physical_line_boundary(true, collapse);
+        break;
+    case Type::MoveToRightEndOfLine:
+        target->move_cursor_to_physical_line_boundary(false, collapse);
+        break;
+    case Type::PageUp:
+        target->move_cursor_to_previous_page(collapse);
+        break;
+    case Type::PageDown:
+        target->move_cursor_to_next_page(collapse);
+        break;
+    case Type::DeleteBackward:
+    case Type::DeleteForward:
+    case Type::DeleteWordBackward:
+    case Type::DeleteWordForward:
+    case Type::DeleteToEndOfParagraph: {
+        auto input_type = UIEvents::InputTypes::deleteContentBackward;
+        switch (command.type) {
+        case Type::DeleteForward:
+            input_type = UIEvents::InputTypes::deleteContentForward;
+            break;
+        case Type::DeleteWordBackward:
+            input_type = UIEvents::InputTypes::deleteWordBackward;
+            break;
+        case Type::DeleteWordForward:
+            input_type = UIEvents::InputTypes::deleteWordForward;
+            break;
+        case Type::DeleteToEndOfParagraph:
+            input_type = UIEvents::InputTypes::deleteHardLineForward;
+            break;
+        default:
+            break;
+        }
+        GC::Root<DOM::Document> rooted_document { document };
+        GC::Root<JS::Cell> rooted_target { target->as_cell() };
+        GC::Root<DOM::Node> scope { target->mouse_selection_scope() };
+        GC::Root<DOM::StaticRange> range { target->deletion_target_range(input_type) };
+        if (!range)
+            return EventResult::Handled;
+        bool selected = false;
+        if (auto* control = document->focused_area() ? as_if<HTML::FormAssociatedTextControlElement>(*document->focused_area()) : nullptr)
+            selected = control->selection_start() != control->selection_end();
+        else if (auto selection = document->get_selection())
+            selected = !selection->is_collapsed();
+        if (selected)
+            input_type = first_is_one_of(command.type, Type::DeleteBackward, Type::DeleteWordBackward)
+                ? UIEvents::InputTypes::deleteContentBackward
+                : UIEvents::InputTypes::deleteContentForward;
+        auto result = input_event(UIEvents::EventNames::beforeinput, input_type, m_navigable, 0u, range.ptr());
+        if (result != EventResult::Accepted)
+            return result;
+        if (m_navigable->active_document() != document || !document->is_fully_active()
+            || document->active_input_events_target() != target || !scope || !scope->is_connected()
+            || target->mouse_selection_scope().ptr() != scope.ptr())
+            return EventResult::Handled;
+        if (!target->deletion_target_range(input_type))
+            return EventResult::Handled;
+        target->handle_delete(input_type);
+        break;
+    }
+    default:
+        return EventResult::Dropped;
+    }
+    return EventResult::Handled;
+}
+
+EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action, ReadonlySpan<TextEditingCommand> editing_commands, bool native_editing_binding_resolved)
 {
     if (!m_navigable->active_document())
         return EventResult::Dropped;
@@ -1647,6 +1758,9 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         return EventResult::Handled;
     };
 
+    GC::Root<DOM::Document> native_command_document;
+    if (native_editing_binding_resolved)
+        native_command_document = m_navigable->active_document();
     auto dispatch_result = fire_keyboard_event(UIEvents::EventNames::keydown, m_navigable, key, modifiers, code_point, repeat);
     if (dispatch_result != EventResult::Accepted)
         return dispatch_result;
@@ -1662,6 +1776,20 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         dispatch_result = fire_keyboard_event(UIEvents::EventNames::keypress, m_navigable, key, modifiers, code_point, repeat);
         if (dispatch_result != EventResult::Accepted)
             return dispatch_result;
+    }
+
+    if (native_editing_binding_resolved) {
+        for (auto const& command : editing_commands) {
+            if (m_navigable->active_document().ptr() != native_command_document.ptr() || !native_command_document->is_fully_active())
+                return EventResult::Dropped;
+            auto navigable = m_navigable->page().hosted_focused_navigable();
+            if (!navigable)
+                return EventResult::Dropped;
+            auto result = navigable->event_handler().handle_text_editing_command(command);
+            if (result != EventResult::Handled && result != EventResult::Accepted)
+                return result;
+        }
+        return EventResult::Handled;
     }
 
     // The compositor already performed this key's default action. Do not scroll twice, or insert text if focus has
@@ -2603,7 +2731,7 @@ EventResult EventHandler::fire_text_input_event(HTML::LocalNavigable& navigable,
     return EventResult::Accepted;
 }
 
-EventResult EventHandler::input_event(Utf16FlyString const& event_name, Utf16FlyString const& input_type, HTML::LocalNavigable& navigable, Variant<u32, Utf16String> code_point_or_string)
+EventResult EventHandler::input_event(Utf16FlyString const& event_name, Utf16FlyString const& input_type, HTML::LocalNavigable& navigable, Variant<u32, Utf16String> code_point_or_string, GC::Ptr<DOM::StaticRange> deletion_range)
 {
     auto document = navigable.active_document();
     if (!document)
@@ -2611,6 +2739,13 @@ EventResult EventHandler::input_event(Utf16FlyString const& event_name, Utf16Fly
     if (!document->is_fully_active())
         return EventResult::Dropped;
 
+    GC::Root<DOM::StaticRange> rooted_range { deletion_range };
+    auto target_ranges = target_ranges_for_input_event(*document, input_type);
+    if (deletion_range) {
+        target_ranges.clear();
+        if (!document->focused_area() || !as_if<HTML::FormAssociatedTextControlElement>(*document->focused_area()))
+            target_ranges.append(*deletion_range);
+    }
     UIEvents::InputEventInit input_event_init;
 
     code_point_or_string.visit(
@@ -2636,11 +2771,11 @@ EventResult EventHandler::input_event(Utf16FlyString const& event_name, Utf16Fly
             }
         }
 
-        auto event = UIEvents::InputEvent::create_from_platform_event(event_name, input_event_init, target_ranges_for_input_event(*document, input_type), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*document)));
+        auto event = UIEvents::InputEvent::create_from_platform_event(event_name, input_event_init, move(target_ranges), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*document)));
         return focused_area->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
     }
 
-    auto event = UIEvents::InputEvent::create_from_platform_event(event_name, input_event_init, target_ranges_for_input_event(*document, input_type), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*document)));
+    auto event = UIEvents::InputEvent::create_from_platform_event(event_name, input_event_init, move(target_ranges), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*document)));
 
     if (auto* body = document->body())
         return body->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;

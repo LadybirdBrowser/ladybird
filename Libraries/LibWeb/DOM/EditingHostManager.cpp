@@ -9,9 +9,11 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/Range.h>
+#include <LibWeb/DOM/StaticRange.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/ClipboardSanitizer.h>
 #include <LibWeb/Editing/CommandNames.h>
+#include <LibWeb/Editing/VisiblePosition.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/Selection/SelectionModifier.h>
@@ -142,6 +144,24 @@ void EditingHostManager::move_cursor_to_end(CollapseSelection collapse)
     Selection::SelectionModifier(*selection).modify(collapse == CollapseSelection::Yes ? Selection::SelectionAlteration::Move : Selection::SelectionAlteration::Extend, Selection::SelectionDirection::Forward, Selection::SelectionGranularity::LineBoundary);
 }
 
+void EditingHostManager::move_cursor_to_start_of_paragraph(CollapseSelection collapse)
+{
+    if (auto selection = get_selection_for_navigation(collapse))
+        Selection::SelectionModifier(*selection).modify(collapse == CollapseSelection::Yes ? Selection::SelectionAlteration::Move : Selection::SelectionAlteration::Extend, Selection::SelectionDirection::Backward, Selection::SelectionGranularity::ParagraphBoundary);
+}
+
+void EditingHostManager::move_cursor_to_end_of_paragraph(CollapseSelection collapse)
+{
+    if (auto selection = get_selection_for_navigation(collapse))
+        Selection::SelectionModifier(*selection).modify(collapse == CollapseSelection::Yes ? Selection::SelectionAlteration::Move : Selection::SelectionAlteration::Extend, Selection::SelectionDirection::Forward, Selection::SelectionGranularity::ParagraphBoundary);
+}
+
+void EditingHostManager::move_cursor_to_physical_line_boundary(bool left, CollapseSelection collapse)
+{
+    if (auto selection = get_selection_for_navigation(collapse))
+        Selection::SelectionModifier(*selection).modify(collapse == CollapseSelection::Yes ? Selection::SelectionAlteration::Move : Selection::SelectionAlteration::Extend, left ? Selection::SelectionDirection::Backward : Selection::SelectionDirection::Forward, Selection::SelectionGranularity::PhysicalLineBoundary);
+}
+
 void EditingHostManager::move_cursor_to_start_of_document(CollapseSelection collapse)
 {
     auto selection = get_selection_for_navigation(collapse);
@@ -218,6 +238,43 @@ void EditingHostManager::decrement_cursor_position_to_previous_line(CollapseSele
         selection->move_offset_to_previous_line(collapse == CollapseSelection::Yes);
 }
 
+GC::Ptr<StaticRange> EditingHostManager::deletion_target_range(Utf16FlyString const& input_type)
+{
+    auto selection = m_document->get_selection();
+    auto range = selection ? selection->range() : nullptr;
+    auto host = m_active_contenteditable_element;
+    if (!host || !host->is_connected() || !range
+        || range->start_container()->editing_host() != host
+        || range->end_container()->editing_host() != host)
+        return nullptr;
+    if (!range->collapsed())
+        return host->heap().allocate<StaticRange>(range->start_container(), range->start_offset(), range->end_container(), range->end_offset());
+
+    using namespace Web::Selection;
+    auto backward = first_is_one_of(input_type, UIEvents::InputTypes::deleteContentBackward, UIEvents::InputTypes::deleteWordBackward);
+    auto direction = backward ? SelectionDirection::Backward : SelectionDirection::Forward;
+    auto granularity = SelectionGranularity::Character;
+    if (first_is_one_of(input_type, UIEvents::InputTypes::deleteWordBackward, UIEvents::InputTypes::deleteWordForward))
+        granularity = SelectionGranularity::Word;
+    else if (input_type == UIEvents::InputTypes::deleteHardLineForward)
+        granularity = SelectionGranularity::ParagraphBoundary;
+    auto origin = Editing::VisiblePosition::create(*m_document, range->start());
+    auto destination = origin.move(SelectionAlteration::Extend, direction, granularity);
+    if (input_type == UIEvents::InputTypes::deleteHardLineForward
+        && (!destination.has_value() || position_of_boundary_point_relative_to_other_boundary_point(destination->deep_equivalent(), origin.deep_equivalent()) == RelativeBoundaryPointPosition::Equal))
+        destination = origin.move(SelectionAlteration::Extend, direction, SelectionGranularity::Character);
+    if (!destination.has_value() || position_of_boundary_point_relative_to_other_boundary_point(destination->deep_equivalent(), origin.deep_equivalent()) == RelativeBoundaryPointPosition::Equal)
+        return nullptr;
+    auto boundary = destination->boundary();
+    if (boundary.node->editing_host() != host)
+        return nullptr;
+    auto start = backward ? boundary : range->start();
+    auto end = backward ? range->start() : boundary;
+    if (position_of_boundary_point_relative_to_other_boundary_point(start, end) != RelativeBoundaryPointPosition::Before)
+        return nullptr;
+    return host->heap().allocate<StaticRange>(start.node, start.offset, end.node, end.offset);
+}
+
 void EditingHostManager::handle_delete(Utf16FlyString const& input_type, [[maybe_unused]] DispatchInputEvent dispatch_input_event)
 {
     // https://w3c.github.io/editing/docs/execCommand/#additional-requirements
@@ -230,8 +287,16 @@ void EditingHostManager::handle_delete(Utf16FlyString const& input_type, [[maybe
     //
     // NB: A cut deletes the selection like Backspace does, and passes its input type along so the input event fires
     //     with inputType "deleteByCut" and the cut forms its own undo unit.
-    auto command = input_type == UIEvents::InputTypes::deleteContentForward ? Editing::CommandNames::forwardDelete : Editing::CommandNames::delete_;
-    auto editing_result = m_document->exec_command_internal(command, false, {}, Document::DispatchInputEvent::Yes, input_type);
+    auto granular = first_is_one_of(input_type, UIEvents::InputTypes::deleteWordBackward, UIEvents::InputTypes::deleteWordForward, UIEvents::InputTypes::deleteHardLineForward);
+    GC::Root<StaticRange> range;
+    if (granular) {
+        range = deletion_target_range(input_type);
+        if (!range)
+            return;
+    }
+    auto forward = first_is_one_of(input_type, UIEvents::InputTypes::deleteContentForward, UIEvents::InputTypes::deleteWordForward, UIEvents::InputTypes::deleteHardLineForward);
+    auto command = forward ? Editing::CommandNames::forwardDelete : Editing::CommandNames::delete_;
+    auto editing_result = m_document->exec_command_internal(command, false, {}, Document::DispatchInputEvent::Yes, input_type, range.ptr());
     if (editing_result.is_exception())
         dbgln("handle_delete(): editing resulted in exception: {}", editing_result.exception());
 }

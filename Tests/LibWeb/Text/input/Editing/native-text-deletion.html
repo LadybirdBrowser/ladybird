@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<textarea id="textarea"></textarea><input id="input"><input id="other" value="other">
+<div id="rich" contenteditable></div>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const textarea = document.getElementById("textarea");
+    const input = document.getElementById("input");
+    const other = document.getElementById("other");
+    const rich = document.getElementById("rich");
+    const selection = getSelection();
+    function check(label, actual, expected) {
+        println(`${label}: ${JSON.stringify(actual) === JSON.stringify(expected) ? "PASS" : JSON.stringify(actual)}`);
+    }
+    function reset(target, value, start, end = start) {
+        target.value = value;
+        target.focus();
+        target.setSelectionRange(start, end);
+    }
+    function command(target, name) { internals.sendTextEditingCommand(target, name); }
+    reset(textarea, "hello world", 11);
+    let events = [];
+    textarea.onbeforeinput = e => events.push([e.type, e.inputType, e.getTargetRanges().length]);
+    textarea.oninput = e => events.push([e.type, e.inputType, e.getTargetRanges().length]);
+    command(textarea, "DeleteWordBackward");
+    check("word backward", [textarea.value, textarea.selectionStart], ["hello ", 6]);
+    check("word event order", events, [["beforeinput", "deleteWordBackward", 0], ["input", "deleteWordBackward", 0]]);
+    textarea.onbeforeinput = textarea.oninput = null;
+    document.execCommand("undo");
+    check("word undo", [textarea.value, textarea.selectionStart, textarea.selectionEnd], ["hello world", 11, 11]);
+    document.execCommand("redo");
+    check("word redo", [textarea.value, textarea.selectionStart], ["hello ", 6]);
+    reset(textarea, "hello world", 0);
+    command(textarea, "DeleteWordForward");
+    check("word forward", [textarea.value, textarea.selectionStart], [" world", 0]);
+    reset(textarea, "abc\ndef", 1);
+    command(textarea, "DeleteToEndOfParagraph");
+    check("paragraph text", [textarea.value, textarea.selectionStart], ["a\ndef", 1]);
+    reset(textarea, "abc\ndef", 3);
+    command(textarea, "DeleteToEndOfParagraph");
+    check("paragraph separator", [textarea.value, textarea.selectionStart], ["abcdef", 3]);
+    reset(textarea, "abc\n\ndef", 4);
+    command(textarea, "DeleteToEndOfParagraph");
+    check("empty paragraph separator", textarea.value, "abc\ndef");
+    reset(textarea, "abcdef", 1, 4);
+    let selectedType;
+    textarea.onbeforeinput = e => selectedType = e.inputType;
+    command(textarea, "DeleteWordBackward");
+    check("selected deletion", [textarea.value, selectedType], ["aef", "deleteContentBackward"]);
+    textarea.onbeforeinput = null;
+    reset(textarea, "hello world", 11);
+    textarea.onbeforeinput = e => { e.preventDefault(); };
+    command(textarea, "DeleteWordBackward");
+    check("canceled value and caret", [textarea.value, textarea.selectionStart, textarea.selectionEnd], ["hello world", 11, 11]);
+    textarea.onbeforeinput = () => other.focus();
+    command(textarea, "DeleteWordBackward");
+    check("focus change", [textarea.value, other.value, document.activeElement === other], ["hello world", "other", true]);
+    textarea.onbeforeinput = () => textarea.setSelectionRange(0, 0);
+    command(textarea, "DeleteWordBackward");
+    check("handler selection retained", [textarea.value, textarea.selectionStart], ["hello world", 0]);
+    textarea.onbeforeinput = () => { textarea.value = "replacement"; textarea.setSelectionRange(0, 0); };
+    reset(textarea, "hello world", 11);
+    command(textarea, "DeleteWordBackward");
+    check("handler value retained", [textarea.value, textarea.selectionStart], ["replacement", 0]);
+    textarea.onbeforeinput = textarea.oninput = null;
+    reset(input, "secret words", 12);
+    input.type = "password";
+    command(input, "DeleteWordBackward");
+    check("password word deletion", input.value, "secret ");
+    input.readOnly = true;
+    command(input, "DeleteBackward");
+    check("read-only deletion", input.value, "secret ");
+    input.readOnly = false;
+    input.disabled = true;
+    command(input, "DeleteBackward");
+    check("disabled deletion", input.value, "secret ");
+    input.disabled = false;
+    reset(textarea, "a\u{1f600}e\u0301", 5);
+    command(textarea, "DeleteBackward");
+    check("combining deletion", textarea.value, "a\u{1f600}");
+    command(textarea, "DeleteBackward");
+    check("surrogate deletion", textarea.value, "a");
+    reset(textarea, "end", 3);
+    events = [];
+    textarea.onbeforeinput = e => events.push(e.type);
+    textarea.oninput = e => events.push(e.type);
+    command(textarea, "DeleteToEndOfParagraph");
+    check("boundary no events", [textarea.value, events], ["end", []]);
+    textarea.onbeforeinput = textarea.oninput = null;
+    rich.innerHTML = "hello <span>world</span>";
+    rich.focus();
+    selection.collapse(rich.lastChild.firstChild, 5);
+    events = [];
+    rich.onbeforeinput = e => {
+        const range = e.getTargetRanges()[0];
+        events.push([e.type, e.inputType, range?.startOffset, range?.endOffset]);
+        check("beforeinput keeps caret", selection.isCollapsed, true);
+    };
+    command(rich, "DeleteWordBackward");
+    check("rich word deletion", rich.textContent, "hello" + String.fromCharCode(0xa0));
+    check("rich target range", events, [["beforeinput", "deleteWordBackward", 0, 5]]);
+    rich.onbeforeinput = null;
+    document.execCommand("undo");
+    check("rich word undo", [rich.textContent, selection.isCollapsed, selection.focusOffset], ["hello world", true, 5]);
+    for (const [label, html, offset, expected] of [
+        ["rich paragraph text", "<p>abc</p><p>def</p>", 1, "adef"],
+        ["rich paragraph join", "<p>abc</p><p>def</p>", 3, "abcdef"],
+        ["rich br join", "abc<br>def", 3, "abcdef"],
+    ]) {
+        rich.innerHTML = html;
+        const node = rich.firstChild.nodeType === Node.TEXT_NODE ? rich.firstChild : rich.firstChild.firstChild;
+        selection.collapse(node, offset);
+        command(rich, "DeleteToEndOfParagraph");
+        check(label, rich.textContent, expected);
+        if (label !== "rich paragraph text") check(label + " structure", rich.querySelectorAll("p, br").length, label === "rich br join" ? 0 : 1);
+    }
+    rich.innerHTML = "hello world";
+    selection.collapse(rich.firstChild, 11);
+    rich.onbeforeinput = e => e.preventDefault();
+    command(rich, "DeleteWordBackward");
+    check("rich canceled caret", [rich.textContent, selection.isCollapsed, selection.focusOffset], ["hello world", true, 11]);
+    rich.onbeforeinput = () => rich.remove();
+    command(rich, "DeleteWordBackward");
+    check("removed editor", [rich.isConnected, rich.textContent], [false, "hello world"]);
+});
+</script>

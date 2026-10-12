@@ -127,7 +127,7 @@ impl LineBoxData {
         if can_merge {
             let last = self.fragments.last_mut().unwrap();
             last.length_in_code_units += length;
-            last.append_glyph_run(glyphs.unwrap(), content_inline_size);
+            last.append_glyph_run(glyphs.unwrap(), content_inline_size, start - last.start);
             if trailing_whitespace.length_in_code_units == length {
                 last.trailing_whitespace.length_in_code_units += trailing_whitespace.length_in_code_units;
                 last.trailing_whitespace.inline_size += trailing_whitespace.inline_size;

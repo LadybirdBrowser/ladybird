@@ -72,6 +72,7 @@ interface Internals {
     // Resolves once the UI process reports that the event has been handled.
     [CreatesPromise] Promise<undefined> wheelThroughUIProcess(double x, double y, double deltaX, double deltaY, optional boolean precise = false, optional ScrollGesturePhase scrollGesturePhase = "none");
     undefined sendKey(HTMLElement target, DOMString keyName, optional unsigned short modifiers = 0, optional unsigned long repeatCount = 1);
+    undefined sendTextEditingCommand(HTMLElement target, DOMString commandName, optional boolean extendSelection = false);
     undefined paste(HTMLElement target, DOMString text);
     undefined pasteFromClipboard();
     undefined commitText();

@@ -287,6 +287,7 @@ public:
     virtual GC::Ptr<DOM::Element> text_control_scroll_container() = 0;
 
     virtual void handle_insert(Utf16FlyString const& input_type, Utf16View) override;
+    virtual GC::Ptr<DOM::StaticRange> deletion_target_range(Utf16FlyString const& input_type) override;
     virtual void handle_delete(Utf16FlyString const& input_type, DispatchInputEvent = DispatchInputEvent::Yes) override;
     virtual GC::Ptr<DOM::Node> mouse_selection_scope() override;
     virtual void select_all() override;
@@ -294,8 +295,13 @@ public:
     virtual void set_selection_focus(GC::Ref<DOM::Node>, size_t offset, TextAffinity = TextAffinity::Downstream) override;
     virtual void move_cursor_to_start(CollapseSelection) override;
     virtual void move_cursor_to_end(CollapseSelection) override;
-    void move_cursor_to_start_of_current_line(CollapseSelection);
-    void move_cursor_to_end_of_current_line(CollapseSelection);
+    virtual void move_cursor_to_start_of_current_line(CollapseSelection) override;
+    virtual void move_cursor_to_end_of_current_line(CollapseSelection) override;
+    virtual void move_cursor_to_start_of_paragraph(CollapseSelection) override;
+    virtual void move_cursor_to_end_of_paragraph(CollapseSelection) override;
+    virtual void move_cursor_to_physical_line_boundary(bool left, CollapseSelection) override;
+    virtual void move_cursor_to_previous_page(CollapseSelection collapse) override { move_cursor_by_page(false, collapse); }
+    virtual void move_cursor_to_next_page(CollapseSelection collapse) override { move_cursor_by_page(true, collapse); }
     virtual void increment_cursor_position_offset(CollapseSelection) override;
     virtual void decrement_cursor_position_offset(CollapseSelection) override;
     virtual void increment_cursor_position_to_next_word(CollapseSelection) override;
@@ -316,6 +322,7 @@ private:
 
     void collapse_selection_to_offset(size_t, TextAffinity = TextAffinity::Downstream);
     void move_selection_end_to(size_t offset, TextAffinity, CollapseSelection);
+    void move_cursor_by_page(bool forward, CollapseSelection);
     void scroll_cursor_into_view();
     void selection_was_changed(SelectionSource);
 

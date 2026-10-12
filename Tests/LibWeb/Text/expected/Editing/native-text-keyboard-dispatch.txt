@@ -1,0 +1,7 @@
+original keydown before movement: PASS
+movement after keydown: PASS
+keydown cancellation: PASS
+post-keydown focus target: PASS
+selector selection without Shift: PASS
+blur cancels editing: PASS
+removed focus target: PASS

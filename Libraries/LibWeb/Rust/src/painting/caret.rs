@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_pixels::CssPixelRect;
+use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_data::{FragmentRecord, SELECTION_STATE_START_AND_END};
@@ -22,9 +22,23 @@ fn caret_rect_in_fragment(
     owner: NodeSlotId,
     fragment: &FragmentRecord,
     offset: usize,
+    affinity_is_downstream: bool,
 ) -> CaretRectResult {
+    let mut rect = text_fragment::range_rect(layout_arena, fragment, SELECTION_STATE_START_AND_END, offset, offset);
+    if let Some(offsets) =
+        text_fragment::compute_selection_offsets(layout_arena, fragment, SELECTION_STATE_START_AND_END, offset, offset)
+        && let Some(coordinate) = text_fragment::caret_inline_offset(fragment, offsets.start, affinity_is_downstream)
+    {
+        let origin = text_fragment::absolute_rect(layout_arena, fragment);
+        let coordinate = CssPixels::nearest_value_for_f32(coordinate);
+        if text_fragment::is_horizontal(fragment) {
+            rect.x = origin.x + coordinate;
+        } else {
+            rect.y = origin.y + coordinate;
+        }
+    }
     CaretRectResult {
-        rect: text_fragment::range_rect(layout_arena, fragment, SELECTION_STATE_START_AND_END, offset, offset),
+        rect,
         style_source: text_fragment::style_source(layout_arena, fragment),
         owner,
         node: fragment.layout_node,
@@ -57,7 +71,13 @@ pub(crate) fn caret_rect_for_position(
     let (block, index) = direct.or(fallback)?;
     let side = layout_arena.committed_side_data(block);
     let fragment = &side.fragments()[index as usize];
-    Some(caret_rect_in_fragment(layout_arena, block, fragment, offset))
+    Some(caret_rect_in_fragment(
+        layout_arena,
+        block,
+        fragment,
+        offset,
+        affinity_is_downstream,
+    ))
 }
 
 pub(crate) fn caret_rect_in_dom_range(
