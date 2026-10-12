@@ -1,5 +1,5 @@
-// Values nothing uses are removed, but checks that may exit stay. The unused sum does not even check for overflow,
-// since nothing reads its bits (see truncation), while the product still checks for -0.
+// Values nothing uses are removed, but checks that may exit stay. The unused sum and product go too: int32 arithmetic
+// only exits to produce results that are no int32, which nothing reads here.
 
 function unused(a, b) {
     const sum = a + b;
@@ -18,5 +18,5 @@ jit.compile(unused);
 // CHECK-NOT: LoadSlot r2
 // CHECK-COUNT-2: CheckInt32
 // CHECK-NOT: Add (
-// CHECK: Int32Mul
+// CHECK-NOT: Mul (
 // CHECK: Return
