@@ -29,93 +29,32 @@
 
 namespace Web::HTML {
 
-// The next time, in the local time of `effect`, at which the main thread has events of it to send: where its phase
-// changes if a listener hears its events there, or where its next iteration starts if one hears its iteration events.
-// Infinity where it has none.
-static Optional<double> next_event_in_local_time(Animations::KeyframeEffect const& effect, double local_time)
+// Whether the timing of `effect` is in time values of `type` throughout: milliseconds on the document timeline, and
+// percentages of progress on a scroll timeline.
+static bool timing_is_in(Animations::KeyframeEffect const& effect, Animations::TimeValue::Type type)
 {
-    if (effect.start_delay().type != Animations::TimeValue::Type::Milliseconds
-        || effect.iteration_duration().type != Animations::TimeValue::Type::Milliseconds
-        || effect.active_duration().type != Animations::TimeValue::Type::Milliseconds)
-        return {};
-    auto start_delay = effect.start_delay().value;
-    auto iteration_duration = effect.iteration_duration().value;
-    auto active_end = start_delay + effect.active_duration().value;
-    if (local_time >= active_end)
-        return {};
-    auto next_event = AK::Infinity<double>;
-    if (effect.phase_events_are_heard())
-        next_event = local_time < start_delay ? start_delay : active_end;
-    if (iteration_duration > 0 && effect.css_animation_iteration_events_are_heard()) {
-        auto next_iteration_start = start_delay + max(1.0, floor((local_time - start_delay) / iteration_duration) + 1) * iteration_duration;
-        next_event = min(next_event, min(next_iteration_start, active_end));
-    }
-    return next_event;
+    return effect.start_delay().type == type && effect.iteration_duration().type == type && effect.active_duration().type == type;
 }
 
-// The local times of `effect`, around `local_time` on a scroll timeline, from which and up to which the main thread
-// has no events of it to send: where its phase changes if a listener hears its events there, or where its current
-// iteration changes if one hears its iteration events.
-struct LocalInterval {
-    double start { -AK::Infinity<double> };
-    double end { AK::Infinity<double> };
-};
-
-static Optional<LocalInterval> eventless_interval_in_local_time(Animations::KeyframeEffect const& effect, double local_time)
-{
-    if (effect.start_delay().type != Animations::TimeValue::Type::Percentage
-        || effect.iteration_duration().type != Animations::TimeValue::Type::Percentage
-        || effect.active_duration().type != Animations::TimeValue::Type::Percentage)
-        return {};
-    auto start_delay = effect.start_delay().value;
-    auto iteration_duration = effect.iteration_duration().value;
-    auto active_end = start_delay + effect.active_duration().value;
-    LocalInterval interval;
-    if (effect.phase_events_are_heard()) {
-        if (local_time < start_delay)
-            interval.end = start_delay;
-        else if (local_time < active_end)
-            interval = { start_delay, active_end };
-        else
-            interval.start = active_end;
-    }
-    if (iteration_duration > 0 && effect.css_animation_iteration_events_are_heard() && local_time >= start_delay && local_time < active_end) {
-        auto iteration_start = start_delay + floor((local_time - start_delay) / iteration_duration) * iteration_duration;
-        interval.start = max(interval.start, iteration_start);
-        interval.end = min(interval.end, iteration_start + iteration_duration);
-    }
-    return interval;
-}
-
-// Adds the scroll timeline `timeline` that `effect` runs on, at `local_time`, to `scroll_timelines`, narrowed to the
-// progress around its current time over which the effect has no events for the main thread to send. Answers whether a
+// Adds the scroll timeline `timeline` that `effect` runs on, at `local_time`, to `scroll_timelines`. Answers whether a
 // tick may sample it.
-static bool plan_scroll_timeline(Vector<Layout::RustFFI::FfiPlannedScrollTimeline>& scroll_timelines, Animations::ScrollTimeline const& timeline, Animations::KeyframeEffect const& effect, Optional<Animations::TimeValue> local_time, double playback_rate)
+static bool plan_scroll_timeline(Vector<Layout::RustFFI::FfiPlannedScrollTimeline>& scroll_timelines, Animations::ScrollTimeline const& timeline, Animations::KeyframeEffect const& effect, Optional<Animations::TimeValue> local_time)
 {
     auto const& scroller = timeline.followed_scroller();
     auto progress = timeline.current_time();
     if (!scroller.has_value() || !progress.has_value() || progress->type != Animations::TimeValue::Type::Percentage
-        || !local_time.has_value() || local_time->type != Animations::TimeValue::Type::Percentage)
-        return false;
-    auto interval = eventless_interval_in_local_time(effect, local_time->value);
-    if (!interval.has_value())
+        || !local_time.has_value() || local_time->type != Animations::TimeValue::Type::Percentage
+        || !timing_is_in(effect, Animations::TimeValue::Type::Percentage))
         return false;
     auto scroller_id = scroller->scroll_node.node_id.value();
-    auto index = scroll_timelines.find_first_index_if([&](auto const& planned) { return planned.scroller == scroller_id && planned.vertical == scroller->vertical; });
-    if (!index.has_value()) {
-        index = scroll_timelines.size();
+    if (!scroll_timelines.find_first_index_if([&](auto const& planned) { return planned.scroller == scroller_id && planned.vertical == scroller->vertical; }).has_value()) {
         scroll_timelines.append({
             .scroller = scroller_id,
             .vertical = scroller->vertical,
             .max_scroll_offset = scroller->max_scroll_offset,
             .progress = progress->value,
-            .progress_start = -AK::Infinity<double>,
-            .progress_end = AK::Infinity<double>,
         });
     }
-    auto& planned = scroll_timelines[*index];
-    planned.progress_start = max(planned.progress_start, progress->value - (local_time->value - interval->start) / playback_rate);
-    planned.progress_end = min(planned.progress_end, progress->value + (interval->end - local_time->value) / playback_rate);
     return true;
 }
 
@@ -225,12 +164,11 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
     if (may_plan) {
         // The plan reads the boxes of the elements it names and seals its round from the document's layout.
         Layout::ForcedReadScope read { document };
-        // The elements whose running animations a tick samples, the timestamp of the next event of the document's
-        // animations, at which the main thread takes over again, the timestamp at which the sampled animations of the
+        // The elements whose running animations a tick samples, the timestamp at which the sampled animations of the
         // document timeline have all ended, after which only a scroll moves anything, and the scroll timelines a tick
-        // samples where the compositor has scrolled to.
+        // samples where the compositor has scrolled to. The ticks go on past the events of the animations, which the
+        // main thread sends as it gets to them.
         Vector<u32> elements;
-        double deadline = AK::Infinity<double>;
         double last_end = -AK::Infinity<double>;
         Vector<Layout::RustFFI::FfiPlannedScrollTimeline> scroll_timelines;
         Vector<u32> held_elements;
@@ -257,21 +195,18 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
                 if (scroll_timeline && !scroll_timeline->followed_scroller().has_value())
                     return false;
                 // What the compositor runs, what the main thread does not sample per frame either, or what no box shows,
-                // a tick does not sample: the lane only stops at its events.
+                // a tick does not sample.
                 bool const tick_samples = !runs_on_compositor(effect) && !effect.can_skip_per_frame_style_update() && !no_box_shows(effect, target, read);
                 if (tick_samples && !tick_can_sample(document, effect, target, read))
                     return false;
                 auto local_time = effect.local_time();
                 if (scroll_timeline) {
-                    if (!plan_scroll_timeline(scroll_timelines, *scroll_timeline, effect, local_time, animation.playback_rate()))
+                    if (!plan_scroll_timeline(scroll_timelines, *scroll_timeline, effect, local_time))
                         return false;
-                } else {
-                    if (!local_time.has_value() || local_time->type != Animations::TimeValue::Type::Milliseconds)
-                        return false;
-                    auto next_event = next_event_in_local_time(effect, local_time->value);
-                    if (!next_event.has_value())
-                        return false;
-                    deadline = min(deadline, timeline_time->value + (*next_event - local_time->value) / animation.playback_rate());
+                } else if (!local_time.has_value() || local_time->type != Animations::TimeValue::Type::Milliseconds
+                    || !timing_is_in(effect, Animations::TimeValue::Type::Milliseconds)
+                    || local_time->value >= effect.start_delay().value + effect.active_duration().value) {
+                    return false;
                 }
                 if (!tick_samples)
                     return true;
@@ -304,12 +239,11 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
             }
             if (any_of(held_elements, [&](auto element) { return elements.contains_slow(element); }))
                 return false;
-            return !elements.is_empty() && deadline > timeline_time->value;
+            return !elements.is_empty();
         };
         bool const animates = plan();
         if (!animates) {
             elements.clear();
-            deadline = AK::Infinity<double>;
             last_end = -AK::Infinity<double>;
         }
         // The lane's ticks may also follow the pointer, and hover what is under it while a task runs.
@@ -357,7 +291,7 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
         }
         if (animates || hover.has_value()) {
             auto time_origin = document.relevant_settings_object().time_origin();
-            Layout::RustFFI::render_state_seal_clock_plan(arena->host(), read, elements.data(), elements.size(), time_origin, deadline, last_end, scroll_timelines.data(), scroll_timelines.size(), hover.has_value() ? &*hover : nullptr, update_serial);
+            Layout::RustFFI::render_state_seal_clock_plan(arena->host(), read, elements.data(), elements.size(), time_origin, last_end, scroll_timelines.data(), scroll_timelines.size(), hover.has_value() ? &*hover : nullptr, update_serial);
             return true;
         }
     }

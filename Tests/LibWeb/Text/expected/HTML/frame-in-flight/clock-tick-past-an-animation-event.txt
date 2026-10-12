@@ -1,0 +1,4 @@
+lane after a tick past the event: ticking
+the presented height is the animation's at the tick: true
+last frame presented by: clock
+iteration events sent in the task: 0

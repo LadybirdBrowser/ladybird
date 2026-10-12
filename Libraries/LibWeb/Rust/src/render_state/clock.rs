@@ -71,8 +71,6 @@ pub(crate) struct ClockPlan {
     elements: Vec<StyleNodeID>,
     /// The monotonic time, in milliseconds, at which the document's timestamps are zero.
     time_origin: f64,
-    /// The timestamp of the next event of the animations, which the host sends: a tick at or past it samples nothing.
-    deadline: f64,
     /// The timestamp at which the animations of the document timeline a tick samples have all ended: the tick at or
     /// past it shows their ends, and after it only a scroll moves anything.
     last_end: f64,
@@ -98,9 +96,6 @@ pub struct FfiPlannedScrollTimeline {
     pub max_scroll_offset: f64,
     /// The progress, in percent, at the scroll offset the host laid out.
     pub progress: f64,
-    /// The progress from which, and up to which, the timeline's animations send no event the host has listeners for.
-    pub progress_start: f64,
-    pub progress_end: f64,
 }
 
 /// Where the compositor had scrolled the scroll node of an element, or of a document's viewport, by its unique node id,
@@ -117,7 +112,6 @@ impl ClockPlan {
     pub(crate) fn new(
         elements: Vec<StyleNodeID>,
         time_origin: f64,
-        deadline: f64,
         last_end: f64,
         scroll_timelines: Vec<FfiPlannedScrollTimeline>,
         round: ClockRound,
@@ -126,7 +120,6 @@ impl ClockPlan {
         Self {
             elements,
             time_origin,
-            deadline,
             last_end,
             scroll_timelines,
             round,
@@ -136,8 +129,8 @@ impl ClockPlan {
     }
 
     /// The progress of the scroll timelines where `scroll_offsets` scrolled their scrollers to, or where the host laid
-    /// out those it has none for. Past the progress at which an animation sends an event, the host has it to send.
-    fn scroll_progress(&self, scroll_offsets: &[FfiScrollOffset]) -> Result<SmallVec<[ScrollProgress; 2]>, Park> {
+    /// out those it has none for.
+    fn scroll_progress(&self, scroll_offsets: &[FfiScrollOffset]) -> SmallVec<[ScrollProgress; 2]> {
         self.scroll_timelines
             .iter()
             .map(|timeline| {
@@ -148,14 +141,11 @@ impl ClockPlan {
                         let position = if timeline.vertical { offset.y } else { offset.x };
                         position / timeline.max_scroll_offset * 100.0
                     });
-                if !(timeline.progress_start..timeline.progress_end).contains(&progress) {
-                    return Err(Park("scrolled outside a scroll timeline's range"));
-                }
-                Ok(ScrollProgress {
+                ScrollProgress {
                     scroller: timeline.scroller,
                     vertical: timeline.vertical,
                     progress,
-                })
+                }
             })
             .collect()
     }
@@ -207,8 +197,8 @@ pub(crate) struct Lane {
     /// infinity for the lane's frame, and the progress at which it shows the plan's scroll timelines.
     shown_at: f64,
     shown_scroll_progress: SmallVec<[ScrollProgress; 2]>,
-    /// Whether a tick found the lane could sample no more: past the deadline or the animations' ends, or something only
-    /// the host computes.
+    /// Whether a tick found the lane could sample no more: past the animations' ends, or something only the host
+    /// computes.
     parked: bool,
     /// Whether a tick left its frame to the host, after which the fork may hold what no frame the lane presented shows,
     /// such as visual contexts of another structure than the compositor has: the lane presents no other frame.
@@ -1083,7 +1073,7 @@ impl Drop for Lane {
 impl Lane {
     /// A lane whose ticks record and present with `recorder`, follow `plan`, and write what `state` says.
     fn new(recorder: ClockRecorder, plan: ClockPlan, state: LaneState) -> Self {
-        let shown_scroll_progress = plan.scroll_progress(&[]).unwrap_or_default();
+        let shown_scroll_progress = plan.scroll_progress(&[]);
         let parked = !plan.animates();
         Self {
             recording: TickRecording(Riding::landed(recorder)),
@@ -1132,7 +1122,7 @@ impl Lane {
     /// one it followed.
     fn replan(&mut self, plan: ClockPlan) {
         self.parked = !plan.animates();
-        self.shown_scroll_progress = plan.scroll_progress(&[]).unwrap_or_default();
+        self.shown_scroll_progress = plan.scroll_progress(&[]);
         self.shown_at = f64::NEG_INFINITY;
         self.replan_host_effects(&plan.elements);
         self.plan = plan;
@@ -1150,8 +1140,8 @@ impl Lane {
     }
 
     /// Samples the plan's animations at the timestamp of `frame_time_nanoseconds` and where the compositor has scrolled
-    /// to, where `samples_animations`, shows the samples, lays out what they moved and presents the frame. A tick at or
-    /// past the deadline, or one that needs the host, parks the lane, and so does the tick that shows the ends of the
+    /// to, where `samples_animations`, shows the samples, lays out what they moved and presents the frame. A tick that
+    /// needs the host parks the lane, and so does the tick that shows the ends of the
     /// animations where no scroll moves anything after them. A tick handed `pointer`, where the pointer moved since
     /// the last tick, hovers what is under it first (see [`hover`]). Answers none where the lane has no fork to tick on.
     fn tick_on_fork(
@@ -1195,10 +1185,7 @@ impl Lane {
         // What the plan's animations show at the tick, where the lane still samples them.
         let progress = match samples_animations {
             false => None,
-            true => self.sample_progress(sampled_at).unwrap_or_else(|_| {
-                self.parked = true;
-                None
-            }),
+            true => self.sample_progress(),
         };
         if progress.is_none() && hovers.is_none() && !transitions {
             return ticked;
@@ -1297,18 +1284,15 @@ impl Lane {
         ticked
     }
 
-    /// The progress of the scroll timelines a tick sampled at `sampled_at` samples the plan's animations at, or none where
-    /// a frame that showed the document timeline's animations ended shows them already and nothing scrolled since. A tick
-    /// at or past the deadline, or past what the scroll timelines plan for, parks the lane.
-    fn sample_progress(&self, sampled_at: SampleTime) -> Result<Option<SmallVec<[ScrollProgress; 2]>>, Park> {
-        if sampled_at.0 >= self.plan.deadline {
-            return Err(Park("past the deadline"));
-        }
-        let scroll_progress = self.plan.scroll_progress(&self.scroll_offsets)?;
+    /// The progress of the scroll timelines a tick samples the plan's animations at, or none where a frame that showed
+    /// the document timeline's animations ended shows them already and nothing scrolled since. The ticks go on past the
+    /// events of the animations, which the host sends as it gets to them.
+    fn sample_progress(&self) -> Option<SmallVec<[ScrollProgress; 2]>> {
+        let scroll_progress = self.plan.scroll_progress(&self.scroll_offsets);
         if self.shown_at >= self.plan.last_end && scroll_progress == self.shown_scroll_progress {
-            return Ok(None);
+            return None;
         }
-        Ok(Some(scroll_progress))
+        Some(scroll_progress)
     }
 
     /// Lays out what the tick moved, whose effects it sampled at `sampled_at`, and presents the frame.

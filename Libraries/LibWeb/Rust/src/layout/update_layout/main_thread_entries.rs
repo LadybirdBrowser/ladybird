@@ -85,7 +85,6 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
     elements: *const u32,
     count: usize,
     time_origin: f64,
-    deadline: f64,
     last_end: f64,
     scroll_timelines: *const crate::render_state::FfiPlannedScrollTimeline,
     scroll_timeline_count: usize,
@@ -119,7 +118,6 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
                 crate::render_state::ClockPlan::new(
                     elements,
                     time_origin,
-                    deadline,
                     last_end,
                     scroll_timelines.to_vec(),
                     round,
