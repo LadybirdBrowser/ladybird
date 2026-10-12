@@ -117,9 +117,6 @@ Messages::MediaServer::CreateVideoPresentationChannelResponse ConnectionFromClie
 
     // A replaced connection releases its edges; the presentation client that held them is gone or will ask again.
     m_video_presentation_connection = Media::VideoPresentationServerConnection::construct(move(paired_transports.local));
-#ifdef AK_OS_WINDOWS
-    m_video_presentation_connection->transport().set_peer_pid(transport().peer_pid());
-#endif
     return move(paired_transports.remote_handle);
 }
 

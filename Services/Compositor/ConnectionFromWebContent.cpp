@@ -41,7 +41,7 @@ void ConnectionFromWebContent::offer_video_presentation_channel(IPC::TransportHa
     m_video_presentation_connection = adopt_ref(*new Media::VideoPresentationClientConnection(transport_or_error.release_value()));
 
 #ifdef AK_OS_WINDOWS
-    m_video_presentation_connection->transport().set_peer_pid(transport().peer_pid());
+    m_video_presentation_connection->async_init_transport(Core::System::getpid());
 #endif
 
     dbgln_if(VIDEO_PRESENTATION_CHANNEL_DEBUG, "Compositor: established video presentation channel for WebContent (client_id={})", client_id());
