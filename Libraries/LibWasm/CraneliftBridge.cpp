@@ -1066,41 +1066,11 @@ ErrorOr<Core::AnonymousBuffer> compile_cranelift_buffer(Core::AnonymousBuffer co
 {
     auto output = TRY(create_cranelift_output_buffer(input.bytes()));
 
-#if defined(AK_OS_WINDOWS)
-    auto process = TRY([&]() -> ErrorOr<Core::Process> {
-        // FIXME: Use Core::FileAction::DupFd once it is supported on Windows so spawning does not require temporarily
-        //        inheritable handles.
-        static Mutex spawn_mutex;
-        MutexLocker locker(spawn_mutex);
-
-        auto inherited_input_fd = TRY(Core::System::dup(input.fd()));
-        ScopeGuard close_inherited_input_fd { [&]() { (void)Core::System::close(inherited_input_fd); } };
-        TRY(Core::System::set_close_on_exec(inherited_input_fd, false));
-
-        auto inherited_output_fd = TRY(Core::System::dup(output.fd()));
-        ScopeGuard close_inherited_output_fd { [&]() { (void)Core::System::close(inherited_output_fd); } };
-        TRY(Core::System::set_close_on_exec(inherited_output_fd, false));
-
-        Vector<ByteString> arguments;
-        arguments.append(ByteString::number(reinterpret_cast<uintptr_t>(to_handle(inherited_input_fd))));
-        arguments.append(ByteString::number(input.size()));
-        arguments.append(ByteString::number(reinterpret_cast<uintptr_t>(to_handle(inherited_output_fd))));
-        arguments.append(ByteString::number(output.size()));
-
-        return Core::Process::spawn({
-            .name = "cranelift-compiler"sv,
-            .executable = cranelift_compiler_path(),
-            .die_with_parent = true,
-            .arguments = arguments,
-        });
-    }());
-#else
-    // Reserve the child descriptor numbers with close-on-exec duplicates. This prevents concurrent spawns from claiming
-    // or inheriting them before the child-side DupFd actions replace them and clear close-on-exec.
-    auto compiler_input_fd = TRY(Core::System::fcntl(input.fd(), F_DUPFD_CLOEXEC, STDERR_FILENO + 1));
+    // The child is given duplicates that it alone inherits, under their own values.
+    auto compiler_input_fd = TRY(Core::System::dup(input.fd()));
     ScopeGuard close_compiler_input_fd { [&]() { (void)Core::System::close(compiler_input_fd); } };
 
-    auto compiler_output_fd = TRY(Core::System::fcntl(output.fd(), F_DUPFD_CLOEXEC, STDERR_FILENO + 1));
+    auto compiler_output_fd = TRY(Core::System::dup(output.fd()));
     ScopeGuard close_compiler_output_fd { [&]() { (void)Core::System::close(compiler_output_fd); } };
 
     Vector<ByteString> arguments;
@@ -1115,11 +1085,10 @@ ErrorOr<Core::AnonymousBuffer> compile_cranelift_buffer(Core::AnonymousBuffer co
         .die_with_parent = true,
         .arguments = arguments,
         .file_actions = {
-            Core::FileAction::DupFd { .write_fd = input.fd(), .fd = compiler_input_fd },
-            Core::FileAction::DupFd { .write_fd = output.fd(), .fd = compiler_output_fd },
+            Core::FileAction::DupFd { .write_fd = compiler_input_fd, .fd = compiler_input_fd },
+            Core::FileAction::DupFd { .write_fd = compiler_output_fd, .fd = compiler_output_fd },
         },
     }));
-#endif
 
     if (TRY(process.wait_for_termination()) != 0)
         return Error::from_string_literal("Failed to compile a WebAssembly module");
