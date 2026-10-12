@@ -302,6 +302,16 @@ impl BinaryOp {
         )
     }
 
+    /// Whether swapping the operands of the int32 operation keeps its
+    /// result. The generic Add is no such operation: it concatenates
+    /// strings, and converts its operands in order.
+    pub fn is_commutative_on_int32(self) -> bool {
+        matches!(
+            self,
+            BinaryOp::Add | BinaryOp::Mul | BinaryOp::BitwiseAnd | BinaryOp::BitwiseOr | BinaryOp::BitwiseXor
+        )
+    }
+
     /// Whether the operation converts its operands with ToInt32.
     pub fn is_bitwise(self) -> bool {
         matches!(
