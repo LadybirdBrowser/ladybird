@@ -1,0 +1,3 @@
+pagehide: request threw, document.location is null
+unload: request threw, document.location is null
+after unload: request threw, document.location is null

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The page transition and unload events of a document whose iframe was removed run when its navigable has no
+    // container anymore. Other engines run them before the iframe is detached, so their handlers still see a fully
+    // active document: they can open requests, such as the beacons of analytics scripts, and read document.location.
+    // Once the document is gone, both stop working.
+    promiseTest(async () => {
+        const frame = document.createElement("iframe");
+        frame.srcdoc = "<p>child</p>";
+        const loaded = new Promise(resolve => (frame.onload = resolve));
+        document.body.append(frame);
+        await loaded;
+        const frameWindow = frame.contentWindow;
+        const frameDocument = frame.contentDocument;
+
+        const check = label => {
+            let request;
+            try {
+                const xhr = new frameWindow.XMLHttpRequest();
+                xhr.open("POST", location.href);
+                xhr.send("payload");
+                request = "opened and sent";
+            } catch (error) {
+                request = "threw";
+            }
+            const documentLocation = frameDocument.location === null ? "null" : "a Location";
+            println(`${label}: request ${request}, document.location is ${documentLocation}`);
+        };
+
+        const unloaded = new Promise(resolve => {
+            frameWindow.addEventListener("pagehide", () => check("pagehide"));
+            frameWindow.addEventListener("unload", () => {
+                check("unload");
+                resolve();
+            });
+        });
+        frame.remove();
+        await unloaded;
+        await new Promise(resolve => setTimeout(resolve, 0));
+        check("after unload");
+    });
+</script>
