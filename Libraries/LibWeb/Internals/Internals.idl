@@ -250,9 +250,9 @@ interface Internals {
     DOMString clockLaneState(Document document);
     // Whether the lane of a frame the document sampled after the one it presented last has yet to come together.
     boolean clockLaneIsComing(Document document);
-    // The color, as a CSS color string, that a box a hover's transitions restyled showed in the last frame a tick of
-    // a clock lane presented, or null.
-    DOMString? presentedColor(Element element);
+    // The color, as a CSS color string, that the box of the element, or of its "::before", "::after" or "::marker"
+    // pseudo-element, showed in the last frame a tick of a clock lane presented where the tick restyled it, or null.
+    DOMString? presentedColor(Element element, optional DOMString pseudoElement);
     // The border box of the element in the last frame a clock tick presented.
     DOMRect? presentedBorderBox(Element element);
     // How many compositor animations drove the box of the element in the last frame a clock tick presented, or null
