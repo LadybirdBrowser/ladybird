@@ -7,6 +7,8 @@
 //! Constant folding and strength reduction.
 //!
 //! - Conversions and int32 operations of constants become constants.
+//! - Int32 operations that leave their left-hand side as it is, like
+//!   `x | 0`, become that value.
 //! - Branches on constants become jumps; truthiness branches on boxed
 //!   booleans test the unboxed boolean, and on boxed int32 values compare
 //!   the unboxed value with 0.
@@ -65,6 +67,28 @@ fn fold_int32_binary(op: BinaryOp, lhs: i32, rhs: i32) -> Option<i32> {
         // NB: A zero remainder of a negative dividend is -0.
         BinaryOp::Mod => lhs.checked_rem(rhs).filter(|remainder| *remainder != 0 || lhs >= 0),
         BinaryOp::Div => None,
+    }
+}
+
+fn fold_int32_wrapping_binary(op: BinaryOp, lhs: i32, rhs: i32) -> i32 {
+    match op {
+        BinaryOp::Add => lhs.wrapping_add(rhs),
+        BinaryOp::Sub => lhs.wrapping_sub(rhs),
+        BinaryOp::UnsignedRightShift => lhs.cast_unsigned().wrapping_shr((rhs & 31) as u32).cast_signed(),
+        _ => unreachable!("only additions, subtractions and unsigned right shifts wrap"),
+    }
+}
+
+/// Whether `x op rhs` is `x` for every int32 `x`. An unsigned right shift
+/// by 0 is not, unless it wraps: it makes negative values large numbers.
+fn is_int32_identity(op: BinaryOp, rhs: i32, wrapping: bool) -> bool {
+    match op {
+        BinaryOp::Add | BinaryOp::Sub | BinaryOp::BitwiseOr | BinaryOp::BitwiseXor => rhs == 0,
+        BinaryOp::LeftShift | BinaryOp::RightShift => rhs & 31 == 0,
+        BinaryOp::UnsignedRightShift => wrapping && rhs & 31 == 0,
+        BinaryOp::BitwiseAnd => rhs == -1,
+        BinaryOp::Mul => rhs == 1,
+        BinaryOp::Mod | BinaryOp::Div => false,
     }
 }
 
@@ -161,6 +185,7 @@ pub fn run(graph: &mut Graph) {
                     | Op::BoxBool
                     | Op::CheckInt32
                     | Op::Int32Binary { .. }
+                    | Op::Int32WrappingBinary { .. }
                     | Op::Int32Min
                     | Op::Int32Max
                     | Op::Int32Compare { .. }
@@ -218,6 +243,15 @@ pub fn run(graph: &mut Graph) {
                 Op::Int32Binary { op } => match (int32_of(graph, inputs[0]), int32_of(graph, inputs[1])) {
                     (Some(lhs), Some(rhs)) => fold_int32_binary(op, lhs, rhs)
                         .map(|result| constants.get_typed(graph, u64::from(result.cast_unsigned()), Repr::Int32)),
+                    (None, Some(rhs)) if is_int32_identity(op, rhs, false) => Some(inputs[0]),
+                    _ => None,
+                },
+                Op::Int32WrappingBinary { op } => match (int32_of(graph, inputs[0]), int32_of(graph, inputs[1])) {
+                    (Some(lhs), Some(rhs)) => {
+                        let result = fold_int32_wrapping_binary(op, lhs, rhs);
+                        Some(constants.get_typed(graph, u64::from(result.cast_unsigned()), Repr::Int32))
+                    }
+                    (None, Some(rhs)) if is_int32_identity(op, rhs, true) => Some(inputs[0]),
                     _ => None,
                 },
                 Op::Int32Min | Op::Int32Max if inputs[0] == inputs[1] => Some(inputs[0]),

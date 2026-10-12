@@ -1331,6 +1331,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 self.emit_box_bool(output, input);
             }
             Op::Int32Binary { op } => self.emit_int32_binary(node_id, *op),
+            Op::Int32WrappingBinary { op } => self.emit_int32_wrapping_binary(node_id, *op),
             Op::Int32Compare { comparison } => self.emit_int32_compare(node_id, *comparison),
             Op::CheckElements { kind } => self.emit_check_elements(node_id, *kind),
             Op::CheckTypedArray => self.emit_check_typed_array(node_id),

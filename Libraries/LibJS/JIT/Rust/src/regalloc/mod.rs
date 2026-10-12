@@ -332,6 +332,7 @@ fn constraints(node: &Node, registers: &RegisterSet) -> Constraints {
             condition: BranchCondition::Int32(_) | BranchCondition::TaggedEquals { .. },
             ..
         } => constraints.inputs[1] = InputConstraint::RegisterOrConstant,
+        Op::Int32WrappingBinary { .. } => constraints.inputs[1] = InputConstraint::RegisterOrConstant,
         Op::Int32Binary { op } if op != crate::ir::BinaryOp::Mul => {
             constraints.inputs[1] = InputConstraint::RegisterOrConstant;
             // The quotient of a remainder.

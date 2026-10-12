@@ -48,7 +48,7 @@ pub fn coverage_keys(graph: &Graph) -> Vec<String> {
 fn op_key(op: &Op) -> String {
     let name = op.name();
     match op {
-        Op::Int32Binary { op } => format!("{name}.{op:?}"),
+        Op::Int32Binary { op } | Op::Int32WrappingBinary { op } => format!("{name}.{op:?}"),
         Op::Int32Compare { comparison } => format!("{name}.{comparison:?}"),
         Op::CheckElements { kind } | Op::LoadElementAt { kind } | Op::StoreElementAt { kind } => {
             format!("{name}.{kind:?}")

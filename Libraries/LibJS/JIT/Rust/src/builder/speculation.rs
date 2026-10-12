@@ -585,7 +585,14 @@ impl GraphBuilder<'_> {
                 }
                 let value = self.read_int32(OperationInput::Operand(src))?;
                 let result = match op {
-                    UnaryOp::Plus | UnaryOp::ToInt32 => value,
+                    UnaryOp::Plus => value,
+                    // NB: The truncation pass needs to see what only reads
+                    //     the low 32 bits of a value; simplification removes
+                    //     the operation afterwards.
+                    UnaryOp::ToInt32 => {
+                        let zero = self.int32_constant(0);
+                        self.int32_binary(BinaryOp::BitwiseOr, value, zero)
+                    }
                     UnaryOp::BitwiseNot => {
                         let all_ones = self.int32_constant(-1);
                         self.int32_binary(BinaryOp::BitwiseXor, value, all_ones)

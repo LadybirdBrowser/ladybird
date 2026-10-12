@@ -124,6 +124,7 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         Op::BoxBool => with_inputs("BoxBool"),
         Op::CellAddress => with_inputs("CellAddress"),
         Op::Int32Binary { op } => with_inputs(&format!("Int32{op:?}")),
+        Op::Int32WrappingBinary { op } => with_inputs(&format!("Int32Wrapping{op:?}")),
         Op::Int32Compare { comparison } => with_inputs(&format!("Int32{comparison:?}")),
         Op::CheckElements { kind } => with_inputs(&format!("CheckElements {kind:?}")),
         Op::LoadElementAt { kind } | Op::StoreElementAt { kind } => with_inputs(&format!("{} {kind:?}", op.name())),
