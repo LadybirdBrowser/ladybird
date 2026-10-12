@@ -269,6 +269,7 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         | Op::Float64Min
         | Op::Float64Max
         | Op::Int32ToFloat64
+        | Op::BoolToInt32
         | Op::UnboxDouble
         | Op::BoxFloat64
         | Op::StringAddress
