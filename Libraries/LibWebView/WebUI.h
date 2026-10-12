@@ -16,6 +16,7 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
+#include <AK/WeakPtr.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/Transport.h>
 #include <LibWebCommon/Page/PageId.h>
@@ -51,7 +52,10 @@ public:
 protected:
     WebUI(WebContentClient&, Web::PageId, NonnullOwnPtr<IPC::Transport>, String host);
 
-    WebContentClient& client() const { return m_client; }
+    // NB: The client of a WebUI is destroyed when its process exits, which can happen before the WebUI's own
+    //     connection closes. Code that can run after that checks has_client() first.
+    WebContentClient& client() const { return *m_client; }
+    bool has_client() const { return !m_client.is_null(); }
 
     using Interface = Function<void(JsonValue)>;
 
@@ -62,7 +66,7 @@ private:
     virtual void die() override;
     virtual void received_message(String name, JsonValue data) override;
 
-    WebContentClient& m_client;
+    WeakPtr<WebContentClient> m_client;
     Web::PageId m_page_id;
     String m_host;
 

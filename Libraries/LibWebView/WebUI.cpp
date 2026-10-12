@@ -94,7 +94,8 @@ WebUI::~WebUI() = default;
 
 void WebUI::die()
 {
-    m_client.web_ui_disconnected({});
+    if (auto client = m_client.strong_ref())
+        client->web_ui_disconnected({});
 }
 
 void WebUI::register_interface(StringView name, Interface interface)
@@ -105,6 +106,9 @@ void WebUI::register_interface(StringView name, Interface interface)
 
 void WebUI::received_message(String name, JsonValue data)
 {
+    if (!has_client())
+        return;
+
     auto interface = m_interfaces.get(name);
     if (!interface.has_value()) {
         warnln("Received message from WebUI for unrecognized interface: {}", name);

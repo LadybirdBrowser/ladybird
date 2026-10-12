@@ -102,21 +102,21 @@ void DownloadsUI::register_interfaces()
 
 void DownloadsUI::download_added(FileDownloader::Download const& download)
 {
-    if (!is_download_of_session(download, client().is_private()))
+    if (!has_client() || !is_download_of_session(download, client().is_private()))
         return;
     async_send_message("downloadAdded"sv, serialize_download(download));
 }
 
 void DownloadsUI::download_updated(FileDownloader::Download const& download)
 {
-    if (!is_download_of_session(download, client().is_private()))
+    if (!has_client() || !is_download_of_session(download, client().is_private()))
         return;
     async_send_message("downloadUpdated"sv, serialize_download(download));
 }
 
 void DownloadsUI::download_removed(u64 id, IsPrivate is_private)
 {
-    if (is_private != client().is_private())
+    if (!has_client() || is_private != client().is_private())
         return;
     async_send_message("downloadRemoved"sv, JsonValue { id });
 }
