@@ -115,6 +115,16 @@ pub fn saves_only_gprs(op: &Op) -> bool {
     )
 }
 
+/// Whether the lowering of `op` computes its output from its first input
+/// as two-address instructions do, so that the output may take the
+/// register of that input where it dies.
+fn reuses_first_input(op: &Op) -> bool {
+    matches!(
+        op,
+        Op::Int32WrappingBinary { .. } | Op::Int32Binary { .. } | Op::BoolToInt32
+    )
+}
+
 /// A set of registers, as a bit mask of register numbers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct RegisterMask(pub u64);
@@ -844,12 +854,31 @@ impl<'a> Allocator<'a> {
             temps.push(register);
         }
 
+        // NB: Two-address instructions (like those of x86) write their output
+        //     over their first input, which then needs no copy where it dies
+        //     here. Nodes that may exit keep their inputs for the exit.
+        let first_input_register = match inputs.first() {
+            Some(Location::Register(register))
+                if node.frame_state.is_none()
+                    && reuses_first_input(&node.op)
+                    && is_allocated_value(self.graph, node.inputs[0])
+                    && self.liveness.dies_at[node_id.index()].contains(&node.inputs[0])
+                    && RegisterClass::of_register(*register) == RegisterClass::of(node.repr)
+                    && !temps.contains(register) =>
+            {
+                Some(*register)
+            }
+            _ => None,
+        };
+
         // Pick the output register before recording where exits find their
         // values: a node may exit after writing its output (a check of a value
         // it loaded), so no exit value may stay in that register.
         let pick_output = |allocator: &mut Self| match constraints.output {
             OutputConstraint::None => None,
-            OutputConstraint::Register => Some(allocator.pick_register(blocked, RegisterClass::of(node.repr))),
+            OutputConstraint::Register => Some(
+                first_input_register.unwrap_or_else(|| allocator.pick_register(blocked, RegisterClass::of(node.repr))),
+            ),
             OutputConstraint::FixedRegister(register) => {
                 debug_assert!(constraints.is_call || !blocked.contains(register));
                 allocator.evict(register);
