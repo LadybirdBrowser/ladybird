@@ -151,8 +151,9 @@ ErrorOr<int> dup(int handle)
 
 bool is_socket(int handle)
 {
-    // FILE_TYPE_PIPE is returned for sockets and pipes. We don't use Windows pipes.
-    return GetFileType(to_handle(handle)) == FILE_TYPE_PIPE;
+    int type = 0;
+    int length = sizeof(type);
+    return ::getsockopt(static_cast<SOCKET>(handle), SOL_SOCKET, SO_TYPE, reinterpret_cast<char*>(&type), &length) == 0;
 }
 
 ErrorOr<void> bind(int sockfd, struct sockaddr const* name, socklen_t name_size)
