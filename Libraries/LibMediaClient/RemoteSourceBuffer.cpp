@@ -47,6 +47,7 @@ Media::DemuxerScanState RemoteSourceBuffer::scan_state() const
 {
     return {
         .track_buffered_ranges = m_published_state.track_buffered_ranges,
+        .buffered_ranges_policy = m_published_state.buffered_ranges_policy,
         .reached_end_of_stream = m_reached_end_of_stream,
         .duration = m_published_state.highest_end_time,
     };

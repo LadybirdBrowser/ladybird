@@ -143,6 +143,24 @@ Optional<TimeRanges::Range> TimeRanges::range_at_or_after(AK::Duration point) co
 namespace IPC {
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, Media::TrackBufferedRanges const& track)
+{
+    TRY(encoder.encode(track.track_identifier));
+    TRY(encoder.encode(track.time_ranges));
+    TRY(encoder.encode(track.reached_end_of_stream));
+    return {};
+}
+
+template<>
+ErrorOr<Media::TrackBufferedRanges> decode(Decoder& decoder)
+{
+    auto identifier = TRY(decoder.decode<u64>());
+    auto ranges = TRY(decoder.decode<Media::TimeRanges>());
+    auto reached_end = TRY(decoder.decode<bool>());
+    return Media::TrackBufferedRanges { identifier, move(ranges), reached_end };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, Media::TimeRanges const& ranges)
 {
     TRY(encoder.encode(static_cast<u64>(ranges.size())));

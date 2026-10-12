@@ -83,11 +83,12 @@ void ISOBMFFDemuxer::start_scan()
             auto iterator = SampleIterator::create(payload.cursor, payload.movie, id, payload.movie_end);
             bool can_decode = false;
             bool last_sample_available = false;
+            bool track_reached_end = availability.closing_bytes_are_available();
             if (!iterator.is_error()) {
                 for (;;) {
                     auto next = iterator.value().next();
                     if (next.is_error()) {
-                        state.reached_end_of_stream = false;
+                        track_reached_end = false;
                         break;
                     }
                     if (!next.value().has_value())
@@ -108,10 +109,11 @@ void ISOBMFFDemuxer::start_scan()
                         buffered.add_range(max(sample.presentation_timestamp, AK::Duration::zero()), end);
                 }
             } else {
-                state.reached_end_of_stream = false;
+                track_reached_end = false;
             }
-            state.track_buffered_ranges.append(move(buffered));
-            state.reached_end_of_stream &= last_sample_available;
+            track_reached_end &= last_sample_available;
+            state.track_buffered_ranges.append({ id, move(buffered), track_reached_end });
+            state.reached_end_of_stream &= track_reached_end;
             {
                 MutexLocker locker(payload.durations->mutex);
                 auto& track_duration = payload.durations->tracks.get(id).value();

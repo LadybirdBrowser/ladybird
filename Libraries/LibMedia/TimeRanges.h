@@ -74,6 +74,15 @@ struct BufferedRanges {
 struct BufferedRangesScan {
     TimeRanges time_ranges;
     bool last_byte_range_has_samples { false };
+    u64 track_identifier { 0 };
+};
+
+struct TrackBufferedRanges {
+    u64 track_identifier { 0 };
+    TimeRanges time_ranges;
+    bool reached_end_of_stream { false };
+
+    bool operator==(TrackBufferedRanges const&) const = default;
 };
 
 }
@@ -106,6 +115,12 @@ struct AK::Formatter<Media::TimeRanges> : StandardFormatter {
 };
 
 namespace IPC {
+
+template<>
+MEDIA_API ErrorOr<void> encode(Encoder&, Media::TrackBufferedRanges const&);
+
+template<>
+MEDIA_API ErrorOr<Media::TrackBufferedRanges> decode(Decoder&);
 
 template<>
 MEDIA_API ErrorOr<void> encode(Encoder&, Media::TimeRanges const&);

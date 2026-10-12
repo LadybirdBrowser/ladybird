@@ -1365,6 +1365,7 @@ Vector<BufferedRangesScan> Reader::buffered_time_ranges_by_track(NonnullRefPtr<M
             continue;
 
         BufferedRangesScan scan;
+        scan.track_identifier = track_number;
         for (auto const& cached_range : m_buffered_ranges) {
             if (auto interval = cached_range.track_intervals.get(track_number); interval.has_value())
                 scan.time_ranges.add_range(max(AK::Duration::zero(), interval.value().start), interval.value().end);

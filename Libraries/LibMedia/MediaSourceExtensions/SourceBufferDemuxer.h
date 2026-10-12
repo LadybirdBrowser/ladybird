@@ -50,7 +50,8 @@ public:
     virtual ~SourceBufferDemuxer() override;
 
     Media::TimeRanges track_buffer_ranges(Media::Track const&) const;
-    Vector<Media::TimeRanges> track_buffered_ranges() const;
+    Vector<Media::TrackBufferedRanges> track_buffered_ranges() const;
+    static constexpr Media::BufferedRangesPolicy buffered_ranges_policy() { return Media::BufferedRangesPolicy::AllTracks; }
     Media::TimeRanges buffered_ranges() const;
     AK::Duration highest_presentation_timestamp(Media::Track const&) const;
 
@@ -147,7 +148,7 @@ private:
     static void recalculate_run_bounds(FrameRun&);
     static Optional<ReadonlyBytes> codec_configuration_after_frame_prefix(FrameRun const&, size_t frame_count);
 
-    Vector<Media::TimeRanges> track_buffered_ranges_while_locked() const;
+    Vector<Media::TrackBufferedRanges> track_buffered_ranges_while_locked() const;
     Media::DemuxerScanState scan_state_while_locked() const;
     AK::Duration highest_end_time_while_locked() const;
     bool may_read_frame_while_locked(TrackData const&, Media::CodedFrame const&) const;

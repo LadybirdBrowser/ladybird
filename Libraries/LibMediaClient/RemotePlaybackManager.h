@@ -148,6 +148,7 @@ private:
     void dispatch_state_change() const;
     void dispatch_buffered_ranges_change() const;
     bool source_has_enabled_track(ReadonlySpan<Media::Track> audio_tracks, ReadonlySpan<Media::Track> video_tracks) const;
+    Media::CombinedScanState scan_state_for_enabled_tracks(Media::DemuxerScanState const&, ReadonlySpan<Media::Track> audio_tracks, ReadonlySpan<Media::Track> video_tracks) const;
 
     RefPtr<Client> m_client;
     u64 m_session_id { 0 };
