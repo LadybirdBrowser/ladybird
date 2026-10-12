@@ -19,6 +19,7 @@
 #include <AK/Time.h>
 #include <AK/Windows.h>
 #include <AK/kmalloc.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/EventLoopImplementationWindows.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/System.h>
@@ -76,7 +77,6 @@ enum class CompletionType : u8 {
     Timer,
     Socket,
     PipeNotifier,
-    Process,
     Signal,
 };
 
@@ -218,14 +218,26 @@ struct EventLoopPipeNotifier final : CompletionPacket {
     bool pipe_read_is_pending { false };
 };
 
-struct EventLoopProcess final : CompletionPacket {
-    ~EventLoopProcess() = default;
+struct EventLoopProcess {
+    AK_ALLOC_WITH_KMALLOC;
 
     OwnHandle process;
     pid_t pid;
+    ULONG_PTR completion_key;
     Function<void(pid_t)> exit_handler;
     OwnHandle jobobject;
 };
+
+static ULONG_PTR allocate_process_completion_key()
+{
+    static Atomic<ULONG_PTR> s_next_key { 1 };
+    return s_next_key.fetch_add(2, AK::MemoryOrder::memory_order_relaxed);
+}
+
+static bool is_process_completion_key(ULONG_PTR key)
+{
+    return key & 1;
+}
 
 struct ThreadData {
     AK_ALLOC_WITH_KMALLOC;
@@ -353,6 +365,35 @@ int EventLoopImplementationWindows::exec()
 }
 
 static constexpr bool debug_event_loop = false;
+
+static void handle_process_message(OVERLAPPED_ENTRY const& entry)
+{
+    // A job delivers its message identifier in place of the byte count, which propagates through lpNumberOfBytes to
+    // dwNumberOfBytesTransferred.
+    // See: https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_associate_completion_port#remarks
+    DWORD const event_type = entry.dwNumberOfBytesTransferred;
+    if (event_type != JOB_OBJECT_MSG_EXIT_PROCESS && event_type != JOB_OBJECT_MSG_ABNORMAL_EXIT_PROCESS)
+        return;
+
+    // A job also reports the exits of its process's descendants, which may have jobs of their own, so the exit is only
+    // taken from the job that was registered for the exiting process.
+    auto const process_id = static_cast<pid_t>(reinterpret_cast<intptr_t>(entry.lpOverlapped));
+    auto owned_process = s_processes.with_locked([&](auto& processes) -> Optional<NonnullOwnPtr<EventLoopProcess>> {
+        auto process = processes.get(process_id);
+        if (!process.has_value() || process.value()->completion_key != entry.lpCompletionKey)
+            return {};
+        return processes.take(process_id);
+    });
+    if (!owned_process.has_value())
+        return;
+
+    // Run the handler from the event queue rather than inline: it may unregister notifiers whose completion packets
+    // were dequeued into this very batch and are not yet re-associated, which would fail the packet cancellation (and
+    // leave dangling pointers in the batch).
+    deferred_invoke([process = owned_process.release_value(), process_id] {
+        process->exit_handler(process_id);
+    });
+}
 
 static int notifier_type_to_network_event(NotificationType type)
 {
@@ -501,6 +542,10 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
     if (success) {
         for (ULONG i = 0; i < entries_removed; i++) {
             auto& entry = entries[i];
+            if (is_process_completion_key(entry.lpCompletionKey)) {
+                handle_process_message(entry);
+                continue;
+            }
             auto* packet = reinterpret_cast<CompletionPacket*>(entry.lpCompletionKey);
 
             if (packet->type == CompletionType::Signal) {
@@ -548,27 +593,6 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
                 NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data->iocp.handle, notifier_data->wait_event.handle, notifier_data, NULL, 0, 0, NULL);
                 VERIFY(NT_SUCCESS(status));
                 thread_data->pipe_notifiers_to_rearm.append(notifier_data);
-                continue;
-            }
-            if (packet->type == CompletionType::Process) {
-                auto* process_data = static_cast<EventLoopProcess*>(packet);
-                pid_t const process_id = process_data->pid;
-                // NOTE: This may seem like the incorrect parameter, but https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_associate_completion_port
-                // states that this field represents the event type indicator
-                DWORD const event_type = entry.dwNumberOfBytesTransferred;
-                if (reinterpret_cast<intptr_t>(entry.lpOverlapped) == process_id && (event_type == JOB_OBJECT_MSG_EXIT_PROCESS || event_type == JOB_OBJECT_MSG_ABNORMAL_EXIT_PROCESS)) {
-                    Optional<NonnullOwnPtr<EventLoopProcess>> owned_process = s_processes.with_locked([&](auto& processes) {
-                        return processes.take(process_id);
-                    });
-                    if (owned_process.has_value()) {
-                        // Run the handler from the event queue rather than inline: it may unregister notifiers whose
-                        // completion packets were dequeued into this very batch and are not yet re-associated, which
-                        // would fail the packet cancellation (and leave dangling pointers in the batch).
-                        deferred_invoke([process = owned_process.release_value(), process_id] {
-                            process->exit_handler(process_id);
-                        });
-                    }
-                }
                 continue;
             }
             VERIFY_NOT_REACHED();
@@ -787,13 +811,13 @@ void EventLoopManagerWindows::register_process(pid_t pid, ESCAPING Function<void
         VERIFY(succeeded);
 
         auto process_data = make<EventLoopProcess>();
-        process_data->type = CompletionType::Process;
         process_data->process.handle = process_handle;
         process_data->pid = pid;
+        process_data->completion_key = allocate_process_completion_key();
         process_data->exit_handler = move(exit_handler);
         process_data->jobobject.handle = job_object_handle;
 
-        JOBOBJECT_ASSOCIATE_COMPLETION_PORT joacp = { .CompletionKey = process_data.ptr(), .CompletionPort = thread_data->iocp.handle };
+        JOBOBJECT_ASSOCIATE_COMPLETION_PORT joacp = { .CompletionKey = reinterpret_cast<PVOID>(process_data->completion_key), .CompletionPort = thread_data->iocp.handle };
         succeeded = SetInformationJobObject(job_object_handle, JobObjectAssociateCompletionPortInformation, &joacp, sizeof(JOBOBJECT_ASSOCIATE_COMPLETION_PORT));
         VERIFY(succeeded);
 
@@ -810,7 +834,7 @@ void EventLoopManagerWindows::unregister_process(pid_t pid)
         return;
 
     auto process_data = maybe_process.release_value();
-    JOBOBJECT_ASSOCIATE_COMPLETION_PORT joacp = { .CompletionKey = process_data, .CompletionPort = nullptr };
+    JOBOBJECT_ASSOCIATE_COMPLETION_PORT joacp = { .CompletionKey = nullptr, .CompletionPort = nullptr };
     BOOL succeeded = SetInformationJobObject(process_data->jobobject.handle, JobObjectAssociateCompletionPortInformation, &joacp, sizeof(JOBOBJECT_ASSOCIATE_COMPLETION_PORT));
     VERIFY(succeeded);
 }
