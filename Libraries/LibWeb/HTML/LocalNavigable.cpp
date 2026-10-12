@@ -4273,7 +4273,7 @@ void LocalNavigable::reload(Optional<StorageSerializationRecord> navigation_api_
             .user_involvement = user_involvement,
         },
         {
-            .on_apply_complete = GC::create_function(heap(), [this, reloading_entry](HistoryStepResult result) {
+            .on_complete = GC::create_function(heap(), [this, reloading_entry](HistoryStepResult result) {
                 if (result == HistoryStepResult::Applied)
                     return;
 

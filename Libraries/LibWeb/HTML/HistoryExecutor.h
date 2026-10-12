@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/HashMap.h>
-#include <AK/HashTable.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Utf16String.h>
@@ -45,12 +44,10 @@ public:
         GC::Ptr<DOM::Document> pending_document {};
         Optional<CrossProcessId> local_target_navigable_id {};
         RefPtr<SessionHistoryEntry> local_target_entry {};
-        GC::Ptr<OnApplyHistoryStepComplete> on_apply_complete {};
         GC::Ptr<OnApplyHistoryStepComplete> on_complete {};
 
-        // State retained between a changing job and its continuation.
-        HashTable<CrossProcessId> claimed_navigables_awaiting_continuation {};
-        HashMap<CrossProcessId, GC::Ref<ChangingNavigableContinuationState>> changing_navigable_continuations {};
+        // State retained between a changing job and its continuation, null until the claiming job is ready.
+        HashMap<CrossProcessId, GC::Ptr<ChangingNavigableContinuationState>> changing_navigable_continuations {};
         HashMap<CrossProcessId, GC::Ref<GC::Function<void(HistoryNavigationPopulation)>>> pending_populations {};
     };
 
