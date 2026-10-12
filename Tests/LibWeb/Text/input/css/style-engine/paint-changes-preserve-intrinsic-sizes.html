@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #flex { display: flex; width: 500px; font-size: 16px; }
+    #flex > div { flex: 1 1 auto; border: 1px solid currentcolor; }
+</style>
+<main id="flex"></main>
+<script>
+    test(() => {
+        const flex = document.getElementById("flex");
+        for (let index = 0; index < 40; ++index) {
+            const child = document.createElement("div");
+            child.innerHTML = `<span>item ${index}</span><span style="display: inline-block">intrinsic child</span>`;
+            flex.append(child);
+        }
+        flex.offsetWidth;
+        let width = 500;
+        function resizeAfter(label, change, shouldMeasure) {
+            change();
+            internals.updateStyle();
+            const before = internals.intrinsicMeasurementCount();
+            width = width === 500 ? 501 : 500;
+            flex.style.width = `${width}px`;
+            const actualWidth = flex.offsetWidth;
+            const measurements = internals.intrinsicMeasurementCount() - before;
+            println(`${label}: ${shouldMeasure ? measurements > 0 : measurements === 0}`);
+            println(`${label} container width: ${actualWidth}`);
+        }
+        resizeAfter("unchanged children reuse measurements", () => {}, false);
+        resizeAfter("inherited color preserves measurements", () => { flex.style.color = "red"; }, false);
+        println(`child color: ${getComputedStyle(flex.firstElementChild).color}`);
+        println(`currentColor border: ${getComputedStyle(flex.firstElementChild).borderTopColor}`);
+        resizeAfter("border color preserves measurements", () => { for (const child of flex.children) child.style.borderColor = "blue"; }, false);
+        resizeAfter("opacity preserves measurements", () => { flex.style.opacity = "0.5"; }, false);
+        const oldTextWidth = flex.firstElementChild.lastElementChild.getBoundingClientRect().width;
+        resizeAfter("font change invalidates measurements", () => { flex.style.fontSize = "24px"; }, true);
+        println(`font change updates text width: ${flex.firstElementChild.lastElementChild.getBoundingClientRect().width > oldTextWidth}`);
+        resizeAfter("letter spacing invalidates measurements", () => { flex.style.letterSpacing = "3px"; }, true);
+        resizeAfter("word spacing invalidates measurements", () => { flex.style.wordSpacing = "4px"; }, true);
+        resizeAfter("border width invalidates measurements", () => { for (const child of flex.children) child.style.borderWidth = "5px"; }, true);
+        println(`border width: ${getComputedStyle(flex.firstElementChild).borderTopWidth}`);
+        for (const property of ["opacity", "color"]) {
+            const keyframes = property === "opacity" ? { opacity: [1, 0] } : { color: ["red", "blue"] };
+            const animations = [...flex.children].map(child => {
+                const animation = child.animate(keyframes, { duration: 1000, fill: "both" });
+                animation.pause();
+                animation.currentTime = 0;
+                return animation;
+            });
+            internals.updateStyle();
+            flex.offsetWidth;
+            resizeAfter(`animated ${property} preserves measurements`, () => { for (const animation of animations) animation.currentTime = 500; }, false);
+            println(`animated ${property} sample: ${getComputedStyle(flex.firstElementChild)[property]}`);
+            for (const animation of animations)
+                animation.cancel();
+            internals.updateStyle();
+            flex.offsetWidth;
+        }
+        const fontAnimation = flex.firstElementChild.animate({ fontSize: ["24px", "48px"] }, { duration: 1000, fill: "both" });
+        fontAnimation.pause();
+        fontAnimation.currentTime = 0;
+        internals.updateStyle();
+        flex.offsetWidth;
+        resizeAfter("animated font invalidates measurements", () => { fontAnimation.currentTime = 500; }, true);
+        println(`animated font size: ${getComputedStyle(flex.firstElementChild).fontSize}`);
+        fontAnimation.cancel();
+        internals.updateStyle();
+        println(`incremental layout stays consistent: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+        const svgHost = document.createElement("div");
+        svgHost.innerHTML = `<svg width="100" height="80"><rect x="10" y="10" width="20" height="20" fill="none" stroke="currentColor" stroke-width="10" /></svg>`;
+        document.body.append(svgHost);
+        const shape = svgHost.querySelector("rect");
+        shape.getBoundingClientRect();
+        shape.style.color = "transparent";
+        const widthBeforeRebuild = shape.getBoundingClientRect().width;
+        println(`SVG color change layout stays consistent: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+        println(`SVG stroke geometry matches fresh layout: ${shape.getBoundingClientRect().width === widthBeforeRebuild}`);
+        svgHost.remove();
+    });
+</script>

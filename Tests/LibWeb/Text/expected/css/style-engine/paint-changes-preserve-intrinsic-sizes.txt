@@ -1,0 +1,32 @@
+unchanged children reuse measurements: true
+unchanged children reuse measurements container width: 501
+inherited color preserves measurements: true
+inherited color preserves measurements container width: 500
+child color: rgb(255, 0, 0)
+currentColor border: rgb(255, 0, 0)
+border color preserves measurements: true
+border color preserves measurements container width: 501
+opacity preserves measurements: true
+opacity preserves measurements container width: 500
+font change invalidates measurements: true
+font change invalidates measurements container width: 501
+font change updates text width: true
+letter spacing invalidates measurements: true
+letter spacing invalidates measurements container width: 500
+word spacing invalidates measurements: true
+word spacing invalidates measurements container width: 501
+border width invalidates measurements: true
+border width invalidates measurements container width: 500
+border width: 5px
+animated opacity preserves measurements: true
+animated opacity preserves measurements container width: 501
+animated opacity sample: 0.5
+animated color preserves measurements: true
+animated color preserves measurements container width: 500
+animated color sample: rgb(128, 0, 128)
+animated font invalidates measurements: true
+animated font invalidates measurements container width: 501
+animated font size: 36px
+incremental layout stays consistent: true
+SVG color change layout stays consistent: true
+SVG stroke geometry matches fresh layout: true
