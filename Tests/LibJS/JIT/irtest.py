@@ -44,7 +44,7 @@ TESTS_DIR = Path(__file__).resolve().parent / "ir"
 DIRECTIVE = re.compile(
     r"//\s*(OPTIONS|REQUIRES|CHECK-FUNCTION|CHECK-PASS|CHECK-NEXT|CHECK-SAME|CHECK-NOT|CHECK-COUNT-\d+|CHECK):\s?(.*)$"
 )
-FUNCTION_HEADER = re.compile(r"^JIT code for (\S+?)(?: \(\d+:\d+\))?:$")
+FUNCTION_HEADER = re.compile(r"^JIT code for (\S+?)(?: \((?:.+:)?\d+:\d+\))?:$")
 PASS_HEADER = re.compile(r"^=== after (.+)$")
 
 

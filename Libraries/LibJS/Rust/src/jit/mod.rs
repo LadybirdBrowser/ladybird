@@ -480,8 +480,8 @@ impl Drop for DeferGc<'_> {
     }
 }
 
-/// The name of an executable in logs and perf maps, with the place of its code: "name (line:column)" of its first
-/// instruction that has a source position.
+/// The name of an executable in logs and perf maps, with the place of its code: "name (file:line:column)" of its
+/// first instruction that has a source position, leaving out the file if the source has no name.
 pub fn describe_executable(executable: &Executable) -> String {
     let name = crate::utf16::Utf16View::of_fly_string(&executable.name()).to_utf8();
     let name = if name.is_empty() {
@@ -489,8 +489,14 @@ pub fn describe_executable(executable: &Executable) -> String {
     } else {
         name
     };
-    match executable.source_map.iter().find(|entry| entry.line != 0) {
-        Some(entry) => format!("{name} ({}:{})", entry.line, entry.column),
-        None => name,
+    let Some(entry) = executable.source_map.iter().find(|entry| entry.line != 0) else {
+        return name;
+    };
+    let filename = executable.source_code().map_or(String::new(), |source_code| {
+        crate::utf16::Utf16View::of_string(source_code.filename()).to_utf8()
+    });
+    if filename.is_empty() {
+        return format!("{name} ({}:{})", entry.line, entry.column);
     }
+    format!("{name} ({filename}:{}:{})", entry.line, entry.column)
 }
