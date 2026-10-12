@@ -1,0 +1,47 @@
+function compiled(f, ...warmupArguments) {
+    jit.prepare(f);
+    for (let i = 0; i < 10; ++i) f(...warmupArguments);
+    expect(jit.compile(f)).toBe(jit.enabled);
+    return f;
+}
+
+test("products and sums of masked values at their limits", () => {
+    const multiply = compiled(
+        new Function("x", "y", "return (x & 0x3fff) * (y & 0x3fff) + ((x >> 14) - (y >> 14));"),
+        1000,
+        7000
+    );
+    expect(multiply(0x3fff, 0x3fff)).toBe(0x3fff * 0x3fff);
+    expect(multiply(-1, -1)).toBe(0x3fff * 0x3fff);
+    expect(multiply(2147483647, -2147483648)).toBe(0x3fff * 0 + (131071 - -131072));
+    expect(multiply(-2147483648, 2147483647)).toBe(0 + (-131072 - 131071));
+});
+
+test("products that may be -0 or overflow keep their results", () => {
+    const multiply = compiled(new Function("x", "y", "return (x >> 14) * (y & 0x3fff);"), 1000, 7000);
+    expect(Object.is(multiply(-16384, 0), -0)).toBeTrue();
+    expect(multiply(-2147483648, 0x3fff)).toBe(-131072 * 0x3fff);
+    const wide = compiled(new Function("x", "y", "return x * y;"), 3, 4);
+    expect(wide(65536, 65536)).toBe(4294967296);
+    expect(Object.is(wide(-1, 0), -0)).toBeTrue();
+});
+
+test("indices incremented after their accesses", () => {
+    const sum = compiled(
+        new Function(
+            "a",
+            "n",
+            `let i = 0, s = 0;
+            while (n-- > 0) {
+                s = (s + a[i]) | 0;
+                i = i + 1;
+            }
+            return s + i;`
+        ),
+        [1, 2, 3],
+        3
+    );
+    expect(sum([1, 2, 3, 4], 4)).toBe(14);
+    // NB: Past the end, the sum adds undefined, which | 0 makes 0.
+    expect(sum([1, 2], 3)).toBe(3);
+});
