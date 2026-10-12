@@ -9,9 +9,11 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/LexicalPath.h>
+#include <LibCore/File.h>
 #include <LibCore/Process.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
+#include <LibFileSystem/FileSystem.h>
 #include <fcntl.h>
 
 namespace TestWeb {
@@ -46,21 +48,8 @@ public:
 private:
     ByteString m_script_path { "http-test-server.py" };
     Optional<Core::Process> m_process;
+    int m_stdin_fd { -1 };
 };
-
-#if defined(AK_OS_WINDOWS)
-
-ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions&)
-{
-    VERIFY(0 && "HttpEchoServerFixture::setup is not implemented");
-}
-
-void HttpEchoServerFixture::teardown_impl()
-{
-    VERIFY(0 && "HttpEchoServerFixture::teardown_impl is not implemented");
-}
-
-#else
 
 ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions& web_content_options)
 {
@@ -68,24 +57,29 @@ ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions& web_conte
     // Path where http-test-server.py writes the AIA test root CA. Must match the certificate trusted by
     // TestWeb::Application::create_platform_options.
     auto const ca_cert_path = LexicalPath::join(Core::StandardPaths::tempfile_directory(), ByteString::formatted("ladybird-aia-test-ca-{}.pem", Core::System::getpid())).string();
-    auto const arguments = Vector { script_path.string(), "--directory", Application::the().test_root_path, "--ca-cert-output", ca_cert_path };
+    auto const arguments = Vector { script_path.string(), "--directory", Application::the().test_root_path, "--ca-cert-output", ca_cert_path, "--exit-when-stdin-closes" };
 
     // FIXME: Pick a more reasonable log path that is more observable
     auto const log_path = LexicalPath::join(Core::StandardPaths::tempfile_directory(), "http-test-server.log"sv).string();
 
+    auto stdin_fds = TRY(Core::System::pipe2(O_CLOEXEC));
     auto stdout_fds = TRY(Core::System::pipe2(O_CLOEXEC));
+    auto stderr_file = TRY(Core::File::open(ByteString::formatted("{}.stderr", log_path), Core::File::OpenMode::Write));
 
     auto const process_options = Core::ProcessSpawnOptions {
         .executable = Application::the().python_executable_path,
         .search_for_executable_in_path = true,
         .arguments = arguments,
         .file_actions = {
-            Core::FileAction::OpenFile { ByteString::formatted("{}.stderr", log_path), Core::File::OpenMode::Write, STDERR_FILENO },
+            Core::FileAction::DupFd { stdin_fds[0], STDIN_FILENO },
+            Core::FileAction::DupFd { stderr_file->fd(), STDERR_FILENO },
             Core::FileAction::DupFd { stdout_fds[1], STDOUT_FILENO } }
     };
 
     m_process = TRY(Core::Process::spawn(process_options));
 
+    TRY(Core::System::close(stdin_fds[0]));
+    m_stdin_fd = stdin_fds[1];
     TRY(Core::System::close(stdout_fds[1]));
 
     auto const stdout_file = MUST(Core::File::adopt_fd(stdout_fds[0], Core::File::OpenMode::Read));
@@ -107,22 +101,16 @@ void HttpEchoServerFixture::teardown_impl()
 {
     VERIFY(m_process.has_value());
 
-    auto script_path = LexicalPath::join(s_fixtures_path, m_script_path);
-
-    if (auto kill_or_error = Core::System::kill(m_process->pid(), SIGINT); kill_or_error.is_error()) {
-        if (kill_or_error.error().code() != ESRCH) {
-            warnln("Failed to kill HTTP echo server, error: {}", kill_or_error.error());
-        } else if (auto termination_or_error = m_process->wait_for_termination(); termination_or_error.is_error()) {
-            warnln("Failed to terminate HTTP echo server, error: {}", termination_or_error.error());
-        }
-    }
+    // Close the server's stdin to signal it to exit.
+    if (auto close_or_error = Core::System::close(exchange(m_stdin_fd, -1)); close_or_error.is_error())
+        warnln("Failed to close HTTP echo server's stdin, error: {}", close_or_error.error());
+    else if (auto termination_or_error = m_process->wait_for_termination(); termination_or_error.is_error())
+        warnln("Failed to wait for HTTP echo server to exit, error: {}", termination_or_error.error());
 
     m_process = {};
     auto const ca_cert_path = LexicalPath::join(Core::StandardPaths::tempfile_directory(), ByteString::formatted("ladybird-aia-test-ca-{}.pem", Core::System::getpid())).string();
-    (void)Core::System::unlink(ca_cert_path);
+    (void)FileSystem::remove(ca_cert_path, FileSystem::RecursionMode::Disallowed);
 }
-
-#endif
 
 void Fixture::initialize_fixtures()
 {
