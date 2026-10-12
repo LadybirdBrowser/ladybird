@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { width: 10px; color: black; transition: width 1000s linear; }
+    #target.padded { padding-left: 2px; }
+    #target::before { content: "pseudo"; opacity: 1; transition: opacity 1000s linear; }
+    #target.dimmed::before { opacity: 0; }
+</style>
+<div id="target"><span id="child">child</span></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const animation = target.animate({ color: ["red", "blue"] }, { duration: 1000000, fill: "both" });
+        animation.pause();
+        animation.currentTime = 500000;
+        target.offsetWidth;
+        target.style.width = "110px";
+        internals.updateStyle();
+        const transition = target.getAnimations().find(animation => animation instanceof CSSTransition);
+        transition.pause();
+        transition.currentTime = 500000;
+        println(`initial width: ${getComputedStyle(target).width}`);
+        println(`initial animated color: ${getComputedStyle(target).color}`);
+
+        for (let index = 0; index < 4; ++index) {
+            target.classList.toggle("padded");
+            internals.updateStyle();
+            println(`unrelated change ${index} keeps transition: ${target.getAnimations().includes(transition)}`);
+            println(`unrelated change ${index} width: ${getComputedStyle(target).width}`);
+            println(`unrelated change ${index} inherited color: ${getComputedStyle(child).color}`);
+        }
+
+        target.classList.add("dimmed");
+        internals.updateStyle();
+        const pseudoTransition = target.getAnimations().find(animation => animation instanceof CSSTransition && animation.transitionProperty === "opacity");
+        pseudoTransition.pause();
+        pseudoTransition.currentTime = 250000;
+        println(`pseudo opacity: ${getComputedStyle(target, "::before").opacity}`);
+        target.style.paddingRight = "3px";
+        internals.updateStyle();
+        println(`unrelated change keeps pseudo transition: ${target.getAnimations().includes(pseudoTransition)}`);
+        println(`unchanged pseudo opacity: ${getComputedStyle(target, "::before").opacity}`);
+
+        target.style.width = "210px";
+        internals.updateStyle();
+        const replacement = target.getAnimations().find(animation => animation instanceof CSSTransition && animation.transitionProperty === "width");
+        replacement.pause();
+        replacement.currentTime = 0;
+        println(`retarget replaces transition: ${replacement !== transition}`);
+        println(`retarget starts from current width: ${getComputedStyle(target).width}`);
+        println(`retarget preserves animation: ${getComputedStyle(target).color}`);
+        target.style.transitionProperty = "none";
+        internals.updateStyle();
+        println(`cancellation removes host transition: ${!target.getAnimations().includes(replacement)}`);
+        println(`cancelled width: ${getComputedStyle(target).width}`);
+        println(`cancellation preserves animation: ${getComputedStyle(child).color}`);
+        println(`cancellation preserves pseudo transition: ${target.getAnimations().includes(pseudoTransition)}`);
+    });
+</script>

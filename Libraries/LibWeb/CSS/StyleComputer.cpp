@@ -1131,13 +1131,10 @@ RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_inst
 
     begin_style_update();
     ScopeGuard end_style_update = [&] { this->end_style_update(); };
-    // The after-change style is the installed record with every value its overlay holds: the current values of the
-    // element's running transitions and animations, as the computation that installed it collected them.
-    auto new_style = reconstruct_computed_properties_for_animation(read, installed_style_record);
+    auto new_style = start_needed_transitions(read, abstract_element, before_change_style_record);
+    if (!new_style)
+        return {};
     auto const* installed_overlay = static_cast<ComputedValuesFFI::AnimatedOverlay const*>(m_style_engine.style_record_view(read, installed_style_record).animated_overlay);
-    if (installed_overlay)
-        new_style->install_animated_overlay(Badge<StyleComputer> {}, installed_overlay);
-    start_needed_transitions(read, *new_style, abstract_element, before_change_style_record);
 
     // A step that starts, ends or replaces nothing leaves the installed record as it stands.
     if (installed_overlay) {
@@ -1164,7 +1161,7 @@ static u64 transition_target_key(DOM::AbstractElement abstract_element)
 }
 
 // https://drafts.csswg.org/css-transitions/#starting
-void StyleComputer::start_needed_transitions(Layout::BegunRead const& read, ComputedStyleWorkingSet& new_style, DOM::AbstractElement abstract_element, StyleRecordID before_change_style_record) const
+RefPtr<ComputedStyleWorkingSet> StyleComputer::start_needed_transitions(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, StyleRecordID before_change_style_record) const
 {
     auto had_pending_animated_style_update = m_document->needs_animated_style_update();
 
@@ -1175,7 +1172,7 @@ void StyleComputer::start_needed_transitions(Layout::BegunRead const& read, Comp
     // NB: We know that a DocumentTimeline's current time is always in milliseconds
     auto current_time = m_document->timeline()->current_time();
     if (!current_time.has_value())
-        return;
+        return {};
     VERIFY(current_time->type == Animations::TimeValue::Type::Milliseconds);
     auto style_change_event_time = current_time->value;
 
@@ -1268,33 +1265,37 @@ void StyleComputer::start_needed_transitions(Layout::BegunRead const& read, Comp
     // A transition action is provisional until the stabilization epoch commits, but the style
     // published by this pass must already reflect that decision. Rebuild the effect stack without
     // transitions which are being removed, then layer any proposed replacements on top.
-    if (!replaced_transition_effects.is_empty() || !newly_started_transition_effects.is_empty()) {
-        new_style.clear_animated_properties(Badge<StyleComputer> {});
-        auto animations = abstract_element.element().get_animations_internal(
-            Animations::Animatable::GetAnimationsSorted::Yes,
-            Animations::Animatable::GetAnimationsOptions { .subtree = false, .pseudo_element = {} });
-        if (animations.is_exception()) {
-            dbgln("Error getting animations for element {}", abstract_element.debug_description());
-        } else {
-            GC::RootVector<GC::Ref<Animations::KeyframeEffect>> remaining_effects;
-            for (auto& animation : animations.value()) {
-                auto effect = animation->effect();
-                if (!effect || !effect->is_keyframe_effect())
-                    continue;
-                auto& keyframe_effect = static_cast<Animations::KeyframeEffect&>(*effect);
-                if (keyframe_effect.pseudo_element_type() != abstract_element.pseudo_element())
-                    continue;
-                if (replaced_transition_effects.contains(&keyframe_effect))
-                    continue;
-                remaining_effects.append(keyframe_effect);
-            }
-            remaining_effects.extend(newly_started_transition_effects);
-            quick_sort(remaining_effects, [](auto const& a, auto const& b) {
-                return Animations::KeyframeEffect::composite_order(a, b) < 0;
-            });
-            if (!remaining_effects.is_empty())
-                collect_animations_into(read, abstract_element, remaining_effects.span(), new_style, AnimationRefresh::Yes);
+    if (replaced_transition_effects.is_empty() && newly_started_transition_effects.is_empty())
+        return {};
+
+    // OPTIMIZATION: Transition decisions read the installed records directly. Reconstruct a working style only when
+    //               changes to the effect stack require rebuilding the overlay.
+    auto new_style = reconstruct_computed_properties_for_animation(read, abstract_element.style_record_identity());
+    new_style->clear_animated_properties(Badge<StyleComputer> {});
+    auto animations = abstract_element.element().get_animations_internal(
+        Animations::Animatable::GetAnimationsSorted::Yes,
+        Animations::Animatable::GetAnimationsOptions { .subtree = false, .pseudo_element = {} });
+    if (animations.is_exception()) {
+        dbgln("Error getting animations for element {}", abstract_element.debug_description());
+    } else {
+        GC::RootVector<GC::Ref<Animations::KeyframeEffect>> remaining_effects;
+        for (auto& animation : animations.value()) {
+            auto effect = animation->effect();
+            if (!effect || !effect->is_keyframe_effect())
+                continue;
+            auto& keyframe_effect = static_cast<Animations::KeyframeEffect&>(*effect);
+            if (keyframe_effect.pseudo_element_type() != abstract_element.pseudo_element())
+                continue;
+            if (replaced_transition_effects.contains(&keyframe_effect))
+                continue;
+            remaining_effects.append(keyframe_effect);
         }
+        remaining_effects.extend(newly_started_transition_effects);
+        quick_sort(remaining_effects, [](auto const& a, auto const& b) {
+            return Animations::KeyframeEffect::composite_order(a, b) < 0;
+        });
+        if (!remaining_effects.is_empty())
+            collect_animations_into(read, abstract_element, remaining_effects.span(), *new_style, AnimationRefresh::Yes);
     }
 
     if (!newly_started_transition_effects.is_empty()) {
@@ -1304,6 +1305,7 @@ void StyleComputer::start_needed_transitions(Layout::BegunRead const& read, Comp
         if (!had_pending_animated_style_update)
             m_document->clear_needs_animated_style_update();
     }
+    return new_style;
 }
 
 bool StyleComputer::has_provisional_transition_states(DOM::AbstractElement abstract_element) const
