@@ -60,7 +60,7 @@ const _: () = {
 };
 
 /// LibGC hands out cells in the slots of fixed-size blocks, whose free list needs room for its own entry in each.
-const MIN_CELL_SIZE: usize = 24;
+pub(crate) const MIN_CELL_SIZE: usize = 24;
 const MAX_CELL_ALIGNMENT: usize = 16;
 
 impl Class {

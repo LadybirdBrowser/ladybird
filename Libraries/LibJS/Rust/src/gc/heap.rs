@@ -12,7 +12,7 @@ use std::collections::HashMap;
 
 use super::capi::{self, GCAllocator, GCGatherRootsCallback, GCHeap, GCLayout};
 use super::class::{CellTypeInfo, Class, GcCell};
-use super::class_id::CLASS_COUNT;
+use super::class_id::{CLASS_COUNT, ClassId};
 use super::weak::WEAK_IMPL_POINTER_OFFSET;
 use crate::build_configuration::{HEAP_REGION_OFFSET_MASK, PRIMITIVE_STORAGE_CAGE_OFFSET_MASK};
 use crate::layout::cell::{CellHeader, CellState, Gc};
@@ -24,7 +24,8 @@ use crate::layout::cell::{CellHeader, CellState, Gc};
 pub struct Heap {
     raw: NonNull<GCHeap>,
     allocators: [Cell<Option<HeapAllocator>>; CLASS_COUNT],
-    /// The allocators of the classes derived at run time, by the address of their class.
+    /// The allocators of the classes that have no id of their own, the classes derived at run time and the classes
+    /// of an embedder's cells, by the address of their class.
     runtime_class_allocators: RefCell<HashMap<usize, HeapAllocator, foldhash::fast::RandomState>>,
     /// The size classes of each class, by class id, out of line, as few classes have any.
     size_class_tables: Box<[OnceCell<SizeClassTable>; CLASS_COUNT]>,
@@ -396,13 +397,33 @@ impl Heap {
             "the cells of {} come from the allocator of its id",
             class.name
         );
-        let allocator = *self
+        RuntimeClassAllocator {
+            class,
+            allocator: self.allocator_kept_by_class_address(class),
+        }
+    }
+
+    /// The allocator of `class`, the class of an embedder's cells, which the first call for the class creates. Such
+    /// classes all have ClassId::EmbedderCell, so each has an allocator of its own, kept by its address.
+    pub fn embedder_class_allocator(&self, class: &'static Class) -> RuntimeClassAllocator {
+        assert!(
+            class.id == ClassId::EmbedderCell && class.parent.is_none(),
+            "{} is not the class of an embedder's cells",
+            class.name
+        );
+        RuntimeClassAllocator {
+            class,
+            allocator: self.allocator_kept_by_class_address(class),
+        }
+    }
+
+    fn allocator_kept_by_class_address(&self, class: &'static Class) -> HeapAllocator {
+        *self
             .runtime_class_allocators
             .borrow_mut()
             .entry(core::ptr::from_ref(class) as usize)
             // SAFETY: The class and its name live as long as the process, so they outlive the allocator.
-            .or_insert_with(|| unsafe { self.create_allocator(&raw const class.type_info, class.name) });
-        RuntimeClassAllocator { class, allocator }
+            .or_insert_with(|| unsafe { self.create_allocator(&raw const class.type_info, class.name) })
     }
 
     /// The size classes of `class`, whose cells have `cell_sizes` bytes, in that order, which the first call for the
@@ -426,6 +447,11 @@ impl Heap {
         assert!(
             !class.is_derived_at_run_time(),
             "a class derived at run time shares the id of {}",
+            class.name
+        );
+        assert!(
+            class.id != ClassId::EmbedderCell,
+            "the class of an embedder's cells, {}, shares its id",
             class.name
         );
         let type_infos: Box<[CellTypeInfo]> = cell_sizes
@@ -463,6 +489,11 @@ impl Heap {
         if let Some(allocator) = slot.get() {
             return allocator;
         }
+        assert!(
+            class.id != ClassId::EmbedderCell,
+            "the cells of an embedder class, {}, come from the allocator kept by its address",
+            class.name
+        );
         // SAFETY: The class and its name are static, so they outlive the allocator.
         let allocator = unsafe { self.create_allocator(&raw const class.type_info, class.name) };
         slot.set(Some(allocator));
