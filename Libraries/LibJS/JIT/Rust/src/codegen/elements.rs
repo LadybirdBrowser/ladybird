@@ -183,12 +183,24 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// A `CheckBounds` node.
     pub(super) fn emit_check_bounds(&mut self, node: NodeId) {
         let exit = self.exit_site(node);
-        let count = self.input(node, 1);
-        match self.input_value(node, 0) {
-            InputValue::Register(index) => self.masm.branch32(Condition::AboveOrEqual, index, count, exit),
-            InputValue::Constant(index) => self
-                .masm
-                .branch32_imm(Condition::BelowOrEqual, count, index as i32, exit),
+        match (self.input_value(node, 0), self.input_value(node, 1)) {
+            (InputValue::Register(index), InputValue::Register(count)) => {
+                self.masm.branch32(Condition::AboveOrEqual, index, count, exit);
+            }
+            (InputValue::Register(index), InputValue::Constant(count)) => {
+                self.masm
+                    .branch32_imm(Condition::AboveOrEqual, index, count as i32, exit);
+            }
+            (InputValue::Constant(index), InputValue::Register(count)) => {
+                self.masm
+                    .branch32_imm(Condition::BelowOrEqual, count, index as i32, exit);
+            }
+            (InputValue::Constant(index), InputValue::Constant(count)) => {
+                let scratch = self.pinned.scratch;
+                self.masm.move_imm32(scratch, index as u32);
+                self.masm
+                    .branch32_imm(Condition::AboveOrEqual, scratch, count as i32, exit);
+            }
         }
     }
 

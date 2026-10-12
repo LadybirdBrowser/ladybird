@@ -431,7 +431,10 @@ fn constraints(node: &Node, registers: &RegisterSet) -> Constraints {
             constraints.inputs[1] = InputConstraint::RegisterOrConstant;
             constraints.temps = 1;
         }
-        Op::CheckBounds => constraints.inputs[0] = InputConstraint::RegisterOrConstant,
+        Op::CheckBounds => {
+            constraints.inputs[0] = InputConstraint::RegisterOrConstant;
+            constraints.inputs[1] = InputConstraint::RegisterOrConstant;
+        }
         // The heap and a value.
         Op::AllocateObject { .. } => constraints.temps = 2,
         // The object's property storage.
