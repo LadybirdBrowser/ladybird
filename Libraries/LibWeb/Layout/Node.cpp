@@ -348,13 +348,19 @@ namespace Web::Layout {
 
 void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
 {
+    bool const changes_published_record = m_style_record_identity != style_record_identity || m_has_layout_derived_style;
     release_pinned_style_record();
     m_background_images.clear();
     m_mask_images.clear();
     m_border_image_source.clear();
     m_list_style_image.clear();
     m_style_record_identity = style_record_identity;
-    publish_style_record_to_node_data();
+    // OPTIMIZATION: Installing the DOM record already published a followed layout node's record. Applying its
+    //               rendering consequences need not enqueue the same record again.
+    if (changes_published_record)
+        publish_style_record_to_node_data();
+    else
+        did_update_style_record();
     set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
     // A style change can introduce the properties that make a node carry replaced-content facts,
     // such as size containment arriving on a kept layout node.
@@ -498,7 +504,7 @@ void NodeWithStyle::set_style_record_identity(CSS::InstalledStyle const& install
     if (m_has_layout_derived_style)
         return;
     if (m_style_record_identity == style_record_identity) {
-        publish_style_record_to_node_data();
+        did_update_style_record();
         return;
     }
 
@@ -565,6 +571,7 @@ static Node const* scroll_snap_container_of(NodeWithStyle const& node)
 
 void NodeWithStyle::publish_style_record_to_node_data()
 {
+    ++document().style_invalidation_counters().layout_style_record_publications;
     auto const view = document().style_computer().style_engine().style_record_view(held_read(), m_style_record_identity);
     VERIFY(view.present);
     auto const* payloads = view.payloads;

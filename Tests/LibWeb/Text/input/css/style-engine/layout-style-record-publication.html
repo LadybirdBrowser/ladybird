@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { width: 20px; height: 20px; }
+</style>
+<div id="target">target</div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        target.getBoundingClientRect();
+        internals.updateStyle();
+        let before = internals.getStyleInvalidationCounters();
+        target.style.backgroundColor = "red";
+        internals.updateStyle();
+        let after = internals.getStyleInvalidationCounters();
+        println(`paint change publishes once: ${after.layoutStyleRecordPublications - before.layoutStyleRecordPublications === 1}`);
+        println(`layout follows installed record: ${internals.layoutStyleRecordIdentity(target) === internals.styleRecordIdentity(target)}`);
+        println(`paint background: ${getComputedStyle(target).backgroundColor}`);
+        println(`kept box width: ${target.getBoundingClientRect().width}`);
+
+        for (const mode of ["named", "manual"]) {
+            const host = document.createElement("div");
+            document.body.append(host);
+            const shadow = host.attachShadow({ mode: "open", slotAssignment: mode });
+            shadow.innerHTML = "<style>::slotted(*) { display: block; width: 10px; height: 10px; }</style><slot></slot>";
+            const slot = shadow.querySelector("slot");
+            const children = Array.from({ length: 40 }, () => {
+                const child = document.createElement("div");
+                child.textContent = "child";
+                host.append(child);
+                return child;
+            });
+            if (mode === "manual")
+                slot.assign(...children);
+            host.getBoundingClientRect();
+            internals.updateStyle();
+            before = internals.getStyleInvalidationCounters();
+            slot.style.color = "green";
+            internals.updateStyle();
+            after = internals.getStyleInvalidationCounters();
+            println(`${mode}: each assigned box publishes once: ${after.layoutStyleRecordPublications - before.layoutStyleRecordPublications === 40}`);
+            println(`${mode}: assigned colors: ${children.every(child => getComputedStyle(child).color === "rgb(0, 128, 0)")}`);
+            println(`${mode}: layout records follow installed records: ${children.every(child => internals.layoutStyleRecordIdentity(child) === internals.styleRecordIdentity(child))}`);
+            println(`${mode}: assigned box widths: ${children.every(child => child.getBoundingClientRect().width === 10)}`);
+            host.remove();
+        }
+
+        target.style.display = "table";
+        target.innerHTML = "<span>anonymous table content</span>";
+        target.getBoundingClientRect();
+        target.style.color = "blue";
+        internals.updateStyle();
+        println(`anonymous content inherits color: ${getComputedStyle(target.firstElementChild).color}`);
+        println(`anonymous table layout stays consistent: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+
+        target.style.display = "block";
+        target.style.opacity = "1";
+        internals.updateStyle();
+        const animation = target.animate({ opacity: [1, 0] }, { duration: 1000, fill: "both" });
+        animation.pause();
+        animation.currentTime = 500;
+        internals.updateStyle();
+        println(`animated opacity reaches kept box: ${getComputedStyle(target).opacity}`);
+        println(`animated layout record follows installed record: ${internals.layoutStyleRecordIdentity(target) === internals.styleRecordIdentity(target)}`);
+        animation.cancel();
+        internals.updateStyle();
+        println(`base opacity restored: ${getComputedStyle(target).opacity}`);
+        println(`restored layout record follows installed record: ${internals.layoutStyleRecordIdentity(target) === internals.styleRecordIdentity(target)}`);
+    });
+</script>
