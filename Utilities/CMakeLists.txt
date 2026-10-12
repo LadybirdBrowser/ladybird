@@ -1,8 +1,8 @@
-ladybird_utility(js SOURCES js.cpp LIBS LibJS LibMain)
+ladybird_utility(js SOURCES js.cpp LIBS LibJSStandalone LibMain)
 if (NOT WIN32 AND NOT ANDROID)
     target_link_libraries(js PRIVATE PkgConfig::LIBEDIT)
 endif()
-ladybird_utility(wasm SOURCES wasm.cpp LIBS LibFileSystem LibWasm LibMain LibJS LibCrypto LibGC)
+ladybird_utility(wasm SOURCES wasm.cpp LIBS LibFileSystem LibWasm LibMain LibJSStandalone LibCrypto LibGC)
 
 ladybird_utility(xml SOURCES xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
 ladybird_utility(dns SOURCES dns.cpp LIBS LibDNS LibMain LibTLS LibCrypto)
@@ -16,7 +16,7 @@ if (WIN32)
     return()
 endif()
 
-ladybird_utility(test262-runner SOURCES test262-runner.cpp LIBS LibJS LibMain)
+ladybird_utility(test262-runner SOURCES test262-runner.cpp LIBS LibJSStandalone LibMain)
 ladybird_utility(dump-html-tokens SOURCES dump-html-tokens.cpp LIBS LibMain LibWeb)
 ladybird_utility(dump-html-tree SOURCES dump-html-tree.cpp LIBS LibMain LibWeb LibJS LibGC LibGfx LibIPC LibURL)
 

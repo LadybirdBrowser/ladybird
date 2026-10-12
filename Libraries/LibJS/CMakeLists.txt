@@ -1,6 +1,21 @@
-# The LibJS target is the C++ API that LibJS's users build against, implemented over the Rust runtime's embedding ABI.
-# It links the runtime with the runtime's symbols hidden, so it exports only its own JS_API functions, and every process
-# that links LibJS has exactly one copy of the runtime.
+# LibJS's C++ API, which LibJS's users build against, is implemented over the embedding ABI of the Rust runtime. When
+# LibWeb is built, the API's objects and the runtime go into LibWeb's library, whose Rust crate builds the runtime, so
+# that a process has one copy of the runtime and LibWeb's Rust code depends on it directly. Without LibWeb, LibJS is a
+# library of its own, which exports only its own JS_API functions and keeps the runtime's symbols hidden.
+
+# The features the runtime is built with, by LibJS's own crate build or by LibWeb's crate.
+set(LIBJS_RUST_FEATURES allocator)
+if (ENABLE_ADDRESS_SANITIZER)
+    list(APPEND LIBJS_RUST_FEATURES address-sanitizer)
+endif()
+if (ENABLE_THREAD_SANITIZER)
+    list(APPEND LIBJS_RUST_FEATURES thread-sanitizer)
+endif()
+# The JIT is a default feature of the crate, so that cargo builds and lints it unless told otherwise.
+if (ENABLE_JS_JIT)
+    list(APPEND LIBJS_RUST_FEATURES jit)
+endif()
+set(LIBJS_RUST_FEATURES ${LIBJS_RUST_FEATURES} PARENT_SCOPE)
 
 add_subdirectory(Rust)
 
@@ -79,27 +94,79 @@ set(SOURCES
     ToolEntryPoints.cpp
 )
 
-ladybird_lib(LibJS js EXPLICIT_SYMBOL_EXPORT)
+# What every target that includes LibJS's headers needs: the clang plugin that checks the code, LibUnicode, so that
+# ICU's data is in every process that runs JavaScript, and the generated headers of the embedding ABI, which the public
+# headers include, before anything compiles against them.
+add_library(LibJSHeaders INTERFACE)
+target_link_libraries(LibJSHeaders INTERFACE JSClangPlugin LibUnicode)
+add_dependencies(LibJSHeaders libjs_embedding_headers-ffi-headers)
+if (NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(LibJSHeaders INTERFACE LIBJS_STATIC_DEFINE)
+endif()
+add_lagom_library_install_rules(LibJSHeaders ALIAS_NAME JSHeaders)
 
-target_link_libraries(LibJS PRIVATE LibCore LibCrypto LibGC LibTextCodec)
+# The objects of the C++ API, compiled once for whichever library they go into. Their export header is generated under
+# LibJS's name, so that JS_API means the same wherever they are, and its guard is the define the objects are compiled
+# with, as it would be for a shared LibJS.
+add_library(LibJSObjects OBJECT ${SOURCES})
+ladybird_library_setup(LibJSObjects)
+target_link_libraries(LibJSObjects PUBLIC LibJSHeaders)
+target_link_libraries(LibJSObjects PRIVATE LibCore LibCrypto LibGC LibSyntax LibTextCodec)
+target_compile_definitions(LibJSObjects PRIVATE LibJS_EXPORTS)
+set_target_properties(LibJSObjects PROPERTIES DEFINE_SYMBOL LibJS_EXPORTS)
+ladybird_generate_export_header(LibJSObjects js BASE_NAME LibJS)
 
-# JS::SyntaxHighlighter is a LibSyntax highlighter.
-target_link_libraries(LibJS PRIVATE LibSyntax)
+if (LIBJS_FOLDED_INTO_LIBWEB)
+    # LibJS is what a target that also uses LibWeb links: LibWeb's library holds the objects and the runtime.
+    add_library(LibJS INTERFACE)
+    target_link_libraries(LibJS INTERFACE LibWeb LibJSHeaders)
+    set_target_properties(LibJS PROPERTIES EXPORT_NAME JS)
+    ladybird_install_library_headers(LibJS JS)
+    add_lagom_library_install_rules(LibJS ALIAS_NAME JS)
 
-# Link LibUnicode publicly to ensure ICU data (which is in libicudata.a) is available in any process using LibJS.
-target_link_libraries(LibJS PUBLIC LibUnicode)
-
-target_link_libraries(LibJS PUBLIC JSClangPlugin)
-
-if (NOT BUILD_SHARED_LIBS OR WIN32)
-    target_link_libraries(LibJS PRIVATE libjs_rust)
-elseif (APPLE)
-    set(CMAKE_LINK_LIBRARY_USING_load_hidden "LINKER:-load_hidden,<LIBRARY>")
-    set(CMAKE_LINK_LIBRARY_USING_load_hidden_SUPPORTED TRUE)
-    target_link_libraries(LibJS PRIVATE "$<LINK_LIBRARY:load_hidden,libjs_rust>")
+    # LibJSStandalone is what a JavaScript tool that does not use LibWeb links: the objects, and the runtime out of the
+    # archive of LibWeb's crate, of which the tool takes only the members it references, so that building a tool never
+    # builds LibWeb's C++. The tool initializes the runtime's panic hook and demangler as the crate the runtime is.
+    add_rust_crate_initializer(libjs_rust)
+    add_library(LibJSStandalone INTERFACE)
+    target_link_libraries(LibJSStandalone INTERFACE
+        $<TARGET_OBJECTS:LibJSObjects>
+        $<TARGET_OBJECTS:libjs_rust_init>
+        LibJSHeaders libweb_bindings_rust_archive AK LibCore LibCrypto LibGC LibSyntax LibTextCodec
+    )
+    if ((LINUX OR BSD) AND BUILD_SHARED_LIBS)
+        # The tool's copy of the runtime, with its Rust standard library, stays out of its dynamic symbol table, as the
+        # copy in LibJS's own library does. LibWeb's directory, which imports the archive, comes after this one, so
+        # the archive's name is resolved when the build is generated.
+        target_link_options(LibJSStandalone INTERFACE
+            "LINKER:--exclude-libs,$<TARGET_FILE_NAME:libweb_bindings_rust_archive>"
+        )
+    elseif ((LINUX OR BSD) AND NOT BUILD_SHARED_LIBS)
+        # The archive carries its own copy of the Rust standard library and of the crates it shares with the Rust
+        # archives of LibUnicode and the other libraries a tool links, whose exported symbols then appear twice in
+        # static ELF links.
+        target_link_options(LibJSStandalone INTERFACE LINKER:--allow-multiple-definition)
+    endif()
 else()
-    target_link_libraries(LibJS PRIVATE libjs_rust)
-    get_target_property(libjs_rust_archive libjs_rust IMPORTED_LOCATION)
-    cmake_path(GET libjs_rust_archive FILENAME libjs_rust_archive_name)
-    target_link_options(LibJS PRIVATE "LINKER:--exclude-libs,${libjs_rust_archive_name}")
+    set(SOURCES $<TARGET_OBJECTS:LibJSObjects>)
+    ladybird_lib(LibJS js)
+    set_target_properties(LibJS PROPERTIES LINKER_LANGUAGE CXX WINDOWS_EXPORT_ALL_SYMBOLS OFF)
+    target_link_libraries(LibJS PUBLIC LibJSHeaders)
+    target_link_libraries(LibJS PRIVATE LibCore LibCrypto LibGC LibSyntax LibTextCodec)
+
+    if (NOT BUILD_SHARED_LIBS OR WIN32)
+        target_link_libraries(LibJS PRIVATE libjs_rust)
+    elseif (APPLE)
+        set(CMAKE_LINK_LIBRARY_USING_load_hidden "LINKER:-load_hidden,<LIBRARY>")
+        set(CMAKE_LINK_LIBRARY_USING_load_hidden_SUPPORTED TRUE)
+        target_link_libraries(LibJS PRIVATE "$<LINK_LIBRARY:load_hidden,libjs_rust>")
+    else()
+        target_link_libraries(LibJS PRIVATE libjs_rust)
+        get_target_property(libjs_rust_archive libjs_rust IMPORTED_LOCATION)
+        cmake_path(GET libjs_rust_archive FILENAME libjs_rust_archive_name)
+        target_link_options(LibJS PRIVATE "LINKER:--exclude-libs,${libjs_rust_archive_name}")
+    endif()
+
+    add_library(LibJSStandalone INTERFACE)
+    target_link_libraries(LibJSStandalone INTERFACE LibJS)
 endif()

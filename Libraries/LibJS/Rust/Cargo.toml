@@ -42,7 +42,6 @@ iced-x86 = { version = "1.21", default-features = false, features = ["decoder", 
 farm64 = { package = "fARM64", version = "0.0.2", features = ["alloc"] }
 
 [build-dependencies]
-cbindgen = { version = "0.29", default-features = false }
 cc = "1"
 flapc = { path = "../Flap" }
 libjs_abi = { path = "../ABI" }

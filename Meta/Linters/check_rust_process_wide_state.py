@@ -37,6 +37,22 @@ ALLOWED = {
     "Libraries/LibWeb/HTML/Parser/Rust/src/token.rs:SPARE_ATTRIBUTE_VALUES": "per-thread allocation pool; a second copy costs memory, never an answer",
 }
 
+# The crates that another crate depends on by path but that are in one library of a process all the same: the crates
+# that depend on each, which have to be exactly these for the claim to hold, and the reason. The state of libweb_rust
+# is still checked below, for the threads that share it.
+IN_ONE_LIBRARY = {
+    "libjs_rust": (
+        {"libweb_bindings_rust"},
+        "a dependency of libweb_bindings_rust alone, whose archive both LibWeb's library and the JavaScript tools "
+        "link in a build with LibWeb; a build without LibWeb imports the crate itself, as the one Rust archive of "
+        "LibJS's library (Libraries/LibJS/CMakeLists.txt)",
+    ),
+    "libweb_rust": (
+        {"libweb_bindings_rust"},
+        "a dependency of libweb_bindings_rust alone, whose archive LibWeb's library links",
+    ),
+}
+
 # libweb_rust: `file:name` -> why the state is fine on a thread other than the document's.
 RENDER_STATE_CRATE = "Libraries/LibWeb/Rust"
 
@@ -185,13 +201,26 @@ def crate_name(manifest):
     return match.group(1) if match else None
 
 
+def path_dependencies(manifest):
+    """The names of the crates the manifest depends on by path, as dependencies of any kind."""
+    return set(re.findall(r"^([a-z_0-9]+)\s*=\s*\{[^}]*\bpath\s*=", manifest.read_text(), re.M))
+
+
 def crates_compiled_into_more_than_one_library(manifests):
-    """Every crate some other crate depends on by path: its code, and its statics, end up in both."""
-    shared = set()
+    """Every crate some other crate depends on by path: its code, and its statics, end up in both, unless the crate is
+    one of IN_ONE_LIBRARY, whose claim about the crates that depend on it is checked here."""
+    dependents = {}
     for manifest in manifests:
-        for match in re.finditer(r"^([a-z_0-9]+)\s*=\s*\{[^}]*\bpath\s*=", manifest.read_text(), re.M):
-            shared.add(match.group(1))
-    return shared
+        for dependency in path_dependencies(manifest):
+            dependents.setdefault(dependency, set()).add(crate_name(manifest))
+    for crate, (expected_dependents, _) in IN_ONE_LIBRARY.items():
+        if dependents.get(crate, set()) != expected_dependents:
+            sys.exit(
+                f"{crate} is listed in IN_ONE_LIBRARY as a dependency of {sorted(expected_dependents)} alone, but "
+                f"{sorted(dependents.get(crate, set()))} depend on it; its state is shared unless they are one "
+                "library, so update the list or move the state to C++"
+            )
+    return set(dependents) - set(IN_ONE_LIBRARY)
 
 
 def state_in(root, source_directory, every_thread_local=False):

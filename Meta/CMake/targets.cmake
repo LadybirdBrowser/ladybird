@@ -1,6 +1,11 @@
 include(${CMAKE_CURRENT_LIST_DIR}/utils.cmake)
 
+# ladybird_generate_export_header(name fs_name [BASE_NAME base])
+#
+# BASE_NAME names the export header's macros after a library other than the target, for a target that compiles the
+# objects of a library, as LibJSObjects compiles LibJS's.
 function(ladybird_generate_export_header name fs_name)
+    cmake_parse_arguments(PARSE_ARGV 2 EXPORT_HEADER "" "BASE_NAME" "")
     # Temporary helper to allow libraries to opt-in to using X_API macros
     # to export symbols required by external consumers. This allows the codebase
     # to gradually slowly migrate instead of an all-or-nothing approach.
@@ -15,7 +20,51 @@ function(ladybird_generate_export_header name fs_name)
     endif()
     include(GenerateExportHeader)
     string(TOUPPER ${fs_name} fs_name_upper)
-    generate_export_header(${name} EXPORT_MACRO_NAME ${fs_name_upper}_API EXPORT_FILE_NAME "Export.h")
+    set(base_name "")
+    if (EXPORT_HEADER_BASE_NAME)
+        set(base_name BASE_NAME ${EXPORT_HEADER_BASE_NAME})
+    endif()
+    generate_export_header(${name} ${base_name} EXPORT_MACRO_NAME ${fs_name_upper}_API EXPORT_FILE_NAME "Export.h")
+endfunction()
+
+# What the objects of every library are compiled and linked with, whether the library is a target of its own or an
+# object library another one takes in: the clang plugin, AK, the warnings of the platform, and on Windows the
+# pthread and mman shims.
+function(ladybird_library_setup name)
+    target_link_libraries(${name} PUBLIC GenericClangPlugin)
+    if ((APPLE AND NOT IOS) OR (LINUX AND NOT ANDROID))
+        target_compile_options(${name} PRIVATE $<$<COMPILE_LANG_AND_ID:CXX,Clang,AppleClang>:-Wexit-time-destructors>)
+    endif()
+
+    if (NOT "${name}" STREQUAL "AK")
+        target_link_libraries(${name} PRIVATE AK)
+    endif()
+
+    if (WIN32)
+        target_include_directories(${name} PRIVATE ${PTHREAD_INCLUDE_DIR})
+        target_link_libraries(${name} PRIVATE ${PTHREAD_LIBRARY})
+
+        target_include_directories(${name} PRIVATE ${MMAN_INCLUDE_DIR})
+        target_link_libraries(${name} PRIVATE ${MMAN_LIBRARY})
+    endif()
+endfunction()
+
+# The headers of Libraries/Lib${library}, for whatever consumes an installed Lagom through the target.
+function(ladybird_install_library_headers name library)
+    # FIXME: Clean these up so that we don't need so many include dirs
+    if (ENABLE_INSTALL_HEADERS)
+        target_include_directories(${name} INTERFACE
+                $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Services>
+                $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Libraries>
+                $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Services>
+        )
+        install(
+                DIRECTORY "${LADYBIRD_SOURCE_DIR}/Libraries/Lib${library}"
+                COMPONENT Lagom_Development
+                DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+                FILES_MATCHING PATTERN "*.h"
+        )
+    endif()
 endfunction()
 
 function(ladybird_generate_dsym target_name)
@@ -107,44 +156,14 @@ function(ladybird_lib name fs_name)
             OUTPUT_NAME lagom-${fs_name}
     )
     target_link_libraries(${name} PRIVATE ${LIBS})
-    target_link_libraries(${name} PUBLIC GenericClangPlugin)
-    if ((APPLE AND NOT IOS) OR (LINUX AND NOT ANDROID))
-        target_compile_options(${name} PRIVATE $<$<COMPILE_LANG_AND_ID:CXX,Clang,AppleClang>:-Wexit-time-destructors>)
-    endif()
-
-    if (NOT "${name}" STREQUAL "AK")
-        target_link_libraries(${name} PRIVATE AK)
-    endif()
-
-    if (WIN32)
-        target_include_directories(${name} PRIVATE ${PTHREAD_INCLUDE_DIR})
-        target_link_libraries(${name} PRIVATE ${PTHREAD_LIBRARY})
-
-        target_include_directories(${name} PRIVATE ${MMAN_INCLUDE_DIR})
-        target_link_libraries(${name} PRIVATE ${MMAN_LIBRARY})
-    endif()
+    ladybird_library_setup(${name})
 
     if (NOT LADYBIRD_LIB_TYPE STREQUAL "STATIC")
         ladybird_generate_dsym(${name})
     endif()
 
-    # FIXME: Clean these up so that we don't need so many include dirs
-    if (ENABLE_INSTALL_HEADERS)
-        target_include_directories(${name} INTERFACE
-                $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Services>
-                $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Libraries>
-                $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Services>
-        )
-    endif()
+    ladybird_install_library_headers(${name} ${library})
     add_lagom_library_install_rules(${name} ALIAS_NAME ${library})
-    if (ENABLE_INSTALL_HEADERS)
-        install(
-                DIRECTORY "${LADYBIRD_SOURCE_DIR}/Libraries/Lib${library}"
-                COMPONENT Lagom_Development
-                DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-                FILES_MATCHING PATTERN "*.h"
-        )
-    endif()
     ladybird_generated_sources(${name})
     if (LADYBIRD_LIB_EXPLICIT_SYMBOL_EXPORT)
         ladybird_generate_export_header(${name} ${fs_name})

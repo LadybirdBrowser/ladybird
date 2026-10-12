@@ -1167,9 +1167,14 @@ set(GENERATED_SOURCES
 )
 
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
-target_link_libraries(LibWeb PUBLIC LibCompositing LibWebCommon)
+# LibJS's C++ API is part of this library, over the Rust runtime that the library's crate builds below
+# (Libraries/LibJS/CMakeLists.txt). The API's objects export JS_API, and so does the library's own code that includes
+# LibJS's headers.
+target_sources(LibWeb PRIVATE $<TARGET_OBJECTS:LibJSObjects>)
+target_compile_definitions(LibWeb PRIVATE LibJS_EXPORTS)
+target_link_libraries(LibWeb PUBLIC LibCompositing LibWebCommon LibJSHeaders)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibMedia LibMediaClient LibWasm LibXML LibURL LibTLS LibRequests LibGC LibImageDecoderClient LibThreading LibXml2::LibXml2)
+target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibMedia LibMediaClient LibWasm LibXML LibURL LibTLS LibRequests LibGC LibImageDecoderClient LibThreading LibXml2::LibXml2)
 
 # LibWeb still includes ANGLE's GLES headers for WebGL constants and types, but
 # the actual GL entry points live in the Compositor. Copy only ANGLE's compile
@@ -1182,14 +1187,21 @@ foreach(angle_target IN LISTS ANGLE_TARGETS)
     target_compile_options(LibWeb PRIVATE $<TARGET_PROPERTY:${angle_target},INTERFACE_COMPILE_OPTIONS>)
 endforeach()
 
-set(libweb_rust_features allocator)
-if (ENABLE_THREAD_SANITIZER)
-    list(APPEND libweb_rust_features thread-sanitizer)
-endif()
+# The library's Rust code: the bindings crate, which depends on the LibJS runtime and on libweb_rust, so that one archive
+# holds all three and the runtime is in the process once. The runtime's features are LibJS's.
 import_rust_crate(
-    MANIFEST_PATH Rust/Cargo.toml
+    MANIFEST_PATH Bindings/Rust/Cargo.toml
+    CRATE_NAME libweb_bindings_rust
+    NO_DEFAULT_FEATURES
+    FEATURES ${LIBJS_RUST_FEATURES}
+    # The copy of libgfx_rust in this crate, which TestRustCrateCopies reaches by name.
+    KEEP_SYMBOLS ladybird_gfx_register_rust_crate_copy
+)
+# The headers that the build script of libweb_rust, which the archive bundles, writes.
+sync_rust_crate_ffi_headers(
     CRATE_NAME libweb_rust
-    FEATURES ${libweb_rust_features}
+    PRODUCED_BY libweb_bindings_rust
+    FFI_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}"
     FFI_HEADERS
         HTML/Parser/RustFFI.h
         RustFFI.h
@@ -1203,10 +1215,10 @@ import_rust_crate(
         SelectorStateFactsGenerated.inc
         Layout/TreeBuilderRustFFI.h
         Layout/LayoutRustFFI.h
-    # The copy of libgfx_rust in this crate, which TestRustCrateCopies reaches by name.
-    KEEP_SYMBOLS ladybird_gfx_register_rust_crate_copy
 )
-target_link_libraries(libweb_rust INTERFACE LibGfx)
+add_dependencies(LibWeb libweb_rust-ffi-headers)
+target_link_libraries(libweb_bindings_rust INTERFACE LibGfx LibGC LibUnicode)
+test_rust_crate(MANIFEST_PATH Bindings/Rust/Cargo.toml CRATE_NAME libweb_bindings_rust)
 test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libweb_rust)
 
 set(content_blocker_rust_features "")
@@ -1214,8 +1226,8 @@ if (NOT BUILD_SHARED_LIBS)
     set(content_blocker_rust_features FEATURES allocator)
 endif()
 import_rust_crate(MANIFEST_PATH ContentBlocker/Rust/Cargo.toml CRATE_NAME libweb_content_blocker_rust ${content_blocker_rust_features} FFI_HEADER ContentBlockerRustFFI.h)
-target_link_libraries(LibWeb PRIVATE libweb_rust libweb_content_blocker_rust)
-get_target_property(_libweb_rust_lib libweb_rust IMPORTED_LOCATION)
+target_link_libraries(LibWeb PRIVATE libweb_bindings_rust libweb_content_blocker_rust)
+get_target_property(_libweb_rust_lib libweb_bindings_rust IMPORTED_LOCATION)
 get_target_property(_libweb_content_blocker_rust_lib libweb_content_blocker_rust IMPORTED_LOCATION)
 set_property(SOURCE HTML/Parser/HTMLTokenizer.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
 set_property(SOURCE HTML/Parser/HTMLParser.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
@@ -1226,7 +1238,7 @@ endif()
 
 if(NOT BUILD_SHARED_LIBS)
     add_custom_command(TARGET LibWeb POST_BUILD
-        COMMAND ${CMAKE_AR} -x $<TARGET_FILE:libweb_rust>
+        COMMAND ${CMAKE_AR} -x $<TARGET_FILE:libweb_bindings_rust>
         COMMAND ${CMAKE_AR} -x $<TARGET_FILE:libweb_content_blocker_rust>
         COMMAND ${CMAKE_AR} -qS $<TARGET_FILE:LibWeb> *.o
         COMMAND ${CMAKE_RANLIB} $<TARGET_FILE:LibWeb>

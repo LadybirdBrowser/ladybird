@@ -4,16 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-extern "C" void ladybird_init_rust_panic_@ARG_CRATE_NAME@();
-extern "C" void ladybird_init_rust_demangle_@ARG_CRATE_NAME@();
+extern "C" void ladybird_init_rust_panic_@RUST_CRATE_NAME@();
+extern "C" void ladybird_init_rust_demangle_@RUST_CRATE_NAME@();
 
 namespace {
 
 struct RustCrateInitializer {
     RustCrateInitializer()
     {
-        ladybird_init_rust_panic_@ARG_CRATE_NAME@();
-        ladybird_init_rust_demangle_@ARG_CRATE_NAME@();
+        ladybird_init_rust_panic_@RUST_CRATE_NAME@();
+        ladybird_init_rust_demangle_@RUST_CRATE_NAME@();
     }
 };
 
