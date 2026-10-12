@@ -9,7 +9,8 @@
 //! - Conversions and int32 operations of constants become constants, and
 //!   conversions of conversions the values they started from.
 //! - Int32 operations that leave their left-hand side as it is, like
-//!   `x | 0`, become that value.
+//!   `x | 0`, become that value, and commutative ones take constants as
+//!   their right-hand sides.
 //! - Branches on constants become jumps; truthiness branches on boxed
 //!   booleans test the unboxed boolean, and on boxed int32 values compare
 //!   the unboxed value with 0.
@@ -381,6 +382,16 @@ pub fn run(graph: &mut Graph) {
             if let Some(constant) = folded {
                 replacements.replace(node, constant);
                 removed.insert(node.index());
+                continue;
+            }
+            // NB: Int32 operations take constant right-hand sides as
+            //     immediates, so commutative ones get their constants there.
+            if let Op::Int32Binary { op } | Op::Int32WrappingBinary { op } = graph.node(node).op
+                && op.is_commutative_on_int32()
+                && int32_of(graph, inputs[0]).is_some()
+                && int32_of(graph, inputs[1]).is_none()
+            {
+                graph.nodes[node.index()].inputs = vec![inputs[1], inputs[0]];
             }
         }
 
