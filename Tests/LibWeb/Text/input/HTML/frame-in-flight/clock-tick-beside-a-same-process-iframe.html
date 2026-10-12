@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<iframe id="hidden" style="width: 0; height: 0; border: 0"></iframe>
+<iframe id="visible" srcdoc="hello" style="position: relative; left: 0; width: 20px; height: 20px; border: 0"></iframe>
+<div id="box" style="width: 10px; height: 0px; background: green"></div>
+<script>
+    // A document that hosts same-process navigables renders in step with them. The lane of its frame ticks the
+    // animations of its own boxes beside a task, while an animation that moves a navigable's container leaves the
+    // frame to the host.
+    asyncTest(async done => {
+        await srcdocLoaded(visible);
+        const beside = await whileLaneAnimates(() => {
+            return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
+        }, (frameTime, animation) => {
+            internals.injectClockTick(frameTime + 1000);
+            const expectedHeight = (frameTime + 1000 - animation.startTime) / 100;
+            const presented = internals.presentedBorderBox(box);
+            const result = {
+                lane: internals.clockLaneState(document),
+                presentedHeightIsTheTick: presented !== null && Math.abs(presented.height - expectedHeight) < 0.02,
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+            animation.cancel();
+            return result;
+        });
+        println(`box beside iframes: lane ${beside.lane}`);
+        println(`box beside iframes: presented height is the tick's: ${beside.presentedHeightIsTheTick}`);
+        println(`box beside iframes: last frame presented by ${beside.presentedBy}`);
+
+        const moving = await whileLaneAnimates(() => {
+            return visible.animate([{ left: "0px" }, { left: "100px" }], { duration: 10000, easing: "linear" });
+        }, (frameTime, animation) => {
+            internals.injectClockTick(frameTime + 1000);
+            const result = {
+                lane: internals.clockLaneState(document),
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+            animation.cancel();
+            return result;
+        });
+        println(`moving iframe: lane ${moving.lane}`);
+        println(`moving iframe: last frame presented by ${moving.presentedBy}`);
+        done();
+    });
+</script>
