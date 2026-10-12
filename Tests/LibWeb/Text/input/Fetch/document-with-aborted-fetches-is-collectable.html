@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Aborting a fetch through its AbortController or through XMLHttpRequest.abort(), and terminating one through
+    // XMLHttpRequest.open(), have to stop its network request. A request that streams on until the server ends the
+    // response keeps its callbacks, and those root the fetch's realm. And aborting the document as it unloads stops
+    // only the fetches that are still ongoing — so a page that aborts its long-lived requests and starts new ones (as a
+    // page that polls its server does) would otherwise stay alive after a navigation away from it, for as long as the
+    // server kept the aborted responses open.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = `document-with-aborted-fetches-${crypto.randomUUID()}`;
+
+        // The response's first byte arrives at once, and the rest only once the token is unblocked — which never
+        // happens.
+        const blockedURL = await server.createEcho("GET", "/document-with-aborted-fetches-blocked", {
+            status: 200,
+            headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" },
+            body: "xx",
+        });
+
+        // The page starts two XMLHttpRequests and a fetch of that response. Once all three have their headers, it
+        // aborts the fetch and one XMLHttpRequest, opens the other XMLHttpRequest again (which terminates its fetch),
+        // and tells its parent.
+        const pageURL = await server.createEcho("GET", "/document-with-aborted-fetches", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html>
+<script>
+    const url = ${JSON.stringify(blockedURL)} + "?chunks=1&chunk_unblock_tokens=${token}&request=";
+    const headersReceived = xhr =>
+        new Promise(resolve => {
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState >= XMLHttpRequest.HEADERS_RECEIVED)
+                    resolve();
+            };
+        });
+    const aborter = new AbortController();
+    const abortedXHR = new XMLHttpRequest();
+    const reopenedXHR = new XMLHttpRequest();
+    const started = [
+        fetch(url + "fetch", { signal: aborter.signal }),
+        headersReceived(abortedXHR),
+        headersReceived(reopenedXHR),
+    ];
+    abortedXHR.open("GET", url + "aborted-xhr");
+    abortedXHR.send();
+    reopenedXHR.open("GET", url + "reopened-xhr");
+    reopenedXHR.send();
+    Promise.all(started).then(() => {
+        aborter.abort();
+        abortedXHR.abort();
+        reopenedXHR.onreadystatechange = null;
+        reopenedXHR.open("GET", url + "never-sent");
+        parent.postMessage("requests canceled", "*");
+    });
+<\/script>`,
+        });
+
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+
+        const navigate = url =>
+            new Promise(resolve => {
+                window.addEventListener("message", resolve, { once: true });
+                iframe.src = url;
+            });
+
+        // Record each document, then navigate away from it. An expando preserves the document's wrapper for as long as
+        // the document itself lives, so the weak reference tracks the document rather than a wrapper that JS may drop
+        // early. The recording starts with the second document: the first one reuses the initial about:blank
+        // document's window, whose realm the navigable's WindowProxy keeps alive for as long as the iframe lives. And
+        // the recording runs in a nested function, so that no document lingers in a register of this function's frame
+        // while the documents are expected to be collected.
+        const weakDocuments = await (async () => {
+            const weakDocuments = [];
+            await navigate(`${pageURL}?0`);
+            await navigate(`${pageURL}?1`);
+            for (let i = 2; i <= 6; i++) {
+                const unloadedDocument = iframe.contentDocument;
+                unloadedDocument.preserveWrapper = true;
+                weakDocuments.push(new WeakRef(unloadedDocument));
+                await navigate(`${pageURL}?${i}`);
+            }
+            return weakDocuments;
+        })();
+
+        const maximumGcRoundsWhileRequestTeardownTasksDrain = 100;
+        for (let round = 0; round < maximumGcRoundsWhileRequestTeardownTasksDrain; ++round) {
+            await timeout(0);
+            await internals.gcAsync();
+            if (weakDocuments.every(weak => weak.deref() === undefined))
+                break;
+        }
+
+        const collected = weakDocuments.filter(weak => weak.deref() === undefined).length;
+        println(`collected ${collected} of ${weakDocuments.length} documents with aborted fetches`);
+        iframe.remove();
+    });
+</script>
