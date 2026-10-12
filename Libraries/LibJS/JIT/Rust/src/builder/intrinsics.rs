@@ -417,6 +417,51 @@ impl GraphBuilder<'_> {
         Ok(Some(Flow::Continue))
     }
 
+    /// Builds `Math.imul(a, b)` calls, if the site saw only that function
+    /// and int32 arguments, as the low 32 bits of the int32 product.
+    /// Returns `None`, having built nothing, if the `Call` is no such call.
+    pub(super) fn try_build_math_imul(&mut self, instruction: &Instruction) -> Result<Option<Flow>, CompileFailure> {
+        let Instruction::Call {
+            call_feedback,
+            dst,
+            callee,
+            ref arguments,
+            ..
+        } = *instruction
+        else {
+            return Ok(None);
+        };
+        // NB: ToInt32 of an absent argument (undefined) is 0, which the slow
+        //     path handles like any other call.
+        if arguments.len() < 2 || arguments.iter().any(|operand| self.holds_virtual_arguments(*operand)) {
+            return Ok(None);
+        }
+        let Some((target, Intrinsic::MathImul)) = self
+            .call_feedback(call_feedback)
+            .and_then(|feedback| feedback.monomorphic_intrinsic())
+        else {
+            return Ok(None);
+        };
+        if !self.may_speculate(ExitKind::BadCallTarget) || !self.may_speculate(ExitKind::NotInt32) {
+            return Ok(None);
+        }
+        // NB: Only the first two arguments matter; the others are only read.
+        let values = [self.read_value(arguments[0])?, self.read_value(arguments[1])?];
+        if !self.may_be_int32(&values) {
+            return Ok(None);
+        }
+        self.check_callee(callee, target)?;
+        let [lhs, rhs] = values.map(|value| self.int32(value));
+        let product = self.emit(
+            Op::Int32WrappingBinary { op: BinaryOp::Mul },
+            vec![lhs, rhs],
+            Some(Repr::Int32),
+        );
+        let result = self.emit(Op::BoxInt32, vec![product], Some(Repr::Tagged));
+        self.write(dst, result)?;
+        Ok(Some(Flow::Continue))
+    }
+
     /// The intrinsic a call site's feedback saw as its single callee, with
     /// the code checking that `callee` is still that function. Returns `None`,
     /// having built nothing, if the site saw another callee.

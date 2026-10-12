@@ -46,7 +46,8 @@ pub fn address(intrinsic: Intrinsic) -> u64 {
         | Intrinsic::BooleanConstructor
         | Intrinsic::TypedArrayPrototypeLength
         | Intrinsic::MathMax
-        | Intrinsic::MathMin => return 0,
+        | Intrinsic::MathMin
+        | Intrinsic::MathImul => return 0,
     };
     helper as u64
 }

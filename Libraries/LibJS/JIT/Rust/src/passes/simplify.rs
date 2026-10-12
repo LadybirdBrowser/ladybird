@@ -76,8 +76,9 @@ fn fold_int32_wrapping_binary(op: BinaryOp, lhs: i32, rhs: i32) -> i32 {
     match op {
         BinaryOp::Add => lhs.wrapping_add(rhs),
         BinaryOp::Sub => lhs.wrapping_sub(rhs),
+        BinaryOp::Mul => lhs.wrapping_mul(rhs),
         BinaryOp::UnsignedRightShift => lhs.cast_unsigned().wrapping_shr((rhs & 31) as u32).cast_signed(),
-        _ => unreachable!("only additions, subtractions and unsigned right shifts wrap"),
+        _ => unreachable!("only additions, subtractions, multiplications and unsigned right shifts wrap"),
     }
 }
 

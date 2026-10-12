@@ -551,9 +551,9 @@ pub enum Op {
         op: BinaryOp,
     },
     /// The low 32 bits of `input 0 op input 1` of two `Repr::Int32` inputs,
-    /// as a `Repr::Int32`, for Add, Sub and UnsignedRightShift. Never exits:
-    /// the truncation pass makes the int32 operations whose users only read
-    /// the low 32 bits of their results these.
+    /// as a `Repr::Int32`, for Add, Sub, Mul and UnsignedRightShift. Never
+    /// exits: the truncation pass makes the int32 operations whose users only
+    /// read the low 32 bits of their results these, and Mul is `Math.imul`.
     Int32WrappingBinary {
         op: BinaryOp,
     },

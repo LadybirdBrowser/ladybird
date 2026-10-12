@@ -689,6 +689,8 @@ pub enum Intrinsic {
     MathMax,
     /// `Math.min`.
     MathMin,
+    /// `Math.imul`.
+    MathImul,
     /// `String.prototype.indexOf`.
     StringPrototypeIndexOf,
     /// `String.prototype.toLowerCase`.

@@ -1497,6 +1497,9 @@ impl<'a> GraphBuilder<'a> {
                 if let Some(flow) = self.try_build_math_min_max(instruction)? {
                     return Ok(Some(flow));
                 }
+                if let Some(flow) = self.try_build_math_imul(instruction)? {
+                    return Ok(Some(flow));
+                }
                 if let Some(flow) = self.try_build_has_own_property(instruction)? {
                     return Ok(Some(flow));
                 }

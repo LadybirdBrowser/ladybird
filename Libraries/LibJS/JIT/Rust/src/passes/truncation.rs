@@ -17,7 +17,8 @@
 //! Wrapping additions and subtractions read only the low 32 bits of their
 //! operands too: the sum of int32 values that wrapped is congruent modulo
 //! 2^32 to the exact sum, which doubles hold exactly as long as it stays
-//! below 2^53, so chains like `(a + b + c) | 0` wrap as a whole.
+//! below 2^53, so chains like `(a + b + c) | 0` wrap as a whole. So do the
+//! wrapping multiplications of `Math.imul`.
 //!
 //! Frame states need the exact value, so values they hold do not wrap.
 //! The pass runs before simplification removes the `x | 0` that ToInt32 of
@@ -57,8 +58,10 @@ fn reads_low_bits(graph: &Graph, user: NodeId, index: usize, wrapping: &BitSet) 
         Op::Int32Binary {
             op: BinaryOp::Add | BinaryOp::Sub,
         } => wrapping.contains(user.index()),
+        // NB: The low 32 bits of a product only depend on the low 32 bits of
+        //     its factors.
         Op::Int32WrappingBinary {
-            op: BinaryOp::Add | BinaryOp::Sub,
+            op: BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul,
         } => true,
         // NB: Clamped elements clamp the value instead.
         Op::StoreElementAt {
