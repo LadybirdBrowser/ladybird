@@ -7,6 +7,7 @@
 //! Rust-owned custom-property data with the same structurally shared parent shape as the C++
 //! `CustomPropertyData` shell.
 
+use std::borrow::Cow;
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -171,15 +172,15 @@ struct FunctionLocalRegistration {
 }
 
 #[derive(Clone)]
-struct FunctionLocalValue {
-    tokens: Vec<ComponentValue>,
+struct FunctionLocalValue<'a> {
+    tokens: Cow<'a, [ComponentValue]>,
     includes_substitution: bool,
 }
 
-struct FunctionLocalScope {
+struct FunctionLocalScope<'a> {
     function_identity: CustomFunctionIdentity,
     resolved_value_cache: Rc<RefCell<HashMap<Vec<u16>, Vec<ComponentValue>>>>,
-    values: HashMap<Vec<u16>, FunctionLocalValue>,
+    values: HashMap<Vec<u16>, FunctionLocalValue<'a>>,
     registrations: Rc<HashMap<Vec<u16>, FunctionLocalRegistration>>,
 }
 
@@ -945,7 +946,7 @@ struct ASFResolutionContext<'a> {
     element_store: Option<&'a CustomPropertyStore>,
     element_values: Option<&'a mut HashMap<usize, RetainedStyleValueData>>,
     substitution_limit_hits: u64,
-    function_local_scopes: Vec<FunctionLocalScope>,
+    function_local_scopes: Vec<FunctionLocalScope<'a>>,
     token_cache: Option<&'a mut CustomPropertyTokenCache>,
 }
 
@@ -1502,7 +1503,7 @@ fn resolve_function_local_property(
     registry: Option<&CustomPropertyRegistry>,
     name: &[u16],
     function_identity: CustomFunctionIdentity,
-    value: Option<FunctionLocalValue>,
+    value: Option<FunctionLocalValue<'_>>,
     registration: FunctionLocalRegistration,
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
@@ -1525,7 +1526,7 @@ fn resolve_function_local_property(
             )),
         )
     } else {
-        TokenResolution::Resolved(value.tokens)
+        TokenResolution::Resolved(value.tokens.into_owned())
     };
     // https://drafts.csswg.org/css-mixins/#resolve-function-styles
     // On result, all CSS-wide keywords are left unresolved.
@@ -2514,12 +2515,12 @@ fn split_function_arguments(tokens: &[ComponentValue]) -> Vec<&[ComponentValue]>
 }
 
 // https://drafts.csswg.org/css-mixins/#resolve-function-styles
-fn resolve_function_styles<'a>(
+fn resolve_function_styles<'a, 'names>(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    local_scope: FunctionLocalScope,
-    property_names: impl IntoIterator<Item = &'a [u16]>,
-    context: &mut ASFResolutionContext,
+    local_scope: FunctionLocalScope<'a>,
+    property_names: impl IntoIterator<Item = &'names [u16]>,
+    context: &mut ASFResolutionContext<'a>,
     recursion_depth: u32,
 ) -> HashMap<Vec<u16>, TokenResolution> {
     // 1. Create a "hypothetical element" el that acts as a child of calling context's element. el is featureless, and
@@ -2574,12 +2575,12 @@ fn resolve_function_styles<'a>(
 }
 
 // https://drafts.csswg.org/css-mixins/#evaluate-a-custom-function
-fn evaluate_a_custom_function(
+fn evaluate_a_custom_function<'a>(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    custom_function: &CustomFunctionDefinition,
+    custom_function: &'a CustomFunctionDefinition,
     arguments: Vec<TokenResolution>,
-    context: &mut ASFResolutionContext,
+    context: &mut ASFResolutionContext<'a>,
     recursion_depth: u32,
 ) -> TokenResolution {
     // 1. Let substitution context be a substitution context containing «"function", custom function».
@@ -2664,12 +2665,12 @@ fn evaluate_a_custom_function(
 
         let value = match normalized_argument {
             TokenResolution::Resolved(tokens) => Some(FunctionLocalValue {
-                tokens,
+                tokens: Cow::Owned(tokens),
                 includes_substitution: false,
             }),
             TokenResolution::NotHandled => return TokenResolution::NotHandled,
             TokenResolution::Invalid | TokenResolution::Cyclic => default_value.map(|tokens| FunctionLocalValue {
-                tokens: trim_whitespace(tokens).to_vec(),
+                tokens: Cow::Borrowed(trim_whitespace(tokens)),
                 includes_substitution: true,
             }),
         };
@@ -2724,7 +2725,7 @@ fn evaluate_a_custom_function(
         body_rule.insert(
             name.clone(),
             FunctionLocalValue {
-                tokens: tokens.clone(),
+                tokens: Cow::Owned(tokens.clone()),
                 includes_substitution: false,
             },
         );
@@ -2738,7 +2739,7 @@ fn evaluate_a_custom_function(
         body_rule.insert(
             name.clone(),
             FunctionLocalValue {
-                tokens: tokens.clone(),
+                tokens: Cow::Borrowed(tokens),
                 includes_substitution: *includes_substitution,
             },
         );
