@@ -1,0 +1,4 @@
+focus() in a fixed box: scrollY=116
+scrollIntoView() of a fixed box: scrollY=816
+focus() in a scroller inside a fixed box: scrollY=816, scroller scrolled=true
+focus() in a fixed box inside a transformed element: scrolled=true

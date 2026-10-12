@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .banner { position: fixed; left: 0; bottom: -200px; width: 300px; height: 100px; }
+    #scroller { position: fixed; top: 0; left: 0; width: 200px; height: 100px; overflow: auto; }
+    #transformed { transform: translateX(0); }
+    #transformed .banner { position: fixed; bottom: auto; top: 2000px; }
+</style>
+<div style="height: 5000px"></div>
+<div class="banner"><a id="link" href="#">link</a></div>
+<div class="banner" id="banner"></div>
+<div id="scroller">
+    <div style="height: 500px"></div>
+    <button id="button">button</button>
+</div>
+<div id="transformed"><div class="banner"><button id="transformedButton">button</button></div></div>
+<script>
+    // Scrolling the viewport does not move a box that is fixed to the viewport, so bringing it into view leaves the
+    // viewport where it is. A fixed box inside a transformed element moves with the viewport, so the viewport scrolls.
+    test(() => {
+        link.focus();
+        println(`focus() in a fixed box: scrollY=${window.scrollY}`);
+        banner.scrollIntoView();
+        println(`scrollIntoView() of a fixed box: scrollY=${window.scrollY}`);
+        button.focus();
+        println(`focus() in a scroller inside a fixed box: scrollY=${window.scrollY}, scroller scrolled=${scroller.scrollTop > 0}`);
+        transformedButton.focus();
+        println(`focus() in a fixed box inside a transformed element: scrolled=${window.scrollY > 0}`);
+    });
+</script>
