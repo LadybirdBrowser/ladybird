@@ -2044,8 +2044,8 @@ ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(Histor
 
 void CanonicalTraversable::run_history_operation_at_queue_position(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters request, RefPtr<WebContentPage> requesting_page, u64 sequence_number, RefPtr<CanonicalSessionHistoryEntry> target_entry, OnHistoryOperationComplete on_complete, NonnullRefPtr<Core::Promise<Empty>> promise)
 {
-    // The traversal queue can outlive an embedded page which appended work to it. Such a page cannot run the
-    // preparation step or receive completion, so discard its queued operation instead of waiting forever.
+    // The traversal queue can outlive an embedded page which appended work to it. Such a page cannot receive
+    // completion, so discard its queued operation instead of waiting forever.
     if (requesting_page && !requesting_page->is_open()) {
         if (auto const* parameters = request.get_pointer<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>()) {
             if (auto navigable = find(parameters->navigable_id); navigable.has_value())
@@ -2237,6 +2237,11 @@ void CanonicalTraversable::enqueue_history_operation(Web::HTML::CrossProcessId o
         }
     }
 
+    // A page that aborts an intercepted traverse before its resumption runs revokes the resumption.
+    Optional<SessionHistoryTraversalQueue::RevocableOperation> revocable_operation;
+    if (request.has<Web::ResumeTraverseHistoryOperationParameters>() && requesting_page)
+        revocable_operation = SessionHistoryTraversalQueue::RevocableOperation { requesting_page->id(), operation_id };
+
     auto steps = [this, operation_id, request = move(request), requesting_page = move(requesting_page), sequence_number, target_entry, on_complete = move(on_complete)](NonnullRefPtr<Core::Promise<Empty>> promise) mutable {
         run_history_operation_at_queue_position(operation_id, move(request), move(requesting_page), sequence_number, move(target_entry), move(on_complete), move(promise));
     };
@@ -2244,7 +2249,15 @@ void CanonicalTraversable::enqueue_history_operation(Web::HTML::CrossProcessId o
     if (synchronous_navigation_target.has_value())
         m_history_traversal_queue.append_session_history_synchronous_navigation_steps(*synchronous_navigation_target, move(target_entry), move(steps));
     else
-        m_history_traversal_queue.append_session_history_traversal_steps(move(steps));
+        m_history_traversal_queue.append_session_history_traversal_steps(move(steps), revocable_operation);
+}
+
+void CanonicalTraversable::revoke_history_operation(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id)
+{
+    // Steps that have started run to completion.
+    if (!m_history_traversal_queue.remove_steps_of_revoked_operation({ source_page.id(), operation_id }))
+        return;
+    source_page.async_complete_history_operation(operation_id, Web::HTML::HistoryStepResult::Applied, {}, m_session_history.size());
 }
 
 void CanonicalTraversable::enqueue_browser_history_traversal(Web::TraverseToStepHistoryOperationParameters parameters, bool check_for_cancelation, OnHistoryOperationComplete on_complete)
@@ -2323,13 +2336,6 @@ void CanonicalTraversable::update_for_navigable_creation_or_destruction(HistoryO
 
     // 2. Return the result of applying the history step step to traversable given false, null, null, "none", and null.
     apply_history_step(operation, *step, false, {}, Web::HTML::UserNavigationInvolvement::None, {});
-}
-
-// Resuming a traversal begins, at its queue position, with steps in the requesting process, which can find the
-// intercepted navigate event aborted there. The other operations have their complete input in canonical state.
-static bool history_operation_needs_preparation(Web::HistoryOperationParameters const& parameters)
-{
-    return parameters.has<Web::ResumeTraverseHistoryOperationParameters>();
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
@@ -2499,7 +2505,7 @@ void CanonicalTraversable::finalize_a_same_document_navigation(HistoryOperation&
     apply_the_push_or_replace_history_step(operation, *target_step, request.history_handling, request.user_involvement);
 }
 
-void CanonicalTraversable::run_direct_history_operation(HistoryOperation& operation)
+void CanonicalTraversable::run_history_operation(HistoryOperation& operation)
 {
     operation.parameters.visit(
         [&](Web::ReloadHistoryOperationParameters const& parameters) {
@@ -2585,6 +2591,9 @@ void CanonicalTraversable::run_direct_history_operation(HistoryOperation& operat
             // Flush is a queue barrier; completing at the queue position is the whole operation.
             finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::Applied, {});
         },
+        [&](Web::ResumeTraverseHistoryOperationParameters const& parameters) {
+            resume_applying_the_traverse_history_step(operation, parameters.target_step, parameters.user_involvement);
+        },
         [&](Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const&) {
             // A navigation that ended before its completion steps appended this has nothing to finalize.
             auto navigation = finalized_navigation(operation);
@@ -2593,9 +2602,6 @@ void CanonicalTraversable::run_direct_history_operation(HistoryOperation& operat
                 return;
             }
             finalize_a_cross_document_navigation(operation);
-        },
-        [&](auto const&) {
-            VERIFY_NOT_REACHED();
         });
 }
 
@@ -2618,17 +2624,7 @@ void CanonicalTraversable::start_history_operation(HistoryOperation& operation, 
     if (operation.initiating_page)
         add_history_operation_completion_endpoint(operation, *operation.initiating_page);
 
-    if (!history_operation_needs_preparation(operation.parameters)) {
-        run_direct_history_operation(operation);
-        return;
-    }
-
-    if (!operation.initiating_page) {
-        finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::CanceledByMissingPage, {});
-        return;
-    }
-
-    operation.initiating_page->async_history_operation_started(operation.operation_id);
+    run_history_operation(operation);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
@@ -2749,20 +2745,6 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
 
     // 10. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.
     apply_the_push_or_replace_history_step(operation, *target_step, parameters.history_handling, parameters.user_involvement);
-}
-
-void CanonicalTraversable::did_receive_history_operation_ready(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult result)
-{
-    auto* operation = find_history_operation(operation_id);
-    if (!operation || operation->algorithm || !history_operation_needs_preparation(operation->parameters) || !operation->was_initiated_by(source_page))
-        return;
-    if (auto const* step_result = result.get_pointer<Web::HTML::HistoryStepResult>()) {
-        finish_history_operation(operation_id, *step_result, {});
-        return;
-    }
-
-    auto const& parameters = operation->parameters.get<Web::ResumeTraverseHistoryOperationParameters>();
-    resume_applying_the_traverse_history_step(*operation, parameters.target_step, parameters.user_involvement);
 }
 
 void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step)

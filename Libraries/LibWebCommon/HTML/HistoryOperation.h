@@ -32,8 +32,6 @@ struct FinalizeCrossDocumentNavigationHistoryOperationParameters {
     Optional<HTML::CrossProcessId> document_id;
 };
 
-using HistoryOperationReadyResult = Variant<Empty, HTML::HistoryStepResult>;
-
 struct ReloadHistoryOperationParameters {
     HTML::CrossProcessId navigable_id;
     HTML::UserNavigationInvolvement user_involvement;

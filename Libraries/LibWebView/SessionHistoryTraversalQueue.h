@@ -14,6 +14,7 @@
 #include <AK/WeakPtr.h>
 #include <LibCore/Promise.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/Export.h>
 
 namespace WebView {
@@ -34,6 +35,14 @@ public:
 
     SessionHistoryTraversalQueue() = default;
 
+    // The operation a page requested and can revoke while its steps have not run.
+    struct RevocableOperation {
+        Web::PageId page_id;
+        Web::HTML::CrossProcessId operation_id;
+
+        bool operator==(RevocableOperation const&) const = default;
+    };
+
     struct Item {
         // Present for synchronous navigation steps, empty for plain algorithm steps.
         Optional<Web::HTML::CrossProcessId> target_navigable;
@@ -41,10 +50,12 @@ public:
         u64 sequence_number { 0 };
         // The entry synchronous navigation steps finalize.
         RefPtr<CanonicalSessionHistoryEntry> target_entry;
+        Optional<RevocableOperation> revocable_operation;
     };
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#tn-append-session-history-traversal-steps
-    void append_session_history_traversal_steps(SessionHistoryTraversalSteps);
+    void append_session_history_traversal_steps(SessionHistoryTraversalSteps, Optional<RevocableOperation> = {});
+    bool remove_steps_of_revoked_operation(RevocableOperation const&);
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#tn-append-session-history-sync-nav-steps
     void append_session_history_synchronous_navigation_steps(Web::HTML::CrossProcessId target_navigable, RefPtr<CanonicalSessionHistoryEntry> target_entry, SessionHistoryTraversalSteps);

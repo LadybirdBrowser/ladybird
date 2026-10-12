@@ -10,15 +10,22 @@
 
 namespace WebView {
 
-void SessionHistoryTraversalQueue::append_session_history_traversal_steps(SessionHistoryTraversalSteps steps)
+void SessionHistoryTraversalQueue::append_session_history_traversal_steps(SessionHistoryTraversalSteps steps, Optional<RevocableOperation> revocable_operation)
 {
-    m_algorithm_set.append({ {}, move(steps), ++m_last_enqueued_sequence_number, {} });
+    m_algorithm_set.append({ {}, move(steps), ++m_last_enqueued_sequence_number, {}, revocable_operation });
     schedule_processing();
+}
+
+bool SessionHistoryTraversalQueue::remove_steps_of_revoked_operation(RevocableOperation const& operation)
+{
+    return m_algorithm_set.remove_first_matching([&](auto const& item) {
+        return item.revocable_operation == operation;
+    });
 }
 
 void SessionHistoryTraversalQueue::append_session_history_synchronous_navigation_steps(Web::HTML::CrossProcessId target_navigable, RefPtr<CanonicalSessionHistoryEntry> target_entry, SessionHistoryTraversalSteps steps)
 {
-    m_algorithm_set.append({ target_navigable, move(steps), ++m_last_enqueued_sequence_number, move(target_entry) });
+    m_algorithm_set.append({ target_navigable, move(steps), ++m_last_enqueued_sequence_number, move(target_entry), {} });
     schedule_processing();
 }
 

@@ -814,6 +814,10 @@ void Navigation::abort_a_navigate_event(GC::Ref<NavigateEvent> event, JS::Value 
     // 2. Set navigation's ongoing navigate event to null.
     m_ongoing_navigate_event = nullptr;
 
+    // AD-HOC: An aborted intercepted traverse must not be resumed. See https://github.com/whatwg/html/issues/12362.
+    if (auto operation_id = event->resume_traversal_operation_id(); operation_id.has_value())
+        window().page().history_executor().revoke_history_operation(*operation_id);
+
     // 5. If navigation's ongoing API method tracker is non-null, then reject the finished promise for apiMethodTracker
     //    with reason.
     // AD-HOC: This runs before signaling abort, since an abort handler can start a new navigation. Its inner navigate
@@ -1347,24 +1351,12 @@ void Navigation::commit_a_navigate_event(GC::Ref<NavigateEvent> event, GC::Ptr<N
             auto destination_entry = event->destination()->navigation_history_entry();
             VERIFY(destination_entry);
             auto target_step = destination_entry->session_history_entry().step().get<int>();
-            navigable->page().history_executor().request_history_operation(
-                ResumeTraverseHistoryOperationParameters {
-                    .navigable_id = navigable->id(),
-                    .target_step = target_step,
-                    .user_involvement = user_involvement_for_resume,
-                },
-                {
-                    .pre_steps = GC::create_function(heap(), [this, event](GC::Ref<HistoryExecutor::OnHistoryOperationReady> ready) {
-                        // NB: This operation can start after a later navigation has aborted the intercepted
-                        //     traverse. In that case, the aborted traverse must not be resumed.
-                        //     See https://github.com/whatwg/html/issues/12362.
-                        if (event->abort_controller()->signal()->aborted() || event != m_ongoing_navigate_event) {
-                            ready->function()(HistoryStepResult::Applied);
-                            return;
-                        }
-                        ready->function()(Empty {});
-                    }),
-                });
+            auto operation_id = navigable->page().history_executor().request_history_operation(ResumeTraverseHistoryOperationParameters {
+                .navigable_id = navigable->id(),
+                .target_step = target_step,
+                .user_involvement = user_involvement_for_resume,
+            });
+            event->set_resume_traversal_operation_id(operation_id);
         }
 
         // - "push"
