@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = '<div id="a"><slot name="a"></slot></div><div id="b"><slot name="b"></slot></div>';
+        const a = shadow.getElementById("a");
+        const b = shadow.getElementById("b");
+        a.style.cssText = "--width: 10px; --unused: 1;";
+        b.style.cssText = "--width: 10px; --unused: 2;";
+        const moved = document.createElement("section");
+        moved.slot = "a";
+        for (let index = 0; index < 32; ++index) {
+            const child = document.createElement("span");
+            child.textContent = "item";
+            child.style.cssText = "display: inline-block; width: var(--width); padding: var(--padding, 1px);";
+            moved.append(child);
+        }
+        host.append(moved);
+        moved.offsetWidth;
+        const before = internals.styleEngineCounters();
+        for (let index = 0; index < 4; ++index) {
+            moved.slot = index % 2 ? "a" : "b";
+            internals.updateStyle();
+        }
+        const after = internals.styleEngineCounters();
+        println(`unchanged variable inputs avoid descendant full drives: ${after.engineFullDrivesStarted - before.engineFullDrivesStarted <= 4}`);
+        println(`unchanged width: ${getComputedStyle(moved.firstElementChild).width}`);
+        println(`unused value follows slot: ${getComputedStyle(moved.lastElementChild).getPropertyValue("--unused")}`);
+        a.style.setProperty("--effect-opacity", "0.25");
+        b.style.setProperty("--effect-opacity", "0.75");
+        const opacity = moved.firstElementChild.animate({ opacity: ["var(--effect-opacity)", "var(--effect-opacity)"] }, { duration: 1000000, fill: "both" });
+        opacity.pause();
+        opacity.currentTime = 250000;
+        internals.updateStyle();
+        const beforeAnimationMove = internals.styleEngineCounters();
+        moved.slot = "b";
+        internals.updateStyle();
+        println(`animated environment move avoids full drives: ${internals.styleEngineCounters().engineFullDrivesStarted - beforeAnimationMove.engineFullDrivesStarted <= 1}`);
+        println(`animated width after environment move: ${getComputedStyle(moved.firstElementChild).width}`);
+        println(`animation after environment move: ${getComputedStyle(moved.firstElementChild).opacity}`);
+        b.style.setProperty("--width", "20px");
+        b.style.setProperty("--padding", "2px");
+        moved.slot = "b";
+        println(`changed width: ${getComputedStyle(moved.firstElementChild).width}`);
+        println(`changed shorthand: ${getComputedStyle(moved.lastElementChild).paddingLeft}`);
+        a.style.setProperty("--width", "1em");
+        a.style.fontSize = "24px";
+        moved.slot = "a";
+        println(`font-relative width: ${getComputedStyle(moved.firstElementChild).width}`);
+        println(`fallback shorthand: ${getComputedStyle(moved.lastElementChild).paddingRight}`);
+        println(`incremental layout matches rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+    });
+</script>

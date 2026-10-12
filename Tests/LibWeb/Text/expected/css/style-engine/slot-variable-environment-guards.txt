@@ -1,0 +1,12 @@
+substituted inherit before: 100px
+substituted inherit after: 200px
+font context before: 16px
+font context after: 32px
+query container before: 10px
+query container after: 20px
+attribute context before: 10px
+attribute context after: 20px
+registered font context before: 16px
+registered font context after: 32px
+cyclic fallback before: 7px
+cyclic fallback after: 20px

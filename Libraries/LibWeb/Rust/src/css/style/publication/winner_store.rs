@@ -114,6 +114,26 @@ impl WinnerStore {
             + self.by_property.capacity() * size_of::<u16>()) as u64
     }
 
+    /// Whether the same winners resolve to the same values in two custom-property environments.
+    /// Element-relative and resource-dependent values still require their ordinary context checks.
+    pub(super) fn environment_values_equal(&self, other: &Self, engine: &RetainedState) -> bool {
+        if self.declarations.len() != other.declarations.len() {
+            return false;
+        }
+        let mine = self.view(engine);
+        let theirs = other.view(engine);
+        self.declarations.iter().zip(&other.declarations).all(|(a, b)| {
+            let dependencies = mine.dependencies(a);
+            a.property == b.property
+                && a.important == b.important
+                && !value_resolves_against_the_element(&dependencies)
+                && !dependencies.uses_tree_counting_function
+                && !dependencies.may_need_style_sheet_resource_context
+                && !dependencies.needs_document_base_url
+                && mine.value(a) == theirs.value(b)
+        })
+    }
+
     pub(super) fn uses_tree_counting_function(&self, engine: &RetainedState) -> bool {
         let view = self.view(engine);
         self.declarations
@@ -349,6 +369,48 @@ mod tests {
     use super::*;
     use crate::css::property_metadata::property_id;
     use std::sync::Arc;
+
+    fn length_store(value: f64, unit: &str) -> WinnerStore {
+        let unit = u8::try_from(
+            crate::css::style_compute::LENGTH_UNIT_NAMES
+                .iter()
+                .position(|&name| name == unit)
+                .unwrap(),
+        )
+        .unwrap();
+        WinnerStore::new(vec![WinnerDeclaration::new(
+            property_id::WIDTH,
+            false,
+            WinnerValue::Substituted {
+                value: RetainedStyleValueData::from_owned(StyleValueData::Length { value, unit }),
+                source: WinnerSource::Element(ElementDeclarationKind::InlineStyle),
+            },
+        )])
+    }
+
+    #[test]
+    fn environment_value_comparison_checks_resolved_values() {
+        let engine = StyleEngine::new();
+        let first = length_store(10.0, "px");
+        let equal = length_store(10.0, "px");
+        let changed = length_store(20.0, "px");
+        assert!(first.environment_values_equal(&equal, &engine.retained));
+        assert!(equal.environment_values_equal(&first, &engine.retained));
+        assert!(!first.environment_values_equal(&changed, &engine.retained));
+        assert!(!first.environment_values_equal(&WinnerStore::new(Vec::new()), &engine.retained));
+    }
+
+    #[test]
+    fn environment_value_comparison_leaves_font_context_to_driver_checks() {
+        let engine = StyleEngine::new();
+        assert!(length_store(1.0, "em").environment_values_equal(&length_store(1.0, "em"), &engine.retained));
+    }
+
+    #[test]
+    fn environment_value_comparison_rejects_container_relative_values() {
+        let engine = StyleEngine::new();
+        assert!(!length_store(1.0, "cqw").environment_values_equal(&length_store(1.0, "cqw"), &engine.retained));
+    }
 
     #[test]
     fn winner_view_borrows_written_spelling_and_preserves_cascade_order() {
