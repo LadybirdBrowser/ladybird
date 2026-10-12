@@ -415,6 +415,13 @@ impl CascadeWinnerDelta {
     pub fn is_empty(&self) -> bool {
         self.properties.is_empty()
     }
+
+    /// NB: Substitution can change a specified winner without changing its declaration.
+    pub(super) fn include_substituted_properties(&mut self, properties: &[PropertyID]) {
+        self.properties.extend_from_slice(properties);
+        self.properties.sort_unstable();
+        self.properties.dedup();
+    }
 }
 
 /// One exact replacement in a retained cascade state. `None` restores the implicit winner.

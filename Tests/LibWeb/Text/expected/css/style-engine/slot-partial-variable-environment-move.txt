@@ -1,0 +1,8 @@
+changed variables use partial descendant drives: true
+changed width: 20px
+changed shorthand: 2px
+changed inherited color: rgb(0, 0, 255)
+currentColor follows changed color: rgb(0, 0, 255)
+variable duration starts transition: true
+transition midpoint: 15px
+incremental layout matches rebuild: true

@@ -114,24 +114,38 @@ impl WinnerStore {
             + self.by_property.capacity() * size_of::<u16>()) as u64
     }
 
-    /// Whether the same winners resolve to the same values in two custom-property environments.
-    /// Element-relative and resource-dependent values still require their ordinary context checks.
-    pub(super) fn environment_values_equal(&self, other: &Self, engine: &RetainedState) -> bool {
+    /// NB: Compare the resolved declarations while retaining context-dependent computation guards.
+    pub(super) fn environment_value_delta(&self, other: &Self, engine: &RetainedState) -> Option<SmallVec<[u16; 8]>> {
         if self.declarations.len() != other.declarations.len() {
-            return false;
+            return None;
         }
         let mine = self.view(engine);
         let theirs = other.view(engine);
-        self.declarations.iter().zip(&other.declarations).all(|(a, b)| {
-            let dependencies = mine.dependencies(a);
-            a.property == b.property
-                && a.important == b.important
-                && !value_resolves_against_the_element(&dependencies)
-                && !dependencies.uses_tree_counting_function
-                && !dependencies.may_need_style_sheet_resource_context
-                && !dependencies.needs_document_base_url
-                && mine.value(a) == theirs.value(b)
-        })
+        let mut changed = SmallVec::new();
+        for (old, new) in self.declarations.iter().zip(&other.declarations) {
+            if old.property != new.property || old.important != new.important {
+                return None;
+            }
+            for dependencies in [mine.dependencies(old), theirs.dependencies(new)] {
+                if value_resolves_against_the_element(&dependencies)
+                    || dependencies.uses_tree_counting_function
+                    || dependencies.may_need_style_sheet_resource_context
+                    || dependencies.needs_document_base_url
+                {
+                    return None;
+                }
+            }
+            if mine.value(old) != theirs.value(new) {
+                changed.push(old.property);
+            }
+        }
+        Some(changed)
+    }
+
+    #[cfg(test)]
+    fn environment_values_equal(&self, other: &Self, engine: &RetainedState) -> bool {
+        self.environment_value_delta(other, engine)
+            .is_some_and(|properties| properties.is_empty())
     }
 
     pub(super) fn uses_tree_counting_function(&self, engine: &RetainedState) -> bool {
@@ -397,6 +411,10 @@ mod tests {
         assert!(first.environment_values_equal(&equal, &engine.retained));
         assert!(equal.environment_values_equal(&first, &engine.retained));
         assert!(!first.environment_values_equal(&changed, &engine.retained));
+        assert_eq!(
+            first.environment_value_delta(&changed, &engine.retained).as_deref(),
+            Some([property_id::WIDTH].as_slice())
+        );
         assert!(!first.environment_values_equal(&WinnerStore::new(Vec::new()), &engine.retained));
     }
 
