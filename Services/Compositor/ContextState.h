@@ -281,16 +281,38 @@ private:
     Compositing::AccumulatedVisualContextTree const& current_visual_context_tree() const;
     Optional<float> visual_viewport_scale_for_compositing() const;
     Optional<VisualViewportScrollDelta> apply_visual_viewport_scroll_delta(Gfx::FloatPoint);
+    // Pans the visual viewport of a zoomed page by as much of a delta in screen pixels as it has room for, and returns
+    // that part of the delta.
+    Gfx::FloatPoint pan_visual_viewport_by(Gfx::FloatPoint delta_in_screen_pixels);
+    // How many screen pixels a zoomed visual viewport shows one pixel of the layout viewport with. Scrollers scroll and
+    // stretch in the pixels of the layout viewport.
+    float visual_viewport_magnification() const;
     Optional<Gfx::FloatPoint> reapply_unreconciled_async_scroll_offsets();
     void store_pending_async_scroll_offsets(ReadonlySpan<Compositing::AsyncScrollOffset>, Optional<Compositing::AsyncScrollOperationID> = {});
+    enum class VisualViewportPanning : u8 {
+        // The step is in the pixels of the scroller, and only scrolls it.
+        No,
+        // The step is in screen pixels, and pans the visual viewport of a zoomed page before it scrolls anything.
+        BeforeScrolling,
+    };
     struct WheelScrollOutcome {
         Optional<Compositing::AsyncScrollOperationID> operation_id;
-        // The viewport to present, when the scroll moved a scrolling box or started a snap scroll of one.
+        // The viewport to present, when the step panned the visual viewport, moved a scrolling box or started a snap
+        // scroll of one.
         Optional<Gfx::IntRect> viewport_rect_to_present;
         // What is presented differs only by an elastic overscroll, which WebContent has nothing to update for.
         bool only_elastic_overscroll_changed { false };
     };
-    WheelScrollOutcome perform_wheel_scroll_of_node(Compositing::AsyncScrollNodeID, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Compositing::AsyncScrollOperationTracking, Gfx::IntRect viewport_rect, MonotonicTime now, Compositing::ScrollChaining);
+    // A step of a wheel gesture that is latched to the node. A stretch of the node is relaxed before the visual
+    // viewport is panned, the node only scrolls by what both leave of the step, and what the node cannot scroll by
+    // either is what pulls it past its edge.
+    WheelScrollOutcome perform_wheel_scroll_of_node(Compositing::AsyncScrollNodeID, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Compositing::AsyncScrollOperationTracking, Gfx::IntRect viewport_rect, MonotonicTime now, Compositing::ScrollChaining, VisualViewportPanning);
+    struct NodeScrollByWheelDelta {
+        WheelScrollOutcome outcome;
+        // Empty when a wheel animation or a snap scroll took the delta, and when it scrolled an ancestor of the node.
+        Optional<Gfx::FloatPoint> delta_the_node_did_not_scroll_by;
+    };
+    NodeScrollByWheelDelta scroll_node_by_wheel_delta(Compositing::AsyncScrollNodeID, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Compositing::AsyncScrollOperationTracking, Gfx::IntRect viewport_rect, MonotonicTime now, Compositing::ScrollChaining);
     // The latched scroller of the gesture the wheel event continues, in the current scroll tree, with the gesture
     // advanced to the event. A latch the event does not continue, or whose scroller the current display list no
     // longer has, is dropped here.
