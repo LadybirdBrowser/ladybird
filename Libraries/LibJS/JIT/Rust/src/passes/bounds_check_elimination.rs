@@ -494,8 +494,8 @@ pub fn run(graph: &mut Graph) {
     let mut checks = Vec::new();
     let mut shifts = Vec::new();
     let mut arithmetic = Vec::new();
-    // NB: For every index that bounds checks with counts other than
-    //     constants check, where those checks are and the counts.
+    // NB: For every index that bounds checks check, where those checks are
+    //     and the counts.
     let mut bounded: HashMap<NodeId, Vec<(BlockId, usize, NodeId)>> = HashMap::default();
     for (index, block) in graph.blocks.iter().enumerate() {
         for phi in &block.phis {
@@ -506,13 +506,11 @@ pub fn run(graph: &mut Graph) {
                 Op::CheckBounds => {
                     checks.push(*node);
                     let check = graph.node(*node);
-                    if graph.int32_constant(check.inputs[1]).is_none() {
-                        bounded.entry(graph.unrefined(check.inputs[0])).or_default().push((
-                            BlockId::from_index(index),
-                            position,
-                            check.inputs[1],
-                        ));
-                    }
+                    bounded.entry(graph.unrefined(check.inputs[0])).or_default().push((
+                        BlockId::from_index(index),
+                        position,
+                        check.inputs[1],
+                    ));
                 }
                 Op::Int32Binary {
                     op: BinaryOp::RightShift,

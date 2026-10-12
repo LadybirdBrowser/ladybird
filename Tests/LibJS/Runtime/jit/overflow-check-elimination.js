@@ -56,3 +56,12 @@ test("indices incremented after accesses of a typed array and an array", () => {
     expect(sum(new Int32Array([5, 6, 7]), [1, 2, 3], 2)).toBe(7 + 3 + 3);
     expect(sum(new Int32Array([5]), [1, 2, 3], -1)).toBeNaN();
 });
+
+test("indices incremented after accesses of a fixed length typed array", () => {
+    const table = new Int32Array(256);
+    table[255] = 7;
+    const lookup = compiled(new Function("table", "return (i) => table[i] + (i + 1);")(table), 3);
+    expect(lookup(255)).toBe(7 + 256);
+    expect(lookup(2147483647)).toBeNaN();
+    expect(lookup(-1)).toBeNaN();
+});

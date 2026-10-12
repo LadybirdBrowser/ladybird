@@ -59,3 +59,18 @@ jit.compile(afterBothAccesses);
 // CHECK: CheckBounds
 // CHECK: CheckBounds
 // CHECK: Int32WrappingAdd ({{v[0-9]+}}, #i32:1)
+
+// A bounds check against a constant count, like a fixed length typed array's, bounds the index too.
+
+const table = new Int32Array(256);
+function lookup(i) {
+    return table[i] + (i + 1);
+}
+jit.prepare(lookup);
+for (let k = 0; k < 10; ++k) lookup(k);
+jit.compile(lookup);
+
+// CHECK-FUNCTION: lookup
+// CHECK-PASS: bounds check elimination
+// CHECK: CheckBounds ({{v[0-9]+}}, #i32:256)
+// CHECK: Int32WrappingAdd ({{v[0-9]+}}, #i32:1)
