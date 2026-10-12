@@ -95,6 +95,75 @@ fn is_int32_identity(op: BinaryOp, rhs: i32, wrapping: bool) -> bool {
     }
 }
 
+/// Double arithmetic of int32 values, which ToInt32 of its result can do
+/// as wrapping int32 arithmetic instead.
+enum Int32Term {
+    Value(NodeId),
+    Constant(i32),
+    Binary(BinaryOp, Box<Int32Term>, Box<Int32Term>),
+}
+
+/// How many levels of additions and subtractions `int32_term()` looks
+/// through: the exact results of at most 2^8 int32 values are below 2^53,
+/// so doubles hold them exactly, and ToInt32 of them is what wrapping int32
+/// arithmetic computes.
+const MAX_INT32_TERM_DEPTH: u32 = 8;
+
+/// `value`, a `Repr::Float64`, as double arithmetic of int32 values, if it
+/// is that: conversions of int32 values, int32 constants, and additions and
+/// subtractions of such.
+fn int32_term(graph: &Graph, value: NodeId, depth: u32) -> Option<Int32Term> {
+    let node = graph.node(graph.unrefined(value));
+    match node.op {
+        Op::Int32ToFloat64 => Some(Int32Term::Value(node.inputs[0])),
+        Op::Constant(bits) if node.repr == Some(Repr::Float64) => {
+            let number = f64::from_bits(bits);
+            let integer = number as i32;
+            (f64::from(integer) == number && !(number == 0.0 && number.is_sign_negative()))
+                .then_some(Int32Term::Constant(integer))
+        }
+        Op::Float64Binary {
+            op: op @ (BinaryOp::Add | BinaryOp::Sub),
+        } if depth < MAX_INT32_TERM_DEPTH => Some(Int32Term::Binary(
+            op,
+            Box::new(int32_term(graph, node.inputs[0], depth + 1)?),
+            Box::new(int32_term(graph, node.inputs[1], depth + 1)?),
+        )),
+        _ => None,
+    }
+}
+
+/// Adds the wrapping int32 arithmetic of `term` to `block` before
+/// `position`, returning its value and the position after it.
+fn build_int32_term(
+    graph: &mut Graph,
+    constants: &mut Constants,
+    term: &Int32Term,
+    block: BlockId,
+    position: usize,
+    pc: u32,
+) -> (NodeId, usize) {
+    match term {
+        Int32Term::Value(value) => (*value, position),
+        Int32Term::Constant(integer) => (
+            constants.get_typed(graph, u64::from(integer.cast_unsigned()), Repr::Int32),
+            position,
+        ),
+        Int32Term::Binary(op, lhs, rhs) => {
+            let (lhs, position) = build_int32_term(graph, constants, lhs, block, position, pc);
+            let (rhs, position) = build_int32_term(graph, constants, rhs, block, position, pc);
+            let node = graph.add_node(Node::new(
+                Op::Int32WrappingBinary { op: *op },
+                vec![lhs, rhs],
+                Some(Repr::Int32),
+                pc,
+            ));
+            graph.blocks[block.index()].body.insert(position, node);
+            (node, position + 1)
+        }
+    }
+}
+
 fn fold_int32_compare(comparison: Comparison, lhs: i32, rhs: i32) -> bool {
     match comparison {
         Comparison::LessThan => lhs < rhs,
@@ -210,6 +279,12 @@ pub fn run(graph: &mut Graph) {
                 .then(|| graph.node(graph.unrefined(inputs[0])))
                 .filter(|unrefined| unrefined.op == Op::BoxInt32)
                 .map(|unrefined| unrefined.inputs[0]);
+            // NB: ToInt32 of double arithmetic of int32 values is wrapping
+            //     int32 arithmetic.
+            let wrapping = (graph.node(node).op == Op::Float64ToInt32)
+                .then(|| int32_term(graph, inputs[0], 0))
+                .flatten()
+                .filter(|term| matches!(term, Int32Term::Binary(..)));
             let constant_bits = |graph: &Graph, input: usize| graph.constant_value(inputs[input]);
             let boxed = |op: Op, input: NodeId| {
                 let unrefined = graph.node(graph.unrefined(input));
@@ -288,6 +363,13 @@ pub fn run(graph: &mut Graph) {
                 },
                 _ => None,
             };
+            let folded = folded.or_else(|| {
+                let term = wrapping?;
+                let pc = graph.node(node).pc;
+                let (result, position) = build_int32_term(graph, &mut constants, &term, block, index - 1, pc);
+                index = position + 1;
+                Some(result)
+            });
             let folded = folded.or_else(|| {
                 let integer = converted?;
                 let pc = graph.node(node).pc;
