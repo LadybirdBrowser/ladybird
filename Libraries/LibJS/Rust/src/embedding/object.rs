@@ -227,12 +227,28 @@ fn integrity_level_from_abi(level: u8) -> IntegrityLevel {
 
 /// Computes the value of a property that an intrinsic accessor defines, when it is first read: given the realm of the
 /// object, returns the value, which the runtime then stores in the property.
+#[cfg(not(target_os = "windows"))]
 pub type JSIntrinsicAccessor = Option<unsafe extern "C" fn(realm: *mut JSRealm) -> JSValue>;
 
+/// Computes the value of a property that an intrinsic accessor defines, when it is first read: given the realm of the
+/// object, returns the value, which the runtime then stores in the property.
+#[cfg(target_os = "windows")]
+pub type JSIntrinsicAccessor = Option<unsafe extern "C" fn(result: *mut JSValue, realm: *mut JSRealm)>;
+
 pub fn call_host_intrinsic_accessor(accessor: HostIntrinsicAccessor, realm: Gc<Realm>) -> Value {
+    let realm = cell_into_abi::<JSRealm>(realm);
     // SAFETY: The embedder defined the accessor for a property of an object of this runtime, and computes its value in
     //         the realm of that object.
-    Value(unsafe { accessor(cell_into_abi::<JSRealm>(realm)) })
+    #[cfg(not(target_os = "windows"))]
+    let value = unsafe { accessor(realm) };
+    #[cfg(target_os = "windows")]
+    let value = {
+        let mut value = 0;
+        // SAFETY: As above.
+        unsafe { accessor(&mut value, realm) };
+        value
+    };
+    Value(value)
 }
 
 // Creating objects

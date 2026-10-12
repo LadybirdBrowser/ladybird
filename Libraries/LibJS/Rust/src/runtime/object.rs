@@ -452,7 +452,12 @@ pub enum IntrinsicAccessor {
 pub type NativeIntrinsicAccessor = fn(&Vm, Gc<Realm>) -> Value;
 
 /// An intrinsic accessor that an embedder defines through the C ABI, which returns the encoded value.
+#[cfg(not(target_os = "windows"))]
 pub type HostIntrinsicAccessor = unsafe extern "C" fn(realm: *mut JSRealm) -> JSValue;
+
+/// An intrinsic accessor that an embedder defines through the C ABI, which returns the encoded value.
+#[cfg(target_os = "windows")]
+pub type HostIntrinsicAccessor = unsafe extern "C" fn(result: *mut JSValue, realm: *mut JSRealm);
 
 impl IntrinsicAccessor {
     fn compute_value(self, vm: &Vm, realm: Gc<Realm>) -> Value {
