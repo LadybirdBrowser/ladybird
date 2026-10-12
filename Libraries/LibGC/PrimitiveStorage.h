@@ -33,6 +33,11 @@ public:
     static constexpr size_t default_cage_size = 4ull * TiB;
     static_assert(is_power_of_two(default_cage_size));
     static constexpr size_t cage_offset_mask = default_cage_size - 1;
+    // NB: JIT code accesses typed array elements at a masked offset plus a
+    //     zero-extended 32-bit index scaled by at most 8, which this keeps in
+    //     inaccessible memory past the cage.
+    static constexpr size_t cage_guard_size = 32ull * GiB;
+    static_assert(cage_guard_size >= (1ull << 32) * 8, "JIT typed array accesses reach a 32-bit index times 8 bytes past a masked offset");
     static constexpr size_t invalid_offset = NumericLimits<size_t>::max();
 
     static PrimitiveStorage& the();
