@@ -1423,20 +1423,22 @@ impl Parser {
     }
 
     // https://drafts.csswg.org/css-syntax-3/#consume-stylesheet-contents
-    fn consume_stylesheet_contents(&mut self) -> Vec<Rule> {
-        let mut rules = Vec::new();
+    // OPTIMIZATION: Returns the next rule of the list that algorithm builds, or None once the input is exhausted — so a
+    // caller can process each rule and drop its component values before the next one is consumed, rather than holding
+    // the component values of the whole sheet at once.
+    fn consume_next_stylesheet_rule(&mut self) -> Option<Rule> {
         loop {
             match self.next_kind() {
                 Some(ParserTokenKind::Whitespace | ParserTokenKind::Cdo | ParserTokenKind::Cdc) => self.position += 1,
-                None => return rules,
+                None => return None,
                 Some(ParserTokenKind::AtKeyword(_)) => {
                     if let Some(rule) = self.consume_at_rule(Nested::No) {
-                        rules.push(Rule::At(rule));
+                        return Some(Rule::At(rule));
                     }
                 }
                 _ => {
                     if let Ok(rule) = self.consume_qualified_rule(None, Nested::No) {
-                        rules.push(Rule::Qualified(rule));
+                        return Some(Rule::Qualified(rule));
                     }
                 }
             }
@@ -1824,7 +1826,8 @@ impl Parser {
 
 #[cfg(test)]
 pub(crate) fn parse_stylesheet<'a>(source: impl Into<TokenizerInput<'a>>) -> Vec<Rule> {
-    Parser::from_source(source, Vec::new()).0.consume_stylesheet_contents()
+    let mut parser = Parser::from_source(source, Vec::new()).0;
+    std::iter::from_fn(|| parser.consume_next_stylesheet_rule()).collect()
 }
 
 fn parse_rule_from_tokens(tokens: Vec<ParserToken>, rule_context: Vec<RuleContext>, nested: bool) -> Option<Rule> {
@@ -2071,6 +2074,9 @@ struct SyntaxParseBuilder {
     font_feature_values: Vec<u32>,
     diagnostics: Vec<FfiSyntaxDiagnostic>,
     declared_namespaces: Vec<ParserString>,
+    // Whether a top-level @import or @namespace rule appended next is still in its ordering window.
+    import_rules_valid: bool,
+    namespace_rules_valid: bool,
     parse_context: *const ParseContext,
     preserve_property_source_text: bool,
 }
@@ -2730,6 +2736,8 @@ impl SyntaxParseBuilder {
             font_feature_values: Vec::new(),
             diagnostics: Vec::new(),
             declared_namespaces,
+            import_rules_valid: true,
+            namespace_rules_valid: true,
             parse_context,
             preserve_property_source_text,
         }
@@ -3405,65 +3413,68 @@ impl SyntaxParseBuilder {
         })
     }
 
+    #[cfg(test)]
     fn append_roots(&mut self, rules: &[Rule]) {
+        for rule in rules {
+            self.append_root(rule);
+        }
+    }
+
+    fn append_root(&mut self, rule: &Rule) {
         // NB: Mirrors the top-level rule ordering that this series removed from
         //     Libraries/LibWeb/CSS/Parser/Parser.cpp.
         //     Invalid rules do not close either ordering window, and statement @layer rules do not
         //     close the import or namespace window.
-        let mut import_rules_valid = true;
-        let mut namespace_rules_valid = true;
-        for rule in rules {
-            let mut parsed = self.append_rule(rule);
-            let rule_kind = parsed.rule_kind;
-            match rule_kind {
-                ParsedRuleKind::Invalid | ParsedRuleKind::Unknown | ParsedRuleKind::IgnoredVendor => {}
-                ParsedRuleKind::Layer if !parsed.has_block => {}
-                ParsedRuleKind::Import if import_rules_valid => {}
-                ParsedRuleKind::Import => {
-                    let prelude = component_list_source(match rule {
-                        Rule::At(rule) => &rule.prelude,
-                        Rule::Qualified(_) => unreachable!(),
-                    });
-                    self.append_rule_validation_diagnostic(
-                        rule,
-                        ParsedRuleKind::Import,
-                        FfiSyntaxDiagnosticCode::MisplacedImport,
-                        prelude.as_ref(),
-                    );
-                    Arc::get_mut(&mut parsed).unwrap().rule_kind = ParsedRuleKind::Invalid;
-                }
-                ParsedRuleKind::Namespace if namespace_rules_valid => {
-                    import_rules_valid = false;
-                    let prefix = parsed.namespace_rule.as_ref().unwrap().prefix.units();
-                    if !self
-                        .declared_namespaces
-                        .iter()
-                        .any(|namespace| namespace.as_ref() == prefix)
-                    {
-                        self.declared_namespaces.push(ParserString::from(Box::from(prefix)));
-                    }
-                }
-                ParsedRuleKind::Namespace => {
-                    import_rules_valid = false;
-                    let prelude = component_list_source(match rule {
-                        Rule::At(rule) => &rule.prelude,
-                        Rule::Qualified(_) => unreachable!(),
-                    });
-                    self.append_rule_validation_diagnostic(
-                        rule,
-                        ParsedRuleKind::Namespace,
-                        FfiSyntaxDiagnosticCode::MisplacedNamespace,
-                        prelude.as_ref(),
-                    );
-                    Arc::get_mut(&mut parsed).unwrap().rule_kind = ParsedRuleKind::Invalid;
-                }
-                _ => {
-                    import_rules_valid = false;
-                    namespace_rules_valid = false;
+        let mut parsed = self.append_rule(rule);
+        let rule_kind = parsed.rule_kind;
+        match rule_kind {
+            ParsedRuleKind::Invalid | ParsedRuleKind::Unknown | ParsedRuleKind::IgnoredVendor => {}
+            ParsedRuleKind::Layer if !parsed.has_block => {}
+            ParsedRuleKind::Import if self.import_rules_valid => {}
+            ParsedRuleKind::Import => {
+                let prelude = component_list_source(match rule {
+                    Rule::At(rule) => &rule.prelude,
+                    Rule::Qualified(_) => unreachable!(),
+                });
+                self.append_rule_validation_diagnostic(
+                    rule,
+                    ParsedRuleKind::Import,
+                    FfiSyntaxDiagnosticCode::MisplacedImport,
+                    prelude.as_ref(),
+                );
+                Arc::get_mut(&mut parsed).unwrap().rule_kind = ParsedRuleKind::Invalid;
+            }
+            ParsedRuleKind::Namespace if self.namespace_rules_valid => {
+                self.import_rules_valid = false;
+                let prefix = parsed.namespace_rule.as_ref().unwrap().prefix.units();
+                if !self
+                    .declared_namespaces
+                    .iter()
+                    .any(|namespace| namespace.as_ref() == prefix)
+                {
+                    self.declared_namespaces.push(ParserString::from(Box::from(prefix)));
                 }
             }
-            self.rules.push(parsed);
+            ParsedRuleKind::Namespace => {
+                self.import_rules_valid = false;
+                let prelude = component_list_source(match rule {
+                    Rule::At(rule) => &rule.prelude,
+                    Rule::Qualified(_) => unreachable!(),
+                });
+                self.append_rule_validation_diagnostic(
+                    rule,
+                    ParsedRuleKind::Namespace,
+                    FfiSyntaxDiagnosticCode::MisplacedNamespace,
+                    prelude.as_ref(),
+                );
+                Arc::get_mut(&mut parsed).unwrap().rule_kind = ParsedRuleKind::Invalid;
+            }
+            _ => {
+                self.import_rules_valid = false;
+                self.namespace_rules_valid = false;
+            }
         }
+        self.rules.push(parsed);
     }
 
     fn append_root_items(&mut self, items: &[RuleOrDeclarations]) {
@@ -3508,8 +3519,9 @@ pub(crate) unsafe fn parse_shared_stylesheet(
             let (mut parser, diagnostics) = Parser::from_source(source, Vec::new());
             let mut parse = SyntaxParseBuilder::new(parse_context, false);
             parse.diagnostics = diagnostics;
-            let rules = parser.consume_stylesheet_contents();
-            parse.append_roots(&rules);
+            while let Some(rule) = parser.consume_next_stylesheet_rule() {
+                parse.append_root(&rule);
+            }
             parse.finish()
         })
     }
@@ -3581,7 +3593,7 @@ pub(crate) unsafe fn parse_shared_rule(
     parse.diagnostics = diagnostics;
     let rule = parse_rule_from_tokens(parser.tokens, parser.rule_context, nested);
     if let Some(rule) = rule {
-        parse.append_roots(std::slice::from_ref(&rule));
+        parse.append_root(&rule);
     }
     Arc::new(parse.finish())
 }
@@ -3772,8 +3784,8 @@ pub unsafe extern "C" fn rust_css_syntax_parse_free(parse: *const ParsedStyleShe
 mod tests {
     use super::{
         Declaration, FfiSyntaxDiagnosticCode, FontFeatureValuesRuleKind, PagePseudoClass, ParsedRuleChild,
-        ParsedRuleKind, ParsedRulePrelude, ParsedStyleSheet, Rule, RuleContext, RuleOrDeclarations, SyntaxNode,
-        SyntaxParseBuilder, at_rule_is_supported, at_rule_kind, collect_descriptors,
+        ParsedRuleKind, ParsedRulePrelude, ParsedStyleSheet, Parser, ParserTokenKind, Rule, RuleContext,
+        RuleOrDeclarations, SyntaxNode, SyntaxParseBuilder, at_rule_is_supported, at_rule_kind, collect_descriptors,
         consume_a_list_of_component_values, has_ignored_vendor_prefix, parse_block_contents, parse_font_feature_values,
         parse_keyframe_selectors, parse_page_selector_list, parse_rule, parse_rule_prelude, parse_stylesheet,
         rule_kind, token_diagnostics, tokenize_for_parser,
@@ -4164,6 +4176,20 @@ mod tests {
             panic!("expected style rule");
         };
         assert_eq!(style.declarations.len(), 1);
+    }
+
+    #[test]
+    fn hands_out_each_stylesheet_rule_before_consuming_the_next() {
+        let (mut parser, _) = Parser::from_source(b"a { color: red } @media screen { b { width: 1px } }", Vec::new());
+        let Some(Rule::Qualified(_)) = parser.consume_next_stylesheet_rule() else {
+            panic!("expected style rule");
+        };
+        assert!(matches!(parser.peek_kind(1), Some(ParserTokenKind::AtKeyword(_))));
+        let Some(Rule::At(media)) = parser.consume_next_stylesheet_rule() else {
+            panic!("expected @media");
+        };
+        assert_eq!(media.name.as_ref(), utf16("media"));
+        assert!(parser.consume_next_stylesheet_rule().is_none());
     }
 
     #[test]
