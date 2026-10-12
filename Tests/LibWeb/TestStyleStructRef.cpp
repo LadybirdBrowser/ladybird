@@ -96,4 +96,58 @@ TEST_CASE(value_equality_across_distinct_payloads)
     EXPECT(a != b);
 }
 
+TEST_CASE(empty_borrowed_reference_can_be_destroyed)
+{
+    StyleStructRef<TableGroup> empty { StyleGroupInitialization::Empty };
+}
+
+TEST_CASE(empty_borrowed_reference_clones_before_mutation)
+{
+    StyleStructRef<TableGroup> source;
+    source.access().caption_side = to_underlying(CaptionSide::Bottom);
+    StyleStructRef<TableGroup> borrowed { StyleGroupInitialization::Empty };
+    borrowed.borrow(&*source);
+    EXPECT(borrowed.ptr_equals(source));
+    borrowed.access().caption_side = to_underlying(CaptionSide::Top);
+    EXPECT(!borrowed.ptr_equals(source));
+    EXPECT_EQ(source->caption_side, to_underlying(CaptionSide::Bottom));
+    EXPECT_EQ(borrowed->caption_side, to_underlying(CaptionSide::Top));
+}
+
+TEST_CASE(copy_of_borrowed_reference_outlives_owner)
+{
+    auto copy = [] {
+        StyleStructRef<TableGroup> owner;
+        owner.access().caption_side = to_underlying(CaptionSide::Bottom);
+        StyleStructRef<TableGroup> borrowed { StyleGroupInitialization::Empty };
+        borrowed.borrow(&*owner);
+        return StyleStructRef<TableGroup> { borrowed };
+    }();
+    EXPECT_EQ(copy->caption_side, to_underlying(CaptionSide::Bottom));
+    copy.access().caption_side = to_underlying(CaptionSide::Top);
+    EXPECT_EQ(copy->caption_side, to_underlying(CaptionSide::Top));
+}
+
+TEST_CASE(assignment_initializes_empty_reference_with_owned_payload)
+{
+    StyleStructRef<TableGroup> source;
+    source.access().caption_side = to_underlying(CaptionSide::Bottom);
+    StyleStructRef<TableGroup> target { StyleGroupInitialization::Empty };
+    target = source;
+    EXPECT(target.ptr_equals(source));
+    source.access().caption_side = to_underlying(CaptionSide::Top);
+    EXPECT_EQ(target->caption_side, to_underlying(CaptionSide::Bottom));
+}
+
+TEST_CASE(assignment_acquires_ownership_of_same_borrowed_payload)
+{
+    StyleStructRef<TableGroup> owner;
+    owner.access().caption_side = to_underlying(CaptionSide::Bottom);
+    StyleStructRef<TableGroup> borrowed { StyleGroupInitialization::Empty };
+    borrowed.borrow(&*owner);
+    borrowed = owner;
+    owner.access().caption_side = to_underlying(CaptionSide::Top);
+    EXPECT_EQ(borrowed->caption_side, to_underlying(CaptionSide::Bottom));
+}
+
 }

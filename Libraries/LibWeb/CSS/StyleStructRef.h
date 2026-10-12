@@ -18,6 +18,11 @@ namespace Web::CSS {
 // NB: Must match STYLE_GROUP_STATIC_REFCOUNT in computed_values.rs.
 static constexpr size_t style_group_static_refcount = NumericLimits<size_t>::max();
 
+enum class StyleGroupInitialization {
+    Defaults,
+    Empty,
+};
+
 // A copy-on-write reference to a style value group struct.
 //
 // The payloads are owned by the Rust side of LibWeb (see computed_values.rs),
@@ -40,7 +45,14 @@ template<typename T>
 class StyleStructRef {
 public:
     StyleStructRef()
-        : m_payload(static_cast<T*>(const_cast<void*>(default_payload())))
+        : StyleStructRef(StyleGroupInitialization::Defaults)
+    {
+    }
+
+    // NB: An empty borrowed reference is filled by borrow() or adopt() before its payload is read.
+    explicit StyleStructRef(StyleGroupInitialization initialization)
+        : m_payload(initialization == StyleGroupInitialization::Defaults ? static_cast<T*>(const_cast<void*>(default_payload())) : nullptr)
+        , m_is_borrowed(initialization == StyleGroupInitialization::Empty)
     {
     }
 
@@ -52,7 +64,7 @@ public:
 
     StyleStructRef& operator=(StyleStructRef const& other)
     {
-        if (m_payload == other.m_payload)
+        if (this == &other || (m_payload == other.m_payload && !m_is_borrowed))
             return *this;
         other.ref();
         deref();
@@ -73,6 +85,7 @@ public:
     // shared with anyone else (including the leaked default payload).
     T& access()
     {
+        VERIFY(m_payload);
         if (m_is_borrowed || refcount().load(AK::memory_order_acquire) != 1) {
             auto* clone = clone_payload(m_payload);
             deref();
@@ -125,6 +138,7 @@ private:
 
     void ref() const
     {
+        VERIFY(m_payload);
         auto& count = refcount();
         if (count.load(AK::memory_order_relaxed) == style_group_static_refcount)
             return;

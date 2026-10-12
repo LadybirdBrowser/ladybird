@@ -481,7 +481,9 @@ ComputedValues::ComputedValues()
 }
 
 ComputedValues::ComputedValues(BorrowedStyleRecord)
-    : m_is_style_record_view(true)
+    : m_inherited(StyleGroupInitialization::Empty)
+    , m_noninherited(StyleGroupInitialization::Empty)
+    , m_is_style_record_view(true)
 {
     m_ref_count = 0;
 }
