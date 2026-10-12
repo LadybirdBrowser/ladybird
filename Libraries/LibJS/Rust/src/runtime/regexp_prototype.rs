@@ -45,9 +45,10 @@ use crate::runtime::regexp_constructor::is_raw_native_function_running;
 use crate::runtime::regexp_legacy_static_properties::{
     invalidate_legacy_regexp_static_properties, update_legacy_regexp_static_properties_lazy,
 };
+#[cfg(feature = "jit")]
+use crate::runtime::regexp_object::NEW_REGEXP_OBJECT_LAST_INDEX_OFFSET;
 use crate::runtime::regexp_object::{
-    NEW_REGEXP_OBJECT_LAST_INDEX_OFFSET, REGEXP_FLAGS_WITH_CHARACTERS, RegExpFlags, RegExpObject, compile_flags_for,
-    parse_regex_pattern,
+    REGEXP_FLAGS_WITH_CHARACTERS, RegExpFlags, RegExpObject, compile_flags_for, parse_regex_pattern,
 };
 use crate::runtime::regexp_string_iterator::RegExpStringIterator;
 use crate::runtime::shape::Shape;
@@ -422,6 +423,7 @@ fn indices_pair(vm: &Vm, realm: Gc<Realm>, start: usize, end: usize) -> Value {
 /// RegExpBuiltinExec(R, S) where it runs no code and throws nothing: for a RegExp object R that still has the shape it
 /// was created with, whose one property is a writable lastIndex, and whose lastIndex is a number. `None` for other
 /// values, and where matching exceeds the backtracking limit, which happens before anything observable.
+#[cfg(feature = "jit")]
 pub(crate) fn regexp_builtin_exec_running_no_code(vm: &Vm, value: Value, string: Gc<PrimitiveString>) -> Option<Value> {
     if !value.is_object() {
         return None;
