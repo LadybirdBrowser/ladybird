@@ -1,0 +1,2 @@
+moving a box that draws an SVG image: ticking, presented by commit
+resizing an SVG image: parked, presented by commit

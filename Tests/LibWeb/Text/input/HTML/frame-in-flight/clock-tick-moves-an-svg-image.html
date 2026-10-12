@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #mover {
+        position: relative;
+        left: 0px;
+        width: 20px;
+        height: 20px;
+        background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><rect width='20' height='20' fill='green'/></svg>");
+    }
+    #icon { display: block; width: 20px; height: 20px; }
+</style>
+<div id="mover"></div>
+<img id="icon" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><rect width='20' height='20' fill='blue'/></svg>">
+<script>
+    // A tick draws the SVG images of the boxes it moves as the host rendered them for the frame it presented last. One
+    // that draws an SVG image at a size the host has not rendered it at leaves the frame to the host.
+    asyncTest(async done => {
+        await icon.decode();
+        const options = { duration: 10000, easing: "linear" };
+        const tick = async animate => whileLaneAnimates(animate, (frameTime, animation) => {
+            internals.injectClockTick(frameTime + 1000);
+            const result = `${internals.clockLaneState(document)}, presented by ${internals.lastFramePresentedBy(document)}`;
+            animation.cancel();
+            return result;
+        });
+        println(`moving a box that draws an SVG image: ${await tick(() => mover.animate([{ left: "0px" }, { left: "100px" }], options))}`);
+        println(`resizing an SVG image: ${await tick(() => icon.animate([{ width: "20px" }, { width: "100px" }], options))}`);
+        done();
+    });
+</script>
