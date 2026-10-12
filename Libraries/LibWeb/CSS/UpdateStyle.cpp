@@ -719,6 +719,11 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
     if (!inputs.has_value())
         return;
 
+    // The animations the update ticked are sampled before the transaction is taken, as they are ahead of the seal of
+    // one that flies: the records it computes inherit their values, and what they feed back joins the transaction.
+    if constexpr (!drains_flown_transaction)
+        document.sample_animation_effects_needing_style_update();
+
     // A style flush is a transaction boundary. Everything recorded since the last one crosses into StyleEngine as one
     // flat batch, is normalized there, and is routed into the region its transpose programs reach. A transaction that
     // could not be proven narrower publishes a complete document reaction batch.
