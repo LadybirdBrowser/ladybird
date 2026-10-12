@@ -233,10 +233,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 match index {
                     InputValue::Register(index) => {
                         self.masm.move32(scratch, index);
-                        if shift != 0 {
-                            self.masm.shl64_imm(scratch, scratch, shift);
-                        }
-                        self.masm.add64(temp, storage, scratch);
+                        self.masm
+                            .load_effective_address(temp, &Address::indexed(storage, scratch, scale(element), 0));
                     }
                     InputValue::Constant(index) => {
                         let offset = u64::from(index as u32) << shift;
