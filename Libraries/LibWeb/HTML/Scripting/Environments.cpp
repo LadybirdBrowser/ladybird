@@ -14,7 +14,9 @@
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/PolicyContainers.h>
@@ -79,6 +81,18 @@ void EnvironmentSettingsObject::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_service_worker_registration_object_map);
     visitor.visit(m_service_worker_object_map);
     visitor.visit(m_owned_worker_agents);
+
+    // Keep the fetch records of the fetches that are still under way, since aborting the document or terminating its
+    // fetch group has to reach them. A record whose fetch is over is left to the collector, and leaves the group as
+    // it's finalized.
+    for (auto& fetch_record : m_fetch_group) {
+        auto controller = fetch_record.fetch_controller();
+        if (fetch_record.request()->done())
+            continue;
+        if (controller && controller->state() != Fetch::Infrastructure::FetchController::State::Ongoing)
+            continue;
+        visitor.visit(fetch_record);
+    }
 }
 
 void EnvironmentSettingsObject::discard_environment()
