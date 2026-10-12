@@ -1163,16 +1163,14 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
     // AD-HOC: The lane of the frame the update presented may tick the document's running animations beside the tasks
     //         after it, until the next of their events, which the main thread sends, and hover what is under the
     //         pointer. Only a rendering update leaves a plan for that, and each one leaves every document it renders its
-    //         own, or none, in place of the last. The plan of a document whose update rendered others beside it only
-    //         hovers.
+    //         own, or none, in place of the last.
     bool const may_plan = !m_running_synchronous_rendering_update && m_spin_depth == 0 && taken_layout == TakenLayout::UpToDate;
-    bool const may_animate = may_plan && docs.size() == 1;
     for (auto& document : docs) {
         auto* navigable = as_if<LocalNavigable>(document->navigable().ptr());
-        // A same-process iframe's document presents into a compositor context of its own, whose lane hovers what the
-        // lane of the document around it hands it of the pointer.
+        // A same-process iframe's document presents into a compositor context of its own, whose lane ticks its
+        // animations and hovers what the lane of the document around it hands it of the pointer.
         bool const plans = may_plan && navigable && (navigable->is_local_root() || navigable->has_compositor_context()) && navigable->active_document().ptr() == document.ptr();
-        if (!seal_clock_plan(*document, plans, may_animate, update_serial))
+        if (!seal_clock_plan(*document, plans, update_serial))
             continue;
         navigable->arm_clock_lane(LocalNavigable::TickNow::No);
         if (!m_navigables_with_clock_lanes.contains_slow(GC::Ref { *navigable }))

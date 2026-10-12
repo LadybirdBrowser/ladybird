@@ -1,5 +1,5 @@
-box beside iframes: lane hovering
-box beside iframes: presented height is the tick's: false
-box beside iframes: last frame presented by commit
-moving iframe: lane hovering
+box beside iframes: lane ticking
+box beside iframes: presented height is the tick's: true
+box beside iframes: last frame presented by clock
+moving iframe: lane parked
 moving iframe: last frame presented by commit
