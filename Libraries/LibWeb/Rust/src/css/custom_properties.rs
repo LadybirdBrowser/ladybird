@@ -2154,12 +2154,6 @@ fn validate_style_feature(tokens: &[OwnedToken]) -> ConditionValidation {
     ) {
         return ConditionValidation::Invalid;
     }
-    if let Some(colon) = colon {
-        let query = trim_whitespace(&tokens[colon + 1..]);
-        if has_comparison(query) {
-            return ConditionValidation::Invalid;
-        }
-    }
     ConditionValidation::Valid
 }
 
