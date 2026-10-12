@@ -41,7 +41,10 @@ int windows_socketpair(SOCKET socks[2], int make_overlapped)
     SOCKET listener;
     int e;
     socklen_t addrlen = sizeof(a.inaddr);
-    DWORD flags = (make_overlapped ? WSA_FLAG_OVERLAPPED : 0);
+    // Like SOCK_CLOEXEC, the sockets are not inherited by processes spawned later.
+    DWORD flags = WSA_FLAG_NO_HANDLE_INHERIT;
+    if (make_overlapped)
+        flags |= WSA_FLAG_OVERLAPPED;
     int reuse = 1;
 
     if (socks == 0) {
@@ -50,7 +53,7 @@ int windows_socketpair(SOCKET socks[2], int make_overlapped)
     }
     socks[0] = socks[1] = -1;
 
-    listener = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    listener = WSASocketW(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_NO_HANDLE_INHERIT);
     if (listener == INVALID_SOCKET)
         return SOCKET_ERROR;
 
@@ -84,6 +87,8 @@ int windows_socketpair(SOCKET socks[2], int make_overlapped)
 
         socks[1] = ::accept(listener, NULL, NULL);
         if (socks[1] == INVALID_SOCKET)
+            break;
+        if (!SetHandleInformation(reinterpret_cast<HANDLE>(socks[1]), HANDLE_FLAG_INHERIT, 0))
             break;
 
         closesocket(listener);
