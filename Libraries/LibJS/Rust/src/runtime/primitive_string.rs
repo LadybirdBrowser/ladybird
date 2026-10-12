@@ -436,15 +436,16 @@ impl PrimitiveString {
     }
 
     pub fn property_key(&self, vm: &Vm) -> PropertyKey {
-        // NB: The key of an inline string is made from its characters, so that it is not resolved.
-        if self.deferred_kind() != DeferredKind::Inline {
-            self.resolve_if_needed();
-            let string = self
-                .resolved_utf16_string()
-                .expect("a resolved string has its UTF-16 string");
-            if has_fly_string_storage(string) {
-                return PropertyKey::from(to_utf16_fly_string(string));
-            }
+        // OPTIMIZATION: A string that is not resolved yet resolves into the fly string of its key, so that every later
+        //               key of it is its own storage. The keyed access caches of the JIT tell keys apart by that storage.
+        if self.deferred_kind() != DeferredKind::None {
+            return PropertyKey::from(self.resolve_into_fly_string());
+        }
+        let string = self
+            .resolved_utf16_string()
+            .expect("a resolved string has its UTF-16 string");
+        if has_fly_string_storage(string) {
+            return PropertyKey::from(to_utf16_fly_string(string));
         }
 
         let this = core::ptr::from_ref(self);
@@ -455,12 +456,7 @@ impl PrimitiveString {
             return PropertyKey::from(entry.atom.clone().expect("a cached string has its atom"));
         }
 
-        let fly_string = match self.resolved_utf16_string() {
-            Some(string) => to_utf16_fly_string(string),
-            None => Utf16FlyString::from_utf8(
-                core::str::from_utf8(self.as_inline_string().characters()).expect("an inline string is ASCII"),
-            ),
-        };
+        let fly_string = to_utf16_fly_string(string);
         *entry = StringToAtomCacheEntry {
             // SAFETY: Strings only exist as cells, since every way to create one allocates it.
             string: Some(unsafe { Gc::from_ref(self) }),
@@ -579,6 +575,25 @@ impl PrimitiveString {
         }
     }
 
+    /// Resolves a deferred string into the fly string of its contents rather than into storage of its own, and
+    /// returns that fly string.
+    #[inline(never)]
+    fn resolve_into_fly_string(&self) -> Utf16FlyString {
+        let fly_string = match self.deferred_kind() {
+            DeferredKind::None => unreachable!("only deferred strings are resolved"),
+            DeferredKind::Rope => to_utf16_fly_string(&self.as_rope_string().concatenation()),
+            DeferredKind::Substring | DeferredKind::Inline => self.utf16_string_view().to_utf16_fly_string(),
+        };
+        let string = Utf16String::from(&fly_string);
+        match self.deferred_kind() {
+            DeferredKind::None => unreachable!("only deferred strings are resolved"),
+            DeferredKind::Rope => self.as_rope_string().set_resolved_utf16_string(string),
+            DeferredKind::Substring => self.as_substring().set_resolved_utf16_string(string),
+            DeferredKind::Inline => self.as_inline_string().set_resolved_utf16_string(string),
+        }
+        fly_string
+    }
+
     /// The characters of a string that is inline or resolved and ASCII.
     #[inline(always)]
     fn flat_ascii_characters(&self) -> Option<&[u8]> {
@@ -693,6 +708,10 @@ impl RopeString {
     }
 
     fn resolve(&self) {
+        self.set_resolved_utf16_string(self.concatenation());
+    }
+
+    fn concatenation(&self) -> Utf16String {
         let string =
             if self.lhs().deferred_kind() != DeferredKind::Rope && self.rhs().deferred_kind() != DeferredKind::Rope {
                 concatenate(&[self.lhs().utf16_string_view(), self.rhs().utf16_string_view()])
@@ -703,7 +722,10 @@ impl RopeString {
             Utf16View::of_string(&string).length_in_code_units(),
             self.base.length_in_utf16_code_units()
         );
+        string
+    }
 
+    fn set_resolved_utf16_string(&self, string: Utf16String) {
         self.base.set_resolved_utf16_string(string);
         self.base.set_deferred_kind(DeferredKind::None);
         self.lhs.set(None);
@@ -795,7 +817,10 @@ impl Substring {
             .utf16_string_view()
             .substring_view(self.code_unit_offset, self.base.length_in_utf16_code_units());
 
-        let string = source_view.to_utf16_string();
+        self.set_resolved_utf16_string(source_view.to_utf16_string());
+    }
+
+    fn set_resolved_utf16_string(&self, string: Utf16String) {
         self.base.set_resolved_utf16_string(string);
         self.base.set_deferred_kind(DeferredKind::None);
         self.source_string.set(None);
@@ -815,8 +840,11 @@ impl InlineString {
     }
 
     fn resolve(&self) {
-        self.base
-            .set_resolved_utf16_string(Utf16String::from_ascii(self.characters()));
+        self.set_resolved_utf16_string(Utf16String::from_ascii(self.characters()));
+    }
+
+    fn set_resolved_utf16_string(&self, string: Utf16String) {
+        self.base.set_resolved_utf16_string(string);
         self.base.set_deferred_kind(DeferredKind::None);
     }
 }
