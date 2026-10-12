@@ -135,6 +135,41 @@ static bool animates_what_a_tick_cannot(Animations::KeyframeEffect const& effect
     return false;
 }
 
+// Whether the keyframes of `effect` animate a property that the children of its target inherit.
+static bool animates_an_inherited_property(Animations::KeyframeEffect const& effect)
+{
+    auto const* key_frame_set = effect.key_frame_set();
+    if (!key_frame_set)
+        return false;
+    for (auto const& keyframe : key_frame_set->keyframes_by_key) {
+        for (auto const& [property, value] : keyframe.properties) {
+            if (property.is_custom_property() || CSS::is_inherited_property(property.id()))
+                return true;
+        }
+    }
+    return false;
+}
+
+// Whether no box shows anything of the animation of `effect` on `target`: the target has no box, as under
+// `display: none`, or it is `display: contents`, and the effect animates neither one of its pseudo-elements nor what its
+// children inherit, or those have no boxes either.
+static bool no_box_shows(Animations::KeyframeEffect const& effect, DOM::Element const& target, Layout::BegunRead const& read)
+{
+    if (target.unsafe_layout_node(read))
+        return false;
+    if (!target.has_display_contents() || (!effect.pseudo_element_type().has_value() && !animates_an_inherited_property(effect)))
+        return true;
+    // The pseudo-elements and children of a `display: contents` element are laid out where the nearest element above it
+    // with a box lays out its own.
+    for (auto const* ancestor = target.flat_tree_parent_element(); ancestor; ancestor = ancestor->flat_tree_parent_element()) {
+        if (ancestor->unsafe_layout_node(read))
+            return false;
+        if (!ancestor->has_display_contents())
+            return true;
+    }
+    return false;
+}
+
 // Whether a tick can sample the animation of `effect` on `target`.
 static bool tick_can_sample(DOM::Document const& document, Animations::KeyframeEffect const& effect, DOM::Element const& target, Layout::BegunRead const& read)
 {
@@ -214,9 +249,9 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
                 // A scroll timeline with nothing to scroll holds still, and so do its animations.
                 if (scroll_timeline && !scroll_timeline->followed_scroller().has_value())
                     return false;
-                // What the compositor runs, or what the main thread does not sample per frame either, a tick does not
-                // sample: the lane only stops at its events.
-                bool const tick_samples = !runs_on_compositor(effect) && !effect.can_skip_per_frame_style_update();
+                // What the compositor runs, what the main thread does not sample per frame either, or what no box shows,
+                // a tick does not sample: the lane only stops at its events.
+                bool const tick_samples = !runs_on_compositor(effect) && !effect.can_skip_per_frame_style_update() && !no_box_shows(effect, target, read);
                 if (tick_samples && !tick_can_sample(document, effect, target, read))
                     return false;
                 auto local_time = effect.local_time();
