@@ -21,6 +21,13 @@ static Web::HTML::CrossProcessId first_operation_id() { return { 2, 1 }; }
 static Web::HTML::CrossProcessId second_operation_id() { return { 2, 2 }; }
 static Web::HTML::CrossProcessId third_operation_id() { return { 2, 3 }; }
 
+static Web::HTML::NavigationSourceSnapshot source_snapshot_params(Web::HTML::SandboxingFlagSet sandboxing_flags = {})
+{
+    Web::HTML::NavigationSourceSnapshot snapshot;
+    snapshot.sandboxing_flags = sandboxing_flags;
+    return snapshot;
+}
+
 static URL::URL parse_url(StringView url)
 {
     auto parsed_url = URL::Parser::basic_parse(url);
@@ -217,19 +224,19 @@ struct TestTraversable {
         VERIFY(history.replace_session_history_entry(traversable, *current_entry, MUST(WebView::CanonicalSessionHistoryEntry::create_from_descriptor(entry(0, "https://b.example/"sv)))));
     }
 
-    WebView::ApplyHistoryStep& apply_step(i32 step, Optional<Web::Bindings::NavigationType> navigation_type, bool check_for_cancelation = false, Optional<Web::HTML::CrossProcessId> initiator_to_check = {}, Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot = {})
+    WebView::ApplyHistoryStep& apply_step(i32 step, Optional<Web::Bindings::NavigationType> navigation_type, bool check_for_cancelation = false, Optional<Web::HTML::CrossProcessId> initiator_to_check = {}, Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot_params = {})
     {
         operation = make<WebView::ApplyHistoryStep>(history, traversable, queue, state, runner.jobs(), second_operation_id(), 2, step,
-            check_for_cancelation, initiator_to_check, initiator_source_snapshot, Web::HTML::UserNavigationInvolvement::BrowserUI,
+            check_for_cancelation, initiator_to_check, move(source_snapshot_params), Web::HTML::UserNavigationInvolvement::BrowserUI,
             navigation_type,
             [this](Web::HTML::HistoryStepResult history_step_result) { result = history_step_result; });
         operation->apply_the_history_step();
         return *operation;
     }
 
-    WebView::ApplyHistoryStep& traverse_to_step(i32 step, bool check_for_cancelation = false, Optional<Web::HTML::CrossProcessId> initiator_to_check = {}, Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot = {})
+    WebView::ApplyHistoryStep& traverse_to_step(i32 step, bool check_for_cancelation = false, Optional<Web::HTML::CrossProcessId> initiator_to_check = {}, Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot_params = {})
     {
-        return apply_step(step, Web::Bindings::NavigationType::Traverse, check_for_cancelation, initiator_to_check, initiator_source_snapshot);
+        return apply_step(step, Web::Bindings::NavigationType::Traverse, check_for_cancelation, initiator_to_check, move(source_snapshot_params));
     }
 
     Optional<i32> current_step() const
@@ -428,7 +435,7 @@ TEST_CASE(disallowed_initiator_returns_before_the_cancelation_check)
     test.add_child(child_id());
 
     test.traverse_to_step(0, true, child_id(),
-        Web::InitiatorSourceSnapshot { .sandboxing_flags = Web::HTML::SandboxingFlagSet::SandboxedTopLevelNavigationWithoutUserActivation, .has_transient_activation = false });
+        source_snapshot_params(Web::HTML::SandboxingFlagSet::SandboxedTopLevelNavigationWithoutUserActivation));
 
     EXPECT(test.runner.unloading_checks.is_empty());
     EXPECT(test.runner.changing_jobs.is_empty());
@@ -442,7 +449,7 @@ TEST_CASE(allowed_initiator_proceeds_to_the_cancelation_check)
     test.with_two_top_level_entries();
     test.add_child(child_id());
 
-    test.traverse_to_step(0, true, child_id(), Web::InitiatorSourceSnapshot {});
+    test.traverse_to_step(0, true, child_id(), source_snapshot_params());
 
     EXPECT_EQ(test.runner.unloading_checks.size(), 1uz);
     EXPECT(!test.result.has_value());
@@ -466,7 +473,7 @@ TEST_CASE(sandboxed_removed_initiator_is_disallowed)
     TestTraversable test;
     test.with_two_top_level_entries();
 
-    test.traverse_to_step(0, true, child_id(), Web::InitiatorSourceSnapshot { .sandboxing_flags = Web::HTML::SandboxingFlagSet::SandboxedNavigation });
+    test.traverse_to_step(0, true, child_id(), source_snapshot_params(Web::HTML::SandboxingFlagSet::SandboxedNavigation));
 
     EXPECT(test.runner.unloading_checks.is_empty());
     EXPECT(test.runner.changing_jobs.is_empty());
@@ -478,7 +485,7 @@ TEST_CASE(unsandboxed_removed_initiator_proceeds_to_the_cancelation_check)
     TestTraversable test;
     test.with_two_top_level_entries();
 
-    test.traverse_to_step(0, true, child_id(), Web::InitiatorSourceSnapshot {});
+    test.traverse_to_step(0, true, child_id(), source_snapshot_params());
 
     EXPECT_EQ(test.runner.unloading_checks.size(), 1uz);
     EXPECT(!test.result.has_value());
@@ -709,7 +716,7 @@ TEST_CASE(a_paused_run_commits_after_a_newer_run_recommits_the_current_step)
     Optional<Web::HTML::HistoryStepResult> nested_result;
     test.queue.append_session_history_synchronous_navigation_steps(child_id(), {}, [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
         nested_operation = make<WebView::ApplyHistoryStep>(test.history, test.traversable, test.queue, test.state, test.runner.jobs(), third_operation_id(), 3, 1,
-            false, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::InitiatorSourceSnapshot> {}, Web::HTML::UserNavigationInvolvement::None, Web::Bindings::NavigationType::Replace,
+            false, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::HTML::NavigationSourceSnapshot> {}, Web::HTML::UserNavigationInvolvement::None, Web::Bindings::NavigationType::Replace,
             [&, signal](Web::HTML::HistoryStepResult result) {
                 nested_result = result;
                 signal->resolve({});
@@ -757,7 +764,7 @@ TEST_CASE(a_paused_traversal_is_abandoned_once_a_jumping_push_removes_its_target
         pushed_entry->url = parse_url("https://b.example/pushed"sv);
         VERIFY(test.history.push_session_history_entry(test.traversable, move(pushed_entry)) == 2);
         nested_operation = make<WebView::ApplyHistoryStep>(test.history, test.traversable, test.queue, test.state, test.runner.jobs(), third_operation_id(), 3, 2,
-            false, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::InitiatorSourceSnapshot> {}, Web::HTML::UserNavigationInvolvement::None, Web::Bindings::NavigationType::Push,
+            false, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::HTML::NavigationSourceSnapshot> {}, Web::HTML::UserNavigationInvolvement::None, Web::Bindings::NavigationType::Push,
             [&, signal](Web::HTML::HistoryStepResult result) {
                 nested_result = result;
                 signal->resolve({});
@@ -810,7 +817,7 @@ TEST_CASE(a_paused_push_appends_its_entry_again_once_a_jumping_push_clears_it)
         pushed_entry->url = parse_url("https://b.example/pushed"sv);
         VERIFY(test.history.push_session_history_entry(test.traversable, move(pushed_entry)) == 2);
         nested_operation = make<WebView::ApplyHistoryStep>(test.history, test.traversable, test.queue, test.state, test.runner.jobs(), third_operation_id(), 3, 2,
-            false, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::InitiatorSourceSnapshot> {}, Web::HTML::UserNavigationInvolvement::None, Web::Bindings::NavigationType::Push,
+            false, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::HTML::NavigationSourceSnapshot> {}, Web::HTML::UserNavigationInvolvement::None, Web::Bindings::NavigationType::Push,
             [&, signal](Web::HTML::HistoryStepResult result) {
                 nested_result = result;
                 signal->resolve({});
@@ -874,7 +881,7 @@ TEST_CASE(a_paused_reload_continues_with_the_entry_that_a_jumping_replace_put_in
     test.queue.append_session_history_synchronous_navigation_steps(child_id(), {}, [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
         VERIFY(test.history.replace_session_history_entry(test.traversable, *reloading_entry, replacement_entry));
         nested_operation = make<WebView::ApplyHistoryStep>(test.history, test.traversable, test.queue, test.state, test.runner.jobs(), third_operation_id(), 3, 1,
-            false, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::InitiatorSourceSnapshot> {}, Web::HTML::UserNavigationInvolvement::None, Web::Bindings::NavigationType::Replace,
+            false, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::HTML::NavigationSourceSnapshot> {}, Web::HTML::UserNavigationInvolvement::None, Web::Bindings::NavigationType::Replace,
             [&, signal](Web::HTML::HistoryStepResult result) {
                 nested_result = result;
                 signal->resolve({});

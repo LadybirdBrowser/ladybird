@@ -13,6 +13,7 @@
 #include <LibWebCommon/HTML/ApplyHistoryStep.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/HistoryHandlingBehavior.h>
+#include <LibWebCommon/HTML/NavigationSourceSnapshot.h>
 #include <LibWebCommon/HTML/SameDocumentNavigationEntry.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
@@ -45,7 +46,7 @@ struct InitiatorSourceSnapshot {
 struct TraverseByDeltaHistoryOperationParameters {
     i32 delta;
     Optional<HTML::CrossProcessId> initiator_to_check;
-    Optional<InitiatorSourceSnapshot> initiator_source_snapshot;
+    Optional<HTML::NavigationSourceSnapshot> source_snapshot_params;
     HTML::UserNavigationInvolvement user_involvement;
 };
 
@@ -57,7 +58,7 @@ struct TraverseToStepHistoryOperationParameters {
 struct NavigationAPITraverseHistoryOperationParameters {
     HTML::CrossProcessId navigable_id;
     Utf16String key;
-    Optional<InitiatorSourceSnapshot> initiator_source_snapshot;
+    HTML::NavigationSourceSnapshot source_snapshot_params;
     HTML::UserNavigationInvolvement user_involvement;
 };
 
@@ -119,11 +120,6 @@ template<>
 WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::ReloadHistoryOperationParameters const&);
 template<>
 WEBCOMMON_API ErrorOr<Web::ReloadHistoryOperationParameters> decode(Decoder&);
-
-template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::InitiatorSourceSnapshot const&);
-template<>
-WEBCOMMON_API ErrorOr<Web::InitiatorSourceSnapshot> decode(Decoder&);
 
 template<>
 WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::TraverseByDeltaHistoryOperationParameters const&);
