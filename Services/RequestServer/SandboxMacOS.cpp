@@ -7,10 +7,13 @@
 #include <AK/LexicalPath.h>
 #include <AK/String.h>
 #include <LibCore/Directory.h>
+#include <LibCore/Environment.h>
 #include <LibCore/System.h>
 #include <LibSandbox/Sandbox.h>
 #include <RequestServer/ResourceSubstitutionMap.h>
 #include <RequestServer/Sandbox.h>
+#include <openssl/x509.h>
+#include <string.h>
 
 namespace RequestServer {
 
@@ -35,6 +38,18 @@ ErrorOr<void> apply_sandbox(StringView mach_server_name, Vector<ByteString> cons
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, "/private/etc/resolv.conf"sv, Sandbox::SeatbeltPath::Access::ReadOnly));
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, "/private/etc/ssl"sv, Sandbox::SeatbeltPath::Access::ReadOnly));
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, "/Library/Preferences/com.apple.networkd.plist"sv, Sandbox::SeatbeltPath::Access::ReadOnly));
+
+    // OpenSSL reads its trusted roots from these instead of /etc/ssl when they are set.
+    auto const* certificate_file_variable = X509_get_default_cert_file_env();
+    if (auto file = Core::Environment::get({ certificate_file_variable, strlen(certificate_file_variable) }); file.has_value() && !file->is_empty())
+        TRY(Sandbox::add_seatbelt_path_if_exists(paths, *file, Sandbox::SeatbeltPath::Access::ReadOnly));
+
+    // The directory variable holds a colon-separated list of directories.
+    auto const* certificate_directory_variable = X509_get_default_cert_dir_env();
+    if (auto directories = Core::Environment::get({ certificate_directory_variable, strlen(certificate_directory_variable) }); directories.has_value()) {
+        for (auto directory : directories->split_view(':'))
+            TRY(Sandbox::add_seatbelt_path_if_exists(paths, directory, Sandbox::SeatbeltPath::Access::ReadOnly));
+    }
 
     for (auto const& certificate : certificates) {
         auto certificate_path = LexicalPath::dirname(certificate);
