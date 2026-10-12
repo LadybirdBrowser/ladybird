@@ -29,7 +29,6 @@ public:
     static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_attr_tainted_with_parsed_value(Utf16String token_source, Parser::SubstitutionFunctionsPresence, Optional<Utf16String> original_source_text, SourceTextMode, NonnullRefPtr<StyleValue const> parsed_value);
     virtual ~UnresolvedStyleValue() override = default;
 
-    Utf16String token_source() const;
     bool contains_arbitrary_substitution_function() const
     {
         auto const& data = m_value->unresolved;
@@ -53,7 +52,6 @@ private:
     static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_internal(Utf16String token_source, Parser::SubstitutionFunctionsPresence, Optional<Utf16String> original_source_text, SourceTextMode, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value);
 
     Utf16String comparison_text() const;
-    Utf16String serialize_components(u8 mode) const;
 
     static Utf16String string_from_rust_data(StyleValueFFI::CssString const& string)
     {

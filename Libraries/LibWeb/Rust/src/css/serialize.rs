@@ -3742,29 +3742,6 @@ pub unsafe extern "C" fn rust_style_value_serialize(value: *const c_void, mode: 
     sink_into_raw(sink)
 }
 
-/// Serializes the retained component values of an unresolved style value. Mode 0 is normalized
-/// CSS Syntax serialization, mode 1 preserves numeric token source, and mode 2 produces source
-/// suitable for retokenization.
-///
-/// # Safety
-/// `value` must point at live unresolved style value data.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_unresolved_style_value_serialize_components(value: *const c_void, mode: u8) -> usize {
-    let StyleValueData::Unresolved { components, .. } = (unsafe { &*value.cast::<StyleValueData>() }) else {
-        unreachable!("component serialization requires an unresolved style value");
-    };
-    let mode = match mode {
-        0 => ComponentSerializationMode::Normalized,
-        1 => ComponentSerializationMode::PreserveNumericSource,
-        2 => ComponentSerializationMode::Retokenize,
-        _ => unreachable!("unknown component serialization mode"),
-    };
-    let serialized = serialize_component_values_to_utf16(components.as_slice(), mode);
-    let mut sink = TextSink::new();
-    serialized.into_iter().for_each(|unit| sink.push_code_unit(unit));
-    sink_into_raw(sink)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
