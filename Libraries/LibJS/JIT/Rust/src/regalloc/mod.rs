@@ -121,7 +121,7 @@ pub fn saves_only_gprs(op: &Op) -> bool {
 fn reuses_first_input(op: &Op) -> bool {
     matches!(
         op,
-        Op::Int32WrappingBinary { .. } | Op::Int32Binary { .. } | Op::BoolToInt32
+        Op::Int32WrappingBinary { .. } | Op::Int32Binary { .. } | Op::BoolToInt32 | Op::TypedArrayDataAddress
     )
 }
 

@@ -302,6 +302,7 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         | Op::CheckNonNegativeInt32
         | Op::LoadTypedArrayLength
         | Op::LoadTypedArrayDataOffset
+        | Op::TypedArrayDataAddress
         | Op::CheckTypedArrayStorage => with_inputs(op.name()),
         Op::ProbeHasProperty { own: true } => with_inputs("ProbeHasOwnProperty"),
         Op::ProbeHasProperty { own: false } => with_inputs("ProbeHasProperty"),

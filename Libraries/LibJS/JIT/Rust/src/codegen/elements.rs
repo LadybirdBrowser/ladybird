@@ -239,25 +239,25 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                     }
                 }
             }
-            // `cage_base + ((data + index * size) & mask)`
+            // NB: The storage is a `TypedArrayDataAddress`, from which the
+            //     zero-extended index stays within the cage or its guard.
             ElementsKind::TypedArray(element) => {
-                let shift = scale(element).log2();
                 match index {
+                    // NB: Stores use the scratch register for their values.
                     InputValue::Register(index) => {
-                        self.masm.move32(scratch, index);
-                        self.masm
-                            .load_effective_address(temp, &Address::indexed(storage, scratch, scale(element), 0));
+                        self.masm.move32(temp, index);
+                        Address::indexed(storage, temp, scale(element), 0)
                     }
                     InputValue::Constant(index) => {
-                        let offset = u64::from(index as u32) << shift;
-                        self.masm.add64_imm(temp, storage, offset as i64);
+                        let offset = u64::from(index as u32) << scale(element).log2();
+                        if let Ok(offset) = i32::try_from(offset) {
+                            Address::new(storage, offset)
+                        } else {
+                            self.masm.add64_imm(temp, storage, offset as i64);
+                            Address::new(temp, 0)
+                        }
                     }
                 }
-                self.masm
-                    .and64_imm(temp, temp, layout.primitive_storage_cage_offset_mask);
-                self.masm
-                    .add64_imm(temp, temp, self.runtime.primitive_storage_cage_base as i64);
-                Address::new(temp, 0)
             }
         }
     }

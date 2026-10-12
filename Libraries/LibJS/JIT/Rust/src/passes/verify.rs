@@ -387,12 +387,24 @@ fn verify_nodes(graph: &Graph, places: &[Option<Place>]) -> Result<(), String> {
             | Op::StoreElementAt {
                 kind: ElementsKind::TypedArray(_),
             } = node.op
+                && graph.node(node.inputs[0]).op != Op::TypedArrayDataAddress
+            {
+                errors.push(format!(
+                    "v{} ({}) takes no typed array data address",
+                    node_id.0,
+                    node.op.name()
+                ));
+            }
+            if node.op == Op::TypedArrayDataAddress
                 && !matches!(
                     graph.node(node.inputs[0]).op,
                     Op::LoadTypedArrayDataOffset | Op::CheckTypedArrayStorage
                 )
             {
-                errors.push(format!("v{} ({}) takes no storage offset", node_id.0, node.op.name()));
+                errors.push(format!(
+                    "v{} (TypedArrayDataAddress) takes no storage offset",
+                    node_id.0
+                ));
             }
             // A slow path's further outputs are where its call left them only
             // until anything else runs.
@@ -518,9 +530,10 @@ fn expected_input_reprs(graph: &Graph, node: NodeId) -> Option<Vec<Repr>> {
         Op::LoadElementAt { .. } => Some(vec![Repr::Pointer, Repr::Int32]),
         Op::StoreElementAt { kind } => Some(vec![Repr::Pointer, Repr::Int32, kind.stored_repr()]),
         Op::CheckBounds => Some(vec![Repr::Int32, Repr::Int32]),
-        Op::LoadTypedArrayLength | Op::LoadTypedArrayDataOffset | Op::CheckTypedArrayStorage => {
-            Some(vec![Repr::Pointer])
-        }
+        Op::LoadTypedArrayLength
+        | Op::LoadTypedArrayDataOffset
+        | Op::TypedArrayDataAddress
+        | Op::CheckTypedArrayStorage => Some(vec![Repr::Pointer]),
         Op::BoxBool | Op::BoolToInt32 => Some(vec![Repr::Bool]),
         Op::LoadFunctionEnvironment { .. }
         | Op::BoxCell
