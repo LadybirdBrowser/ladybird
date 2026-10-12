@@ -376,6 +376,54 @@ fn loop_phis_share_spill_slots_with_their_inputs() {
 }
 
 #[test]
+fn int32_operations_write_over_their_first_input_where_it_dies() {
+    // The first XOR's value dies at the second, whose output then takes its
+    // register: two-address instructions need no copy of it.
+    let program = assemble(|_| {
+        vec![
+            Instruction::Enter,
+            Instruction::BitwiseXor {
+                arith_feedback: 0,
+                dst: r(5),
+                lhs: a(0),
+                rhs: a(0),
+            },
+            Instruction::BitwiseXor {
+                arith_feedback: 1,
+                dst: r(6),
+                lhs: r(5),
+                rhs: a(0),
+            },
+            Instruction::Return { value: r(6) },
+        ]
+    });
+    let mut snapshot = crate::builder::tests::snapshot_for(&program, crate::bytecode::test_support::test_layout());
+    snapshot.executables[0].feedback.arith = vec![crate::snapshot::arith_feedback::INT32; 2];
+    let graph = crate::builder::tests::optimized_graph(&snapshot);
+    let allocation = allocate_and_verify(&graph);
+    let xors = graph
+        .nodes
+        .iter()
+        .enumerate()
+        .filter(|(_, node)| {
+            node.op
+                == Op::Int32Binary {
+                    op: crate::ir::BinaryOp::BitwiseXor,
+                }
+        })
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    assert_eq!(xors.len(), 2, "{}", dump_allocation(&graph, &allocation));
+    let second = &allocation.nodes[xors[1]];
+    assert_eq!(
+        second.output,
+        Some(second.inputs[0]),
+        "{}",
+        dump_allocation(&graph, &allocation)
+    );
+}
+
+#[test]
 fn exits_find_constants_registers_and_spilled_values() {
     let program = assemble(|_| {
         vec![
