@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="stylesheet" href="../data/iframe-raster-content.css">
+<style>
+    body { margin: 0; }
+    .content { margin: 20px; }
+</style>
+<div class="content">Hello iframe 012345<div class="circle"></div><div class="line"></div></div>
+<script>
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        internals.setBrowserZoom(2);
+        await frame();
+        await frame();
+        internals.signalTestIsDone("PASS");
+    };
+</script>

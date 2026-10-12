@@ -175,6 +175,7 @@ private:
 
     void request_rendering_opportunity_if_needed();
     void hurry_outstanding_rendering_opportunity();
+    void device_pixels_per_css_pixel_did_change();
     Optional<Web::Compositor::CompositorContextHandle&> rendering_opportunity_context();
     bool hosted_documents_are_hidden() const;
     void schedule_local_rendering_opportunity();
