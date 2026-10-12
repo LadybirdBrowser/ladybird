@@ -1061,23 +1061,6 @@ fn source_ends_with_comment(source: crate::css::css_tokenizer::TokenizerInput<'_
     }
 }
 
-fn is_single_css_wide_keyword(tokens: &[OwnedToken]) -> bool {
-    let [
-        OwnedToken {
-            kind: OwnedTokenKind::Ident(keyword),
-            ..
-        },
-    ] = trim_whitespace(tokens)
-    else {
-        return false;
-    };
-    keyword.eq_ignore_ascii_case("inherit")
-        || keyword.eq_ignore_ascii_case("initial")
-        || keyword.eq_ignore_ascii_case("unset")
-        || keyword.eq_ignore_ascii_case("revert")
-        || keyword.eq_ignore_ascii_case("revert-layer")
-}
-
 fn single_css_wide_keyword(tokens: &[OwnedToken]) -> Option<&[u16]> {
     let [
         OwnedToken {
@@ -1088,7 +1071,12 @@ fn single_css_wide_keyword(tokens: &[OwnedToken]) -> Option<&[u16]> {
     else {
         return None;
     };
-    is_single_css_wide_keyword(tokens).then_some(keyword.as_slice())
+    (keyword.eq_ignore_ascii_case("inherit")
+        || keyword.eq_ignore_ascii_case("initial")
+        || keyword.eq_ignore_ascii_case("unset")
+        || keyword.eq_ignore_ascii_case("revert")
+        || keyword.eq_ignore_ascii_case("revert-layer"))
+    .then_some(keyword.as_slice())
 }
 
 fn tokens_for_custom_property_value(data: &StyleValueData) -> Option<(Vec<OwnedToken>, bool, bool)> {
@@ -3620,8 +3608,8 @@ mod tests {
 
     #[test]
     fn recognizes_substituted_css_wide_keywords() {
-        assert!(is_single_css_wide_keyword(&tokenize_owned(b"  inherit ")));
-        assert!(!is_single_css_wide_keyword(&tokenize_owned(b"inherit green")));
+        assert!(single_css_wide_keyword(&tokenize_owned(b"  inherit ")).is_some());
+        assert!(single_css_wide_keyword(&tokenize_owned(b"inherit green")).is_none());
     }
 
     #[test]
