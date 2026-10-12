@@ -19,6 +19,7 @@ mod dce;
 pub mod dominators;
 pub mod edit;
 mod escape_analysis;
+mod exit_unboxing;
 mod facts;
 mod frame_initialization;
 mod gvn;
@@ -68,6 +69,10 @@ const PASSES: &[Pass] = &[
     Pass {
         name: "loop invariant code motion",
         run: licm::run,
+    },
+    Pass {
+        name: "exit unboxing",
+        run: exit_unboxing::run,
     },
     Pass {
         name: "dead code elimination",
