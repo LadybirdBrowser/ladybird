@@ -1,0 +1,16 @@
+[package]
+name = "libjs_embedding_headers"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["rlib"]
+
+# After changing dependencies, regenerate the Flatpak sources:
+#   python3 Meta/CMake/flatpak/generate-cargo-sources.py
+[build-dependencies]
+cbindgen = { version = "0.29", default-features = false }
+libjs_abi = { path = "../../ABI" }
+
+[lints]
+workspace = true

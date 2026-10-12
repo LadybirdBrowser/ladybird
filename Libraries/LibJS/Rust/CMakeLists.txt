@@ -1,13 +1,19 @@
-set(LIBJS_RUST_FEATURES allocator)
-if (ENABLE_ADDRESS_SANITIZER)
-    list(APPEND LIBJS_RUST_FEATURES address-sanitizer)
-endif()
-if (ENABLE_THREAD_SANITIZER)
-    list(APPEND LIBJS_RUST_FEATURES thread-sanitizer)
-endif()
-# The JIT is a default feature of the crate, so that cargo builds and lints it unless told otherwise.
-if (ENABLE_JS_JIT)
-    list(APPEND LIBJS_RUST_FEATURES jit)
+# The headers of the embedding ABI, LibJS/Embedding/ABI.h and LibJS/Embedding/Layout.h, which LibJS's public headers
+# include. A crate of its own writes them, so that the C++ that includes them waits for the headers alone, not for the
+# runtime, which takes far longer to build.
+generate_rust_ffi_headers(
+    MANIFEST_PATH embedding_headers/Cargo.toml
+    CRATE_NAME libjs_embedding_headers
+    FFI_OUTPUT_DIR ${CMAKE_BINARY_DIR}/Libraries
+    FFI_HEADERS
+        LibJS/Embedding/ABI.h
+        LibJS/Embedding/Layout.h
+)
+
+# The runtime crate. When LibWeb is built, LibWeb's crate builds it as a dependency, with the same features, and
+# LibWeb's library links it (Libraries/LibWeb/CMakeLists.txt).
+if (LIBJS_FOLDED_INTO_LIBWEB)
+    return()
 endif()
 
 import_rust_crate(
@@ -15,15 +21,7 @@ import_rust_crate(
     CRATE_NAME libjs_rust
     NO_DEFAULT_FEATURES
     FEATURES ${LIBJS_RUST_FEATURES}
-    FFI_OUTPUT_DIR ${CMAKE_BINARY_DIR}/Libraries
-    FFI_HEADERS
-        LibJS/Embedding/ABI.h
-        LibJS/Embedding/Layout.h
 )
-# The headers land in the build tree's Libraries directory, which every target already includes. CMake would otherwise
-# make the include directory of an imported target a system one for its consumers, hiding the warnings of every header
-# generated there.
-set_target_properties(libjs_rust PROPERTIES SYSTEM OFF)
 
 # The runtime allocates its cells from LibGC, and its regex engine reads Unicode properties from LibUnicode.
 target_link_libraries(libjs_rust INTERFACE LibGC LibUnicode)

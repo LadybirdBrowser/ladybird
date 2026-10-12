@@ -6,13 +6,13 @@
 
 //! Builds everything the crate shares with the interpreter: the layout file flapc compiles interpreter.flap against,
 //! computed from the crate's own layout module, the interpreter itself, assembled into the crate's static library,
-//! and the static assertions that keep the crate's types in line with that layout. It also generates the C headers
-//! of the embedding ABI, LibJS/Embedding/ABI.h from src/embedding and LibJS/Embedding/Layout.h from the layout module, and the frontend's
-//! instruction types from interpreter.flap.
+//! and the static assertions that keep the crate's types in line with that layout and with the embedding header
+//! LibJS/Embedding/Layout.h, which the build script of embedding_headers writes from the same module. It also
+//! generates the frontend's instruction types from interpreter.flap.
 
 use std::env;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 // The build script only reads the layout, so most of what the crate uses goes unused here.
 #[allow(dead_code)]
@@ -24,9 +24,6 @@ mod layout_forward;
 
 #[path = "src/gc/class_id.rs"]
 mod class_id;
-
-#[path = "generate/abi_header.rs"]
-mod abi_header;
 
 #[path = "generate/c_type_spelling.rs"]
 mod c_type_spelling;
@@ -40,6 +37,8 @@ mod instructions;
 #[path = "generate/layout_table.rs"]
 mod layout_table;
 
+// The build script only compiles the static assertions of the layout header, which embedding_headers writes.
+#[allow(dead_code)]
 #[path = "generate/layout_header.rs"]
 mod layout_header;
 
@@ -48,6 +47,11 @@ mod ops;
 
 #[path = "generate/runtime_functions.rs"]
 mod runtime_functions;
+
+#[path = "generate/write_if_changed.rs"]
+mod write_if_changed;
+
+use write_if_changed::write_if_changed;
 
 const KIB: u64 = 1024;
 const GIB: u64 = 1024 * 1024 * KIB;
@@ -117,7 +121,6 @@ fn main() {
     println!("cargo:rerun-if-changed=generate");
     println!("cargo:rerun-if-changed=src/layout");
     println!("cargo:rerun-if-changed=src/gc/class_id.rs");
-    println!("cargo:rerun-if-changed=src/embedding");
     println!("cargo:rerun-if-changed={}", interpreter_source.display());
     println!("cargo:rerun-if-changed={}", layout_fixture.display());
     println!("cargo:rerun-if-env-changed=MACOSX_DEPLOYMENT_TARGET");
@@ -159,17 +162,9 @@ fn main() {
         &layout.static_assertions,
     );
 
-    let embedding_header_directory = output_directory.join("LibJS/Embedding");
-    fs::create_dir_all(&embedding_header_directory).expect("create the directory of the embedding headers");
-    abi_header::generate(
-        &manifest_directory.join("src/embedding/mod.rs"),
-        &embedding_header_directory.join("ABI.h"),
-    );
-    let layout_header = layout_header::generate();
-    write_if_changed(&embedding_header_directory.join("Layout.h"), &layout_header.text);
     write_if_changed(
         &output_directory.join("layout_header_static_assertions.rs"),
-        &layout_header.static_assertions,
+        &layout_header::generate().static_assertions,
     );
 
     let interpreter_source_text = fs::read_to_string(&interpreter_source).expect("read interpreter.flap");
@@ -354,11 +349,4 @@ fn assemble_interpreter(target: &Target, assembly_paths: &[PathBuf]) {
         build.flag_if_supported("-malign-branch=fused,jcc");
     }
     build.compile("libjs_runtime_interpreter");
-}
-
-fn write_if_changed(path: &Path, contents: &str) {
-    if fs::read_to_string(path).is_ok_and(|existing| existing == contents) {
-        return;
-    }
-    fs::write(path, contents).unwrap_or_else(|error| panic!("write {}: {error}", path.display()));
 }

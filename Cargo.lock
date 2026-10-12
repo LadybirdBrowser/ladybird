@@ -853,6 +853,14 @@ name = "libjs_abi"
 version = "0.1.0"
 
 [[package]]
+name = "libjs_embedding_headers"
+version = "0.1.0"
+dependencies = [
+ "cbindgen",
+ "libjs_abi",
+]
+
+[[package]]
 name = "libjs_jit"
 version = "0.1.0"
 dependencies = [
@@ -876,7 +884,6 @@ name = "libjs_rust"
 version = "0.1.0"
 dependencies = [
  "ak",
- "cbindgen",
  "cc",
  "fARM64",
  "flapc",
@@ -960,6 +967,17 @@ dependencies = [
  "libc",
  "regex",
  "target-lexicon",
+]
+
+[[package]]
+name = "libweb_bindings_rust"
+version = "0.1.0"
+dependencies = [
+ "ak",
+ "ladybird_allocator",
+ "libjs_rust",
+ "libweb_rust",
+ "rustc-demangle",
 ]
 
 [[package]]

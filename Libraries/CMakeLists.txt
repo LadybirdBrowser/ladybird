@@ -8,6 +8,9 @@ add_subdirectory(LibFileSystem)
 add_subdirectory(LibGC)
 add_subdirectory(LibHTTP)
 add_subdirectory(LibIPC)
+# When LibWeb is built, LibJS's C++ API and the Rust runtime underneath it go into LibWeb's library, so that a process
+# has one copy of the runtime, which LibWeb's Rust crate depends on (Libraries/LibJS/CMakeLists.txt).
+set(LIBJS_FOLDED_INTO_LIBWEB ${ENABLE_GUI_TARGETS})
 add_subdirectory(LibJS)
 add_subdirectory(LibMain)
 add_subdirectory(LibRegex)

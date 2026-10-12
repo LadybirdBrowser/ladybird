@@ -1,4 +1,4 @@
-ladybird_utility(test-js-runtime SOURCES test-js-runtime.cpp LIBS LibJS LibMain)
+ladybird_utility(test-js-runtime SOURCES test-js-runtime.cpp LIBS LibJSStandalone LibMain)
 
 ladybird_utility(test-js SOURCES test-js-main.cpp LIBS LibMain)
 ladybird_windows_bin(test-js CONSOLE)
