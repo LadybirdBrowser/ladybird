@@ -129,14 +129,16 @@ impl GraphBuilder<'_> {
         self.block = inside;
         let index = self.refine(BranchCondition::IndexInBounds, true, vec![index, length]);
         // NB: Holey elements below the length may be past the capacity.
-        let (storage, bound) = self.element_storage_and_bound(kind, array);
+        //     Elements are accessed through the array (see
+        //     `element_storage_and_bound()`).
+        let capacity = self.emit(Op::LoadElementsCapacity, vec![array], Some(Repr::Int32));
         let index = self.branch_to_slow_path(
             &mut slow_paths,
             BranchCondition::IndexInBounds,
-            vec![index, bound],
+            vec![index, capacity],
             true,
         );
-        let element = self.load_element(kind, storage, index);
+        let element = self.load_element(kind, array, index);
         let element = self.branch_if_empty(&mut slow_paths, element);
         let one = self.int32_constant(1);
         let next_index = self.emit_checked(
