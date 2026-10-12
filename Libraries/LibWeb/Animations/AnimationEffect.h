@@ -51,6 +51,8 @@ struct AnimationUpdateContext {
         // Whether the record the update samples over was computed by this style update, so that the base
         // adjustments the sampled values feed into were made over the values the element holds now.
         bool base_is_current { false };
+        // NB: The enclosing style reaction propagates inherited changes after its final composition is installed.
+        bool inherited_style_update_owned_by_reaction { false };
     };
 
     AnimationUpdateContext();

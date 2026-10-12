@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .parent { color: black; transition: color 1000s linear; }
+    .parent.changed { color: rgb(100, 100, 100); }
+    .parent.padded { padding-left: 2px; }
+</style>
+<main id="host"></main>
+<script>
+    test(() => {
+        const parents = Array.from({ length: 16 }, () => {
+            const parent = document.createElement("div");
+            parent.className = "parent";
+            for (let index = 0; index < 32; ++index) {
+                const child = document.createElement("span");
+                child.textContent = "child";
+                parent.append(child);
+            }
+            host.append(parent);
+            return parent;
+        });
+        internals.updateStyle();
+        for (const parent of parents)
+            parent.classList.add("changed");
+        internals.updateStyle();
+        for (const parent of parents) {
+            const transition = parent.getAnimations()[0];
+            transition.pause();
+            transition.currentTime = 500000;
+        }
+        internals.updateStyle();
+        println(`paused child color: ${getComputedStyle(parents[0].firstElementChild).color}`);
+        const before = internals.getStyleInvalidationCounters();
+        for (let index = 0; index < 4; ++index) {
+            for (const parent of parents)
+                parent.classList.toggle("padded");
+            internals.updateStyle();
+        }
+        const after = internals.getStyleInvalidationCounters();
+        println(`padding only updates parent records: ${after.styleEngineRecordDeltasApplied - before.styleEngineRecordDeltasApplied === parents.length * 4}`);
+        println(`paused child color after padding: ${getComputedStyle(parents[0].lastElementChild).color}`);
+        parents[0].style.color = "rgb(200, 200, 200)";
+        internals.updateStyle();
+        const replacement = parents[0].getAnimations()[0];
+        replacement.pause();
+        replacement.currentTime = 500000;
+        println(`retargeted child color: ${getComputedStyle(parents[0].firstElementChild).color}`);
+        parents[0].style.transitionProperty = "none";
+        println(`cancelled child color: ${getComputedStyle(parents[0].firstElementChild).color}`);
+        const source = document.createElement("div");
+        source.style.cssText = "color: black; transition: color 1000s linear;";
+        const reader = document.createElement("span");
+        reader.style.transition = "color 1000s linear";
+        reader.textContent = "transitioning child";
+        source.append(reader);
+        host.append(source);
+        internals.updateStyle();
+        source.style.color = "rgb(100, 100, 100)";
+        reader.style.paddingLeft = "1px";
+        internals.updateStyle();
+        const sourceTransition = source.getAnimations()[0];
+        const readerTransition = reader.getAnimations()[0];
+        for (const transition of [sourceTransition, readerTransition]) {
+            transition.pause();
+            transition.currentTime = 500000;
+        }
+        internals.updateStyle();
+        source.style.paddingLeft = "2px";
+        internals.updateStyle();
+        println(`unrelated change keeps child transition: ${reader.getAnimations()[0] === readerTransition}`);
+        source.style.color = "rgb(200, 200, 200)";
+        reader.style.paddingLeft = "2px";
+        internals.updateStyle();
+        const newReaderTransition = reader.getAnimations()[0];
+        println(`new base retargets child transition: ${newReaderTransition !== readerTransition}`);
+        for (const transition of [source.getAnimations()[0], newReaderTransition]) {
+            transition.pause();
+            transition.currentTime = 500000;
+        }
+        println(`retargeted transitioning child: ${getComputedStyle(reader).color}`);
+        println(`incremental layout stays consistent: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+    });
+</script>

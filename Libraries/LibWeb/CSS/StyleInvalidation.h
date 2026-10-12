@@ -92,6 +92,7 @@ struct RequiredInvalidationAfterStyleChange {
     static constexpr u8 all_inherited_style_groups = (1 << 7) - 1;
     [[nodiscard]] bool inherited_style_changed() const { return m_inherited_style_groups_changed != 0; }
     [[nodiscard]] u8 inherited_style_groups_changed() const { return m_inherited_style_groups_changed; }
+    void set_inherited_style_groups_changed(u8 groups) { m_inherited_style_groups_changed = groups; }
     void mark_inherited_style_group_changed(size_t group) { m_inherited_style_groups_changed |= 1 << group; }
     // A property controlling decorations originated by this box changed. Descendant boxes paint
     // the propagated decorations from these values, so their cached paint commands are stale.

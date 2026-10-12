@@ -1,0 +1,9 @@
+paused child color: rgb(50, 50, 50)
+padding only updates parent records: true
+paused child color after padding: rgb(50, 50, 50)
+retargeted child color: rgb(125, 125, 125)
+cancelled child color: rgb(200, 200, 200)
+unrelated change keeps child transition: true
+new base retargets child transition: true
+retargeted transitioning child: rgb(125, 125, 125)
+incremental layout stays consistent: true

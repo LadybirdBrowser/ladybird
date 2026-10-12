@@ -1,0 +1,31 @@
+light restyle color: rgb(50, 50, 50)
+light restyle opacity: 0.5
+light font: 24px
+light color beside font change: rgb(50, 50, 50)
+light changed opacity: 0.75
+light color beside opacity change: rgb(50, 50, 50)
+light cancelled color: rgb(100, 100, 100)
+shadow restyle color: rgb(50, 50, 50)
+shadow restyle opacity: 0.5
+shadow font: 24px
+shadow color beside font change: rgb(50, 50, 50)
+shadow changed opacity: 0.75
+shadow color beside opacity change: rgb(50, 50, 50)
+shadow pseudo color: rgb(50, 50, 50)
+shadow cancelled color: rgb(100, 100, 100)
+named slot restyle color: rgb(50, 50, 50)
+named slot restyle opacity: 0.5
+named slot font: 24px
+named slot color beside font change: rgb(50, 50, 50)
+named slot changed opacity: 0.75
+named slot color beside opacity change: rgb(50, 50, 50)
+named slot pseudo color: rgb(50, 50, 50)
+named slot cancelled color: rgb(100, 100, 100)
+manual slot restyle color: rgb(50, 50, 50)
+manual slot restyle opacity: 0.5
+manual slot font: 24px
+manual slot color beside font change: rgb(50, 50, 50)
+manual slot changed opacity: 0.75
+manual slot color beside opacity change: rgb(50, 50, 50)
+manual slot pseudo color: rgb(50, 50, 50)
+manual slot cancelled color: rgb(100, 100, 100)

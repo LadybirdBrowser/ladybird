@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        for (const mode of ["light", "shadow", "named slot", "manual slot"]) {
+            const target = document.createElement("div");
+            target.style.cssText = "color: black; font-size: 16px; transition: color 1000s linear;";
+            const child = document.createElement("span");
+            child.textContent = "child";
+            child.style.opacity = "inherit";
+            if (mode === "light") {
+                target.append(child);
+            } else {
+                const shadow = target.attachShadow({ mode: "open", slotAssignment: mode === "manual slot" ? "manual" : "named" });
+                const style = document.createElement("style");
+                style.textContent = ":host::before { content: 'pseudo'; color: inherit; }";
+                shadow.append(style);
+                if (mode === "shadow") {
+                    shadow.append(child);
+                } else {
+                    const slot = document.createElement("slot");
+                    slot.style.opacity = "inherit";
+                    shadow.append(slot);
+                    target.append(child);
+                    if (mode === "manual slot")
+                        slot.assign(child);
+                }
+            }
+            document.body.append(target);
+            internals.updateStyle();
+            const opacity = target.animate({ opacity: [1, 0] }, { duration: 1000000, fill: "both" });
+            opacity.pause();
+            opacity.currentTime = 500000;
+            target.style.color = "rgb(100, 100, 100)";
+            internals.updateStyle();
+            const transition = target.getAnimations().find(animation => animation instanceof CSSTransition);
+            transition.pause();
+            transition.currentTime = 500000;
+            internals.updateStyle();
+            target.style.paddingLeft = "2px";
+            println(`${mode} restyle color: ${getComputedStyle(child).color}`);
+            println(`${mode} restyle opacity: ${getComputedStyle(child).opacity}`);
+            target.style.fontSize = "24px";
+            println(`${mode} font: ${getComputedStyle(child).fontSize}`);
+            println(`${mode} color beside font change: ${getComputedStyle(child).color}`);
+            opacity.effect.setKeyframes({ opacity: [0.75, 0.75] });
+            target.style.paddingLeft = "3px";
+            println(`${mode} changed opacity: ${getComputedStyle(child).opacity}`);
+            println(`${mode} color beside opacity change: ${getComputedStyle(child).color}`);
+            if (mode !== "light")
+                println(`${mode} pseudo color: ${getComputedStyle(target, "::before").color}`);
+            target.style.transitionProperty = "none";
+            println(`${mode} cancelled color: ${getComputedStyle(child).color}`);
+            target.remove();
+        }
+    });
+</script>

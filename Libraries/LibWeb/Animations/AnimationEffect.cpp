@@ -935,7 +935,7 @@ void AnimationUpdateContext::publish()
             if (animated_property_invalidation.requires_base_style_recomputation && !data.base_is_current)
                 target->document().style_computer().style_engine().record_derived_element_style_input_change(target->style_node_id(), CSS::StyleEngine::PublishedStyle | CSS::StyleEngine::RecomputeStyle);
 
-            if (!element.pseudo_element().has_value() && invalidation.inherited_style_changed()) {
+            if (!data.inherited_style_update_owned_by_reaction && !element.pseudo_element().has_value() && invalidation.inherited_style_changed()) {
                 // Recomputing pseudo-element styles can start transitions, which stay provisional until a stabilization
                 // epoch commits them. This update also runs outside any style update (for example when an inert animation
                 // is disassociated from its target), so hold an epoch open around it.
@@ -951,8 +951,10 @@ void AnimationUpdateContext::publish()
             // flat-tree descendants as one feedback batch; the ordinary transaction owns their style
             // materialization and observer consequences.
             if (!element.pseudo_element().has_value()) {
-                auto inherited_style_groups = invalidation.inherited_style_groups_changed();
-                if (!invalidation.inherited_style_changed()) {
+                // NB: An enclosing reaction compares the previous and final inherited groups. Keep the feedback for
+                //     explicit non-inherited dependencies and structural changes, which that comparison does not cover.
+                auto inherited_style_groups = data.inherited_style_update_owned_by_reaction ? u8 { 0 } : invalidation.inherited_style_groups_changed();
+                if (!invalidation.inherited_style_changed() || data.inherited_style_update_owned_by_reaction) {
                     auto shadow_root = target->shadow_root();
                     auto child_explicit_inheritance_groups = target->children_explicitly_inherited_non_inherited_style_groups();
                     if (shadow_root)
