@@ -46,33 +46,6 @@ ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file)
         return file.read_bool_entry("Flags", name, false);
     };
 
-    auto get_path = [&](auto& name, auto role, bool allow_empty) {
-        auto path = file.read_entry("Paths", name);
-        if (path.is_empty()) {
-            switch (role) {
-            case (int)PathRole::TitleButtonIcons:
-                return "/res/icons/16x16/";
-            default:
-                return allow_empty ? "" : "/res/";
-            }
-        }
-        return &path[0];
-    };
-
-#define ENCODE_PATH(x, allow_empty)                                                                              \
-    do {                                                                                                         \
-        auto path = get_path(#x, (int)PathRole::x, allow_empty);                                                 \
-        memcpy(data->path[(int)PathRole::x], path, min(strlen(path) + 1, sizeof(data->path[(int)PathRole::x]))); \
-        data->path[(int)PathRole::x][sizeof(data->path[(int)PathRole::x]) - 1] = '\0';                           \
-    } while (0)
-
-    ENCODE_PATH(TitleButtonIcons, false);
-    ENCODE_PATH(ActiveWindowShadow, true);
-    ENCODE_PATH(InactiveWindowShadow, true);
-    ENCODE_PATH(TaskbarShadow, true);
-    ENCODE_PATH(MenuShadow, true);
-    ENCODE_PATH(TooltipShadow, true);
-
 #undef __ENUMERATE_COLOR_ROLE
 #define __ENUMERATE_COLOR_ROLE(role) \
     data->color[(int)ColorRole::role] = get_color(#role).value();

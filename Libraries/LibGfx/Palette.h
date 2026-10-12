@@ -37,7 +37,6 @@ public:
         return theme().flag[(int)role];
     }
 
-    ByteString path(PathRole) const;
     SystemTheme const& theme() const { return *m_theme_buffer.data<SystemTheme>(); }
 
 private:
@@ -154,20 +153,11 @@ public:
 
     bool is_dark() const { return flag(FlagRole::IsDark); }
 
-    ByteString title_button_icons_path() const { return path(PathRole::TitleButtonIcons); }
-    ByteString active_window_shadow_path() const { return path(PathRole::ActiveWindowShadow); }
-    ByteString inactive_window_shadow_path() const { return path(PathRole::InactiveWindowShadow); }
-    ByteString menu_shadow_path() const { return path(PathRole::MenuShadow); }
-    ByteString taskbar_shadow_path() const { return path(PathRole::TaskbarShadow); }
-    ByteString tooltip_shadow_path() const { return path(PathRole::TooltipShadow); }
-
     Color color(ColorRole role) const { return m_impl->color(role); }
     bool flag(FlagRole role) const { return m_impl->flag(role); }
-    ByteString path(PathRole role) const { return m_impl->path(role); }
 
     void set_color(ColorRole, Color);
     void set_flag(FlagRole, bool);
-    void set_path(PathRole, ByteString);
 
     SystemTheme const& theme() const { return m_impl->theme(); }
 

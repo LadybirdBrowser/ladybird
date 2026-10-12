@@ -119,14 +119,6 @@ namespace Gfx {
 #define ENUMERATE_FLAG_ROLES(C) \
     C(IsDark)
 
-#define ENUMERATE_PATH_ROLES(C) \
-    C(TitleButtonIcons)         \
-    C(InactiveWindowShadow)     \
-    C(ActiveWindowShadow)       \
-    C(TaskbarShadow)            \
-    C(MenuShadow)               \
-    C(TooltipShadow)
-
 enum class ColorRole {
     NoRole,
 
@@ -184,37 +176,9 @@ inline StringView to_string(FlagRole role)
     }
 }
 
-enum class PathRole {
-    NoRole,
-
-#undef __ENUMERATE_PATH_ROLE
-#define __ENUMERATE_PATH_ROLE(role) role,
-    ENUMERATE_PATH_ROLES(__ENUMERATE_PATH_ROLE)
-#undef __ENUMERATE_PATH_ROLE
-
-        __Count,
-};
-
-inline StringView to_string(PathRole role)
-{
-    switch (role) {
-    case PathRole::NoRole:
-        return "NoRole"sv;
-#undef __ENUMERATE_PATH_ROLE
-#define __ENUMERATE_PATH_ROLE(role) \
-    case PathRole::role:            \
-        return #role##sv;
-        ENUMERATE_PATH_ROLES(__ENUMERATE_PATH_ROLE)
-#undef __ENUMERATE_PATH_ROLE
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
 struct SystemTheme {
     BGRA8888 color[(int)ColorRole::__Count];
     bool flag[(int)FlagRole::__Count];
-    char path[(int)PathRole::__Count][256]; // TODO: PATH_MAX?
 };
 
 Core::AnonymousBuffer& current_system_theme_buffer();
