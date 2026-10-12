@@ -817,7 +817,10 @@ impl RetainedState {
                 })
                 .map(|entry| entry.materialize(host, &self.programs, 0))
                 .collect(),
-            _ => Some(for_target(&self.exact_match_answer(host).ok()?)),
+            _ => {
+                self.prepare_scope_programs_for_nodes([host]);
+                Some(for_target(&self.exact_match_answer(host).ok()?))
+            }
         }
     }
 
