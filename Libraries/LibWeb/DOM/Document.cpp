@@ -4869,7 +4869,9 @@ bool Document::is_fully_active() const
 
     // NB: A destroyed navigable has no container, but its document keeps its navigable until it has unloaded, which
     //     happens after a round-trip through the UI process.
-    if (navigable->is_in_a_destroyed_subtree())
+    // INTEROP: Other engines unload the document of a removed iframe before they detach it, so its pagehide and unload
+    //          handlers see a fully active document.
+    if (navigable->is_in_a_destroyed_subtree() && m_unload_counter == 0)
         return false;
 
     if (navigable->is_top_level_traversable())
