@@ -74,7 +74,7 @@ namespace Core {
 enum class CompletionType : u8 {
     Wake,
     Timer,
-    Notifer,
+    Socket,
     PipeNotifier,
     Process,
     Signal,
@@ -198,15 +198,11 @@ public:
     WeakPtr<EventReceiver> owner;
 };
 
-struct EventLoopNotifier final : CompletionPacket {
-
-    ~EventLoopNotifier()
-    {
-    }
-
-    Notifier* notifier;
+struct EventLoopSocket final : CompletionPacket {
+    int fd { -1 };
     OwnHandle wait_packet;
     OwnHandle wait_event;
+    Vector<Notifier*, 2> notifiers;
 };
 
 struct EventLoopPipeNotifier final : CompletionPacket {
@@ -272,7 +268,8 @@ struct ThreadData {
     OwnHandle iocp;
 
     // These are only used to register and unregister. The event loop doesn't access these.
-    HashMap<Notifier*, NonnullOwnPtr<EventLoopNotifier>> notifiers;
+    HashMap<int, NonnullOwnPtr<EventLoopSocket>> sockets;
+    HashMap<Notifier*, EventLoopSocket*> socket_notifiers;
     HashMap<Notifier*, NonnullOwnPtr<EventLoopPipeNotifier>> pipe_notifiers;
 
     // Pipe notifiers whose activation has been posted. Each reads its pipe again only on the next pump, once its
@@ -348,6 +345,26 @@ int EventLoopImplementationWindows::exec()
 }
 
 static constexpr bool debug_event_loop = false;
+
+static int notifier_type_to_network_event(NotificationType type)
+{
+    // NotificationType is a bitmask (e.g. HangUp | Error), so translate each set bit.
+    int events = 0;
+    if (has_flag(type, NotificationType::Read))
+        events |= FD_READ | FD_CLOSE | FD_ACCEPT;
+    if (has_flag(type, NotificationType::Write))
+        events |= FD_WRITE | FD_CONNECT;
+    // WSAEventSelect has no separate error event; socket errors surface as FD_CLOSE.
+    if (has_flag(type, NotificationType::HangUp) || has_flag(type, NotificationType::Error))
+        events |= FD_CLOSE;
+
+    if (!events) {
+        dbgln("This notification type is not implemented: {}", (int)type);
+        VERIFY_NOT_REACHED();
+    }
+
+    return events;
+}
 
 static bool handle_is_overlapped(HANDLE handle)
 {
@@ -444,10 +461,18 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
                 arm_master_timer(*thread_data);
                 continue;
             }
-            if (packet->type == CompletionType::Notifer) {
-                auto* notifier_data = static_cast<EventLoopNotifier*>(packet);
-                event_queue.post_event(notifier_data->notifier, Core::Event::Type::NotifierActivation);
-                NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data->iocp.handle, notifier_data->wait_event.handle, notifier_data, NULL, 0, 0, NULL);
+            if (packet->type == CompletionType::Socket) {
+                auto* socket = static_cast<EventLoopSocket*>(packet);
+                // If querying which events occurred fails, dispatch to all notifier types.
+                long network_events = ~0;
+                WSANETWORKEVENTS occurred {};
+                if (WSAEnumNetworkEvents(socket->fd, socket->wait_event.handle, &occurred) == 0)
+                    network_events = occurred.lNetworkEvents;
+                for (auto* notifier : socket->notifiers) {
+                    if (network_events & notifier_type_to_network_event(notifier->type()))
+                        event_queue.post_event(notifier, Core::Event::Type::NotifierActivation);
+                }
+                NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(socket->wait_packet.handle, thread_data->iocp.handle, socket->wait_event.handle, socket, NULL, 0, 0, NULL);
                 VERIFY(NT_SUCCESS(status));
                 continue;
             }
@@ -506,24 +531,48 @@ void EventLoopImplementationWindows::wake()
     SetEvent(m_wake_event);
 }
 
-static int notifier_type_to_network_event(NotificationType type)
+static void select_socket_events(EventLoopSocket& socket)
 {
-    // NotificationType is a bitmask (e.g. HangUp | Error), so translate each set bit.
-    int events = 0;
-    if (has_flag(type, NotificationType::Read))
-        events |= FD_READ | FD_CLOSE | FD_ACCEPT;
-    if (has_flag(type, NotificationType::Write))
-        events |= FD_WRITE | FD_CONNECT;
-    // WSAEventSelect has no separate error event; socket errors surface as FD_CLOSE.
-    if (has_flag(type, NotificationType::HangUp) || has_flag(type, NotificationType::Error))
-        events |= FD_CLOSE;
+    long network_events = 0;
+    for (auto* notifier : socket.notifiers)
+        network_events |= notifier_type_to_network_event(notifier->type());
+    int rc = WSAEventSelect(socket.fd, socket.wait_event.handle, network_events);
+    VERIFY(!rc);
+}
 
-    if (!events) {
-        dbgln("This notification type is not implemented: {}", (int)type);
-        VERIFY_NOT_REACHED();
+static void register_socket_notifier(ThreadData& thread_data, Notifier& notifier)
+{
+    auto& socket = *thread_data.sockets.ensure(notifier.fd(), [&] {
+        auto socket = make<EventLoopSocket>();
+        socket->type = CompletionType::Socket;
+        socket->fd = notifier.fd();
+        socket->wait_event.handle = CreateEvent(NULL, FALSE, FALSE, NULL);
+        VERIFY(socket->wait_event.handle);
+        NTSTATUS status = g_system.NtCreateWaitCompletionPacket(&socket->wait_packet.handle, GENERIC_READ | GENERIC_WRITE, NULL);
+        VERIFY(NT_SUCCESS(status));
+        status = g_system.NtAssociateWaitCompletionPacket(socket->wait_packet.handle, thread_data.iocp.handle, socket->wait_event.handle, socket.ptr(), NULL, 0, 0, NULL);
+        VERIFY(NT_SUCCESS(status));
+        return socket;
+    });
+    socket.notifiers.append(&notifier);
+    thread_data.socket_notifiers.set(&notifier, &socket);
+    select_socket_events(socket);
+}
+
+static void unregister_socket_notifier(ThreadData& thread_data, Notifier& notifier, EventLoopSocket& socket)
+{
+    socket.notifiers.remove_first_matching([&](auto* entry) { return entry == &notifier; });
+    if (!socket.notifiers.is_empty()) {
+        select_socket_events(socket);
+        return;
     }
 
-    return events;
+    // The socket may already have been closed, so this can fail.
+    (void)WSAEventSelect(socket.fd, nullptr, 0);
+    // We are removing the signalled packets since the caller no longer expects them
+    NTSTATUS status = g_system.NtCancelWaitCompletionPacket(socket.wait_packet.handle, TRUE);
+    VERIFY(NT_SUCCESS(status));
+    thread_data.sockets.remove(socket.fd);
 }
 
 static void register_pipe_notifier(ThreadData& thread_data, Notifier& notifier)
@@ -560,30 +609,13 @@ static void unregister_pipe_notifier(ThreadData& thread_data, NonnullOwnPtr<Even
 void EventLoopManagerWindows::register_notifier(Notifier& notifier)
 {
     auto* thread_data = ThreadData::the();
-    auto& notifiers = thread_data->notifiers;
-
-    if (notifiers.contains(&notifier) || thread_data->pipe_notifiers.contains(&notifier))
+    if (thread_data->socket_notifiers.contains(&notifier) || thread_data->pipe_notifiers.contains(&notifier))
         return;
 
-    if (!System::is_socket(notifier.fd()) && GetFileType(to_handle(notifier.fd())) == FILE_TYPE_PIPE) {
+    if (!System::is_socket(notifier.fd()) && GetFileType(to_handle(notifier.fd())) == FILE_TYPE_PIPE)
         register_pipe_notifier(*thread_data, notifier);
-        return;
-    }
-
-    HANDLE event = CreateEvent(NULL, FALSE, FALSE, NULL);
-    VERIFY(event);
-    int rc = WSAEventSelect(notifier.fd(), event, notifier_type_to_network_event(notifier.type()));
-    VERIFY(!rc);
-
-    auto notifier_data = make<EventLoopNotifier>();
-    notifier_data->type = CompletionType::Notifer;
-    notifier_data->notifier = &notifier;
-    notifier_data->wait_event.handle = event;
-    NTSTATUS status = g_system.NtCreateWaitCompletionPacket(&notifier_data->wait_packet.handle, GENERIC_READ | GENERIC_WRITE, NULL);
-    VERIFY(NT_SUCCESS(status));
-    status = g_system.NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data->iocp.handle, event, notifier_data.ptr(), NULL, 0, 0, NULL);
-    VERIFY(NT_SUCCESS(status));
-    notifiers.set(&notifier, move(notifier_data));
+    else
+        register_socket_notifier(*thread_data, notifier);
 }
 
 void EventLoopManagerWindows::unregister_notifier(Notifier& notifier)
@@ -591,19 +623,10 @@ void EventLoopManagerWindows::unregister_notifier(Notifier& notifier)
     auto* thread_data = ThreadData::the();
     VERIFY(thread_data);
 
-    if (auto notifier_data = thread_data->pipe_notifiers.take(&notifier); notifier_data.has_value()) {
+    if (auto notifier_data = thread_data->pipe_notifiers.take(&notifier); notifier_data.has_value())
         unregister_pipe_notifier(*thread_data, notifier_data.release_value());
-        return;
-    }
-
-    auto maybe_notifier_data = thread_data->notifiers.take(&notifier);
-    if (!maybe_notifier_data.has_value())
-        return;
-    auto notifier_data = move(maybe_notifier_data.value());
-    // We are removing the signalled packets since the caller no longer expects them
-    NTSTATUS status = g_system.NtCancelWaitCompletionPacket(notifier_data->wait_packet.handle, TRUE);
-    VERIFY(NT_SUCCESS(status));
-    // TODO: Reuse the data structure
+    else if (auto socket = thread_data->socket_notifiers.take(&notifier); socket.has_value())
+        unregister_socket_notifier(*thread_data, notifier, **socket);
 }
 
 intptr_t EventLoopManagerWindows::register_timer(EventReceiver& object, int milliseconds, bool should_reload)
