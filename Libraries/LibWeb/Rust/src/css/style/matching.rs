@@ -3616,8 +3616,10 @@ impl RetainedState {
         }
         let Some(cascade_input) = effects.cascade_input(&self.retained_match_answers, node) else {
             self.computed_group_sets.assigned_style_record(node)?;
-            // OPTIMIZATION: Contextual shadow answers have no reusable document cascade identity. Their current
-            //               winner rows are sufficient for engine computation; a host computation can match on demand.
+            // OPTIMIZATION: An answer holding rules of another tree scope, such as a shadow host's or a slotted
+            //               element's, has no reusable document cascade identity, and neither does one whose input
+            //               this flush dropped. Their current winner rows are sufficient for engine computation; a
+            //               host computation can match on demand.
             self.counters.bump(Counter::DeferredCascadeCompletions);
             return Some(PublishedMatchAnswer {
                 node,
