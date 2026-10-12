@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes fade-a { from { opacity: 1; } to { opacity: 0; } }
+    @keyframes fade-b { from { opacity: 1; } to { opacity: 0; } }
+    #fading { width: 10px; height: 10px; background: blue; animation: fade-a 10s linear; }
+</style>
+<div id="fading"></div>
+<div id="box" style="width: 10px; height: 0px; background: green"></div>
+<script>
+    // The lane ticks an animation beside one whose play is pending, which holds still until the host makes it ready.
+    asyncTest(async done => {
+        let restarting = true;
+        let name = "fade-a";
+        const restart = () => {
+            if (!restarting)
+                return;
+            name = name === "fade-a" ? "fade-b" : "fade-a";
+            fading.style.animationName = name;
+            requestAnimationFrame(restart);
+        };
+        const result = await whileLaneAnimates(() => {
+            requestAnimationFrame(restart);
+            return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
+        }, (frameTime, animation) => {
+            restarting = false;
+            const fadingIsPending = fading.getAnimations().some(fade => fade.pending);
+            internals.injectClockTick(frameTime + 1000);
+            const result = {
+                fadingIsPending,
+                lane: internals.clockLaneState(document),
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+            animation.cancel();
+            return result;
+        });
+        println(`the fading animation is pending as the task begins: ${result.fadingIsPending}`);
+        println(`lane after the tick: ${result.lane}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        done();
+    });
+</script>
