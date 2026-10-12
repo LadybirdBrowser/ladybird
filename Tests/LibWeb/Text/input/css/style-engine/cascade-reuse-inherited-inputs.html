@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        for (const mode of ["light", "named", "manual"]) {
+            const host = document.createElement("div");
+            host.id = `host-${mode}`;
+            document.body.append(host);
+            const style = document.createElement("style");
+            let source = host;
+            if (mode === "light") {
+                style.textContent = `#${host.id} > .rule { color: rgb(30, 40, 50); } #${host.id}[style*="color"] > .attribute { background-color: yellow; } #${host.id} > div::before { content: "pseudo"; }`;
+                document.head.append(style);
+            } else {
+                const shadow = host.attachShadow({ mode: "open", slotAssignment: mode });
+                style.textContent = `::slotted(.rule) { color: rgb(30, 40, 50); } slot[style*="color"]::slotted(.attribute) { background-color: yellow; }`;
+                shadow.append(style);
+                source = document.createElement("slot");
+                shadow.append(source);
+            }
+            const children = Array.from({ length: 5 }, () => {
+                const child = document.createElement("div");
+                child.innerHTML = "<span>child</span>";
+                host.append(child);
+                return child;
+            });
+            children[2].className = "rule";
+            children[3].className = "attribute";
+            children[4].style.color = "var(--tone)";
+            source.style.setProperty("--tone", "rgb(10, 20, 30)");
+            if (mode === "manual")
+                source.assign(...children);
+            internals.updateStyle();
+
+            source.style.color = "red";
+            children[0].style.color = "blue";
+            children[1].style.backgroundColor = "green";
+            internals.updateStyle();
+            println(`${mode}: edited child color: ${getComputedStyle(children[0]).color}`);
+            println(`${mode}: unchanged child inherits: ${getComputedStyle(children[1]).color}`);
+            println(`${mode}: edited child background: ${getComputedStyle(children[1]).backgroundColor}`);
+            println(`${mode}: descendant inherits edited child: ${getComputedStyle(children[0].firstElementChild).color}`);
+            println(`${mode}: rule color: ${getComputedStyle(children[2]).color}`);
+            println(`${mode}: attribute selector observes parent: ${getComputedStyle(children[3]).backgroundColor}`);
+            println(`${mode}: substituted color: ${getComputedStyle(children[4]).color}`);
+
+            style.sheet.cssRules[0].style.color = "rgb(60, 70, 80)";
+            source.style.color = "green";
+            source.style.setProperty("--tone", "rgb(40, 50, 60)");
+            internals.updateStyle();
+            println(`${mode}: edited rule color: ${getComputedStyle(children[2]).color}`);
+            println(`${mode}: changed inherited color: ${getComputedStyle(children[1]).color}`);
+            println(`${mode}: changed substituted color: ${getComputedStyle(children[4]).color}`);
+            println(`${mode}: authored color stays blue: ${getComputedStyle(children[0]).color}`);
+
+            source.style.removeProperty("color");
+            children[0].style.removeProperty("color");
+            internals.updateStyle();
+            println(`${mode}: removed declarations restore color: ${getComputedStyle(children[0]).color}`);
+            println(`${mode}: attribute selector stops matching: ${getComputedStyle(children[3]).backgroundColor}`);
+            if (mode === "light")
+                println(`light: pseudo inherits restored color: ${getComputedStyle(children[0], "::before").color}`);
+            host.remove();
+            style.remove();
+        }
+
+        for (const mode of ["named", "manual"]) {
+            const host = document.createElement("div");
+            document.body.append(host);
+            const shadow = host.attachShadow({ mode: "open", slotAssignment: mode });
+            shadow.innerHTML = "<style>::slotted(.substitution) { color: var(--contextual-tone); }</style><slot></slot>";
+            const slot = shadow.querySelector("slot");
+            const child = document.createElement("div");
+            child.style.cssText = "opacity: 1; transition: opacity 1000s linear; width: 2em; border: 1px solid currentColor";
+            host.append(child);
+            if (mode === "manual")
+                slot.assign(child);
+            const childShadow = child.attachShadow({ mode: "open" });
+            childShadow.innerHTML = "<span>shadow child</span>";
+            slot.style.color = "red";
+            internals.updateStyle();
+            child.style.opacity = "0";
+            internals.updateStyle();
+            const transition = child.getAnimations()[0];
+            transition.pause();
+            transition.currentTime = 500000;
+            internals.updateStyle();
+            slot.style.color = "blue";
+            internals.updateStyle();
+            println(`${mode}: contextual transition keeps object: ${child.getAnimations()[0] === transition}`);
+            println(`${mode}: contextual opacity sample: ${getComputedStyle(child).opacity}`);
+            println(`${mode}: contextual inherited color: ${getComputedStyle(child).color}`);
+            println(`${mode}: contextual currentColor border: ${getComputedStyle(child).borderTopColor}`);
+            println(`${mode}: contextual shadow inheritance: ${getComputedStyle(childShadow.firstElementChild).color}`);
+
+            child.classList.add("substitution");
+            slot.style.setProperty("--contextual-tone", "red");
+            internals.updateStyle();
+            slot.style.setProperty("--contextual-tone", "green");
+            slot.style.fontSize = "20px";
+            internals.updateStyle();
+            println(`${mode}: contextual substitution updates: ${getComputedStyle(child).color}`);
+            println(`${mode}: contextual font updates em width: ${getComputedStyle(child).width}`);
+            println(`${mode}: contextual sample survives font update: ${getComputedStyle(child).opacity}`);
+            println(`${mode}: contextual shadow follows substitution: ${getComputedStyle(childShadow.firstElementChild).color}`);
+            child.style.transition = "none";
+            internals.updateStyle();
+            println(`${mode}: contextual transition removed: ${child.getAnimations().length === 0}`);
+            println(`${mode}: contextual base opacity restored: ${getComputedStyle(child).opacity}`);
+            host.remove();
+        }
+
+        const host = document.createElement("div");
+        const child = document.createElement("div");
+        host.append(child);
+        document.body.append(host);
+        host.style.setProperty("--cascade-reuse-registered", "5px");
+        child.style.color = "var(--cascade-reuse-registered)";
+        internals.updateStyle();
+        println(`unregistered invalid color: ${getComputedStyle(child).color}`);
+        CSS.registerProperty({ name: "--cascade-reuse-registered", syntax: "<color>", inherits: true, initialValue: "green" });
+        internals.updateStyle();
+        println(`registration changes substitution: ${getComputedStyle(child).color}`);
+        host.style.setProperty("--cascade-reuse-registered", "blue");
+        internals.updateStyle();
+        println(`registered inherited value changes: ${getComputedStyle(child).color}`);
+        host.remove();
+    });
+</script>

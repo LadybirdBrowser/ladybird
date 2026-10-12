@@ -195,6 +195,7 @@ define_counters! {
     SelectorTruthDerivedAnswerMisses => "selectorTruthDerivedAnswerMisses",
     SelectorTruthDerivedAnswerHits => "selectorTruthDerivedAnswerHits",
     RetainedMatchAnswerReuses => "retainedMatchAnswerReuses",
+    DeferredCascadeCompletions => "deferredCascadeCompletions",
     RetainedSelectorIncidenceBatchPrograms => "retainedSelectorIncidenceBatchPrograms",
     RetainedSelectorIncidenceBatchRows => "retainedSelectorIncidenceBatchRows",
     RetainedSelectorIncidenceBatchMissingRows => "retainedSelectorIncidenceBatchMissingRows",

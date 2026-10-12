@@ -3593,8 +3593,8 @@ impl RetainedState {
         })
     }
 
-    /// An inherited-input-only transaction changes no selector or declaration. Keep the exact
-    /// cascade input and current winner rows instead of compacting the same matches again.
+    /// A row whose selectors and declarations did not change keeps its exact cascade input and
+    /// current winner rows instead of compacting the same matches again.
     pub(super) fn reuse_published_match_answer(
         &mut self,
         effects: &mut AnswerEffects,
@@ -3614,7 +3614,19 @@ impl RetainedState {
         {
             return None;
         }
-        let cascade_input = effects.cascade_input(&self.retained_match_answers, node)?;
+        let Some(cascade_input) = effects.cascade_input(&self.retained_match_answers, node) else {
+            self.computed_group_sets.assigned_style_record(node)?;
+            // OPTIMIZATION: Contextual shadow answers have no reusable document cascade identity. Their current
+            //               winner rows are sufficient for engine computation; a host computation can match on demand.
+            self.counters.bump(Counter::DeferredCascadeCompletions);
+            return Some(PublishedMatchAnswer {
+                node,
+                cascade_input: None,
+                matches: None,
+                cascade_winners_are_complete: false,
+                observed: false,
+            });
+        };
         self.match_answers.answer(cascade_input)?;
         let retained = self.retained_match_answer_with_effects(effects, node).sparse().ok()?;
         let cascade_winners_are_complete = self.tree.tree_scope(node) == TreeScopeID::DOCUMENT

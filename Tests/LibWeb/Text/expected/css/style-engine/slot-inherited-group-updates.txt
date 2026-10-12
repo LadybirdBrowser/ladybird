@@ -1,6 +1,8 @@
 named: inherited color avoids full drives: true
 named: shared inherited groups are computed at most twice: true
 named: siblings reuse inherited group results: true
+named: inherited updates reuse cascades: true
+named: cascade completion is bounded: true
 named: assigned colors: true
 named: descendant colors: true
 named: currentColor borders: true
@@ -15,6 +17,8 @@ named: changed font updates em width: 60px
 manual: inherited color avoids full drives: true
 manual: shared inherited groups are computed at most twice: true
 manual: siblings reuse inherited group results: true
+manual: inherited updates reuse cascades: true
+manual: cascade completion is bounded: true
 manual: assigned colors: true
 manual: descendant colors: true
 manual: currentColor borders: true
