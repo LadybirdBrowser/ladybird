@@ -2566,38 +2566,34 @@ fn evaluate_a_custom_function(
     }
 
     // 4. Let registrations be an initially empty set of custom property registrations.
-    let mut registrations = Rc::new(HashMap::new());
+    let mut registrations = HashMap::new();
 
     // 5. For each function parameter of custom function, create a custom property registration with the parameter's
     //    name, a syntax of the parameter type, an inherit flag of "true", and no initial value. Add the registration to
     //    registrations.
     for parameter in &custom_function.signature.parameters {
-        Rc::get_mut(&mut registrations)
-            .expect("Failed to get mutable reference to registrations")
-            .insert(
-                parameter.name.units().to_vec(),
-                FunctionLocalRegistration {
-                    syntax: (*parameter.syntax).clone(),
-                    initial_tokens: None,
-                    is_result: false,
-                },
-            );
+        registrations.insert(
+            parameter.name.units().to_vec(),
+            FunctionLocalRegistration {
+                syntax: (*parameter.syntax).clone(),
+                initial_tokens: None,
+                is_result: false,
+            },
+        );
     }
 
     // 6. If custom function has a return type, create a custom property registration with the name "result", a syntax
     //    of the return type, an inherit flag of "false", and no initial value. Add the registration to registrations.
     // NB: Custom functions always have a return type, defaulting to the universal syntax.
     let result_name: Vec<u16> = b"result".iter().copied().map(u16::from).collect();
-    Rc::get_mut(&mut registrations)
-        .expect("Failed to get mutable reference to registrations")
-        .insert(
-            result_name.clone(),
-            FunctionLocalRegistration {
-                syntax: (*custom_function.signature.return_type).clone(),
-                initial_tokens: None,
-                is_result: true,
-            },
-        );
+    registrations.insert(
+        result_name.clone(),
+        FunctionLocalRegistration {
+            syntax: (*custom_function.signature.return_type).clone(),
+            initial_tokens: None,
+            is_result: true,
+        },
+    );
 
     // NB: FunctionLocalRegistration does not store an inherit flag; resolve_function_local_property() encodes the
     //     parameter and result inheritance behavior.
@@ -2650,6 +2646,7 @@ fn evaluate_a_custom_function(
 
     // 9. Resolve function styles using custom function, argument rule, registrations, and calling context. Let argument
     //    styles be the result.
+    let mut registrations = Rc::new(registrations);
     let mut argument_styles = resolve_function_styles(
         store,
         registry,
