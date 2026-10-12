@@ -1,19 +1,19 @@
 document
   generic
     navigation name="Breadcrumb"
-      link name="Home" url="file:///"
+      link name="Home" url="https://example.org/"
         text leaf name="Home"
       text leaf name="
         "
       text leaf name="
         "
-      link name="Documentation" url="file:///docs"
+      link name="Documentation" url="https://example.org/docs"
         text leaf name="Documentation"
       text leaf name="
         "
       text leaf name="
         "
-      link name="API Reference" url="file:///docs/api"
+      link name="API Reference" url="https://example.org/docs/api"
         text leaf name="API Reference"
     main
       button name="Normal button"

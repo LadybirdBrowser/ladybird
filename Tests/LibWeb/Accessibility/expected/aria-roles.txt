@@ -1,7 +1,7 @@
 document
   generic
     navigation name="Main navigation"
-      link name="Home" url="file:///"
+      link name="Home" url="https://example.org/"
         text leaf name="Home"
     main
       heading name="Content" level=2

@@ -3,10 +3,10 @@ document
     navigation name="Site"
       generic
         generic
-          link name="Deep link A" url="file:///a"
+          link name="Deep link A" url="https://example.org/a"
             text leaf name="Deep link A"
       generic
-        link name="Deep link B" url="file:///b"
+        link name="Deep link B" url="https://example.org/b"
           text leaf name="Deep link B"
     main
       generic

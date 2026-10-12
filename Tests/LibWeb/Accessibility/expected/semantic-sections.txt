@@ -4,7 +4,7 @@ document
       heading name="Page Title" level=1
         text leaf name="Page Title"
     navigation name="Main"
-      link name="Home" url="file:///"
+      link name="Home" url="https://example.org/"
         text leaf name="Home"
     main
       article name="First article"
@@ -24,10 +24,10 @@ document
         text leaf name="Related Links"
       list
         listitem
-          link name="Link 1" url="file:///link1"
+          link name="Link 1" url="https://example.org/link1"
             text leaf name="Link 1"
         listitem
-          link name="Link 2" url="file:///link2"
+          link name="Link 2" url="https://example.org/link2"
             text leaf name="Link 2"
     contentinfo
       paragraph

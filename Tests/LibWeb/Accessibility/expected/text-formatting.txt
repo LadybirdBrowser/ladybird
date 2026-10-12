@@ -10,7 +10,7 @@ document
       text leaf name=" words."
     paragraph
       text leaf name="Text with "
-      link name="an inline link" url="file:///link"
+      link name="an inline link" url="https://example.org/link"
         text leaf name="an inline link"
       text leaf name=" inside it."
     paragraph

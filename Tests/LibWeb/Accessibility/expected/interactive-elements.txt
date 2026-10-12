@@ -1,8 +1,8 @@
 document
   generic
-    link name="Simple link" url="file:///page1"
+    link name="Simple link" url="https://example.org/page1"
       text leaf name="Simple link"
-    link name="Icon Link with image" url="file:///page2"
+    link name="Icon Link with image" url="https://example.org/page2"
       image name="Icon"
       text leaf name=" Link with image"
     button name="Simple button"
