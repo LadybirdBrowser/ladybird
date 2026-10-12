@@ -3319,11 +3319,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 .copied()
                 .max_by_key(|&index| self.flex_items[index].main_offset),
         })?;
-        let source = if self.item_baseline_is_synthesized(item) {
-            formatting_context::ChildBaselineSource::Synthesized
-        } else {
-            formatting_context::ChildBaselineSource::OwnOrSynthesized
-        };
+        let source = self.baseline_source_for_item(item);
         formatting_context::baseline_of_child(
             self.run.records,
             &self.run.callbacks,
@@ -3331,6 +3327,27 @@ impl<'pass> FlexFormattingContext<'pass> {
             baseline_set,
             source,
         )
+    }
+
+    fn baseline_source_for_item(&self, item: usize) -> formatting_context::ChildBaselineSource {
+        // If the button's inner box has no in-flow boxes, avoid synthesizing a baseline from it: it is vertically
+        // centered, so that would place adjacent text too high. Use its content-box bottom edge instead.
+        if self.facts(self.run.box_).is_anonymous_button_content_wrapper() {
+            let has_in_flow_boxes = self.run.callbacks.children(self.flex_items[item].box_).any(|child| {
+                let facts = self.facts(child);
+                facts.is_flow_layout_participant() && !facts.is_floating()
+            });
+
+            if !has_in_flow_boxes {
+                return formatting_context::ChildBaselineSource::Own;
+            }
+        }
+
+        if self.item_baseline_is_synthesized(item) {
+            formatting_context::ChildBaselineSource::Synthesized
+        } else {
+            formatting_context::ChildBaselineSource::OwnOrSynthesized
+        }
     }
 
     pub(super) fn parent_did_dimension(&self) {

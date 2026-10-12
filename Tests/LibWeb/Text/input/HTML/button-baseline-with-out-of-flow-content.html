@@ -1,0 +1,65 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    button {
+        position: relative;
+        width: 40px;
+        height: 40px;
+        margin: 0;
+    }
+    .pseudo::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+    }
+    .marker {
+        display: inline-block;
+        width: 0;
+        height: 0;
+    }
+</style>
+<script>
+    test(() => {
+        const cases = [
+            ["empty", ""],
+            ["whitespace", " "],
+            ["pseudo", ""],
+            ["pseudo whitespace", " "],
+            ["absolute child", '<span style="position: absolute; inset: 0"></span>'],
+            ["fixed child", '<span style="position: fixed; width: 40px; height: 40px"></span>'],
+            ["overflowing absolute child", '<span style="position: absolute; height: 80px"></span>'],
+        ];
+        for (const [label, style] of [
+            ["default", ""],
+            ["styled", "box-sizing: border-box; padding: 3px 5px 5px; border: 3px solid; margin: 11px 0 7px"],
+        ]) {
+            for (const [name, content] of cases) {
+                const row = document.createElement("div");
+                row.innerHTML = `<button class="${name}" style="${style}">${content}</button><span class="marker"></span>`;
+                document.body.append(row);
+                const button = row.firstElementChild;
+                const marker = row.lastElementChild;
+                const computedStyle = getComputedStyle(button);
+                // The zero-height marker exposes the line's baseline. Empty buttons use their content-box bottom,
+                // excluding their bottom padding, border, and margin.
+                const contentBottom = button.getBoundingClientRect().bottom
+                    - parseFloat(computedStyle.paddingBottom) - parseFloat(computedStyle.borderBottomWidth);
+                println(`${label} ${name}: ${marker.getBoundingClientRect().bottom === contentBottom}`);
+            }
+        }
+
+        // In-flow text must still supply the button's baseline, even with an absolutely positioned pseudo-element.
+        // Both text ranges use the same font, so equal bottom edges indicate that their baselines align.
+        const row = document.createElement("div");
+        row.style = "font: 20px/20px monospace";
+        row.innerHTML = '<button class="pseudo" style="font: inherit; width: auto; height: 60px">X</button>X';
+        document.body.append(row);
+        const inside = document.createRange();
+        inside.selectNodeContents(row.firstElementChild.firstChild);
+        const outside = document.createRange();
+        outside.selectNodeContents(row.lastChild);
+        println(
+            `text baseline preserved: ${inside.getBoundingClientRect().bottom === outside.getBoundingClientRect().bottom}`
+        );
+    });
+</script>
